@@ -112,13 +112,13 @@ export declare const Offer: z.ZodObject<{
     code: string | null;
     status: "active" | "draft" | "archived";
     name: string;
+    description: string | null;
     id: string;
     startsOn: string;
     createdAt: string;
     scope: "room" | "service" | "folio";
     audience: "anyone" | "in_house";
     departmentName: string | null;
-    description: string | null;
     propertyId: string;
     departmentId: string | null;
     endsOn: string | null;
@@ -132,13 +132,13 @@ export declare const Offer: z.ZodObject<{
     code: string | null;
     status: "active" | "draft" | "archived";
     name: string;
+    description: string | null;
     id: string;
     startsOn: string;
     createdAt: string;
     scope: "room" | "service" | "folio";
     audience: "anyone" | "in_house";
     departmentName: string | null;
-    description: string | null;
     propertyId: string;
     departmentId: string | null;
     endsOn: string | null;
@@ -180,13 +180,13 @@ export declare const OfferList: z.ZodObject<{
         code: string | null;
         status: "active" | "draft" | "archived";
         name: string;
+        description: string | null;
         id: string;
         startsOn: string;
         createdAt: string;
         scope: "room" | "service" | "folio";
         audience: "anyone" | "in_house";
         departmentName: string | null;
-        description: string | null;
         propertyId: string;
         departmentId: string | null;
         endsOn: string | null;
@@ -200,13 +200,13 @@ export declare const OfferList: z.ZodObject<{
         code: string | null;
         status: "active" | "draft" | "archived";
         name: string;
+        description: string | null;
         id: string;
         startsOn: string;
         createdAt: string;
         scope: "room" | "service" | "folio";
         audience: "anyone" | "in_house";
         departmentName: string | null;
-        description: string | null;
         propertyId: string;
         departmentId: string | null;
         endsOn: string | null;
@@ -222,13 +222,13 @@ export declare const OfferList: z.ZodObject<{
         code: string | null;
         status: "active" | "draft" | "archived";
         name: string;
+        description: string | null;
         id: string;
         startsOn: string;
         createdAt: string;
         scope: "room" | "service" | "folio";
         audience: "anyone" | "in_house";
         departmentName: string | null;
-        description: string | null;
         propertyId: string;
         departmentId: string | null;
         endsOn: string | null;
@@ -244,13 +244,13 @@ export declare const OfferList: z.ZodObject<{
         code: string | null;
         status: "active" | "draft" | "archived";
         name: string;
+        description: string | null;
         id: string;
         startsOn: string;
         createdAt: string;
         scope: "room" | "service" | "folio";
         audience: "anyone" | "in_house";
         departmentName: string | null;
-        description: string | null;
         propertyId: string;
         departmentId: string | null;
         endsOn: string | null;
@@ -298,12 +298,12 @@ export declare const GuestOffer: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     reason: string | null;
+    description: string | null;
     id: string;
     startsOn: string;
     propertyName: string | null;
     scope: "room" | "service" | "folio";
     departmentName: string | null;
-    description: string | null;
     propertyId: string;
     endsOn: string | null;
     eligible: boolean;
@@ -317,12 +317,12 @@ export declare const GuestOffer: z.ZodObject<{
 }, {
     name: string;
     reason: string | null;
+    description: string | null;
     id: string;
     startsOn: string;
     propertyName: string | null;
     scope: "room" | "service" | "folio";
     departmentName: string | null;
-    description: string | null;
     propertyId: string;
     endsOn: string | null;
     eligible: boolean;
@@ -363,12 +363,12 @@ export declare const GuestOfferList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string;
         reason: string | null;
+        description: string | null;
         id: string;
         startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
         departmentName: string | null;
-        description: string | null;
         propertyId: string;
         endsOn: string | null;
         eligible: boolean;
@@ -382,12 +382,12 @@ export declare const GuestOfferList: z.ZodObject<{
     }, {
         name: string;
         reason: string | null;
+        description: string | null;
         id: string;
         startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
         departmentName: string | null;
-        description: string | null;
         propertyId: string;
         endsOn: string | null;
         eligible: boolean;
@@ -404,12 +404,12 @@ export declare const GuestOfferList: z.ZodObject<{
     offers: {
         name: string;
         reason: string | null;
+        description: string | null;
         id: string;
         startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
         departmentName: string | null;
-        description: string | null;
         propertyId: string;
         endsOn: string | null;
         eligible: boolean;
@@ -426,12 +426,12 @@ export declare const GuestOfferList: z.ZodObject<{
     offers: {
         name: string;
         reason: string | null;
+        description: string | null;
         id: string;
         startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
         departmentName: string | null;
-        description: string | null;
         propertyId: string;
         endsOn: string | null;
         eligible: boolean;
@@ -522,8 +522,8 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     discountValue: number;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
-    audience?: "anyone" | "in_house" | undefined;
     description?: string | undefined;
+    audience?: "anyone" | "in_house" | undefined;
     departmentId?: string | undefined;
     endsOn?: string | undefined;
     minNights?: number | undefined;
@@ -538,8 +538,8 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     discountValue: number;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
-    audience?: "anyone" | "in_house" | undefined;
     description?: string | undefined;
+    audience?: "anyone" | "in_house" | undefined;
     departmentId?: string | undefined;
     endsOn?: string | undefined;
     minNights?: number | undefined;
@@ -554,8 +554,8 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     discountValue: number;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
-    audience?: "anyone" | "in_house" | undefined;
     description?: string | undefined;
+    audience?: "anyone" | "in_house" | undefined;
     departmentId?: string | undefined;
     endsOn?: string | undefined;
     minNights?: number | undefined;
@@ -570,8 +570,8 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     discountValue: number;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
-    audience?: "anyone" | "in_house" | undefined;
     description?: string | undefined;
+    audience?: "anyone" | "in_house" | undefined;
     departmentId?: string | undefined;
     endsOn?: string | undefined;
     minNights?: number | undefined;
@@ -586,8 +586,8 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     discountValue: number;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
-    audience?: "anyone" | "in_house" | undefined;
     description?: string | undefined;
+    audience?: "anyone" | "in_house" | undefined;
     departmentId?: string | undefined;
     endsOn?: string | undefined;
     minNights?: number | undefined;
@@ -602,8 +602,8 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     discountValue: number;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
-    audience?: "anyone" | "in_house" | undefined;
     description?: string | undefined;
+    audience?: "anyone" | "in_house" | undefined;
     departmentId?: string | undefined;
     endsOn?: string | undefined;
     minNights?: number | undefined;
@@ -618,8 +618,8 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     discountValue: number;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
-    audience?: "anyone" | "in_house" | undefined;
     description?: string | undefined;
+    audience?: "anyone" | "in_house" | undefined;
     departmentId?: string | undefined;
     endsOn?: string | undefined;
     minNights?: number | undefined;
@@ -634,8 +634,8 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
     discountValue: number;
     code?: string | undefined;
     status?: "active" | "draft" | "archived" | undefined;
-    audience?: "anyone" | "in_house" | undefined;
     description?: string | undefined;
+    audience?: "anyone" | "in_house" | undefined;
     departmentId?: string | undefined;
     endsOn?: string | undefined;
     minNights?: number | undefined;
@@ -669,9 +669,9 @@ export declare const UpdateOfferRequest: z.ZodEffects<z.ZodObject<{
     code?: string | null | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     name?: string | undefined;
+    description?: string | null | undefined;
     startsOn?: string | undefined;
     audience?: "anyone" | "in_house" | undefined;
-    description?: string | null | undefined;
     endsOn?: string | null | undefined;
     discountKind?: "percentage" | "fixed_amount" | undefined;
     discountValue?: number | undefined;
@@ -682,9 +682,9 @@ export declare const UpdateOfferRequest: z.ZodEffects<z.ZodObject<{
     code?: string | null | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     name?: string | undefined;
+    description?: string | null | undefined;
     startsOn?: string | undefined;
     audience?: "anyone" | "in_house" | undefined;
-    description?: string | null | undefined;
     endsOn?: string | null | undefined;
     discountKind?: "percentage" | "fixed_amount" | undefined;
     discountValue?: number | undefined;
@@ -695,9 +695,9 @@ export declare const UpdateOfferRequest: z.ZodEffects<z.ZodObject<{
     code?: string | null | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     name?: string | undefined;
+    description?: string | null | undefined;
     startsOn?: string | undefined;
     audience?: "anyone" | "in_house" | undefined;
-    description?: string | null | undefined;
     endsOn?: string | null | undefined;
     discountKind?: "percentage" | "fixed_amount" | undefined;
     discountValue?: number | undefined;
@@ -708,9 +708,9 @@ export declare const UpdateOfferRequest: z.ZodEffects<z.ZodObject<{
     code?: string | null | undefined;
     status?: "active" | "draft" | "archived" | undefined;
     name?: string | undefined;
+    description?: string | null | undefined;
     startsOn?: string | undefined;
     audience?: "anyone" | "in_house" | undefined;
-    description?: string | null | undefined;
     endsOn?: string | null | undefined;
     discountKind?: "percentage" | "fixed_amount" | undefined;
     discountValue?: number | undefined;
@@ -747,6 +747,7 @@ export declare const RedeemOfferResult: z.ZodObject<{
     /** False when this stay had already taken it; the earlier credit stands. */
     applied: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
+    applied: boolean;
     stayId: string;
     balanceRwf: number;
     folioId: string;
@@ -754,8 +755,8 @@ export declare const RedeemOfferResult: z.ZodObject<{
     offerId: string;
     offerName: string;
     folioChargeId: string | null;
-    applied: boolean;
 }, {
+    applied: boolean;
     stayId: string;
     balanceRwf: number;
     folioId: string;
@@ -763,7 +764,6 @@ export declare const RedeemOfferResult: z.ZodObject<{
     offerId: string;
     offerName: string;
     folioChargeId: string | null;
-    applied: boolean;
 }>;
 export type RedeemOfferResult = z.infer<typeof RedeemOfferResult>;
 //# sourceMappingURL=offers.d.ts.map

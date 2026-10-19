@@ -197,12 +197,12 @@ export declare const Payslip: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "draft" | "confirmed";
     id: string;
-    grossRwf: number;
     paidAt: string | null;
-    contractId: string;
+    grossRwf: number;
     employeeId: string;
-    employeeNumber: string;
     displayName: string;
+    employeeNumber: string;
+    contractId: string;
     payableDays: number;
     payeRwf: number;
     employeeContributionsRwf: number;
@@ -232,12 +232,12 @@ export declare const Payslip: z.ZodObject<{
 }, {
     status: "draft" | "confirmed";
     id: string;
-    grossRwf: number;
     paidAt: string | null;
-    contractId: string;
+    grossRwf: number;
     employeeId: string;
-    employeeNumber: string;
     displayName: string;
+    employeeNumber: string;
+    contractId: string;
     payableDays: number;
     payeRwf: number;
     employeeContributionsRwf: number;
@@ -533,12 +533,12 @@ export declare const PayRunDetail: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "draft" | "confirmed";
         id: string;
-        grossRwf: number;
         paidAt: string | null;
-        contractId: string;
+        grossRwf: number;
         employeeId: string;
-        employeeNumber: string;
         displayName: string;
+        employeeNumber: string;
+        contractId: string;
         payableDays: number;
         payeRwf: number;
         employeeContributionsRwf: number;
@@ -568,12 +568,12 @@ export declare const PayRunDetail: z.ZodObject<{
     }, {
         status: "draft" | "confirmed";
         id: string;
-        grossRwf: number;
         paidAt: string | null;
-        contractId: string;
+        grossRwf: number;
         employeeId: string;
-        employeeNumber: string;
         displayName: string;
+        employeeNumber: string;
+        contractId: string;
         payableDays: number;
         payeRwf: number;
         employeeContributionsRwf: number;
@@ -645,12 +645,12 @@ export declare const PayRunDetail: z.ZodObject<{
     payslips: {
         status: "draft" | "confirmed";
         id: string;
-        grossRwf: number;
         paidAt: string | null;
-        contractId: string;
+        grossRwf: number;
         employeeId: string;
-        employeeNumber: string;
         displayName: string;
+        employeeNumber: string;
+        contractId: string;
         payableDays: number;
         payeRwf: number;
         employeeContributionsRwf: number;
@@ -709,12 +709,12 @@ export declare const PayRunDetail: z.ZodObject<{
     payslips: {
         status: "draft" | "confirmed";
         id: string;
-        grossRwf: number;
         paidAt: string | null;
-        contractId: string;
+        grossRwf: number;
         employeeId: string;
-        employeeNumber: string;
         displayName: string;
+        employeeNumber: string;
+        contractId: string;
         payableDays: number;
         payeRwf: number;
         employeeContributionsRwf: number;

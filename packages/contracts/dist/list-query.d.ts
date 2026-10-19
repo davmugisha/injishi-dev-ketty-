@@ -162,9 +162,9 @@ export declare const ListQuery: z.ZodObject<{
         field: string;
         dir: "asc" | "desc";
     }[] | undefined;
+    q?: string | undefined;
     page?: number | undefined;
     pageSize?: 50 | 10 | 100 | 25 | undefined;
-    q?: string | undefined;
     filters?: {
         field: string;
         op: "eq" | "ne" | "in" | "nin" | "contains" | "gt" | "gte" | "lt" | "lte" | "between" | "isNull" | "isNotNull";
@@ -386,8 +386,8 @@ export declare const SavedViewConfig: z.ZodObject<{
         field: string;
         dir: "asc" | "desc";
     }[] | undefined;
-    pageSize?: 50 | 10 | 100 | 25 | undefined;
     q?: string | undefined;
+    pageSize?: 50 | 10 | 100 | 25 | undefined;
     view?: "card" | "list" | "kanban" | undefined;
     filters?: {
         field: string;
@@ -452,8 +452,8 @@ export declare const SavedView: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 50 | 10 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 50 | 10 | 100 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
@@ -489,9 +489,9 @@ export declare const SavedView: z.ZodObject<{
     };
     authorName: string | null;
     updatedAt: string;
+    isDefault: boolean;
     listKey: string;
     shared: boolean;
-    isDefault: boolean;
     mine: boolean;
 }, {
     name: string;
@@ -501,8 +501,8 @@ export declare const SavedView: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 50 | 10 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 50 | 10 | 100 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
@@ -514,9 +514,9 @@ export declare const SavedView: z.ZodObject<{
     };
     authorName: string | null;
     updatedAt: string;
+    isDefault: boolean;
     listKey: string;
     shared: boolean;
-    isDefault: boolean;
     mine: boolean;
 }>;
 export type SavedView = z.infer<typeof SavedView>;
@@ -575,8 +575,8 @@ export declare const SavedViewList: z.ZodObject<{
                 field: string;
                 dir: "asc" | "desc";
             }[] | undefined;
-            pageSize?: 50 | 10 | 100 | 25 | undefined;
             q?: string | undefined;
+            pageSize?: 50 | 10 | 100 | 25 | undefined;
             view?: "card" | "list" | "kanban" | undefined;
             filters?: {
                 field: string;
@@ -612,9 +612,9 @@ export declare const SavedViewList: z.ZodObject<{
         };
         authorName: string | null;
         updatedAt: string;
+        isDefault: boolean;
         listKey: string;
         shared: boolean;
-        isDefault: boolean;
         mine: boolean;
     }, {
         name: string;
@@ -624,8 +624,8 @@ export declare const SavedViewList: z.ZodObject<{
                 field: string;
                 dir: "asc" | "desc";
             }[] | undefined;
-            pageSize?: 50 | 10 | 100 | 25 | undefined;
             q?: string | undefined;
+            pageSize?: 50 | 10 | 100 | 25 | undefined;
             view?: "card" | "list" | "kanban" | undefined;
             filters?: {
                 field: string;
@@ -637,9 +637,9 @@ export declare const SavedViewList: z.ZodObject<{
         };
         authorName: string | null;
         updatedAt: string;
+        isDefault: boolean;
         listKey: string;
         shared: boolean;
-        isDefault: boolean;
         mine: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -664,9 +664,9 @@ export declare const SavedViewList: z.ZodObject<{
         };
         authorName: string | null;
         updatedAt: string;
+        isDefault: boolean;
         listKey: string;
         shared: boolean;
-        isDefault: boolean;
         mine: boolean;
     }[];
 }, {
@@ -678,8 +678,8 @@ export declare const SavedViewList: z.ZodObject<{
                 field: string;
                 dir: "asc" | "desc";
             }[] | undefined;
-            pageSize?: 50 | 10 | 100 | 25 | undefined;
             q?: string | undefined;
+            pageSize?: 50 | 10 | 100 | 25 | undefined;
             view?: "card" | "list" | "kanban" | undefined;
             filters?: {
                 field: string;
@@ -691,9 +691,9 @@ export declare const SavedViewList: z.ZodObject<{
         };
         authorName: string | null;
         updatedAt: string;
+        isDefault: boolean;
         listKey: string;
         shared: boolean;
-        isDefault: boolean;
         mine: boolean;
     }[];
 }>;
@@ -751,8 +751,8 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 50 | 10 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 50 | 10 | 100 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
@@ -782,9 +782,9 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     };
+    isDefault: boolean;
     listKey: string;
     shared: boolean;
-    isDefault: boolean;
 }, {
     name: string;
     config: {
@@ -792,8 +792,8 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 50 | 10 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 50 | 10 | 100 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
@@ -804,8 +804,8 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
         columns?: string[] | undefined;
     };
     listKey: string;
-    shared?: boolean | undefined;
     isDefault?: boolean | undefined;
+    shared?: boolean | undefined;
 }>;
 export type CreateSavedViewRequest = z.infer<typeof CreateSavedViewRequest>;
 export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
@@ -860,8 +860,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 50 | 10 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 50 | 10 | 100 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
@@ -891,8 +891,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    shared?: boolean | undefined;
     isDefault?: boolean | undefined;
+    shared?: boolean | undefined;
 }, {
     name?: string | undefined;
     config?: {
@@ -900,8 +900,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 50 | 10 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 50 | 10 | 100 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
@@ -911,8 +911,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    shared?: boolean | undefined;
     isDefault?: boolean | undefined;
+    shared?: boolean | undefined;
 }>, {
     name?: string | undefined;
     config?: {
@@ -931,8 +931,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    shared?: boolean | undefined;
     isDefault?: boolean | undefined;
+    shared?: boolean | undefined;
 }, {
     name?: string | undefined;
     config?: {
@@ -940,8 +940,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 50 | 10 | 100 | 25 | undefined;
         q?: string | undefined;
+        pageSize?: 50 | 10 | 100 | 25 | undefined;
         view?: "card" | "list" | "kanban" | undefined;
         filters?: {
             field: string;
@@ -951,8 +951,8 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
         groupBy?: string | undefined;
         columns?: string[] | undefined;
     } | undefined;
-    shared?: boolean | undefined;
     isDefault?: boolean | undefined;
+    shared?: boolean | undefined;
 }>;
 export type UpdateSavedViewRequest = z.infer<typeof UpdateSavedViewRequest>;
 export declare const MAX_BULK_IDS = 200;

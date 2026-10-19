@@ -1,15 +1,18 @@
 import { z } from "zod";
 import { Domain, OrgRegistrationStatus, OrgRole, OversightRole, OversightScopeLevel, RwfAmount, Uuid } from "./primitives";
 import { ACCOMMODATION_CLASS_LABEL } from "./rdb";
-import { OversightDecisionQuery, PsfApplicationInput, PsfCompanyType, PsfContactRole, PsfOwnership, PsfTradeDirection } from "./registration";
+import { EnterpriseRegistrationKind, OversightDecisionQuery, PsfApplicationInput, PsfCompanyType, PsfContactRole, PsfOwnerGroup, PsfOwnership, PsfTradeDirection } from "./registration";
 /**
- * PSF membership (ADR-056).
+ * PSF membership (ADR-056, widened by the PSF path).
  *
- * A hospitality business that is not a Private Sector Federation member
- * applies from the registration wizard or its workspace; a PSF membership
- * officer decides in the oversight console; a Yes becomes a membership with a
- * number and an expiry. PSF invoices the business itself, so nothing here
- * carries a payment.
+ * A business that is not a Private Sector Federation member applies from its
+ * workspace (a hotel may also apply from the registration wizard); a PSF
+ * membership officer approves it; the business then pays the membership fee
+ * through Injishi, which passes it to PSF; the payment is what makes it a
+ * member, with a number and an expiry.
+ *
+ * Two kinds of business apply: a hospitality business, and an `enterprise`,
+ * a business of any sector that registered on Injishi in order to join PSF.
  *
  * The application INPUT lives in `registration.ts`, because a registration
  * embeds it. Everything else is here.
@@ -21,14 +24,26 @@ import { OversightDecisionQuery, PsfApplicationInput, PsfCompanyType, PsfContact
 // ---------------------------------------------------------------------------
 // Vocabulary
 // ---------------------------------------------------------------------------
-export const PsfMembershipFamily = z.enum(["golden_circle", "indashyikirwa", "ordinary", "junior_giants"]);
+/**
+ * The families PSF prices membership in. `ordinary` and `junior_giants` are
+ * retired (2026-10-15) and stay only so the rows that name them still read.
+ */
+export const PsfMembershipFamily = z.enum(["golden_circle", "indashyikirwa", "indatwa", "ordinary", "junior_giants"]);
 export type PsfMembershipFamily = z.infer<typeof PsfMembershipFamily>;
-/** A fixed amount, a min to max range, or a price only PSF can quote. */
-export const PsfPriceKind = z.enum(["fixed", "range", "set_by_psf"]);
+/**
+ * A fixed amount, a min to max band, a floor with no ceiling (`minimum`, which
+ * is Golden Circle's 5,000,000 and up), or a price only PSF can quote.
+ */
+export const PsfPriceKind = z.enum(["fixed", "range", "minimum", "set_by_psf"]);
 export type PsfPriceKind = z.infer<typeof PsfPriceKind>;
-/** `submitted` is the only open state; the other three are terminal. */
-export const PsfApplicationStatus = z.enum(["submitted", "member", "declined", "withdrawn"]);
+/**
+ * `submitted` waits on PSF, `approved` waits on the business's payment; both
+ * are open. The other three are terminal.
+ */
+export const PsfApplicationStatus = z.enum(["submitted", "approved", "member", "declined", "withdrawn"]);
 export type PsfApplicationStatus = z.infer<typeof PsfApplicationStatus>;
+/** The statuses an application is still open in: one per business at a time. */
+export const PSF_OPEN_APPLICATION_STATUSES: readonly PsfApplicationStatus[] = ["submitted", "approved"];
 export const PsfSubmittedCapacity = z.enum(["owner", "on_behalf_of"]);
 export type PsfSubmittedCapacity = z.infer<typeof PsfSubmittedCapacity>;
 export const PsfDeclineReason = z.enum([
@@ -42,9 +57,10 @@ export const PsfMembershipSource = z.enum(["psf_confirmed", "self_declared"]);
 export type PsfMembershipSource = z.infer<typeof PsfMembershipSource>;
 /**
  * Where an open application stands, as the business reads it. Derived on the
- * server from the business's registration status (ADR-056 AC-8), never stored.
+ * server from the application and the business's registration status
+ * (ADR-056 AC-8), never stored.
  */
-export const PsfApplicationStage = z.enum(["waiting_tin_check", "with_psf"]);
+export const PsfApplicationStage = z.enum(["waiting_tin_check", "with_psf", "awaiting_payment"]);
 export type PsfApplicationStage = z.infer<typeof PsfApplicationStage>;
 /**
  * The registration states in which an open application sits in PSF's queue
@@ -63,6 +79,8 @@ export function isInPsfQueueState(status: OrgRegistrationStatus): boolean {
 // ---------------------------------------------------------------------------
 // Who may apply for a business (ADR-056, "the applicant")
 // ---------------------------------------------------------------------------
+/** The domains that may hold a PSF membership through Injishi. A residence may not. */
+export const PSF_DOMAINS: readonly Domain[] = ["hospitality", "enterprise"];
 /** The facts the applicant rule reads, all from the server's own rows. */
 export interface PsfApplicantFacts {
     userId: string;
@@ -80,18 +98,19 @@ export interface PsfApplicantFacts {
  * The workspace grant's `canManage`, every PSF endpoint and the business's
  * mail recipients all read it, over facts the server resolved.
  *
- * An active owner, EXCEPT the on behalf registrant once the owner has claimed
- * the business. The exception is load bearing: registration makes that agent
- * an `owner`, and the claim does not remove the row (scope `_root` 40), so
- * "is an owner" alone would keep the agent reading the owner's ID number and
- * date of birth after the claim. While the claim is open the agent qualifies
- * through that same owner row, with no special case.
+ * An active owner of a hospitality or PSF business, EXCEPT the on behalf
+ * registrant once the owner has claimed the business. The exception is load
+ * bearing: registration makes that agent an `owner`, and the claim does not
+ * remove the row (scope `_root` 40), so "is an owner" alone would keep the
+ * agent reading the owner's ID number and date of birth after the claim. While
+ * the claim is open the agent qualifies through that same owner row, with no
+ * special case.
  *
  * Deliberately not a permission: a pending business holds none (ADR-053 rule
  * 2), and the application must be reachable at every registration stage.
  */
 export function isPsfApplicant(facts: PsfApplicantFacts): boolean {
-    if (facts.domain !== "hospitality")
+    if (facts.domain === null || !PSF_DOMAINS.includes(facts.domain))
         return false;
     if (facts.orgRole !== "owner")
         return false;
@@ -106,11 +125,23 @@ export function isPsfApplicant(facts: PsfApplicantFacts): boolean {
 export const PSF_FAMILY_LABEL: Readonly<Record<PsfMembershipFamily, string>> = {
     golden_circle: "Golden Circle",
     indashyikirwa: "Indashyikirwa",
+    indatwa: "Indatwa",
     ordinary: "Ordinary",
     junior_giants: "Junior Giants",
 };
+/** One line on who each family is for, as the tier picker introduces it. */
+export const PSF_FAMILY_BLURB: Readonly<Record<PsfMembershipFamily, string>> = {
+    golden_circle: "For large companies and major investors.",
+    indashyikirwa: "For established businesses leading their sector.",
+    indatwa: "For small and growing businesses. Pick the band you can afford.",
+    ordinary: "Retired.",
+    junior_giants: "Retired.",
+};
+/** The families a business can still pick, in the order PSF ranks them. */
+export const PSF_OFFERED_FAMILIES: readonly PsfMembershipFamily[] = ["golden_circle", "indashyikirwa", "indatwa"];
 export const PSF_APPLICATION_STATUS_LABEL: Readonly<Record<PsfApplicationStatus, string>> = {
-    submitted: "Sent",
+    submitted: "With PSF",
+    approved: "Approved, to pay",
     member: "Member",
     declined: "Declined",
     withdrawn: "Withdrawn",
@@ -118,6 +149,7 @@ export const PSF_APPLICATION_STATUS_LABEL: Readonly<Record<PsfApplicationStatus,
 export const PSF_APPLICATION_STAGE_LABEL: Readonly<Record<PsfApplicationStage, string>> = {
     waiting_tin_check: "Waiting for your TIN check",
     with_psf: "With PSF",
+    awaiting_payment: "Approved, waiting for your payment",
 };
 export const PSF_DECLINE_REASON_LABEL: Readonly<Record<PsfDeclineReason, string>> = {
     details_incomplete: "Details incomplete",
@@ -157,12 +189,40 @@ export const PSF_CONTACT_ROLE_LABEL: Readonly<Record<PsfContactRole, string>> = 
     ceo: "CEO",
     chairman: "Chairman or president",
 };
+export const PSF_OWNER_GROUP_LABEL: Readonly<Record<PsfOwnerGroup, string>> = {
+    women: "Women owned",
+    youth: "Youth owned",
+    pwd: "Owned by a person with a disability",
+};
+/** The same groups, short, for a chip or a filter. */
+export const PSF_OWNER_GROUP_SHORT: Readonly<Record<PsfOwnerGroup, string>> = {
+    women: "Women",
+    youth: "Youth",
+    pwd: "PWD",
+};
+export const ENTERPRISE_REGISTRATION_KIND_LABEL: Readonly<Record<EnterpriseRegistrationKind, string>> = {
+    tin: "RRA TIN",
+    rca: "Cooperative, registered with RCA",
+    rgb: "NGO, registered with RGB",
+    other: "Another registration",
+    none: "Not registered yet",
+};
+/** The same kinds, as a filed form names its registration: `TIN 123456789`. */
+export const REGISTRATION_TYPE_SHORT: Readonly<Record<string, string>> = {
+    tin: "TIN",
+    rca: "RCA",
+    rgb: "RGB",
+    other: "Registration",
+    none: "Not registered",
+};
 /** What the business is told about the fee, wherever it picks a tier (AC-2). */
-export const PSF_FEE_NOTICE = "PSF invoices you directly for the membership fee. Injishi never takes this money.";
-export const PSF_OPEN_APPLICATION_MESSAGE = "This business already has an application with PSF. Withdraw it before sending another.";
+export const PSF_FEE_NOTICE = "Once PSF approves you, you pay the membership fee here by mobile money. It goes to PSF; Injishi keeps none of it.";
+export const PSF_OPEN_APPLICATION_MESSAGE = "This business already has an open application with PSF. Withdraw it before sending another.";
 export const PSF_NOT_OPEN_MESSAGE = "This application has already been decided or withdrawn.";
+export const PSF_NOT_PAYABLE_MESSAGE = "This application is not waiting for a payment.";
 export const PSF_OWN_BUSINESS_MESSAGE = "You hold a role in this business, so another PSF officer must decide its application.";
-export const PSF_HOSPITALITY_ONLY_MESSAGE = "PSF membership through Injishi is for hospitality businesses.";
+export const PSF_NOT_FOR_RESIDENCE_MESSAGE = "PSF membership through Injishi is for businesses, not for residences let on a lease.";
+export const PSF_OUT_OF_SCOPE_MESSAGE = "This business is outside the region you cover.";
 // ---------------------------------------------------------------------------
 // Where an oversight role may be posted (ADR-056 AC-10)
 // ---------------------------------------------------------------------------
@@ -170,6 +230,9 @@ export const PSF_HOSPITALITY_ONLY_MESSAGE = "PSF membership through Injishi is f
  * The body and scopes a role must be granted at, for the roles that have a
  * rule at all. The registration roles have none and are unchanged; the grant
  * path refuses with 422 a grant that breaks its role's entry.
+ *
+ * A PSF membership officer may be posted for the whole country, a province or
+ * one district, and sees exactly the businesses of that region.
  */
 export const OVERSIGHT_ROLE_POSTING: Readonly<Partial<Record<OversightRole, {
     governmentBodyCode: string;
@@ -178,8 +241,8 @@ export const OVERSIGHT_ROLE_POSTING: Readonly<Partial<Record<OversightRole, {
 }>>> = {
     psf_membership_officer: {
         governmentBodyCode: "PSF",
-        scopeLevels: ["country"],
-        message: "A PSF membership officer is appointed at PSF, for the whole country.",
+        scopeLevels: ["country", "province", "district"],
+        message: "A PSF membership officer is appointed at PSF.",
     },
 };
 // ---------------------------------------------------------------------------
@@ -216,6 +279,9 @@ const tierPriceShape = (value: {
     if (value.priceKind === "range" && (fee !== null || min === null || max === null || min <= 0 || min >= max)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["annualFeeMinRwf"], message: "A range needs a lowest and a highest amount, lowest first." });
     }
+    if (value.priceKind === "minimum" && (fee !== null || min === null || min <= 0 || max !== null)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["annualFeeMinRwf"], message: "A price from an amount up needs that lowest amount, and no highest." });
+    }
     if (value.priceKind === "set_by_psf" && (fee !== null || min !== null || max !== null)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["priceKind"], message: "A price set by PSF carries no amount." });
     }
@@ -241,7 +307,7 @@ export const CreatePsfTierRequest = z
     code: z
         .string()
         .trim()
-        .regex(/^[a-z][a-z0-9_]{1,59}$/, "Use lower case letters, digits and underscores, like ordinary_300k."),
+        .regex(/^[a-z][a-z0-9_]{1,59}$/, "Use lower case letters, digits and underscores, like indatwa_10k."),
     ...tierFields,
 })
     .superRefine(tierPriceShape);
@@ -252,6 +318,123 @@ export type CreatePsfTierRequest = z.infer<typeof CreatePsfTierRequest>;
  */
 export const UpdatePsfTierRequest = z.object(tierFields).superRefine(tierPriceShape);
 export type UpdatePsfTierRequest = z.infer<typeof UpdatePsfTierRequest>;
+/** The price columns of a tier, or of an application's quote of one. */
+export interface PsfPrice {
+    priceKind: PsfPriceKind;
+    annualFeeRwf: number | null;
+    annualFeeMinRwf: number | null;
+    annualFeeMaxRwf: number | null;
+}
+/**
+ * Does this tier take this yearly amount?
+ *
+ * A business pays what it can afford inside its band, so the amount it names
+ * is checked here, the one rule the apply form and the server both read:
+ * a fixed tier takes its price, a band anything inside it, a floor anything
+ * from it up. A tier PSF prices itself takes no amount from the business:
+ * the officer names it on approval.
+ */
+export function psfTierAcceptsFee(tier: PsfPrice, amountRwf: number | null | undefined): boolean {
+    const amount = amountRwf ?? null;
+    switch (tier.priceKind) {
+        case "fixed":
+            return amount !== null && amount === tier.annualFeeRwf;
+        case "range":
+            return (amount !== null &&
+                tier.annualFeeMinRwf !== null &&
+                tier.annualFeeMaxRwf !== null &&
+                amount >= tier.annualFeeMinRwf &&
+                amount <= tier.annualFeeMaxRwf);
+        case "minimum":
+            return amount !== null && tier.annualFeeMinRwf !== null && amount >= tier.annualFeeMinRwf;
+        case "set_by_psf":
+            return amount === null;
+    }
+}
+/** What a refusal of `psfTierAcceptsFee` says, in the band's own terms. */
+export function psfFeeProblem(tier: PsfPrice, amountRwf: number | null | undefined): string | null {
+    if (psfTierAcceptsFee(tier, amountRwf))
+        return null;
+    const rwf = (n: number | null) => `RWF ${(n ?? 0).toLocaleString("en-US")}`;
+    switch (tier.priceKind) {
+        case "fixed":
+            return `This tier costs ${rwf(tier.annualFeeRwf)} a year.`;
+        case "range":
+            return `Give an amount from ${rwf(tier.annualFeeMinRwf)} to ${rwf(tier.annualFeeMaxRwf)}.`;
+        case "minimum":
+            return `Give an amount of at least ${rwf(tier.annualFeeMinRwf)}.`;
+        case "set_by_psf":
+            return "PSF names the price of this tier. Leave the amount empty.";
+    }
+}
+/** The amount a form starts from: the price, or the bottom of the band. */
+export function psfStartingFee(tier: PsfPrice): number | null {
+    if (tier.priceKind === "fixed")
+        return tier.annualFeeRwf;
+    if (tier.priceKind === "range" || tier.priceKind === "minimum")
+        return tier.annualFeeMinRwf;
+    return null;
+}
+// ---------------------------------------------------------------------------
+// The sector catalogue (clusters and their associations)
+// ---------------------------------------------------------------------------
+/**
+ * PSF's sector clusters, and the associations inside them, as a catalogue
+ * admin edits. PSF restructured once already (ten chambers became five
+ * clusters in 2022), so this is data, never an enum: a new association is an
+ * edit, not a migration. Women, youth and disability (the Specialized cluster)
+ * are not here; they are `PsfOwnerGroup`, a marker on a business of any sector.
+ */
+export const PsfAssociation = z.object({
+    code: z.string(),
+    clusterCode: z.string(),
+    nameEn: z.string(),
+    acronym: z.string().nullable(),
+    sortOrder: z.number().int(),
+    active: z.boolean(),
+});
+export type PsfAssociation = z.infer<typeof PsfAssociation>;
+export const PsfCluster = z.object({
+    code: z.string(),
+    nameEn: z.string(),
+    nameRw: z.string().nullable(),
+    /** One line on what kind of business belongs here. */
+    description: z.string().nullable(),
+    sortOrder: z.number().int(),
+    active: z.boolean(),
+    associations: z.array(PsfAssociation),
+});
+export type PsfCluster = z.infer<typeof PsfCluster>;
+/** `GET /psf/catalogue`: the clusters in order, each with its associations. */
+export const PsfCatalogue = z.object({ clusters: z.array(PsfCluster) });
+export type PsfCatalogue = z.infer<typeof PsfCatalogue>;
+const catalogueCode = z
+    .string()
+    .trim()
+    .regex(/^[a-z][a-z0-9_]{1,59}$/, "Use lower case letters, digits and underscores, like industry.");
+const auditReason = z.string().trim().min(3, "Say why, for the audit record.").max(500);
+export const UpsertPsfClusterRequest = z.object({
+    nameEn: z.string().trim().min(1, "Give the cluster a name.").max(80),
+    nameRw: z.string().trim().min(1).max(80).nullable().optional(),
+    description: z.string().trim().max(240).nullable().optional(),
+    sortOrder: z.number().int().min(0).max(999),
+    active: z.boolean().default(true),
+    reason: auditReason,
+});
+export type UpsertPsfClusterRequest = z.infer<typeof UpsertPsfClusterRequest>;
+export const CreatePsfClusterRequest = UpsertPsfClusterRequest.extend({ code: catalogueCode });
+export type CreatePsfClusterRequest = z.infer<typeof CreatePsfClusterRequest>;
+export const UpsertPsfAssociationRequest = z.object({
+    clusterCode: z.string().trim().min(1, "Pick the cluster."),
+    nameEn: z.string().trim().min(1, "Give the association a name.").max(160),
+    acronym: z.string().trim().min(1).max(24).nullable().optional(),
+    sortOrder: z.number().int().min(0).max(999),
+    active: z.boolean().default(true),
+    reason: auditReason,
+});
+export type UpsertPsfAssociationRequest = z.infer<typeof UpsertPsfAssociationRequest>;
+export const CreatePsfAssociationRequest = UpsertPsfAssociationRequest.extend({ code: catalogueCode });
+export type CreatePsfAssociationRequest = z.infer<typeof CreatePsfAssociationRequest>;
 // ---------------------------------------------------------------------------
 // Reads
 // ---------------------------------------------------------------------------
@@ -270,8 +453,10 @@ export type PsfMembership = z.infer<typeof PsfMembership>;
 /** The form as filed. Read by the business that sent it and the officer. */
 export const PsfFiledForm = z.object({
     companyName: z.string(),
+    /** `tin`, `rca`, `rgb`, `other` or `none` (see `REGISTRATION_TYPE_SHORT`). */
     registrationType: z.string(),
-    registrationNumber: z.string(),
+    /** Null for a business registered nowhere yet. */
+    registrationNumber: z.string().nullable(),
     website: z.string().nullable(),
     streetAddress: z.string(),
     companyType: PsfCompanyType,
@@ -292,6 +477,16 @@ export const PsfFiledForm = z.object({
     dateOfBirth: z.string(),
 });
 export type PsfFiledForm = z.infer<typeof PsfFiledForm>;
+/** The payment that made an approved application a membership. */
+export const PsfPayment = z.object({
+    paidAt: z.string(),
+    amountRwf: RwfAmount,
+    /** The provider's own reference, which a receipt quotes. */
+    reference: z.string(),
+    /** Whether Injishi has passed the money on to PSF yet. */
+    remittedAt: z.string().nullable(),
+});
+export type PsfPayment = z.infer<typeof PsfPayment>;
 export const PsfApplication = z.object({
     id: Uuid,
     status: PsfApplicationStatus,
@@ -301,6 +496,8 @@ export const PsfApplication = z.object({
     quotedFeeRwf: RwfAmount.nullable(),
     quotedFeeMinRwf: RwfAmount.nullable(),
     quotedFeeMaxRwf: RwfAmount.nullable(),
+    /** What the business said it would pay a year. Null for a tier PSF prices. */
+    declaredFeeRwf: RwfAmount.nullable(),
     submittedAt: z.string(),
     submittedCapacity: PsfSubmittedCapacity,
     /** Named so an owner can see an application sent on their behalf (AC-17). */
@@ -309,6 +506,10 @@ export const PsfApplication = z.object({
     decidedAt: z.string().nullable(),
     declineReason: PsfDeclineReason.nullable(),
     decisionNote: z.string().nullable(),
+    /** Set on approval: the number PSF gave, and what the business now owes. */
+    approvedMembershipNumber: z.string().nullable(),
+    approvedFeeRwf: RwfAmount.nullable(),
+    payment: PsfPayment.nullable(),
     withdrawnAt: z.string().nullable(),
     form: PsfFiledForm,
 });
@@ -341,11 +542,27 @@ export const PsfApplicationPrefill = z.object({
     dateOfBirth: z.string().optional(),
 });
 export type PsfApplicationPrefill = z.infer<typeof PsfApplicationPrefill>;
+/** The business as PSF sees it: its code, its sector and who owns it. */
+export const PsfBusinessProfile = z.object({
+    domain: Domain,
+    businessCode: z.string().nullable(),
+    districtName: z.string().nullable(),
+    clusterName: z.string().nullable(),
+    associationName: z.string().nullable(),
+    ownerGroups: z.array(PsfOwnerGroup),
+    registrationKind: EnterpriseRegistrationKind.nullable(),
+});
+export type PsfBusinessProfile = z.infer<typeof PsfBusinessProfile>;
 /** `GET /orgs/:orgId/psf-membership` (AC-15). */
 export const PsfMembershipOverview = z.object({
     orgId: Uuid,
-    /** The TIN PSF's form is filed under; not editable (AC-3). */
+    /**
+     * The registration PSF's form is filed under; not editable (AC-3). A TIN
+     * for a hotel, whatever the business registered with on the PSF path, and
+     * empty for a PSF business registered nowhere yet.
+     */
     registrationNumber: z.string(),
+    profile: PsfBusinessProfile,
     current: PsfMembership.nullable(),
     open: PsfApplication.extend({ stage: PsfApplicationStage }).nullable(),
     /** Decided and withdrawn applications, newest first. */
@@ -370,6 +587,19 @@ export type AdminOrgPsf = z.infer<typeof AdminOrgPsf>;
 /** `POST /orgs/:orgId/psf-applications` (AC-16). */
 export const CreatePsfApplicationRequest = PsfApplicationInput;
 export type CreatePsfApplicationRequest = z.infer<typeof CreatePsfApplicationRequest>;
+/**
+ * `POST /orgs/:orgId/psf-applications/:id/pay`: pay an approved application's
+ * fee by mobile money. The number the prompt goes to; the amount is the one on
+ * the approval, never the request's.
+ */
+export const PayPsfMembershipRequest = z.object({
+    phoneE164: z
+        .string()
+        .trim()
+        .transform((v) => v.replace(/[\s-]/g, ""))
+        .pipe(z.string().regex(/^\+2507\d{8}$/, "Give a Rwandan mobile money number, like +250788123456.")),
+});
+export type PayPsfMembershipRequest = z.infer<typeof PayPsfMembershipRequest>;
 // ---------------------------------------------------------------------------
 // The officer's side (AC-10 to AC-14)
 // ---------------------------------------------------------------------------
@@ -377,8 +607,13 @@ export const PsfQueueItem = z.object({
     applicationId: Uuid,
     orgId: Uuid,
     businessName: z.string(),
+    businessCode: z.string().nullable(),
+    domain: Domain,
     districtName: z.string().nullable(),
+    associationName: z.string().nullable(),
+    ownerGroups: z.array(PsfOwnerGroup),
     requestedTierName: z.string(),
+    declaredFeeRwf: RwfAmount.nullable(),
     submittedAt: z.string(),
     queuedAt: z.string().nullable(),
     registrationStatus: OrgRegistrationStatus,
@@ -399,25 +634,22 @@ export const PsfOfficerApplication = PsfApplication.extend({
     businessName: z.string(),
     districtName: z.string().nullable(),
     registrationStatus: OrgRegistrationStatus,
+    profile: PsfBusinessProfile,
     canDecide: z.boolean(),
 });
 export type PsfOfficerApplication = z.infer<typeof PsfOfficerApplication>;
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use the date picker.");
-/** Marking an application `member` (AC-11). */
-export const PsfMemberDecisionRequest = z
-    .object({
-    tierCode: z.string().trim().min(1, "Pick the tier PSF confirmed."),
+/**
+ * Approving an application (AC-11, as the PSF path changed it). PSF gives the
+ * membership number now; the membership itself starts when the business pays.
+ * The fee is the business's own declared amount, so the officer names one only
+ * for a tier PSF prices itself.
+ */
+export const PsfApproveRequest = z.object({
     membershipNumber: z.string().trim().min(1, "Give the PSF membership number.").max(40),
-    annualFeeRwf: RwfAmount.refine((n) => n > 0, "Give the annual fee PSF charged."),
-    startsOn: isoDate,
-    expiresOn: isoDate,
-})
-    .superRefine((value, ctx) => {
-    if (value.expiresOn <= value.startsOn) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["expiresOn"], message: "The expiry must come after the start." });
-    }
+    feeRwf: RwfAmount.refine((n) => n > 0, "Give the annual fee PSF charges.").optional(),
+    note: z.string().trim().min(1).max(1000).optional(),
 });
-export type PsfMemberDecisionRequest = z.infer<typeof PsfMemberDecisionRequest>;
+export type PsfApproveRequest = z.infer<typeof PsfApproveRequest>;
 /** Declining an application (AC-12). A note is required with `other`. */
 export const PsfDeclineRequest = z
     .object({
@@ -430,10 +662,107 @@ export const PsfDeclineRequest = z
     }
 });
 export type PsfDeclineRequest = z.infer<typeof PsfDeclineRequest>;
+// ---------------------------------------------------------------------------
+// The officer's register of businesses
+// ---------------------------------------------------------------------------
 /**
- * The membership dates an officer starts from: today, and one year later less
- * a day (ADR-056 value sourcing). `today` is a yyyy-mm-dd date in
- * Africa/Kigali, which the caller resolves.
+ * Where a business stands with PSF, as the officer's register filters it.
+ * Derived from its applications and memberships, never stored:
+ *
+ *   not_applied        registered, never applied (or only withdrew)
+ *   applied            an application waits on PSF
+ *   awaiting_payment   approved, the fee not yet paid
+ *   member             a current membership
+ *   lapsed             a membership that ended, and none current
+ *   declined           the last application was declined, none open
+ */
+export const PsfStanding = z.enum(["not_applied", "applied", "awaiting_payment", "member", "lapsed", "declined"]);
+export type PsfStanding = z.infer<typeof PsfStanding>;
+export const PSF_STANDING_LABEL: Readonly<Record<PsfStanding, string>> = {
+    not_applied: "Not applied",
+    applied: "Applied",
+    awaiting_payment: "Approved, to pay",
+    member: "Member",
+    lapsed: "Lapsed",
+    declined: "Declined",
+};
+/** The registers a business may be listed under: the PSF path, a hotel, or both. */
+export const PsfBusinessKind = z.enum(["enterprise", "hospitality"]);
+export type PsfBusinessKind = z.infer<typeof PsfBusinessKind>;
+const optionalText = (max: number) => z.string().trim().min(1).max(max).optional();
+/**
+ * `GET /oversight/psf/businesses`. Every filter optional; together they narrow.
+ * `district` must sit inside the officer's own region, or the list is empty.
+ */
+export const PsfBusinessesQuery = z.object({
+    q: optionalText(80),
+    district: z.coerce.number().int().positive().optional(),
+    cluster: optionalText(60),
+    association: optionalText(60),
+    tier: optionalText(60),
+    standing: PsfStanding.optional(),
+    group: PsfOwnerGroup.optional(),
+    tin: z.enum(["with", "without"]).optional(),
+    kind: PsfBusinessKind.optional(),
+    cursor: z.string().max(200).optional(),
+});
+export type PsfBusinessesQuery = z.infer<typeof PsfBusinessesQuery>;
+export const PsfBusinessRow = z.object({
+    orgId: Uuid,
+    businessCode: z.string().nullable(),
+    legalName: z.string(),
+    domain: Domain,
+    districtId: z.number().int().nullable(),
+    districtName: z.string().nullable(),
+    sectorName: z.string().nullable(),
+    clusterCode: z.string().nullable(),
+    clusterName: z.string().nullable(),
+    associationName: z.string().nullable(),
+    associationAcronym: z.string().nullable(),
+    ownerGroups: z.array(PsfOwnerGroup),
+    registrationKind: EnterpriseRegistrationKind.nullable(),
+    hasTin: z.boolean(),
+    registeredAt: z.string(),
+    standing: PsfStanding,
+    tierName: z.string().nullable(),
+    membershipNumber: z.string().nullable(),
+    expiresOn: z.string().nullable(),
+    /** The open application, when there is one, so the row can open it. */
+    openApplicationId: Uuid.nullable(),
+});
+export type PsfBusinessRow = z.infer<typeof PsfBusinessRow>;
+export const PsfBusinessesPage = z.object({
+    items: z.array(PsfBusinessRow),
+    nextCursor: z.string().nullable(),
+    /** How many businesses match the filters, across every page. */
+    total: z.number().int(),
+});
+export type PsfBusinessesPage = z.infer<typeof PsfBusinessesPage>;
+/** A count of businesses under one heading, for the register's summary. */
+export const PsfCount = z.object({ key: z.string(), label: z.string(), count: z.number().int() });
+export type PsfCount = z.infer<typeof PsfCount>;
+/**
+ * `GET /oversight/psf/summary`: the officer's region at a glance. Counted over
+ * the officer's whole region, ignoring the register's other filters.
+ */
+export const PsfRegisterSummary = z.object({
+    /** The region in words: "Rwanda", a province, or a district. */
+    regionLabel: z.string(),
+    total: z.number().int(),
+    members: z.number().int(),
+    waiting: z.number().int(),
+    /** Fees paid this calendar year through Injishi, in RWF. */
+    paidThisYearRwf: z.number().int(),
+    byCluster: z.array(PsfCount),
+    byStanding: z.array(PsfCount),
+    byGroup: z.array(PsfCount),
+    byDistrict: z.array(PsfCount.extend({ letters: z.string() })),
+});
+export type PsfRegisterSummary = z.infer<typeof PsfRegisterSummary>;
+/**
+ * The membership dates a payment starts from: the day it settled, and one
+ * year later less a day (ADR-056 value sourcing). `today` is a yyyy-mm-dd date
+ * in Africa/Kigali, which the caller resolves.
  */
 export function defaultPsfMembershipDates(today: string): {
     startsOn: string;
@@ -445,10 +774,13 @@ export function defaultPsfMembershipDates(today: string): {
     return { startsOn: today, expiresOn: end.toISOString().slice(0, 10) };
 }
 /**
- * The business activity PSF's form starts from, derived from the
- * accommodation class (ADR-056 value sourcing). Editable wherever it shows.
+ * The business activity PSF's form starts from (ADR-056 value sourcing): the
+ * accommodation class for a hotel, the association for a PSF business.
+ * Editable wherever it shows.
  */
-export function psfBusinessActivityFor(accommodationClass: string | null, accommodationClassOther: string | null): string {
+export function psfBusinessActivityFor(accommodationClass: string | null, accommodationClassOther: string | null, associationName: string | null = null): string {
+    if (associationName)
+        return associationName;
     if (accommodationClass === "other" && accommodationClassOther)
         return `Accommodation: ${accommodationClassOther}`;
     if (!accommodationClass)

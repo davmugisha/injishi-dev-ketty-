@@ -28,7 +28,7 @@ export type IsoDate = z.infer<typeof IsoDate>;
 export declare const RoomTypeSummary: z.ZodObject<{
     id: z.ZodString;
     name: z.ZodString;
-    domain: z.ZodEnum<["hospitality", "residence"]>;
+    domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
     capacity: z.ZodNullable<z.ZodNumber>;
     /** Bookable units of this Room type (the atomic-hold denominator). */
     roomCount: z.ZodNumber;
@@ -48,7 +48,7 @@ export declare const RoomTypeSummary: z.ZodObject<{
     minStay: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     capacity: number | null;
     id: string;
     roomCount: number;
@@ -60,7 +60,7 @@ export declare const RoomTypeSummary: z.ZodObject<{
     minStay: number | null;
 }, {
     name: string;
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     capacity: number | null;
     id: string;
     roomCount: number;
@@ -175,7 +175,7 @@ export declare const BookableRoom: z.ZodObject<{
     roomType: z.ZodObject<{
         id: z.ZodString;
         name: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
         capacity: z.ZodNullable<z.ZodNumber>;
         /** Bookable units of this Room type (the atomic-hold denominator). */
         roomCount: z.ZodNumber;
@@ -195,7 +195,7 @@ export declare const BookableRoom: z.ZodObject<{
         minStay: z.ZodNullable<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
         id: string;
         roomCount: number;
@@ -207,7 +207,7 @@ export declare const BookableRoom: z.ZodObject<{
         minStay: number | null;
     }, {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
         id: string;
         roomCount: number;
@@ -230,7 +230,7 @@ export declare const BookableRoom: z.ZodObject<{
     };
     roomType: {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
         id: string;
         roomCount: number;
@@ -253,7 +253,7 @@ export declare const BookableRoom: z.ZodObject<{
     };
     roomType: {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
         id: string;
         roomCount: number;
@@ -1326,16 +1326,16 @@ export declare const BookingApprovalResult: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
     id: string;
-    declineReason: "expired" | "host_declined" | null;
     reference: string;
+    declineReason: "expired" | "host_declined" | null;
     paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
     escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
     confirmedAt: string | null;
 }, {
     status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
     id: string;
-    declineReason: "expired" | "host_declined" | null;
     reference: string;
+    declineReason: "expired" | "host_declined" | null;
     paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
     escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
     confirmedAt: string | null;
@@ -1407,16 +1407,16 @@ export declare const CancellationQuote: z.ZodObject<{
     forfeitRwf: z.ZodNumber;
     rule: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    percent: number;
     reference: string;
+    percent: number;
     cancellable: boolean;
     refusal: string | null;
     refundRwf: number;
     forfeitRwf: number;
     rule: string;
 }, {
-    percent: number;
     reference: string;
+    percent: number;
     cancellable: boolean;
     refusal: string | null;
     refundRwf: number;

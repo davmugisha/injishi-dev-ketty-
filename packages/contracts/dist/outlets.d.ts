@@ -89,8 +89,8 @@ export declare const OutletParty: z.ZodObject<{
     isOwnOrg: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "archived";
-    legalName: string;
     tin: string | null;
+    legalName: string;
     orgId: string | null;
     id: string;
     contactEmail: string | null;
@@ -99,8 +99,8 @@ export declare const OutletParty: z.ZodObject<{
     isOwnOrg: boolean;
 }, {
     status: "active" | "archived";
-    legalName: string;
     tin: string | null;
+    legalName: string;
     orgId: string | null;
     id: string;
     contactEmail: string | null;
@@ -124,8 +124,8 @@ export declare const OutletPartyList: z.ZodObject<{
         isOwnOrg: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
-        legalName: string;
         tin: string | null;
+        legalName: string;
         orgId: string | null;
         id: string;
         contactEmail: string | null;
@@ -134,8 +134,8 @@ export declare const OutletPartyList: z.ZodObject<{
         isOwnOrg: boolean;
     }, {
         status: "active" | "archived";
-        legalName: string;
         tin: string | null;
+        legalName: string;
         orgId: string | null;
         id: string;
         contactEmail: string | null;
@@ -146,8 +146,8 @@ export declare const OutletPartyList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     parties: {
         status: "active" | "archived";
-        legalName: string;
         tin: string | null;
+        legalName: string;
         orgId: string | null;
         id: string;
         contactEmail: string | null;
@@ -158,8 +158,8 @@ export declare const OutletPartyList: z.ZodObject<{
 }, {
     parties: {
         status: "active" | "archived";
-        legalName: string;
         tin: string | null;
+        legalName: string;
         orgId: string | null;
         id: string;
         contactEmail: string | null;
@@ -203,32 +203,32 @@ export declare const UpdateOutletPartyRequest: z.ZodEffects<z.ZodObject<{
     status: z.ZodOptional<z.ZodEnum<["active", "archived"]>>;
 }, "strip", z.ZodTypeAny, {
     status?: "active" | "archived" | undefined;
-    legalName?: string | undefined;
     tin?: string | undefined;
+    legalName?: string | undefined;
     orgId?: string | undefined;
     contactEmail?: string | undefined;
     contactName?: string | undefined;
     contactPhone?: string | undefined;
 }, {
     status?: "active" | "archived" | undefined;
-    legalName?: string | undefined;
     tin?: string | undefined;
+    legalName?: string | undefined;
     orgId?: string | undefined;
     contactEmail?: string | undefined;
     contactName?: string | undefined;
     contactPhone?: string | undefined;
 }>, {
     status?: "active" | "archived" | undefined;
-    legalName?: string | undefined;
     tin?: string | undefined;
+    legalName?: string | undefined;
     orgId?: string | undefined;
     contactEmail?: string | undefined;
     contactName?: string | undefined;
     contactPhone?: string | undefined;
 }, {
     status?: "active" | "archived" | undefined;
-    legalName?: string | undefined;
     tin?: string | undefined;
+    legalName?: string | undefined;
     orgId?: string | undefined;
     contactEmail?: string | undefined;
     contactName?: string | undefined;

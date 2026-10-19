@@ -36,7 +36,7 @@ export declare const PropertyDetail: z.ZodObject<{
     roomTypes: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         name: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
         capacity: z.ZodNullable<z.ZodNumber>;
         roomCount: z.ZodNumber;
         nightlyRateRwf: z.ZodNullable<z.ZodNumber>;
@@ -47,7 +47,7 @@ export declare const PropertyDetail: z.ZodObject<{
         minStay: z.ZodNullable<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
         id: string;
         roomCount: number;
@@ -59,7 +59,7 @@ export declare const PropertyDetail: z.ZodObject<{
         minStay: number | null;
     }, {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
         id: string;
         roomCount: number;
@@ -177,10 +177,11 @@ export declare const PropertyDetail: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     districtName: string | null;
+    description: string | null;
     id: string;
     roomTypes: {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
         id: string;
         roomCount: number;
@@ -194,7 +195,6 @@ export declare const PropertyDetail: z.ZodObject<{
     slug: string | null;
     checkInTime: string | null;
     checkOutTime: string | null;
-    description: string | null;
     houseRules: string | null;
     locationPrivacy: boolean;
     photos: string[];
@@ -219,10 +219,11 @@ export declare const PropertyDetail: z.ZodObject<{
 }, {
     name: string;
     districtName: string | null;
+    description: string | null;
     id: string;
     roomTypes: {
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
         id: string;
         roomCount: number;
@@ -236,7 +237,6 @@ export declare const PropertyDetail: z.ZodObject<{
     slug: string | null;
     checkInTime: string | null;
     checkOutTime: string | null;
-    description: string | null;
     houseRules: string | null;
     locationPrivacy: boolean;
     photos: string[];
@@ -296,24 +296,24 @@ export declare const PropertyCard: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     districtName: string | null;
+    description: string | null;
     id: string;
     roomTypeCount: number;
     fromNightlyRateRwf: number | null;
     maxGuests: number | null;
     slug: string;
-    description: string | null;
     photos: string[];
     latitude: number | null;
     longitude: number | null;
 }, {
     name: string;
     districtName: string | null;
+    description: string | null;
     id: string;
     roomTypeCount: number;
     fromNightlyRateRwf: number | null;
     maxGuests: number | null;
     slug: string;
-    description: string | null;
     photos: string[];
     latitude: number | null;
     longitude: number | null;

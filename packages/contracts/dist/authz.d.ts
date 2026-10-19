@@ -305,7 +305,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
     orgId: z.ZodNullable<z.ZodString>;
     orgName: z.ZodNullable<z.ZodString>;
     /** Host vs Landlord. Set only for `business`. */
-    domain: z.ZodNullable<z.ZodEnum<["hospitality", "residence"]>>;
+    domain: z.ZodNullable<z.ZodEnum<["hospitality", "residence", "enterprise"]>>;
     /** The person's role in that org. Set only for `business`. */
     orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
     /**
@@ -384,7 +384,8 @@ export declare const WorkspaceAccess: z.ZodObject<{
      * (ADR-056). Computed on the server by `isPsfApplicant`, which reads the
      * owner membership and the on behalf claim, never a permission: a pending
      * business holds none (ADR-053 rule 2), and the application must be
-     * reachable at every registration stage. Null outside hospitality.
+     * reachable at every registration stage. Null outside a hospitality or PSF
+     * business.
      *
      * Defaults to null when absent, so a client built after this field landed
      * still parses a grant from an API built before it.
@@ -398,7 +399,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
     }>>>;
 }, "strip", z.ZodTypeAny, {
     kind: "business" | "broker" | "personal";
-    domain: "hospitality" | "residence" | null;
+    domain: "hospitality" | "residence" | "enterprise" | null;
     branches: {
         name: string;
         districtName: string | null;
@@ -419,7 +420,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
     } | null;
 }, {
     kind: "business" | "broker" | "personal";
-    domain: "hospitality" | "residence" | null;
+    domain: "hospitality" | "residence" | "enterprise" | null;
     branches: {
         name: string;
         districtName: string | null;

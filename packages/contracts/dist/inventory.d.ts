@@ -58,11 +58,11 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     sectorId: number;
     workspaceId: string;
     street?: string | undefined;
+    description?: string | undefined;
     contactEmail?: string | null | undefined;
     contactPhone?: string | null | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
-    description?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
 }, {
@@ -70,11 +70,11 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     sectorId: number;
     workspaceId: string;
     street?: string | undefined;
+    description?: string | undefined;
     contactEmail?: string | null | undefined;
     contactPhone?: string | null | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
-    description?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
 }>;
@@ -111,12 +111,12 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     name?: string | undefined;
     sectorId?: number | undefined;
     street?: string | undefined;
+    description?: string | undefined;
     rraBranchId?: string | null | undefined;
     contactEmail?: string | null | undefined;
     contactPhone?: string | null | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
-    description?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
 }, {
@@ -124,12 +124,12 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     name?: string | undefined;
     sectorId?: number | undefined;
     street?: string | undefined;
+    description?: string | undefined;
     rraBranchId?: string | null | undefined;
     contactEmail?: string | null | undefined;
     contactPhone?: string | null | undefined;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
-    description?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
 }>;
@@ -441,21 +441,21 @@ export declare const OperatorProperty: z.ZodObject<{
     roomTypes: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         name: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
         status: z.ZodEnum<["active", "archived"]>;
         basePriceRwf: z.ZodNullable<z.ZodNumber>;
         sellableRoomCount: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         id: string;
         sellableRoomCount: number;
         basePriceRwf: number | null;
     }, {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         id: string;
         sellableRoomCount: number;
         basePriceRwf: number | null;
@@ -472,6 +472,7 @@ export declare const OperatorProperty: z.ZodObject<{
         provinceName: string | null;
     };
     isHeadOffice: boolean;
+    description: string | null;
     id: string;
     roomTypeCount: number;
     rraBranchId: string | null;
@@ -481,7 +482,7 @@ export declare const OperatorProperty: z.ZodObject<{
     roomTypes: {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         id: string;
         sellableRoomCount: number;
         basePriceRwf: number | null;
@@ -490,7 +491,6 @@ export declare const OperatorProperty: z.ZodObject<{
     publishedAt: string | null;
     checkInTime: string | null;
     checkOutTime: string | null;
-    description: string | null;
     houseRules: string | null;
     locationPrivacy: boolean;
     listingStatus: "draft" | "published";
@@ -516,6 +516,7 @@ export declare const OperatorProperty: z.ZodObject<{
         provinceName: string | null;
     };
     isHeadOffice: boolean;
+    description: string | null;
     id: string;
     roomTypeCount: number;
     rraBranchId: string | null;
@@ -525,7 +526,7 @@ export declare const OperatorProperty: z.ZodObject<{
     roomTypes: {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         id: string;
         sellableRoomCount: number;
         basePriceRwf: number | null;
@@ -534,7 +535,6 @@ export declare const OperatorProperty: z.ZodObject<{
     publishedAt: string | null;
     checkInTime: string | null;
     checkOutTime: string | null;
-    description: string | null;
     houseRules: string | null;
     locationPrivacy: boolean;
     listingStatus: "draft" | "published";
@@ -989,7 +989,7 @@ export declare const OperatorRoomType: z.ZodObject<{
     id: z.ZodString;
     propertyId: z.ZodString;
     name: z.ZodString;
-    domain: z.ZodEnum<["hospitality", "residence"]>;
+    domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
     status: z.ZodEnum<["active", "archived"]>;
     maxGuests: z.ZodNullable<z.ZodNumber>;
     basePriceRwf: z.ZodNullable<z.ZodNumber>;
@@ -1002,7 +1002,7 @@ export declare const OperatorRoomType: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "active" | "archived";
     name: string;
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     id: string;
     roomCount: number;
     maxGuests: number | null;
@@ -1015,7 +1015,7 @@ export declare const OperatorRoomType: z.ZodObject<{
 }, {
     status: "active" | "archived";
     name: string;
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     id: string;
     roomCount: number;
     maxGuests: number | null;
@@ -1032,7 +1032,7 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
         id: z.ZodString;
         propertyId: z.ZodString;
         name: z.ZodString;
-        domain: z.ZodEnum<["hospitality", "residence"]>;
+        domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
         status: z.ZodEnum<["active", "archived"]>;
         maxGuests: z.ZodNullable<z.ZodNumber>;
         basePriceRwf: z.ZodNullable<z.ZodNumber>;
@@ -1045,7 +1045,7 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         id: string;
         roomCount: number;
         maxGuests: number | null;
@@ -1058,7 +1058,7 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
     }, {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         id: string;
         roomCount: number;
         maxGuests: number | null;
@@ -1073,7 +1073,7 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
     roomTypes: {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         id: string;
         roomCount: number;
         maxGuests: number | null;
@@ -1088,7 +1088,7 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
     roomTypes: {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence";
+        domain: "hospitality" | "residence" | "enterprise";
         id: string;
         roomCount: number;
         maxGuests: number | null;
@@ -1477,7 +1477,7 @@ export type PropertySetupCounts = z.infer<typeof PropertySetupCounts>;
 export declare const PropertySetupProgress: z.ZodObject<{
     orgId: z.ZodString;
     legalName: z.ZodString;
-    domain: z.ZodEnum<["hospitality", "residence"]>;
+    domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
     accommodationClass: z.ZodNullable<z.ZodString>;
     propertyId: z.ZodNullable<z.ZodString>;
     propertyName: z.ZodNullable<z.ZodString>;
@@ -1524,7 +1524,7 @@ export declare const PropertySetupProgress: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     legalName: string;
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     accommodationClass: string | null;
     orgId: string;
     propertyName: string | null;
@@ -1545,7 +1545,7 @@ export declare const PropertySetupProgress: z.ZodObject<{
     };
 }, {
     legalName: string;
-    domain: "hospitality" | "residence";
+    domain: "hospitality" | "residence" | "enterprise";
     accommodationClass: string | null;
     orgId: string;
     propertyName: string | null;

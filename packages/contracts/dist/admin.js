@@ -139,11 +139,12 @@ exports.AdminRegistrationRejectionReason = zod_1.z.enum([
     "duplicate_business",
     "other",
 ]);
-/** `registration_business_type`. The three paths the fee catalog prices. */
+/** `registration_business_type`. The four paths the fee catalog prices. */
 exports.AdminRegistrationBusinessType = zod_1.z.enum([
     "hospitality",
     "residence",
     "broker",
+    "enterprise",
 ]);
 /** `subscription_status`. */
 exports.AdminSubscriptionStatus = zod_1.z.enum([

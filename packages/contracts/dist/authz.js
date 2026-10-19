@@ -671,7 +671,8 @@ exports.WorkspaceAccess = zod_1.z.object({
      * (ADR-056). Computed on the server by `isPsfApplicant`, which reads the
      * owner membership and the on behalf claim, never a permission: a pending
      * business holds none (ADR-053 rule 2), and the application must be
-     * reachable at every registration stage. Null outside hospitality.
+     * reachable at every registration stage. Null outside a hospitality or PSF
+     * business.
      *
      * Defaults to null when absent, so a client built after this field landed
      * still parses a grant from an API built before it.
@@ -708,7 +709,7 @@ function workspaceLabel(a) {
         return "Broker";
     if (a.kind === "personal")
         return "Personal";
-    return a.orgName ?? (a.domain === "residence" ? "Landlord" : "Host");
+    return a.orgName ?? (a.domain === "residence" ? "Landlord" : a.domain === "enterprise" ? "PSF business" : "Host");
 }
 /**
  * The permissions that apply in a workspace.

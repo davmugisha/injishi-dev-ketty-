@@ -162,11 +162,12 @@ export const AdminRegistrationRejectionReason = z.enum([
 export type AdminRegistrationRejectionReason = z.infer<
     typeof AdminRegistrationRejectionReason
 >;
-/** `registration_business_type`. The three paths the fee catalog prices. */
+/** `registration_business_type`. The four paths the fee catalog prices. */
 export const AdminRegistrationBusinessType = z.enum([
     "hospitality",
     "residence",
     "broker",
+    "enterprise",
 ]);
 export type AdminRegistrationBusinessType = z.infer<
     typeof AdminRegistrationBusinessType

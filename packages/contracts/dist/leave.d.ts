@@ -67,8 +67,8 @@ export declare const LeaveAllocationRequest: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     createdAt: string;
-    branchId: string | null;
     workDate: string | null;
+    branchId: string | null;
     days: number;
     leaveType: {
         name: string;
@@ -95,8 +95,8 @@ export declare const LeaveAllocationRequest: z.ZodObject<{
         jobPositionTitle: string | null;
     };
     createdAt: string;
-    branchId: string | null;
     workDate: string | null;
+    branchId: string | null;
     days: number;
     leaveType: {
         name: string;
@@ -225,10 +225,10 @@ export declare const RestrictedLeavePeriod: z.ZodObject<{
     leaveTypeIds: z.ZodArray<z.ZodString, "many">;
     description: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    description: string | null;
     id: string;
     title: string;
     departmentName: string | null;
-    description: string | null;
     departmentId: string | null;
     fromDate: string;
     toDate: string;
@@ -236,10 +236,10 @@ export declare const RestrictedLeavePeriod: z.ZodObject<{
     typeMode: "all" | "only" | "except";
     leaveTypeIds: string[];
 }, {
+    description: string | null;
     id: string;
     title: string;
     departmentName: string | null;
-    description: string | null;
     departmentId: string | null;
     fromDate: string;
     toDate: string;
@@ -264,10 +264,10 @@ export declare const RestrictedLeavePeriodList: z.ZodObject<{
         leaveTypeIds: z.ZodArray<z.ZodString, "many">;
         description: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        description: string | null;
         id: string;
         title: string;
         departmentName: string | null;
-        description: string | null;
         departmentId: string | null;
         fromDate: string;
         toDate: string;
@@ -275,10 +275,10 @@ export declare const RestrictedLeavePeriodList: z.ZodObject<{
         typeMode: "all" | "only" | "except";
         leaveTypeIds: string[];
     }, {
+        description: string | null;
         id: string;
         title: string;
         departmentName: string | null;
-        description: string | null;
         departmentId: string | null;
         fromDate: string;
         toDate: string;
@@ -288,10 +288,10 @@ export declare const RestrictedLeavePeriodList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     periods: {
+        description: string | null;
         id: string;
         title: string;
         departmentName: string | null;
-        description: string | null;
         departmentId: string | null;
         fromDate: string;
         toDate: string;
@@ -301,10 +301,10 @@ export declare const RestrictedLeavePeriodList: z.ZodObject<{
     }[];
 }, {
     periods: {
+        description: string | null;
         id: string;
         title: string;
         departmentName: string | null;
-        description: string | null;
         departmentId: string | null;
         fromDate: string;
         toDate: string;
@@ -371,8 +371,8 @@ export declare const UpdateRestrictedLeavePeriodRequest: z.ZodEffects<z.ZodEffec
     leaveTypeIds: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodString, "many">>>;
     description: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
 }, "strip", z.ZodTypeAny, {
-    title?: string | undefined;
     description?: string | null | undefined;
+    title?: string | undefined;
     departmentId?: string | null | undefined;
     fromDate?: string | undefined;
     toDate?: string | undefined;
@@ -380,8 +380,8 @@ export declare const UpdateRestrictedLeavePeriodRequest: z.ZodEffects<z.ZodEffec
     typeMode?: "all" | "only" | "except" | undefined;
     leaveTypeIds?: string[] | undefined;
 }, {
-    title?: string | undefined;
     description?: string | null | undefined;
+    title?: string | undefined;
     departmentId?: string | null | undefined;
     fromDate?: string | undefined;
     toDate?: string | undefined;
@@ -389,8 +389,8 @@ export declare const UpdateRestrictedLeavePeriodRequest: z.ZodEffects<z.ZodEffec
     typeMode?: "all" | "only" | "except" | undefined;
     leaveTypeIds?: string[] | undefined;
 }>, {
-    title?: string | undefined;
     description?: string | null | undefined;
+    title?: string | undefined;
     departmentId?: string | null | undefined;
     fromDate?: string | undefined;
     toDate?: string | undefined;
@@ -398,8 +398,8 @@ export declare const UpdateRestrictedLeavePeriodRequest: z.ZodEffects<z.ZodEffec
     typeMode?: "all" | "only" | "except" | undefined;
     leaveTypeIds?: string[] | undefined;
 }, {
-    title?: string | undefined;
     description?: string | null | undefined;
+    title?: string | undefined;
     departmentId?: string | null | undefined;
     fromDate?: string | undefined;
     toDate?: string | undefined;
@@ -407,8 +407,8 @@ export declare const UpdateRestrictedLeavePeriodRequest: z.ZodEffects<z.ZodEffec
     typeMode?: "all" | "only" | "except" | undefined;
     leaveTypeIds?: string[] | undefined;
 }>, {
-    title?: string | undefined;
     description?: string | null | undefined;
+    title?: string | undefined;
     departmentId?: string | null | undefined;
     fromDate?: string | undefined;
     toDate?: string | undefined;
@@ -416,8 +416,8 @@ export declare const UpdateRestrictedLeavePeriodRequest: z.ZodEffects<z.ZodEffec
     typeMode?: "all" | "only" | "except" | undefined;
     leaveTypeIds?: string[] | undefined;
 }, {
-    title?: string | undefined;
     description?: string | null | undefined;
+    title?: string | undefined;
     departmentId?: string | null | undefined;
     fromDate?: string | undefined;
     toDate?: string | undefined;
@@ -461,8 +461,8 @@ export declare const LeaveBalanceRow: z.ZodObject<{
         displayName: string;
         jobPositionTitle: string | null;
     };
-    branchId: string | null;
     jobPositionId: string | null;
+    branchId: string | null;
     balances: {
         days: number | null;
         leaveTypeId: string;
@@ -473,8 +473,8 @@ export declare const LeaveBalanceRow: z.ZodObject<{
         displayName: string;
         jobPositionTitle: string | null;
     };
-    branchId: string | null;
     jobPositionId: string | null;
+    branchId: string | null;
     balances: {
         days: number | null;
         leaveTypeId: string;
@@ -578,6 +578,12 @@ export declare const LeaveDashboard: z.ZodObject<{
         allocations: number;
     }>;
 }, "strip", z.ZodTypeAny, {
+    waiting: {
+        requests: number;
+        routedToMe: number;
+        atStepTwo: number;
+        allocations: number;
+    };
     today: string;
     onLeaveToday: {
         startsOn: string;
@@ -601,13 +607,13 @@ export declare const LeaveDashboard: z.ZodObject<{
         requestId: string;
         leaveTypeName: string;
     }[];
-    waiting: {
-        requests: number;
-        routedToMe: number;
-        atStepTwo: number;
-        allocations: number;
-    };
 }, {
+    waiting: {
+        requests: number;
+        routedToMe: number;
+        atStepTwo: number;
+        allocations: number;
+    };
     today: string;
     onLeaveToday: {
         startsOn: string;
@@ -631,12 +637,6 @@ export declare const LeaveDashboard: z.ZodObject<{
         requestId: string;
         leaveTypeName: string;
     }[];
-    waiting: {
-        requests: number;
-        routedToMe: number;
-        atStepTwo: number;
-        allocations: number;
-    };
 }>;
 export type LeaveDashboard = z.infer<typeof LeaveDashboard>;
 export declare const LeaveDefaultsDiff: z.ZodObject<{
@@ -1142,8 +1142,8 @@ export declare const MyLeaveRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         createdAt: string;
-        branchId: string | null;
         endsOn: string;
+        branchId: string | null;
         paymentPercent: number | null;
         approvalSteps: number;
         days: number;
@@ -1180,8 +1180,8 @@ export declare const MyLeaveRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         createdAt: string;
-        branchId: string | null;
         endsOn: string;
+        branchId: string | null;
         paymentPercent: number | null;
         approvalSteps: number;
         days: number;
@@ -1220,8 +1220,8 @@ export declare const MyLeaveRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         createdAt: string;
-        branchId: string | null;
         endsOn: string;
+        branchId: string | null;
         paymentPercent: number | null;
         approvalSteps: number;
         days: number;
@@ -1260,8 +1260,8 @@ export declare const MyLeaveRequestList: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         createdAt: string;
-        branchId: string | null;
         endsOn: string;
+        branchId: string | null;
         paymentPercent: number | null;
         approvalSteps: number;
         days: number;
@@ -1352,8 +1352,8 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         createdAt: string;
-        branchId: string | null;
         workDate: string | null;
+        branchId: string | null;
         days: number;
         leaveType: {
             name: string;
@@ -1380,8 +1380,8 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         createdAt: string;
-        branchId: string | null;
         workDate: string | null;
+        branchId: string | null;
         days: number;
         leaveType: {
             name: string;
@@ -1410,8 +1410,8 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         createdAt: string;
-        branchId: string | null;
         workDate: string | null;
+        branchId: string | null;
         days: number;
         leaveType: {
             name: string;
@@ -1440,8 +1440,8 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
             jobPositionTitle: string | null;
         };
         createdAt: string;
-        branchId: string | null;
         workDate: string | null;
+        branchId: string | null;
         days: number;
         leaveType: {
             name: string;

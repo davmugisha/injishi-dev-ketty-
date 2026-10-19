@@ -15,15 +15,25 @@ const require = createRequire(import.meta.url);
 const {
   CreateRegistrationRequest,
   CreatePsfTierRequest,
+  DISTRICT_LETTERS,
   OVERSIGHT_ROLE_POSTING,
   OversightRole,
+  PayPsfMembershipRequest,
   PsfApplicationInput,
+  PsfApproveRequest,
+  PsfBusinessesQuery,
   PsfDeclineRequest,
-  PsfMemberDecisionRequest,
+  businessTypeFor,
   defaultPsfMembershipDates,
+  districtLetters,
+  formatBusinessCode,
   isInPsfQueueState,
   isPsfApplicant,
+  normalizeBusinessCode,
   oversightConsoleFor,
+  psfFeeProblem,
+  psfStartingFee,
+  psfTierAcceptsFee,
   splitPsfName,
 } = require("../dist/index.js");
 
@@ -164,13 +174,6 @@ describe("the tier catalogue's price rule (AC-19)", () => {
 });
 
 describe("the officer's decisions (AC-11, AC-12)", () => {
-  test("member needs every field, and an expiry after the start", () => {
-    const ok = { tierCode: "ordinary_300k", membershipNumber: "PSF/2026/001", annualFeeRwf: 300000, startsOn: "2026-09-27", expiresOn: "2027-09-26" };
-    assert.deepEqual(paths(PsfMemberDecisionRequest, ok), []);
-    assert.deepEqual(paths(PsfMemberDecisionRequest, { ...ok, expiresOn: "2026-09-27" }), ["expiresOn"]);
-    assert.deepEqual(paths(PsfMemberDecisionRequest, { ...ok, annualFeeRwf: 0 }), ["annualFeeRwf"]);
-  });
-
   test("decline Other needs a note", () => {
     assert.deepEqual(paths(PsfDeclineRequest, { reason: "other" }), ["note"]);
     assert.deepEqual(paths(PsfDeclineRequest, { reason: "details_incomplete" }), []);
@@ -183,9 +186,9 @@ describe("the officer's decisions (AC-11, AC-12)", () => {
 });
 
 describe("the membership officer's posting and console (AC-10)", () => {
-  test("is PSF at country scope, and opens the membership console", () => {
+  test("is PSF, for the country, a province or a district, and opens the membership console", () => {
     assert.equal(OversightRole.options.includes("psf_membership_officer"), true);
-    assert.deepEqual(OVERSIGHT_ROLE_POSTING.psf_membership_officer.scopeLevels, ["country"]);
+    assert.deepEqual(OVERSIGHT_ROLE_POSTING.psf_membership_officer.scopeLevels, ["country", "province", "district"]);
     assert.equal(OVERSIGHT_ROLE_POSTING.psf_membership_officer.governmentBodyCode, "PSF");
     assert.equal(oversightConsoleFor("psf_membership_officer"), "membership");
   });
@@ -201,6 +204,10 @@ describe("who may apply for a business (AC-15, AC-17, AC-22)", () => {
 
   test("an owner of a hospitality business may", () => {
     assert.equal(isPsfApplicant(owner), true);
+  });
+
+  test("an owner of a PSF business may", () => {
+    assert.equal(isPsfApplicant({ ...owner, domain: "enterprise" }), true);
   });
 
   test("a manager, a receptionist and a residence owner may not", () => {
@@ -231,5 +238,143 @@ describe("the queue and the name split", () => {
     assert.deepEqual(splitPsfName("  Yves  Habimana "), { firstName: "Yves", lastName: "Habimana" });
     assert.deepEqual(splitPsfName("Marie Claire Uwase"), { firstName: "Marie Claire", lastName: "Uwase" });
     assert.deepEqual(splitPsfName("Uwase"), { firstName: "Uwase", lastName: "" });
+  });
+});
+
+describe("a PSF business on a registration (the PSF path)", () => {
+  function enterprise(business = {}, request = {}) {
+    return {
+      role: "enterprise",
+      business: {
+        domain: "enterprise",
+        legalName: "Gahaya Metal Works",
+        address: ADDRESS,
+        registrationKind: "tin",
+        tin: "123456789",
+        associationCode: "apromet",
+        ...business,
+      },
+      ...request,
+    };
+  }
+
+  test("is priced on its own fee row", () => {
+    assert.equal(businessTypeFor("enterprise"), "enterprise");
+  });
+
+  test("with a TIN parses, and the owner groups default to none", () => {
+    assert.deepEqual(paths(CreateRegistrationRequest, enterprise()), []);
+    assert.deepEqual(CreateRegistrationRequest.parse(enterprise()).business.ownerGroups, []);
+  });
+
+  test("the TIN is optional: RCA, RGB and other carry a number, none carries nothing", () => {
+    assert.deepEqual(paths(CreateRegistrationRequest, enterprise({ registrationKind: "rca", tin: undefined, registrationNumber: "RCA/0042/2024" })), []);
+    assert.deepEqual(paths(CreateRegistrationRequest, enterprise({ registrationKind: "none", tin: undefined })), []);
+    assert.deepEqual(paths(CreateRegistrationRequest, enterprise({ registrationKind: "rgb", tin: undefined })), ["business.registrationNumber"]);
+    assert.deepEqual(paths(CreateRegistrationRequest, enterprise({ registrationKind: "none", tin: undefined, registrationNumber: "X" })), ["business.registrationNumber"]);
+  });
+
+  test("a TIN goes only with TIN, and TIN needs one", () => {
+    assert.deepEqual(paths(CreateRegistrationRequest, enterprise({ tin: undefined })), ["business.tin"]);
+    assert.deepEqual(paths(CreateRegistrationRequest, enterprise({ registrationKind: "none" })), ["business.tin"]);
+  });
+
+  test("needs its association, and names each owner group once", () => {
+    assert.deepEqual(paths(CreateRegistrationRequest, enterprise({ associationCode: "" })), ["business.associationCode"]);
+    assert.deepEqual(paths(CreateRegistrationRequest, enterprise({ ownerGroups: ["women", "youth"] })), []);
+    assert.deepEqual(paths(CreateRegistrationRequest, enterprise({ ownerGroups: ["women", "women"] })), ["business.ownerGroups"]);
+  });
+
+  test("applies for membership from its portal, never inside the registration", () => {
+    assert.deepEqual(paths(CreateRegistrationRequest, enterprise({ psfApplication: application() })), ["business.psfApplication"]);
+  });
+
+  test("is registered by its owner, and only an enterprise role registers one", () => {
+    assert.deepEqual(paths(CreateRegistrationRequest, enterprise({}, { capacity: "on_behalf_of", intendedOwner: { name: "A B", nationalId: "1199080012345678", email: "a@b.rw" } })), ["capacity"]);
+    assert.deepEqual(paths(CreateRegistrationRequest, enterprise({}, { role: "host" })), ["business.domain"]);
+  });
+});
+
+describe("the price kinds, and what a business may pay (2026-10-15 tiers)", () => {
+  const golden = { priceKind: "minimum", annualFeeRwf: null, annualFeeMinRwf: 5_000_000, annualFeeMaxRwf: null };
+  const indashyikirwa = { priceKind: "range", annualFeeRwf: null, annualFeeMinRwf: 200_000, annualFeeMaxRwf: 4_999_999 };
+  const fixed = { priceKind: "fixed", annualFeeRwf: 100_000, annualFeeMinRwf: null, annualFeeMaxRwf: null };
+  const byPsf = { priceKind: "set_by_psf", annualFeeRwf: null, annualFeeMinRwf: null, annualFeeMaxRwf: null };
+
+  test("Golden Circle is a floor with no ceiling", () => {
+    const tier = { code: "golden_circle", family: "golden_circle", nameEn: "Golden Circle", sortOrder: 1, reason: "PSF price list" };
+    assert.deepEqual(paths(CreatePsfTierRequest, { ...tier, priceKind: "minimum", annualFeeMinRwf: 5_000_000 }), []);
+    assert.deepEqual(paths(CreatePsfTierRequest, { ...tier, priceKind: "minimum", annualFeeMinRwf: 5_000_000, annualFeeMaxRwf: 9_000_000 }), ["annualFeeMinRwf"]);
+    assert.equal(psfTierAcceptsFee(golden, 5_000_000), true);
+    assert.equal(psfTierAcceptsFee(golden, 12_500_000), true);
+    assert.equal(psfTierAcceptsFee(golden, 4_999_999), false);
+  });
+
+  test("a band takes anything inside it, ends included", () => {
+    assert.equal(psfTierAcceptsFee(indashyikirwa, 200_000), true);
+    assert.equal(psfTierAcceptsFee(indashyikirwa, 4_999_999), true);
+    assert.equal(psfTierAcceptsFee(indashyikirwa, 199_999), false);
+    assert.equal(psfFeeProblem(indashyikirwa, 150_000), "Give an amount from RWF 200,000 to RWF 4,999,999.");
+  });
+
+  test("a fixed price takes only itself, and PSF's own price takes no amount", () => {
+    assert.equal(psfTierAcceptsFee(fixed, 100_000), true);
+    assert.equal(psfTierAcceptsFee(fixed, 90_000), false);
+    assert.equal(psfTierAcceptsFee(byPsf, null), true);
+    assert.equal(psfTierAcceptsFee(byPsf, 10_000), false);
+  });
+
+  test("a form starts from the price, or the bottom of the band", () => {
+    assert.equal(psfStartingFee(golden), 5_000_000);
+    assert.equal(psfStartingFee(fixed), 100_000);
+    assert.equal(psfStartingFee(byPsf), null);
+  });
+
+  test("the amount a business declares must be above zero", () => {
+    assert.deepEqual(paths(PsfApplicationInput, application({ declaredFeeRwf: 0 })), ["declaredFeeRwf"]);
+    assert.deepEqual(paths(PsfApplicationInput, application({ declaredFeeRwf: 75_000 })), []);
+  });
+});
+
+describe("approving and paying (the PSF path)", () => {
+  test("an approval names the PSF number, and a fee only when PSF prices the tier", () => {
+    assert.deepEqual(paths(PsfApproveRequest, { membershipNumber: "PSF/KIC/0001" }), []);
+    assert.deepEqual(paths(PsfApproveRequest, { membershipNumber: " " }), ["membershipNumber"]);
+    assert.deepEqual(paths(PsfApproveRequest, { membershipNumber: "PSF/1", feeRwf: 0 }), ["feeRwf"]);
+  });
+
+  test("the fee is paid from a Rwandan mobile money number", () => {
+    assert.equal(PayPsfMembershipRequest.parse({ phoneE164: "+250 788 123 456" }).phoneE164, "+250788123456");
+    assert.deepEqual(paths(PayPsfMembershipRequest, { phoneE164: "+254712345678" }), ["phoneE164"]);
+  });
+
+  test("the register's filters are each optional, and the district is a number", () => {
+    assert.deepEqual(PsfBusinessesQuery.parse({}), {});
+    assert.equal(PsfBusinessesQuery.parse({ district: "103" }).district, 103);
+    assert.deepEqual(paths(PsfBusinessesQuery, { standing: "gold" }), ["standing"]);
+  });
+});
+
+describe("business codes (KIC0001)", () => {
+  test("every district has three letters, and no two share them", () => {
+    const entries = Object.entries(DISTRICT_LETTERS);
+    assert.equal(entries.length, 30);
+    const letters = entries.map(([, d]) => d.letters);
+    assert.equal(new Set(letters).size, 30);
+    for (const l of letters) assert.match(l, /^[A-Z]{3}$/);
+  });
+
+  test("the letters are the name's first three, except where two names share them", () => {
+    assert.equal(districtLetters(103, "Kicukiro"), "KIC");
+    assert.equal(districtLetters(101, "Nyarugenge"), "NRG");
+    assert.equal(districtLetters(506, "Ngoma"), "NGM");
+    assert.equal(districtLetters(999, "Testland"), "TES");
+  });
+
+  test("a code is four digits at least, and grows past 9999", () => {
+    assert.equal(formatBusinessCode("KIC", 1), "KIC0001");
+    assert.equal(formatBusinessCode("KIC", 10000), "KIC10000");
+    assert.equal(normalizeBusinessCode(" kic-0001 "), "KIC0001");
+    assert.equal(normalizeBusinessCode("Gahaya"), null);
   });
 });
