@@ -7,7 +7,6 @@ import {
   Clock,
   Lock,
   PersonMagnifier,
-  Printer,
   ShieldExclamation,
 } from "@gravity-ui/icons";
 import {
@@ -23,6 +22,7 @@ import {
   TextArea,
   TextField,
   Toast,
+  toast,
 } from "@heroui/react";
 import { DropZone, Segment } from "@heroui-pro/react";
 import type { Persona } from "@injishi/data";
@@ -82,14 +82,12 @@ const AREAS = [
   "Garden Terrace",
 ];
 
-interface PhotoFile {
-  id: string;
-  name: string;
-  size: number;
-}
-
-const fileSize = (bytes: number) =>
-  bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+/**
+ * Photos are not kept: the register has no photo column, `POST /uploads` takes no found-item kind and the intake
+ * names no key. So a photo is never "attached" here and no photo count is written to the custody log.
+ */
+const photosUnavailable = () =>
+  toast.warning("Adding photos is not available yet: the register does not store them, so none were kept.");
 
 export function LostFoundView({
   // The register acts as the signed-in person through the API, which records who did each step.
@@ -122,7 +120,6 @@ export function LostFoundView({
   const [foundAt, setFoundAt] = useState("");
   const [spot, setSpot] = useState("Under the bed, window side");
   const [valuable, setValuable] = useState(true);
-  const [photos, setPhotos] = useState<PhotoFile[]>([]);
   const now = useKigaliNow();
   useEffect(() => {
     if (now && !foundAt) setFoundAt(foundAtText(now));
@@ -181,12 +178,14 @@ export function LostFoundView({
         foundBy,
         custodian,
         storage: valuable ? "Safe A · bag pending" : "Store room L-2",
-        photoCount: photos.length,
       });
       if (!reported(result)) return;
       setDesc("");
-      setPhotos([]);
-      if (result.ok) select(result.value);
+      if (result.ok) {
+        select(result.value);
+        // The reference the register gave the item: staff write it on the tag and the bag.
+        toast.success(`Logged as ${result.value}. Write this reference on the tag and the bag.`);
+      }
     });
   };
   const openClaim = () => {
@@ -212,13 +211,6 @@ export function LostFoundView({
       },
     );
   };
-  const addFiles = (files: File[]) =>
-    setPhotos((p) => [
-      ...p,
-      ...files
-        .filter((f) => /\.(jpe?g|png)$/i.test(f.name) || /^image\/(jpeg|png)$/.test(f.type))
-        .map((f, i) => ({ id: `${Date.now()}-${i}-${f.name}`, name: f.name, size: f.size })),
-    ]);
   const exportLog = () =>
     downloadCsv("lost-and-found-custody-log.csv", [
       ["Item ID", "Item", "Category", "Status", "Custody step", "Who and when"],
@@ -505,49 +497,23 @@ export function LostFoundView({
                 </span>
               </Card>
               <DropZone>
-                <DropZone.Area
-                  className="p-3.5"
-                  onDrop={async (e) => {
-                    const files: File[] = [];
-                    for (const it of e.items) if (it.kind === "file") files.push(await it.getFile());
-                    addFiles(files);
-                  }}
-                >
+                <DropZone.Area className="p-3.5" onDrop={photosUnavailable}>
                   <DropZone.Icon>
                     <Camera className="size-5" />
                   </DropZone.Icon>
                   <DropZone.Label>Add photos</DropZone.Label>
-                  <DropZone.Description>Photograph the outside only · JPG or PNG</DropZone.Description>
+                  <DropZone.Description>Not available yet: the register does not store photos</DropZone.Description>
                   <DropZone.Trigger>Choose photos</DropZone.Trigger>
                 </DropZone.Area>
-                <DropZone.Input accept="image/jpeg,image/png" multiple onSelect={(list) => addFiles([...list])} />
-                {photos.length ? (
-                  <DropZone.FileList>
-                    {photos.map((f) => {
-                      const ext = (f.name.split(".").pop() ?? "jpg").toUpperCase();
-                      return (
-                        <DropZone.FileItem key={f.id} status="complete">
-                          <DropZone.FileFormatIcon format={ext} color={ext === "PNG" ? "green" : "blue"} />
-                          <DropZone.FileInfo>
-                            <DropZone.FileName>{f.name}</DropZone.FileName>
-                            <DropZone.FileMeta>{fileSize(f.size)}</DropZone.FileMeta>
-                          </DropZone.FileInfo>
-                          <DropZone.FileRemoveTrigger
-                            aria-label={`Remove ${f.name}`}
-                            onPress={() => setPhotos((p) => p.filter((x) => x.id !== f.id))}
-                          />
-                        </DropZone.FileItem>
-                      );
-                    })}
-                  </DropZone.FileList>
-                ) : null}
+                <DropZone.Input accept="image/jpeg,image/png" multiple onSelect={photosUnavailable} />
               </DropZone>
               <Button isDisabled={!desc.trim() || !foundAt || pending} onPress={logItem}>
-                <Printer className="size-4" />
-                Log item and print tag
+                Log item
               </Button>
               <span className="text-[12px] text-muted" role="status">
-                {desc.trim() ? `Creates ${nextId} and prints a tag for the bag.` : "Describe the item to continue."}
+                {desc.trim()
+                  ? `Likely ${nextId}; the register gives the reference. Write it on the tag: tags are not printed here.`
+                  : "Describe the item to continue."}
               </span>
             </Card.Content>
           </Card>

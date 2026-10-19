@@ -247,8 +247,8 @@ export function RosterView({
             ? "No change to cover"
             : `Cover changes by ${delta}`
           : st === "approved"
-            ? "Approved · both notified"
-            : "Declined · both notified",
+            ? "Approved · recorded"
+            : "Declined · recorded",
       tone: st === "declined" ? ("default" as const) : delta < 0 ? ("warning" as const) : ("success" as const),
       outcome:
         st === "approved"
@@ -263,17 +263,17 @@ export function RosterView({
   const otherWeek = data.weeks.find((x) => x.id !== wk);
   const pubTitle = `Week ${wkNo} published ${pubAt[wk] || "today"} to ${staff.length} staff`;
   const pubNote = ed
-    ? `${ed} shift ${plural(ed, "change")} since publishing. Publish them to notify only the people affected.`
+    ? `${ed} shift ${plural(ed, "change")} since publishing. Publish them so the people affected see them in the staff app.`
     : wk === "this" && otherWeek && pub[otherWeek.id] !== "published"
-      ? `Everyone has seen their week in the staff app. Week ${otherWeek.number} (${otherWeek.range}) is still a draft.`
-      : "Staff confirm they have seen their week in the staff app.";
+      ? `This week shows in the staff app. Week ${otherWeek.number} (${otherWeek.range}) is still a draft.`
+      : "Published weeks show in the staff app.";
   const pubLabel = `Week ${wkNo} · ${isPub ? (ed ? `published, ${ed} unsent changes` : "published") : "draft, not published"}`;
   const showPublish = !isPub || ed > 0;
   const publishLabel = isPub ? `Publish ${ed} ${plural(ed, "change")}` : "Publish roster";
   const dlgTitle = isPub ? `Send ${ed} ${plural(ed, "change")} for week ${wkNo}?` : `Publish week ${W.range}?`;
   const dlgText = isPub
-    ? "Only the people whose shifts changed are notified, in the staff app and by SMS."
-    : `${staff.length} staff at ${branchName} get their shifts in the staff app and by SMS. Later changes notify only the people affected.`;
+    ? "The changed shifts show in the staff app of the people affected. No SMS or message is sent."
+    : `${staff.length} staff at ${branchName} see their shifts in the staff app. No SMS or message is sent.`;
   const confirmLabel = `${isPub ? "Send changes" : "Publish"}${hasWarnings ? ` with ${gaps.length} ${plural(gaps.length, "gap")}` : ""}`;
 
   const publish = () => {
@@ -294,7 +294,7 @@ export function RosterView({
     });
   };
   const reset = () => {
-    toast.danger("Resetting the whole roster to rotations is not available yet. Edit individual shifts to save them.");
+    toast.warning("Resetting the whole roster to rotations is not available yet. Edit individual shifts to save them.");
   };
   const decideSwap = (w: (typeof swaps)[number], decision: "approved" | "declined") => {
     const before = grids.this ?? null;
@@ -716,7 +716,7 @@ export function RosterView({
                   <Alert.Content>
                     <Alert.Title>{warnTitle}</Alert.Title>
                     <Alert.Description>
-                      Department heads are told about each gap. You can still fill them after publishing.
+                      Nobody is told about the gaps automatically. You can still fill them after publishing.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>

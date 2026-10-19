@@ -2,7 +2,10 @@
 /**
  * The housekeeping board on real data, in a real browser: the manager opens /housekeeping, the board
  * comes from Postgres (no sample-data mark), Pass moves room 102 from "Clean · awaiting inspection" to
- * "Inspected", Add task puts a new card in "To do", and both survive a reload.
+ * "Inspected", Add task puts a new card in "To do", and both survive a reload. On Lost & Found, "Log item"
+ * writes the intake on the API and the reference the register gave it is listed after a reload; photos are not
+ * kept, so the drop zone says so and no tag is claimed printed. On Distribution, "Retry now" says it is not
+ * available and nothing is marked queued.
  *
  *   APP_URL=http://localhost:3043 node scripts/browser/operations.mjs
  *
@@ -80,6 +83,51 @@ try {
   if ((added["To do"]?.length ?? 0) !== todo + 1)
     fail(`after a reload To do holds ${added["To do"]?.length}, expected ${todo + 1}`);
   console.log("  Add task put a new card in To do, and it is still there after a reload");
+
+  // Lost and found: an intake goes to the API; the register's reference survives a reload.
+  const ITEM = `Browser umbrella ${Date.now() % 100000}`;
+  await page.goto(`${APP}/lost-found`);
+  await page.waitForText("Log a Found Item", 120_000);
+  await page.waitFor(
+    `Object.keys([...document.querySelectorAll("button")].find((b) => b.innerText.trim() === "Log item") ?? {}).some((k) => k.startsWith("__reactProps"))`,
+    "the register to hydrate",
+    120_000,
+  );
+  if (!(await page.text()).includes("Not available yet: the register does not store photos"))
+    fail("the photo drop zone does not say photos are not kept");
+  if ((await page.text()).includes("print tag")) fail("the intake still claims to print a tag");
+  const typed = await page.eval(`(() => {
+    const l = [...document.querySelectorAll('label')].find((e) => e.innerText.trim() === 'What was found');
+    const input = l?.closest('div')?.querySelector('input');
+    if (!input) return false;
+    input.focus();
+    return document.activeElement === input;
+  })()`);
+  if (!typed) fail("no 'What was found' field");
+  await page.send("Input.insertText", { text: ITEM });
+  await page.press("Log item");
+  await page.waitForText("Logged as LF-", 60_000);
+  const ref = (await page.text()).match(/Logged as (LF-\d{2}-\d{3})/)?.[1];
+  if (!ref) fail("no reference in the intake toast");
+  await page.reload();
+  await page.waitForText(ITEM, 90_000);
+  if (!(await page.text()).includes(ref)) fail(`after a reload ${ref} is not on the register`);
+  console.log(`  Log item wrote ${ref} on the API; it is on the register after a reload, with no photo claimed`);
+
+  // Distribution is sample data: Retry now says so and nothing is marked queued.
+  await page.goto(`${APP}/channels`);
+  await page.waitForText("Retry now", 120_000);
+  await page.waitFor(
+    `Object.keys([...document.querySelectorAll("button")].find((b) => b.innerText.includes("Retry now")) ?? {}).some((k) => k.startsWith("__reactProps"))`,
+    "the distribution screen to hydrate",
+    120_000,
+  );
+  await page.press("Retry now");
+  await page.waitForText("is not available yet", 30_000);
+  if ((await page.text()).includes("Retry queued")) fail("Retry now still marks a retry as queued");
+  await page.reload();
+  await page.waitForText("Retry now", 90_000);
+  console.log("  Retry now said it is not available; nothing was marked queued and the issue is still there");
 
   console.log("BROWSER OPERATIONS OK");
 } catch (error) {

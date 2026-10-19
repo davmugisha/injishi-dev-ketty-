@@ -1005,7 +1005,7 @@ export const sources = defineSources({
   "operations.rooms": {
     naturalKey: "id",
     async list(ctx): Promise<HousekeepingRoom[]> {
-      return presentRooms(await readBoard(ctx), new Date(), ctx.today.iso);
+      return presentRooms(await readBoard(ctx), ctx.now, ctx.today.iso);
     },
   },
   "operations.roomHistory": {
@@ -1017,19 +1017,19 @@ export const sources = defineSources({
   "operations.cleaningTasks": {
     naturalKey: "room",
     async list(ctx): Promise<CleaningTask[]> {
-      return presentTasks(await readBoard(ctx), new Date());
+      return presentTasks(await readBoard(ctx), ctx.now);
     },
   },
   "operations.housekeepingStaff": {
     naturalKey: "name",
     async list(ctx): Promise<HousekeepingStaff[]> {
-      return presentStaff(await readBoard(ctx), new Date());
+      return presentStaff(await readBoard(ctx), ctx.now);
     },
   },
   "operations.housekeepingEscalations": {
     naturalKey: "action",
     async list(ctx): Promise<HousekeepingEscalation[]> {
-      return presentEscalations(await readBoard(ctx), new Date());
+      return presentEscalations(await readBoard(ctx), ctx.now);
     },
   },
   "operations.housekeepingRules": {
@@ -1047,7 +1047,7 @@ export const sources = defineSources({
     naturalKey: "id",
     async list(ctx): Promise<WorkOrder[]> {
       const list = await readWorkOrders(ctx);
-      const now = new Date();
+      const now = ctx.now;
       return list.workOrders.map((o) => presentWorkOrder(o, list, ctx, now));
     },
   },
@@ -1055,7 +1055,7 @@ export const sources = defineSources({
     naturalKey: "rule",
     async list(ctx): Promise<ConditionSignal[]> {
       const [{ signals }, list] = await Promise.all([readSignals(ctx), readWorkOrders(ctx)]);
-      const now = new Date();
+      const now = ctx.now;
       return signals.filter((s) => s.status === "open").map((s) => presentSignal(s, list, ctx, now));
     },
   },

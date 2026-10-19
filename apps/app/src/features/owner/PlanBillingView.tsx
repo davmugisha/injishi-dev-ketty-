@@ -1,19 +1,12 @@
 "use client";
 
-import {
-  ArrowDownToLine,
-  ArrowsRotateRight,
-  CircleCheck,
-  CircleInfo,
-  Clock,
-  Lock,
-  TriangleExclamation,
-} from "@gravity-ui/icons";
+import { ArrowDownToLine, ArrowsRotateRight, CircleCheck, Lock, TriangleExclamation } from "@gravity-ui/icons";
 import {
   Alert,
   Button,
   Card,
   Chip,
+  Description,
   Input,
   Label,
   Modal,
@@ -22,6 +15,8 @@ import {
   Table,
   Tabs,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { EmptyState, ItemCard, RadioButtonGroup, Timeline } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
@@ -78,8 +73,6 @@ const DIALOGS = {
   },
 } as const;
 
-const PLAN_NAMES: Record<string, string> = { property: "Property", group: "Group", enterprise: "Enterprise" };
-
 /** "plan-group" → "group" (option ids are prefixed with their dialog). */
 const optionKey = (o: PlanBillingOption) => o.id.slice(o.dialog.length + 1);
 
@@ -102,48 +95,43 @@ function StepTimeline({ steps }: { steps: PlanBillingStep[] }) {
   );
 }
 
+/**
+ * What this screen cannot do yet, said plainly. The subscription, its invoices and its payment method are
+ * sample data (`owner.planBilling*` are deferred) and no route takes a subscription payment, changes a plan,
+ * cancels, edits a method or downloads an invoice, so these controls change nothing on screen.
+ */
+const unavailable = (what: string) =>
+  toast.warning(`${what} is not available yet. Subscription billing is not connected; nothing was sent or changed.`);
+
 export function PlanBillingView({ billing, data }: { billing: "retrying" | "paid"; data: PlanBillingData }) {
   const [tab, setTab] = useState("ov");
   const [dlg, setDlg] = useState<DialogId>("");
   const [pick, setPick] = useState("");
-  const [code, setCode] = useState("");
-  const [pending, setPending] = useState(false);
-  const [notice, setNotice] = useState("");
 
   const paid = billing === "paid";
-  const pendingNow = pending && !paid;
-  const retrying = !paid && !pending;
-  /** Top-bar pill, as the board computes it: retrying → pending (after Pay now) → paid. */
+  const retrying = !paid;
+  /** Top-bar pill, as the board computes it: retrying or paid. */
   const topbar = paid
     ? { tone: "success" as const, label: "Subscription paid" }
-    : { tone: "warning" as const, label: pendingNow ? "Payment pending" : "Payment retrying · grace to 31 Oct" };
+    : { tone: "warning" as const, label: "Payment retrying · grace to 31 Oct" };
 
   const dialog = DIALOGS[dlg || "pay"];
   const opts = data.options.filter((o) => o.dialog === (dlg || "pay"));
   const chosen = pick || optionKey(opts.find((o) => o.isDefault) ?? opts[0]);
-  const codeOk = code.replace(/\D/g, "").length === 6;
-  const okBlocked =
-    (dialog.code && !codeOk) || (dlg === "plan" && chosen === "group") || (dlg === "pay" && chosen === "card");
 
   const open = (which: Exclude<DialogId, "">) => {
     setPick("");
-    setCode("");
     setDlg(which);
-  };
-  const confirm = () => {
-    if (dlg === "pay") setPending(true);
-    else if (dlg === "plan") setNotice(chosen === "group" ? "" : `plan:${chosen}`);
-    else setNotice("cancel");
-    setDlg("");
   };
 
   const invoices = data.invoices.map((inv) => {
-    const override = paid ? inv.byState?.paid : pendingNow ? inv.byState?.pending : undefined;
+    const override = paid ? inv.byState?.paid : undefined;
     return override ? { ...inv, ...override } : inv;
   });
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <TopbarStatus kind="chip" tone={topbar.tone} dot={topbar.tone} label={topbar.label} />
       <PageHeader
         eyebrow="Amahoro Hospitality Group · Business"
@@ -176,27 +164,13 @@ export function PlanBillingView({ billing, data }: { billing: "retrying" | "paid
             </Alert.Description>
           </Alert.Content>
           <div className="flex shrink-0 items-center gap-2">
-            <Button size="sm" variant="secondary">
+            <Button size="sm" variant="secondary" onPress={() => unavailable("Updating the payment method")}>
               Update method
             </Button>
             <Button size="sm" onPress={() => open("pay")}>
               Pay now
             </Button>
           </div>
-        </Alert>
-      ) : null}
-      {pendingNow ? (
-        <Alert status="accent" role="status">
-          <Alert.Indicator>
-            <Clock />
-          </Alert.Indicator>
-          <Alert.Content>
-            <Alert.Title>Payment request sent · Pending</Alert.Title>
-            <Alert.Description>
-              Approve the prompt on +250 78• ••• 214. INJ-2026-1001 shows Paid only after MTN MoMo confirms, with the
-              provider reference. Payment intent PI-SUB-20117.
-            </Alert.Description>
-          </Alert.Content>
         </Alert>
       ) : null}
       {paid ? (
@@ -211,26 +185,6 @@ export function PlanBillingView({ billing, data }: { billing: "retrying" | "paid
               issued.
             </Alert.Description>
           </Alert.Content>
-        </Alert>
-      ) : null}
-      {notice ? (
-        <Alert status="default" role="status">
-          <Alert.Indicator>
-            <CircleInfo />
-          </Alert.Indicator>
-          <Alert.Content>
-            <Alert.Title>
-              {notice === "cancel" ? "Cancellation scheduled for 31 Oct" : "Plan change scheduled for 1 Nov"}
-            </Alert.Title>
-            <Alert.Description>
-              {notice === "cancel"
-                ? "Nothing changes until then. Exports stay available afterwards."
-                : `Moving to ${PLAN_NAMES[notice.split(":")[1] ?? "group"]}. Entitlements change on 1 Nov; this month is not affected.`}
-            </Alert.Description>
-          </Alert.Content>
-          <Button size="sm" variant="ghost" className="shrink-0" onPress={() => setNotice("")}>
-            Undo
-          </Button>
         </Alert>
       ) : null}
 
@@ -307,7 +261,7 @@ export function PlanBillingView({ billing, data }: { billing: "retrying" | "paid
                 <h2 id="pm-h" className="text-[15px] leading-[22px] font-semibold">
                   Payment Method
                 </h2>
-                <Button size="sm" variant="ghost">
+                <Button size="sm" variant="ghost" onPress={() => unavailable("Editing the payment method")}>
                   Edit
                 </Button>
               </div>
@@ -412,7 +366,7 @@ export function PlanBillingView({ billing, data }: { billing: "retrying" | "paid
               <h2 id="inv-h" className="text-[15px] leading-[22px] font-semibold">
                 Subscription Invoices
               </h2>
-              <Button size="sm" variant="secondary">
+              <Button size="sm" variant="secondary" onPress={() => unavailable("Downloading invoices")}>
                 <ArrowDownToLine className="size-4" />
                 Download all
               </Button>
@@ -450,6 +404,7 @@ export function PlanBillingView({ billing, data }: { billing: "retrying" | "paid
                             isIconOnly
                             aria-label={`Download ${i.id}`}
                             className="ml-auto"
+                            onPress={() => unavailable(`Downloading ${i.id}`)}
                           >
                             <ArrowDownToLine className="size-4" />
                           </Button>
@@ -522,23 +477,27 @@ export function PlanBillingView({ billing, data }: { billing: "retrying" | "paid
               </RadioButtonGroup>
               {dialog.code ? (
                 <Card variant="secondary" className="gap-1.5 px-3.5 py-3">
-                  <TextField value={code} onChange={setCode} className="flex flex-col gap-1">
-                    <Label>Verify it’s you · code sent to +250 78• ••• 214</Label>
+                  <TextField isDisabled className="flex flex-col gap-1">
+                    <Label>Verify it’s you</Label>
                     <Input
                       placeholder="6-digit code"
                       autoComplete="one-time-code"
                       inputMode="numeric"
                       className="max-w-[200px] tracking-[0.2em]"
                     />
+                    <Description>Step-up is not asked for: cancelling is not available yet.</Description>
                   </TextField>
                 </Card>
               ) : null}
             </Modal.Body>
-            <Modal.Footer className="justify-end gap-2">
+            <Modal.Footer className="flex-wrap items-center justify-end gap-2">
+              <span id="bill-why" className="mr-auto max-w-[280px] text-xs leading-4 text-muted">
+                Subscription billing is not connected yet, so nothing can be paid, changed or cancelled here.
+              </span>
               <Button variant="secondary" onPress={() => setDlg("")}>
                 Close
               </Button>
-              <Button variant={dialog.danger ? "danger" : "primary"} isDisabled={okBlocked} onPress={confirm}>
+              <Button variant={dialog.danger ? "danger" : "primary"} isDisabled aria-describedby="bill-why">
                 {dialog.ok}
               </Button>
             </Modal.Footer>

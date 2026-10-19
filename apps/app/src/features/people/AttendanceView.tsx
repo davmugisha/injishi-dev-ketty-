@@ -158,7 +158,7 @@ export function AttendanceView({
         outcome:
           state === "approved"
             ? `Correction entry added by ${persona.name}. The original clock record is kept.`
-            : `Declined by ${persona.name}. The reason was sent to ${firstName(c.name)} and the line manager.`,
+            : `Declined by ${persona.name}. The reason is kept with the request; no message is sent.`,
       });
       const result = await decideCorrection(c.id, state, declineNotes[c.id]);
       if (!result.ok) toast.danger(result.error);
@@ -523,8 +523,8 @@ export function AttendanceView({
               <TextArea rows={3} placeholder="Who confirmed the time, and how" />
               <FieldError>A justification is required for every desk entry.</FieldError>
               <Description>
-                Recorded as Desk · {persona.name}. {firstName(employee?.name ?? "")} and their line manager are
-                notified.
+                Recorded as Desk · {persona.name}. Nobody is messaged: {firstName(employee?.name ?? "")} sees it in the
+                staff app.
               </Description>
             </TextField>
             <Button fullWidth onPress={save} isDisabled={pending}>
@@ -539,8 +539,8 @@ export function AttendanceView({
                 <Alert.Content>
                   <Alert.Title>Desk entry saved for {savedName}</Alert.Title>
                   <Alert.Description>
-                    Added to the records with source Desk, validated as you saved it. The reason and the
-                    justification stay on the record.
+                    Added to the records with source Desk, validated as you saved it. The reason and the justification
+                    stay on the record.
                   </Alert.Description>
                 </Alert.Content>
               </Alert>

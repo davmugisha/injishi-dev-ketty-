@@ -6,40 +6,32 @@ import type { AuditLogExportFormat } from "@injishi/data/fixtures/owner";
 import { useState } from "react";
 
 /**
- * "Export audit entries" dialog. The export needs a purpose (it may contain personal data) and a
- * step-up code; it is prepared in the background and recorded as an audit entry of its own.
+ * "Export audit entries" dialog. An export would need a purpose (it may contain personal data) and a
+ * step-up code, and would be prepared in the background and recorded as an audit entry of its own.
+ *
+ * Not available yet: the entries on this screen are sample data and no route exports them or checks a
+ * step-up code for an export. So the code field takes nothing and "Prepare export" stays disabled with
+ * the reason beside it; nothing is queued and no entry number is printed.
  */
 export function AuditLogExportDialog({
   isOpen,
   onOpenChange,
   scope,
   formats,
-  onExport,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   /** "Last 7 days · all areas · all properties". */
   scope: string;
   formats: AuditLogExportFormat[];
-  onExport: (format: AuditLogExportFormat["id"]) => void;
 }) {
   const [format, setFormat] = useState<AuditLogExportFormat["id"]>("json");
   const [purpose, setPurpose] = useState("");
-  const [code, setCode] = useState("");
-  const ready = purpose.trim().length >= 5 && code.replace(/\D/g, "").length === 6;
 
-  // Purpose and code never carry over to the next export; the chosen format does.
-  const reset = () => {
-    setPurpose("");
-    setCode("");
-  };
+  // The purpose never carries over to the next export; the chosen format does.
   const changeOpen = (open: boolean) => {
-    if (!open) reset();
+    if (!open) setPurpose("");
     onOpenChange(open);
-  };
-  const submit = () => {
-    onExport(format);
-    reset();
   };
 
   return (
@@ -79,22 +71,26 @@ export function AuditLogExportDialog({
             </TextField>
 
             <Card variant="secondary" className="gap-1.5 px-[14px] py-3">
-              <TextField value={code} onChange={setCode} className="gap-1.5">
-                <Label>Verify it’s you · code sent to +250 78• ••• 214</Label>
+              <TextField isDisabled className="gap-1.5">
+                <Label>Verify it’s you</Label>
                 <Input
                   placeholder="6-digit code"
                   autoComplete="one-time-code"
                   inputMode="numeric"
                   className="max-w-[200px] tracking-[0.2em]"
                 />
+                <Description>Step-up for exports is not available yet, so no code is sent or checked.</Description>
               </TextField>
             </Card>
           </Modal.Body>
-          <Modal.Footer className="justify-end gap-2">
+          <Modal.Footer className="flex-wrap items-center justify-end gap-2">
+            <span id="exp-why" className="mr-auto max-w-[300px] text-xs leading-4 text-muted">
+              Exporting the audit log is not available yet: these entries are sample data.
+            </span>
             <Button variant="secondary" slot="close">
               Cancel
             </Button>
-            <Button isDisabled={!ready} onPress={submit}>
+            <Button isDisabled aria-describedby="exp-why">
               Prepare export
             </Button>
           </Modal.Footer>

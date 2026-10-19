@@ -1,13 +1,22 @@
 "use client";
 
 import { Check, CircleCheckFill, Clock, CloudSlash, ListCheck, TriangleExclamation } from "@gravity-ui/icons";
-import { Alert, Avatar, Button, Card, Chip, ProgressBar } from "@heroui/react";
+import { Alert, Avatar, Button, Card, Chip, ProgressBar, Toast, toast } from "@heroui/react";
 import { ListView } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
 import type { HousekeepingDone, HousekeepingTask } from "@injishi/data/fixtures/platform";
-import { LinkButton, PhoneBody, PhoneTop, StatusDot, toneColor } from "@injishi/ui";
+import { LinkButton, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
 import { useOptimistic, useTransition } from "react";
 import { setHousekeepingTaskStatus } from "./actions";
+
+/** "Monday 12 October": today in Kigali. */
+const todayLong = () =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Kigali",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date());
 
 /** Rooms assigned today = waiting/active tasks + rooms already done (artifact: 3 of 7). */
 export function StaffTodayView({
@@ -31,21 +40,26 @@ export function StaffTodayView({
   const doneCount = done.length + finishedNow;
   const total = tasks.length + done.length;
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
+  // A refused move comes back as words; the optimistic change falls away with the transition, so the card
+  // shows the room as the API holds it.
   const update = (id: string, status: "active" | "done") =>
     startTransition(async () => {
       setOptimistic({ id, status });
-      await setHousekeepingTaskStatus(id, status);
+      const result = await setHousekeepingTaskStatus(id, status);
+      if (!result.ok) toast.danger(result.error);
     });
 
   return (
     <>
+      <Toast.Provider placement="top" />
       <PhoneTop>
         <Avatar size="sm" variant="soft" color="accent">
           <Avatar.Fallback>{persona.initials}</Avatar.Fallback>
         </Avatar>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="text-[13px] leading-[18px] font-semibold">{persona.name}</span>
-          <span className="text-xs leading-4 text-muted">Housekeeping · Floor 2 · Isangano</span>
+          {/* The role only: the floor and branch of today's sheet are not in what this screen reads. */}
+          <span className="text-xs leading-4 text-muted">{persona.role}</span>
         </div>
         <LinkButton
           href={screenHref("StaffReport")}
@@ -66,30 +80,28 @@ export function StaffTodayView({
             </Alert.Indicator>
             <Alert.Content>
               <Alert.Title>No connection</Alert.Title>
-              <Alert.Description>2 updates saved on this phone. They send when you are back online.</Alert.Description>
+              <Alert.Description>
+                Rooms cannot be started or marked clean until you are back online. Nothing is saved on this phone.
+              </Alert.Description>
             </Alert.Content>
           </Alert>
         ) : null}
 
+        {/* No clock-in time or shift hours here: the board reads the rooms, not the person's attendance or
+            roster, and printing the prototype's 07:02 and 07:00 – 15:00 would state facts about her that
+            nothing measured. */}
         <Card className="gap-3 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-1">
-              <span className="text-xs text-muted">Monday 12 October</span>
-              <span className="text-xl leading-[26px] font-semibold">
-                {doneCount} of {total} rooms done
-              </span>
-            </div>
-            <Chip color="success" variant="soft">
-              <StatusDot tone="success" />
-              <Chip.Label>In since 07:02</Chip.Label>
-            </Chip>
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="text-xs text-muted">{todayLong()}</span>
+            <span className="text-xl leading-[26px] font-semibold">
+              {doneCount} of {total} rooms done
+            </span>
           </div>
           <ProgressBar value={pct} aria-label="Rooms done today">
             <ProgressBar.Track>
               <ProgressBar.Fill />
             </ProgressBar.Track>
           </ProgressBar>
-          <p className="text-xs leading-4 text-muted">Shift 07:00 – 15:00 · Break 11:30</p>
         </Card>
 
         <section className="flex flex-col gap-2.5" aria-labelledby="next-h">
@@ -121,7 +133,7 @@ export function StaffTodayView({
                     size="lg"
                     className="min-h-14 flex-1"
                     onPress={() => update(t.id, "done")}
-                    isDisabled={pending}
+                    isDisabled={pending || offline}
                   >
                     <Check className="size-4" />
                     Mark clean
@@ -131,7 +143,7 @@ export function StaffTodayView({
                     size="lg"
                     className="min-h-14 flex-1"
                     onPress={() => update(t.id, "active")}
-                    isDisabled={pending}
+                    isDisabled={pending || offline}
                   >
                     Start cleaning
                   </Button>

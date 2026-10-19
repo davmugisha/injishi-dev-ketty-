@@ -196,7 +196,7 @@ export function LeaveView({
       ? {
           status: "success" as const,
           icon: <CircleCheck />,
-          title: `Approved · ${first} notified`,
+          title: `Approved · ${first} sees it in the staff app`,
           text:
             cur.by ??
             `Balance updated to ${cur.balance.split("→ ")[1] ?? cur.balance}. The shifts are released on the roster for re-assignment.`,
@@ -205,8 +205,8 @@ export function LeaveView({
         ? {
             status: "default" as const,
             icon: <CircleXmark />,
-            title: `Declined · ${first} notified`,
-            text: `Reason sent: “${cur.hrReason || "See note"}”. The balance is unchanged.`,
+            title: `Declined · ${first} sees it in the staff app`,
+            text: `Reason recorded: “${cur.hrReason || "See note"}”. The balance is unchanged. No message is sent.`,
           }
         : st === "lmdeclined"
           ? {
@@ -519,7 +519,7 @@ export function LeaveView({
                 variant="secondary"
                 className="self-start"
                 onPress={() =>
-                  toast.danger("Leave reminders are not available yet. Contact the line manager directly.")
+                  toast.warning("Leave reminders are not available yet. Contact the line manager directly.")
                 }
               >
                 {`Remind ${lmFirst}`}

@@ -44,6 +44,31 @@ function scoped(ctx: SourceContext, ws: Workspace) {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// ── Step-up ──────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Email a fresh step-up code to the signed-in person (`POST /me/two-factor/send`, F-S02). The API keeps the
+ * code hashed against this session, replaces any code still pending and answers where it went.
+ */
+export async function sendStepUpCode(ctx: SourceContext): Promise<{ sentTo: string; expiresInSeconds: number }> {
+  return ctx.api.post<{ sentTo: string; expiresInSeconds: number }>("/api/v1/me/two-factor/send", {});
+}
+
+/**
+ * Check a step-up code on the API (`POST /me/two-factor/verify`). A code nobody asked for, a wrong one, an
+ * expired one and a spent one are each refused there (422); a match is spent, so it works once.
+ *
+ * What this proves, honestly: the API's step-up is per session (WorkspaceGuard already requires a stepped-up
+ * session for every operator route), not per action. Grant screens ask for a fresh code here so that the
+ * person typing it is shown to hold the mailbox at the moment of granting; the grant route itself does not
+ * check that the code was fresh.
+ */
+export async function verifyStepUpCode(ctx: SourceContext, code: string): Promise<void> {
+  const digits = code.replace(/\D/g, "");
+  if (!/^\d{6}$/.test(digits)) throw new OwnerRefusal("Enter the 6-digit code from the email.");
+  await ctx.api.post("/api/v1/me/two-factor/verify", { code: digits });
+}
+
 /**
  * Which business a set of scope rows falls in, and the branches it names there. A member belongs to one
  * legal entity's team: scope rows of two businesses cannot be granted in one act, and an outlet row
@@ -85,10 +110,14 @@ function orgRoleOf(role: TeamRolesRoleId): string {
   return orgRole;
 }
 
-/** Invite somebody by email into a staff role at the properties chosen. The API mails the link. */
+/**
+ * Invite somebody by email into a staff role at the properties chosen. The API mails the link. With a
+ * `stepUpCode`, the code is checked on the API after every check of the screen's own and before the
+ * invitation is written, so a refused form never spends the code.
+ */
 export async function inviteMember(
   ctx: SourceContext,
-  input: { name: string; contact: string; role: TeamRolesRoleId; scopeIds: string[] },
+  input: { name: string; contact: string; role: TeamRolesRoleId; scopeIds: string[]; stepUpCode?: string },
 ): Promise<{ id: string }> {
   const email = input.contact.trim().toLowerCase();
   if (!EMAIL.test(email)) {
@@ -96,6 +125,7 @@ export async function inviteMember(
   }
   const orgRole = orgRoleOf(input.role);
   const { ws, branchIds } = await grantTarget(ctx, input.scopeIds);
+  if (input.stepUpCode !== undefined) await verifyStepUpCode(ctx, input.stepUpCode);
   const created = await scoped(ctx, ws).post<{ id: string }>("/api/v1/ops/team/invitations", {
     name: input.name.trim() || undefined,
     email,
@@ -123,12 +153,13 @@ export async function cancelInvitation(ctx: SourceContext, memberId: string): Pr
 /**
  * Change a member's role and the properties they cover. The role change and the branch limit are two
  * audited writes on the API (`PATCH /ops/team/:userId/role`, `PUT /ops/team/:userId/branches`); each is
- * sent only when it changes something.
+ * sent only when it changes something. With a `stepUpCode`, the code is checked on the API once the change
+ * is known to be a real one and before either write.
  */
 export async function changeMember(
   ctx: SourceContext,
   userId: string,
-  input: { role: TeamRolesRoleId; scopeIds: string[] },
+  input: { role: TeamRolesRoleId; scopeIds: string[]; stepUpCode?: string },
 ): Promise<void> {
   const orgRole = orgRoleOf(input.role);
   const { ws, branchIds } = await grantTarget(ctx, input.scopeIds);
@@ -142,15 +173,17 @@ export async function changeMember(
       `This person is not on the team of ${ws.orgName ?? "that business"}: invite them there instead.`,
     );
   }
-  if (member.orgRole !== orgRole) {
-    await api.patch(`/api/v1/ops/team/${encodeURIComponent(userId)}/role`, { orgRole });
-  }
   const same =
     (member.branchIds === null && branchIds === null) ||
     (member.branchIds !== null &&
       branchIds !== null &&
       member.branchIds.length === branchIds.length &&
       member.branchIds.every((b) => branchIds.includes(b)));
+  if (member.orgRole === orgRole && same) return;
+  if (input.stepUpCode !== undefined) await verifyStepUpCode(ctx, input.stepUpCode);
+  if (member.orgRole !== orgRole) {
+    await api.patch(`/api/v1/ops/team/${encodeURIComponent(userId)}/role`, { orgRole });
+  }
   if (!same) await api.put(`/api/v1/ops/team/${encodeURIComponent(userId)}/branches`, { branchIds });
 }
 

@@ -386,7 +386,7 @@ export function EmployeesView({
             onView={(entry) => setLog((l) => [entry, ...l])}
             loginRequested={false}
             onRequestLogin={() =>
-              toast.danger(
+              toast.warning(
                 "Login access requests are not available yet. Ask the owner to invite this person from Team and roles.",
               )
             }

@@ -175,15 +175,10 @@ export function EmployeeFileCard({
                   None. Clocks in at the kiosk with a PIN and receives payslips by SMS link.
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
-                  {loginRequested ? (
-                    <Chip size="sm" variant="soft" color="accent">
-                      Request sent to Didier Mugenzi
-                    </Chip>
-                  ) : (
-                    <Button size="sm" variant="secondary" onPress={onRequestLogin}>
-                      Ask the owner for a login
-                    </Button>
-                  )}
+                  {/* Asking for a login is not available yet (the press says so), so nothing reads "request sent". */}
+                  <Button size="sm" variant="secondary" isDisabled={loginRequested} onPress={onRequestLogin}>
+                    Ask the owner for a login
+                  </Button>
                   <span className="text-xs text-muted">HR cannot grant logins.</span>
                 </div>
               </>
@@ -271,7 +266,7 @@ export function EmployeeFileCard({
                 </Button>
                 <Button
                   onPress={() =>
-                    toast.danger("Pay change approval is not available yet. This proposal has not been sent or saved.")
+                    toast.warning("Pay change approval is not available yet. This proposal has not been sent or saved.")
                   }
                 >
                   Send to owner for approval
@@ -310,7 +305,7 @@ export function EmployeeFileCard({
                     size="sm"
                     variant="secondary"
                     aria-label={`View ${d.title.toLowerCase()}`}
-                    onPress={() => toast.danger("Document viewing is not available yet. No document has been opened.")}
+                    onPress={() => toast.warning("Document viewing is not available yet. No document has been opened.")}
                   >
                     <Eye className="size-4" />
                     View
@@ -379,7 +374,7 @@ export function EmployeeFileCard({
                   size="sm"
                   variant="secondary"
                   onPress={() =>
-                    toast.danger("Family record reminders are not available yet. Contact the employee directly.")
+                    toast.warning("Family record reminders are not available yet. Contact the employee directly.")
                   }
                 >
                   Send a reminder

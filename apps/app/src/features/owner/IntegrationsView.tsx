@@ -10,7 +10,7 @@ import {
   Plus,
   TriangleExclamationFill,
 } from "@gravity-ui/icons";
-import { Avatar, Button, Card, Chip, Skeleton } from "@heroui/react";
+import { Avatar, Button, Card, Chip, Toast, toast } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type { IntegrationsConnection, IntegrationsStage, IntegrationsTest } from "@injishi/data/fixtures/owner";
@@ -25,7 +25,7 @@ import {
   type Tone,
   toneColor,
 } from "@injishi/ui";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { SettingsNav } from "./SettingsNav";
 
 const TEST_KIND = {
@@ -42,8 +42,13 @@ const SUMMARY: { stage: IntegrationsStage; label: string; dot: Tone }[] = [
   { stage: "none", label: "not connected", dot: "info" },
 ];
 
-/** Simulated test run: results come back after this long (or at once with "Show results"). */
-const RUN_MS = 1500;
+/**
+ * What this screen cannot do yet, said plainly. The connections are sample data (`owner.integrationsConnections`
+ * is deferred) and no route runs a connection test, takes an integration request or reviews a credential
+ * change, so these controls change nothing: the test results shown are the last ones on record.
+ */
+const unavailable = (what: string) =>
+  toast.warning(`${what} is not available yet. These connections are sample data; nothing was run or sent.`);
 
 function SubTitle({ children }: { children: ReactNode }) {
   return <h3 className="text-[15px] leading-[22px] font-semibold">{children}</h3>;
@@ -51,25 +56,17 @@ function SubTitle({ children }: { children: ReactNode }) {
 
 export function IntegrationsView({ connections }: { connections: IntegrationsConnection[] }) {
   const [openId, setOpenId] = useState("gtbank");
-  /** 0 = not run in this session, 1 = running, 2 = ran just now. */
-  const [run, setRun] = useState<0 | 1 | 2>(0);
-
-  useEffect(() => {
-    if (run !== 1) return;
-    const t = setTimeout(() => setRun(2), RUN_MS);
-    return () => clearTimeout(t);
-  }, [run]);
 
   const open = connections.find((c) => c.id === openId) ?? connections[0];
   const others = connections.filter((c) => c.id !== open?.id);
   const configure = (id: string) => {
     setOpenId(id);
-    setRun(0);
     document.getElementById("open-h")?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <PageHeader
         eyebrow="Settings · Amahoro Hospitality Group"
         title="Integrations"
@@ -80,7 +77,7 @@ export function IntegrationsView({ connections }: { connections: IntegrationsCon
               <ListTimeline className="size-4" />
               Connection history
             </LinkButton>
-            <Button variant="secondary">
+            <Button variant="secondary" onPress={() => unavailable("Requesting an integration")}>
               <Plus className="size-4" />
               Request an integration
             </Button>
@@ -125,9 +122,9 @@ export function IntegrationsView({ connections }: { connections: IntegrationsCon
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {open.canTest ? (
-                <Button variant="secondary" onPress={() => setRun(run === 1 ? 2 : 1)}>
+                <Button variant="secondary" onPress={() => unavailable("Running the connection tests")}>
                   <ArrowsRotateRight className="size-4" />
-                  {run === 1 ? "Show results" : "Run tests again"}
+                  Run tests again
                 </Button>
               ) : null}
               {open.links.map((l) => (
@@ -167,35 +164,25 @@ export function IntegrationsView({ connections }: { connections: IntegrationsCon
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between gap-2">
                 <SubTitle>Test Results</SubTitle>
-                <span className="text-xs text-muted" aria-live="polite">
-                  {run === 1 ? "Running…" : run === 2 ? "Last run just now · same results" : open.lastRun}
-                </span>
+                <span className="text-xs text-muted">{open.lastRun}</span>
               </div>
-              {run === 1 ? (
-                <div className="flex flex-col gap-2" aria-hidden="true">
-                  <Skeleton className="h-3.5 w-4/5 rounded-md" />
-                  <Skeleton className="h-3.5 w-[65%] rounded-md" />
-                  <Skeleton className="h-3.5 w-[72%] rounded-md" />
-                </div>
-              ) : (
-                <ul className="flex flex-col gap-2.5">
-                  {open.tests.map((t) => {
-                    const k = TEST_KIND[t.kind];
-                    return (
-                      <li key={t.name} className="flex items-start gap-2.5">
-                        <k.Icon aria-hidden="true" className={`mt-0.5 size-4 shrink-0 ${k.className}`} />
-                        <span className="flex min-w-0 flex-1 flex-col">
-                          <span className="text-[13px] font-medium">{t.name}</span>
-                          <span className="text-xs leading-4 text-muted">{t.detail}</span>
-                        </span>
-                        <Chip size="sm" variant="soft" color={toneColor(k.tone)} className="shrink-0">
-                          {t.result}
-                        </Chip>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+              <ul className="flex flex-col gap-2.5">
+                {open.tests.map((t) => {
+                  const k = TEST_KIND[t.kind];
+                  return (
+                    <li key={t.name} className="flex items-start gap-2.5">
+                      <k.Icon aria-hidden="true" className={`mt-0.5 size-4 shrink-0 ${k.className}`} />
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="text-[13px] font-medium">{t.name}</span>
+                        <span className="text-xs leading-4 text-muted">{t.detail}</span>
+                      </span>
+                      <Chip size="sm" variant="soft" color={toneColor(k.tone)} className="shrink-0">
+                        {t.result}
+                      </Chip>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
 
             <div className="flex flex-col gap-2.5">
@@ -215,7 +202,12 @@ export function IntegrationsView({ connections }: { connections: IntegrationsCon
               </ul>
               {open.action ? (
                 <>
-                  <Button size="sm" isDisabled={open.actionBlocked} className="self-start">
+                  <Button
+                    size="sm"
+                    isDisabled={open.actionBlocked}
+                    className="self-start"
+                    onPress={() => unavailable(`“${open.action}”`)}
+                  >
                     {open.action}
                   </Button>
                   {open.actionNote ? <span className="text-xs leading-4 text-muted">{open.actionNote}</span> : null}

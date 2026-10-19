@@ -36,6 +36,13 @@ export interface SourceContext {
   readonly account: Account | null;
   readonly persona: Persona | null;
   readonly today: KigaliDay;
+  /**
+   * The instant this read takes as "now", for time-of-day facts (who is absent because their shift has
+   * started, minutes left on a shift, how long ago someone was active). The app passes the real clock;
+   * scripts/verify-data.ts pins it to the fixtures' moment (the seed day at 12:20 in Kigali), so those facts
+   * compare with the 12:20 snapshot at any hour. Read it here, never `Date.now()` in a source.
+   */
+  readonly now: Date;
   /** Calls scoped to the person's business workspace of that domain. Throws NoWorkspaceError when there is none. */
   ops(domain?: Domain): ScopedApi;
 }

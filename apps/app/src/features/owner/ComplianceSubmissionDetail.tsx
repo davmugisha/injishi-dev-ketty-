@@ -29,25 +29,24 @@ export function complianceToneOf(s: ComplianceSubmission, stage: ComplianceStage
   return stage === 0 ? "default" : "accent";
 }
 
-/** Detail card of the selected submission: workflow stepper, facts, proof upload and the next action. */
+/**
+ * Detail card of the selected submission: workflow stepper, facts, proof and the next action.
+ *
+ * Submissions are sample data (`owner.complianceSubmissions` waits on an /architect decision), so moving a
+ * stage, returning to draft and attaching proof are not available: each says so through `onUnavailable` and
+ * nothing on screen changes. No file is kept, not even its name.
+ */
 export function ComplianceSubmissionDetail({
   submission: s,
   stage,
-  proofName,
-  onAdvance,
-  onReturn,
-  onAttach,
+  onUnavailable,
 }: {
   submission: ComplianceSubmission;
   stage: ComplianceStage;
-  /** Name of the proof file attached in this session, if any. */
-  proofName: string | undefined;
-  onAdvance: () => void;
-  onReturn: () => void;
-  onAttach: (fileName: string) => void;
+  /** Tell the person this step is not available yet. */
+  onUnavailable: (what: string) => void;
 }) {
-  const attached = proofName !== undefined;
-  const hasProof = attached || stage >= 3;
+  const hasProof = stage >= 3;
   const steps = [...STEP_TITLES, stage === 4 ? (s.outcome ?? "Acknowledged") : "Acknowledged, rejected or follow-up"];
   const detailOf = (i: number) => {
     if (i === 0) return s.log[0];
@@ -56,11 +55,8 @@ export function ComplianceSubmissionDetail({
     if (i === 4 && stage === 4) return "Counterpart evidence on file";
     return "";
   };
-  const proofText = attached ? `${proofName} · attached just now` : s.proof;
-  const needProof = stage === 2 && !attached;
+  const needProof = stage === 2;
   const showNote = stage === 4 && s.note !== null;
-
-  const attachFirst = (names: (string | undefined)[]) => onAttach(names.find(Boolean) ?? "portal-confirmation.png");
 
   return (
     <section aria-labelledby="det-h">
@@ -102,7 +98,7 @@ export function ComplianceSubmissionDetail({
           items={[
             { label: "Legal basis", value: s.basis },
             { label: "Contents", value: s.contents },
-            { label: "Proof", value: proofText },
+            { label: "Proof", value: s.proof },
           ]}
         />
 
@@ -126,30 +122,27 @@ export function ComplianceSubmissionDetail({
 
         {needProof ? (
           <DropZone>
-            <DropZone.Area
-              className="p-[14px]"
-              onDrop={(e: { items: { kind: string; name?: string }[] }) =>
-                attachFirst(e.items.filter((it) => it.kind === "file").map((it) => it.name))
-              }
-            >
+            <DropZone.Area className="p-[14px]" onDrop={() => onUnavailable("Attaching proof")}>
               <DropZone.Icon>
                 <FileArrowUp />
               </DropZone.Icon>
               <DropZone.Label>Attach the portal or email confirmation</DropZone.Label>
-              <DropZone.Description>Sending is recorded only with proof of what left and when</DropZone.Description>
+              <DropZone.Description>
+                Attaching proof is not available yet: no file is uploaded or kept
+              </DropZone.Description>
               <DropZone.Trigger>Choose file</DropZone.Trigger>
             </DropZone.Area>
-            <DropZone.Input onSelect={(files) => attachFirst(Array.from(files, (f) => f.name))} />
+            <DropZone.Input onSelect={() => onUnavailable("Attaching proof")} />
           </DropZone>
         ) : null}
 
         {stage < 4 ? (
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" isDisabled={stage === 2 && !hasProof} onPress={onAdvance}>
+            <Button size="sm" isDisabled={stage === 2 && !hasProof} onPress={() => onUnavailable(ACTIONS[stage])}>
               {ACTIONS[stage]}
             </Button>
             {stage === 1 ? (
-              <Button size="sm" variant="ghost" onPress={onReturn}>
+              <Button size="sm" variant="ghost" onPress={() => onUnavailable("Returning to draft")}>
                 Return to draft
               </Button>
             ) : null}
