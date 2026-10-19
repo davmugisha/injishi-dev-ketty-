@@ -12,8 +12,8 @@
  *  - every value the chooser can send is one the registration form accepts, so
  *    no tile lands as if nothing was chosen;
  *  - the sign in round trip hands the query back intact;
- *  - the wizard opens past the kind question when the kind arrived, drops Place
- *    from its rail, and does not save a draft merely by opening.
+ *  - the wizard opens past the kind question when the kind arrived, drops
+ *    Business type from its rail, and does not save a draft merely by opening.
  *
  * What it does not do is render the wizard: the wizard is one client component
  * with a live API behind every step. The browser run is in the leaf's evidence.
@@ -36,14 +36,11 @@ const { HOST_PROPERTY_KINDS, hostKindHref, findHostKind } = await import("@/data
 const { findRegistrationKind, registrationForKind } = await import(
   "@/app/(app)/(entry)/register/registration-kinds"
 );
-const { openingPhase, resumePhase, savesOnEntry, showsRail, stepsToShow } = await import(
-  "@/app/(app)/(entry)/register/wizard-path"
+const { openingStep, resumeStep, savesOnLeave, stepOrder } = await import(
+  "@/app/(app)/(entry)/register/register-steps"
 );
 const { safeRedirect } = await import("@/lib/redirect");
 
-/** The five rail ids, in the wizard's order; the rail module itself is TSX. */
-const FULL = ["place", "about", "business", "documents", "pay"].map((id) => ({ id }));
-const BROKER = ["place", "about"].map((id) => ({ id }));
 
 describe("a tile on /host", () => {
   test("goes straight to /register with its kind", () => {
@@ -111,46 +108,34 @@ describe("the sign in round trip", () => {
 });
 
 describe("the wizard, given a kind", () => {
-  test("opens on About you when the kind arrived, on the kind question when it did not", () => {
-    assert.equal(openingPhase("guest_house"), "about");
-    assert.equal(openingPhase(null), "place");
+  test("opens on step two when the kind arrived, on Business type when it did not", () => {
+    assert.equal(openingStep("owner", true), "tin");
+    assert.equal(openingStep("landlord", true), "property");
+    assert.equal(openingStep("owner", false), "type");
   });
 
   test("never resumes a draft on the question the URL just answered", () => {
-    assert.equal(resumePhase("place", true), "about");
-    assert.equal(resumePhase("place", false), "place");
-    assert.equal(resumePhase("business", true), "business");
+    assert.equal(resumeStep("owner", true), "tin");
+    assert.equal(resumeStep("owner", false), "type");
   });
 
-  test("shows the steps that remain: Place drops out while the kind is the one that arrived", () => {
-    assert.deepEqual(
-      stepsToShow(FULL, true).map((s) => s.id),
-      ["about", "business", "documents", "pay"],
-    );
-    assert.deepEqual(stepsToShow(FULL, false).map((s) => s.id), FULL.map((s) => s.id));
-  });
-
-  test("a broker arriving answered has one step, and one step is no rail", () => {
-    const steps = stepsToShow(BROKER, true);
-    assert.deepEqual(steps.map((s) => s.id), ["about"]);
-    assert.equal(showsRail(steps.length), false);
-    assert.equal(showsRail(stepsToShow(FULL, true).length), true);
+  test("shows the steps that remain: Business type drops out while the kind is the one that arrived", () => {
+    assert.deepEqual(stepOrder("owner", true), ["tin", "branches", "documents", "overview", "pay"]);
+    assert.deepEqual(stepOrder("owner", false)[0], "type");
   });
 
   test("saves a draft when a step is left, not when the wizard opens (R02)", () => {
-    assert.equal(savesOnEntry("resume", "about"), false, "opening on About you overwrote a draft");
-    assert.equal(savesOnEntry("about", "business"), true);
-    assert.equal(savesOnEntry("place", "about"), true);
-    assert.equal(savesOnEntry("about", "place"), false, "Place was never a saved phase");
+    assert.equal(savesOnLeave(null, "tin"), false, "opening on step two overwrote a draft");
+    assert.equal(savesOnLeave("tin", "branches"), true);
+    assert.equal(savesOnLeave("type", "tin"), true);
   });
 
-  test("the wizard reads its opening, its rail and its saving from that module", () => {
+  test("the wizard reads its opening, its resume and its saving from that module", () => {
     const wizard = src("app/(app)/(entry)/register/register-wizard.tsx");
-    assert.match(wizard, /setPhase\(openingPhase\(arrivalKind\)\)/);
-    assert.match(wizard, /setPhase\(resumePhase\(resume\.phase, carriedNow\)\)/);
-    assert.match(wizard, /stepsToShow\(/);
-    assert.match(wizard, /savesOnEntry\(previous, phase\)/);
-    // The confirmation face of Place is gone, not hidden.
-    assert.doesNotMatch(src("app/(app)/(entry)/register/step-place.tsx"), /carried/);
+    assert.match(wizard, /setStep\(openingStep\(/);
+    assert.match(wizard, /setStep\(resumeStep\(/);
+    assert.match(wizard, /savesOnLeave\(from, step\)/);
+    // The old confirmation face of the kind question is gone, not hidden.
+    assert.doesNotMatch(src("app/(app)/(entry)/register/step-type.tsx"), /carried/);
   });
 });

@@ -2,22 +2,29 @@ import {
   Building2,
   Check,
   CreditCard,
+  FileText,
+  GitBranch,
   House,
+  KeyRound,
+  PenLine,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@injishi/utils";
 
+import { STEP_TITLE, type StepId } from "@/app/(app)/(entry)/register/register-steps";
+
 /**
  * The registration wizard's progress rail, and the step overview `/host` shows
  * before it.
  *
- * SINCE THE JOURNEY BOARD'S CUT (ADR-069 D-g, 2026-10-07) the wizard draws its
- * own rail (`app/(app)/(entry)/register/register-rail.tsx`) and `/host` is the
- * only reader of `REGISTRATION_STEPS`. Documents moved into the Business step's
- * optional section, so the list is Place, You, Business, and "Check, sign and
- * pay". The paragraphs below record why ADR-060 named five, and stay as its
- * history; where they say five, read four.
+ * SINCE THE REGISTRATION ARTBOARD (Register.dc.html, 2026-10-19) a business
+ * walks SIX steps: Business type, TIN and licences, Branches and PSF,
+ * Documents, Overview, Pay; a residence walks five. The wizard draws its own
+ * rail (`app/(app)/(entry)/register/register-rail.tsx`), `register-steps.ts`
+ * owns the order, and `/host` is the only reader of `REGISTRATION_STEPS`. The
+ * paragraphs below record why ADR-060 named five and the Journey board four
+ * (ADR-069 D-g), and stay as their history.
  *
  * `/host/start` used to preview this rail (`active={null}`) on the page between
  * the chooser and the wizard. That page is a redirect now, so the wizard is the
@@ -38,7 +45,7 @@ import { cn } from "@injishi/utils";
  *
  * The converse holds as well: a rail must not show a step nobody will walk. A
  * kind chosen on `/host` arrives answered and the wizard skips Place, so the
- * wizard passes the list without it (`register/wizard-path.ts`) and the rail
+ * wizard passes the list without it (`register/register-steps.ts`) and the rail
  * renders what it is given.
  *
  * A broker walks a shorter path — no business, no documents, no fee — so the
@@ -54,11 +61,7 @@ import { cn } from "@injishi/utils";
  * node says "Step 2 of 4" to a screen reader, and a phone shows the same
  * count and the current step's name on a line under the rail.
  */
-export type RegistrationStepId =
-  | "place"
-  | "about"
-  | "business"
-  | "pay";
+export type RegistrationStepId = StepId | "about";
 
 export interface RegistrationStep {
   id: RegistrationStepId;
@@ -67,24 +70,32 @@ export interface RegistrationStep {
 }
 
 /**
- * A business's path, every screen of it (ADR-060, cut by the Journey board):
- * its branches and its documents are declared in the Business step's optional
- * section, and the read back, the agreement and the fee are one screen at the
- * end, "Check, sign and pay".
+ * A business's path, every step of it, as the registration artboard draws it
+ * (Register.dc.html, 2026-10-19). The labels are the wizard's own
+ * (`STEP_TITLE` in `register/register-steps.ts`, which owns the order), so
+ * what `/host` names is what the wizard walks.
  */
 export const REGISTRATION_STEPS: ReadonlyArray<RegistrationStep> = [
-  { id: "place", label: "Place", icon: House },
-  { id: "about", label: "You", icon: UserRound },
-  { id: "business", label: "Business", icon: Building2 },
-  { id: "pay", label: "Check, sign and pay", icon: CreditCard },
+  { id: "type", label: STEP_TITLE.type, icon: House },
+  { id: "tin", label: STEP_TITLE.tin, icon: Building2 },
+  { id: "branches", label: STEP_TITLE.branches, icon: GitBranch },
+  { id: "documents", label: STEP_TITLE.documents, icon: FileText },
+  { id: "overview", label: STEP_TITLE.overview, icon: PenLine },
+  { id: "pay", label: STEP_TITLE.pay, icon: CreditCard },
 ];
 
-/** A residence walks the same screens; it simply declares no branches. */
-export const RESIDENCE_STEPS: ReadonlyArray<RegistrationStep> = REGISTRATION_STEPS;
+/** A residence walks five: Property and owner in place of the TIN, and no branches or PSF. */
+export const RESIDENCE_STEPS: ReadonlyArray<RegistrationStep> = [
+  { id: "type", label: STEP_TITLE.type, icon: House },
+  { id: "property", label: STEP_TITLE.property, icon: KeyRound },
+  { id: "documents", label: STEP_TITLE.documents, icon: FileText },
+  { id: "overview", label: STEP_TITLE.overview, icon: PenLine },
+  { id: "pay", label: STEP_TITLE.pay, icon: CreditCard },
+];
 
-/** A broker registers a person, not a business — two steps and no fee. */
+/** A broker registers a person, not a business: the kind, then one short form, and no fee. */
 export const BROKER_STEPS: ReadonlyArray<RegistrationStep> = [
-  { id: "place", label: "Place", icon: House },
+  { id: "type", label: STEP_TITLE.type, icon: House },
   { id: "about", label: "You", icon: UserRound },
 ];
 
