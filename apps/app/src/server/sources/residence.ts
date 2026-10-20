@@ -1125,7 +1125,8 @@ function offerOf(l: ApiLease, o: ApiOffer): R.RenewalOffer {
         : `Answered ${dayMonth(o.answeredAt ?? o.sentAt)}`,
     note:
       o.status === "open"
-        ? `If ${firstName(l.tenantName)} declines or gives notice, the move-out flow starts and the lease ends on ${dayMonth(l.endDate ?? o.startsOn)}. An accepted offer needs an amendment signed by both parties; e-signature is not available yet.`
+        ? // A decline only closes the offer (answerOffer starts nothing); notice is what Move-outs tracks.
+          `If ${firstName(l.tenantName)} declines, the lease still ends on ${dayMonth(l.endDate ?? o.startsOn)}; notice they give is tracked in Move-outs. An accepted offer needs an amendment signed by both parties; e-signature is not available yet.`
         : o.status === "accepted"
           ? "No amendment has been sent: e-signature is not available yet, so Injishi has asked nobody to sign."
           : "",

@@ -191,7 +191,7 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
           tone: "warning" as const,
           icon: <ArrowUturnCcwLeft />,
           title: `Returned to ${r.cleanedByFirst}`,
-          text: "The room goes back to dirty with a re-clean on her list. It is inspected again after that.",
+          text: `The room goes back to dirty with a re-clean on ${r.cleanedByFirst ? `${r.cleanedByFirst}'s` : "the cleaner's"} list. It is inspected again after that.`,
           chip: "Returned · not sellable",
           history: `Returned by ${persona.name} at ${NOW} · ${fails} failed check${fails === 1 ? "" : "s"}${
             photoCount ? `, ${photoCount} photo${photoCount === 1 ? "" : "s"}` : ""
