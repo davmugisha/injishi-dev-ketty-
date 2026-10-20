@@ -37,6 +37,33 @@ const stamp = () => Date.now().toString(36).toUpperCase();
 
 export const flows: Flow[] = [
   {
+    name: "amounts: rent and a draft lease take whole francs as typed, and a decimal is refused, never multiplied",
+    async run({ check, step }) {
+      // The amount reader behind Save as pending and Create draft lease. It used to strip every non-digit, so
+      // "450,000.00" became 45,000,000 a month and "20000.5" became 200,005.
+      const read: [string, number][] = [
+        ["450,000", 450_000],
+        ["RWF 950 000", 950_000],
+        ["1.250.000", 1_250_000],
+        ["20000", 20_000],
+      ];
+      for (const [text, want] of read) {
+        check(res.readAmount(text) === want, `"${text}" must read ${want}, it reads ${res.readAmount(text)}`);
+      }
+      const refusedText = ["450,000.00", "20000.5", "20.000", "0", ""];
+      for (const text of refusedText) {
+        let threw = false;
+        try {
+          res.readAmount(text);
+        } catch (error) {
+          threw = error instanceof res.ResidenceInputError;
+        }
+        check(threw, `"${text}" must be refused with a reason, not read as an amount`);
+      }
+      step(`${read.length} amounts read exactly; ${refusedText.length} refused, "450,000.00" among them`);
+    },
+  },
+  {
     name: "repairs: raised on a unit, moved across the board, noted, answered to the resident, refused backwards",
     async run({ as, check, refused, step }) {
       const solange = await as("residence");

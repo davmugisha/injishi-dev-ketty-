@@ -1,7 +1,20 @@
 "use client";
 
 import { ArrowDownToLine, Bell, CircleCheck, Lock, Plus } from "@gravity-ui/icons";
-import { Button, Card, Description, Input, Label, Table, Tabs, TextArea, TextField, Toast, toast } from "@heroui/react";
+import {
+  Button,
+  Card,
+  Description,
+  FieldError,
+  Input,
+  Label,
+  Table,
+  Tabs,
+  TextArea,
+  TextField,
+  Toast,
+  toast,
+} from "@heroui/react";
 import { KPIGroup, ListView, Timeline } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
 import { type Persona, screenHref } from "@injishi/data";
@@ -17,6 +30,7 @@ import type {
 } from "@injishi/data/fixtures/residence";
 import { GateChip, Icon, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { Fragment, useState } from "react";
+import { readFrancs } from "@/lib/francs";
 import { recordPaymentAction, remindResidentsAction } from "./actions";
 import {
   Dot,
@@ -41,7 +55,7 @@ export interface RentRollData {
   payouts: LandlordPayout[];
 }
 
-type Filter = "all" | "arrears" | "pending" | "paid";
+type Filter = "all" | "arrears" | "due" | "pending" | "paid";
 
 const STATUS: Record<RentStatus, { label: string; tone: Tone }> = {
   paid: { label: "Paid", tone: "success" },
@@ -49,6 +63,13 @@ const STATUS: Record<RentStatus, { label: string; tone: Tone }> = {
   pending: { label: "Pending", tone: "info" },
   unknown: { label: "Unknown", tone: "warning" },
 };
+/**
+ * A charge open and not yet overdue with no payment recorded against it: the roll calls it pending, but nothing
+ * is in flight (this month reads "unpaid"), so it is due, not awaiting verification.
+ */
+const dueUnpaid = (r: RentRollRow) => r.status === "pending" && r.history[r.history.length - 1] === "unpaid";
+const DUE: { label: string; tone: Tone } = { label: "Due · not paid", tone: "default" };
+const stateOf = (r: RentRollRow) => (dueUnpaid(r) ? DUE : STATUS[r.status]);
 const MONTH_TONE: Record<RentMonth, Tone> = {
   paid: "success",
   late: "accent",
@@ -76,7 +97,12 @@ const LEGEND: { tone: Tone; label: string }[] = [
 const FILTERS: { id: Filter; label: string; test: (r: RentRollRow) => boolean }[] = [
   { id: "all", label: "All", test: () => true },
   { id: "arrears", label: "Arrears", test: (r) => r.status === "arrears" },
-  { id: "pending", label: "Awaiting verification", test: (r) => r.status === "pending" || r.status === "unknown" },
+  { id: "due", label: "Due, not paid", test: dueUnpaid },
+  {
+    id: "pending",
+    label: "Awaiting verification",
+    test: (r) => (r.status === "pending" && !dueUnpaid(r)) || r.status === "unknown",
+  },
   { id: "paid", label: "Paid", test: (r) => r.status === "paid" },
 ];
 const METHODS = ["Bank transfer", "MTN MoMo", "Airtel Money", "Cash at the office"];
@@ -153,9 +179,15 @@ export function RentRollView({
   // The ledger and the reminders are the API's: a saved payment or a sent reminder comes back with the page.
   const ledger = detail?.ledger ?? closedLedger(row, cal.month);
   const reminders = detail?.reminders ?? [];
-  const status = STATUS[row.status];
+  const status = stateOf(row);
   const balanceLabel =
-    row.status === "arrears" ? "Overdue balance" : row.status === "paid" ? "Balance" : "Balance · payment in flight";
+    row.status === "arrears"
+      ? "Overdue balance"
+      : row.status === "paid"
+        ? "Balance"
+        : dueUnpaid(row)
+          ? "Balance due · no payment recorded"
+          : "Balance · payment in flight";
   const balance = row.overdue
     ? money(row.overdue)
     : row.status === "paid"
@@ -172,8 +204,9 @@ export function RentRollView({
     });
   const recipients = arrears.filter((a) => remindFor?.includes(a.id));
 
-  const amount = Number(record.amount.replace(/[^\d]/g, ""));
-  const canSave = amount > 0 && record.ref.trim().length > 2;
+  // Whole francs as typed: "20000.5" is refused, never read as 200,005 (lib/francs).
+  const { amount, error: amountError } = readFrancs(record.amount);
+  const canSave = amount > 0 && !amountError && record.ref.trim().length > 2;
   /**
    * Save as pending (`POST /ops/residence/rent-payments`). The Idempotency-Key is minted here, once per
    * press, so a request the network retries is still one payment.
@@ -227,7 +260,7 @@ export function RentRollView({
         r.rent,
         r.verified,
         r.overdue,
-        STATUS[r.status].label,
+        stateOf(r).label,
       ]),
     ]);
 
@@ -350,8 +383,8 @@ export function RentRollView({
                               {r.overdue ? money(r.overdue) : "—"}
                             </Table.Cell>
                             <Table.Cell>
-                              <ToneChip tone={STATUS[r.status].tone} className="whitespace-nowrap">
-                                {STATUS[r.status].label}
+                              <ToneChip tone={stateOf(r).tone} className="whitespace-nowrap">
+                                {stateOf(r).label}
                               </ToneChip>
                             </Table.Cell>
                           </Table.Row>
@@ -454,10 +487,12 @@ export function RentRollView({
                     fullWidth
                     value={record.amount}
                     onChange={(v) => setRecord((s) => ({ ...s, amount: v }))}
+                    isInvalid={!!amountError}
                     className="gap-1"
                   >
                     <Label>Amount (RWF)</Label>
                     <Input inputMode="numeric" placeholder="0" className="tabular" />
+                    <FieldError>{amountError}</FieldError>
                   </TextField>
                 </div>
                 <TextField

@@ -12,7 +12,7 @@ export function rwf(n: number): string {
 }
 
 /** Whole francs of a typed amount ("12,000" → 12000); a decimal part is refused, never folded in. */
-export { parseAmount, readFrancs } from "./amount";
+export { parseAmount, readFrancs } from "@/lib/francs";
 
 /** Status chip from a semantic tone (artifact: chip chip--{tone} chip--soft|tertiary). */
 export function ToneChip({

@@ -53,7 +53,7 @@ import {
 } from "@injishi/ui";
 import NextLink from "next/link";
 import { type ReactNode, useEffect, useRef, useState, useTransition } from "react";
-import { readFrancs } from "@/features/stays/amount";
+import { readFrancs } from "@/lib/francs";
 import { checkInGuest } from "./actions";
 import { ChoiceSelect, isReady, ROOM_STATUS } from "./shared";
 
@@ -124,6 +124,8 @@ export function CheckInView({
   /** Paid in full online when booked: the bill opens with it credited, and nothing is taken at the desk. */
   const nothingDue = file.deposit.amount === 0;
   const roomState = file.rooms.find((r) => r.room === room);
+  /** Only a clean or inspected room can be checked into; a guest already checked in is in the stay's room. */
+  const roomReady = Boolean(file.stayId) || isReady(roomState?.status);
   /** The guest sent their ID from the guest app before arriving (the booking's own record says so). */
   const idSent = file.primaryDocument.some((f) => /guest app/i.test(f.value));
 
@@ -175,8 +177,8 @@ export function CheckInView({
     },
     {
       label: "Room ready",
-      tone: "success",
-      state: `Room ${room} · ${roomState ? ROOM_STATUS[roomState.status].label : "Inspected"}`,
+      tone: roomReady ? "success" : "warning",
+      state: `Room ${room} · ${roomState ? ROOM_STATUS[roomState.status].label : "status not known"}`,
     },
     { label: "Deposit", tone: payCheck[0], state: payCheck[1] },
     {
@@ -260,6 +262,7 @@ export function CheckInView({
   const blocked =
     saving ||
     (step === 1 && !idOk) ||
+    (step === 2 && !roomReady) ||
     (step === 3 && pay !== "later" && payState === "idle" && !nothingDue) ||
     (step === 4 && !keyGiven);
   const hint =
@@ -270,7 +273,9 @@ export function CheckInView({
           : "Ready for the room"
         : "Confirm the ID check to continue"
       : step === 2
-        ? `Room ${room} is ready`
+        ? roomReady
+          ? `Room ${room} is ready`
+          : `Room ${room} is ${roomState ? ROOM_STATUS[roomState.status].label.toLowerCase() : "not marked ready"} · choose a clean or inspected room`
         : step === 3
           ? blocked
             ? "Take the deposit or choose pay at checkout"

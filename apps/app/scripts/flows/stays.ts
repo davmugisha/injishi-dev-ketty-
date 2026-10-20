@@ -26,7 +26,7 @@ import type {
   Stay,
   StayRecord,
 } from "@injishi/data/fixtures/stays";
-import { readFrancs } from "../../src/features/stays/amount";
+import { readFrancs } from "../../src/lib/francs";
 import {
   checkOutStay,
   postFolioCharge,

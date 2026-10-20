@@ -7,6 +7,7 @@
  * the screen typed as prose (a visit window, a date) is read here into the form the API takes, and a
  * line that cannot be read is refused in words before the API is called.
  */
+import { readFrancs } from "../../lib/francs";
 import { forgetResidence, readResidence } from "../sources/residence";
 import type { SourceContext } from "../sources/types";
 
@@ -122,11 +123,15 @@ export function readWindow(text: string, today: string, dayText?: string): { val
   return { validFrom: `${day}T${times[0]}:00+02:00`, validTo: `${end}T${times[1]}:00+02:00` };
 }
 
-/** A whole number of francs from "1,050,000" or "RWF 950 000". */
+/**
+ * A whole number of francs from "1,050,000" or "RWF 950 000". A decimal part ("450,000.00") is refused with the
+ * reason, never folded into the digits: stripping every non-digit read it as 45,000,000 (lib/francs).
+ */
 export function readAmount(text: string): number {
-  const n = Number(text.replace(/[^\d]/g, ""));
-  if (!Number.isSafeInteger(n) || n <= 0) throw new ResidenceInputError("Enter an amount in whole francs.");
-  return n;
+  const { amount, error } = readFrancs(text);
+  if (error) throw new ResidenceInputError(error);
+  if (!Number.isSafeInteger(amount) || amount <= 0) throw new ResidenceInputError("Enter an amount in whole francs.");
+  return amount;
 }
 
 // ── Lookups ────────────────────────────────────────────────────────────────────────────────────────

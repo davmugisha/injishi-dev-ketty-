@@ -131,6 +131,11 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
   const canTime = !isResolved && (!!w.repair || s === "progress");
   const woNotes: KeyedNote[] = w.notes.map((n) => ({ ...n, key: `${n.who}-${n.when}-${n.text.slice(0, 24)}` }));
   const block = w.block;
+  /**
+   * Only an approved block ("Not sellable") can be asked back on sale: the API records the ask for an active block
+   * only. A requested block is still on sale and stays with the manager to decide.
+   */
+  const blockActive = block?.tone === "danger";
 
   const fixed: Step = {
     status: "success",
@@ -143,7 +148,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
         fixed,
         { status: "default", icon: <Bell />, title: "Shows as fixed on the work order", detail: `Raised by ${w.from}` },
       ]
-    : askRelease
+    : askRelease && blockActive
       ? [
           fixed,
           {
@@ -161,7 +166,15 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
           },
           { status: "default", icon: <Key />, title: "Back on sale", detail: "Front desk sees it as available" },
         ]
-      : [fixed, { status: "default", icon: <Ban />, title: "Block stays as approved", detail: block.keep }];
+      : [
+          fixed,
+          {
+            status: "default",
+            icon: <Ban />,
+            title: blockActive ? "Block stays as approved" : "Block request stays with the manager",
+            detail: block.keep,
+          },
+        ];
 
   const openOrder = (id: string) => {
     setWoId(id);
@@ -189,7 +202,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
   const fixText = fix[w.id] ?? w.fix;
   const resolve = () =>
     startTransition(async () => {
-      if (!reported(await resolveWorkOrderAction(w.id, { fix: fixText, askRelease: Boolean(block) && askRelease })))
+      if (!reported(await resolveWorkOrderAction(w.id, { fix: fixText, askRelease: blockActive && askRelease })))
         return;
       setSheet("");
       setResolved((r) => ({ ...r, [w.id]: { order: { ...w, repair: null, fix: fixText }, at: kigaliClock() } }));
@@ -286,7 +299,13 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
               <Card render={renderSection} role="status" aria-labelledby="rs-h" className="gap-[12px] p-[16px]">
                 <div className="flex items-start justify-between gap-[8px]">
                   <h2 id="rs-h" className="text-[15px] leading-[22px] font-semibold">
-                    {!block ? "Resolved" : askRelease ? "Resolved · release requested" : "Resolved · block kept"}
+                    {!block
+                      ? "Resolved"
+                      : !blockActive
+                        ? "Resolved · block request still with the manager"
+                        : askRelease
+                          ? "Resolved · release requested"
+                          : "Resolved · block kept"}
                   </h2>
                   {block ? (
                     <Chip size="sm" variant="soft" color={block.tone}>
@@ -581,7 +600,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
           <Label>What did you do?</Label>
           <TextArea rows={3} />
         </TextField>
-        {block ? (
+        {blockActive && block ? (
           <>
             <Switch
               size="lg"
