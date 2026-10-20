@@ -555,10 +555,11 @@ describe('AssistantController (ADR-061 slice A)', () => {
 
   it('offers listings on every host, the production API host included', async () => {
     ({ app } = await boot());
-    for (const headers of [
+    const hosts: Record<string, string>[] = [
       { host: 'localhost:8000' },
       { host: 'api.injishi.com', 'x-forwarded-for': '198.51.100.9' },
-    ]) {
+    ];
+    for (const headers of hosts) {
       const sent = await post({ message: 'places to stay in Musanze', surface: 'web' }, headers);
       expect(sent.json().conversation.messages[1].sources.map((s: { kind: string }) => s.kind)).toEqual(['listing', 'listing']);
     }
