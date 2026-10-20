@@ -44,6 +44,7 @@ import { reported } from "../operations/shared";
 import { noteWorkOrderAction, resolveWorkOrderAction, setWorkOrderTimerAction, startWorkOrderAction } from "./actions";
 import {
   kigaliClock,
+  NothingYet,
   PhoneActionBar,
   PhoneSheet,
   PhoneTitle,
@@ -81,7 +82,7 @@ type KeyedNote = WorkOrder["notes"][number] & { key: string };
 
 const NOT_YET = {
   photo: "Photos cannot be sent from the phone yet. Show the problem in a note.",
-  part: "The store is not connected yet. Ask Patrick to issue the part.",
+  part: "The store is not connected yet. Ask whoever keeps the store to issue the part.",
   reopen: "A fixed order cannot be reopened from the phone yet. Ask the office to raise a new one.",
 };
 
@@ -105,6 +106,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
   const [resolved, setResolved] = useState<Record<string, { order: WorkOrder; at: string }>>({});
   const [pending, startTransition] = useTransition();
   const orders = [...data.orders.filter((o) => !resolved[o.id]), ...Object.values(resolved).map((x) => x.order)];
+  if (!orders.length) return <NothingYet title="Work orders" message="No work order is open for you right now." />;
 
   const statusOf = (o: WorkOrder): Status => (resolved[o.id] ? "resolved" : o.status);
   const openCount = orders.filter((o) => statusOf(o) !== "resolved").length;
@@ -133,7 +135,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
     status: "success",
     icon: <Check />,
     title: "Fixed by you",
-    detail: `Today ${resolved[w.id]?.at ?? kigaliClock()} · ${parts.length} part${parts.length === 1 ? "" : "s"} · time logged`,
+    detail: `Today ${resolved[w.id]?.at ?? kigaliClock()} · ${parts.length} part${parts.length === 1 ? "" : "s"}`,
   };
   const release: Step[] = !block
     ? [
@@ -520,7 +522,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
         isOpen={sheet === "parts"}
         onOpenChange={(o) => !o && setSheet("")}
         heading="Add part from store"
-        description="Patrick issues it from the store. It counts as used once he confirms."
+        description="Not connected yet: these are sample parts, and nothing is issued from here."
       >
         <ListView
           aria-label="Parts in store"

@@ -45,7 +45,7 @@ import { stock } from "@injishi/data/media";
 import { GateChip, Icon, KeyValueList, LinkButton, Photo, StatusDot } from "@injishi/ui";
 import { useState, useTransition } from "react";
 import { reportListingAction, setSavedBySlugAction } from "./actions";
-import { dayNumber, fmtDay, plural, propertyHref, rwf, shortRange, weekday } from "./format";
+import { dayNumber, fmtDay, isoDay, plural, propertyHref, rwf, shortRange, weekday } from "./format";
 import { MarketFooter, MarketHeader, MarketMain, type MarketVisitor } from "./MarketChrome";
 import { LISTING_REPORT_REASONS } from "./report-reasons";
 import { Stars } from "./stars";
@@ -102,19 +102,25 @@ export function MarketPropertyView({
   const [saved, setSaved] = useState(Boolean(property.savedTo));
   const [saving, startSaving] = useTransition();
   /** The heart saves to (or removes from) the signed-in person's lists; a refusal is shown. */
+  /** Saving and reporting need an account: sign in and come back to this property, not a default one. */
+  const signInHere = () =>
+    window.location.assign(`${screenHref("SignIn")}?next=${encodeURIComponent(propertyHref(property.id))}`);
   const toggleSaved = () =>
-    startSaving(async () => {
-      const result = await setSavedBySlugAction(property.id, !saved);
-      if (result.ok) setSaved((v) => !v);
-      else toast.danger(result.error);
-    });
+    visitor
+      ? startSaving(async () => {
+          const result = await setSavedBySlugAction(property.id, !saved);
+          if (result.ok) setSaved((v) => !v);
+          else toast.danger(result.error);
+        })
+      : signInHere();
   /** "Report this listing": the open form, the reason picked, and the support ticket it became. */
   const [listingForm, setListingForm] = useState(false);
   const [listingReason, setListingReason] = useState<string>(LISTING_REPORT_REASONS[0].id);
   const [listingDetail, setListingDetail] = useState("");
   const [listingTicket, setListingTicket] = useState<string | null>(null);
   const [reporting, startReporting] = useTransition();
-  const sendListingReport = () =>
+  const sendListingReport = () => {
+    if (!visitor) return signInHere();
     startReporting(async () => {
       const result = await reportListingAction(property.id, listingReason, listingDetail);
       if (!result.ok) {
@@ -125,6 +131,7 @@ export function MarketPropertyView({
       setListingForm(false);
       setListingDetail("");
     });
+  };
 
   const room = rooms.find((r) => r.id === roomId) ?? rooms[0];
   const guests = adults + kids;
@@ -141,9 +148,16 @@ export function MarketPropertyView({
   const alertOn = Boolean(hasNights && room && (sold !== undefined || !fits));
   const request = room?.booking === "request";
   const effIn = inD ?? dayNumber(property.stay.checkIn);
-  const deadline = effIn - property.cancellation.fullRefundDays;
-  const freeOk = deadline >= today;
-  const base = (room?.price ?? 0) * (nights || 1);
+  // A policy with no full-refund step (fullRefundDays -1) offers no free cancellation, whatever the dates.
+  const hasFullRefund = property.cancellation.fullRefundDays >= 0;
+  const deadline = effIn - Math.max(0, property.cancellation.fullRefundDays);
+  const freeOk = hasFullRefund && deadline >= today;
+  // A room's rate is per guest per night (the booking service prices a stay per person), so the party multiplies it.
+  const partyRate = (r: MarketRoom) => r.price * Math.max(1, guests);
+  const base = (room ? partyRate(room) : 0) * (nights || 1);
+  /** The Non-refundable plan exists only where the API offers a discount for it (an eligible room). */
+  const saverOffered = property.saverDiscount > 0;
+  const saverPct = Math.round(property.saverDiscount * 100);
   const saver = Math.round(base * (1 - property.saverDiscount));
   const isFri = inD !== null && weekday(inD) === property.package.weekday;
   const pkgAvail = Boolean(
@@ -163,7 +177,18 @@ export function MarketPropertyView({
     return next ?? inD + 30;
   })();
 
-  const checkoutHref = request ? `${screenHref("MarketCheckout")}?state=request` : screenHref("MarketCheckout");
+  // The checkout books exactly what is chosen here: the room, the nights, the party and the plan.
+  const checkoutHref =
+    room && inD !== null && outD !== null
+      ? `${screenHref("MarketCheckout")}?${new URLSearchParams({
+          room: room.id,
+          in: isoDay(inD),
+          out: isoDay(outD),
+          adults: String(adults),
+          children: String(kids),
+          plan: plan === "saver" && saverOffered ? "saver" : "flex",
+        }).toString()}`
+      : screenHref("MarketCheckout");
   const ctaLink = Boolean(hasNights && !alertOn && room);
   const ctaText = request ? "Request to book" : "Reserve";
   const ctaNote = !hasNights
@@ -177,18 +202,22 @@ export function MarketPropertyView({
     : "";
 
   const lines: { label: string; value: string; tone?: "success" }[] = [
-    { label: `${rwf(room?.price ?? 0)} × ${nightsStr}`, value: rwf(base) },
+    { label: `${rwf(room?.price ?? 0)} × ${plural(guests, "guest", "guests")} × ${nightsStr}`, value: rwf(base) },
   ];
   if (plan === "saver")
     lines.push({ label: "Non-refundable discount", value: `− ${rwf(base - saver)}`, tone: "success" });
   if (pkgOn) lines.push({ label: "Boat trip + dinner for 2", value: rwf(property.package.price) });
 
   const tiers = [
-    {
-      title: `Before ${fmtDay(deadline)}, ${property.cancellation.cutoff}`,
-      detail: "Full refund",
-      status: "success" as const,
-    },
+    ...(hasFullRefund
+      ? [
+          {
+            title: `Before ${fmtDay(deadline)}, ${property.cancellation.cutoff}`,
+            detail: "Full refund",
+            status: "success" as const,
+          },
+        ]
+      : []),
     {
       title: `Before ${fmtDay(effIn)}, ${property.cancellation.cutoff}`,
       detail: property.cancellation.partialRefund,
@@ -205,7 +234,17 @@ export function MarketPropertyView({
     }
   };
 
-  if (!room) return null;
+  // A listed property with no room or unit on the marketplace yet gets a plain line, never a blank page.
+  if (!room)
+    return (
+      <>
+        <MarketHeader width="regular" visitor={visitor} returnTo={propertyHref(property.id)} current="stays" />
+        <MarketMain width="regular" className="gap-[22px] pt-5">
+          <h1 className="text-[30px] leading-[38px] font-semibold tracking-[-0.02em]">{property.name}</h1>
+          <p className="text-sm text-muted">No room or unit is listed for booking here yet.</p>
+        </MarketMain>
+      </>
+    );
 
   return (
     <>
@@ -290,7 +329,12 @@ export function MarketPropertyView({
               className={`h-[140px] ${GALLERY_RADIUS[i] ?? "rounded-[6px]"}`}
             />
           ))}
-          <Button variant="secondary" size="sm" className="absolute right-3 bottom-3">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="absolute right-3 bottom-3"
+            onPress={() => toast.warning("A full-size photo viewer is not available yet.")}
+          >
             <LayoutCells className="size-4" />
             All {property.photoCount} photos
           </Button>
@@ -412,14 +456,14 @@ export function MarketPropertyView({
                           <span
                             className={`text-base font-semibold tabular ${isSold !== undefined ? "text-muted" : ""}`}
                           >
-                            {isSold !== undefined ? "Sold out" : rwf(r.price * (nights || 1))}
+                            {isSold !== undefined ? "Sold out" : rwf(partyRate(r) * (nights || 1))}
                           </span>
                           <span className="text-xs text-muted tabular">
                             {isSold !== undefined
                               ? `on ${fmtDay(isSold)}`
                               : hasNights
-                                ? `${rwf(r.price)} × ${nightsStr}`
-                                : "per night"}
+                                ? `${rwf(r.price)} × ${plural(guests, "guest", "guests")} × ${nightsStr}`
+                                : `per night · ${rwf(r.price)} a guest`}
                           </span>
                         </span>
                         <RadioButtonGroup.Indicator />
@@ -490,10 +534,24 @@ export function MarketPropertyView({
                 <ShieldCheck className="mt-px size-3.5 shrink-0" aria-hidden="true" />
                 {property.reviewNote}
               </p>
+              {reviews.length ? (
+                <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                  <Chip size="sm" variant="soft" color="warning">
+                    <Chip.Label>Sample reviews</Chip.Label>
+                  </Chip>
+                  Guest reviews are not served yet. The reviews below are sample data, not reviews from guests of{" "}
+                  {property.name}.
+                </p>
+              ) : null}
               <div className="grid items-start gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr))]">
                 {reviews.map((rv) => {
                   return (
-                    <Card key={rv.id} render={(p) => <article {...p} />} className="gap-2.5 p-4">
+                    <Card
+                      key={rv.id}
+                      render={(p) => <article {...p} />}
+                      aria-label={`Sample review by ${rv.name}`}
+                      className="gap-2.5 p-4"
+                    >
                       <div className="flex items-center gap-3">
                         <Avatar size="sm" variant="soft">
                           <Avatar.Fallback>{rv.initials}</Avatar.Fallback>
@@ -668,9 +726,11 @@ export function MarketPropertyView({
                     <s className="text-[15px] text-muted tabular">{rwf(base + (pkgOn ? property.package.price : 0))}</s>
                   ) : null}
                   <span className="text-2xl leading-[30px] font-semibold tracking-[-0.01em] tabular">
-                    {hasNights ? rwf(total) : rwf(room.price)}
+                    {hasNights ? rwf(total) : rwf(partyRate(room))}
                   </span>
-                  <span className="text-sm text-muted">{hasNights ? `for ${nightsStr}` : "per night"}</span>
+                  <span className="text-sm text-muted">
+                    {hasNights ? `for ${nightsStr}` : `per night · ${plural(guests, "guest", "guests")}`}
+                  </span>
                 </h2>
                 {hasNights && !alertOn && room.left === 1 ? (
                   <Chip size="sm" variant="soft" color="warning" className="mt-1 shrink-0">
@@ -877,15 +937,23 @@ export function MarketPropertyView({
                     {rwf(base)}
                     {hasNights ? "" : " / night"}
                   </span>
-                  <span className="text-xs text-muted">{freeOk ? `Until ${fmtDay(deadline)}` : "50% refund"}</span>
+                  <span className="text-xs text-muted">
+                    {freeOk ? `Until ${fmtDay(deadline)}` : property.cancellation.partialRefund}
+                  </span>
                 </RadioButtonGroup.Item>
-                <RadioButtonGroup.Item value="saver" className="gap-0.5 rounded-[14px] px-3.5 py-3 text-left">
+                <RadioButtonGroup.Item
+                  value="saver"
+                  isDisabled={!saverOffered}
+                  className="gap-0.5 rounded-[14px] px-3.5 py-3 text-left"
+                >
                   <span className="text-[13px] font-semibold">Non-refundable</span>
                   <span className="text-[13px] tabular">
-                    {rwf(saver)}
-                    {hasNights ? "" : " / night"}
+                    {saverOffered ? rwf(saver) : "Not offered"}
+                    {saverOffered && !hasNights ? " / night" : ""}
                   </span>
-                  <span className="text-xs text-muted">Save 10%</span>
+                  <span className="text-xs text-muted">
+                    {saverOffered ? `Save ${saverPct}%` : "This place has no non-refundable rate"}
+                  </span>
                 </RadioButtonGroup.Item>
               </RadioButtonGroup>
 
@@ -929,12 +997,6 @@ export function MarketPropertyView({
                   </Button>
                 )}
                 <span className="text-center text-[13px] text-muted">{ctaNote}</span>
-                {ctaLink ? (
-                  <span className="text-center text-xs text-muted">
-                    Dates, guests, plan and package chosen here are not carried to checkout yet: checkout shows the stay
-                    it books before you pay.
-                  </span>
-                ) : null}
               </div>
 
               {hasNights ? (
@@ -948,7 +1010,7 @@ export function MarketPropertyView({
                     </div>
                   ))}
                   <div className="flex items-center justify-between gap-3 border-t border-separator pt-3 text-[15px] font-semibold">
-                    <dt>Total</dt>
+                    <dt>Total before the service fee</dt>
                     <dd className="tabular">{rwf(total)}</dd>
                   </div>
                 </dl>
@@ -966,8 +1028,10 @@ export function MarketPropertyView({
       <div className="sticky bottom-0 z-20 hidden items-center gap-3 border-t border-separator bg-surface px-4 py-3 max-[760px]:flex">
         <a href="#book" className="flex min-w-0 flex-1 flex-col text-inherit no-underline">
           <span className="text-base font-semibold tabular">
-            {hasNights ? rwf(total) : rwf(room.price)}{" "}
-            <span className="text-[13px] font-normal text-muted">{hasNights ? `for ${nightsStr}` : "per night"}</span>
+            {hasNights ? rwf(total) : rwf(partyRate(room))}{" "}
+            <span className="text-[13px] font-normal text-muted">
+              {hasNights ? `for ${nightsStr}` : `per night · ${plural(guests, "guest", "guests")}`}
+            </span>
           </span>
           <span className="text-[13px] underline">
             {hasNights && inD !== null && outD !== null ? shortRange(inD, outD) : "Add dates"}

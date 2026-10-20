@@ -22,22 +22,17 @@ import {
 import { Alert, Avatar, Button, Card, SearchField, Separator, Tabs, Toast, toast } from "@heroui/react";
 import { DropZone, EmptyState, ItemCard, ItemCardGroup, ListView, Stepper, Timeline } from "@heroui-pro/react";
 import { type BoardId, type Persona, screenHref } from "@injishi/data";
-import type {
-  AcceptedRenewal,
-  FilingStage,
-  Lease,
-  LeaseClause,
-  ResidenceUnit,
-  Tone,
-} from "@injishi/data/fixtures/residence";
+import type { AcceptedRenewal, FilingStage, LeaseClause, ResidenceUnit, Tone } from "@injishi/data/fixtures/residence";
 import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import NextLink from "next/link";
 import { Fragment, type ReactNode, useState } from "react";
+import type { LiveLease } from "@/server/sources/residence";
 import { remindAboutOfferAction, withdrawOfferAction } from "./actions";
 import { downloadCsv, firstKey, kigaliCalendar, lineTab, money, SubHeading, TabCount, ToneChip } from "./shared";
 
 export interface LeasesData {
-  leases: Lease[];
+  /** Live leases carry `record` (landlord, deposit, notice, term, signature dates); see LeaseRecord. */
+  leases: LiveLease[];
   clauses: LeaseClause[];
   accepted: AcceptedRenewal[];
   units: ResidenceUnit[];
@@ -58,15 +53,15 @@ const CLAUSES_UNAVAILABLE = "Editing clauses is not available yet. The draft kee
 const FILING: Record<FilingStage, { state: string; tone: Tone; step: number }> = {
   followup: { state: "Sent · needs follow-up", tone: "warning", step: 3 },
   ack: { state: "Acknowledged", tone: "success", step: 5 },
-  draft: { state: "Draft · 5 days left", tone: "warning", step: 0 },
+  draft: { state: "Draft · not sent", tone: "warning", step: 0 },
   none: { state: "Not started", tone: "default", step: -1 },
 };
 const FILING_STEPS = ["Draft", "Internal review", "Approved to send", "Sent", "Acknowledged"];
 
-const DEPOSIT_RULES: { icon: ReactNode; text: string }[] = [
+const depositRules = (landlord: string): { icon: ReactNode; text: string }[] => [
   {
     icon: <Vault />,
-    text: "Held by Amahoro Residences Ltd as a liability. It is never counted as rent or income.",
+    text: `Held by ${landlord || "the landlord"} as a liability. It is never counted as rent or income.`,
   },
   {
     icon: <ListCheck />,
@@ -89,7 +84,10 @@ const initials = (name: string) =>
     .slice(0, 2)
     .join("");
 
-export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
+/** "one month’s" / "2 months’" */
+const monthsOf = (n: number) => (n === 1 ? "one month’s" : `${n} months’`);
+
+export function LeasesView({ data, building }: { persona: Persona; data: LeasesData; building?: string }) {
   const [sel, setSel] = useState(data.leases[0]?.id ?? "");
   const [tab, setTab] = useState<Tab>("overview");
   const [query, setQuery] = useState("");
@@ -108,21 +106,27 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
   const isCompany = lease.resident.includes("Ltd");
   const stage: FilingStage = lease.filing.stage;
   const filing = FILING[stage];
-  const term = `${lease.start} – ${lease.end} · 12 months`;
+  // What the API holds for this lease (absent on a fixture document): never a fixed landlord, signer, deposit or term.
+  const rec = lease.record;
+  const landlord = rec?.landlord ?? "";
+  const deposit = rec?.deposit ?? null;
+  const term = `${lease.start} – ${lease.end}${rec?.termMonths ? ` · ${rec.termMonths} months` : ""}`;
+  const depositText =
+    deposit === null
+      ? "Not on file"
+      : `${money(deposit)}${lease.rent > 0 && deposit > 0 && deposit % lease.rent === 0 ? ` · ${monthsOf(deposit / lease.rent)} rent` : ""}`;
 
   const parties = [
     {
       role: "Landlord",
-      name: "Amahoro Residences Ltd",
-      sub: "TIN 102 345 990 · represented by Solange Uwimana",
-      initials: "AR",
+      name: landlord || "Landlord not on file",
+      sub: rec?.landlordId || "TIN not on file",
+      initials: landlord ? initials(landlord) : "?",
     },
     {
       role: "Tenant",
       name: lease.resident,
-      sub: isCompany
-        ? "Company tenant · staff housing for one named occupant"
-        : "Resident profile · ID checked in person",
+      sub: isCompany ? `Company tenant${lease.occupant ? " · housing a named occupant" : ""}` : "Resident",
       initials: initials(lease.resident),
     },
     ...(lease.occupant ? [{ role: "Occupant", ...lease.occupant }] : []),
@@ -142,10 +146,13 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
     {
       icon: <Vault />,
       title: "Caution deposit",
-      desc: isDraft
-        ? `${money(lease.rent * 2)} to be collected at signing`
-        : `${money(lease.rent * 2)} held as a liability`,
-      chip: isDraft ? "Not collected" : "Held",
+      desc:
+        deposit === null
+          ? "Amount not recorded on the lease"
+          : isDraft
+            ? `${money(deposit)} to be collected at signing`
+            : `${money(deposit)} agreed in the lease`,
+      chip: isDraft ? "Not collected" : "Agreed",
       tone: isDraft ? "default" : "success",
       board: "MoveOuts",
     },
@@ -159,39 +166,41 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
     },
   ];
 
-  const sigs = isDraft
-    ? [
-        {
-          name: lease.resident,
-          party: "Tenant",
-          state: "Not sent",
-          tone: "default" as Tone,
-          evidence: "Send for signature once the clauses are final.",
-        },
-        {
-          name: "Solange Uwimana",
-          party: "Landlord · Amahoro Residences Ltd",
-          state: "Not sent",
-          tone: "default" as Tone,
-          evidence: "Landlord signs after the tenant.",
-        },
-      ]
-    : [
-        {
-          name: lease.resident,
-          party: "Tenant",
-          state: "Signed",
-          tone: "success" as Tone,
-          evidence: lease.signatures?.tenant ?? `Signed ${lease.signedOn}`,
-        },
-        {
-          name: "Solange Uwimana",
-          party: "Landlord · Amahoro Residences Ltd",
-          state: "Signed",
-          tone: "success" as Tone,
-          evidence: lease.signatures?.landlord ?? `Signed ${lease.signedOn}`,
-        },
-      ];
+  // Each side's own signature date as the API records it; the person who signs for the landlord is not on file.
+  const tenantSigned = rec ? rec.tenantSignedOn : lease.signedOn;
+  const landlordSigned = rec ? rec.landlordSignedOn : lease.signedOn;
+  const sigState = (signedOn: string) =>
+    signedOn
+      ? { state: "Signed", tone: "success" as Tone }
+      : isDraft
+        ? { state: "Not sent", tone: "default" as Tone }
+        : { state: "Not signed", tone: "warning" as Tone };
+  const sigs = [
+    {
+      name: lease.resident,
+      party: "Tenant",
+      ...sigState(tenantSigned),
+      evidence:
+        lease.signatures?.tenant ??
+        (tenantSigned
+          ? `Signed ${tenantSigned}`
+          : isDraft
+            ? "Send for signature once the clauses are final."
+            : "No tenant signature recorded."),
+    },
+    {
+      name: landlord || "Landlord not on file",
+      party: "Landlord · signer not on file",
+      ...sigState(landlordSigned),
+      evidence:
+        lease.signatures?.landlord ??
+        (landlordSigned
+          ? `Signed ${landlordSigned}`
+          : isDraft
+            ? "Landlord signs after the tenant."
+            : "No landlord signature recorded."),
+    },
+  ];
 
   const clauses = data.clauses.map((c, i) => {
     const edit = lease.edits?.find((e) => e.index === i);
@@ -240,7 +249,7 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
   return (
     <PageContent>
       <PageHeader
-        eyebrow="Tenancy · Kacyiru Court Residences"
+        eyebrow={building ? `Tenancy · ${building}` : "Tenancy"}
         title="Leases"
         description={`${activeLeases} active leases, ${drafts} draft, ${renewing} renewals in progress. Each lease is its own record, separate from rent charges and deposits.`}
         actions={
@@ -351,12 +360,16 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
                       { label: "Rent", value: <span className="tabular">{money(lease.rent)} a month</span> },
                       {
                         label: "Rent cycle",
-                        value: `Monthly, due on the ${lease.dueDay} · 5-day grace · MoMo or bank transfer`,
+                        value: `Monthly, due on the ${lease.dueDay}${rec?.graceDays != null ? ` · ${rec.graceDays}-day grace` : ""}`,
                       },
-                      { label: "Notice period", value: "30 days in writing, either party" },
+                      {
+                        label: "Notice period",
+                        value:
+                          rec?.noticeDays != null ? `${rec.noticeDays} days in writing, either party` : "Not on file",
+                      },
                       {
                         label: "Caution deposit",
-                        value: <span className="tabular">{money(lease.rent * 2)} · two months’ rent</span>,
+                        value: <span className="tabular">{depositText}</span>,
                       },
                     ]}
                   />
@@ -383,7 +396,7 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
                 <div className="flex min-w-0 flex-col gap-2.5">
                   <SubHeading>Caution deposit conditions</SubHeading>
                   <ul className="m-0 flex list-none flex-col gap-2 p-0 text-[13px] leading-5">
-                    {DEPOSIT_RULES.map((r) => (
+                    {depositRules(landlord).map((r) => (
                       <li key={r.text} className="flex items-start gap-2">
                         <span className="mt-0.5 shrink-0 text-muted [&_svg]:size-4" aria-hidden="true">
                           {r.icon}
@@ -424,8 +437,7 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
                     <div className="flex min-w-0 flex-col gap-1">
                       <SubHeading>Contract clauses</SubHeading>
                       <span className="text-[12px] text-muted">
-                        Kacyiru Court residential lease v3 ·{" "}
-                        {isDraft ? "Draft · editable" : "Signed version 2 · locked"}
+                        The building’s standard lease · {isDraft ? "Draft · editable" : "Signed · locked"}
                       </span>
                     </div>
                     <Button
@@ -482,10 +494,10 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
                       <ShieldKeyhole />
                     </Alert.Indicator>
                     <Alert.Content>
-                      <Alert.Title>Signature evidence kept 7 years</Alert.Title>
+                      <Alert.Title>Signature evidence</Alert.Title>
                       <Alert.Description>
-                        One-time code, time, device and document fingerprint are stored with the signed PDF. The
-                        retention period is your configured policy and has not been verified as a legal requirement.
+                        Injishi records the day each side signed. One-time code, device and document fingerprint
+                        evidence is not stored yet, so keep the signed paper copy on file.
                       </Alert.Description>
                     </Alert.Content>
                   </Alert>
@@ -623,7 +635,7 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
                       },
                       {
                         label: "Delivery",
-                        value: stage === "ack" ? "Signed acknowledgement on file" : lease.filing.delivery,
+                        value: lease.filing.delivery,
                       },
                       { label: "Status", value: <ToneChip tone={filing.tone}>{filing.state}</ToneChip> },
                     ]}
@@ -672,7 +684,10 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
                         label: `Verified rent, ${kigaliCalendar().year} to date`,
                         value: <span className="tabular">{lease.income}</span>,
                       },
-                      { label: "Legal entity", value: "Amahoro Residences Ltd · TIN 102 345 990" },
+                      {
+                        label: "Legal entity",
+                        value: landlord ? `${landlord}${rec?.landlordId ? ` · ${rec.landlordId}` : ""}` : "Not on file",
+                      },
                       {
                         label: "Tax rules applied",
                         value: "None until verified. Hotel tourism and EBM rules are not applied to residential rent.",
@@ -692,7 +707,7 @@ export function LeasesView({ data }: { persona: Persona; data: LeasesData }) {
                             "Legal entity",
                             `Verified rent, ${kigaliCalendar().year} to date`,
                           ],
-                          [lease.id, lease.unit, lease.resident, "Amahoro Residences Ltd", lease.income],
+                          [lease.id, lease.unit, lease.resident, landlord || "Not on file", lease.income],
                         ])
                       }
                     >

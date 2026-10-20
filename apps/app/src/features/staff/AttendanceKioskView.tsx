@@ -3,7 +3,7 @@
 import { ArrowLeft, ArrowsRotateLeft, Keyboard, QrCode, ShieldCheck } from "@gravity-ui/icons";
 import { Button, Chip } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
-import type { Kiosk, StaffProfile } from "@injishi/data/fixtures/staff";
+import type { Kiosk } from "@injishi/data/fixtures/staff";
 import { StatusDot } from "@injishi/ui";
 import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -11,10 +11,26 @@ import { BrandMark } from "@/components/brand";
 
 export type KioskScreen = "pin" | "qr" | "confirm" | "done";
 
-export interface KioskStaff {
-  name: string;
-  firstName: string;
-  profile: StaffProfile;
+/** The kiosk's wall clock: the time and date in Kigali now, read from this device and ticking. */
+function useKigaliClock(): { time: string; date: string } | null {
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    const tick = () => setNow(new Date());
+    tick();
+    const id = window.setInterval(tick, 1_000);
+    return () => window.clearInterval(id);
+  }, []);
+  if (!now) return null;
+  return {
+    time: now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Kigali" }),
+    date: now.toLocaleDateString("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "Africa/Kigali",
+    }),
+  };
 }
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "del"] as const;
@@ -69,17 +85,18 @@ function Viewfinder({ onScan }: { onScan: () => void }) {
 /**
  * Staff clock-in kiosk at the staff entrance: PIN or staff card (artifact: AttendanceKiosk). Not connected to the
  * API's kiosk yet (see NOT_CONNECTED), so it confirms nobody and clocks nobody in: a full PIN or a card held to the
- * camera says so instead. `staff`, `offline` and a `confirm`/`done` initial screen are accepted and unused.
+ * camera says so instead. Unpaired, it names no hotel; the clock is this device's, in Kigali time. `offline` and a
+ * `confirm`/`done` initial screen are accepted and unused.
  */
 export function AttendanceKioskView({
   kiosk,
   initialScreen = "pin",
 }: {
   kiosk: Kiosk;
-  staff: KioskStaff;
   initialScreen?: KioskScreen;
   offline?: boolean;
 }) {
+  const clock = useKigaliClock();
   const [step, setStep] = useState<"pin" | "qr">(initialScreen === "qr" ? "qr" : "pin");
   const [pin, setPin] = useState("");
   const [err, setErr] = useState(false);
@@ -164,20 +181,20 @@ export function AttendanceKioskView({
         <div className="flex items-center gap-[12px]">
           <BrandMark size={36} />
           <div className="flex flex-col">
-            <span className="text-base leading-[22px] font-semibold">{kiosk.hotel}</span>
-            <span className="text-[13px] leading-[18px] text-muted">{kiosk.place}</span>
+            <span className="text-base leading-[22px] font-semibold">Staff clock-in</span>
+            <span className="text-[13px] leading-[18px] text-muted">Not paired with a property yet</span>
           </div>
         </div>
 
         <div className="flex flex-col gap-[6px]">
           <span
             role="timer"
-            aria-label={`Current time ${kiosk.time}`}
+            aria-label={clock ? `Current time ${clock.time}` : "Current time"}
             className="text-[112px] leading-[112px] font-semibold tracking-[-0.04em] tabular"
           >
-            {kiosk.time}
+            {clock?.time ?? "--:--"}
           </span>
-          <span className="text-xl leading-7 font-medium">{kiosk.date}</span>
+          <span className="text-xl leading-7 font-medium">{clock?.date ?? " "}</span>
           <Chip color="warning" variant="soft" className="mt-[12px] self-start">
             <StatusDot tone="warning" />
             <Chip.Label>Not connected · clock in at the front desk</Chip.Label>

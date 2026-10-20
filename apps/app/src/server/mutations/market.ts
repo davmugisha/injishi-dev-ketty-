@@ -5,7 +5,15 @@
  */
 import { listingReportLabel } from "../../features/market/report-reasons";
 import { ApiError } from "../api";
-import { CONSENT_PURPOSE, type CollectionApi, catalogue, checkoutDrafts, myCollections } from "../sources/market";
+import {
+  CONSENT_PURPOSE,
+  type CollectionApi,
+  catalogue,
+  checkoutDrafts,
+  chosenCheckout,
+  myCollections,
+  parseStayKey,
+} from "../sources/market";
 import type { SourceContext } from "../sources/types";
 
 // ── Saved places and collections ───────────────────────────────────────────────────────────────────
@@ -138,6 +146,8 @@ export interface StayInput {
   checkIn: string;
   checkOut: string;
   guests: number;
+  /** The Non-refundable plan; the booking service grants it only on an eligible room. */
+  nonRefundable?: boolean;
   payment: MobileMoney;
   /** One press of confirm, minted by the browser and reused on every retry of that press (ADR-020 D-c). */
   attemptToken: string;
@@ -167,6 +177,8 @@ export type BookingOutcome =
   | { status: "awaiting_payment"; attempt: AttemptApi };
 
 export async function bookStay(ctx: SourceContext, input: StayInput): Promise<BookingOutcome> {
+  const msisdn = nationalMsisdn(input.payment.number);
+  if (!msisdn) throw new ApiError(400, null, "Enter the mobile money number to pay from.", null);
   return ctx.api.post<BookingOutcome>(
     "/api/v1/bookings",
     {
@@ -174,7 +186,7 @@ export async function bookStay(ctx: SourceContext, input: StayInput): Promise<Bo
       checkIn: input.checkIn,
       checkOut: input.checkOut,
       guests: input.guests,
-      nonRefundable: false,
+      nonRefundable: input.nonRefundable ?? false,
       attemptToken: input.attemptToken,
       instrument: {
         kind: "mobile_money",
@@ -187,16 +199,31 @@ export async function bookStay(ctx: SourceContext, input: StayInput): Promise<Bo
 }
 
 /**
- * Book the checkout's draft (`instant` or `request`). The room, dates and party are re-read on the server
- * side of the app from the same draft the page showed, never taken from the browser.
+ * Book the checkout's stay: `instant` or `request` (the default stay's drafts), or the key of the stay the person
+ * chose on the property page (`stayKey`). The room, dates, party and plan are re-read on the server side of the app
+ * from the same key the page showed, and priced by the API; nothing here takes a price from the browser.
  */
 export async function bookCheckout(
   ctx: SourceContext,
-  mode: "instant" | "request",
+  stay: string,
   payment: MobileMoney,
   attemptToken: string,
 ): Promise<BookingOutcome> {
-  const draft = (await checkoutDrafts(ctx)).find((d) => d.draft.id === mode);
+  const choice = parseStayKey(stay);
+  if (choice) {
+    const chosen = await chosenCheckout(ctx, choice);
+    if (!chosen) throw new ApiError(404, null, "That room is no longer offered for those dates.", null);
+    return bookStay(ctx, {
+      roomTypeId: chosen.roomTypeId,
+      checkIn: chosen.quote.checkIn,
+      checkOut: chosen.quote.checkOut,
+      guests: chosen.quote.guests,
+      nonRefundable: chosen.nonRefundable,
+      payment,
+      attemptToken,
+    });
+  }
+  const draft = (await checkoutDrafts(ctx)).find((d) => d.draft.id === stay);
   if (!draft) throw new ApiError(404, null, "That room is no longer offered.", null);
   return bookStay(ctx, {
     roomTypeId: draft.roomTypeId,

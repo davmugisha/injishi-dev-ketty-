@@ -2,12 +2,12 @@
  * The public help centre on the API: the contact form opens a real support ticket (for a visitor with no
  * session and for a signed-in owner), and its Business choice lists only the branches the signed-in
  * person works at. A request for "my businesses" with no session is refused, and a malformed ticket
- * is refused by the intake's own schema. The hosts page's waitlist joins the API's owner list (and the
- * same address again is recognised, never added twice), and its demo request becomes a support ticket.
- * The API throttles both intakes per client (waitlist 5 an hour), so each run makes few calls.
+ * is refused by the intake's own schema. The hosts page's demo request becomes a support ticket (the owner
+ * waitlist is gone: main removed its API in 4f32a8f1). The training page's Verify reads the API's public
+ * certificate check (GET /verify/:token). The API throttles its intakes per client, so each run makes few calls.
  */
 import type { SupportBusiness } from "@injishi/data/fixtures/public";
-import { joinOwnerWaitlist, openSupportTicket, PublicInputError, requestDemo } from "../../src/server/mutations/public";
+import { checkCertificate, openSupportTicket, PublicInputError, requestDemo } from "../../src/server/mutations/public";
 import { sources } from "../../src/server/sources/public";
 import { contextFor } from "../lib/harness";
 import type { Flow } from "./types";
@@ -59,38 +59,10 @@ export const flows: Flow[] = [
     },
   },
   {
-    name: "the hosts page: Join the waitlist adds an owner once; Request demo opens a support ticket",
+    name: "the hosts page: Request demo opens a support ticket",
     async run({ check, step }) {
       const visitor = await contextFor(null);
       const run = Date.now().toString(36);
-      const signup = {
-        fullName: "Flow Owner",
-        email: `flow.waitlist.${run}@app.demo.injishi.com`,
-        phone: "078 300 1122",
-        businessName: "Flow Check Guest House (demo)",
-        district: "Rubavu",
-        propertyType: "guest_house" as const,
-        sizeBand: "6_20" as const,
-        marketingOptIn: false,
-      };
-      const joined = await joinOwnerWaitlist(visitor, signup);
-      check(
-        /^[0-9a-f-]{36}$/.test(joined.id) && !joined.alreadyJoined,
-        `the signup answered ${JSON.stringify(joined)}`,
-      );
-      const again = await joinOwnerWaitlist(visitor, signup);
-      check(again.alreadyJoined && again.id === joined.id, `the same address again answered ${JSON.stringify(again)}`);
-      step(`${signup.email} joined the owner waitlist (${joined.id}); joining again is recognised, not added`);
-
-      let refused = false;
-      try {
-        await joinOwnerWaitlist(visitor, { ...signup, district: "Atlantis" });
-      } catch (error) {
-        refused = error instanceof PublicInputError;
-      }
-      check(refused, "a district that does not exist was not refused");
-      step("a district that is not one of Rwanda's thirty is refused before anything is sent");
-
       const ticket = await requestDemo(visitor, {
         name: "Flow Owner",
         email: `flow.demo.${run}@app.demo.injishi.com`,
@@ -103,6 +75,32 @@ export const flows: Flow[] = [
       });
       check(/^[0-9a-f-]{36}$/.test(ticket.id), `the demo request answered ${JSON.stringify(ticket)}`);
       step(`Request demo opened support ticket ${ticket.id}`);
+    },
+  },
+  {
+    name: "the training page's Verify asks the API's public check, never the page's own register",
+    async run({ check, step }) {
+      const visitor = await contextFor(null);
+      // A code nobody was issued: the API answers 200 with status unknown and nothing else (ADR-049 AC-16).
+      const code = `FLOW${Date.now().toString(36).toUpperCase()}`;
+      const answer = await checkCertificate(visitor, ` ${code.toLowerCase()} `);
+      check(
+        answer.status === "unknown" && answer.serial === null && answer.holderName === null,
+        `an unknown code answered ${JSON.stringify(answer)}`,
+      );
+      // The sample register's "valid" serial is not a verification code, so the API does not know it.
+      const serial = await checkCertificate(visitor, "INJ-FDE-26-0417");
+      check(serial.status === "unknown", `the sample serial answered ${JSON.stringify(serial)}`);
+      step(`${code} and the sample serial INJ-FDE-26-0417 both read "unknown" from GET /verify/:token`);
+
+      let refused = false;
+      try {
+        await checkCertificate(visitor, "   ");
+      } catch (error) {
+        refused = error instanceof PublicInputError;
+      }
+      check(refused, "an empty code was sent to the API");
+      step("an empty code is refused before anything is sent");
     },
   },
 ];

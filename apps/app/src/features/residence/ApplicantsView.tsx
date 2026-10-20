@@ -56,14 +56,26 @@ export interface ApplicantsData {
 
 type Tab = "applicants" | "invites";
 
-/** The one lease a draft is made from: the convert route takes no template (`ConvertApplicationRequest`). */
-const TEMPLATE = "Kacyiru Court residential lease v3";
+/**
+ * The one lease a draft is made from: the convert route takes no template (`ConvertApplicationRequest`) and the
+ * API copies the landlord's standard clauses onto the draft, so the field names that, not a template by name.
+ */
+const TEMPLATE = "The building’s standard lease";
 const UNAVAILABLE_INVITES = "Invitations to apply are not available yet. Nothing was sent.";
 
 const inviteMessage = (unit: string) =>
   `Thank you for viewing ${unit}. Please register and upload your ID and proof of income.`;
 
-export function ApplicantsView({ persona, data }: { persona: Persona; data: ApplicantsData }) {
+export function ApplicantsView({
+  persona,
+  data,
+  building = "",
+}: {
+  persona: Persona;
+  data: ApplicantsData;
+  /** The building(s) the workspace covers, from the session. */
+  building?: string;
+}) {
   const [tab, setTab] = useState<Tab>("applicants");
   const [sel, setSel] = useState(data.applicants[0]?.id ?? "");
   const [query, setQuery] = useState("");
@@ -181,7 +193,7 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
   return (
     <PageContent>
       <PageHeader
-        eyebrow="Tenancy · Kacyiru Court Residences"
+        eyebrow={building ? `Tenancy · ${building}` : "Tenancy"}
         title="Applicants"
         description="Invite prospective residents to register, check their documents, and turn a successful application into a lease draft."
         actions={
@@ -431,7 +443,7 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
             >
               <Label>Caution deposit (RWF)</Label>
               <Input inputMode="numeric" className="tabular" />
-              <Description>Two months’ rent, held as a liability</Description>
+              <Description>Held as a liability, never counted as rent</Description>
             </TextField>
             <TextField
               fullWidth
@@ -445,7 +457,9 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
             <TextField fullWidth value={TEMPLATE} isReadOnly className="gap-1">
               <Label>Contract template</Label>
               <Input />
-              <Description>The building’s standard lease. Another template cannot be chosen yet.</Description>
+              <Description>
+                The landlord’s standard clauses are copied onto the draft. Another template cannot be chosen yet.
+              </Description>
             </TextField>
           </div>
           <Alert status="accent">

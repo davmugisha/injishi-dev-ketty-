@@ -32,7 +32,7 @@ import { PhoneBody, PhoneTop, StatusDot } from "@injishi/ui";
 import { type ChangeEvent, useEffect, useRef, useState, useTransition } from "react";
 import { reported } from "../operations/shared";
 import { inspectRoomAction, uploadInspectionPhotoAction } from "./actions";
-import { kigaliClock, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "./parts";
+import { kigaliClock, NothingYet, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "./parts";
 import { attemptToken, shrinkPhoto } from "./photo";
 
 export interface InspectRoomData {
@@ -52,7 +52,10 @@ type CheckPhoto = { key: string | null; preview: string | null };
 
 /** Supervisor inspects cleaned rooms and releases them to the front desk or returns them (artifact: InspectRoom). */
 export function InspectRoomView({ persona, data }: { persona: Persona; data: InspectRoomData }) {
-  const { profile, rooms, checks } = data;
+  const { profile, checks } = data;
+  // A decided room leaves the API's list on the next read; the screen keeps it so its result stays on screen.
+  const [kept, setKept] = useState<InspectionRoom[]>([]);
+  const rooms = [...data.rooms, ...kept.filter((k) => !data.rooms.some((x) => x.no === k.no))];
   const [roomNo, setRoomNo] = useState(rooms[0]?.no ?? "");
   const [results, setResults] = useState<Record<string, Record<string, CheckResult>>>(() =>
     Object.fromEntries(rooms.map((r) => [r.no, r.results])),
@@ -82,6 +85,9 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
     Object.fromEntries(rooms.map((x) => [x.no, x.note])),
   );
   const [pending, startTransition] = useTransition();
+
+  if (!rooms.length)
+    return <NothingYet title="Inspections" message="No room is waiting for your inspection right now." />;
 
   const r = rooms.find((x) => x.no === roomNo) ?? rooms[0];
   const res = results[r.no] ?? {};
@@ -167,8 +173,10 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
         reason,
         checks: verdicts,
       });
-      if (reported(result))
+      if (reported(result)) {
+        setKept((k) => (k.some((x) => x.no === r.no) ? k : [...k, r]));
         setDecided((d) => ({ ...d, [r.no]: { kind: isReturn ? "returned" : "released", at: kigaliClock() } }));
+      }
     });
   };
 

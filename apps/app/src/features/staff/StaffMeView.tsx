@@ -59,6 +59,8 @@ export interface StaffMeData {
   assets: LoanedAsset[];
   tickets: HelpTicket[];
   topics: HelpTopic[];
+  /** The caller's clock-in time today from their attendance record ("07:02"), or null when not clocked in. */
+  clockedInAt: string | null;
 }
 
 const COPY = {
@@ -157,10 +159,17 @@ export function StaffMeView({
     <>
       <PhoneTop>
         <h1 className="flex-1 text-[22px] leading-7 font-semibold">{t.me}</h1>
-        <Chip color="success" variant="soft">
-          <StatusDot tone="success" />
-          <Chip.Label>In since {profile.clockedInAt}</Chip.Label>
-        </Chip>
+        {data.clockedInAt ? (
+          <Chip color="success" variant="soft">
+            <StatusDot tone="success" />
+            <Chip.Label>In since {data.clockedInAt}</Chip.Label>
+          </Chip>
+        ) : (
+          <Chip variant="soft">
+            <StatusDot tone="default" />
+            <Chip.Label>Not clocked in</Chip.Label>
+          </Chip>
+        )}
       </PhoneTop>
 
       <PhoneBody>

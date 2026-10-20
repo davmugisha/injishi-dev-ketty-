@@ -35,7 +35,6 @@ import type { Persona } from "@injishi/data";
 import type {
   LeaveApprover,
   LeaveBalance,
-  LeaveDraft,
   LeaveType,
   RequestStatus,
   Shift,
@@ -57,7 +56,6 @@ export interface StaffScheduleData {
   leaveTypes: LeaveType[];
   balance: LeaveBalance;
   approvers: LeaveApprover[];
-  draft: LeaveDraft;
 }
 
 type Tab = "shifts" | "leave" | "requests";
@@ -116,8 +114,6 @@ function spanLabel(from: Date | null, to: Date | null): string {
     : `${from.getUTCDate()} ${MONTH_NAMES[from.getUTCMonth()]} – ${end}`;
 }
 
-const NOT_YET_SWAP = "Swaps cannot be asked from the phone yet. Ask Beatrice to arrange it.";
-
 /** "15 Dec 2026" or "Tue 15 Dec 2026", as the leave form shows a date, at noon UTC; null when unreadable. */
 function formDay(text: string): Date | null {
   const m = text.trim().match(/(\d{1,2}) ([A-Z][a-z]{2})[a-z]* (\d{4})$/);
@@ -141,15 +137,20 @@ function weekdaysBetween(from: string, to: string): number | null {
 
 /** Shifts, leave and requests of a staff member (artifact: StaffSchedule). */
 export function StaffScheduleView({ persona, data }: { persona: Persona; data: StaffScheduleData }) {
-  const { profile, shifts, colleagues, leaveTypes, balance, approvers, draft } = data;
+  const { profile, shifts, colleagues, leaveTypes, balance, approvers } = data;
+  // The line manager the API names as the first approver, or plain words when it names nobody.
+  const manager = approvers.find((a) => a.role === "Your line manager")?.name.split(" ")[0] ?? "";
+  const boss = manager || "your line manager";
+  const notYetSwap = `Swaps cannot be asked from the phone yet. Ask ${boss} to arrange it.`;
   const [tab, setTab] = useState<Tab>("shifts");
   const [week, setWeek] = useState(0);
   const [swapFor, setSwapFor] = useState<string | null>(null);
   const [mate, setMate] = useState(colleagues[0]?.id ?? "");
   const [leaveType, setLeaveType] = useState(leaveTypes[0]?.id ?? "annual");
-  const [note, setNote] = useState(draft.note);
-  const [from, setFrom] = useState(draft.from);
-  const [to, setTo] = useState(draft.to);
+  // The form starts empty: only what the person types is sent.
+  const [note, setNote] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [justSent, setJustSent] = useState("");
   const swapped: Record<string, string> = Object.fromEntries(
     shifts.filter((s) => s.swapPendingWith).map((s) => [s.id, s.swapPendingWith ?? ""]),
@@ -188,7 +189,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
 
   const sendSwap = () => {
     setSwapFor(null);
-    toast.danger(NOT_YET_SWAP);
+    toast.danger(notYetSwap);
   };
 
   const sendLeave = () => {
@@ -196,6 +197,9 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
     startTransition(async () => {
       if (!reported(await askLeaveAction({ leaveTypeId: type.id, from, to, reason }))) return;
       setTab("requests");
+      setFrom("");
+      setTo("");
+      setNote("");
       setJustSent(
         approvers.length ? `Sent for approval: ${approvers.map((a) => a.name).join(", then ")}.` : "Sent for approval.",
       );
@@ -336,7 +340,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                   }}
                 </ListView>
                 <p className="text-xs leading-4 text-muted">
-                  Need a day off instead? Use Leave. Swaps need your colleague to agree, then Beatrice approves.
+                  Need a day off instead? Use Leave. Swaps need your colleague to agree, then {boss} approves.
                 </p>
               </>
             ) : (
@@ -371,7 +375,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
               </div>
               <Meter
                 aria-label="Annual leave used"
-                value={Math.round((balance.used / balance.entitlement) * 100)}
+                value={balance.entitlement > 0 ? Math.round((balance.used / balance.entitlement) * 100) : 0}
                 valueLabel={`${pendingDays} days asked for`}
                 className="flex flex-col gap-[6px]"
               >
@@ -431,11 +435,11 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
               <div className="grid grid-cols-2 gap-[8px]">
                 <TextField value={from} onChange={setFrom} fullWidth className="flex flex-col gap-1">
                   <Label>From</Label>
-                  <Input className="min-h-11" />
+                  <Input className="min-h-11" placeholder="15 Dec 2026" />
                 </TextField>
                 <TextField value={to} onChange={setTo} fullWidth className="flex flex-col gap-1">
                   <Label>To</Label>
-                  <Input className="min-h-11" />
+                  <Input className="min-h-11" placeholder="19 Dec 2026" />
                 </TextField>
               </div>
               <Alert>
@@ -473,9 +477,15 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
               </div>
               <p className="flex items-start gap-[8px] text-xs leading-4 text-muted">
                 <CircleInfo className="mt-[1px] size-4 shrink-0" aria-hidden="true" />
-                <span>{draft.busyDates}</span>
+                <span>It is sent with the dates and note you typed, to the people above in order.</span>
               </p>
-              <Button size="lg" fullWidth className="min-h-14" isDisabled={pending} onPress={sendLeave}>
+              <Button
+                size="lg"
+                fullWidth
+                className="min-h-14"
+                isDisabled={pending || asked === null}
+                onPress={sendLeave}
+              >
                 <PaperPlane className="size-4" />
                 Send leave request
               </Button>
@@ -569,7 +579,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
           ))}
         </RadioButtonGroup>
         <p className="text-xs leading-4 text-muted">
-          {mateDoc?.first} says yes first, then Beatrice approves. The shift stays yours until then.
+          {mateDoc?.first} says yes first, then {boss} approves. The shift stays yours until then.
         </p>
         <div className="grid grid-cols-[1fr_2fr] gap-[8px]">
           <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSwapFor(null)}>

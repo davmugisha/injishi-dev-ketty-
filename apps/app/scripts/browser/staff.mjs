@@ -3,8 +3,10 @@
  * The staff phone, in a real browser. Jeanne signs in with the demo code and works her current room on
  * /staff/task: she starts it, ticks a checklist step with a real press (the tick is `setRoomCheckAction`, so
  * it reaches the API) and finds it still ticked after a reload, then marks the room clean (through "Mark clean
- * anyway" when steps are left, which is the product's rule). She sends a fault from /staff/report and gets a
- * real ticket number back. Beatrice then fails one check of that room on /staff/inspect with a photo taken on
+ * anyway" when steps are left, which is the product's rule). Before that she logs a found item from a sheet that
+ * opens empty (nothing pre-filled from an item already logged) and gets the register's reference back. She sends
+ * a fault from /staff/report, whose form also opens empty (she picks where, what and how urgent), and gets a
+ * real ticket number back; the leave form on /staff/schedule opens with no dates and no note. Beatrice then fails one check of that room on /staff/inspect with a photo taken on
  * the phone: the photo is uploaded (`POST /api/v1/uploads`) before "Return" is offered, and after the return
  * and a reload the room has left her queue. Jean-Paul's /staff/work-orders lists Jeanne's ticket.
  *
@@ -88,6 +90,28 @@ async function pressAt(page, { x, y }) {
   }
 }
 
+/** The centre of the first element matching `selector` (inside `within`) whose first line of text is `text`. */
+const spotOf = (selector, text, within = "document") => `(() => {
+  const el = [...${within}.querySelectorAll(${JSON.stringify(selector)})].find(
+    (e) => ${text === null ? "true" : `e.innerText.trim().split('\\n')[0] === ${JSON.stringify(text)}`},
+  );
+  if (!el) return null;
+  el.scrollIntoView({ block: 'center' });
+  const r = el.getBoundingClientRect();
+  return r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+})()`;
+
+/** Press the element `spotOf` finds, waiting for it to be on screen. */
+async function choose(page, selector, text, what, within) {
+  await page.waitFor(`!!${spotOf(selector, text, within)}`, what, 30_000);
+  await sleep(150);
+  await pressAt(page, await page.eval(spotOf(selector, text, within)));
+}
+
+/** True when no option of the group labelled by `id` is chosen. */
+const noneChosen = (id) =>
+  `[...document.querySelectorAll('[aria-labelledby="${id}"] button, [aria-labelledby="${id}"] input')].every((e) => e.getAttribute('aria-checked') !== 'true' && e.getAttribute('aria-pressed') !== 'true' && !e.checked)`;
+
 const { page, close } = await launch({ width: 420, height: 900 });
 const photo = photoFile();
 try {
@@ -123,6 +147,25 @@ try {
   if (!held) fail(`the tick on "${label}" did not survive a reload`);
   console.log(`  ticked "${label}" on room ${room}: still ticked after a reload (setRoomCheckAction reached the API)`);
 
+  // Found an item: the sheet opens empty, and what she types and the spot she picks is what the register gets.
+  await page.press("Found an item");
+  const itemField = 'input[placeholder="Phone charger, white"]';
+  await page.waitFor(`!!document.querySelector('${itemField}')`, "the found-item sheet", 30_000);
+  await sleep(600);
+  if ((await page.eval(`document.querySelector('${itemField}').value`)) !== "")
+    fail("the found-item sheet opened with an item already filled in");
+  if (!(await page.eval(noneChosen("fd-where")))) fail("the found-item sheet opened with a spot already chosen");
+  const item = `Blue scarf ${Date.now() % 10_000}`;
+  await page.type(itemField, item);
+  await choose(page, '[aria-labelledby="fd-where"] button', "Wardrobe", "the Wardrobe spot");
+  await page.press("Log the item");
+  await page.waitFor(
+    `document.body.innerText.includes(${JSON.stringify(item)}) && /LF-\\d/.test(document.body.innerText)`,
+    "the logged item with the register's reference",
+    60_000,
+  );
+  console.log(`  logged "${item}" from an empty sheet: the register's reference came back`);
+
   await page.press("Mark clean");
   await page.waitFor(
     "document.body.innerText.includes('Mark clean anyway') || document.body.innerText.includes('marked clean')",
@@ -152,12 +195,34 @@ try {
   const fault = `Socket by the lift sparks when used ${Date.now() % 10_000}`;
   await page.goto(`${APP}/staff/report`);
   await page.waitForText("Send report", 90_000);
+  // The form opens empty: nothing is copied from a report she sent before.
+  if ((await page.eval("document.querySelector('textarea').value")) !== "") fail("the report form opened pre-filled");
+  for (const id of ["where-h", "cat-h", "sev-h"])
+    if (!(await page.eval(noneChosen(id)))) fail(`the report form opened with "${id}" already chosen`);
+  await choose(page, '[aria-labelledby="where-h"] button', null, "a place to report");
+  await choose(page, '[aria-labelledby="cat-h"] button', "Electrical", "the Electrical category");
+  // The group item itself has no box (display: contents); its label is what a finger presses.
+  await choose(page, '[aria-labelledby="sev-h"] [data-slot="radio-content"]', "Today", "the Today urgency");
   await page.type("textarea", fault);
   await page.press("Send report");
   await page.waitForText("Sent to maintenance", 60_000);
   const ticket = (await page.text()).match(/WO-\d+/)?.[0];
   if (!ticket) fail("the report was sent but no WO- ticket number came back");
-  console.log(`  the fault became ${ticket} through the API`);
+  console.log(`  the fault became ${ticket} through the API, from a form she filled in herself`);
+
+  // The leave form opens with no dates and no note (no sample draft).
+  await page.goto(`${APP}/staff/schedule`);
+  await page.waitForText("My schedule", 90_000);
+  await page.press("Leave");
+  await page.waitForText("Ask for leave", 30_000);
+  const leaveForm = await page.eval(`(() => {
+    const from = document.querySelector('input[placeholder="15 Dec 2026"]');
+    const to = document.querySelector('input[placeholder="19 Dec 2026"]');
+    const note = [...document.querySelectorAll('textarea')][0];
+    return from && to ? [from.value, to.value, note ? note.value : ''].join('|') : null;
+  })()`);
+  if (leaveForm !== "||") fail(`the leave form did not open empty: ${leaveForm}`);
+  console.log("  the leave form opens with no dates and no note");
 
   // Beatrice inspects the room Jeanne just cleaned, fails one check and photographs it.
   await page.goto(`${APP}/api/demo/sign-in?persona=supervisor&next=/staff/inspect`);

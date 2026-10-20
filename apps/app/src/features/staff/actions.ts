@@ -61,7 +61,7 @@ export async function sendMinibarCountAction(
 export async function logRoomFoundItemAction(
   taskId: string,
   input: { description: string; spot: string },
-): Promise<ActionResult<string>> {
+): Promise<ActionResult<staff.LoggedFoundItem>> {
   return run("StaffTask", "/staff/task", async () => staff.logRoomFoundItem(await ctx(), taskId, input));
 }
 

@@ -297,13 +297,13 @@ export async function recordScreening(
   );
 }
 
-/** Decline an open application, with the reason the applicant is told. */
+/** Decline an open application. The reason is kept with the application; nothing is sent to the applicant. */
 export async function declineApplication(
   ctx: SourceContext,
   applicationId: string,
   reason: string,
 ): Promise<ResidenceWrite> {
-  if (reason.trim().length < 3) throw new ResidenceInputError("Write the reason the applicant will be told.");
+  if (reason.trim().length < 3) throw new ResidenceInputError("Write the reason for declining.");
   return write(
     ctx,
     ops(ctx).post<ResidenceWrite>(`/api/v1/ops/residence/applications/${encodeURIComponent(applicationId)}/decline`, {

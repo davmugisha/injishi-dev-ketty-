@@ -182,7 +182,10 @@ export function PublicHelpView({
     ? data.guides.filter((g) => g.title.toLowerCase().includes(q) || g.kind.toLowerCase().includes(q))
     : data.guides.filter((g) => g.role === role);
   const guidesTitle = q ? `${guides.length} results for “${query}”` : t.guides;
-  const disrupted = data.services.some((s) => s.tone !== "success");
+  // The status card draws sample collections (no public status route yet, data map public.serviceStatus): the
+  // notice names the disrupted service from that data and the card says it is sample, never a fixed live incident.
+  const disruptedService = data.services.find((s) => s.tone !== "success");
+  const disrupted = disruptedService !== undefined;
 
   const privacy = cat === "privacy";
   const catLabel = CATEGORIES.find((c) => c.id === cat)?.label ?? "";
@@ -386,8 +389,9 @@ export function PublicHelpView({
               <h2 id="status-h" className="text-[15px] leading-[22px] font-semibold">
                 {t.status}
               </h2>
+              {/* The status below is sample data: the chip never states the live state of Injishi as fact. */}
               <Chip size="sm" variant="soft" color={disrupted ? "warning" : "success"}>
-                {disrupted ? "Partial disruption" : "Operational"}
+                {disrupted ? "Sample · partial disruption" : "Sample · operational"}
               </Chip>
             </div>
             <ul className="flex flex-col gap-[8px] text-[13px]">
@@ -399,18 +403,21 @@ export function PublicHelpView({
                 </li>
               ))}
             </ul>
-            <Alert status="warning">
-              <Alert.Indicator>
-                <TriangleExclamation />
-              </Alert.Indicator>
-              <Alert.Content>
-                <Alert.Title>MTN MoMo confirmations delayed</Alert.Title>
-                <Alert.Description>
-                  Since 09:20 CAT some confirmations take up to 10 minutes. Payments show Pending until the provider
-                  confirms. Please don’t pay twice.
-                </Alert.Description>
-              </Alert.Content>
-            </Alert>
+            {disruptedService ? (
+              <Alert status="warning">
+                <Alert.Indicator>
+                  <TriangleExclamation />
+                </Alert.Indicator>
+                <Alert.Content>
+                  <Alert.Title>
+                    {disruptedService.name} · {disruptedService.state.toLowerCase()}
+                  </Alert.Title>
+                  <Alert.Description>
+                    Anything waiting on it shows Pending until it is confirmed. Please don’t pay twice.
+                  </Alert.Description>
+                </Alert.Content>
+              </Alert>
+            ) : null}
             <Timeline size="sm" density="compact" aria-label="Incident updates">
               {data.incident.map((ic) => (
                 <Timeline.Item key={ic.id} status={ic.status}>
@@ -425,7 +432,7 @@ export function PublicHelpView({
                 </Timeline.Item>
               ))}
             </Timeline>
-            <span className="text-[12px] text-muted">Updated 10:41 CAT, Monday 12 October</span>
+            <span className="text-[12px] text-muted">Sample status · not the live state of Injishi’s services</span>
           </Card>
         </div>
 
@@ -700,7 +707,6 @@ export function PublicHelpView({
       <PublicFooter
         links={[
           { label: "For hosts", href: screenHref("PublicHost") },
-          { label: "Join the waitlist", href: `${screenHref("PublicHost")}#waitlist` },
           { label: "Training and certificates", href: screenHref("Training") },
           { label: "Find a stay", href: screenHref("MarketExplore") },
         ]}

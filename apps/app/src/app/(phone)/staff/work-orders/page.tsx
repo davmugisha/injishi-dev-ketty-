@@ -17,6 +17,7 @@ export default async function TechWorkOrdersPage() {
     getCollection<StorePart>("staff.storeParts"),
   ]);
   const me = profile ?? fallbackProfile;
-  if (!me || !orders.length) notFound();
+  // No open order is not a 404: the view says so (and keeps an order it just resolved on screen).
+  if (!me) notFound();
   return <TechWorkOrdersView persona={persona} data={{ profile: me, orders, store }} />;
 }

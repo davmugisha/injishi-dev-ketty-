@@ -37,11 +37,12 @@ import {
 } from "@heroui/react";
 import { NativeSelect, RadioButtonGroup } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
-import type { MarketCheckout, MarketProperty, MarketTone, Option, PaymentMethod } from "@injishi/data/fixtures/market";
+import type { MarketProperty, MarketTone, Option, PaymentMethod } from "@injishi/data/fixtures/market";
 import type { StockKey } from "@injishi/data/media";
 import { stock } from "@injishi/data/media";
 import { GateChip, KeyValueList, LinkButton, Photo, TextLink } from "@injishi/ui";
 import { useEffect, useRef, useState, useTransition } from "react";
+import type { CheckoutDocument } from "@/server/sources/market";
 import {
   type CheckoutResult,
   cancelCheckoutRequestAction,
@@ -63,6 +64,31 @@ export type CheckoutScreen =
 const PAY_STAGES = ["Sent", "Approve", "Booked"];
 const REQUEST_STAGES = ["Sent", "Hotel replies", "You pay", "Booked"];
 
+/** Nine national digits of a Rwandan mobile number as typed ("078 812 4417", "+250 788 124 417"), else the digits. */
+function national(typed: string): string {
+  const digits = typed.replace(/\D/g, "");
+  if (digits.startsWith("250") && digits.length === 12) return digits.slice(3);
+  if (digits.startsWith("0") && digits.length === 10) return digits.slice(1);
+  return digits;
+}
+
+/** The method a Rwandan number belongs to (MTN 078/079, Airtel 072/073), for the person's own phone only. */
+function networkOf(typed: string): "mtn" | "airtel" | null {
+  const n = national(typed);
+  if (n.length !== 9) return null;
+  if (n.startsWith("78") || n.startsWith("79")) return "mtn";
+  if (n.startsWith("72") || n.startsWith("73")) return "airtel";
+  return null;
+}
+
+/** "078 ••• 4417": the number the person typed, masked. Empty when nothing was typed. */
+function maskTyped(typed: string): string {
+  const n = national(typed);
+  if (!n) return "";
+  const local = n.length === 9 ? `0${n}` : n;
+  return local.length > 7 ? `${local.slice(0, 3)} ••• ${local.slice(-4)}` : `••• ${local.slice(-4)}`;
+}
+
 const BAR: Record<MarketTone, string> = {
   success: "bg-success",
   warning: "bg-warning",
@@ -73,13 +99,17 @@ const BAR: Record<MarketTone, string> = {
 };
 
 /**
- * Marketplace checkout (artifact: MarketCheckout.dc.html). `initial` is the `?state=` variant. The booking route
- * takes the room, dates, party and payment and nothing else: "Your details" saves the person's own contact record,
- * and arrival time and requests are given after booking (pre-arrival check-in, a message to the hotel), never
- * collected here as if they went with the booking.
+ * Marketplace checkout (artifact: MarketCheckout.dc.html). `stay` names what is booked: the stay chosen on the
+ * property page, or the default stay (`initial` is then the `?state=` variant). The booking route takes the room,
+ * dates, party, plan and payment and nothing else: "Your details" saves the person's own contact record, and
+ * arrival time and requests are given after booking (pre-arrival check-in, a message to the hotel), never collected
+ * here as if they went with the booking. The mobile money number starts as the person's own phone (their contact
+ * record) when it is on that network, else empty: the payer sent and shown is only ever what the person typed.
  */
 export function MarketCheckoutView({
   visitor,
+  stay,
+  returnTo,
   booking,
   property,
   photo,
@@ -88,7 +118,10 @@ export function MarketCheckoutView({
   initial,
 }: {
   visitor: MarketVisitor | null;
-  booking: MarketCheckout;
+  stay: string;
+  /** This checkout's own address, chosen stay included, so signing in comes back to the same stay. */
+  returnTo: string;
+  booking: CheckoutDocument;
   property: MarketProperty;
   photo: StockKey;
   methods: PaymentMethod[];
@@ -111,9 +144,10 @@ export function MarketCheckoutView({
   const [withdrawing, startWithdrawing] = useTransition();
   const [resent, setResent] = useState(false);
   const [secs, setSecs] = useState(0);
-  const [numbers, setNumbers] = useState<Record<string, string>>(() =>
-    Object.fromEntries(methods.map((m) => [m.id, m.number ?? ""])),
-  );
+  const [numbers, setNumbers] = useState<Record<string, string>>(() => {
+    const own = networkOf(booking.guest.mobile);
+    return Object.fromEntries(methods.map((m) => [m.id, m.id === own ? booking.guest.mobile : ""]));
+  });
   /** The real attempt: what the API said about the last press of Pay or Send request. */
   const [result, setResult] = useState<CheckoutResult | null>(null);
   const [lastCheck, setLastCheck] = useState<string>("");
@@ -124,16 +158,20 @@ export function MarketCheckoutView({
   const sub = booking.rate * booking.nights;
   // The guest service fee the booking service adds to every stay (absent from the prototype's documents).
   const fee = booking.serviceFee ?? 0;
-  const total = sub + fee;
+  const discount = booking.nonRefundableDiscountRwf ?? 0;
+  const total = sub - discount + fee;
   const vat = Math.round((total * booking.vatRate) / (100 + booking.vatRate));
-  const amount = rwf(total);
+  // Once Pay is pressed, the amount is the one the API took or prompted for.
+  const amount = rwf(result?.amountRwf ?? total);
   const propertyUrl = propertyHref(booking.property);
   const showForm =
     screen === "checkout" || screen === "request" || screen === "approve-on-phone" || screen === "payment-unclear";
   const countryOptions = countries.some((c) => c.id === draft.country)
     ? countries
     : [...countries, { id: draft.country, label: draft.country }];
-  const payLabel = !method ? "" : method.kind === "card" ? method.mask : `${method.provider} ${method.mask}`;
+  /** The payer as the API recorded it after a press, else the number typed here, masked. Never a sample's number. */
+  const payer = result?.payerMasked ?? (method ? maskTyped(numbers[method.id] ?? "") : "");
+  const payLabel = !method || method.kind === "card" ? "" : [method.provider, payer].filter(Boolean).join(" ");
   const mm = Math.floor(secs / 60);
   const ss = String(secs % 60).padStart(2, "0");
 
@@ -210,9 +248,19 @@ export function MarketCheckoutView({
       return;
     }
     const network = method.id === "airtel" ? "airtel_money" : "mtn_momo";
+    const number = (numbers[method.id] ?? "").trim();
+    if (!national(number)) {
+      toast.danger(`Enter the ${method.label} number to pay from.`);
+      return;
+    }
+    if (!visitor) {
+      // Paying needs an account: sign in and come back to this same stay, never to a default one.
+      window.location.assign(`${screenHref("SignIn")}?next=${encodeURIComponent(returnTo)}`);
+      return;
+    }
     const token = crypto.randomUUID();
     startPaying(async () => {
-      const r = await payCheckoutAction(booking.id, { network, number: numbers[method.id] ?? "" }, token);
+      const r = await payCheckoutAction(stay, { network, number }, token);
       if (r.ok) {
         land(r.value);
         if (resend && r.value.state === "prompting") setResent(true);
@@ -221,7 +269,11 @@ export function MarketCheckoutView({
   };
 
   /** "Done" on Your details: saved to the person's contact record, or the refusal shown and the edit kept open. */
-  const saveDetails = () =>
+  const saveDetails = () => {
+    if (!visitor) {
+      window.location.assign(`${screenHref("SignIn")}?next=${encodeURIComponent(returnTo)}`);
+      return;
+    }
     startSavingDetails(async () => {
       const r = await saveCheckoutDetailsAction({
         firstName: draft.firstName,
@@ -237,6 +289,7 @@ export function MarketCheckoutView({
       setEditDetails(false);
       toast.success("Saved to your account");
     });
+  };
 
   /** "Cancel request": the pending request is cancelled on the API, which refunds it. */
   const withdraw = (ref: string) =>
@@ -275,7 +328,7 @@ export function MarketCheckoutView({
       <MarketHeader
         width="regular"
         visitor={visitor}
-        returnTo={screenHref("MarketCheckout")}
+        returnTo={returnTo}
         showNav={false}
         actions={
           <span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
@@ -303,11 +356,17 @@ export function MarketCheckoutView({
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <h2 id="d-h" className="flex items-center gap-2 text-base font-semibold">
                           Your details
-                          {editDetails ? null : <CircleCheck className="size-4 text-accent" aria-hidden="true" />}
+                          {editDetails || !visitor ? null : (
+                            <CircleCheck className="size-4 text-accent" aria-hidden="true" />
+                          )}
                         </h2>
                         {editDetails ? null : (
                           <span className="text-[13px] text-muted">
-                            {details.firstName} {details.lastName} · {details.email} · {details.mobile}
+                            {visitor
+                              ? [`${details.firstName} ${details.lastName}`.trim(), details.email, details.mobile]
+                                  .filter(Boolean)
+                                  .join(" · ")
+                              : "Sign in to use the details on your account"}
                           </span>
                         )}
                       </div>
@@ -431,7 +490,12 @@ export function MarketCheckoutView({
                         className="max-w-[360px] gap-1"
                       >
                         <Label htmlFor={`msisdn-${method.id}`}>{method.label} number</Label>
-                        <Input id={`msisdn-${method.id}`} inputMode="tel" autoComplete="tel" />
+                        <Input
+                          id={`msisdn-${method.id}`}
+                          inputMode="tel"
+                          autoComplete="tel"
+                          placeholder={method.id === "airtel" ? "072 or 073 …" : "078 or 079 …"}
+                        />
                         <Description>You’ll approve with your PIN on this phone.</Description>
                       </TextField>
                     ) : null}
@@ -548,6 +612,12 @@ export function MarketCheckoutView({
                         </dt>
                         <dd className="tabular">{rwf(sub)}</dd>
                       </div>
+                      {discount ? (
+                        <div className="flex items-center justify-between gap-3">
+                          <dt>Non-refundable discount</dt>
+                          <dd className="text-success-soft-foreground tabular">− {rwf(discount)}</dd>
+                        </div>
+                      ) : null}
                       {fee ? (
                         <div className="flex items-center justify-between gap-3">
                           <dt>Service fee</dt>
@@ -655,13 +725,13 @@ export function MarketCheckoutView({
                   items={[
                     {
                       label: "Method",
-                      value: result?.payerMasked ? `${method?.provider} ${result.payerMasked}` : payLabel,
+                      value: payLabel,
                     },
                     { label: "Reference", value: <span className="tabular">{result?.providerRef ?? reference}</span> },
                     { label: "Paid to", value: booking.payee },
                   ]}
                 />
-                <span className="text-xs text-muted">The hotel issues your fiscal receipt (EBM) at check-out.</span>
+                <span className="text-xs text-muted">The hotel issues the fiscal receipt (EBM) for this booking.</span>
               </Card>
               <div className="flex items-center justify-center gap-2 text-[13px]">
                 <CircleCheck className="size-4 text-success-soft-foreground" aria-hidden="true" />
@@ -767,7 +837,7 @@ export function MarketCheckoutView({
               <p className="text-sm text-muted">
                 {method?.kind === "card"
                   ? "Use your banking app or the SMS code."
-                  : `Enter your ${method?.provider} PIN on ${method?.mask}.`}
+                  : `Enter your ${method?.provider} PIN on ${payer || "your phone"}.`}
               </p>
             </div>
             <span className="text-[30px] leading-9 font-semibold tracking-[-0.02em] tabular">{amount}</span>

@@ -3,11 +3,13 @@
 import { ArrowRightToSquare } from "@gravity-ui/icons";
 import { Avatar } from "@heroui/react";
 import { Navbar } from "@heroui-pro/react";
-import { type BoardId, screenHref } from "@injishi/data";
+import { type BoardId, screenByPath, screenHref } from "@injishi/data";
 import { LinkButton } from "@injishi/ui";
 import NextLink from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { BrandMark } from "@/components/brand";
+import { SampleDataPill } from "@/components/shell/SampleData";
 
 /** The signed-in visitor shown in the marketplace header (null = nobody is signed in). */
 export interface MarketVisitor {
@@ -87,6 +89,7 @@ export function MarketHeader({
   actions?: ReactNode;
   account?: { board: BoardId; label: string };
 }) {
+  const board = screenByPath(usePathname())?.board;
   return (
     <Navbar position="static" maxWidth="full" aria-label="Site" className="border-b border-separator bg-background">
       <Navbar.Header className={`${WIDTH[width]} gap-4 px-4 sm:px-[32px]`}>
@@ -124,6 +127,10 @@ export function MarketHeader({
           </Navbar.Content>
         ) : null}
         <Navbar.Spacer />
+        {/* The page's sample-data mark sits in the header, as in the workspace top bar (the public layout's own note then hides). */}
+        <span data-sample-mark="header" className="contents">
+          <SampleDataPill board={board} />
+        </span>
         {actions}
         <AccountLink visitor={visitor} board={account.board} label={account.label} returnTo={returnTo} />
       </Navbar.Header>

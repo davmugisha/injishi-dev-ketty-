@@ -64,6 +64,7 @@ const COPY: Record<
     many: string;
     rank: string;
     end: string;
+    summary: string;
   }
 > = {
   stays: {
@@ -74,8 +75,9 @@ const COPY: Record<
     per: "per night",
     one: "stay",
     many: "stays",
-    rank: "Ranked by availability for your dates, guest reviews and how reliably the host confirms. Nobody pays for placement.",
-    end: "That is every stay with rooms free for your dates. Change dates or widen the area to see more.",
+    rank: "Recommended order: the best rated first, then the most reviewed. Nobody pays for placement.",
+    end: "That is every stay listed. Clear a filter to see more.",
+    summary: "Any dates · each rate is per guest per night, from the property’s own rates",
   },
   homes: {
     title: "Homes to rent in Rwanda",
@@ -85,10 +87,29 @@ const COPY: Record<
     per: "per month",
     one: "home to rent",
     many: "homes to rent",
-    rank: "Ranked by match to your move-in date, landlord response time and resident reviews. Nobody pays for placement.",
-    end: "That is every home that matches. Widen the area to see more.",
+    rank: "Recommended order: the best rated first, then the most reviewed. Nobody pays for placement.",
+    end: "That is every home listed. Clear a filter to see more.",
+    summary: "Monthly rent as each landlord lists it",
   },
 };
+
+/** "Rubavu" when every place shown is in one district, else "Rwanda": read off the live results, never a sample search. */
+function areaOf(listings: MarketListing[]): string {
+  const districts = new Set(listings.map((l) => l.where.split(",").at(-1)?.trim() ?? "").filter(Boolean));
+  return districts.size === 1 ? [...districts][0] : "Rwanda";
+}
+
+/** Bar heights (percent of the tallest) of the live prices in 14 equal steps from the lowest to the highest. */
+function priceHistogram(prices: number[]): number[] {
+  const steps = 14;
+  if (!prices.length) return Array(steps).fill(0);
+  const lo = Math.min(...prices);
+  const hi = Math.max(...prices);
+  const counts: number[] = Array(steps).fill(0);
+  for (const p of prices) counts[hi > lo ? Math.min(steps - 1, Math.floor(((p - lo) / (hi - lo)) * steps)) : 0] += 1;
+  const top = Math.max(...counts);
+  return counts.map((c) => Math.round((c / top) * 100));
+}
 
 const BOOKING: { id: BookFilter; label: string }[] = [
   { id: "any", label: "Any" },
@@ -125,12 +146,9 @@ export function MarketExploreView({
   const [amen, setAmen] = useState<string[]>([]);
   const [sort, setSort] = useState<Sort>("rec");
   const [saved, setSaved] = useState<string[]>(() => data.listings.filter((l) => l.saved).map((l) => l.id));
-  /** The map opens on the mode's first result (the search's own pick when it names one of these listings). */
-  const firstOf = (m: MarketMode) => {
-    const pool = data.listings.filter((l) => l.mode === m).sort((a, b) => a.rank - b.rank);
-    const named = searchOf(m).selected;
-    return pool.some((l) => l.id === named) ? named : (pool[0]?.id ?? named);
-  };
+  /** The map opens on the mode's first result in the recommended order. */
+  const firstOf = (m: MarketMode) =>
+    data.listings.filter((l) => l.mode === m).sort((a, b) => a.rank - b.rank)[0]?.id ?? "";
   const [sel, setSel] = useState(() => firstOf(initialMode));
   const [saving, startSaving] = useTransition();
   /** The heart saves to (or removes from) the signed-in person's lists; a refusal is shown. */
@@ -140,7 +158,6 @@ export function MarketExploreView({
       if (result.ok) setSaved((s) => toggleIn(s, id));
       else toast.danger(result.error);
     });
-  const [move, setMove] = useState(true);
   const [zoom, setZoom] = useState(0);
 
   const search = searchOf(mode);
@@ -164,6 +181,14 @@ export function MarketExploreView({
   const selItem = results.find((d) => d.id === sel) ?? null;
   const n = results.length;
   const scale = ZOOMS[zoom];
+  // What the live catalogue says about itself: where its places are and how their prices spread. The sample
+  // search's area, dates and price curve are not this catalogue's, so none of them is shown.
+  const area = areaOf(results.length ? results : pool);
+  const histogram = priceHistogram(pool.map((d) => d.price));
+  const prices = pool.map((d) => d.price);
+  const histogramLabel = prices.length
+    ? `Distribution of ${homes ? "monthly rents" : "nightly prices"} across ${pool.length} listed, from ${rwf(Math.min(...prices))} to ${rwf(Math.max(...prices))}`
+    : `No ${homes ? "rents" : "prices"} listed yet`;
 
   const switchMode = (m: MarketMode) => {
     setMode(m);
@@ -236,14 +261,10 @@ export function MarketExploreView({
             className="grid items-end gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr))]"
           >
             {search.fields.map((f) => (
-              <TextField
-                key={f.id}
-                defaultValue={f.value}
-                fullWidth
-                className={`gap-1 ${f.wide ? "sm:col-span-2" : ""}`}
-              >
+              <TextField key={f.id} fullWidth className={`gap-1 ${f.wide ? "sm:col-span-2" : ""}`}>
                 <Label>{f.label}</Label>
-                <Input variant="secondary" />
+                {/* The sample search's values are a hint, never a query this person made. */}
+                <Input variant="secondary" placeholder={f.value} />
               </TextField>
             ))}
             <Button type="submit">
@@ -288,9 +309,9 @@ export function MarketExploreView({
 
             <div className="flex flex-col gap-2.5">
               <span className="text-sm font-medium">{copy.price}</span>
-              <div role="img" aria-label={search.histogramLabel} className="h-11">
+              <div role="img" aria-label={histogramLabel} className="h-11">
                 <BarChart
-                  data={search.histogram.map((v, i) => ({ step: `${i}`, v }))}
+                  data={histogram.map((v, i) => ({ step: `${i}`, v }))}
                   height={44}
                   margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
                 >
@@ -394,9 +415,9 @@ export function MarketExploreView({
             <div className="flex flex-wrap items-end gap-3">
               <div className="flex flex-[1_1_260px] flex-col gap-0.5">
                 <h2 id="res-h" className="text-[17px] leading-6 font-semibold">
-                  {n} {n === 1 ? copy.one : copy.many} in {search.area}
+                  {n} {n === 1 ? copy.one : copy.many} in {area}
                 </h2>
-                <span className="text-xs text-muted">{search.summary}</span>
+                <span className="text-xs text-muted">{copy.summary}</span>
               </div>
               <NativeSelect className="min-w-[min(210px,100%)]">
                 <Label htmlFor="sort" className="sr-only">
@@ -484,7 +505,7 @@ export function MarketExploreView({
                               <span className="text-[13px] text-muted">{` ${copy.unit}`}</span>
                             </span>
                             <span className="text-xs text-muted tabular">
-                              {homes ? l.size : `${rwf(l.price * (search.nights ?? 1))} for ${search.nights} nights`}
+                              {homes ? l.size : "per guest · dates on its page"}
                             </span>
                           </div>
                           {homes ? (
@@ -519,7 +540,7 @@ export function MarketExploreView({
                     </EmptyState.Media>
                     <EmptyState.Title>Nothing matches every filter</EmptyState.Title>
                     <EmptyState.Description>
-                      Try removing an amenity or widening the price range. Your dates and area stay the same.
+                      Try removing an amenity or widening the price range.
                     </EmptyState.Description>
                   </EmptyState.Header>
                   <EmptyState.Content>
@@ -539,7 +560,7 @@ export function MarketExploreView({
             className="min-w-[min(300px,100%)] flex-[0_1_360px] gap-0 overflow-hidden p-0"
           >
             <div className="flex items-center justify-between gap-2 px-3.5 py-3">
-              <Switch isSelected={move} onChange={setMove} size="sm">
+              <Switch isSelected={false} isDisabled size="sm" aria-describedby="map-note">
                 <Switch.Content className="gap-2 text-[13px] font-normal">
                   <Switch.Control>
                     <Switch.Thumb />
@@ -581,7 +602,7 @@ export function MarketExploreView({
                   height="100%"
                   preserveAspectRatio="none"
                   role="img"
-                  aria-label={`Map placeholder with ${n} results pinned around ${search.area}`}
+                  aria-label={`Map placeholder with ${n} results pinned around ${area}`}
                   className="block"
                 >
                   <path d={search.waterPath} fill="var(--accent-soft)" />
@@ -620,7 +641,7 @@ export function MarketExploreView({
                   );
                 })}
               </div>
-              <span className="absolute top-3 left-3.5 text-xs text-muted">{search.mapArea}</span>
+              <span className="absolute top-3 left-3.5 text-xs text-muted">{area}</span>
               {selItem ? (
                 <Card className="absolute right-3 bottom-3 left-3 flex-row items-center gap-2 p-3">
                   <div className="relative h-14 w-16 shrink-0 overflow-hidden rounded-xl bg-surface-secondary">
@@ -640,8 +661,9 @@ export function MarketExploreView({
                 </Card>
               ) : null}
             </div>
-            <p className="px-3.5 pt-2 pb-3 text-[11px] leading-4 text-muted">
-              Pins show the approximate area. The exact address is shared after booking.
+            <p id="map-note" className="px-3.5 pt-2 pb-3 text-[11px] leading-4 text-muted">
+              Pins show the approximate area. The exact address is shared after booking. Searching as the map moves is
+              not available yet.
             </p>
           </Card>
         </div>

@@ -2,7 +2,8 @@
  * The marketplace and Sarah Kimani's web account, on the API, through the mutations the screens call:
  * the heart, a named list (create, add, rename, remove, delete), consent, contact details, a booking
  * paid by mobile money on the mock rail, then cancelled, the checkout's "Your details" saved to her
- * account, a request to book withdrawn from the checkout's "Cancel request", and a listing reported to
+ * account, a request to book withdrawn from the checkout's "Cancel request", a stay chosen on the property
+ * page booked exactly as chosen (room, dates, party, plan, the typed payer), and a listing reported to
  * Injishi support. Guest routes declare no permission (ownership is
  * the guard), so the refusals are another person's list answering 404, a visitor with no session
  * answering 401, and a required consent that cannot be turned off answering 409.
@@ -12,6 +13,7 @@ import type {
   GuestProfile,
   MarketCheckout,
   MarketListing,
+  MarketRoom,
   PastTrip,
   SavedCollection,
   UpcomingTrip,
@@ -31,7 +33,14 @@ import {
   setConsent,
   setSaved,
 } from "../../src/server/mutations/market";
-import { catalogue, sources } from "../../src/server/sources/market";
+import {
+  addDays,
+  type CheckoutDocument,
+  catalogue,
+  sources,
+  stayKey,
+  stayRange,
+} from "../../src/server/sources/market";
 import { contextFor } from "../lib/harness";
 import type { Flow } from "./types";
 
@@ -170,7 +179,7 @@ export const flows: Flow[] = [
     async run({ as, check, refused, step }) {
       const sarah = await as("guest");
       const token = crypto.randomUUID();
-      const outcome = await bookCheckout(sarah, "instant", { network: "mtn_momo", number: "078 812 4417" }, token);
+      const outcome = await bookCheckout(sarah, "instant", { network: "mtn_momo", number: "078 300 1234" }, token);
       let reference = outcome.status === "confirmed" ? outcome.booking.reference : outcome.attempt.booking?.reference;
       if (outcome.status === "awaiting_payment") {
         step("the prompt is on the handset (mock rail): polling");
@@ -185,7 +194,7 @@ export const flows: Flow[] = [
       step(`booked ${reference}`);
 
       // The same press again is the same intent, never a second charge.
-      const replay = await bookCheckout(sarah, "instant", { network: "mtn_momo", number: "078 812 4417" }, token);
+      const replay = await bookCheckout(sarah, "instant", { network: "mtn_momo", number: "078 300 1234" }, token);
       const replayRef = replay.status === "confirmed" ? replay.booking.reference : replay.attempt.booking?.reference;
       check(replayRef === reference, `replaying the press made ${replayRef}, not ${reference}`);
 
@@ -255,7 +264,7 @@ export const flows: Flow[] = [
         `the featured place offers no request-to-book room: ${drafts.map((d) => d.id).join(", ")}`,
       );
       const token = crypto.randomUUID();
-      const outcome = await bookCheckout(sarah, "request", { network: "mtn_momo", number: "078 812 4417" }, token);
+      const outcome = await bookCheckout(sarah, "request", { network: "mtn_momo", number: "078 300 1234" }, token);
       const reference = await settled(sarah, outcome, token, check);
       const pending = ((await sources["market.upcomingTrips"].list(sarah)) as UpcomingTrip[]).find(
         (t) => t.id === reference,
@@ -271,6 +280,88 @@ export const flows: Flow[] = [
       check(past?.dates.startsWith("Cancelled"), `Past reads ${JSON.stringify(past)}`);
       step(`Cancel request withdrew it: RWF ${result.refundRwf} refunded, now in Past as cancelled`);
       await refused(409, () => cancelBooking(sarah, reference), "withdrawing the same request twice");
+    },
+  },
+  {
+    name: "Reserve carries the chosen room, dates, party and plan to checkout, which books exactly that stay",
+    async run({ as, check, refused, step }) {
+      const sarah = await as("guest");
+      const rooms = (await sources["market.rooms"].list(sarah)) as MarketRoom[];
+      // Three nights for one adult, a few weeks out, on an instant room with every night free.
+      let pick: { room: MarketRoom; checkIn: string; checkOut: string } | undefined;
+      for (let start = 30; start < 80 && !pick; start += 3) {
+        const checkIn = addDays(sarah.today, start);
+        const checkOut = addDays(sarah.today, start + 3);
+        const room = rooms.find((r) => r.booking === "instant" && !r.soldOut.some((n) => n >= checkIn && n < checkOut));
+        if (room) pick = { room, checkIn, checkOut };
+      }
+      check(pick, "no instant room is free for three nights in the coming weeks");
+      const choice = {
+        roomTypeId: pick.room.id,
+        checkIn: pick.checkIn,
+        checkOut: pick.checkOut,
+        adults: 1,
+        children: 0,
+        nonRefundable: false,
+      };
+      const key = stayKey(choice);
+      const getCheckout = sources["market.checkouts"].get;
+      check(getCheckout, "the checkout source reads no single stay");
+      const draft = (await getCheckout(sarah, key)) as CheckoutDocument | undefined;
+      check(
+        draft?.room === pick.room.name && draft.nights === 3 && draft.guests === "1 adult",
+        `the checkout shows ${JSON.stringify(draft && { room: draft.room, dates: draft.dates, guests: draft.guests })}`,
+      );
+      check(draft.dates.startsWith(stayRange(pick.checkIn, pick.checkOut)), `the checkout's dates are ${draft.dates}`);
+      step(`the checkout shows the chosen stay: ${draft.room}, ${draft.dates}, ${draft.guests}`);
+
+      // Non-refundable on a room the API offers no such rate for: booked refundable, and the checkout says so.
+      const saver = (await getCheckout(sarah, stayKey({ ...choice, nonRefundable: true }))) as CheckoutDocument;
+      check(
+        saver.nonRefundableDiscountRwf
+          ? saver.plan === "Non-refundable" && saver.cancellation.every((t) => t.label === "No refund")
+          : saver.plan.includes("no non-refundable rate") && saver.serviceFee === draft.serviceFee,
+        `the saver checkout reads ${saver.plan}`,
+      );
+      step(`asking for the Non-refundable plan reads "${saver.plan}"`);
+
+      await refused(
+        400,
+        () => bookCheckout(sarah, key, { network: "mtn_momo", number: "  " }, crypto.randomUUID()),
+        "paying with no mobile money number typed",
+      );
+      await refused(
+        404,
+        () =>
+          bookCheckout(
+            sarah,
+            stayKey({ ...choice, checkOut: addDays(sarah.today, 200) }),
+            { network: "mtn_momo", number: "078 300 1234" },
+            crypto.randomUUID(),
+          ),
+        "a stay longer than the API quotes (more than 90 nights)",
+      );
+      await refused(
+        404,
+        () =>
+          bookCheckout(sarah, "stay:not-a-room", { network: "mtn_momo", number: "078 300 1234" }, crypto.randomUUID()),
+        "a stay that names no room",
+      );
+      step("no number typed (400), a stay the API will not quote (404) and a malformed stay (404) send nothing");
+
+      const token = crypto.randomUUID();
+      const outcome = await bookCheckout(sarah, key, { network: "mtn_momo", number: "078 300 1234" }, token);
+      const reference = await settled(sarah, outcome, token, check);
+      const trip = ((await sources["market.upcomingTrips"].list(sarah)) as UpcomingTrip[]).find(
+        (t) => t.id === reference,
+      );
+      check(
+        trip?.dates.startsWith(stayRange(pick.checkIn, pick.checkOut)) && trip.room.includes("1 guest"),
+        `Upcoming reads ${JSON.stringify(trip && { dates: trip.dates, room: trip.room })}`,
+      );
+      step(`booked ${reference} for exactly that stay: ${trip.dates}, ${trip.room}`);
+      await cancelBooking(sarah, reference);
+      step("cancelled again, so the room is free for the next run");
     },
   },
   {

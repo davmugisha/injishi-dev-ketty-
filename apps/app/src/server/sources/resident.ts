@@ -96,8 +96,10 @@ export const sources = defineSources({
       return b.v.leases.filter(isCurrent).map((l) => {
         const notice = b.notice(l.id);
         const offer = b.offer(l.id);
-        const period = l.noticePeriodDays ?? 30;
-        const end = l.endDate ?? b.today;
+        // A term the lease does not record is said to be not on file, never a made-up 30 days or a lease ending today.
+        const period = l.noticePeriodDays;
+        const end = l.endDate;
+        const earliest = addDays(b.today, period ?? 0);
         const status = notice
           ? { status: "Notice given", statusTone: "accent" as const }
           : offer?.status === "accepted" || offer?.status === "signed"
@@ -111,17 +113,19 @@ export const sources = defineSources({
           landlord: property?.landlord ?? "",
           landlordTin: property?.tin ? `TIN ${spacedTin(property.tin)}` : property?.upi ? `UPI ${property.upi}` : "",
           ...status,
-          term: `${l.startDate ? dayMonthYear(l.startDate) : ""} – ${dayMonthYear(end)}`,
-          endsOn: dayMonthYear(end),
-          endsShort: dayMonth(end),
+          term: `${l.startDate ? dayMonthYear(l.startDate) : ""} – ${end ? dayMonthYear(end) : "no end date on file"}`,
+          endsOn: end ? dayMonthYear(end) : "a date not on file",
+          endsShort: end ? dayMonth(end) : "on a date not on file",
           rent: l.monthlyRentRwf ?? 0,
-          rentDue: `On the ${ordinal(l.rentDueDay ?? 1)} · ${l.graceDays ?? 0}-day grace`,
-          noticePeriod: `${period} days in writing`,
+          rentDue: l.rentDueDay
+            ? `On the ${ordinal(l.rentDueDay)}${l.graceDays !== null && l.graceDays !== undefined ? ` · ${l.graceDays}-day grace` : ""}`
+            : "Due day not on file",
+          noticePeriod: period !== null && period !== undefined ? `${period} days in writing` : "Not on file",
           deposit: l.cautionRwf ?? 0,
           depositSince: l.startDate ? dayMonthYear(l.startDate) : "",
           occupants: l.occupants ? `You and ${l.occupants}` : "You",
-          moveOutDefault: longDate(end),
-          earliestMoveOut: dayMonth(addDays(b.today, period)),
+          moveOutDefault: longDate(end ?? earliest),
+          earliestMoveOut: dayMonth(earliest),
           notice: notice
             ? {
                 moveOut: dayMonthYear(notice.moveOutDate),
