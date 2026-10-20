@@ -1,13 +1,13 @@
 "use client";
 
 import { CircleCheck, CircleDashed, PersonPlus, TriangleExclamation, Xmark } from "@gravity-ui/icons";
-import { Button, Card, Chip, Link, Popover, Switch, Toast, Tooltip, toast } from "@heroui/react";
+import { Button, Card, Chip, Popover, Switch, Toast, toast } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
 import { type IconName, screenHref } from "@injishi/data";
 import type { RackBar, RackBarKind, RackDay, RackLane, RoomMove, RoomStatus } from "@injishi/data/fixtures/frontdesk";
 import { Icon, LinkButton, PageContent, PageHeader, StatusDot, type Tone } from "@injishi/ui";
 import { type CSSProperties, Fragment, useMemo, useState } from "react";
-import { bookingHref, ChoiceSelect, ROOM_STATUS } from "./shared";
+import { ChoiceSelect, ROOM_STATUS } from "./shared";
 
 /** First day shown on the rack (Sun 11 Oct); "today" is the second column. */
 const FIRST_DAY = 11;
@@ -56,17 +56,7 @@ const CHECK_TONE: Record<"success" | "warning" | "default", string> = {
 const BAR_BASE =
   "absolute top-1 bottom-1 flex h-auto min-w-0 items-center gap-1.5 overflow-hidden rounded-lg px-2 text-xs font-medium whitespace-nowrap no-underline";
 
-export function RoomRackView({
-  days,
-  lanes,
-  move,
-  recordIds,
-}: {
-  days: RackDay[];
-  lanes: RackLane[];
-  move: RoomMove | null;
-  recordIds: string[];
-}) {
+export function RoomRackView({ days, lanes, move }: { days: RackDay[]; lanes: RackLane[]; move: RoomMove | null }) {
   const [span, setSpan] = useState<14 | 7>(14);
   // The rack is the prototype's sample (its lanes draw group and out-of-order blocks that have no tables), so a
   // move proposed on it is never sent: Confirm says so, and nothing is marked as moved.
@@ -221,32 +211,12 @@ export function RoomRackView({
       );
     }
 
-    // Bars are sample data: a booking opens in Reservations by its reference; no bar names a live stay.
-    const href =
-      (kind === "inhouse" || kind === "booked" || kind === "tentative") && b.bookingId
-        ? bookingHref(b.bookingId, recordIds)
-        : null;
-    if (href) {
-      return (
-        <Tooltip key={b.id} delay={400} closeDelay={0}>
-          <Link
-            href={href}
-            aria-label={`${label}, room ${lane.room}, ${dates}`}
-            className={`${BAR_BASE} ${KIND_CLASS[kind]} ${flag} hover:brightness-95`}
-            style={style}
-          >
-            {content}
-          </Link>
-          <Tooltip.Content>
-            {label} · {dates}
-          </Tooltip.Content>
-        </Tooltip>
-      );
-    }
+    // Bars are the prototype's sample day: none of them opens a live booking or stay, even when a sample
+    // reference looks like one of this property's.
     return (
       <span
         key={b.id}
-        title={`${label} · ${dates}`}
+        title={`${label} · room ${lane.room} · ${dates}`}
         className={`${BAR_BASE} ${KIND_CLASS[kind]} ${flag}`}
         style={style}
       >
@@ -259,7 +229,7 @@ export function RoomRackView({
     <PageContent className="gap-4 text-[14px] leading-5">
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Calendar · Isangano Lakeside Hotel"
+        eyebrow="Calendar · sample day"
         title="Room Rack"
         description={`${rangeLabel} · ${shownRooms} of ${totalRooms} rooms · moves and split stays go through a room-status and folio check.`}
         actions={

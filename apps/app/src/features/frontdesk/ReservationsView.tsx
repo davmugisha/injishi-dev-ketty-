@@ -36,7 +36,6 @@ import { Segment } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
 import type {
   BookingRequest,
-  CancellationTier,
   Reservation,
   ReservationsSummary,
   ReservationView,
@@ -44,17 +43,17 @@ import type {
 import { formatRwf, GateChip, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useMemo, useState, useTransition } from "react";
 import { approveBookingRequest, cancelBooking, declineBookingRequest, recordNoShow } from "./actions";
-import { ChoiceSelect, PolicyTiers, plural } from "./shared";
+import { ChoiceSelect, plural } from "./shared";
 
 export interface ReservationsData {
   bookings: Reservation[];
   views: ReservationView[];
   summary: ReservationsSummary;
   requests: BookingRequest[];
-  tiers: CancellationTier[];
-  recordIds: string[];
   /** Today's day number, including when the live desk has no bookings. */
   today?: number;
+  /** The property the desk's day is read for, as the API names it. */
+  property: string;
 }
 
 type Mode = "view" | "cancel" | "cancelled" | "modify" | "noshow" | "noshowDone";
@@ -128,13 +127,6 @@ const nowClock = () =>
     minute: "2-digit",
     hour12: false,
   }).format(new Date());
-
-/** Mobile money or card provider named in the payment detail. */
-function providerOf(detail: string): string {
-  if (detail.includes("MTN")) return "MTN";
-  if (detail.includes("Airtel")) return "Airtel";
-  return "the provider";
-}
 
 export function ReservationsView({
   persona,
@@ -230,7 +222,7 @@ export function ReservationsView({
     <PageContent className="gap-4 text-[14px] leading-5">
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Front office · Isangano Lakeside Hotel"
+        eyebrow={`Front office · ${data.property}`}
         title="Reservations"
         description="Find, change and approve bookings. Refunds follow the booking's policy and are paid out by Payments, not from the desk."
         actions={
@@ -457,7 +449,6 @@ export function ReservationsView({
                 mode={mode}
                 setMode={setMode}
                 summary={summary}
-                tiers={data.tiers}
                 today={TODAY}
                 actedAt={actedAt}
                 onActed={() => setActedAt(nowClock())}
@@ -504,7 +495,6 @@ function BookingInspector({
   mode,
   setMode,
   summary,
-  tiers,
   cancelReason,
   setCancelReason,
   noShowReason,
@@ -518,7 +508,6 @@ function BookingInspector({
   mode: Mode;
   setMode: (m: Mode) => void;
   summary: ReservationsSummary;
-  tiers: CancellationTier[];
   cancelReason: string;
   setCancelReason: (v: string) => void;
   noShowReason: string;
@@ -560,23 +549,16 @@ function BookingInspector({
   const nights = plural(b.nights, "night");
   const roomLabel = b.room ? `Room ${b.room}` : "No room yet";
   const quote = b.cancelQuote ?? null;
-  const terms =
-    k === "request"
-      ? "Quote only · terms saved on approval"
-      : b.today !== undefined
-        ? "Cancellation tier locked at booking · refunds follow it"
-        : `${summary.policy} · DEP-STD v2 · saved at booking`;
+  // The tier is locked when the booking (or the request) is made; the API refunds on it.
+  const terms = "Cancellation tier locked at booking · refunds follow it";
 
-  const days = b.arrivalDay - TODAY;
-  const tierIx = days > 7 ? 0 : days >= 2 ? 1 : 2;
-  const kept = quote ? quote.kept : tierIx === 0 ? 0 : tierIx === 1 ? b.deposit / 2 : Math.min(b.deposit, b.firstNight);
-  const refund = quote ? quote.refund : b.deposit - kept;
-  const _provider = providerOf(b.paymentDetail);
+  // What cancelling or recording a no-show would refund is the API's quote on the booking's own tier. Without
+  // one the API would refuse the command, so the desk is told so and offered nothing to press.
+  const kept = quote?.kept ?? 0;
+  const refund = quote?.refund ?? 0;
   const cxNote = quote
     ? `${quote.rule} The refund goes back to the wallet the guest paid from; it shows Pending until the provider confirms.`
-    : b.deposit > 0
-      ? `Today is ${days} days before arrival, so tier ${tierIx + 1} applies. The refund is decided here by policy and paid by Payments to the original wallet; it shows Pending until the provider confirms.`
-      : "No verified payment to refund. Any pending payment request is cancelled with the provider; nothing is marked refunded.";
+    : "This booking cannot be cancelled from the desk now: the platform gives no refund quote for it (its payment may no longer be held). Nothing was changed.";
   const cxAfter = outcome
     ? `${outcome.refund > 0 ? `${formatRwf(outcome.refund)} back to the guest's wallet` : "No refund due"} · ${formatRwf(outcome.kept)} kept. ${outcome.rule}`
     : "Cancelled.";
@@ -607,9 +589,19 @@ function BookingInspector({
         >
           <Comment className="size-4" />
         </LinkButton>
-        <LinkButton href={`${screenHref("Reservations")}/${b.id}`} size="sm" variant="secondary">
+        {/* The full reservation record (parties, saved terms, payment history) is still the prototype's sample,
+            so a live booking is never opened there: this panel is the booking as the API holds it. */}
+        <Button
+          size="sm"
+          variant="secondary"
+          onPress={() =>
+            toast.warning(
+              "The full reservation record is not available yet. This panel shows the booking as it is saved.",
+            )
+          }
+        >
           Open
-        </LinkButton>
+        </Button>
       </div>
       <div className="flex flex-wrap gap-1.5">
         <Chip size="sm" variant="soft" color={toneColor(b.statusTone)}>
@@ -675,15 +667,10 @@ function BookingInspector({
           <div className="flex flex-col gap-0.5">
             <span className="font-semibold">Cancel {b.id}</span>
             <span className="text-xs text-muted">
-              {quote
-                ? "At the guest's request · the tier this booking locked"
-                : `Policy ${summary.policy}, the version saved in this booking's terms`}
+              {quote ? "At the guest's request · the tier this booking locked" : "No refund quote for this booking"}
             </span>
           </div>
-          {quote ? null : (
-            <PolicyTiers tiers={tiers} current={tierIx} label={`Cancellation tiers of ${summary.policy}`} />
-          )}
-          <ul className="flex flex-col gap-1.5 text-[13px]">
+          <ul className="flex flex-col gap-1.5 text-[13px]" hidden={!quote}>
             <li className="flex justify-between gap-2">
               <span>Verified payments</span>
               <span className="tabular">{formatRwf(b.deposit)}</span>
@@ -708,7 +695,7 @@ function BookingInspector({
             <Button size="sm" variant="secondary" onPress={() => setMode("view")}>
               Keep booking
             </Button>
-            <Button size="sm" variant="danger" isDisabled={busy} onPress={confirmCancel}>
+            <Button size="sm" variant="danger" isDisabled={busy || !quote} onPress={confirmCancel}>
               Cancel booking
             </Button>
           </div>
@@ -740,9 +727,10 @@ function BookingInspector({
               <Input className="tabular" />
             </TextField>
           </div>
-          <Chip size="sm" variant="soft" color="success" className="self-start">
-            <CircleCheck className="size-3" />
-            <Chip.Label>{b.roomType} free for the new dates</Chip.Label>
+          {/* Nothing checks the new dates (no route changes a booking's dates), so nothing claims they are free. */}
+          <Chip size="sm" variant="soft" color="default" className="self-start">
+            <CircleInfo className="size-3" />
+            <Chip.Label>Availability for new dates is not checked here</Chip.Label>
           </Chip>
           <p className="text-xs text-muted">
             New nights are priced at today's published rate; the cancellation policy stays at the booking's version.
@@ -770,7 +758,7 @@ function BookingInspector({
           <p className="text-[13px]">
             {noShow
               ? `Arrival was ${dayLabel(b.arrivalDay)} and nobody checked in. ${noShow.rule} ${formatRwf(noShow.kept)} is kept and ${formatRwf(noShow.refund)} goes back; the rooms held from ${dayLabel(TODAY)} are released.`
-              : `Arrival was ${dayLabel(b.arrivalDay)}; night audit flagged it at 02:00. Under ${summary.policy} the first night (${formatRwf(b.deposit)}) is kept from the verified deposit and ${dayLabel(TODAY)} is released.`}
+              : `Arrival was ${dayLabel(b.arrivalDay)} and nobody checked in, but a no-show cannot be recorded for this booking now: the platform gives no refund quote for it (its payment may no longer be held). Nothing was changed.`}
           </p>
           <ChoiceSelect
             label="Reason"
@@ -782,7 +770,7 @@ function BookingInspector({
             <Button size="sm" variant="secondary" onPress={() => setMode("view")}>
               Guest is still coming
             </Button>
-            <Button size="sm" variant="danger" isDisabled={busy} onPress={confirmNoShow}>
+            <Button size="sm" variant="danger" isDisabled={busy || !noShow} onPress={confirmNoShow}>
               Mark no-show
             </Button>
           </div>

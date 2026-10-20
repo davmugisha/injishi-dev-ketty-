@@ -77,9 +77,10 @@ export interface FrontDeskTodayData {
   readiness: ReadinessRoom[];
   roomTypes: RoomType[];
   rooms: DeskRoom[];
-  recordIds: string[];
   /** Today in Kigali (YYYY-MM-DD), as the page read it; the header's date. */
-  today?: string;
+  today: string;
+  /** The property the desk's day is read for, as the API names it. */
+  property: string;
 }
 
 type TabId = QueueTab["id"];
@@ -187,21 +188,23 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
   const rows = useMemo<QueueRow[]>(() => {
     if (tab === "arrivals") {
       return data.arrivals.map((r) => {
-        const fresh = assigned[r.id];
+        // Until the page reads the hold back from the API; then the API's own room and state show.
+        const fresh = assigned[r.id] && assigned[r.id] !== r.room ? assigned[r.id] : undefined;
         const room = fresh ?? r.room;
-        const status = fresh ? "inspected" : r.roomStatus;
+        // A room just assigned shows the state the desk read for it (clean or inspected), not an assumed one.
+        const status = fresh ? (data.rooms.find((x) => x.room === fresh)?.status ?? null) : r.roomStatus;
         const rs = status ? ROOM_STATUS[status] : null;
         return {
           id: r.id,
           name: r.name,
           sub: `${r.bookingId} · ${plural(r.nights, "night")} · ${r.source}`,
           search: `${r.name} ${r.bookingId} ${room ?? r.roomType}`,
-          openHref: bookingHref(r.bookingId, data.recordIds),
+          openHref: bookingHref(r.bookingId),
           openLabel: `Open booking for ${r.name}`,
           room: room
             ? {
                 no: room,
-                label: fresh ? "Inspected · just assigned" : (r.roomStatusLabel ?? rs?.label ?? ""),
+                label: fresh ? `${rs?.label ?? "Assigned"} · just assigned` : (r.roomStatusLabel ?? rs?.label ?? ""),
                 tone: rs?.tone ?? "default",
                 reassign: true,
               }
@@ -260,8 +263,15 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         search: `${r.name} ${r.bookingId} ${r.room}`,
         openHref: stayHref(r.id),
         openLabel: `Open stay for ${r.name}`,
+        // A room the guest has left shows its state now (the desk's read of the room), never an assumed "Dirty".
         room: done
-          ? { no: r.room, label: "Dirty · to clean", tone: "warning", reassign: false }
+          ? (() => {
+              const now = data.rooms.find((x) => x.room === r.room);
+              const st = now ? ROOM_STATUS[now.status] : null;
+              const held = now?.status === "occupied" && now.note.startsWith("Held for");
+              const label = held ? "Held for an arrival" : (st?.label ?? "Checked out");
+              return { no: r.room, label, tone: st?.tone ?? "default", reassign: false };
+            })()
           : { no: r.room, label: "Occupied", tone: "default", reassign: false },
         status: { ...CHECKOUT[r.checkout], label: r.checkoutLabel },
         balance: r.balance,
@@ -290,7 +300,9 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
   const tabDef = data.tabs.find((t) => t.id === tab) ?? data.tabs[0];
   const cols = COLUMNS[tab];
 
-  const openRequests = data.requests.length;
+  // Guest requests are the prototype's sample (frontdesk.guestRequests is deferred): they are labelled as
+  // such and never counted as this desk's open requests.
+  const sampleRequests = data.requests.length;
   const readyCount = data.readiness.filter((r) => isReady(r.status)).length;
   const readyPct = data.readiness.length ? Math.round((readyCount / data.readiness.length) * 100) : 0;
   const unassigned = data.arrivals.filter((a) => !a.room && !assigned[a.id]);
@@ -384,7 +396,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         />
       ) : null}
       <PageHeader
-        eyebrow={`${data.today ? longDay(data.today) : "Monday 12 October 2026"} · Isangano Lakeside Hotel · Morning shift`}
+        eyebrow={`${longDay(data.today)} · ${data.property}`}
         title="Today"
         description={headline}
         actions={
@@ -424,7 +436,8 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
       <section aria-label="Today at a glance">
         <KPIGroup className="flex-wrap">
           {data.kpis.map((k, i) => {
-            const value = k.id === "requests" ? openRequests : k.value;
+            // No count of guest requests exists yet: the tile says so instead of showing a number.
+            const unavailable = k.id === "requests";
             return (
               <Fragment key={k.id}>
                 {i > 0 ? <KPIGroup.Separator /> : null}
@@ -436,9 +449,15 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
                     <KPI.Title>{k.label}</KPI.Title>
                   </KPI.Header>
                   <KPI.Content>
-                    <KPI.Value value={value} className="text-[22px] tabular">
-                      {(formatted) => (k.total === null ? formatted : `${formatted} of ${k.total}`)}
-                    </KPI.Value>
+                    {unavailable ? (
+                      <span className="text-[22px] leading-7 font-semibold text-muted" title="Not available yet">
+                        —
+                      </span>
+                    ) : (
+                      <KPI.Value value={k.value} className="text-[22px] tabular">
+                        {(formatted) => (k.total === null ? formatted : `${formatted} of ${k.total}`)}
+                      </KPI.Value>
+                    )}
                   </KPI.Content>
                   <KPI.Footer>
                     <p className="text-xs leading-4 text-muted">{k.foot}</p>
@@ -536,10 +555,14 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
               <h2 id="req-h" className="text-[15px] leading-[22px] font-semibold">
                 Guest Requests
               </h2>
-              <Chip size="sm" variant="soft" color="warning">
-                {openRequests} open
+              <Chip size="sm" variant="soft" color="default">
+                Sample
               </Chip>
             </div>
+            <p className="text-xs leading-4 text-muted">
+              Guest requests are not connected to the desk yet. The {plural(sampleRequests, "request")} below are sample
+              data, not this property's guests.
+            </p>
             <ul className="flex flex-col gap-1.5">
               {data.requests.map((rq) => {
                 const done = false;
@@ -696,7 +719,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
               <ArrowRight className="size-4" />
             </LinkButton>
             <p className="text-xs leading-4 text-muted">
-              Published walk-in rates, excluding VAT. Rates are managed by your general manager.
+              Each room type's default rate a night. Rates are managed by your general manager.
             </p>
           </Card>
         </aside>

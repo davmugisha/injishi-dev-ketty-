@@ -48,6 +48,21 @@ try {
 
   await page.goto(`${APP}/front-desk`);
   await page.waitForText("Quick Walk-in", 120_000);
+  // Today states only what the API serves: live bookings open in the live list, and the sample guest
+  // requests are labelled and never counted as the desk's open requests.
+  const desk = await page.eval(`(() => ({
+    links: [...document.querySelectorAll('a[aria-label^="Open booking for"]')].map((a) => a.getAttribute('href') ?? ''),
+    glance: document.querySelector('section[aria-label="Today at a glance"]')?.innerText ?? '',
+    text: document.body.innerText,
+  }))()`);
+  if (!desk.links.length) fail("Today lists no arrival to open");
+  const wrong = desk.links.find((h) => !h.startsWith("/reservations?booking="));
+  if (wrong) fail(`an arrival opens ${wrong}, not the live reservations list`);
+  if (!desk.glance.includes("Not available yet")) fail("the Open requests tile shows a count nobody keeps");
+  if (!desk.text.includes("Guest requests are not connected to the desk yet"))
+    fail("sample guest requests are unlabelled");
+  if (desk.text.includes("Morning shift")) fail("Today names a shift nobody recorded");
+  console.log(`  Today: ${desk.links.length} arrivals open in the live list; guest requests are labelled sample`);
   const roomless = await page.eval(
     `(() => { const p = [...document.querySelectorAll('p')].find((e) => e.innerText.includes('no room yet')); return p ? p.innerText : ''; })()`,
   );
@@ -80,6 +95,9 @@ try {
   await page.goto(`${APP}/walk-in`);
   await page.waitForText("Availability by Room Type", 120_000);
   await new Promise((r) => setTimeout(r, 2_000));
+  const walkInText = await page.eval("document.body.innerText");
+  if (/possible match|Flexible walk-in|VAT-RW/.test(walkInText))
+    fail("the walk-in shows the sample quote or sample guests");
   const typeBox = await page.eval(`(() => {
     const radio = [...document.querySelectorAll('input[type=radio]')].find((r) => !r.disabled && r.closest('table'));
     const label = radio?.closest('label');

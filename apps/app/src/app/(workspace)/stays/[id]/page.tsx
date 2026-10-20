@@ -4,11 +4,7 @@ import type {
   DeskTender,
   FolioLine,
   FolioPayment,
-  LateCheckoutOption,
   Stay,
-  StayAccess,
-  StayDocument,
-  StayEvent,
   StayRecord,
 } from "@injishi/data/fixtures/stays";
 import type { Metadata } from "next";
@@ -19,23 +15,23 @@ import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.StayFolio.pageTitle };
 
+/**
+ * The stay and its bill, read live. What has no record yet is not read from the prototype's sample, because
+ * none of it is this stay's: its history (no stay audit rows), keys (no lock provider), documents (no receipt
+ * list) and a late-checkout fee schedule (no column). The screen says plainly that each is not recorded yet.
+ */
 export default async function StayFolioPage({ params }: { params: Promise<{ id: string }> }) {
   const persona = await requirePersona("StayFolio");
   const { id } = await params;
   const stay = await getDocument<Stay>("stays.stays", decodeURIComponent(id));
   if (!stay) notFound();
-  const [records, lines, payments, history, access, documents, lateOptions, chargeDepartments, tenders] =
-    await Promise.all([
-      getCollection<StayRecord>("stays.stayRecords"),
-      getCollection<FolioLine>("stays.folioLines"),
-      getCollection<FolioPayment>("stays.folioPayments"),
-      getCollection<StayEvent>("stays.stayHistory"),
-      getCollection<StayAccess>("stays.stayAccess"),
-      getCollection<StayDocument>("stays.stayDocuments"),
-      getCollection<LateCheckoutOption>("stays.lateCheckoutOptions"),
-      getCollection<ChargeDepartment>("stays.chargeDepartments"),
-      getCollection<DeskTender>("stays.deskTenders"),
-    ]);
+  const [records, lines, payments, chargeDepartments, tenders] = await Promise.all([
+    getCollection<StayRecord>("stays.stayRecords"),
+    getCollection<FolioLine>("stays.folioLines"),
+    getCollection<FolioPayment>("stays.folioPayments"),
+    getCollection<ChargeDepartment>("stays.chargeDepartments"),
+    getCollection<DeskTender>("stays.deskTenders"),
+  ]);
   const mine = <T extends { stayId: string }>(docs: T[]) => docs.filter((d) => d.stayId === stay.id);
   return (
     <StayFolioView
@@ -45,10 +41,9 @@ export default async function StayFolioPage({ params }: { params: Promise<{ id: 
         records: mine(records),
         lines: mine(lines),
         payments: mine(payments),
-        history: mine(history),
-        access: mine(access),
-        documents: mine(documents),
-        lateOptions,
+        history: [],
+        access: [],
+        documents: [],
         chargeDepartments,
         tenders,
       }}

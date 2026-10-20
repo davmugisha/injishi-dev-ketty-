@@ -91,6 +91,12 @@ try {
   await page.waitForText("Payments and Balance", 120_000);
   console.log(`  Checkout opens on ${stayHref}; its stay page reads the live bill`);
 
+  // Nothing the business has not set is shown as its own: no late-checkout fee schedule, no sample history.
+  const stayText = await page.eval("document.body.innerText");
+  if (!stayText.includes("No fee schedule is kept yet")) fail("the late checkout times show fees nobody set");
+  if (/Umurage guests|Half-day rate|Full night rate/.test(stayText)) fail("the sample late-checkout fees are shown");
+  console.log("  the stay page offers late checkout times without invented fees");
+
   // Post a desk charge, typed before VAT.
   const charge = `Browser check minibar ${Date.now() % 100000}`;
   await openDrawer("Post charge");

@@ -30,13 +30,7 @@ import {
 } from "@heroui/react";
 import { Stepper } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
-import type {
-  CheckoutCase,
-  CheckoutKey,
-  CheckoutLedgerLine,
-  FiscalReceiptDraft,
-  MomoEvent,
-} from "@injishi/data/fixtures/stays";
+import type { CheckoutCase, CheckoutLedgerLine } from "@injishi/data/fixtures/stays";
 import { KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
@@ -48,17 +42,13 @@ export type ReceiptOutcome = "pending" | "issued" | "unknown";
 export type MomoState = "idle" | "pending" | "unknown" | "verified";
 
 /**
- * What the page hands the screen. The checkout and its ledger are the next guest due out, read live;
- * the MoMo trail, the fiscal receipt drafts and the key list are the prototype's sample (payments in
- * flight, a receipt list and key cards have no table), so this screen does not draw them as if they
- * were this guest's.
+ * What the page hands the screen: the next guest due out and the evidence behind their balance, read live.
+ * The prototype's MoMo trail, fiscal receipt drafts and key list (payments in flight, a receipt list and key
+ * cards have no table) are not read at all, so nothing of theirs can be drawn as this guest's.
  */
 export interface CheckoutData {
   checkout: CheckoutCase;
   ledger: CheckoutLedgerLine[];
-  momoTrail: MomoEvent[];
-  receipts: FiscalReceiptDraft[];
-  keys: CheckoutKey[];
 }
 
 type StepStatus = "complete" | "active" | "inactive";
@@ -316,7 +306,7 @@ export function CheckoutView({
                 <>
                   <div className="flex flex-wrap items-end gap-3">
                     <TextField defaultValue={c.momoPhone} className="flex-[1_1_200px]">
-                      <Label>MTN MoMo number</Label>
+                      <Label>Mobile money number</Label>
                       <Input variant="secondary" className="tabular" />
                     </TextField>
                     <div className="flex flex-[0_1_160px] flex-col gap-1">
