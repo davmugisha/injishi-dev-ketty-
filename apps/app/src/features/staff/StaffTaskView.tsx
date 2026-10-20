@@ -59,8 +59,11 @@ export interface StaffTaskData {
   sections: ChecklistSection[];
   minibar: MinibarItem[];
   spots: FoundItemSpot[];
-  found: FoundItem;
+  /** Items already logged to Lost and found from the person's rooms, as the register holds them (never a form default). */
+  found: FoundItem[];
   profile: StaffProfile;
+  /** Today's housekeeping supervisor as the API names them, or null when it names nobody. */
+  supervisor: string | null;
 }
 
 type RoomStatus = CleaningRoom["status"];
@@ -78,9 +81,14 @@ export function StaffTaskView({
   data: StaffTaskData;
   offline?: boolean;
 }) {
-  const { rooms, finished, sections, minibar, spots, found, profile } = data;
+  const { rooms, finished, sections, minibar, spots, profile, supervisor } = data;
+  /** The supervisor's first name as the API gives it, or "your supervisor": never a name the screen made up. */
+  const boss = supervisor?.split(" ")[0] || "your supervisor";
+  const Boss = supervisor?.split(" ")[0] || "Your supervisor";
   const [view, setView] = useState<"task" | "rooms">("task");
-  const [roomNo, setRoomNo] = useState(() => (rooms.find((r) => r.status === "cleaning") ?? rooms[0]).no);
+  // The room in progress is the one whose minibar count the API holds (staff.minibarItems); another room starts at 0.
+  const [taskRoom] = useState(() => (rooms.find((r) => r.status === "cleaning") ?? rooms[0]).no);
+  const [roomNo, setRoomNo] = useState(taskRoom);
   const [status, setStatus] = useState<Record<string, RoomStatus>>(() =>
     Object.fromEntries(rooms.map((r) => [r.no, r.status])),
   );
@@ -92,9 +100,15 @@ export function StaffTaskView({
   );
   const [miniSent, setMiniSent] = useState<string | null>(null);
   const [sheet, setSheet] = useState<"" | "confirm" | "found">("");
-  const [spot, setSpot] = useState(found.spot);
-  const [foundText, setFoundText] = useState(found.description);
-  const [foundLogged, setFoundLogged] = useState<{ ref: string; name: string } | null>(null);
+  // The found-item form starts empty: what the person types and the spot they pick is all that is sent.
+  const [spot, setSpot] = useState("");
+  const [foundText, setFoundText] = useState("");
+  const [foundLogged, setFoundLogged] = useState<{
+    ref: string;
+    name: string;
+    spot: string;
+    holder: string | null;
+  } | null>(null);
   const [cleanedAt, setCleanedAt] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
 
@@ -161,7 +175,14 @@ export function StaffTaskView({
       const result = await logRoomFoundItemAction(r.id, { description: foundText, spot: spotPhrase });
       if (!reported(result) || !result.ok) return;
       setSheet("");
-      setFoundLogged({ ref: result.value, name });
+      setFoundLogged({
+        ref: result.value.reference,
+        name,
+        spot: spotPhrase,
+        holder: result.value.custodianName?.split(" ")[0] ?? null,
+      });
+      setFoundText("");
+      setSpot("");
     });
   };
   const doneAt = cleanedAt[r.no] ?? kigaliClock();
@@ -190,6 +211,14 @@ export function StaffTaskView({
   const spotPhrase = spots.find((s) => s.id === spot)?.phrase ?? spot;
 
   const openRoom = (no: string) => {
+    if (no !== roomNo) {
+      // A count, a found item and their results belong to one room: another room never shows them as its own.
+      setUsed(Object.fromEntries(minibar.map((m) => [m.id, no === taskRoom ? m.used : 0])));
+      setMiniSent(null);
+      setFoundLogged(null);
+      setFoundText("");
+      setSpot("");
+    }
     setRoomNo(no);
     setView("task");
     setSheet("");
@@ -332,7 +361,7 @@ export function StaffTaskView({
                     Minibar count
                   </h2>
                   <span className="text-xs leading-4 text-muted">
-                    Count what was used. Front desk checks it and decides any charge.
+                    Count what was used. It is recorded with this room; the phone makes no charge.
                   </span>
                 </div>
                 <Chip size="sm" variant="soft">
@@ -370,12 +399,12 @@ export function StaffTaskView({
                     </Alert.Indicator>
                     <Alert.Content>
                       <Alert.Title>
-                        {usedTotal ? `Sent to front desk at ${miniSent}` : `Nothing used · sent at ${miniSent}`}
+                        {usedTotal ? `Count recorded at ${miniSent}` : `Nothing used · recorded at ${miniSent}`}
                       </Alert.Title>
                       <Alert.Description>
                         {usedTotal
-                          ? `${usedTotal} items reported. Front desk checks the folio; you do not take any money.`
-                          : "Front desk will not add minibar charges for this stay."}
+                          ? `${usedTotal} items recorded with room ${r.no}. No charge is made from the phone; you do not take any money.`
+                          : `Recorded with room ${r.no} as nothing used. No charge is made from the phone.`}
                       </Alert.Description>
                     </Alert.Content>
                   </Alert>
@@ -393,7 +422,7 @@ export function StaffTaskView({
                   onPress={sendMinibar}
                 >
                   <PaperPlane className="size-4" />
-                  Send count to front desk
+                  Send count
                 </Button>
               )}
             </Card>
@@ -418,6 +447,28 @@ export function StaffTaskView({
                   Report a problem
                 </LinkButton>
               </div>
+              {data.found
+                .filter((f) => f.room === r.no && f.ref !== foundLogged?.ref)
+                .map((f) => (
+                  <ItemCard key={f.id} variant="secondary">
+                    <ItemCard.Icon>
+                      <Box />
+                    </ItemCard.Icon>
+                    <ItemCard.Content>
+                      <ItemCard.Title>
+                        {f.name} · {f.ref}
+                      </ItemCard.Title>
+                      <ItemCard.Description className="whitespace-normal">
+                        Already in Lost and found from this room
+                      </ItemCard.Description>
+                    </ItemCard.Content>
+                    <ItemCard.Action>
+                      <Chip size="sm" variant="soft">
+                        Logged
+                      </Chip>
+                    </ItemCard.Action>
+                  </ItemCard>
+                ))}
               {foundLogged ? (
                 <ItemCard variant="secondary">
                   <ItemCard.Icon>
@@ -428,7 +479,9 @@ export function StaffTaskView({
                       {foundLogged.name} · {foundLogged.ref}
                     </ItemCard.Title>
                     <ItemCard.Description className="whitespace-normal">
-                      Found in the {spotPhrase} · with you until you hand it to {found.holder}
+                      {foundLogged.holder
+                        ? `Found in the ${foundLogged.spot} · with you until you hand it to ${foundLogged.holder}`
+                        : `Found in the ${foundLogged.spot} · the register names nobody to hand it to yet`}
                     </ItemCard.Description>
                   </ItemCard.Content>
                   <ItemCard.Action>
@@ -508,7 +561,7 @@ export function StaffTaskView({
         {!isTask ? (
           <>
             <p className="text-[13px] leading-[18px] text-muted">
-              Only rooms Beatrice assigned to you today. If a room is missing, ask her to add it.
+              Only rooms assigned to you today. If a room is missing, ask {boss} to add it.
             </p>
             <section className="flex flex-col gap-[8px]" aria-labelledby="todo-h">
               <h2 id="todo-h" className="text-[15px] leading-[22px] font-semibold">
@@ -605,7 +658,7 @@ export function StaffTaskView({
         isOpen={sheet === "confirm"}
         onOpenChange={(open) => !open && setSheet("")}
         heading={`${left.length} checks not ticked`}
-        description="Beatrice sees anything you skip when she inspects the room."
+        description={`${Boss} sees anything you skip when the room is inspected.`}
       >
         <ul className="flex flex-col gap-[8px]">
           {left.map((label) => (
@@ -648,7 +701,7 @@ export function StaffTaskView({
         </div>
         <TextField value={foundText} onChange={setFoundText} fullWidth className="flex flex-col gap-1">
           <Label>What is it?</Label>
-          <Input className="min-h-11" />
+          <Input className="min-h-11" placeholder="Phone charger, white" />
         </TextField>
         <div className="flex flex-col gap-[6px]">
           <span className="text-sm font-medium" id="fd-where">
@@ -659,7 +712,7 @@ export function StaffTaskView({
             selectionMode="single"
             disallowEmptySelection
             isDetached
-            selectedKeys={[spot]}
+            selectedKeys={spot ? [spot] : []}
             onSelectionChange={(keys) => {
               const k = [...keys][0];
               if (k) setSpot(String(k));
@@ -675,13 +728,19 @@ export function StaffTaskView({
         </div>
         <p className="flex items-start gap-[8px] text-xs leading-4 text-muted">
           <ShieldExclamation className="mt-[1px] size-4 shrink-0" aria-hidden="true" />
-          <span>Cash, passports or jewellery: do not move them. Call Beatrice to the room.</span>
+          <span>Cash, passports or jewellery: do not move them. Call {boss} to the room.</span>
         </p>
         <div className="grid grid-cols-[1fr_2fr] gap-[8px]">
           <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSheet("")}>
             Cancel
           </Button>
-          <Button size="lg" fullWidth className="min-h-14" isDisabled={pending || !foundText.trim()} onPress={logFound}>
+          <Button
+            size="lg"
+            fullWidth
+            className="min-h-14"
+            isDisabled={pending || !foundText.trim() || !spot}
+            onPress={logFound}
+          >
             Log the item
           </Button>
         </div>

@@ -29,65 +29,6 @@ export class PublicInputError extends Error {
   }
 }
 
-/** A district as the hosts page names it ("Rubavu") → its id on the API (`GET /geography/districts`). */
-async function districtId(ctx: SourceContext, name: string): Promise<number> {
-  const wanted = name.trim().toLowerCase();
-  const districts = await ctx.api.get<{ id: number; name: string }[]>("/api/v1/geography/districts");
-  const found = districts.find((d) => d.name.toLowerCase() === wanted);
-  if (!found) throw new PublicInputError("Choose your district from the list.");
-  return found.id;
-}
-
-// ── For hosts: the waitlist ────────────────────────────────────────────────────────────────────────
-
-/** `WaitlistPropertyType` in @injishi/contracts waitlist.ts. */
-export type WaitlistPropertyType =
-  | "hotel"
-  | "guest_house"
-  | "apartment"
-  | "lodge"
-  | "villa"
-  | "hostel"
-  | "homestay"
-  | "campsite";
-/** `WaitlistSizeBand`: rooms or units. */
-export type WaitlistSizeBand = "1_5" | "6_20" | "21_50" | "50_plus";
-
-export interface OwnerWaitlistInput {
-  fullName: string;
-  email: string;
-  /** A Rwandan number as typed ("078 300 1122"); the API normalises it to +250…. */
-  phone: string;
-  businessName: string;
-  /** The district's name, as the form lists it. */
-  district: string;
-  propertyType: WaitlistPropertyType;
-  sizeBand: WaitlistSizeBand;
-  marketingOptIn: boolean;
-}
-
-/**
- * "Join the waitlist" on the hosts page (ADR-048): a business owner's signup, `POST /waitlist/signups` with
- * audience `owner`. Anonymous on purpose (the product is not launched for them yet) and throttled by the API.
- * `alreadyJoined` is true when the address was already on the list; nothing is written twice.
- */
-export async function joinOwnerWaitlist(
-  ctx: SourceContext,
-  input: OwnerWaitlistInput,
-): Promise<{ id: string; alreadyJoined: boolean }> {
-  return ctx.api.post<{ id: string; alreadyJoined: boolean }>("/api/v1/waitlist/signups", {
-    audience: "owner",
-    email: input.email.trim(),
-    fullName: input.fullName.trim(),
-    phone: input.phone.trim(),
-    businessName: input.businessName.trim(),
-    districtId: await districtId(ctx, input.district),
-    propertyType: input.propertyType,
-    sizeBand: input.sizeBand,
-    marketingOptIn: input.marketingOptIn,
-  });
-}
-
 // ── For hosts: a demo ─────────────────────────────────────────────────────────────────────────────────
 
 export interface DemoRequestInput {
@@ -136,4 +77,36 @@ export async function requestDemo(ctx: SourceContext, input: DemoRequestInput): 
 export function readableRefusal(error: unknown): string | null {
   if (error instanceof ApiError || error instanceof PublicInputError) return error.message;
   return null;
+}
+
+// ── Training: checking a certificate ───────────────────────────────────────────────────────────────
+
+/**
+ * What `GET /api/v1/verify/:token` answers (`TrainingVerification` in @injishi/contracts training.ts). One shape
+ * for valid, revoked and unknown alike: only `status` says anything, and the fields are null when there is nothing
+ * to describe. It never names an employer.
+ */
+export interface CertificateCheck {
+  status: "valid" | "revoked" | "unknown";
+  serial: string | null;
+  holderName: string | null;
+  courseTitle: string | null;
+  courseVersion: number | null;
+  sessionDate: string | null;
+  venueName: string | null;
+  districtName: string | null;
+  leadTrainerName: string | null;
+  issuedAt: string | null;
+  revokedAt: string | null;
+}
+
+/**
+ * "Verify" on the training page: the public check printed on every certificate (`GET /verify/:token`, no session,
+ * throttled by the API). It checks by the verification code under the certificate's QR code, never by serial: a
+ * lookup by serial is not a route, by design (ADR-049 AC-17).
+ */
+export async function checkCertificate(ctx: SourceContext, code: string): Promise<CertificateCheck> {
+  const token = code.trim().toUpperCase();
+  if (!token) throw new PublicInputError("Type the verification code printed under the certificate's QR code.");
+  return ctx.api.get<CertificateCheck>(`/api/v1/verify/${encodeURIComponent(token)}`);
 }

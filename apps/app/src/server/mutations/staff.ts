@@ -47,20 +47,31 @@ export async function sendMinibarCount(
   forget(ctx);
 }
 
-/** "Log the item": into the lost and found register with the cleaner as finder. Returns its reference. */
+/** The register's answer to "Log the item": its reference and who the register names as custodian, if anyone. */
+export interface LoggedFoundItem {
+  reference: string;
+  /** Today's supervisor when the API named one (the item is handed to them); null when nobody is named. */
+  custodianName: string | null;
+}
+
+/** "Log the item": into the lost and found register with the cleaner as finder. */
 export async function logRoomFoundItem(
   ctx: SourceContext,
   taskId: string,
   input: { description: string; spot: string },
-): Promise<string> {
+): Promise<LoggedFoundItem> {
+  const description = input.description.trim();
+  if (!description) throw new StaffInputError("Say what the item is.");
+  const spot = input.spot.trim();
+  if (!spot) throw new StaffInputError("Choose where it was found.");
   const created = await ctx
     .ops()
-    .post<{ reference: string }>(`/api/v1/ops/housekeeping/tasks/${encodeURIComponent(taskId)}/found-items`, {
-      description: input.description.trim(),
-      spot: input.spot.trim(),
-    });
+    .post<{ reference: string; custodianName: string | null }>(
+      `/api/v1/ops/housekeeping/tasks/${encodeURIComponent(taskId)}/found-items`,
+      { description, spot },
+    );
   forget(ctx);
-  return created.reference;
+  return { reference: created.reference, custodianName: created.custodianName ?? null };
 }
 
 // ── Reporting a problem ────────────────────────────────────────────────────────────────────────────

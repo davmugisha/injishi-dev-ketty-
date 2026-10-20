@@ -80,41 +80,68 @@ const FILTERS: { id: Filter; label: string; test: (r: RentRollRow) => boolean }[
   { id: "paid", label: "Paid", test: (r) => r.status === "paid" },
 ];
 const METHODS = ["Bank transfer", "MTN MoMo", "Airtel Money", "Cash at the office"];
-const REMINDER_TEXT =
-  "Hello, your rent balance at Kacyiru Court is overdue. Please pay by bank transfer or at the office, or contact Solange to agree a plan.";
+/** The default reminder names the building the roll is for and no one in particular; the manager may edit it. */
+const reminderText = (building: string) =>
+  `Hello, your rent balance${building ? ` at ${building}` : ""} is overdue. Please pay by bank transfer or at the office, or contact management to agree a plan.`;
 
-/** The ledger of a lease with nothing outstanding: this month's charge closed by a verified payment. */
+/**
+ * The ledger of a lease with nothing outstanding (the API details only leases with an open charge). It states
+ * only what the roll row holds: this month's charge closed by the verified payments counted against it, or no
+ * charge open at all. It names no payment reference it was not given.
+ */
 function closedLedger(row: RentRollRow, month: string): LedgerEntry[] {
+  if (row.verified <= 0) {
+    return [
+      {
+        icon: "FileDollar",
+        title: `${month} rent`,
+        desc: "No unpaid charge on this lease",
+        amount: 0,
+        state: "Nothing open",
+        tone: "default",
+      },
+    ];
+  }
   return [
     {
       icon: "FileDollar",
       title: `${month} rent`,
-      desc: `Charged on the ${row.due} · closed by verified payment`,
-      amount: row.rent,
+      desc: `Due on the ${row.due} · closed by verified payments`,
+      amount: row.verified,
       state: "Closed",
       tone: "success",
     },
     {
       icon: "Receipt",
-      title: "Verified payment",
-      desc: `Provider or bank reference on file · allocated to ${month} rent`,
-      amount: row.rent,
+      title: "Verified payments",
+      desc: `Allocated to ${month} rent`,
+      amount: row.verified,
       state: "Verified",
       tone: "success",
     },
   ];
 }
 
-export function RentRollView({ persona, data }: { persona: Persona; data: RentRollData }) {
+export function RentRollView({
+  persona,
+  data,
+  building = "",
+}: {
+  persona: Persona;
+  data: RentRollData;
+  /** The building(s) this roll covers, from the session's workspace. */
+  building?: string;
+}) {
   // The roll's month and its four-month history are this month's in Kigali, not the prototype's October.
   const cal = kigaliCalendar();
   const MONTHS = cal.lastFourMonths;
   const [filter, setFilter] = useState<Filter>("all");
-  const [sel, setSel] = useState("A-03");
+  // Opens on the first lease in arrears, else the first row (the prototype opened on "A-03").
+  const [sel, setSel] = useState(() => (data.rows.find((r) => r.status === "arrears") ?? data.rows[0])?.id ?? "");
   const [recordOpen, setRecordOpen] = useState(false);
   const [record, setRecord] = useState({ method: METHODS[0], amount: "", ref: "" });
   const [remindFor, setRemindFor] = useState<string[] | null>(null);
-  const [message, setMessage] = useState(REMINDER_TEXT);
+  const [message, setMessage] = useState(() => reminderText(building));
   const [busy, setBusy] = useState(false);
 
   const counts = Object.fromEntries(FILTERS.map((f) => [f.id, data.rows.filter(f.test).length])) as Record<
@@ -189,7 +216,7 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
   };
 
   const exportCsv = () =>
-    downloadCsv(`kacyiru-court-rent-roll-${cal.iso.slice(0, 7)}.csv`, [
+    downloadCsv(`rent-roll-${cal.iso.slice(0, 7)}.csv`, [
       ["Unit", "Resident", "Lease", "Due", ...MONTHS, `${cal.month} charge`, "Verified", "Overdue", "Status"],
       ...data.rows.map((r) => [
         r.id,
@@ -207,7 +234,7 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
   return (
     <PageContent>
       <PageHeader
-        eyebrow={`Tenancy · ${cal.month} ${cal.year} · Kacyiru Court Residences`}
+        eyebrow={`Tenancy · ${cal.month} ${cal.year}${building ? ` · ${building}` : ""}`}
         title="Rent Roll"
         description={`Scheduled rent from ${data.rows.length} active leases. A charge closes only when verified payments cover it in full.`}
         actions={
@@ -409,7 +436,7 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
                   ))}
                 </Timeline>
               ) : (
-                <p className="text-[13px] text-muted">No reminders needed for this lease.</p>
+                <p className="text-[13px] text-muted">No reminders sent for this lease yet.</p>
               )}
             </div>
 

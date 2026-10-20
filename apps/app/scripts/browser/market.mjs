@@ -4,7 +4,9 @@
  * /trips, creates a list that survives a reload, hearts a stay on /explore and finds it still saved after a
  * reload, then takes the heart off again. On the checkout she edits Your details: the new mobile number is
  * saved to her account and is still there after a reload (then put back). On the property page Report this
- * listing opens a real support ticket.
+ * listing opens a real support ticket. Reserve then opens the checkout for the stay chosen on the page (its
+ * dates are the checkout's), whose mobile money field starts empty or with her own phone, never a sample's
+ * number; she types one and pays, and the payer shown is the number she typed (this books a stay on the mock rail).
  *
  *   APP_URL=http://localhost:3040 node scripts/browser/market.mjs
  *
@@ -145,6 +147,47 @@ try {
   await page.press("Send report");
   await page.waitForText("Sent to Injishi support · ticket", 60_000);
   console.log(`  reported /explore/${slug}: a support ticket number came back`);
+
+  // Reserve carries the stay chosen on the property page (room, dates, party, plan) to the checkout.
+  const reserve = await page.eval(
+    `(() => { const a = [...document.querySelectorAll('a[href^="/book?"]')].find((el) => /Reserve|Request to book/.test(el.innerText)); return a ? a.getAttribute('href') : null; })()`,
+  );
+  if (!reserve) throw new Error("the property page offers no Reserve link with the chosen stay");
+  const chosen = new URL(reserve, APP).searchParams;
+  if (!chosen.get("room") || !chosen.get("in") || !chosen.get("out") || !chosen.get("adults")) {
+    throw new Error(`Reserve does not carry the stay: ${reserve}`);
+  }
+  await page.goto(`${APP}${reserve}`);
+  await page.waitForText("Your details", 90_000);
+  const dayOf = (iso) => {
+    const d = new Date(`${iso}T12:00:00Z`);
+    return `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()]} ${d.getUTCDate()}`;
+  };
+  await page.waitFor(
+    `(() => { const s = document.querySelector('aside[aria-label="Booking summary"]')?.innerText ?? ''; return s.includes(${JSON.stringify(dayOf(chosen.get("in")))}) && s.includes(${JSON.stringify(dayOf(chosen.get("out")))}); })()`,
+    `the checkout summary to show ${chosen.get("in")} to ${chosen.get("out")}`,
+    30_000,
+  );
+  console.log(`  Reserve opened the checkout for the chosen stay: ${chosen.get("in")} to ${chosen.get("out")}`);
+
+  // The mobile money number is the person's own or empty, never a sample's; the payer shown is what was typed.
+  const field = await page.eval(`document.querySelector('input[id^="msisdn-"]')?.value ?? null`);
+  if (field === null) throw new Error("no mobile money number field on the checkout");
+  if (field.replace(/\D/g, "").endsWith("8124417"))
+    throw new Error(`the field starts with the sample number: ${field}`);
+  await page.eval(`(() => { const el = document.querySelector('input[id^="msisdn-"]'); el.focus(); el.select(); })()`);
+  await page.send("Input.insertText", { text: "078 300 1234" });
+  const isRequest = await page.eval("/Request to book/.test(document.querySelector('h1')?.innerText ?? '')");
+  await page.press(isRequest ? "Send request" : "Pay RWF");
+  await page.waitFor(
+    "/Approve on your phone|You’re booked!|Request sent/.test(document.body.innerText)",
+    "the press of Pay to reach the API",
+    60_000,
+  );
+  const shown = await page.eval("document.body.innerText");
+  if (shown.includes("4417")) throw new Error("the sample number is shown after paying");
+  if (!/783•+234|078 ••• 1234/.test(shown)) throw new Error("the payer shown is not the number typed");
+  console.log("  the MoMo field started empty or with her own phone; the payer shown is the number she typed");
 
   console.log("BROWSER MARKET OK");
 } catch (error) {

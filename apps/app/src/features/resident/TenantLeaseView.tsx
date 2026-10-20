@@ -29,12 +29,13 @@ export function TenantLeaseView({
   reasons,
 }: {
   tenancy: Tenancy;
-  offer: RenewalOffer;
+  /** The lease's renewal offer, or null when management has made none. */
+  offer: RenewalOffer | null;
   documents: LeaseDocument[];
   steps: MoveOutStep[];
   reasons: NoticeReason[];
 }) {
-  const [offerState, setOfferState] = useState<OfferState>(offer.status);
+  const [offerState, setOfferState] = useState<OfferState | null>(offer?.status ?? null);
   const [notice, setNotice] = useState<MoveOutNotice | null>(tenancy.notice);
   const [sheet, setSheet] = useState(false);
   const [reason, setReason] = useState(reasons[0]?.id ?? "");
@@ -44,6 +45,11 @@ export function TenantLeaseView({
   const router = useRouter();
 
   const noticeOn = notice !== null;
+  // The notice as the API holds it (filed date and time); the local copy only bridges the moment after sending.
+  const shownNotice = tenancy.notice ?? notice;
+  // The lease's own notice period ("30 days in writing"), never a fixed 30.
+  const noticeDays = tenancy.noticePeriod.match(/\d+/)?.[0];
+  const noticeSpan = noticeDays ? `${noticeDays} days’` : "the lease’s";
   const accepted = offerState === "accepted";
   const noticeLocked = noticeOn || accepted;
   const chip = noticeOn
@@ -53,24 +59,25 @@ export function TenantLeaseView({
       : { label: tenancy.status, tone: tenancy.statusTone };
 
   const docs: LeaseDocument[] = [
-    ...(notice
+    ...(shownNotice
       ? [
           {
             id: "notice-move-out",
             icon: "PaperPlane" as const,
             title: "Notice to move out",
-            desc: `Sent today · move-out ${notice.moveOut}`,
+            desc: `Sent ${shownNotice.sentAt} · move-out ${shownNotice.moveOut}`,
             state: "Notice given",
             tone: "info" as const,
           },
         ]
       : []),
-    ...documents,
+    // Lease documents have no route yet (data map resident.leaseDocuments): these are sample, and say so.
+    ...documents.map((d) => ({ ...d, desc: `${d.desc} · sample document, not read from your lease` })),
   ];
 
   /** Accept or Decline → `POST /me/residence/offers/:id/answer`. */
   const answer = async (to: "accepted" | "declined") => {
-    if (busy) return;
+    if (busy || !offer) return;
     setBusy(true);
     const result = await answerRenewalAction(offer.id, to);
     setBusy(false);
@@ -95,7 +102,7 @@ export function TenantLeaseView({
       toast.danger(result.error);
       return;
     }
-    setNotice({ moveOut, reason, note, sentAt: "Today" });
+    setNotice({ moveOut, reason, note, sentAt: "today" });
     setSheet(false);
     toast("Notice sent to management", { indicator: <CircleCheck /> });
     router.refresh();
@@ -115,7 +122,7 @@ export function TenantLeaseView({
       </PhoneTop>
 
       <PhoneBody>
-        {offerState === "open" && !noticeOn ? (
+        {offer && offerState === "open" && !noticeOn ? (
           <Card
             render={renderSection}
             aria-labelledby="rn-h"
@@ -224,7 +231,10 @@ export function TenantLeaseView({
               { label: "Rent", value: <span className="tabular">{formatRwf(tenancy.rent)} monthly</span> },
               { label: "Due", value: tenancy.rentDue },
               { label: "Notice period", value: tenancy.noticePeriod },
-              { label: "Caution held", value: <span className="tabular">{formatRwf(tenancy.deposit)}</span> },
+              {
+                label: "Caution deposit",
+                value: <span className="tabular">{tenancy.deposit ? formatRwf(tenancy.deposit) : "Not recorded"}</span>,
+              },
               { label: "Landlord", value: tenancy.landlord },
               { label: "Occupants", value: tenancy.occupants },
             ]}
@@ -258,7 +268,7 @@ export function TenantLeaseView({
             Moving out?
           </h2>
           <p className="text-[13px] leading-[19px] text-muted">
-            Give at least 30 days’ notice in writing. Notice sent here counts as written notice and is time-stamped.
+            Give at least {noticeSpan} notice in writing. Notice sent here counts as written notice and is time-stamped.
           </p>
           <Button variant="secondary" size="lg" fullWidth onPress={() => setSheet(true)} isDisabled={noticeLocked}>
             <ArrowRightFromSquare className="size-4" />
@@ -290,7 +300,8 @@ export function TenantLeaseView({
           <Label htmlFor="nt-date">Move-out date</Label>
           <Input id="nt-date" />
           <Description>
-            Your lease ends {tenancy.endsShort}. The earliest date with 30 days’ notice is {tenancy.earliestMoveOut}.
+            Your lease ends {tenancy.endsShort}. The earliest date with {noticeSpan} notice is {tenancy.earliestMoveOut}
+            .
           </Description>
         </TextField>
         <NativeSelect fullWidth className="flex flex-col gap-1">

@@ -17,7 +17,7 @@ import type {
 } from "@injishi/data/fixtures/residence";
 import type { ThreadMessage } from "@injishi/data/fixtures/resident";
 import * as res from "../../src/server/mutations/residence";
-import { forgetResidence, sources } from "../../src/server/sources/residence";
+import { forgetResidence, type LiveLease, sources } from "../../src/server/sources/residence";
 import { forgetTenancy, sources as tenantSources } from "../../src/server/sources/resident";
 import type { SourceContext } from "../../src/server/sources/types";
 import type { Flow } from "./types";
@@ -274,6 +274,12 @@ export const flows: Flow[] = [
       const applicants = await read<Applicant>(solange, "residence.applicants");
       const screening = applicants.find((a) => a.stage === "Screening" || a.stage === "Ready");
       check(screening?.profile, `no applicant in screening: ${JSON.stringify(applicants.map((a) => a.stage))}`);
+      // Nothing is sent to an invited applicant, so the screen never says an email went or when it expires.
+      const invited = applicants.filter((a) => a.stage === "Invited");
+      check(
+        invited.every((a) => !/email|expires|invitation sent/i.test(`${a.source} ${a.pendingNote ?? ""}`)),
+        `an invited applicant claims a message: ${JSON.stringify(invited.map((a) => [a.source, a.pendingNote]))}`,
+      );
 
       await res.recordScreening(solange, screening.id, [true, true, true, true, true, true]);
       let row = (await read<Applicant>(solange, "residence.applicants")).find((a) => a.id === screening.id);
@@ -288,8 +294,19 @@ export const flows: Flow[] = [
         notice: "30 days",
       });
       check(reference, "converting answered no lease number");
-      const draft = (await read<Lease>(solange, "residence.leases")).find((l) => l.id === reference);
+      const draft = (await read<LiveLease>(solange, "residence.leases")).find((l) => l.id === reference);
       check(draft?.status === "Draft" && draft.unit === screening.unit, `the draft reads ${JSON.stringify(draft)}`);
+      // The Leases screen shows the draft's own terms and landlord, never a fixed deposit, term or signer.
+      const rec = draft.record;
+      check(
+        rec?.deposit === screening.profile.deposit &&
+          rec.termMonths === 12 &&
+          rec.noticeDays === 30 &&
+          rec.landlord !== "" &&
+          rec.tenantSignedOn === "" &&
+          rec.landlordSignedOn === "",
+        `the draft's record reads ${JSON.stringify(rec)}`,
+      );
       row = (await read<Applicant>(solange, "residence.applicants")).find((a) => a.id === screening.id);
       check(!row, "the converted applicant is still in the pipeline");
       step(`converted ${screening.name} into lease draft ${reference} on ${screening.unit}`);

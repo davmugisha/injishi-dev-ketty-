@@ -39,7 +39,8 @@ export interface StaffReportData {
   places: ReportPlace[];
   categories: ProblemCategory[];
   urgencies: UrgencyLevel[];
-  report: ProblemReport;
+  /** The person's own reports still open in maintenance, as the API holds them: listed so nothing is sent twice. */
+  open: ProblemReport[];
 }
 
 interface Step {
@@ -55,30 +56,35 @@ interface Step {
  */
 const PHOTO_UNAVAILABLE = "Photos cannot be sent with a report yet. Say what you see in a few words instead.";
 
-/** Housekeeper reports a problem to maintenance: place, category, urgency, photo (artifact: StaffReport). */
+const BACK_LABEL = "Back to my rooms";
+
+/**
+ * Housekeeper reports a problem to maintenance: place, category, urgency, photo (artifact: StaffReport). The form
+ * starts empty: the place, what is wrong and how urgent are the person's choices, never copied from an earlier report.
+ */
 export function StaffReportView({ data, offline = false }: { data: StaffReportData; offline?: boolean }) {
-  const { places, categories, urgencies, report } = data;
-  const [place, setPlace] = useState(() =>
-    places.some((p) => p.id === report.place) ? report.place : (places[0]?.id ?? ""),
-  );
-  const [category, setCategory] = useState(report.category);
-  const [urgency, setUrgency] = useState(report.urgency);
-  const [block, setBlock] = useState(report.askBlock);
-  const [description, setDescription] = useState(report.description);
+  const { places, categories, urgencies } = data;
+  const [place, setPlace] = useState("");
+  const [category, setCategory] = useState("");
+  const [urgency, setUrgency] = useState("");
+  const [block, setBlock] = useState(false);
+  const [description, setDescription] = useState("");
   /** The work order the report became, and when the API took it. */
   const [sent, setSent] = useState<{ ticket: string; at: string } | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const placeDoc = places.find((p) => p.id === place) ?? places[0];
-  const isRoom = placeDoc.isRoom;
+  const placeDoc = places.find((p) => p.id === place);
+  const isRoom = placeDoc?.isRoom ?? false;
   const blockOn = block && isRoom;
-  const where = isRoom ? `Room ${placeDoc.label}` : placeDoc.label;
+  const where = placeDoc ? (isRoom ? `Room ${placeDoc.label}` : placeDoc.label) : "";
+  const ready = Boolean(placeDoc && category && urgency && description.trim());
   const send = () => {
     // Nothing is kept on the phone: with no signal the report is not sent, and the screen says so.
     if (offline) {
       toast.warning("No signal: the report was not sent and is not saved on this phone. Send it when you have signal.");
       return;
     }
+    if (!placeDoc) return;
     startTransition(async () => {
       const result = await reportProblemAction({
         place: placeDoc.label,
@@ -93,7 +99,6 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
   };
   const cat = categories.find((c) => c.id === category) ?? categories[0];
   const sev = urgencies.find((u) => u.id === urgency) ?? urgencies[0];
-  const backLabel = `Back to room ${report.place}`;
 
   const steps: Step[] = [
     {
@@ -114,22 +119,26 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
             status: "warning" as const,
             icon: <Ban />,
             title: "Out-of-order request with a manager",
-            detail: `Room ${placeDoc.label} stays on sale until a manager approves`,
+            detail: `${where} stays on sale until a manager approves`,
           },
         ]
       : []),
   ];
 
-  const blockNote = !isRoom
-    ? "Corridors are not sold, so there is nothing to block."
-    : blockOn
-      ? `This asks a manager to take room ${placeDoc.label} out of order. Front desk keeps selling it until a manager approves.`
-      : "Leave this off if guests can still use the room.";
+  const blockNote = !placeDoc
+    ? "Choose where first. Only a room can be taken out of order."
+    : !isRoom
+      ? "Corridors and shared spaces are not sold, so there is nothing to block."
+      : blockOn
+        ? `This asks a manager to take room ${placeDoc.label} out of order. Front desk keeps selling it until a manager approves.`
+        : "Leave this off if guests can still use the room.";
 
   const reset = () => {
     setSent(null);
-    setUrgency(report.urgency);
-    setCategory(report.category);
+    setPlace("");
+    setCategory("");
+    setUrgency("");
+    setBlock(false);
     setDescription("");
   };
 
@@ -140,13 +149,13 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
           href={screenHref("StaffTask")}
           variant="ghost"
           isIconOnly
-          aria-label={backLabel}
-          title={backLabel}
+          aria-label={BACK_LABEL}
+          title={BACK_LABEL}
           className="size-11"
         >
           <ChevronLeft className="size-4" />
         </LinkButton>
-        <PhoneTitle title="Report a problem" sub={`Goes to maintenance · ${report.assigneeFirst} is on shift`} />
+        <PhoneTitle title="Report a problem" sub="Goes to maintenance as a work order" />
       </PhoneTop>
 
       <PhoneBody>
@@ -164,6 +173,12 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
           </Alert>
         ) : null}
 
+        {!sent && data.open.length ? (
+          <p className="text-[13px] leading-[18px] text-muted">
+            Already open from you: {data.open.map((o) => (o.place ? `${o.ticket} (${o.place})` : o.ticket)).join(", ")}
+          </p>
+        ) : null}
+
         {!sent ? (
           <>
             <section className="flex flex-col gap-[8px]" aria-labelledby="where-h">
@@ -175,7 +190,7 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
                 selectionMode="single"
                 disallowEmptySelection
                 isDetached
-                selectedKeys={[place]}
+                selectedKeys={place ? [place] : []}
                 onSelectionChange={(keys) => {
                   const k = [...keys][0];
                   if (k) setPlace(String(k));
@@ -188,7 +203,11 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
                   </ToggleButton>
                 ))}
               </ToggleButtonGroup>
-              <p className="text-xs leading-4 text-muted">Your rooms today and the floor 2 corridor.</p>
+              <p className="text-xs leading-4 text-muted">
+                {places.length
+                  ? "Your rooms today and the shared spaces on your floors."
+                  : "No room or space is assigned to you today, so there is nowhere to choose. Tell a supervisor."}
+              </p>
             </section>
 
             <section className="flex flex-col gap-[8px]" aria-labelledby="cat-h">
@@ -200,7 +219,7 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
                 selectionMode="single"
                 disallowEmptySelection
                 isDetached
-                selectedKeys={[category]}
+                selectedKeys={category ? [category] : []}
                 onSelectionChange={(keys) => {
                   const k = [...keys][0];
                   if (k) setCategory(String(k));
@@ -268,7 +287,7 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
 
             <TextField value={description} onChange={setDescription} fullWidth className="flex flex-col gap-1">
               <Label>What did you see?</Label>
-              <TextArea rows={3} />
+              <TextArea rows={3} placeholder="Water under the basin, the pipe drips" />
               <Description>A few words is enough.</Description>
             </TextField>
 
@@ -336,7 +355,7 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
               ))}
             </Timeline>
             <LinkButton href={screenHref("StaffTask")} size="lg" fullWidth className="min-h-14">
-              {backLabel}
+              {BACK_LABEL}
             </LinkButton>
             <Button variant="ghost" size="lg" fullWidth className="min-h-12" onPress={reset}>
               Report another problem
@@ -347,7 +366,7 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
 
       {!sent ? (
         <PhoneActionBar className="flex-col">
-          <Button size="lg" fullWidth className="min-h-14" isDisabled={pending || !description.trim()} onPress={send}>
+          <Button size="lg" fullWidth className="min-h-14" isDisabled={pending || !ready} onPress={send}>
             <PaperPlane className="size-4" />
             Send report
           </Button>

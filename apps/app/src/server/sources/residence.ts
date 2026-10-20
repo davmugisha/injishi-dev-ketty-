@@ -9,8 +9,45 @@
  */
 import type * as R from "@injishi/data/fixtures/residence";
 import { stock } from "@injishi/data/media";
+import { workspaceFor } from "../auth";
 import { clock, dayMonth, dayMonthYear, kigaliDate, rwf } from "../format";
 import { defineSources, type SourceContext } from "./types";
+
+/**
+ * What the API holds about a lease that the prototype's Lease document has no field for: the landlord the
+ * lease is with (the org's legal name and TIN), the caution deposit, grace and notice days, the term, and when
+ * each side signed. The Leases, home and move-out screens show these instead of the prototype's fixed
+ * "Amahoro Residences Ltd · TIN 102 345 990", "Solange Uwimana", two months' rent and "12 months". Optional on
+ * the type so a fixture document (which never had it) still type-checks; a screen reads a missing value as
+ * "not on file".
+ */
+export interface LeaseRecord {
+  /** The landlord's legal name, "" when the API has none. */
+  landlord: string;
+  /** "TIN 999 100 001" (or "UPI …"), "" when neither is on file. */
+  landlordId: string;
+  /** The caution deposit the lease holds, whole francs; null when not recorded. */
+  deposit: number | null;
+  graceDays: number | null;
+  noticeDays: number | null;
+  /** Whole months from start to end; null while either date is missing. */
+  termMonths: number | null;
+  /** "3 Mar 2026", "" while that side has not signed. */
+  tenantSignedOn: string;
+  landlordSignedOn: string;
+}
+export type LiveLease = R.Lease & { record?: LeaseRecord };
+
+/**
+ * The building(s) the signed-in manager's residence workspace covers, as the session lists them, else the
+ * business's name; "" when neither is known. The screens' headers used to say "Kacyiru Court Residences"
+ * whatever the business was.
+ */
+export function residenceBuilding(ctx: SourceContext): string {
+  const ws = ctx.account ? workspaceFor(ctx.account, "residence") : null;
+  const names = ((ws?.branches ?? []) as { name?: string }[]).map((b) => b.name).filter((n): n is string => !!n);
+  return names.join(" · ") || ws?.orgName || "";
+}
 
 // ── The read model (ResidenceView in @injishi/contracts) ───────────────────────────────────────────
 
@@ -511,7 +548,8 @@ function unitNote(b: Building, u: ApiResidenceView["units"][number], lease: ApiL
   const offer = b.offer(lease.id);
   if (flight.some((p) => p.status === "unknown")) {
     const p = flight.find((x) => x.status === "unknown") as ApiPayment;
-    return `${METHOD_LABEL[p.method]} result unknown. Checking with the provider; resident told not to pay again.`;
+    // Nothing tells the resident anything here: the note says what the manager should do, not what was sent.
+    return `${METHOD_LABEL[p.method]} result unknown. Do not ask the resident to pay again until it is resolved.`;
   }
   if (flight.length) {
     const p = flight[0];
@@ -538,7 +576,9 @@ function unitNote(b: Building, u: ApiResidenceView["units"][number], lease: ApiL
     return `Lease ends ${dayMonth(lease.endDate)}. Prepare a renewal offer by ${dayMonth(addDays(lease.endDate, -60))}.`;
   }
   if (filing?.status === "pending")
-    return `New lease signed ${dayMonth(lease.landlordSignedAt ?? b.today)}. Filing still in draft.`;
+    return lease.landlordSignedAt
+      ? `New lease signed ${dayMonth(lease.landlordSignedAt)}. Filing still in draft.`
+      : "New lease awaiting the landlord's signature. Filing still in draft.";
   if (charge?.paidAt) return `${monthName(charge.periodMonth)} rent verified on ${dayMonth(charge.paidAt)}.`;
   return "Rent up to date.";
 }
@@ -883,7 +923,8 @@ export function ticketsOf(b: Building): R.ServiceTicket[] {
         entry: entryOf(t),
         assignee: assigneeOf(t) ?? "Not assigned",
         visit: visitOf(b, t),
-        cost: `${COST_BEARER[t.costBearer ?? "landlord"]}${costNote}`,
+        // Who pays is the API's to say; with none recorded the screen says so, never "Landlord".
+        cost: `${t.costBearer ? COST_BEARER[t.costBearer] : "Who pays is not decided yet"}${costNote}`,
         photos: t.photos.flatMap((p) => {
           const key = p.key.startsWith("stock:") ? p.key.slice(6) : "";
           return isStock(key) ? [{ key, alt: p.caption }] : [];
@@ -932,7 +973,8 @@ function homeTicketsOf(b: Building): R.HomeTicket[] {
 
 // ── Leases ─────────────────────────────────────────────────────────────────────────────────────────
 
-const ACK_FILING = { stage: "ack", deadline: "Met", delivery: "Signed acknowledgement on file" } as const;
+// Filed is what the API records; an acknowledgement cannot be uploaded yet, so none is claimed to be on file.
+const ACK_FILING = { stage: "ack", deadline: "Met", delivery: "Recorded as filed" } as const;
 
 function filingOf(b: Building, l: ApiLease): R.Lease["filing"] {
   const filing = b.v.filings.find((f) => f.leaseId === l.id);
@@ -1024,11 +1066,34 @@ function incomeOf(b: Building, l: ApiLease): string {
   return rwf(total);
 }
 
-function leasesOf(b: Building): R.Lease[] {
+const spaced = (tin: string) => tin.replace(/\D/g, "").replace(/(\d{3})(?=\d)/g, "$1 ");
+
+/** Whole months a term runs, from its first to its last day (1 Nov 2025 – 31 Oct 2026 is 12). */
+function termMonthsOf(start: string | null, end: string | null): number | null {
+  if (!start || !end) return null;
+  const days = Math.round((Date.parse(`${end}T12:00:00Z`) - Date.parse(`${start}T12:00:00Z`)) / 86_400_000) + 1;
+  return days > 0 ? Math.max(1, Math.round(days / 30.44)) : null;
+}
+
+function leaseRecordOf(b: Building, l: ApiLease): LeaseRecord {
+  const p = b.v.property;
+  return {
+    landlord: p?.landlord ?? "",
+    landlordId: p?.tin ? `TIN ${spaced(p.tin)}` : p?.upi ? `UPI ${p.upi}` : "",
+    deposit: l.cautionRwf,
+    graceDays: l.graceDays,
+    noticeDays: l.noticePeriodDays,
+    termMonths: termMonthsOf(l.startDate, l.endDate),
+    tenantSignedOn: l.tenantSignedAt ? dayMonthYear(l.tenantSignedAt) : "",
+    landlordSignedOn: l.landlordSignedAt ? dayMonthYear(l.landlordSignedAt) : "",
+  };
+}
+
+function leasesOf(b: Building): LiveLease[] {
   const units = new Map(b.v.units.map((u) => [u.roomId, u]));
   return b.v.leases
     .filter((l) => !["ended", "cancelled"].includes(l.status))
-    .map((l): R.Lease => {
+    .map((l): LiveLease => {
       const notice = b.notice(l.id);
       const offer = b.offer(l.id);
       const filing = filingOf(b, l);
@@ -1075,6 +1140,7 @@ function leasesOf(b: Building): R.Lease[] {
         signedOn: l.status === "draft" || !signed ? "" : dayMonthYear(signed),
         filing,
         income: incomeOf(b, l),
+        record: leaseRecordOf(b, l),
         ...(occupant
           ? { occupant: { name: occupant, initials: initials(occupant), sub: "Named occupant · not a signatory" } }
           : {}),
@@ -1234,7 +1300,7 @@ function rentLedgersOf(b: Building): R.RentLedger[] {
             : p.status === "pending"
               ? `ref ${p.providerRef} · received ${dayMonth(p.receivedAt)} ${clock(p.receivedAt)}${p.recordedByName ? ` · recorded by ${p.recordedByName}` : ""} · allocated to ${month} rent once verified`
               : p.status === "unknown"
-                ? `ref ${p.providerRef} · started ${clock(p.receivedAt)} · provider result unknown · resident told not to pay again`
+                ? `ref ${p.providerRef} · started ${clock(p.receivedAt)} · provider result unknown · do not ask for payment again yet`
                 : `ref ${p.providerRef} · failed`;
         ledger.push({
           icon: mobile ? "Smartphone" : "Receipt",
@@ -1506,7 +1572,7 @@ function applicantsOf(b: Building): R.Applicant[] {
       const source = a.broker
         ? `Referred by ${a.broker.name}`
         : a.stage === "invited"
-          ? `Invitation sent ${dayMonth(a.createdAt)}`
+          ? "Invited · not registered yet"
           : "Invitation";
       if (a.stage === "invited") {
         return {
@@ -1518,7 +1584,9 @@ function applicantsOf(b: Building): R.Applicant[] {
           source,
           ...stage,
           profile: null,
-          pendingNote: `Invitation sent by email on ${dayMonth(a.createdAt)} for ${a.unitLabel}. It expires on ${dayMonth(addDays(kigaliDate(a.createdAt), 7))}. Their profile, documents and screening appear here once they accept.`,
+          // Nothing is sent to an invited applicant (ApplicantsView: inviting is not available yet), so the note
+          // says when they were added and that Injishi sent them nothing, never an email or an expiry.
+          pendingNote: `Added as invited on ${dayMonth(a.createdAt)} for ${a.unitLabel}. Injishi has sent them nothing: sending invitations is not available yet. Their profile, documents and screening appear here once they register.`,
         };
       }
       const unit = units.get(a.roomId);
@@ -1618,7 +1686,7 @@ export const sources = defineSources({
   },
   "residence.leases": {
     naturalKey: "id",
-    async list(ctx): Promise<R.Lease[]> {
+    async list(ctx): Promise<LiveLease[]> {
       return leasesOf(await read(ctx));
     },
   },

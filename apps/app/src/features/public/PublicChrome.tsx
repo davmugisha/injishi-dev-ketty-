@@ -3,11 +3,13 @@
 import { ArrowRightToSquare, Person } from "@gravity-ui/icons";
 import { Chip } from "@heroui/react";
 import { Navbar } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
+import { screenByPath, screenHref } from "@injishi/data";
 import { LinkButton, Photo, type PhotoSource } from "@injishi/ui";
 import NextLink from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { BrandMark } from "@/components/brand";
+import { SampleDataPill } from "@/components/shell/SampleData";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -32,6 +34,7 @@ export interface PublicVisitor {
  * page-specific actions on the right). `current` marks the page in the main navigation.
  */
 export function PublicHeader({ current, actions }: { current?: PublicNavId; actions?: ReactNode }) {
+  const board = screenByPath(usePathname())?.board;
   return (
     <Navbar position="static" aria-label="Main" shouldBlockScroll={false} className="border-b border-separator">
       <Navbar.Header className="max-w-[1240px] gap-[16px] px-[16px] sm:px-[32px]">
@@ -55,6 +58,10 @@ export function PublicHeader({ current, actions }: { current?: PublicNavId; acti
           ))}
         </Navbar.Content>
         <Navbar.Spacer />
+        {/* The page's sample-data mark sits in the header, as in the workspace top bar (the public layout's own note then hides). */}
+        <span data-sample-mark="header" className="contents">
+          <SampleDataPill board={board} />
+        </span>
         {actions ? <div className="flex min-w-0 items-center gap-[8px]">{actions}</div> : null}
       </Navbar.Header>
       <Navbar.Menu>

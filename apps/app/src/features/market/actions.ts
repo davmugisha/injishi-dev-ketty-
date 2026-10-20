@@ -73,10 +73,9 @@ export async function saveContactAction(input: market.ContactInput) {
   return run("GuestAccount", (ctx) => market.saveContact(ctx, input));
 }
 
+/** Withdraw a request: the answer carries the refund the server decided, which the screen shows as it is. */
 export async function withdrawRequestAction(reference: string) {
-  return run("GuestAccount", async (ctx) => {
-    await market.cancelBooking(ctx, reference);
-  });
+  return run("GuestAccount", (ctx) => market.cancelBooking(ctx, reference));
 }
 
 // ── Checkout ─────────────────────────────────────────────────────────────────────────────────────
@@ -90,6 +89,8 @@ export interface CheckoutResult {
   bookingStatus: string | null;
   approvalExpiresAt: string | null;
   payerMasked: string | null;
+  /** The amount the API took or prompted for, RWF: what the screen shows once Pay is pressed. */
+  amountRwf: number | null;
   /** The provider's reference for a settled payment, from the trip's own facts. */
   providerRef: string | null;
   failureReason: string | null;
@@ -104,6 +105,7 @@ function fromAttempt(a: market.AttemptApi): CheckoutResult {
     bookingStatus: a.booking?.status ?? null,
     approvalExpiresAt: a.booking?.approvalExpiresAt ?? null,
     payerMasked: a.payerMasked,
+    amountRwf: a.amountRwf ?? a.booking?.breakdown.grossRwf ?? null,
     providerRef: null,
     failureReason: a.failureReason,
   };
@@ -117,17 +119,19 @@ async function withReference(ctx: SourceContext, r: CheckoutResult): Promise<Che
 }
 
 /**
- * Pay for (or request) the checkout's draft. `attemptToken` is minted once per press in the browser, so a
- * retried request is the same intent, never a second charge. Mobile money only: a card is a provider token
- * from a hosted field, and no tokeniser is wired, so a card number is never sent anywhere.
+ * Pay for (or request) the checkout's stay: `instant` / `request` (the default stay) or the key of the stay chosen on
+ * the property page, re-read and priced on the server. The payer is the number the person typed, nothing else.
+ * `attemptToken` is minted once per press in the browser, so a retried request is the same intent, never a second
+ * charge. Mobile money only: a card is a provider token from a hosted field, and no tokeniser is wired, so a card
+ * number is never sent anywhere.
  */
 export async function payCheckoutAction(
-  mode: "instant" | "request",
+  stay: string,
   payment: market.MobileMoney,
   attemptToken: string,
 ): Promise<MarketActionResult<CheckoutResult>> {
   return run("MarketCheckout", async (ctx) => {
-    const outcome = await market.bookCheckout(ctx, mode, payment, attemptToken);
+    const outcome = await market.bookCheckout(ctx, stay, payment, attemptToken);
     if (outcome.status === "awaiting_payment") return withReference(ctx, fromAttempt(outcome.attempt));
     return withReference(ctx, {
       state: "confirmed",
@@ -137,6 +141,7 @@ export async function payCheckoutAction(
       bookingStatus: outcome.booking.status,
       approvalExpiresAt: outcome.booking.approvalExpiresAt,
       payerMasked: null,
+      amountRwf: outcome.booking.breakdown.grossRwf,
       providerRef: null,
       failureReason: null,
     });

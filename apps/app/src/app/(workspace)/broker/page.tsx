@@ -14,6 +14,20 @@ import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.BrokerWork.pageTitle };
 
+/** Today in Kigali as the page heads it, and the greeting for the hour there. */
+function kigaliToday(now: Date): { label: string; greeting: string } {
+  const label = now.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Africa/Kigali",
+  });
+  const hour = Number(now.toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: "Africa/Kigali" }));
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  return { label: label.replace(",", ""), greeting };
+}
+
 export default async function BrokerWorkPage() {
   const persona = await requirePersona("BrokerWork");
   const [registrations, kpis, placements, leads, earnings, disputes] = await Promise.all([
@@ -24,5 +38,11 @@ export default async function BrokerWorkPage() {
     getCollection<BrokerEarning>("public.brokerEarnings"),
     getCollection<BrokerDispute>("public.brokerDisputes"),
   ]);
-  return <BrokerWorkView persona={persona} data={{ registrations, kpis, placements, leads, earnings, disputes }} />;
+  return (
+    <BrokerWorkView
+      persona={persona}
+      data={{ registrations, kpis, placements, leads, earnings, disputes }}
+      today={kigaliToday(new Date())}
+    />
+  );
 }

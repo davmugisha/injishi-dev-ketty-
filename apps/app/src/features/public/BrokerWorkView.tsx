@@ -49,7 +49,16 @@ type LeadTab = (typeof LEAD_TABS)[number]["id"];
 const unavailable = (what: string) => () => toast.warning(`${what} is not available yet. Nothing was changed.`);
 
 /** Broker · work (artifact: BrokerWork.dc.html) — registration, placements, leads, earnings and disputes. */
-export function BrokerWorkView({ persona, data }: { persona: Persona; data: BrokerWorkData }) {
+export function BrokerWorkView({
+  persona,
+  data,
+  today,
+}: {
+  persona: Persona;
+  data: BrokerWorkData;
+  /** The real day and greeting in Kigali ("Tuesday 20 October 2026", "Good afternoon"), worked out by the page. */
+  today: { label: string; greeting: string };
+}) {
   const registration = data.registrations[0];
   const listed = registration?.listed ?? true;
   const [leadTab, setLeadTab] = useState<LeadTab>("all");
@@ -63,9 +72,9 @@ export function BrokerWorkView({ persona, data }: { persona: Persona; data: Brok
     <PageContent>
       <PageHeader
         size="hello"
-        eyebrow={`Monday 12 October 2026 · ${persona.role}`}
-        title={`Good morning, ${persona.firstName}`}
-        description="Two new leads since Friday. Olivier Habineza’s fee is due from the landlord on 15 Oct."
+        eyebrow={`${today.label} · ${persona.role}`}
+        title={`${today.greeting}, ${persona.firstName}`}
+        description="Your leads, placements and earnings. They are sample data until the broker workspace reads them from Injishi."
         actions={
           <>
             <LinkButton href={screenHref("BrokerDirectory")} variant="secondary">
@@ -284,7 +293,9 @@ export function BrokerWorkView({ persona, data }: { persona: Persona; data: Brok
             <h2 id="earn-h" className="text-[15px] leading-[22px] font-semibold">
               Earnings
             </h2>
-            <span className="text-[12px] text-muted">Payouts to MTN MoMo 078 ••• 2231 through Injishi Payments</span>
+            <span className="text-[12px] text-muted">
+              Payouts through Injishi Payments · payout number not on file here yet
+            </span>
           </div>
           <Table>
             <Table.ScrollContainer>

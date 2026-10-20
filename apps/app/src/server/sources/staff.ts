@@ -34,6 +34,7 @@ import type {
   WorkOrderPart,
 } from "@injishi/data/fixtures/staff";
 import { type StockKey, stock } from "@injishi/data/media";
+import { ApiError } from "../api";
 import { clock, dayMonth, dayMonthYear, kigaliDate } from "../format";
 import { type ApiBoard, type ApiBoardTask, type ApiWorkOrder, readBoard, readWorkOrders } from "./operations";
 import { defineSources, type SourceContext } from "./types";
@@ -202,12 +203,45 @@ export const readPhone = (ctx: SourceContext) =>
 const readTimeLogs = (ctx: SourceContext) =>
   once(ctx, "time-logs", () => ctx.ops().get<{ logs: ApiTimeLog[] }>("/api/v1/ops/maintenance-time-logs"));
 
+/** The caller holds no HR file at any business: their own pages say so instead of failing. */
+export class NoStaffFileError extends Error {
+  constructor() {
+    super("This account has no staff file at a business yet.");
+    this.name = "NoStaffFileError";
+  }
+}
+
+/**
+ * Why a staff page's own reads cannot be shown, in words, or null when the error is not one of those: no staff file,
+ * or the API refusing because something it needs is not set up (409, such as leave rules not configured) or found (404).
+ */
+export function staffReadRefusal(error: unknown): string | null {
+  if (error instanceof NoStaffFileError) return error.message;
+  if (error instanceof ApiError && (error.status === 409 || error.status === 404)) return error.message;
+  return null;
+}
+
 /** The caller's own HR file at the business (the first active one). */
 export async function myFile(ctx: SourceContext): Promise<ApiWorkFile> {
   const { files } = await once(ctx, "me-work", () => ctx.api.get<{ files: ApiWorkFile[] }>("/api/v1/me/work"));
   const file = files.find((f) => f.status === "active") ?? files[0];
-  if (!file) throw new Error("This account has no staff file at a business.");
+  if (!file) throw new NoStaffFileError();
   return file;
+}
+
+/**
+ * Facts a staff page states beside its collections, read from the same API answers (fetched once per page
+ * render with them): who supervises housekeeping at the property today, and when the caller clocked in.
+ * Null when the API names nobody, so a screen says "your supervisor" rather than a name it made up.
+ */
+export async function phoneSupervisor(ctx: SourceContext): Promise<string | null> {
+  return (await readPhone(ctx)).supervisor?.name ?? null;
+}
+
+/** The caller's open attendance record's clock-in time ("07:02"), or null when they are not clocked in. */
+export async function myClockIn(ctx: SourceContext): Promise<string | null> {
+  const { openRecord } = await myFile(ctx);
+  return openRecord ? clock(openRecord.clockInAt) : null;
 }
 
 async function mine<T>(ctx: SourceContext, key: string, path: string): Promise<T> {
@@ -317,7 +351,7 @@ function currentTask(board: ApiBoard, userId: string | null): ApiBoardTask | und
 async function cleaningRooms(ctx: SourceContext): Promise<CleaningRoom[]> {
   const [board, phone] = await Promise.all([readBoard(ctx), readPhone(ctx)]);
   const userId = me(ctx);
-  const now = new Date();
+  const now = ctx.now;
   const tasks = board.tasks
     .filter((t) => t.assignedToUserId === userId && OPEN.has(t.status) && kindOf(t))
     .sort((a, b) => Number(b.status === "in_progress") - Number(a.status === "in_progress"));
@@ -505,7 +539,7 @@ async function problemReports(ctx: SourceContext): Promise<ProblemReport[]> {
 
 async function inspectionRooms(ctx: SourceContext): Promise<InspectionRoom[]> {
   const [board, phone] = await Promise.all([readBoard(ctx), readPhone(ctx)]);
-  const now = new Date();
+  const now = ctx.now;
   const cleaning = phone.checklist.filter((i) => i.kind === "cleaning");
   return board.tasks
     .filter(
@@ -686,7 +720,7 @@ const RANK: Record<WorkOrder["priority"], number> = { Urgent: 0, High: 1, Normal
 async function workOrders(ctx: SourceContext): Promise<WorkOrder[]> {
   const [list, { logs }] = await Promise.all([readWorkOrders(ctx), readTimeLogs(ctx)]);
   const userId = me(ctx);
-  const now = new Date();
+  const now = ctx.now;
   return list.workOrders
     .filter((o) => !FINISHED.has(o.status))
     .filter((o) => o.assignedToUserId === userId || (!o.assignedToUserId && !o.assignedContractor))

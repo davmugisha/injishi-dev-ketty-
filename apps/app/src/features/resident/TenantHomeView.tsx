@@ -31,7 +31,11 @@ import { PhoneSheet } from "@/components/phone/PhoneSheet";
 import { sendMessageAction } from "./actions";
 import { downloadText, PhoneToasts, pressableCard, renderButton, renderSection, SectionTitle, ToneChip } from "./parts";
 
-/** Resident home: rent due, renewal, quick actions, deposit, notices and messages (artifact: TenantHome). */
+/**
+ * Resident home: rent due, renewal, quick actions, deposit, notices and messages (artifact: TenantHome). A tenant
+ * with no charge this month, no verified payment yet, no renewal offer or no conversation sees that part left
+ * out or said plainly, never a 404.
+ */
 export function TenantHomeView({
   persona,
   tenancy,
@@ -44,12 +48,12 @@ export function TenantHomeView({
 }: {
   persona: Persona;
   tenancy: Tenancy;
-  charge: RentCharge;
-  receipt: RentReceipt;
+  charge: RentCharge | null;
+  receipt: RentReceipt | null;
   notices: ResidentNotice[];
-  thread: MessageThread;
+  thread: MessageThread | null;
   messages: ThreadMessage[];
-  offer: RenewalOffer;
+  offer: RenewalOffer | null;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -61,12 +65,16 @@ export function TenantHomeView({
     ...sent.filter((s) => !messages.some((m) => m.from === "resident" && m.text === s.text)),
   ];
   const unreadLabel =
-    thread.unread > 0 ? `Messages from management, ${thread.unread} unread` : "Messages from management";
+    thread && thread.unread > 0 ? `Messages from management, ${thread.unread} unread` : "Messages from management";
+  const openMessages = () => {
+    if (thread) setOpen(true);
+    else toast.warning("You have no conversation with management yet. Request a repair to start one.");
+  };
 
   /** Send message → `POST /me/threads/:id/messages`; shown at once, then read back from the server. */
   const send = async () => {
     const text = draft.trim();
-    if (!text) return;
+    if (!text || !thread) return;
     const local: ThreadMessage = {
       id: `local-${Date.now()}`,
       thread: thread.id,
@@ -88,6 +96,7 @@ export function TenantHomeView({
   };
 
   const saveReceipt = () => {
+    if (!receipt) return;
     downloadText(`receipt-${receipt.id}.txt`, [
       "Payment receipt",
       `${receipt.month} rent`,
@@ -112,7 +121,7 @@ export function TenantHomeView({
             Unit {tenancy.unit} · {tenancy.property}
           </span>
         </div>
-        <Button isIconOnly variant="ghost" aria-label={unreadLabel} onPress={() => setOpen(true)}>
+        <Button isIconOnly variant="ghost" aria-label={unreadLabel} onPress={openMessages}>
           <CommentsDot className="size-5" />
         </Button>
       </PhoneTop>
@@ -122,47 +131,52 @@ export function TenantHomeView({
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 flex-col">
               <span id="rent-h" className="text-[12px] text-muted">
-                {charge.month} rent
+                {charge ? `${charge.month} rent` : "Rent this month"}
               </span>
-              <span className="text-[26px] leading-8 font-[650] tabular">{formatRwf(charge.amount)}</span>
+              <span className="text-[26px] leading-8 font-[650] tabular">{formatRwf(charge?.amount ?? 0)}</span>
               <span className="text-[13px] leading-[18px]">
-                Due {charge.due} · {charge.dueIn}
+                {charge ? `Due ${charge.due} · ${charge.dueIn}` : "No rent charge raised on your lease yet"}
               </span>
             </div>
-            <ToneChip tone={charge.statusTone}>{charge.status}</ToneChip>
+            {charge ? <ToneChip tone={charge.statusTone}>{charge.status}</ToneChip> : null}
           </div>
           <LinkButton href={screenHref("TenantPay")} size="lg" fullWidth>
             <Wallet className="size-4" />
             Pay rent
           </LinkButton>
-          <div className="flex items-start gap-[10px] border-t border-separator pt-1">
-            <CircleCheckFill className="mt-[10px] size-4 shrink-0 text-success" aria-hidden="true" />
-            <div className="flex min-w-0 flex-1 flex-col pt-2">
-              <span className="text-[13px] font-medium">Last payment · {receipt.month} rent</span>
-              <span className="text-[12px] leading-4 text-muted tabular">
-                {formatRwf(receipt.amount)} · verified {receipt.verifiedAt} · {receipt.network} · ref{" "}
-                {receipt.providerRef}
-              </span>
+          {receipt ? (
+            <div className="flex items-start gap-[10px] border-t border-separator pt-1">
+              <CircleCheckFill className="mt-[10px] size-4 shrink-0 text-success" aria-hidden="true" />
+              <div className="flex min-w-0 flex-1 flex-col pt-2">
+                <span className="text-[13px] font-medium">Last payment · {receipt.month} rent</span>
+                <span className="text-[12px] leading-4 text-muted tabular">
+                  {formatRwf(receipt.amount)} · verified {receipt.verifiedAt} · {receipt.network} · ref{" "}
+                  {receipt.providerRef}
+                </span>
+              </div>
+              <Button size="sm" variant="ghost" className="mt-1.5" onPress={saveReceipt}>
+                Receipt
+              </Button>
             </div>
-            <Button size="sm" variant="ghost" className="mt-1.5" onPress={saveReceipt}>
-              Receipt
-            </Button>
-          </div>
+          ) : null}
         </Card>
 
-        <NextLink href={screenHref("TenantLease")} className="block text-inherit no-underline">
-          <Alert status="warning">
-            <Alert.Indicator>
-              <ArrowsRotateRight />
-            </Alert.Indicator>
-            <Alert.Content>
-              <Alert.Title>Renewal offer: answer by {offer.answerByDay}</Alert.Title>
-              <Alert.Description>
-                {offer.months} more months from {offer.starts} at {formatRwf(offer.rent)}. Tap to review in your lease.
-              </Alert.Description>
-            </Alert.Content>
-          </Alert>
-        </NextLink>
+        {offer ? (
+          <NextLink href={screenHref("TenantLease")} className="block text-inherit no-underline">
+            <Alert status="warning">
+              <Alert.Indicator>
+                <ArrowsRotateRight />
+              </Alert.Indicator>
+              <Alert.Content>
+                <Alert.Title>Renewal offer: answer by {offer.answerByDay}</Alert.Title>
+                <Alert.Description>
+                  {offer.months} more months from {offer.starts} at {formatRwf(offer.rent)}. Tap to review in your
+                  lease.
+                </Alert.Description>
+              </Alert.Content>
+            </Alert>
+          </NextLink>
+        ) : null}
 
         <section className="flex flex-col gap-2" aria-labelledby="qa-h">
           <SectionTitle id="qa-h">Quick actions</SectionTitle>
@@ -183,7 +197,7 @@ export function TenantHomeView({
             </Card>
             <Card<"button">
               render={renderButton}
-              onClick={() => setOpen(true)}
+              onClick={openMessages}
               className={`${pressableCard} min-h-[88px] items-start gap-[6px] p-3 text-left`}
             >
               <Comments className="size-[18px] text-accent" aria-hidden="true" />
@@ -195,12 +209,12 @@ export function TenantHomeView({
         <Card render={renderSection} variant="secondary" aria-labelledby="dep-h" className="gap-[6px] px-4 py-[14px]">
           <div className="flex items-center justify-between gap-3">
             <span id="dep-h" className="text-[13px] font-semibold">
-              Caution deposit held
+              Caution deposit
             </span>
-            <span className="font-[650] tabular">{formatRwf(tenancy.deposit)}</span>
+            <span className="font-[650] tabular">{tenancy.deposit ? formatRwf(tenancy.deposit) : "Not recorded"}</span>
           </div>
           <span className="text-[12px] leading-4 text-muted">
-            Held by {tenancy.landlord} since {tenancy.depositSince}. Returned after your move-out inspection, less any
+            As agreed in your lease with {tenancy.landlord}. Returned after your move-out inspection, less any
             deductions you can review and dispute.
           </span>
         </Card>
@@ -229,28 +243,30 @@ export function TenantHomeView({
           </ListView>
         </section>
 
-        <section className="flex flex-col gap-2" aria-labelledby="msg-h">
-          <SectionTitle id="msg-h">Messages</SectionTitle>
-          <ItemCard<"button">
-            render={renderButton}
-            onClick={() => setOpen(true)}
-            className={`${pressableCard} w-full text-left`}
-          >
-            <ItemCard.Icon>
-              <Wrench />
-            </ItemCard.Icon>
-            <ItemCard.Content>
-              <ItemCard.Title>{thread.title}</ItemCard.Title>
-              <ItemCard.Description className="whitespace-normal">{thread.preview}</ItemCard.Description>
-            </ItemCard.Content>
-            {thread.unread > 0 ? (
-              <ItemCard.Action>
-                <StatusDot tone="accent" />
-                <span className="sr-only">Unread</span>
-              </ItemCard.Action>
-            ) : null}
-          </ItemCard>
-        </section>
+        {thread ? (
+          <section className="flex flex-col gap-2" aria-labelledby="msg-h">
+            <SectionTitle id="msg-h">Messages</SectionTitle>
+            <ItemCard<"button">
+              render={renderButton}
+              onClick={() => setOpen(true)}
+              className={`${pressableCard} w-full text-left`}
+            >
+              <ItemCard.Icon>
+                <Wrench />
+              </ItemCard.Icon>
+              <ItemCard.Content>
+                <ItemCard.Title>{thread.title}</ItemCard.Title>
+                <ItemCard.Description className="whitespace-normal">{thread.preview}</ItemCard.Description>
+              </ItemCard.Content>
+              {thread.unread > 0 ? (
+                <ItemCard.Action>
+                  <StatusDot tone="accent" />
+                  <span className="sr-only">Unread</span>
+                </ItemCard.Action>
+              ) : null}
+            </ItemCard>
+          </section>
+        ) : null}
       </PhoneBody>
 
       <PhoneSheet
@@ -258,13 +274,13 @@ export function TenantHomeView({
         onOpenChange={setOpen}
         heading={
           <span className="flex w-full items-center justify-between gap-2">
-            <span>{thread.title}</span>
+            <span>{thread?.title}</span>
             <Button isIconOnly size="sm" variant="ghost" aria-label="Close" onPress={() => setOpen(false)}>
               <Xmark />
             </Button>
           </span>
         }
-        description={thread.subtitle}
+        description={thread?.subtitle}
       >
         {threadMessages.map((m) => {
           const mine = m.from === "resident";
@@ -289,9 +305,7 @@ export function TenantHomeView({
             <PaperPlane />
           </Button>
         </div>
-        <span className="text-[12px] text-muted">
-          Management usually replies within a working day. For emergencies call the caretaker at the gate.
-        </span>
+        <span className="text-[12px] text-muted">For emergencies call the caretaker at the gate.</span>
       </PhoneSheet>
       <PhoneToasts />
     </>

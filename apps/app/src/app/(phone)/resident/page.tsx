@@ -28,11 +28,13 @@ export default async function TenantHomePage() {
     getCollection<RenewalOffer>("resident.renewalOffers"),
   ]);
   const tenancy = tenancies.find((t) => t.persona === persona.id) ?? tenancies[0];
-  const charge = tenancy ? charges.find((c) => c.lease === tenancy.id) : undefined;
-  const offer = tenancy ? offers.find((o) => o.lease === tenancy.id) : undefined;
-  const thread = threads[0];
-  const receipt = receipts[0];
-  if (!tenancy || !charge || !receipt || !offer || !thread) notFound();
+  if (!tenancy) notFound();
+  // A tenant with no charge this month, no verified payment, no renewal offer or no conversation yet still has
+  // a home screen: the view leaves those parts out rather than the page answering 404.
+  const charge = charges.find((c) => c.lease === tenancy.id) ?? null;
+  const offer = offers.find((o) => o.lease === tenancy.id) ?? null;
+  const thread = threads[0] ?? null;
+  const receipt = receipts[0] ?? null;
   return (
     <TenantHomeView
       persona={persona}
@@ -41,7 +43,7 @@ export default async function TenantHomePage() {
       receipt={receipt}
       notices={notices}
       thread={thread}
-      messages={messages.filter((m) => m.thread === thread.id)}
+      messages={thread ? messages.filter((m) => m.thread === thread.id) : []}
       offer={offer}
     />
   );

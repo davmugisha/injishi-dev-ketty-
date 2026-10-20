@@ -1,19 +1,17 @@
 #!/usr/bin/env node
 /**
- * The hosts page, in a real browser, as a visitor with no account: Join the waitlist sends the owner signup to
- * the API, and after a reload the same address is recognised as already on the list (so the first press was
- * stored, not just shown); Request demo opens a real support ticket and prints its number.
+ * The hosts page, in a real browser, as a visitor with no account: Request demo opens a real support ticket and
+ * prints its number, and the header carries the Sample data mark. Then Training's Verify reads the API's public
+ * certificate check as the receptionist. (The owner waitlist is gone: main removed it in 4f32a8f1.)
  *
  *   APP_URL=http://localhost:3040 node scripts/browser/public.mjs
  *
- * Needs the app's dev server (pointed at a demo API). The API throttles the waitlist to five signups an hour
- * per client, and this makes two. Prints "BROWSER PUBLIC OK" only when every step held.
+ * Needs the app's dev server (pointed at a demo API). Prints "BROWSER PUBLIC OK" only when every step held.
  */
 import { launch } from "../lib/cdp.mjs";
 
 const APP = (process.env.APP_URL ?? "http://localhost:3040").replace(/\/$/, "");
 const RUN = Date.now().toString(36);
-const EMAIL = `browser.waitlist.${RUN}@app.demo.injishi.com`;
 
 /** Type into the nth text field of a section (focus, select what is there, insert as a person would). */
 async function fill(page, section, n, text) {
@@ -32,28 +30,10 @@ async function fill(page, section, n, text) {
   await page.send("Input.insertText", { text });
 }
 
-async function joinWaitlist(page) {
-  await page.waitForText("Join the Waitlist", 90_000);
-  await fill(page, "#waitlist", 0, "Browser Owner");
-  await fill(page, "#waitlist", 1, EMAIL);
-  await fill(page, "#waitlist", 2, "078 300 1122");
-  await fill(page, "#waitlist", 3, "Browser Check Lodge (demo)");
-  await page.press("Join the waitlist", { within: "document.getElementById('waitlist')" });
-}
-
 const { page, close } = await launch();
 try {
   await page.goto(`${APP}/hosts`);
-  await joinWaitlist(page);
-  await page.waitForText("on the waitlist", 60_000);
-  if ((await page.text()).includes("Already on the waitlist")) throw new Error(`${EMAIL} was already on the list`);
-  console.log(`  ${EMAIL} joined the owner waitlist from /hosts`);
-
-  await page.reload();
-  await joinWaitlist(page);
-  await page.waitForText("Already on the waitlist", 60_000);
-  console.log("  after a reload the same address is recognised: the first signup was stored by the API");
-
+  await page.waitForText("Request demo", 90_000);
   const demo = "document.querySelector('section[aria-labelledby=\"demo-h\"]')";
   await fill(page, 'section[aria-labelledby="demo-h"]', 0, "Browser Owner");
   await fill(page, 'section[aria-labelledby="demo-h"]', 1, `browser.demo.${RUN}@app.demo.injishi.com`);
@@ -64,6 +44,22 @@ try {
   const ticket = (await page.text()).match(/ticket ([0-9A-F]{8})/)?.[1];
   if (!ticket) throw new Error("the demo request came back without a ticket number");
   console.log(`  Request demo opened support ticket ${ticket}`);
+
+  // The hosts page still draws sample collections, so its header says so (the same mark as the workspace top bar).
+  const marked = await page.eval(
+    `[...document.querySelectorAll('[data-sample-mark="header"]')].some((m) => m.textContent.includes('Sample data'))`,
+  );
+  if (!marked) throw new Error("the hosts page shows no Sample data mark in its header");
+  console.log("  the hosts page's header carries the Sample data mark");
+
+  // Training: Verify asks the API's public check (GET /verify/:token), never the page's own register.
+  await page.goto(`${APP}/api/demo/sign-in?persona=frontdesk&next=${encodeURIComponent("/training")}`);
+  await page.waitForText("Verify a Certificate", 90_000);
+  const code = `BROWSER${RUN.toUpperCase()}`;
+  await fill(page, 'section[aria-labelledby="ver-h"]', 0, code);
+  await page.press("Verify", { within: "document.querySelector('section[aria-labelledby=\"ver-h\"]')" });
+  await page.waitForText(`No certificate matches “${code}”`, 60_000);
+  console.log(`  Verify sent ${code} to the API's public check and shows its answer: not found`);
 
   console.log("BROWSER PUBLIC OK");
 } catch (error) {

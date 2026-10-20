@@ -23,6 +23,7 @@ import { stock } from "@injishi/data/media";
 import { PageContent, PageHeader, Photo } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { type CSSProperties, Fragment, useState } from "react";
+import type { LiveLease } from "@/server/sources/residence";
 import { recordNoticeAction } from "./actions";
 import { downloadCsv, FormDialog, kigaliCalendar, lineTab, money, SelectField, ToneChip } from "./shared";
 
@@ -30,6 +31,8 @@ export interface MoveOutsData {
   kpis: DepositKpi[];
   cases: MoveOutCase[];
   units: ResidenceUnit[];
+  /** The live leases, for each unit's caution deposit (LeaseRecord); absent on fixtures. */
+  leases?: LiveLease[];
 }
 
 type Tab = "insp" | "settle";
@@ -70,7 +73,15 @@ const dayMonthYearOf = (iso: string, days: number) =>
     timeZone: "UTC",
   });
 
-export function MoveOutsView({ data }: { persona: Persona; data: MoveOutsData }) {
+export function MoveOutsView({
+  data,
+  building = "",
+}: {
+  persona: Persona;
+  data: MoveOutsData;
+  /** The building(s) the workspace covers, from the session. */
+  building?: string;
+}) {
   const cases = data.cases;
   const [sel, setSel] = useState(data.cases[0]?.id ?? "");
   const [tab, setTab] = useState<Tab>("settle");
@@ -97,6 +108,12 @@ export function MoveOutsView({ data }: { persona: Persona; data: MoveOutsData })
   const step = c.step;
   const summary = c.summary;
 
+  // Each deposit is the caution its lease records (LeaseRecord), never two months' rent assumed; a lease with
+  // none recorded says so and is left out of the total.
+  const depositOf = (leaseId: string): number | null => {
+    const l = data.leases?.find((x) => x.id === leaseId);
+    return l?.record?.deposit ?? null;
+  };
   const deposits = [
     ...data.units
       .filter((u) => u.lease)
@@ -106,13 +123,17 @@ export function MoveOutsView({ data }: { persona: Persona; data: MoveOutsData })
           id: u.id,
           who: u.resident,
           lease: u.lease,
-          amount: u.rent * 2,
-          state: leaving ? "Notice running" : "Held",
+          amount: depositOf(u.lease),
+          // The caution the lease agrees, not a payment the register has seen: "Agreed", never "Held".
+          state: leaving ? "Notice running" : "Agreed",
           tone: (leaving ? "accent" : "success") as Tone,
         };
       }),
   ];
-  const depositTotal = deposits.reduce((t, d) => t + d.amount, 0);
+  const depositTotal = deposits.reduce((t, d) => t + (d.amount ?? 0), 0);
+  // The notice period of the lease the notice is being recorded for, as the lease records it.
+  const noticeLease = data.leases?.find((l) => l.id === data.units.find((u) => u.id === notice.unit)?.lease);
+  const noticeDays = noticeLease?.record?.noticeDays ?? null;
 
   /**
    * Record a notice → `POST /ops/residence/notices`. The notice is the platform's record: after the refresh the unit
@@ -141,7 +162,7 @@ export function MoveOutsView({ data }: { persona: Persona; data: MoveOutsData })
   return (
     <PageContent>
       <PageHeader
-        eyebrow="Tenancy · Kacyiru Court Residences"
+        eyebrow={building ? `Tenancy · ${building}` : "Tenancy"}
         title="Move-outs"
         description="From notice to inspection to caution settlement. A deposit stays a liability until its refund is verified."
         actions={
@@ -487,7 +508,11 @@ export function MoveOutsView({ data }: { persona: Persona; data: MoveOutsData })
           options={CHANNELS}
           onChange={(channel) => setNotice((n) => ({ ...n, channel }))}
         />
-        <p className="text-[12px] leading-4 text-muted">The lease requires 30 days in writing, either party.</p>
+        <p className="text-[12px] leading-4 text-muted">
+          {noticeDays === null
+            ? "This lease’s notice period is not on file."
+            : `The lease requires ${noticeDays} days in writing, either party.`}
+        </p>
       </FormDialog>
 
       <Drawer.Backdrop isOpen={registerOpen} onOpenChange={setRegisterOpen}>
@@ -499,7 +524,7 @@ export function MoveOutsView({ data }: { persona: Persona; data: MoveOutsData })
                 Caution deposit register
               </Drawer.Heading>
               <p className="text-[13px] text-muted tabular">
-                {deposits.length} deposits · {money(depositTotal)} held as a liability, not income
+                {deposits.length} deposits · {money(depositTotal)} agreed in leases, a liability, not income
               </p>
             </Drawer.Header>
             <Drawer.Body>
@@ -511,7 +536,7 @@ export function MoveOutsView({ data }: { persona: Persona; data: MoveOutsData })
                       <div className="flex min-w-0 flex-col">
                         <ListView.Title className="whitespace-normal">{d.who}</ListView.Title>
                         <ListView.Description className="tabular">
-                          {d.lease} · {money(d.amount)}
+                          {d.lease} · {d.amount === null ? "amount not on file" : money(d.amount)}
                         </ListView.Description>
                       </div>
                     </ListView.ItemContent>
@@ -528,9 +553,9 @@ export function MoveOutsView({ data }: { persona: Persona; data: MoveOutsData })
               <Button
                 variant="secondary"
                 onPress={() =>
-                  downloadCsv("kacyiru-court-caution-deposits.csv", [
+                  downloadCsv("caution-deposits.csv", [
                     ["Unit", "Held for", "Lease", "Amount (RWF)", "State"],
-                    ...deposits.map((d) => [d.id.replace("-prev", ""), d.who, d.lease, d.amount, d.state]),
+                    ...deposits.map((d) => [d.id.replace("-prev", ""), d.who, d.lease, d.amount ?? "", d.state]),
                   ])
                 }
               >

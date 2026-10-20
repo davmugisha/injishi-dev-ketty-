@@ -97,16 +97,30 @@ export const flows: Flow[] = [
       check(minibar?.used === 1, `sending again replaces the count: ${JSON.stringify(minibar)}`);
       step(`minibar counted (2 × ${water.label}), then corrected to 1: a report, never a charge`);
 
-      const ref = await staff.logRoomFoundItem(jeanne, taskId, {
+      const logged = await staff.logRoomFoundItem(jeanne, taskId, {
         description: "Grey umbrella, folded",
         spot: "wardrobe",
       });
+      const ref = logged.reference;
       const found = (await read<FoundItem>(jeanne, "staff.foundItems")).find((f) => f.ref === ref);
       check(
         found?.name === "Grey umbrella" && found.room === room.id && found.spot === "wardrobe",
         `the logged item on her phone: ${JSON.stringify(found)}`,
       );
-      step(`found an umbrella in the wardrobe: ${ref} in the register, with her as finder`);
+      // The phone names who to hand it to only from the register's answer, and her phone reads the same custodian.
+      check(
+        logged.custodianName === null || found.holder === logged.custodianName.split(" ")[0],
+        `the custodian the register named (${logged.custodianName}) is not who her phone says to hand it to (${found.holder})`,
+      );
+      // The sheet starts empty: an item with nothing typed is refused before anything is sent.
+      const blank = await staff.logRoomFoundItem(jeanne, taskId, { description: "  ", spot: "wardrobe" }).then(
+        () => null,
+        (error: unknown) => error,
+      );
+      check(blank instanceof staff.StaffInputError, `an item with no description was not refused: ${String(blank)}`);
+      step(
+        `found an umbrella in the wardrobe: ${ref} in the register, with her as finder, to hand to ${logged.custodianName ?? "nobody named"}`,
+      );
 
       await staff.moveRoomTask(jeanne, taskId, "done");
       check(

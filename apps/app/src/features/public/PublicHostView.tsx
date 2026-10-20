@@ -19,7 +19,6 @@ import {
   Avatar,
   Button,
   Card,
-  Checkbox,
   Chip,
   FieldError,
   Form,
@@ -37,7 +36,7 @@ import { stock } from "@injishi/data/media";
 import { GateChip, Icon, LinkButton, StatusDot, TextLink } from "@injishi/ui";
 import NextLink from "next/link";
 import { type FormEvent, useState, useTransition } from "react";
-import { joinWaitlistAction, requestDemoAction } from "./actions";
+import { requestDemoAction } from "./actions";
 import { ChoiceField, filled } from "./fields";
 import type { DemoLinks } from "./links";
 import {
@@ -113,26 +112,6 @@ const DISTRICTS = [
   "Rwamagana",
 ].map((name) => ({ id: name, label: name }));
 
-/** What the waitlist records about a property (`WaitlistPropertyType` and `WaitlistSizeBand` on the API). */
-const PROPERTY_TYPES = [
-  { id: "hotel", label: "Hotel" },
-  { id: "guest_house", label: "Guest house" },
-  { id: "apartment", label: "Apartment" },
-  { id: "lodge", label: "Lodge" },
-  { id: "villa", label: "Villa" },
-  { id: "hostel", label: "Hostel" },
-  { id: "homestay", label: "Homestay" },
-  { id: "campsite", label: "Campsite" },
-] as const;
-const SIZE_BANDS = [
-  { id: "1_5", label: "1 to 5 rooms or units" },
-  { id: "6_20", label: "6 to 20" },
-  { id: "21_50", label: "21 to 50" },
-  { id: "50_plus", label: "More than 50" },
-] as const;
-type PropertyType = (typeof PROPERTY_TYPES)[number]["id"];
-type SizeBand = (typeof SIZE_BANDS)[number]["id"];
-
 const SOURCES = [
   { id: "agent", label: "A field agent visited" },
   { id: "peer", label: "Another business owner" },
@@ -159,6 +138,8 @@ export function PublicHostView({
 }) {
   const [kind, setKind] = useState<HostKind>("hotel");
   const [plan, setPlan] = useState("property");
+  // Only a plan the visitor asked about goes with a demo request; the highlighted default is never sent as theirs.
+  const [askedPlan, setAskedPlan] = useState(false);
 
   // A demo request becomes a support ticket (`POST /support/tickets`): the support team reads it.
   const [name, setName] = useState(visitor?.name ?? "");
@@ -171,18 +152,6 @@ export function PublicHostView({
   const [format, setFormat] = useState("online");
   const [demoTicket, setDemoTicket] = useState<string | null>(null);
   const [sendingDemo, startSendingDemo] = useTransition();
-
-  // The waitlist is the API's owner signup (`POST /waitlist/signups`).
-  const [wName, setWName] = useState(visitor?.name ?? "");
-  const [wEmail, setWEmail] = useState("");
-  const [wPhone, setWPhone] = useState("");
-  const [wBusiness, setWBusiness] = useState("");
-  const [wDistrict, setWDistrict] = useState("Gasabo");
-  const [wType, setWType] = useState<PropertyType>("hotel");
-  const [wSize, setWSize] = useState<SizeBand>("1_5");
-  const [optIn, setOptIn] = useState(false);
-  const [joined, setJoined] = useState<{ email: string; already: boolean } | null>(null);
-  const [joining, startJoining] = useTransition();
 
   const features = data.features.filter((f) => f.kind === kind);
   const formatNote = FORMATS.find((f) => f.id === format)?.note;
@@ -201,33 +170,13 @@ export function PublicHostView({
         district,
         heardFrom: label(SOURCES, source),
         format: label(FORMATS, format),
-        plan: data.plans.find((p) => p.id === plan)?.name,
+        plan: askedPlan ? data.plans.find((p) => p.id === plan)?.name : undefined,
       });
       if (!result.ok) {
         toast.danger(result.error);
         return;
       }
       setDemoTicket(result.value.id);
-    });
-  };
-  const joinWaitlist = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    startJoining(async () => {
-      const result = await joinWaitlistAction({
-        fullName: wName,
-        email: wEmail,
-        phone: wPhone,
-        businessName: wBusiness,
-        district: wDistrict,
-        propertyType: wType,
-        sizeBand: wSize,
-        marketingOptIn: optIn,
-      });
-      if (!result.ok) {
-        toast.danger(result.error);
-        return;
-      }
-      setJoined({ email: wEmail.trim(), already: result.value.alreadyJoined });
     });
   };
   /** "Request an agent visit": the demo form, set to a visit at the property. The request is sent from there. */
@@ -469,6 +418,7 @@ export function PublicHostView({
                   aria-pressed={plan === p.id}
                   onPress={() => {
                     setPlan(p.id);
+                    setAskedPlan(true);
                     setDemoTicket(null);
                     document.getElementById("demo-h")?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
@@ -659,114 +609,6 @@ export function PublicHostView({
                     Request demo
                   </Button>
                 </div>
-              </Form>
-            )}
-          </Card>
-
-          <Card
-            id="waitlist"
-            aria-labelledby="wait-h"
-            variant="secondary"
-            className="min-w-0 flex-[1_1_360px] scroll-mt-[24px] gap-[14px] p-[22px]"
-            render={(p) => <section {...p} />}
-          >
-            <SectionHeading
-              id="wait-h"
-              size="md"
-              title="Join the Waitlist"
-              sub="Not ready yet? Hear when your district opens and prices are published."
-            />
-            {joined ? (
-              <Alert status="success" role="status">
-                <Alert.Indicator>
-                  <CircleCheck />
-                </Alert.Indicator>
-                <Alert.Content>
-                  <Alert.Title>{joined.already ? "Already on the waitlist" : "You’re on the waitlist"}</Alert.Title>
-                  <Alert.Description>
-                    {joined.already
-                      ? `${joined.email} was already on the list; nothing was added twice.`
-                      : `${joined.email} is on the list. Injishi invites people from it when registration opens.`}
-                  </Alert.Description>
-                </Alert.Content>
-              </Alert>
-            ) : (
-              <Form aria-labelledby="wait-h" className="flex flex-col gap-[14px]" onSubmit={joinWaitlist}>
-                <div className="grid gap-[12px] [grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))]">
-                  <TextField
-                    value={wName}
-                    onChange={setWName}
-                    validate={filled("Enter your name.")}
-                    className="gap-[4px]"
-                  >
-                    <Label>Your name</Label>
-                    <Input autoComplete="name" />
-                    <FieldError />
-                  </TextField>
-                  <TextField
-                    type="email"
-                    value={wEmail}
-                    onChange={setWEmail}
-                    validate={filled("Enter an email address.")}
-                    className="gap-[4px]"
-                  >
-                    <Label>Email</Label>
-                    <Input placeholder="you@business.rw" autoComplete="email" />
-                    <FieldError />
-                  </TextField>
-                  <TextField
-                    value={wPhone}
-                    onChange={setWPhone}
-                    validate={filled("Enter a Rwandan phone number.")}
-                    className="gap-[4px]"
-                  >
-                    <Label>Phone</Label>
-                    <Input type="tel" inputMode="tel" placeholder="078…" />
-                    <FieldError />
-                  </TextField>
-                  <TextField
-                    value={wBusiness}
-                    onChange={setWBusiness}
-                    validate={filled("Enter the business name.")}
-                    className="gap-[4px]"
-                  >
-                    <Label>Business name</Label>
-                    <Input />
-                    <FieldError />
-                  </TextField>
-                  <ChoiceField
-                    id="w-dist"
-                    label="District"
-                    value={wDistrict}
-                    onChange={setWDistrict}
-                    options={DISTRICTS}
-                  />
-                  <ChoiceField
-                    id="w-type"
-                    label="Property type"
-                    value={wType}
-                    onChange={(v) => setWType(v as PropertyType)}
-                    options={PROPERTY_TYPES}
-                  />
-                  <ChoiceField
-                    id="w-size"
-                    label="Rooms or units"
-                    value={wSize}
-                    onChange={(v) => setWSize(v as SizeBand)}
-                    options={SIZE_BANDS}
-                  />
-                </div>
-                <Checkbox isSelected={optIn} onChange={setOptIn} className="mt-0">
-                  <Checkbox.Content className="gap-[10px]">
-                    <Checkbox.Control>
-                      <Checkbox.Indicator />
-                    </Checkbox.Control>
-                    Also send me product news
-                  </Checkbox.Content>
-                </Checkbox>
-                <Button type="submit" className="self-start" isDisabled={joining}>
-                  Join the waitlist
-                </Button>
               </Form>
             )}
           </Card>
