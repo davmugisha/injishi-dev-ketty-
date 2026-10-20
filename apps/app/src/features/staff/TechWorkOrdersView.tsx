@@ -55,7 +55,8 @@ import {
 } from "./parts";
 
 export interface TechWorkOrdersData {
-  profile: StaffProfile;
+  /** The caller's own profile; null when none is on file (never another person's). */
+  profile: StaffProfile | null;
   orders: WorkOrder[];
   store: StorePart[];
 }
@@ -110,7 +111,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
 
   const statusOf = (o: WorkOrder): Status => (resolved[o.id] ? "resolved" : o.status);
   const openCount = orders.filter((o) => statusOf(o) !== "resolved").length;
-  const until = profile.shift.split("–")[1]?.trim() ?? "";
+  const until = profile?.shift.split("–")[1]?.trim() ?? "";
 
   const w = orders.find((o) => o.id === woId) ?? orders[0];
   const s = statusOf(w);
@@ -200,7 +201,10 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
           <Avatar size="sm" variant="soft" color="warning">
             <Avatar.Fallback>{persona.initials}</Avatar.Fallback>
           </Avatar>
-          <PhoneTitle title="My work orders" sub={`${persona.name} · ${profile.department} · until ${until}`} />
+          <PhoneTitle
+            title="My work orders"
+            sub={profile ? `${persona.name} · ${profile.department}${until ? ` · until ${until}` : ""}` : persona.name}
+          />
         </PhoneTop>
       ) : (
         <PhoneTop>

@@ -537,7 +537,11 @@ async function problemReports(ctx: SourceContext): Promise<ProblemReport[]> {
 
 // ── Inspection ─────────────────────────────────────────────────────────────────────────────────────
 
-async function inspectionRooms(ctx: SourceContext): Promise<InspectionRoom[]> {
+/**
+ * A room waiting for inspection, with the clean it follows: the task's own type ("checkout clean", "deep clean")
+ * or "re-clean" for one reopened after a failed inspection. The prototype printed "checkout clean" for every room.
+ */
+async function inspectionRooms(ctx: SourceContext): Promise<(InspectionRoom & { task: string })[]> {
   const [board, phone] = await Promise.all([readBoard(ctx), readPhone(ctx)]);
   const now = ctx.now;
   const cleaning = phone.checklist.filter((i) => i.kind === "cleaning");
@@ -564,6 +568,7 @@ async function inspectionRooms(ctx: SourceContext): Promise<InspectionRoom[]> {
         initials: initialsOf(t.assignedToName),
         type: room?.roomTypeName ?? "",
         cleaned: `Cleaned ${clock(t.completedAt)}`,
+        task: t.reopenedFromTaskId ? "re-clean" : t.taskType === "deep_clean" ? "deep clean" : "checkout clean",
         wait: duration(minutesBetween(t.completedAt as string, now)),
         arrival: arrival ? `Arrival ${arrival}` : "No arrival today",
         late: arrivalAt !== null && minutesBetween(now, arrivalAt) < 120,

@@ -35,9 +35,13 @@ import { inspectRoomAction, uploadInspectionPhotoAction } from "./actions";
 import { kigaliClock, NothingYet, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "./parts";
 import { attemptToken, shrinkPhoto } from "./photo";
 
+/** A room waiting for inspection; a live one also says which clean it follows (`task`, see sources/staff.ts). */
+export type InspectableRoom = InspectionRoom & { task?: string };
+
 export interface InspectRoomData {
-  profile: StaffProfile;
-  rooms: InspectionRoom[];
+  /** The caller's own profile; null when none is on file (never another person's). */
+  profile: StaffProfile | null;
+  rooms: InspectableRoom[];
   checks: InspectionCheck[];
 }
 
@@ -54,7 +58,7 @@ type CheckPhoto = { key: string | null; preview: string | null };
 export function InspectRoomView({ persona, data }: { persona: Persona; data: InspectRoomData }) {
   const { profile, checks } = data;
   // A decided room leaves the API's list on the next read; the screen keeps it so its result stays on screen.
-  const [kept, setKept] = useState<InspectionRoom[]>([]);
+  const [kept, setKept] = useState<InspectableRoom[]>([]);
   const rooms = [...data.rooms, ...kept.filter((k) => !data.rooms.some((x) => x.no === k.no))];
   const [roomNo, setRoomNo] = useState(rooms[0]?.no ?? "");
   const [results, setResults] = useState<Record<string, Record<string, CheckResult>>>(() =>
@@ -210,7 +214,10 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
         <Avatar size="sm" variant="soft" color="success">
           <Avatar.Fallback>{persona.initials}</Avatar.Fallback>
         </Avatar>
-        <PhoneTitle title="Inspections" sub={`${persona.name} · Supervisor · ${profile.area}`} />
+        <PhoneTitle
+          title="Inspections"
+          sub={profile ? `${persona.name} · Supervisor · ${profile.area}` : persona.name}
+        />
         <Chip color="warning" variant="soft" className="shrink-0">
           {waiting} waiting
         </Chip>
@@ -257,7 +264,8 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
               <h2 id="rm-h" className="text-2xl leading-[30px] font-semibold tabular">
                 Room {r.no}
               </h2>
-              <span className="text-[13px] text-muted">{r.type} · checkout clean</span>
+              {/* The clean this inspection follows, as the task says (checkout, deep clean or re-clean). */}
+              <span className="text-[13px] text-muted">{r.task ? `${r.type} · ${r.task}` : r.type}</span>
             </div>
             <Chip color={r.late ? "warning" : "default"} variant="soft" className="shrink-0">
               <Clock className="size-3" />

@@ -1,7 +1,6 @@
 import { screens } from "@injishi/data";
 import type { StaffProfile, StorePart, WorkOrder } from "@injishi/data/fixtures/staff";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { TechWorkOrdersView } from "@/features/staff/TechWorkOrdersView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
@@ -10,14 +9,12 @@ export const metadata: Metadata = { title: screens.TechWorkOrders.pageTitle };
 
 export default async function TechWorkOrdersPage() {
   const persona = await requirePersona("TechWorkOrders");
-  const [profile, fallbackProfile, orders, store] = await Promise.all([
+  // The caller's own profile only: never another persona's shown as theirs (null reads "not on file").
+  const [profile, orders, store] = await Promise.all([
     getDocument<StaffProfile>("staff.profiles", persona.id),
-    getDocument<StaffProfile>("staff.profiles", "technician"),
     getCollection<WorkOrder>("staff.workOrders"),
     getCollection<StorePart>("staff.storeParts"),
   ]);
-  const me = profile ?? fallbackProfile;
   // No open order is not a 404: the view says so (and keeps an order it just resolved on screen).
-  if (!me) notFound();
-  return <TechWorkOrdersView persona={persona} data={{ profile: me, orders, store }} />;
+  return <TechWorkOrdersView persona={persona} data={{ profile: profile ?? null, orders, store }} />;
 }

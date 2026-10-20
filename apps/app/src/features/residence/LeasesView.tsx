@@ -49,13 +49,19 @@ const ACK_UNAVAILABLE =
 /** Drafting the contract happens outside the app: no route edits a lease's clauses. */
 const CLAUSES_UNAVAILABLE = "Editing clauses is not available yet. The draft keeps the building's standard lease.";
 
-/** How a filing stage reads, and how far along the filing steps it is (5 = every step complete). */
+/**
+ * How a filing stage reads, and how far along the filing steps it is (5 = every step complete). Only what the
+ * filing row records: follow-up is a refused or overdue filing (pending is never "sent"), and filed is not
+ * acknowledged, because no acknowledgement is stored.
+ */
 const FILING: Record<FilingStage, { state: string; tone: Tone; step: number }> = {
-  followup: { state: "Sent · needs follow-up", tone: "warning", step: 3 },
-  ack: { state: "Acknowledged", tone: "success", step: 5 },
+  followup: { state: "Needs follow-up", tone: "warning", step: 0 },
+  ack: { state: "Recorded as filed", tone: "success", step: 4 },
   draft: { state: "Draft · not sent", tone: "warning", step: 0 },
   none: { state: "Not started", tone: "default", step: -1 },
 };
+/** A seeded `mock` filing row (record.filingSample): sample data, so it claims no stage at all. */
+const SAMPLE_FILING = { state: "Sample record", tone: "default" as Tone, step: -1 };
 const FILING_STEPS = ["Draft", "Internal review", "Approved to send", "Sent", "Acknowledged"];
 
 const depositRules = (landlord: string): { icon: ReactNode; text: string }[] => [
@@ -105,9 +111,9 @@ export function LeasesView({ data, building }: { persona: Persona; data: LeasesD
   const isDraft = !lease.signedOn;
   const isCompany = lease.resident.includes("Ltd");
   const stage: FilingStage = lease.filing.stage;
-  const filing = FILING[stage];
   // What the API holds for this lease (absent on a fixture document): never a fixed landlord, signer, deposit or term.
   const rec = lease.record;
+  const filing = rec?.filingSample ? SAMPLE_FILING : FILING[stage];
   const landlord = rec?.landlord ?? "";
   const deposit = rec?.deposit ?? null;
   const term = `${lease.start} – ${lease.end}${rec?.termMonths ? ` · ${rec.termMonths} months` : ""}`;
@@ -631,7 +637,7 @@ export function LeasesView({ data, building }: { persona: Persona; data: LeasesD
                       { label: "Last signature", value: lease.signedOn || "Not signed yet" },
                       {
                         label: "Deadline (configured)",
-                        value: stage === "ack" ? "Met" : lease.filing.deadline,
+                        value: lease.filing.deadline,
                       },
                       {
                         label: "Delivery",

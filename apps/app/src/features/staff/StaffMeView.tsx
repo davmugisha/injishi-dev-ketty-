@@ -51,7 +51,8 @@ import { signOut } from "@/lib/auth-actions";
 import { PhoneSheet, PhoneToasts, renderAsButton, renderSection, ToneTile } from "./parts";
 
 export interface StaffMeData {
-  profile: StaffProfile;
+  /** The caller's own profile; null when none is on file (never another person's). */
+  profile: StaffProfile | null;
   payslips: Payslip[];
   balance: LeaveBalance;
   requests: StaffRequest[];
@@ -180,10 +181,12 @@ export function StaffMeView({
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="text-base leading-[22px] font-semibold">{persona.name}</span>
             <span className="text-[13px] leading-[18px] text-muted">
-              {persona.role} · {profile.workplace}
+              {profile ? `${persona.role} · ${profile.workplace}` : persona.role}
             </span>
             <span className="text-xs leading-4 text-muted tabular">
-              Staff no. {profile.staffNo} · since {profile.since}
+              {profile
+                ? `Staff no. ${profile.staffNo} · since ${profile.since}`
+                : "Staff number and start date not on file"}
             </span>
           </div>
         </Card>

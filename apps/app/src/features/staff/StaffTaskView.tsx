@@ -69,6 +69,13 @@ export interface StaffTaskData {
 type RoomStatus = CleaningRoom["status"];
 
 /** With no signal nothing is kept on the phone, so nothing is pretended: the person is told it was not saved. */
+/**
+ * Which finished cleans wait for a supervisor: the API sets the room Clean (not Ready) only after a checkout, a
+ * deep clean or a re-clean. A stayover or a turndown is recorded as done and changes nothing the desk sells, so
+ * no inspection is claimed for it.
+ */
+const awaitsInspection = (kind: string) => kind === "Checkout" || kind === "Deep clean" || kind === "Re-clean";
+
 const NO_SIGNAL = "No signal: this was not saved and is not kept on the phone. Do it again when you have signal.";
 
 /** Housekeeper's room task: checklist, minibar count, found items and "mark clean" (artifact: StaffTask). */
@@ -203,7 +210,7 @@ export function StaffTaskView({
       id: x.id,
       no: x.no,
       kind: x.kind,
-      when: "Just now · waiting for inspection",
+      when: awaitsInspection(x.kind) ? "Just now · waiting for inspection" : "Just now",
       state: "Clean",
       stateTone: "success" as const,
     }));
@@ -505,7 +512,9 @@ export function StaffTaskView({
                 Room {r.no} marked clean
               </h2>
               <p className="text-muted">
-                {`Sent at ${doneAt}. Front desk sees it as Clean, not Ready. It becomes Ready after a supervisor inspects it.`}
+                {awaitsInspection(r.kind)
+                  ? `Sent at ${doneAt}. Front desk sees it as Clean, not Ready. It becomes Ready after a supervisor inspects it.`
+                  : `Sent at ${doneAt}. Recorded as ${r.kind.toLowerCase()} done. It needs no inspection, and the room's status does not change.`}
               </p>
             </div>
             <Timeline size="sm" density="compact">
@@ -521,30 +530,34 @@ export function StaffTaskView({
                   <span className="text-xs leading-4 text-muted">{`${doneAt} · ${doneN} of ${totalN} checks ticked`}</span>
                 </Timeline.Content>
               </Timeline.Item>
-              <Timeline.Item status="current">
-                <Timeline.Rail>
-                  <Timeline.Marker>
-                    <CheckDouble />
-                  </Timeline.Marker>
-                  <Timeline.Connector />
-                </Timeline.Rail>
-                <Timeline.Content>
-                  <span className="font-medium">Inspection by a supervisor</span>
-                  <span className="text-xs leading-4 text-muted">Required before the room can be sold</span>
-                </Timeline.Content>
-              </Timeline.Item>
-              <Timeline.Item status="default">
-                <Timeline.Rail>
-                  <Timeline.Marker>
-                    <Key />
-                  </Timeline.Marker>
-                  <Timeline.Connector />
-                </Timeline.Rail>
-                <Timeline.Content>
-                  <span className="font-medium">Ready for front desk</span>
-                  <span className="text-xs leading-4 text-muted">{r.arrival}</span>
-                </Timeline.Content>
-              </Timeline.Item>
+              {awaitsInspection(r.kind) ? (
+                <>
+                  <Timeline.Item status="current">
+                    <Timeline.Rail>
+                      <Timeline.Marker>
+                        <CheckDouble />
+                      </Timeline.Marker>
+                      <Timeline.Connector />
+                    </Timeline.Rail>
+                    <Timeline.Content>
+                      <span className="font-medium">Inspection by a supervisor</span>
+                      <span className="text-xs leading-4 text-muted">Required before the room can be sold</span>
+                    </Timeline.Content>
+                  </Timeline.Item>
+                  <Timeline.Item status="default">
+                    <Timeline.Rail>
+                      <Timeline.Marker>
+                        <Key />
+                      </Timeline.Marker>
+                      <Timeline.Connector />
+                    </Timeline.Rail>
+                    <Timeline.Content>
+                      <span className="font-medium">Ready for front desk</span>
+                      <span className="text-xs leading-4 text-muted">{r.arrival}</span>
+                    </Timeline.Content>
+                  </Timeline.Item>
+                </>
+              ) : null}
             </Timeline>
             {nextRoom ? (
               <Button size="lg" fullWidth className="min-h-14" onPress={() => openRoom(nextRoom.no)}>

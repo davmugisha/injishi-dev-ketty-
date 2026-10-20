@@ -9,7 +9,6 @@ import type {
   SwapColleague,
 } from "@injishi/data/fixtures/staff";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { NothingYet } from "@/features/staff/parts";
 import { StaffScheduleView } from "@/features/staff/StaffScheduleView";
 import { requirePersona } from "@/lib/session";
@@ -22,8 +21,8 @@ export const metadata: Metadata = { title: screens.StaffSchedule.pageTitle };
 export default async function StaffSchedulePage() {
   const persona = await requirePersona("StaffSchedule");
   const read = await Promise.all([
+    // The caller's own profile only: never another persona's shown as theirs (null reads "not on file").
     getDocument<StaffProfile>("staff.profiles", persona.id),
-    getDocument<StaffProfile>("staff.profiles", "housekeeper"),
     getCollection<Shift>("staff.shifts"),
     getCollection<SwapColleague>("staff.swapColleagues"),
     getCollection<StaffRequest>("staff.requests"),
@@ -37,15 +36,13 @@ export default async function StaffSchedulePage() {
   });
   if (typeof read === "string")
     return <NothingYet title="Schedule" message={`Your shifts and leave cannot be shown yet. ${read}`} />;
-  const [profile, fallbackProfile, shifts, colleagues, requests, leaveTypes, balance, approvers] = read;
-  const me = profile ?? fallbackProfile;
-  if (!me) notFound();
+  const [profile, shifts, colleagues, requests, leaveTypes, balance, approvers] = read;
   if (!balance || !leaveTypes.length)
     return <NothingYet title="Schedule" message="Leave is not set up for your business yet. Ask HR." />;
   return (
     <StaffScheduleView
       persona={persona}
-      data={{ profile: me, shifts, colleagues, requests, leaveTypes, balance, approvers }}
+      data={{ profile: profile ?? null, shifts, colleagues, requests, leaveTypes, balance, approvers }}
     />
   );
 }

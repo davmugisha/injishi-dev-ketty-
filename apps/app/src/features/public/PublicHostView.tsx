@@ -145,11 +145,13 @@ export function PublicHostView({
   const [name, setName] = useState(visitor?.name ?? "");
   const [email, setEmail] = useState("");
   const [business, setBusiness] = useState("");
-  const [bizType, setBizType] = useState("hotel");
-  const [district, setDistrict] = useState("Gasabo");
+  // Every choice starts unset: an answer the visitor did not pick is never filed into the ticket as theirs.
+  // Business type, district and demo format must be chosen; "How did you hear" goes only when answered.
+  const [bizType, setBizType] = useState("");
+  const [district, setDistrict] = useState("");
   const [phone, setPhone] = useState("");
-  const [source, setSource] = useState("agent");
-  const [format, setFormat] = useState("online");
+  const [source, setSource] = useState("");
+  const [format, setFormat] = useState("");
   const [demoTicket, setDemoTicket] = useState<string | null>(null);
   const [sendingDemo, startSendingDemo] = useTransition();
 
@@ -160,6 +162,15 @@ export function PublicHostView({
 
   const sendDemo = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const unchosen = [
+      bizType ? "" : "business type",
+      district ? "" : "district",
+      format ? "" : "demo format (online or at your property)",
+    ].filter(Boolean);
+    if (unchosen.length) {
+      toast.danger(`Choose your ${unchosen.join(", ")}.`);
+      return;
+    }
     startSendingDemo(async () => {
       const result = await requestDemoAction({
         name,
@@ -168,7 +179,7 @@ export function PublicHostView({
         business,
         businessType: label(BUSINESS_TYPES, bizType),
         district,
-        heardFrom: label(SOURCES, source),
+        heardFrom: source ? label(SOURCES, source) : undefined,
         format: label(FORMATS, format),
         plan: askedPlan ? data.plans.find((p) => p.id === plan)?.name : undefined,
       });
@@ -554,6 +565,7 @@ export function PublicHostView({
                     value={bizType}
                     onChange={setBizType}
                     options={BUSINESS_TYPES}
+                    placeholder="Choose a type"
                   />
                   <ChoiceField
                     id="d-dist"
@@ -561,6 +573,7 @@ export function PublicHostView({
                     value={district}
                     onChange={setDistrict}
                     options={DISTRICTS}
+                    placeholder="Choose a district"
                   />
                   <TextField
                     variant="secondary"
@@ -579,14 +592,17 @@ export function PublicHostView({
                     value={source}
                     onChange={setSource}
                     options={SOURCES}
+                    placeholder="Choose one (optional)"
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-[16px]">
                   <Label id="d-format">Demo</Label>
                   <Segment
                     aria-labelledby="d-format"
-                    selectedKey={format}
-                    onSelectionChange={(k) => setFormat(String(k))}
+                    selectedKey={format || null}
+                    onSelectionChange={(k) => {
+                      if (k != null) setFormat(String(k));
+                    }}
                   >
                     {FORMATS.map((f, i) => (
                       <Segment.Item key={f.id} id={f.id}>
