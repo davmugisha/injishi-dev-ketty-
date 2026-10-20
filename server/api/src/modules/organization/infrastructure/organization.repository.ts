@@ -121,7 +121,10 @@ export interface CreateOrgRow {
       | 'tax_clearance'
       | 'fire_safety'
       | 'health_inspection'
-      | 'other';
+      | 'other'
+      | 'rdb_certificate'
+      | 'psf_certificate'
+      | 'land_title';
     kindOther: string | null;
     objectKey: string;
     certificateNumber: string | null;

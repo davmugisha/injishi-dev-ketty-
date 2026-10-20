@@ -7,10 +7,10 @@ import type {
   StoreRequisition,
   StoreValueRow,
 } from "@injishi/data/fixtures/stock";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { StoreHomeView } from "@/features/stock/StoreHomeView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.StoreHome.pageTitle };
 

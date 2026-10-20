@@ -1,10 +1,10 @@
 import { screens } from "@injishi/data";
 import type { MessageTemplate, MessageThread } from "@injishi/data/fixtures/stays";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MessagesView } from "@/features/stays/MessagesView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Messages.pageTitle };
 

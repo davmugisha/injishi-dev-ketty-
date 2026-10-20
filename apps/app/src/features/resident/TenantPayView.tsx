@@ -10,14 +10,14 @@ import {
   Smartphone,
   TriangleExclamation,
 } from "@gravity-ui/icons";
-import { Alert, Button, Card, Description, Input, Label, TextField } from "@heroui/react";
+import { Alert, Button, Card, Description, Input, Label, TextField, toast } from "@heroui/react";
 import { RadioButtonGroup, Segment, Timeline } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type { PaymentIntent, PayNetwork, RentCharge, Tenancy } from "@injishi/data/fixtures/resident";
 import { formatRwf, KeyValueList, LinkButton, PhoneBody, PhoneTop } from "@injishi/ui";
 import { useState } from "react";
 import { PhoneSheet } from "@/components/phone/PhoneSheet";
-import { downloadText, IconCircle, maskPhone, ResidentTitle, renderSection, ToneChip } from "./parts";
+import { downloadText, IconCircle, maskPhone, PhoneToasts, ResidentTitle, renderSection, ToneChip } from "./parts";
 
 export type PayState = "pending" | "verified" | "unknown";
 
@@ -69,6 +69,15 @@ export function TenantPayView({
   const forText = mode === "full" ? `${charge.month} rent, in full` : `${charge.month} rent, part payment`;
   const status = STATUS[state];
   const onStatus = step === "status";
+
+  // Paying rent by mobile money is not wired: a payment attempt cannot carry rent yet (the data map's
+  // resident.paymentIntents). Say so rather than show a prompt that was never sent.
+  const payUnavailable = () => {
+    setStep("form");
+    toast.danger(
+      "Paying rent in the app is not available yet. Nothing was charged. Pay by bank or at the office and management records it.",
+    );
+  };
 
   const saveReceipt = () => {
     downloadText(`receipt-${intent.id}.txt`, [
@@ -348,13 +357,14 @@ export function TenantPayView({
           ]}
         />
         <p className="text-[12px] leading-4 text-muted">Your network may charge its usual fee. Injishi adds no fee.</p>
-        <Button variant="primary" size="lg" fullWidth onPress={() => setStep("status")}>
+        <Button variant="primary" size="lg" fullWidth onPress={payUnavailable}>
           Pay {amountStr}
         </Button>
         <Button variant="ghost" fullWidth onPress={() => setStep("form")}>
           Back
         </Button>
       </PhoneSheet>
+      <PhoneToasts />
     </>
   );
 }

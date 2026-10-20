@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { InboxFigure, InboxNotification, InboxTask } from "@injishi/data/fixtures/shared";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { NotificationsView } from "@/features/shared/NotificationsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Notifications.pageTitle };
 

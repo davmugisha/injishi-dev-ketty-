@@ -41,6 +41,7 @@
 // Preconditions: seed-geography.mjs and seed-content.mjs must have run against
 // the SAME database first (districts and rdb_classifications are foreign
 // key targets here). The script checks and tells you if they have not.
+import { GOVERNMENT_BODIES } from './reference-data.mjs';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -332,10 +333,7 @@ const SAMUEL_MEMBERSHIPS = [
   { orgId: SO(3), userId: U(6), role: 'owner' },
 ];
 
-const BODIES = [
-  ['PSF', 'Private Sector Federation', 'Ihuriro ry’Abikorera', 'PSF'],
-  ['MINALOC', 'Ministry of Local Government', 'Minisiteri y’Ubutegetsi bw’Igihugu', 'MINALOC'],
-];
+const BODIES = GOVERNMENT_BODIES;
 
 const ASSIGNMENTS = [
   { id: A(1), userId: U(7),  role: 'business_field_verifier', body: 'PSF',     title: 'Business Registration Officer', district: 'Gasabo' },

@@ -28,6 +28,8 @@ import {
   Tag,
   TagGroup,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { EmptyState, ItemCard, NativeSelect, Segment } from "@heroui-pro/react";
 import { BarChart } from "@heroui-pro/react/bar-chart";
@@ -36,7 +38,8 @@ import type { BookingMode, MarketListing, MarketMode, MarketSearch } from "@inji
 import { stock } from "@injishi/data/media";
 import { Icon, LinkButton, Photo } from "@injishi/ui";
 import NextLink from "next/link";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useState, useTransition } from "react";
+import { setSavedAction } from "./actions";
 import { inBand, propertyHref, rwf, shortPrice } from "./format";
 import { MarketFooter, MarketHeader, MarketMain, type MarketVisitor } from "./MarketChrome";
 
@@ -122,7 +125,21 @@ export function MarketExploreView({
   const [amen, setAmen] = useState<string[]>([]);
   const [sort, setSort] = useState<Sort>("rec");
   const [saved, setSaved] = useState<string[]>(() => data.listings.filter((l) => l.saved).map((l) => l.id));
-  const [sel, setSel] = useState(() => searchOf(initialMode).selected);
+  /** The map opens on the mode's first result (the search's own pick when it names one of these listings). */
+  const firstOf = (m: MarketMode) => {
+    const pool = data.listings.filter((l) => l.mode === m).sort((a, b) => a.rank - b.rank);
+    const named = searchOf(m).selected;
+    return pool.some((l) => l.id === named) ? named : (pool[0]?.id ?? named);
+  };
+  const [sel, setSel] = useState(() => firstOf(initialMode));
+  const [saving, startSaving] = useTransition();
+  /** The heart saves to (or removes from) the signed-in person's lists; a refusal is shown. */
+  const toggleSaved = (id: string) =>
+    startSaving(async () => {
+      const result = await setSavedAction(id, !saved.includes(id));
+      if (result.ok) setSaved((s) => toggleIn(s, id));
+      else toast.danger(result.error);
+    });
   const [asked, setAsked] = useState<string[]>([]);
   const [move, setMove] = useState(true);
   const [zoom, setZoom] = useState(0);
@@ -153,7 +170,7 @@ export function MarketExploreView({
     setMode(m);
     setTypes([]);
     setBand("any");
-    setSel(searchOf(m).selected);
+    setSel(firstOf(m));
   };
   const clearAll = () => {
     setTypes([]);
@@ -427,7 +444,8 @@ export function MarketExploreView({
                             isIconOnly
                             aria-label={isSaved ? `Remove ${l.name} from saved` : `Save ${l.name}`}
                             aria-pressed={isSaved}
-                            onPress={() => setSaved((s) => toggleIn(s, l.id))}
+                            isDisabled={saving}
+                            onPress={() => toggleSaved(l.id)}
                             className="absolute top-2 right-2"
                           >
                             {isSaved ? <HeartFill className="size-4 text-danger" /> : <Heart className="size-4" />}
@@ -631,6 +649,7 @@ export function MarketExploreView({
       </MarketMain>
 
       <MarketFooter width="wide" links={5} />
+      <Toast.Provider placement="bottom" />
     </>
   );
 }

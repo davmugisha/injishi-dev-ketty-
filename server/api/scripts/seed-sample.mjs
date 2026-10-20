@@ -104,6 +104,7 @@ const STEPS = [
   // above ran before their memberships existed. Before the head office and
   // department passes below, so a property a ui2 file adds is covered by both.
   { script: 'seed-ui2.mjs', what: 'ui2: the finance and hr personas, and what the six role homes show (ADR-069)' },
+  { script: 'seed-interface.mjs', what: 'the new interface: its world and screens, from the packages/data fixtures (ADR-072)' },
 ];
 
 function fail(message) {

@@ -10,10 +10,10 @@ import type {
   PeopleProperty,
   PolicyAck,
 } from "@injishi/data/fixtures/people";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { EmployeesView } from "@/features/people/EmployeesView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Employees.pageTitle };
 
@@ -43,7 +43,7 @@ export default async function EmployeesPage({
       data={{ properties, employees, compensation, documents, access, family, policies, org, offboarding }}
       initial={{
         view: view === "org" ? "org" : "dir",
-        employee: employees.some((e) => e.id === employee) ? (employee as string) : "jn",
+        employee: employees.some((e) => e.id === employee) ? (employee as string) : (employees[0]?.id ?? ""),
         tab: FILE_TABS.includes(tab ?? "") ? (tab as string) : "overview",
       }}
     />

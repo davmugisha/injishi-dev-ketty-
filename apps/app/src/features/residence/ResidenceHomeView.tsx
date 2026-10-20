@@ -23,7 +23,7 @@ import type {
 import { GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import NextLink from "next/link";
 import { type CSSProperties, Fragment, useState } from "react";
-import { Dot, HBar, Legend, money, plain, ToneChip } from "./shared";
+import { Dot, HBar, kigaliCalendar, Legend, money, plain, ToneChip } from "./shared";
 
 export interface ResidenceHomeData {
   kpis: HomeKpi[];
@@ -121,6 +121,8 @@ function CardHeading({ id, children }: { id: string; children: string }) {
 }
 
 export function ResidenceHomeView({ persona, data }: { persona: Persona; data: ResidenceHomeData }) {
+  // Today and this month are Kigali's, not the prototype's Monday 12 October.
+  const cal = kigaliCalendar();
   const [selected, setSelected] = useState("B-07");
   const [filter, setFilter] = useState<Filter>("all");
 
@@ -165,7 +167,7 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
     <PageContent>
       <PageHeader
         size="hello"
-        eyebrow="Monday 12 October 2026 · Kacyiru Court Residences · Gasabo"
+        eyebrow={`${cal.longDate} · Kacyiru Court Residences · Gasabo`}
         title={`Good morning, ${persona.firstName}`}
         description="Three residents are in arrears, Olivier Habineza answers his renewal offer by Thursday, and two units are waiting for tenants."
         actions={
@@ -182,7 +184,7 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
         }
       />
 
-      <section aria-label="October figures">
+      <section aria-label={`${cal.month} figures`}>
         <KPIGroup className="flex-wrap">
           {data.kpis.map((kpi, i) => (
             <Fragment key={kpi.id}>
@@ -221,7 +223,7 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
         <Widget aria-labelledby="rent-h" render={(p) => <section {...p} />}>
           <Widget.Header>
             <Widget.Title id="rent-h" role="heading" aria-level={2}>
-              October Rent
+              {cal.month} Rent
             </Widget.Title>
             <Widget.Legend>
               <Widget.LegendItem color="var(--chart-3)">Verified</Widget.LegendItem>
@@ -232,10 +234,10 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
           <Widget.Content className="flex flex-col gap-3">
             <div
               role="img"
-              aria-label={`October rent: ${pct(verified)} percent verified, ${pct(pending)} percent pending verification, ${100 - pct(verified) - pct(pending)} percent not paid`}
+              aria-label={`${cal.month} rent: ${pct(verified)} percent verified, ${pct(pending)} percent pending verification, ${100 - pct(verified) - pct(pending)} percent not paid`}
             >
               <BarChart
-                data={[{ month: "October", verified, pending, unpaid }]}
+                data={[{ month: cal.month, verified, pending, unpaid }]}
                 layout="vertical"
                 height={14}
                 margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
@@ -315,7 +317,9 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
               <ItemCardGroup.Title id="vac-h" aria-level={2}>
                 Vacant Units
               </ItemCardGroup.Title>
-              <ItemCardGroup.Description>Rent not earned in October: {money(vacantRent)}</ItemCardGroup.Description>
+              <ItemCardGroup.Description>
+                Rent not earned in {cal.month}: {money(vacantRent)}
+              </ItemCardGroup.Description>
             </ItemCardGroup.Header>
             {data.vacancies.map((v) => (
               <Fragment key={v.id}>
@@ -366,7 +370,7 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
             <h2 id="grid-h" className="text-[15px] leading-[22px] font-semibold">
               Units by Block
             </h2>
-            <span className="text-[12px] text-muted">Status for October rent · select a unit for details</span>
+            <span className="text-[12px] text-muted">Status for {cal.month} rent · select a unit for details</span>
           </div>
           <Segment aria-label="Highlight units" selectedKey={filter} onSelectionChange={(k) => setFilter(k as Filter)}>
             {FILTERS.map((f) => (

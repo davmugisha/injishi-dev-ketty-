@@ -7,25 +7,19 @@ import type {
   Option,
   PaymentMethod,
 } from "@injishi/data/fixtures/market";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { marketVisitor } from "@/features/market/format";
 import { type CheckoutScreen, MarketCheckoutView } from "@/features/market/MarketCheckoutView";
 import { requireScreen } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.MarketCheckout.pageTitle };
 
-const SCREENS = new Set<CheckoutScreen>([
-  "checkout",
-  "approve-on-phone",
-  "payment-unclear",
-  "booked",
-  "request",
-  "request-sent",
-]);
-
-/** Public checkout. Each artboard state is `?state=`. */
+/**
+ * Public checkout. `?state=request` opens the request draft; every later state (waiting on the phone,
+ * booked, request sent) is reached only by a real press of Pay or Send request, never by the address.
+ */
 export default async function MarketCheckoutPage({ searchParams }: { searchParams: Promise<{ state?: string }> }) {
   const persona = await requireScreen("MarketCheckout");
   const [checkouts, methods, countries, arrivals, tags, profiles] = await Promise.all([
@@ -37,8 +31,8 @@ export default async function MarketCheckoutPage({ searchParams }: { searchParam
     getCollection<GuestProfile>("market.guestProfiles"),
   ]);
   const { state } = await searchParams;
-  const initial: CheckoutScreen = SCREENS.has(state as CheckoutScreen) ? (state as CheckoutScreen) : "checkout";
-  const bookingId = initial === "request" || initial === "request-sent" ? "request" : "instant";
+  const initial: CheckoutScreen = state === "request" || state === "request-sent" ? "request" : "checkout";
+  const bookingId = initial === "request" ? "request" : "instant";
   const booking = checkouts.find((c) => c.id === bookingId) ?? checkouts[0];
   if (!booking) notFound();
   const property = await getDocument<MarketProperty>("market.properties", booking.property);

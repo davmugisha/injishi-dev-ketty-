@@ -8,11 +8,11 @@ import type {
   MinibarItem,
   StaffProfile,
 } from "@injishi/data/fixtures/staff";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { StaffTaskView } from "@/features/staff/StaffTaskView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.StaffTask.pageTitle };
 
@@ -25,7 +25,7 @@ export default async function StaffTaskPage({ searchParams }: { searchParams: Pr
     getCollection<MinibarItem>("staff.minibarItems"),
     getCollection<FoundItemSpot>("staff.foundSpots"),
     getCollection<FoundItem>("staff.foundItems"),
-    getDocument<StaffProfile>("staff.profiles", "housekeeper"),
+    getDocument<StaffProfile>("staff.profiles", persona.id),
   ]);
   const found = foundItems[0];
   if (!rooms.length || !found || !profile) notFound();

@@ -85,7 +85,14 @@ function SignedOutNotice() {
   );
 }
 
-export function AccountMenu({ className }: { className?: string }) {
+export function AccountMenu({
+  className,
+  onPhoto = false,
+}: {
+  className?: string;
+  /** White pill while the bar sits on a photograph. Ghost ink disappears there. */
+  onPhoto?: boolean;
+}) {
   const { status, user, signOut } = useSessionUser();
   const { signingOut, signOutAndLeave } = useSignOutAndLeave(signOut);
 
@@ -109,7 +116,12 @@ export function AccountMenu({ className }: { className?: string }) {
       <>
         {/* The one place a just-signed-out person reliably lands. */}
         <SignedOutNotice />
-        <Button asChild variant="ghost" size="md" className={className}>
+        <Button
+          asChild
+          variant={onPhoto ? "inverse" : "ghost"}
+          size="md"
+          className={className}
+        >
           <Link href="/sign-in">Sign In</Link>
         </Button>
       </>

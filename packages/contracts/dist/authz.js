@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.SetRolePermissionsRequest = exports.OperatorRoleList = exports.OperatorRolePermissions = exports.PERMISSION_AREA_OF = exports.PERMISSION_AREA_LABEL = exports.PERMISSION_AREA = exports.LOCKED_PERMISSION_REASON = exports.LOCKED_PERMISSIONS = exports.RolePermissionOverride = exports.CustomisableOrgRole = exports.PERMISSION_LABEL = exports.Permission = void 0;
+exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.SetRolePermissionsRequest = exports.OperatorRoleList = exports.OperatorPermissionArea = exports.OperatorRolePermissions = exports.PERMISSION_AREA_OF = exports.PERMISSION_AREA_LABEL = exports.PERMISSION_AREA = exports.LOCKED_PERMISSION_REASON = exports.LOCKED_PERMISSIONS = exports.RolePermissionOverride = exports.CustomisableOrgRole = exports.PERMISSION_LABEL = exports.Permission = void 0;
 exports.can = can;
 exports.permissionsForRole = permissionsForRole;
 exports.isCustomisableOrgRole = isCustomisableOrgRole;
@@ -193,6 +193,19 @@ exports.Permission = zod_1.z.enum([
      * is the owner's to disclose, and to sign. No other default role holds it.
      */
     "payroll.run",
+    /**
+     * Keep the lost and found register (leaf real-data 1.2.3): log what was found, open a claim,
+     * release an item to its owner, propose and approve disposal, extend retention.
+     *
+     * Its own permission because none of the others is the same act: the register holds guests'
+     * valuables, their names and the identity check made before handing one back, and `stay.checkin`
+     * or `housekeeping.set` would give that to everyone who checks a guest in or cleans a room.
+     * Owner, manager and receptionist by default: the desk takes the claim calls and does the
+     * hand-back. A business that makes its housekeeping supervisor the custodian grants it to that
+     * role (ADR-055). Disposal additionally needs a SECOND person: the approver can never be the
+     * proposer, which the service refuses whatever permissions either holds.
+     */
+    "lostfound.manage",
 ]);
 const ALL = exports.Permission.options;
 /**
@@ -272,6 +285,7 @@ const ROLE_PERMISSIONS = {
         "order.advance",
         "message.send",
         "attendance.record",
+        "lostfound.manage",
     ]),
     finance: new Set([
         "money.view",
@@ -338,6 +352,7 @@ exports.PERMISSION_LABEL = {
     "leave.approve": "decide leave",
     "payroll.draft": "draft the pay run",
     "payroll.run": "confirm the pay run",
+    "lostfound.manage": "keep the lost and found register",
 };
 // ---------------------------------------------------------------------------
 // A business's own role customisation
@@ -523,6 +538,7 @@ exports.PERMISSION_AREA_OF = {
     "leave.approve": "people",
     "payroll.draft": "people",
     "payroll.run": "people",
+    "lostfound.manage": "front_desk",
 };
 // ---------------------------------------------------------------------------
 // What each role may do, at THIS business
@@ -563,8 +579,22 @@ exports.OperatorRolePermissions = zod_1.z.object({
     /** Active memberships holding this role. */
     memberCount: zod_1.z.number().int().nonnegative(),
 });
+/**
+ * One area of the permission matrix as a screen draws it: the area's words and
+ * each permission's words, from `PERMISSION_AREA_LABEL` and `PERMISSION_LABEL`.
+ * Served with the roles so a client never keeps its own copy of the
+ * vocabulary, which is how a matrix comes to list a permission that does not
+ * exist. It grants nothing.
+ */
+exports.OperatorPermissionArea = zod_1.z.object({
+    area: exports.PERMISSION_AREA,
+    label: zod_1.z.string(),
+    permissions: zod_1.z.array(zod_1.z.object({ permission: exports.Permission, label: zod_1.z.string() })),
+});
 exports.OperatorRoleList = zod_1.z.object({
     roles: zod_1.z.array(exports.OperatorRolePermissions),
+    /** Every area and permission, in the platform's order. */
+    areas: zod_1.z.array(exports.OperatorPermissionArea),
 });
 /**
  * Set what a role may do here: the WHOLE set it should hold, not a delta.

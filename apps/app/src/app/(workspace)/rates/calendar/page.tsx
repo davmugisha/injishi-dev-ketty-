@@ -10,10 +10,10 @@ import type {
   AvailabilityCalendarRoomType,
   AvailabilityCalendarWindow,
 } from "@injishi/data/fixtures/commercial";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AvailabilityCalendarView } from "@/features/commercial/AvailabilityCalendarView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AvailabilityCalendar.pageTitle };
 

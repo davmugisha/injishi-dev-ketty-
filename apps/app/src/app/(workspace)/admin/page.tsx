@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { AdminKpi, Deploy, OnCallShift, TriageItem, ViewAsSession } from "@injishi/data/fixtures/admin";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AdminHomeView } from "@/features/admin/AdminHomeView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AdminHome.pageTitle };
 

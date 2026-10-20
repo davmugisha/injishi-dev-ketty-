@@ -1,11 +1,18 @@
 /*
  * Injishi design system — HeroUI Pro "mouve" theme + the saved Injishi overrides
- * (heroui.pro/ds/de231dfa-8a53-40c9-ba3b-cd9d5a93685b). Figtree (body) and Instrument Sans
- * (headings) are loaded with next/font as --font-figtree and --font-instrument-sans.
- * Activate with <html data-theme="mouve-light|mouve-dark" data-vibrant-palette="true">.
- * Import after tailwindcss, @heroui/styles and @heroui-pro/react/css.
+ * (heroui.pro/ds/de231dfa-8a53-40c9-ba3b-cd9d5a93685b, updatedAt 1791883604103).
+ * Figtree (body) and Instrument Sans (headings) are loaded with next/font as
+ * --font-figtree and --font-instrument-sans. Activate with
+ * data-theme="mouve-light|mouve-dark" (and data-vibrant-palette="true" where the
+ * saved system asks for it). Import after tailwindcss, @heroui/styles,
+ * @heroui-pro/react/css and @heroui-pro/react/themes/mouve.
+ *
+ * This file does not import the mouve theme. That file's component layer
+ * (.button--primary and the rest) is document-global, so a subtree that
+ * imported it would restyle every other page for the rest of the session.
+ * apps/app imports the theme itself. Do not paste a second copy of these
+ * selectors.
  */
-@import "@heroui-pro/react/themes/mouve";
 
 .mouve-light,
 [data-theme="mouve-light"],
@@ -25,6 +32,9 @@
   /* Font: Figtree for body, Instrument Sans for headings */
   --font-sans: var(--font-figtree, "Figtree"), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-instrument-sans, "Instrument Sans"), ui-sans-serif, system-ui, sans-serif;
+  /* The marketplace names its display face separately. Point it at the heading
+     face so a display headline does not stay on the previous family. */
+  --font-display: var(--font-heading);
 
   /* Letter spacing */
   --tracking-tighter: -0.06em;
@@ -114,8 +124,10 @@
   :where(h1, h2, h3, h4, h5, h6, [role="heading"]) {
     font-family: var(--font-heading, var(--font-sans, sans-serif));
   }
-  html,
-  body {
+  /* Only when the theme attribute is on the document: a subtree that sets
+     data-theme on its own root must not repaint the page behind it. */
+  html[data-theme],
+  html[data-theme] body {
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);

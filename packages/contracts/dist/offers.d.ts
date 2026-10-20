@@ -60,7 +60,7 @@ export declare const OfferTerms: z.ZodObject<{
     code: string | null;
     status: "active" | "draft" | "archived";
     startsOn: string;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     audience: "anyone" | "in_house";
     endsOn: string | null;
     discountKind: "percentage" | "fixed_amount";
@@ -72,7 +72,7 @@ export declare const OfferTerms: z.ZodObject<{
     code: string | null;
     status: "active" | "draft" | "archived";
     startsOn: string;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     audience: "anyone" | "in_house";
     endsOn: string | null;
     discountKind: "percentage" | "fixed_amount";
@@ -115,7 +115,7 @@ export declare const Offer: z.ZodObject<{
     id: string;
     startsOn: string;
     createdAt: string;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     audience: "anyone" | "in_house";
     departmentName: string | null;
     description: string | null;
@@ -135,7 +135,7 @@ export declare const Offer: z.ZodObject<{
     id: string;
     startsOn: string;
     createdAt: string;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     audience: "anyone" | "in_house";
     departmentName: string | null;
     description: string | null;
@@ -183,7 +183,7 @@ export declare const OfferList: z.ZodObject<{
         id: string;
         startsOn: string;
         createdAt: string;
-        scope: "room" | "service" | "folio";
+        scope: "room" | "folio" | "service";
         audience: "anyone" | "in_house";
         departmentName: string | null;
         description: string | null;
@@ -203,7 +203,7 @@ export declare const OfferList: z.ZodObject<{
         id: string;
         startsOn: string;
         createdAt: string;
-        scope: "room" | "service" | "folio";
+        scope: "room" | "folio" | "service";
         audience: "anyone" | "in_house";
         departmentName: string | null;
         description: string | null;
@@ -225,7 +225,7 @@ export declare const OfferList: z.ZodObject<{
         id: string;
         startsOn: string;
         createdAt: string;
-        scope: "room" | "service" | "folio";
+        scope: "room" | "folio" | "service";
         audience: "anyone" | "in_house";
         departmentName: string | null;
         description: string | null;
@@ -247,7 +247,7 @@ export declare const OfferList: z.ZodObject<{
         id: string;
         startsOn: string;
         createdAt: string;
-        scope: "room" | "service" | "folio";
+        scope: "room" | "folio" | "service";
         audience: "anyone" | "in_house";
         departmentName: string | null;
         description: string | null;
@@ -301,7 +301,7 @@ export declare const GuestOffer: z.ZodObject<{
     reason: string | null;
     startsOn: string;
     propertyName: string | null;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     departmentName: string | null;
     description: string | null;
     propertyId: string;
@@ -320,7 +320,7 @@ export declare const GuestOffer: z.ZodObject<{
     reason: string | null;
     startsOn: string;
     propertyName: string | null;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     departmentName: string | null;
     description: string | null;
     propertyId: string;
@@ -366,7 +366,7 @@ export declare const GuestOfferList: z.ZodObject<{
         reason: string | null;
         startsOn: string;
         propertyName: string | null;
-        scope: "room" | "service" | "folio";
+        scope: "room" | "folio" | "service";
         departmentName: string | null;
         description: string | null;
         propertyId: string;
@@ -385,7 +385,7 @@ export declare const GuestOfferList: z.ZodObject<{
         reason: string | null;
         startsOn: string;
         propertyName: string | null;
-        scope: "room" | "service" | "folio";
+        scope: "room" | "folio" | "service";
         departmentName: string | null;
         description: string | null;
         propertyId: string;
@@ -407,7 +407,7 @@ export declare const GuestOfferList: z.ZodObject<{
         reason: string | null;
         startsOn: string;
         propertyName: string | null;
-        scope: "room" | "service" | "folio";
+        scope: "room" | "folio" | "service";
         departmentName: string | null;
         description: string | null;
         propertyId: string;
@@ -429,7 +429,7 @@ export declare const GuestOfferList: z.ZodObject<{
         reason: string | null;
         startsOn: string;
         propertyName: string | null;
-        scope: "room" | "service" | "folio";
+        scope: "room" | "folio" | "service";
         departmentName: string | null;
         description: string | null;
         propertyId: string;
@@ -516,7 +516,7 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
 }, "strict", z.ZodTypeAny, {
     name: string;
     startsOn: string;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
@@ -532,7 +532,7 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
 }, {
     name: string;
     startsOn: string;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
@@ -548,7 +548,7 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
 }>, {
     name: string;
     startsOn: string;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
@@ -564,7 +564,7 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
 }, {
     name: string;
     startsOn: string;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
@@ -580,7 +580,7 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
 }>, {
     name: string;
     startsOn: string;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
@@ -596,7 +596,7 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
 }, {
     name: string;
     startsOn: string;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
@@ -612,7 +612,7 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
 }>, {
     name: string;
     startsOn: string;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;
@@ -628,7 +628,7 @@ export declare const CreateOfferRequest: z.ZodEffects<z.ZodEffects<z.ZodEffects<
 }, {
     name: string;
     startsOn: string;
-    scope: "room" | "service" | "folio";
+    scope: "room" | "folio" | "service";
     propertyId: string;
     discountKind: "percentage" | "fixed_amount";
     discountValue: number;

@@ -47,12 +47,19 @@ export interface AssignmentSubject {
 /** Postgres raises this when an exclusion constraint refuses a row. */
 const EXCLUSION_VIOLATION = '23P01';
 
+/**
+ * True for an overlapping hold refused by `room_assignments_no_overlap`, raised directly or wrapped.
+ *
+ * Drizzle wraps the driver's error ("Failed query: ...") and keeps the Postgres one as its `cause`, so
+ * reading only the top-level `code` missed every real refusal and the desk got a 500 for "that room
+ * is already held" (found wiring the front desk, interface real-data).
+ */
 export function isOverlapRefusal(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    (error as { code?: string }).code === EXCLUSION_VIOLATION
-  );
+  const e = error as { code?: string; cause?: unknown } | null;
+  if (typeof e !== 'object' || e === null) return false;
+  if (e.code === EXCLUSION_VIOLATION) return true;
+  const inner = e.cause as { code?: string } | null | undefined;
+  return typeof inner === 'object' && inner !== null && inner.code === EXCLUSION_VIOLATION;
 }
 
 /**

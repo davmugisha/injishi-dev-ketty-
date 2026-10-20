@@ -7,10 +7,10 @@ import type {
   ReviewDepartment,
   Vacancy,
 } from "@injishi/data/fixtures/payroll";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { TalentView } from "@/features/payroll/TalentView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Talent.pageTitle };
 

@@ -95,6 +95,9 @@ export function AddressPicker({
   collectVillage = false,
   idPrefix,
   errorPrefix = "address",
+  requireVillage = false,
+  streetLabel = "Street address",
+  streetHint = "Optional — not every plot has one.",
 }: {
   draft: AddressDraft;
   onChange: (next: AddressDraft) => void;
@@ -109,6 +112,14 @@ export function AddressPicker({
    * `business.address`. Passing the base keeps one component serving both.
    */
   errorPrefix?: string;
+  /**
+   * Ask the cell and the village as required rather than optional: the
+   * registration artboard's Location, which an officer walks to. Only with
+   * `collectVillage`; the caller enforces it, this only says so.
+   */
+  requireVillage?: boolean;
+  streetLabel?: string;
+  streetHint?: string;
 }) {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
@@ -302,7 +313,8 @@ export function AddressPicker({
             <>
               <Field
                 label="Cell"
-                hint="Optional — it narrows the village list."
+                required={requireVillage}
+                hint={requireVillage ? "Follows the sector" : "Optional — it narrows the village list."}
                 error={errors[`${errorPrefix}.cellId`]}
               >
                 <SelectField
@@ -325,7 +337,8 @@ export function AddressPicker({
 
               <Field
                 label="Village"
-                hint="Optional — but it is what gets someone to the door."
+                required={requireVillage}
+                hint={requireVillage ? "Follows the cell" : "Optional — but it is what gets someone to the door."}
                 error={errors[`${errorPrefix}.villageId`]}
               >
                 <SelectField
@@ -347,8 +360,8 @@ export function AddressPicker({
           ) : null}
 
           <Field
-            label="Street address"
-            hint="Optional — not every plot has one."
+            label={streetLabel}
+            hint={streetHint}
             error={errors[`${errorPrefix}.street`]}
           >
             <TextInput

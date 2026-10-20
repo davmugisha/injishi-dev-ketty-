@@ -28,6 +28,7 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  toast,
 } from "@heroui/react";
 import { EmptyState, ListView, RadioButtonGroup, Segment } from "@heroui-pro/react";
 import type { Persona } from "@injishi/data";
@@ -43,7 +44,9 @@ import type {
   SwapColleague,
 } from "@injishi/data/fixtures/staff";
 import { GateChip, Icon, KeyValueList, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useState, useTransition } from "react";
+import { reported } from "../operations/shared";
+import { askLeaveAction, cancelRequestAction } from "./actions";
 import { PhoneSheet, PhoneTitle, renderArticle, renderSection } from "./parts";
 
 export interface StaffScheduleData {
@@ -81,6 +84,40 @@ function shiftHours(time: string | null): number {
 
 const fmtDays = (n: number) => String(Number.isInteger(n) ? n : n.toFixed(1));
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+/** A shift's "Mon 12 Oct" as a date in the current year. */
+function dayOf(long: string): Date | null {
+  const [, d, m] = long.split(" ");
+  const month = MONTHS.indexOf(m ?? "");
+  return month < 0 ? null : new Date(Date.UTC(new Date().getUTCFullYear(), month, Number(d)));
+}
+
+/** "12 – 18 October" (or "29 September – 5 October") for a run of days. */
+function spanLabel(from: Date | null, to: Date | null): string {
+  if (!from || !to) return "";
+  const end = `${to.getUTCDate()} ${MONTH_NAMES[to.getUTCMonth()]}`;
+  return from.getUTCMonth() === to.getUTCMonth()
+    ? `${from.getUTCDate()} – ${end}`
+    : `${from.getUTCDate()} ${MONTH_NAMES[from.getUTCMonth()]} – ${end}`;
+}
+
+const NOT_YET_SWAP = "Swaps cannot be asked from the phone yet. Ask Beatrice to arrange it.";
+
 /** Shifts, leave and requests of a staff member (artifact: StaffSchedule). */
 export function StaffScheduleView({ persona, data }: { persona: Persona; data: StaffScheduleData }) {
   const { profile, shifts, colleagues, leaveTypes, balance, approvers, draft } = data;
@@ -90,11 +127,14 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
   const [mate, setMate] = useState(colleagues[0]?.id ?? "");
   const [leaveType, setLeaveType] = useState(leaveTypes[0]?.id ?? "annual");
   const [note, setNote] = useState(draft.note);
+  const [from, setFrom] = useState(draft.from);
+  const [to, setTo] = useState(draft.to);
   const [justSent, setJustSent] = useState("");
-  const [swapped, setSwapped] = useState<Record<string, string>>(() =>
-    Object.fromEntries(shifts.filter((s) => s.swapPendingWith).map((s) => [s.id, s.swapPendingWith ?? ""])),
+  const swapped: Record<string, string> = Object.fromEntries(
+    shifts.filter((s) => s.swapPendingWith).map((s) => [s.id, s.swapPendingWith ?? ""]),
   );
-  const [requests, setRequests] = useState(data.requests);
+  const { requests } = data;
+  const [pending, startTransition] = useTransition();
 
   const open = requests.filter((q) => q.status === "manager" || q.status === "colleague").length;
   const pendingDays = requests.filter((q) => q.status === "manager").reduce((a, q) => a + q.days, 0);
@@ -105,6 +145,10 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
     : "This does not change your annual leave balance.";
 
   const weekShifts = shifts.filter((s) => s.week === 0);
+  const firstDay = dayOf(weekShifts[0]?.long ?? "");
+  const lastDay = dayOf(weekShifts[weekShifts.length - 1]?.long ?? "");
+  const plusDays = (d: Date | null, n: number) => (d ? new Date(d.getTime() + n * 86_400_000) : null);
+  const weekLabel = week === 0 ? spanLabel(firstDay, lastDay) : spanLabel(plusDays(lastDay, 1), plusDays(lastDay, 7));
   const working = weekShifts.filter((s) => !s.isOff);
   const next = weekShifts.find((s) => !s.isOff && !s.isToday);
   const hours = working.reduce((a, s) => a + shiftHours(s.time), 0);
@@ -117,60 +161,24 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
   };
 
   const sendSwap = () => {
-    if (!swapShift || !mateDoc) return;
     setSwapFor(null);
-    setSwapped((s) => ({ ...s, [swapShift.id]: mateDoc.first }));
-    setRequests((rs) => [
-      {
-        id: `n${Date.now()}`,
-        shift: swapShift.id,
-        type: "Shift swap",
-        icon: "ArrowRightArrowLeft",
-        title: `${swapShift.long} · ${swapShift.time}`,
-        sub: `With ${mateDoc.name}`,
-        status: "colleague",
-        steps: `Waiting for ${mateDoc.first} · then Beatrice approves`,
-        days: 0,
-      },
-      ...rs,
-    ]);
-    setTab("requests");
-    setJustSent(`${mateDoc.first} gets a message now. You see the answer here.`);
+    toast.danger(NOT_YET_SWAP);
   };
 
   const sendLeave = () => {
     const reason = note.trim().replace(/\.$/, "");
-    setRequests((rs) => [
-      {
-        id: `n${Date.now()}`,
-        shift: null,
-        type: `${type.label} leave`,
-        icon: "Suitcase",
-        title: draft.title,
-        sub: reason || "No note",
-        status: "manager",
-        steps: "Sent just now · Beatrice first, then Diane (HR)",
-        days: type.usesBalance ? draft.workingDays : 0,
-      },
-      ...rs,
-    ]);
-    setTab("requests");
-    setJustSent("Beatrice gets it first. Diane (HR) checks your balance after she approves.");
+    startTransition(async () => {
+      if (!reported(await askLeaveAction({ leaveTypeId: type.id, from, to, reason }))) return;
+      setTab("requests");
+      setJustSent("Beatrice gets it first. Diane (HR) checks your balance after she approves.");
+    });
   };
 
   const cancel = (q: StaffRequest) => {
     setJustSent("");
-    setRequests((rs) =>
-      rs.map((x) => (x.id === q.id ? { ...x, status: "cancelled", steps: "You cancelled this request" } : x)),
-    );
-    if (q.shift) {
-      const shiftId = q.shift;
-      setSwapped((s) => {
-        const nextSwapped = { ...s };
-        delete nextSwapped[shiftId];
-        return nextSwapped;
-      });
-    }
+    startTransition(async () => {
+      reported(await cancelRequestAction(q.id));
+    });
   };
 
   return (
@@ -220,7 +228,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
               </Button>
               <div className="flex flex-col items-center">
                 <span className="font-semibold">{week === 0 ? "This week" : "Next week"}</span>
-                <span className="text-xs text-muted">{week === 0 ? "12 – 18 October" : "19 – 25 October"}</span>
+                <span className="text-xs text-muted">{weekLabel}</span>
               </div>
               <Button
                 variant="ghost"
@@ -393,11 +401,11 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-[8px]">
-                <TextField defaultValue={draft.from} fullWidth className="flex flex-col gap-1">
+                <TextField value={from} onChange={setFrom} fullWidth className="flex flex-col gap-1">
                   <Label>From</Label>
                   <Input className="min-h-11" />
                 </TextField>
-                <TextField defaultValue={draft.to} fullWidth className="flex flex-col gap-1">
+                <TextField value={to} onChange={setTo} fullWidth className="flex flex-col gap-1">
                   <Label>To</Label>
                   <Input className="min-h-11" />
                 </TextField>
@@ -439,7 +447,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                 <CircleInfo className="mt-[1px] size-4 shrink-0" aria-hidden="true" />
                 <span>{draft.busyDates}</span>
               </p>
-              <Button size="lg" fullWidth className="min-h-14" onPress={sendLeave}>
+              <Button size="lg" fullWidth className="min-h-14" isDisabled={pending} onPress={sendLeave}>
                 <PaperPlane className="size-4" />
                 Send leave request
               </Button>
@@ -489,7 +497,12 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                     <span>{q.steps}</span>
                   </p>
                   {s.canCancel ? (
-                    <Button variant="ghost" className="min-h-11 self-start" onPress={() => cancel(q)}>
+                    <Button
+                      variant="ghost"
+                      className="min-h-11 self-start"
+                      isDisabled={pending}
+                      onPress={() => cancel(q)}
+                    >
                       Cancel request
                     </Button>
                   ) : null}

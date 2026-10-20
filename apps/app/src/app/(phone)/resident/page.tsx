@@ -8,11 +8,11 @@ import type {
   Tenancy,
   ThreadMessage,
 } from "@injishi/data/fixtures/resident";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TenantHomeView } from "@/features/resident/TenantHomeView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.TenantHome.pageTitle };
 

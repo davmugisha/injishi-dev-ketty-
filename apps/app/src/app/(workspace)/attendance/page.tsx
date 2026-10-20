@@ -6,10 +6,11 @@ import type {
   ClockRecord,
   DeskEmployee,
 } from "@injishi/data/fixtures/people";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AttendanceView } from "@/features/people/AttendanceView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, requestContext } from "@/server/data";
+import { clock } from "@/server/format";
 
 export const metadata: Metadata = { title: screens.Attendance.pageTitle };
 
@@ -27,6 +28,7 @@ export default async function AttendancePage({
     getCollection<AttendanceSummary>("people.attendanceSummary"),
   ]);
   const { day, tab } = await searchParams;
+  const { today } = await requestContext();
   return (
     <AttendanceView
       persona={persona}
@@ -35,6 +37,8 @@ export default async function AttendancePage({
         day: day === "yesterday" ? "yesterday" : "today",
         tab: tab === "exceptions" ? "exceptions" : "records",
       }}
+      today={today.iso}
+      now={clock(new Date())}
     />
   );
 }

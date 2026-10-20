@@ -7,11 +7,11 @@ import type {
   ServiceStatus,
   SupportBusiness,
 } from "@injishi/data/fixtures/public";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { demoLinks, visitorOf } from "@/features/public/links";
 import { PublicHelpView } from "@/features/public/PublicHelpView";
 import { requireScreen } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.PublicHelp.pageTitle };
 

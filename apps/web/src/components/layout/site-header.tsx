@@ -105,6 +105,10 @@ export function SiteHeader() {
    *  background, and white content on it is invisible. */
   const onPhoto = !isWhite && !scrolled && !menuOpen;
   const content = onPhoto ? "text-white" : "text-foreground";
+  /** `/host` is the listing page. Sign In and List Accommodation are one pair:
+   *  they show and hide together, and Sign In is a white pill while the bar
+   *  rests on the photograph. */
+  const onHost = pathname === "/host";
 
   return (
     <>
@@ -239,12 +243,19 @@ export function SiteHeader() {
                     /sign-in, so the bar looked identical before and after a
                     successful sign-in — `account-menu.tsx` says why that is
                     worse than it sounds and what each session state renders. */}
-                <AccountMenu className={cn(content, "max-lg:hidden")} />
+                <AccountMenu
+                  onPhoto={onHost && onPhoto}
+                  className={cn(
+                    onHost && onPhoto ? undefined : content,
+                    onHost ? "max-md:hidden" : "max-lg:hidden",
+                  )}
+                />
 
                 {/* Below `md` the menu carries this same action at full width,
                     so a second, abbreviated copy in the bar is one control
                     named two ways. The bar keeps the wordmark, language, search
-                    and the menu trigger, and nothing else. */}
+                    and the menu trigger, and nothing else. On `/host` Sign In
+                    uses the same breakpoint, so the pair is never split. */}
                 <HostCta className="max-md:hidden" />
 
                 <MobileNav inkTrigger={!onPhoto} onOpenChange={setMenuOpen} />

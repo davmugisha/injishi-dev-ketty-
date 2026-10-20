@@ -4,6 +4,10 @@ import {
   LOCKED_PERMISSIONS,
   ORG_ROLE_LABEL,
   OrgRole,
+  PERMISSION_AREA,
+  PERMISSION_AREA_LABEL,
+  PERMISSION_AREA_OF,
+  PERMISSION_LABEL,
   Permission,
   type OperatorRoleList,
   type OperatorRolePermissions,
@@ -84,6 +88,13 @@ export class RolePermissionsService {
       roles: OrgRole.options.map((role) =>
         this.present(role, parsed, counts[role] ?? 0),
       ),
+      areas: PERMISSION_AREA.options.map((area) => ({
+        area,
+        label: PERMISSION_AREA_LABEL[area],
+        permissions: Permission.options
+          .filter((p) => PERMISSION_AREA_OF[p] === area)
+          .map((permission) => ({ permission, label: PERMISSION_LABEL[permission] })),
+      })),
     };
   }
 

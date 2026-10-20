@@ -12,11 +12,11 @@ import type {
   PayRunStep,
   PayRunTotal,
 } from "@injishi/data/fixtures/payroll";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PayRunView } from "@/features/payroll/PayRunView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.PayRun.pageTitle };
 

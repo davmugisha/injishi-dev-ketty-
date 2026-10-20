@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { AccessReview, Broker, RoleFamily, StaffMember } from "@injishi/data/fixtures/platformops";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AdminPeopleView } from "@/features/platformops/AdminPeopleView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AdminPeople.pageTitle };
 

@@ -246,6 +246,14 @@ export const OrgCertificateKind = z.enum([
     "fire_safety",
     "health_inspection",
     "other",
+    // The registration artboard's own rows (Register.dc.html, 2026-10-19): the
+    // RDB certificate a hospitality business is asked for, its PSF certificate,
+    // and the land title a residence is asked for. Each used to arrive as
+    // `other` with the name typed by hand, which filed the one document an
+    // officer looks for first under a free-text label.
+    "rdb_certificate",
+    "psf_certificate",
+    "land_title",
 ]);
 export type OrgCertificateKind = z.infer<typeof OrgCertificateKind>;
 /** What each kind is called on screen, wherever a document is listed. */
@@ -256,6 +264,9 @@ export const ORG_CERTIFICATE_KIND_LABEL: Readonly<Record<OrgCertificateKind, str
     fire_safety: "Fire safety certificate",
     health_inspection: "Health inspection",
     other: "Other document",
+    rdb_certificate: "RDB certificate",
+    psf_certificate: "PSF certificate",
+    land_title: "Land title",
 };
 export const CertificateInput = z.object({
     kind: OrgCertificateKind,
@@ -1201,4 +1212,7 @@ export const CERTIFICATE_KIND_LABEL: Readonly<Record<CertificateInput["kind"], s
     fire_safety: "Fire safety certificate",
     health_inspection: "Health inspection certificate",
     other: "Another document",
+    rdb_certificate: "RDB certificate",
+    psf_certificate: "PSF certificate",
+    land_title: "Land title",
 };

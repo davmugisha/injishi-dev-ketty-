@@ -1,5 +1,8 @@
 import {
   AssignRoomRequest,
+  type BookingCancellationResult,
+  CancelReservationRequest,
+  MarkNoShowRequest,
   type OperatorReservation,
   type OperatorReservationList,
   OperatorReservationQuery,
@@ -150,6 +153,48 @@ export class OpsReservationsController {
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorReservation> {
     return this.reservations.decline(workspace, id);
+  }
+
+  /**
+   * The guest asked to cancel, and the desk does it for them (interface
+   * real-data, frontdesk leaf).
+   *
+   * `reservation.approve`, like approve, decline and the host's cancel. The
+   * refund is the tier the booking locked, the same a guest gets cancelling in
+   * their own app; the property cancelling for its own reasons is
+   * `POST /bookings/:id/host-cancel`, which refunds in full. A money command:
+   * the refund key is derived from the capture, so a retried press replays at
+   * the provider rather than paying twice, and a second record answers 409.
+   */
+  @Post(':id/cancel')
+  @RequirePermission('reservation.approve')
+  cancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(CancelReservationRequest.default({}))) body: CancelReservationRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<BookingCancellationResult> {
+    return this.reservations.cancelAtGuestRequest(workspace, id, body);
+  }
+
+  /**
+   * The guest never came: record a no-show (interface real-data, frontdesk leaf).
+   *
+   * `reservation.approve`, the permission cancel, approve and decline carry,
+   * because it is the same authority over the same booking and it moves the
+   * same money: the tier the booking locked decides what the guest gets back,
+   * exactly as if they had cancelled after check-in time. Refused for a
+   * request, a booking somebody checked in against, and one not yet due.
+   * The body is optional; the reason is the desk's own words.
+   */
+  @Post(':id/no-show')
+  @RequirePermission('reservation.approve')
+  noShow(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(MarkNoShowRequest.default({}))) body: MarkNoShowRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<OperatorReservation> {
+    return this.reservations.markNoShow(workspace, id, body, user.id);
   }
 
   /**

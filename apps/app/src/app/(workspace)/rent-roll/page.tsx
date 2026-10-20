@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { LandlordPayout, RentKpi, RentLedger, RentRollRow } from "@injishi/data/fixtures/residence";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { RentRollView } from "@/features/residence/RentRollView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.RentRoll.pageTitle };
 

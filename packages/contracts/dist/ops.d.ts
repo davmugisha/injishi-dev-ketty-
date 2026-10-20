@@ -1186,7 +1186,7 @@ export declare const SendMessageRequest: z.ZodObject<{
 }>;
 export type SendMessageRequest = z.infer<typeof SendMessageRequest>;
 /** What a work order is about. */
-export declare const MaintenanceCategory: z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other"]>;
+export declare const MaintenanceCategory: z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>;
 export type MaintenanceCategory = z.infer<typeof MaintenanceCategory>;
 export declare const MaintenancePriority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
 export type MaintenancePriority = z.infer<typeof MaintenancePriority>;
@@ -1211,7 +1211,7 @@ export declare const OperatorTicket: z.ZodObject<{
     raisedByName: z.ZodNullable<z.ZodString>;
     title: z.ZodString;
     description: z.ZodNullable<z.ZodString>;
-    category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other"]>>;
+    category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
     priority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
     status: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
     resolvedAt: z.ZodNullable<z.ZodString>;
@@ -1222,7 +1222,7 @@ export declare const OperatorTicket: z.ZodObject<{
     id: string;
     title: string;
     createdAt: string;
-    category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+    category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     resolvedAt: string | null;
     roomId: string | null;
     leaseId: string | null;
@@ -1236,7 +1236,7 @@ export declare const OperatorTicket: z.ZodObject<{
     id: string;
     title: string;
     createdAt: string;
-    category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+    category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     resolvedAt: string | null;
     roomId: string | null;
     leaseId: string | null;
@@ -1257,7 +1257,7 @@ export declare const OperatorTicketList: z.ZodObject<{
         raisedByName: z.ZodNullable<z.ZodString>;
         title: z.ZodString;
         description: z.ZodNullable<z.ZodString>;
-        category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other"]>>;
+        category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
         priority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
         status: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
         resolvedAt: z.ZodNullable<z.ZodString>;
@@ -1268,7 +1268,7 @@ export declare const OperatorTicketList: z.ZodObject<{
         id: string;
         title: string;
         createdAt: string;
-        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         resolvedAt: string | null;
         roomId: string | null;
         leaseId: string | null;
@@ -1282,7 +1282,7 @@ export declare const OperatorTicketList: z.ZodObject<{
         id: string;
         title: string;
         createdAt: string;
-        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         resolvedAt: string | null;
         roomId: string | null;
         leaseId: string | null;
@@ -1298,7 +1298,7 @@ export declare const OperatorTicketList: z.ZodObject<{
         id: string;
         title: string;
         createdAt: string;
-        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         resolvedAt: string | null;
         roomId: string | null;
         leaseId: string | null;
@@ -1314,7 +1314,7 @@ export declare const OperatorTicketList: z.ZodObject<{
         id: string;
         title: string;
         createdAt: string;
-        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
+        category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         resolvedAt: string | null;
         roomId: string | null;
         leaseId: string | null;
@@ -3334,6 +3334,12 @@ export declare const OperatorTeamMember: z.ZodObject<{
      * limited to stay listed, so the screen can say why one reads as retired.
      */
     branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
+    /** The last time any of their sessions was used, or null when they never signed in. */
+    lastActiveAt: z.ZodNullable<z.ZodString>;
+    /** When a removed member was taken off the business; null while active. */
+    removedAt: z.ZodNullable<z.ZodString>;
+    /** Their identity is verified (KYC), which an ownership transfer will ask for. */
+    identityVerified: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     status: string;
     name: string | null;
@@ -3341,7 +3347,10 @@ export declare const OperatorTeamMember: z.ZodObject<{
     userId: string;
     orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     joinedAt: string;
+    removedAt: string | null;
     branchIds: string[] | null;
+    lastActiveAt: string | null;
+    identityVerified: boolean;
 }, {
     status: string;
     name: string | null;
@@ -3349,7 +3358,10 @@ export declare const OperatorTeamMember: z.ZodObject<{
     userId: string;
     orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     joinedAt: string;
+    removedAt: string | null;
     branchIds: string[] | null;
+    lastActiveAt: string | null;
+    identityVerified: boolean;
 }>;
 export type OperatorTeamMember = z.infer<typeof OperatorTeamMember>;
 /**
@@ -3394,6 +3406,12 @@ export declare const OperatorTeamList: z.ZodObject<{
          * limited to stay listed, so the screen can say why one reads as retired.
          */
         branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
+        /** The last time any of their sessions was used, or null when they never signed in. */
+        lastActiveAt: z.ZodNullable<z.ZodString>;
+        /** When a removed member was taken off the business; null while active. */
+        removedAt: z.ZodNullable<z.ZodString>;
+        /** Their identity is verified (KYC), which an ownership transfer will ask for. */
+        identityVerified: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         status: string;
         name: string | null;
@@ -3401,7 +3419,10 @@ export declare const OperatorTeamList: z.ZodObject<{
         userId: string;
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
+        removedAt: string | null;
         branchIds: string[] | null;
+        lastActiveAt: string | null;
+        identityVerified: boolean;
     }, {
         status: string;
         name: string | null;
@@ -3409,7 +3430,10 @@ export declare const OperatorTeamList: z.ZodObject<{
         userId: string;
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
+        removedAt: string | null;
         branchIds: string[] | null;
+        lastActiveAt: string | null;
+        identityVerified: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     members: {
@@ -3419,7 +3443,10 @@ export declare const OperatorTeamList: z.ZodObject<{
         userId: string;
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
+        removedAt: string | null;
         branchIds: string[] | null;
+        lastActiveAt: string | null;
+        identityVerified: boolean;
     }[];
 }, {
     members: {
@@ -3429,7 +3456,10 @@ export declare const OperatorTeamList: z.ZodObject<{
         userId: string;
         orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
         joinedAt: string;
+        removedAt: string | null;
         branchIds: string[] | null;
+        lastActiveAt: string | null;
+        identityVerified: boolean;
     }[];
 }>;
 export type OperatorTeamList = z.infer<typeof OperatorTeamList>;
@@ -3445,6 +3475,8 @@ export type InvitableOrgRole = z.infer<typeof InvitableOrgRole>;
 /** What a role is called on screens and in the invitation mail. */
 export declare const ORG_ROLE_LABEL: Readonly<Record<OrgRole, string>>;
 export declare const InviteStaffRequest: z.ZodObject<{
+    /** The person's name as the inviter typed it, shown on the Team screen until they accept. */
+    name: z.ZodOptional<z.ZodString>;
     email: z.ZodString;
     orgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper"]>;
     /** The branches the invitee will cover; absent or null is every branch (ADR-054). */
@@ -3453,12 +3485,34 @@ export declare const InviteStaffRequest: z.ZodObject<{
     email: string;
     orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
     branchIds: string[] | null;
+    name?: string | undefined;
 }, {
     email: string;
     orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    name?: string | undefined;
     branchIds?: string[] | null | undefined;
 }>;
 export type InviteStaffRequest = z.infer<typeof InviteStaffRequest>;
+/**
+ * `PATCH /api/v1/ops/team/:userId/role`: move a member to another staff role.
+ *
+ * `InvitableOrgRole` refuses `owner` on the way in, and the service refuses a
+ * member who IS the owner on the way out: ownership changes hands through the
+ * owner claim, which checks an identity document, never through this.
+ */
+export declare const ChangeMemberRoleRequest: z.ZodObject<{
+    orgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper"]>;
+}, "strip", z.ZodTypeAny, {
+    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+}, {
+    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+}>;
+export type ChangeMemberRoleRequest = z.infer<typeof ChangeMemberRoleRequest>;
+/** The words a role change refusal carries, one per rule. */
+export declare const MEMBER_ROLE_REFUSAL: {
+    readonly owner: "An owner's role changes only through an ownership transfer.";
+    readonly same: "This member already holds that role.";
+};
 export declare const StaffInvitationStatus: z.ZodEnum<["sent", "accepted", "revoked", "expired"]>;
 export type StaffInvitationStatus = z.infer<typeof StaffInvitationStatus>;
 /**
@@ -3478,8 +3532,11 @@ export declare const OperatorStaffInvitation: z.ZodObject<{
     createdAt: z.ZodString;
     /** The branches the invitee will cover; null is every branch (ADR-054). */
     branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
+    /** The name the inviter typed, or null for an invitation sent with an address only. */
+    name: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: "expired" | "sent" | "accepted" | "revoked";
+    name: string | null;
     email: string;
     id: string;
     createdAt: string;
@@ -3488,6 +3545,7 @@ export declare const OperatorStaffInvitation: z.ZodObject<{
     branchIds: string[] | null;
 }, {
     status: "expired" | "sent" | "accepted" | "revoked";
+    name: string | null;
     email: string;
     id: string;
     createdAt: string;
@@ -3507,8 +3565,11 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         createdAt: z.ZodString;
         /** The branches the invitee will cover; null is every branch (ADR-054). */
         branchIds: z.ZodNullable<z.ZodArray<z.ZodString, "many">>;
+        /** The name the inviter typed, or null for an invitation sent with an address only. */
+        name: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         status: "expired" | "sent" | "accepted" | "revoked";
+        name: string | null;
         email: string;
         id: string;
         createdAt: string;
@@ -3517,6 +3578,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         branchIds: string[] | null;
     }, {
         status: "expired" | "sent" | "accepted" | "revoked";
+        name: string | null;
         email: string;
         id: string;
         createdAt: string;
@@ -3527,6 +3589,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     invitations: {
         status: "expired" | "sent" | "accepted" | "revoked";
+        name: string | null;
         email: string;
         id: string;
         createdAt: string;
@@ -3537,6 +3600,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
 }, {
     invitations: {
         status: "expired" | "sent" | "accepted" | "revoked";
+        name: string | null;
         email: string;
         id: string;
         createdAt: string;
@@ -3591,14 +3655,14 @@ export type HousekeepingTaskType = z.infer<typeof HousekeepingTaskType>;
  * `pending -> in_progress -> done -> inspected`, and any state to `blocked`
  * (it needs maintenance first) and back to `pending`.
  */
-export declare const HousekeepingTaskStatus: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked"]>;
+export declare const HousekeepingTaskStatus: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked", "failed"]>;
 export type HousekeepingTaskStatus = z.infer<typeof HousekeepingTaskStatus>;
 export declare const OperatorHousekeepingTask: z.ZodObject<{
     id: z.ZodString;
     roomId: z.ZodString;
     roomLabel: z.ZodNullable<z.ZodString>;
     taskType: z.ZodEnum<["checkout_clean", "stayover_clean", "inspection", "deep_clean", "turndown"]>;
-    status: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked"]>;
+    status: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked", "failed"]>;
     assignedToUserId: z.ZodNullable<z.ZodString>;
     assignedToName: z.ZodNullable<z.ZodString>;
     priority: z.ZodNumber;
@@ -3607,7 +3671,7 @@ export declare const OperatorHousekeepingTask: z.ZodObject<{
     completedAt: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+    status: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
     id: string;
     note: string | null;
     createdAt: string;
@@ -3620,7 +3684,7 @@ export declare const OperatorHousekeepingTask: z.ZodObject<{
     startedAt: string | null;
     completedAt: string | null;
 }, {
-    status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+    status: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
     id: string;
     note: string | null;
     createdAt: string;
@@ -3640,7 +3704,7 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
         roomId: z.ZodString;
         roomLabel: z.ZodNullable<z.ZodString>;
         taskType: z.ZodEnum<["checkout_clean", "stayover_clean", "inspection", "deep_clean", "turndown"]>;
-        status: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked"]>;
+        status: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked", "failed"]>;
         assignedToUserId: z.ZodNullable<z.ZodString>;
         assignedToName: z.ZodNullable<z.ZodString>;
         priority: z.ZodNumber;
@@ -3649,7 +3713,7 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
         completedAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+        status: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
         id: string;
         note: string | null;
         createdAt: string;
@@ -3662,7 +3726,7 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
         startedAt: string | null;
         completedAt: string | null;
     }, {
-        status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+        status: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
         id: string;
         note: string | null;
         createdAt: string;
@@ -3677,7 +3741,7 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     tasks: {
-        status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+        status: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
         id: string;
         note: string | null;
         createdAt: string;
@@ -3692,7 +3756,7 @@ export declare const OperatorHousekeepingTaskList: z.ZodObject<{
     }[];
 }, {
     tasks: {
-        status: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+        status: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
         id: string;
         note: string | null;
         createdAt: string;
@@ -3714,18 +3778,26 @@ export declare const CreateHousekeepingTaskRequest: z.ZodObject<{
     assignedToUserId: z.ZodOptional<z.ZodString>;
     priority: z.ZodOptional<z.ZodNumber>;
     note: z.ZodOptional<z.ZodString>;
+    /** When the room has to be ready (an instant). */
+    dueAt: z.ZodOptional<z.ZodString>;
+    /** How long the work takes, for the attendant's load against their shift. */
+    estimatedMinutes: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     roomId: string;
     taskType: "checkout_clean" | "stayover_clean" | "inspection" | "deep_clean" | "turndown";
     note?: string | undefined;
     priority?: number | undefined;
     assignedToUserId?: string | undefined;
+    dueAt?: string | undefined;
+    estimatedMinutes?: number | undefined;
 }, {
     roomId: string;
     taskType: "checkout_clean" | "stayover_clean" | "inspection" | "deep_clean" | "turndown";
     note?: string | undefined;
     priority?: number | undefined;
     assignedToUserId?: string | undefined;
+    dueAt?: string | undefined;
+    estimatedMinutes?: number | undefined;
 }>;
 export type CreateHousekeepingTaskRequest = z.infer<typeof CreateHousekeepingTaskRequest>;
 /**
@@ -3736,13 +3808,13 @@ export type CreateHousekeepingTaskRequest = z.infer<typeof CreateHousekeepingTas
  * first and not the second.
  */
 export declare const AdvanceHousekeepingTaskRequest: z.ZodObject<{
-    to: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked"]>;
+    to: z.ZodEnum<["pending", "in_progress", "done", "inspected", "blocked", "failed"]>;
     note: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    to: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+    to: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
     note?: string | undefined;
 }, {
-    to: "pending" | "inspected" | "in_progress" | "done" | "blocked";
+    to: "pending" | "failed" | "inspected" | "in_progress" | "done" | "blocked";
     note?: string | undefined;
 }>;
 export type AdvanceHousekeepingTaskRequest = z.infer<typeof AdvanceHousekeepingTaskRequest>;
@@ -3758,32 +3830,32 @@ export declare const RaiseTicketRequest: z.ZodEffects<z.ZodObject<{
     leaseId: z.ZodOptional<z.ZodString>;
     title: z.ZodString;
     description: z.ZodOptional<z.ZodString>;
-    category: z.ZodOptional<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other"]>>;
+    category: z.ZodOptional<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
     priority: z.ZodOptional<z.ZodEnum<["low", "normal", "high", "urgent"]>>;
 }, "strip", z.ZodTypeAny, {
     title: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
     description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }, {
     title: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
     description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }>, {
     title: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
     description?: string | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
 }, {
     title: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     roomId?: string | undefined;
     leaseId?: string | undefined;
     description?: string | undefined;

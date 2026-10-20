@@ -1,7 +1,10 @@
-/* Order matters: Tailwind → HeroUI OSS → HeroUI Pro → Injishi design system. */
+/* Order matters: Tailwind → HeroUI OSS → HeroUI Pro → mouve theme → Injishi
+   overrides. The theme import stays in this app. Its component layer is
+   document-global, so the shared override sheet never imports it. */
 @import "tailwindcss";
 @import "@heroui/styles";
 @import "@heroui-pro/react/css";
+@import "@heroui-pro/react/themes/mouve";
 @import "@injishi/ui/styles/injishi.css";
 
 /* Scan the shared UI kit for Tailwind classes. */

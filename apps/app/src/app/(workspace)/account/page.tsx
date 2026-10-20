@@ -12,10 +12,10 @@ import type {
   ProfileField,
   SignInMethod,
 } from "@injishi/data/fixtures/shared";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AccountView } from "@/features/shared/AccountView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Account.pageTitle };
 

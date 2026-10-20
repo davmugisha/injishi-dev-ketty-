@@ -6,11 +6,11 @@ import type {
   TeamRolesRole,
   TeamRolesScope,
 } from "@injishi/data/fixtures/owner";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TeamRolesView } from "@/features/owner/TeamRolesView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.TeamRoles.pageTitle };
 

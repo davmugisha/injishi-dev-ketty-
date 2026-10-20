@@ -217,6 +217,9 @@ export const genderEnum = pgEnum('gender', [
  * A list, not columns: the form offers "add other certificates", so the tail is
  * open and a column per certificate type would need a migration per form.
  */
+/** Whether a business document exists yet: asked of its issuer, or on file (Compliance → Licences). */
+export const orgCertificateStatusEnum = pgEnum('org_certificate_status', ['requested', 'on_file']);
+
 export const orgCertificateKindEnum = pgEnum('org_certificate_kind', [
   'rdb_grade',
   'tourism_license',
@@ -224,6 +227,11 @@ export const orgCertificateKindEnum = pgEnum('org_certificate_kind', [
   'fire_safety',
   'health_inspection',
   'other',
+  // The registration artboard's rows (2026-10-19): the RDB certificate, the
+  // PSF certificate, and a residence's land title.
+  'rdb_certificate',
+  'psf_certificate',
+  'land_title',
 ]);
 
 
@@ -478,6 +486,9 @@ export const maintenanceCategoryEnum = pgEnum('maintenance_category', [
   'it_tech',
   'safety',
   'other',
+  // A residence's repairs (real-data 1.3.1): locks, doors and windows; a repaint before letting.
+  'doors_windows',
+  'decoration',
 ]);
 
 export const maintenancePriorityEnum = pgEnum('maintenance_priority', [

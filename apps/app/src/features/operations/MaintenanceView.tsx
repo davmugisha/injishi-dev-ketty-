@@ -1,13 +1,12 @@
 "use client";
 
 import { BroomMotion, ChartLine, Comment, Database, Picture, Plus } from "@gravity-ui/icons";
-import { Button, Card, Checkbox, Chip, Input, Label, Table, TextArea, TextField } from "@heroui/react";
+import { Button, Card, Checkbox, Chip, Input, Label, Table, TextArea, TextField, Toast } from "@heroui/react";
 import { ListView, Segment } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
 import type {
   BlockState,
   ConditionSignal,
-  HistoryEvent,
   Severity,
   SignalReview,
   Tone,
@@ -15,18 +14,27 @@ import type {
 } from "@injishi/data/fixtures/operations";
 import { stock } from "@injishi/data/media";
 import { GateChip, LinkButton, PageContent, PageHeader, Photo, SectionHeader, StatusDot, toneColor } from "@injishi/ui";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import {
-  advance,
+  actOnSignalAction,
+  addWorkOrderNoteAction,
+  assignWorkOrderAction,
+  createWorkOrderAction,
+  decideRoomBlockAction,
+  dismissSignalAction,
+  releaseRoomAction,
+} from "./actions";
+import {
   FieldLabel,
   FooterHint,
   FormDialog,
   firstKey,
   HistoryTimeline,
-  NOW,
-  nextId,
+  kigaliClock,
+  reported,
   SelectField,
+  useKigaliNow,
 } from "./shared";
 
 export interface MaintenanceData {
@@ -62,16 +70,12 @@ type SignalState = "open" | "dismissing" | "created" | "dismissed";
 
 export function MaintenanceView({ persona, data }: { persona: Persona; data: MaintenanceData }) {
   const [selectedId, setSelectedId] = useState(data.workOrders[0]?.id ?? "");
-  const [decisions, setDecisions] = useState<Record<string, "approved" | "declined">>({});
-  const [owners, setOwners] = useState<Record<string, string>>({});
-  const [notes, setNotes] = useState<Record<string, HistoryEvent[]>>({});
   const [signalState, setSignalState] = useState<Record<string, SignalState>>({});
   const [signalReason, setSignalReason] = useState<Record<string, string>>({});
   const [reason, setReason] = useState<string | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
-  // Work orders raised on this screen.
-  const [created, setCreated] = useState<WorkOrder[]>([]);
+  const [pending, startTransition] = useTransition();
   const [newOpen, setNewOpen] = useState(false);
   const [newAsset, setNewAsset] = useState("");
   const [newTitle, setNewTitle] = useState("");
@@ -79,61 +83,29 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
   const [newSeverity, setNewSeverity] = useState<Severity>("Normal");
   const [newOwner, setNewOwner] = useState("none");
   const [newBlock, setNewBlock] = useState(false);
+  const now = useKigaliNow();
   const ownerOptions = [
     ...new Set(data.workOrders.flatMap((w) => [w.owner, w.suggestedOwner]).filter((o): o is string => Boolean(o))),
   ];
-  const technician = data.workOrders.find((w) => w.suggestedOwner)?.suggestedOwner ?? ownerOptions[0];
 
-  // Drafts created from condition signals on this screen go to the top of the list.
-  const drafts: WorkOrder[] = data.signals
-    .filter((g) => signalState[g.id] === "created" && g.draft)
-    .map((g): WorkOrder => {
-      const d = g.draft as WorkOrder;
-      return {
-        ...d,
-        reported: `${persona.name} · from signal ${g.rule} · 12 Oct ${NOW}`,
-        timeline: [
-          {
-            what: "Draft created from a condition signal",
-            who: `${persona.name} · ${NOW} · evidence attached`,
-            tone: "current",
-          },
-        ],
-      };
-    })
-    .reverse();
-
-  // Work orders with this screen's decisions applied (block approvals, assignments, notes).
-  const workOrders = [...created, ...drafts, ...data.workOrders].map((w) => {
-    const decision = decisions[w.id];
-    const outcome = decision && w.decision ? w.decision[decision] : null;
-    const owner = owners[w.id] ?? w.owner;
-    const assignedHere = !w.owner && owners[w.id];
-    // A decision or an assignment is the next step; a pending line shows what is still awaited.
-    const steps: HistoryEvent[] = outcome
-      ? advance(w.timeline, outcome.event)
-      : assignedHere
-        ? advance(w.timeline, { what: `Assigned to ${owner}`, who: `${persona.name} · ${NOW}`, tone: "current" })
-        : w.pending
-          ? [...w.timeline, w.pending]
-          : w.timeline;
-    const timeline: HistoryEvent[] = [...steps, ...(notes[w.id] ?? [])];
-    return {
-      ...w,
-      owner,
-      status: assignedHere ? "Assigned" : w.status,
-      block: (decision === "approved" ? "active" : decision === "declined" ? "declined" : w.block) as BlockState,
-      blockText: outcome?.blockText ?? w.blockText,
-      blockEffect: outcome?.blockEffect ?? w.blockEffect,
-      timeline,
-    };
-  });
+  // Work orders are the business's record (GET /ops/work-orders): approving a block, assigning, a
+  // note, a new order and acting on a signal are commands to the API, and the board re-reads after.
+  const workOrders = data.workOrders.map((w) => ({
+    ...w,
+    // A decision or an assignment still awaited shows as the timeline's last line.
+    timeline: w.pending ? [...w.timeline, w.pending] : w.timeline,
+  }));
   const wo = workOrders.find((w) => w.id === selectedId) ?? workOrders[0];
 
   const open = workOrders.filter((w) => !/^Done/.test(w.status));
   const urgent = open.filter((w) => w.severity === "Critical" || w.severity === "High").length;
   const outOfService = workOrders.filter((w) => w.block === "active").length;
   const summary = `${open.length} open work orders, ${urgent} urgent. ${outOfService} ${outOfService === 1 ? "room" : "rooms"} out of service.`;
+
+  const act = (run: () => Promise<{ ok: true } | { ok: false; error: string }>, then?: () => void) =>
+    startTransition(async () => {
+      if (reported(await run())) then?.();
+    });
 
   const select = (id: string) => {
     setSelectedId(id);
@@ -143,12 +115,13 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
   const saveNote = () => {
     const text = noteText.trim();
     if (!wo || !text) return;
-    setNotes((n) => ({
-      ...n,
-      [wo.id]: [...(n[wo.id] ?? []), { what: text, who: `Note · ${persona.name} · ${NOW}`, tone: "default" }],
-    }));
-    setNoteText("");
-    setNoteOpen(false);
+    act(
+      () => addWorkOrderNoteAction(wo.id, text),
+      () => {
+        setNoteText("");
+        setNoteOpen(false);
+      },
+    );
   };
   const openNew = () => {
     setNewAsset("");
@@ -160,76 +133,26 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
     setNewOpen(true);
   };
   const isRoom = /^room\s/i.test(newAsset.trim());
-  const canCreate = newAsset.trim().length > 0 && newTitle.trim().length > 0;
+  const canCreate = newAsset.trim().length > 0 && newTitle.trim().length > 0 && !pending;
   const createWorkOrder = () => {
     if (!canCreate) return;
-    const asset = newAsset.trim();
-    const title = newTitle.trim();
-    const owner = newOwner === "none" ? null : newOwner;
-    const block = isRoom && newBlock;
-    const by = `${persona.name} · ${NOW}`;
-    const id = nextId("WO-", [
-      ...workOrders.map((w) => w.id),
-      ...data.signals.flatMap((g) => (g.draft ? [g.draft.id] : [])),
-    ]);
-    const w: WorkOrder = {
-      id,
-      asset,
-      area: "",
-      title,
-      issue: newDetails.trim() || title,
-      severity: newSeverity,
-      owner,
-      suggestedOwner: technician,
-      status: owner ? "Assigned" : "Open",
-      block: block ? "requested" : isRoom ? "none" : "na",
-      blockText: block ? "Requested from today" : isRoom ? "None" : "Not a room",
-      blockEffect: block
-        ? `${asset} is still on sale. Approving removes it from sale on every channel until the work is closed and inspected.`
-        : isRoom
-          ? "No block. A block can be requested if the work needs the room empty."
-          : "Not a room; nothing is taken off sale.",
-      reported: `${persona.name} · 12 Oct ${NOW}`,
-      photos: [],
-      parts: [],
-      timeline: [
-        { what: "Reported", who: `${persona.name} · 12 Oct ${NOW}`, tone: "warning" },
-        ...(owner ? [{ what: `Assigned to ${owner}`, who: by, tone: "current" as const }] : []),
-      ],
-      pending: !owner
-        ? {
-            what: "Not assigned yet",
-            who: `${newSeverity} severity: ${DUE_WITHIN[newSeverity]}`,
-            tone: newSeverity === "Critical" || newSeverity === "High" ? "danger" : "warning",
-          }
-        : block
-          ? { what: "Waiting for your decision", who: "Blocks need a manager’s approval", tone: "default" }
-          : undefined,
-      decision: block
-        ? {
-            approved: {
-              blockText: `12 Oct ${NOW} → until released`,
-              blockEffect:
-                "Removed from sale on every channel at 12:20. Release after the repair and a passed housekeeping inspection.",
-              event: { what: "Block approved, room off sale", who: by, tone: "danger" },
-            },
-            declined: {
-              blockText: "Declined · room stays on sale",
-              blockEffect: `Declined by ${persona.name} at ${NOW}: the room stays on sale while the work is done.`,
-              event: { what: "Block declined", who: by, tone: "default" },
-            },
-          }
-        : undefined,
-      releaseNote: "",
-    };
-    setCreated((c) => [w, ...c]);
-    setNewOpen(false);
-    select(w.id);
+    startTransition(async () => {
+      const result = await createWorkOrderAction({
+        asset: newAsset.trim(),
+        title: newTitle.trim(),
+        details: newDetails.trim() || undefined,
+        severity: newSeverity,
+        owner: newOwner === "none" ? null : newOwner,
+        requestBlock: isRoom && newBlock,
+      });
+      if (!reported(result)) return;
+      setNewOpen(false);
+      if (result.ok) select(result.value);
+    });
   };
   const releaseNote = wo
     ? wo.releaseNote || (wo.block === "active" ? "" : "Release applies only to blocked rooms.")
     : "";
-
   return (
     <PageContent>
       <TopbarStatus
@@ -387,13 +310,18 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
               <span className="text-[12px] leading-4 text-muted">{wo.blockEffect}</span>
               {wo.block === "requested" && wo.decision ? (
                 <div className="mt-1 flex gap-2">
-                  <Button size="sm" onPress={() => setDecisions((d) => ({ ...d, [wo.id]: "approved" }))}>
+                  <Button
+                    size="sm"
+                    isDisabled={pending}
+                    onPress={() => act(() => decideRoomBlockAction(wo.id, "approve"))}
+                  >
                     Approve block
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    onPress={() => setDecisions((d) => ({ ...d, [wo.id]: "declined" }))}
+                    isDisabled={pending}
+                    onPress={() => act(() => decideRoomBlockAction(wo.id, "decline"))}
                   >
                     Decline
                   </Button>
@@ -446,11 +374,18 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
 
             <div className="flex flex-wrap items-center gap-2 border-t border-separator pt-3">
               {!wo.owner && wo.suggestedOwner ? (
-                <Button onPress={() => setOwners((o) => ({ ...o, [wo.id]: wo.suggestedOwner as string }))}>
+                <Button
+                  isDisabled={pending}
+                  onPress={() => act(() => assignWorkOrderAction(wo.id, wo.suggestedOwner as string))}
+                >
                   Assign to {wo.suggestedOwner}
                 </Button>
               ) : null}
-              <Button variant="secondary" isDisabled>
+              <Button
+                variant="secondary"
+                isDisabled={wo.block !== "active" || pending}
+                onPress={() => act(() => releaseRoomAction(wo.id))}
+              >
                 Release room
               </Button>
               {noteOpen ? (
@@ -532,11 +467,15 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
                     <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
-                        isDisabled={!g.draft}
-                        onPress={() => {
-                          setSignalState((s) => ({ ...s, [g.id]: "created" }));
-                          if (g.draft) select(g.draft.id);
-                        }}
+                        isDisabled={!g.draft || pending}
+                        onPress={() =>
+                          startTransition(async () => {
+                            const result = await actOnSignalAction(g.id);
+                            if (!reported(result)) return;
+                            setSignalState((s) => ({ ...s, [g.id]: "created" }));
+                            if (result.ok && result.value) select(result.value);
+                          })
+                        }
                       >
                         Create work order
                       </Button>
@@ -572,11 +511,16 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
                         <Button
                           size="sm"
                           variant="danger-soft"
-                          isDisabled={!reason}
+                          isDisabled={!reason || pending}
                           onPress={() => {
                             if (!reason) return;
-                            setSignalReason((r) => ({ ...r, [g.id]: reason }));
-                            setSignalState((s) => ({ ...s, [g.id]: "dismissed" }));
+                            act(
+                              () => dismissSignalAction(g.id, reason),
+                              () => {
+                                setSignalReason((r) => ({ ...r, [g.id]: reason }));
+                                setSignalState((s) => ({ ...s, [g.id]: "dismissed" }));
+                              },
+                            );
                           }}
                         >
                           Dismiss signal
@@ -597,7 +541,7 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
                         {st === "created" ? `Work order ${g.draft?.id ?? ""} drafted` : "Dismissed"}
                       </Chip>
                       <span className="text-muted">
-                        {persona.name} · {NOW} ·{" "}
+                        {persona.name} · {now ? kigaliClock(now) : ""} ·{" "}
                         {st === "created" ? "assign an owner in the table" : `reason: ${signalReason[g.id] ?? ""}`}
                       </span>
                     </div>
@@ -692,6 +636,7 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
           </Checkbox.Content>
         </Checkbox>
       </FormDialog>
+      <Toast.Provider placement="bottom" />
     </PageContent>
   );
 }

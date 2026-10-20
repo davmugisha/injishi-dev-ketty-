@@ -888,6 +888,8 @@ export class BookingRepository {
     party: 'guest' | 'host';
     refundRwf: number;
     outcome: 'refunded_full' | 'refunded_partial' | 'forfeited';
+    /** The desk's words, when it cancelled at the guest's request. */
+    reason?: string | null;
   }): Promise<{ id: string; reference: string } | null> {
     return this.db.transaction(async (tx) => {
       const [updated] = await tx
@@ -898,6 +900,7 @@ export class BookingRepository {
           cancelledAt: new Date(),
           cancelledBy: input.party,
           refundRwf: input.refundRwf,
+          ...(input.reason ? { cancelReason: input.reason } : {}),
           updatedAt: new Date(),
         })
         .where(
@@ -919,6 +922,60 @@ export class BookingRepository {
             eq(escrows.status, 'held'),
           ),
         );
+      return updated;
+    });
+  }
+
+  /**
+   * Record a no-show the provider already settled, in ONE transaction: the
+   * booking and its escrow (`BookingCancellationService.markNoShow`).
+   *
+   * Guarded on the booking still being confirmed with no stay against it, so
+   * a check in racing the press, or a second press, records nothing and the
+   * caller answers 409. `outcome` is null for a booking that took no money:
+   * its payment status stays null and no escrow moves.
+   */
+  async recordNoShow(input: {
+    bookingId: string;
+    outcome: 'refunded_full' | 'refunded_partial' | 'forfeited' | null;
+    refundRwf: number | null;
+    reason: string | null;
+    byUserId: string;
+  }): Promise<{ id: string; reference: string } | null> {
+    return this.db.transaction(async (tx) => {
+      const now = new Date();
+      const [updated] = await tx
+        .update(bookings)
+        .set({
+          status: 'no_show',
+          ...(input.outcome ? { paymentStatus: input.outcome, refundRwf: input.refundRwf } : {}),
+          noShowAt: now,
+          noShowByUserId: input.byUserId,
+          noShowReason: input.reason,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(bookings.id, input.bookingId),
+            eq(bookings.status, 'confirmed'),
+            sql`NOT EXISTS (SELECT 1 FROM ${guestStays} gs WHERE gs.booking_id = ${bookings.id})`,
+          ),
+        )
+        .returning({ id: bookings.id, reference: bookings.reference });
+      if (!updated) return null;
+
+      if (input.outcome) {
+        await tx
+          .update(escrows)
+          .set({ status: input.outcome, updatedAt: now })
+          .where(
+            and(
+              eq(escrows.bookingId, input.bookingId),
+              eq(escrows.source, 'booking'),
+              eq(escrows.status, 'held'),
+            ),
+          );
+      }
       return updated;
     });
   }

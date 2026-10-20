@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { HelpdeskTicket, HrAutomation, HrReport, StaffAsset } from "@injishi/data/fixtures/payroll";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { StaffServicesView } from "@/features/payroll/StaffServicesView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.StaffServices.pageTitle };
 

@@ -9,11 +9,11 @@ import type {
   StaffRequest,
   SwapColleague,
 } from "@injishi/data/fixtures/staff";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { StaffScheduleView } from "@/features/staff/StaffScheduleView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.StaffSchedule.pageTitle };
 
@@ -27,7 +27,7 @@ export default async function StaffSchedulePage() {
       getCollection<SwapColleague>("staff.swapColleagues"),
       getCollection<StaffRequest>("staff.requests"),
       getCollection<LeaveType>("staff.leaveTypes"),
-      getDocument<LeaveBalance>("staff.leaveBalances", "housekeeper"),
+      getDocument<LeaveBalance>("staff.leaveBalances", persona.id),
       getCollection<LeaveApprover>("staff.leaveApprovers"),
       getDocument<LeaveDraft>("staff.leaveDrafts", "christmas"),
     ]);

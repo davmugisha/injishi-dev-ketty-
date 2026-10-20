@@ -2,7 +2,6 @@
 
 import { ArrowLeft, CircleInfo } from "@gravity-ui/icons";
 import { Alert, Button, Chip, Form, InputOTP, REGEXP_ONLY_DIGITS } from "@heroui/react";
-import { DEMO_OTP } from "@injishi/data";
 import { stock } from "@injishi/data/media";
 import { LinkButton, Photo, TextLink } from "@injishi/ui";
 import { useActionState, useEffect, useState, useTransition } from "react";
@@ -22,10 +21,23 @@ function useCountdown(seconds: number) {
   return left;
 }
 
-/** One-time-code step cloned from the legacy demo's /verify-otp page. The demo code is filled in. */
-export function VerifyView({ email, next, expiresIn }: { email: string; next: string; expiresIn: number }) {
+/**
+ * One-time-code step cloned from the legacy demo's /verify-otp page. On the demo stack the API accepts one
+ * fixed code, which is filled in and named; in production `demoCode` is null and the field starts empty.
+ */
+export function VerifyView({
+  email,
+  next,
+  expiresIn,
+  demoCode,
+}: {
+  email: string;
+  next: string;
+  expiresIn: number;
+  demoCode: string | null;
+}) {
   const [state, formAction, pending] = useActionState<VerifyState, FormData>(verifyCode, {});
-  const [code, setCode] = useState(DEMO_OTP);
+  const [code, setCode] = useState(demoCode ?? "");
   const expiry = useCountdown(expiresIn);
   const resend = useCountdown(30);
   const [resending, startResend] = useTransition();
@@ -74,17 +86,19 @@ export function VerifyView({ email, next, expiresIn }: { email: string; next: st
             </p>
           </div>
 
-          <Alert status="default">
-            <Alert.Indicator>
-              <CircleInfo />
-            </Alert.Indicator>
-            <Alert.Content>
-              <Alert.Description>
-                This is the Injishi demo, so every code is{" "}
-                <strong className="font-semibold text-foreground">123456</strong>. We’ve filled it in for you.
-              </Alert.Description>
-            </Alert.Content>
-          </Alert>
+          {demoCode ? (
+            <Alert status="default">
+              <Alert.Indicator>
+                <CircleInfo />
+              </Alert.Indicator>
+              <Alert.Content>
+                <Alert.Description>
+                  This is the Injishi demo, so every code is{" "}
+                  <strong className="font-semibold text-foreground">{demoCode}</strong>. We’ve filled it in for you.
+                </Alert.Description>
+              </Alert.Content>
+            </Alert>
+          ) : null}
 
           <Form action={formAction} className="flex flex-col gap-4" validationBehavior="aria">
             <input type="hidden" name="next" value={next} />

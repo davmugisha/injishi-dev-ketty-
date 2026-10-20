@@ -14,7 +14,7 @@ import {
   PaperPlane,
   Tray,
 } from "@gravity-ui/icons";
-import { Avatar, Button, Card, Chip, Label, SearchField, Separator, Toolbar } from "@heroui/react";
+import { Avatar, Button, Card, Chip, Label, SearchField, Separator, Toast, Toolbar, toast } from "@heroui/react";
 import {
   ChatConversation,
   ChatListView,
@@ -27,8 +27,9 @@ import {
 import { type Persona, screenHref } from "@injishi/data";
 import type { MessageChannel, MessageTemplate, MessageThread, ThreadMessage, Tone } from "@injishi/data/fixtures/stays";
 import { GateChip, Icon, LinkButton, PageContent, PageHeader } from "@injishi/ui";
-import { Fragment, useState } from "react";
+import { Fragment, useState, useTransition } from "react";
 import type { Selection } from "react-aria-components";
+import { replyToGuest } from "./actions";
 import { CardHeading, IconTile, SelectField, ToneChip } from "./parts";
 
 type Lang = "EN" | "RW" | "FR";
@@ -119,12 +120,19 @@ export function MessagesView({
   const [lang, setLang] = useState<Lang>("EN");
   const [chan, setChan] = useState<"app" | "sms">("app");
   const [draft, setDraft] = useState("");
-  const [sent, setSent] = useState<Record<string, ViewMessage[]>>({});
   const [retried, setRetried] = useState<Record<string, boolean>>({});
   const [assigned, setAssigned] = useState<Record<string, boolean>>({});
   const [esc, setEsc] = useState<Record<string, boolean>>({});
   const [dept, setDept] = useState<Record<string, string>>({});
+  const [sending, startSending] = useTransition();
   const you = `${persona.name} (you)`;
+  /** Today's date for the header, on the Kigali calendar. */
+  const todayLabel = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Kigali",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date());
 
   const all = threads.map((t) => ({
     ...t,
@@ -142,6 +150,26 @@ export function MessagesView({
       (!needle || `${t.name} ${t.ctx}`.toLowerCase().includes(needle)),
   );
   const cur = all.find((t) => t.id === sel) ?? all[0];
+  if (!cur) {
+    return (
+      <PageContent className="gap-3.5">
+        <PageHeader eyebrow={todayLabel} title="Guest Messages" />
+        <Card className="p-6">
+          <EmptyState>
+            <EmptyState.Header>
+              <EmptyState.Media variant="icon">
+                <Tray />
+              </EmptyState.Media>
+              <EmptyState.Title>No guest conversations yet</EmptyState.Title>
+              <EmptyState.Description>
+                Conversations appear here when a guest writes to the property.
+              </EmptyState.Description>
+            </EmptyState.Header>
+          </EmptyState>
+        </Card>
+      </PageContent>
+    );
+  }
   const escalatedText = cur.escalated ?? (esc[cur.id] ? "Escalated to Aline Uwase 10:52" : null);
   const closed = cur.closed;
   const smsOk = cur.channels.includes("sms");
@@ -159,27 +187,30 @@ export function MessagesView({
 
   const send = () => {
     const text = draft.trim();
-    if (!text || closed) return;
-    const m: ViewMessage = isNote
-      ? { t: "note", text, meta: `10:52 · ${persona.name}` }
-      : {
-          t: "staff",
-          text,
-          lang: LANG_CODE[lang],
-          meta: `10:52 · ${persona.name} · ${useSms ? "SMS" : CH_NAME[primary]}`,
-          delivery: [
-            useSms
-              ? { icon: "pending", text: "SMS accepted by MTN 10:52 · delivery report pending" }
-              : primary === "app"
-                ? { icon: "delivered", text: "Delivered in app 10:52 · not read yet" }
-                : { icon: "pending", text: "Email sent 10:52 · waiting for delivery report" },
-          ],
-        };
-    setSent({ ...sent, [cur.id]: [...(sent[cur.id] ?? []), m] });
-    setDraft("");
+    if (!text || closed || sending) return;
+    if (isNote) {
+      // Internal notes have no place on a conversation yet (the message body types are text, image, voice and system).
+      toast.warning("Internal notes are not saved yet. Nothing was sent to the guest.");
+      return;
+    }
+    if (useSms) {
+      toast.warning("SMS replies are not connected yet. Send it in the guest app instead.");
+      return;
+    }
+    const threadId = cur.id;
+    startSending(async () => {
+      const result = await replyToGuest(threadId, text);
+      if (!result.ok) {
+        toast.danger(`Not sent: ${result.error}`);
+        return;
+      }
+      // The conversation is read again from the API, the reply with it.
+      setDraft("");
+    });
   };
 
-  const messages: ViewMessage[] = [...cur.messages.map(toView), ...(sent[cur.id] ?? [])];
+  // Replies are read back from the API with the conversation, so nothing is kept only on this screen.
+  const messages: ViewMessage[] = cur.messages.map(toView);
   const preview = (t: MessageThread) =>
     [...t.messages].reverse().find((m) => m.t === "guest" || m.t === "staff") as
       | Extract<ThreadMessage, { text: string }>
@@ -187,8 +218,9 @@ export function MessagesView({
 
   return (
     <PageContent className="gap-3.5">
+      <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Monday 12 October · Isangano Lakeside Hotel"
+        eyebrow={`${todayLabel} · Isangano Lakeside Hotel`}
         title="Guest Messages"
         description="Booking threads before arrival, stay threads after check-in. Internal notes never reach the guest."
         actions={<ToneChip tone="default">First reply today · median 4 min</ToneChip>}
@@ -506,7 +538,7 @@ export function MessagesView({
                     {isNote || !smsOk ? (
                       <span className="text-[11px] text-muted">{isNote ? "Staff only" : "No SMS consent on file"}</span>
                     ) : null}
-                    <Button size="sm" isDisabled={!draft.trim() || closed} onPress={send}>
+                    <Button size="sm" isDisabled={!draft.trim() || closed || sending} onPress={send}>
                       <PaperPlane className="size-4" />
                       {isNote ? "Add note" : "Send"}
                     </Button>

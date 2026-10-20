@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { AccountingKpi, AgingBucket, ArAccount, BankTransfer } from "@injishi/data/fixtures/accounting";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { AccountsReceivableView } from "@/features/accounting/AccountsReceivableView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AccountsReceivable.pageTitle };
 

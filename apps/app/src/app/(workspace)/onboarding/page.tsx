@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { GoLiveGate, SetupItem } from "@injishi/data/fixtures/shared";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { OnboardingView } from "@/features/shared/OnboardingView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Onboarding.pageTitle };
 

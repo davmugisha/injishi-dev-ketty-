@@ -11,6 +11,9 @@ name: demo-recover
 #     commit on main whose push ci succeeded, so a red main never reaches the
 #     demo, as a red commit never reaches staging. A night with no new commit
 #     rebuilds the same one, which is what resets the demo's data.
+#   - workflow_dispatch with a `commit`: that commit, which must be on main.
+#     For when ci cannot run at all and the newest green commit is older than
+#     the demo's (2026-10-19: GitHub would not start hosted jobs for billing).
 #   - push, when THIS FILE changes on main: that commit, whose ci may still be
 #     running. It is how a change to this job proves itself.
 # Never on a pull request: scripts/check-workflow-triggers.mjs refuses that for
@@ -51,6 +54,17 @@ on:
   schedule:
     - cron: '0 1 * * *'
   workflow_dispatch:
+    inputs:
+      commit:
+        # For when ci cannot run at all, so main has no newest green commit
+        # newer than the demo's. On 2026-10-19 GitHub refused to START every
+        # hosted job ("recent account payments have failed"), the newest
+        # green commit was older than the demo's, and this job refused every
+        # night. A person names a commit; it must already be on main, and the
+        # never-backwards rule below still holds.
+        description: Optional. A commit on main to build instead of the newest one whose ci succeeded.
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -86,11 +100,24 @@ jobs:
         id: pick
         env:
           GH_TOKEN: ${{ github.token }}
+          # Through the environment, never spliced into the script.
+          REQUESTED: ${{ inputs.commit }}
         run: |
           set -euo pipefail
+          api() { curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/$1"; }
           if [ "$GITHUB_EVENT_NAME" = push ]; then
             sha="$GITHUB_SHA"
             echo "push: building the pushed commit $sha"
+          elif [ -n "${REQUESTED:-}" ]; then
+            [[ "$REQUESTED" =~ ^[0-9a-f]{7,40}$ ]] || { echo "::error::commit must be 7 to 40 hex characters"; exit 1; }
+            sha=$(api "commits/$REQUESTED" | sed -n 's/^  "sha": *"\([0-9a-f]\{40\}\)".*/\1/p' | head -1)
+            [ -n "$sha" ] || { echo "::error::no commit $REQUESTED in this repository"; exit 1; }
+            # main ahead of (or equal to) the commit means the commit is on main.
+            on_main=$(api "compare/$sha...main" | sed -n 's/^  "status": *"\([a-z]*\)".*/\1/p' | head -1)
+            case "$on_main" in
+              ahead|identical) echo "dispatch: building $sha, named by hand and on main" ;;
+              *) echo "::error::$sha is not on main (compare says '${on_main:-nothing}')"; exit 1 ;;
+            esac
           else
             # The newest push to main whose ci succeeded. Parsed with sed, not
             # jq: the host is not promised jq, and head_sha is a flat 40 hex.

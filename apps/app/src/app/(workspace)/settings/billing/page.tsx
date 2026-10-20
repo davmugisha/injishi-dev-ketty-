@@ -8,10 +8,10 @@ import type {
   PlanBillingOption,
   PlanBillingStep,
 } from "@injishi/data/fixtures/owner";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { PlanBillingView } from "@/features/owner/PlanBillingView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.PlanBilling.pageTitle };
 

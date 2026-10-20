@@ -503,6 +503,10 @@ export const MaintenanceCategory = z.enum([
     "it_tech",
     "safety",
     "other",
+    // A residence's repairs (real-data 1.3.1): a stiff lock or a broken window latch, and a repaint
+    // before a unit is let again. Extended, never narrowed.
+    "doors_windows",
+    "decoration",
 ]);
 export type MaintenanceCategory = z.infer<typeof MaintenanceCategory>;
 export const MaintenancePriority = z.enum(["low", "normal", "high", "urgent"]);
@@ -1202,6 +1206,12 @@ export const OperatorTeamMember = z.object({
      * limited to stay listed, so the screen can say why one reads as retired.
      */
     branchIds: z.array(Uuid).nullable(),
+    /** The last time any of their sessions was used, or null when they never signed in. */
+    lastActiveAt: z.string().nullable(),
+    /** When a removed member was taken off the business; null while active. */
+    removedAt: z.string().nullable(),
+    /** Their identity is verified (KYC), which an ownership transfer will ask for. */
+    identityVerified: z.boolean(),
 });
 export type OperatorTeamMember = z.infer<typeof OperatorTeamMember>;
 /**
@@ -1253,6 +1263,8 @@ export const ORG_ROLE_LABEL: Readonly<Record<OrgRole, string>> = {
     housekeeper: "Housekeeper",
 };
 export const InviteStaffRequest = z.object({
+    /** The person's name as the inviter typed it, shown on the Team screen until they accept. */
+    name: z.string().trim().min(1).max(120).optional(),
     email: z
         .string()
         .trim()
@@ -1264,6 +1276,22 @@ export const InviteStaffRequest = z.object({
     branchIds: MemberBranchIds.default(null),
 });
 export type InviteStaffRequest = z.infer<typeof InviteStaffRequest>;
+/**
+ * `PATCH /api/v1/ops/team/:userId/role`: move a member to another staff role.
+ *
+ * `InvitableOrgRole` refuses `owner` on the way in, and the service refuses a
+ * member who IS the owner on the way out: ownership changes hands through the
+ * owner claim, which checks an identity document, never through this.
+ */
+export const ChangeMemberRoleRequest = z.object({
+    orgRole: InvitableOrgRole,
+});
+export type ChangeMemberRoleRequest = z.infer<typeof ChangeMemberRoleRequest>;
+/** The words a role change refusal carries, one per rule. */
+export const MEMBER_ROLE_REFUSAL = {
+    owner: "An owner's role changes only through an ownership transfer.",
+    same: "This member already holds that role.",
+} as const;
 export const StaffInvitationStatus = z.enum(["sent", "accepted", "revoked", "expired"]);
 export type StaffInvitationStatus = z.infer<typeof StaffInvitationStatus>;
 /**
@@ -1283,6 +1311,8 @@ export const OperatorStaffInvitation = z.object({
     createdAt: z.string(),
     /** The branches the invitee will cover; null is every branch (ADR-054). */
     branchIds: z.array(Uuid).nullable(),
+    /** The name the inviter typed, or null for an invitation sent with an address only. */
+    name: z.string().nullable(),
 });
 export type OperatorStaffInvitation = z.infer<typeof OperatorStaffInvitation>;
 export const OperatorStaffInvitationList = z.object({
@@ -1329,6 +1359,11 @@ export const HousekeepingTaskStatus = z.enum([
     "done",
     "inspected",
     "blocked",
+    /**
+     * The clean did not pass inspection. Terminal: the room goes back on the board as a NEW task
+     * (a re-clean naming this one), so the record of who cleaned it, who failed it and why stays.
+     */
+    "failed",
 ]);
 export type HousekeepingTaskStatus = z.infer<typeof HousekeepingTaskStatus>;
 export const OperatorHousekeepingTask = z.object({
@@ -1357,6 +1392,10 @@ export const CreateHousekeepingTaskRequest = z.object({
     assignedToUserId: Uuid.optional(),
     priority: z.number().int().min(0).max(100).optional(),
     note: z.string().trim().max(500).optional(),
+    /** When the room has to be ready (an instant). */
+    dueAt: z.string().datetime({ offset: true }).optional(),
+    /** How long the work takes, for the attendant's load against their shift. */
+    estimatedMinutes: z.number().int().min(5).max(480).optional(),
 });
 export type CreateHousekeepingTaskRequest = z.infer<typeof CreateHousekeepingTaskRequest>;
 /**

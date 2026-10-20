@@ -41,5 +41,16 @@ export * from "./leave";
 export * from "./payroll-items";
 export * from "./payroll";
 export * from "./list-query";
+export * from "./owner";
 export * from "./hr-lists";
+export * from "./hr-workforce";
 export * from "./redaction";
+export * from "./housekeeping-board";
+export * from "./maintenance";
+export * from "./lost-found";
+// The front desk's day in one read, and the no-show command (interface real-data, frontdesk leaf).
+export * from "./front-desk";
+export * from "./marketplace";
+// The residence screens of the new interface (real-data 1.3.1).
+export * from "./interface-residence";
+export * from "./staff-phone";

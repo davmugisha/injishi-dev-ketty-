@@ -6,10 +6,10 @@ import type {
   SettingsBusinessProfile,
   SettingsBusinessUnit,
 } from "@injishi/data/fixtures/owner";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { SettingsBusinessView } from "@/features/owner/SettingsBusinessView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.SettingsBusiness.pageTitle };
 

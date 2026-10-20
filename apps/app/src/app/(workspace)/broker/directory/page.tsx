@@ -6,10 +6,10 @@ import type {
   CreditPack,
   DirectoryListing,
 } from "@injishi/data/fixtures/public";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { BrokerDirectoryView } from "@/features/public/BrokerDirectoryView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.BrokerDirectory.pageTitle };
 

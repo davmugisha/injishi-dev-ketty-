@@ -8,10 +8,10 @@ import type {
   ComplianceReportingGate,
   ComplianceSubmission,
 } from "@injishi/data/fixtures/owner";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { ComplianceView } from "@/features/owner/ComplianceView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Compliance.pageTitle };
 

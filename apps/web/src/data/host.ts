@@ -98,7 +98,7 @@ export const HOST_PROPERTY_KINDS: HostPropertyKind[] = CHOOSER.map(
  * one button, "Register your business". That button was the only way on, so
  * the page cost a screen and decided nothing. The wizard now takes the kind as
  * answered and opens on the first question it does not yet know
- * (`register/wizard-path.ts`), and `/host/start` redirects here for the links
+ * (`register/register-steps.ts`), and `/host/start` redirects here for the links
  * that still name it.
  *
  * A signed out visitor is sent to sign in by the register gate, and `/sign-in`

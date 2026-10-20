@@ -7,11 +7,11 @@ import type {
   LoyaltyTier,
   LoyaltyTransaction,
 } from "@injishi/data/fixtures/operations";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LoyaltyView } from "@/features/operations/LoyaltyView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Loyalty.pageTitle };
 

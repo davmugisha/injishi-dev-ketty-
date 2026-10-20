@@ -226,6 +226,14 @@ export const AttendanceRequest = z.object({
     decisionNote: z.string().nullable(),
     resultRecordId: Uuid.nullable(),
     createdAt: z.string(),
+    /** What backs the times asked for: a work order closed, a handover note signed. */
+    evidence: z.string().nullable().optional(),
+    /** The line manager who confirmed the times before the request reached the office. */
+    managerConfirmedByName: z.string().nullable().optional(),
+    managerConfirmedAt: z.string().nullable().optional(),
+    /** The record as it stands, so a reader sees what would change. */
+    recordClockInAt: z.string().nullable().optional(),
+    recordClockOutAt: z.string().nullable().optional(),
 });
 export type AttendanceRequest = z.infer<typeof AttendanceRequest>;
 const AttendanceAsk = z

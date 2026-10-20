@@ -1,10 +1,10 @@
 import { screens } from "@injishi/data";
 import type { CaseFile, RejectionReason } from "@injishi/data/fixtures/oversight";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { OfficerCaseView } from "@/features/oversight/OfficerCaseView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.OfficerCase.pageTitle };
 

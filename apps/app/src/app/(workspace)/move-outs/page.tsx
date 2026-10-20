@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { DepositKpi, MoveOutCase, ResidenceUnit } from "@injishi/data/fixtures/residence";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { MoveOutsView } from "@/features/residence/MoveOutsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.MoveOuts.pageTitle };
 

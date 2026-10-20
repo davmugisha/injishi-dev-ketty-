@@ -9,11 +9,11 @@ import type {
   SavedCollection,
   UpcomingTrip,
 } from "@injishi/data/fixtures/market";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { marketVisitor } from "@/features/market/format";
 import { GuestAccountView } from "@/features/market/GuestAccountView";
 import { requireScreen } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.GuestAccount.pageTitle };
 

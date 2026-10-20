@@ -6,11 +6,11 @@ import type {
   FiscalReceiptDraft,
   MomoEvent,
 } from "@injishi/data/fixtures/stays";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CheckoutView, type MomoState, type ReceiptOutcome } from "@/features/stays/CheckoutView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Checkout.pageTitle };
 

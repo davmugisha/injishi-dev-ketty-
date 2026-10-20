@@ -1,17 +1,56 @@
-import { type BoardId, canAccess, type Persona, personas, screens } from "@injishi/data";
-import { getSession } from "@injishi/db";
+import { type BoardId, canAccess, type Persona, screens } from "@injishi/data";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
+import { type ApiClient, ApiError, createApiClient, type SessionCookie } from "@/server/api";
+import { type Account, accountFor, OTP_TTL_SECONDS } from "@/server/auth";
 
+/** Holds the API's own session cookie pair (base64url), httpOnly, on the app's origin. */
 export const SESSION_COOKIE = "ij_session";
+/** The email a code was sent to, between the sign-in and verify steps. */
 export const OTP_COOKIE = "ij_otp";
 
-/** The signed-in persona, or null. Server components, route handlers and actions only. */
-export async function currentPersona(): Promise<Persona | null> {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  const session = await getSession(token);
-  return session ? personas[session.personaId] : null;
+export function encodeSessionCookie(cookie: SessionCookie): string {
+  return Buffer.from(cookie, "utf8").toString("base64url");
 }
+
+function decodeSessionCookie(value: string | undefined): SessionCookie | null {
+  if (!value) return null;
+  try {
+    const decoded = Buffer.from(value, "base64url").toString("utf8");
+    return decoded.includes("session_token=") ? decoded : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The API session cookie this request carries, or null. */
+export const currentSessionCookie = cache(async (): Promise<SessionCookie | null> => {
+  return decodeSessionCookie((await cookies()).get(SESSION_COOKIE)?.value);
+});
+
+/**
+ * Who is signed in, resolved by the API once per request (React cache). Null when there is no
+ * session or the API says it ended. An unreachable API throws: an outage is not a sign-out.
+ */
+export const currentAccount = cache(async (): Promise<Account | null> => {
+  const cookie = await currentSessionCookie();
+  if (!cookie) return null;
+  try {
+    return await accountFor(cookie);
+  } catch (error) {
+    if (error instanceof ApiError && error.unauthenticated) return null;
+    throw error;
+  }
+});
+
+/** The signed-in persona (the interface shell this person gets), or null. */
+export async function currentPersona(): Promise<Persona | null> {
+  return (await currentAccount())?.persona ?? null;
+}
+
+/** An API client carrying this request's session. */
+export const currentApi = cache(async (): Promise<ApiClient> => createApiClient(await currentSessionCookie()));
 
 /**
  * Gate a screen: public screens return the persona (or null); protected screens redirect
@@ -34,8 +73,25 @@ export async function requirePersona(board: BoardId): Promise<Persona> {
   return persona;
 }
 
+/** What the code step needs between requests: who the code went to and when. */
+export interface PendingSignIn {
+  email: string;
+  sentAt: number;
+}
+
+export function readPendingSignIn(value: string | undefined): PendingSignIn | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as PendingSignIn;
+    if (typeof parsed.email !== "string" || typeof parsed.sentAt !== "number") return null;
+    return Date.now() - parsed.sentAt < OTP_TTL_SECONDS * 1000 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Only allow same-site relative redirects. */
 export function safeNext(next: string | null | undefined): string | null {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) return null;
+  if (!next?.startsWith("/") || next.startsWith("//")) return null;
   return next;
 }

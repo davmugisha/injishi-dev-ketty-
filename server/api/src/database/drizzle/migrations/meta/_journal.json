@@ -456,6 +456,62 @@
       "when": 1791467475953,
       "tag": "0064_escrow_receivable_account",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1792038591633,
+      "tag": "0065_interface_owner",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1792044989825,
+      "tag": "0066_interface_operations",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792048963633,
+      "tag": "0067_interface_people",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1792058144384,
+      "tag": "0068_interface_frontdesk",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792063326048,
+      "tag": "0069_interface_market",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1792064039480,
+      "tag": "0070_interface_residence",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1792066719493,
+      "tag": "0071_interface_staff",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1792397078710,
+      "tag": "0072_register_artboard_document_kinds",
+      "breakpoints": true
     }
   ]
 }

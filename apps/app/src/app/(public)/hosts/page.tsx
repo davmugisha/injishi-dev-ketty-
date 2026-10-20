@@ -1,10 +1,10 @@
 import { screens } from "@injishi/data";
 import type { HostFeature, HostFee, HostPlan, HostStep, ReadinessItem } from "@injishi/data/fixtures/public";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { demoLinks, visitorOf } from "@/features/public/links";
 import { PublicHostView } from "@/features/public/PublicHostView";
 import { requireScreen } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.PublicHost.pageTitle };
 

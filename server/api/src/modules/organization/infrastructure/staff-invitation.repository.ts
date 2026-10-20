@@ -40,6 +40,7 @@ export interface StaffInvitationRow {
   expiresAt: Date;
   createdAt: Date;
   branchIds: string[] | null;
+  name: string | null;
 }
 
 /**
@@ -66,6 +67,7 @@ export class StaffInvitationRepository {
         expiresAt: orgInvitations.expiresAt,
         createdAt: orgInvitations.createdAt,
         branchIds: orgInvitations.branchPropertyIds,
+        name: orgInvitations.inviteeName,
       })
       .from(orgInvitations)
       .where(and(eq(orgInvitations.orgId, orgId), eq(orgInvitations.purpose, 'staff')))
@@ -123,6 +125,7 @@ export class StaffInvitationRepository {
     token: string;
     expiresAt: Date;
     invitedByUserId: string;
+    name?: string | null;
   }): Promise<string> {
     return this.db.transaction(async (tx) => {
       await tx
@@ -143,6 +146,7 @@ export class StaffInvitationRepository {
           email: input.email.toLowerCase(),
           orgRole: input.orgRole,
           branchPropertyIds: input.branchIds ? [...input.branchIds] : null,
+          inviteeName: input.name ?? null,
           purpose: 'staff',
           token: input.token,
           expiresAt: input.expiresAt,

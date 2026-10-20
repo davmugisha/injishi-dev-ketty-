@@ -11,10 +11,10 @@ import type {
   QueueCase,
   QueueKpi,
 } from "@injishi/data/fixtures/oversight";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { OfficerHomeView } from "@/features/oversight/OfficerHomeView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.OfficerHome.pageTitle };
 

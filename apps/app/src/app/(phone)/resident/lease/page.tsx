@@ -1,10 +1,10 @@
 import { screens } from "@injishi/data";
 import type { LeaseDocument, MoveOutStep, NoticeReason, RenewalOffer, Tenancy } from "@injishi/data/fixtures/resident";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TenantLeaseView } from "@/features/resident/TenantLeaseView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.TenantLease.pageTitle };
 

@@ -1,10 +1,10 @@
 import { screens } from "@injishi/data";
 import type { Channel, ChannelSource, ChannelSyncEntry, DistributionSettings } from "@injishi/data/fixtures/operations";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ChannelsView } from "@/features/operations/ChannelsView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Channels.pageTitle };
 

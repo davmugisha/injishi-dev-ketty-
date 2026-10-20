@@ -9,11 +9,11 @@ import type {
   StaffProfile,
   StaffRequest,
 } from "@injishi/data/fixtures/staff";
-import { getCollection, getDocument } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { StaffMeView } from "@/features/staff/StaffMeView";
 import { requirePersona } from "@/lib/session";
+import { getCollection, getDocument } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.StaffMe.pageTitle };
 
@@ -24,7 +24,7 @@ export default async function StaffMePage({ searchParams }: { searchParams: Prom
       getDocument<StaffProfile>("staff.profiles", persona.id),
       getDocument<StaffProfile>("staff.profiles", "housekeeper"),
       getCollection<Payslip>("staff.payslips"),
-      getDocument<LeaveBalance>("staff.leaveBalances", "housekeeper"),
+      getDocument<LeaveBalance>("staff.leaveBalances", persona.id),
       getCollection<StaffRequest>("staff.requests"),
       getCollection<StaffDocument>("staff.documents"),
       getCollection<LoanedAsset>("staff.assets"),

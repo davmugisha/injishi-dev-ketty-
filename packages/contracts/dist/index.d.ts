@@ -41,6 +41,15 @@ export * from "./leave";
 export * from "./payroll-items";
 export * from "./payroll";
 export * from "./list-query";
+export * from "./owner";
 export * from "./hr-lists";
+export * from "./hr-workforce";
 export * from "./redaction";
+export * from "./housekeeping-board";
+export * from "./maintenance";
+export * from "./lost-found";
+export * from "./front-desk";
+export * from "./marketplace";
+export * from "./interface-residence";
+export * from "./staff-phone";
 //# sourceMappingURL=index.d.ts.map

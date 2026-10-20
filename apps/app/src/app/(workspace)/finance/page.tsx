@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { ExceptionGroup, FinanceException, FinanceKpi, ResolvedException } from "@injishi/data/fixtures/finance";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { FinanceHomeView, type QueryOutcome } from "@/features/finance/FinanceHomeView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.FinanceHome.pageTitle };
 

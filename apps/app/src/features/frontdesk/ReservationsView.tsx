@@ -29,6 +29,8 @@ import {
   Tag,
   TagGroup,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
@@ -40,7 +42,8 @@ import type {
   ReservationView,
 } from "@injishi/data/fixtures/frontdesk";
 import { formatRwf, GateChip, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { approveBookingRequest, cancelBooking, declineBookingRequest, recordNoShow } from "./actions";
 import { ChoiceSelect, PolicyTiers, plural } from "./shared";
 
 export interface ReservationsData {
@@ -50,6 +53,8 @@ export interface ReservationsData {
   requests: BookingRequest[];
   tiers: CancellationTier[];
   recordIds: string[];
+  /** Today's day number, including when the live desk has no bookings. */
+  today?: number;
 }
 
 type Mode = "view" | "cancel" | "cancelled" | "modify" | "modified" | "noshow" | "noshowDone";
@@ -71,18 +76,58 @@ interface CustomView {
 }
 type RequestState = "open" | "declining" | "approved" | "declined";
 
-/** Today in the prototype: Monday 12 October 2026. */
-const TODAY = 12;
+/** Today in the prototype's fixtures: Monday 12 October 2026. The live list sends its own day (`today`). */
+const FIXTURE_TODAY = 12;
 const ANY_STATUS = "Any status";
 const ALL_CHANNELS = "All channels";
+const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const SAVED_FILTER: Record<ReservationView["id"], (r: Reservation) => boolean> = {
-  all: () => true,
-  today: (r) => r.arrivalDay === TODAY,
-  payment: (r) => r.paymentTone === "warning",
-  noRoom: (r) => !r.room && r.kind !== "cancelled",
-  notArrived: (r) => r.kind === "noshow",
-};
+/** A day number as "12 Oct": a day of October in the fixtures, days since 1970-01-01 from the live list. */
+function dayLabel(n: number): string {
+  if (n < 1000) return `${n} Oct`;
+  const d = new Date(n * 86_400_000);
+  return `${d.getUTCDate()} ${MONTH_SHORT[d.getUTCMonth()]}`;
+}
+
+/** "12 Oct 2026" for a day number. */
+function dayLabelYear(n: number): string {
+  return n < 1000 ? `${n} Oct 2026` : `${dayLabel(n)} ${new Date(n * 86_400_000).getUTCFullYear()}`;
+}
+
+/** The saved views, read against the day the list was read on. */
+function savedFilters(today: number): Record<ReservationView["id"], (r: Reservation) => boolean> {
+  return {
+    all: () => true,
+    today: (r) => r.arrivalDay === today,
+    payment: (r) => r.paymentTone === "warning",
+    noRoom: (r) => !r.room && r.kind !== "cancelled",
+    notArrived: (r) => r.kind === "noshow",
+  };
+}
+
+/** The arrival date presets: the fixtures' own, or the same three cut from the live list's today. */
+function datePresets(summary: ReservationsSummary, today: number): ReservationsSummary["dateRanges"] {
+  if (today === FIXTURE_TODAY) return summary.dateRanges;
+  return [
+    {
+      id: "month",
+      label: `Arriving ${dayLabel(today - 3)} – ${dayLabel(today + 19)}`,
+      from: today - 3,
+      to: today + 19,
+    },
+    { id: "today", label: `Arriving ${dayLabel(today)}`, from: today, to: today },
+    { id: "week", label: `Arriving ${dayLabel(today)} – ${dayLabel(today + 6)}`, from: today, to: today + 6 },
+  ];
+}
+
+/** "10:49": the time a decision was taken on this screen, in Kigali. */
+const nowClock = () =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Kigali",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date());
 
 /** Mobile money or card provider named in the payment detail. */
 function providerOf(detail: string): string {
@@ -103,11 +148,18 @@ export function ReservationsView({
   initialView: "all" | "requests";
 }) {
   const { bookings, summary } = data;
+  const TODAY = data.today ?? bookings.find((b) => b.today !== undefined)?.today ?? FIXTURE_TODAY;
+  const SAVED_FILTER = savedFilters(TODAY);
+  const dateRanges = datePresets(summary, TODAY);
+  const windowLabel =
+    TODAY === FIXTURE_TODAY ? summary.window : `${dayLabel(dateRanges[0].from)} to ${dayLabel(dateRanges[0].to)}`;
+  const totalBookings = TODAY === FIXTURE_TODAY ? summary.totalBookings : bookings.length;
   const linked = initialBooking ? bookings.find((b) => b.id === initialBooking) : undefined;
   const [view, setView] = useState<"all" | "requests">(initialView);
-  const [sel, setSel] = useState(linked?.id ?? "BK-20439");
-  const [mode, setMode] = useState<Mode>(linked ? (linked.kind === "noshow" ? "noshow" : "view") : "cancel");
-  const defaultRange = summary.dateRanges[0]?.id ?? "";
+  const [sel, setSel] = useState(linked?.id ?? bookings.find((b) => b.kind === "future")?.id ?? bookings[0]?.id ?? "");
+  const [mode, setMode] = useState<Mode>(linked?.kind === "noshow" ? "noshow" : "view");
+  const [actedAt, setActedAt] = useState(TODAY === FIXTURE_TODAY ? summary.actedAt : "");
+  const defaultRange = dateRanges[0]?.id ?? "";
   const [filters, setFilters] = useState<Filters>({
     base: "all",
     status: ANY_STATUS,
@@ -124,7 +176,7 @@ export function ReservationsView({
 
   const statuses = useMemo(() => [ANY_STATUS, ...new Set(bookings.map((b) => b.status))], [bookings]);
   const channels = useMemo(() => [ALL_CHANNELS, ...new Set(bookings.map((b) => b.channel))], [bookings]);
-  const rangeOf = (id: string) => summary.dateRanges.find((d) => d.id === id) ?? summary.dateRanges[0];
+  const rangeOf = (id: string) => dateRanges.find((d) => d.id === id) ?? dateRanges[0];
   const dateRange = rangeOf(filters.range);
   const matches = (r: Reservation, f: Filters) => {
     const q = f.query.trim().toLowerCase();
@@ -179,6 +231,7 @@ export function ReservationsView({
 
   return (
     <PageContent className="gap-4 text-[14px] leading-5">
+      <Toast.Provider placement="bottom" />
       <PageHeader
         eyebrow="Front office · Isangano Lakeside Hotel"
         title="Reservations"
@@ -193,7 +246,7 @@ export function ReservationsView({
               <Segment.Item id="all" className="gap-1.5">
                 Bookings
                 <Chip size="sm" variant="soft">
-                  {summary.totalBookings}
+                  {totalBookings}
                 </Chip>
               </Segment.Item>
               <Segment.Item id="requests" className="gap-1.5">
@@ -226,8 +279,8 @@ export function ReservationsView({
                 </Alert.Title>
                 {urgent ? (
                   <Alert.Description>
-                    {urgent.name}'s request auto-declines at 12:00 today, in {urgent.left}. The room stays held until
-                    then.
+                    {urgent.name}'s request {urgent.autoDeclines.toLowerCase()}, in {urgent.left}. The room stays held
+                    until then.
                   </Alert.Description>
                 ) : null}
               </Alert.Content>
@@ -266,11 +319,9 @@ export function ReservationsView({
             />
             <ChoiceSelect
               aria-label="Arrival dates"
-              options={summary.dateRanges.map((d) => d.label)}
+              options={dateRanges.map((d) => d.label)}
               value={dateRange?.label ?? ""}
-              onChange={(label) =>
-                setFilter({ range: summary.dateRanges.find((d) => d.label === label)?.id ?? filters.range })
-              }
+              onChange={(label) => setFilter({ range: dateRanges.find((d) => d.label === label)?.id ?? filters.range })}
               indicator={<Calendar className="size-4" />}
               className="min-w-[170px]"
             />
@@ -345,7 +396,7 @@ export function ReservationsView({
                   <Table.Body
                     renderEmptyState={() => (
                       <p className="p-6 text-center text-sm text-muted">
-                        No bookings match{q ? ` “${q}”` : " these filters"} between {summary.window}.
+                        No bookings match{q ? ` “${q}”` : " these filters"} between {windowLabel}.
                       </p>
                     )}
                   >
@@ -410,6 +461,9 @@ export function ReservationsView({
                 setMode={setMode}
                 summary={summary}
                 tiers={data.tiers}
+                today={TODAY}
+                actedAt={actedAt}
+                onActed={() => setActedAt(nowClock())}
                 cancelReason={cancelReason}
                 setCancelReason={setCancelReason}
                 noShowReason={noShowReason}
@@ -419,8 +473,8 @@ export function ReservationsView({
             ) : null}
           </div>
           <p className="text-xs text-muted" aria-live="polite">
-            Showing {rows.length} of {summary.totalBookings} bookings from {summary.window} · booking status and stay
-            status are separate records
+            Showing {rows.length} of {totalBookings} bookings from {windowLabel} · booking status and stay status are
+            separate records
           </p>
         </div>
       ) : (
@@ -438,7 +492,8 @@ export function ReservationsView({
               st={st}
               reasons={summary.declineReasons}
               reason={reason[r.id] ?? null}
-              actedAt={summary.actedAt}
+              actedAt={actedAt}
+              onActed={() => setActedAt(nowClock())}
               decidedBy={persona.name}
               setState={(s) => setReq((m) => ({ ...m, [r.id]: s }))}
               setReason={(v) => setReason((m) => ({ ...m, [r.id]: v }))}
@@ -461,6 +516,9 @@ function BookingInspector({
   noShowReason,
   setNoShowReason,
   onReview,
+  today,
+  actedAt,
+  onActed,
 }: {
   b: Reservation;
   mode: Mode;
@@ -472,31 +530,69 @@ function BookingInspector({
   noShowReason: string;
   setNoShowReason: (v: string) => void;
   onReview: () => void;
+  today: number;
+  actedAt: string;
+  onActed: () => void;
 }) {
+  const TODAY = today;
+  const [busy, startBusy] = useTransition();
+  const [outcome, setOutcome] = useState<{ refund: number; kept: number; rule: string } | null>(null);
+  /** Cancel at the guest's request: the API refunds on the booking's tier, and says what it did. */
+  const confirmCancel = () =>
+    startBusy(async () => {
+      const result = await cancelBooking(b.id, cancelReason);
+      if (!result.ok) {
+        toast.danger(`${b.id} was not cancelled: ${result.error}`);
+        return;
+      }
+      setOutcome({ refund: result.value.refundRwf, kept: result.value.keptRwf, rule: result.value.rule });
+      onActed();
+      setMode("cancelled");
+      toast.success(`${b.id} cancelled · ${formatRwf(result.value.refundRwf)} refunded`);
+    });
+  const confirmNoShow = () =>
+    startBusy(async () => {
+      const result = await recordNoShow(b.id, noShowReason);
+      if (!result.ok) {
+        toast.danger(`No-show not recorded: ${result.error}`);
+        return;
+      }
+      onActed();
+      setMode("noshowDone");
+      toast.success(`${b.guest} recorded as a no-show`);
+    });
   const k = b.kind;
   const canChange = k === "future" || k === "today";
   const nights = plural(b.nights, "night");
   const roomLabel = b.room ? `Room ${b.room}` : "No room yet";
+  const quote = b.cancelQuote ?? null;
   const terms =
-    k === "request" ? "Quote only · terms saved on approval" : `${summary.policy} · DEP-STD v2 · saved at booking`;
+    k === "request"
+      ? "Quote only · terms saved on approval"
+      : b.today !== undefined
+        ? "Cancellation tier locked at booking · refunds follow it"
+        : `${summary.policy} · DEP-STD v2 · saved at booking`;
 
   const days = b.arrivalDay - TODAY;
   const tierIx = days > 7 ? 0 : days >= 2 ? 1 : 2;
-  const kept = tierIx === 0 ? 0 : tierIx === 1 ? b.deposit / 2 : Math.min(b.deposit, b.firstNight);
-  const refund = b.deposit - kept;
+  const kept = quote ? quote.kept : tierIx === 0 ? 0 : tierIx === 1 ? b.deposit / 2 : Math.min(b.deposit, b.firstNight);
+  const refund = quote ? quote.refund : b.deposit - kept;
   const provider = providerOf(b.paymentDetail);
-  const cxNote =
-    b.deposit > 0
+  const cxNote = quote
+    ? `${quote.rule} The refund goes back to the wallet the guest paid from; it shows Pending until the provider confirms.`
+    : b.deposit > 0
       ? `Today is ${days} days before arrival, so tier ${tierIx + 1} applies. The refund is decided here by policy and paid by Payments to the original wallet; it shows Pending until the provider confirms.`
       : "No verified payment to refund. Any pending payment request is cancelled with the provider; nothing is marked refunded.";
-  const cxAfter =
-    refund > 0
+  const cxAfter = outcome
+    ? `${outcome.refund > 0 ? `${formatRwf(outcome.refund)} back to the guest's wallet` : "No refund due"} · ${formatRwf(outcome.kept)} kept. ${outcome.rule} Logged with your name.`
+    : refund > 0
       ? `Refund ${summary.refundId} for ${formatRwf(refund)} sent to Payments · Pending until ${provider} confirms. Kept ${formatRwf(kept)} under ${summary.policy}. Logged with your name.`
       : "No refund due. Pending payment requests were cancelled. Logged with your name.";
   const change = b.change ?? {
-    arrival: `${b.arrivalDay} Oct 2026`,
-    departure: `${b.arrivalDay + b.nights} Oct 2026`,
+    arrival: dayLabelYear(b.arrivalDay),
+    departure: dayLabelYear(b.arrivalDay + b.nights),
   };
+  const noShow = b.noShowQuote ?? null;
 
   return (
     <Card className="min-w-0 flex-[1_1_340px] gap-3.5 p-[18px]" aria-labelledby="ins-h">
@@ -587,10 +683,14 @@ function BookingInspector({
           <div className="flex flex-col gap-0.5">
             <span className="font-semibold">Cancel {b.id}</span>
             <span className="text-xs text-muted">
-              Policy {summary.policy}, the version saved in this booking's terms
+              {quote
+                ? "At the guest's request · the tier this booking locked"
+                : `Policy ${summary.policy}, the version saved in this booking's terms`}
             </span>
           </div>
-          <PolicyTiers tiers={tiers} current={tierIx} label={`Cancellation tiers of ${summary.policy}`} />
+          {quote ? null : (
+            <PolicyTiers tiers={tiers} current={tierIx} label={`Cancellation tiers of ${summary.policy}`} />
+          )}
           <ul className="flex flex-col gap-1.5 text-[13px]">
             <li className="flex justify-between gap-2">
               <span>Verified payments</span>
@@ -616,7 +716,7 @@ function BookingInspector({
             <Button size="sm" variant="secondary" onPress={() => setMode("view")}>
               Keep booking
             </Button>
-            <Button size="sm" variant="danger" onPress={() => setMode("cancelled")}>
+            <Button size="sm" variant="danger" isDisabled={busy} onPress={confirmCancel}>
               Cancel booking
             </Button>
           </div>
@@ -629,7 +729,7 @@ function BookingInspector({
           </Alert.Indicator>
           <Alert.Content>
             <Alert.Title>
-              Cancelled {summary.actedAt} · {b.roomType} released for {b.dates}
+              Cancelled {actedAt} · {b.roomType} released for {b.dates}
             </Alert.Title>
             <Alert.Description>{cxAfter}</Alert.Description>
           </Alert.Content>
@@ -660,7 +760,13 @@ function BookingInspector({
             <Button size="sm" variant="secondary" onPress={() => setMode("view")}>
               Back
             </Button>
-            <Button size="sm" onPress={() => setMode("modified")}>
+            <Button
+              size="sm"
+              onPress={() =>
+                // Changing dates reprices the stay and moves money; no route does it yet, so nothing is changed.
+                toast.warning("Changing dates is not available yet. Cancel and rebook, or ask your general manager.")
+              }
+            >
               Save change
             </Button>
           </div>
@@ -672,7 +778,7 @@ function BookingInspector({
             <Pencil />
           </Alert.Indicator>
           <Alert.Content>
-            <Alert.Title>Dates changed {summary.actedAt}</Alert.Title>
+            <Alert.Title>Dates changed {actedAt}</Alert.Title>
             <Alert.Description>
               Saved in the change history with your name. The guest gets an updated confirmation.
             </Alert.Description>
@@ -683,8 +789,9 @@ function BookingInspector({
         <Card variant="secondary" className="gap-2.5 p-3.5">
           <span className="font-semibold">Mark {b.guest} as a no-show?</span>
           <p className="text-[13px]">
-            Arrival was {b.arrivalDay} Oct; night audit flagged it at 02:00. Under {summary.policy} the first night (
-            {formatRwf(b.deposit)}) is kept from the verified deposit and {TODAY} Oct is released.
+            {noShow
+              ? `Arrival was ${dayLabel(b.arrivalDay)} and nobody checked in. ${noShow.rule} ${formatRwf(noShow.kept)} is kept and ${formatRwf(noShow.refund)} goes back; the rooms held from ${dayLabel(TODAY)} are released.`
+              : `Arrival was ${dayLabel(b.arrivalDay)}; night audit flagged it at 02:00. Under ${summary.policy} the first night (${formatRwf(b.deposit)}) is kept from the verified deposit and ${dayLabel(TODAY)} is released.`}
           </p>
           <ChoiceSelect
             label="Reason"
@@ -696,7 +803,7 @@ function BookingInspector({
             <Button size="sm" variant="secondary" onPress={() => setMode("view")}>
               Guest is still coming
             </Button>
-            <Button size="sm" variant="danger" onPress={() => setMode("noshowDone")}>
+            <Button size="sm" variant="danger" isDisabled={busy} onPress={confirmNoShow}>
               Mark no-show
             </Button>
           </div>
@@ -708,10 +815,10 @@ function BookingInspector({
             <PersonXmark />
           </Alert.Indicator>
           <Alert.Content>
-            <Alert.Title>Marked no-show {summary.actedAt}</Alert.Title>
+            <Alert.Title>Marked no-show {actedAt}</Alert.Title>
             <Alert.Description>
-              {TODAY} Oct released to inventory. First night kept under {summary.policy}; Finance sees it in night
-              audit.
+              {dayLabel(TODAY)} released to inventory.{" "}
+              {noShow ? noShow.rule : `First night kept under ${summary.policy}; Finance sees it in night audit.`}
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -726,6 +833,7 @@ function RequestCard({
   reasons,
   reason,
   actedAt,
+  onActed,
   decidedBy,
   setState,
   setReason,
@@ -735,10 +843,26 @@ function RequestCard({
   reasons: string[];
   reason: string | null;
   actedAt: string;
+  onActed: () => void;
   decidedBy: string;
   setState: (s: RequestState) => void;
   setReason: (v: string) => void;
 }) {
+  const [busy, startBusy] = useTransition();
+  /** Approve or decline on the API; the request leaves the queue once it is answered. */
+  const decide = (answer: "approved" | "declined") =>
+    startBusy(async () => {
+      const result = answer === "approved" ? await approveBookingRequest(r.id) : await declineBookingRequest(r.id);
+      if (!result.ok) {
+        toast.danger(`${r.id} was not ${answer}: ${result.error}`);
+        return;
+      }
+      onActed();
+      setState(answer);
+      toast.success(
+        answer === "approved" ? `${r.name}'s booking is confirmed` : `${r.name}'s request is declined and refunded`,
+      );
+    });
   const open = st === "open" || st === "declining";
   const leftTone = st === "approved" ? "success" : st === "declined" ? "default" : r.urgent ? "danger" : "warning";
   return (
@@ -797,7 +921,7 @@ function RequestCard({
       </ProgressBar>
       {st === "open" ? (
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" onPress={() => setState("approved")}>
+          <Button size="sm" isDisabled={busy} onPress={() => decide("approved")}>
             <Check className="size-4" />
             Approve
           </Button>
@@ -835,7 +959,12 @@ function RequestCard({
             <Button size="sm" variant="ghost" onPress={() => setState("open")}>
               Back
             </Button>
-            <Button size="sm" variant="danger" isDisabled={!reason} onPress={() => reason && setState("declined")}>
+            <Button
+              size="sm"
+              variant="danger"
+              isDisabled={!reason || busy}
+              onPress={() => reason && decide("declined")}
+            >
               Decline request
             </Button>
           </div>
@@ -847,10 +976,10 @@ function RequestCard({
             <CircleCheck />
           </Alert.Indicator>
           <Alert.Content>
-            <Alert.Title>Approved {actedAt} · booking confirmed, deposit not paid yet</Alert.Title>
+            <Alert.Title>Approved {actedAt} · booking confirmed</Alert.Title>
             <Alert.Description>
-              The guest has 24 h to pay the deposit through the marketplace. The room stays held; nothing is marked paid
-              until the provider confirms.
+              The payment taken with the request now pays for the booking. The guest is told and can see it in their
+              trips.
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -865,7 +994,7 @@ function RequestCard({
               Declined {actedAt} · {reason}
             </Alert.Title>
             <Alert.Description>
-              The guest was told and the hold was released. Nothing had been charged.
+              The guest was told and the hold was released. The payment taken with the request goes back in full.
             </Alert.Description>
           </Alert.Content>
         </Alert>

@@ -1097,6 +1097,104 @@ const leases: Lease[] = [
     filing: { ...ACK_FILING },
     income: "RWF 6,750,000",
   },
+  // The rest of the register. The prototype drew the seven leases above; the rent roll names
+  // twenty-two active tenancies, and a lease register lists every one of them (real-data 1.3.1).
+  ...(
+    [
+      ["L-KC-001", "A-01", "1 bedroom", "Claude Nsengimana", 650000, "1st", "1 Feb 2026", "31 Jan 2027", "26 Jan 2026"],
+      ["L-KC-012", "A-03", "1 bedroom", "Fabrice Rugamba", 700000, "5th", "5 Mar 2026", "4 Mar 2027", "27 Feb 2026"],
+      // Renewed by an amendment signed 20 Aug: the second year runs to 4 Sep 2027.
+      ["L-KC-015", "A-04", "1 bedroom", "Vestine Uwamahoro", 700000, "5th", "5 Sep 2025", "4 Sep 2027", "1 Sep 2025"],
+      ["L-KC-017", "A-06", "1 bedroom", "Samuel Ndayisaba", 750000, "1st", "1 Apr 2026", "31 Mar 2027", "25 Mar 2026"],
+      ["L-KC-021", "A-07", "1 bedroom", "Josiane Umutoni", 750000, "1st", "1 Sep 2026", "31 Aug 2027", "28 Aug 2026"],
+      ["L-KC-010", "B-02", "2 bedrooms", "David Mwiseneza", 850000, "1st", "1 May 2026", "30 Apr 2027", "24 Apr 2026"],
+      ["L-KC-016", "B-03", "2 bedrooms", "Nadine Kayitesi", 850000, "5th", "5 Jun 2026", "4 Jun 2027", "30 May 2026"],
+      ["L-KC-018", "B-05", "2 bedrooms", "Alain Mutabazi", 900000, "1st", "1 Jun 2026", "31 May 2027", "26 May 2026"],
+      [
+        "L-KC-019",
+        "B-06",
+        "2 bedrooms",
+        "Chantal Nyirahabimana",
+        900000,
+        "5th",
+        "5 Feb 2026",
+        "4 Feb 2027",
+        "30 Jan 2026",
+      ],
+      ["L-KC-020", "B-08", "2 bedrooms", "Moses Kariuki", 950000, "1st", "1 Mar 2026", "28 Feb 2027", "23 Feb 2026"],
+      [
+        "L-KC-002",
+        "C-01",
+        "3 bedrooms",
+        "Yvonne Murekatete",
+        1000000,
+        "1st",
+        "1 Apr 2026",
+        "31 Mar 2027",
+        "26 Mar 2026",
+      ],
+      // Renewed by an amendment signed 9 Jul: the second year runs to 31 Jul 2027.
+      [
+        "L-KC-004",
+        "C-02",
+        "3 bedrooms",
+        "Jean-Claude Habiyaremye",
+        1000000,
+        "1st",
+        "1 Aug 2025",
+        "31 Jul 2027",
+        "26 Jul 2025",
+      ],
+      ["L-KC-005", "C-04", "3 bedrooms", "Hassan Abdallah", 1050000, "1st", "1 May 2026", "30 Apr 2027", "27 Apr 2026"],
+      [
+        "L-KC-007",
+        "C-05",
+        "3 bedrooms",
+        "Benjamin Ruzindana",
+        1100000,
+        "5th",
+        "5 Feb 2026",
+        "4 Feb 2027",
+        "30 Jan 2026",
+      ],
+      ["L-KC-023", "C-07", "Penthouse", "Ruth Wanjiru", 1200000, "15th", "15 Mar 2026", "14 Mar 2027", "9 Mar 2026"],
+      [
+        "L-KC-024",
+        "C-08",
+        "Penthouse",
+        "Innocent Bizimana",
+        1200000,
+        "1st",
+        "1 Jul 2026",
+        "30 Jun 2027",
+        "25 Jun 2026",
+      ],
+    ] as const
+  ).map(
+    ([id, unit, type, resident, rent, dueDay, start, end, signedOn]): Lease => ({
+      id,
+      unit,
+      type,
+      resident,
+      status: "Active",
+      statusTone: "success",
+      start,
+      end,
+      rent,
+      dueDay,
+      signedOn,
+      // A-07's filing was sent on 18 Sep and its acknowledgement has not come back (residence.filings).
+      filing:
+        id === "L-KC-021"
+          ? {
+              stage: "followup",
+              deadline: "12 Sep 2026 · sent late, 18 Sep",
+              delivery: "Sent 18 Sep · acknowledgement not received",
+            }
+          : { ...ACK_FILING },
+      income: "Verified rent this year, see the rent roll",
+    }),
+  ),
 ];
 
 const leaseClauses: LeaseClause[] = [

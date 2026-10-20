@@ -34,6 +34,21 @@ export function seedHash(): string {
   return createHash("sha256").update(payload).digest("hex").slice(0, 16);
 }
 
+const HASH_TTL_MS = 2000;
+let cachedHash: { value: string; at: number } | null = null;
+
+/**
+ * seedHash() serialises ~900 KB of fixtures, and getDb() runs on every read. Outside `next dev` the
+ * fixtures cannot change while the process lives, so hash once; in development re-hash at most every
+ * two seconds, which still re-seeds on the first request after a fixture edit.
+ */
+function currentSeedHash(): string {
+  const now = Date.now();
+  const stale = !cachedHash || (process.env.NODE_ENV === "development" && now - cachedHash.at > HASH_TTL_MS);
+  if (stale) cachedHash = { value: seedHash(), at: now };
+  return (cachedHash as { value: string }).value;
+}
+
 export async function seed(db: Db, client: Client): Promise<{ users: number; collections: number; documents: number }> {
   const now = new Date();
   const collections = allCollections();
@@ -93,10 +108,13 @@ async function reseedIfStale(state: DbState, hash: string): Promise<void> {
 }
 
 /**
- * The process-wide database, bootstrapped and seeded on first use. Fixture files are hashed on
- * every call, so editing fixtures during `next dev` re-seeds on the next request (the singleton
- * survives hot reloads). Mutations made through the app persist until the fixtures change or
- * `pnpm db:reset` runs.
+ * The process-wide database, bootstrapped and seeded on first use. Fixtures are re-hashed at most
+ * every two seconds under `next dev` (once per process otherwise), so editing fixtures re-seeds on a
+ * following request (the singleton survives hot reloads). Mutations made through the app persist
+ * until the fixtures change or `pnpm fixtures:reset` runs.
+ *
+ * This store now serves only collections that have no live source yet (apps/app/src/server/data);
+ * every page drawing from it is marked as sample data.
  */
 export async function getDb(): Promise<Db> {
   let state = globalForDb.__injishiDb;
@@ -108,7 +126,7 @@ export async function getDb(): Promise<Db> {
     globalForDb.__injishiDb = s;
   }
   const s = state;
-  const hash = seedHash();
+  const hash = currentSeedHash();
   if (hash !== s.hash) s.ready = s.ready.then(() => reseedIfStale(s, hash));
   try {
     await s.ready;

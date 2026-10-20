@@ -12,11 +12,11 @@ import type {
 } from "@injishi/data/fixtures/owner";
 import { LinkButton, PageContent, PageHeader, SectionHeader, TextLink, toneColor } from "@injishi/ui";
 import { type ReactNode, useMemo, useState } from "react";
+import { cancelTeamInvite, changeTeamMember, saveTeamRolePresets, sendTeamInvite } from "./TeamRolesActions";
 import {
   allPermissionKeys,
   applyEdits,
   editCount,
-  initialsOf,
   isCode,
   makeHas,
   presetsOf,
@@ -78,7 +78,7 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
     twoStep: true,
     code: "",
   });
-  const [sent, setSent] = useState<TeamRolesMember[]>([]);
+  const [busy, setBusy] = useState(false);
   const [changed, setChanged] = useState<Record<string, Partial<TeamRolesMember>>>({});
   const [removed, setRemoved] = useState<string[]>([]);
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
@@ -96,13 +96,9 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
   const permissionsFor = (r: TeamRolesRole) => [...all.filter((p) => has(r.id, p)), ...r.extraPermissions];
   const changes = editCount(presets, edits);
 
-  // Members: the database list, with invites sent from this screen placed after the requests awaiting approval.
-  const everyone = useMemo(() => {
-    const base = data.members.map((m) => ({ ...m, ...changed[m.id] }));
-    const lastPending = base.findLastIndex((m) => m.status === "pending");
-    const at = lastPending >= 0 ? lastPending + 1 : base.length;
-    return [...base.slice(0, at), ...sent.map((m) => ({ ...m, ...changed[m.id] })), ...base.slice(at)];
-  }, [data.members, sent, changed]);
+  // Members: the business's list as the API answered it. A change made here is written there and the page
+  // is read again after it, so the list never shows something that was not saved.
+  const everyone = useMemo(() => data.members.map((m) => ({ ...m, ...changed[m.id] })), [data.members, changed]);
   const members = everyone.filter((m) => !removed.includes(m.id));
   const shown = members.filter((m) => inFilter(m.status, filter));
   const owner = members.find((m) => m.role === "owner");
@@ -130,47 +126,54 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
 
   const inviteExpiry = draft.expiries.find((e) => e.id === inviteState.expiry) ?? draft.expiries[0];
   const canSend =
+    !busy &&
     isCode(inviteState.code) &&
     inviteState.scope.length > 0 &&
     inviteState.name.trim() !== "" &&
     inviteState.contact.trim() !== "";
+  /** Run one write; a refusal comes back in the API's words and stays on screen as a toast. */
+  const write = async (work: () => Promise<{ ok: true } | { ok: false; message: string }>, done: () => void) => {
+    setBusy(true);
+    try {
+      const result = await work();
+      if (result.ok) done();
+      else toast.danger(result.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const sendInvite = () => {
-    const name = inviteState.name.trim();
-    const member: TeamRolesMember = {
-      id: `invite-${sent.length + 1}`,
-      initials: initialsOf(name),
-      name,
-      contact: inviteState.contact.trim(),
-      role: inviteState.role,
-      scope: "New invite",
-      scopeIds: inviteState.scope,
-      status: "invited",
-      lastActive: `Invited just now · link expires ${inviteExpiry?.expiresShort ?? ""}`,
-      signIn: "—",
-      avatarTone: "accent",
-      identityVerified: false,
-    };
-    setSent((s) => [...s, member]);
-    setFilter("all");
-    closePanel();
-    toast.success(`Invite sent to ${name} · expires ${inviteExpiry?.expiresOn ?? ""}`);
+    const name = inviteState.name.trim() || inviteState.contact.trim();
+    void write(
+      () =>
+        sendTeamInvite({
+          name: inviteState.name,
+          contact: inviteState.contact,
+          role: inviteState.role,
+          scope: inviteState.scope,
+        }),
+      () => {
+        setFilter("all");
+        closePanel();
+        toast.success(`Invite sent to ${name} · expires ${inviteExpiry?.expiresOn ?? ""}`);
+      },
+    );
   };
 
   const revoke = (m: TeamRolesMember) => {
-    setChanged((c) => ({
-      ...c,
-      [m.id]: {
-        ...c[m.id],
-        status: "revoked",
-        lastActive:
-          m.status === "invited"
-            ? "Invite cancelled just now by you"
-            : "Revoked just now by you · signed out everywhere",
+    if (m.status !== "invited") {
+      // Taking somebody off the business is offboarding their staff file in People, which ends the
+      // membership with the employment record; this screen does not do it on its own.
+      toast.warning(`To take ${m.name} off the business, offboard them in People. Their access ends with it.`);
+      return;
+    }
+    void write(
+      () => cancelTeamInvite(m.id),
+      () => {
+        closePanel();
+        toast.success(`${m.name}: invite cancelled`);
       },
-    }));
-    closePanel();
-    toast.success(
-      `${m.name}${m.status === "invited" ? ": invite cancelled" : ": access revoked, signed out everywhere"}`,
     );
   };
   const remove = (m: TeamRolesMember) => {
@@ -185,18 +188,24 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
   const saveEdit = (m: TeamRolesMember) => {
     if (!edit) return;
     const sameScope = edit.scope.length === m.scopeIds.length && edit.scope.every((s) => m.scopeIds.includes(s));
-    setChanged((c) => ({
-      ...c,
-      [m.id]: {
-        ...c[m.id],
-        role: edit.role,
-        scopeIds: edit.scope,
-        scope: sameScope ? m.scope : scopeText(scopes, edit.scope),
+    const next = { role: edit.role, scope: edit.scope };
+    void write(
+      () => changeTeamMember(m.id, next),
+      () => {
+        setChanged((c) => ({
+          ...c,
+          [m.id]: {
+            ...c[m.id],
+            role: next.role,
+            scopeIds: next.scope,
+            scope: sameScope ? m.scope : scopeText(scopes, next.scope),
+          },
+        }));
+        setEdit(null);
+        setPanel({ kind: "member", id: m.id, editing: false });
+        toast.success(`${m.name}: role and scope updated · recorded in the audit log`);
       },
-    }));
-    setEdit(null);
-    setPanel({ kind: "member", id: m.id, editing: false });
-    toast.success(`${m.name}: role and scope updated · recorded in the audit log`);
+    );
   };
 
   const transferTo = typeof transfer === "object" ? members.find((m) => m.id === transfer.to) : undefined;
@@ -210,10 +219,11 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
     closePanel();
     setTransfer("open");
   };
-  const requestTransfer = (to: string) => {
-    const m = members.find((x) => x.id === to);
-    setTransfer({ to });
-    toast.success(`Transfer requested · waiting for ${m?.name ?? "the new owner"} to accept`);
+  const requestTransfer = (_to: string) => {
+    // Ownership changes hands through the owner claim, which checks the new owner's identity document;
+    // the platform has no transfer request yet, so nothing is recorded here and the screen says so.
+    setTransfer("idle");
+    toast.warning("Ownership transfer is not available yet. It will go through the owner claim, which checks an ID.");
   };
   const ownText = transferTo
     ? `Transfer requested to ${transferTo.name} at ${TRANSFER_AT}. You stay owner until she accepts with verified identity; the request expires ${TRANSFER_EXPIRES}.`
@@ -564,11 +574,18 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
               setEdits({});
             }}
             onSave={() => {
-              setPresets(applyEdits(presets, edits, all));
-              setEdits({});
-              setCustomise(false);
-              setSaved(true);
-              toast.success("Presets saved · step-up verified");
+              const next = applyEdits(presets, edits, all);
+              const changedRoles = [...new Set(Object.keys(edits).map((k) => k.split(":")[0] as TeamRolesRoleId))];
+              void write(
+                () => saveTeamRolePresets(Object.fromEntries(changedRoles.map((r) => [r, next[r]]))),
+                () => {
+                  setPresets(next);
+                  setEdits({});
+                  setCustomise(false);
+                  setSaved(true);
+                  toast.success("Presets saved · each change is recorded in the audit log");
+                },
+              );
             }}
             onToggle={(role, permission, on) => {
               setSaved(false);

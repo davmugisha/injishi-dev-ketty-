@@ -9,10 +9,10 @@ import type {
   ManagerTodayRoomStatus,
   ManagerTodayStaffLine,
 } from "@injishi/data/fixtures/commercial";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { ManagerTodayView } from "@/features/commercial/ManagerTodayView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.ManagerToday.pageTitle };
 

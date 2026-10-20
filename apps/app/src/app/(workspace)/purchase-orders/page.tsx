@@ -6,10 +6,10 @@ import type {
   PurchaseOrder,
   SupplierQuote,
 } from "@injishi/data/fixtures/stock";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { type BuyingTab, PurchaseOrdersView } from "@/features/stock/PurchaseOrdersView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.PurchaseOrders.pageTitle };
 

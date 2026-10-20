@@ -2,33 +2,36 @@
 
 import {
   ACCOMMODATION_CLASS_LABEL,
-  BusinessDetails,
   CreateRegistrationRequest,
   IntendedOwner,
   OPERATOR_CONTRACT_VERSION,
   PersonalDetails,
+  PsfApplicationInput,
   type BrokerRegistrationSummary,
   type IdentityStatus,
   type MyProfile,
   type OrgRegistrationStatus,
-  type RegistryBusiness,
-  type VerifiedPerson,
+  type PsfTier,
   type RegistrantCapacity,
-  type RegistrantRole,
   type RegistrationFeeQuote,
   type RegistrationSummary,
+  type VerifiedPerson,
   businessTypeFor,
   isRwandanAddress,
 } from "@injishi/contracts";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { ArrowRight, CircleAlert, Landmark, PenLine } from "lucide-react";
 import { Badge, Button } from "@injishi/ui";
 
+import { openAssistant } from "@/components/assistant/assistant-widget";
 import { fetchMyWorkspaces, type LabelledWorkspace } from "@/data/me";
 import { fetchIdentity } from "@/data/identity";
 import {
   acceptRegistrationContract,
+  checkTin,
   createRegistration,
   fetchMyProfile,
+  fetchPsfTiers,
   fetchRegistration,
   fetchRegistrationDraft,
   fetchRegistrationFee,
@@ -40,94 +43,101 @@ import {
 } from "@/data/registration";
 import { apiResultMessage, type ApiResult, type RefusalIssue } from "@/lib/api";
 import type { SessionUser } from "@/lib/session";
-import {
-  type ContractSignature,
-  type RegistrationContractInput,
-} from "@/lib/registration-contract";
-import { formatNationalId, nationalIdError } from "@/lib/rwanda-id";
+import { type ContractSignature, type RegistrationContractInput } from "@/lib/registration-contract";
+import { formatNationalId } from "@/lib/rwanda-id";
 import { upiError } from "@/lib/upi";
 
-import { EMPTY_ADDRESS, addressFromDraft } from "./address-picker";
-import { documentErrors, type DocumentDraft } from "./business-documents";
-import { FixBusiness, InReview } from "./in-review";
-import { RegisterRail, type RailStep } from "./register-rail";
-import { RegisterShell, StepCard, StepSkeleton } from "./register-shell";
+import { EMPTY_ADDRESS, addressFromDraft, useAddressLine } from "./address-picker";
 import {
-  REGISTRATION_KINDS,
-  findRegistrationKind,
-  registrationForKind,
-  type RegistrationKind,
-} from "./registration-kinds";
-import {
-  fromServerDraft,
-  isDraftPhase,
-  restoredPhase,
-  toServerDraft,
-  type DraftPhase,
-} from "./register-draft";
-import { composeFullName, splitFullName, type PersonalDraft } from "./step-about-you";
-import { newBranchDraft, type BranchDraft } from "./step-branches";
-import {
-  StepBusiness,
+  EMPTY_BUSINESS,
   formatTin,
+  maskedPhone,
+  newBranchDraft,
   normalizeTin,
   registryAddressDraft,
+  sameName,
+  type BranchDraft,
   type BusinessDraft,
+  type DocumentDraft,
   type TinCheck,
-} from "./step-business";
-import { downloadSignedContract } from "./step-contract";
-import { StepPlace } from "./step-place";
-import { StepReviewPay, type ReadBackRow } from "./step-review-pay";
-import { StepYou, maskedPhone } from "./step-you";
-import { Notice, formatRwf } from "./wizard-ui";
+} from "./business-draft";
+import { FixBusiness, InReview } from "./in-review";
+import { EMPTY_PSF, psfCandidate, type PsfDraft } from "./psf-application";
+import { RegisterRail, type RailStep } from "./register-rail";
+import { RegisterSection } from "./register-section";
+import { Callout, RegisterShell, StepCard, StepFrame, StepSkeleton, type StepPrimary } from "./register-shell";
 import {
-  openingPhase,
-  resumePhase,
-  savesOnEntry,
-  showsRail,
-  stepsToShow,
-} from "./wizard-path";
+  STEP_TITLE,
+  countWord,
+  documentRows,
+  draftPhaseFor,
+  lockedReason,
+  openableThrough,
+  openingStep,
+  pathFor,
+  proofStep,
+  resumeStep,
+  savesOnLeave,
+  sectionOrder,
+  sectionStates,
+  stepOrder,
+  type RegisterPath,
+  type SectionId,
+  type StepId,
+} from "./register-steps";
+import { fromServerDraft, isDraftPhase, toServerDraft } from "./register-draft";
+import { REGISTRATION_KINDS, findRegistrationKind, registrationForKind, type RegistrationKind } from "./registration-kinds";
+import { SectionIdentity } from "./section-identity";
+import { SectionLocation, missingLevels } from "./section-location";
+import { SectionProperty } from "./section-property";
+import { SectionTin, type TinView } from "./section-tin";
+import type { SignatureCapture } from "./signature-pad";
+import { composeFullName, IntendedOwnerFields, splitFullName, type PersonalDraft } from "./step-about-you";
+import { StepBranchesPsf } from "./step-branches-psf";
+import { downloadSignedContract } from "./step-contract";
+import { StepDocuments, documentsReady } from "./step-documents";
+import { StepOverview, type ReviewRow } from "./step-overview";
+import { StepPay } from "./step-pay";
+import { StepType } from "./step-type";
+import { formatRwf } from "./wizard-ui";
 
 /**
- * The business registration (F-S03 / FL01) as the RegisterIA and Journey boards
- * cut it, on the real API.
+ * Business registration (F-S03 / FL01) as the Register.dc.html artboard draws
+ * it (2026-10-19), on the real API.
  *
- * THREE STEPS AND ONE PAGE. You (one ID number, checked once), Business (one
- * TIN or UPI, the rest from the registers, and one optional section), and
- * Check, sign and pay (one read back, the fee, the agreement, the payment).
- * Then In review: one page for every owner whose business is past payment and
- * not yet open, carrying the officers' steps inside it. A broker walks You
- * alone. It used to be five screens, a PSF form, and a pipeline that opened on
- * a check already passed (the Registration IA audit has the sources).
+ * SIX STEPS: Business type; TIN and licences (sections that unlock in order:
+ * the TIN with RRA, your ID and the director check, the classification, the
+ * location); Branches and PSF; Documents; Overview, where the agreement is
+ * signed and the registration created; Pay. A residence walks five, with
+ * Property and owner. `register-steps.ts` owns the order, the sections and the
+ * saving; this component owns the state and the calls.
  *
- * A KIND THAT ARRIVES ANSWERED IS NOT ASKED AGAIN. The `/host` tile press is
- * the answer; it rides in `?kind=` and the wizard opens on You, showing the
- * kind once, as a chip in the header with Change (`wizard-path.ts`).
+ * WHAT THE ARTBOARD DRAWS AND THE API CANNOT DO is left out or said plainly,
+ * never faked: the code to the company's RRA contact, the bank transfer with
+ * its account check, the map pin, and the helper who hands a draft to the owner
+ * before anything is created. Each is an owner decision in progress-tracker.md.
  *
  * Nothing here can skip the fee: `POST /registrations/:id/pay` is the only door
- * into `submitted`, and the server owns it. Every draft is checked against the
- * same Zod contract the API validates with, so a person is told which field is
+ * into `submitted`, and the server owns it. Every answer is checked against the
+ * Zod contract the API validates with, so a person is told which field is
  * wrong before a round trip; that is an affordance, never the control.
  */
 
-type Phase =
+type Screen =
   /** Opening: what this person already has is being read. */
   | "resume"
   /** More than one registration in flight: which to open. */
   | "pending"
-  /** The kind tiles, behind Change or for a `/register` opened cold. */
-  | "place"
-  | "about"
-  | "business"
-  /** Check, sign and pay. */
-  | "pay"
+  /** The six steps. */
+  | "steps"
+  /** The broker's one short form. */
+  | "broker"
+  | "broker_done"
   /** In review: past payment, not yet open. */
   | "review"
   /** Business in fix mode, for a registration sent back. */
-  | "fix"
-  | "broker_done";
+  | "fix";
 
-/** Past payment and not yet open, or not yet paid: a registration in flight. */
 const IN_FLIGHT: ReadonlySet<OrgRegistrationStatus> = new Set([
   "pending_payment",
   "submitted",
@@ -150,23 +160,20 @@ const EMPTY_PERSONAL: PersonalDraft = {
   address: { ...EMPTY_ADDRESS },
 };
 
-const EMPTY_BUSINESS: BusinessDraft = {
-  legalName: "",
-  accommodationClass: "",
-  accommodationClassOther: "",
-  residenceClass: "residential_landlord",
-  tin: "",
-  upi: "",
-  tourismLicenseNumber: "",
-  chamberOfTourismMember: null,
-  psfMember: null,
-  psfApply: null,
-  psfMembershipNumber: "",
-  eacStarGrade: "",
-  address: { ...EMPTY_ADDRESS },
-};
+const KIGALI: Intl.DateTimeFormatOptions = { timeZone: "Africa/Kigali" };
 
-/** The kind a stored registration is, for the header chip and the agreement. */
+function clock(d: Date): string {
+  return d.toLocaleTimeString("en-GB", { ...KIGALI, hour: "2-digit", minute: "2-digit" });
+}
+
+function onDay(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? null
+    : d.toLocaleDateString("en-GB", { ...KIGALI, day: "numeric", month: "short", year: "numeric" });
+}
+
 function kindOfSummary(summary: RegistrationSummary): RegistrationKind | null {
   if (summary.domain === "residence") return "residence";
   const cls = summary.accommodationClass;
@@ -186,14 +193,13 @@ export default function RegisterWizard({
 }) {
   const arrivalKind = initialKind;
 
-  const [phase, setPhase] = useState<Phase>("resume");
+  const [screen, setScreen] = useState<Screen>("resume");
+  const [step, setStep] = useState<StepId>("type");
   const [kind, setKind] = useState<RegistrationKind | null>(arrivalKind);
-  /**
-   * Whether the kind is still the one that arrived in the URL, which is what
-   * keeps Place out of the rail. Pressing Change clears it for good.
-   */
+  /** The kind is still the one `/host` sent, which keeps Business type out of the rail. */
   const [carried, setCarried] = useState(arrivalKind !== null);
   const [capacity, setCapacity] = useState<RegistrantCapacity>("owner");
+  const [capPick, setCapPick] = useState<RegistrantCapacity>("owner");
   const [intendedOwner, setIntendedOwner] = useState({ name: "", nationalId: "", email: "" });
   const [personal, setPersonal] = useState<PersonalDraft>(EMPTY_PERSONAL);
   const [business, setBusiness] = useState<BusinessDraft>(() => ({
@@ -207,8 +213,12 @@ export default function RegisterWizard({
   }));
   const [branches, setBranches] = useState<BranchDraft[]>([]);
   const [docs, setDocs] = useState<DocumentDraft[]>([]);
+  const [psf, setPsf] = useState<PsfDraft>(EMPTY_PSF);
+  const [tiers, setTiers] = useState<PsfTier[] | null>(null);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [identity, setIdentity] = useState<IdentityStatus | null>(null);
+  const [phoneFromRegister, setPhoneFromRegister] = useState(false);
   const [quote, setQuote] = useState<RegistrationFeeQuote | null>(null);
   const [summary, setSummary] = useState<RegistrationSummary | null>(null);
   const [broker, setBroker] = useState<BrokerRegistrationSummary | null>(null);
@@ -217,22 +227,37 @@ export default function RegisterWizard({
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
   const [exiting, setExiting] = useState(false);
-  /** Where the caller's identity stands, and which checks can run here (ADR-060). */
-  const [identity, setIdentity] = useState<IdentityStatus | null>(null);
-  /** The company the register holds for the TIN, once Business asked. */
-  const [registry, setRegistry] = useState<RegistryBusiness | null>(null);
-  /** RRA's answer, kept against the TIN it answered. */
-  const [tinCheck, setTinCheck] = useState<TinCheck>(null);
-  const [addressMode, setAddressMode] = useState<"registered" | "other">("other");
-  /** The signed agreement, kept for its download once the registration exists. */
-  const [signed, setSigned] = useState<ContractSignature | null>(null);
-  /** Each step answered and continued from, which is what unlocks the next one. */
-  const [aboutDone, setAboutDone] = useState(false);
-  const [businessDone, setBusinessDone] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
-  const sessionName = user?.name ?? null;
-  const role: RegistrantRole | null = kind ? registrationForKind(kind).role : null;
+  // Step two's sections: what has been answered and confirmed.
+  const [tinCheck, setTinCheck] = useState<TinCheck>(null);
+  const [tinChecking, setTinChecking] = useState(false);
+  const [carryOnPending, setCarryOnPending] = useState(false);
+  const [tinConfirmed, setTinConfirmed] = useState(false);
+  const [idConfirmed, setIdConfirmed] = useState(false);
+  const [intendedConfirmed, setIntendedConfirmed] = useState(false);
+  const [upiConfirmed, setUpiConfirmed] = useState(false);
+  const [locSaved, setLocSaved] = useState(false);
+  const [prefilled, setPrefilled] = useState(false);
+
+  // Overview: the drawn mark, and when it was drawn; kept for the signed copy.
+  const [signature, setSignature] = useState<SignatureCapture | null>(null);
+  const [signedAt, setSignedAt] = useState<string | null>(null);
+  const [signed, setSigned] = useState<ContractSignature | null>(null);
+
+  const role = kind ? registrationForKind(kind).role : null;
+  const path: RegisterPath = pathFor(role, capacity);
+  const order = stepOrder(path, carried);
   const identityVerified = identity?.kycStatus === "verified";
+  const canVerify = Boolean(identity && (identity.available.nationalId || identity.available.passport));
+  const storedProfile = profile?.complete === true && !editingProfile;
+
+  const tin = normalizeTin(business.tin);
+  const verdict = tinCheck?.tin === tin ? tinCheck.verdict : null;
+  const registry = verdict?.result === "verified" ? verdict.business : null;
+  const isDirector = verdict?.registrantIsDirector ?? null;
+  const nameDiffers = registry !== null && business.legalName.trim() !== "" && !sameName(business.legalName, registry.legalName);
+  const legalName = registry && !nameDiffers ? registry.legalName : business.legalName.trim();
 
   const openPending = useCallback(async (orgId: string): Promise<boolean> => {
     setBusy(true);
@@ -244,16 +269,19 @@ export default function RegisterWizard({
     }
     setSummary(res.data);
     setKind(kindOfSummary(res.data));
-    // Where to resume is read from the SERVER, never from this browser: a
-    // registrant who accepted on another device is exactly as far along as
-    // the business says (AC-R8). Unpaid lands on Check, sign and pay, which
-    // skips a contract already accepted; anything past payment is In review.
-    setPhase(res.data.status === "pending_payment" ? "pay" : "review");
+    setCarried(false);
+    // Where to resume is read from the SERVER, never from this browser (AC-R8):
+    // unpaid opens the agreement if it is unsigned, else Pay; anything past
+    // payment is In review.
+    if (res.data.status === "pending_payment") {
+      setScreen("steps");
+      setStep(res.data.contractAcceptedAt === null ? "overview" : "pay");
+    } else setScreen("review");
     return true;
   }, []);
 
   // What this person already has: a registration in flight opens straight on
-  // its page; otherwise the draft the server kept, or the first question.
+  // it; otherwise the draft the server kept, or the first question.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -266,11 +294,7 @@ export default function RegisterWizard({
       if (cancelled) return;
       if (prof.status === "ok") setProfile(prof.data);
       if (ident.status === "ok") setIdentity(ident.data);
-      // Verified before this page opened: the fields the verified card stands
-      // for still have to be filled, or the contract would refuse a name and a
-      // birth date nobody can see to type.
-      const verifiedOnFile =
-        ident.status === "ok" && ident.data.kycStatus === "verified" ? ident.data.verified : null;
+      const verifiedOnFile = ident.status === "ok" && ident.data.kycStatus === "verified" ? ident.data.verified : null;
       const fillVerified = (p: PersonalDraft): PersonalDraft =>
         verifiedOnFile
           ? {
@@ -283,8 +307,6 @@ export default function RegisterWizard({
               phoneE164: p.phoneE164 || (prof.status === "ok" ? (prof.data.phoneE164 ?? "") : ""),
             }
           : p;
-      // What an incomplete profile already holds fills the boxes rather than
-      // being asked again; a complete one is confirmed, never copied.
       const fromProfile = (p: PersonalDraft): PersonalDraft =>
         prof.status === "ok" && !prof.data.complete ? seedFromPartialProfile(prof.data, p) : p;
       setPersonal((p) => fillVerified(fromProfile(p)));
@@ -292,20 +314,16 @@ export default function RegisterWizard({
       const inFlight =
         ws.status === "ok"
           ? ws.workspaces.filter(
-              (w) =>
-                w.kind === "business" &&
-                w.orgId !== null &&
-                w.registrationStatus !== null &&
-                IN_FLIGHT.has(w.registrationStatus),
+              (w) => w.kind === "business" && w.orgId !== null && w.registrationStatus !== null && IN_FLIGHT.has(w.registrationStatus),
             )
           : [];
       setPending(inFlight);
       if (inFlight.length === 1 && inFlight[0]?.orgId) {
-        if (!(await openPending(inFlight[0].orgId)) && !cancelled) setPhase("pending");
+        if (!(await openPending(inFlight[0].orgId)) && !cancelled) setScreen("pending");
         return;
       }
       if (inFlight.length > 1) {
-        setPhase("pending");
+        setScreen("pending");
         return;
       }
 
@@ -313,39 +331,33 @@ export default function RegisterWizard({
       // arrived from `/host` with a different answer.
       const saved =
         stored.status === "ok" && stored.data
-          ? fromServerDraft(
-              stored.data,
-              { personal: EMPTY_PERSONAL, business: EMPTY_BUSINESS, address: EMPTY_ADDRESS },
-              newBranchDraft,
-            )
+          ? fromServerDraft(stored.data, { personal: EMPTY_PERSONAL, business: EMPTY_BUSINESS, address: EMPTY_ADDRESS }, newBranchDraft)
           : null;
       const savedKind =
-        saved?.kind && findRegistrationKind(saved.kind as RegistrationKind)
-          ? (saved.kind as RegistrationKind)
-          : null;
+        saved?.kind && findRegistrationKind(saved.kind as RegistrationKind) ? (saved.kind as RegistrationKind) : null;
       if (saved && (arrivalKind === null || savedKind === arrivalKind)) {
         const carriedNow = savedKind !== null && savedKind === arrivalKind;
+        const savedRole = savedKind ? registrationForKind(savedKind).role : null;
         setKind(savedKind);
         setCarried(carriedNow);
         setCapacity(saved.capacity);
+        setCapPick(saved.capacity);
         setIntendedOwner(saved.intendedOwner);
         if (saved.typedPersonal) setPersonal(fillVerified(saved.personal));
         setBusiness(saved.business);
         setBranches(saved.branches);
-        const verifiedNow = ident.status === "ok" && ident.data.kycStatus === "verified";
-        const resume = restoredPhase(saved, verifiedNow);
-        setAboutDone(resume.phase === "business");
-        setPhase(resumePhase(resume.phase, carriedNow));
-        if (resume.owesId) {
+        setScreen(savedKind === "broker" ? "broker" : "steps");
+        setStep(resumeStep(pathFor(savedRole, saved.capacity), savedKind !== null));
+        if (savedKind !== null && savedKind !== "broker") {
           setFormError(
-            resume.phase === "about"
-              ? "We kept your answers from before. An ID number is never kept in a draft, so check yours again here."
-              : "We kept your answers from before. The owner's National ID is never kept in a draft, so give it again below, and check the TIN again.",
+            "We kept your answers from before. Checks are never kept in a draft, so validate the TIN with RRA again" +
+              (verifiedOnFile ? "." : ", and check your ID."),
           );
         }
         return;
       }
-      setPhase(openingPhase(arrivalKind));
+      setScreen(arrivalKind === "broker" ? "broker" : "steps");
+      setStep(openingStep(pathFor(arrivalKind ? registrationForKind(arrivalKind).role : null, "owner"), arrivalKind !== null));
     })();
     return () => {
       cancelled = true;
@@ -355,8 +367,8 @@ export default function RegisterWizard({
 
   /** The answers in the server's draft shape, saved at `phase`. */
   const saveDraft = useCallback(
-    (at: DraftPhase) =>
-      saveRegistrationDraft(
+    async (at: "place" | "business" | "documents") => {
+      const res = await saveRegistrationDraft(
         toServerDraft({
           phase: at,
           kind,
@@ -367,54 +379,32 @@ export default function RegisterWizard({
           business,
           branches,
         }),
-      ),
+      );
+      if (res.status === "ok") setSavedAt(`Saved ${clock(new Date())}`);
+    },
     [kind, capacity, profile, editingProfile, personal, intendedOwner, business, branches],
   );
 
-  /**
-   * Save the answers each time a step is left (ADR-060), so a person can come
-   * back to them on another day or device. Keyed on the phase alone: typing
-   * does not save, moving on does. Check, sign and pay is saved as Business,
-   * the last step whose answers can be resumed; once the registration exists
-   * the server has cleared the draft and nothing is saved again.
-   */
-  const previousPhase = useRef<Phase>("resume");
+  /** The steps this person has opened, which is what the rail ticks and unlocks. */
+  const [visited, setVisited] = useState<ReadonlySet<StepId>>(() => new Set());
   useEffect(() => {
-    const previous = previousPhase.current;
-    previousPhase.current = phase;
-    const saveAs = phase === "pay" ? "business" : phase;
-    if (summary !== null || !isDraftPhase(saveAs) || !savesOnEntry(previous, phase)) return;
-    void saveDraft(saveAs);
-    // Deliberately the phase only; see above.
-  }, [phase]);
+    if (screen === "steps") setVisited((v) => (v.has(step) ? v : new Set(v).add(step)));
+  }, [step, screen]);
 
-  /** The name a Google sign in brought, offered once to empty name boxes. */
+  // A step saves when it is LEFT (ADR-060), so the person can come back on
+  // another day or device. Once the registration exists nothing is saved again.
+  const previousStep = useRef<StepId | null>(null);
   useEffect(() => {
-    if (phase !== "about" || !sessionName || sessionName.includes("@")) return;
-    if (identity?.verified) return;
-    setPersonal((p) => (p.firstName.trim() || p.lastName.trim() ? p : { ...p, ...splitFullName(sessionName) }));
-  }, [phase, sessionName, identity?.verified]);
+    if (screen !== "steps") return;
+    const from = previousStep.current;
+    previousStep.current = step;
+    const phase = from ? draftPhaseFor(from) : null;
+    if (summary !== null || kind === null || phase === null || !isDraftPhase(phase) || !savesOnLeave(from, step)) return;
+    void saveDraft(phase);
+    // Deliberately the step only: typing does not save, moving on does.
+  }, [step, screen]);
 
-  /** The person the register or the passport named, onto the draft (ADR-060). */
-  const onVerified = useCallback((person: VerifiedPerson) => {
-    setPersonal((p) => ({
-      ...p,
-      ...splitFullName(person.fullName),
-      dateOfBirth: person.dateOfBirth,
-      gender: person.gender ?? p.gender,
-      phoneE164: p.phoneE164 || person.phoneE164 || "",
-      documentType: person.documentType,
-      issuingCountry: person.issuingCountry,
-    }));
-    setErrors({});
-    setFormError("");
-    void (async () => {
-      const res = await fetchIdentity();
-      if (res.status === "ok") setIdentity(res.data);
-    })();
-  }, []);
-
-  // The fee, keyed by the role, which falls out of the kind.
+  // The fee, keyed by the role.
   useEffect(() => {
     if (role === null || role === "broker") {
       setQuote(null);
@@ -429,187 +419,254 @@ export default function RegisterWizard({
       cancelled = true;
     };
   }, [role]);
-  const fee = resolveRegistrationFee({
-    summary,
-    quote,
-    accommodationType: role === "broker" ? null : kind,
-  }).amountRwf;
+  const fee = resolveRegistrationFee({ summary, quote, accommodationType: role === "broker" ? null : kind }).amountRwf;
 
-  // --- the kind, behind Change ----------------------------------------------
+  // PSF's tiers, read once the step that offers them is reached.
+  useEffect(() => {
+    if (step !== "branches" || tiers !== null) return;
+    let cancelled = false;
+    void fetchPsfTiers().then((res) => {
+      if (!cancelled) setTiers(res.status === "ok" ? res.data : []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, tiers]);
+
+  const locLine = useAddressLine(business.address);
+
+  // --- the kind ---------------------------------------------------------------
   const chooseKind = (next: RegistrationKind) => {
     const before = kind ? registrationForKind(kind).role : null;
+    const derived = registrationForKind(next);
     setKind(next);
     setCarried(false);
     setErrors({});
     setFormError("");
-    const derived = registrationForKind(next);
     // A changed register (RRA for a TIN, the land register for a UPI) starts
-    // the lookup over, as the board does.
+    // step two over.
     if (before !== derived.role) {
       setTinCheck(null);
-      setRegistry(null);
-      setBusinessDone(false);
+      setTinConfirmed(false);
+      setUpiConfirmed(false);
+      setLocSaved(false);
+      setCapacity("owner");
+      setCapPick("owner");
     }
     setBusiness((b) => ({
       ...b,
       accommodationClass: derived.accommodationClass ?? "",
       accommodationClassOther:
-        derived.accommodationClassOther ??
-        (derived.accommodationClass === "other" ? b.accommodationClassOther : ""),
+        derived.accommodationClassOther ?? (derived.accommodationClass === "other" ? b.accommodationClassOther : ""),
     }));
   };
   const changeKind = () => {
     setCarried(false);
     setFormError("");
-    setPhase("place");
+    setScreen("steps");
+    setStep("type");
   };
 
-  // --- You -------------------------------------------------------------------
-  const submitAbout = () => {
-    setErrors({});
-    setFormError("");
-    if (identity?.required && !identityVerified) {
-      setFormError("Check your ID first.");
+  // --- step two: the TIN --------------------------------------------------------
+  async function validateTin() {
+    if (!/^\d{9}$/.test(tin)) return;
+    setTinChecking(true);
+    setCarryOnPending(false);
+    const res = await checkTin(tin);
+    setTinChecking(false);
+    if (res.status !== "ok") {
+      // No answer at all reads as RRA being down: never a refusal, because the
+      // check after payment still runs.
+      setTinCheck({
+        tin,
+        verdict: {
+          tin,
+          result: "pending",
+          message: "We could not reach RRA just now.",
+          business: null,
+          registrantIsDirector: null,
+        },
+      });
       return;
     }
-    // A returning registrant confirming stored details sends no `personal`
-    // block: the server reads the profile it already holds.
-    if (!(profile?.complete === true && !editingProfile)) {
-      const local: Record<string, string> = {};
-      if (!identityVerified) {
-        if (personal.firstName.trim().length === 0) local["firstName"] = "Tell us your first name.";
-        if (personal.lastName.trim().length === 0) local["lastName"] = "Tell us your last name.";
-        if (personal.documentType === "national_id") {
-          const idProblem = nationalIdError(personal.documentNumber);
-          if (idProblem !== null) local["document.documentNumber"] = idProblem;
+    setTinCheck({ tin, verdict: res.data });
+    const found = res.data.result === "verified" ? res.data.business : null;
+    if (found) {
+      const registered = registryAddressDraft(found);
+      setBusiness((b) => ({
+        ...b,
+        legalName: b.legalName.trim() ? b.legalName : found.legalName,
+        address: registered ?? b.address,
+      }));
+      setPrefilled(Boolean(registered));
+      setLocSaved(false);
+      if (res.data.registrantIsDirector === false) setCapPick("on_behalf_of");
+    }
+  }
+
+  /** The TIN is being changed: drop what the old answer filled in. */
+  const changeTin = (raw: string) => {
+    setBusiness((b) => ({
+      ...b,
+      tin: raw,
+      ...(registry && sameName(b.legalName, registry.legalName) ? { legalName: "", address: { ...EMPTY_ADDRESS } } : {}),
+    }));
+    if (tinCheck) setTinCheck(null);
+    setTinConfirmed(false);
+    setCarryOnPending(false);
+    setPrefilled(false);
+    setLocSaved(false);
+  };
+
+  const confirmTin = () => {
+    setErrors({});
+    if (!registry && legalName.length < 2) {
+      setErrors({ "business.legalName": "Give the registered name of the business." });
+      return;
+    }
+    setCapacity(capPick);
+    setTinConfirmed(true);
+    if (capPick === "on_behalf_of") {
+      setIntendedOwner((o) => ({ ...o, name: o.name || registry?.directors[0]?.name || "" }));
+    }
+  };
+
+  // --- step two: the ID -------------------------------------------------------
+  const onVerified = useCallback(
+    (person: VerifiedPerson) => {
+      setPersonal((p) => ({
+        ...p,
+        ...splitFullName(person.fullName),
+        dateOfBirth: person.dateOfBirth,
+        gender: person.gender ?? p.gender,
+        phoneE164: p.phoneE164 || person.phoneE164 || "",
+        documentType: person.documentType,
+        issuingCountry: person.issuingCountry,
+      }));
+      if (person.phoneE164) setPhoneFromRegister(true);
+      setErrors({});
+      setFormError("");
+      void (async () => {
+        const res = await fetchIdentity();
+        if (res.status === "ok") setIdentity(res.data);
+        // Whether this ID is one of the directors is RRA's answer to the TIN
+        // ASKED BY A VERIFIED CALLER, so the TIN is asked again now.
+        if (tinCheck && /^\d{9}$/.test(tinCheck.tin)) {
+          const again = await checkTin(tinCheck.tin);
+          if (again.status === "ok") setTinCheck({ tin: tinCheck.tin, verdict: again.data });
         }
-      }
-      if (Object.keys(local).length > 0) {
-        setErrors(local);
-        setFormError("Some of your details need fixing.");
-        return;
-      }
+      })();
+    },
+    [tinCheck],
+  );
+
+  const confirmId = () => {
+    setErrors({});
+    if (!(profile?.complete === true && !editingProfile)) {
       const parsed = PersonalDetails.safeParse(personalCandidate(personal, identityVerified));
       if (!parsed.success) {
         setErrors(issuesToErrors(parsed.error.issues));
-        setFormError(
-          identityVerified
-            ? "Give the phone and the address the register does not hold."
-            : "Some of your details need fixing.",
-        );
         return;
       }
     }
-    setAboutDone(true);
-    // A broker's registration is complete here: no business, no fee, no gate.
-    if (role === "broker") {
-      void submitBroker();
-      return;
-    }
-    setPhase("business");
+    setIdConfirmed(true);
   };
 
-  const submitBroker = async () => {
-    setBusy(true);
-    setFormError("");
-    const sendPersonal = !(profile?.complete === true && !editingProfile);
-    const res = await registerAsBroker(
-      sendPersonal ? { personal: PersonalDetails.parse(personalCandidate(personal, identityVerified)) } : {},
-    );
-    setBusy(false);
-    if (res.status !== "ok") {
-      setFormError(apiResultMessage(res));
-      return;
-    }
-    setBroker(res.data);
-    setPhase("broker_done");
+  /** A complete profile on file, opened to change the phone or the home address. */
+  const editStoredProfile = () => {
+    setEditingProfile(true);
+    setIdConfirmed(false);
+    setPersonal((p) => (profile ? seedFromPartialProfile(profile, p) : p));
   };
 
-  // --- Business --------------------------------------------------------------
-  const onRegistry = (found: RegistryBusiness | null, registrantIsDirector: boolean | null) => {
-    if (!found) {
-      // The TIN is being changed: drop what the old answer filled in.
-      setBusiness((b) =>
-        registry && b.legalName === registry.legalName
-          ? { ...b, legalName: "", address: { ...EMPTY_ADDRESS } }
-          : b,
-      );
-      setRegistry(null);
-      setAddressMode("other");
-      setBusinessDone(false);
-      return;
-    }
-    setRegistry(found);
-    const registered = registryAddressDraft(found);
-    setBusiness((b) => ({ ...b, legalName: found.legalName, address: registered ?? b.address }));
-    setAddressMode(registered ? "registered" : "other");
-    // Ownership, derived from the directors (ADR-060): `create` enforces it,
-    // this only saves a refusal.
-    if (registrantIsDirector === false) {
-      setCapacity("on_behalf_of");
-      setIntendedOwner((o) => ({ ...o, name: o.name || found.directors[0]?.name || "" }));
-    }
-    if (registrantIsDirector === true && capacity === "on_behalf_of") setCapacity("owner");
+  const prepareForOwner = () => {
+    setCapacity("on_behalf_of");
+    setCapPick("on_behalf_of");
+    setIntendedOwner((o) => ({ ...o, name: o.name || registry?.directors[0]?.name || "" }));
+    setIdConfirmed(true);
   };
 
-  const submitBusiness = () => {
+  const confirmIntended = () => {
+    const parsed = IntendedOwner.safeParse(intendedOwner);
+    if (!parsed.success) {
+      setErrors(prefix("intendedOwner", issuesToErrors(parsed.error.issues)));
+      return;
+    }
     setErrors({});
-    setFormError("");
-    if (role === "host") {
-      const tin = normalizeTin(business.tin);
-      const verdict = tinCheck?.tin === tin ? tinCheck.verdict : null;
-      if (!verdict) {
-        setErrors({ "business.tin": /^\d{9}$/.test(tin) ? "Check the TIN with RRA first." : "Enter the 9-digit TIN." });
-        setFormError("Check the TIN with RRA first.");
-        return;
-      }
-      if (verdict.result === "failed" || verdict.result === "taken") {
-        setFormError(verdict.message);
-        return;
-      }
-    }
-    // The UPI in the field's own words: the contract accepts any five runs of
-    // digits, and `upiError` knows the widths. Named with every other problem
-    // on the step, so one press shows them all.
-    const upiProblem = role === "landlord" ? upiError(business.upi) : null;
-    const parsed = BusinessDetails.safeParse(
-      businessCandidate(business, role, kind, docs, role === "host" ? branches : []),
-    );
-    const owner = capacity === "on_behalf_of" ? IntendedOwner.safeParse(intendedOwner) : null;
-    const docProblems = documentErrors(docs);
-    if (!parsed.success || (owner && !owner.success) || Object.keys(docProblems).length > 0 || upiProblem !== null) {
-      const ownerErrors = owner && !owner.success ? prefix("intendedOwner", issuesToErrors(owner.error.issues)) : {};
-      const idProblem =
-        capacity === "on_behalf_of" && intendedOwner.nationalId.trim() !== ""
-          ? nationalIdError(intendedOwner.nationalId)
-          : null;
-      if (idProblem !== null) ownerErrors["intendedOwner.nationalId"] = idProblem;
-      setErrors({
-        ...(parsed.success ? {} : prefix("business", issuesToErrors(parsed.error.issues))),
-        ...ownerErrors,
-        ...docProblems,
-        ...(upiProblem !== null ? { "business.upi": upiProblem } : {}),
-      });
-      setFormError(
-        Object.keys(docProblems).length > 0 && parsed.success && (!owner || owner.success) && upiProblem === null
-          ? "Say which document each file is, or remove it, under Add more now."
-          : "Some of your business details need fixing.",
-      );
-      return;
-    }
-    setBusinessDone(true);
-    setPhase("pay");
+    setIntendedConfirmed(true);
   };
 
-  // --- Check, sign and pay: one press (ADR-060) --------------------------------
-  const createFromAnswers = async (): Promise<ApiResult<RegistrationSummary> | null> => {
-    if (!role) return null;
+  // --- section and step completeness ----------------------------------------
+  const personalOk =
+    profile?.complete === true && !editingProfile
+      ? true
+      : PersonalDetails.safeParse(personalCandidate(personal, identityVerified)).success;
+  const identityOk = (identityVerified || !canVerify) && personalOk && idConfirmed;
+  const satisfied = (id: SectionId): boolean => {
+    switch (id) {
+      case "tin":
+        return (
+          tinConfirmed &&
+          ((verdict?.result === "verified" && !nameDiffers) || (verdict?.result === "pending" && carryOnPending)) &&
+          legalName.length >= 2
+        );
+      case "owner":
+        return identityOk && isDirector !== false;
+      case "id":
+        return identityOk;
+      case "intended":
+        return intendedConfirmed && IntendedOwner.safeParse(intendedOwner).success;
+      case "cls":
+        return true;
+      case "loc":
+        return locSaved && missingLevels(business.address).length === 0;
+      case "upi":
+        return upiConfirmed && business.legalName.trim().length >= 2 && upiError(business.upi) === null;
+    }
+  };
+  const sections = sectionOrder(path);
+  const { states: sectionState, allDone: proofDone } = sectionStates(sections, satisfied);
+
+  const onFile = documentOnFileFor(identity, profile);
+  /** The ID line PSF's form shows, saying where the number comes from. */
+  const documentOnFile = onFile ? `${onFile.label}, ${onFile.source === "checked" ? "the one checked" : "on your account"}` : null;
+  const psfReady =
+    path === "landlord" ||
+    business.psfMember !== false ||
+    business.psfApply !== true ||
+    PsfApplicationInput.safeParse(psfCandidate(psf, documentOnFile !== null)).success;
+  const docsState = documentsReady(path, docs);
+  const accepted = summary !== null && summary.contractAcceptedAt !== null;
+  const paid = summary !== null && summary.status !== "pending_payment";
+
+  const complete = (id: StepId): boolean => {
+    if (summary !== null) return id !== "pay" ? (id === "overview" ? accepted : true) : paid;
+    switch (id) {
+      case "type":
+        return kind !== null && kind !== "broker" && (kind !== "other" || business.accommodationClassOther.trim() !== "");
+      case "tin":
+      case "property":
+        return proofDone;
+      case "branches":
+        return psfReady;
+      case "documents":
+        return docsState.ok;
+      case "overview":
+        return accepted;
+      case "pay":
+        return paid;
+    }
+  };
+  const openable = openableThrough(order, complete);
+
+  /** Every answer against the contract, before the overview is shown. */
+  const requestCandidate = () => {
     const sendPersonal = !(profile?.complete === true && !editingProfile);
-    const request = {
+    return {
       role,
       capacity,
       ...(sendPersonal ? { personal: personalCandidate(personal, identityVerified) } : {}),
-      business: businessCandidate(business, role, kind, docs, branches),
+      business: businessCandidate(business, role, kind, legalName, docs, branches, psf, documentOnFile !== null),
       ...(capacity === "on_behalf_of"
         ? {
             intendedOwner: {
@@ -620,22 +677,64 @@ export default function RegisterWizard({
           }
         : {}),
     };
-    const parsed = CreateRegistrationRequest.safeParse(request);
+  };
+
+  /** Where an issue at `key` is answered, so a refusal sends the person there. */
+  const stepForIssue = (key: string): StepId => {
+    if (key.startsWith("business.branches") || key.startsWith("business.psf")) return "branches";
+    if (key.startsWith("business.certificates")) return "documents";
+    return proofStep(path);
+  };
+
+  const goTo = (to: StepId) => {
+    setFormError("");
+    setStep(to);
+  };
+
+  // --- moving on ---------------------------------------------------------------
+  const next = () => {
+    setErrors({});
+    setFormError("");
+    const i = order.indexOf(step);
+    if (step === "branches" && !psfReady) {
+      const parsed = PsfApplicationInput.safeParse(psfCandidate(psf, documentOnFile !== null));
+      if (!parsed.success) setErrors(prefix("psf", issuesToErrors(parsed.error.issues)));
+      setFormError("Some of the PSF application needs fixing.");
+      return;
+    }
+    if (step === "documents") {
+      const parsed = CreateRegistrationRequest.safeParse(requestCandidate());
+      if (!parsed.success) {
+        const found = issuesToErrors(parsed.error.issues);
+        setErrors(found);
+        const first = Object.keys(found)[0] ?? "";
+        setStep(stepForIssue(first));
+        setFormError(`Something needs fixing before the overview: ${Object.values(found)[0] ?? "check your answers"}`);
+        return;
+      }
+    }
+    const to = order[i + 1];
+    if (to) setStep(to);
+  };
+
+  const createFromAnswers = async (): Promise<ApiResult<RegistrationSummary> | null> => {
+    if (!role) return null;
+    const parsed = CreateRegistrationRequest.safeParse(requestCandidate());
     if (!parsed.success) {
-      setErrors(issuesToErrors(parsed.error.issues));
-      setFormError("Something in the form is still wrong. Use Change to go back and fix it.");
+      const found = issuesToErrors(parsed.error.issues);
+      setErrors(found);
+      setFormError(`Something needs fixing: ${Object.values(found)[0] ?? "check your answers"}. Use Edit to go back to it.`);
       return null;
     }
     return createRegistration(parsed.data);
   };
 
   /**
-   * Sign, then create, accept and pay: the server's own order (ADR-053,
-   * AC-R8), from one press. Each call is skipped once it has happened, so a
-   * press after a partial failure resumes where it stopped. Only the version
-   * on screen is sent; the drawn mark stays here for the download.
+   * Sign and continue: create, then accept the agreement, the server's own
+   * order (ADR-053 AC-R8). Each call is skipped once it has happened, so a press
+   * after a partial failure resumes where it stopped.
    */
-  const signAndPay = async (signature: ContractSignature | null): Promise<void> => {
+  const signAndCreate = async () => {
     setBusy(true);
     setFormError("");
     try {
@@ -652,41 +751,80 @@ export default function RegisterWizard({
         setSummary(current);
       }
       if (current.status !== "pending_payment") {
-        setPhase("review");
+        setScreen("review");
         return;
       }
       if (current.contractAcceptedAt === null) {
-        const accepted = await acceptRegistrationContract(current.orgId, OPERATOR_CONTRACT_VERSION);
-        if (accepted.status !== "ok") {
-          if (accepted.status === "refused" && accepted.code === "contract_not_open") {
-            // It already moved past the bill, most likely paid from another tab.
+        const acc = await acceptRegistrationContract(current.orgId, OPERATOR_CONTRACT_VERSION);
+        if (acc.status !== "ok") {
+          if (acc.status === "refused" && acc.code === "contract_not_open") {
             const now = await fetchRegistration(current.orgId);
             if (now.status === "ok") {
               setSummary(now.data);
-              setPhase("review");
+              setScreen("review");
               return;
             }
           }
-          setFormError(apiResultMessage(accepted));
+          setFormError(apiResultMessage(acc));
           return;
         }
-        current = accepted.data;
+        current = acc.data;
         setSummary(current);
       }
-      if (signature) setSigned(signature);
-      const paid = await payRegistrationFee(current.orgId);
-      if (paid.status !== "ok") {
-        setFormError(apiResultMessage(paid));
-        return;
+      if (signature) {
+        setSigned({
+          dataUrl: signature.dataUrl,
+          method: signature.method,
+          signedName: registrantName,
+          signedAt: signedAt ?? new Date().toISOString(),
+        });
       }
-      setSummary(paid.data);
-      setPhase("review");
+      setStep("pay");
     } finally {
       setBusy(false);
     }
   };
 
-  // --- In review --------------------------------------------------------------
+  const pay = async () => {
+    if (!summary) return;
+    setBusy(true);
+    setFormError("");
+    const res = await payRegistrationFee(summary.orgId);
+    setBusy(false);
+    if (res.status !== "ok") {
+      setFormError(apiResultMessage(res));
+      return;
+    }
+    setSummary(res.data);
+  };
+
+  // --- broker ------------------------------------------------------------------
+  const submitBroker = async () => {
+    setErrors({});
+    setFormError("");
+    const sendPersonal = !(profile?.complete === true && !editingProfile);
+    if (sendPersonal) {
+      const parsed = PersonalDetails.safeParse(personalCandidate(personal, identityVerified));
+      if (!parsed.success) {
+        setErrors(issuesToErrors(parsed.error.issues));
+        setFormError("Some of your details need fixing.");
+        return;
+      }
+    }
+    setBusy(true);
+    const res = await registerAsBroker(
+      sendPersonal ? { personal: PersonalDetails.parse(personalCandidate(personal, identityVerified)) } : {},
+    );
+    setBusy(false);
+    if (res.status !== "ok") {
+      setFormError(apiResultMessage(res));
+      return;
+    }
+    setBroker(res.data);
+    setScreen("broker_done");
+  };
+
+  // --- in review -----------------------------------------------------------------
   const resubmit = async () => {
     if (!summary) return;
     setBusy(true);
@@ -698,21 +836,30 @@ export default function RegisterWizard({
       return;
     }
     setSummary(res.data);
-    setPhase("review");
+    setScreen("review");
   };
 
   /** A fresh registration, beside whatever is already in flight. */
   const startNew = () => {
     setSummary(null);
     setSigned(null);
+    setSignature(null);
+    setSignedAt(null);
     setErrors({});
     setFormError("");
     setTinCheck(null);
-    setRegistry(null);
+    setTinConfirmed(false);
+    setIdConfirmed(false);
+    setIntendedConfirmed(false);
+    setUpiConfirmed(false);
+    setLocSaved(false);
+    setPrefilled(false);
+    setCarryOnPending(false);
     setDocs([]);
     setBranches([]);
-    setBusinessDone(false);
+    setPsf(EMPTY_PSF);
     setCapacity("owner");
+    setCapPick("owner");
     setIntendedOwner({ name: "", nationalId: "", email: "" });
     const derived = arrivalKind ? registrationForKind(arrivalKind) : null;
     setBusiness({
@@ -722,18 +869,37 @@ export default function RegisterWizard({
     });
     setKind(arrivalKind);
     setCarried(arrivalKind !== null);
-    setPhase(openingPhase(arrivalKind));
+    setScreen(arrivalKind === "broker" ? "broker" : "steps");
+    setStep(openingStep(pathFor(derived?.role ?? null, "owner"), arrivalKind !== null));
   };
 
   const saveAndExit = async () => {
     setExiting(true);
-    const at: DraftPhase | null =
-      phase === "pay" ? "business" : phase === "about" || phase === "business" ? phase : null;
-    if (at && summary === null && kind) await saveDraft(at);
+    const at = draftPhaseFor(step);
+    if (screen === "steps" && at && summary === null && kind) await saveDraft(at);
     window.location.assign("/start");
   };
 
-  // --- render -----------------------------------------------------------------
+  /** "Apply now": what the wizard already knows goes into PSF's form. */
+  const seedPsf = () => {
+    const verifiedPerson = identity?.verified ?? null;
+    const names = verifiedPerson ? splitFullName(verifiedPerson.fullName) : personal;
+    setPsf((p) => ({
+      ...p,
+      // The tier is the person's choice: the first in PSF's list is its dearest.
+      companyName: p.companyName || legalName,
+      streetAddress: p.streetAddress || business.address.street.trim() || locLine || "",
+      companyType: registry?.companyType ?? p.companyType,
+      firstName: p.firstName || names.firstName,
+      lastName: p.lastName || [names.middleName, names.lastName].filter(Boolean).join(" "),
+      gender: p.gender || (personal.gender === "male" || personal.gender === "female" ? personal.gender : ""),
+      phoneE164: p.phoneE164 || personal.phoneE164 || profile?.phoneE164 || "",
+      email: p.email || user?.email || "",
+      dateOfBirth: p.dateOfBirth || verifiedPerson?.dateOfBirth || personal.dateOfBirth || profile?.dateOfBirth || "",
+    }));
+  };
+
+  // --- render ------------------------------------------------------------------
   const kindEntry = kind ? (REGISTRATION_KINDS.find((k) => k.value === kind) ?? null) : null;
   const summaryKindLabel = summary
     ? summary.domain === "residence"
@@ -742,88 +908,337 @@ export default function RegisterWizard({
         ? (ACCOMMODATION_CLASS_LABEL[summary.accommodationClass as keyof typeof ACCOMMODATION_CLASS_LABEL] ?? null)
         : null
     : null;
-  const kindLabel = kindEntry?.label ?? summaryKindLabel;
-  const walking = phase === "about" || phase === "business" || (phase === "pay" && summary === null);
-
-  const RAIL: ReadonlyArray<{ id: string; title: string; sub: string }> = [
-    { id: "place", title: "What you register", sub: kindLabel ?? "One choice, asked once" },
-    { id: "about", title: "You", sub: "Your ID, checked once" },
-    {
-      id: "business",
-      title: "Business",
-      sub: role === "landlord" ? "Land register UPI and address" : "RRA TIN and address",
-    },
-    {
-      id: "pay",
-      title: "Check, sign and pay",
-      sub: fee !== null ? `${formatRwf(fee)}, one time` : "The one time fee",
-    },
-  ];
-  const railSteps = stepsToShow(
-    role === "broker" ? RAIL.filter((s) => s.id === "place" || s.id === "about") : RAIL,
-    carried,
-  );
-  const at = railSteps.findIndex((s) => s.id === phase);
-  const rail: RailStep[] = railSteps.map((s, i) => ({
-    ...s,
-    current: s.id === phase,
-    done:
-      at > i &&
-      (s.id === "place" ? kind !== null : s.id === "about" ? aboutDone : s.id === "business" ? businessDone : false),
-    locked:
-      summary !== null
-        ? s.id !== "pay"
-        : s.id === "about"
-          ? kind === null
-          : s.id === "business"
-            ? !aboutDone
-            : s.id === "pay"
-              ? !(aboutDone && businessDone)
-              : false,
-  }));
-  const railShown = at >= 0 && showsRail(railSteps.length);
+  const kindLabel = kindEntry?.label ?? summaryKindLabel ?? "business";
+  const landlord = path === "landlord";
 
   const verifiedName = identity?.verified?.fullName ?? null;
   const registrantName =
     profile?.complete === true && !editingProfile
       ? (profile.fullName ?? composeFullName(personal))
-      : verifiedName ?? composeFullName(personal);
+      : (verifiedName ?? composeFullName(personal));
+  const idLine = onFile?.label ?? (personal.documentNumber ? `National ID ${formatNationalId(personal.documentNumber)}` : null);
+  const checkedBy =
+    identity?.method === "document_scan"
+      ? "Checked from your passport"
+      : identity?.method === "registry"
+        ? "Checked by the population register"
+        : identityVerified
+          ? "Verified"
+          : null;
+
+  const businessNamed = summary?.legalName ?? (landlord ? (upiConfirmed ? business.legalName.trim() : "") : registry && tinConfirmed ? legalName : "");
+  const heading = {
+    eyebrow: landlord ? "Residence registration" : "Business registration",
+    title: businessNamed ? `Register ${businessNamed}` : landlord ? "Register your residence" : "Register your business",
+    sub: landlord
+      ? `${countWord(order.length)} short steps for a property let on a lease. The population register confirms who you are.`
+      : path === "helper"
+        ? "You prepare it and name the owner, who claims it once Injishi approves it."
+        : `${countWord(order.length)} short steps. RRA and the population register confirm the business is yours, so you type very little.`,
+  };
+
+  const SECTION_TITLE: Record<SectionId, string> = {
+    tin: "Business name and TIN",
+    owner: "You and the company",
+    id: "Your identity",
+    intended: "The owner",
+    cls: "Classification",
+    loc: "Location",
+    upi: "The property",
+  };
+  const entityGroup = kind ? registrationForKind(kind).entityGroup : null;
+  const sectionSummary = (id: SectionId): string => {
+    switch (id) {
+      case "tin":
+        return `${legalName || "Not named"} · TIN ${formatTin(tin)} · ${capacity === "owner" ? "you own or direct it" : "you register it for the owner"}`;
+      case "owner":
+      case "id":
+        return [registrantName || "You", idLine, id === "owner" && isDirector ? "a director" : null].filter(Boolean).join(" · ");
+      case "intended":
+        return `${intendedOwner.name.trim()} · ${intendedOwner.email.trim()} · claims it after approval`;
+      case "cls":
+        return kind === "other"
+          ? `Other: ${business.accommodationClassOther.trim()}. An officer picks the closest RDB class.`
+          : `${kindLabel}, in RDB's ${entityGroup === "restaurant_bar_nightclub" ? "restaurant, bar and nightclub" : "accommodation"} group. No licence number needed.`;
+      case "loc":
+        return locLine ?? "Saved";
+      case "upi":
+        return `${business.legalName.trim()} · UPI ${business.upi.trim()}`;
+    }
+  };
+  const sectionChecked = (id: SectionId): string | null => {
+    if (id === "tin") return verdict?.result === "verified" ? "Checked by RRA" : null;
+    if (id === "owner" || id === "id") return checkedBy;
+    if (id === "upi") return "Format checked";
+    return null;
+  };
+  const editSection = (id: SectionId) => {
+    setFormError("");
+    if (id === "tin") {
+      setTinCheck(null);
+      setTinConfirmed(false);
+      setCarryOnPending(false);
+    } else if (id === "owner" || id === "id") setIdConfirmed(false);
+    else if (id === "intended") setIntendedConfirmed(false);
+    else if (id === "loc") setLocSaved(false);
+    else if (id === "upi") setUpiConfirmed(false);
+    else if (id === "cls") changeKind();
+  };
+
+  const tinView: TinView = tinChecking ? { kind: "checking" } : verdict ? { kind: "result", verdict } : { kind: "idle" };
+
+  const sectionBody = (id: SectionId): ReactNode => {
+    switch (id) {
+      case "tin":
+        return (
+          <SectionTin
+            typedName={business.legalName}
+            onTypedNameChange={(legal) => setBusiness((b) => ({ ...b, legalName: legal }))}
+            tin={business.tin}
+            onTinChange={changeTin}
+            view={tinView}
+            carryOnPending={carryOnPending}
+            capPick={capPick}
+            onCapPick={setCapPick}
+            onValidate={() => void validateTin()}
+            onUseRraName={() => registry && setBusiness((b) => ({ ...b, legalName: registry.legalName }))}
+            onCheckAnother={() => changeTin("")}
+            onCarryOn={() => setCarryOnPending(true)}
+            onAskInjishi={() => {
+              if (!openAssistant()) window.location.assign("/help");
+            }}
+            onNext={confirmTin}
+            error={errors["business.legalName"] ?? errors["business.tin"]}
+          />
+        );
+      case "owner":
+      case "id":
+        return (
+          <SectionIdentity
+            path={path}
+            identity={identity}
+            profile={profile}
+            profileComplete={profile?.complete === true && !editingProfile}
+            draft={personal}
+            onDraftChange={setPersonal}
+            onVerified={onVerified}
+            phoneFromRegister={phoneFromRegister}
+            needsExtras={!personalOk}
+            isDirector={id === "owner" ? isDirector : null}
+            directorNames={registry?.directors.map((d) => d.name) ?? []}
+            demo={demo}
+            errors={errors}
+            onPrepareForOwner={prepareForOwner}
+            onEditProfile={editStoredProfile}
+            onNext={confirmId}
+          />
+        );
+      case "intended":
+        return (
+          <>
+            <p className="text-sm">
+              The owner claims the business with this National ID once Injishi approves it, so it has to be one of
+              RRA&apos;s directors for this TIN. The claim link goes to their email.
+            </p>
+            <IntendedOwnerFields title="Who owns it" value={intendedOwner} onChange={setIntendedOwner} errors={errors} />
+            <div>
+              <Button onClick={confirmIntended}>Next</Button>
+            </div>
+          </>
+        );
+      case "loc":
+        return (
+          <SectionLocation
+            address={business.address}
+            onChange={(address) => setBusiness((b) => ({ ...b, address }))}
+            prefilled={prefilled}
+            errors={errors}
+            errorPrefix="business.address"
+            onSave={() => setLocSaved(true)}
+          />
+        );
+      case "upi":
+        return (
+          <SectionProperty
+            draft={business}
+            onChange={setBusiness}
+            errors={errors}
+            onNext={() => {
+              setErrors({});
+              setUpiConfirmed(true);
+            }}
+          />
+        );
+      case "cls":
+        return null;
+    }
+  };
+
+  // Overview rows, in the artboard's order.
+  const docLabel = (d: DocumentDraft) =>
+    d.kind === "other"
+      ? d.kindOther.trim() || "Another document"
+      : (documentRows(path).find((r) => r.kind === d.kind)?.label ?? d.filename);
+  const docsText = docs.length
+    ? `${docLabel(docs[0]!)}${docs.length > 1 ? ` and ${docs.length - 1} more` : ""}`
+    : "None yet";
+  const psfText =
+    business.psfMember === true
+      ? `A member${business.psfMembershipNumber.trim() ? `, number ${business.psfMembershipNumber.trim()}` : ""}`
+      : business.psfMember === false
+        ? business.psfApply === true
+          ? `Applying${tiers?.find((t) => t.code === psf.requestedTierCode)?.nameEn ? `: ${tiers.find((t) => t.code === psf.requestedTierCode)!.nameEn}` : ""}. Sent to PSF after approval`
+          : "Not a member, not applying now"
+        : "Not answered";
+  const youRow = `${registrantName || "You"}${idLine ? `, ${idLine}` : ""}${checkedBy ? `, ${checkedBy.toLowerCase()}` : ""}`;
+  const rows: ReviewRow[] = summary
+    ? [{ title: "Registering", value: `${kindLabel} · ${summary.legalName}`, step: null }]
+    : landlord
+      ? [
+          { title: "Business type", value: kindLabel, step: "type" },
+          { title: "The property", value: `${business.legalName.trim()} · UPI ${business.upi.trim()}`, step: "property" },
+          { title: "You", value: youRow, step: "property" },
+          { title: "Location", value: locLine ?? "Not chosen", step: "property" },
+          { title: "Documents", value: docsText, step: "documents" },
+        ]
+      : [
+          { title: "Business type", value: kindLabel, step: "type" },
+          {
+            title: "The business",
+            value: `${legalName} · TIN ${formatTin(tin)}${verdict?.result === "verified" ? " · checked by RRA" : " · RRA checks it after payment"}`,
+            step: "tin",
+          },
+          path === "helper"
+            ? { title: "You", value: youRow, step: "tin" }
+            : { title: "Proof it is yours", value: `${youRow}${isDirector ? ", a director" : ""}`, step: "tin" },
+          ...(path === "helper"
+            ? [
+                {
+                  title: "The owner",
+                  value: `${intendedOwner.name.trim()} · ${intendedOwner.email.trim()} · claims it after approval`,
+                  step: "tin" as const,
+                },
+              ]
+            : []),
+          { title: "Location", value: locLine ?? "Not chosen", step: "tin" },
+          {
+            title: "Branches",
+            value: branches.length
+              ? `${branches.length} ${branches.length === 1 ? "branch" : "branches"}: ${branches.map((b) => b.name).join(", ")}`
+              : "None",
+            step: "branches",
+          },
+          { title: "PSF", value: psfText, step: "branches" },
+          { title: "Documents", value: docsText, step: "documents" },
+        ];
+
+  const LEAD: Record<StepId, string> = {
+    type: "What you register decides the steps, the documents we ask for and the fee.",
+    tin:
+      path === "helper"
+        ? "Check the TIN, confirm who you are, and name the owner. The owner proves the business is theirs when they claim it."
+        : "Prove the business is yours. RRA and the population register confirm it, so you type very little.",
+    property: "Tell us about the property and confirm who you are. A Residence needs no TIN.",
+    branches: "Add other sites that share this TIN, and tell us about PSF. Both are optional.",
+    documents: landlord
+      ? "Upload the land title. Everything else is optional."
+      : "Upload the RDB certificate. Everything else is optional, and it helps the review.",
+    overview: accepted
+      ? "You signed. These details are with Injishi now."
+      : "Check everything once. When you sign, the registration is created and these details lock until an Injishi officer sends them back to you.",
+    pay: landlord
+      ? "Pay the registration fee. It sends your residence to Injishi for review."
+      : "Pay the registration fee. It sends your business to Injishi for review.",
+  };
+
+  let primary: StepPrimary | null = { label: "Continue", icon: <ArrowRight size={16} aria-hidden />, onPress: next };
+  if (step === "type") {
+    if (kind === "broker") {
+      primary = {
+        label: "Open the broker form",
+        icon: <ArrowRight size={16} aria-hidden />,
+        onPress: () => {
+          setFormError("");
+          setScreen("broker");
+        },
+      };
+    } else if (!complete("type")) {
+      primary = {
+        ...primary,
+        disabled: true,
+        why: kind === "other" ? "Say what kind of place it is to continue." : "Pick a business type to continue.",
+      };
+    }
+  } else if ((step === "tin" || step === "property") && !proofDone) {
+    primary = { ...primary, disabled: true, why: "Finish the sections above to continue." };
+  } else if (step === "documents" && !docsState.ok) {
+    primary = { ...primary, disabled: true, why: docsState.why };
+  } else if (step === "overview") {
+    primary = accepted
+      ? { label: "Continue to pay", icon: <ArrowRight size={16} aria-hidden />, onPress: () => goTo("pay") }
+      : {
+          label: "Sign and continue",
+          icon: <PenLine size={16} aria-hidden />,
+          onPress: () => void signAndCreate(),
+          pending: busy,
+          disabled: signature === null || fee === null,
+          why:
+            fee === null
+              ? "The fee could not be read, so nothing can be signed yet."
+              : signature
+                ? "This creates the registration and locks these details."
+                : "Sign the agreement to continue.",
+        };
+  } else if (step === "pay") {
+    primary = paid
+      ? null
+      : {
+          label: fee === null ? "Pay" : `Pay ${formatRwf(fee)}`,
+          icon: <Landmark size={16} aria-hidden />,
+          onPress: () => void pay(),
+          pending: busy,
+          disabled: summary === null,
+        };
+  }
+
+  const stepIndex = Math.max(0, order.indexOf(step));
+  // The artboard ticks and opens only what has been reached: a step whose
+  // answers are all optional is complete before anyone has seen it.
+  const reachedIndex = order.reduce((at, id, i) => (visited.has(id) || id === step ? i : at), 0);
+  const rail: RailStep[] = order.map((id, i) => ({
+    id,
+    title: STEP_TITLE[id],
+    status: id === step ? "active" : complete(id) && visited.has(id) ? "complete" : "inactive",
+    // Once the registration exists, only what is left to do can be opened.
+    locked: summary !== null ? id !== "overview" && id !== "pay" : i > Math.min(openable, reachedIndex),
+  }));
 
   let body: ReactNode;
-  if (phase === "resume") {
+  if (screen === "resume") {
     body = <StepSkeleton />;
-  } else if (phase === "pending") {
+  } else if (screen === "pending") {
     body = (
-      <PendingList
-        pending={pending}
-        busy={busy}
-        error={formError}
-        onOpen={(orgId) => void openPending(orgId)}
-        onStartNew={startNew}
-      />
+      <PendingList pending={pending} busy={busy} error={formError} onOpen={(orgId) => void openPending(orgId)} onStartNew={startNew} />
     );
-  } else if (phase === "review" && summary) {
+  } else if (screen === "review" && summary) {
     body = (
       <InReview
         summary={summary}
         onSummary={setSummary}
         onFix={() => {
           setFormError("");
-          setPhase("fix");
+          setScreen("fix");
         }}
         onStartNew={startNew}
         signedDownload={
           signed
             ? () =>
-                downloadSignedContract(
-                  contractInputFor({ summary, kind, personal, business, profile, editingProfile }),
-                  signed,
-                )
+                downloadSignedContract(contractInputFor({ summary, kind, personal, business, legalName, profile, editingProfile }), signed)
             : null
         }
       />
     );
-  } else if (phase === "fix" && summary) {
+  } else if (screen === "fix" && summary) {
     body = (
       <FixBusiness
         summary={summary}
@@ -832,136 +1247,171 @@ export default function RegisterWizard({
         onResubmit={() => void resubmit()}
         onBack={() => {
           setFormError("");
-          setPhase("review");
+          setScreen("review");
         }}
       />
     );
-  } else if (phase === "broker_done" && broker) {
+  } else if (screen === "broker_done" && broker) {
     body = <BrokerDone broker={broker} onOwnPlace={changeKind} />;
-  } else if (phase === "place") {
+  } else if (screen === "broker") {
     body = (
-      <div className="rounded-card border border-border bg-card p-5 sm:p-7">
-        <StepPlace kind={kind} onChoose={chooseKind} onNext={() => setPhase("about")} />
-      </div>
-    );
-  } else if (phase === "about" && role) {
-    body = (
-      <StepYou
-        identity={identity}
-        profile={profile}
-        showStored={profile?.complete === true && !editingProfile}
-        onEditProfile={() => {
-          setEditingProfile(true);
-          setPersonal(personalFromProfile(profile, personal));
-        }}
-        draft={personal}
-        onDraftChange={setPersonal}
-        onVerified={onVerified}
-        errors={errors}
-        formError={formError}
-        busy={busy}
-        demo={demo}
-        email={user?.email ?? null}
-        nextLabel={role === "broker" ? "Register as a broker" : "Continue to your business"}
-        onNext={submitAbout}
-        onBack={carried ? undefined : () => setPhase("place")}
-      />
-    );
-  } else if (phase === "business" && (role === "host" || role === "landlord")) {
-    body = (
-      <StepBusiness
-        role={role}
-        kind={kind}
-        draft={business}
-        onChange={setBusiness}
-        branches={branches}
-        onBranchesChange={setBranches}
-        docs={docs}
-        onDocsChange={setDocs}
-        tinCheck={tinCheck}
-        onTinCheck={setTinCheck}
-        registry={registry}
-        onRegistry={onRegistry}
-        registrantName={registrantName}
-        capacity={capacity}
-        onCapacityChange={setCapacity}
-        intendedOwner={intendedOwner}
-        onIntendedOwnerChange={setIntendedOwner}
-        addressMode={addressMode}
-        onAddressModeChange={setAddressMode}
-        errors={errors}
-        formError={formError}
-        busy={busy}
-        onBack={() => {
-          setFormError("");
-          setPhase("about");
-        }}
-        onNext={submitBusiness}
-      />
-    );
-  } else if (phase === "pay" && (summary || role === "host" || role === "landlord")) {
-    body = (
-      <StepReviewPay
-        rows={readBackRows({
-          summary,
-          kindLabel,
-          business,
-          role,
-          tinCheck,
-          registrantName,
-          identity,
-          profile,
-          editingProfile,
-          personal,
-          capacity,
-          intendedOwner,
-        })}
-        whereAddress={summary ? null : business.address}
-        branches={summary ? [] : branches}
-        documents={docs}
-        amount={fee}
-        signerName={registrantName}
-        signerSource={
-          identityVerified ? (identity?.method === "document_scan" ? "passport" : "NIDA") : null
+      <StepCard
+        id="register-broker"
+        title="Register as a broker"
+        lead="Your ID, checked once, and you are registered. A broker lists no property, so there is no TIN, no document and no fee."
+        footer={
+          <Button variant="ghost" onClick={changeKind}>
+            Back to business type
+          </Button>
         }
-        payPhone={maskedPhone(
-          profile?.complete === true && !editingProfile ? profile.phoneE164 : personal.phoneE164,
-        )}
-        contractInput={contractInputFor({ summary, kind, personal, business, profile, editingProfile })}
-        summary={summary}
-        busy={busy}
-        error={formError}
-        onSignAndPay={signAndPay}
-        onBack={
-          summary
-            ? null
-            : () => {
-                setFormError("");
-                setPhase("business");
-              }
-        }
-        onChange={(step) => {
-          setFormError("");
-          if (step === "place") changeKind();
-          else setPhase(step);
-        }}
-        onStartNew={startNew}
-      />
+      >
+        <SectionIdentity
+          path="landlord"
+          identity={identity}
+          profile={profile}
+          profileComplete={profile?.complete === true && !editingProfile}
+          draft={personal}
+          onDraftChange={setPersonal}
+          onVerified={onVerified}
+          phoneFromRegister={phoneFromRegister}
+          needsExtras={!personalOk}
+          isDirector={null}
+          directorNames={[]}
+          demo={demo}
+          errors={errors}
+          onPrepareForOwner={() => undefined}
+          onEditProfile={editStoredProfile}
+          onNext={() => void submitBroker()}
+        />
+        {formError ? (
+          <Callout tone="danger" icon={<CircleAlert size={16} aria-hidden />} title="That did not go through">
+            {formError}
+          </Callout>
+        ) : null}
+      </StepCard>
+    );
+  } else if (screen === "steps") {
+    // Signed and locked: true once the agreement is accepted. A registration
+    // reopened before it was signed is not signed yet, whatever exists.
+    const lockedBanner = accepted && step !== "pay";
+    body = (
+      <StepFrame
+        position={{ n: stepIndex + 1, of: order.length }}
+        title={STEP_TITLE[step]}
+        lead={LEAD[step]}
+        lockedBanner={lockedBanner}
+        onBack={stepIndex > 0 && !(summary !== null && step === "overview") ? () => goTo(order[stepIndex - 1]!) : null}
+        primary={primary}
+      >
+        {formError ? (
+          <Callout tone="danger" icon={<CircleAlert size={16} aria-hidden />} title="Something needs your attention">
+            {formError}
+          </Callout>
+        ) : null}
+
+        {step === "type" ? (
+          <StepType
+            kind={kind}
+            other={business.accommodationClassOther}
+            otherError={errors["business.accommodationClassOther"]}
+            onChoose={chooseKind}
+            onOtherChange={(v) => setBusiness((b) => ({ ...b, accommodationClassOther: v }))}
+          />
+        ) : null}
+
+        {step === "tin" || step === "property" ? (
+          <div className="flex flex-col gap-2.5">
+            {sections.map((id, i) => (
+              <RegisterSection
+                key={id}
+                id={id}
+                n={i + 1}
+                title={SECTION_TITLE[id]}
+                state={sectionState[id] ?? "locked"}
+                summary={sectionState[id] === "locked" ? lockedReason(path, id) : sectionSummary(id)}
+                checkedBy={sectionChecked(id)}
+                editText={id === "cls" ? "Change" : "Edit"}
+                onEdit={summary === null ? () => editSection(id) : null}
+              >
+                {sectionBody(id)}
+              </RegisterSection>
+            ))}
+          </div>
+        ) : null}
+
+        {step === "branches" ? (
+          <StepBranchesPsf
+            tinLabel={formatTin(tin)}
+            headOffice={business.address}
+            branches={branches}
+            onBranchesChange={setBranches}
+            business={business}
+            onBusinessChange={setBusiness}
+            psf={psf}
+            onPsfChange={setPsf}
+            onApplyNow={seedPsf}
+            tiers={tiers}
+            documentLine={documentOnFile}
+            errors={errors}
+          />
+        ) : null}
+
+        {step === "documents" ? <StepDocuments path={path} docs={docs} onDocsChange={setDocs} errors={errors} /> : null}
+
+        {step === "overview" ? (
+          <StepOverview
+            rows={rows}
+            locked={summary !== null}
+            onEdit={(to) => (to === "type" ? changeKind() : goTo(to))}
+            kindLabel={kindLabel}
+            fee={fee}
+            feeNote="You pay it in the next step. The fee shown here is the one you are charged."
+            agreeText={`By signing, ${landlord ? "you agree" : `${legalName || summary?.legalName || "the business"} agrees`} to Injishi's terms for businesses: how the platform works, its fees, and how your data and your guests' data are handled.`}
+            contractInput={contractInputFor({ summary, kind, personal, business, legalName, profile, editingProfile })}
+            accepted={accepted}
+            signature={signature}
+            onSignature={(s) => {
+              setSignature(s);
+              // In the handler, never during a render: a date read while
+              // rendering differs between server and browser.
+              setSignedAt(s ? new Date().toISOString() : null);
+            }}
+            signerName={registrantName}
+            signLine={
+              accepted
+                ? `Signed${signed ? ` by ${signed.signedName}` : ""} · ${onDay(summary?.contractAcceptedAt ?? null) ?? "accepted"}`
+                : signature && signedAt
+                  ? `Signed by ${registrantName || "you"}${path === "owner" && isDirector ? ", director" : ""} · ${onDay(signedAt)}`
+                  : "Not signed yet"
+            }
+          />
+        ) : null}
+
+        {step === "pay" ? (
+          <StepPay
+            kindLabel={kindLabel}
+            fee={fee}
+            paid={paid}
+            paidOn={onDay(summary?.submittedAt ?? null)}
+            onSeeStatus={() => setScreen("review")}
+          />
+        ) : null}
+      </StepFrame>
     );
   } else {
     body = <StepSkeleton />;
   }
 
+  const walking = screen === "steps" && summary === null;
   return (
     <RegisterShell
-      kindLabel={phase === "resume" || phase === "pending" ? null : kindLabel}
-      onChangeKind={walking ? changeKind : undefined}
-      exit={
-        walking
-          ? { label: "Save & exit", onPress: () => void saveAndExit(), busy: exiting }
-          : { label: "Exit", href: "/start" }
-      }
-      rail={railShown ? <RegisterRail steps={rail} onGo={(id) => { setFormError(""); setPhase(id as Phase); }} /> : null}
+      kindLabel={screen === "resume" || screen === "pending" ? null : (kindEntry?.label ?? summaryKindLabel)}
+      onChangeKind={walking && carried ? changeKind : undefined}
+      carried={carried && screen === "steps"}
+      heading={screen === "steps" ? heading : null}
+      saved={walking ? savedAt : null}
+      exit={walking ? { label: "Save and exit", onPress: () => void saveAndExit(), busy: exiting } : { label: "Exit", href: "/start" }}
+      rail={screen === "steps" ? <RegisterRail steps={rail} onGo={(id) => goTo(id as StepId)} /> : null}
     >
       {body}
     </RegisterShell>
@@ -972,17 +1422,8 @@ export default function RegisterWizard({
 // Screens small enough to live here
 // ---------------------------------------------------------------------------
 
-/**
- * Where a broker lands (F-R09, ADR-026 assumption 2): no fee and no waiting,
- * so no pipeline, and a way on rather than a dead end (the audit).
- */
-function BrokerDone({
-  broker,
-  onOwnPlace,
-}: {
-  broker: BrokerRegistrationSummary;
-  onOwnPlace: () => void;
-}) {
+/** Where a broker lands (F-R09): no fee and no waiting, and a way on. */
+function BrokerDone({ broker, onOwnPlace }: { broker: BrokerRegistrationSummary; onOwnPlace: () => void }) {
   return (
     <StepCard
       id="register-broker-done"
@@ -1053,94 +1494,48 @@ function PendingList({
           </li>
         ))}
       </ul>
-      {error ? <Notice tone="danger">{error}</Notice> : null}
+      {error ? (
+        <Callout tone="danger" icon={<CircleAlert size={16} aria-hidden />} title="That did not open">
+          {error}
+        </Callout>
+      ) : null}
     </StepCard>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Read back, draft → wire shape, and Zod issues → per-field messages
+// Drafts → wire shapes, and Zod issues → per-field messages
 // ---------------------------------------------------------------------------
 
-/** The read back rows of Check, sign and pay, in the board's order. */
-function readBackRows({
-  summary,
-  kindLabel,
-  business,
-  role,
-  tinCheck,
-  registrantName,
-  identity,
-  profile,
-  editingProfile,
-  personal,
-  capacity,
-  intendedOwner,
-}: {
-  summary: RegistrationSummary | null;
-  kindLabel: string | null;
-  business: BusinessDraft;
-  role: RegistrantRole | null;
-  tinCheck: TinCheck;
-  registrantName: string;
-  identity: IdentityStatus | null;
-  profile: MyProfile | null;
-  editingProfile: boolean;
-  personal: PersonalDraft;
-  capacity: RegistrantCapacity;
-  intendedOwner: { name: string; nationalId: string; email: string };
-}): ReadBackRow[] {
-  if (summary) {
-    return [
-      { label: "Registering", value: `${kindLabel ?? "Business"} · ${summary.legalName}`, change: null },
-    ];
+/** The ID on file, as a person reads it, and where it came from; null when none is. */
+function documentOnFileFor(
+  identity: IdentityStatus | null,
+  profile: MyProfile | null,
+): { label: string; source: "checked" | "account" } | null {
+  const v = identity?.kycStatus === "verified" ? identity.verified : null;
+  if (v) {
+    return {
+      label:
+        v.documentType === "passport"
+          ? `Passport ${v.documentNumberMasked}`
+          : `National ID ending ${v.documentNumberMasked.replace(/\D/g, "")}`,
+      source: "checked",
+    };
   }
-  const name = business.legalName.trim() || "Not named yet";
-  const tin = normalizeTin(business.tin);
-  const verdict = tinCheck?.tin === tin ? tinCheck.verdict : null;
-  const stored = profile?.complete === true && !editingProfile;
-  const doc = identity?.verified
-    ? `${identity.verified.documentType === "passport" ? "Passport" : "National ID"} ${identity.verified.documentNumberMasked}`
-    : stored
-      ? (profile?.document ? `${profile.document.documentType === "passport" ? "Passport" : "National ID"} ${profile.document.documentNumberMasked}` : null)
-      : personal.documentNumber
-        ? personal.documentType === "passport"
-          ? `Passport ${personal.documentNumber}`
-          : `National ID ${formatNationalId(personal.documentNumber)}`
-        : null;
-  const phone = maskedPhone(stored ? profile?.phoneE164 : personal.phoneE164);
-  const optional = [
-    business.eacStarGrade ? `${business.eacStarGrade} star EAC grade` : "",
-    business.chamberOfTourismMember ? "Chamber of Tourism member" : "",
-    business.psfMembershipNumber.trim() ? `PSF member ${business.psfMembershipNumber.trim()}` : "",
-  ].filter(Boolean);
-  return [
-    { label: "Registering", value: `${kindLabel ?? "Business"} · ${name}`, change: "place" },
-    role === "landlord"
-      ? { label: "UPI", value: business.upi.trim() || "Not given", change: "business" }
-      : {
-          label: "TIN",
-          value: `${formatTin(tin)}${verdict?.result === "verified" ? " · checked with RRA" : verdict?.result === "pending" ? " · RRA checks it again after payment" : ""}`,
-          change: "business",
-        },
-    { label: "You", value: [registrantName || "Not named yet", doc, phone].filter(Boolean).join(" · "), change: "about" },
-    {
-      label: "Owner",
-      value:
-        capacity === "owner"
-          ? "You"
-          : `${intendedOwner.name.trim() || "Not named"} · claims it after approval`,
-      change: "business",
-    },
-    ...(optional.length ? [{ label: "Also", value: optional.join(" · "), change: "business" as const }] : []),
-  ];
+  if (profile?.document) {
+    return {
+      label: `${profile.document.documentType === "passport" ? "Passport" : "National ID"} ${profile.document.documentNumberMasked}`,
+      source: "account",
+    };
+  }
+  return null;
 }
 
 /**
  * The draft holds strings because that is what the DOM produces. The contract
- * wants numbers, optionals actually absent, and no empty strings standing in
- * for "not answered". `verified`: the identity is verified (ADR-060), so no
- * document is sent and the server keeps the verified one.
+ * wants optionals absent and no empty strings standing in for "not answered".
+ * `verified`: the identity is verified (ADR-060), so no document is sent and
+ * the server keeps the verified one.
  */
 function personalCandidate(d: PersonalDraft, verified = false): unknown {
   return {
@@ -1161,67 +1556,59 @@ function personalCandidate(d: PersonalDraft, verified = false): unknown {
   };
 }
 
-/**
- * The business block, with its named documents. A membership is what the
- * optional section recorded: the Chamber box ticked, a PSF number given.
- */
+/** The business block: its documents, its branches, and PSF as answered. */
 function businessCandidate(
   d: BusinessDraft,
-  role: RegistrantRole | null,
+  role: ReturnType<typeof registrationForKind>["role"] | null,
   kind: RegistrationKind | null,
+  legalName: string,
   docs: DocumentDraft[],
   branches: BranchDraft[],
+  psf: PsfDraft,
+  documentOnFile: boolean,
 ): unknown {
   const address = addressFromDraft(d.address);
-  const certificates = docs
-    .filter((c) => c.kind !== "")
-    .map((c) => ({
-      kind: c.kind,
-      ...(c.kind === "other" ? { kindOther: c.kindOther.trim() } : {}),
-      objectKey: c.objectKey,
-    }));
-
+  const certificates = docs.map((c) => ({
+    kind: c.kind,
+    ...(c.kind === "other" ? { kindOther: c.kindOther.trim() } : {}),
+    objectKey: c.objectKey,
+  }));
   if (role === "landlord") {
-    return {
-      domain: "residence",
-      legalName: d.legalName,
-      residenceClass: d.residenceClass,
-      upi: d.upi,
-      address,
-      certificates,
-    };
+    return { domain: "residence", legalName: d.legalName.trim(), residenceClass: d.residenceClass, upi: d.upi, address, certificates };
   }
   const entityGroup = (kind ? registrationForKind(kind).entityGroup : null) ?? "accommodation";
-  const psfNumber = d.psfMembershipNumber.trim();
+  const member = d.psfMember === true;
+  const number = d.psfMembershipNumber.trim();
   return {
     domain: "hospitality",
-    legalName: d.legalName,
+    legalName,
     entityGroup,
     accommodationClass: d.accommodationClass,
-    ...(d.accommodationClass === "other" ? { accommodationClassOther: d.accommodationClassOther } : {}),
-    tin: d.tin,
+    ...(d.accommodationClass === "other" ? { accommodationClassOther: d.accommodationClassOther.trim() } : {}),
+    tin: normalizeTin(d.tin),
     // Kept only for a draft from before the licence became a document.
     ...(d.tourismLicenseNumber.trim() ? { tourismLicenseNumber: d.tourismLicenseNumber.trim() } : {}),
-    chamberOfTourismMember: d.chamberOfTourismMember === true,
-    psfMember: psfNumber !== "",
-    ...(psfNumber ? { psfMembershipNumber: psfNumber } : {}),
     ...(d.eacStarGrade ? { eacStarGrade: Number(d.eacStarGrade) } : {}),
+    chamberOfTourismMember: d.chamberOfTourismMember === true,
+    psfMember: member,
+    ...(member && number ? { psfMembershipNumber: number } : {}),
+    ...(d.psfMember === false && d.psfApply === true ? { psfApplication: psfCandidate(psf, documentOnFile) } : {}),
     address,
     certificates,
-    branches: branches.map((b) => ({ name: b.name, address: addressFromDraft(b.address) })),
+    branches: branches.map((b) => ({ name: b.name.trim(), address: addressFromDraft(b.address) })),
   };
 }
 
 /**
  * The registration, in the words the agreement prints it in. Every value
  * arrives formatted, because `lib/registration-contract.ts` formats nothing.
- * A null is a real answer: the row is left out rather than printed as a dash.
  */
 function contractInputFor({
   summary,
   kind,
   personal,
   business,
+  legalName,
   profile,
   editingProfile,
 }: {
@@ -1229,29 +1616,24 @@ function contractInputFor({
   kind: RegistrationKind | null;
   personal: PersonalDraft;
   business: BusinessDraft;
+  legalName: string;
   profile: MyProfile | null;
   editingProfile: boolean;
 }): RegistrationContractInput {
   const usingStoredProfile = profile?.complete === true && !editingProfile;
-
   const typedName = composeFullName(personal);
-  const registrantName = usingStoredProfile
-    ? (profile?.fullName ?? typedName)
-    : typedName || (profile?.fullName ?? "");
-
+  const registrantName = usingStoredProfile ? (profile?.fullName ?? typedName) : typedName || (profile?.fullName ?? "");
   const storedDocument = profile?.document ?? null;
   const registrantIdLabel = usingStoredProfile
     ? storedDocument?.documentNumberMasked
-      ? `${documentWord(storedDocument.documentType)} ${storedDocument.documentNumberMasked}`
+      ? `${storedDocument.documentType === "passport" ? "Passport" : "National ID"} ${storedDocument.documentNumberMasked}`
       : null
     : personal.documentNumber.trim()
       ? personal.documentType === "passport"
         ? `Passport ${personal.documentNumber.trim()}`
         : `National ID ${formatNationalId(personal.documentNumber)}`
       : null;
-
   const phone = (usingStoredProfile ? profile?.phoneE164 : personal.phoneE164) ?? "";
-
   const storedClass = summary?.accommodationClass ?? null;
   const kindLabel =
     (kind ? (REGISTRATION_KINDS.find((k) => k.value === kind)?.label ?? null) : null) ??
@@ -1260,75 +1642,53 @@ function contractInputFor({
       : storedClass
         ? (ACCOMMODATION_CLASS_LABEL[storedClass as keyof typeof ACCOMMODATION_CLASS_LABEL] ?? "Hospitality business")
         : "Hospitality business");
-
   const businessIdLabel = business.tin.trim()
-    ? `RRA TIN ${business.tin.trim()}`
+    ? `RRA TIN ${normalizeTin(business.tin)}`
     : business.upi.trim()
       ? `UPI ${business.upi.trim()}`
       : null;
-
   const street = business.address.street.trim() || business.address.addressText.trim();
-
   return {
     registrantName,
     registrantIdLabel,
     registrantPhone: phone.trim() || null,
-    businessName: summary?.legalName ?? (business.legalName.trim() || "Your business"),
+    businessName: summary?.legalName ?? (legalName || "Your business"),
     businessKindLabel: kindLabel,
     businessIdLabel,
     businessAddressLabel: street || null,
-    reference: summary?.orgId ?? "Assigned when you submit",
+    reference: summary?.orgId ?? "Assigned when you sign",
     contractVersion: OPERATOR_CONTRACT_VERSION,
-  };
-}
-
-function documentWord(documentType: string): string {
-  return documentType === "passport" ? "Passport" : "National ID";
-}
-
-/** Prefill the edit form from what is already stored, minus the masked parts. */
-function personalFromProfile(profile: MyProfile | null, current: PersonalDraft): PersonalDraft {
-  if (!profile) return current;
-  const a = profile.address;
-  return {
-    ...current,
-    ...splitFullName(profile.fullName ?? ""),
-    // Deliberately NOT prefilled: what we hold is masked.
-    documentType: profile.document?.documentType ?? "national_id",
-    documentNumber: "",
-    issuingCountry: profile.document?.issuingCountry ?? "RW",
-    gender: profile.gender ?? "",
-    dateOfBirth: profile.dateOfBirth ?? "",
-    phoneE164: profile.phoneE164 ?? "",
-    address:
-      a === null
-        ? { ...EMPTY_ADDRESS }
-        : isRwandanAddress(a)
-          ? {
-              country: "RW",
-              provinceId: String(a.provinceId),
-              districtId: String(a.districtId),
-              sectorId: String(a.sectorId),
-              cellId: a.cellId === undefined ? "" : String(a.cellId),
-              villageId: a.villageId === undefined ? "" : String(a.villageId),
-              street: a.street ?? "",
-              addressText: "",
-            }
-          : { ...EMPTY_ADDRESS, country: a.country, addressText: a.addressText },
   };
 }
 
 /** What an INCOMPLETE profile already holds, laid over the form, and nothing else. */
 function seedFromPartialProfile(profile: MyProfile, current: PersonalDraft): PersonalDraft {
-  const stored = personalFromProfile(profile, current);
+  const a = profile.address;
   return {
     ...current,
     ...(profile.fullName?.trim() ? splitFullName(profile.fullName) : {}),
     ...(profile.dateOfBirth ? { dateOfBirth: profile.dateOfBirth } : {}),
     ...(profile.gender ? { gender: profile.gender } : {}),
     ...(profile.phoneE164 ? { phoneE164: profile.phoneE164 } : {}),
-    ...(profile.document ? { documentType: stored.documentType, issuingCountry: stored.issuingCountry } : {}),
-    ...(profile.address ? { address: stored.address } : {}),
+    ...(profile.document
+      ? { documentType: profile.document.documentType, issuingCountry: profile.document.issuingCountry ?? "RW" }
+      : {}),
+    ...(a
+      ? {
+          address: isRwandanAddress(a)
+            ? {
+                country: "RW",
+                provinceId: String(a.provinceId),
+                districtId: String(a.districtId),
+                sectorId: String(a.sectorId),
+                cellId: a.cellId === undefined ? "" : String(a.cellId),
+                villageId: a.villageId === undefined ? "" : String(a.villageId),
+                street: a.street ?? "",
+                addressText: "",
+              }
+            : { ...EMPTY_ADDRESS, country: a.country, addressText: a.addressText },
+        }
+      : {}),
   };
 }
 
@@ -1343,9 +1703,7 @@ function refusalToErrors(issues: RefusalIssue[]): Record<string, string> {
 }
 
 /** One message per field path, so a field can render its own error. */
-function issuesToErrors(
-  issues: { path: (string | number | symbol)[]; message: string }[],
-): Record<string, string> {
+function issuesToErrors(issues: { path: (string | number | symbol)[]; message: string }[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (const issue of issues) {
     const key = issue.path.map(String).join(".");

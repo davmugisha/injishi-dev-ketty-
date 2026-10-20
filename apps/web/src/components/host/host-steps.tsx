@@ -25,7 +25,7 @@ import { HOST_STEPS, type HostStep } from "@/data/host";
  * about, which is what a reader scanning four columns looks for.
  *
  * Step one also lists the parts registering walks, with the wizard rail's own
- * icons and labels (`REGISTRATION_STEPS`, minus Place, which the chooser above
+ * icons and labels (`REGISTRATION_STEPS`, minus Business type, which the chooser above
  * has already asked). It is the overview `/host/start` used to show before the
  * wizard, moved onto this page when that page became a redirect, and it reads
  * the same list the rail renders so the two can never name different parts.
@@ -112,10 +112,10 @@ function StepIcon({ step }: { step: HostStep }) {
 
 /**
  * What registering asks, in the order the wizard asks it: the rail's own parts,
- * minus Place, because the chooser at the top of this page is that question.
+ * minus Business type, because the chooser at the top of this page is that question.
  */
 function RegistrationParts() {
-  const parts = REGISTRATION_STEPS.filter((s) => s.id !== "place");
+  const parts = REGISTRATION_STEPS.filter((s) => s.id !== "type");
   return (
     <ul
       aria-label="What registering asks"

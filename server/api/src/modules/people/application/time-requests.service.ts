@@ -651,5 +651,16 @@ export function presentAttendance(row: AttendanceRequestRow, me: string | null):
     decisionNote: row.decisionNote,
     resultRecordId: row.resultRecordId,
     createdAt: row.createdAt.toISOString(),
+    evidence: row.evidence ?? null,
+    managerConfirmedByName: row.managerConfirmedAt ? (row.managerConfirmedByName ?? null) : null,
+    managerConfirmedAt: row.managerConfirmedAt ? row.managerConfirmedAt.toISOString() : null,
+    recordClockInAt: instantOrNull(row.recordClockInAt),
+    recordClockOutAt: instantOrNull(row.recordClockOutAt),
   };
+}
+
+/** A timestamp a raw subquery read: the driver hands back a Date, or text when it cannot tell. */
+function instantOrNull(value: Date | string | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+  return (value instanceof Date ? value : new Date(value)).toISOString();
 }

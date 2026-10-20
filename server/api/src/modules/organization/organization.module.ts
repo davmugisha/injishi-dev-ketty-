@@ -7,6 +7,7 @@ import { StorageModule } from '../storage/storage.module';
 import { UserModule } from '../user/user.module';
 
 import { BrokerRegistrationService } from './application/broker-registration.service';
+import { CertificatesService } from './application/certificates.service';
 import { OwnerClaimService } from './application/owner-claim.service';
 import { PsfMembershipService } from './application/psf-membership.service';
 import { RegistrationDraftService } from './application/registration-draft.service';
@@ -15,6 +16,7 @@ import { RolePermissionsService } from './application/role-permissions.service';
 import { StaffInvitationService } from './application/staff-invitation.service';
 import { TeamService } from './application/team.service';
 import { BrokerRepository } from './infrastructure/broker.repository';
+import { CertificatesRepository } from './infrastructure/certificates.repository';
 import { ClaimInvitationMailer } from './infrastructure/claim-invitation.mailer';
 import { OrganizationRepository } from './infrastructure/organization.repository';
 import { OwnerClaimRepository } from './infrastructure/owner-claim.repository';
@@ -91,6 +93,10 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     PsfMembershipRepository,
     PsfMembershipMailer,
     PsfMembershipService,
+    // Licences and registrations on file (Compliance → Licences): the
+    // documents a business keeps about itself, an ORG fact like the roster.
+    CertificatesRepository,
+    CertificatesService,
     // The RRA TIN retry sweep (ADR-053, AC-R5). Worker only, like the night
     // audit, so an HTTP replica never consumes a job.
     ...(isWorkerProcess() ? [RegistrationTinRecheckProcessor] : []),
@@ -106,6 +112,7 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     RolePermissionsService,
     StaffInvitationService,
     PsfMembershipService,
+    CertificatesService,
   ],
 })
 export class OrganizationModule {}

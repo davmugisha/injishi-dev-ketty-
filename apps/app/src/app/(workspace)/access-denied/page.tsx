@@ -6,11 +6,11 @@ import type {
   ExportPurpose,
   ExportRecord,
 } from "@injishi/data/fixtures/shared";
-import { getCollection } from "@injishi/db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AccessDeniedView } from "@/features/shared/AccessDeniedView";
 import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AccessDenied.pageTitle };
 

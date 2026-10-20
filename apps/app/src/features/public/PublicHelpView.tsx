@@ -31,6 +31,8 @@ import {
   TagGroup,
   TextArea,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { DropZone, EmptyState, ListView, Segment, Stepper, Timeline } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
@@ -44,7 +46,8 @@ import type {
   SupportBusiness,
 } from "@injishi/data/fixtures/public";
 import { GateChip, Icon, LinkButton, StatusDot, TextLink, toneColor } from "@injishi/ui";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useState, useTransition } from "react";
+import { openSupportTicketAction } from "./actions";
 import { ChoiceField, fileSize } from "./fields";
 import type { DemoLinks } from "./links";
 import { PublicFooter, PublicHeader, PublicMain, type PublicVisitor, SignInAction } from "./PublicChrome";
@@ -131,6 +134,13 @@ const CATEGORIES = [
   { id: "other", label: "Something else" },
 ];
 
+/** The help form's categories → the support intake's closed topics. */
+const TOPIC: Record<string, "booking" | "payment" | "listing" | "other"> = {
+  payments: "payment",
+  fiscal: "payment",
+  bookings: "booking",
+};
+
 const PROBLEM =
   "A guest paid RWF 280,000 by MTN MoMo at 10:42. Their phone shows the money left, but the folio still says Pending after 15 minutes.";
 const DATA_REQUEST =
@@ -172,6 +182,8 @@ export function PublicHelpView({
     { id: "momo-sms-1042", name: "momo-sms-1042.jpg", meta: "184 KB · uploaded" },
   ]);
   const [sent, setSent] = useState(false);
+  const [ticket, setTicket] = useState("");
+  const [sending, startSending] = useTransition();
 
   const rw = lang === "rw";
   const t = COPY[lang];
@@ -207,7 +219,27 @@ export function PublicHelpView({
     ]);
   const send = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSent(true);
+    const body = privacy ? dataRequest : problem;
+    const context = [
+      `Category: ${catLabel}`,
+      who === "biz" && businessName ? `Business: ${businessName}` : null,
+      who === "guest" && place.trim() ? `Stayed or booked at: ${place.trim()}` : null,
+      !privacy && reference.trim() ? `Reference: ${reference.trim()}` : null,
+    ].filter(Boolean);
+    startSending(async () => {
+      // Attachments are not sent: the support intake takes text only, and has no file route yet.
+      const result = await openSupportTicketAction({
+        topic: TOPIC[cat] ?? "other",
+        message: `${context.join("\n")}\n\n${body}`,
+        email: replyTo,
+      });
+      if (!result.ok) {
+        toast.danger(result.error);
+        return;
+      }
+      setTicket(result.value.id);
+      setSent(true);
+    });
   };
   const startPrivacy = () => {
     setCat("privacy");
@@ -428,7 +460,7 @@ export function PublicHelpView({
                     <CircleCheck />
                   </Alert.Indicator>
                   <Alert.Content>
-                    <Alert.Title>Ticket SUP-4127 created</Alert.Title>
+                    <Alert.Title>Ticket {ticket.slice(0, 8).toUpperCase()} created</Alert.Title>
                     <Alert.Description>
                       {ticketLine} We emailed a copy to {replyTo} and will write again when a person picks it up.
                     </Alert.Description>
@@ -570,7 +602,7 @@ export function PublicHelpView({
                   <TextLink href={linkTo(links, "Assistant")} className="text-[13px]">
                     Signed in? Ask the Injishi assistant first
                   </TextLink>
-                  <Button type="submit">
+                  <Button type="submit" isDisabled={sending}>
                     <PaperPlane className="size-4" />
                     {t.send}
                   </Button>
@@ -699,6 +731,7 @@ export function PublicHelpView({
           { label: "Find a stay", href: screenHref("MarketExplore") },
         ]}
       />
+      <Toast.Provider placement="bottom" />
     </div>
   );
 }

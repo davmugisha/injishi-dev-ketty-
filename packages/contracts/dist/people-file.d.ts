@@ -885,29 +885,29 @@ export declare const UploadEmployeeDocumentRequest: z.ZodEffects<z.ZodObject<{
     issuedOn?: string | null | undefined;
     expiresOn?: string | null | undefined;
     title?: string | undefined;
-    remindDaysBefore?: number | null | undefined;
     documentId?: string | undefined;
+    remindDaysBefore?: number | null | undefined;
 }, {
     fileKey: string;
     issuedOn?: string | null | undefined;
     expiresOn?: string | null | undefined;
     title?: string | undefined;
-    remindDaysBefore?: number | null | undefined;
     documentId?: string | undefined;
+    remindDaysBefore?: number | null | undefined;
 }>, {
     fileKey: string;
     issuedOn?: string | null | undefined;
     expiresOn?: string | null | undefined;
     title?: string | undefined;
-    remindDaysBefore?: number | null | undefined;
     documentId?: string | undefined;
+    remindDaysBefore?: number | null | undefined;
 }, {
     fileKey: string;
     issuedOn?: string | null | undefined;
     expiresOn?: string | null | undefined;
     title?: string | undefined;
-    remindDaysBefore?: number | null | undefined;
     documentId?: string | undefined;
+    remindDaysBefore?: number | null | undefined;
 }>;
 export type UploadEmployeeDocumentRequest = z.infer<typeof UploadEmployeeDocumentRequest>;
 /** `POST /ops/documents/:id/decide`: approve the newest version, or refuse it with a reason. */

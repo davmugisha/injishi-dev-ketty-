@@ -21,6 +21,7 @@ import {
 } from '../../../shared/auth/branch-scope';
 import { releaseKeyFor } from '../../payments/domain/keys';
 import { PAYMENT_PORT, type PaymentPort } from '../../payments/domain/payment-port';
+import { noShowRefund } from '../domain/no-show';
 import { localToday } from '../domain/pricing';
 import {
   BookingRepository,
@@ -109,6 +110,158 @@ export class BookingCancellationService {
     return this.cancel(row, 'host');
   }
 
+  /**
+   * The desk cancels because the GUEST asked to (`POST /ops/reservations/:id/cancel`).
+   *
+   * Not `cancelByHost`: a guest who phones to say their plans changed is
+   * cancelling, and the refund is the tier the booking locked, exactly what the
+   * guest would get pressing cancel in their own app. The property cancelling
+   * (an overbooking, a closed room) is `cancelByHost` and refunds in full.
+   * Same containment as every operator command: another workspace's or
+   * another branch's booking is a 404. The reason is the desk's words, kept on
+   * the booking with the cancellation.
+   */
+  async cancelAtGuestRequest(
+    bookingId: string,
+    ws: Pick<ScopedWorkspace, 'workspaceId' | 'branchScope'>,
+    reason: string | null,
+  ): Promise<BookingCancellationResult> {
+    const row = assertOwned(await this.bookings.findForCancellation({ bookingId }), ws);
+    assertInBranchScope(ws, row.propertyId);
+    return this.cancel(row, 'guest', reason);
+  }
+
+  /**
+   * THE GUEST NEVER CAME (`POST /ops/reservations/:id/no-show`).
+   *
+   * A no-show is a cancellation that happened after the window closed: the
+   * guest did not cancel in time, so the money follows the tier the booking
+   * locked, read as a guest cancelling after check-in time. That is the
+   * `after` percent of `CANCELLATION_TIERS` (nothing on `flexible`, half on
+   * `moderate`), decided by `cancellationRefund`, the one function every
+   * refund here goes through. Nothing new is decided about money here.
+   *
+   * Refused: anything but a confirmed booking (a request is declined, not
+   * no-showed), a booking somebody checked in against, and one whose arrival
+   * day has not come yet. The guard on the write repeats the first two, so a
+   * check in racing the press loses cleanly.
+   *
+   * Provider first, then the record, exactly as `cancel` orders it. A booking
+   * that took no money moves none and keeps its null payment status.
+   */
+  async markNoShow(
+    bookingId: string,
+    ws: Pick<ScopedWorkspace, 'workspaceId' | 'branchScope'>,
+    input: { reason: string | null; byUserId: string },
+  ): Promise<{ refundRwf: number; forfeitRwf: number; rule: string }> {
+    const row = assertOwned(await this.bookings.findForCancellation({ bookingId }), ws);
+    assertInBranchScope(ws, row.propertyId);
+
+    if (row.status === 'no_show') throw new ConflictException('This booking is already a no-show.');
+    if (row.status === 'pending_approval') {
+      throw new ConflictException('This is still a request. Decline it instead of recording a no-show.');
+    }
+    if (row.status !== 'confirmed') throw new ConflictException('This booking is closed.');
+    if (row.stays > 0) throw new ConflictException('This guest checked in, so the booking is not a no-show.');
+    if (row.checkIn > localToday()) {
+      throw new ConflictException(`The guest is due on ${row.checkIn}. A no-show is recorded on the arrival day or after.`);
+    }
+    if (row.escrowId && row.escrowStatus !== 'held') {
+      throw new ConflictException('The payment for this booking has already been settled. Please contact support.');
+    }
+
+    // The same function the desk's board quotes with, so the number on the
+    // confirm card is the number refunded.
+    const refund: CancellationRefund = noShowRefund({
+      capturedRwf: row.escrowId ? (row.escrowAmountRwf ?? 0) : null,
+      tier: row.tier,
+      nonRefundable: row.nonRefundable,
+      hoursBeforeCheckIn: hoursUntilCheckIn(row, new Date()),
+    });
+    const outcome =
+      refund.percent === 100 ? 'refunded_full' : refund.refundRwf > 0 ? 'refunded_partial' : 'forfeited';
+
+    if (row.escrowId) {
+      await this.instructRefund(row, refund, outcome, {
+        full: `No-show ${row.reference}: full refund`,
+        partial: `No-show ${row.reference}: ${refund.percent}% refund`,
+        // Cancellation and a no-show settle the same captured booking. A competing
+        // press must reach the provider on the same key, never issue a second refund.
+        keyPrefix: 'cancel-refund',
+        what: 'marked as a no-show',
+      });
+    }
+
+    const recorded = await this.bookings.recordNoShow({
+      bookingId: row.bookingId,
+      outcome: row.escrowId ? outcome : null,
+      refundRwf: row.escrowId ? refund.refundRwf : null,
+      reason: input.reason,
+      byUserId: input.byUserId,
+    });
+    if (!recorded) {
+      throw new ConflictException('This booking was just changed. Refresh to see where it stands.');
+    }
+    this.log.log(`${row.reference} recorded as a no-show: ${refund.refundRwf} RWF refunded, ${refund.forfeitRwf} RWF kept.`);
+    return { refundRwf: refund.refundRwf, forfeitRwf: refund.forfeitRwf, rule: refund.rule };
+  }
+
+  /**
+   * Instruct the provider to give money back, before anything is recorded
+   * (ADR-020 D-h). A full refund ends the hold with the guest as beneficiary; a
+   * partial one refunds that amount against the capture. Keys are derived from
+   * the capture's, so a retry replays rather than pays twice. A failure
+   * records nothing and answers 503, so the booking stands as it was.
+   */
+  private async instructRefund(
+    row: CancellableBooking,
+    refund: CancellationRefund,
+    outcome: 'refunded_full' | 'refunded_partial' | 'forfeited',
+    words: { full: string; partial: string; keyPrefix: string; what: string },
+  ): Promise<void> {
+    if (refund.refundRwf <= 0) return;
+    const { adapterRef, escrowAmountRwf, escrowId } = row;
+    if (!adapterRef || escrowAmountRwf == null || !escrowId) {
+      this.log.error(`Cannot refund ${row.reference}: its escrow carries no provider reference or amount.`);
+      throw new ServiceUnavailableException(
+        `We could not refund this booking automatically, so it has not been ${words.what}. Please contact support.`,
+      );
+    }
+    const captureKey = row.idempotencyKey ?? `${row.workspaceId}:booking:${row.bookingId}`;
+    try {
+      if (outcome === 'refunded_full') {
+        await this.payments.releaseEscrow({
+          kind: 'escrow_release',
+          beneficiary: 'guest',
+          idempotencyKey: releaseKeyFor({ idempotencyKey: row.idempotencyKey, workspaceId: row.workspaceId, escrowId }),
+          originalRef: adapterRef,
+          amountRwf: escrowAmountRwf,
+          currency: 'RWF',
+          workspaceId: row.workspaceId,
+          memo: words.full,
+        });
+      } else {
+        await this.payments.refund({
+          kind: 'refund',
+          idempotencyKey: `${words.keyPrefix}:${captureKey}`,
+          originalRef: adapterRef,
+          amountRwf: refund.refundRwf,
+          currency: 'RWF',
+          workspaceId: row.workspaceId,
+          memo: words.partial,
+        });
+      }
+    } catch (err) {
+      this.log.warn(
+        `Refund not confirmed for ${row.reference}; nothing recorded. ` +
+          (err instanceof Error ? err.message : String(err)),
+      );
+      throw new ServiceUnavailableException(
+        'We could not reach the payment service to refund you, so the booking is unchanged. Please try again.',
+      );
+    }
+  }
+
   private async guestBooking(reference: string, guestUserId: string): Promise<CancellableBooking> {
     const normalised = reference.trim().toUpperCase();
     // A malformed reference is the same 404 as an unknown or foreign one, so the
@@ -132,7 +285,11 @@ export class BookingCancellationService {
     });
   }
 
-  private async cancel(row: CancellableBooking, party: CancellationParty): Promise<BookingCancellationResult> {
+  private async cancel(
+    row: CancellableBooking,
+    party: CancellationParty,
+    reason: string | null = null,
+  ): Promise<BookingCancellationResult> {
     const refusal = refusalFor(row);
     if (refusal) throw new ConflictException(refusal);
 
@@ -141,48 +298,12 @@ export class BookingCancellationService {
       refund.percent === 100 ? 'refunded_full' : refund.refundRwf > 0 ? 'refunded_partial' : 'forfeited';
 
     // --- 1. The provider, first. -------------------------------------------
-    if (refund.refundRwf > 0) {
-      const { adapterRef, escrowAmountRwf, escrowId } = row;
-      if (!adapterRef || escrowAmountRwf == null || !escrowId) {
-        this.log.error(`Cannot refund ${row.reference}: its escrow carries no provider reference or amount.`);
-        throw new ServiceUnavailableException(
-          'We could not refund this booking automatically, so it has not been cancelled. Please contact support.',
-        );
-      }
-      const captureKey = row.idempotencyKey ?? `${row.workspaceId}:booking:${row.bookingId}`;
-      try {
-        if (outcome === 'refunded_full') {
-          await this.payments.releaseEscrow({
-            kind: 'escrow_release',
-            beneficiary: 'guest',
-            idempotencyKey: releaseKeyFor({ idempotencyKey: row.idempotencyKey, workspaceId: row.workspaceId, escrowId }),
-            originalRef: adapterRef,
-            amountRwf: escrowAmountRwf,
-            currency: 'RWF',
-            workspaceId: row.workspaceId,
-            memo: `${party === 'host' ? 'Host' : 'Guest'} cancelled ${row.reference}: full refund`,
-          });
-        } else {
-          await this.payments.refund({
-            kind: 'refund',
-            idempotencyKey: `cancel-refund:${captureKey}`,
-            originalRef: adapterRef,
-            amountRwf: refund.refundRwf,
-            currency: 'RWF',
-            workspaceId: row.workspaceId,
-            memo: `Guest cancelled ${row.reference}: ${refund.percent}% refund`,
-          });
-        }
-      } catch (err) {
-        this.log.warn(
-          `Refund not confirmed for ${row.reference}; nothing recorded. ` +
-            (err instanceof Error ? err.message : String(err)),
-        );
-        throw new ServiceUnavailableException(
-          'We could not reach the payment service to refund you, so the booking is unchanged. Please try again.',
-        );
-      }
-    }
+    await this.instructRefund(row, refund, outcome, {
+      full: `${party === 'host' ? 'Host' : 'Guest'} cancelled ${row.reference}: full refund`,
+      partial: `Guest cancelled ${row.reference}: ${refund.percent}% refund`,
+      keyPrefix: 'cancel-refund',
+      what: 'cancelled',
+    });
 
     // --- 2. The ledger, recording what the provider confirmed. -------------
     const recorded = await this.bookings.recordCancellation({
@@ -190,6 +311,7 @@ export class BookingCancellationService {
       party,
       refundRwf: refund.refundRwf,
       outcome,
+      reason,
     });
     if (!recorded) {
       // Resolved by someone else between the read and here. The refund key is
