@@ -55,7 +55,7 @@ export interface RentRollData {
   payouts: LandlordPayout[];
 }
 
-type Filter = "all" | "arrears" | "due" | "pending" | "paid";
+type Filter = "all" | "arrears" | "due" | "pending" | "paid" | "none";
 
 const STATUS: Record<RentStatus, { label: string; tone: Tone }> = {
   paid: { label: "Paid", tone: "success" },
@@ -69,7 +69,13 @@ const STATUS: Record<RentStatus, { label: string; tone: Tone }> = {
  */
 const dueUnpaid = (r: RentRollRow) => r.status === "pending" && r.history[r.history.length - 1] === "unpaid";
 const DUE: { label: string; tone: Tone } = { label: "Due · not paid", tone: "default" };
-const stateOf = (r: RentRollRow) => (dueUnpaid(r) ? DUE : STATUS[r.status]);
+/**
+ * No rent charge raised this month (this month reads "none"): the roll calls it paid, but nothing was charged or
+ * paid. The API raises a lease's first charge only, so from the second month this is most leases not overdue.
+ */
+const noCharge = (r: RentRollRow) => r.status === "paid" && r.history[r.history.length - 1] === "none";
+const NO_CHARGE: { label: string; tone: Tone } = { label: "No charge this month", tone: "default" };
+const stateOf = (r: RentRollRow) => (dueUnpaid(r) ? DUE : noCharge(r) ? NO_CHARGE : STATUS[r.status]);
 const MONTH_TONE: Record<RentMonth, Tone> = {
   paid: "success",
   late: "accent",
@@ -84,7 +90,7 @@ const MONTH_WORD: Record<RentMonth, string> = {
   unpaid: "unpaid or part-paid",
   pending: "pending verification",
   unknown: "result unknown",
-  none: "no lease",
+  none: "no charge",
 };
 const LEGEND: { tone: Tone; label: string }[] = [
   { tone: "success", label: "Paid on time" },
@@ -92,7 +98,7 @@ const LEGEND: { tone: Tone; label: string }[] = [
   { tone: "danger", label: "Unpaid or part-paid" },
   { tone: "info", label: "Pending verification" },
   { tone: "warning", label: "Result unknown" },
-  { tone: "default", label: "No lease that month" },
+  { tone: "default", label: "No charge that month" },
 ];
 const FILTERS: { id: Filter; label: string; test: (r: RentRollRow) => boolean }[] = [
   { id: "all", label: "All", test: () => true },
@@ -103,7 +109,8 @@ const FILTERS: { id: Filter; label: string; test: (r: RentRollRow) => boolean }[
     label: "Awaiting verification",
     test: (r) => (r.status === "pending" && !dueUnpaid(r)) || r.status === "unknown",
   },
-  { id: "paid", label: "Paid", test: (r) => r.status === "paid" },
+  { id: "paid", label: "Paid", test: (r) => r.status === "paid" && !noCharge(r) },
+  { id: "none", label: "No charge this month", test: noCharge },
 ];
 const METHODS = ["Bank transfer", "MTN MoMo", "Airtel Money", "Cash at the office"];
 /** The default reminder names the building the roll is for and no one in particular; the manager may edit it. */
@@ -183,16 +190,20 @@ export function RentRollView({
   const balanceLabel =
     row.status === "arrears"
       ? "Overdue balance"
-      : row.status === "paid"
-        ? "Balance"
-        : dueUnpaid(row)
-          ? "Balance due · no payment recorded"
-          : "Balance · payment in flight";
+      : noCharge(row)
+        ? "No charge raised this month"
+        : row.status === "paid"
+          ? "Balance"
+          : dueUnpaid(row)
+            ? "Balance due · no payment recorded"
+            : "Balance · payment in flight";
   const balance = row.overdue
     ? money(row.overdue)
-    : row.status === "paid"
-      ? "RWF 0"
-      : `${money(row.rent)} open, not overdue`;
+    : noCharge(row)
+      ? "Nothing charged or paid"
+      : row.status === "paid"
+        ? "RWF 0"
+        : `${money(row.rent)} open, not overdue`;
 
   const arrears = data.rows
     .filter((r) => r.status === "arrears")
