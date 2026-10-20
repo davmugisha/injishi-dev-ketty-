@@ -1406,6 +1406,7 @@ export default function RegisterWizard({
   return (
     <RegisterShell
       kindLabel={screen === "resume" || screen === "pending" ? null : (kindEntry?.label ?? summaryKindLabel)}
+      demo={demo}
       onChangeKind={walking && carried ? changeKind : undefined}
       carried={carried && screen === "steps"}
       heading={screen === "steps" ? heading : null}
