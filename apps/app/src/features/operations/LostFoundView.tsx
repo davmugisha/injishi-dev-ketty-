@@ -70,17 +70,6 @@ const METHODS: { id: Method; label: string; phrase: string }[] = [
   { id: "courier", label: "Courier", phrase: "by courier" },
 ];
 const CATEGORIES = ["Electronics", "Jewellery", "Clothing", "Accessories", "Documents", "Cash", "Other"];
-const AREAS = [
-  "Room 309",
-  "Room 204",
-  "Room 211",
-  "Room 311",
-  "Lobby",
-  "Isangano Terrace",
-  "Lake Bar",
-  "Kivu Hall",
-  "Garden Terrace",
-];
 
 /**
  * Photos are not kept: the register has no photo column, `POST /uploads` takes no found-item kind and the intake
@@ -91,16 +80,27 @@ const photosUnavailable = () =>
 
 export function LostFoundView({
   // The register acts as the signed-in person through the API, which records who did each step.
-  persona: _persona,
+  persona,
   items: baseItems,
   access,
+  placeName,
 }: {
   persona: Persona;
   items: FoundItem[];
+  /** Sample: the register's access list is not kept per person yet (operations.lostFoundAccess is deferred). */
   access: RegisterAccess[];
+  /** The branch, else the business, as the API names it. */
+  placeName: string;
 }) {
-  const custodian = access.find((a) => a.role.includes("custodian"))?.name ?? "the custodian";
-  const finders = [...new Set(["Emmanuel Nsengimana", ...baseItems.map((i) => i.foundBy)])];
+  // Who found it and who holds it start as the signed-in person; the other choices are people the register
+  // already names (live), never a sample list.
+  const you = persona.name;
+  const people = (names: string[]) => [
+    { id: you, label: `${you} (you)` },
+    ...[...new Set(names)].filter((n) => n && n !== you && n !== "None").map((n) => ({ id: n, label: n })),
+  ];
+  const finders = people(baseItems.map((i) => i.foundBy));
+  const custodians = people(baseItems.map((i) => i.custodian));
 
   const [selectedId, setSelectedId] = useState(baseItems[0]?.id ?? "");
   const [descOk, setDescOk] = useState(false);
@@ -114,11 +114,12 @@ export function LostFoundView({
   // Intake form
   const [desc, setDesc] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
-  const [foundBy, setFoundBy] = useState("Emmanuel Nsengimana");
-  const [area, setArea] = useState(AREAS[0]);
+  const [foundBy, setFoundBy] = useState(you);
+  const [custodian, setCustodian] = useState(you);
+  const [area, setArea] = useState("");
   // "Found at" starts at the real time in Kigali once the page is mounted.
   const [foundAt, setFoundAt] = useState("");
-  const [spot, setSpot] = useState("Under the bed, window side");
+  const [spot, setSpot] = useState("");
   const [valuable, setValuable] = useState(true);
   const now = useKigaliNow();
   useEffect(() => {
@@ -166,21 +167,23 @@ export function LostFoundView({
   };
   const logItem = () => {
     const text = desc.trim();
-    if (!text || pending) return;
+    if (!text || !area.trim() || pending) return;
     startTransition(async () => {
       const result = await logFoundItemAction({
         description: text,
         category,
         valuable,
-        area,
+        area: area.trim(),
         spot: spotShort,
         foundAt,
         foundBy,
         custodian,
-        storage: valuable ? "Safe A · bag pending" : "Store room L-2",
+        storage: valuable ? "Safe · sealed bag" : "Store room",
       });
       if (!reported(result)) return;
       setDesc("");
+      setArea("");
+      setSpot("");
       if (result.ok) {
         select(result.value);
         // The reference the register gave the item: staff write it on the tag and the bag.
@@ -220,7 +223,7 @@ export function LostFoundView({
   return (
     <PageContent>
       <PageHeader
-        eyebrow="Isangano Lakeside Hotel · Property"
+        eyebrow={`${placeName} · Property`}
         title="Lost & Found"
         description="Found items, custody and returns. Every hand-over is recorded, and items go back only to a verified claimant."
         actions={
@@ -239,7 +242,7 @@ export function LostFoundView({
               title="Found Items"
               action={
                 <span className="text-[12px] text-muted">
-                  {open} open · {valuables} valuables in Safe A
+                  {open} open · {valuables} {valuables === 1 ? "valuable" : "valuables"} in the safe
                 </span>
               }
             />
@@ -468,16 +471,22 @@ export function LostFoundView({
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <SelectField label="Category" value={category} options={CATEGORIES} onChange={setCategory} />
                 <SelectField label="Found by" value={foundBy} options={finders} onChange={setFoundBy} />
-                <SelectField label="Room or area" value={area} options={AREAS} onChange={setArea} />
+                <TextField fullWidth value={area} onChange={setArea} isRequired className="gap-1">
+                  <Label>Room or area</Label>
+                  <Input placeholder="e.g. Room 204 or Lobby" />
+                </TextField>
                 <TextField fullWidth value={foundAt} onChange={setFoundAt} className="gap-1">
                   <Label>Found at</Label>
                   <Input className="tabular" />
                 </TextField>
               </div>
-              <TextField fullWidth value={spot} onChange={setSpot} className="gap-1">
-                <Label>Exact spot</Label>
-                <Input />
-              </TextField>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <SelectField label="Custodian" value={custodian} options={custodians} onChange={setCustodian} />
+                <TextField fullWidth value={spot} onChange={setSpot} className="gap-1">
+                  <Label>Exact spot</Label>
+                  <Input placeholder="e.g. Under the bed, window side" />
+                </TextField>
+              </div>
               <Switch isSelected={valuable} onChange={setValuable}>
                 <Switch.Content className="text-[14px]">
                   <Switch.Control>
@@ -488,7 +497,7 @@ export function LostFoundView({
               </Switch>
               <Card variant="secondary" className="gap-0.5 px-3 py-2.5">
                 <span className="text-[13px] font-medium">
-                  Storage: {valuable ? "Safe A, sealed numbered bag" : "Store room L-2"}
+                  Storage: {valuable ? "the safe, in a sealed numbered bag" : "the store room"}
                 </span>
                 <span className="text-[12px] leading-4 text-muted">
                   {valuable
@@ -507,13 +516,15 @@ export function LostFoundView({
                 </DropZone.Area>
                 <DropZone.Input accept="image/jpeg,image/png" multiple onSelect={photosUnavailable} />
               </DropZone>
-              <Button isDisabled={!desc.trim() || !foundAt || pending} onPress={logItem}>
+              <Button isDisabled={!desc.trim() || !area.trim() || !foundAt || pending} onPress={logItem}>
                 Log item
               </Button>
               <span className="text-[12px] text-muted" role="status">
-                {desc.trim()
-                  ? `Likely ${nextId}; the register gives the reference. Write it on the tag: tags are not printed here.`
-                  : "Describe the item to continue."}
+                {!desc.trim()
+                  ? "Describe the item to continue."
+                  : !area.trim()
+                    ? "Say where it was found to continue."
+                    : `Likely ${nextId}; the register gives the reference. Write it on the tag: tags are not printed here.`}
               </span>
             </Card.Content>
           </Card>
@@ -533,8 +544,8 @@ export function LostFoundView({
               ))}
             </ul>
             <p className="text-[12px] leading-4 text-muted">
-              Housekeepers can log an item but not browse the register. Every view, export and hand-over is in the audit
-              log.
+              Sample list: who may see the register is not kept per person yet, so these names are not your team.
+              Housekeepers can log an item but not browse the register.
             </p>
           </Card>
         </div>

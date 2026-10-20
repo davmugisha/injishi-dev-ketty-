@@ -30,6 +30,7 @@ import type {
   WorkOrderPhoto,
 } from "@injishi/data/fixtures/operations";
 import { type StockKey, stock } from "@injishi/data/media";
+import type { Workspace } from "../auth";
 import { clock, dayMonth, kigaliDate } from "../format";
 import { defineSources, type SourceContext } from "./types";
 
@@ -299,6 +300,22 @@ function once<T>(ctx: SourceContext, key: string, load: () => Promise<T>): Promi
 /** Drop what this context read, so the next read sees a write. Every operations mutation calls it. */
 export function forgetOperations(ctx: SourceContext): void {
   memo.delete(ctx);
+}
+
+/**
+ * The place an operations screen is about, for its eyebrow: the one branch the person covers, else their
+ * business, as the API names them. Never a prototype hotel's name.
+ */
+export function placeName(ctx: SourceContext): string {
+  let ws: Workspace;
+  try {
+    ws = ctx.ops().workspace;
+  } catch {
+    return "Your business";
+  }
+  const branches = (ws.branches ?? []) as { name?: string }[];
+  if (branches.length === 1 && branches[0]?.name) return branches[0].name;
+  return ws.orgName?.trim() || ws.label;
 }
 
 export const readBoard = (ctx: SourceContext) =>
@@ -946,7 +963,8 @@ const CATEGORY_LABEL: Record<string, string> = {
 function presentFoundItem(i: ApiFoundItem, today: string): FoundItem {
   const open = i.status !== "returned" && i.status !== "disposed";
   const custody: HistoryEvent[] = i.events.map((e, n) => ({
-    what: e.summary,
+    // The API words an intake "Logged, tag printed", but nothing prints a tag: staff write the reference on it.
+    what: e.summary.replace(/, tag printed$/, ""),
     who: [e.actorName, when(e.occurredAt, today), e.detail].filter(Boolean).join(" · "),
     tone:
       e.kind === "returned" || e.kind === "disposal_approved"

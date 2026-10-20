@@ -59,10 +59,13 @@ export function OutletsMenusView({
   persona: _persona,
   initialTab,
   data,
+  placeName,
 }: {
   persona: Persona;
   initialTab: OutletTab;
   data: OutletsData;
+  /** The branch, else the business, as the API names it. */
+  placeName: string;
 }) {
   const [tab, setTabState] = useState<OutletTab>(initialTab);
   const [menuId, setMenuId] = useState(data.menus[0]?.id ?? "");
@@ -93,7 +96,7 @@ export function OutletsMenusView({
     <PageContent>
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Isangano Lakeside Hotel · Property"
+        eyebrow={`${placeName} · Property`}
         title="Outlets & Services"
         description="Who sells what, from which menu, and how it is settled. Each outlet keeps its own merchant identity."
         actions={
@@ -196,9 +199,7 @@ export function OutletsMenusView({
               <Card.Title id="dep-h" className="text-[15px] font-semibold">
                 Departments
               </Card.Title>
-              <Card.Description>
-                Revenue and cost reporting groups for Isangano Lakeside Hotel, following USALI
-              </Card.Description>
+              <Card.Description>Sample · revenue and cost reporting groups, following USALI</Card.Description>
             </Card.Header>
             <Card.Content className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr))]">
               {data.departments.map((d) => (

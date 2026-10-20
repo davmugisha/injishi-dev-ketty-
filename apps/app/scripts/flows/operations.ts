@@ -345,6 +345,45 @@ export const flows: Flow[] = [
         `the intake claims photos nobody kept: ${JSON.stringify(item.custody)}`,
       );
       step(`manager logged ${ref}, with no photo claimed on its custody log`);
+      check(
+        !item.custody.some((c) => /tag printed/i.test(c.what)),
+        `the custody log claims a printed tag: ${JSON.stringify(item.custody)}`,
+      );
+
+      // The form's own defaults: the signed-in person found it and holds it (never a sample custodian).
+      const me = manager.persona?.name ?? "";
+      const mine = await ops.logFoundItem(manager, {
+        description: "Black umbrella",
+        category: "Accessories",
+        valuable: false,
+        area: "Lobby",
+        foundAt: kigaliStamp(new Date(Date.now() - 30 * 60_000)),
+        foundBy: me,
+        custodian: me,
+        storage: "Store room",
+      });
+      const logged = (await read<FoundItem>(manager, "operations.foundItems")).find((i) => i.id === mine);
+      check(
+        logged?.custodian === me && logged.foundBy === me,
+        `the signed-in person as finder and custodian: ${JSON.stringify(logged)}`,
+      );
+      step(`with the form's defaults, ${me} found ${mine} and is its custodian`);
+      let unknownRefused = false;
+      try {
+        await ops.logFoundItem(manager, {
+          description: "Grey scarf",
+          category: "Clothing",
+          valuable: false,
+          area: "Lobby",
+          foundAt: kigaliStamp(new Date(Date.now() - 20 * 60_000)),
+          foundBy: me,
+          custodian: "Someone Not On The Register",
+        });
+      } catch (error) {
+        unknownRefused = error instanceof ops.OperationsInputError;
+      }
+      check(unknownRefused, "a custodian nobody on the register is called was not refused");
+      step("a custodian who is neither the signed-in person nor on the register is refused before any write");
 
       await ops.openFoundItemClaim(frontdesk, ref, {
         claimant: "Amina Uwase",

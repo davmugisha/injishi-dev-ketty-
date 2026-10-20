@@ -11,7 +11,8 @@ import type {
 import type { Metadata } from "next";
 import { PlanBillingView } from "@/features/owner/PlanBillingView";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { getCollection, requestContext } from "@/server/data";
+import { businessNames } from "@/server/sources/owner";
 
 export const metadata: Metadata = { title: screens.PlanBilling.pageTitle };
 
@@ -30,6 +31,7 @@ export default async function PlanBillingPage({ searchParams }: { searchParams: 
   const { billing } = await searchParams;
   return (
     <PlanBillingView
+      businessName={businessNames(await requestContext())}
       billing={billing === "paid" ? "paid" : "retrying"}
       data={{ activation, nextLines, retries, entitlements, invoices, methods, invoiceKinds, options }}
     />

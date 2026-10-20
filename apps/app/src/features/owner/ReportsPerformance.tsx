@@ -30,7 +30,7 @@ const METRICS: { id: ReportsTrendMetric; label: string }[] = [
   { id: "revpar", label: "RevPAR" },
 ];
 
-/** Nights in the report window (1–12 Oct). */
+/** Nights in the sample report window (the prototype's 1–12 Oct). */
 const NIGHTS = 12;
 /** Room nights sold by hotel and lodge in the window (channel share base). */
 const CHANNEL_NIGHTS = 497;
@@ -210,7 +210,7 @@ export function ReportsPerformancePanel({
         <Widget render={(props) => <section {...props} />} aria-labelledby="trend-h">
           <Widget.Header className="flex-wrap gap-2 pt-1">
             <Widget.Title id="trend-h" role="heading" aria-level={2}>
-              Daily Trend · {property.title}
+              Daily Trend · {property.title} · Sample
             </Widget.Title>
             <Segment
               size="sm"
@@ -228,8 +228,8 @@ export function ReportsPerformancePanel({
           </Widget.Header>
           <Widget.Content className="flex flex-col gap-2">
             <Widget.Legend>
-              <Widget.LegendItem color="var(--chart-3)">2026</Widget.LegendItem>
-              <Widget.LegendItem color="var(--chart-5)">Same dates 2025</Widget.LegendItem>
+              <Widget.LegendItem color="var(--chart-3)">This year</Widget.LegendItem>
+              <Widget.LegendItem color="var(--chart-5)">Same dates last year</Widget.LegendItem>
             </Widget.Legend>
             <div className="flex items-stretch gap-2">
               <div className="flex w-11 shrink-0 flex-col justify-between py-0.5 text-right text-[11px] text-muted tabular">
@@ -239,7 +239,7 @@ export function ReportsPerformancePanel({
               </div>
               <div
                 role="img"
-                aria-label={`${trend.label} per night, 1 to 12 October 2026 against the same dates in 2025`}
+                aria-label={`Sample series: ${trend.label} per night against the same dates a year earlier, not this business's nights`}
                 className="min-w-0 flex-1"
               >
                 <LineChart data={trend.points} height={180} margin={{ top: 10, right: 2, bottom: 10, left: 2 }}>
@@ -252,7 +252,7 @@ export function ReportsPerformancePanel({
                   <LineChart.Line
                     type="linear"
                     dataKey="ly"
-                    name="Same dates 2025"
+                    name="Same dates last year"
                     stroke="var(--chart-5)"
                     strokeWidth={2}
                     strokeDasharray="5 5"
@@ -262,7 +262,7 @@ export function ReportsPerformancePanel({
                   <LineChart.Line
                     type="linear"
                     dataKey="ty"
-                    name="2026"
+                    name="This year"
                     stroke="var(--chart-3)"
                     strokeWidth={2.5}
                     dot={false}
@@ -288,7 +288,7 @@ export function ReportsPerformancePanel({
         <Widget render={(props) => <section {...props} />} aria-labelledby="pick-h">
           <Widget.Header className="pt-1">
             <Widget.Title id="pick-h" role="heading" aria-level={2}>
-              Pickup · Next Four Weeks
+              Pickup · Next Four Weeks · Sample
             </Widget.Title>
             <Widget.Legend>
               <Widget.LegendItem color="var(--chart-5)">7 days ago</Widget.LegendItem>
@@ -341,8 +341,8 @@ export function ReportsPerformancePanel({
               ))}
             </div>
             <p className="text-xs text-muted">
-              Rooms on the books today, not a forecast. 20–26 Oct includes the EAC Health Forum block (21 of 25 rooms
-              picked up). <TextLink href={screenHref("Groups")}>Group blocks</TextLink>
+              Sample weeks, not this business's bookings: pickup is not worked out from reservations yet.{" "}
+              <TextLink href={screenHref("Groups")}>Group blocks</TextLink>
             </p>
           </Widget.Content>
         </Widget>
@@ -352,7 +352,7 @@ export function ReportsPerformancePanel({
         <section className="flex min-w-0 flex-col gap-2.5" aria-labelledby="rt-h">
           <SectionHeader
             id="rt-h"
-            title="By Room Type"
+            title="By Room Type · Sample"
             className="items-center"
             action={
               <LinkButton href={screenHref("RatesInventory")} size="sm" variant="ghost">
@@ -416,7 +416,7 @@ export function ReportsPerformancePanel({
         <section className="flex min-w-0 flex-col gap-2.5" aria-labelledby="ch-h">
           <SectionHeader
             id="ch-h"
-            title="By Channel · Hotel and Lodge"
+            title="By Channel · Sample"
             className="items-center"
             action={
               <LinkButton href={screenHref("Channels")} size="sm" variant="ghost">

@@ -55,7 +55,16 @@ const shortReason = (reason: string) => {
   return reason.length > 60 ? `${reason.slice(0, 58)}…` : reason;
 };
 
-export function AuditLogView({ initialTab, data }: { initialTab: AuditLogTab; data: AuditLogData }) {
+export function AuditLogView({
+  initialTab,
+  data,
+  businessName,
+}: {
+  initialTab: AuditLogTab;
+  data: AuditLogData;
+  /** The business, as the API names it (never the prototype's group). */
+  businessName: string;
+}) {
   const { chain } = data;
   const [tab, setTab] = useState<AuditLogTab>(initialTab);
   const [area, setArea] = useState("all");
@@ -90,7 +99,7 @@ export function AuditLogView({ initialTab, data }: { initialTab: AuditLogTab; da
     <PageContent>
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Settings · Amahoro Hospitality Group"
+        eyebrow={`Settings · ${businessName}`}
         title="Audit Log"
         description="Every change is written in the same step as the change itself: who, what, where and why. Entries cannot be edited or deleted."
         actions={

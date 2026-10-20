@@ -29,7 +29,7 @@ export interface SettingsBusinessData {
 type PressableRender = NonNullable<Parameters<typeof ItemCard<"button">>[0]["render"]>;
 const PressableCard: PressableRender = (props) => <button type="button" {...props} />; // heroui-ok: ItemCard render (documented pressable pattern)
 
-export function SettingsBusinessView({ data }: { data: SettingsBusinessData }) {
+export function SettingsBusinessView({ data, businessName }: { data: SettingsBusinessData; businessName: string }) {
   const [sel, setSel] = useState("isg");
   const selected = data.nodes.find((n) => n.id === sel);
   const profile = data.profiles.find((p) => p.id === sel);
@@ -39,7 +39,7 @@ export function SettingsBusinessView({ data }: { data: SettingsBusinessData }) {
     <PageContent>
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Settings · Amahoro Hospitality Group"
+        eyebrow={`Settings · ${businessName}`}
         title="Business Structure"
         description="How the business is organised. Tax and fiscal details belong to each legal entity, separate from property branding."
         actions={

@@ -19,7 +19,8 @@ import type {
 import type { Metadata } from "next";
 import { ReportsView } from "@/features/owner/ReportsView";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { getCollection, requestContext } from "@/server/data";
+import { businessNames } from "@/server/sources/owner";
 
 export const metadata: Metadata = { title: screens.Reports.pageTitle };
 
@@ -60,6 +61,7 @@ export default async function ReportsPage() {
   ]);
   return (
     <ReportsView
+      businessName={businessNames(await requestContext(), { domain: "hospitality" })}
       data={{
         properties,
         savedViews,

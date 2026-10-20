@@ -3,7 +3,7 @@
 import { screenHref } from "@injishi/data";
 import { revalidatePath } from "next/cache";
 import { requirePersona } from "@/lib/session";
-import { ApiError } from "@/server/api";
+import { ApiError, ApiUnreachableError } from "@/server/api";
 import { requestContext } from "@/server/data";
 import {
   type DeskEntry,
@@ -18,16 +18,27 @@ import {
   setLent as setLentApi,
   setShift as setShiftApi,
 } from "@/server/mutations/people";
+import { NoWorkspaceError } from "@/server/sources/types";
 
 /** What a people action answers: done, or the API's refusal in words the screen can show. */
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
+/**
+ * Runs a write and answers in words for a toast: the API's refusal, an API that did not answer, or a person
+ * with no business workspace. Anything else (a sign-in redirect) is rethrown for Next to handle.
+ */
 async function attempt(run: () => Promise<unknown>): Promise<ActionResult> {
   try {
     await run();
     return { ok: true };
   } catch (error) {
-    if (error instanceof ApiError) return { ok: false, error: error.message };
+    if (error instanceof ApiError) {
+      return { ok: false, error: error.forbidden ? `Not allowed: ${error.message}` : error.message };
+    }
+    if (error instanceof ApiUnreachableError) {
+      return { ok: false, error: "The Injishi service did not answer. Try again." };
+    }
+    if (error instanceof NoWorkspaceError) return { ok: false, error: error.message };
     throw error;
   }
 }

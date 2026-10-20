@@ -105,6 +105,19 @@ try {
   })()`);
   if (!typed) fail("no 'What was found' field");
   await page.send("Input.insertText", { text: ITEM });
+  // Finder and custodian start as the signed-in person, never a sample name; the area starts empty.
+  const you = (await page.text()).match(/([A-Z][A-Za-z'’ -]+?) \(you\)/)?.[1]?.trim();
+  if (!you) fail("the finder and custodian do not start as the signed-in person");
+  if ((await page.text()).includes("Emmanuel Nsengimana (")) fail("a sample finder is still offered as the default");
+  const area = await page.eval(`(() => {
+    const l = [...document.querySelectorAll('label')].find((e) => e.innerText.trim().startsWith('Room or area'));
+    const input = l?.closest('div')?.querySelector('input');
+    if (!input || input.value !== '') return false;
+    input.focus();
+    return document.activeElement === input;
+  })()`);
+  if (!area) fail("no empty 'Room or area' field");
+  await page.send("Input.insertText", { text: "Lobby" });
   await page.press("Log item");
   await page.waitForText("Logged as LF-", 60_000);
   const ref = (await page.text()).match(/Logged as (LF-\d{2}-\d{3})/)?.[1];
@@ -112,7 +125,13 @@ try {
   await page.reload();
   await page.waitForText(ITEM, 90_000);
   if (!(await page.text()).includes(ref)) fail(`after a reload ${ref} is not on the register`);
-  console.log(`  Log item wrote ${ref} on the API; it is on the register after a reload, with no photo claimed`);
+  const row = await page.eval(
+    `[...document.querySelectorAll('tr')].find((r) => r.innerText.includes(${JSON.stringify(ITEM)}))?.innerText ?? ""`,
+  );
+  if (row.split(you).length - 1 < 2) fail(`${ref} does not name ${you} as finder and custodian: ${row}`);
+  console.log(
+    `  Log item wrote ${ref} on the API (found by and held by ${you}); it is on the register after a reload, with no photo claimed`,
+  );
 
   // Distribution is sample data: Retry now says so and nothing is marked queued.
   await page.goto(`${APP}/channels`);

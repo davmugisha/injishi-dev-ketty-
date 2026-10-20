@@ -103,7 +103,16 @@ function StepTimeline({ steps }: { steps: PlanBillingStep[] }) {
 const unavailable = (what: string) =>
   toast.warning(`${what} is not available yet. Subscription billing is not connected; nothing was sent or changed.`);
 
-export function PlanBillingView({ billing, data }: { billing: "retrying" | "paid"; data: PlanBillingData }) {
+export function PlanBillingView({
+  billing,
+  data,
+  businessName,
+}: {
+  billing: "retrying" | "paid";
+  data: PlanBillingData;
+  /** The business, as the API names it (never the prototype's group). */
+  businessName: string;
+}) {
   const [tab, setTab] = useState("ov");
   const [dlg, setDlg] = useState<DialogId>("");
   const [pick, setPick] = useState("");
@@ -134,7 +143,7 @@ export function PlanBillingView({ billing, data }: { billing: "retrying" | "paid
       <Toast.Provider placement="bottom" />
       <TopbarStatus kind="chip" tone={topbar.tone} dot={topbar.tone} label={topbar.label} />
       <PageHeader
-        eyebrow="Amahoro Hospitality Group · Business"
+        eyebrow={`${businessName} · Business`}
         title="Plan and Billing"
         description="Your Injishi subscription only. Guest invoices and outlet invoices are separate and live in Finance."
         actions={
@@ -221,7 +230,7 @@ export function PlanBillingView({ billing, data }: { billing: "retrying" | "paid
                 {PRICE} <span className="text-[13px] font-normal text-muted">per month, in RWF</span>
               </p>
               <p className="text-xs leading-[17px] text-muted">
-                Up to 5 properties. Billed on the 1st of each month to Amahoro Hospitality Ltd, TIN 102 345 678.
+                Up to 5 properties. Billed on the 1st of each month to the business.
               </p>
               <StepTimeline steps={data.activation} />
             </Card>

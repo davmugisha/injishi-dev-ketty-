@@ -22,6 +22,7 @@ import type {
   TeamRolesPermissionArea,
   TeamRolesRole,
   TeamRolesRoleId,
+  TeamRolesScope,
   Tone,
 } from "@injishi/data/fixtures/owner";
 import type { RequestOptions } from "../api";
@@ -167,6 +168,95 @@ export async function propertiesOf(ctx: SourceContext, ws: Workspace): Promise<A
 /** The id a screen uses for a branch: its code in lower case ("isg"), else its uuid. */
 export function branchKey(p: Pick<ApiProperty, "id" | "branchCode">): string {
   return p.branchCode ? p.branchCode.toLowerCase() : p.id;
+}
+
+/**
+ * Who a business screen is about, for its eyebrow: the business or businesses the person works for, as the
+ * API names them ("Isangano Hotels Ltd", or both of an owner's companies). Never a prototype's group name.
+ */
+export function businessNames(
+  ctx: SourceContext,
+  only: { domain?: "hospitality" | "residence"; permission?: string } = {},
+): string {
+  const order = (w: Workspace) => (w.domain === "hospitality" ? 0 : w.domain === "residence" ? 1 : 2);
+  const names = (ctx.account?.workspaces ?? [])
+    .filter(
+      (w) =>
+        w.kind === "business" &&
+        (!only.domain || w.domain === only.domain) &&
+        (!only.permission || w.permissions.includes(only.permission)),
+    )
+    .sort((a, b) => order(a) - order(b))
+    .map((w) => w.orgName?.trim() || w.label)
+    .filter(Boolean);
+  const unique = [...new Set(names)];
+  return unique.length > 0 ? unique.join(" and ") : "Your business";
+}
+
+/**
+ * The Team screen's scope picker, from live data: each business the person manages the team of (a heading),
+ * and its live branches (the rows a grant names, keyed as members' scopes are). Outlets are not offered:
+ * membership scope is per branch (ADR-054), and another merchant keeps its own team.
+ */
+export async function teamScopes(ctx: SourceContext): Promise<TeamRolesScope[]> {
+  const reads = await Promise.all(
+    businessesWith(ctx, "team.manage").map(async (ws) => ({ ws, properties: await propertiesOf(ctx, ws) })),
+  );
+  return reads.flatMap(({ ws, properties }): TeamRolesScope[] => {
+    const unit = ws.domain === "residence" ? "units" : "rooms";
+    return [
+      {
+        id: `entity:${ws.orgId ?? ws.workspaceId}`,
+        kind: "entity",
+        label: ws.orgName?.trim() || ws.label,
+        description: `Legal entity · ${properties.length} ${properties.length === 1 ? "property" : "properties"} · keeps its own team`,
+        level: 0,
+      },
+      ...properties.map(
+        (p): TeamRolesScope => ({
+          id: branchKey(p),
+          kind: "property",
+          label: p.name,
+          description: [p.address.districtName, `${p.sellableRoomCount} ${unit}`, p.isHeadOffice ? "head office" : null]
+            .filter(Boolean)
+            .join(" · "),
+          level: 1,
+        }),
+      ),
+    ];
+  });
+}
+
+/**
+ * Which members have an employee file, read from People itself (`GET /ops/employees`, `people.view`): the
+ * emails on active files of every business the person manages the team of. Null when People cannot be read
+ * here, so the screen says it did not look rather than asserting a link.
+ */
+export async function employeeFileEmails(ctx: SourceContext): Promise<string[] | null> {
+  const businesses = businessesWith(ctx, "team.manage");
+  if (businesses.length === 0 || businesses.some((ws) => !ws.permissions.includes("people.view"))) return null;
+  const lists = await Promise.all(
+    businesses.map(async (ws) => {
+      const out: { email: string | null; status: string }[] = [];
+      for (let page = 1; page < 50; page++) {
+        const body = await inWorkspace(ctx, ws).get<{
+          items: { email: string | null; status: string }[];
+          total: number;
+        }>("/api/v1/ops/employees", { query: { size: "100", page: String(page) } });
+        out.push(...body.items);
+        if (out.length >= body.total || body.items.length === 0) break;
+      }
+      return out;
+    }),
+  );
+  return [
+    ...new Set(
+      lists
+        .flat()
+        .filter((e) => e.status === "active" && e.email)
+        .map((e) => (e.email as string).trim().toLowerCase()),
+    ),
+  ];
 }
 
 /** "Didier Mugenzi" → "DM". */
@@ -687,7 +777,6 @@ export const sources = defineSources({
       // so the form offers none.
       const expires = new Date(ctx.now.getTime() + 7 * 86_400_000);
       const weekday = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Kigali", weekday: "short" }).format(expires);
-      const phone = ctx.persona?.phone ?? "";
       return [
         {
           id: "draft",
@@ -705,7 +794,9 @@ export const sources = defineSources({
             },
           ],
           expiresAt: clock(expires),
-          verifyPhone: phone ? `${phone.slice(0, 7)}• ••• ${phone.slice(-3)}` : "",
+          // The step-up code goes by email (POST /me/two-factor/send answers the masked address), never to a
+          // phone; a persona's sample phone is no one's.
+          verifyPhone: "",
         },
       ];
     },

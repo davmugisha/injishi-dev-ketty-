@@ -156,7 +156,7 @@ export function TeamRolesProposedAlert({ role }: { role: TeamRolesRole }) {
       <Alert.Content>
         <Alert.Title>{role.name} is a proposed role</Alert.Title>
         <Alert.Description>
-          Its permission set may still change. You will be told before any change applies to this member.
+          Its permission set may still change, and it cannot be granted until it is a platform role.
         </Alert.Description>
       </Alert.Content>
     </Alert>
@@ -180,7 +180,7 @@ export function TeamRolesRoleSummary({ role, permissions }: { role: TeamRolesRol
   );
 }
 
-/** Scope tree: legal entities as headings, their properties and outlets as checkboxes. */
+/** Scope tree: legal entities as headings, their live properties as checkboxes (access is granted per property). */
 export function TeamRolesScopePicker({
   scopes,
   value,
@@ -192,7 +192,7 @@ export function TeamRolesScopePicker({
 }) {
   return (
     <CheckboxGroup value={value} onChange={onChange} isInvalid={value.length === 0} className="flex flex-col gap-1.5">
-      <Label>Scope · legal entity, property and outlet</Label>
+      <Label>Scope · legal entity and property</Label>
       <div className="flex flex-col gap-0.5">
         {scopes.map((s) =>
           s.kind === "entity" ? (
@@ -221,7 +221,7 @@ export function TeamRolesScopePicker({
           ),
         )}
       </div>
-      <FieldError className="text-xs">Choose at least one property or outlet.</FieldError>
+      <FieldError className="text-xs">Choose at least one property.</FieldError>
     </CheckboxGroup>
   );
 }

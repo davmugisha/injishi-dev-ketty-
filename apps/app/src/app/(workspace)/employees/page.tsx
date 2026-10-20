@@ -3,7 +3,6 @@ import type {
   CompensationChange,
   Employee,
   FamilyMember,
-  FileAccess,
   FileDocument,
   OffboardingTask,
   OrgNode,
@@ -13,7 +12,7 @@ import type {
 import type { Metadata } from "next";
 import { EmployeesView } from "@/features/people/EmployeesView";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { getCollection, requestContext } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.Employees.pageTitle };
 
@@ -25,22 +24,22 @@ export default async function EmployeesPage({
   searchParams: Promise<{ view?: string; employee?: string; tab?: string }>;
 }) {
   await requirePersona("Employees");
-  const [properties, employees, compensation, documents, access, family, policies, org, offboarding] =
-    await Promise.all([
-      getCollection<PeopleProperty>("people.properties"),
-      getCollection<Employee>("people.employees"),
-      getCollection<CompensationChange>("people.compensation"),
-      getCollection<FileDocument>("people.fileDocuments"),
-      getCollection<FileAccess>("people.fileAccess"),
-      getCollection<FamilyMember>("people.family"),
-      getCollection<PolicyAck>("people.policies"),
-      getCollection<OrgNode>("people.orgChart"),
-      getCollection<OffboardingTask>("people.offboarding"),
-    ]);
+  // The file's access log is not read: no route serves it, and the sample entries were nobody's.
+  const [properties, employees, compensation, documents, family, policies, org, offboarding] = await Promise.all([
+    getCollection<PeopleProperty>("people.properties"),
+    getCollection<Employee>("people.employees"),
+    getCollection<CompensationChange>("people.compensation"),
+    getCollection<FileDocument>("people.fileDocuments"),
+    getCollection<FamilyMember>("people.family"),
+    getCollection<PolicyAck>("people.policies"),
+    getCollection<OrgNode>("people.orgChart"),
+    getCollection<OffboardingTask>("people.offboarding"),
+  ]);
   const { view, employee, tab } = await searchParams;
   return (
     <EmployeesView
-      data={{ properties, employees, compensation, documents, access, family, policies, org, offboarding }}
+      data={{ properties, employees, compensation, documents, family, policies, org, offboarding }}
+      today={(await requestContext()).today.iso}
       initial={{
         view: view === "org" ? "org" : "dir",
         employee: employees.some((e) => e.id === employee) ? (employee as string) : (employees[0]?.id ?? ""),

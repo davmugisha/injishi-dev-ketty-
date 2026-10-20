@@ -10,7 +10,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AuditLogView } from "@/features/owner/AuditLogView";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { getCollection, requestContext } from "@/server/data";
+import { businessNames } from "@/server/sources/owner";
 
 export const metadata: Metadata = { title: screens.AuditLog.pageTitle };
 
@@ -28,6 +29,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
   const { tab } = await searchParams;
   return (
     <AuditLogView
+      businessName={businessNames(await requestContext())}
       initialTab={tab === "retention" ? "retention" : "entries"}
       data={{ areas, entries, retention, formats, chain }}
     />

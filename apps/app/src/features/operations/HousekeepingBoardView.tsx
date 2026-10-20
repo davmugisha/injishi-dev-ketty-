@@ -25,7 +25,6 @@ import type {
   HousekeepingStaff,
   RoomHistory,
   RoomStatus,
-  RoomStatusHistory,
   TaskColumn,
   Tone,
 } from "@injishi/data/fixtures/operations";
@@ -54,11 +53,12 @@ import {
 export interface HousekeepingData {
   rooms: HousekeepingRoom[];
   roomHistory: RoomHistory[];
-  statusHistory: RoomStatusHistory[];
   tasks: CleaningTask[];
   staff: HousekeepingStaff[];
   escalations: HousekeepingEscalation[];
   rules: HousekeepingRule[];
+  /** The property the board is for, as the API names it. */
+  propertyName: string;
 }
 
 type View = "tasks" | "rooms";
@@ -218,11 +218,8 @@ export function HousekeepingBoardView({
   const task = tasks.find((t) => t.id === taskId) ?? tasks[0];
   const room = rooms.find((r) => r.id === roomId) ?? rooms[0];
   const roomTask = room ? tasks.find((t) => t.room === room.id && t.column !== "insp") : undefined;
-  const roomEvents = room
-    ? data.roomHistory.find((h) => h.id === room.id)?.events ||
-      data.statusHistory.find((h) => h.id === room.status)?.events ||
-      []
-    : [];
+  // A room's own recorded changes only. A room with none says so rather than borrowing a sample history.
+  const roomEvents = room ? (data.roomHistory.find((h) => h.id === room.id)?.events ?? []) : [];
 
   const workload = housekeepers.map((p) => {
     const mine = tasks.filter((t) => t.assignee === p.id && (t.column === "todo" || t.column === "doing"));
@@ -336,9 +333,7 @@ export function HousekeepingBoardView({
   return (
     <PageContent>
       <PageHeader
-        eyebrow={
-          now ? `${kigaliLongDate(now)} · ${kigaliClock(now)} · Isangano Lakeside Hotel` : "Isangano Lakeside Hotel"
-        }
+        eyebrow={now ? `${kigaliLongDate(now)} · ${kigaliClock(now)} · ${data.propertyName}` : data.propertyName}
         title="Housekeeping"
         description="Room status and cleaning tasks. A room is offered to arrivals only after it passes inspection."
         actions={
@@ -385,7 +380,10 @@ export function HousekeepingBoardView({
               ))}
             </div>
           </Alert.Content>
-          <span className="hidden text-[12px] text-muted md:block">Overdue 15 min → supervisor · 30 min → manager</span>
+          {/* No timer raises escalations on the API yet (the repository only resolves them), so no rule is quoted. */}
+          <span className="hidden text-[12px] text-muted md:block">
+            Overdue tasks are not escalated automatically yet
+          </span>
         </Alert>
       ) : null}
 
@@ -461,7 +459,11 @@ export function HousekeepingBoardView({
               </p>
               <div className="flex flex-col gap-2">
                 <FieldLabel>Status history</FieldLabel>
-                <HistoryTimeline events={roomEvents} label={`Room ${room.id} status history`} />
+                {roomEvents.length ? (
+                  <HistoryTimeline events={roomEvents} label={`Room ${room.id} status history`} />
+                ) : (
+                  <p className="text-[13px] leading-[18px] text-muted">No status change recorded for this room yet.</p>
+                )}
               </div>
               {roomTask ? (
                 <Button
@@ -701,7 +703,7 @@ export function HousekeepingBoardView({
                 <Card.Title id="gate-h" className="text-[15px] font-semibold">
                   Inspection Gate
                 </Card.Title>
-                <Card.Description>Required for every checkout at Isangano Lakeside Hotel</Card.Description>
+                <Card.Description>Required for every checkout at {data.propertyName}</Card.Description>
               </Card.Header>
               <Card.Content className="flex flex-col gap-3">
                 <Stepper size="sm" currentStep={2} aria-label="Room readiness">

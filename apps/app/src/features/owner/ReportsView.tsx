@@ -72,7 +72,7 @@ function FilterLabel({ children }: { children: string }) {
   return <Label className="text-xs font-normal text-muted">{children}</Label>;
 }
 
-export function ReportsView({ data }: { data: ReportsData }) {
+export function ReportsView({ data, businessName }: { data: ReportsData; businessName: string }) {
   // The screen opens on the person's first saved view (their default comes first), not a fixed record.
   const first = data.savedViews[0];
   const [tab, setTab] = useState<ReportsTab>(first?.tab ?? "perf");
@@ -112,7 +112,7 @@ export function ReportsView({ data }: { data: ReportsData }) {
     <PageContent>
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Amahoro Hospitality Group · Reports"
+        eyebrow={`${businessName} · Reports`}
         title="Reports"
         description="Defined measures with their source. Open any figure to see the records behind it."
         actions={

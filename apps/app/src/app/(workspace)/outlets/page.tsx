@@ -10,7 +10,8 @@ import type {
 import type { Metadata } from "next";
 import { OutletsMenusView, type OutletTab } from "@/features/operations/OutletsMenusView";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { getCollection, requestContext } from "@/server/data";
+import { placeName } from "@/server/sources/operations";
 
 export const metadata: Metadata = { title: screens.OutletsMenus.pageTitle };
 
@@ -29,6 +30,7 @@ export default async function OutletsMenusPage({ searchParams }: { searchParams:
   const initialTab = tabs.find((t) => t === tab) ?? "outlets";
   return (
     <OutletsMenusView
+      placeName={placeName(await requestContext())}
       persona={persona}
       initialTab={initialTab}
       data={{ outlets, departments, menus, orders, orderLoad, offers }}

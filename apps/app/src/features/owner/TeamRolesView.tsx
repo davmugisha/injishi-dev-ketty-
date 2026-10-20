@@ -343,17 +343,17 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
         ),
       };
     } else {
-      const sessions =
-        sel.status === "active"
-          ? sel.signIn === "Staff app PIN"
-            ? "1 · Android staff app"
-            : "2 · Chrome on Windows, Android app"
-          : "None";
-      const employee = isOwner
-        ? "Not an employee"
-        : sel.status === "invited" || sel.status === "pending"
-          ? "Linked when they accept"
-          : "Linked · see People";
+      // Read from People (active files, matched on the sign-in's email), never assumed. Sessions are not
+      // listed: no route reports a member's devices, so the panel names none.
+      const email = sel.contact.trim().toLowerCase();
+      const employee =
+        sel.status === "invited" || sel.status === "pending"
+          ? "None yet · an invitation is not a person"
+          : data.employeeFiles === null
+            ? "Not checked here · see People"
+            : data.employeeFiles.includes(email)
+              ? "On file · see People"
+              : "No active file with this email in People";
       const help = TEAM_ROLES_HELP[isOwner ? "owner" : sel.status];
       const actions =
         sel.status === "pending" || canRevoke || sel.status === "revoked" ? (
@@ -389,7 +389,6 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
               { label: "Scope", value: sel.scope },
               { label: "Last active", value: sel.lastActive },
               { label: "Sign-in", value: sel.status === "revoked" ? "—" : sel.signIn },
-              { label: "Sessions", value: sessions },
               { label: "Employee file", value: employee },
             ]}
             help={help}
@@ -404,7 +403,7 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
     <PageContent>
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Amahoro Hospitality Group · Business"
+        eyebrow={`${data.businessName} · Business`}
         title="Team and Roles"
         description="Who can sign in to your business, what each role can do, and where."
         actions={
