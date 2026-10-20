@@ -1,16 +1,24 @@
 import { fakeReads } from '../testing/fake-listings';
 import { ToolSet } from './assistant-tools';
 
-const anonymous = { userId: null, catalogueOpen: false };
+const anonymous = { userId: null };
 const tools = new ToolSet(fakeReads);
 
 describe('assistant tools (ADR-061 D-f)', () => {
-  it('offers the public search to an anonymous caller', () => {
-    expect(tools.offered(anonymous).map((t) => t.name)).toEqual(['search_help', 'get_task_guide', 'find_tutorial', 'suggest_human_support']);
+  it('offers the public search and the listings to an anonymous caller', () => {
+    expect(tools.offered(anonymous).map((t) => t.name)).toEqual([
+      'search_help',
+      'get_task_guide',
+      'find_tutorial',
+      'search_listings',
+      'get_listing',
+      'check_availability',
+      'suggest_human_support',
+    ]);
   });
 
   it('gives every offered tool a strict schema', () => {
-    for (const tool of tools.offered({ ...anonymous, catalogueOpen: true })) {
+    for (const tool of tools.offered(anonymous)) {
       expect(tool.inputSchema.additionalProperties).toBe(false);
       expect(Array.isArray(tool.inputSchema.required)).toBe(true);
     }
@@ -44,7 +52,7 @@ describe('assistant tools (ADR-061 D-f)', () => {
       ...fakeReads,
       listPublished: () => Promise.reject(new Error('database down')),
     });
-    const outcome = await broken.run('search_listings', { query: 'Musanze' }, { ...anonymous, catalogueOpen: true });
+    const outcome = await broken.run('search_listings', { query: 'Musanze' }, { ...anonymous });
     expect(outcome).toMatchObject({ isError: true, sources: [] });
     expect(outcome.content).not.toMatch(/database down/);
   });

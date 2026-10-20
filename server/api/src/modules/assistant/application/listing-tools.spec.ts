@@ -8,8 +8,7 @@ import {
 import { ToolSet } from './assistant-tools';
 import { MAX_AVAILABILITY_NIGHTS } from './listing-tools';
 
-const open = { userId: null, catalogueOpen: true };
-const closed = { userId: null, catalogueOpen: false };
+const open = { userId: null };
 const tools = new ToolSet(fakeReads);
 
 async function json(name: string, input: unknown, caller = open): Promise<{ isError: boolean; body: Record<string, unknown>; sources: unknown[] }> {
@@ -86,13 +85,9 @@ describe('listing tools (ADR-061 slice B)', () => {
     expect(unreal).toMatchObject({ isError: true, body: { error: expect.stringMatching(/real calendar dates/) } });
   });
 
-  it('offers no listing tool on the pre launch host, and refuses one named anyway', async () => {
+  it('offers every listing tool to a caller with no session', () => {
     const listing = ['search_listings', 'get_listing', 'check_availability'];
-    expect(tools.offered(closed).map((t) => t.name).filter((n) => listing.includes(n))).toEqual([]);
     expect(tools.offered(open).map((t) => t.name).filter((n) => listing.includes(n))).toEqual(listing);
-    const { isError, body } = await json('search_listings', { query: 'Musanze' }, closed);
-    expect(isError).toBe(true);
-    expect(body.error).toMatch(/not open yet/);
   });
 
   it('gives every listing tool a strict schema', () => {

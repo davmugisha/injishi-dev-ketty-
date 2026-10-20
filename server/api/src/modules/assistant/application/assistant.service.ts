@@ -62,13 +62,8 @@ export type ConversationHolder =
   | { kind: 'user'; userId: string }
   | { kind: 'anon'; tokenHash: string | null };
 
-/**
- * What the request knows that the tools need. `catalogueOpen` is false on the
- * production pre launch host (D-j); it defaults to false, so a caller that
- * forgets to say fails closed.
- */
+/** What the request knows that the tools need. */
 export interface TurnContext {
-  catalogueOpen: boolean;
   /** The operator workspace, resolved as `WorkspaceGuard` resolves it, or none. */
   workspace?: ScopedWorkspace | null;
   /** True when this session still owes the emailed step up code. */
@@ -146,7 +141,7 @@ export class AssistantService {
     holder: ConversationHolder,
     surface: AssistantSurface,
     now = new Date(),
-    context: TurnContext = { catalogueOpen: false },
+    context: TurnContext = {},
   ): Promise<AssistantConversation | null> {
     const row = await this.find(holder, surface, now);
     return row ? await this.view(row, await this.conversations.listMessages(row.id), this.callerFor(holder, context), now) : null;
@@ -160,7 +155,7 @@ export class AssistantService {
   async opening(
     holder: ConversationHolder,
     surface: AssistantSurface,
-    context: TurnContext = { catalogueOpen: false },
+    context: TurnContext = {},
     now = new Date(),
   ): Promise<{ greeting: string; suggestions: AssistantSuggestion[] }> {
     const offered = this.offeredNames(this.callerFor(holder, context));
@@ -193,7 +188,7 @@ export class AssistantService {
     surface: AssistantSurface,
     now = new Date(),
     discard = false,
-    context: TurnContext = { catalogueOpen: false },
+    context: TurnContext = {},
   ): Promise<{ claimed: boolean; conversation: AssistantConversation | null }> {
     if (tokenHash && discard) {
       await this.conversations.discardAnon(tokenHash, now);
@@ -282,7 +277,7 @@ export class AssistantService {
     holder: ConversationHolder,
     input: SendAssistantMessageInput,
     now = new Date(),
-    context: TurnContext = { catalogueOpen: false },
+    context: TurnContext = {},
   ): Promise<SendResult> {
     if (!this.enabled) {
       throw new ServiceUnavailableException({
@@ -594,7 +589,6 @@ export class AssistantService {
   private callerFor(holder: ConversationHolder, context: TurnContext): ToolCaller {
     return {
       userId: holder.kind === 'user' ? holder.userId : null,
-      catalogueOpen: context.catalogueOpen,
       workspace: holder.kind === 'user' ? (context.workspace ?? null) : null,
       stepUpNeeded: holder.kind === 'user' && context.stepUpNeeded === true,
     };

@@ -2,8 +2,8 @@ import { BUSINESS_WORKSPACE, GUEST_A, GUEST_B, fakeReads } from '../testing/fake
 import { ToolSet } from './assistant-tools';
 
 const tools = new ToolSet(fakeReads);
-const guestA = { userId: GUEST_A, catalogueOpen: true };
-const anonymous = { userId: null, catalogueOpen: true };
+const guestA = { userId: GUEST_A };
+const anonymous = { userId: null };
 
 describe('account tools (ADR-061 slice C)', () => {
   it('are not offered to an anonymous caller, and refuse one that names them', async () => {
@@ -52,7 +52,7 @@ describe('account tools (ADR-061 slice C)', () => {
         permissions: ['reservation.assign', 'stay.checkin'],
       },
     ]);
-    const none = JSON.parse((await tools.run('my_access', {}, { userId: GUEST_B, catalogueOpen: true })).content);
+    const none = JSON.parse((await tools.run('my_access', {}, { userId: GUEST_B })).content);
     expect(none).toMatchObject({ businesses: [], note: expect.stringMatching(/no business/) });
   });
 });

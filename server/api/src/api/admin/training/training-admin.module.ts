@@ -7,9 +7,9 @@ import { AdminTrainingController } from './training-admin.controller';
 /**
  * The training area of the admin console (ADR-049).
  *
- * A sixth area module beside orgs, users, finance, platform and waitlist, for
- * the reason `AdminApiModule` gives for the others: the console is navigated by
- * area, and an area can be built and verified on its own.
+ * An area module beside orgs, users, finance and platform, for the reason
+ * `AdminApiModule` gives for the others: the console is navigated by area, and
+ * an area can be built and verified on its own.
  *
  * `AdminSharedModule` supplies what every guarded admin route needs so
  * `StaffGuard` can resolve at all. `TrainingModule` supplies the services; the
