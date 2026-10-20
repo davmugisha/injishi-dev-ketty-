@@ -26,6 +26,7 @@ import {
   Card,
   Checkbox,
   Chip,
+  FieldError,
   Input,
   Kbd,
   Label,
@@ -52,14 +53,12 @@ import {
 } from "@injishi/ui";
 import NextLink from "next/link";
 import { type ReactNode, useEffect, useRef, useState, useTransition } from "react";
+import { readFrancs } from "@/features/stays/amount";
 import { checkInGuest } from "./actions";
 import { ChoiceSelect, isReady, ROOM_STATUS } from "./shared";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 type PayState = "idle" | "pending" | "verified" | "cash";
-
-/** Digits of a typed amount ("RWF 170,000" → 170000). */
-const amountOf = (s: string) => Number(s.replace(/[^\d]/g, "")) || 0;
 
 function SectionTitle({ title, children }: { title: ReactNode; children?: ReactNode }) {
   return (
@@ -84,6 +83,12 @@ export function CheckInView({
 }) {
   // A guest already checked in opens on the finished card (the page reads the stay back after the command).
   const [step, setStep] = useState<Step>(file.stayId ? 5 : 1);
+  /**
+   * Opened on a guest who was checked in before this screen was: nothing was counted or handed over
+   * here, and the booking's deposit is not what the stay owes now. The card says so and sends the
+   * person to the stay, whose bill holds the truth. (Completing check-in here keeps its own card.)
+   */
+  const [arrivedEarlier] = useState(Boolean(file.stayId));
   const [maxStep, setMaxStep] = useState<Step>(file.stayId ? 5 : 1);
   const [saving, startSaving] = useTransition();
   /** The key of the one press of "Record cash", minted at that press and sent with the check-in. */
@@ -128,16 +133,25 @@ export function CheckInView({
     verified: `${netLabel} · verified`,
     cash: `Cash ${formatRwf(cashTaken)} counted`,
   };
-  const steps = [
-    { title: "Guest", desc: idOk ? "ID checked" : "Check ID" },
-    { title: "Room", desc: `Room ${room}` },
-    {
-      title: "Payment",
-      desc: nothingDue && payState === "idle" ? "Paid online" : pay === "later" ? "Pay at checkout" : payDesc[payState],
-    },
-    { title: "Key", desc: keyGiven ? "Physical key given" : "Physical key" },
-    { title: "Done", desc: "Registration" },
-  ];
+  const steps = arrivedEarlier
+    ? [
+        { title: "Guest", desc: "Checked in" },
+        { title: "Room", desc: `Room ${room}` },
+        { title: "Payment", desc: "On the stay's bill" },
+        { title: "Key", desc: "Not recorded here" },
+        { title: "Done", desc: "Checked in" },
+      ]
+    : [
+        { title: "Guest", desc: idOk ? "ID checked" : "Check ID" },
+        { title: "Room", desc: `Room ${room}` },
+        {
+          title: "Payment",
+          desc:
+            nothingDue && payState === "idle" ? "Paid online" : pay === "later" ? "Pay at checkout" : payDesc[payState],
+        },
+        { title: "Key", desc: keyGiven ? "Physical key given" : "Physical key" },
+        { title: "Done", desc: "Registration" },
+      ];
 
   let payCheck: [Tone, string] = ["warning", "Not started"];
   if (pay === "later") payCheck = ["success", "Pay at checkout · left on the bill"];
@@ -147,7 +161,7 @@ export function CheckInView({
   // Paid in full online when booked: nothing to take at the desk, whichever way pays the extras.
   if (nothingDue && payState === "idle") payCheck = ["success", "Paid online when booked"];
 
-  const checks: { label: string; tone: Tone; state: string }[] = [
+  const deskChecks: { label: string; tone: Tone; state: string }[] = [
     {
       label: "ID checked",
       tone: idOk ? "success" : "warning",
@@ -172,7 +186,19 @@ export function CheckInView({
     },
   ];
 
-  const records = [
+  // Opened on a guest checked in earlier: nothing below was done on this screen, so none of it is listed.
+  const checks: { label: string; tone: Tone; state: string }[] = arrivedEarlier
+    ? [
+        {
+          label: "Checked in",
+          tone: "success",
+          state: `${file.checkedInAt ? `At ${file.checkedInAt} · ` : ""}stay ${file.stayId} · room ${room}`,
+        },
+        { label: "Bill", tone: "default", state: "Open the stay for what is owed and what was paid" },
+      ]
+    : deskChecks;
+
+  const allRecords = [
     {
       icon: "House",
       title: `Stay ${file.stayId}`,
@@ -215,6 +241,21 @@ export function CheckInView({
       tone: paid || nothingDue ? "success" : "warning",
     },
   ] as const;
+  // Opened on a guest checked in earlier: the stay and booking only. What is owed is on the stay's bill,
+  // and no deposit was taken on this screen.
+  const records = arrivedEarlier
+    ? [
+        allRecords[0],
+        {
+          icon: "Receipt",
+          title: `Folio ${file.folioId}`,
+          desc: "What is owed is on the stay's bill",
+          chip: "Open",
+          tone: "default",
+        } as const,
+        allRecords[2],
+      ]
+    : allRecords;
 
   const blocked =
     saving ||
@@ -288,7 +329,9 @@ export function CheckInView({
   }, []);
 
   /** What the bill would owe (positive) or hold in credit (negative) once the typed cash is recorded. */
-  const leftAfterCash = file.deposit.amount - amountOf(cashIn);
+  // Whole francs only ("RWF 170,000" → 170000); a decimal part is refused with its reason, never folded in.
+  const { amount: cashTyped, error: cashError } = readFrancs(cashIn);
+  const leftAfterCash = file.deposit.amount - cashTyped;
 
   return (
     <PageContent className="text-[14px] leading-5">
@@ -705,10 +748,12 @@ export function CheckInView({
                       value={cashIn}
                       onChange={setCashIn}
                       isReadOnly={payState === "cash"}
+                      isInvalid={!!cashError}
                       className="flex flex-col gap-1"
                     >
                       <Label>Cash received for the bill</Label>
                       <Input className="tabular" inputMode="numeric" />
+                      <FieldError>{cashError}</FieldError>
                     </TextField>
                     <div className="flex flex-col gap-1">
                       <span className="text-sm font-medium">After this cash</span>
@@ -730,7 +775,7 @@ export function CheckInView({
                       <Button
                         onPress={() => {
                           // One key per press, and the amount fixed at the press: what is recorded is what was typed.
-                          setCashTaken(amountOf(cashIn));
+                          setCashTaken(cashTyped);
                           setCashKey(crypto.randomUUID());
                           setCashAt(
                             new Intl.DateTimeFormat("en-GB", {
@@ -742,10 +787,10 @@ export function CheckInView({
                           );
                           setPayState("cash");
                         }}
-                        isDisabled={amountOf(cashIn) <= 0}
+                        isDisabled={cashTyped <= 0}
                       >
                         <Wallet className="size-4" />
-                        Record {formatRwf(amountOf(cashIn))} cash
+                        Record {formatRwf(cashTyped)} cash
                       </Button>
                     </div>
                   ) : null}
@@ -901,7 +946,7 @@ export function CheckInView({
                 </span>
                 <div className="flex flex-col gap-0.5">
                   <h2 id="step-h" className="text-lg leading-6 font-semibold">
-                    {file.guest} is checked in to room {room}
+                    {file.guest} {arrivedEarlier ? "is already checked in" : "is checked in"} to room {room}
                   </h2>
                   <span className="text-[13px] text-muted">
                     {file.checkedInAt ? `Checked in ${file.checkedInAt}` : "Checked in"}
@@ -958,16 +1003,16 @@ export function CheckInView({
                 </ListView>
               </div>
               <div className="flex flex-wrap gap-2">
-                <LinkButton href={screenHref("FrontDeskToday")}>
+                <LinkButton href={screenHref("FrontDeskToday")} variant={arrivedEarlier ? "secondary" : "primary"}>
                   <ArrowLeft className="size-4" />
                   Back to Today
                 </LinkButton>
                 <LinkButton
                   href={file.stayId ? `/stays/${encodeURIComponent(file.stayId)}` : screenHref("FrontDeskToday")}
-                  variant="secondary"
+                  variant={arrivedEarlier ? "primary" : "secondary"}
                 >
                   <Receipt className="size-4" />
-                  Open stay folio
+                  {arrivedEarlier ? "Open the stay" : "Open stay folio"}
                 </LinkButton>
                 <LinkButton href={screenHref("Messages")} variant="ghost">
                   <Comment className="size-4" />

@@ -50,7 +50,7 @@ import NextLink from "next/link";
 import { Fragment, useState, useTransition } from "react";
 import type { Selection } from "react-aria-components";
 import { checkOutGuest, postCharge, recordCash, resendClaimCode, voidCharge } from "./actions";
-import { CardHeading, IconTile, InfoRow, Note, parseAmount, rwf, SelectField, StatTile, ToneChip } from "./parts";
+import { CardHeading, IconTile, InfoRow, Note, readFrancs, rwf, SelectField, StatTile, ToneChip } from "./parts";
 
 export interface StayFolioData {
   stay: Stay;
@@ -298,8 +298,10 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
   };
 
   // ── Drawer: post a charge / take a payment ──
-  const cAmount = parseAmount(cAmt);
+  // Whole francs only: a decimal part or a stray character is refused with its reason, never folded in.
+  const { amount: cAmount, error: cAmtError } = readFrancs(cAmt);
   const cTooBig = cAmount > DESK_CHARGE_LIMIT;
+  const { amount: pAmount, error: pAmtError } = readFrancs(pAmt);
   const canPost = !!cAmount && !cTooBig && !!cReason && !!cDept && !busy;
   /** Post charge: the amount typed BEFORE VAT, one key per press. */
   const submitCharge = () => {
@@ -334,7 +336,7 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
   const isMobile = tender === "mtn" || tender === "airtel";
   /** Record cash: exactly the amount typed, one key per press. Prompts to a phone have no route. */
   const takePayment = () => {
-    const amount = parseAmount(pAmt);
+    const amount = pAmount;
     if (!amount || !T || T.blocked || busy) return;
     if (T.id !== "cash") {
       unavailable(`A ${T.label} payment request from the desk`);
@@ -966,11 +968,11 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                     ))}
                     <Description className="col-span-2">Room nights post automatically at night audit.</Description>
                   </RadioButtonGroup>
-                  <TextField value={cAmt} onChange={setCAmt} isInvalid={cTooBig} fullWidth>
+                  <TextField value={cAmt} onChange={setCAmt} isInvalid={cTooBig || !!cAmtError} fullWidth>
                     <Label>Amount before VAT (RWF)</Label>
                     <Input variant="secondary" inputMode="numeric" placeholder="e.g. 12,000" className="tabular" />
                     <Description>VAT is added as its own line, at the rate in force when the charge posts.</Description>
-                    <FieldError>Desk charges above RWF 50,000 need a manager to post them.</FieldError>
+                    <FieldError>{cAmtError ?? "Desk charges above RWF 50,000 need a manager to post them."}</FieldError>
                   </TextField>
                   <SelectField
                     label="Reason code"
@@ -1020,13 +1022,14 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                       </RadioButtonGroup.Item>
                     ))}
                   </RadioButtonGroup>
-                  <TextField value={pAmt} onChange={setPAmt} fullWidth>
+                  <TextField value={pAmt} onChange={setPAmt} isInvalid={!!pAmtError} fullWidth>
                     <Label>{tender === "cash" ? "Cash received (RWF)" : "Amount (RWF)"}</Label>
                     <Input variant="secondary" inputMode="numeric" placeholder="e.g. 20,000" className="tabular" />
                     <Description>
                       {balance > 0 ? `Balance due ${rwf(balance)}.` : "Nothing is due on this bill."} Exactly the amount
                       you type is recorded.
                     </Description>
+                    <FieldError>{pAmtError}</FieldError>
                   </TextField>
                   {isMobile ? (
                     <TextField defaultValue={stay.payerPhone} fullWidth>
@@ -1051,8 +1054,8 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                   <Button variant="secondary" onPress={() => setDrawerOpen(false)}>
                     Cancel
                   </Button>
-                  <Button isDisabled={!parseAmount(pAmt) || busy} onPress={takePayment}>
-                    {tender === "cash" ? `Record ${rwf(parseAmount(pAmt))} cash` : "Send payment request"}
+                  <Button isDisabled={!pAmount || busy} onPress={takePayment}>
+                    {tender === "cash" ? `Record ${rwf(pAmount)} cash` : "Send payment request"}
                   </Button>
                 </Drawer.Footer>
               </>

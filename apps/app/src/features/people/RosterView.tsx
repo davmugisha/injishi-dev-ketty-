@@ -150,8 +150,8 @@ export function RosterView({
   const gridOf = (w: WeekId): Grid => grids[w] ?? initialGrid(w);
   const grid = gridOf(wk);
   const lentNow = lent[wk];
-  // A change to a published week reaches the person at once (the API publishes it and tells them),
-  // so nothing waits to be sent: only a draft week's changes wait for Publish.
+  // A change to a published week shows in the person's staff app at once (the API publishes it; its
+  // `roster.changed` outbox row is not delivered as a message), so only a draft week's changes wait.
   const bump = (_w: WeekId, _n: number) => edits;
   const copy = (g: Grid): Grid => Object.fromEntries(Object.entries(g).map(([k, v]) => [k, [...v]]));
   const setCell = (rid: string, d: number, v: ShiftCode) => {
@@ -326,7 +326,7 @@ export function RosterView({
       <PageHeader
         eyebrow={`${W.label} · ${branchName} · today is ${longDay(today)}`}
         title="Roster"
-        description="Click any shift to change it. Staff see a week in the staff app once you publish it; later changes notify only the people affected."
+        description="Click any shift to change it. Staff see a week in the staff app once you publish it, and later changes show there for the people affected. No SMS or message is sent."
         actions={
           <>
             <Segment
@@ -611,7 +611,7 @@ export function RosterView({
             dense
             id="sw-h"
             title="Shift Swap Requests"
-            description="This week · both people agreed in the staff app"
+            description="This week · the colleague named in each has agreed to it"
             className="gap-2.5"
           >
             {swaps.map((w) => (

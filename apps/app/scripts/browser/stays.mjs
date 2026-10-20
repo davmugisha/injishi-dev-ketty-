@@ -126,9 +126,18 @@ try {
   if (!/RWF\s4,720/.test(line)) fail(`the posted line reads: ${line.replace(/\s+/g, " ")}`);
   console.log(`  posted "${charge}" RWF 4,000 before VAT: after a reload it reads RWF 4,720 with its VAT`);
 
-  // Record cash, exactly as typed.
+  // Record cash, exactly as typed. Francs are whole: a decimal part is refused with its reason, and the
+  // button offers nothing (it once read "1,234.50" as RWF 123,450).
   await openDrawer("Take payment");
   await markInput("Cash received", "cash");
+  await page.type("[data-check=cash]", "1,234.50");
+  await page.waitForText("Francs have no decimal part", 30_000);
+  const refusedRecord = await page.eval(
+    `[...document.querySelectorAll('[role=dialog] button')].find((b) => b.innerText.trim().startsWith("Record"))?.matches("[disabled],[data-disabled],[aria-disabled=true]") ?? null`,
+  );
+  if (refusedRecord !== true) fail(`with "1,234.50" typed the Record button is not disabled (${refusedRecord})`);
+  console.log('  "1,234.50" typed: refused as a decimal part, and nothing can be recorded');
+  await page.eval("document.querySelector('[data-check=cash]').select()");
   await page.type("[data-check=cash]", "1234");
   const record = await page.eval(
     `[...document.querySelectorAll('[role=dialog] button')].map((b) => b.innerText.replace(/\\s+/g, " ").trim()).find((t) => t.startsWith("Record")) ?? ""`,

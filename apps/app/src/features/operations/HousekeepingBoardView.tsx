@@ -176,7 +176,7 @@ export function HousekeepingBoardView({
     reassignEsc ? (data.tasks.find((t) => t.id === reassignEsc.task)?.room ?? "") : "",
   );
   const [taskId, setTaskId] = useState(reassignEsc?.task ?? data.tasks[0]?.id ?? "");
-  // A reminder already sent reads as done (the API keeps it; the button stays disabled).
+  // A reminder already recorded reads as done (the API keeps it; the button stays disabled).
   const [reminded, setReminded] = useState(Boolean(remindEsc?.doneCta && remindEsc.cta === remindEsc.doneCta));
   const [pending, startTransition] = useTransition();
   const [addOpen, setAddOpen] = useState(false);
@@ -240,7 +240,8 @@ export function HousekeepingBoardView({
   const waiting = tasks.filter((t) => t.column === "clean");
   const oldest = waiting.find((t) => t.priority === "Overdue");
   const oldestWait = oldest?.due.split("waiting ")[1];
-  const inspQueue = `${waiting.length} inspections waiting${oldest && oldestWait ? ` · oldest ${oldestWait} min (${oldest.room})` : ""}${reminded ? ` · reminded${now ? ` ${kigaliClock(now)}` : ""}` : ""}`;
+  // A recorded reminder is not delivered to anyone yet; its time is the API's (in the escalation's text).
+  const inspQueue = `${waiting.length} inspections waiting${oldest && oldestWait ? ` · oldest ${oldestWait} min (${oldest.room})` : ""}${reminded ? " · reminder recorded, not delivered" : ""}`;
 
   const act = (run: () => Promise<{ ok: true } | { ok: false; error: string }>, then?: () => void) =>
     startTransition(async () => {

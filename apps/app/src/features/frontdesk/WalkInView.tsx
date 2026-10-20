@@ -161,9 +161,9 @@ export function WalkInView({
   if (t) {
     const sub = t.rate * nights;
     q = {
-      span: `${dayLabel(today, 0)} → ${dayLabel(today, nights)} · ${plural(nights, "night")} · ${plural(adults, "adult")}${
-        kids ? `, ${plural(kids, "child", "children")}` : ""
-      }`,
+      // POST /ops/stays/walk-in takes no party size, so the quote names none: the guests counted
+      // above only choose a room that sleeps them.
+      span: `${dayLabel(today, 0)} → ${dayLabel(today, nights)} · ${plural(nights, "night")}`,
       lines: Array.from({ length: nights }, (_, i) => ({
         label: `${dayLabel(today, i)} · Walk-in`,
         amt: t.rate,
@@ -243,6 +243,9 @@ export function WalkInView({
             fewer="Fewer children"
             more="More children"
           />
+          <span className="self-center text-xs text-muted">
+            Finds a room that sleeps them · not recorded on the stay
+          </span>
           <span className="flex-1" />
           <span className="self-center text-xs text-muted">Free tonight · checked {checkedAt}</span>
           <Button variant="secondary" onPress={recheck}>

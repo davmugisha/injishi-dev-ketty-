@@ -107,6 +107,9 @@ export function LostFoundView({
   const [idOk, setIdOk] = useState(false);
   const [method, setMethod] = useState<Method>("person");
   const [claimOpen, setClaimOpen] = useState(false);
+  // Keep 30 more days: the reason is the person's, typed before the press that records it.
+  const [keepOpen, setKeepOpen] = useState(false);
+  const [keepWhy, setKeepWhy] = useState("");
   const [claimName, setClaimName] = useState("");
   const [claimBooking, setClaimBooking] = useState("");
   const [claimStatement, setClaimStatement] = useState("");
@@ -164,6 +167,8 @@ export function LostFoundView({
     setDescOk(false);
     setIdOk(false);
     setMethod("person");
+    setKeepOpen(false);
+    setKeepWhy("");
   };
   const logItem = () => {
     const text = desc.trim();
@@ -422,16 +427,37 @@ export function LostFoundView({
                       <span className="self-start">
                         <GateChip icon={<ShieldExclamation className="size-3" />}>{sel.disposal.rule}</GateChip>
                       </span>
+                      {/* Keeping it longer records the person's own reason: asked here, never a fixed one. */}
+                      {keepOpen ? (
+                        <TextField value={keepWhy} onChange={setKeepWhy} className="flex flex-col gap-1">
+                          <Label>Why keep it 30 more days?</Label>
+                          <TextArea rows={2} maxLength={300} placeholder="Recorded on the item's custody trail" />
+                        </TextField>
+                      ) : null}
                       <div className="flex flex-wrap gap-2">
                         <Button isDisabled={pending} onPress={() => act(() => approveFoundItemDisposalAction(sel.id))}>
                           Approve disposal
                         </Button>
                         <Button
                           variant="ghost"
-                          isDisabled={pending}
-                          onPress={() => act(() => keepFoundItemAction(sel.id, 30, "the guest may still return"))}
+                          isDisabled={pending || (keepOpen && !keepWhy.trim())}
+                          onPress={() => {
+                            if (!keepOpen) {
+                              setKeepOpen(true);
+                              return;
+                            }
+                            const why = keepWhy.trim();
+                            if (!why) return;
+                            act(
+                              () => keepFoundItemAction(sel.id, 30, why),
+                              () => {
+                                setKeepOpen(false);
+                                setKeepWhy("");
+                              },
+                            );
+                          }}
                         >
-                          Keep 30 more days
+                          {keepOpen ? "Keep 30 more days" : "Keep longer…"}
                         </Button>
                       </div>
                     </>

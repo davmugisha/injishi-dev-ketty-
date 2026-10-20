@@ -55,8 +55,22 @@ export const flows: Flow[] = [
       const jeanneId = jeanne.account?.user.id;
       check(vestine && jeanneId, "today's sheet lacks Vestine or Jeanne");
 
+      // A vacant room with no open task: 103 on a fresh seed, else the next one. Another area's flow run
+      // before this one (the walk-in checks a guest into the first ready Standard Queen) may have taken 103.
+      const rooms0 = await read<HousekeepingRoom>(manager, "operations.rooms");
+      const open0 = new Set(
+        (await read<CleaningTask>(manager, "operations.cleaningTasks"))
+          .filter((t) => t.column !== "insp")
+          .map((t) => t.room),
+      );
+      const free = (r: HousekeepingRoom) =>
+        r.status !== "occupied" && r.status !== "ooo" && !r.hold && !open0.has(r.id);
+      const target = rooms0.find((r) => r.id === "103" && free(r)) ?? rooms0.find(free);
+      check(target, `no vacant room without an open task: ${JSON.stringify(rooms0)}`);
+      const roomNo = target.id;
+
       const id = await ops.addCleaningTask(manager, {
-        room: "103",
+        room: roomNo,
         kind: "Checkout",
         assignee: vestine.id,
         due: "By 16:00",
@@ -68,7 +82,7 @@ export const flows: Flow[] = [
         `the new task reads ${JSON.stringify(task)}`,
       );
       check(!task.auto, "a task added by hand reads as created by a rule");
-      step(`manager added a checkout clean for 103 on Vestine's list (${id})`);
+      step(`manager added a checkout clean for ${roomNo} on Vestine's list (${id})`);
 
       await ops.assignCleaningTask(manager, id, jeanneId);
       task = (await read<CleaningTask>(manager, "operations.cleaningTasks")).find((t) => t.id === id);
@@ -82,10 +96,10 @@ export const flows: Flow[] = [
         task?.column === "clean" && /^Cleaned \d{2}:\d{2}/.test(task.due),
         `after the clean: ${JSON.stringify(task)}`,
       );
-      let room = (await read<HousekeepingRoom>(manager, "operations.rooms")).find((r) => r.id === "103");
+      let room = (await read<HousekeepingRoom>(manager, "operations.rooms")).find((r) => r.id === roomNo);
       check(
         room?.status === "clean" && room.note === "Wait insp.",
-        `room 103 after the clean: ${JSON.stringify(room)}`,
+        `room ${roomNo} after the clean: ${JSON.stringify(room)}`,
       );
       step("Jeanne cleaned it on her phone: Clean, waiting for inspection");
 
@@ -98,12 +112,12 @@ export const flows: Flow[] = [
         task?.column === "insp" && /^Passed \d{2}:\d{2} · Aline Uwase$/.test(task.due),
         `after Pass: ${JSON.stringify(task)}`,
       );
-      room = (await read<HousekeepingRoom>(manager, "operations.rooms")).find((r) => r.id === "103");
-      check(room?.status === "inspected", `room 103 after Pass: ${JSON.stringify(room)}`);
-      const history = (await read<RoomHistory>(manager, "operations.roomHistory")).find((h) => h.id === "103");
+      room = (await read<HousekeepingRoom>(manager, "operations.rooms")).find((r) => r.id === roomNo);
+      check(room?.status === "inspected", `room ${roomNo} after Pass: ${JSON.stringify(room)}`);
+      const history = (await read<RoomHistory>(manager, "operations.roomHistory")).find((h) => h.id === roomNo);
       check(
         history?.events[0]?.what === "Clean → Inspected" && history.events[0].who.startsWith("Aline Uwase · "),
-        `room 103's history: ${JSON.stringify(history)}`,
+        `room ${roomNo}'s history: ${JSON.stringify(history)}`,
       );
       step("manager passed it: Inspected, and the room's history says who and when");
 

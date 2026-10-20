@@ -59,6 +59,9 @@ try {
   await page.waitForText("Correction Requests", 120_000);
   if ((await page.text()).includes("Sample data"))
     fail("/attendance is marked as sample data, but its collections are live");
+  // Nothing in the product asks a line manager to confirm a correction: the screen must not say one did.
+  if (/confirmed by line managers|line manager confirms/i.test(await page.text()))
+    fail("/attendance still claims line managers confirmed the corrections");
   const waiting = await page.eval(
     `[...document.querySelectorAll('button')].filter((b) => b.innerText.trim() === 'Approve correction').length`,
   );

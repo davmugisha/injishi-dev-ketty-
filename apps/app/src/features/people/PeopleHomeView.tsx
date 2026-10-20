@@ -326,7 +326,8 @@ export function PeopleHomeView({
               <div className="flex-1">
                 <ItemCardGroup.Title id="leave-h">Leave to Decide</ItemCardGroup.Title>
                 <ItemCardGroup.Description>
-                  Line manager first, then you. Approving updates the roster and balances.
+                  Two-step leave types reach you after the line manager; the others come straight to you. Approving
+                  updates the roster and balances.
                 </ItemCardGroup.Description>
               </div>
               <LinkButton href={screenHref("Leave")} size="sm" variant="ghost">

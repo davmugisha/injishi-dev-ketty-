@@ -725,13 +725,15 @@ async function presentCheckIn(ctx: SourceContext, b: ApiBooking, board: ApiBoard
           ]
         : []),
     ],
-    preAssignedRoom: preAssigned,
+    // A guest already checked in is in the stay's room, which may not be the one held for the booking.
+    preAssignedRoom: stay?.roomLabel ?? preAssigned,
     defaultRoom: preReady?.room ?? ready[0]?.room ?? preAssigned,
     rooms: options,
     override: {
       reasons: ["Guest insists on the booked room", "Accessibility need", "Loyalty or VIP commitment"],
       approvers: ["Duty manager", "Owner"],
-      note: preAssigned ? `Guest asked for ${preAssigned}.` : "",
+      // The person writes the note; nothing is claimed for the guest.
+      note: "",
       sentAt: "",
     },
     deposit: {

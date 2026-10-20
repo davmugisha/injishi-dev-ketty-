@@ -74,6 +74,16 @@ const STEP: Record<LeaveStep, { label: string; tone: Tone; dots: [Tone | null, T
   lmdeclined: { label: "Declined by manager", tone: "danger", dots: ["danger", null] },
 };
 
+/**
+ * A request of a one-step leave type (no line manager named, `lm` empty) never had a manager step:
+ * its chip says only where it is, and the first dot stays empty.
+ */
+function stepChip(r: LeaveRequest, step: LeaveStep) {
+  const s = STEP[step];
+  if (r.lm) return s;
+  return { ...s, label: step === "hr" ? "With you" : s.label, dots: [null, s.dots[1]] as [Tone | null, Tone | null] };
+}
+
 /** Calendar: the 21 days from today (a request's `cal` counts its first day from today). */
 const CAL_LENGTH = 21;
 const CAL_DOW = ["M", "T", "W", "T", "F", "S", "S"];
@@ -125,9 +135,7 @@ export function LeaveView({
               <CircleCheck />
             </EmptyState.Media>
             <EmptyState.Title>No leave requests</EmptyState.Title>
-            <EmptyState.Description>
-              New requests arrive here after the line manager approves them.
-            </EmptyState.Description>
+            <EmptyState.Description>Requests arrive here when they wait for HR.</EmptyState.Description>
           </EmptyState.Header>
         </EmptyState>
       </PageContent>
@@ -164,21 +172,27 @@ export function LeaveView({
     decide("declined", why.trim());
   };
 
-  // Approval steps: requested → line manager → HR.
-  const currentStep = st === "lm" ? 1 : st === "hr" || st === "lmdeclined" ? 2 : 3;
+  // Approval steps: requested → line manager → HR. A one-step leave type has no line manager step
+  // (`lm` is empty): it goes from the request straight to HR, and nobody is named as having approved it.
+  const lmStep = Boolean(cur.lm);
+  const currentStep = lmStep ? (st === "lm" ? 1 : st === "hr" || st === "lmdeclined" ? 2 : 3) : st === "hr" ? 1 : 2;
   const steps = [
     { title: `Requested by ${first}`, desc: cur.sub, cross: false, unreached: false },
-    {
-      title:
-        st === "lm"
-          ? `Line manager · ${cur.lm}`
-          : st === "lmdeclined"
-            ? `Declined by ${cur.lm}`
-            : `Approved by ${cur.lm}`,
-      desc: st === "lm" ? `Waiting since ${cur.sub.split(" ·")[0]}` : cur.lmNote,
-      cross: st === "lmdeclined",
-      unreached: false,
-    },
+    ...(lmStep
+      ? [
+          {
+            title:
+              st === "lm"
+                ? `Line manager · ${cur.lm}`
+                : st === "lmdeclined"
+                  ? `Declined by ${cur.lm}`
+                  : `Approved by ${cur.lm}`,
+            desc: st === "lm" ? `Waiting since ${cur.sub.split(" ·")[0]}` : cur.lmNote,
+            cross: st === "lmdeclined",
+            unreached: false,
+          },
+        ]
+      : []),
     {
       title: st === "approved" ? "Approved by HR" : st === "declined" ? "Declined by HR" : "HR decision · you",
       desc: hrDone
@@ -274,15 +288,13 @@ export function LeaveView({
                     <CircleCheck />
                   </EmptyState.Media>
                   <EmptyState.Title>Nothing waiting for you</EmptyState.Title>
-                  <EmptyState.Description>
-                    New requests arrive here after the line manager approves them.
-                  </EmptyState.Description>
+                  <EmptyState.Description>Requests arrive here when they wait for HR.</EmptyState.Description>
                 </EmptyState.Header>
               </EmptyState>
             )}
           >
             {rows.map((r) => {
-              const s = STEP[stepOf(r)];
+              const s = stepChip(r, stepOf(r));
               return (
                 <Table.Row key={r.id} id={r.id} className="cursor-pointer">
                   <Table.Cell>
@@ -326,7 +338,7 @@ export function LeaveView({
       <PageHeader
         eyebrow={`People › Leave · ${year} leave year`}
         title="Leave"
-        description="The line manager decides first, then HR. Approving updates balances and releases the shifts on the roster."
+        description="Two-step leave types go to the line manager first; the others come straight to HR. Approving updates balances and releases the shifts on the roster."
         actions={
           <LinkButton href={screenHref("Roster")} variant="secondary">
             <Calendar className="size-4" />
@@ -468,8 +480,8 @@ export function LeaveView({
               <Alert.Content>
                 <Alert.Title>{cur.warn}</Alert.Title>
                 <Alert.Description>
-                  {lmFirst} approved it knowing this. You can approve and fill the gap on the roster, or decline with a
-                  reason.
+                  {lmStep ? `${lmFirst} approved the first step. ` : ""}You can approve and fill the gap on the roster,
+                  or decline with a reason.
                 </Alert.Description>
               </Alert.Content>
             </Alert>
@@ -512,7 +524,7 @@ export function LeaveView({
                 </Alert.Indicator>
                 <Alert.Content>
                   <Alert.Title>Waiting for {cur.lm}</Alert.Title>
-                  <Alert.Description>HR decides after the line manager. You can send a reminder.</Alert.Description>
+                  <Alert.Description>HR decides after the line manager.</Alert.Description>
                 </Alert.Content>
               </Alert>
               <Button
