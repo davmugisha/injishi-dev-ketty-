@@ -61,7 +61,8 @@ export interface StaffTaskData {
   spots: FoundItemSpot[];
   /** Items already logged to Lost and found from the person's rooms, as the register holds them (never a form default). */
   found: FoundItem[];
-  profile: StaffProfile;
+  /** The caller's own profile from their HR file; null when none is on file (never another person's). */
+  profile: StaffProfile | null;
   /** Today's housekeeping supervisor as the API names them, or null when it names nobody. */
   supervisor: string | null;
 }
@@ -70,7 +71,7 @@ type RoomStatus = CleaningRoom["status"];
 
 /** With no signal nothing is kept on the phone, so nothing is pretended: the person is told it was not saved. */
 /**
- * Which finished cleans wait for a supervisor: the API sets the room Clean (not Ready) only after a checkout, a
+ * Which finished cleans wait for a supervisor: the API sets the room Clean (waiting for inspection) only after a checkout, a
  * deep clean or a re-clean. A stayover or a turndown is recorded as done and changes nothing the desk sells, so
  * no inspection is claimed for it.
  */
@@ -246,7 +247,11 @@ export function StaffTaskView({
         </LinkButton>
         <PhoneTitle
           title={isTask ? `Room ${r.no}` : "My rooms"}
-          sub={isTask ? `${r.kind} · ${r.type} · ${r.floor}` : `${persona.name} · ${profile.area} · ${profile.site}`}
+          sub={
+            isTask
+              ? `${r.kind} · ${r.type} · ${r.floor}`
+              : [persona.name, profile?.area, profile?.site].filter(Boolean).join(" · ")
+          }
         />
         <LinkButton
           href={screenHref("StaffReport")}
@@ -513,7 +518,7 @@ export function StaffTaskView({
               </h2>
               <p className="text-muted">
                 {awaitsInspection(r.kind)
-                  ? `Sent at ${doneAt}. Front desk sees it as Clean, not Ready. It becomes Ready after a supervisor inspects it.`
+                  ? `Sent at ${doneAt}. Front desk sees it as Clean. A supervisor inspects it next.`
                   : `Sent at ${doneAt}. Recorded as ${r.kind.toLowerCase()} done. It needs no inspection, and the room's status does not change.`}
               </p>
             </div>
@@ -541,7 +546,7 @@ export function StaffTaskView({
                     </Timeline.Rail>
                     <Timeline.Content>
                       <span className="font-medium">Inspection by a supervisor</span>
-                      <span className="text-xs leading-4 text-muted">Required before the room can be sold</span>
+                      <span className="text-xs leading-4 text-muted">Passes it as Inspected or returns it</span>
                     </Timeline.Content>
                   </Timeline.Item>
                   <Timeline.Item status="default">

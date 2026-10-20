@@ -181,12 +181,13 @@ export function StaffMeView({
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="text-base leading-[22px] font-semibold">{persona.name}</span>
             <span className="text-[13px] leading-[18px] text-muted">
-              {profile ? `${persona.role} · ${profile.workplace}` : persona.role}
+              {[persona.role, profile?.workplace].filter(Boolean).join(" · ")}
             </span>
+            {/* From the caller's own HR file; what it does not carry is said to be not on file. */}
             <span className="text-xs leading-4 text-muted tabular">
-              {profile
-                ? `Staff no. ${profile.staffNo} · since ${profile.since}`
-                : "Staff number and start date not on file"}
+              {`${profile?.staffNo ? `Staff no. ${profile.staffNo}` : "Staff number not on file"} · ${
+                profile?.since ? `since ${profile.since}` : "start date not on file"
+              }`}
             </span>
           </div>
         </Card>

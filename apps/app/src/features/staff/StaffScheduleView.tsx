@@ -222,7 +222,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
         </Avatar>
         <PhoneTitle
           title="My schedule"
-          sub={profile ? `${persona.name} · ${profile.department} · ${profile.site}` : persona.name}
+          sub={[persona.name, profile?.department, profile?.site].filter(Boolean).join(" · ")}
         />
       </PhoneTop>
 

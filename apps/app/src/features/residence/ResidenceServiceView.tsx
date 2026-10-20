@@ -526,7 +526,7 @@ export function ResidenceServiceView({
                     Visitor Log
                   </h2>
                   <span className="text-[12px] text-muted">
-                    Arrivals and departures recorded at the gate · kept 90 days · phone numbers masked
+                    Gate log · the last 90 days shown · phone numbers masked
                   </span>
                 </div>
                 <Button

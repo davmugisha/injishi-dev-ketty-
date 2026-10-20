@@ -662,7 +662,7 @@ export function MarketPropertyView({
                           <Chip.Label>{property.business.licence}</Chip.Label>
                         </Chip>
                       ) : (
-                        <span className="text-muted">{property.business.licence || "Not on file"}</span>
+                        <span className="text-muted">{property.business.licence || "No dated licence on file"}</span>
                       ),
                     },
                     { label: "TIN", value: <span className="tabular">{property.business.tin}</span> },

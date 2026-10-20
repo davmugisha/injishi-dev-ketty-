@@ -143,8 +143,9 @@ export function LeasesView({ data, building }: { persona: Persona; data: LeasesD
       icon: <Wallet />,
       title: "Rent schedule",
       desc: isDraft
-        ? "Generated when the lease is signed"
-        : `Next charge ${money(lease.rent)} due on the ${lease.dueDay}`,
+        ? "Not started: the lease is not signed"
+        : // The lease's terms, not a charge: nothing raises next month's charge yet.
+          `${money(lease.rent)} a month, due on the ${lease.dueDay} (lease terms)`,
       chip: lease.rentChip?.label ?? (isDraft ? "Not started" : "Up to date"),
       tone: lease.rentChip?.tone ?? (isDraft ? "default" : "success"),
       board: "RentRoll",
@@ -502,7 +503,7 @@ export function LeasesView({ data, building }: { persona: Persona; data: LeasesD
                     <Alert.Content>
                       <Alert.Title>Signature evidence</Alert.Title>
                       <Alert.Description>
-                        Injishi records the day each side signed. One-time code, device and document fingerprint
+                        The lease record holds the day each side signed. One-time code, device and document fingerprint
                         evidence is not stored yet, so keep the signed paper copy on file.
                       </Alert.Description>
                     </Alert.Content>

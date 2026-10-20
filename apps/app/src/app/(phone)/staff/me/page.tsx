@@ -6,7 +6,6 @@ import type {
   LoanedAsset,
   Payslip,
   StaffDocument,
-  StaffProfile,
   StaffRequest,
 } from "@injishi/data/fixtures/staff";
 import type { Metadata } from "next";
@@ -15,15 +14,15 @@ import { NothingYet } from "@/features/staff/parts";
 import { StaffMeView } from "@/features/staff/StaffMeView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument, requestContext } from "@/server/data";
-import { myClockIn, staffReadRefusal } from "@/server/sources/staff";
+import { myClockIn, myProfile, staffReadRefusal } from "@/server/sources/staff";
 
 export const metadata: Metadata = { title: screens.StaffMe.pageTitle };
 
 export default async function StaffMePage({ searchParams }: { searchParams: Promise<{ payslips?: string }> }) {
   const persona = await requirePersona("StaffMe");
   const read = await Promise.all([
-    // The caller's own profile only: never another persona's shown as theirs (null reads "not on file").
-    getDocument<StaffProfile>("staff.profiles", persona.id),
+    // The caller's own HR file, never a sample profile (null reads "not on file").
+    requestContext().then(myProfile),
     getCollection<Payslip>("staff.payslips"),
     getDocument<LeaveBalance>("staff.leaveBalances", persona.id),
     getCollection<StaffRequest>("staff.requests"),

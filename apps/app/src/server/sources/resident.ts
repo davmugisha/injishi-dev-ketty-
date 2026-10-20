@@ -102,9 +102,12 @@ export const sources = defineSources({
         const earliest = addDays(b.today, period ?? 0);
         const status = notice
           ? { status: "Notice given", statusTone: "accent" as const }
-          : offer?.status === "accepted" || offer?.status === "signed"
+          : offer?.status === "signed"
             ? { status: "Renewing", statusTone: "info" as const }
-            : { status: "Active", statusTone: "success" as const };
+            : // Accepted is not renewed: no amendment is sent or signed (e-signature is not available yet).
+              offer?.status === "accepted"
+              ? { status: "Renewal accepted", statusTone: "info" as const }
+              : { status: "Active", statusTone: "success" as const };
         return {
           id: l.reference ?? l.id,
           persona: (ctx.persona?.id ?? "resident") as PersonaId,
@@ -226,7 +229,7 @@ export const sources = defineSources({
             ? ` · ${t.assignedContractor ? "visit" : "booked"} ${weekdayShort(t.scheduledFor)} ${dayMonth(t.scheduledFor)}${t.visitWindow ? `, ${t.visitWindow}` : ""}`
             : "";
           const desc = done
-            ? `${ref} · fixed ${dayMonth(t.resolvedAt ?? t.createdAt)}${t.status === "closed" ? " · you confirmed it works" : ""}`
+            ? `${ref} · fixed ${dayMonth(t.resolvedAt ?? t.createdAt)}${t.status === "closed" ? " · closed by management" : ""}`
             : `${ref} · sent ${dayMonth(t.createdAt)}${visit}${t.staffMayEnter ? " · staff may enter" : ""}`;
           const state =
             t.status === "closed"
@@ -270,7 +273,7 @@ export const sources = defineSources({
           return {
             id: p.id,
             name: p.visitorName,
-            desc: p.kind === "contractor" ? `${window} · arranged by management for your repair` : window,
+            desc: p.kind === "contractor" ? `${window} · arranged by management` : window,
             state: p.status === "approved" ? "Approved" : p.status === "expired" ? "Expired" : "Expected",
             tone:
               p.status === "approved"

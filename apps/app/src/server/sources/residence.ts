@@ -779,7 +779,7 @@ function vacanciesOf(b: Building): R.Vacancy[] {
       u.vacantSince ? `Since ${dayMonth(u.vacantSince)}` : "Not let yet",
       work
         ? `${work.title.toLowerCase()}${work.scheduledFor ? ` booked ${dayMonth(work.scheduledFor)}` : ""}`
-        : "ready to let",
+        : "no open repair",
       applicantsLine(b, u.roomId),
     ];
     return {
@@ -914,7 +914,7 @@ function reportedOf(b: Building, t: ApiTicket): string {
 
 function entryOf(t: ApiTicket): string {
   if (t.spaceName) return "Not needed · common area";
-  if (!t.leaseId) return "Vacant unit · caretaker opens";
+  if (!t.leaseId) return "Vacant unit";
   if (t.staffMayEnter === true) return "Yes, if nobody is home";
   if (t.staffMayEnter === false) return "Only when home";
   return "Not asked";
@@ -1189,7 +1189,7 @@ function leasesOf(b: Building): LiveLease[] {
             : l.status === "draft"
               ? { status: "Draft", statusTone: "default" as const }
               : l.status === "pending_signature"
-                ? { status: "Out for signature", statusTone: "info" as const }
+                ? { status: "Awaiting signature", statusTone: "info" as const }
                 : filing.stage === "draft"
                   ? { status: "Filing draft", statusTone: "warning" as const }
                   : { status: "Active", statusTone: "success" as const };
@@ -1426,7 +1426,7 @@ function rentLedgersOf(b: Building): R.RentLedger[] {
           : r.channel === "letter"
             ? "to deliver by hand"
             : r.channel === "email"
-              ? "email sent"
+              ? "logged as an email"
               : "note logged";
       return {
         title,
@@ -1449,8 +1449,9 @@ function payoutsOf(b: Building): R.LandlordPayout[] {
       id: period.slice(0, 7),
       title: settled ? `${label} rent` : `${label} to date`,
       desc: settled
-        ? `Settled to ${landlord} · ${p.destinationRef ?? "account on file"}${p.settledAt ? ` · settled ${dayMonth(p.settledAt)}` : ""}`
-        : `Verified payments only · ${unverified} unverified ${unverified === 1 ? "payment" : "payments"} excluded`,
+        ? `Settled to ${landlord} · ${p.destinationRef ?? "no destination on file"}${p.settledAt ? ` · settled ${dayMonth(p.settledAt)}` : ""}`
+        : // The amount is the payout row's; nothing here computed what it leaves out.
+          `Amount as recorded · ${unverified} ${unverified === 1 ? "payment" : "payments"} not verified yet`,
       amount: p.amountRwf,
       state: settled ? "Settled" : p.status === "held" ? "Held" : "In settlement",
       tone: settled ? "success" : p.status === "held" ? "warning" : "info",

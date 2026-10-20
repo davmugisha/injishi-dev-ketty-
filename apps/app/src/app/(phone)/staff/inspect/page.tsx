@@ -1,18 +1,19 @@
 import { screens } from "@injishi/data";
-import type { InspectionCheck, InspectionRoom, StaffProfile } from "@injishi/data/fixtures/staff";
+import type { InspectionCheck, InspectionRoom } from "@injishi/data/fixtures/staff";
 import type { Metadata } from "next";
 import { InspectRoomView } from "@/features/staff/InspectRoomView";
 import { NothingYet } from "@/features/staff/parts";
 import { requirePersona } from "@/lib/session";
-import { getCollection, getDocument } from "@/server/data";
+import { getCollection, requestContext } from "@/server/data";
+import { myProfile } from "@/server/sources/staff";
 
 export const metadata: Metadata = { title: screens.InspectRoom.pageTitle };
 
 export default async function InspectRoomPage() {
   const persona = await requirePersona("InspectRoom");
-  // The caller's own profile only: never another persona's shown as theirs (null reads "not on file").
+  // The caller's own HR file, never a sample profile (null reads "not on file").
   const [profile, rooms, checks] = await Promise.all([
-    getDocument<StaffProfile>("staff.profiles", persona.id),
+    requestContext().then(myProfile),
     getCollection<InspectionRoom>("staff.inspectionRooms"),
     getCollection<InspectionCheck>("staff.inspectionChecks"),
   ]);

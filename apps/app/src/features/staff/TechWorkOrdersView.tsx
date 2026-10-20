@@ -150,7 +150,8 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
             status: "current",
             icon: <CheckDouble />,
             title: "Room check by housekeeping",
-            detail: "Housekeeping inspects before guests",
+            // Asked for in the note the API records; no housekeeping task is created for it.
+            detail: "Asked for in your note · no housekeeping task is booked for you",
           },
           {
             status: "default",
@@ -203,7 +204,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
           </Avatar>
           <PhoneTitle
             title="My work orders"
-            sub={profile ? `${persona.name} · ${profile.department}${until ? ` · until ${until}` : ""}` : persona.name}
+            sub={[persona.name, profile?.department, until ? `until ${until}` : ""].filter(Boolean).join(" · ")}
           />
         </PhoneTop>
       ) : (

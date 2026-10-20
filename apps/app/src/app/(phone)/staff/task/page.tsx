@@ -6,15 +6,13 @@ import type {
   FoundItem,
   FoundItemSpot,
   MinibarItem,
-  StaffProfile,
 } from "@injishi/data/fixtures/staff";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { NothingYet } from "@/features/staff/parts";
 import { StaffTaskView } from "@/features/staff/StaffTaskView";
 import { requirePersona } from "@/lib/session";
-import { getCollection, getDocument, requestContext } from "@/server/data";
-import { phoneSupervisor } from "@/server/sources/staff";
+import { getCollection, requestContext } from "@/server/data";
+import { myProfile, phoneSupervisor } from "@/server/sources/staff";
 
 export const metadata: Metadata = { title: screens.StaffTask.pageTitle };
 
@@ -28,9 +26,9 @@ export default async function StaffTaskPage({ searchParams }: { searchParams: Pr
     getCollection<FoundItemSpot>("staff.foundSpots"),
     // Shown as what is already logged from the room, so nothing is logged twice; the form itself starts empty.
     getCollection<FoundItem>("staff.foundItems"),
-    getDocument<StaffProfile>("staff.profiles", persona.id),
+    // The caller's own HR file, never a sample profile (null reads "not on file").
+    requestContext().then(myProfile),
   ]);
-  if (!profile) notFound();
   // A housekeeper with no room today is told so; the page never answers 404 for having nothing yet.
   if (!rooms.length) return <NothingYet title="My rooms" message="No room is assigned to you today yet." />;
   // Today's housekeeping supervisor as the API names them (the same phone read the rooms came from).
@@ -39,7 +37,7 @@ export default async function StaffTaskPage({ searchParams }: { searchParams: Pr
   return (
     <StaffTaskView
       persona={persona}
-      data={{ rooms, finished, sections, minibar, spots, found, profile, supervisor }}
+      data={{ rooms, finished, sections, minibar, spots, found, profile: profile ?? null, supervisor }}
       offline={offline === "1"}
     />
   );

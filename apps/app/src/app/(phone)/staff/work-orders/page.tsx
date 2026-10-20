@@ -1,17 +1,18 @@
 import { screens } from "@injishi/data";
-import type { StaffProfile, StorePart, WorkOrder } from "@injishi/data/fixtures/staff";
+import type { StorePart, WorkOrder } from "@injishi/data/fixtures/staff";
 import type { Metadata } from "next";
 import { TechWorkOrdersView } from "@/features/staff/TechWorkOrdersView";
 import { requirePersona } from "@/lib/session";
-import { getCollection, getDocument } from "@/server/data";
+import { getCollection, requestContext } from "@/server/data";
+import { myProfile } from "@/server/sources/staff";
 
 export const metadata: Metadata = { title: screens.TechWorkOrders.pageTitle };
 
 export default async function TechWorkOrdersPage() {
   const persona = await requirePersona("TechWorkOrders");
-  // The caller's own profile only: never another persona's shown as theirs (null reads "not on file").
+  // The caller's own HR file, never a sample profile (null reads "not on file").
   const [profile, orders, store] = await Promise.all([
-    getDocument<StaffProfile>("staff.profiles", persona.id),
+    requestContext().then(myProfile),
     getCollection<WorkOrder>("staff.workOrders"),
     getCollection<StorePart>("staff.storeParts"),
   ]);
