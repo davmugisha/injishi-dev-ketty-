@@ -81,6 +81,9 @@ RUN pnpm --filter @injishi/app build
 FROM base AS runner
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3002 HOSTNAME=0.0.0.0
 RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+# The embedded fixture database (@injishi/db) when INJISHI_DB_URL names
+# file:/data/…; a named volume mounted here inherits this owner on first use.
+RUN mkdir -p /data && chown nextjs:nodejs /data
 
 COPY --from=build --chown=nextjs:nodejs /repo/apps/app/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /repo/apps/app/.next/static ./apps/app/.next/static
