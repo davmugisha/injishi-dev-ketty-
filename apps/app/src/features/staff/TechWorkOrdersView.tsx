@@ -55,7 +55,8 @@ import {
 } from "./parts";
 
 export interface TechWorkOrdersData {
-  profile: StaffProfile;
+  /** The caller's own profile; null when none is on file (never another person's). */
+  profile: StaffProfile | null;
   orders: WorkOrder[];
   store: StorePart[];
 }
@@ -110,7 +111,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
 
   const statusOf = (o: WorkOrder): Status => (resolved[o.id] ? "resolved" : o.status);
   const openCount = orders.filter((o) => statusOf(o) !== "resolved").length;
-  const until = profile.shift.split("–")[1]?.trim() ?? "";
+  const until = profile?.shift.split("–")[1]?.trim() ?? "";
 
   const w = orders.find((o) => o.id === woId) ?? orders[0];
   const s = statusOf(w);
@@ -149,7 +150,8 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
             status: "current",
             icon: <CheckDouble />,
             title: "Room check by housekeeping",
-            detail: "Housekeeping inspects before guests",
+            // Asked for in the note the API records; no housekeeping task is created for it.
+            detail: "Asked for in your note · no housekeeping task is booked for you",
           },
           {
             status: "default",
@@ -200,7 +202,10 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
           <Avatar size="sm" variant="soft" color="warning">
             <Avatar.Fallback>{persona.initials}</Avatar.Fallback>
           </Avatar>
-          <PhoneTitle title="My work orders" sub={`${persona.name} · ${profile.department} · until ${until}`} />
+          <PhoneTitle
+            title="My work orders"
+            sub={[persona.name, profile?.department, until ? `until ${until}` : ""].filter(Boolean).join(" · ")}
+          />
         </PhoneTop>
       ) : (
         <PhoneTop>

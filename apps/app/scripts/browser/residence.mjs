@@ -24,6 +24,26 @@ const ledger = `(() => {
   return list ? [...list.querySelectorAll('[role=row], li')].map((r) => r.innerText) : null;
 })()`;
 
+/** Press a tab with real pointer events (React Aria) until `ready` holds. */
+async function openTab(page, label, ready, what) {
+  const until = Date.now() + 60_000;
+  while (Date.now() < until) {
+    const box = await page.eval(
+      `(() => { const t = [...document.querySelectorAll('[role=tab]')].find((el) => el.innerText.includes(${JSON.stringify(label)})); if (!t) return null; const r = t.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`,
+    );
+    if (box) {
+      for (const type of ["mouseMoved", "mousePressed", "mouseReleased"]) {
+        await page.send("Input.dispatchMouseEvent", { type, x: box.x, y: box.y, button: "left", clickCount: 1 });
+      }
+    }
+    try {
+      await page.waitFor(ready, what, 3_000);
+      return;
+    } catch {}
+  }
+  throw new Error(`could not open the ${label} tab (${what})`);
+}
+
 const { page, close } = await launch({ width: 1440, height: 1000 });
 try {
   await page.goto(`${APP}/api/demo/sign-in?persona=residence&next=/rent-roll`);
@@ -45,6 +65,9 @@ try {
   );
   await page.press("Record payment");
   await page.waitFor(`!!document.querySelector('input[placeholder="From the bank slip or SMS"]')`, "the payment form");
+  // Nothing matches a recorded payment to a statement, so the form no longer says something will.
+  if ((await page.text()).includes("until Payments matches it")) fail("the form still promises a reconciliation");
+  await page.waitForText("is not available yet", 10_000);
   await page.type("input[inputmode=numeric]", "250000");
   await page.type('input[placeholder="From the bank slip or SMS"]', REF);
   await page.press("Save as pending");
@@ -68,6 +91,17 @@ try {
     "the payment still Pending after a reload",
   );
   console.log("  the pending payment is still in the ledger after a reload");
+
+  // Leases: a seeded filing row is sample data, so its Filings tab claims no stage, no "sent", no acknowledgement.
+  await page.goto(`${APP}/leases`);
+  await page.waitForText("Filings & declarations", 120_000);
+  await openTab(page, "Filings", "document.body.innerText.includes('Lease filing')", "the Filings tab");
+  const filings = await page.text();
+  // ("Acknowledged" alone is also the stepper's last step label, so the chip and delivery texts are checked.)
+  if (/Sent · needs follow-up|Acknowledgement not received|Recorded as filed/.test(filings))
+    fail("the Filings tab still presents a sample filing as sent or acknowledged");
+  if (!filings.includes("Sample record")) fail("the sample filing is not labelled as a sample record");
+  console.log("  /leases: the first lease's filing reads as a sample record, never sent or acknowledged");
 
   console.log("BROWSER RESIDENCE OK");
 } catch (error) {

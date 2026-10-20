@@ -495,10 +495,9 @@ export function MarketExploreView({
                           <span className="text-[13px] text-muted">
                             {search.types.find((t) => t.id === l.type)?.label} · {l.where}
                           </span>
-                          <span className="inline-flex items-center gap-1.5 text-xs text-accent-soft-foreground">
-                            <SealCheck className="size-3.5" aria-hidden="true" />
-                            Verified business · {l.entity}
-                          </span>
+                          {/* The business that runs it. A search card carries no verification record, so it claims
+                              none; the property page shows "Verified business" only when the API records one. */}
+                          <span className="inline-flex items-center gap-1.5 text-xs text-muted">Run by {l.entity}</span>
                           <div className="mt-1 flex items-baseline justify-between gap-2">
                             <span>
                               <span className="text-base font-semibold tabular">{rwf(l.price)}</span>

@@ -469,7 +469,7 @@ export function RentRollView({
                   <Label>Bank or provider reference</Label>
                   <Input placeholder="From the bank slip or SMS" />
                   <Description>
-                    Stays Pending until Payments matches it to the bank statement or provider report.
+                    Saved as Pending. Matching it to a bank statement or provider report is not available yet.
                   </Description>
                 </TextField>
                 <div className="flex justify-end gap-2">

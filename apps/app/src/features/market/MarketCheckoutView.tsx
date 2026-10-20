@@ -638,11 +638,8 @@ export function MarketCheckoutView({
                     </dl>
                     <div className="flex items-center gap-2 text-xs text-muted">
                       <Vault className="size-3.5" aria-hidden="true" />
+                      {/* No "Verified" chip: the quote carries no verification of the payee, so none is claimed. */}
                       <span className="flex-1">Paid to {booking.payee}</span>
-                      <Chip size="sm" variant="soft" color="success">
-                        <SealCheck className="size-3" />
-                        <Chip.Label>Verified</Chip.Label>
-                      </Chip>
                     </div>
                   </Card>
                 </aside>

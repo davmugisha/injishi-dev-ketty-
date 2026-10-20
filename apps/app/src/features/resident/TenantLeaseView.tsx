@@ -55,7 +55,8 @@ export function TenantLeaseView({
   const chip = noticeOn
     ? { label: "Notice given", tone: "accent" as const }
     : accepted
-      ? { label: "Renewing", tone: "info" as const }
+      ? // Accepted is not renewed: nothing is signed until an amendment is (not available in the app yet).
+        { label: "Renewal accepted", tone: "info" as const }
       : { label: tenancy.status, tone: tenancy.statusTone };
 
   const docs: LeaseDocument[] = [

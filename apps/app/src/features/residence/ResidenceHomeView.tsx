@@ -319,8 +319,7 @@ export function ResidenceHomeView({
               }))}
             />
             <p className="text-[12px] leading-4 text-muted">
-              Only provider-confirmed payments count as collected. Caution deposits are held separately and never
-              counted as rent.
+              Only verified payments count as collected. Caution deposits are held separately and never counted as rent.
             </p>
           </Widget.Content>
         </Widget>

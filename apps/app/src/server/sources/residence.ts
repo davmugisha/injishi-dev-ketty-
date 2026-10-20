@@ -35,6 +35,11 @@ export interface LeaseRecord {
   /** "3 Mar 2026", "" while that side has not signed. */
   tenantSignedOn: string;
   landlordSignedOn: string;
+  /**
+   * The lease's filing row is sample data (a seeded `mock` row, or one whose mode the caller cannot read), so the
+   * Filings tab labels it sample and claims no stage. Nothing in the API files a lease or writes a filing row.
+   */
+  filingSample: boolean;
 }
 export type LiveLease = R.Lease & { record?: LeaseRecord };
 
@@ -195,6 +200,12 @@ export interface ApiResidenceView {
     status: "pending" | "filed" | "failed";
     dueBy: string | null;
     clockStartAt: string | null;
+    /**
+     * Not on `/ops/residence`: merged in from `GET /api/v1/ops/filings` by `readResidence`. Nothing in the API
+     * writes a filing, so every row today is a seeded `mock` one; null when the filings read is not open to the
+     * caller. Only a `live` row is shown as a filing.
+     */
+    adapterMode?: "mock" | "live" | null;
   }[];
   deposits: {
     id: string;
@@ -288,10 +299,36 @@ const reads = new WeakMap<SourceContext, Promise<ApiResidenceView>>();
 export function readResidence(ctx: SourceContext): Promise<ApiResidenceView> {
   let read = reads.get(ctx);
   if (!read) {
-    read = ctx.ops("residence").get<ApiResidenceView>("/api/v1/ops/residence");
+    read = Promise.all([ctx.ops("residence").get<ApiResidenceView>("/api/v1/ops/residence"), filingModes(ctx)]).then(
+      ([v, modes]) => ({
+        ...v,
+        filings: v.filings.map((f) => ({ ...f, adapterMode: modes.get(f.leaseId) ?? null })),
+      }),
+    );
     reads.set(ctx, read);
   }
   return read;
+}
+
+/**
+ * Whether each lease's filing row is a real one or a seeded `mock` one, from `GET /api/v1/ops/filings` (the only
+ * route that carries the row's adapter mode). Read only when the caller's grant opens it (`lease.advance` or
+ * `money.view`), so a repairs-only persona never fires a refused read; a failed read leaves every row unknown,
+ * which the screens treat as not a filing.
+ */
+async function filingModes(ctx: SourceContext): Promise<Map<string, "mock" | "live">> {
+  const ws = ctx.account ? workspaceFor(ctx.account, "residence") : null;
+  if (!ws?.permissions.some((p) => p === "lease.advance" || p === "money.view")) return new Map();
+  try {
+    const { filings } = await ctx
+      .ops("residence")
+      .get<{ filings: { leaseId: string; adapterMode: "mock" | "live" | null }[] }>("/api/v1/ops/filings");
+    return new Map(
+      filings.flatMap((f) => (f.adapterMode ? [[f.leaseId, f.adapterMode] as [string, "mock" | "live"]] : [])),
+    );
+  } catch {
+    return new Map();
+  }
 }
 
 /** After a write: the next read in this request goes back to the API. */
@@ -566,11 +603,13 @@ function unitNote(b: Building, u: ApiResidenceView["units"][number], lease: ApiL
   if (ticket)
     return `${ticket.title} ticket ${ticket.status === "in_progress" ? "in progress" : ticket.status === "open" ? "reported" : "assigned"}.`;
   if (offer?.status === "accepted") {
-    return `Renewal accepted ${dayMonth(offer.answeredAt ?? offer.sentAt)}. Amendment awaiting signatures.`;
+    // Nothing sends an amendment: e-signature is not built, so no signature is awaited from anyone.
+    return `Renewal accepted ${dayMonth(offer.answeredAt ?? offer.sentAt)}. No amendment sent: e-signature is not available yet.`;
   }
-  const filing = b.v.filings.find((f) => f.leaseId === lease.id);
+  // Only a real filing row says anything about filing; a seeded `mock` row is sample data (filingModes).
+  const filing = b.v.filings.find((f) => f.leaseId === lease.id && f.adapterMode === "live");
   if (filing?.status === "pending" && filing.dueBy && kigaliDate(filing.dueBy) < b.today) {
-    return "Lease filing sent, acknowledgement not received.";
+    return `Lease filing deadline passed ${dayMonth(filing.dueBy)}, not recorded as filed.`;
   }
   if (lease.endDate && daysBetween(b.today, lease.endDate) <= 90) {
     return `Lease ends ${dayMonth(lease.endDate)}. Prepare a renewal offer by ${dayMonth(addDays(lease.endDate, -60))}.`;
@@ -609,6 +648,14 @@ function homeKpis(b: Building): R.HomeKpi[] {
   const vacant = b.vacant;
   const oldest = [...f.inArrears].sort((x, y) => b.oldestOverdueDays(y.id) - b.oldestOverdueDays(x.id))[0];
   const month = monthName(b.month);
+  const monthCharges = new Set(f.charges.map((c) => c.id));
+  const verifiedMethods = [
+    ...new Set(
+      b.v.payments
+        .filter((p) => p.status === "verified" && monthCharges.has(p.rentChargeId))
+        .map((p) => METHOD_LABEL[p.method]),
+    ),
+  ];
   return [
     {
       id: "leased",
@@ -642,7 +689,13 @@ function homeKpis(b: Building): R.HomeKpi[] {
       trend: `${pct(f.verified, f.scheduled)}%`,
       trendTone: "success",
       trendIcon: "Check",
-      foot: "Confirmed by MTN MoMo, Airtel Money or GT Bank",
+      // How the month's verified payments were recorded, as the payment rows say, never a list of providers that
+      // confirmed them: cash counted at the office is verified too, and no provider confirms anything yet.
+      foot: verifiedMethods.length
+        ? `Verified payments: ${verifiedMethods.join(", ")}`
+        : f.verified > 0
+          ? "Paid amounts recorded on the charges"
+          : "No payment verified yet this month",
       board: "RentRoll",
     },
     {
@@ -726,7 +779,7 @@ function vacanciesOf(b: Building): R.Vacancy[] {
       u.vacantSince ? `Since ${dayMonth(u.vacantSince)}` : "Not let yet",
       work
         ? `${work.title.toLowerCase()}${work.scheduledFor ? ` booked ${dayMonth(work.scheduledFor)}` : ""}`
-        : "ready to let",
+        : "no open repair",
       applicantsLine(b, u.roomId),
     ];
     return {
@@ -779,8 +832,8 @@ function renewalsOf(b: Building): R.RenewalNotice[] {
         unit: l.unitLabel,
         icon: "Pencil",
         title: head,
-        desc: `Renewal accepted ${dayMonth(offer.answeredAt ?? offer.sentAt)} · amendment waiting for signatures`,
-        chip: "Signing",
+        desc: `Renewal accepted ${dayMonth(offer.answeredAt ?? offer.sentAt)} · no amendment sent, e-signature is not available yet`,
+        chip: "Not signed",
         chipTone: "default",
         board: "Leases",
       });
@@ -861,7 +914,7 @@ function reportedOf(b: Building, t: ApiTicket): string {
 
 function entryOf(t: ApiTicket): string {
   if (t.spaceName) return "Not needed · common area";
-  if (!t.leaseId) return "Vacant unit · caretaker opens";
+  if (!t.leaseId) return "Vacant unit";
   if (t.staffMayEnter === true) return "Yes, if nobody is home";
   if (t.staffMayEnter === false) return "Only when home";
   return "Not asked";
@@ -973,16 +1026,43 @@ function homeTicketsOf(b: Building): R.HomeTicket[] {
 
 // ── Leases ─────────────────────────────────────────────────────────────────────────────────────────
 
-// Filed is what the API records; an acknowledgement cannot be uploaded yet, so none is claimed to be on file.
-const ACK_FILING = { stage: "ack", deadline: "Met", delivery: "Recorded as filed" } as const;
+/**
+ * A lease's filing row is sample data unless the API marks it `live`. Nothing in the API writes
+ * `contract_filings`: every row today is a seeded `mock` one, and a row whose mode the caller cannot read is not
+ * shown as a filing either.
+ */
+function filingIsSample(b: Building, l: ApiLease): boolean {
+  const filing = b.v.filings.find((f) => f.leaseId === l.id);
+  return !!filing && filing.adapterMode !== "live";
+}
 
 function filingOf(b: Building, l: ApiLease): R.Lease["filing"] {
   const filing = b.v.filings.find((f) => f.leaseId === l.id);
   if (!filing) {
-    return { stage: "none", deadline: "Counts from the last signature", delivery: "Not applicable until signed" };
+    const signed = !!(l.landlordSignedAt && l.tenantSignedAt);
+    return {
+      stage: "none",
+      deadline: "Counts from the last signature",
+      delivery: signed ? "Lease filing is not available yet" : "Not applicable until signed",
+    };
   }
-  if (filing.status === "filed") return { ...ACK_FILING };
+  // A sample row claims no stage: no step, no "sent", no acknowledgement (record.filingSample labels it).
+  if (filing.adapterMode !== "live") {
+    return {
+      stage: "none",
+      deadline: "Not tracked (sample record)",
+      delivery: "Sample record · nothing was filed or sent",
+    };
+  }
   const due = filing.dueBy ? kigaliDate(filing.dueBy) : null;
+  // Filed is what the row records; no acknowledgement is stored, so none is claimed.
+  if (filing.status === "filed") {
+    return {
+      stage: "ack",
+      deadline: due ? dayMonthYear(due) : "Not set",
+      delivery: "Recorded as filed · no acknowledgement on file",
+    };
+  }
   if (filing.status === "failed") {
     return {
       stage: "followup",
@@ -990,8 +1070,9 @@ function filingOf(b: Building, l: ApiLease): R.Lease["filing"] {
       delivery: "The filing was refused · try again",
     };
   }
+  // Pending means not filed: past its deadline it is overdue, never "sent".
   if (due && due < b.today) {
-    return { stage: "followup", deadline: `${dayMonthYear(due)} · passed`, delivery: "Acknowledgement not received" };
+    return { stage: "followup", deadline: `${dayMonthYear(due)} · passed`, delivery: "Not recorded as filed" };
   }
   return { stage: "draft", deadline: due ? `${dayMonthYear(due)} (configured)` : "Not set", delivery: "Not sent yet" };
 }
@@ -1044,9 +1125,10 @@ function offerOf(l: ApiLease, o: ApiOffer): R.RenewalOffer {
         : `Answered ${dayMonth(o.answeredAt ?? o.sentAt)}`,
     note:
       o.status === "open"
-        ? `If ${firstName(l.tenantName)} declines or gives notice, the move-out flow starts and the lease ends on ${dayMonth(l.endDate ?? o.startsOn)}. An accepted offer becomes an amendment that both parties e-sign.`
+        ? // A decline only closes the offer (answerOffer starts nothing); notice is what Move-outs tracks.
+          `If ${firstName(l.tenantName)} declines, the lease still ends on ${dayMonth(l.endDate ?? o.startsOn)}; notice they give is tracked in Move-outs. An accepted offer needs an amendment signed by both parties; e-signature is not available yet.`
         : o.status === "accepted"
-          ? "The amendment is out for e-signature; the landlord signs after the resident."
+          ? "No amendment has been sent: e-signature is not available yet, so Injishi has asked nobody to sign."
           : "",
     events,
   };
@@ -1086,6 +1168,7 @@ function leaseRecordOf(b: Building, l: ApiLease): LeaseRecord {
     termMonths: termMonthsOf(l.startDate, l.endDate),
     tenantSignedOn: l.tenantSignedAt ? dayMonthYear(l.tenantSignedAt) : "",
     landlordSignedOn: l.landlordSignedAt ? dayMonthYear(l.landlordSignedAt) : "",
+    filingSample: filingIsSample(b, l),
   };
 }
 
@@ -1106,7 +1189,7 @@ function leasesOf(b: Building): LiveLease[] {
             : l.status === "draft"
               ? { status: "Draft", statusTone: "default" as const }
               : l.status === "pending_signature"
-                ? { status: "Out for signature", statusTone: "info" as const }
+                ? { status: "Awaiting signature", statusTone: "info" as const }
                 : filing.stage === "draft"
                   ? { status: "Filing draft", statusTone: "warning" as const }
                   : { status: "Active", statusTone: "success" as const };
@@ -1178,9 +1261,10 @@ function acceptedRenewalsOf(b: Building): R.AcceptedRenewal[] {
           desc:
             o.status === "signed"
               ? `Accepted ${answered} · amendment signed by both ${dayMonth(o.signedAt ?? o.answeredAt ?? o.sentAt)}`
-              : `Accepted ${answered} · amendment awaiting the resident's e-signature`,
-          chip: o.status === "signed" ? "Signed" : "Signing",
-          chipTone: o.status === "signed" ? ("success" as const) : ("info" as const),
+              : // Nothing sends an amendment (offerOf: "Not sent: e-signature is not available yet").
+                `Accepted ${answered} · no amendment sent, e-signature is not available yet`,
+          chip: o.status === "signed" ? "Signed" : "Not signed",
+          chipTone: o.status === "signed" ? ("success" as const) : ("warning" as const),
         },
       ];
     });
@@ -1342,7 +1426,7 @@ function rentLedgersOf(b: Building): R.RentLedger[] {
           : r.channel === "letter"
             ? "to deliver by hand"
             : r.channel === "email"
-              ? "email sent"
+              ? "logged as an email"
               : "note logged";
       return {
         title,
@@ -1365,8 +1449,9 @@ function payoutsOf(b: Building): R.LandlordPayout[] {
       id: period.slice(0, 7),
       title: settled ? `${label} rent` : `${label} to date`,
       desc: settled
-        ? `Settled to ${landlord} · ${p.destinationRef ?? "account on file"}${p.settledAt ? ` · settled ${dayMonth(p.settledAt)}` : ""}`
-        : `Verified payments only · reconciled daily · ${unverified} unverified ${unverified === 1 ? "payment" : "payments"} excluded`,
+        ? `Settled to ${landlord} · ${p.destinationRef ?? "no destination on file"}${p.settledAt ? ` · settled ${dayMonth(p.settledAt)}` : ""}`
+        : // The amount is the payout row's; nothing here computed what it leaves out.
+          `Amount as recorded · ${unverified} ${unverified === 1 ? "payment" : "payments"} not verified yet`,
       amount: p.amountRwf,
       state: settled ? "Settled" : p.status === "held" ? "Held" : "In settlement",
       tone: settled ? "success" : p.status === "held" ? "warning" : "info",

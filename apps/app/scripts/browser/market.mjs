@@ -142,6 +142,19 @@ try {
   if (!slug) throw new Error("no property link on the checkout");
   await page.goto(`${APP}/explore/${slug}`);
   await page.waitForText("Report this listing", 90_000);
+  // The tab names this property (it said "Isangano Lakeside Hotel" on every one), and "Verified business" shows
+  // only when the business card carries a verification date from the API.
+  const head = await page.eval(`(() => {
+    const name = document.querySelector('h1')?.innerText.trim() ?? '';
+    const text = document.body.innerText;
+    return { name, title: document.title, chip: text.includes('Verified business'), dated: /Verified [0-9]{1,2} [A-Z][a-z]{2} [0-9]{4}/.test(text) };
+  })()`);
+  if (!head.name || !head.title.startsWith(`Marketplace · ${head.name}`))
+    throw new Error(`the property page is titled "${head.title}", not for ${head.name}`);
+  if (head.chip && !head.dated) throw new Error("a Verified business chip with no verification date on the page");
+  console.log(
+    `  /explore/${slug} is titled for ${head.name}; Verified business ${head.chip ? "backed by a date" : "not shown, none recorded"}`,
+  );
   await page.press("Report this listing");
   await page.waitForText("Why are you reporting this listing?", 30_000);
   await page.press("Send report");

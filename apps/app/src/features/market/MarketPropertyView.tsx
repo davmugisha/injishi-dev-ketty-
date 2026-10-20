@@ -285,10 +285,13 @@ export function MarketPropertyView({
                 <MapPin className="size-4" aria-hidden="true" />
                 {property.location}
               </span>
-              <Chip size="sm" variant="soft" color="success">
-                <SealCheck className="size-3" />
-                <Chip.Label>Verified business</Chip.Label>
-              </Chip>
+              {/* Only when the API records the business as verified (business.verified is "" otherwise). */}
+              {property.business.verified ? (
+                <Chip size="sm" variant="soft" color="success">
+                  <SealCheck className="size-3" />
+                  <Chip.Label>Verified business</Chip.Label>
+                </Chip>
+              ) : null}
               <Chip size="sm" variant="soft">
                 <Chip.Label>{property.kind}</Chip.Label>
               </Chip>
@@ -642,19 +645,24 @@ export function MarketPropertyView({
                   items={[
                     {
                       label: "Business",
-                      value: (
+                      value: property.business.verified ? (
                         <Chip size="sm" variant="soft" color="success">
                           <SealCheck className="size-3" />
                           <Chip.Label>{property.business.verified}</Chip.Label>
                         </Chip>
+                      ) : (
+                        <span className="text-muted">No verification on file</span>
                       ),
                     },
                     {
                       label: "Tourism licence",
-                      value: (
+                      // A success chip only for a licence on file and in date; expired or missing reads plainly.
+                      value: property.business.licence.startsWith("Active") ? (
                         <Chip size="sm" variant="soft" color="success">
                           <Chip.Label>{property.business.licence}</Chip.Label>
                         </Chip>
+                      ) : (
+                        <span className="text-muted">{property.business.licence || "No dated licence on file"}</span>
                       ),
                     },
                     { label: "TIN", value: <span className="tabular">{property.business.tin}</span> },

@@ -4,17 +4,15 @@ import type {
   LeaveBalance,
   LeaveType,
   Shift,
-  StaffProfile,
   StaffRequest,
   SwapColleague,
 } from "@injishi/data/fixtures/staff";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { NothingYet } from "@/features/staff/parts";
 import { StaffScheduleView } from "@/features/staff/StaffScheduleView";
 import { requirePersona } from "@/lib/session";
-import { getCollection, getDocument } from "@/server/data";
-import { staffReadRefusal } from "@/server/sources/staff";
+import { getCollection, getDocument, requestContext } from "@/server/data";
+import { myProfile, staffReadRefusal } from "@/server/sources/staff";
 
 export const metadata: Metadata = { title: screens.StaffSchedule.pageTitle };
 
@@ -22,8 +20,8 @@ export const metadata: Metadata = { title: screens.StaffSchedule.pageTitle };
 export default async function StaffSchedulePage() {
   const persona = await requirePersona("StaffSchedule");
   const read = await Promise.all([
-    getDocument<StaffProfile>("staff.profiles", persona.id),
-    getDocument<StaffProfile>("staff.profiles", "housekeeper"),
+    // The caller's own HR file, never a sample profile (null reads "not on file").
+    requestContext().then(myProfile),
     getCollection<Shift>("staff.shifts"),
     getCollection<SwapColleague>("staff.swapColleagues"),
     getCollection<StaffRequest>("staff.requests"),
@@ -37,15 +35,13 @@ export default async function StaffSchedulePage() {
   });
   if (typeof read === "string")
     return <NothingYet title="Schedule" message={`Your shifts and leave cannot be shown yet. ${read}`} />;
-  const [profile, fallbackProfile, shifts, colleagues, requests, leaveTypes, balance, approvers] = read;
-  const me = profile ?? fallbackProfile;
-  if (!me) notFound();
+  const [profile, shifts, colleagues, requests, leaveTypes, balance, approvers] = read;
   if (!balance || !leaveTypes.length)
     return <NothingYet title="Schedule" message="Leave is not set up for your business yet. Ask HR." />;
   return (
     <StaffScheduleView
       persona={persona}
-      data={{ profile: me, shifts, colleagues, requests, leaveTypes, balance, approvers }}
+      data={{ profile: profile ?? null, shifts, colleagues, requests, leaveTypes, balance, approvers }}
     />
   );
 }

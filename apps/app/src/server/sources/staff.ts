@@ -27,6 +27,7 @@ import type {
   RequestStatus,
   Shift,
   StaffDocument,
+  StaffProfile,
   StaffRequest,
   StaffTone,
   WorkOrder,
@@ -89,6 +90,11 @@ export interface ApiWorkFile {
   employeeId: string;
   orgId: string;
   displayName: string;
+  /** MyWorkFile in @injishi/contracts time.ts. */
+  businessName?: string;
+  employeeNumber?: string;
+  branchName?: string | null;
+  jobPositionTitle?: string | null;
   status: string;
   openRecord: { id: string; clockInAt: string } | null;
 }
@@ -227,6 +233,36 @@ export async function myFile(ctx: SourceContext): Promise<ApiWorkFile> {
   const file = files.find((f) => f.status === "active") ?? files[0];
   if (!file) throw new NoStaffFileError();
   return file;
+}
+
+/**
+ * The caller's own profile, from their own HR file (`GET /me/work`): staff number, business, branch and job
+ * title. The sample `staff.profiles` document is keyed by the shell persona, so every housekeeper read the demo
+ * housekeeper's number and another persona's profile stood in for a caller with none; the phone pages read this
+ * instead. What the file does not carry (start date, area, shift) is "" and the screens say it is not on file. Null
+ * when the account has no staff file (or the API will not show it).
+ */
+export async function myProfile(ctx: SourceContext): Promise<StaffProfile | null> {
+  let file: ApiWorkFile;
+  try {
+    file = await myFile(ctx);
+  } catch (error) {
+    if (error instanceof NoStaffFileError) return null;
+    if (error instanceof ApiError && [403, 404, 409].includes(error.status)) return null;
+    throw error;
+  }
+  return {
+    id: file.employeeId,
+    staffNo: file.employeeNumber ?? "",
+    since: "",
+    workplace: file.businessName ?? "",
+    site: file.branchName ?? file.businessName ?? "",
+    department: file.jobPositionTitle ?? "",
+    area: "",
+    shift: "",
+    clockedInAt: file.openRecord ? clock(file.openRecord.clockInAt) : "",
+    photo: null,
+  };
 }
 
 /**
@@ -537,7 +573,11 @@ async function problemReports(ctx: SourceContext): Promise<ProblemReport[]> {
 
 // ── Inspection ─────────────────────────────────────────────────────────────────────────────────────
 
-async function inspectionRooms(ctx: SourceContext): Promise<InspectionRoom[]> {
+/**
+ * A room waiting for inspection, with the clean it follows: the task's own type ("checkout clean", "deep clean")
+ * or "re-clean" for one reopened after a failed inspection. The prototype printed "checkout clean" for every room.
+ */
+async function inspectionRooms(ctx: SourceContext): Promise<(InspectionRoom & { task: string })[]> {
   const [board, phone] = await Promise.all([readBoard(ctx), readPhone(ctx)]);
   const now = ctx.now;
   const cleaning = phone.checklist.filter((i) => i.kind === "cleaning");
@@ -564,6 +604,7 @@ async function inspectionRooms(ctx: SourceContext): Promise<InspectionRoom[]> {
         initials: initialsOf(t.assignedToName),
         type: room?.roomTypeName ?? "",
         cleaned: `Cleaned ${clock(t.completedAt)}`,
+        task: t.reopenedFromTaskId ? "re-clean" : t.taskType === "deep_clean" ? "deep clean" : "checkout clean",
         wait: duration(minutesBetween(t.completedAt as string, now)),
         arrival: arrival ? `Arrival ${arrival}` : "No arrival today",
         late: arrivalAt !== null && minutesBetween(now, arrivalAt) < 120,
@@ -636,7 +677,8 @@ function blockOf(o: ApiWorkOrder): WorkOrderBlock | null {
   if (b.status === "active") {
     const until = b.endsAt ? dayLabel(kigaliDate(b.endsAt)) : null;
     const moved = b.affectedReservations
-      ? ` ${b.affectedReservations} booking${b.affectedReservations === 1 ? " was" : "s were"} moved.`
+      ? // Counted, not moved: deciding a block moves no booking.
+        ` ${b.affectedReservations} booking${b.affectedReservations === 1 ? " is" : "s are"} still on this room during the block.`
       : "";
     return {
       tone: "danger",
@@ -863,7 +905,7 @@ async function leaveTypes(ctx: SourceContext): Promise<LeaveType[]> {
         : t.payment === "unpaid"
           ? "Does not use your balance. Your pay for those days is reduced."
           : t.needsAttachment
-            ? "Needs a supporting document. Add it in Me › Documents."
+            ? "Needs a supporting document, which the phone cannot add yet. Ask HR to put it on your file."
             : `Does not use your annual leave balance. ${t.approvalSteps === 1 ? "One approval." : `${t.approvalSteps} approvals.`}`;
       return { id: t.id, label, hint, usesBalance };
     });
@@ -932,17 +974,19 @@ async function documents(ctx: SourceContext): Promise<StaffDocument[]> {
           icon: documentIcon(d.title, d.kind),
           name: d.title,
           meta: [d.startsOn ? `Since ${dayMonthYear(d.startsOn)}` : null, d.contractType].filter(Boolean).join(" · "),
-          chip: "Signed",
+          // An active contract; no signature is stored on it, so none is claimed.
+          chip: "Active",
           tone: "default" as StaffTone,
         };
-      const expires = d.expiresOn ? `Expires ${dayMonthYear(d.expiresOn)}` : null;
+      const expired = !!d.expiresOn && d.expiresOn.slice(0, 10) < ctx.today.iso;
+      const expires = d.expiresOn ? `${expired ? "Expired" : "Expires"} ${dayMonthYear(d.expiresOn)}` : null;
       const doc = { id: d.id, icon: documentIcon(d.title, d.kind), name: d.title };
       if (d.status === "approved")
         return {
           ...doc,
           meta: expires ?? (d.checkedAt ? `Checked by HR · ${dayMonthYear(d.checkedAt)}` : "On file"),
-          chip: expires ? "Valid" : "Checked",
-          tone: (expires ? "success" : "default") as StaffTone,
+          chip: expired ? "Expired" : expires ? "Valid" : "Checked",
+          tone: (expired ? "danger" : expires ? "success" : "default") as StaffTone,
         };
       if (d.status === "rejected")
         return { ...doc, meta: "HR asked for it again", chip: "Rejected", tone: "danger" as StaffTone };

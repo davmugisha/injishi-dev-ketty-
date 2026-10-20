@@ -63,18 +63,30 @@ export const flows: Flow[] = [
     async run({ check, step }) {
       const visitor = await contextFor(null);
       const run = Date.now().toString(36);
-      const ticket = await requestDemo(visitor, {
+      const form = {
         name: "Flow Owner",
         email: `flow.demo.${run}@app.demo.injishi.com`,
         phone: "078 300 1122",
         business: "Flow Check Guest House (demo)",
         businessType: "Guest house",
         district: "Rubavu",
-        heardFrom: "Web search",
         format: "At my property",
-      });
+      };
+      // The form starts unset; a choice the visitor did not make is refused before the API is asked.
+      for (const missing of ["businessType", "district", "format"] as const) {
+        let refused = false;
+        try {
+          await requestDemo(visitor, { ...form, [missing]: "" });
+        } catch (error) {
+          refused = error instanceof PublicInputError;
+        }
+        check(refused, `a demo request with no ${missing} was not refused on the page`);
+      }
+      step("a demo request with no business type, district or format is refused before any ticket is opened");
+      // "How did you hear" is optional: unanswered, it is left out of the ticket rather than filled in.
+      const ticket = await requestDemo(visitor, form);
       check(/^[0-9a-f-]{36}$/.test(ticket.id), `the demo request answered ${JSON.stringify(ticket)}`);
-      step(`Request demo opened support ticket ${ticket.id}`);
+      step(`Request demo with no "heard from" answer opened support ticket ${ticket.id}`);
     },
   },
   {

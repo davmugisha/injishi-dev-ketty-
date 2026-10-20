@@ -684,12 +684,18 @@ function toProperty(p: PropertyPageApi, ctx: SourceContext, savedTo: string): Ma
       runs: others.length
         ? `Runs this ${kind.toLowerCase()} and ${others.join(", ")}`
         : `Runs this ${kind.toLowerCase()}`,
-      verified: p.business.verifiedAt ? `Verified ${dayMonthYear(p.business.verifiedAt)}` : "Verified business",
+      // Only what the API holds: "" when it records no verification or no licence, and the page then draws no
+      // "Verified" or success chip at all (MarketPropertyView). A licence past its date is expired, never active.
+      verified: p.business.verifiedAt ? `Verified ${dayMonthYear(p.business.verifiedAt)}` : "",
       licence: p.business.licenceValidTo
-        ? `Active to ${dayMonthYear(p.business.licenceValidTo)}`
-        : "Licence not on file",
+        ? p.business.licenceValidTo.slice(0, 10) < ctx.today.iso
+          ? `Expired ${dayMonthYear(p.business.licenceValidTo)}`
+          : `Active to ${dayMonthYear(p.business.licenceValidTo)}`
+        : "",
       tin: p.business.tin ? groupDigits(p.business.tin) : (p.business.upi ?? ""),
-      evidence: "Checked against documents, not a live registry",
+      evidence: p.business.verifiedAt
+        ? "Checked against documents, not a live registry"
+        : "No verification on file for this business",
     },
   };
 }

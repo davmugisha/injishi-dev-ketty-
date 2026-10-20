@@ -38,7 +38,8 @@ export interface DemoRequestInput {
   business: string;
   businessType: string;
   district: string;
-  heardFrom: string;
+  /** Only when the person answered "How did you hear about us?"; the form starts with nothing chosen. */
+  heardFrom?: string;
   /** "Online" or "At my property" (a field agent visit). */
   format: string;
   /** The plan the person asked about on the pricing cards, if any. */
@@ -48,21 +49,30 @@ export interface DemoRequestInput {
 /**
  * "Request demo" on the hosts page. There is no demo-booking service, so the request goes where a person reads
  * it: Injishi support's intake (`POST /support/tickets`, topic `other`), with everything the form asked written
- * into the ticket. Answers the ticket id; nobody is promised a call by this.
+ * into the ticket. Answers the ticket id; nobody is promised a call by this. Every choice is the person's own:
+ * the form starts unset, business type, district and format are refused here when missing, and an unanswered
+ * "heard from" is left out rather than filled in.
  */
 export async function requestDemo(ctx: SourceContext, input: DemoRequestInput): Promise<{ id: string }> {
   const name = input.name.trim();
   const business = input.business.trim();
+  const businessType = input.businessType.trim();
+  const district = input.district.trim();
+  const format = input.format.trim();
+  const heardFrom = input.heardFrom?.trim() ?? "";
   if (!name) throw new PublicInputError("Enter your name.");
   if (!business) throw new PublicInputError("Enter the business name.");
+  if (!businessType) throw new PublicInputError("Choose your business type.");
+  if (!district) throw new PublicInputError("Choose your district.");
+  if (!format) throw new PublicInputError("Choose a demo format: online or at your property.");
   const message = [
     `Demo request: ${business}`,
-    `Business type: ${input.businessType}`,
-    `District: ${input.district}`,
-    `Demo: ${input.format}`,
+    `Business type: ${businessType}`,
+    `District: ${district}`,
+    `Demo: ${format}`,
     ...(input.plan ? [`Asked about: ${input.plan}`] : []),
     `Phone: ${input.phone.trim()}`,
-    `Heard about Injishi from: ${input.heardFrom}`,
+    ...(heardFrom ? [`Heard about Injishi from: ${heardFrom}`] : []),
   ].join("\n");
   return openSupportTicket(ctx, {
     topic: "other",
