@@ -428,13 +428,23 @@ const TENDER: Record<string, { label: string; icon: string }> = {
  * Only confirmed money is ever on a bill (the API records nothing in flight), so each one counts,
  * unless it was voided, when its reversal takes it out again.
  */
-export function presentPayments(stayDoc: string, folio: ApiFolioDetail, me: { id: string; name: string } | null) {
+export function presentPayments(
+  stayDoc: string,
+  folio: ApiFolioDetail,
+  me: { id: string; name: string } | null,
+  booking?: Pick<ApiBooking, "paymentStatus">,
+) {
+  // Where the online payment is now, as the booking's payment status says: held by Injishi until the
+  // stay, or already paid out to the business. Never assumed held.
+  const paidOut = booking?.paymentStatus === "paid_out";
   const out: FolioPayment[] = [];
   for (const c of folio.charges) {
     if (!PAYMENT_TYPES.has(c.chargeType) || c.sourceRefType === "void") continue;
     const voided = !!c.voidedByChargeId;
     const online = c.chargeType === "deposit";
-    const tender = online ? { label: "Paid online · held by Injishi", icon: "Vault" } : TENDER[methodOf(c) ?? "cash"];
+    const tender = online
+      ? { label: paidOut ? "Paid online · paid out" : "Paid online · held by Injishi", icon: "Vault" }
+      : TENDER[methodOf(c) ?? "cash"];
     const at = `${dayMonth(c.postedAt)} ${clock(c.postedAt)}`;
     const reference = (c.description ?? "").replace(/^Payment \([a-z_]+\)\s*/, "").trim();
     out.push({
@@ -443,7 +453,7 @@ export function presentPayments(stayDoc: string, folio: ApiFolioDetail, me: { id
       tender: tender.label,
       icon: tender.icon as FolioPayment["icon"],
       amount: -c.amountRwf,
-      state: voided ? "Voided" : online ? "Held in escrow" : "Recorded",
+      state: voided ? "Voided" : online ? (paidOut ? "Paid out" : "Held in escrow") : "Recorded",
       tone: (voided ? "danger" : "success") as Tone,
       line1: online ? (c.description ?? "Paid online when booked") : `${reference || tender.label} · ${at}`,
       line2: voided
@@ -801,7 +811,9 @@ export const sources = defineSources({
     parity: "shape",
     async list(ctx): Promise<FolioPayment[]> {
       const view = await inViewWithFolio(ctx);
-      return view?.folio ? presentPayments(docId(view.stay), view.folio, meOf(ctx)) : [];
+      return view?.folio
+        ? presentPayments(docId(view.stay), view.folio, meOf(ctx), bookingOfStay(view.board, view.stay))
+        : [];
     },
   },
   // What a desk charge can earn for: the property's active revenue centres, room nights excepted
@@ -838,7 +850,7 @@ export const sources = defineSources({
       const id = docId(view.stay);
       return presentLedger(
         presentLines(id, view.stay, view.folio, meOf(ctx)),
-        presentPayments(id, view.folio, meOf(ctx)),
+        presentPayments(id, view.folio, meOf(ctx), bookingOfStay(view.board, view.stay)),
       );
     },
   },

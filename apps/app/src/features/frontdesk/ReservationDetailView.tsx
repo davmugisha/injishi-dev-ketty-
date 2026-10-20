@@ -115,6 +115,9 @@ export function ReservationDetailView({
             </NextLink>
             <span aria-hidden="true">›</span>
             <span className="tabular">{record.id}</span>
+            {/* The full record (parties, saved terms, payment history) is the prototype's sample: say so. */}
+            <span aria-hidden="true">·</span>
+            <span>sample record</span>
           </>
         }
         title={record.guest}
@@ -331,7 +334,8 @@ export function ReservationDetailView({
                 <Alert.Content>
                   <Alert.Title>Pending · waiting for MTN to confirm</Alert.Title>
                   <Alert.Description>
-                    {record.firstName} approves on his phone. Last checked {d.lastChecked}. Not paid until MTN confirms.
+                    {record.firstName} approves on their phone. Last checked {d.lastChecked}. Not paid until MTN
+                    confirms.
                   </Alert.Description>
                   <div className="mt-2">
                     <Button size="sm" variant="secondary" onPress={() => unavailable("Checking a payment with MTN")}>

@@ -44,7 +44,6 @@ const STATUS_TONE: Record<MessageThread["status"], Tone> = {
   Closed: "default",
   "Waiting on guest": "default",
 };
-const ROUTING = ["Front desk", "Housekeeping", "Maintenance", "Isangano Terrace", "Concierge"];
 const SERVICE_TRACK = ["Created", "Assigned", "In progress", "Fulfilled", "Closed"];
 const ORDER_TRACK = ["Placed", "Preparing", "Delivered", "Posted to folio"];
 const FILTERS = [
@@ -107,10 +106,13 @@ export function MessagesView({
   persona,
   threads,
   templates,
+  property,
 }: {
   persona: Persona;
   threads: MessageThread[];
   templates: MessageTemplate[];
+  /** The property the desk's day is read for, as the API names it. */
+  property: string;
 }) {
   const [sel, setSel] = useState(threads[0]?.id ?? "");
   const [filter, setFilter] = useState("all");
@@ -134,6 +136,8 @@ export function MessagesView({
     month: "long",
   }).format(new Date());
 
+  // The departments this inbox's conversations are with (routing is not available yet, so this only shows them).
+  const routing = [...new Set(["Front desk", ...threads.map((t) => t.dept)])];
   const all = threads.map((t) => ({
     ...t,
     unread: read[t.id] || sel === t.id ? 0 : t.unread,
@@ -220,7 +224,7 @@ export function MessagesView({
     <PageContent className="gap-3.5">
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow={`${todayLabel} · Isangano Lakeside Hotel`}
+        eyebrow={`${todayLabel} · ${property}`}
         title="Guest Messages"
         description="Booking threads before arrival, stay threads after check-in. Internal notes never reach the guest."
         actions={<ToneChip tone="default">Replies reach the guest app</ToneChip>}
@@ -352,7 +356,7 @@ export function MessagesView({
             </div>
             <div className="flex items-center gap-1.5">
               <ToneChip tone={STATUS_TONE[cur.status]}>{cur.status}</ToneChip>
-              <ToneChip tone="default">{cur.assigneeFull}</ToneChip>
+              <ToneChip tone="default">{cur.assigneeFull || "Unassigned"}</ToneChip>
             </div>
           </div>
 
@@ -535,7 +539,9 @@ export function MessagesView({
                   </PromptInput.ToolbarStart>
                   <PromptInput.ToolbarEnd className="gap-2">
                     {isNote || !smsOk ? (
-                      <span className="text-[11px] text-muted">{isNote ? "Staff only" : "No SMS consent on file"}</span>
+                      <span className="text-[11px] text-muted">
+                        {isNote ? "Staff only" : "SMS replies are not connected yet"}
+                      </span>
                     ) : null}
                     <Button size="sm" isDisabled={!draft.trim() || closed || sending} onPress={send}>
                       <PaperPlane className="size-4" />
@@ -586,7 +592,7 @@ export function MessagesView({
               label="Department"
               value={cur.dept}
               onChange={() => unavailable("Routing a conversation to another department")}
-              options={ROUTING}
+              options={routing}
             />
             <span className="text-[12px] text-muted">
               {cur.assigneeFull ? `Assigned to ${cur.assigneeFull}` : "Not assigned"}

@@ -108,9 +108,9 @@ export function GuestsView({
     <PageContent>
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Isangano Lakeside Hotel · Guest directory"
+        eyebrow="Guest directory · sample guests"
         title="Guests"
-        description="Find returning guests across Amahoro properties. Identity documents stay masked unless you give a purpose."
+        description="A preview with sample guests: guest profiles are not built yet. Identity documents stay masked unless you give a purpose."
         actions={
           <LinkButton href={screenHref("WalkIn")} variant="secondary">
             <PersonPlus className="size-4" />
@@ -144,8 +144,8 @@ export function GuestsView({
           </SearchField>
           <p className="text-[12px] leading-4 text-muted">
             {scope === "property"
-              ? "Guests with a booking or stay at Isangano Lakeside Hotel."
-              : "All Amahoro properties. Other properties show names and stay dates only."}{" "}
+              ? "Guests with a booking or stay at this property."
+              : "All of the business's properties. Other properties show names and stay dates only."}{" "}
             ID numbers cannot be searched.
           </p>
           <ListView
@@ -409,7 +409,7 @@ export function GuestsView({
                         <Switch.Control>
                           <Switch.Thumb />
                         </Switch.Control>
-                        Marketing email from Amahoro
+                        Marketing email from the business
                       </Switch.Content>
                     </Switch>
                     <span className="text-[12px] leading-4 text-muted">{profile.marketing.optedIn}</span>
@@ -494,7 +494,7 @@ export function GuestsView({
                   <Card aria-labelledby="ly-h" className="gap-2.5 px-[18px] py-4">
                     <CardHeading
                       id="ly-h"
-                      title="Amahoro Rewards"
+                      title="Loyalty programme"
                       className="items-center"
                       action={
                         <Chip size="sm" variant="primary" color="accent">

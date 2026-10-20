@@ -39,7 +39,6 @@ import type {
   FolioDepartment,
   FolioLine,
   FolioPayment,
-  LateCheckoutOption,
   Stay,
   StayAccess,
   StayDocument,
@@ -61,7 +60,6 @@ export interface StayFolioData {
   history: StayEvent[];
   access: StayAccess[];
   documents: StayDocument[];
-  lateOptions: LateCheckoutOption[];
   chargeDepartments: ChargeDepartment[];
   tenders: DeskTender[];
 }
@@ -80,6 +78,11 @@ const CHARGE_REASONS = [
  * What this screen lets the desk do on its own. The API lets anyone holding `folio.charge` post or
  * void; these limits only ever narrow that, and anything beyond them goes to a manager.
  */
+/**
+ * Times a late checkout could run to. A property's late-checkout fee schedule is not kept anywhere yet
+ * (stays.lateCheckoutOptions is deferred), so no fee is shown beside them, and the action is unavailable.
+ */
+const LATE_TIMES = ["13:00", "15:00", "18:00"] as const;
 const DESK_VOID_LIMIT = 20000;
 const DESK_CHARGE_LIMIT = 50000;
 
@@ -164,7 +167,7 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
   const [tender, setTender] = useState<DeskTender["id"]>("cash");
   const [pAmt, setPAmt] = useState("");
   const [change, setChange] = useState<"late" | "extend">("late");
-  const [late, setLate] = useState(data.lateOptions[0]?.id ?? "");
+  const [late, setLate] = useState<string>(LATE_TIMES[0]);
   const [ext, setExt] = useState(1);
   const [confirmOut, setConfirmOut] = useState(false);
   const [busy, startBusy] = useTransition();
@@ -283,7 +286,6 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
   const uncounted = data.payments.filter((p) => !p.counted && p.state !== "Voided").length;
 
   // ── Change the stay ──
-  const lateOpt = data.lateOptions.find((o) => o.id === late) ?? data.lateOptions[0];
   const avail = ext <= stay.freeNights;
 
   const recordView = (r: StayRecord) => {
@@ -754,29 +756,27 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                 <p className="text-[13px] text-muted">
                   Due out {stay.dueOut}. Moving the departure and posting its fee is not connected yet.
                 </p>
-                {data.lateOptions.length ? (
-                  <RadioButtonGroup
-                    aria-label="Late checkout time"
-                    value={late}
-                    onChange={setLate}
-                    className="flex-row gap-2"
-                  >
-                    {data.lateOptions.map((o) => (
-                      <RadioButtonGroup.Item key={o.id} value={o.id} className="min-w-0 flex-1 px-3 py-2.5">
-                        <RadioButtonGroup.ItemContent className="gap-0.5">
-                          <span className="font-semibold tabular">{o.id}</span>
-                          <span className="text-[12px] text-muted tabular">{o.fee ? rwf(o.fee) : "No fee"}</span>
-                          <span className="text-[11px] leading-[14px] text-muted">{o.note}</span>
-                        </RadioButtonGroup.ItemContent>
-                      </RadioButtonGroup.Item>
-                    ))}
-                  </RadioButtonGroup>
-                ) : null}
+                <RadioButtonGroup
+                  aria-label="Late checkout time"
+                  value={late}
+                  onChange={setLate}
+                  className="flex-row gap-2"
+                >
+                  {LATE_TIMES.map((time) => (
+                    <RadioButtonGroup.Item key={time} value={time} className="min-w-0 flex-1 px-3 py-2.5">
+                      <RadioButtonGroup.ItemContent className="gap-0.5">
+                        <span className="font-semibold tabular">{time}</span>
+                        <span className="text-[12px] text-muted">Fee not set</span>
+                        <span className="text-[11px] leading-[14px] text-muted">No fee schedule is kept yet</span>
+                      </RadioButtonGroup.ItemContent>
+                    </RadioButtonGroup.Item>
+                  ))}
+                </RadioButtonGroup>
                 <Button
                   size="sm"
                   className="self-start"
                   isDisabled={closed}
-                  onPress={() => unavailable(`Late checkout${lateOpt ? ` until ${lateOpt.id}` : ""}`)}
+                  onPress={() => unavailable(`Late checkout until ${late}`)}
                 >
                   Confirm late checkout {late}
                 </Button>

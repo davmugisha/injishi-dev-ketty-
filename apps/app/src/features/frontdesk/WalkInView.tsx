@@ -9,13 +9,10 @@ import {
   LayoutCells,
   Lock,
   PaperPlane,
-  ShieldExclamation,
   Tag,
-  TriangleExclamation,
 } from "@gravity-ui/icons";
 import {
   Alert,
-  Avatar,
   Button,
   Card,
   Chip,
@@ -28,10 +25,10 @@ import {
   Toast,
   toast,
 } from "@heroui/react";
-import { EmptyState, RadioButtonGroup } from "@heroui-pro/react";
+import { EmptyState } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
 import { screenHref } from "@injishi/data";
-import type { GuestMatch, RoomType, WalkInQuote } from "@injishi/data/fixtures/frontdesk";
+import type { RoomType } from "@injishi/data/fixtures/frontdesk";
 import { formatRwf, GateChip, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
@@ -94,26 +91,25 @@ function Stepper({
   );
 }
 
+/**
+ * The walk-in reads the room types and what is free tonight from the API. Quote holds, guest profiles to
+ * match and a walk-in policy do not exist yet, so none is shown: the prototype's sample quote, its policy,
+ * its tax rule and its sample guests are not drawn on this live screen.
+ */
 export function WalkInView({
   roomTypes,
-  matches,
-  quote,
   nights: initialNights,
   adults: initialAdults,
 }: {
   roomTypes: RoomType[];
-  matches: GuestMatch[];
-  quote: WalkInQuote;
   nights: number;
   adults: number;
 }) {
   const router = useRouter();
   const [nights, setNights] = useState(initialNights);
   const [adults, setAdults] = useState(initialAdults);
-  const [kids, setKids] = useState(quote.children);
-  const [sel, setSel] = useState<string>(quote.roomType);
-  const [conflict, setConflict] = useState(quote.conflictType !== null);
-  const [guest, setGuest] = useState(quote.guestMatch);
+  const [kids, setKids] = useState(0);
+  const [sel, setSel] = useState<string>("");
   // The walk-in arrives today, in Kigali; the availability is the page's own read of the desk's day.
   const [today] = useState(kigaliIso);
   const [checkedAt, setCheckedAt] = useState(kigaliClock);
@@ -123,9 +119,6 @@ export function WalkInView({
   const [saving, startSaving] = useTransition();
 
   const guests = adults + kids;
-  const conflictType = roomTypes.find((t) => t.id === quote.conflictType);
-  const offer = roomTypes.find((t) => t.id === "family");
-  const stillFree = roomTypes.filter((t) => t.free > 0 && t.id !== "queen").map((t) => t.name);
   const bookable = (t: RoomType) => t.free > 0 && !t.soldNote && guests <= t.sleeps;
   const t = roomTypes.find((x) => x.id === sel && bookable(x));
   const canCheckIn = !!t && name.trim().length > 0 && !saving;
@@ -164,8 +157,7 @@ export function WalkInView({
     });
   };
 
-  let q: { span: string; lines: { label: string; amt: number }[]; sub: number; vat: number; first: number } | null =
-    null;
+  let q: { span: string; lines: { label: string; amt: number }[]; sub: number } | null = null;
   if (t) {
     const sub = t.rate * nights;
     q = {
@@ -177,8 +169,6 @@ export function WalkInView({
         amt: t.rate,
       })),
       sub,
-      vat: sub * quote.tax.rate,
-      first: t.rate * (1 + quote.tax.rate),
     };
   }
 
@@ -264,45 +254,13 @@ export function WalkInView({
 
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex min-w-0 flex-[999_1_600px] flex-col gap-4">
-          {conflict && conflictType ? (
-            <Alert status="danger" role="alert">
-              <Alert.Indicator>
-                <TriangleExclamation />
-              </Alert.Indicator>
-              <Alert.Content>
-                <Alert.Title>Last {conflictType.name} was just booked on another channel — choose another</Alert.Title>
-                <Alert.Description>
-                  The marketplace confirmed it at {quote.conflictAt} while you were quoting. Nothing was held or charged
-                  for this guest. {stillFree.join(" and ")} are still free for these dates.
-                </Alert.Description>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {offer ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onPress={() => {
-                        pick(offer.id);
-                        setAdults((a) => Math.min(a, offer.sleeps));
-                      }}
-                    >
-                      Offer {offer.name}
-                    </Button>
-                  ) : null}
-                  <Button size="sm" variant="ghost" onPress={() => setConflict(false)}>
-                    Dismiss
-                  </Button>
-                </div>
-              </Alert.Content>
-            </Alert>
-          ) : null}
-
           <Card className="gap-3 p-[18px]" aria-labelledby="av-h">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-col gap-0.5">
                 <h2 id="av-h" className="text-[15px] leading-[22px] font-semibold">
                   Availability by Room Type
                 </h2>
-                <span className="text-xs text-muted">Standard rate plan · per night · free tonight</span>
+                <span className="text-xs text-muted">Default rate · per night · free tonight</span>
               </div>
               <GateChip icon={<Lock className="size-3" />}>Rates are managed by your general manager</GateChip>
             </div>
@@ -355,8 +313,8 @@ export function WalkInView({
                             </Table.Cell>
                             <Table.Cell>
                               <span className="flex flex-col">
-                                <span className="whitespace-nowrap">{quote.policy.name}</span>
-                                <span className="text-xs text-muted">{quote.policy.note}</span>
+                                <span className="whitespace-nowrap">Pays on the bill</span>
+                                <span className="text-xs text-muted">No booking, so no cancellation terms</span>
                               </span>
                             </Table.Cell>
                           </Table.Row>
@@ -374,9 +332,7 @@ export function WalkInView({
               <h2 id="g-h" className="text-[15px] leading-[22px] font-semibold">
                 Guest
               </h2>
-              <span className="text-xs text-muted">
-                Search before creating a profile. Matches are suggestions; nothing is merged automatically.
-              </span>
+              <span className="text-xs text-muted">The stay opens under the name typed here.</span>
             </div>
             <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr))]">
               <TextField value={name} onChange={setName} className="flex flex-col gap-1">
@@ -392,38 +348,9 @@ export function WalkInView({
                 <Input placeholder="Gets the claim code for the guest app" type="email" />
               </TextField>
             </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] font-semibold">
-                {plural(matches.filter((m) => m.id !== "new").length, "possible match", "possible matches")}
-              </span>
-              <span className="text-xs text-muted">Isangano guests only</span>
-            </div>
-            <RadioButtonGroup
-              aria-label="Guest profile for this booking"
-              value={guest}
-              onChange={(v) => v && setGuest(v)}
-              className="flex flex-col gap-2"
-            >
-              {matches.map((m) => (
-                <RadioButtonGroup.Item key={m.id} value={m.id} className="flex-row items-center gap-3 px-3.5 py-2.5">
-                  <RadioButtonGroup.ItemContent className="flex flex-1 flex-row items-center gap-3">
-                    <Avatar size="sm" variant="soft" color={m.id === "g1" ? "accent" : "default"}>
-                      <Avatar.Fallback>{m.initials}</Avatar.Fallback>
-                    </Avatar>
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <Label className="font-semibold">{m.name}</Label>
-                      <span className="text-xs text-muted tabular">{m.desc}</span>
-                    </span>
-                    <Chip size="sm" variant="soft" color={toneColor(m.tone)}>
-                      {m.chip}
-                    </Chip>
-                  </RadioButtonGroup.ItemContent>
-                </RadioButtonGroup.Item>
-              ))}
-            </RadioButtonGroup>
             <p className="text-xs text-muted" aria-live="polite">
-              Guest profiles are not built yet, so a match is only a suggestion: the stay opens under the name typed
-              above and nothing is linked. Check the ID when you hand over the key.
+              Guest profiles are not built yet, so there is nothing to search or match: the stay opens under the name
+              typed above and is linked to no earlier stay. Check the ID when you hand over the key.
             </p>
           </Card>
         </div>
@@ -445,7 +372,7 @@ export function WalkInView({
                     <Tag />
                   </EmptyState.Media>
                   <EmptyState.Title>Choose a room type</EmptyState.Title>
-                  <EmptyState.Description>The quote and its taxes appear here.</EmptyState.Description>
+                  <EmptyState.Description>The quote appears here.</EmptyState.Description>
                 </EmptyState.Header>
               </EmptyState>
             ) : (
@@ -465,32 +392,31 @@ export function WalkInView({
                     <span>Subtotal</span>
                     <span className="tabular">{formatRwf(q.sub)}</span>
                   </li>
+                  {/* The night audit posts each room night at the stay's rate with no tax line of its own, and no levy
+                      is posted to a bill: the estimate adds neither. */}
                   <li className="flex items-start justify-between gap-2">
                     <span className="flex flex-col gap-0.5">
-                      <span>VAT {Math.round(quote.tax.rate * 100)}%</span>
-                      <span className="text-[11px] text-muted">{quote.tax.rule}</span>
-                      <GateChip icon={<ShieldExclamation className="size-3" />} className="self-start">
-                        Configured · awaiting sign-off
-                      </GateChip>
+                      <span>VAT</span>
+                      <span className="text-[11px] text-muted">
+                        Room nights post at the rate, with no separate VAT line
+                      </span>
                     </span>
-                    <span className="whitespace-nowrap tabular">{formatRwf(q.vat)}</span>
+                    <span className="whitespace-nowrap text-muted">Not added</span>
                   </li>
                   <li className="flex items-center justify-between gap-2">
                     <span className="flex flex-col">
                       <span>Tourism levy</span>
-                      <span className="text-[11px] text-muted">{quote.tax.levy}</span>
+                      <span className="text-[11px] text-muted">Not posted to the bill</span>
                     </span>
-                    <span className="text-muted tabular">{formatRwf(0)}</span>
+                    <span className="whitespace-nowrap text-muted">Not added</span>
                   </li>
                   <li className="flex justify-between gap-2 border-t border-separator pt-2 text-[15px] font-semibold">
                     <span>Total</span>
-                    <span className="tabular">{formatRwf(q.sub + q.vat)}</span>
+                    <span className="tabular">{formatRwf(q.sub)}</span>
                   </li>
                 </ul>
                 <Card variant="secondary" className="gap-1 px-3.5 py-3 text-[13px]">
-                  <span className="font-semibold">
-                    {quote.policy.name} · {quote.policy.id}
-                  </span>
+                  <span className="font-semibold">Pays on the bill</span>
                   <span className="text-muted">
                     A walk-in pays on the bill: each night posts at night audit, and the desk takes cash on the stay's
                     page after check-in (the first night is {formatRwf(t.rate)}).

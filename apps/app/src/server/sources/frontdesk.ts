@@ -75,7 +75,7 @@ export interface ApiBooking {
   totalRwf: number;
   lockedNightlyRateRwf: number;
   paidRwf: number;
-  paymentStatus: string | null;
+  paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
   approvalExpiresAt: string | null;
   createdAt: string;
   confirmedAt: string | null;
@@ -170,6 +170,27 @@ export function deskBoard(ctx: SourceContext): Promise<ApiBoard> {
 /** Drop the remembered day after a write, so the next read through this context is fresh. */
 export function forgetDeskBoard(ctx: SourceContext): void {
   boards.delete(ctx);
+}
+
+/**
+ * The name of the property the desk's day is read for, as the API returns it: the desk screens head
+ * themselves with it instead of a property named in the prototype. Read after the page's collections,
+ * it is the same read (one board per request context).
+ */
+export async function deskPropertyName(ctx: SourceContext): Promise<string> {
+  return (await deskBoard(ctx)).property.name;
+}
+
+/**
+ * What the guest paid online with the booking, in the desk's words: the escrow the API reports
+ * (`paidRwf`, by `paymentStatus`), never assumed. "Nothing paid online" when no payment was taken.
+ */
+export function onlinePayment(b: Pick<ApiBooking, "paidRwf" | "totalRwf" | "paymentStatus">): string {
+  if (b.paidRwf <= 0) return "nothing paid online";
+  const what = b.paidRwf >= b.totalRwf ? `${rwf(b.paidRwf)} paid online in full` : `${rwf(b.paidRwf)} paid online`;
+  if (b.paymentStatus === "paid_out") return `${what} · paid out to the business`;
+  if (b.paymentStatus === "forfeited") return `${what} · kept under the booking's policy`;
+  return `${what} · held by Injishi until the stay`;
 }
 
 // ── Words and numbers ────────────────────────────────────────────────────────
@@ -280,7 +301,7 @@ export function arrivalsOf(board: ApiBoard): ApiBooking[] {
 
 function balanceOfArrival(b: ApiBooking): { balance: number; note: string; flag: boolean } {
   const due = Math.max(0, b.totalRwf - b.paidRwf);
-  if (due === 0) return { balance: 0, note: "Prepaid · verified", flag: false };
+  if (due === 0) return { balance: 0, note: b.paidRwf > 0 ? "Prepaid · verified" : "Nothing due", flag: false };
   if (b.paidRwf > 0) return { balance: due, note: "Deposit verified · balance due", flag: true };
   return { balance: due, note: "Pays on arrival", flag: true };
 }
@@ -401,8 +422,13 @@ function departuresOf(board: ApiBoard): ApiStay[] {
   );
 }
 
+/** Is the guest due out after the property's own check-out time? Never "late" when the property states none. */
+function lateCheckout(s: ApiStay, board: ApiBoard): boolean {
+  const checkout = board.property.checkOutTime;
+  return !!checkout && !!s.plannedExitAt && clock(s.plannedExitAt) > checkout;
+}
+
 function presentDeparture(s: ApiStay, board: ApiBoard): Departure {
-  const checkout = board.property.checkOutTime ?? "11:00";
   const nights =
     s.checkIn && s.checkOut ? daysBetween(s.checkIn, s.checkOut) : daysBetween(kigaliDate(s.entryAt), board.today);
   const base = {
@@ -426,14 +452,22 @@ function presentDeparture(s: ApiStay, board: ApiBoard): Departure {
     };
   }
   const time = clock(s.plannedExitAt);
-  const late = time > checkout;
+  const late = lateCheckout(s, board);
   const balance = s.folio?.balanceRwf ?? 0;
   return {
     ...base,
     checkout: late ? "late" : "due",
     checkoutLabel: late ? `Late · ${time}` : `Due ${time}`,
     balance,
-    balanceNote: balance > 0 ? "To settle at checkout" : balance < 0 ? "In credit" : "Settled",
+    // A role that may not read bills gets no balance from the API: never call that "Settled".
+    balanceNote:
+      s.folio && s.folio.balanceRwf === null
+        ? "Bill not shown to your role"
+        : balance > 0
+          ? "To settle at checkout"
+          : balance < 0
+            ? "In credit"
+            : "Settled",
     time,
     note: s.deskNote ?? "",
   };
@@ -467,9 +501,7 @@ function presentKpis(board: ApiBoard): DeskKpi[] {
   const guestsIn = inHouse.reduce((n, s) => n + (board.bookings.find((b) => b.id === s.bookingId)?.guestCount ?? 1), 0);
   const departures = departuresOf(board);
   const out = departures.filter((s) => s.lifecycle === "closed").length;
-  const late = departures.filter(
-    (s) => s.lifecycle === "open" && clock(s.plannedExitAt) > (board.property.checkOutTime ?? "11:00"),
-  ).length;
+  const late = departures.filter((s) => s.lifecycle === "open" && lateCheckout(s, board)).length;
   const readiness = presentReadiness(board);
   const ready = readiness.filter((r) => READY.has(r.status)).length;
   const cleaning = readiness.filter((r) => r.status === "dirty").length;
@@ -513,12 +545,13 @@ function presentKpis(board: ApiBoard): DeskKpi[] {
       status: ready < readiness.length || unassigned > 0 ? "warning" : "default",
     },
     {
-      // Guest requests are not on the desk yet (frontdesk.guestRequests is deferred); the view counts the queue it shows.
+      // Guest requests are not on the desk yet (frontdesk.guestRequests is deferred): there is no count to
+      // give, so the view shows none (never the sample queue's length) and this foot says why.
       id: "requests",
       label: "Open requests",
       value: 0,
       total: null,
-      foot: "From the guest request queue",
+      foot: "Not available yet · guest requests are not connected to the desk",
       icon: "Comments",
       status: "default",
     },
@@ -647,7 +680,7 @@ async function presentCheckIn(ctx: SourceContext, b: ApiBooking, board: ApiBoard
       { label: "Room type", value: b.roomTypeName },
       { label: "Guests", value: guestsLabel(b) },
       { label: "Booked by", value: booker ? channelOf(b.channel) : `${name} · ${channelOf(b.channel)}` },
-      { label: "Stay total", value: `${rwf(b.totalRwf)} · ${rwf(b.paidRwf)} paid online` },
+      { label: "Stay total", value: `${rwf(b.totalRwf)} · ${onlinePayment(b).split(" · ")[0]}` },
       {
         label: "Terms",
         value: `${b.bookingMode === "request_to_book" ? "Request to book" : "Instant booking"} · ${(b.cancellationTier ?? "flexible").replace(/_/g, " ")} cancellation`,
@@ -703,7 +736,7 @@ async function presentCheckIn(ctx: SourceContext, b: ApiBooking, board: ApiBoard
     },
     deposit: {
       amount: due,
-      policy: due === 0 ? "Paid online when booked" : "Balance at check-in",
+      policy: due > 0 ? "Balance due at check-in" : b.paidRwf > 0 ? "Paid online when booked" : "Nothing due",
       voucher: b.reference,
       stayTotal: b.totalRwf,
       phone,
@@ -761,7 +794,8 @@ async function presentCheckIn(ctx: SourceContext, b: ApiBooking, board: ApiBoard
         id: "pro",
         icon: "File",
         title: "Booking confirmation",
-        desc: `${rwf(b.totalRwf)} · paid online when booked · not a tax invoice or receipt`,
+        // What the booking's own payment says, never "paid online" for a booking nobody paid.
+        desc: `${rwf(b.totalRwf)} · ${onlinePayment(b).split(" · ")[0]} · not a tax invoice or receipt`,
         chip: "Confirmation",
         tone: "default",
         printable: true,
@@ -823,14 +857,18 @@ function presentReservation(b: ApiBooking, board: ApiBoard, atDesk: string | nul
   let paymentDetail = "";
   let info: string | null = null;
 
-  const paidDetail = `${rwf(b.paidRwf)} paid online when booked · held until the stay`;
+  // The booking's own payment (escrow and its status), never "paid online" for a booking nobody paid.
+  const paidDetail = onlinePayment(b).replace(/^./, (c) => c.toUpperCase());
   switch (kind) {
     case "request":
       status = "Requested";
       statusTone = "warning";
       stayText = decideBy(b.approvalExpiresAt, today);
-      payment = "Payment held";
-      paymentDetail = `${rwf(b.paidRwf)} held until the request is answered; declined, it goes back in full`;
+      payment = b.paidRwf > 0 ? "Payment held" : "No payment taken";
+      paymentDetail =
+        b.paidRwf > 0
+          ? `${rwf(b.paidRwf)} held until the request is answered; declined, it goes back in full`
+          : "No payment was taken with the request";
       break;
     case "cancelled":
       if (b.state === "no_show") {
@@ -846,7 +884,8 @@ function presentReservation(b: ApiBooking, board: ApiBoard, atDesk: string | nul
         stayText = b.cancelledAt ? `Cancelled ${dayMonth(b.cancelledAt)}` : "Cancelled";
         payment = (b.refundRwf ?? 0) > 0 ? "Refunded" : "Nothing refunded";
         paymentTone = (b.refundRwf ?? 0) > 0 ? "success" : "default";
-        paymentDetail = `Refund ${rwf(b.refundRwf ?? 0)} to the original wallet`;
+        paymentDetail =
+          (b.refundRwf ?? 0) > 0 ? `Refund ${rwf(b.refundRwf ?? 0)} to the wallet the guest paid from` : "No refund";
         info = `Cancelled by the ${b.cancelledBy === "host" ? "property" : "guest"}${b.cancelledAt ? ` on ${dayMonth(b.cancelledAt)}` : ""}. ${
           (b.refundRwf ?? 0) > 0
             ? `${rwf(b.refundRwf ?? 0)} went back to the guest.`
@@ -867,8 +906,8 @@ function presentReservation(b: ApiBooking, board: ApiBoard, atDesk: string | nul
       status = "Not arrived";
       statusTone = "danger";
       stayText = "No stay opened";
-      payment = b.paidRwf >= b.totalRwf ? "Prepaid · verified" : "Deposit verified";
-      paymentTone = "success";
+      payment = b.paidRwf <= 0 ? "Nothing paid" : b.paidRwf >= b.totalRwf ? "Prepaid · verified" : "Deposit verified";
+      paymentTone = b.paidRwf > 0 ? "success" : "warning";
       paymentDetail = paidDetail;
       break;
     default: {
@@ -879,9 +918,16 @@ function presentReservation(b: ApiBooking, board: ApiBoard, atDesk: string | nul
             : `Expected ${b.eta ?? "today"}`
           : `Expected ${dayMonth(b.checkIn)}`;
       const due = Math.max(0, b.totalRwf - b.paidRwf);
-      payment = due === 0 ? "Prepaid · verified" : b.paidRwf > 0 ? "Deposit verified" : "Pays on arrival";
+      payment =
+        due === 0
+          ? b.paidRwf > 0
+            ? "Prepaid · verified"
+            : "Nothing due"
+          : b.paidRwf > 0
+            ? "Deposit verified"
+            : "Pays on arrival";
       paymentTone = due === 0 || b.paidRwf > 0 ? "success" : "warning";
-      paymentDetail = due === 0 ? paidDetail : `${rwf(due)} due at check-in`;
+      paymentDetail = due === 0 ? paidDetail : `${rwf(due)} due at check-in · ${onlinePayment(b)}`;
     }
   }
 

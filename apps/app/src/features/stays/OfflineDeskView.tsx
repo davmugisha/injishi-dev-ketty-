@@ -98,7 +98,7 @@ export function OfflineDeskView({
         label={offline ? "Offline preview · nothing queued" : "Offline desk preview"}
       />
       <PageHeader
-        eyebrow="Desk 1 · Isangano Lakeside Hotel · sample day"
+        eyebrow="Desk 1 · sample day"
         title="Offline Desk"
         description="A preview of keeping arrivals moving when the connection drops. Nothing on this page is saved or sent."
         actions={

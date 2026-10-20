@@ -72,7 +72,16 @@ function SectionTitle({ title, children }: { title: ReactNode; children?: ReactN
   );
 }
 
-export function CheckInView({ persona, file }: { persona: Persona; file: CheckInFile }) {
+export function CheckInView({
+  persona,
+  file,
+  property,
+}: {
+  persona: Persona;
+  file: CheckInFile;
+  /** The property the desk's day is read for, as the API names it. */
+  property: string;
+}) {
   // A guest already checked in opens on the finished card (the page reads the stay back after the command).
   const [step, setStep] = useState<Step>(file.stayId ? 5 : 1);
   const [maxStep, setMaxStep] = useState<Step>(file.stayId ? 5 : 1);
@@ -110,6 +119,8 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
   /** Paid in full online when booked: the bill opens with it credited, and nothing is taken at the desk. */
   const nothingDue = file.deposit.amount === 0;
   const roomState = file.rooms.find((r) => r.room === room);
+  /** The guest sent their ID from the guest app before arriving (the booking's own record says so). */
+  const idSent = file.primaryDocument.some((f) => /guest app/i.test(f.value));
 
   const payDesc: Record<PayState, string> = {
     idle: "Not started",
@@ -129,7 +140,7 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
   ];
 
   let payCheck: [Tone, string] = ["warning", "Not started"];
-  if (pay === "later") payCheck = ["success", "Pay at checkout · agent guarantee"];
+  if (pay === "later") payCheck = ["success", "Pay at checkout · left on the bill"];
   else if (payState === "pending") payCheck = ["warning", `${netLabel} pending · not paid yet`];
   else if (payState === "verified") payCheck = ["success", `Verified · ${netLabel} · ${momoRef}`];
   else if (payState === "cash") payCheck = ["success", `Cash ${formatRwf(cashTaken)} counted · ${file.deposit.till}`];
@@ -344,9 +355,9 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                 <SectionTitle title="Guest and Occupants">
                   Check the ID against the person at the desk. Booker, occupants and payer stay separate roles.
                 </SectionTitle>
-                <Chip size="sm" variant="soft" color="accent">
+                <Chip size="sm" variant="soft" color={idSent ? "accent" : "default"}>
                   <Smartphone className="size-3" />
-                  <Chip.Label>ID sent from the guest app</Chip.Label>
+                  <Chip.Label>{idSent ? "ID sent from the guest app" : "No ID sent ahead"}</Chip.Label>
                 </Chip>
               </div>
 
@@ -611,9 +622,8 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                   </>
                 ) : (
                   <>
-                    {file.deposit.policy}, from this booking's terms: a 1-night deposit of{" "}
-                    <span className="font-semibold text-foreground tabular">{deposit}</span> now, or pay at checkout
-                    because {file.bookedBy} guarantees the booking (voucher {file.deposit.voucher}).
+                    <span className="font-semibold text-foreground tabular">{deposit}</span> is still due on booking{" "}
+                    {file.deposit.voucher}. Take it now in cash, or leave it on the bill and collect it at checkout.
                   </>
                 )}
               </SectionTitle>
@@ -778,7 +788,7 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                     <Alert.Description>
                       {nothingDue
                         ? "The bill opens with the room's online payment credited, so it owes nothing for the nights. Extras are collected at checkout."
-                        : `Allowed by ${file.deposit.policy} because ${file.bookedBy} guarantees the booking (voucher ${file.deposit.voucher}). The folio opens with ${formatRwf(file.deposit.amount)} due.`}
+                        : `Nothing is taken now. The bill opens with ${formatRwf(file.deposit.amount)} due, collected at checkout.`}
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>
@@ -789,7 +799,7 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
           {step === 4 ? (
             <div className="flex flex-col gap-4">
               <SectionTitle title="Key and Guest App">
-                Hand over the room key and give {file.firstName} a way to open her stay in the guest app.
+                Hand over the room key and give {file.firstName} a way to open the stay in the guest app.
               </SectionTitle>
               <Alert status="default">
                 <Alert.Indicator>
@@ -798,7 +808,7 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                 <Alert.Content>
                   <Alert.Title>No lock provider connected · issue physical key {room}</Alert.Title>
                   <Alert.Description>
-                    Digital keys only appear when an authorised lock provider is connected to Isangano Lakeside Hotel.
+                    Digital keys only appear when an authorised lock provider is connected to {property}.
                   </Alert.Description>
                 </Alert.Content>
               </Alert>
@@ -855,7 +865,9 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                         {file.claimCode || "None yet"}
                       </span>
                       <span className="text-xs text-muted">
-                        {file.claimCode ? `Stay ${file.stayId} · expires at checkout` : "The stay does not exist yet"}
+                        {file.claimCode
+                          ? `Stay ${file.stayId} · works once, when the guest claims it`
+                          : "The stay does not exist yet"}
                       </span>
                     </div>
                   </div>
@@ -873,8 +885,8 @@ export function CheckInView({ persona, file }: { persona: Persona; file: CheckIn
                     A claim is not proof of identity
                   </GateChip>
                   <p className="text-xs text-muted">
-                    Scanning links the trip in {file.firstName}'s app. Her ID was checked in step 1; the claim doesn't
-                    replace that check.
+                    Scanning links the trip in {file.firstName}'s app. The ID check in step 1 is still needed; the claim
+                    doesn't replace it.
                   </p>
                 </Card>
               </div>
