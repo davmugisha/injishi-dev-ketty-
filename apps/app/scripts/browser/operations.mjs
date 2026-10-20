@@ -75,7 +75,19 @@ try {
   const todo = passed["To do"]?.length ?? 0;
   await page.press("Add task");
   await page.waitFor("!!document.querySelector('[role=dialog]')", "the Add a cleaning task dialog");
-  await page.press("Add task", { within: "document.querySelector('[role=dialog]')" });
+  // A press that lands before the dialog's button is live does nothing, so press again, but only while the dialog
+  // is still open and nothing was added: a submit that is merely slow closes the dialog and is never repeated.
+  const added1 = `(() => { const c = ${columns}; return (c["To do"]?.length ?? 0) > ${todo}; })()`;
+  const dialogOpen = "!!document.querySelector('[role=dialog]')";
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.press("Add task", { within: "document.querySelector('[role=dialog]')" });
+    try {
+      await page.waitFor(`${added1} || !${dialogOpen}`, "the task to be added or the dialog to close", 15_000);
+      break;
+    } catch {
+      if (!(await page.eval(dialogOpen))) break;
+    }
+  }
   await page.waitFor(
     `(() => { const c = ${columns}; return (c["To do"]?.length ?? 0) === ${todo + 1}; })()`,
     "a new card in To do",
