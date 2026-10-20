@@ -7,9 +7,8 @@
 //   B. `GET /api/v1/properties/sitemap` lists a published property, drops it when
 //      it is unpublished, drops it when its business is suspended and restores it
 //      on reinstatement with no republish: the same predicate as the page (AC-I9).
-//   C. Web's `/sitemap.xml` holds ADR-048's rule while the waitlist gate stands: it
-//      lists `/waitlist` and no property page, because `robots.ts` disallows the
-//      marketplace. The launch sitemap reads B (`apps/web/WAITLIST-REMOVAL.md`).
+//   C. Web's `/sitemap.xml` reads B: it lists the published property's page on
+//      web's origin, and no `/waitlist`, which went at launch (ADR-048).
 //   D. A property page carries a canonical link built from web's origin and the
 //      slug (AC-I9).
 //   E. The inventory reads answer with the workspace in the header alone: the
@@ -187,10 +186,10 @@ const main = async () => {
 
   const web = await webSitemap();
   const expectedUrl = `${WEB_URL}/property/${slug}`;
-  console.log("\n=== C. Web's /sitemap.xml while the waitlist gate stands (ADR-048) ===");
+  console.log("\n=== C. Web's /sitemap.xml reads the API sitemap (AC-I9) ===");
   check("web serves /sitemap.xml as XML", web.status === 200 && /xml/.test(String(web.type)), `status ${web.status} ${web.type}`);
-  check("it lists /waitlist", /<loc>[^<]*\/waitlist<\/loc>/.test(web.text), web.text.slice(0, 400));
-  check("and no property page, the published one included", !web.text.includes("/property/") && !web.text.includes(expectedUrl), web.text.slice(0, 400));
+  check("it lists the published property's page", web.text.includes(`<loc>${expectedUrl}</loc>`), web.text.slice(0, 400));
+  check("and no /waitlist", !web.text.includes("/waitlist"), web.text.slice(0, 400));
 
   console.log("\n--- suspend the business, then reinstate it ---");
   const orgId = business.orgId;

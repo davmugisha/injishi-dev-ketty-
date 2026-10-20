@@ -27,7 +27,6 @@ import {
   CANNOT_CHANGE,
   ESCALATION_OFFERED,
   FALLBACK_ARTICLE,
-  LISTINGS_CLOSED,
   NEED_A_DAY,
   NEED_A_PRICE,
   NO_OPERATOR,
@@ -190,7 +189,6 @@ export class RequestRouter {
     }
 
     if (STAY_QUESTION.test(question)) {
-      if (!offered.has('search_listings')) return direct('direct:listings', LISTINGS_CLOSED);
       const search = listingSearchOf(question);
       return this.answerFrom('direct:listings', 'search_listings', search.input, caller, (o) =>
         listingsAnswer(o.content, search.place),

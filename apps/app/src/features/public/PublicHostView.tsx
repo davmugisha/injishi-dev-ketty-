@@ -19,8 +19,6 @@ import {
   Avatar,
   Button,
   Card,
-  Checkbox,
-  CheckboxGroup,
   Chip,
   FieldError,
   Form,
@@ -102,12 +100,6 @@ const FORMATS = [
   { id: "onsite", label: "At my property", note: "A field agent visits where the programme runs in your district" },
 ];
 
-const INTERESTS = [
-  { id: "market", label: "Listing on the marketplace" },
-  { id: "residence", label: "Residence and rent tools" },
-  { id: "training", label: "Training for my staff" },
-];
-
 /** Public · for hosts (artifact: PublicHost.dc.html) — the marketing page for businesses. */
 export function PublicHostView({
   visitor,
@@ -133,21 +125,12 @@ export function PublicHostView({
   const [format, setFormat] = useState("online");
   const [demoSent, setDemoSent] = useState(false);
 
-  const [contact, setContact] = useState("");
-  const [interests, setInterests] = useState<string[]>(["market"]);
-  const [waitSent, setWaitSent] = useState(false);
-
   const features = data.features.filter((f) => f.kind === kind);
   const formatNote = FORMATS.find((f) => f.id === format)?.note;
-  const picked = INTERESTS.filter((i) => interests.includes(i.id)).map((i) => i.label.toLowerCase());
 
   const sendDemo = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setDemoSent(true);
-  };
-  const joinWaitlist = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setWaitSent(true);
   };
 
   return (
@@ -553,64 +536,6 @@ export function PublicHostView({
                     Request demo
                   </Button>
                 </div>
-              </Form>
-            )}
-          </Card>
-
-          <Card
-            id="waitlist"
-            aria-labelledby="wait-h"
-            variant="secondary"
-            className="min-w-0 flex-[1_1_360px] scroll-mt-[24px] gap-[14px] p-[22px]"
-            render={(p) => <section {...p} />}
-          >
-            <SectionHeading
-              id="wait-h"
-              size="md"
-              title="Join the Waitlist"
-              sub="Not ready yet? Hear when your district opens and prices are published."
-            />
-            {waitSent ? (
-              <Alert status="success" role="status">
-                <Alert.Indicator>
-                  <CircleCheck />
-                </Alert.Indicator>
-                <Alert.Content>
-                  <Alert.Title>You’re on the waitlist</Alert.Title>
-                  <Alert.Description>
-                    We’ll message you about {picked.length ? picked.join(", ") : "launch news"}. Unsubscribe from any
-                    message.
-                  </Alert.Description>
-                </Alert.Content>
-              </Alert>
-            ) : (
-              <Form aria-labelledby="wait-h" className="flex flex-col gap-[14px]" onSubmit={joinWaitlist}>
-                <TextField
-                  value={contact}
-                  onChange={setContact}
-                  validate={filled("Enter an email address or phone number.")}
-                  className="gap-[4px]"
-                >
-                  <Label>Email or phone</Label>
-                  <Input placeholder="you@business.rw or 078…" />
-                  <FieldError />
-                </TextField>
-                <CheckboxGroup value={interests} onChange={setInterests} className="gap-[8px]">
-                  <Label className="mb-[6px]">Tell me about</Label>
-                  {INTERESTS.map((it) => (
-                    <Checkbox key={it.id} value={it.id} className="mt-0">
-                      <Checkbox.Content className="gap-[10px]">
-                        <Checkbox.Control>
-                          <Checkbox.Indicator />
-                        </Checkbox.Control>
-                        {it.label}
-                      </Checkbox.Content>
-                    </Checkbox>
-                  ))}
-                </CheckboxGroup>
-                <Button type="submit" className="self-start">
-                  Join the waitlist
-                </Button>
               </Form>
             )}
           </Card>

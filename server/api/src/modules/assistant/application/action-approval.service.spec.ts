@@ -21,7 +21,7 @@ async function setup(): Promise<{ approvals: ActionApprovalService; proposals: F
   const outcome = await tools.run(
     'propose_room_price',
     { roomTypeName: 'Double room', newPriceRwf: 70000 },
-    { userId: USER, catalogueOpen: true, workspace: owner, requestText: 'change the Double room price to 70,000' },
+    { userId: USER, workspace: owner, requestText: 'change the Double room price to 70,000' },
   );
   const id = (outcome.proposalIds as string[])[0];
   proposals.rows[0].expiresAt = new Date(NOW + 15 * 60 * 1000);

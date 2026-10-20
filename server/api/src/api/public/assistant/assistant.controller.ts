@@ -47,7 +47,6 @@ import {
 } from '../../../shared/auth/workspace.guard';
 import { isProduction } from '../../../shared/config/security.config';
 import { IdempotencyKey } from '../../../shared/http/idempotency-key';
-import { isPreLaunchHost } from '../../../shared/pre-launch/pre-launch.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import {
   OptionalSessionGuard,
@@ -107,18 +106,17 @@ export class AssistantController {
   }
 
   /**
-   * What the request knows that the tools need: the pre launch host rule and,
-   * for an operator, the workspace resolved in WorkspaceGuard's order (ADR-061
-   * D-f). One place, so opening, claiming and asking all see the same caller.
+   * What the request knows that the tools need: for an operator, the
+   * workspace resolved in WorkspaceGuard's order (ADR-061 D-f). One place, so
+   * opening, claiming and asking all see the same caller.
    */
   private async contextFor(user: SessionUser | null, req: RawRequest): Promise<TurnContext> {
-    const scope = await this.operatorScope.resolve({
+    return this.operatorScope.resolve({
       userId: user?.id ?? null,
       sessionId: req.session?.id ?? null,
       workspaceId: headerOf(req, 'x-workspace-id'),
       branchHeader: req.headers?.['x-branch-id'],
     });
-    return { ...contextOf(req), ...scope };
   }
 
   /** The caller's current conversation on a surface, and whether the assistant is on. */
@@ -280,15 +278,6 @@ export class AssistantController {
     }
     return { conversation: result.conversation };
   }
-}
-
-/**
- * The listing tools follow the pre launch rule of `PreLaunchGuard`, read from
- * the same Host header with the same function (ADR-061 D-j).
- */
-function contextOf(req: RawRequest): TurnContext {
-  const raw = req.headers?.host;
-  return { catalogueOpen: !isPreLaunchHost(Array.isArray(raw) ? raw[0] : raw) };
 }
 
 function headerOf(req: RawRequest, name: string): string | undefined {

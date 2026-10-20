@@ -178,8 +178,6 @@ function allows(tool: AssistantTool, caller: ToolCaller): boolean {
   switch (needs) {
     case 'public':
       return true;
-    case 'catalogue':
-      return caller.catalogueOpen;
     case 'signed_in':
       return caller.userId !== null;
   }
@@ -190,7 +188,6 @@ function refusalFor(name: string, tool: AssistantTool | undefined, caller: ToolC
   if (!tool) return `The tool ${name} is not available in this conversation.`;
   const needs = tool.requires;
   if (typeof needs === 'object') return operatorRefusal(caller, needs.anyOf);
-  if (needs === 'catalogue') return 'Listings are not open yet on this site. Say so, and do not name any property.';
   return 'Sign in to use this.';
 }
 

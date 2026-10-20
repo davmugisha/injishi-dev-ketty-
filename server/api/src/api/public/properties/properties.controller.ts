@@ -10,11 +10,9 @@ import {
   Param,
   ParseUUIDPipe,
   Res,
-  UseGuards,
 } from '@nestjs/common';
 
 import { ListingService } from '../../../modules/listing/application/listing.service';
-import { PreLaunchGuard } from '../../../shared/pre-launch/pre-launch.guard';
 
 /** The minimum of a Fastify reply the photo route touches. */
 interface PhotoReply {
@@ -32,11 +30,6 @@ interface PhotoReply {
  * `:id` deliberately: Nest matches routes in declaration order, and a literal
  * segment registered after a parameter segment is shadowed by it.
  */
-// PRE-LAUNCH (ADR-048): answers 404 on the production API host, and passes
-// everything through on every other host. The website puts a waitlist in front
-// of the marketplace, and leaving the catalogue readable as JSON here would be
-// a wall with a door beside it. Removed at launch, per apps/web/WAITLIST-REMOVAL.md.
-@UseGuards(PreLaunchGuard)
 @Controller({ path: 'properties', version: '1' })
 export class PropertiesController {
   constructor(private readonly listings: ListingService) {}
@@ -142,11 +135,6 @@ export class PropertiesController {
  * Unauthenticated, like the rest of browse: a guest prices a stay before they
  * sign in, and the gate fires when they press confirm.
  */
-// PRE-LAUNCH (ADR-048): answers 404 on the production API host, and passes
-// everything through on every other host. The website puts a waitlist in front
-// of the marketplace, and leaving the catalogue readable as JSON here would be
-// a wall with a door beside it. Removed at launch, per apps/web/WAITLIST-REMOVAL.md.
-@UseGuards(PreLaunchGuard)
 @Controller({ path: 'bookable', version: '1' })
 export class BookableController {
   constructor(private readonly listings: ListingService) {}

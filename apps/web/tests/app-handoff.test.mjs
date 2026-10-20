@@ -8,8 +8,8 @@
  * zone under it. So `https://www.injishi.com/sign-in` answered a 307 to
  * itself, forever, and the waitlist's one door into the product was a loop.
  *
- * THIS TEST RUNS THE REAL FUNCTION, the way `waitlist-gate.test.mjs` does: the
- * source is read, transpiled and evaluated, never restated.
+ * THIS TEST RUNS THE REAL FUNCTION: the source is read, transpiled and
+ * evaluated, never restated.
  *
  * Run: pnpm --filter @injishi/web test
  */

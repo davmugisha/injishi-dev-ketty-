@@ -22,29 +22,8 @@ import { MoonIcon, SunIcon } from "@/components/icons";
  * while the client catches up. State is read for one thing only: `aria-pressed`
  * has no CSS equivalent, so it stays unset until mount rather than announcing a
  * guess to a screen reader.
- *
- * `tone` says which ground the pill sits on. `band` is the footer's dark band it
- * was drawn for. `page` is the ordinary page ground, painted from surface and
- * page foreground tokens so it reads in both themes; the waitlist header is its
- * one caller (ADR-048 copy.md §8 keeps the theme control in the header).
  */
-const TONES = {
-  band: {
-    group: "bg-white/5 ring-1 ring-inset ring-white/10",
-    focus: "focus-visible:ring-white/70 focus-visible:ring-offset-black",
-    light: "bg-white/10 text-white dark:bg-transparent dark:text-white/40 dark:hover:text-white/70",
-    dark: "bg-transparent text-white/40 hover:text-white/70 dark:bg-white/10 dark:text-white dark:hover:text-white",
-  },
-  page: {
-    group: "bg-surface-secondary",
-    focus: "focus-visible:ring-ring focus-visible:ring-offset-background",
-    light: "bg-surface-tertiary text-page-fg dark:bg-transparent dark:text-page-fg-70 dark:hover:text-page-fg",
-    dark: "bg-transparent text-page-fg-70 hover:text-page-fg dark:bg-surface-tertiary dark:text-page-fg",
-  },
-} as const;
-
-export function ThemePill({ tone = "band" }: { tone?: keyof typeof TONES }) {
-  const colours = TONES[tone];
+export function ThemePill() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -56,14 +35,13 @@ export function ThemePill({ tone = "band" }: { tone?: keyof typeof TONES }) {
     <div
       role="group"
       aria-label="Theme"
-      className={cn("flex items-center gap-1 rounded-full p-1", colours.group)}
+      className="flex items-center gap-1 rounded-full bg-white/5 p-1 ring-1 ring-inset ring-white/10"
     >
       <Segment
         label="Light theme"
         pressed={mounted ? !dark : undefined}
         onClick={() => setTheme("light")}
-        focus={colours.focus}
-        className={colours.light}
+        className="bg-white/10 text-white dark:bg-transparent dark:text-white/40 dark:hover:text-white/70"
       >
         <SunIcon className="size-4" />
       </Segment>
@@ -71,8 +49,7 @@ export function ThemePill({ tone = "band" }: { tone?: keyof typeof TONES }) {
         label="Dark theme"
         pressed={mounted ? dark : undefined}
         onClick={() => setTheme("dark")}
-        focus={colours.focus}
-        className={colours.dark}
+        className="bg-transparent text-white/40 hover:text-white/70 dark:bg-white/10 dark:text-white dark:hover:text-white"
       >
         <MoonIcon className="size-4" />
       </Segment>
@@ -84,14 +61,12 @@ function Segment({
   label,
   pressed,
   onClick,
-  focus,
   className,
   children,
 }: {
   label: string;
   pressed: boolean | undefined;
   onClick: () => void;
-  focus: string;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -103,8 +78,7 @@ function Segment({
       onClick={onClick}
       className={cn(
         "grid size-8 place-items-center rounded-full transition-colors duration-200",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-        focus,
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black",
         className,
       )}
     >

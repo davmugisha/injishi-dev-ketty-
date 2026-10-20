@@ -553,18 +553,15 @@ describe('AssistantController (ADR-061 slice A)', () => {
     expect((await app.inject({ method: 'POST', url: CLAIM, payload: { surface: 'web' } })).statusCode).toBe(401);
   });
 
-  it('offers listings on an ordinary host and refuses them on the pre launch host', async () => {
+  it('offers listings on every host, the production API host included', async () => {
     ({ app } = await boot());
-    const open = await post({ message: 'places to stay in Musanze', surface: 'web' }, { host: 'localhost:8000' });
-    expect(open.json().conversation.messages[1].sources.map((s: { kind: string }) => s.kind)).toEqual(['listing', 'listing']);
-
-    const closed = await post(
-      { message: 'places to stay in Musanze', surface: 'web' },
+    for (const headers of [
+      { host: 'localhost:8000' },
       { host: 'api.injishi.com', 'x-forwarded-for': '198.51.100.9' },
-    );
-    const reply = closed.json().conversation.messages[1];
-    expect(reply.text).toBe('Listings are not open yet.');
-    expect(reply.sources).toEqual([]);
+    ]) {
+      const sent = await post({ message: 'places to stay in Musanze', surface: 'web' }, headers);
+      expect(sent.json().conversation.messages[1].sources.map((s: { kind: string }) => s.kind)).toEqual(['listing', 'listing']);
+    }
   });
 
   it('reports enabled false and refuses sends with 503 assistant_off when off', async () => {

@@ -18,11 +18,11 @@ import type { ToolCaller } from './tool-types';
  * a last call that cannot ask for a tool.
  */
 const NOW = new Date('2026-09-30T10:00:00Z');
-const ANON_CALLER: ToolCaller = { userId: null, catalogueOpen: true };
-const GUEST_CALLER: ToolCaller = { userId: GUEST_A, catalogueOpen: true };
-const OPERATOR_CALLER: ToolCaller = { userId: 'owner-1', catalogueOpen: true, workspace: scoped(['listing.manage', 'reservation.assign', 'stay.checkin']) };
+const ANON_CALLER: ToolCaller = { userId: null };
+const GUEST_CALLER: ToolCaller = { userId: GUEST_A };
+const OPERATOR_CALLER: ToolCaller = { userId: 'owner-1', workspace: scoped(['listing.manage', 'reservation.assign', 'stay.checkin']) };
 const ANON: ConversationHolder = { kind: 'anon', tokenHash: null };
-const PUBLIC: TurnContext = { catalogueOpen: true };
+const PUBLIC: TurnContext = {};
 
 class CountingModel implements AssistantModelPort {
   readonly kind = 'mock' as const;

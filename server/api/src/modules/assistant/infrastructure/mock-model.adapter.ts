@@ -17,7 +17,6 @@ import {
 import {
   CANNOT_CHANGE,
   ESCALATION_OFFERED,
-  LISTINGS_CLOSED,
   NO_ANSWER,
   NO_LISTINGS,
   NO_OPERATOR,
@@ -38,7 +37,6 @@ import type { ModelUsage } from '../domain/usage';
 // The fixed sentences, kept under their mock names for the tests that read them.
 export const MOCK_NO_ANSWER = NO_ANSWER;
 export const MOCK_NO_LISTINGS = NO_LISTINGS;
-export const MOCK_LISTINGS_CLOSED = LISTINGS_CLOSED;
 export const MOCK_SIGN_IN = SIGN_IN_FOR_TRIPS;
 export const MOCK_NO_TRIPS = NO_TRIPS;
 export const MOCK_NO_OPERATOR = NO_OPERATOR;
@@ -114,7 +112,6 @@ export class MockAssistantModel implements AssistantModelPort {
         return Promise.resolve(call(request, 'my_trips', {}));
       }
       if (STAY_QUESTION.test(question)) {
-        if (!offers('search_listings')) return Promise.resolve(answer(MOCK_LISTINGS_CLOSED));
         return Promise.resolve(call(request, 'search_listings', listingSearchOf(question).input));
       }
       if (!offers('search_help')) return Promise.resolve(answer(MOCK_NO_ANSWER));

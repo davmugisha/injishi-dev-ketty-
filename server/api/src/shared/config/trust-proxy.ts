@@ -7,7 +7,7 @@ import { isIP } from 'node:net';
  * from the socket unless it is told which hops in front of it may speak for the
  * client through `X-Forwarded-For`. Deployed, the socket is always Traefik, so
  * with nothing trusted every visitor on earth shares Traefik's address and the
- * per-client buckets (support, waitlist, certificate verification) collapse into
+ * per-client buckets (support, certificate verification) collapse into
  * ONE bucket for everybody. Trust too much, and any caller mints a fresh bucket
  * per request by typing a header.
  *

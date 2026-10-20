@@ -15,13 +15,11 @@
  *
  * So the hand-off happens only when the app really is a different origin. When
  * it is web's own, web's `(app)/(entry)/sign-in` and `register` answer, which are
- * the screens the waitlist gate and the registration pipeline were built and
- * verified against. Neither choice can loop: the destination is never this
- * origin.
+ * the screens sign-in and the registration pipeline were built and verified
+ * against. Neither choice can loop: the destination is never this origin.
  *
  * NO IMPORTS. `next.config.ts` loads this through Next's config require hook,
- * and `tests/app-handoff.test.mjs` loads it bare, as `waitlist-gate.test.mjs`
- * loads the gate's matchers.
+ * and `tests/app-handoff.test.mjs` loads it bare.
  */
 
 export interface HandoffRedirect {

@@ -10,7 +10,6 @@
 
 export const NO_ANSWER = "I don't have a verified answer for that. The support page at /support can help.";
 export const NO_LISTINGS = 'No published property matches that.';
-export const LISTINGS_CLOSED = 'Listings are not open yet.';
 export const SIGN_IN_FOR_TRIPS = 'Sign in and I can look up your trips.';
 export const NO_TRIPS = 'I found no trips on your account.';
 export const NO_OPERATOR = 'I can only check rooms from the operator app, in a business you work in.';

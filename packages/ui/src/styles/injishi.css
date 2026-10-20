@@ -17,8 +17,7 @@
 .mouve-light,
 [data-theme="mouve-light"],
 .mouve-dark,
-[data-theme="mouve-dark"],
-.waitlist-theme {
+[data-theme="mouve-dark"] {
   /* Border radius */
   --radius: 0.5rem;
   --field-radius: 0.25rem;
@@ -34,7 +33,7 @@
   --font-sans: var(--font-figtree, "Figtree"), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-instrument-sans, "Instrument Sans"), ui-sans-serif, system-ui, sans-serif;
   /* The marketplace names its display face separately. Point it at the heading
-     face so a waitlist headline does not stay on the previous family. */
+     face so a display headline does not stay on the previous family. */
   --font-display: var(--font-heading);
 
   /* Letter spacing */
@@ -70,8 +69,7 @@
 }
 
 .mouve-light,
-[data-theme="mouve-light"],
-.waitlist-theme {
+[data-theme="mouve-light"] {
   --background: oklch(95.5% 0.0125 177.9);
   --muted: oklch(58% 0.0312 177.9);
   --scrollbar: oklch(82% 0.0208 177.9);
@@ -94,20 +92,8 @@
   --chart-5: oklch(75% 0.1 177.9);
 }
 
-/* Saved ink for this subtree only. The export leaves foreground to the mouve
-   theme (hue 300); the marketplace sheet paints a different hue on :root.
-   Stating it here keeps the waitlist on the saved teal ink without moving the
-   operator app off the theme's own foreground. */
-.waitlist-theme {
-  background: var(--background);
-  color: var(--foreground);
-  --foreground: oklch(25% 0.0208 177.9);
-  --accent-foreground: oklch(99.11% 0 0);
-}
-
 .mouve-dark,
-[data-theme="mouve-dark"],
-.dark .waitlist-theme {
+[data-theme="mouve-dark"] {
   color-scheme: dark;
   --background: oklch(16% 0.0208 177.9);
   --muted: oklch(65% 0.0208 177.9);
@@ -134,16 +120,12 @@
   --chart-5: oklch(85% 0.08 177.9);
 }
 
-.dark .waitlist-theme {
-  --foreground: oklch(99.11% 0 0);
-}
-
 @layer base {
   :where(h1, h2, h3, h4, h5, h6, [role="heading"]) {
     font-family: var(--font-heading, var(--font-sans, sans-serif));
   }
-  /* Only when the theme attribute is on the document. A subtree (the waitlist)
-     sets data-theme on its own root and must not repaint the page behind it. */
+  /* Only when the theme attribute is on the document: a subtree that sets
+     data-theme on its own root must not repaint the page behind it. */
   html[data-theme],
   html[data-theme] body {
     background: var(--background);

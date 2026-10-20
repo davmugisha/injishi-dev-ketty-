@@ -30,8 +30,8 @@ const NOW = new Date('2026-09-30T10:00:00Z'); // 12:00 in Kigali
 const ANON: ConversationHolder = { kind: 'anon', tokenHash: null };
 const GUEST: ConversationHolder = { kind: 'user', userId: GUEST_A };
 const OWNER: ConversationHolder = { kind: 'user', userId: 'owner-1' };
-const PUBLIC: TurnContext = { catalogueOpen: true };
-const OPERATOR: TurnContext = { catalogueOpen: true, workspace: scoped(['listing.manage', 'reservation.assign', 'stay.checkin']) };
+const PUBLIC: TurnContext = {};
+const OPERATOR: TurnContext = { workspace: scoped(['listing.manage', 'reservation.assign', 'stay.checkin']) };
 const ask = (message: string, surface: SendAssistantMessageInput['surface'] = 'web'): SendAssistantMessageInput => ({ message, surface });
 
 function build(): { model: CountingModel; repo: FakeConversations; service: AssistantService } {
@@ -96,7 +96,7 @@ describe('request router (ADR-061 D-q)', () => {
     const { model, service } = build();
     const rooms = await answer(service, GUEST, 'which rooms are free tomorrow');
     expect(rooms.text).toBe('I can only check rooms from the operator app, in a business you work in.');
-    const price = await answer(service, OWNER, 'change the Double room price to 70,000', { catalogueOpen: true, workspace: scoped(['stay.checkin']) }, 'app');
+    const price = await answer(service, OWNER, 'change the Double room price to 70,000', { workspace: scoped(['stay.checkin']) }, 'app');
     expect(price.text).toBe(CANNOT_CHANGE);
     expect(model.calls).toHaveLength(0);
   });

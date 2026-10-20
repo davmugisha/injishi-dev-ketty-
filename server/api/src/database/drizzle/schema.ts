@@ -56,7 +56,6 @@ export * from './operations';
 // Last: it is a leaf over hospitality, inventory, operations and org.
 export * from './guest-relations';
 export * from './platform';
-export * from './waitlist';
 export * from './training';
 export * from './psf';
 // A leaf over operations, inventory and org: nothing imports it back.

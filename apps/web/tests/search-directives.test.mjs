@@ -1,0 +1,107 @@
+/**
+ * What search engines are told (ADR-048 AC-16 as launched, ADR-053 AC-I9).
+ *
+ * `robots.ts` and `sitemap.ts` were written for the waitlist and outlived it on
+ * purpose: deleting them would have started launch day with no search
+ * directives at all. So they are pinned here: robots must let crawlers read the
+ * marketplace, the sitemap must list exactly what the API calls publicly
+ * sellable, and every URL must be absolute on the site's own origin, because a
+ * relative or localhost URL in a sitemap is one crawlers quietly ignore.
+ *
+ * THIS TEST RUNS THE REAL FUNCTIONS through `ts-source-hook.mjs`, with the
+ * real `lib/web-url.ts` and `lib/api.ts` under them. Only `fetch` is stood in.
+ * Both modules read their origin once at load, so the two variables are set
+ * before the first import.
+ *
+ * Run: pnpm --filter @injishi/web test
+ */
+import { test, describe, afterEach } from "node:test";
+import assert from "node:assert/strict";
+import { register } from "node:module";
+
+register("./ts-source-hook.mjs", import.meta.url);
+
+process.env.NEXT_PUBLIC_WEB_URL = "https://www.example.rw/";
+process.env.NEXT_PUBLIC_API_URL = "https://api.example.rw";
+
+const { default: robots } = await import("@/app/robots");
+const { default: sitemap } = await import("@/app/sitemap");
+
+const realFetch = globalThis.fetch;
+afterEach(() => {
+  globalThis.fetch = realFetch;
+});
+
+/** Answer the sitemap read with `respond`, recording what was asked. */
+function serve(respond) {
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url: String(url), init });
+    return respond();
+  };
+  return calls;
+}
+
+const json = (body, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+describe("robots", () => {
+  test("lets every crawler read the marketplace", () => {
+    const [rule] = robots().rules;
+
+    assert.equal(rule.userAgent, "*");
+    assert.equal(rule.allow, "/");
+  });
+
+  test("disallows nothing but the unsubscribe links still sitting in inboxes", () => {
+    const [rule] = robots().rules;
+
+    assert.deepEqual(rule.disallow, ["/waitlist/unsubscribe/"]);
+  });
+
+  test("points at an absolute sitemap on the site's own origin", () => {
+    assert.equal(robots().sitemap, "https://www.example.rw/sitemap.xml");
+  });
+});
+
+describe("sitemap (covers: AC-I9)", () => {
+  test("lists the root and every property the API calls publicly sellable", async () => {
+    const calls = serve(() =>
+      json([
+        { slug: "amahoro-lodge", publishedAt: "2026-10-01T08:00:00.000Z" },
+        { slug: "inzu nziza", publishedAt: null },
+      ]),
+    );
+
+    const entries = await sitemap();
+
+    assert.deepEqual(entries, [
+      { url: "https://www.example.rw/" },
+      { url: "https://www.example.rw/property/amahoro-lodge", lastModified: "2026-10-01T08:00:00.000Z" },
+      { url: "https://www.example.rw/property/inzu%20nziza" },
+    ]);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, "https://api.example.rw/api/v1/properties/sitemap");
+    assert.equal(calls[0].init.cache, "no-store");
+  });
+
+  test("names no waitlist page", async () => {
+    serve(() => json([{ slug: "amahoro-lodge", publishedAt: null }]));
+
+    const urls = (await sitemap()).map((e) => e.url);
+
+    assert.ok(urls.every((u) => !u.includes("/waitlist")), urls.join(", "));
+  });
+
+  for (const [label, respond] of [
+    ["the API cannot be reached", () => Promise.reject(new TypeError("fetch failed"))],
+    ["the API answers an error", () => json({ message: "down" }, 503)],
+    ["the API answers a shape it does not promise", () => json({ properties: [] })],
+  ]) {
+    test(`falls back to the root alone when ${label}`, async () => {
+      serve(respond);
+
+      assert.deepEqual(await sitemap(), [{ url: "https://www.example.rw/" }]);
+    });
+  }
+});

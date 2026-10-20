@@ -10,10 +10,9 @@ import { trainingVenues } from '../../../database/drizzle/training';
 /**
  * The column lists and row mappers every training query shares.
  *
- * Held in one file for the reason `waitlist-admin.service.ts` gives for its own
- * `ROW_COLUMNS`: a count and a page built from two column lists eventually
- * disagree, and a venue rendered two ways eventually shows a district in the
- * wrong province on one of them.
+ * Held in one file because a count and a page built from two column lists
+ * eventually disagree, and a venue rendered two ways eventually shows a
+ * district in the wrong province on one of them.
  */
 
 /**
