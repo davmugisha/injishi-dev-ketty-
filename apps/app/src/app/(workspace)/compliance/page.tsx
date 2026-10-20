@@ -11,7 +11,8 @@ import type {
 import type { Metadata } from "next";
 import { ComplianceView } from "@/features/owner/ComplianceView";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { getCollection, requestContext } from "@/server/data";
+import { businessNames } from "@/server/sources/owner";
 
 export const metadata: Metadata = { title: screens.Compliance.pageTitle };
 
@@ -29,6 +30,7 @@ export default async function CompliancePage({ searchParams }: { searchParams: P
   const { tab } = await searchParams;
   return (
     <ComplianceView
+      businessName={businessNames(await requestContext())}
       initialTab={tab === "privacy" ? "privacy" : "licences"}
       data={{ kpis, submissions, licences, memberships, gates, access, requests }}
     />

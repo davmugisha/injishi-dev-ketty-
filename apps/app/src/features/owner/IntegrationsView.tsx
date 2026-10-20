@@ -54,7 +54,14 @@ function SubTitle({ children }: { children: ReactNode }) {
   return <h3 className="text-[15px] leading-[22px] font-semibold">{children}</h3>;
 }
 
-export function IntegrationsView({ connections }: { connections: IntegrationsConnection[] }) {
+export function IntegrationsView({
+  connections,
+  businessName,
+}: {
+  connections: IntegrationsConnection[];
+  /** The business, as the API names it (never the prototype's group). */
+  businessName: string;
+}) {
   const [openId, setOpenId] = useState("gtbank");
 
   const open = connections.find((c) => c.id === openId) ?? connections[0];
@@ -68,7 +75,7 @@ export function IntegrationsView({ connections }: { connections: IntegrationsCon
     <PageContent>
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Settings · Amahoro Hospitality Group"
+        eyebrow={`Settings · ${businessName}`}
         title="Integrations"
         description="Each connection shows what has actually been verified. Sandbox is not production, and connected is not certified."
         actions={

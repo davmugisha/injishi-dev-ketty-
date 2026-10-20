@@ -488,7 +488,7 @@ export function LeaveView({
                   className="flex flex-col gap-1"
                 >
                   <Label>Reason for declining</Label>
-                  <TextArea rows={2} placeholder={`Sent to ${first} and the line manager`} />
+                  <TextArea rows={2} placeholder="Recorded on the request. No message is sent." />
                   <FieldError>Add a reason before declining.</FieldError>
                 </TextField>
               ) : null}

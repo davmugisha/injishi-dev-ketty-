@@ -17,7 +17,7 @@ import {
   saveRolePresets,
   sendStepUpCode,
 } from "../../src/server/mutations/owner";
-import { sources } from "../../src/server/sources/owner";
+import { employeeFileEmails, sources, teamScopes } from "../../src/server/sources/owner";
 import type { SourceContext } from "../../src/server/sources/types";
 import { demoCode } from "../lib/harness";
 import type { Flow } from "./types";
@@ -288,6 +288,33 @@ export const flows: Flow[] = [
         "the front desk saving a Reports view",
       );
       step("the same name twice is refused (409); the front desk (no money.view) is refused with 403");
+    },
+  },
+  {
+    name: "the Team screen's scope picker and employee-file line come from live data, never the sample tree",
+    async run({ as, check, step }) {
+      const owner = await as("owner");
+      const scopes = await teamScopes(owner);
+      const grantable = scopes.filter((s) => s.kind !== "entity");
+      check(
+        grantable.length > 0 && grantable.every((s) => s.kind === "property"),
+        `the picker offers outlets or merchants: ${JSON.stringify(scopes)}`,
+      );
+      const team = await members(owner);
+      const offered = new Set(grantable.map((s) => s.id));
+      const unknown = team.flatMap((m) => m.scopeIds).filter((id) => !offered.has(id));
+      check(unknown.length === 0, `members cover branches the picker does not offer: ${unknown.join(", ")}`);
+      step(
+        `${grantable.length} live branches under ${scopes.filter((s) => s.kind === "entity").length} businesses; no outlet row`,
+      );
+
+      const files = await employeeFileEmails(owner);
+      check(files !== null && files.length > 0, "the owner (people.view) read no employee file from People");
+      const filed = team.filter((m) => m.status === "active" && files?.includes(m.contact.trim().toLowerCase()));
+      check(filed.length > 0, "no active member's email matches an active file in People");
+      step(`${filed.length} active members have a file in People, read from GET /ops/employees`);
+      const manager = await as("manager");
+      check((await employeeFileEmails(manager)) === null, "the manager holds no team.manage, so People is not read");
     },
   },
 ];

@@ -9,13 +9,18 @@ import type {
   Tone,
 } from "@injishi/data/fixtures/owner";
 
-/** Everything Team and roles reads from the embedded database. */
+/** Everything Team and roles reads, all of it from the API. */
 export interface TeamRolesData {
   members: TeamRolesMember[];
   roles: TeamRolesRole[];
   areas: TeamRolesPermissionArea[];
+  /** The live businesses and branches a grant can name (sources/owner.ts `teamScopes`). */
   scopes: TeamRolesScope[];
   invite: TeamRolesInviteDraft;
+  /** The business or businesses this team belongs to, as the API names them. */
+  businessName: string;
+  /** Emails on active employee files in People, or null when People was not read (no `people.view`). */
+  employeeFiles: string[] | null;
 }
 
 export const TEAM_ROLES_STATUS: Record<TeamRolesMemberStatus, { label: string; tone: Tone }> = {
@@ -31,7 +36,7 @@ export const TEAM_ROLES_HELP = {
   active:
     "Revoking access from this screen is not available yet: access ends when the person's staff file is offboarded. You can change their role or the properties they cover.",
   invited: "Cancelling makes the invite link stop working. They never had access.",
-  pending: "This invite was requested by Aline Uwase and waits for your approval. Nothing has been sent yet.",
+  pending: "This invite waits for your approval. Nothing has been sent yet.",
   revoked: "No access. Kept on the list as the record of who had access.",
 } as const;
 

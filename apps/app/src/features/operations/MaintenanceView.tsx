@@ -41,6 +41,12 @@ export interface MaintenanceData {
   workOrders: WorkOrder[];
   signals: ConditionSignal[];
   reviews: SignalReview[];
+  /** Who the screen is about (the branch, else the business), as the API names it. */
+  placeName: string;
+  /** The API's median hours from report to resolved over the last 30 days, or null when none closed. */
+  medianHoursToClose: number | null;
+  /** Photos on each work order (by reference) that this screen cannot draw: uploads have no image route here. */
+  unshownPhotos: Record<string, number>;
 }
 
 const SEVERITY_TONE: Record<Severity, Tone> = {
@@ -96,6 +102,9 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
     timeline: w.pending ? [...w.timeline, w.pending] : w.timeline,
   }));
   const wo = workOrders.find((w) => w.id === selectedId) ?? workOrders[0];
+  // Photos the reporter uploaded are on the record (the timeline counts them) but have no image route here.
+  const unshown = wo ? (data.unshownPhotos[wo.id] ?? 0) : 0;
+  const unshownText = `${unshown} ${unshown === 1 ? "photo" : "photos"}`;
 
   const open = workOrders.filter((w) => !/^Done/.test(w.status));
   const urgent = open.filter((w) => w.severity === "Critical" || w.severity === "High").length;
@@ -166,7 +175,7 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
         }
       />
       <PageHeader
-        eyebrow="Isangano Lakeside Hotel · Property"
+        eyebrow={`${data.placeName} · Property`}
         title="Maintenance"
         description={`${summary} Condition signals recommend; people decide.`}
         actions={
@@ -189,7 +198,10 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
           title="Work Orders"
           action={
             <span className="text-[12px] text-muted">
-              Open first, by severity · median time to close in the last 30 days: 26 h
+              Open first, by severity ·{" "}
+              {data.medianHoursToClose === null
+                ? "no work order closed in the last 30 days"
+                : `median time to close in the last 30 days: ${data.medianHoursToClose} h`}
             </span>
           }
         />
@@ -290,11 +302,11 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
               ) : (
                 <div
                   role="img"
-                  aria-label="Photo: No photo yet"
-                  className="flex h-[76px] flex-col items-center justify-center gap-1 rounded-[14px] bg-surface-secondary text-[12px] text-muted"
+                  aria-label={unshown ? `Photo: ${unshownText} on the record, not shown here` : "Photo: No photo yet"}
+                  className="flex h-[76px] flex-col items-center justify-center gap-1 rounded-[14px] bg-surface-secondary text-center text-[12px] text-muted"
                 >
                   <Picture className="size-4" aria-hidden="true" />
-                  <span>No photo yet</span>
+                  <span>{unshown ? `${unshownText} on the record · not shown here yet` : "No photo yet"}</span>
                 </div>
               )}
             </div>
@@ -569,7 +581,7 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
         isOpen={newOpen}
         onOpenChange={setNewOpen}
         title="New work order"
-        description="Record the fault and who owns it. Photos and parts are added by the technician from the staff app."
+        description="Record the fault and who owns it. Photos and parts cannot be added to a work order yet."
         footer={
           <>
             <FooterHint>

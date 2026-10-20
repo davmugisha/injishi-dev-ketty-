@@ -44,7 +44,16 @@ const kpiStatus = (tone: ComplianceKpi["status"]) =>
 const unavailable = (what: string, why = "nothing was recorded or sent") =>
   toast.warning(`${what} is not available yet: ${why}.`);
 
-export function ComplianceView({ initialTab, data }: { initialTab: ComplianceTab; data: ComplianceData }) {
+export function ComplianceView({
+  initialTab,
+  data,
+  businessName,
+}: {
+  initialTab: ComplianceTab;
+  data: ComplianceData;
+  /** The business, as the API names it (never the prototype's group). */
+  businessName: string;
+}) {
   const [tab, setTab] = useState<ComplianceTab>(initialTab);
   const [selectedId, setSelectedId] = useState(data.submissions[0]?.id ?? "");
 
@@ -60,7 +69,7 @@ export function ComplianceView({ initialTab, data }: { initialTab: ComplianceTab
     <PageContent>
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Amahoro Hospitality Group · Compliance"
+        eyebrow={`${businessName} · Compliance`}
         title="Compliance"
         description="Licences, memberships and anything sent to an authority. Nothing is marked done without the counterpart’s evidence."
         actions={

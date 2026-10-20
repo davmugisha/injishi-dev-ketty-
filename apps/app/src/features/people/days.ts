@@ -46,6 +46,8 @@ export const longDay = (iso: string) => `${weekdayLong(iso)} ${dayNo(iso)} ${mon
 export const fullDay = (iso: string) => `${longDay(iso)} ${iso.slice(0, 4)}`;
 /** "15 Oct 2026" */
 export const dayMonthYear = (iso: string) => `${dayNo(iso)} ${month(iso).slice(0, 3)} ${iso.slice(0, 4)}`;
+/** "October" */
+export const monthLong = (iso: string) => month(iso);
 /** "15" */
 export const dayOfMonth = (iso: string) => String(dayNo(iso));
 

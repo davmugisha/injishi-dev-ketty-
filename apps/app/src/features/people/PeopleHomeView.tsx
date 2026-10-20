@@ -448,7 +448,7 @@ export function PeopleHomeView({
         <PanelCard
           id="exp-h"
           title="Expiring Contracts and Documents"
-          description="Next 45 days · only HR and the line manager are reminded"
+          description="Ending in the next 45 days · no reminder is sent from this screen"
         >
           <Timeline size="sm" density="compact">
             {data.expiring.map((e) => (

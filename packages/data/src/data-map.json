@@ -857,7 +857,7 @@
     "crud": "R",
     "seed": "none",
     "scope": "org",
-    "deferred": "Membership scope is per branch (org_membership_branches, ADR-054): the tree's outlet rows (Isangano Terrace and Lake Bar) cannot be granted and Ikawa Corner is another merchant (outlet_parties). Live members' scopeIds use the branch codes isg/ish/kcr this tree already names; outlet-level scope needs an org_membership_outlets decision."
+    "deferred": "No screen reads it any more: the Team screen builds its scope picker from the live businesses and branches the person manages (sources/owner.ts teamScopes), keyed as members' scopes are. The fixture's outlet rows (Isangano Terrace and Lake Bar) cannot be granted because membership scope is per branch (org_membership_branches, ADR-054), and Ikawa Corner is another merchant; outlet-level scope needs an org_membership_outlets decision."
   },
   {
     "collection": "owner.teamRolesInvite",
@@ -1772,12 +1772,13 @@
   {
     "collection": "operations.roomStatusHistory",
     "area": "operations",
-    "class": "static",
-    "target": "placeholder \"typical history\" keyed by status; delete once room_status_events exists",
+    "class": "derived",
+    "target": "room_status_events (the board's history: GET /ops/housekeeping/board .history), which operations.roomHistory already serves per room",
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "—"
+    "scope": "—",
+    "deferred": "Not product configuration: it is the prototype's sample \"typical history\" per room status, which the housekeeping board used to show as a real room's history when the room had none. No screen reads it any more: the board shows each room's own recorded changes (operations.roomHistory, live) and says plainly when there are none. Kept only until the fixture is deleted."
   },
   {
     "collection": "operations.cleaningTasks",
@@ -2975,7 +2976,7 @@
     "crud": "R",
     "seed": "demo",
     "scope": "org",
-    "deferred": "A file's access log is per person (audit_events per employee), but the screen reads one list for every file (FileAccess has no employee key), so live data would show everybody's views on each file; it needs the view keyed by employee and a GET /ops/employees/:id/access-log route."
+    "deferred": "No screen reads it any more: the employee file says its access log is not available instead of showing these sample entries under a live employee's name. A file's access log is per person (audit_events per employee), but FileAccess has no employee key, so live data would show everybody's views on each file; it needs the view keyed by employee and a GET /ops/employees/:id/access-log route."
   },
   {
     "collection": "people.family",

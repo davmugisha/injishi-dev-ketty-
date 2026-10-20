@@ -78,6 +78,7 @@ const SWATCH: Record<ShiftCode, string> = {
   O: "bg-transparent text-muted shadow-[inset_0_0_0_1px_var(--separator)]",
   L: "bg-warning-soft text-warning-soft-foreground",
 };
+/** Rwanda's labour law caps the normal working week at 45 hours; no business setting on the API changes it. */
 const MAX_WEEK_HOURS = 45;
 const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many);
 
@@ -97,6 +98,8 @@ export function RosterView({
   otherBranchName: string;
 }) {
   const { groups, staff, rotations, holidays } = data;
+  // A lent shift's cell names the branch it is lent to, shortened to its first word ("Ishyamba").
+  const lentShort = otherBranchName.trim().split(" ")[0] || otherBranchName;
   const weekOf = (w: WeekId) => data.weeks.find((x) => x.id === w) ?? data.weeks[0];
 
   const [wk, setWk] = useState<WeekId>(initialWeek);
@@ -463,7 +466,9 @@ export function RosterView({
                                   >
                                     {LABEL[v]}
                                     {isLent ? (
-                                      <span className="block text-[10px] leading-[11px] font-medium">Lodge</span>
+                                      <span className="block max-w-full truncate text-[10px] leading-[11px] font-medium">
+                                        {lentShort}
+                                      </span>
                                     ) : null}
                                   </Button>
                                 </Table.Cell>
@@ -560,7 +565,7 @@ export function RosterView({
               items={[
                 {
                   label: "Hours that week",
-                  value: `${hrs} h of a configured ${MAX_WEEK_HOURS} h week${hrs > MAX_WEEK_HOURS ? ` · ${hrs - MAX_WEEK_HOURS} h overtime needs approval` : ""}`,
+                  value: `${hrs} h rostered${hrs > MAX_WEEK_HOURS ? ` · ${hrs - MAX_WEEK_HOURS} h over the ${MAX_WEEK_HOURS} h legal week` : ""}`,
                 },
                 {
                   label: "Rotation",
@@ -666,14 +671,15 @@ export function RosterView({
           dense
           id="hol-h"
           title="Public Holidays"
-          description="Rwanda calendar 2026 · configured list, dates of religious holidays confirmed when announced"
-          action={<GateChip icon={<ShieldExclamation className="size-3" />}>Configured · unverified</GateChip>}
+          description="Rwanda calendar 2026 · sample list, dates of religious holidays confirmed when announced"
+          action={<GateChip icon={<ShieldExclamation className="size-3" />}>Sample · unverified</GateChip>}
           className="gap-2.5"
         >
           <div className="flex items-start gap-2">
             <CircleInfo className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
             <span className="text-[13px]">
-              No public holidays from 12 to 25 October. Holiday shifts are paid at the holiday rate in Payroll rules.
+              Sample list: the roster does not read public holidays yet, so check these dates before publishing a week.
+              Holiday shifts are paid at the holiday rate in Payroll rules.
             </span>
           </div>
           <ListView aria-label="Public holidays" variant="secondary" items={holidays}>

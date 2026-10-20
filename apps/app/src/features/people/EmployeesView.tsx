@@ -21,7 +21,6 @@ import type {
   Employee,
   EmployeeStatus,
   FamilyMember,
-  FileAccess,
   FileDocument,
   OffboardingTask,
   OrgNode,
@@ -32,7 +31,7 @@ import type {
 import { LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useState, useTransition } from "react";
 import { setOffboardingStep } from "./actions";
-import { EmployeeFileCard, type FileLogEntry } from "./EmployeeFileCard";
+import { EmployeeFileCard } from "./EmployeeFileCard";
 import { LoginChip, STATUS } from "./employee-status";
 import { initials, PanelCard } from "./parts";
 
@@ -41,7 +40,6 @@ export interface EmployeesData {
   employees: Employee[];
   compensation: CompensationChange[];
   documents: FileDocument[];
-  access: FileAccess[];
   family: FamilyMember[];
   policies: PolicyAck[];
   org: OrgNode[];
@@ -61,9 +59,12 @@ const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
 export function EmployeesView({
   data,
   initial,
+  today,
 }: {
   data: EmployeesData;
   initial: { view: "dir" | "org"; employee: string; tab: string };
+  /** Today in Kigali ("2026-10-20"), for the pay proposal's dates. */
+  today: string;
 }) {
   const [view, setView] = useState<"dir" | "org">(initial.view);
   const [query, setQuery] = useState("");
@@ -71,7 +72,6 @@ export function EmployeesView({
   const [status, setStatus] = useState<StatusFilter>("all");
   const [selected, setSelected] = useState(initial.employee);
   const [tab, setTab] = useState(initial.tab);
-  const [log, setLog] = useState<FileLogEntry[]>([]);
   const [ob, setOb] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(data.offboarding.map((t) => [t.id, t.done])),
   );
@@ -377,13 +377,11 @@ export function EmployeesView({
             propertyName={data.properties.find((p) => p.id === current.property)?.name ?? current.property}
             compensation={data.compensation.filter((c) => c.employeeId === current.id)}
             documents={data.documents}
-            access={data.access}
             family={data.family.filter((f) => f.employeeId === current.id)}
             policies={data.policies}
             tab={tab}
             onTabChange={setTab}
-            log={log}
-            onView={(entry) => setLog((l) => [entry, ...l])}
+            today={today}
             loginRequested={false}
             onRequestLogin={() =>
               toast.warning(
