@@ -16,7 +16,7 @@ import {
   ModelUnavailableError,
 } from '../domain/model-port';
 import type { MessageRow } from '../infrastructure/conversation.repository';
-import { MOCK_LISTINGS_CLOSED, MOCK_NO_ANSWER, MOCK_SIGN_IN, MockAssistantModel } from '../infrastructure/mock-model.adapter';
+import { MOCK_NO_ANSWER, MOCK_SIGN_IN, MockAssistantModel } from '../infrastructure/mock-model.adapter';
 import { FakeConversations, fakeUuid as uuid } from '../testing/fake-conversations';
 import { defaultProposals } from '../testing/fake-actions';
 import { GUEST_A, fakeReads } from '../testing/fake-listings';
@@ -194,7 +194,7 @@ describe('AssistantService (ADR-061)', () => {
 
   it('answers by fallback when the model is unavailable, never with an error (D-u)', async () => {
     const { repo, service } = build(new ScriptedModel([new ModelUnavailableError('down')]));
-    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('could you sort this out for me somehow'), NOW, { catalogueOpen: true });
+    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('could you sort this out for me somehow'), NOW);
     const text = result.conversation.messages.at(-1)?.text ?? '';
     expect(text.startsWith(FALLBACK_ARTICLE) || text.startsWith(CANNOT_ANSWER_NOW)).toBe(true);
     const stored = [...repo.messages.values()].flat();
@@ -206,12 +206,12 @@ describe('AssistantService (ADR-061)', () => {
     const say = (text: string): ModelTurn => ({ content: [{ type: 'text', text }], stopReason: 'end_turn', model: 'x' });
     for (const invented of ['Listing costs 99,000 RWF a month.', 'Your payout arrives on 2026-10-14.']) {
       const { service } = build(new ScriptedModel([say(invented)]));
-      const result = await service.send({ kind: 'anon', tokenHash: null }, ask('could you sort this out for me somehow'), NOW, { catalogueOpen: true });
+      const result = await service.send({ kind: 'anon', tokenHash: null }, ask('could you sort this out for me somehow'), NOW);
       expect(result.conversation.messages.at(-1)?.text).toBe(UNCONFIRMED_FIGURE);
     }
     // The person's own figure, and a small count, are not invented data.
     const { service } = build(new ScriptedModel([say('At 45,000 RWF a night, 2 nights come to twice that.')]));
-    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('explain if 45,000 RWF a night suits me'), NOW, { catalogueOpen: true });
+    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('explain if 45,000 RWF a night suits me'), NOW);
     expect(result.conversation.messages.at(-1)?.text).toBe('At 45,000 RWF a night, 2 nights come to twice that.');
   });
 
@@ -229,22 +229,12 @@ describe('AssistantService (ADR-061)', () => {
 
   it('answers a place to stay question with published properties only, each cited', async () => {
     const { service } = build();
-    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('places to stay in Musanze'), NOW, { catalogueOpen: true });
+    const result = await service.send({ kind: 'anon', tokenHash: null }, ask('places to stay in Musanze'), NOW);
     const reply = result.conversation.messages[1];
     expect(reply.text).toMatch(/Volcano View Lodge/);
     expect(reply.text).toMatch(/Twin Lakes Guesthouse/);
     expect(reply.text).not.toMatch(/City Hill Hotel|\[source:/);
     expect(reply.sources.map((s) => s.kind)).toEqual(['listing', 'listing']);
-  });
-
-  it('names no property when the catalogue is closed, and fails closed by default', async () => {
-    const { service } = build();
-    for (const context of [{ catalogueOpen: false }, undefined]) {
-      const result = await service.send({ kind: 'anon', tokenHash: null }, ask('places to stay in Musanze'), NOW, context);
-      const reply = result.conversation.messages.at(-1);
-      expect(reply?.text).toBe(MOCK_LISTINGS_CLOSED);
-      expect(reply?.sources).toEqual([]);
-    }
   });
 
   it('does not claim an expired anonymous conversation', async () => {

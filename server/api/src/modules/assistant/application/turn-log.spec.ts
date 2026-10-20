@@ -14,7 +14,7 @@ import { AssistantService, type ConversationHolder, type TurnContext } from './a
  */
 const NOW = new Date('2026-09-30T10:00:00Z');
 const ANON: ConversationHolder = { kind: 'anon', tokenHash: null };
-const PUBLIC: TurnContext = { catalogueOpen: true };
+const PUBLIC: TurnContext = {};
 const OPEN = 'could you sort this out for me somehow';
 
 /** A model that plays a fixed list of turns, then repeats the last. */

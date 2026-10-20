@@ -1,79 +1,92 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Badge, Button } from "@injishi/ui";
+import { ArrowLeft, CloudCheck, Lock } from "lucide-react";
+import { Badge, Button, Progress } from "@injishi/ui";
+
+import { AssistantWidget } from "@/components/assistant/assistant-widget";
 
 /**
- * The frame every registration screen sits in (RegisterIA board).
+ * The frame every registration screen sits in (Register.dc.html, 2026-10-19).
  *
- * One header for the whole walk: the mark, "Register your business", the kind
- * being registered as a chip with its Change control, and the way out. The kind
- * is shown HERE, once, rather than as a sentence on each step: it is asked once
- * (the `/host` tile) and read back once, on every screen, in the same place.
+ * ONE HEADER FOR THE WHOLE WALK: the mark, "Register a business", whether the
+ * answers are saved, and Save and exit. Below it the heading the artboard
+ * draws: an eyebrow, the business's name once RRA has named it, one line on
+ * what the walk is, and the kind carried in from `/host` with its Change.
  *
- * Below it, a rail on the left (when the walk has more than one step) and the
- * step itself on the right. On a phone the two stack, rail first.
+ * Then the rail on the left and the step on the right. Below a tablet's width
+ * the rail goes, and the step carries a progress bar instead, with its Back and
+ * Continue fixed to the bottom of the screen where a thumb reaches them.
+ *
+ * The support assistant's launcher rides along (ADR-061): the artboard's "Ask
+ * Injishi". It draws nothing when the API has the assistant off.
  */
 export function RegisterShell({
   kindLabel,
   onChangeKind,
   changeKindHref,
+  carried = false,
+  heading = null,
+  saved = null,
   exit,
   rail,
   children,
 }: {
   /** The kind being registered, or null before one is chosen. */
   kindLabel: string | null;
-  /** Opens the kind tiles in place, for a signed in registrant. */
+  /** Opens Business type in place, for a signed in registrant. */
   onChangeKind?: () => void;
   /** Where Change goes for someone not signed in yet: the `/host` chooser. */
   changeKindHref?: string;
-  /** The way out, as a link or as a press (Save & exit saves first). */
+  /** The kind is the one `/host` sent, so it is shown as chosen on the page before. */
+  carried?: boolean;
+  heading?: { eyebrow: string; title: string; sub: string } | null;
+  /** "Saved 10:41", or null before anything is saved. */
+  saved?: string | null;
+  /** The way out, as a link or as a press (Save and exit saves first). */
   exit: { label: string; href?: string; onPress?: () => void; busy?: boolean } | null;
   rail?: ReactNode;
   children: ReactNode;
 }) {
+  const change = onChangeKind ? (
+    <Button variant="ghost" size="sm" onClick={onChangeKind}>
+      Change<span className="sr-only"> the business type</span>
+    </Button>
+  ) : changeKindHref ? (
+    <Button asChild variant="ghost" size="sm">
+      <a href={changeKindHref}>
+        Change<span className="sr-only"> the business type</span>
+      </a>
+    </Button>
+  ) : null;
+
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-border bg-card">
-        <div className="mx-auto flex max-w-page flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-7">
-          <a href="/" aria-label="Injishi, home" className="shrink-0">
+      <header className="sticky top-0 z-30 border-b border-border bg-background">
+        <div className="mx-auto flex max-w-page flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-8">
+          <a href="/" aria-label="Injishi, home" className="flex shrink-0 items-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/shared/img/injishi-extended.svg"
-              alt="Injishi"
-              className="h-6 w-auto dark:hidden"
-            />
+            <img src="/shared/img/injishi-extended.svg" alt="Injishi" className="h-6 w-auto dark:hidden" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/shared/img/injishi-extended-white.svg"
-              alt="Injishi"
-              className="hidden h-6 w-auto dark:block"
-            />
+            <img src="/shared/img/injishi-extended-white.svg" alt="Injishi" className="hidden h-6 w-auto dark:block" />
           </a>
-          <span className="hidden text-sm text-muted-foreground sm:inline">Register your business</span>
+          <span className="hidden text-muted-foreground md:inline" aria-hidden="true">
+            /
+          </span>
+          <span className="hidden text-sm font-semibold md:inline">Register a business</span>
           <span className="grow" />
-          {kindLabel ? (
-            <span className="flex items-center gap-2">
+          {saved ? (
+            <span role="status" className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
+              <CloudCheck size={14} aria-hidden />
+              {saved}
+            </span>
+          ) : null}
+          {!heading && kindLabel ? (
+            <span className="flex items-center gap-1">
               <Badge variant="accent" size="sm">
                 {kindLabel}
               </Badge>
-              {onChangeKind ? (
-                <button
-                  type="button"
-                  onClick={onChangeKind}
-                  className="rounded text-sm font-semibold text-accent-text underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  Change<span className="sr-only"> what you are registering</span>
-                </button>
-              ) : changeKindHref ? (
-                <a
-                  href={changeKindHref}
-                  className="rounded text-sm font-semibold text-accent-text underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  Change<span className="sr-only"> what you are registering</span>
-                </a>
-              ) : null}
+              {change}
             </span>
           ) : null}
           {exit ? (
@@ -90,17 +103,171 @@ export function RegisterShell({
         </div>
       </header>
 
-      <main className="mx-auto max-w-page px-4 pb-24 pt-6 sm:px-7 sm:pt-8">
-        <div className="flex flex-col gap-7 lg:flex-row lg:items-start">
-          {rail ? <div className="lg:sticky lg:top-24 lg:w-64 lg:shrink-0">{rail}</div> : null}
+      <main className="mx-auto flex max-w-page flex-col gap-6 px-4 pb-28 pt-6 sm:px-8 md:pb-16 md:pt-8">
+        {heading ? (
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading.eyebrow}</p>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{heading.title}</h1>
+            <p className="text-sm text-muted-foreground sm:text-base">{heading.sub}</p>
+            {kindLabel && carried ? (
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <Badge variant="subtle" size="sm">
+                  {kindLabel}, chosen on the page before
+                </Badge>
+                {change}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="flex flex-col gap-8 md:flex-row md:items-start">
+          {rail ? <div className="hidden shrink-0 md:block md:w-48 lg:w-56">{rail}</div> : null}
           <div className="flex min-w-0 flex-1 flex-col gap-4">{children}</div>
         </div>
       </main>
+
+      <AssistantWidget />
     </>
   );
 }
 
-/** The card a step is drawn in: a title, a lead, the fields, and a footer. */
+/** The primary action of a step, and why it cannot be pressed yet when it cannot. */
+export interface StepPrimary {
+  label: string;
+  icon?: ReactNode;
+  onPress: () => void;
+  disabled?: boolean;
+  pending?: boolean;
+  /** Said beside the button: what it does, or what it is waiting for. */
+  why?: string;
+}
+
+/**
+ * One of the six steps, drawn as the artboard's card: "Step 2 of 6", the step's
+ * title and lead, its body, then Back and the primary action. On a phone the
+ * card's chrome falls away, a progress bar says how far along this is, and the
+ * actions are fixed to the bottom of the screen.
+ */
+export function StepFrame({
+  position,
+  title,
+  lead,
+  lockedBanner = false,
+  onBack,
+  primary,
+  children,
+}: {
+  position: { n: number; of: number };
+  title: string;
+  lead: string;
+  /** The registration exists: these details went to Injishi when it was signed. */
+  lockedBanner?: boolean;
+  onBack: (() => void) | null;
+  primary: StepPrimary | null;
+  children: ReactNode;
+}) {
+  const pct = Math.round((position.n / position.of) * 100);
+  return (
+    <section
+      aria-labelledby="register-step-title"
+      className="flex flex-col gap-6 md:rounded-card md:border md:border-border md:bg-card md:p-7"
+    >
+      <div className="flex flex-col gap-1.5">
+        <span id="register-step-position" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Step {position.n} of {position.of}
+        </span>
+        <Progress
+          aria-labelledby="register-step-position"
+          value={pct}
+          className="h-1.5 bg-secondary md:hidden"
+          indicatorClassName="bg-accent-brand"
+        />
+        <h2 id="register-step-title" className="text-xl font-semibold tracking-tight">
+          {title}
+        </h2>
+        <p className="text-sm text-muted-foreground">{lead}</p>
+      </div>
+
+      {lockedBanner ? (
+        <Callout tone="info" icon={<Lock size={16} aria-hidden />} title="Signed and locked">
+          These details went to Injishi when you signed. If something needs fixing, an officer sends the
+          registration back to you.
+        </Callout>
+      ) : null}
+
+      {children}
+
+      <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-border bg-background px-4 py-3 md:static md:z-auto md:bg-transparent md:px-0 md:pb-0 md:pt-5">
+        <Button variant="ghost" onClick={onBack ?? undefined} disabled={onBack === null}>
+          <ArrowLeft size={16} aria-hidden />
+          Back
+        </Button>
+        {primary ? (
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+            {primary.why ? (
+              <span id="register-step-why" className="sr-only text-xs text-muted-foreground md:not-sr-only md:text-right">
+                {primary.why}
+              </span>
+            ) : null}
+            <Button
+              onClick={primary.onPress}
+              disabled={primary.disabled}
+              pending={primary.pending}
+              aria-describedby={primary.why ? "register-step-why" : undefined}
+              className="grow md:grow-0"
+            >
+              {primary.label}
+              {primary.icon}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+/** A message with a title, in the tone of what it says. */
+export function Callout({
+  tone,
+  title,
+  icon,
+  children,
+  role,
+}: {
+  tone: "info" | "warning" | "danger" | "success";
+  title: string;
+  icon?: ReactNode;
+  children?: ReactNode;
+  /** `alert` for something that went wrong; a status otherwise. */
+  role?: "alert" | "status";
+}) {
+  const toneClass = {
+    info: "border-border bg-secondary text-secondary-foreground",
+    warning: "border-warning/40 bg-warning/10 text-foreground",
+    danger: "border-destructive/40 bg-destructive/10 text-foreground",
+    success: "border-success/40 bg-success/10 text-foreground",
+  }[tone];
+  const iconClass = {
+    info: "text-muted-foreground",
+    warning: "text-warning",
+    danger: "text-destructive",
+    success: "text-success",
+  }[tone];
+  return (
+    <div
+      className={`flex gap-3 rounded-card border p-4 text-sm ${toneClass}`}
+      role={role ?? (tone === "danger" ? "alert" : "status")}
+    >
+      {icon ? <span className={`mt-0.5 shrink-0 ${iconClass}`}>{icon}</span> : null}
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <p className="font-semibold">{title}</p>
+        {children ? <div className="text-muted-foreground">{children}</div> : null}
+      </div>
+    </div>
+  );
+}
+
+/** The card the screens outside the six steps are drawn in: a title, a lead, the body, a footer. */
 export function StepCard({
   id,
   title,

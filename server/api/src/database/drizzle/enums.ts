@@ -227,6 +227,11 @@ export const orgCertificateKindEnum = pgEnum('org_certificate_kind', [
   'fire_safety',
   'health_inspection',
   'other',
+  // The registration artboard's rows (2026-10-19): the RDB certificate, the
+  // PSF certificate, and a residence's land title.
+  'rdb_certificate',
+  'psf_certificate',
+  'land_title',
 ]);
 
 
@@ -946,42 +951,6 @@ export const phoneLinkStageEnum = pgEnum('phone_link_stage', [
   'sms_sent',
   'phone_proved',
   'email_sent',
-]);
-
-// ===========================================================================
-// §11  WAITLIST  (ADR-048; pre-launch only, deleted at launch)
-// ===========================================================================
-
-/** Which side of the marketplace a signup came from. */
-export const waitlistAudienceEnum = pgEnum('waitlist_audience', [
-  'traveller',
-  'owner',
-]);
-
-/**
- * The kinds of property an owner can name on the waitlist form.
- *
- * Deliberately NOT the listing module's taxonomy, which does not exist yet.
- * The name carries the surface it serves so that a pre-launch dropdown cannot
- * quietly become the product's data model (ADR-048, Consequences).
- */
-export const waitlistPropertyTypeEnum = pgEnum('waitlist_property_type', [
-  'hotel',
-  'guest_house',
-  'apartment',
-  'lodge',
-  'villa',
-  'hostel',
-  'homestay',
-  'campsite',
-]);
-
-/** How many rooms an owner says they run. Bands, because nobody counts exactly. */
-export const waitlistSizeBandEnum = pgEnum('waitlist_size_band', [
-  '1_5',
-  '6_20',
-  '21_50',
-  '50_plus',
 ]);
 
 // ===========================================================================

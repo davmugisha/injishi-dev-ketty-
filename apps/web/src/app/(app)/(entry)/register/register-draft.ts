@@ -2,9 +2,8 @@ import type { RegistrantCapacity, RegistrationDraft } from "@injishi/contracts";
 import { REGISTRATION_DRAFT_PHASES } from "@injishi/contracts";
 
 import type { AddressDraft } from "./address-picker";
+import type { BranchDraft, BusinessDraft } from "./business-draft";
 import type { PersonalDraft } from "./step-about-you";
-import type { BranchDraft } from "./step-branches";
-import type { BusinessDraft } from "./step-business";
 
 /**
  * The wizard's answers, kept ON THE SERVER between steps (ADR-060), so a person
@@ -19,13 +18,12 @@ import type { BusinessDraft } from "./step-business";
  * it. This module drops both numbers before sending, so the wizard never trips
  * that refusal. A verified identity needs no number anyway: the server keeps
  * the verified document. A typed-but-unverified one owes it again on return,
- * and `restoredPhase` sends the person to the step that asks.
+ * and every draft resumes on step two, where it is asked (`resumeStep` in
+ * `register-steps.ts`).
  */
 
 export type DraftPhase = RegistrationDraft["phase"];
 
-/** A phase a draft can resume at: every saved phase but the retired Documents. */
-export type ResumablePhase = Exclude<DraftPhase, "documents">;
 
 export function isDraftPhase(phase: string): phase is DraftPhase {
   return (REGISTRATION_DRAFT_PHASES as readonly string[]).includes(phase);
@@ -94,21 +92,3 @@ export function fromServerDraft(
   };
 }
 
-/**
- * Where a restored draft resumes. An ID number is never kept, so a draft that
- * still OWES one resumes where it is asked: a typed identity nobody verified at
- * You, and an owner's National ID on the on behalf path at Business, where the
- * owner's fields sit since ADR-069 (RegisterIA). Documents is no longer a step:
- * a draft saved there resumes at Business, whose optional section holds them.
- */
-export function restoredPhase(
-  answers: WizardAnswers,
-  identityVerified: boolean,
-): { phase: ResumablePhase; owesId: boolean } {
-  const owesOwn = answers.typedPersonal && !identityVerified;
-  const owesOwner = answers.capacity === "on_behalf_of";
-  const phase: ResumablePhase = answers.phase === "documents" ? "business" : answers.phase;
-  const pastAbout = phase !== "place" && phase !== "about";
-  if (owesOwn && pastAbout) return { phase: "about", owesId: true };
-  return { phase, owesId: owesOwn || (owesOwner && pastAbout) };
-}

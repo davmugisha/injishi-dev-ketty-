@@ -22,9 +22,9 @@ const ANON: ConversationHolder = { kind: 'anon', tokenHash: null };
 const GUEST: ConversationHolder = { kind: 'user', userId: GUEST_A };
 const OWNER: ConversationHolder = { kind: 'user', userId: 'owner-1' };
 const STAFF: ConversationHolder = { kind: 'user', userId: 'staff-1' };
-const PUBLIC: TurnContext = { catalogueOpen: true };
-const OPERATOR: TurnContext = { catalogueOpen: true, workspace: scoped(['listing.manage', 'reservation.assign', 'stay.checkin']) };
-const RECEPTION: TurnContext = { catalogueOpen: true, workspace: scoped(['stay.checkin']) };
+const PUBLIC: TurnContext = {};
+const OPERATOR: TurnContext = { workspace: scoped(['listing.manage', 'reservation.assign', 'stay.checkin']) };
+const RECEPTION: TurnContext = { workspace: scoped(['stay.checkin']) };
 
 class CountingModel implements AssistantModelPort {
   readonly kind = 'mock' as const;
@@ -186,7 +186,7 @@ describe('opening suggestions (contract revision 4)', () => {
     ];
     let checked = 0;
     for (const [holder, context, surface] of callers) {
-      const offered = new Set(new ToolSet(fakeReads).offered({ userId: holder.kind === 'user' ? holder.userId : null, catalogueOpen: true, workspace: context.workspace ?? null }).map((t) => t.name));
+      const offered = new Set(new ToolSet(fakeReads).offered({ userId: holder.kind === 'user' ? holder.userId : null, workspace: context.workspace ?? null }).map((t) => t.name));
       for (const entry of allSuggestionEntries().filter((e) => offeredTo(e, offered))) {
         const r = await ask(entry.message, holder, context, surface);
         expect({ suggestion: entry.id, route: r.route, calls: r.calls }).toEqual({ suggestion: entry.id, route: entry.route, calls: 0 });

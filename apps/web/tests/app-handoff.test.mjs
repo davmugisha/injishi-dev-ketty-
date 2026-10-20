@@ -1,14 +1,15 @@
 /**
- * Web hands `/sign-in` and `/register` to the operator app only when the app is
- * another origin (`src/lib/app-handoff.ts`).
+ * Web hands `/sign-in` to the operator app only when the app is another origin
+ * (`src/lib/app-handoff.ts`), and `/register` never: registration is web's
+ * wizard everywhere.
  *
  * The bug this pins: the hand-off was unconditional, and a deployed stack builds
  * web with `NEXT_PUBLIC_PMS_URL` equal to its own origin, because the app is a
  * zone under it. So `https://www.injishi.com/sign-in` answered a 307 to
  * itself, forever, and the waitlist's one door into the product was a loop.
  *
- * THIS TEST RUNS THE REAL FUNCTION, the way `waitlist-gate.test.mjs` does: the
- * source is read, transpiled and evaluated, never restated.
+ * THIS TEST RUNS THE REAL FUNCTION: the source is read, transpiled and
+ * evaluated, never restated.
  *
  * Run: pnpm --filter @injishi/web test
  */
@@ -57,18 +58,24 @@ describe("no hand-off when the app shares web's origin", () => {
 });
 
 describe("the hand-off still runs when the app is its own origin", () => {
-  test("a laptop with the app on :3002 sends both screens there", () => {
+  test("a laptop with the app on :3002 sends sign in there", () => {
     assert.deepEqual(appHandoffRedirects("http://localhost:3000", "http://localhost:3002"), [
       { source: "/sign-in", destination: "http://localhost:3002/sign-in", permanent: false },
-      { source: "/register", destination: "http://localhost:3002/register", permanent: false },
     ]);
+  });
+
+  test("/register is never handed off, so web's wizard answers on a laptop too", () => {
+    assert.ok(!APP_HANDOFF_PATHS.includes("/register"));
+    for (const [web, app] of [["http://localhost:3000", "http://localhost:3002"], [undefined, undefined]]) {
+      assert.ok(appHandoffRedirects(web, app).every((r) => r.source !== "/register"));
+    }
   });
 
   test("both unset keeps the old default of :3000 handing to :3002", () => {
     const redirects = appHandoffRedirects(undefined, undefined);
     assert.deepEqual(
       redirects.map((r) => r.destination),
-      ["http://localhost:3002/sign-in", "http://localhost:3002/register"],
+      ["http://localhost:3002/sign-in"],
     );
   });
 
@@ -108,7 +115,7 @@ describe("next.config.ts decides through this function and nowhere else", () => 
     );
   });
 
-  for (const path of APP_HANDOFF_PATHS) {
+  for (const path of [...APP_HANDOFF_PATHS, "/register"]) {
     test(`it declares no unconditional redirect from ${path}`, () => {
       assert.doesNotMatch(config, new RegExp(`source:\\s*["'\`]${path}["'\`]`));
     });

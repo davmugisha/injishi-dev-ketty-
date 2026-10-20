@@ -208,6 +208,13 @@ same script on the [runner](#the-self-hosted-runner), at the newest commit on
 workflow) it makes the same pick, and refuses one that does not contain the
 commit the demo already runs, so a stale answer from the runs API cannot roll
 the demo back. Root's crontab carries no demo line.
+
+**When `ci` cannot run at all**, no newer commit is ever green and that pick
+fails every night (it did from 2026-10-16 to 2026-10-19, while GitHub refused
+to start hosted jobs over a failed payment). Run it by hand with the `commit`
+input set: it builds that commit if it is already on `main`, and the
+never-backwards rule still holds. A push that changes `demo-recover.yml` itself
+builds the pushed commit, which is how a change to the job proves itself.
 `/opt/injishi-demo/demo-reseed.sh` (not in this repository) stays on the host
 for resetting the data without a rebuild: it seeds a candidate database with
 the API image already running and swaps it in, under the same build lock.
@@ -383,8 +390,8 @@ ranges, admits everyone.
 
 ## Client address at the API
 
-The API's address keyed rate limits (support, waitlist, certificate
-verification) read `request.ip`, which Fastify resolves through `TRUST_PROXY`
+The API's address keyed rate limits (support, certificate verification)
+read `request.ip`, which Fastify resolves through `TRUST_PROXY`
 (`server/api/src/shared/config/trust-proxy.ts`). All three compose files pin it
 to `"1"`: Traefik is the only route to `api` (8000 is `expose`d, never
 published), so the address Traefik appends to `X-Forwarded-For` is the client

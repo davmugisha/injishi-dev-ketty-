@@ -440,47 +440,7 @@ services:
     networks:
       - default
 
-  # The staff console. Traefik refuses every IP outside ADMIN_ALLOWED_IPS before
-  # the console's own session gate runs. Unset, the list is loopback only, so a
-  # missing setting closes the console rather than opening it.
-  admin:
-    image: injishi-admin:production
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.admin
-      secrets:
-        - heroui_token
-      args:
-        <<: *production-public
-    restart: unless-stopped
-    environment:
-      <<: *production-public
-      NODE_ENV: production
-      PORT: "3001"
-    expose:
-      - "3001"
-    depends_on:
-      api:
-        condition: service_healthy
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=dokploy-network
-      - traefik.http.services.injishi-production-admin.loadbalancer.server.port=3001
-      - traefik.http.middlewares.injishi-production-admin-allow.ipallowlist.sourcerange=${ADMIN_ALLOWED_IPS:-127.0.0.1/32}
-      - traefik.http.routers.injishi-production-admin-http.rule=Host(`${ADMIN_HOST:-admin.injishi.com}`)
-      - traefik.http.routers.injishi-production-admin-http.entrypoints=web
-      - traefik.http.routers.injishi-production-admin-http.middlewares=redirect-to-https@file
-      - traefik.http.routers.injishi-production-admin-http.service=injishi-production-admin
-      - traefik.http.routers.injishi-production-admin.rule=Host(`${ADMIN_HOST:-admin.injishi.com}`)
-      - traefik.http.routers.injishi-production-admin.entrypoints=websecure
-      - traefik.http.routers.injishi-production-admin.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-production-admin.middlewares=injishi-production-admin-allow
-      - traefik.http.routers.injishi-production-admin.service=injishi-production-admin
-    networks:
-      - default
-      - dokploy-network
-
-# HeroUI Pro's CI/CD token for the three frontend builds, read from this
+# HeroUI Pro's CI/CD token for the frontend builds, read from this
 # stack's .env (stack settings live on the host, never in GitHub). See the
 # note in Dockerfile.web.
 secrets:

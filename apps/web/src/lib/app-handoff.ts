@@ -1,5 +1,6 @@
 /**
- * Whether web hands `/sign-in` and `/register` to the operator app (`apps/app`).
+ * Whether web hands `/sign-in` to the operator app (`apps/app`). It used to hand
+ * `/register` too; see `APP_HANDOFF_PATHS`.
  *
  * Since the new interface (`3d42976`) a laptop runs web on :3000 and the app on
  * :3002, and the app has its own sign-in and register screens there, so web
@@ -14,13 +15,11 @@
  *
  * So the hand-off happens only when the app really is a different origin. When
  * it is web's own, web's `(app)/(entry)/sign-in` and `register` answer, which are
- * the screens the waitlist gate and the registration pipeline were built and
- * verified against. Neither choice can loop: the destination is never this
- * origin.
+ * the screens sign-in and the registration pipeline were built and verified
+ * against. Neither choice can loop: the destination is never this origin.
  *
  * NO IMPORTS. `next.config.ts` loads this through Next's config require hook,
- * and `tests/app-handoff.test.mjs` loads it bare, as `waitlist-gate.test.mjs`
- * loads the gate's matchers.
+ * and `tests/app-handoff.test.mjs` loads it bare.
  */
 
 export interface HandoffRedirect {
@@ -29,8 +28,16 @@ export interface HandoffRedirect {
   permanent: false;
 }
 
-/** The two entry screens the app owns when it is a separate origin. */
-export const APP_HANDOFF_PATHS = ["/sign-in", "/register"];
+/**
+ * The entry screens the app owns when it is a separate origin: sign in only.
+ *
+ * `/register` WAS here and is not any more (2026-10-19). Registration is web's
+ * wizard in every environment, rebuilt to the Register.dc.html artboard on the
+ * real API and web's own session; handing it to the app on a laptop sent
+ * `localhost:3000/register` to the app's fixture screen, so the wizard every
+ * deployed stack serves could not be opened locally at all.
+ */
+export const APP_HANDOFF_PATHS = ["/sign-in"];
 
 /** The defaults `web-url.ts` and the old redirect used when a variable is unset. */
 const WEB_DEFAULT = "http://localhost:3000";

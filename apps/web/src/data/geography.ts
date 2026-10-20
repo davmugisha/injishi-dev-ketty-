@@ -25,9 +25,8 @@ export async function fetchProvinces(): Promise<GeographyList<Province>> {
 export async function fetchDistricts(
   provinceId?: number,
 ): Promise<GeographyList<District>> {
-  // The province filter is optional on the endpoint and optional here: the
-  // registration wizard narrows by province, the waitlist form offers all
-  // thirty districts at once.
+  // The province filter is optional on the endpoint and optional here; the
+  // registration wizard always narrows by province.
   const res = await apiFetch<unknown>(
     provinceId === undefined
       ? `/api/v1/geography/districts`

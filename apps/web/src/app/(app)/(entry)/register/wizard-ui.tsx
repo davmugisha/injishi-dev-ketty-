@@ -404,6 +404,116 @@ export function TileCard({
   );
 }
 
+/**
+ * A wide pickable tile with an icon, a title and a line under it: the
+ * artboard's "Who is registering it?" and "Apply now / Not now" choices. A real
+ * radio underneath, visually hidden, for the reason `TileCard` keeps one.
+ */
+export function ChoiceTile({
+  name,
+  checked,
+  title,
+  description,
+  icon,
+  onSelect,
+}: {
+  name: string;
+  checked: boolean;
+  title: string;
+  description?: string;
+  icon?: ReactNode;
+  onSelect: () => void;
+}) {
+  return (
+    <label
+      className={[
+        "flex cursor-pointer items-start gap-3 rounded-card border p-4 transition-colors",
+        "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+        checked ? "border-accent-brand bg-accent-brand/10" : "border-input hover:bg-secondary",
+      ].join(" ")}
+    >
+      <input type="radio" name={name} checked={checked} onChange={onSelect} className="sr-only" />
+      {icon ? <span className={checked ? "mt-0.5 text-accent-text" : "mt-0.5 text-muted-foreground"}>{icon}</span> : null}
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-sm font-semibold">{title}</span>
+        {description ? <span className="text-xs text-muted-foreground">{description}</span> : null}
+      </span>
+    </label>
+  );
+}
+
+/**
+ * A six digit code in six boxes (the artboard's). Typing moves to the next box,
+ * Backspace on an empty box moves back, and a pasted or autofilled code is
+ * spread across all six, so an SMS code offered by the phone fills in one tap.
+ * `value` is the digits typed so far, never padded.
+ */
+export function CodeBoxes({
+  value,
+  onChange,
+  onComplete,
+  idPrefix,
+  disabled,
+  invalid,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  onComplete?: (code: string) => void;
+  idPrefix: string;
+  disabled?: boolean;
+  invalid?: boolean;
+}) {
+  const digits = value.replace(/\D/g, "").slice(0, 6);
+  const focusBox = (i: number) => {
+    const el = document.getElementById(`${idPrefix}-${Math.max(0, Math.min(5, i))}`);
+    if (el instanceof HTMLInputElement) {
+      el.focus();
+      el.select();
+    }
+  };
+  const write = (next: string, focusAt: number) => {
+    const clean = next.replace(/\D/g, "").slice(0, 6);
+    onChange(clean);
+    focusBox(focusAt);
+    if (clean.length === 6) onComplete?.(clean);
+  };
+  return (
+    <div className="flex flex-wrap gap-2">
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <input
+          key={i}
+          id={`${idPrefix}-${i}`}
+          type="text"
+          inputMode="numeric"
+          autoComplete={i === 0 ? "one-time-code" : "off"}
+          maxLength={i === 0 ? 6 : 1}
+          aria-label={`Digit ${i + 1} of 6`}
+          aria-invalid={invalid ? true : undefined}
+          disabled={disabled}
+          value={digits[i] ?? ""}
+          onChange={(e) => {
+            const typed = e.target.value.replace(/\D/g, "");
+            if (typed.length > 1) {
+              // Pasted or autofilled: spread it from this box on.
+              write(digits.slice(0, i) + typed, i + typed.length);
+              return;
+            }
+            const next = digits.slice(0, i) + typed + digits.slice(i + 1);
+            write(next, typed ? i + 1 : i);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Backspace" && !digits[i] && i > 0) {
+              e.preventDefault();
+              write(digits.slice(0, i - 1) + digits.slice(i), i - 1);
+            }
+          }}
+          className="size-12 rounded border border-input bg-field text-center text-xl font-semibold tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[invalid=true]:border-destructive disabled:opacity-50"
+        />
+      ))}
+    </div>
+  );
+}
+
 /** Bytes, as a person reads them. */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

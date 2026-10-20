@@ -1,8 +1,7 @@
 import { type MarketCatalogue, type MarketPropertyPage, type MarketQuote, MarketQuoteQuery, type MarketRooms } from '@injishi/contracts';
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 
 import { MarketplaceService } from '../../../modules/marketplace/application/marketplace.service';
-import { PreLaunchGuard } from '../../../shared/pre-launch/pre-launch.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
@@ -12,11 +11,7 @@ import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pip
  * sign-in gate fires at booking. What is public is `ListingService`'s answer (a published listing of
  * an active business); these routes add the marketplace card on top and list only properties that
  * have one. An unknown, hidden or card-less slug is the same 404.
- *
- * PRE-LAUNCH (ADR-048): the same guard as the catalogue it sits beside, so the production API host
- * answers 404 until launch.
  */
-@UseGuards(PreLaunchGuard)
 @Controller({ path: 'marketplace', version: '1' })
 export class MarketplaceController {
   constructor(private readonly market: MarketplaceService) {}

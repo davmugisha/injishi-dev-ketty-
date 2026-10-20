@@ -7,7 +7,6 @@ import {
 import { Test } from '@nestjs/testing';
 
 import { ListingService } from '../../../modules/listing/application/listing.service';
-import { PreLaunchGuard } from '../../../shared/pre-launch/pre-launch.guard';
 import { PropertiesController } from './properties.controller';
 
 /**
@@ -41,10 +40,7 @@ describe('PropertiesController photo route', () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [PropertiesController],
       providers: [{ provide: ListingService, useValue: { publicPhotoUrl } }],
-    })
-      .overrideGuard(PreLaunchGuard)
-      .useValue({ canActivate: () => true })
-      .compile();
+    }).compile();
 
     app = moduleRef.createNestApplication<NestFastifyApplication>(
       new FastifyAdapter({
