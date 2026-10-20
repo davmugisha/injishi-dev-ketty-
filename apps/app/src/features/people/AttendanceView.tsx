@@ -8,6 +8,7 @@ import {
   FloppyDisk,
   Paperclip,
   PencilToSquare,
+  Person,
   Smartphone,
 } from "@gravity-ui/icons";
 import {
@@ -41,7 +42,7 @@ import { Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/u
 import { Fragment, type ReactNode, useOptimistic, useState, useTransition } from "react";
 import { decideCorrection, saveDeskEntry } from "./actions";
 import { dayMonthYear, fullDay } from "./days";
-import { firstName, PanelCard } from "./parts";
+import { PanelCard } from "./parts";
 
 export interface AttendanceData {
   records: ClockRecord[];
@@ -144,7 +145,8 @@ export function AttendanceView({
       id: "corrections",
       label: "Corrections waiting",
       value: pendingCorrections,
-      foot: "Already confirmed by line managers",
+      // Nothing in the product asks a line manager to confirm a correction yet: the office decides alone.
+      foot: "Decided here · no line manager step yet",
       icon: "PencilToSquare",
       status: pendingCorrections ? ("warning" as const) : ("success" as const),
     },
@@ -397,10 +399,9 @@ export function AttendanceView({
             dense
             id="cr-h"
             title="Correction Requests"
-            description="Employee asks, line manager confirms, then you decide"
+            description="Employee asks, you decide. Line managers have no step here yet"
           >
             {corrections.map((c) => {
-              const first = firstName(c.name);
               const isDeclining = !!declining[c.id];
               return (
                 <Card key={c.id} variant="secondary" className="gap-2 p-3 text-sm">
@@ -428,8 +429,8 @@ export function AttendanceView({
                     <Paperclip className="mt-px size-3 shrink-0" aria-hidden="true" />
                     {c.evidence}
                   </span>
-                  <span className="flex items-center gap-1.5 text-xs">
-                    <CircleCheck className="size-3 shrink-0 text-success" aria-hidden="true" />
+                  <span className="flex items-center gap-1.5 text-xs text-muted">
+                    <Person className="size-3 shrink-0" aria-hidden="true" />
                     {c.manager}
                   </span>
                   {c.state === "pending" ? (
@@ -441,7 +442,7 @@ export function AttendanceView({
                           className="flex flex-col gap-1"
                         >
                           <Label>Reason for declining</Label>
-                          <TextArea rows={2} placeholder={`Shown to ${first} and the line manager`} />
+                          <TextArea rows={2} placeholder="Recorded on the request. No message is sent." />
                         </TextField>
                       ) : null}
                       <div className="flex flex-wrap items-center gap-1.5">
@@ -522,10 +523,7 @@ export function AttendanceView({
               <Label>Justification</Label>
               <TextArea rows={3} placeholder="Who confirmed the time, and how" />
               <FieldError>A justification is required for every desk entry.</FieldError>
-              <Description>
-                Recorded as Desk · {persona.name}. Nobody is messaged: {firstName(employee?.name ?? "")} sees it in the
-                staff app.
-              </Description>
+              <Description>Recorded as Desk · {persona.name}. No message is sent.</Description>
             </TextField>
             <Button fullWidth onPress={save} isDisabled={pending}>
               <FloppyDisk className="size-4" />

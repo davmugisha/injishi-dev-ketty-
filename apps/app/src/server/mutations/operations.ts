@@ -103,7 +103,7 @@ export async function inspectCleaningTask(
   forgetOperations(ctx);
 }
 
-/** "Remind Beatrice to inspect 207": record the reminder; her phone is told through the outbox. */
+/** "Record a reminder for 207": the API keeps it on the escalation. Nothing delivers it to the supervisor yet. */
 export async function remindEscalation(ctx: SourceContext, escalationId: string): Promise<void> {
   await ctx.ops().post(`/api/v1/ops/housekeeping/escalations/${encodeURIComponent(escalationId)}/remind`, {});
   forgetOperations(ctx);

@@ -6,6 +6,9 @@
  *   - Stay and folio: a desk charge is posted before tax (its VAT read back folded into the line), a
  *     replayed press posts nothing new, the charge is voided with a reversing line, and cash is recorded
  *     exactly as typed, once per press; a housekeeper is refused;
+ *   - Typed amounts (the folio's charge and cash fields, the offline desk and check-in's cash field): whole
+ *     francs, thousands grouped or not, a decimal part refused with its reason and never folded into the
+ *     digits ("20,000.50" was once taken as 2,000,050);
  *   - Checkout: the next guest due out settles the rest in cash and is checked out; the stay closes, the
  *     bill closes at zero, the room goes to Dirty, Checkout moves on to the next guest, and the accountant
  *     (bills, but no `stay.checkout`) is refused.
@@ -23,6 +26,7 @@ import type {
   Stay,
   StayRecord,
 } from "@injishi/data/fixtures/stays";
+import { readFrancs } from "../../src/features/stays/amount";
 import {
   checkOutStay,
   postFolioCharge,
@@ -48,6 +52,33 @@ async function stayPage(ctx: SourceContext, ref: string) {
 }
 
 export const flows: Flow[] = [
+  {
+    name: "a typed amount is whole francs: grouped digits read as typed, a decimal part refused, nothing multiplied",
+    async run({ check, step }) {
+      const read: [string, number][] = [
+        ["20000", 20_000],
+        ["20,000", 20_000],
+        ["20 000", 20_000],
+        ["RWF 170,000", 170_000],
+        ["1.250.000", 1_250_000],
+        ["1,234,567", 1_234_567],
+        ["", 0],
+      ];
+      for (const [text, want] of read) {
+        const got = readFrancs(text);
+        check(got.amount === want && got.error === null, `"${text}" reads ${JSON.stringify(got)}, want ${want}`);
+      }
+      const refusedText = ["20,000.50", "20000,5", "12,00", "20.000", "20.000,50", "1,2345", "-500", "20k"];
+      for (const text of refusedText) {
+        const got = readFrancs(text);
+        check(got.amount === 0 && !!got.error, `"${text}" must be refused, it reads ${JSON.stringify(got)}`);
+      }
+      check(/decimal/i.test(readFrancs("20,000.50").error ?? ""), "a decimal part is refused as one");
+      step(
+        `${read.length} grouped amounts read exactly; ${refusedText.length} refused, "20,000.50" with "${readFrancs("20,000.50").error}"`,
+      );
+    },
+  },
   {
     name: "the desk replies to a guest, a closed conversation refuses a reply, a housekeeper cannot reply",
     async run({ as, check, refused, step }) {

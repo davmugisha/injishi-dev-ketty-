@@ -101,6 +101,7 @@ export function EmployeesView({
 
   const obDone = data.offboarding.filter((t) => ob[t.id]).length;
   const obTotal = data.offboarding.length;
+  // The first leaver in directory order: people.offboarding lists this same person's steps.
   const leaver = data.employees.find((e) => e.status === "leaving");
 
   return (

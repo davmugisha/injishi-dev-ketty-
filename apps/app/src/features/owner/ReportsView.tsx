@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowDownToLine, Bookmark, Plus } from "@gravity-ui/icons";
+import { ArrowDownToLine, Bookmark, ChartColumn, Plus } from "@gravity-ui/icons";
 import { Button, Card, Chip, Label, ListBox, Select, Tabs, Toast, toast } from "@heroui/react";
-import { ListView, Segment } from "@heroui-pro/react";
+import { EmptyState, ListView, Segment } from "@heroui-pro/react";
 import type {
   ReportsAgingBucket,
   ReportsArrear,
@@ -107,6 +107,31 @@ export function ReportsView({ data, businessName }: { data: ReportsData; busines
       setSaving(false);
     }
   };
+
+  // No branch figures to read (an account without the money view, or a business with no branch yet):
+  // the screen says so instead of drawing panels around a property that does not exist.
+  if (!property) {
+    return (
+      <PageContent>
+        <PageHeader
+          eyebrow={`${businessName} · Reports`}
+          title="Reports"
+          description="Defined measures with their source. Open any figure to see the records behind it."
+        />
+        <EmptyState size="sm">
+          <EmptyState.Header>
+            <EmptyState.Media variant="icon">
+              <ChartColumn />
+            </EmptyState.Media>
+            <EmptyState.Title>No figures to report</EmptyState.Title>
+            <EmptyState.Description>
+              This month's branch figures are not open to this account, or the business has no branch yet.
+            </EmptyState.Description>
+          </EmptyState.Header>
+        </EmptyState>
+      </PageContent>
+    );
+  }
 
   return (
     <PageContent>

@@ -617,14 +617,21 @@ function presentEscalations(board: ApiBoard, now: Date): HousekeepingEscalation[
     } else {
       const cleaned = t.completedAt ?? t.createdAt;
       const who = firstName(supervisor?.name ?? e.escalatedToName) || "the supervisor";
-      const doneCta = `${who} reminded`;
+      // The API records the reminder on the escalation (reminded_at) and leaves an outbox row that
+      // nothing delivers yet: no phone, staff screen or message reads it. So the control records a
+      // reminder and says it is not delivered, and the time shown is the API's, never the clock's.
+      const doneCta = "Reminder recorded · not delivered";
+      const waited = `Room ${room} ${minutesBetween(cleaned, now) > 0 ? `has waited ${waitedText(minutesBetween(cleaned, now))}` : "is waiting"} for inspection after ${firstName(t.assignedToName) || "housekeeping"} cleaned it at ${clock(cleaned)}.`;
+      const note = e.remindedAt
+        ? ` A reminder was recorded on the task at ${clock(e.remindedAt)}${e.remindedByName ? ` by ${firstName(e.remindedByName)}` : ""}; it is not delivered to ${who} yet.`
+        : ` A reminder is recorded on the task only; nothing delivers it to ${who} yet.`;
       out.push({
         id: e.id,
         task: t.id,
         action: "remind",
-        text: `Room ${room} ${minutesBetween(cleaned, now) > 0 ? `has waited ${waitedText(minutesBetween(cleaned, now))}` : "is waiting"} for inspection after ${firstName(t.assignedToName) || "housekeeping"} cleaned it at ${clock(cleaned)}.`,
-        // Already reminded: the button reads as done (the view starts disabled on it).
-        cta: e.remindedAt ? doneCta : `Remind ${who} to inspect ${room}`,
+        text: `${waited}${note}`,
+        // Already recorded: the button reads as done (the view starts disabled on it).
+        cta: e.remindedAt ? doneCta : `Record a reminder for ${room}`,
         doneCta,
       });
     }

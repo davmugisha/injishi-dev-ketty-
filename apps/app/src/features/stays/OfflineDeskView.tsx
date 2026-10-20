@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   Description,
+  FieldError,
   Input,
   Label,
   Separator,
@@ -28,7 +29,7 @@ import type {
 import { LinkButton, PageContent, PageHeader, StatusDot } from "@injishi/ui";
 import { useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
-import { CardHeading, IconTile, InfoRow, parseAmount, ToneChip } from "./parts";
+import { CardHeading, IconTile, InfoRow, readFrancs, ToneChip } from "./parts";
 
 export interface OfflineDeskData {
   arrivals: OfflineArrival[];
@@ -86,7 +87,7 @@ export function OfflineDeskView({
   });
 
   const rails = data.rails.filter((r) => r.mode === (offline ? "offline" : "online"));
-  const amount = parseAmount(cashAmt);
+  const { amount, error: amountError } = readFrancs(cashAmt);
 
   return (
     <PageContent>
@@ -311,9 +312,10 @@ export function OfflineDeskView({
                     ))}
                   </Segment>
                   <div className="flex items-end gap-2">
-                    <TextField value={cashAmt} onChange={setCashAmt} className="flex-1">
+                    <TextField value={cashAmt} onChange={setCashAmt} isInvalid={!!amountError} className="flex-1">
                       <Label>Amount (RWF)</Label>
                       <Input variant="secondary" inputMode="numeric" placeholder="e.g. 20,000" className="tabular" />
+                      <FieldError>{amountError}</FieldError>
                     </TextField>
                     <Button
                       variant="secondary"

@@ -50,6 +50,9 @@ try {
   if ((await page.text()).includes("Sample data"))
     fail("/housekeeping is marked as sample data, but every collection it reads is live");
   console.log("  the board shows the seeded day from Postgres, with no sample-data mark");
+  // A reminder is only recorded on the task (nothing delivers it): the escalation must not say anyone was reminded.
+  if (/\b(Remind \w+ to inspect|\w+ reminded)\b/.test(await page.text()))
+    fail("the escalation still claims a supervisor is reminded, though nothing delivers reminders");
 
   await page.press("Pass", {
     within: `document.querySelector('[aria-label="Pass inspection of room 102"]').parentElement`,
