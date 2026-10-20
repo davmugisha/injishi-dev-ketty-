@@ -383,8 +383,8 @@ ranges, admits everyone.
 
 ## Client address at the API
 
-The API's address keyed rate limits (support, waitlist, certificate
-verification) read `request.ip`, which Fastify resolves through `TRUST_PROXY`
+The API's address keyed rate limits (support, certificate verification)
+read `request.ip`, which Fastify resolves through `TRUST_PROXY`
 (`server/api/src/shared/config/trust-proxy.ts`). All three compose files pin it
 to `"1"`: Traefik is the only route to `api` (8000 is `expose`d, never
 published), so the address Traefik appends to `X-Forwarded-For` is the client

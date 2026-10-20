@@ -26,8 +26,8 @@ import { type TurnUsage, UsageLedger } from './usage-ledger';
 const NOW = new Date('2026-10-01T09:00:00Z');
 const ANON: ConversationHolder = { kind: 'anon', tokenHash: null };
 const OWNER: ConversationHolder = { kind: 'user', userId: 'owner-1' };
-const PUBLIC: TurnContext = { catalogueOpen: true };
-const OPERATOR: TurnContext = { catalogueOpen: true, workspace: scoped(['listing.manage']) };
+const PUBLIC: TurnContext = {};
+const OPERATOR: TurnContext = { workspace: scoped(['listing.manage']) };
 
 /** The mock, failing from a given call on, to stand in for a provider outage. */
 class FailingFrom implements AssistantModelPort {

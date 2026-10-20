@@ -5,9 +5,9 @@ import type { ToolCaller } from './tool-types';
 
 const tools = new ToolSet(fakeReads);
 const USER = 'u0000000-0000-4000-8000-000000000001';
-const receptionist: ToolCaller = { userId: USER, catalogueOpen: true, workspace: scoped(['stay.checkin', 'reservation.assign']) };
-const housekeeper: ToolCaller = { userId: USER, catalogueOpen: true, workspace: scoped(['housekeeping.set']) };
-const owner: ToolCaller = { userId: USER, catalogueOpen: true, workspace: scoped(['listing.manage', 'stay.checkin']) };
+const receptionist: ToolCaller = { userId: USER, workspace: scoped(['stay.checkin', 'reservation.assign']) };
+const housekeeper: ToolCaller = { userId: USER, workspace: scoped(['housekeeping.set']) };
+const owner: ToolCaller = { userId: USER, workspace: scoped(['listing.manage', 'stay.checkin']) };
 
 async function body(name: string, input: unknown, caller: ToolCaller): Promise<{ isError: boolean; json: Record<string, unknown>; raw: string }> {
   const outcome = await tools.run(name, input, caller);
@@ -69,12 +69,12 @@ describe('operator tools (ADR-061 slice D)', () => {
   });
 
   it('offers no operator tool until this session has passed the step up, and says so', async () => {
-    const pendingStepUp: ToolCaller = { userId: USER, catalogueOpen: true, workspace: null, stepUpNeeded: true };
+    const pendingStepUp: ToolCaller = { userId: USER, workspace: null, stepUpNeeded: true };
     const offered = tools.offered(pendingStepUp).map((t) => t.name);
     expect(offered).not.toContain('rooms_on_dates');
     expect(offered).not.toContain('list_reservations');
     expect((await body('rooms_on_dates', { from: '2026-10-10' }, pendingStepUp)).json.error).toMatch(/code emailed to you/);
-    const noWorkspace = await body('rooms_on_dates', { from: '2026-10-10' }, { userId: USER, catalogueOpen: true });
+    const noWorkspace = await body('rooms_on_dates', { from: '2026-10-10' }, { userId: USER });
     expect(noWorkspace.json.error).toMatch(/business workspace/);
   });
 

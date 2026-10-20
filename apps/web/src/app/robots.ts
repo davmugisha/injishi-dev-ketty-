@@ -1,38 +1,33 @@
 import type { MetadataRoute } from "next";
 
+import { WEB_URL } from "@/lib/web-url";
+
 /**
- * Search engine instructions while the gate is up (ADR-048 AC-16).
+ * Search engine instructions (ADR-048 AC-16, as launched).
  *
- * THIS FILE IS NET NEW. `apps/web` has never had one, which means the whole
- * half-built marketplace has been crawlable by default the entire time the
- * domain has resolved.
+ * The marketplace is meant to be read by strangers, so every crawler may read
+ * it. The private screens need no rule here: each one sends a visitor with no
+ * session to `/sign-in`, so there is nothing behind them to index.
  *
- * ALLOW `/waitlist` AND DISALLOW EVERYTHING ELSE. The rest of the site
- * redirects strangers here anyway, and a crawler indexing a redirect chain
- * teaches search engines that the product's real pages are empty — a lesson
- * they keep for months after launch.
+ * THIS FILE OUTLIVED THE WAITLIST ON PURPOSE. It was written for the gate, and
+ * deleting it with the gate would have started launch day with no search
+ * directives at all, which is the state `apps/web` was in while a half-built
+ * marketplace sat on a resolving domain.
  *
- * AT LAUNCH THIS FILE IS REPLACED, NEVER DELETED. Removing it starts launch day
- * with no search directives at all, which is not a neutral state: it is the
- * state this app was already in and the reason this file exists. Swap the rules
- * for the real ones in the same change that deletes the gate
- * (`apps/web/WAITLIST-REMOVAL.md` says so).
+ * `/waitlist/unsubscribe/` stays disallowed while a welcome email carrying one
+ * of those links can still sit in somebody's inbox. Each URL holds one person's
+ * token, and an indexed token is a person's identifier in a public index, even
+ * though the page itself is gone.
  */
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
   return {
     rules: [
       {
         userAgent: "*",
-        allow: "/waitlist",
-        // The unsubscribe path is under `/waitlist`, so it would be allowed by
-        // the line above. It is disallowed explicitly because each of its URLs
-        // carries one person's token, and an indexed token is a private key in
-        // a public index. The page also carries its own `noindex`.
-        disallow: ["/", "/waitlist/unsubscribe/"],
+        allow: "/",
+        disallow: ["/waitlist/unsubscribe/"],
       },
     ],
-    sitemap: `${base}/sitemap.xml`,
+    sitemap: `${WEB_URL}/sitemap.xml`,
   };
 }

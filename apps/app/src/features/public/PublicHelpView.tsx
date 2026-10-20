@@ -695,7 +695,6 @@ export function PublicHelpView({
       <PublicFooter
         links={[
           { label: "For hosts", href: screenHref("PublicHost") },
-          { label: "Join the waitlist", href: `${screenHref("PublicHost")}#waitlist` },
           { label: "Training and certificates", href: screenHref("Training") },
           { label: "Find a stay", href: screenHref("MarketExplore") },
         ]}

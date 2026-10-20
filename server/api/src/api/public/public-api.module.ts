@@ -123,7 +123,6 @@ import { UploadsController } from './uploads/uploads.controller';
 import { SupportModule } from './support/support.module';
 import { AssistantPublicModule } from './assistant/assistant.module';
 import { TrainingPublicModule } from './training/training.module';
-import { WaitlistModule } from './waitlist/waitlist.module';
 
 /**
  * Public API (/api/v1). Controllers here compose application services from the
@@ -158,9 +157,6 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     // /assistant/*, the support assistant (ADR-061); its limits, cookie and
     // model seam are in its own folder and `modules/assistant`.
     AssistantPublicModule,
-    // POST /waitlist/signups and the unsubscribe route, the pre-launch
-    // waitlist (ADR-048). Deleted whole at launch.
-    WaitlistModule,
     // ADR-049. Its catalogue routes are the only unguarded READS this module
     // adds: `/training` must render with no cookie at all (AC-1), and
     // `/api/v1/verify/:token` must answer a stranger holding a printed

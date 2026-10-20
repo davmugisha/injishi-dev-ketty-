@@ -1,5 +1,5 @@
 // The guards' import chain reaches Better Auth, which ships as ESM Jest does not
-// transform. Stood in the way `waitlist-admin.controller.spec.ts` does it.
+// transform, so it is stood in here.
 jest.mock('@injishi/auth', () => ({
   DEMO_OTP_CODE: '123456',
   DEMO_COOKIE_PREFIX: 'injishi-demo',

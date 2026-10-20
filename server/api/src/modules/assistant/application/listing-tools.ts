@@ -14,10 +14,6 @@ import { tokens } from './knowledge-search';
  * built field by field from an allowlist: coordinates are never passed on,
  * whether or not a property hides its location, because an answer never
  * needs them and a map link on the property page already respects the choice.
- *
- * All three need the catalogue to be open. On the production pre launch host
- * the tools are not offered, and a call that names one anyway is refused,
- * the same rule `PreLaunchGuard` applies to the routes.
  */
 export interface ListingReads {
   listPublished(): Promise<PropertyCard[]>;
@@ -60,7 +56,7 @@ const AvailabilityInput = z
 
 export function createListingTools(reads: ListingReads): AssistantTool[] {
   const searchListings: AssistantTool = {
-    requires: 'catalogue',
+    requires: 'public',
     spec: {
       name: 'search_listings',
       description:
@@ -111,7 +107,7 @@ export function createListingTools(reads: ListingReads): AssistantTool[] {
   };
 
   const getListing: AssistantTool = {
-    requires: 'catalogue',
+    requires: 'public',
     spec: {
       name: 'get_listing',
       description:
@@ -167,7 +163,7 @@ export function createListingTools(reads: ListingReads): AssistantTool[] {
   };
 
   const checkAvailability: AssistantTool = {
-    requires: 'catalogue',
+    requires: 'public',
     spec: {
       name: 'check_availability',
       description: `How many units of one room type are free on each night from checkIn up to (not including) checkOut, at most ${MAX_AVAILABILITY_NIGHTS} nights. Get the roomTypeId from get_listing. Dates are yyyy-mm-dd.`,
