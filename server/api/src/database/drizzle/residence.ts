@@ -28,9 +28,7 @@ import {
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
 // Lazy only (inside `references`): interface-operations imports this module back.
-import { assets } from './interface-operations';
 // Lazy only too: interface-residence imports this module back.
-import { visitorPasses } from './interface-residence';
 import { adapterModeEnum, brokerStatusEnum, paymentAttemptPurposeEnum, paymentAttemptStateEnum, cautionStatusEnum, escrowSourceEnum, escrowStatusEnum, filingStatusEnum, invitationStatusEnum, leaseStatusEnum, maintenanceCategoryEnum, maintenancePriorityEnum, maintenanceRaisedByRoleEnum, maintenanceStatusEnum, placementStatusEnum, renewalStatusEnum, rentStatusEnum, signerRoleEnum } from './enums';
 import { bookings, guestStays, storedObjects } from './hospitality';
 import { listings, properties, rooms, spaces } from './inventory';
@@ -861,3 +859,81 @@ export const contractFilings = pgTable(
 // ===========================================================================
 // Shared: MESSAGING (§6.7)
 // ===========================================================================
+
+// Defined here rather than in its interface-* file because maintenance_tickets.asset_id references it: a base schema file never imports an
+// interface one, which is what made the import cycles the api-cycles ratchet refused.
+/** Equipment the property maintains (an ice machine, a projector, a generator), where it stands. */
+export const assets = pgTable(
+  'assets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id, { onDelete: 'cascade' }),
+    roomId: uuid('room_id').references(() => rooms.id, { onDelete: 'set null' }),
+    spaceId: uuid('space_id').references(() => spaces.id, { onDelete: 'set null' }),
+    name: text('name').notNull(),
+    kind: text('kind'),
+    model: text('model'),
+    installedOn: date('installed_on'),
+    ...timestamps,
+  },
+  (t) => [index('assets_property_idx').on(t.propertyId), index('assets_workspace_idx').on(t.workspaceId)],
+);
+
+// Defined here rather than in its interface-* file because a residence row's visitor_pass_id references it: a base schema file never imports an
+// interface one, which is what made the import cycles the api-cycles ratchet refused.
+/**
+ * A gate code: who may come in, to which unit, between when and when.
+ *
+ * A code is four digits and unique among the codes still in use at the building (`expected` or
+ * `approved`), which the partial index holds when two people ask at once. A used or expired code may
+ * come round again. A management pass for a vacant unit has no lease.
+ */
+export const visitorPasses = pgTable(
+  'visitor_passes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id),
+    roomId: uuid('room_id')
+      .notNull()
+      .references(() => rooms.id),
+    leaseId: uuid('lease_id').references(() => leases.id),
+    /** The repair a contractor's pass was arranged for. */
+    maintenanceTicketId: uuid('maintenance_ticket_id').references(() => maintenanceTickets.id, {
+      onDelete: 'set null',
+    }),
+    kind: text('kind').notNull().default('guest'),
+    visitorName: text('visitor_name').notNull(),
+    code: text('code').notNull(),
+    validFrom: timestamp('valid_from', { withTimezone: true }).notNull(),
+    validTo: timestamp('valid_to', { withTimezone: true }).notNull(),
+    overnight: boolean('overnight').notNull().default(false),
+    status: text('status').notNull().default('expected'),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id),
+    /** Registered by the tenant rather than by management. */
+    byTenant: boolean('by_tenant').notNull().default(false),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    leftAt: timestamp('left_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('visitor_passes_live_code_uk')
+      .on(t.propertyId, t.code)
+      .where(sql`${t.status} IN ('expected', 'approved')`),
+    index('visitor_passes_scope_status_idx').on(t.workspaceId, t.status, t.validFrom),
+    index('visitor_passes_lease_idx').on(t.leaseId),
+    check('visitor_passes_window', sql`${t.validTo} > ${t.validFrom}`),
+    check('visitor_passes_code_shape', sql`${t.code} ~ '^[0-9]{4}$'`),
+    check('visitor_passes_kind_known', sql`${t.kind} IN ('guest', 'contractor')`),
+    check('visitor_passes_status_known', sql`${t.status} IN ('expected', 'approved', 'used', 'expired', 'revoked')`),
+  ],
+);
