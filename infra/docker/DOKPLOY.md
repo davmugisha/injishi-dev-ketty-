@@ -3,27 +3,67 @@
 This file is the owner of VPS / Dokploy deploy facts. Other docs may restate
 them; they do not define them.
 
-Three stacks run on one VPS, each from its own compose file in this directory,
-under its own project name and env file. Whether each is up right now is build
-state (the progress tracker), not this file.
+**Dokploy runs Injishi (since 2026-10-20).** Two environments, each ONE
+Dokploy compose service, in project **Injishi** of organisation **Hangaa
+Softwares**. Dokploy clones the repository, builds every image on the host and
+starts the stack. There is no hand-run compose, no `/opt/injishi*` checkout and
+no demo any more. Whether each is up right now is build state (the progress
+tracker), not this file.
 
-| Stack | What it is | Compose file | Project / env file / source |
-| --- | --- | --- | --- |
-| **Production** | The real product and real data | [`docker-compose.dokploy.yml`](docker-compose.dokploy.yml) | `-p injishi`, `/opt/injishi/.env`, `/opt/injishi/src` at the released commit |
-| **Staging** | Where a release is tried first | [`docker-compose.staging.yml`](docker-compose.staging.yml) | `-p injishi-staging`, `/opt/injishi-staging/.env`, `/opt/injishi-staging/src` at the commit under test |
-| **Demo** | The public showroom: staging's commit, sample data, a published sign in code, rebuilt every night | [`docker-compose.demo.yml`](docker-compose.demo.yml) | `-p injishi-demo` (Dokploy's `injishi-demo-rllflw` on the Hangaa VPS, see [the runner](#the-self-hosted-runner)), `/opt/injishi-demo/.env`, `/opt/injishi-demo/src` at staging's commit |
+| Environment in Dokploy | Ships | Compose file | Dokploy appName | Hosts (domain rows) |
+| --- | --- | --- | --- | --- |
+| `production` (the default; Dokploy refuses to rename it) | db, redis, minio, api, worker, **web**, **app** | [`docker-compose.dokploy.yml`](docker-compose.dokploy.yml) | `injishi-production-igxxsu` | `www.`, `api.` and `app.injishi.com` |
+| `Staging` | db, redis, minio, mailpit, api, worker, **app**. No web, no admin | [`docker-compose.staging.yml`](docker-compose.staging.yml) | `injishi-staging-crwyau` | `api-staging.` and `app-staging.injishi.com` |
 
-The demo used to live inside production's stack: the same API container
-answered on the demo host and chose a database per request. It is a stack of
-its own now (ADR-043), so nothing it does (a migration, a crash, a live
-adapter, a stranger's upload) can reach production.
+Hosts a domain row cannot express stay as Traefik labels in the compose file:
+the apex's permanent redirect to `www`, each `storage` host's reads only rule,
+and staging's `mail-staging` inbox. Never give one host both a domain row and a
+label router: two routers for one host is a coin toss.
+
+**How a deploy runs.** Each service's source is the GitHub provider
+`hangaasoftwares.app`, repository `hangaasoftwares/injishi`, with auto deploy
+off. Deploy is the **Deploy** button, or `compose.deploy` through the API. Each
+service carries a custom command that builds ONE image at a time and then
+starts the stack, because three Next builds at once do not fit this host's
+memory:
+
+```text
+compose -p <appName> --env-file ./infra/docker/.env -f <compose file> build api
+  && docker compose ... build web && docker compose ... build app        (staging: no web)
+  && docker compose ... up -d --remove-orphans
+```
+
+**A deploy that builds is slow here, and quiet.** On 2 vCPU and 3.8 GB, while
+swapping, the first production build took 80 minutes (api 14, web 24, app 41).
+For most of that time BuildKit was committing layers and printing nothing:
+the app's `pnpm install` layer took 28 minutes to commit. A deploy log that
+stops after a step's `DONE` is not a dead deploy. Look for the
+`cli-plugins/docker-compose` process before you kill it. To start a stack
+without building, set the command to its last step (`compose ... up -d
+--remove-orphans`) over images already built, deploy, then put the build
+command back.
+
+**Variables live in Dokploy**, on each service's Environment tab. Dokploy writes
+them to `infra/docker/.env` in its clone. The names are those of
+[`dokploy.env.example`](dokploy.env.example) and
+[`dokploy-staging.env.example`](dokploy-staging.env.example). Staging's add
+`API_HOST`, `APP_HOST`, `STORAGE_HOST` and `MAIL_HOST` in place of
+`STAGING_DOMAIN`. The values generated at setup are also kept root only in
+`/root/dokploy-setup/` on the host. Never share a secret between the two.
+
+**Staging lives under injishi.com by the owner's choice**, which the next
+section's rule warns against. Production's `.injishi.com` session cookie
+reaches `api-staging` and `app-staging`. Staging cannot verify it, and its own
+API cookie is host only. The staging compose header says so.
+
+**The demo is retired.** The `www-demo.injishi.com` stack, its Dokploy project
+and its nightly `demo-recover` workflow (now disabled) are gone. The
+**The demo**, **The self hosted runner**, **Releasing** and **Cutover**
+sections below describe that retired hand-run model and the GHCR pipeline. They
+are kept for history until someone rewrites them; read nothing in them as how
+production deploys today.
 
 `infra/docker/docker-compose.yml` is the local stack and never runs here.
-Secrets live only in the env files on the host: copy the names from
-[`dokploy.env.example`](dokploy.env.example),
-[`dokploy-staging.env.example`](dokploy-staging.env.example) and
-[`dokploy-demo.env.example`](dokploy-demo.env.example), never commit values,
-and never share a secret between stacks.
 
 ## Target
 
@@ -31,36 +71,10 @@ and never share a secret between stacks.
 | --- | --- |
 | SSH | `ssh -o BatchMode=yes -p 222 root@102.202.208.167` |
 | Host SSH port | **222** (not 22) |
-| Dokploy organisation | Hangaa Softwares |
-| Project | Injishi |
+| Dokploy | v0.30.8, panel on `:3000`; API `http://127.0.0.1:3000/api/<router.proc>` on the host, `x-api-key` from `/root/.dokploy-api-key` (a Hangaa Softwares key) |
+| Dokploy organisation / project | Hangaa Softwares / Injishi |
 | Edge | Dokploy Traefik (`traefik:v3.6.7`) on TCP 80 and 443 |
-| Production source | `/opt/injishi/src` (injishi repo root, at the released commit) |
-| Staging source | `/opt/injishi-staging/src` (a second checkout, at the commit under test) |
-| Demo source | `/opt/injishi-demo/src` (a third checkout, moved to staging's commit by the nightly job) |
-
-Production and staging are started with plain `docker compose` from their
-source directory, which is the build context (`context: ../..` from the compose
-file). `INJISHI_COMMIT` stamps the API image with the commit it was built from:
-
-```sh
-cd /opt/injishi/src && INJISHI_COMMIT=$(git rev-parse --short HEAD) docker compose -p injishi \
-  -f infra/docker/docker-compose.dokploy.yml --env-file /opt/injishi/.env up -d --build
-
-cd /opt/injishi-staging/src && INJISHI_COMMIT=$(git rev-parse --short HEAD) docker compose -p injishi-staging \
-  -f infra/docker/docker-compose.staging.yml --env-file /opt/injishi-staging/.env up -d --build
-```
-
-The demo is built and started by its nightly job, never by a hand `up --build`
-(see [The demo](#the-demo)).
-
-Routing is declared in each compose file as Traefik labels, the way Paperclip on
-this host is routed: the `web` and `websecure` entrypoints, the `letsencrypt`
-resolver and the `redirect-to-https@file` middleware come from Dokploy's
-Traefik. Router names start with `injishi-production-`, `injishi-staging-` or
-`injishi-demo-`, and images are tagged `:production`, `:staging` or `:demo`, so
-the stacks never overwrite each other's routers or images. Do not also bind
-these hosts as Dokploy domain rows or in a Traefik file: two routers for one
-host is a coin toss.
+| Clones | `/etc/dokploy/compose/<appName>/code`, written by Dokploy on every deploy |
 
 ## Which platform each stack is
 

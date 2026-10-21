@@ -1,12 +1,14 @@
-# Production, on the Hangaa VPS (Dokploy project Injishi).
+# Production, on the Hangaa VPS: Dokploy organisation Hangaa Softwares, project
+# Injishi, environment Production, one compose service.
 #
 # DOKPLOY.md owns every deploy fact; this file is the contract it describes.
-# Run from the injishi repo root, which is the build context (`context: ../..`
-# from this file):
-#
-#   INJISHI_COMMIT=$(git rev-parse --short HEAD) \
-#   docker compose -p injishi -f infra/docker/docker-compose.dokploy.yml \
-#     --env-file /opt/injishi/.env up -d --build
+# DOKPLOY DEPLOYS IT. Dokploy clones the repository, writes the environment's
+# variables to infra/docker/.env (the project directory, so compose reads them
+# without --env-file), and runs `docker compose -p <appName> -f
+# infra/docker/docker-compose.dokploy.yml up -d --build`. The build context is
+# the repo root (`context: ../..` from this file). Every image is built on the
+# host, the API's included: GHCR pulls depended on image.yml, which cannot run
+# while GitHub Actions refuses hosted jobs.
 #
 # PRODUCTION ONLY (ADR-043). The demo used to live in this file: the same api
 # container answered on the demo host too, and doubled a database, a worker and
@@ -18,12 +20,17 @@
 # WHICH PLATFORM THIS IS is pinned below as literals, never read from the env
 # file: the API runs as `production` and refuses to boot unless its database
 # carries no sample marker (`INJISHI_DATABASE_KIND: real`). A mistyped line in
-# /opt/injishi/.env therefore cannot turn production into the demo.
+# the Dokploy environment therefore cannot turn production into a sample stack.
 #
-# ROUTING IS DECLARED HERE, in Traefik labels, the way Paperclip on this host
-# is: `web` and `websecure` entrypoints, the `letsencrypt` resolver and the
-# `redirect-to-https@file` middleware all come from Dokploy's Traefik. Router
-# names start with `injishi-production-` so the other stacks' cannot collide.
+# ROUTING IS SPLIT, and never doubled. The three plain hosts are Dokploy domain
+# rows on this compose service, so they are managed in Dokploy's Domains tab:
+# www → web:3000, api → api:8000, app → app:3002. The routers a domain row
+# cannot express stay here as Traefik labels: the apex's permanent redirect to
+# www and the storage host's reads only rule. Never add a label router for a
+# host that has a domain row, or the reverse: two routers for one host is a
+# coin toss. The `web` and `websecure` entrypoints, the `letsencrypt` resolver
+# and `redirect-to-https@file` come from Dokploy's Traefik. Label router names
+# start with `injishi-production-` so they cannot collide with staging's.
 #
 # STORAGE AND MAIL. Objects live in the minio service, encrypted at rest, in
 # the bucket minio-init provisions before the API or the worker may start.
@@ -32,9 +39,9 @@
 # so compose refuses to start without one rather than boot an API that cannot
 # send a code.
 #
-# Secrets are ${VAR} substitutions, never committed values. Copy
-# dokploy.env.example to /opt/injishi/.env and replace every change-me. The
-# ones with no safe fallback use the `:?` form, so compose refuses to start
+# Secrets are ${VAR} substitutions, never committed values. They live in the
+# Production environment's variables in Dokploy (names in dokploy.env.example).
+# The ones with no safe fallback use the `:?` form, so compose refuses to start
 # without them. infra/docker/docker-compose.yml stays local.
 
 x-api-env: &api-env
@@ -86,10 +93,12 @@ x-api-env: &api-env
   HR_PIN_PEPPER: "${HR_PIN_PEPPER:?set HR_PIN_PEPPER to a kiosk PIN pepper via openssl rand -base64 32}"
   BETTER_AUTH_URL: https://${API_HOST:-api.injishi.com}
   AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.injishi.com}
-  # Every browser origin that calls this API. The apex and app.* hosts only
-  # redirect, but the apex is listed so a request that beats the redirect is not
-  # refused. No demo origin: the demo calls its own API (ADR-043, AC-1).
-  CORS_ORIGINS: https://${WEB_HOST:-www.injishi.com},https://${APEX_HOST:-injishi.com},https://${ADMIN_HOST:-admin.injishi.com}
+  # Every browser origin that calls this API. The apex only redirects, but it is
+  # listed so a request that beats the redirect is not refused. The app's own
+  # origin is here because its server side calls name it as their Origin
+  # (INJISHI_API_ORIGIN below), and Better Auth refuses a sign-in from an origin
+  # it does not trust. No staging origin: staging calls its own API.
+  CORS_ORIGINS: https://${WEB_HOST:-www.injishi.com},https://${APEX_HOST:-injishi.com},https://${APP_HOST:-app.injishi.com},https://${ADMIN_HOST:-admin.injishi.com}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
   # Object storage: the live S3 adapter on the minio service. The API writes
@@ -124,8 +133,10 @@ x-production-public: &production-public
   NEXT_PUBLIC_API_URL: https://${API_HOST:-api.injishi.com}
   NEXT_PUBLIC_WEB_URL: https://${WEB_HOST:-www.injishi.com}
   NEXT_PUBLIC_SITE_URL: https://${WEB_HOST:-www.injishi.com}
-  # The operator app is a zone under web, so its public URL is web's origin.
-  NEXT_PUBLIC_PMS_URL: https://${WEB_HOST:-www.injishi.com}
+  # The operator app answers on its own host now (the interface PR #38 brought
+  # has its routes at the root, so web's `/w` zone no longer reaches it), and
+  # web's sign-in may send a visitor back there.
+  NEXT_PUBLIC_PMS_URL: https://${APP_HOST:-app.injishi.com}
   NEXT_PUBLIC_ADMIN_URL: https://${ADMIN_HOST:-admin.injishi.com}
   # Pinned (ADR-043, AC-14). A production build never strips session cookies:
   # only a `demo` build does, and it would strip production's own session.
@@ -140,6 +151,7 @@ volumes:
   db-data:
   redis-data:
   minio-data:
+  app-data:
 
 services:
   db:
@@ -256,20 +268,19 @@ services:
       - default
 
   api:
-    # ADR-052 AC-9. Built ONCE per green commit by .github/workflows/image.yml
-    # and PULLED here by short sha. It is never built on this host, so the
-    # artifact staging ran is byte for byte the artifact production runs, and
-    # "staging tested this commit" becomes a statement about a binary rather
-    # than about a rebuild that happened to start from the same source.
-    #
-    # INJISHI_API_TAG is set by infra/docker/deploy-stack.sh from the commit
-    # being deployed. It has no default on purpose: a stack must name the
-    # commit it runs, and a floating tag would quietly make that unanswerable.
-    #
-    # The three FRONTEND services below keep their build: blocks. They bake
-    # NEXT_PUBLIC_* and OPERATOR_APP_URL at image build time, so their images
-    # belong to exactly one stack and cannot be promoted (AC-10).
-    image: ghcr.io/hangaasoftwares/injishi-api:${INJISHI_API_TAG:?set by deploy-stack.sh to the commit being deployed}
+    # Built on this host by Dokploy's `up --build`, like the frontends. ADR-052
+    # AC-9 pulled one GHCR image per green commit instead, so staging and
+    # production ran the same binary; image.yml cannot run while GitHub Actions
+    # refuses hosted jobs, and a pull of a tag that was never built stopped
+    # every release. Staging builds the same Dockerfile from the same commit.
+    # INJISHI_COMMIT is empty unless the Dokploy environment sets it, so
+    # `/api/v1/platform` reports the commit only when someone stamps it.
+    image: injishi-api:production
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+      args:
+        INJISHI_COMMIT: ${INJISHI_COMMIT:-}
     restart: unless-stopped
     # Image WORKDIR is /app. Repo-root spelling of the same step:
     # node server/api/scripts/migrate.mjs
@@ -300,22 +311,15 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+    # The public host api.injishi.com is a Dokploy domain row (port 8000). This
+    # label only tells Traefik which of the two networks reaches the container.
     labels:
-      - traefik.enable=true
       - traefik.docker.network=dokploy-network
-      - traefik.http.services.injishi-production-api.loadbalancer.server.port=8000
-      - traefik.http.routers.injishi-production-api-http.rule=Host(`${API_HOST:-api.injishi.com}`)
-      - traefik.http.routers.injishi-production-api-http.entrypoints=web
-      - traefik.http.routers.injishi-production-api-http.middlewares=redirect-to-https@file
-      - traefik.http.routers.injishi-production-api-http.service=injishi-production-api
-      - traefik.http.routers.injishi-production-api.rule=Host(`${API_HOST:-api.injishi.com}`)
-      - traefik.http.routers.injishi-production-api.entrypoints=websecure
-      - traefik.http.routers.injishi-production-api.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-production-api.service=injishi-production-api
     networks:
       default:
-        # The name web's Server Actions use (INTERNAL_API_URL). Not `api`: web
-        # also joins dokploy-network, where another stack's `api` answers to it.
+        # The name web's and app's server side calls use (INTERNAL_API_URL,
+        # INJISHI_API_URL). Not `api`: web and app also join dokploy-network,
+        # where another stack's `api` answers to it.
         aliases:
           - injishi-api
       dokploy-network: {}
@@ -323,9 +327,14 @@ services:
   # Same image as api. INJISHI_PROCESS=worker boots the queue process, on the
   # same database and Redis, under the same pinned platform.
   worker:
-    # The same image as api, by the same tag: one API image, two processes, so a
-    # queue can never run code the HTTP process did not ship.
-    image: ghcr.io/hangaasoftwares/injishi-api:${INJISHI_API_TAG:?set by deploy-stack.sh to the commit being deployed}
+    # The same image as api, from the same build: one API image, two processes,
+    # so a queue can never run code the HTTP process did not ship.
+    image: injishi-api:production
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+      args:
+        INJISHI_COMMIT: ${INJISHI_COMMIT:-}
     restart: unless-stopped
     environment:
       <<: *api-env
@@ -344,8 +353,8 @@ services:
     networks:
       - default
 
-  # The public origin and the zone front. The apex and app.* hosts land here
-  # too, and Traefik redirects them to www (app.* to the operator zone).
+  # The public origin. www.injishi.com is a Dokploy domain row (port 3000); the
+  # apex lands here too and Traefik redirects it to www.
   web:
     image: injishi-web:production
     build:
@@ -380,47 +389,31 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
-      - traefik.http.services.injishi-production-web.loadbalancer.server.port=3000
-      - traefik.http.routers.injishi-production-web-http.rule=Host(`${WEB_HOST:-www.injishi.com}`) || Host(`${APEX_HOST:-injishi.com}`) || Host(`${APP_HOST:-app.injishi.com}`)
-      - traefik.http.routers.injishi-production-web-http.entrypoints=web
-      - traefik.http.routers.injishi-production-web-http.middlewares=redirect-to-https@file
-      - traefik.http.routers.injishi-production-web-http.service=injishi-production-web
-      - traefik.http.routers.injishi-production-web.rule=Host(`${WEB_HOST:-www.injishi.com}`)
-      - traefik.http.routers.injishi-production-web.entrypoints=websecure
-      - traefik.http.routers.injishi-production-web.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-production-web.service=injishi-production-web
-      # The apex answers with a permanent redirect to www, path kept.
+      # The apex answers with a permanent redirect to www, path kept. No domain
+      # row can say that, so both of its routers live here and serve nothing
+      # themselves (noop@internal): plain http goes to https first, then https
+      # goes to www.
+      - traefik.http.routers.injishi-production-apex-http.rule=Host(`${APEX_HOST:-injishi.com}`)
+      - traefik.http.routers.injishi-production-apex-http.entrypoints=web
+      - traefik.http.routers.injishi-production-apex-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.injishi-production-apex-http.service=noop@internal
       - traefik.http.routers.injishi-production-apex.rule=Host(`${APEX_HOST:-injishi.com}`)
       - traefik.http.routers.injishi-production-apex.entrypoints=websecure
       - traefik.http.routers.injishi-production-apex.tls.certresolver=letsencrypt
       - traefik.http.routers.injishi-production-apex.middlewares=injishi-production-apex-to-web
-      - traefik.http.routers.injishi-production-apex.service=injishi-production-web
+      - traefik.http.routers.injishi-production-apex.service=noop@internal
       - traefik.http.middlewares.injishi-production-apex-to-web.redirectregex.regex=^https?://[^/]+/(.*)
       - traefik.http.middlewares.injishi-production-apex-to-web.redirectregex.replacement=https://${WEB_HOST:-www.injishi.com}/$${1}
       - traefik.http.middlewares.injishi-production-apex-to-web.redirectregex.permanent=true
-      # app.* is the operator zone's old address. Its root goes to /w, and any
-      # other path keeps its path, since the zone's routes are the same paths.
-      - traefik.http.routers.injishi-production-app-root.rule=Host(`${APP_HOST:-app.injishi.com}`) && Path(`/`)
-      - traefik.http.routers.injishi-production-app-root.entrypoints=websecure
-      - traefik.http.routers.injishi-production-app-root.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-production-app-root.middlewares=injishi-production-app-root-to-zone
-      - traefik.http.routers.injishi-production-app-root.service=injishi-production-web
-      - traefik.http.middlewares.injishi-production-app-root-to-zone.redirectregex.regex=^https?://[^/]+/?$$
-      - traefik.http.middlewares.injishi-production-app-root-to-zone.redirectregex.replacement=https://${WEB_HOST:-www.injishi.com}/w
-      - traefik.http.middlewares.injishi-production-app-root-to-zone.redirectregex.permanent=true
-      - traefik.http.routers.injishi-production-app.rule=Host(`${APP_HOST:-app.injishi.com}`)
-      - traefik.http.routers.injishi-production-app.entrypoints=websecure
-      - traefik.http.routers.injishi-production-app.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-production-app.middlewares=injishi-production-app-to-zone
-      - traefik.http.routers.injishi-production-app.service=injishi-production-web
-      - traefik.http.middlewares.injishi-production-app-to-zone.redirectregex.regex=^https?://[^/]+/(.*)
-      - traefik.http.middlewares.injishi-production-app-to-zone.redirectregex.replacement=https://${WEB_HOST:-www.injishi.com}/$${1}
-      - traefik.http.middlewares.injishi-production-app-to-zone.redirectregex.permanent=true
     networks:
       - default
       - dokploy-network
 
-  # The operator zone behind web. Compose network only: no public hostname.
+  # The operator app on its own host, app.injishi.com, a Dokploy domain row
+  # (port 3002). It holds the API's session in its own `ij_session` cookie on
+  # that origin and calls the API server side only, over this project's
+  # network. Its embedded fixture database (@injishi/db, libSQL) lives on the
+  # app-data volume so a restart does not reseed it.
   app:
     image: injishi-app:production
     build:
@@ -437,17 +430,34 @@ services:
       NODE_ENV: production
       PORT: "3002"
       OPERATOR_ASSET_PREFIX: /operator-static
+      INJISHI_API_URL: http://injishi-api:8000
+      # The Origin its calls carry, listed in the API's CORS_ORIGINS.
+      INJISHI_API_ORIGIN: https://${APP_HOST:-app.injishi.com}
+      INJISHI_DB_URL: file:/data/injishi.db
+    volumes:
+      - app-data:/data
     expose:
       - "3002"
+    # The image's own check fetches `/`, which redirects to web's public origin,
+    # so it would measure web and the internet rather than this process.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/sign-in',{redirect:'manual'}).then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
     depends_on:
       api:
         condition: service_healthy
+    labels:
+      - traefik.docker.network=dokploy-network
     networks:
       - default
+      - dokploy-network
 
-# HeroUI Pro's CI/CD token for the frontend builds, read from this
-# stack's .env (stack settings live on the host, never in GitHub). See the
-# note in Dockerfile.web.
+# HeroUI Pro's CI/CD token for the frontend builds, read from the Dokploy
+# environment's variables (stack settings live on the host, never in GitHub).
+# See the note in Dockerfile.web.
 secrets:
   heroui_token:
     environment: HEROUI_AUTH_TOKEN
