@@ -538,8 +538,3 @@ export function servicesForProperty(propertySlug: string): ServiceListing[] {
 export function servicesOfKind(kind: ServiceKind): ServiceListing[] {
   return SERVICE_LISTINGS.filter((service) => service.kind === kind);
 }
-
-/** Every slug, for `generateStaticParams` on the detail route. */
-export function serviceStaticParams(): { slug: string }[] {
-  return SERVICE_LISTINGS.map((service) => ({ slug: service.slug }));
-}

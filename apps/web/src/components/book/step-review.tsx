@@ -40,7 +40,7 @@ export function StepReview({
     <div>
       <p className="text-sm text-page-fg-70">
         By selecting the button, I agree to the{" "}
-        <Link href="/legal/terms" className="underline underline-offset-4">
+        <Link href="/legal/terms#bookings" className="underline underline-offset-4">
           booking terms
         </Link>{" "}
         and updated{" "}

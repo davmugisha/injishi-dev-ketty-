@@ -365,6 +365,7 @@ export function ExploreShell({
               onSearchAreaChange={setSearchArea}
               onBoundsChange={setMapBounds}
               areaCount={listed.length}
+              catalogueEmpty={listings.length === 0}
               intent={intent}
             />
             ) : (
@@ -374,24 +375,28 @@ export function ExploreShell({
         ) : null}
       </div>
 
-      {/* The phone's list/map switch, floating where a thumb reaches it. */}
-      <button
-        type="button"
-        onClick={() => setMapPref(mapPref !== true)}
-        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-30 flex h-11 -translate-x-1/2 items-center gap-2 rounded-full bg-foreground px-5 text-sm font-bold text-background shadow-control lg:hidden"
-      >
-        {mapPref === true ? (
-          <>
-            <List className="size-4" strokeWidth={2.2} aria-hidden />
-            Show list
-          </>
-        ) : (
-          <>
-            <MapIcon className="size-4" strokeWidth={2.2} aria-hidden />
-            Show map
-          </>
-        )}
-      </button>
+      {/* The phone's list/map switch, floating where a thumb reaches it.
+          Not drawn over an empty catalogue: there is nothing to map, and it
+          floated over the empty state's own buttons (measured at 390px). */}
+      {listings.length > 0 || mapPref === true ? (
+        <button
+          type="button"
+          onClick={() => setMapPref(mapPref !== true)}
+          className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-30 flex h-11 -translate-x-1/2 items-center gap-2 rounded-full bg-foreground px-5 text-sm font-bold text-background shadow-control lg:hidden"
+        >
+          {mapPref === true ? (
+            <>
+              <List className="size-4" strokeWidth={2.2} aria-hidden />
+              Show list
+            </>
+          ) : (
+            <>
+              <MapIcon className="size-4" strokeWidth={2.2} aria-hidden />
+              Show map
+            </>
+          )}
+        </button>
+      ) : null}
 
       {refinement.compare ? (
         <>

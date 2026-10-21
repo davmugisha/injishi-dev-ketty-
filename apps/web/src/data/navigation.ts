@@ -36,7 +36,11 @@ export interface NavGroup {
 export const PRIMARY_NAV: NavLink[] = [
   { label: "Explore", href: "/explore" },
   { label: "Saved", href: "/saved" },
-  { label: "Services", href: "/services" },
+  // Was "Services". `/services` is a fixture of fictional hotels with invented
+  // prices (`data/service-listings.ts`) and answers only on a sample database
+  // now, so production's header cannot point at it. How it works is the page a
+  // first visitor to an unfamiliar marketplace actually needs.
+  { label: "How it works", href: "/how-it-works" },
 ];
 
 /**
@@ -67,7 +71,7 @@ export const PRODUCT_AND_COMPANY: NavLink[] = [
   { label: "About", href: "/about" },
   { label: "For hosts", href: "/host" },
   { label: "How it works", href: "/how-it-works" },
-  { label: "Blog", href: "/guides" },
+  { label: "Guides", href: "/guides" },
 ];
 
 /** Footer columns, left to right. */
@@ -82,10 +86,13 @@ export const MOBILE_NAV_GROUPS: NavGroup[] = [
   { title: "BROWSE STAYS", links: BROWSE_STAYS },
   {
     title: "EXPLORE DISTRICTS",
+    // The destination pages, not Explore filters: a page of its own says what
+    // the district is and still lists its stays (`/stays/<district>`).
     links: [
-      { label: "Kigali", href: "/explore?district=kigali" },
-      { label: "Musanze", href: "/explore?district=musanze" },
-      { label: "Rubavu", href: "/explore?district=rubavu" },
+      { label: "Kigali", href: "/stays/kigali" },
+      { label: "Musanze", href: "/stays/musanze" },
+      { label: "Rubavu", href: "/stays/rubavu" },
+      { label: "All districts", href: "/stays" },
     ],
   },
   {
@@ -99,7 +106,8 @@ export const MOBILE_NAV_GROUPS: NavGroup[] = [
     links: [
       { label: "For hosts", href: "/host" },
       { label: "About", href: "/about" },
-      { label: "FAQ", href: "/support" },
+      // `/support` has no questions on it; the FAQ is on How it works.
+      { label: "FAQ", href: "/how-it-works#faq" },
     ],
   },
 ];
@@ -131,11 +139,10 @@ export const SOCIAL_LINKS = [
     href: "https://linkedin.com/company/injishi",
     label: "Visit our linkedin page",
   },
-  {
-    network: "youtube",
-    href: "https://youtube.com/@injishi",
-    label: "Visit our youtube page",
-  },
+  // YouTube is gone: youtube.com/@injishi answered 404 on 2026-10-21, so the
+  // icon sent people to a page that does not exist. The four above answered
+  // 200, which proves only that the network serves something at that address,
+  // not that Injishi owns the account; the owner confirms each one.
 ] as const;
 
 /**
@@ -241,6 +248,7 @@ export const FOOTER_COLUMNS: NavGroup[] = [
     title: "Explore",
     links: [
       { label: "All stays", href: "/explore" },
+      { label: "Where to stay", href: "/stays" },
       { label: "Guides", href: "/guides" },
       { label: "How it works", href: "/how-it-works" },
     ],

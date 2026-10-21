@@ -32,7 +32,8 @@ export interface Listing {
    * its choice in local component state and narrowed nothing.
    */
   kind: AccommodationClass;
-  bedrooms: number;
+  /** Null when unknown; a card then says nothing about bedrooms rather than "1". */
+  bedrooms: number | null;
   /** Sleeps. The party filter compares against this rather than guessing. */
   maxGuests: number;
   /** 5, 4, 3, 2 or null. The rail's "Property class" group reads it. */

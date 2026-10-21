@@ -64,8 +64,11 @@ describe("robots", () => {
   });
 });
 
+/** Every entry the sitemap lists that is not a property: the site's own pages. */
+const OWN = (entries) => entries.filter((e) => !e.url.includes("/property/"));
+
 describe("sitemap (covers: AC-I9)", () => {
-  test("lists the root and every property the API calls publicly sellable", async () => {
+  test("lists the site's own pages, then every property the API calls publicly sellable", async () => {
     const calls = serve(() =>
       json([
         { slug: "amahoro-lodge", publishedAt: "2026-10-01T08:00:00.000Z" },
@@ -75,14 +78,49 @@ describe("sitemap (covers: AC-I9)", () => {
 
     const entries = await sitemap();
 
-    assert.deepEqual(entries, [
-      { url: "https://www.example.rw/" },
+    assert.deepEqual(entries.slice(-2), [
       { url: "https://www.example.rw/property/amahoro-lodge", lastModified: "2026-10-01T08:00:00.000Z" },
       { url: "https://www.example.rw/property/inzu%20nziza" },
     ]);
+    assert.equal(entries[0].url, "https://www.example.rw/");
     assert.equal(calls.length, 1);
     assert.equal(calls[0].url, "https://api.example.rw/api/v1/properties/sitemap");
     assert.equal(calls[0].init.cache, "no-store");
+  });
+
+  // On launch day nothing was published and the sitemap was one URL long, so
+  // the guides, the destination pages and the host page were invisible to it.
+  test("lists the pages a crawler can rank even when nothing is published", async () => {
+    serve(() => json([]));
+
+    const urls = (await sitemap()).map((e) => e.url);
+
+    for (const path of ["/", "/explore", "/stays", "/stays/musanze", "/host", "/how-it-works", "/guides"]) {
+      assert.ok(urls.includes(`https://www.example.rw${path}`), `missing ${path}`);
+    }
+    assert.ok(urls.some((u) => u.startsWith("https://www.example.rw/guides/")), "no guide listed");
+  });
+
+  test("never lists a page that tells crawlers not to index it", async () => {
+    serve(() => json([]));
+
+    const urls = (await sitemap()).map((e) => e.url);
+
+    for (const path of ["/book", "/demo", "/services", "/sign-in", "/register"]) {
+      assert.ok(
+        urls.every((u) => u !== `https://www.example.rw${path}` && !u.startsWith(`https://www.example.rw${path}/`)),
+        `lists ${path}`,
+      );
+    }
+  });
+
+  test("lists every URL once, all on the site's own origin", async () => {
+    serve(() => json([{ slug: "amahoro-lodge", publishedAt: null }]));
+
+    const urls = (await sitemap()).map((e) => e.url);
+
+    assert.equal(new Set(urls).size, urls.length);
+    assert.ok(urls.every((u) => u.startsWith("https://www.example.rw/")), urls.join(", "));
   });
 
   test("names no waitlist page", async () => {
@@ -98,10 +136,13 @@ describe("sitemap (covers: AC-I9)", () => {
     ["the API answers an error", () => json({ message: "down" }, 503)],
     ["the API answers a shape it does not promise", () => json({ properties: [] })],
   ]) {
-    test(`falls back to the root alone when ${label}`, async () => {
+    test(`falls back to the site's own pages when ${label}`, async () => {
       serve(respond);
 
-      assert.deepEqual(await sitemap(), [{ url: "https://www.example.rw/" }]);
+      const entries = await sitemap();
+
+      assert.deepEqual(entries, OWN(entries));
+      assert.equal(entries[0].url, "https://www.example.rw/");
     });
   }
 });

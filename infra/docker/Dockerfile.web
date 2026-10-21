@@ -76,7 +76,15 @@ ARG NEXT_PUBLIC_ADMIN_URL
 # on the middleware's strip of production's session cookies and decides nothing
 # on any screen. Empty means production, which never strips.
 ARG NEXT_PUBLIC_INJISHI_ENVIRONMENT=
+# The cookie-free visit counter (apps/web/src/lib/analytics.ts). OPTIONAL, and
+# empty means off: unlike the origins above, a build without them is correct,
+# it just counts nothing. Only production's compose passes them, so staging and
+# the demo never pollute the real numbers.
+ARG NEXT_PUBLIC_PLAUSIBLE_DOMAIN=
+ARG NEXT_PUBLIC_PLAUSIBLE_SRC=
 ENV NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_PUBLIC_PLAUSIBLE_DOMAIN=$NEXT_PUBLIC_PLAUSIBLE_DOMAIN \
+    NEXT_PUBLIC_PLAUSIBLE_SRC=$NEXT_PUBLIC_PLAUSIBLE_SRC \
     BUILD_STANDALONE=1 \
     NEXT_PUBLIC_INJISHI_ENVIRONMENT=$NEXT_PUBLIC_INJISHI_ENVIRONMENT \
     OPERATOR_APP_URL=$OPERATOR_APP_URL \

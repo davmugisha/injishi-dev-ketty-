@@ -4,29 +4,38 @@ import { ContactForm } from "@/components/support/contact-form";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { CONTACT } from "@/data/navigation";
+import { supportIntent } from "@/lib/support-intent";
 
 export const metadata: Metadata = {
   title: "Support",
   description:
     "Talk to the Injishi support team by phone, WhatsApp or email, or write to us directly.",
+  alternates: { canonical: "/support" },
 };
 
+// `name` was `country`, and the Kigali office was titled "Rwanda" while the
+// other was titled "Musanze": a city and a country side by side as peers.
 const OFFICES = [
   {
-    country: "Rwanda",
+    name: "Kigali",
     city: "Kigali, Rwanda",
     address: "KG 7 Ave, Kacyiru, Kigali",
     flag: "/assets/rw.svg",
   },
   {
-    country: "Musanze",
+    name: "Musanze",
     city: "Musanze, Rwanda",
     address: "Kinigi Road, Musanze",
     flag: "/assets/rw.svg",
   },
 ];
 
-export default function SupportPage() {
+export default async function SupportPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const intent = supportIntent((await searchParams).intent);
   return (
     <div className="page-y">
       <div className="container">
@@ -47,10 +56,10 @@ export default function SupportPage() {
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <div className="flex flex-col gap-4">
               <span className="text-xs uppercase tracking-widest text-page-fg-70">
-                Select office
+                Offices
               </span>
               {OFFICES.map((office) => (
-                <div key={office.country} className="flex items-start gap-3">
+                <div key={office.name} className="flex items-start gap-3">
                   <Image
                     src={office.flag}
                     alt="Rwanda flag"
@@ -59,7 +68,7 @@ export default function SupportPage() {
                     className="mt-1 size-5 shrink-0 rounded-full"
                   />
                   <div className="flex flex-col">
-                    <b className="text-page-fg">{office.country}</b>
+                    <b className="text-page-fg">{office.name}</b>
                     <span className="text-sm text-page-fg-70">{office.address}</span>
                     <span className="text-sm text-page-fg-70">{office.city}</span>
                   </div>
@@ -91,9 +100,10 @@ export default function SupportPage() {
           </div>
         </section>
 
-        <section>
+        {/* `#contact` is where `supportHref()` lands a visitor sent from another page. */}
+        <section id="contact" className="scroll-mt-24">
           <SectionHeading lead="Contact us" className="mb-6" />
-          <ContactForm />
+          <ContactForm intent={intent} />
         </section>
       </div>
     </div>

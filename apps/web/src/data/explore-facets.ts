@@ -147,6 +147,9 @@ const BEDROOM_CAP = 4;
  * to promise "3 bedrooms (7)" and then return nine.
  */
 export function matchesBedrooms(listing: Listing, count: number): boolean {
+  // An unknown count matches no bucket, so the group shows only when some
+  // stay actually says how many bedrooms it has.
+  if (listing.bedrooms === null) return false;
   return count >= BEDROOM_CAP
     ? listing.bedrooms >= BEDROOM_CAP
     : listing.bedrooms === count;

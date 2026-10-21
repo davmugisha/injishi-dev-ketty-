@@ -177,10 +177,13 @@ export function ExploreMap({
   onSearchAreaChange,
   onBoundsChange,
   areaCount,
+  catalogueEmpty = false,
   intent,
   className,
 }: {
   listings: Listing[];
+  /** Nothing is published at all, so no filter is to blame for an empty map. */
+  catalogueEmpty?: boolean;
   hoveredSlug: string | null;
   selectedSlug: string | null;
   onHover: (slug: string | null) => void;
@@ -484,7 +487,9 @@ export function ExploreMap({
         onFitAll={plotted.length > 0 ? () => fitAll() : undefined}
       />
 
-      {plotted.length === 0 && mapStyle ? <EmptyMapOverlay listingCount={listings.length} /> : null}
+      {plotted.length === 0 && mapStyle ? (
+        <EmptyMapOverlay listingCount={listings.length} catalogueEmpty={catalogueEmpty} />
+      ) : null}
 
       {/* MapLibre's vendor CSS styles the popup and attribution tightly; bring
           both in line with the design system without touching it globally.
@@ -914,7 +919,29 @@ function PinPreview({ listing, intent }: { listing: PlottedListing; intent?: Sta
 }
 
 /** Overlay for the "nothing to plot" case: a visible message beats a blank. */
-function EmptyMapOverlay({ listingCount }: { listingCount: number }) {
+function EmptyMapOverlay({
+  listingCount,
+  catalogueEmpty,
+}: {
+  listingCount: number;
+  catalogueEmpty: boolean;
+}) {
+  if (catalogueEmpty) {
+    return (
+      <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-6">
+        <div className="pointer-events-auto flex max-w-tile flex-col items-center gap-2 rounded-card bg-card/95 p-5 text-center shadow-control ring-1 ring-border backdrop-blur-md">
+          <span className="flex size-10 items-center justify-center rounded-full bg-surface-secondary">
+            <MapPin className="size-5 text-muted-foreground" strokeWidth={1.8} aria-hidden />
+          </span>
+          <p className="text-sm font-bold text-foreground">Nothing is listed yet</p>
+          <p className="text-xs text-muted-foreground">
+            Stays appear here as their hosts pass verification.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-6">
       <div className="pointer-events-auto flex max-w-tile flex-col items-center gap-2 rounded-card bg-card/95 p-5 text-center shadow-control ring-1 ring-border backdrop-blur-md">

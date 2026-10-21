@@ -13,6 +13,7 @@ import {
 } from "@injishi/ui";
 import { ChevronDown, Info, List, Map as MapIcon } from "lucide-react";
 import { SORT_EXPLAINER, SORT_OPTIONS, STAY_TYPES, type ExploreSort, type StayType } from "@/lib/search-params";
+import { stayCount } from "@/lib/stay-count";
 
 /**
  * The id `explore-shell.tsx` gives the result list, so each stay-type tab can
@@ -79,7 +80,9 @@ export function ResultsToolbar({
           data-count={count}
           className="text-xl font-bold leading-tight text-foreground"
         >
-          {count === 1 ? "1 stay" : `${count} stays`} in {place}
+          {/* No "0 stays in Rwanda" (`lib/stay-count.ts`): the empty state
+              under it says what is true, and `data-count` still carries 0. */}
+          {stayCount(count) ? `${stayCount(count)} in ${place}` : `Stays in ${place}`}
         </h2>
 
         <div className="flex flex-wrap items-center gap-2">

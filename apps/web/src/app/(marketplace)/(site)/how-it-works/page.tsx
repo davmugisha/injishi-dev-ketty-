@@ -6,9 +6,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@injishi/ui";
+import { JsonLd } from "@/components/shared/json-ld";
 import { PageHero } from "@/components/shared/page-hero";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { FAQ, SERVICE_PILLARS } from "@/data/services";
+import { shareMetadata } from "@/lib/share-metadata";
+import { faqPageJsonLd } from "@/lib/structured-data";
 
 /**
  * How Injishi works — the page that used to be `/services`.
@@ -24,10 +27,14 @@ import { FAQ, SERVICE_PILLARS } from "@/data/services";
  * They come from `SERVICE_PILLARS` in `data/services.ts`, which is shared with
  * another surface, so this page reads that file and never forks it.
  */
+const DESCRIPTION =
+  "Escrow-backed booking, mobile money and verified hosts: how Injishi works for guests and for hosts.";
+
 export const metadata: Metadata = {
   title: "How Injishi Works",
-  description:
-    "Escrow-backed booking, self check-in and RRA compliance — how Injishi works for guests and for hosts.",
+  description: DESCRIPTION,
+  alternates: { canonical: "/how-it-works" },
+  ...shareMetadata({ title: "How Injishi works", description: DESCRIPTION, path: "/how-it-works" }),
 };
 
 export default function HowItWorksPage() {
@@ -93,7 +100,10 @@ export default function HowItWorksPage() {
           `.section-y` like any other section rather than the `mt-20` it had
           grown. The interval between the two is now the two adjacent steps the
           rest of the site runs on. */}
-      <section className="section-y container">
+      {/* `#faq` is where the mobile drawer's "FAQ" lands; it used to open
+          `/support`, which has no questions on it. */}
+      <section id="faq" className="section-y container scroll-mt-32">
+        <JsonLd data={faqPageJsonLd(FAQ)} />
         <SectionHeading
           lead="Frequently Asked "
           emphasis="Questions"

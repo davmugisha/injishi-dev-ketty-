@@ -7,11 +7,18 @@ import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { formatPublishedAt, GUIDES } from "@/data/guides";
 import { ArtDirectedImage } from "@/components/shared/art-directed-image";
+import { shareMetadata } from "@/lib/share-metadata";
 
+const DESCRIPTION =
+  "Guides to staying across Rwanda: Kigali, Musanze, Lake Kivu, Huye and the districts in between.";
+
+// "Guides", not "Blog": the browser tab said Blog while the nav, the footer and
+// the page's own heading said Guides.
 export const metadata: Metadata = {
-  title: "Blog",
-  description:
-    "Guides to staying across Rwanda: Kigali, Musanze, Lake Kivu, Huye and the districts in between.",
+  title: "Guides to Rwanda",
+  description: DESCRIPTION,
+  alternates: { canonical: "/guides" },
+  ...shareMetadata({ title: "Guides to staying in Rwanda", description: DESCRIPTION, path: "/guides" }),
 };
 
 export default function GuidesPage() {
@@ -27,7 +34,7 @@ export default function GuidesPage() {
         <Breadcrumbs
           trail={[
             { label: "Home", href: "/" },
-            { label: "Blog", href: "/guides" },
+            { label: "Guides", href: "/guides" },
             { label: "Destinations" },
           ]}
         />

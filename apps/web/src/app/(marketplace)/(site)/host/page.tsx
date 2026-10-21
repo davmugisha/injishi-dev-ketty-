@@ -4,13 +4,27 @@ import { HostFaq } from "@/components/host/host-faq";
 import { HostHero } from "@/components/host/host-hero";
 import { HostCharges } from "@/components/host/host-charges";
 import { HostSteps } from "@/components/host/host-steps";
+import { JsonLd } from "@/components/shared/json-ld";
+import { HOST_FAQ } from "@/data/host";
+import { shareMetadata } from "@/lib/share-metadata";
+import { faqPageJsonLd } from "@/lib/structured-data";
 
 import { HostBrokerLine, HostClosing } from "./host-entry-lines";
 
+const DESCRIPTION =
+  "Register your business, and we verify your place, photograph it and get it live. A one time registration fee, a monthly plan once you are live, and no commission on a booking.";
+
 export const metadata: Metadata = {
   title: "List your accommodation",
-  description:
-    "Register your business, and we verify your place, photograph it and get it live. A one time registration fee, a monthly plan once you are live, and no commission on a booking.",
+  description: DESCRIPTION,
+  alternates: { canonical: "/host" },
+  // The page an owner forwards to another owner on WhatsApp, so its card
+  // speaks to them rather than to a guest.
+  ...shareMetadata({
+    title: "List your accommodation on Injishi",
+    description: DESCRIPTION,
+    path: "/host",
+  }),
 };
 
 /**
@@ -36,6 +50,7 @@ export const metadata: Metadata = {
 export default function HostPage() {
   return (
     <div className="flex flex-col overflow-x-clip">
+      <JsonLd data={faqPageJsonLd(HOST_FAQ.flatMap((group) => group.entries))} />
       <HostHero />
       <HostBrokerLine />
       <HostSteps />

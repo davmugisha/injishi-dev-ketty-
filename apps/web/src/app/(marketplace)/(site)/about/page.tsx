@@ -3,11 +3,16 @@ import Link from "next/link";
 import { Button } from "@injishi/ui";
 import { PageHero } from "@/components/shared/page-hero";
 import { WhyBook } from "@/components/home/why-book";
+import { shareMetadata } from "@/lib/share-metadata";
+
+const DESCRIPTION =
+  "Injishi. Trusted stays in the heart of Rwanda: our story, our mission, and why hosts and guests use us.";
 
 export const metadata: Metadata = {
   title: "About Us",
-  description:
-    "Injishi. Trusted stays in the heart of Rwanda: our story, our mission, and why hosts and guests use us.",
+  description: DESCRIPTION,
+  alternates: { canonical: "/about" },
+  ...shareMetadata({ title: "About Injishi", description: DESCRIPTION, path: "/about" }),
 };
 
 export default function AboutPage() {
@@ -39,20 +44,30 @@ export default function AboutPage() {
               and
               can stand behind.
             </p>
+            {/* Rewritten 2026-10-21. It promised lockbox check-in (unbuilt,
+                F-B09), a "compliant receipt" (EBM is not yet certified with the
+                RRA) and listings across the three Kigali districts on a
+                catalogue that opened empty. */}
             <p>
-              Payment is held in escrow until you check in. Check-in is by lockbox or
-              code, so a delayed flight is not a locked door. Every booking issues a
-              compliant receipt, which keeps hosts on the right side of the Rwanda Revenue
-              Authority without the paperwork.
+              You pay by mobile money, and the payment is held in escrow rather than
+              sent straight to the host. Every booking comes with a receipt, and we are
+              connecting Injishi to the Rwanda Revenue Authority&apos;s electronic billing
+              so hosts can declare each sale without the paperwork.
             </p>
             <p>
-              We are based in Kigali, with listings across Gasabo, Kicukiro and
-              Nyarugenge, and growing supply in Musanze, Rubavu, Huye and Nyagatare.
+              Injishi is built in Kigali by Hangaa Softwares. We are opening district by
+              district, Kigali first, and a place appears here only once it has passed
+              verification: an RRA TIN check, then a visit from a district officer.
             </p>
 
-            <Button asChild className="mt-2 w-max">
-              <Link href="/explore">Start exploring</Link>
-            </Button>
+            <div className="mt-2 flex flex-wrap gap-3">
+              <Button asChild className="w-max">
+                <Link href="/explore">Start exploring</Link>
+              </Button>
+              <Button asChild variant="outline" className="w-max">
+                <Link href="/host">List your place</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
