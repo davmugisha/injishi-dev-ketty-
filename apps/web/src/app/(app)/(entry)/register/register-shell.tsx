@@ -23,6 +23,7 @@ import { AssistantWidget } from "@/components/assistant/assistant-widget";
  */
 export function RegisterShell({
   kindLabel,
+  demo = false,
   onChangeKind,
   changeKindHref,
   carried = false,
@@ -34,6 +35,8 @@ export function RegisterShell({
 }: {
   /** The kind being registered, or null before one is chosen. */
   kindLabel: string | null;
+  /** The API confirmed this is sample data. */
+  demo?: boolean;
   /** Opens Business type in place, for a signed in registrant. */
   onChangeKind?: () => void;
   /** Where Change goes for someone not signed in yet: the `/host` chooser. */
@@ -74,6 +77,7 @@ export function RegisterShell({
             /
           </span>
           <span className="hidden text-sm font-semibold md:inline">Register a business</span>
+          {demo ? <Badge variant="subtle" size="sm">Demo data</Badge> : null}
           <span className="grow" />
           {saved ? (
             <span role="status" className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">

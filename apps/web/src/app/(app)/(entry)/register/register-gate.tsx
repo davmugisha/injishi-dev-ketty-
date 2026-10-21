@@ -136,6 +136,7 @@ export default function RegisterGate({
   return (
     <RegisterShell
       kindLabel={kindLabel}
+      demo={demo === true}
       changeKindHref="/host#host-chooser-title"
       exit={{ label: "Exit", href: "/host" }}
     >
