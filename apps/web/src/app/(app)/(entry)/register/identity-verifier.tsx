@@ -176,8 +176,11 @@ export function NationalIdVerifier({
 /** A passport page and a selfie, read and matched by the document verifier. */
 export function PassportScanner({
   onVerified,
+  sample = false,
 }: {
   onVerified: (person: VerifiedPerson) => void;
+  /** The mock verifier creates sample holder details; it does not read photos. */
+  sample?: boolean;
 }) {
   const [page, setPage] = useState<File | null>(null);
   const [selfie, setSelfie] = useState<File | null>(null);
@@ -214,24 +217,24 @@ export function PassportScanner({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Take two photos: your passport&apos;s photo page, flat and in good light,
-        then a selfie. We check the passport is genuine and that the selfie is
-        you, and fill in your details from it.
+        {sample
+          ? "Demo passport check: choose two different sample images. The demo creates sample passport details from them; it does not read the document or match a face. Please do not upload a real passport."
+          : "Take two photos: your passport's photo page, flat and in good light, then a selfie. The document verifier checks them and returns your passport details."}
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <PhotoSlot
           id="you-passport-page"
-          label="Passport photo page"
+          label={sample ? "Sample document image" : "Passport photo page"}
           icon={<Camera size={16} aria-hidden />}
-          capture="environment"
+          capture={sample ? undefined : "environment"}
           file={page}
           onFile={setPage}
         />
         <PhotoSlot
           id="you-passport-selfie"
-          label="A selfie"
+          label={sample ? "Different sample portrait" : "A selfie"}
           icon={<ScanFace size={16} aria-hidden />}
-          capture="user"
+          capture={sample ? undefined : "user"}
           file={selfie}
           onFile={setSelfie}
         />
@@ -242,7 +245,7 @@ export function PassportScanner({
         isDisabled={!page || !selfie}
         isPending={busy}
       >
-        {busy ? "Checking your passport…" : "Scan and verify"}
+        {busy ? "Checking your images…" : sample ? "Create demo passport details" : "Scan and verify"}
       </Button>
       {message ? <Notice tone={message.tone}>{message.text}</Notice> : null}
     </div>
@@ -260,7 +263,7 @@ function PhotoSlot({
   id: string;
   label: string;
   icon: React.ReactNode;
-  capture: "user" | "environment";
+  capture?: "user" | "environment";
   file: File | null;
   onFile: (file: File | null) => void;
 }) {
@@ -298,11 +301,23 @@ export function VerifiedIdentityCard({
   person: Pick<VerifiedPerson, "fullName" | "dateOfBirth" | "gender" | "documentType" | "documentNumberMasked" | "issuingCountry" | "generated">;
   method: "registry" | "document_scan" | string | null;
 }) {
+  const sample = Boolean(person.generated);
+  const source = method === "document_scan"
+    ? "document verifier"
+    : method === "registry"
+      ? "population register"
+      : null;
   return (
     <div className="rounded-card border border-success/40 bg-success/10 p-4">
       <p className="flex items-center gap-2 text-sm font-semibold">
         <BadgeCheck size={16} aria-hidden className="text-success" />
-        {method === "document_scan" ? "Verified from your passport" : "Verified with the population register"}
+        {sample
+          ? "Demo identity details"
+          : method === "document_scan"
+            ? "Verified from your passport"
+            : method === "registry"
+              ? "Verified with the population register"
+              : "Identity details on file"}
       </p>
       <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         <Pair label="Name" value={person.fullName} />
@@ -313,17 +328,19 @@ export function VerifiedIdentityCard({
           value={`${person.documentNumberMasked} · ${person.issuingCountry}`}
         />
       </dl>
-      <p className="mt-3 text-xs text-muted-foreground">
-        These come from the {method === "document_scan" ? "passport" : "register"} and
-        cannot be edited here. If one is wrong, it has to be corrected at the
-        source.
-      </p>
-      {person.generated ? (
+      {sample ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          Demo: no real register or passport reader is connected, so these
-          details were generated for this demonstration.
+          These are generated sample details. No real register or passport reader supplied them, and the uploaded images were not used to extract the fields.
         </p>
-      ) : null}
+      ) : source ? (
+        <p className="mt-3 text-xs text-muted-foreground">
+          These details came from the {source} and cannot be edited here. If one is wrong, it has to be corrected at the source.
+        </p>
+      ) : (
+        <p className="mt-3 text-xs text-muted-foreground">
+          These details are on file for this registration. Contact support if one needs to be corrected.
+        </p>
+      )}
     </div>
   );
 }

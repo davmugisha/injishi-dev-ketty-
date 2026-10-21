@@ -457,6 +457,7 @@ export function PersonalForm({
       <Field
         label="Phone"
         required
+        composite
         hint="Pick your country, then the number as you would dial it at home. Leave off the leading 0."
         error={errors["phoneE164"]}
       >
