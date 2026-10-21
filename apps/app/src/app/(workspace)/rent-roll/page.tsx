@@ -1,9 +1,11 @@
 import { screens } from "@injishi/data";
 import type { LandlordPayout, RentKpi, RentLedger, RentRollRow } from "@injishi/data/fixtures/residence";
 import type { Metadata } from "next";
+import { ResidenceNothingYet } from "@/features/residence/NothingYet";
 import { RentRollView } from "@/features/residence/RentRollView";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { getCollection, requestContext } from "@/server/data";
+import { residenceBuilding } from "@/server/sources/residence";
 
 export const metadata: Metadata = { title: screens.RentRoll.pageTitle };
 
@@ -15,5 +17,8 @@ export default async function RentRollPage() {
     getCollection<RentLedger>("residence.rentLedgers"),
     getCollection<LandlordPayout>("residence.payouts"),
   ]);
-  return <RentRollView persona={persona} data={{ kpis, rows, ledgers, payouts }} />;
+  const building = residenceBuilding(await requestContext());
+  if (!rows.length)
+    return <ResidenceNothingYet title="Rent roll" building={building} message="No lease has rent due yet." />;
+  return <RentRollView persona={persona} data={{ kpis, rows, ledgers, payouts }} building={building} />;
 }

@@ -7,7 +7,6 @@ import {
   Clock,
   Lock,
   PersonMagnifier,
-  Printer,
   ShieldExclamation,
 } from "@gravity-ui/icons";
 import {
@@ -23,6 +22,7 @@ import {
   TextArea,
   TextField,
   Toast,
+  toast,
 } from "@heroui/react";
 import { DropZone, Segment } from "@heroui-pro/react";
 import type { Persona } from "@injishi/data";
@@ -70,45 +70,46 @@ const METHODS: { id: Method; label: string; phrase: string }[] = [
   { id: "courier", label: "Courier", phrase: "by courier" },
 ];
 const CATEGORIES = ["Electronics", "Jewellery", "Clothing", "Accessories", "Documents", "Cash", "Other"];
-const AREAS = [
-  "Room 309",
-  "Room 204",
-  "Room 211",
-  "Room 311",
-  "Lobby",
-  "Isangano Terrace",
-  "Lake Bar",
-  "Kivu Hall",
-  "Garden Terrace",
-];
 
-interface PhotoFile {
-  id: string;
-  name: string;
-  size: number;
-}
-
-const fileSize = (bytes: number) =>
-  bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+/**
+ * Photos are not kept: the register has no photo column, `POST /uploads` takes no found-item kind and the intake
+ * names no key. So a photo is never "attached" here and no photo count is written to the custody log.
+ */
+const photosUnavailable = () =>
+  toast.warning("Adding photos is not available yet: the register does not store them, so none were kept.");
 
 export function LostFoundView({
   // The register acts as the signed-in person through the API, which records who did each step.
-  persona: _persona,
+  persona,
   items: baseItems,
   access,
+  placeName,
 }: {
   persona: Persona;
   items: FoundItem[];
+  /** Sample: the register's access list is not kept per person yet (operations.lostFoundAccess is deferred). */
   access: RegisterAccess[];
+  /** The branch, else the business, as the API names it. */
+  placeName: string;
 }) {
-  const custodian = access.find((a) => a.role.includes("custodian"))?.name ?? "the custodian";
-  const finders = [...new Set(["Emmanuel Nsengimana", ...baseItems.map((i) => i.foundBy)])];
+  // Who found it and who holds it start as the signed-in person; the other choices are people the register
+  // already names (live), never a sample list.
+  const you = persona.name;
+  const people = (names: string[]) => [
+    { id: you, label: `${you} (you)` },
+    ...[...new Set(names)].filter((n) => n && n !== you && n !== "None").map((n) => ({ id: n, label: n })),
+  ];
+  const finders = people(baseItems.map((i) => i.foundBy));
+  const custodians = people(baseItems.map((i) => i.custodian));
 
   const [selectedId, setSelectedId] = useState(baseItems[0]?.id ?? "");
   const [descOk, setDescOk] = useState(false);
   const [idOk, setIdOk] = useState(false);
   const [method, setMethod] = useState<Method>("person");
   const [claimOpen, setClaimOpen] = useState(false);
+  // Keep 30 more days: the reason is the person's, typed before the press that records it.
+  const [keepOpen, setKeepOpen] = useState(false);
+  const [keepWhy, setKeepWhy] = useState("");
   const [claimName, setClaimName] = useState("");
   const [claimBooking, setClaimBooking] = useState("");
   const [claimStatement, setClaimStatement] = useState("");
@@ -116,13 +117,13 @@ export function LostFoundView({
   // Intake form
   const [desc, setDesc] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
-  const [foundBy, setFoundBy] = useState("Emmanuel Nsengimana");
-  const [area, setArea] = useState(AREAS[0]);
+  const [foundBy, setFoundBy] = useState(you);
+  const [custodian, setCustodian] = useState(you);
+  const [area, setArea] = useState("");
   // "Found at" starts at the real time in Kigali once the page is mounted.
   const [foundAt, setFoundAt] = useState("");
-  const [spot, setSpot] = useState("Under the bed, window side");
+  const [spot, setSpot] = useState("");
   const [valuable, setValuable] = useState(true);
-  const [photos, setPhotos] = useState<PhotoFile[]>([]);
   const now = useKigaliNow();
   useEffect(() => {
     if (now && !foundAt) setFoundAt(foundAtText(now));
@@ -166,27 +167,33 @@ export function LostFoundView({
     setDescOk(false);
     setIdOk(false);
     setMethod("person");
+    setKeepOpen(false);
+    setKeepWhy("");
   };
   const logItem = () => {
     const text = desc.trim();
-    if (!text || pending) return;
+    if (!text || !area.trim() || pending) return;
     startTransition(async () => {
       const result = await logFoundItemAction({
         description: text,
         category,
         valuable,
-        area,
+        area: area.trim(),
         spot: spotShort,
         foundAt,
         foundBy,
         custodian,
-        storage: valuable ? "Safe A · bag pending" : "Store room L-2",
-        photoCount: photos.length,
+        storage: valuable ? "Safe · sealed bag" : "Store room",
       });
       if (!reported(result)) return;
       setDesc("");
-      setPhotos([]);
-      if (result.ok) select(result.value);
+      setArea("");
+      setSpot("");
+      if (result.ok) {
+        select(result.value);
+        // The reference the register gave the item: staff write it on the tag and the bag.
+        toast.success(`Logged as ${result.value}. Write this reference on the tag and the bag.`);
+      }
     });
   };
   const openClaim = () => {
@@ -212,13 +219,6 @@ export function LostFoundView({
       },
     );
   };
-  const addFiles = (files: File[]) =>
-    setPhotos((p) => [
-      ...p,
-      ...files
-        .filter((f) => /\.(jpe?g|png)$/i.test(f.name) || /^image\/(jpeg|png)$/.test(f.type))
-        .map((f, i) => ({ id: `${Date.now()}-${i}-${f.name}`, name: f.name, size: f.size })),
-    ]);
   const exportLog = () =>
     downloadCsv("lost-and-found-custody-log.csv", [
       ["Item ID", "Item", "Category", "Status", "Custody step", "Who and when"],
@@ -228,7 +228,7 @@ export function LostFoundView({
   return (
     <PageContent>
       <PageHeader
-        eyebrow="Isangano Lakeside Hotel · Property"
+        eyebrow={`${placeName} · Property`}
         title="Lost & Found"
         description="Found items, custody and returns. Every hand-over is recorded, and items go back only to a verified claimant."
         actions={
@@ -247,7 +247,7 @@ export function LostFoundView({
               title="Found Items"
               action={
                 <span className="text-[12px] text-muted">
-                  {open} open · {valuables} valuables in Safe A
+                  {open} open · {valuables} {valuables === 1 ? "valuable" : "valuables"} in the safe
                 </span>
               }
             />
@@ -427,16 +427,37 @@ export function LostFoundView({
                       <span className="self-start">
                         <GateChip icon={<ShieldExclamation className="size-3" />}>{sel.disposal.rule}</GateChip>
                       </span>
+                      {/* Keeping it longer records the person's own reason: asked here, never a fixed one. */}
+                      {keepOpen ? (
+                        <TextField value={keepWhy} onChange={setKeepWhy} className="flex flex-col gap-1">
+                          <Label>Why keep it 30 more days?</Label>
+                          <TextArea rows={2} maxLength={300} placeholder="Recorded on the item's custody trail" />
+                        </TextField>
+                      ) : null}
                       <div className="flex flex-wrap gap-2">
                         <Button isDisabled={pending} onPress={() => act(() => approveFoundItemDisposalAction(sel.id))}>
                           Approve disposal
                         </Button>
                         <Button
                           variant="ghost"
-                          isDisabled={pending}
-                          onPress={() => act(() => keepFoundItemAction(sel.id, 30, "the guest may still return"))}
+                          isDisabled={pending || (keepOpen && !keepWhy.trim())}
+                          onPress={() => {
+                            if (!keepOpen) {
+                              setKeepOpen(true);
+                              return;
+                            }
+                            const why = keepWhy.trim();
+                            if (!why) return;
+                            act(
+                              () => keepFoundItemAction(sel.id, 30, why),
+                              () => {
+                                setKeepOpen(false);
+                                setKeepWhy("");
+                              },
+                            );
+                          }}
                         >
-                          Keep 30 more days
+                          {keepOpen ? "Keep 30 more days" : "Keep longer…"}
                         </Button>
                       </div>
                     </>
@@ -476,16 +497,22 @@ export function LostFoundView({
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <SelectField label="Category" value={category} options={CATEGORIES} onChange={setCategory} />
                 <SelectField label="Found by" value={foundBy} options={finders} onChange={setFoundBy} />
-                <SelectField label="Room or area" value={area} options={AREAS} onChange={setArea} />
+                <TextField fullWidth value={area} onChange={setArea} isRequired className="gap-1">
+                  <Label>Room or area</Label>
+                  <Input placeholder="e.g. Room 204 or Lobby" />
+                </TextField>
                 <TextField fullWidth value={foundAt} onChange={setFoundAt} className="gap-1">
                   <Label>Found at</Label>
                   <Input className="tabular" />
                 </TextField>
               </div>
-              <TextField fullWidth value={spot} onChange={setSpot} className="gap-1">
-                <Label>Exact spot</Label>
-                <Input />
-              </TextField>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <SelectField label="Custodian" value={custodian} options={custodians} onChange={setCustodian} />
+                <TextField fullWidth value={spot} onChange={setSpot} className="gap-1">
+                  <Label>Exact spot</Label>
+                  <Input placeholder="e.g. Under the bed, window side" />
+                </TextField>
+              </div>
               <Switch isSelected={valuable} onChange={setValuable}>
                 <Switch.Content className="text-[14px]">
                   <Switch.Control>
@@ -496,7 +523,7 @@ export function LostFoundView({
               </Switch>
               <Card variant="secondary" className="gap-0.5 px-3 py-2.5">
                 <span className="text-[13px] font-medium">
-                  Storage: {valuable ? "Safe A, sealed numbered bag" : "Store room L-2"}
+                  Storage: {valuable ? "the safe, in a sealed numbered bag" : "the store room"}
                 </span>
                 <span className="text-[12px] leading-4 text-muted">
                   {valuable
@@ -505,49 +532,25 @@ export function LostFoundView({
                 </span>
               </Card>
               <DropZone>
-                <DropZone.Area
-                  className="p-3.5"
-                  onDrop={async (e) => {
-                    const files: File[] = [];
-                    for (const it of e.items) if (it.kind === "file") files.push(await it.getFile());
-                    addFiles(files);
-                  }}
-                >
+                <DropZone.Area className="p-3.5" onDrop={photosUnavailable}>
                   <DropZone.Icon>
                     <Camera className="size-5" />
                   </DropZone.Icon>
                   <DropZone.Label>Add photos</DropZone.Label>
-                  <DropZone.Description>Photograph the outside only · JPG or PNG</DropZone.Description>
+                  <DropZone.Description>Not available yet: the register does not store photos</DropZone.Description>
                   <DropZone.Trigger>Choose photos</DropZone.Trigger>
                 </DropZone.Area>
-                <DropZone.Input accept="image/jpeg,image/png" multiple onSelect={(list) => addFiles([...list])} />
-                {photos.length ? (
-                  <DropZone.FileList>
-                    {photos.map((f) => {
-                      const ext = (f.name.split(".").pop() ?? "jpg").toUpperCase();
-                      return (
-                        <DropZone.FileItem key={f.id} status="complete">
-                          <DropZone.FileFormatIcon format={ext} color={ext === "PNG" ? "green" : "blue"} />
-                          <DropZone.FileInfo>
-                            <DropZone.FileName>{f.name}</DropZone.FileName>
-                            <DropZone.FileMeta>{fileSize(f.size)}</DropZone.FileMeta>
-                          </DropZone.FileInfo>
-                          <DropZone.FileRemoveTrigger
-                            aria-label={`Remove ${f.name}`}
-                            onPress={() => setPhotos((p) => p.filter((x) => x.id !== f.id))}
-                          />
-                        </DropZone.FileItem>
-                      );
-                    })}
-                  </DropZone.FileList>
-                ) : null}
+                <DropZone.Input accept="image/jpeg,image/png" multiple onSelect={photosUnavailable} />
               </DropZone>
-              <Button isDisabled={!desc.trim() || !foundAt || pending} onPress={logItem}>
-                <Printer className="size-4" />
-                Log item and print tag
+              <Button isDisabled={!desc.trim() || !area.trim() || !foundAt || pending} onPress={logItem}>
+                Log item
               </Button>
               <span className="text-[12px] text-muted" role="status">
-                {desc.trim() ? `Creates ${nextId} and prints a tag for the bag.` : "Describe the item to continue."}
+                {!desc.trim()
+                  ? "Describe the item to continue."
+                  : !area.trim()
+                    ? "Say where it was found to continue."
+                    : `Likely ${nextId}; the register gives the reference. Write it on the tag: tags are not printed here.`}
               </span>
             </Card.Content>
           </Card>
@@ -567,8 +570,8 @@ export function LostFoundView({
               ))}
             </ul>
             <p className="text-[12px] leading-4 text-muted">
-              Housekeepers can log an item but not browse the register. Every view, export and hand-over is in the audit
-              log.
+              Sample list: who may see the register is not kept per person yet, so these names are not your team.
+              Housekeepers can log an item but not browse the register.
             </p>
           </Card>
         </div>

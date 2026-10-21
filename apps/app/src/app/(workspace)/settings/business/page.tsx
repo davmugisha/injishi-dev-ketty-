@@ -9,7 +9,8 @@ import type {
 import type { Metadata } from "next";
 import { SettingsBusinessView } from "@/features/owner/SettingsBusinessView";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { getCollection, requestContext } from "@/server/data";
+import { businessNames } from "@/server/sources/owner";
 
 export const metadata: Metadata = { title: screens.SettingsBusiness.pageTitle };
 
@@ -22,5 +23,10 @@ export default async function SettingsBusinessPage() {
     getCollection<SettingsBusinessDomainCheck>("owner.settingsBusinessDomainChecks"),
     getCollection<SettingsBusinessBranch>("owner.settingsBusinessBranches"),
   ]);
-  return <SettingsBusinessView data={{ nodes, profiles, units, checks, branches }} />;
+  return (
+    <SettingsBusinessView
+      data={{ nodes, profiles, units, checks, branches }}
+      businessName={businessNames(await requestContext())}
+    />
+  );
 }

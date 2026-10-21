@@ -20,6 +20,7 @@ import type { Persona } from "@injishi/data";
 import type {
   AccessRequest,
   PreregisteredVisitor,
+  ResidenceBlock,
   ResidenceUnit,
   ServiceTicket,
   TicketStatus,
@@ -44,6 +45,8 @@ export interface ResidenceServiceData {
   visitors: PreregisteredVisitor[];
   log: VisitorLogEntry[];
   units: ResidenceUnit[];
+  /** The business's own blocks (codes the API resolves "Block <code>" against), never a fixed A, B, C. */
+  blocks: ResidenceBlock[];
 }
 
 type Tab = "maint" | "visit";
@@ -72,7 +75,16 @@ const CATEGORIES = ["Plumbing", "Electrical", "Doors and locks", "Appliances", "
 const CROPS = ["object-center", "object-bottom", "object-top"];
 const ENTRY = ["Yes, if nobody is home", "Only when home", "Not needed · common area"];
 
-export function ResidenceServiceView({ persona, data }: { persona: Persona; data: ResidenceServiceData }) {
+export function ResidenceServiceView({
+  persona,
+  data,
+  building = "",
+}: {
+  persona: Persona;
+  data: ResidenceServiceData;
+  /** The building(s) the workspace covers, from the session. */
+  building?: string;
+}) {
   const [tab, setTab] = useState<Tab>("maint");
   // Every write goes to the API and the screen redraws from what it answers: no local copies of records.
   const tickets = data.tickets;
@@ -84,27 +96,31 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
   const [requests, setRequests] = useState<Record<string, AccessRequest["status"]>>({});
   const visitors: PreregisteredVisitor[] = data.visitors;
 
+  const blockOptions = data.blocks.map((b) => ({ id: `Block ${b.id}`, label: `${b.name} · common area` }));
+  /** A new ticket starts on the first common area the business has, else its first unit. */
+  const firstPlace = blockOptions[0]?.id ?? data.units[0]?.id ?? "";
   const unitOptions = [
     ...data.units.map((u) => ({ id: u.id, label: u.resident ? `${u.id} · ${u.resident}` : `${u.id} · vacant` })),
-    ...["A", "B", "C"].map((b) => ({ id: `Block ${b}`, label: `Block ${b} · common area` })),
+    ...blockOptions,
   ];
   const [ticketOpen, setTicketOpen] = useState(false);
-  const [ticket, setTicket] = useState({ unit: "Block B", title: "", category: CATEGORIES[1], entry: ENTRY[2] });
+  const [ticket, setTicket] = useState({ unit: firstPlace, title: "", category: CATEGORIES[1], entry: ENTRY[2] });
   const [visitorOpen, setVisitorOpen] = useState(false);
   const leased = data.units.filter((u) => u.resident);
   const [visitor, setVisitor] = useState({ name: "", unit: leased[0]?.id ?? "", window: "Today 14:00–20:00" });
 
   const statusOf = (t: ServiceTicket) => moved[t.id] ?? t.status;
-  const t = tickets.find((x) => x.id === sel) ?? tickets[0];
-  const current = statusOf(t);
+  // A business with no repair yet has no ticket to open: the board is empty and the detail says so.
+  const t = tickets.find((x) => x.id === sel) ?? (tickets[0] as ServiceTicket | undefined);
+  const current = t ? statusOf(t) : "new";
   const status = STATUS[current];
-  const thread: Message[] = t.thread;
+  const thread: Message[] = t?.thread ?? [];
   // Vacant units and common areas have no resident to write to: the thread holds internal notes only.
-  const noResident = t.resident.startsWith("no one");
+  const noResident = !t || t.resident.startsWith("no one");
   const isNote = note || noResident;
   const threadTitle = noResident
-    ? `Internal notes · ${t.resident.includes("vacant") ? "vacant unit" : "common area"}, no resident`
-    : `Conversation with ${t.resident}`;
+    ? `Internal notes · ${t?.resident.includes("vacant") ? "vacant unit" : "common area"}, no resident`
+    : `Conversation with ${t?.resident}`;
   const openCount = tickets.filter((x) => statusOf(x) !== "done").length;
   const requestState = (r: AccessRequest) => requests[r.id] ?? r.status;
   const toApprove = data.requests.filter((r) => requestState(r) === "open").length;
@@ -112,7 +128,7 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
   /** Reply to the resident or leave an internal note (`POST /ops/residence/repairs/:id/messages`). */
   const send = async () => {
     const text = draft.trim();
-    if (!text || busy) return;
+    if (!t || !text || busy) return;
     setBusy(true);
     const result = await writeOnTicketAction(t.id, text, isNote);
     setBusy(false);
@@ -155,13 +171,16 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
     }
     setTab("visit");
     setVisitorOpen(false);
-    toast.success(`Code ${result.value.code} sent to ${name} · checked at the gate tablet`, {
-      indicator: <CircleCheck className="size-4" />,
-    });
+    toast.success(
+      `Pass issued for ${name} · code ${result.value.code}. Give the code to the visitor; it is not sent.`,
+      {
+        indicator: <CircleCheck className="size-4" />,
+      },
+    );
   };
 
   const move = async (to: TicketStatus) => {
-    if (to === "new") return;
+    if (!t || to === "new") return;
     const result = await moveTicketAction(t.id, to);
     if (!result.ok) {
       toast.danger(result.error);
@@ -182,7 +201,7 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
   return (
     <PageContent>
       <PageHeader
-        eyebrow="Service · Kacyiru Court Residences"
+        eyebrow={building ? `Service · ${building}` : "Service"}
         title="Maintenance and Visitors"
         description="Repairs linked to units and residents, and who may enter the compound. Hotel guests, bookings and rooms are not shown here."
         actions={
@@ -199,7 +218,7 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
             </Button>
             <Button
               onPress={() => {
-                setTicket({ unit: "Block B", title: "", category: CATEGORIES[1], entry: ENTRY[2] });
+                setTicket({ unit: firstPlace, title: "", category: CATEGORIES[1], entry: ENTRY[2] });
                 setTicketOpen(true);
               }}
             >
@@ -247,7 +266,7 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
                           aria-label={col.title}
                           items={cards}
                           selectionMode="single"
-                          selectedKeys={new Set([t.id])}
+                          selectedKeys={new Set(t ? [t.id] : [])}
                           onSelectionChange={(keys) => {
                             const k = firstKey(keys);
                             if (k) {
@@ -279,129 +298,135 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
               </Kanban>
             </section>
 
-            <Card className="min-w-0 gap-[14px] p-[18px]" aria-labelledby="tk-h" render={(p) => <aside {...p} />}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <span className="text-[12px] text-muted tabular">
-                    {t.id} · {t.unit} · {t.category}
-                  </span>
-                  <h2 id="tk-h" className="text-[17px] leading-6 font-semibold">
-                    {t.title}
-                  </h2>
-                  <span className="text-[12px] text-muted tabular">{t.reported}</span>
+            {t ? (
+              <Card className="min-w-0 gap-[14px] p-[18px]" aria-labelledby="tk-h" render={(p) => <aside {...p} />}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span className="text-[12px] text-muted tabular">
+                      {t.id} · {t.unit} · {t.category}
+                    </span>
+                    <h2 id="tk-h" className="text-[17px] leading-6 font-semibold">
+                      {t.title}
+                    </h2>
+                    <span className="text-[12px] text-muted tabular">{t.reported}</span>
+                  </div>
+                  <ToneChip tone={status.tone} size="md" className="shrink-0">
+                    {status.label}
+                  </ToneChip>
                 </div>
-                <ToneChip tone={status.tone} size="md" className="shrink-0">
-                  {status.label}
-                </ToneChip>
-              </div>
-              {t.photos.length ? (
-                <div className="flex gap-2">
-                  {t.photos.map((ph, i) => (
-                    <div
-                      key={ph.alt}
-                      className="relative h-[72px] min-w-0 flex-1 overflow-hidden rounded-[14px] bg-surface-tertiary"
-                    >
-                      <Photo
-                        image={stock[ph.key]}
-                        alt={ph.alt}
-                        fill
-                        sizes="180px"
-                        className={t.photos.findIndex((p) => p.key === ph.key) === i ? "" : CROPS[i % CROPS.length]}
-                      />
-                    </div>
+                {t.photos.length ? (
+                  <div className="flex gap-2">
+                    {t.photos.map((ph, i) => (
+                      <div
+                        key={ph.alt}
+                        className="relative h-[72px] min-w-0 flex-1 overflow-hidden rounded-[14px] bg-surface-tertiary"
+                      >
+                        <Photo
+                          image={stock[ph.key]}
+                          alt={ph.alt}
+                          fill
+                          sizes="180px"
+                          className={t.photos.findIndex((p) => p.key === ph.key) === i ? "" : CROPS[i % CROPS.length]}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                <KeyValueList
+                  items={[
+                    { label: "Entry permission", value: t.entry },
+                    { label: "Assigned to", value: t.assignee },
+                    { label: "Visit", value: <span className="tabular">{t.visit}</span> },
+                    { label: "Cost", value: <span className="tabular">{t.cost}</span> },
+                  ]}
+                />
+                <Segment
+                  // A new ticket has no status chosen yet; remounting per ticket and status keeps that empty.
+                  key={`${t.id}-${current}`}
+                  aria-label="Ticket status"
+                  selectedKey={current === "new" ? undefined : current}
+                  onSelectionChange={(k) => void move(k as TicketStatus)}
+                  className="self-start"
+                >
+                  {MOVES.map((s) => (
+                    <Segment.Item key={s} id={s}>
+                      {STATUS[s].label}
+                    </Segment.Item>
                   ))}
-                </div>
-              ) : null}
-              <KeyValueList
-                items={[
-                  { label: "Entry permission", value: t.entry },
-                  { label: "Assigned to", value: t.assignee },
-                  { label: "Visit", value: <span className="tabular">{t.visit}</span> },
-                  { label: "Cost", value: <span className="tabular">{t.cost}</span> },
-                ]}
-              />
-              <Segment
-                // A new ticket has no status chosen yet; remounting per ticket and status keeps that empty.
-                key={`${t.id}-${current}`}
-                aria-label="Ticket status"
-                selectedKey={current === "new" ? undefined : current}
-                onSelectionChange={(k) => void move(k as TicketStatus)}
-                className="self-start"
-              >
-                {MOVES.map((s) => (
-                  <Segment.Item key={s} id={s}>
-                    {STATUS[s].label}
-                  </Segment.Item>
-                ))}
-              </Segment>
+                </Segment>
 
-              <div className="flex flex-col gap-2.5">
-                <SubHeading className="text-sm leading-5">{threadTitle}</SubHeading>
-                {thread.map((m) =>
-                  m.from === "resident" ? (
-                    <ChatMessage.Assistant key={`${m.meta}-${m.text}`} className="py-0">
-                      <ChatMessage.Body className="max-w-[85%] gap-0.5">
-                        <ChatMessage.Bubble className="self-start bg-surface-secondary">
+                <div className="flex flex-col gap-2.5">
+                  <SubHeading className="text-sm leading-5">{threadTitle}</SubHeading>
+                  {thread.map((m) =>
+                    m.from === "resident" ? (
+                      <ChatMessage.Assistant key={`${m.meta}-${m.text}`} className="py-0">
+                        <ChatMessage.Body className="max-w-[85%] gap-0.5">
+                          <ChatMessage.Bubble className="self-start bg-surface-secondary">
+                            <ChatMessage.Content className="text-[13px] leading-[19px]">{m.text}</ChatMessage.Content>
+                          </ChatMessage.Bubble>
+                          <span className="text-[11px] text-muted tabular">{m.meta}</span>
+                        </ChatMessage.Body>
+                      </ChatMessage.Assistant>
+                    ) : (
+                      <ChatMessage.User key={`${m.meta}-${m.text}`} className="gap-0.5">
+                        <ChatMessage.Bubble
+                          className={`max-w-[85%] ${m.from === "note" ? "bg-warning-soft text-warning-soft-foreground" : "bg-accent-soft"}`}
+                        >
                           <ChatMessage.Content className="text-[13px] leading-[19px]">{m.text}</ChatMessage.Content>
                         </ChatMessage.Bubble>
                         <span className="text-[11px] text-muted tabular">{m.meta}</span>
-                      </ChatMessage.Body>
-                    </ChatMessage.Assistant>
-                  ) : (
-                    <ChatMessage.User key={`${m.meta}-${m.text}`} className="gap-0.5">
-                      <ChatMessage.Bubble
-                        className={`max-w-[85%] ${m.from === "note" ? "bg-warning-soft text-warning-soft-foreground" : "bg-accent-soft"}`}
-                      >
-                        <ChatMessage.Content className="text-[13px] leading-[19px]">{m.text}</ChatMessage.Content>
-                      </ChatMessage.Bubble>
-                      <span className="text-[11px] text-muted tabular">{m.meta}</span>
-                    </ChatMessage.User>
-                  ),
-                )}
-                <PromptInput value={draft} onValueChange={setDraft} onSubmit={send}>
-                  <PromptInput.Shell>
-                    <Label htmlFor="reply" className="sr-only">
-                      {isNote ? "Internal note for staff" : `Reply to ${t.resident}`}
-                    </Label>
-                    <PromptInput.Content>
-                      <PromptInput.TextArea
-                        id="reply"
-                        rows={2}
-                        placeholder={isNote ? "Internal note for staff only" : `Reply to ${t.resident}`}
-                      />
-                    </PromptInput.Content>
-                    <PromptInput.Toolbar>
-                      <PromptInput.ToolbarStart>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          aria-pressed={isNote}
-                          isDisabled={noResident}
-                          onPress={() => setNote((n) => !n)}
-                        >
-                          {isNote ? <Lock className="size-4" /> : <Comment className="size-4" />}
-                          {isNote ? "Internal note" : "Reply to resident"}
-                        </Button>
-                      </PromptInput.ToolbarStart>
-                      <PromptInput.ToolbarEnd>
-                        <Button
-                          size="sm"
-                          isIconOnly
-                          aria-label="Send"
-                          isDisabled={!draft.trim() || busy}
-                          onPress={send}
-                        >
-                          <PaperPlane className="size-4" />
-                        </Button>
-                      </PromptInput.ToolbarEnd>
-                    </PromptInput.Toolbar>
-                  </PromptInput.Shell>
-                </PromptInput>
-                <span className="text-[12px] text-muted">
-                  Delivered in the resident app. Internal notes are never shown to residents.
-                </span>
-              </div>
-            </Card>
+                      </ChatMessage.User>
+                    ),
+                  )}
+                  <PromptInput value={draft} onValueChange={setDraft} onSubmit={send}>
+                    <PromptInput.Shell>
+                      <Label htmlFor="reply" className="sr-only">
+                        {isNote ? "Internal note for staff" : `Reply to ${t.resident}`}
+                      </Label>
+                      <PromptInput.Content>
+                        <PromptInput.TextArea
+                          id="reply"
+                          rows={2}
+                          placeholder={isNote ? "Internal note for staff only" : `Reply to ${t.resident}`}
+                        />
+                      </PromptInput.Content>
+                      <PromptInput.Toolbar>
+                        <PromptInput.ToolbarStart>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-pressed={isNote}
+                            isDisabled={noResident}
+                            onPress={() => setNote((n) => !n)}
+                          >
+                            {isNote ? <Lock className="size-4" /> : <Comment className="size-4" />}
+                            {isNote ? "Internal note" : "Reply to resident"}
+                          </Button>
+                        </PromptInput.ToolbarStart>
+                        <PromptInput.ToolbarEnd>
+                          <Button
+                            size="sm"
+                            isIconOnly
+                            aria-label="Send"
+                            isDisabled={!draft.trim() || busy}
+                            onPress={send}
+                          >
+                            <PaperPlane className="size-4" />
+                          </Button>
+                        </PromptInput.ToolbarEnd>
+                      </PromptInput.Toolbar>
+                    </PromptInput.Shell>
+                  </PromptInput>
+                  <span className="text-[12px] text-muted">
+                    Delivered in the resident app. Internal notes are never shown to residents.
+                  </span>
+                </div>
+              </Card>
+            ) : (
+              <Card className="min-w-0 gap-[14px] p-[18px]" render={(p) => <aside {...p} />}>
+                <p className="text-[13px] text-muted">No repair tickets yet. A new one opens here.</p>
+              </Card>
+            )}
           </div>
         </Tabs.Panel>
 
@@ -414,7 +439,7 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
                     Access Requests
                   </ItemCardGroup.Title>
                   <ItemCardGroup.Description>
-                    House rule: overnight visits over 7 nights need management approval · configured 1 Jan 2026
+                    House rule: overnight visits over 7 nights need management approval
                   </ItemCardGroup.Description>
                 </ItemCardGroup.Header>
                 {data.requests.map((r) => {
@@ -435,7 +460,7 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
                                 {r.approveLabel}
                               </Button>
                               <Button size="sm" variant="ghost" onPress={() => decide(r, "declined")}>
-                                Decline with reason
+                                Decline
                               </Button>
                             </div>
                           ) : null}
@@ -461,7 +486,9 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
                 >
                   Pre-registered Visitors
                 </Card.Title>
-                <Card.Description>Codes are checked at the gate tablet and expire automatically</Card.Description>
+                <Card.Description>
+                  Each pass holds its code and time window; give the code to the visitor
+                </Card.Description>
               </Card.Header>
               <ListView aria-label="Pre-registered visitors" variant="secondary" items={visitors}>
                 {(v) => (
@@ -499,14 +526,14 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
                     Visitor Log
                   </h2>
                   <span className="text-[12px] text-muted">
-                    Arrivals and departures recorded at the gate · kept 90 days · phone numbers masked
+                    Gate log · the last 90 days shown · phone numbers masked
                   </span>
                 </div>
                 <Button
                   size="sm"
                   variant="ghost"
                   onPress={() =>
-                    downloadCsv("kacyiru-court-visitor-log.csv", [
+                    downloadCsv("visitor-log.csv", [
                       ["Visitor", "Phone", "Visiting", "How admitted", "Arrived", "Left", "Recorded by"],
                       ...data.log.map((g) => [g.name, g.phone, g.unit, g.how, g.arrived, g.left, g.by]),
                     ])
@@ -610,14 +637,14 @@ export function ResidenceServiceView({ persona, data }: { persona: Persona; data
         isOpen={visitorOpen}
         onOpenChange={setVisitorOpen}
         title="Pre-register a visitor"
-        description="The visitor gets a gate code that the gate tablet checks. It expires at the end of the window."
+        description="Issues a pass with a gate code for the window. Give the code to the visitor yourself: it is not sent to them."
         footer={
           <>
             <Button variant="secondary" onPress={() => setVisitorOpen(false)}>
               Cancel
             </Button>
             <Button onPress={preregister} isDisabled={!visitor.name.trim() || !visitor.unit || busy}>
-              Send gate code
+              Issue gate code
             </Button>
           </>
         }

@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CheckInView } from "@/features/frontdesk/CheckInView";
 import { requirePersona } from "@/lib/session";
-import { getCollection, getDocument } from "@/server/data";
+import { getCollection, getDocument, requestContext } from "@/server/data";
+import { deskPropertyName } from "@/server/sources/frontdesk";
 
 export const metadata: Metadata = { title: screens.CheckIn.pageTitle };
 
@@ -19,5 +20,7 @@ export default async function CheckInPage({ searchParams }: { searchParams: Prom
     ? await getDocument<CheckInFile>("frontdesk.checkIns", booking)
     : (await getCollection<CheckInFile>("frontdesk.checkIns"))[0];
   if (!file) notFound();
-  return <CheckInView key={file.id} persona={persona} file={file} />;
+  // The property is the desk's own read (the same board the check-in file came from).
+  const property = await deskPropertyName(await requestContext());
+  return <CheckInView key={file.id} persona={persona} file={file} property={property} />;
 }

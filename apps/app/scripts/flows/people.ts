@@ -54,7 +54,9 @@ async function fileLeave(
   const type = types.find((t) => t.code === typeCode);
   check(type, `no ${typeCode} leave type`);
   for (let tries = 0; tries < 40; tries++) {
-    const startsOn = addDays(hr.today.iso, 60 + tries * 7);
+    // One day later each try, not one week: when today + 60 is a Saturday, the same weekday a week later is
+    // a weekend again, every time (the flow failed on Tuesdays).
+    const startsOn = addDays(hr.today.iso, 60 + tries);
     try {
       const created = await hr.ops().post<{ id: string }>("/api/v1/ops/leave/requests", {
         employeeId,
@@ -65,10 +67,14 @@ async function fileLeave(
       });
       return { id: created.id, startsOn };
     } catch (error) {
-      if ((error as { status?: number }).status !== 409) throw error;
+      // 409: those days are already on leave. 422: they hold no working day (a weekend the person is not
+      // rostered on, or a public holiday such as 25 December). Either way, try the next day.
+      const { status, message } = error as { status?: number; message?: string };
+      const noWorkingDay = status === 422 && /no working day/i.test(message ?? "");
+      if (status !== 409 && !noWorkingDay) throw error;
     }
   }
-  throw new Error("no free days found for a leave request");
+  throw new Error("no free working days found for a leave request");
 }
 
 export const flows: Flow[] = [

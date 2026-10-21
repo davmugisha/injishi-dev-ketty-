@@ -9,35 +9,51 @@ import {
   LayoutCells,
   Lock,
   PaperPlane,
-  ShieldExclamation,
   Tag,
-  TriangleExclamation,
 } from "@gravity-ui/icons";
 import {
   Alert,
-  Avatar,
   Button,
   Card,
   Chip,
   Input,
   Label,
-  ProgressBar,
   Radio,
   RadioGroup,
   Table,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
-import { EmptyState, RadioButtonGroup } from "@heroui-pro/react";
+import { EmptyState } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
 import { screenHref } from "@injishi/data";
-import type { GuestMatch, RoomType, WalkInQuote } from "@injishi/data/fixtures/frontdesk";
+import type { RoomType } from "@injishi/data/fixtures/frontdesk";
 import { formatRwf, GateChip, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import NextLink from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { checkInWalkIn } from "./actions";
 import { ChoiceSelect, plural } from "./shared";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Today in Kigali, "2026-10-19": the walk-in arrives now, whatever day the prototype drew. */
+const kigaliIso = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Kigali",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+const kigaliClock = () =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Kigali",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date());
 
 /** "Mon 12 Oct" for the arrival date plus `offset` days. */
 function dayLabel(isoDate: string, offset: number): string {
@@ -75,64 +91,90 @@ function Stepper({
   );
 }
 
+/**
+ * The walk-in reads the room types and what is free tonight from the API. Quote holds, guest profiles to
+ * match and a walk-in policy do not exist yet, so none is shown: the prototype's sample quote, its policy,
+ * its tax rule and its sample guests are not drawn on this live screen.
+ */
 export function WalkInView({
   roomTypes,
-  matches,
-  quote,
   nights: initialNights,
   adults: initialAdults,
 }: {
   roomTypes: RoomType[];
-  matches: GuestMatch[];
-  quote: WalkInQuote;
   nights: number;
   adults: number;
 }) {
+  const router = useRouter();
   const [nights, setNights] = useState(initialNights);
   const [adults, setAdults] = useState(initialAdults);
-  const [kids, setKids] = useState(quote.children);
-  const [sel, setSel] = useState<string>(quote.roomType);
-  const [conflict, setConflict] = useState(quote.conflictType !== null);
-  const [guest, setGuest] = useState(quote.guestMatch);
-  const [hold, setHold] = useState<"on" | "off">("on");
-  const [extended, setExtended] = useState(false);
-  const [checkedAt, setCheckedAt] = useState(quote.checkedAt);
+  const [kids, setKids] = useState(0);
+  const [sel, setSel] = useState<string>("");
+  // The walk-in arrives today, in Kigali; the availability is the page's own read of the desk's day.
+  const [today] = useState(kigaliIso);
+  const [checkedAt, setCheckedAt] = useState(kigaliClock);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [saving, startSaving] = useTransition();
 
   const guests = adults + kids;
-  const conflictType = roomTypes.find((t) => t.id === quote.conflictType);
-  const offer = roomTypes.find((t) => t.id === "family");
-  const stillFree = roomTypes.filter((t) => t.free > 0 && t.id !== "queen").map((t) => t.name);
   const bookable = (t: RoomType) => t.free > 0 && !t.soldNote && guests <= t.sleeps;
   const t = roomTypes.find((x) => x.id === sel && bookable(x));
-  const match = matches.find((m) => m.id === guest);
-  const holdOn = !!t && hold === "on";
+  const canCheckIn = !!t && name.trim().length > 0 && !saving;
 
-  const pick = (id: string) => {
-    setSel(id);
-    setHold("on");
-    setExtended(false);
+  const pick = (id: string) => setSel(id);
+
+  /** Read availability again from the API (the page re-reads the desk's day). */
+  const recheck = () => {
+    router.refresh();
+    setCheckedAt(kigaliClock());
   };
 
-  let q: { span: string; lines: { label: string; amt: number }[]; sub: number; vat: number; first: number } | null =
-    null;
+  /** Open the stay now: POST /ops/stays/walk-in picks a ready room of this type and opens its bill. */
+  const checkIn = () => {
+    if (!t || !name.trim()) return;
+    const type = t;
+    startSaving(async () => {
+      const result = await checkInWalkIn({
+        roomTypeId: type.id,
+        nights,
+        guestName: name,
+        phone: phone || undefined,
+        email: email || undefined,
+      });
+      if (!result.ok) {
+        toast.danger(`${name.trim()} was not checked in: ${result.error}`);
+        return;
+      }
+      const w = result.value;
+      toast.success(
+        `${name.trim()} is checked in to room ${w.room}${w.stayReference ? ` · stay ${w.stayReference}` : ""}${
+          email ? (w.invited ? " · claim code emailed" : " · claim code not emailed") : ""
+        }`,
+      );
+      router.push(`/stays/${encodeURIComponent(w.stayReference ?? w.stayId)}`);
+    });
+  };
+
+  let q: { span: string; lines: { label: string; amt: number }[]; sub: number } | null = null;
   if (t) {
     const sub = t.rate * nights;
     q = {
-      span: `Mon 12 → ${dayLabel(quote.arrivalDate, nights)} · ${plural(nights, "night")} · ${plural(adults, "adult")}${
-        kids ? `, ${plural(kids, "child", "children")}` : ""
-      }`.replace("Mon 12 Oct", "Mon 12"),
+      // POST /ops/stays/walk-in takes no party size, so the quote names none: the guests counted
+      // above only choose a room that sleeps them.
+      span: `${dayLabel(today, 0)} → ${dayLabel(today, nights)} · ${plural(nights, "night")}`,
       lines: Array.from({ length: nights }, (_, i) => ({
-        label: `${dayLabel(quote.arrivalDate, i)} · Walk-in`,
+        label: `${dayLabel(today, i)} · Walk-in`,
         amt: t.rate,
       })),
       sub,
-      vat: sub * quote.tax.rate,
-      first: t.rate * (1 + quote.tax.rate),
     };
   }
 
   return (
     <PageContent className="text-[14px] leading-5">
+      <Toast.Provider placement="bottom" />
       <PageHeader
         eyebrow={
           <>
@@ -144,7 +186,7 @@ export function WalkInView({
           </>
         }
         title="Walk-in"
-        description="Find a room, quote it, hold it while the guest decides, then go straight to check-in."
+        description="Find a room, quote it, then check the guest in: the stay and its bill open at once."
         actions={
           <>
             <LinkButton href={screenHref("RoomRack")} variant="ghost">
@@ -162,8 +204,8 @@ export function WalkInView({
         <div className="flex flex-wrap items-end gap-x-6 gap-y-3.5">
           <ChoiceSelect
             label="Arrival"
-            options={[quote.arrival]}
-            value={quote.arrival}
+            options={[`Today · ${dayLabel(today, 0)}`]}
+            value={`Today · ${dayLabel(today, 0)}`}
             onChange={() => {}}
             indicator={<Calendar className="size-4" />}
             className="flex min-w-[190px] flex-col gap-1"
@@ -180,7 +222,7 @@ export function WalkInView({
           <div className="flex flex-col gap-1">
             <span className="text-sm font-medium">Departure</span>
             <span className="flex h-9 items-center font-medium tabular" aria-live="polite">
-              {dayLabel(quote.arrivalDate, nights)}
+              {dayLabel(today, nights)}
             </span>
           </div>
           <Stepper
@@ -201,9 +243,12 @@ export function WalkInView({
             fewer="Fewer children"
             more="More children"
           />
+          <span className="self-center text-xs text-muted">
+            Finds a room that sleeps them · not recorded on the stay
+          </span>
           <span className="flex-1" />
-          <span className="self-center text-xs text-muted">Live availability · checked {checkedAt}</span>
-          <Button variant="secondary" onPress={() => setCheckedAt(quote.rechecksAt)}>
+          <span className="self-center text-xs text-muted">Free tonight · checked {checkedAt}</span>
+          <Button variant="secondary" onPress={recheck}>
             <ArrowsRotateRight className="size-4" />
             Check again
           </Button>
@@ -212,45 +257,13 @@ export function WalkInView({
 
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex min-w-0 flex-[999_1_600px] flex-col gap-4">
-          {conflict && conflictType ? (
-            <Alert status="danger" role="alert">
-              <Alert.Indicator>
-                <TriangleExclamation />
-              </Alert.Indicator>
-              <Alert.Content>
-                <Alert.Title>Last {conflictType.name} was just booked on another channel — choose another</Alert.Title>
-                <Alert.Description>
-                  The marketplace confirmed it at {quote.conflictAt} while you were quoting. Nothing was held or charged
-                  for this guest. {stillFree.join(" and ")} are still free for these dates.
-                </Alert.Description>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {offer ? (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onPress={() => {
-                        pick(offer.id);
-                        setAdults((a) => Math.min(a, offer.sleeps));
-                      }}
-                    >
-                      Offer {offer.name}
-                    </Button>
-                  ) : null}
-                  <Button size="sm" variant="ghost" onPress={() => setConflict(false)}>
-                    Dismiss
-                  </Button>
-                </div>
-              </Alert.Content>
-            </Alert>
-          ) : null}
-
           <Card className="gap-3 p-[18px]" aria-labelledby="av-h">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-col gap-0.5">
                 <h2 id="av-h" className="text-[15px] leading-[22px] font-semibold">
                   Availability by Room Type
                 </h2>
-                <span className="text-xs text-muted">Walk-in rate plan · excluding VAT · per night</span>
+                <span className="text-xs text-muted">Default rate · per night · free tonight</span>
               </div>
               <GateChip icon={<Lock className="size-3" />}>Rates are managed by your general manager</GateChip>
             </div>
@@ -303,8 +316,8 @@ export function WalkInView({
                             </Table.Cell>
                             <Table.Cell>
                               <span className="flex flex-col">
-                                <span className="whitespace-nowrap">{quote.policy.name}</span>
-                                <span className="text-xs text-muted">{quote.policy.note}</span>
+                                <span className="whitespace-nowrap">Pays on the bill</span>
+                                <span className="text-xs text-muted">No booking, so no cancellation terms</span>
                               </span>
                             </Table.Cell>
                           </Table.Row>
@@ -322,55 +335,25 @@ export function WalkInView({
               <h2 id="g-h" className="text-[15px] leading-[22px] font-semibold">
                 Guest
               </h2>
-              <span className="text-xs text-muted">
-                Search before creating a profile. Matches are suggestions; nothing is merged automatically.
-              </span>
+              <span className="text-xs text-muted">The stay opens under the name typed here.</span>
             </div>
             <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr))]">
-              <TextField defaultValue={quote.guestName} className="flex flex-col gap-1">
+              <TextField value={name} onChange={setName} className="flex flex-col gap-1">
                 <Label>Full name</Label>
-                <Input />
+                <Input placeholder="As on the guest's ID" />
               </TextField>
-              <TextField defaultValue={quote.guestPhone} className="flex flex-col gap-1">
+              <TextField value={phone} onChange={setPhone} className="flex flex-col gap-1">
                 <Label>Phone</Label>
-                <Input className="tabular" type="tel" />
+                <Input className="tabular" type="tel" placeholder="+250 7…" />
               </TextField>
-              <TextField className="flex flex-col gap-1">
+              <TextField value={email} onChange={setEmail} className="flex flex-col gap-1">
                 <Label>Email (optional)</Label>
-                <Input placeholder="For the proforma and receipt" type="email" />
+                <Input placeholder="Gets the claim code for the guest app" type="email" />
               </TextField>
             </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] font-semibold">
-                {plural(matches.filter((m) => m.id !== "new").length, "possible match", "possible matches")}
-              </span>
-              <span className="text-xs text-muted">Isangano guests only</span>
-            </div>
-            <RadioButtonGroup
-              aria-label="Guest profile for this booking"
-              value={guest}
-              onChange={(v) => v && setGuest(v)}
-              className="flex flex-col gap-2"
-            >
-              {matches.map((m) => (
-                <RadioButtonGroup.Item key={m.id} value={m.id} className="flex-row items-center gap-3 px-3.5 py-2.5">
-                  <RadioButtonGroup.ItemContent className="flex flex-1 flex-row items-center gap-3">
-                    <Avatar size="sm" variant="soft" color={m.id === "g1" ? "accent" : "default"}>
-                      <Avatar.Fallback>{m.initials}</Avatar.Fallback>
-                    </Avatar>
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <Label className="font-semibold">{m.name}</Label>
-                      <span className="text-xs text-muted tabular">{m.desc}</span>
-                    </span>
-                    <Chip size="sm" variant="soft" color={toneColor(m.tone)}>
-                      {m.chip}
-                    </Chip>
-                  </RadioButtonGroup.ItemContent>
-                </RadioButtonGroup.Item>
-              ))}
-            </RadioButtonGroup>
             <p className="text-xs text-muted" aria-live="polite">
-              {match?.note} ID is checked at check-in, not here.
+              Guest profiles are not built yet, so there is nothing to search or match: the stay opens under the name
+              typed above and is linked to no earlier stay. Check the ID when you hand over the key.
             </p>
           </Card>
         </div>
@@ -382,7 +365,7 @@ export function WalkInView({
                 Quote
               </h2>
               <Chip size="sm" variant="soft">
-                {quote.id} · {quote.status}
+                Estimate · not saved
               </Chip>
             </div>
             {!t || !q ? (
@@ -392,7 +375,7 @@ export function WalkInView({
                     <Tag />
                   </EmptyState.Media>
                   <EmptyState.Title>Choose a room type</EmptyState.Title>
-                  <EmptyState.Description>The quote, taxes and hold appear here.</EmptyState.Description>
+                  <EmptyState.Description>The quote appears here.</EmptyState.Description>
                 </EmptyState.Header>
               </EmptyState>
             ) : (
@@ -412,111 +395,74 @@ export function WalkInView({
                     <span>Subtotal</span>
                     <span className="tabular">{formatRwf(q.sub)}</span>
                   </li>
+                  {/* The night audit posts each room night at the stay's rate with no tax line of its own, and no levy
+                      is posted to a bill: the estimate adds neither. */}
                   <li className="flex items-start justify-between gap-2">
                     <span className="flex flex-col gap-0.5">
-                      <span>VAT {Math.round(quote.tax.rate * 100)}%</span>
-                      <span className="text-[11px] text-muted">{quote.tax.rule}</span>
-                      <GateChip icon={<ShieldExclamation className="size-3" />} className="self-start">
-                        Configured · awaiting sign-off
-                      </GateChip>
+                      <span>VAT</span>
+                      <span className="text-[11px] text-muted">
+                        Room nights post at the rate, with no separate VAT line
+                      </span>
                     </span>
-                    <span className="whitespace-nowrap tabular">{formatRwf(q.vat)}</span>
+                    <span className="whitespace-nowrap text-muted">Not added</span>
                   </li>
                   <li className="flex items-center justify-between gap-2">
                     <span className="flex flex-col">
                       <span>Tourism levy</span>
-                      <span className="text-[11px] text-muted">{quote.tax.levy}</span>
+                      <span className="text-[11px] text-muted">Not posted to the bill</span>
                     </span>
-                    <span className="text-muted tabular">{formatRwf(0)}</span>
+                    <span className="whitespace-nowrap text-muted">Not added</span>
                   </li>
                   <li className="flex justify-between gap-2 border-t border-separator pt-2 text-[15px] font-semibold">
                     <span>Total</span>
-                    <span className="tabular">{formatRwf(q.sub + q.vat)}</span>
+                    <span className="tabular">{formatRwf(q.sub)}</span>
                   </li>
                 </ul>
                 <Card variant="secondary" className="gap-1 px-3.5 py-3 text-[13px]">
-                  <span className="font-semibold">
-                    {quote.policy.name} · {quote.policy.id}
-                  </span>
+                  <span className="font-semibold">Pays on the bill</span>
                   <span className="text-muted">
-                    Free cancellation until 18:00 today; after that the first night is charged. First night paid at
-                    check-in ({formatRwf(q.first)}).
+                    A walk-in pays on the bill: each night posts at night audit, and the desk takes cash on the stay's
+                    page after check-in (the first night is {formatRwf(t.rate)}).
                   </span>
                 </Card>
 
-                {holdOn ? (
-                  <Card variant="secondary" className="gap-2 px-3.5 py-3">
-                    <ProgressBar
-                      color="warning"
-                      value={extended ? quote.hold.extendedPct : quote.hold.pct}
-                      valueLabel={extended ? quote.hold.extendedLeft : quote.hold.left}
-                      aria-label="Inventory hold time left"
-                      className="gap-1.5"
-                    >
-                      <Label>{t.name} held for this guest</Label>
-                      <ProgressBar.Output className="tabular" />
-                      <ProgressBar.Track>
-                        <ProgressBar.Fill />
-                      </ProgressBar.Track>
-                    </ProgressBar>
-                    <span className="text-xs text-muted">
-                      {extended
-                        ? `Extended once · released automatically at ${quote.hold.extendedAt} if no booking is created.`
-                        : `Released automatically at ${quote.hold.releasesAt} if no booking is created. You can extend once.`}
-                    </span>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="secondary" isDisabled={extended} onPress={() => setExtended(true)}>
-                        Add 10 minutes
-                      </Button>
-                      <Button size="sm" variant="ghost" onPress={() => setHold("off")}>
-                        Release now
-                      </Button>
-                    </div>
-                  </Card>
-                ) : (
-                  <Alert status="default" role="status">
-                    <Alert.Indicator>
-                      <Clock />
-                    </Alert.Indicator>
-                    <Alert.Content>
-                      <Alert.Title>Hold released · back on sale</Alert.Title>
-                      <Alert.Description>
-                        Released at 10:48. Another desk or channel can now take it.{" "}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onPress={() => {
-                            setHold("on");
-                            setExtended(false);
-                          }}
-                        >
-                          Hold again
-                        </Button>
-                      </Alert.Description>
-                    </Alert.Content>
-                  </Alert>
-                )}
+                {/* Quote holds (a room kept for a guest who is deciding) have no table or route. */}
+                <Alert status="default" role="status">
+                  <Alert.Indicator>
+                    <Clock />
+                  </Alert.Indicator>
+                  <Alert.Content>
+                    <Alert.Title>Not held while the guest decides</Alert.Title>
+                    <Alert.Description>
+                      Holding a room for a quote is not available yet. Another desk or channel can still take {t.name}{" "}
+                      until you check the guest in.
+                    </Alert.Description>
+                  </Alert.Content>
+                </Alert>
 
                 <p className="text-xs text-muted">
-                  Creating the booking saves this rate, policy and tax version with the room commitment. If the room is
-                  taken first, you'll be asked to choose again; nothing is double-booked.
+                  Checking in opens the stay and its bill at once, in a ready {t.name} room, at the rate above for{" "}
+                  {plural(nights, "night")}. If the last room is taken first, you'll be asked to choose again; nothing
+                  is double-booked.
                 </p>
-                {holdOn ? (
-                  <LinkButton href={screenHref("CheckIn")} fullWidth>
-                    <ArrowRightToSquare className="size-4" />
-                    Create booking and check in
-                  </LinkButton>
-                ) : (
-                  <Button fullWidth isDisabled>
-                    Hold a room to create the booking
-                  </Button>
-                )}
+                <Button fullWidth isDisabled={!canCheckIn} onPress={checkIn}>
+                  <ArrowRightToSquare className="size-4" />
+                  {saving
+                    ? "Checking in…"
+                    : name.trim()
+                      ? `Check in ${name.trim()}`
+                      : "Type the guest's name to check in"}
+                </Button>
                 <div className="flex gap-2">
                   <Button size="sm" variant="ghost" onPress={() => window.print()}>
                     <FileText className="size-4" />
                     Proforma
                   </Button>
-                  <Button size="sm" variant="ghost">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onPress={() => toast.warning("Sending a quote by SMS is not available yet. Nothing was sent.")}
+                  >
                     <PaperPlane className="size-4" />
                     Send quote by SMS
                   </Button>

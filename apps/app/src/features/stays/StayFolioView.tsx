@@ -17,7 +17,6 @@ import {
   Xmark,
 } from "@gravity-ui/icons";
 import {
-  Alert,
   Button,
   Card,
   Description,
@@ -28,6 +27,8 @@ import {
   ProgressBar,
   Table,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { ItemCard, ListView, RadioButtonGroup, Segment, Timeline } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
@@ -38,18 +39,18 @@ import type {
   FolioDepartment,
   FolioLine,
   FolioPayment,
-  LateCheckoutOption,
   Stay,
   StayAccess,
   StayDocument,
   StayEvent,
   StayRecord,
 } from "@injishi/data/fixtures/stays";
-import { GateChip, Icon, LinkButton, PageContent, PageHeader, TextLink } from "@injishi/ui";
+import { GateChip, Icon, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import NextLink from "next/link";
-import { Fragment, useState } from "react";
+import { Fragment, useState, useTransition } from "react";
 import type { Selection } from "react-aria-components";
-import { CardHeading, IconTile, InfoRow, Note, parseAmount, rwf, SelectField, StatTile, ToneChip } from "./parts";
+import { checkOutGuest, postCharge, recordCash, resendClaimCode, voidCharge } from "./actions";
+import { CardHeading, IconTile, InfoRow, Note, readFrancs, rwf, SelectField, StatTile, ToneChip } from "./parts";
 
 export interface StayFolioData {
   stay: Stay;
@@ -59,26 +60,12 @@ export interface StayFolioData {
   history: StayEvent[];
   access: StayAccess[];
   documents: StayDocument[];
-  lateOptions: LateCheckoutOption[];
   chargeDepartments: ChargeDepartment[];
   tenders: DeskTender[];
 }
 
-const DEPT_COLOR: Record<FolioDepartment, string> = {
-  Rooms: "var(--chart-1)",
-  "Isangano Terrace": "var(--chart-2)",
-  "Lake Bar": "var(--chart-3)",
-  Laundry: "var(--chart-4)",
-  Minibar: "var(--chart-5)",
-};
-const DEPTS: FolioDepartment[] = ["Rooms", "Isangano Terrace", "Lake Bar", "Laundry", "Minibar"];
-const DEPT_FILTERS: { id: "all" | FolioDepartment; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "Rooms", label: "Rooms" },
-  { id: "Isangano Terrace", label: "Terrace" },
-  { id: "Lake Bar", label: "Lake Bar" },
-  { id: "Laundry", label: "Laundry" },
-];
+/** One colour per department, in the order the bill first names them. */
+const CHART = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 const VOID_REASONS = ["Posted to wrong room", "Duplicate posting", "Guest did not receive service", "Wrong amount"];
 const CHARGE_REASONS = [
   "Service without POS ticket",
@@ -87,26 +74,36 @@ const CHARGE_REASONS = [
   "Damage or loss",
   "Under-charge correction",
 ];
-const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-/** Desk permissions of the receptionist role. */
+/**
+ * What this screen lets the desk do on its own. The API lets anyone holding `folio.charge` post or
+ * void; these limits only ever narrow that, and anything beyond them goes to a manager.
+ */
+/**
+ * Times a late checkout could run to. A property's late-checkout fee schedule is not kept anywhere yet
+ * (stays.lateCheckoutOptions is deferred), so no fee is shown beside them, and the action is unavailable.
+ */
+const LATE_TIMES = ["13:00", "15:00", "18:00"] as const;
 const DESK_VOID_LIMIT = 20000;
 const DESK_CHARGE_LIMIT = 50000;
 
 const sum = (xs: { amount: number }[]) => xs.reduce((a, x) => a + x.amount, 0);
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-function DeptDot({ dept }: { dept: FolioDepartment }) {
+function DeptDot({ color }: { color: string }) {
   return (
-    <span
-      aria-hidden="true"
-      className="inline-block size-2 shrink-0 rounded-full"
-      style={{ background: DEPT_COLOR[dept] }}
-    />
+    <span aria-hidden="true" className="inline-block size-2 shrink-0 rounded-full" style={{ background: color }} />
   );
 }
 
 /** One linked record (booking, stay, folio, fiscal receipt) with its state track. */
 function RecordCard({ record, current, desc }: { record: StayRecord; current: number; desc: string }) {
-  const href = record.board ? screenHref(record.board) : `#${record.anchor}`;
+  // The booking opens in Reservations with it selected; the others are sections of this page.
+  const href =
+    record.board === "ReservationDetail"
+      ? `${screenHref("Reservations")}?booking=${encodeURIComponent(record.title)}`
+      : record.board
+        ? screenHref(record.board)
+        : `#${record.anchor}`;
   return (
     <NextLink href={href} className="block text-inherit no-underline">
       <ItemCard variant="secondary" className="h-full items-start">
@@ -149,7 +146,7 @@ interface Row {
   date: string;
   title: string;
   sub: string;
-  dept: FolioDepartment;
+  dept: string;
   amount: number;
   struck: boolean;
   chip: { label: string; tone: "danger" | "default" } | null;
@@ -158,43 +155,46 @@ interface Row {
 
 export function StayFolioView({ persona, data }: { persona: Persona; data: StayFolioData }) {
   const { stay } = data;
-  const [dept, setDept] = useState<"all" | FolioDepartment>("all");
-  const [sel, setSel] = useState("l3");
+  const [dept, setDept] = useState<string>("all");
+  const [sel, setSel] = useState("");
   const [vReason, setVReason] = useState("");
-  const [voided, setVoided] = useState<Record<string, boolean>>({});
-  const [asked, setAsked] = useState<Record<string, boolean>>({});
-  const [extra, setExtra] = useState<FolioLine[]>([]);
-  const [seq, setSeq] = useState(7739);
   const [drawer, setDrawer] = useState<"charge" | "payment">("charge");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [cDept, setCDept] = useState<FolioDepartment>("Lake Bar");
+  const [cDept, setCDept] = useState<string>(data.chargeDepartments[0]?.id ?? "");
   const [cAmt, setCAmt] = useState("");
   const [cReason, setCReason] = useState("");
   const [cNote, setCNote] = useState("");
-  const [tender, setTender] = useState<DeskTender["id"]>("mtn");
-  const [pAmt, setPAmt] = useState("65000");
-  const [pays, setPays] = useState<FolioPayment[]>([]);
+  const [tender, setTender] = useState<DeskTender["id"]>("cash");
+  const [pAmt, setPAmt] = useState("");
   const [change, setChange] = useState<"late" | "extend">("late");
-  const [late, setLate] = useState("15:00");
-  const [lateDone, setLateDone] = useState(false);
-  const [ext, setExt] = useState(2);
-  const [extDone, setExtDone] = useState(false);
-  const [resent, setResent] = useState(false);
+  const [late, setLate] = useState<string>(LATE_TIMES[0]);
+  const [ext, setExt] = useState(1);
+  const [confirmOut, setConfirmOut] = useState(false);
+  const [busy, startBusy] = useTransition();
+
+  /** Shown plainly for what has no route: nothing on screen changes as if it had worked. */
+  const unavailable = (what: string) => toast.warning(`${what} is not available yet. Nothing was changed.`);
+  const stayRecord = data.records.find((r) => r.kind === "Stay");
+  const closed = stayRecord ? stayRecord.current === stayRecord.steps.length - 1 : false;
 
   // ── Folio ──
-  const lines = [...data.lines, ...extra];
+  const lines = data.lines;
   const charges = sum(lines);
-  const byDept = DEPTS.map((d) => ({ d, v: sum(lines.filter((l) => l.dept === d)) })).filter((x) => x.v !== 0);
+  const depts = [...new Set([...lines.map((l) => String(l.dept)), ...data.chargeDepartments.map((d) => String(d.id))])];
+  const colorOf = (d: string) => CHART[Math.max(0, depts.indexOf(d)) % CHART.length];
+  const byDept = depts.map((d) => ({ d, v: sum(lines.filter((l) => l.dept === d)) })).filter((x) => x.v !== 0);
   const deptAria = `Charges by department: ${byDept.map((x) => `${x.d} ${rwf(x.v)}`).join(", ")}`;
+  const filters = [{ id: "all", label: "All" }, ...byDept.map((x) => ({ id: x.d, label: x.d }))];
 
   const why = (l: FolioLine): string => {
-    if (l.voided || voided[l.id]) return "Already voided. The reversal line keeps the history.";
+    if (l.voided) return "Already voided. The reversal line keeps the history.";
     if (l.reversal) return "A reversal cannot be voided. Finance handles corrections to reversals.";
     if (l.night) return "Room nights post at night audit. Only a manager or Finance can correct them.";
     if (!l.mine)
       return `Posted by ${l.by}. Outlet and housekeeping charges are corrected by their supervisor or a manager.`;
     if (l.amount > DESK_VOID_LIMIT)
-      return "Desk voids are limited to RWF 20,000 per line. A manager must approve this one.";
+      return "Desk voids are limited to RWF 20,000 per line. A manager must void this one.";
+    if (closed) return "The guest has checked out. Corrections to a closed stay go through Finance.";
     return "";
   };
 
@@ -204,7 +204,6 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
   };
   const toRow = (l: FolioLine): Row => {
     const w = why(l);
-    const isVoided = !!(l.voided || voided[l.id]);
     return {
       id: l.id,
       date: l.date,
@@ -212,8 +211,8 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
       sub: `${l.src} · ${l.by}`,
       dept: l.dept,
       amount: l.amount,
-      struck: isVoided,
-      chip: isVoided
+      struck: !!l.voided,
+      chip: l.voided
         ? { label: "Voided", tone: "danger" }
         : l.reversal
           ? { label: "Reversal", tone: "default" }
@@ -230,27 +229,29 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
   };
   const visible = lines.filter((l) => dept === "all" || l.dept === dept);
   let rows = visible.map(toRow);
-  if (dept === "all") {
-    const nights = visible.filter((l) => l.night);
+  const nights = visible.filter((l) => l.night);
+  if (dept === "all" && nights.length) {
     const byRoom = new Map<string, number>();
     for (const n of nights) byRoom.set(n.room ?? "", (byRoom.get(n.room ?? "") ?? 0) + 1);
     const rooms = [...byRoom].map(([room, count]) => `${room} × ${count}`).join(" · ");
-    const audits = `night audit ${nights[0]?.audit} to ${nights[nights.length - 1]?.audit}`;
+    const first = nights[0];
+    const last = nights[nights.length - 1];
+    const roomsDept = String(first?.dept ?? "Rooms");
     rows = [
       {
         id: "nights",
-        date: `${nights[0]?.date.split(" ")[0]}–${nights[nights.length - 1]?.date}`,
+        date: nights.length > 1 ? `${first?.date} – ${last?.date}` : (first?.date ?? ""),
         title: `Room nights × ${nights.length}`,
-        sub: `${rooms} · ${audits} · Night audit`,
-        dept: "Rooms",
+        sub: `${rooms} · Night audit`,
+        dept: roomsDept,
         amount: sum(nights),
         struck: false,
         chip: null,
         action: {
           label: "Show nights",
           icon: "show",
-          aria: "Show the five room nights one per line",
-          run: () => setDept("Rooms"),
+          aria: `Show the ${plural(nights.length, "room night")} one per line`,
+          run: () => setDept(roomsDept),
         },
       },
       ...rows.filter((r) => !lines.find((l) => l.id === r.id)?.night),
@@ -259,169 +260,99 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
 
   const selLine = lines.find((l) => l.id === sel);
   const selWhy = selLine ? why(selLine) : "";
-  const canAsk =
-    !!selLine && !!selWhy && !asked[selLine.id] && !selLine.voided && !voided[selLine.id] && !selLine.reversal;
+  const canAsk = !!selLine && !!selWhy && !selLine.voided && !selLine.reversal;
 
+  /** Void with reversal: one key per press, so a retried press never voids twice. */
   const doVoid = () => {
-    if (!selLine || !vReason || selWhy) return;
-    const n = seq + 1;
-    const reversal: FolioLine = {
-      id: `v${n}`,
-      stayId: stay.id,
-      date: "12 Oct",
-      title: `Reversal of ${selLine.src.split(" · ")[0]}`,
-      src: `Void VD-0${n - 7300} · ${vReason}`,
-      dept: selLine.dept,
-      by: persona.name,
-      amount: -selLine.amount,
-      reversal: true,
-    };
-    setVoided({ ...voided, [selLine.id]: true });
-    setExtra([...extra, reversal]);
-    setSeq(n);
-    setVReason("");
+    if (!selLine || !vReason || selWhy || busy) return;
+    const line = selLine;
+    const reason = vReason;
+    const idempotencyKey = crypto.randomUUID();
+    startBusy(async () => {
+      const result = await voidCharge({ stayRef: stay.id, chargeId: line.id, reason, idempotencyKey });
+      if (!result.ok) {
+        toast.danger(`${line.title} was not voided: ${result.error}`);
+        return;
+      }
+      toast.success(`${line.title} voided · a reversal line was added · balance ${rwf(result.value.balanceRwf)}`);
+      setVReason("");
+    });
   };
 
   // ── Payments ──
-  const allPays = [...data.payments, ...pays];
-  const paid = sum(allPays.filter((p) => p.counted));
-  const pend = sum(allPays.filter((p) => !p.counted));
+  const paid = sum(data.payments.filter((p) => p.counted));
+  const pend = sum(data.payments.filter((p) => !p.counted && p.state !== "Voided"));
   const balance = charges - paid;
-  const uncounted = allPays.filter((p) => !p.counted).length;
+  const uncounted = data.payments.filter((p) => !p.counted && p.state !== "Voided").length;
 
   // ── Change the stay ──
-  const lateOpt = data.lateOptions.find((o) => o.id === late) ?? data.lateOptions[0];
-  const extDay = stay.departureDay + ext;
-  const extDate = `${WEEKDAY[new Date(Date.UTC(2026, 9, extDay)).getUTCDay()]} ${extDay} Oct`;
   const avail = ext <= stay.freeNights;
-  const keyChange = lateDone || extDone;
-
-  const confirmLate = () => {
-    const n = seq + 1;
-    if (lateOpt.fee) {
-      setExtra([
-        ...extra,
-        {
-          id: `m${n}`,
-          stayId: stay.id,
-          date: "12 Oct",
-          title: `Late checkout until ${lateOpt.id}`,
-          src: `Desk charge DM-${n} · Late checkout policy`,
-          dept: "Rooms",
-          by: persona.name,
-          amount: lateOpt.fee,
-          mine: true,
-        },
-      ]);
-    }
-    setSeq(n);
-    setLateDone(true);
-  };
-
-  const history: StayEvent[] = [...data.history];
-  if (lateDone)
-    history.push({
-      id: "late",
-      stayId: stay.id,
-      status: "current",
-      icon: "Clock",
-      title: `Late checkout ${late} confirmed`,
-      detail: `12 Oct 10:52 · ${persona.name}${lateOpt.fee ? ` · fee ${rwf(lateOpt.fee)} posted` : " · no fee"}`,
-    });
-  if (extDone)
-    history.push({
-      id: "extend",
-      stayId: stay.id,
-      status: "current",
-      icon: "Calendar",
-      title: `Extended to ${extDate}`,
-      detail: `12 Oct 10:52 · ${persona.name} · ${stay.bookingId} updated`,
-    });
-
-  const until = extDone ? `${extDate} 11:00` : lateDone ? `12 Oct ${late}` : `12 Oct ${stay.dueOut}`;
-  const access = data.access.map((a) => {
-    if (a.kind === "mobileKey")
-      return {
-        ...a,
-        detail: `${stay.guestFirstName}’s phone · valid to ${
-          keyChange ? `12 Oct ${stay.dueOut}, change to ${until} requested 10:52` : until
-        }`,
-        state: keyChange ? "Change pending" : a.state,
-        tone: keyChange ? ("warning" as const) : a.tone,
-      };
-    if (a.kind === "appClaim" && resent)
-      return { ...a, detail: "Claim code re-sent by email 10:52 · claimed 6 Oct 19:20" };
-    return a;
-  });
 
   const recordView = (r: StayRecord) => {
-    if (r.kind === "Stay") return { current: extDone ? 1 : r.current, desc: r.desc };
     if (r.kind === "Folio")
-      return { current: r.current, desc: `Balance ${rwf(balance)} · ${uncounted} payments not verified` };
+      return {
+        current: r.current,
+        desc: `Balance ${rwf(balance)}${uncounted ? ` · ${plural(uncounted, "payment")} not verified` : ""}`,
+      };
     return { current: r.current, desc: r.desc };
   };
 
   // ── Drawer: post a charge / take a payment ──
-  const cAmount = parseAmount(cAmt);
+  // Whole francs only: a decimal part or a stray character is refused with its reason, never folded in.
+  const { amount: cAmount, error: cAmtError } = readFrancs(cAmt);
   const cTooBig = cAmount > DESK_CHARGE_LIMIT;
-  const canPost = !!cAmount && !cTooBig && !!cReason;
-  const postCharge = () => {
+  const { amount: pAmount, error: pAmtError } = readFrancs(pAmt);
+  const canPost = !!cAmount && !cTooBig && !!cReason && !!cDept && !busy;
+  /** Post charge: the amount typed BEFORE VAT, one key per press. */
+  const submitCharge = () => {
     if (!canPost) return;
-    const n = seq + 1;
-    const line: FolioLine = {
-      id: `m${n}`,
-      stayId: stay.id,
-      date: "12 Oct",
-      title: cNote || `${cDept} charge`,
-      src: `Desk charge DM-${n} · ${cReason}`,
-      dept: cDept,
-      by: persona.name,
-      amount: cAmount,
-      mine: true,
+    const input = {
+      stayRef: stay.id,
+      department: cDept,
+      amountRwf: cAmount,
+      description: cNote.trim() || `${cDept} charge`,
+      reason: cReason,
+      idempotencyKey: crypto.randomUUID(),
     };
-    setExtra([...extra, line]);
-    setSeq(n);
-    setDrawerOpen(false);
-    setSel(line.id);
-    setCAmt("");
-    setCReason("");
-    setCNote("");
+    startBusy(async () => {
+      const result = await postCharge(input);
+      if (!result.ok) {
+        toast.danger(`The charge was not posted: ${result.error}`);
+        return;
+      }
+      toast.success(
+        `${input.description} · ${rwf(input.amountRwf)} before VAT posted${
+          result.value.movedToFolio ? " to the stay's next bill (this one is signed)" : ""
+        } · balance ${rwf(result.value.balanceRwf)}`,
+      );
+      setDrawerOpen(false);
+      if (result.value.chargeId) setSel(result.value.chargeId);
+      setCAmt("");
+      setCReason("");
+      setCNote("");
+    });
   };
   const T = data.tenders.find((t) => t.id === tender) ?? data.tenders[0];
   const isMobile = tender === "mtn" || tender === "airtel";
+  /** Record cash: exactly the amount typed, one key per press. Prompts to a phone have no route. */
   const takePayment = () => {
-    const amount = parseAmount(pAmt);
-    if (!amount || T.blocked) return;
-    const n = seq + 1;
-    const cash = T.id === "cash";
-    const p: FolioPayment = cash
-      ? {
-          id: `cash-${n}`,
-          stayId: stay.id,
-          tender: "Cash",
-          icon: "Wallet",
-          amount,
-          state: "Recorded · Till 1",
-          tone: "default",
-          line1: `Counted by ${persona.name} at 10:52 · re-counted at shift close`,
-          line2: `Allocated to ${stay.folioId}`,
-          counted: true,
-        }
-      : {
-          id: `PI-771${n - 7700}`,
-          stayId: stay.id,
-          tender: T.label,
-          icon: T.icon,
-          amount,
-          state: "Pending",
-          tone: "warning",
-          line1: `${T.network} · intent PI-771${n - 7700} · request sent 10:52 to ${stay.payerPhone}`,
-          line2: "Waiting for the guest to approve · not counted in the balance",
-          counted: false,
-        };
-    setPays([...pays, p]);
-    setSeq(n);
-    setDrawerOpen(false);
+    const amount = pAmount;
+    if (!amount || !T || T.blocked || busy) return;
+    if (T.id !== "cash") {
+      unavailable(`A ${T.label} payment request from the desk`);
+      return;
+    }
+    const idempotencyKey = crypto.randomUUID();
+    startBusy(async () => {
+      const result = await recordCash({ stayRef: stay.id, amountRwf: amount, idempotencyKey });
+      if (!result.ok) {
+        toast.danger(`The cash was not recorded: ${result.error}`);
+        return;
+      }
+      toast.success(`${rwf(amount)} cash recorded on ${stay.folioId} · balance ${rwf(result.value.balanceRwf)}`);
+      setDrawerOpen(false);
+      setPAmt("");
+    });
   };
   const openCharge = () => {
     setCAmt("");
@@ -431,18 +362,55 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
     setDrawerOpen(true);
   };
   const openPay = () => {
-    setPAmt("65000");
+    setPAmt("");
+    setTender("cash");
     setDrawer("payment");
     setDrawerOpen(true);
   };
 
-  const staySpan = extDone
-    ? `${stay.arrivalDay} to ${extDay} October · ${stay.nights + ext} nights`
-    : `${stay.arrivalDay} to ${stay.departureDay} October · ${stay.nights} nights`;
-  const dueLine = extDone ? `Departs ${extDate}` : `Due out today ${lateDone ? late : stay.dueOut}`;
+  /** Resend claim code: the API mails it to the stay's address, or refuses a guest who booked with an account. */
+  const resend = () =>
+    startBusy(async () => {
+      const result = await resendClaimCode(stay.id);
+      if (!result.ok) {
+        toast.danger(`No claim code was sent: ${result.error}`);
+        return;
+      }
+      const invite = result.value;
+      if (invite.invitationSent && invite.email) toast.success(`Claim code emailed to ${invite.email}`);
+      else
+        toast.warning(
+          `No email address on this stay, so nothing was sent.${invite.claimCode ? ` Give the guest code ${invite.claimCode}.` : ""}`,
+        );
+    });
+
+  /** Check out: the stay closes, its room goes to Dirty, and a bill settled to zero is closed and locked. */
+  const checkOut = () => {
+    if (busy || closed) return;
+    startBusy(async () => {
+      const result = await checkOutGuest(stay.id, "StayFolio");
+      setConfirmOut(false);
+      if (!result.ok) {
+        toast.danger(`${stay.guest} was not checked out: ${result.error}`);
+        return;
+      }
+      const out = result.value;
+      toast.success(
+        `${out.guest} checked out of room ${out.room} · room set to Dirty · ${
+          out.folioStatus === "closed"
+            ? `bill ${out.folioNumber} closed`
+            : `bill ${out.folioNumber ?? ""} left open (${rwf(out.balanceRwf)})`
+        }`,
+      );
+    });
+  };
+
+  const staySpan = `In house since ${stay.inHouseSince} · ${plural(stay.nights, "night")}`;
+  const dueLine = closed ? `Checked out ${stay.dueOut}` : `Due out ${stay.dueOut}`;
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <PageHeader
         eyebrow={
           <>
@@ -450,7 +418,7 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
               Front desk
             </NextLink>
             <span aria-hidden="true">›</span>
-            <span>In-house</span>
+            <span>{closed ? "Departed" : "In-house"}</span>
             <span aria-hidden="true">›</span>
             <span>Room {stay.room}</span>
           </>
@@ -458,8 +426,8 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
         title={`${stay.guest} · Room ${stay.room}`}
         description={
           <>
-            Stay {stay.id} · {staySpan} · {dueLine} · <TextLink href={screenHref("Guests")}>Returning guest</TextLink>{" "}
-            of {stay.company}
+            Stay {stay.id} · {staySpan} · {dueLine}
+            {stay.company ? ` · guest of ${stay.company}` : ""}
           </>
         }
         actions={
@@ -476,13 +444,40 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
               <Plus className="size-4" />
               Post charge
             </Button>
-            <LinkButton href={screenHref("Checkout")}>
-              <ArrowRightFromSquare className="size-4" />
-              Check out
-            </LinkButton>
+            {closed ? (
+              <LinkButton href={screenHref("FrontDeskToday")} variant="secondary">
+                Back to Today
+              </LinkButton>
+            ) : confirmOut ? (
+              <>
+                <Button variant="ghost" onPress={() => setConfirmOut(false)}>
+                  Not yet
+                </Button>
+                <Button isDisabled={busy} onPress={checkOut}>
+                  <ArrowRightFromSquare className="size-4" />
+                  Confirm check out
+                </Button>
+              </>
+            ) : (
+              <Button
+                isDisabled={balance > 0}
+                onPress={() => setConfirmOut(true)}
+                aria-label={balance > 0 ? `Check out: settle the ${rwf(balance)} balance first` : "Check out"}
+              >
+                <ArrowRightFromSquare className="size-4" />
+                {balance > 0 ? `Check out · ${rwf(balance)} to settle` : "Check out"}
+              </Button>
+            )}
           </>
         }
       />
+
+      {confirmOut && !closed ? (
+        <Note icon="ArrowRightFromSquare" lead={`Check ${stay.guestFirstName} out of room ${stay.room} now?`}>
+          The stay closes, the room goes to Dirty, and a bill settled to zero is closed and locked. A bill in credit is
+          left open for Finance.
+        </Note>
+      ) : null}
 
       <section
         aria-label="Linked records and their states"
@@ -500,14 +495,14 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
             <CardHeading
               id="fo-h"
               title={`Folio ${stay.folioId} · Charges`}
-              sub={`Guest folio in RWF · ${stay.entity}, ${stay.entityTin} · each line keeps its source record`}
+              sub={`Guest folio in RWF · ${stay.entity}${stay.entityTin ? `, ${stay.entityTin}` : ""} · each line with its VAT · each keeps its source record`}
               action={
                 <Segment
                   aria-label="Filter by department"
                   selectedKey={dept}
-                  onSelectionChange={(k) => setDept(String(k) as "all" | FolioDepartment)}
+                  onSelectionChange={(k) => setDept(String(k))}
                 >
-                  {DEPT_FILTERS.map((d) => (
+                  {filters.map((d) => (
                     <Segment.Item key={d.id} id={d.id}>
                       {d.label}
                     </Segment.Item>
@@ -524,17 +519,17 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                 <li key={x.d} className="flex">
                   <StatTile className="flex-1 gap-1.5">
                     <span className="flex items-center gap-1.5 text-[12px]">
-                      <DeptDot dept={x.d} />
+                      <DeptDot color={colorOf(x.d)} />
                       <span className="text-muted">{x.d}</span>
                     </span>
                     <span className="font-semibold tabular">{rwf(x.v)}</span>
                     <ProgressBar
-                      value={Math.max(0, Math.round((x.v / charges) * 100))}
+                      value={charges > 0 ? Math.max(0, Math.round((x.v / charges) * 100)) : 0}
                       size="sm"
                       aria-label={`${x.d} share of charges`}
                     >
                       <ProgressBar.Track>
-                        <ProgressBar.Fill style={{ background: DEPT_COLOR[x.d] }} />
+                        <ProgressBar.Fill style={{ background: colorOf(x.d) }} />
                       </ProgressBar.Track>
                     </ProgressBar>
                   </StatTile>
@@ -550,7 +545,7 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                   selectedKeys={sel ? [sel] : []}
                   onSelectionChange={(keys: Selection) => {
                     const k = keys === "all" ? "" : String([...keys][0] ?? "");
-                    if (k === "nights") setDept("Rooms");
+                    if (k === "nights") setDept(String(nights[0]?.dept ?? "Rooms"));
                     else pick(k);
                   }}
                 >
@@ -584,7 +579,7 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                         </Table.Cell>
                         <Table.Cell>
                           <span className="flex items-center gap-1.5">
-                            <DeptDot dept={r.dept} />
+                            <DeptDot color={colorOf(r.dept)} />
                             {r.dept}
                           </span>
                         </Table.Cell>
@@ -611,6 +606,7 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                 </Table.Content>
               </Table.ScrollContainer>
             </Table>
+            {rows.length === 0 ? <p className="text-[13px] text-muted">Nothing is charged to this bill yet.</p> : null}
 
             {selLine ? (
               <Card variant="secondary" className="gap-2.5 px-4 py-3.5" aria-live="polite">
@@ -643,16 +639,17 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                       Void
                     </Button>
                     <p className="flex-[1_1_260px] text-[13px] leading-[18px]">
-                      <span className="font-medium">Beyond desk permission.</span>{" "}
+                      <span className="font-medium">Beyond what the desk voids here.</span>{" "}
                       <span className="text-muted">{selWhy}</span>
                     </p>
                     {canAsk ? (
-                      <Button size="sm" variant="secondary" onPress={() => setAsked({ ...asked, [selLine.id]: true })}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onPress={() => unavailable("Asking a manager to correct a line")}
+                      >
                         Ask a manager to correct
                       </Button>
-                    ) : null}
-                    {asked[selLine.id] ? (
-                      <ToneChip tone="warning">Correction CR-1182 sent to Aline Uwase · Pending</ToneChip>
                     ) : null}
                   </div>
                 ) : (
@@ -666,14 +663,14 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                         placeholder="Choose a reason"
                         className="flex-[1_1_240px]"
                       />
-                      <Button variant="danger-soft" isDisabled={!vReason} onPress={doVoid}>
+                      <Button variant="danger-soft" isDisabled={!vReason || busy} onPress={doVoid}>
                         <ArrowUturnCcwLeft className="size-4" />
                         Void with reversal
                       </Button>
                     </div>
                     <p className="text-[12px] text-muted">
-                      You can void your own desk charges from this shift up to RWF 20,000. A reversal line is added; the
-                      original stays on the folio.
+                      You can void your own desk charges up to RWF 20,000 here. A reversal line is added, its VAT with
+                      it; the original stays on the folio.
                     </p>
                   </>
                 )}
@@ -685,15 +682,15 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
             <CardHeading
               id="pay-h"
               title="Payments and Balance"
-              sub="Only verified tenders reduce the balance. Each tender shows its provider evidence."
+              sub="Only confirmed money is on the bill. Each payment shows where it came from."
               action={
-                <Button size="sm" variant="secondary" onPress={openPay}>
+                <Button size="sm" variant="secondary" onPress={openPay} isDisabled={closed}>
                   <Plus className="size-4" />
                   Take payment
                 </Button>
               }
             />
-            <ListView aria-label="Payments on the folio" variant="secondary" items={allPays}>
+            <ListView aria-label="Payments on the folio" variant="secondary" items={data.payments}>
               {(p) => (
                 <ListView.Item id={p.id} textValue={`${p.tender} ${rwf(p.amount)}`} className="items-start">
                   <ListView.ItemContent className="items-start">
@@ -712,6 +709,9 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                 </ListView.Item>
               )}
             </ListView>
+            {data.payments.length === 0 ? (
+              <p className="text-[13px] text-muted">No payment is on this bill yet.</p>
+            ) : null}
             <dl className="grid gap-2.5 pt-1 [grid-template-columns:repeat(auto-fit,minmax(min(130px,100%),1fr))]">
               {[
                 { label: "Charges posted", value: rwf(charges) },
@@ -724,13 +724,15 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                 </div>
               ))}
               <div className="flex flex-col gap-0.5">
-                <dt className="text-[12px] text-muted">Balance due</dt>
-                <dd className="text-[20px] leading-[26px] font-semibold tabular">{rwf(balance)}</dd>
+                <dt className="text-[12px] text-muted">{balance < 0 ? "In credit" : "Balance due"}</dt>
+                <dd className="text-[20px] leading-[26px] font-semibold tabular">{rwf(Math.abs(balance))}</dd>
               </div>
             </dl>
-            <Note icon="TriangleExclamation" lead={`${rwf(pend)} is not counted until it is verified.`}>
-              Do not ask the guest to pay these amounts again. Finance is matching the Umurage Consulting transfer.
-            </Note>
+            {pend ? (
+              <Note icon="TriangleExclamation" lead={`${rwf(pend)} is not counted until it is verified.`}>
+                Do not ask the guest to pay these amounts again.
+              </Note>
+            ) : null}
           </Card>
         </div>
 
@@ -754,45 +756,32 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
             {change === "late" ? (
               <div className="flex flex-col gap-2.5">
                 <p className="text-[13px] text-muted">
-                  Guest asked at 07:58 in Messages. Room {stay.room} has no arrival today.
+                  Due out {stay.dueOut}. Moving the departure and posting its fee is not connected yet.
                 </p>
                 <RadioButtonGroup
                   aria-label="Late checkout time"
                   value={late}
                   onChange={setLate}
-                  isReadOnly={lateDone}
                   className="flex-row gap-2"
                 >
-                  {data.lateOptions.map((o) => (
-                    <RadioButtonGroup.Item key={o.id} value={o.id} className="min-w-0 flex-1 px-3 py-2.5">
+                  {LATE_TIMES.map((time) => (
+                    <RadioButtonGroup.Item key={time} value={time} className="min-w-0 flex-1 px-3 py-2.5">
                       <RadioButtonGroup.ItemContent className="gap-0.5">
-                        <span className="font-semibold tabular">{o.id}</span>
-                        <span className="text-[12px] text-muted tabular">{o.fee ? rwf(o.fee) : "No fee"}</span>
-                        <span className="text-[11px] leading-[14px] text-muted">{o.note}</span>
+                        <span className="font-semibold tabular">{time}</span>
+                        <span className="text-[12px] text-muted">Fee not set</span>
+                        <span className="text-[11px] leading-[14px] text-muted">No fee schedule is kept yet</span>
                       </RadioButtonGroup.ItemContent>
                     </RadioButtonGroup.Item>
                   ))}
                 </RadioButtonGroup>
-                {lateDone ? (
-                  <Alert status="success">
-                    <Alert.Indicator>
-                      <CircleCheck />
-                    </Alert.Indicator>
-                    <Alert.Content>
-                      <Alert.Title>Departure moved to {late} today</Alert.Title>
-                      <Alert.Description>
-                        {lateOpt.fee
-                          ? `${rwf(lateOpt.fee)} posted to the folio as a desk charge.`
-                          : "No fee under the Umurage Consulting agreement."}{" "}
-                        Housekeeping told. Key validity change is pending at the lock provider.
-                      </Alert.Description>
-                    </Alert.Content>
-                  </Alert>
-                ) : (
-                  <Button size="sm" className="self-start" onPress={confirmLate}>
-                    Confirm late checkout {late}
-                  </Button>
-                )}
+                <Button
+                  size="sm"
+                  className="self-start"
+                  isDisabled={closed}
+                  onPress={() => unavailable(`Late checkout until ${late}`)}
+                >
+                  Confirm late checkout {late}
+                </Button>
               </div>
             ) : (
               <div className="flex flex-col gap-2.5">
@@ -801,14 +790,13 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                     <span id="ext-l" className="text-sm font-medium">
                       Extra nights
                     </span>
-                    <span className="text-[12px] text-muted">New departure {extDate}</span>
+                    <span className="text-[12px] text-muted">{plural(ext, "night")} after the booked departure</span>
                   </div>
                   <NumberStepper
                     aria-labelledby="ext-l"
                     value={ext}
                     minValue={1}
                     maxValue={5}
-                    isReadOnly={extDone}
                     onChange={(v) => setExt(Number.isNaN(v) ? 1 : v)}
                   >
                     <NumberStepper.Group>
@@ -826,43 +814,35 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                       <TriangleExclamation className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
                     )}
                     <span>
-                      {avail
-                        ? `Room ${stay.room} is free until ${stay.freeUntil}. No move needed.`
-                        : `Room ${stay.room} is booked from ${stay.freeUntil} (${stay.nextBooking}). Longer stays need a room move first.`}
+                      {!stay.freeUntil
+                        ? `Room ${stay.room} has no booking after this stay.`
+                        : avail
+                          ? `Room ${stay.room} is free until ${stay.freeUntil}. No move needed.`
+                          : `Room ${stay.room} is booked from ${stay.freeUntil} (${stay.nextBooking}). Longer stays need a room move first.`}
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Tag className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                     <span>
-                      Corporate rate {rwf(stay.rate)} a night comes from the booking. Rate changes are made by your
-                      general manager.
+                      The rate, {rwf(stay.rate)} a night, comes from the booking. Rate changes are made by your general
+                      manager.
                     </span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <Briefcase className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                    <span>
-                      Umurage Consulting authorised 7 to 12 October. Extra nights go to the guest unless the company
-                      extends its letter.
-                    </span>
-                  </li>
+                  {stay.company ? (
+                    <li className="flex items-start gap-2">
+                      <Briefcase className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                      <span>Extra nights go to the guest unless {stay.company} extends its letter.</span>
+                    </li>
+                  ) : null}
                 </ul>
-                {extDone ? (
-                  <Alert status="success">
-                    <Alert.Indicator>
-                      <CircleCheck />
-                    </Alert.Indicator>
-                    <Alert.Content>
-                      <Alert.Title>Stay extended to {extDate}</Alert.Title>
-                      <Alert.Description>
-                        Booking {stay.bookingId} dates updated. Key validity change is pending at the lock provider.
-                      </Alert.Description>
-                    </Alert.Content>
-                  </Alert>
-                ) : (
-                  <Button size="sm" className="self-start" isDisabled={!avail} onPress={() => setExtDone(true)}>
-                    Extend to {extDate}
-                  </Button>
-                )}
+                <Button
+                  size="sm"
+                  className="self-start"
+                  isDisabled={!avail || closed}
+                  onPress={() => unavailable("Extending a stay")}
+                >
+                  Extend by {plural(ext, "night")}
+                </Button>
               </div>
             )}
           </Card>
@@ -873,27 +853,33 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
               title="Room Moves and History"
               sub="Charges before a move keep their original room"
             />
-            <Timeline size="sm" density="compact">
-              {history.map((h) => (
-                <Timeline.Item key={h.id} status={h.status}>
-                  <Timeline.Rail>
-                    <Timeline.Marker>
-                      <Icon name={h.icon} className="size-3" />
-                    </Timeline.Marker>
-                    <Timeline.Connector />
-                  </Timeline.Rail>
-                  <Timeline.Content className="flex flex-col pb-0.5 text-sm">
-                    <span className="font-medium">{h.title}</span>
-                    <span className="text-[12px] leading-4 text-muted tabular">{h.detail}</span>
-                  </Timeline.Content>
-                </Timeline.Item>
-              ))}
-            </Timeline>
+            {data.history.length ? (
+              <Timeline size="sm" density="compact">
+                {data.history.map((h) => (
+                  <Timeline.Item key={h.id} status={h.status}>
+                    <Timeline.Rail>
+                      <Timeline.Marker>
+                        <Icon name={h.icon} className="size-3" />
+                      </Timeline.Marker>
+                      <Timeline.Connector />
+                    </Timeline.Rail>
+                    <Timeline.Content className="flex flex-col pb-0.5 text-sm">
+                      <span className="font-medium">{h.title}</span>
+                      <span className="text-[12px] leading-4 text-muted tabular">{h.detail}</span>
+                    </Timeline.Content>
+                  </Timeline.Item>
+                ))}
+              </Timeline>
+            ) : (
+              <p className="text-[13px] text-muted">
+                Checked in {stay.inHouseSince} to room {stay.room}. Moves and changes are not recorded on the stay yet.
+              </p>
+            )}
           </Card>
 
           <Card aria-labelledby="ac-h" className="gap-2.5 px-[18px] py-4">
             <CardHeading id="ac-h" title="Keys and Guest App" />
-            {access.map((a) => (
+            {data.access.map((a) => (
               <InfoRow
                 key={a.id}
                 icon={a.icon}
@@ -902,17 +888,22 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                 trailing={<ToneChip tone={a.tone}>{a.state}</ToneChip>}
               />
             ))}
+            {data.access.length ? null : (
+              <p className="text-[13px] text-muted">
+                No lock provider is connected, so keys are physical and not recorded here.
+              </p>
+            )}
             <p className="text-[12px] leading-4 text-muted">
-              Claiming the stay in the app is not proof of identity. The passport was checked at the desk on 7 October.
+              Claiming the stay in the app is not proof of identity. Check the ID at the desk.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <LinkButton href={screenHref("GuestKey")} size="sm" variant="ghost">
                 <Key className="size-4" />
                 Guest key view
               </LinkButton>
-              <Button size="sm" variant="ghost" onPress={() => setResent(true)}>
+              <Button size="sm" variant="ghost" isDisabled={busy || closed} onPress={resend}>
                 <PaperPlane className="size-4" />
-                {resent ? "Claim code sent" : "Resend claim code"}
+                Resend claim code
               </Button>
             </div>
           </Card>
@@ -932,6 +923,11 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                 }
               />
             ))}
+            {data.documents.length ? null : (
+              <p className="text-[13px] text-muted">
+                Proformas, payment receipts and the fiscal receipt are not listed on this screen yet.
+              </p>
+            )}
           </Card>
         </div>
       </div>
@@ -972,10 +968,11 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                     ))}
                     <Description className="col-span-2">Room nights post automatically at night audit.</Description>
                   </RadioButtonGroup>
-                  <TextField value={cAmt} onChange={setCAmt} isInvalid={cTooBig} fullWidth>
-                    <Label>Amount (RWF)</Label>
+                  <TextField value={cAmt} onChange={setCAmt} isInvalid={cTooBig || !!cAmtError} fullWidth>
+                    <Label>Amount before VAT (RWF)</Label>
                     <Input variant="secondary" inputMode="numeric" placeholder="e.g. 12,000" className="tabular" />
-                    <FieldError>Desk charges above RWF 50,000 need a manager. Ask Aline Uwase.</FieldError>
+                    <Description>VAT is added as its own line, at the rate in force when the charge posts.</Description>
+                    <FieldError>{cAmtError ?? "Desk charges above RWF 50,000 need a manager to post them."}</FieldError>
                   </TextField>
                   <SelectField
                     label="Reason code"
@@ -996,7 +993,7 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                   <Button variant="secondary" onPress={() => setDrawerOpen(false)}>
                     Cancel
                   </Button>
-                  <Button isDisabled={!canPost} onPress={postCharge}>
+                  <Button isDisabled={!canPost} onPress={submitCharge}>
                     Post charge
                   </Button>
                 </Drawer.Footer>
@@ -1018,30 +1015,36 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                             <Icon name={t.icon} className="size-4" />
                             {t.label}
                           </span>
-                          <span className="text-[12px] text-muted">{t.hint}</span>
+                          <span className="text-[12px] text-muted">
+                            {t.id === "mtn" || t.id === "airtel" ? "Prompt to the phone not connected yet" : t.hint}
+                          </span>
                         </RadioButtonGroup.ItemContent>
                       </RadioButtonGroup.Item>
                     ))}
                   </RadioButtonGroup>
-                  <TextField value={pAmt} onChange={setPAmt} fullWidth>
-                    <Label>Amount (RWF)</Label>
-                    <Input variant="secondary" inputMode="numeric" className="tabular" />
+                  <TextField value={pAmt} onChange={setPAmt} isInvalid={!!pAmtError} fullWidth>
+                    <Label>{tender === "cash" ? "Cash received (RWF)" : "Amount (RWF)"}</Label>
+                    <Input variant="secondary" inputMode="numeric" placeholder="e.g. 20,000" className="tabular" />
                     <Description>
-                      Balance due {rwf(balance)}. RWF 65,000 remains if the Airtel payment and the bank transfer are
-                      verified.
+                      {balance > 0 ? `Balance due ${rwf(balance)}.` : "Nothing is due on this bill."} Exactly the amount
+                      you type is recorded.
                     </Description>
+                    <FieldError>{pAmtError}</FieldError>
                   </TextField>
                   {isMobile ? (
                     <TextField defaultValue={stay.payerPhone} fullWidth>
                       <Label>Payer phone</Label>
                       <Input variant="secondary" className="tabular" />
                       <Description>
-                        The guest approves on their phone. It stays Pending until {T.network || T.label} confirms.
+                        A {T?.network || T?.label} prompt from the desk is not connected yet. Take cash, or the guest
+                        pays in their app.
                       </Description>
                     </TextField>
                   ) : null}
                   {tender === "cash" ? (
-                    <p className="text-[13px] text-muted">Cash goes into Till 1 and is counted again at shift close.</p>
+                    <p className="text-[13px] text-muted">
+                      Cash goes into the desk till and is counted again at shift close.
+                    </p>
                   ) : null}
                   <GateChip icon={<Lock className="size-3" />} className="self-start">
                     Card through GT Bank: production not verified
@@ -1051,7 +1054,9 @@ export function StayFolioView({ persona, data }: { persona: Persona; data: StayF
                   <Button variant="secondary" onPress={() => setDrawerOpen(false)}>
                     Cancel
                   </Button>
-                  <Button onPress={takePayment}>{tender === "cash" ? "Record cash" : "Send payment request"}</Button>
+                  <Button isDisabled={!pAmount || busy} onPress={takePayment}>
+                    {tender === "cash" ? `Record ${rwf(pAmount)} cash` : "Send payment request"}
+                  </Button>
                 </Drawer.Footer>
               </>
             )}

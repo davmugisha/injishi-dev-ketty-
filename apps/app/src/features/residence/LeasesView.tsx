@@ -7,7 +7,6 @@ import {
   CircleCheck,
   Clock,
   FileArrowUp,
-  FileCheck,
   FilePlus,
   Files,
   ListCheck,
@@ -20,59 +19,55 @@ import {
   Wallet,
   Wrench,
 } from "@gravity-ui/icons";
-import {
-  Alert,
-  Avatar,
-  Button,
-  Card,
-  Input,
-  Label,
-  SearchField,
-  Separator,
-  Tabs,
-  TextField,
-  Toast,
-  toast,
-} from "@heroui/react";
+import { Alert, Avatar, Button, Card, SearchField, Separator, Tabs, Toast, toast } from "@heroui/react";
 import { DropZone, EmptyState, ItemCard, ItemCardGroup, ListView, Stepper, Timeline } from "@heroui-pro/react";
 import { type BoardId, type Persona, screenHref } from "@injishi/data";
-import type {
-  AcceptedRenewal,
-  FilingStage,
-  Lease,
-  LeaseClause,
-  ResidenceUnit,
-  Tone,
-} from "@injishi/data/fixtures/residence";
+import type { AcceptedRenewal, FilingStage, LeaseClause, ResidenceUnit, Tone } from "@injishi/data/fixtures/residence";
 import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import NextLink from "next/link";
 import { Fragment, type ReactNode, useState } from "react";
+import type { LiveLease } from "@/server/sources/residence";
 import { remindAboutOfferAction, withdrawOfferAction } from "./actions";
 import { downloadCsv, firstKey, kigaliCalendar, lineTab, money, SubHeading, TabCount, ToneChip } from "./shared";
 
 export interface LeasesData {
-  leases: Lease[];
+  /** Live leases carry `record` (landlord, deposit, notice, term, signature dates); see LeaseRecord. */
+  leases: LiveLease[];
   clauses: LeaseClause[];
   accepted: AcceptedRenewal[];
   units: ResidenceUnit[];
 }
 
 type Tab = "overview" | "contract" | "renewals" | "filings";
-type Ack = "missing" | "uploaded" | "done";
+/**
+ * Why the acknowledgement cannot be attached: a filing record is the filing service's (pending, filed, failed),
+ * with no field for a delivered paper or its stamp, and the API's upload route takes phone photographs for records
+ * that name them, not a filing's evidence. So choosing a file keeps nothing and says so.
+ */
+const ACK_UNAVAILABLE =
+  "Attaching the acknowledgement is not available yet. Nothing was uploaded; keep the stamped copy on file.";
+/** Drafting the contract happens outside the app: no route edits a lease's clauses. */
+const CLAUSES_UNAVAILABLE = "Editing clauses is not available yet. The draft keeps the building's standard lease.";
 
-/** How a filing stage reads, and how far along the filing steps it is (5 = every step complete). */
+/**
+ * How a filing stage reads, and how far along the filing steps it is (5 = every step complete). Only what the
+ * filing row records: follow-up is a refused or overdue filing (pending is never "sent"), and filed is not
+ * acknowledged, because no acknowledgement is stored.
+ */
 const FILING: Record<FilingStage, { state: string; tone: Tone; step: number }> = {
-  followup: { state: "Sent · needs follow-up", tone: "warning", step: 3 },
-  ack: { state: "Acknowledged", tone: "success", step: 5 },
-  draft: { state: "Draft · 5 days left", tone: "warning", step: 0 },
+  followup: { state: "Needs follow-up", tone: "warning", step: 0 },
+  ack: { state: "Recorded as filed", tone: "success", step: 4 },
+  draft: { state: "Draft · not sent", tone: "warning", step: 0 },
   none: { state: "Not started", tone: "default", step: -1 },
 };
+/** A seeded `mock` filing row (record.filingSample): sample data, so it claims no stage at all. */
+const SAMPLE_FILING = { state: "Sample record", tone: "default" as Tone, step: -1 };
 const FILING_STEPS = ["Draft", "Internal review", "Approved to send", "Sent", "Acknowledged"];
 
-const DEPOSIT_RULES: { icon: ReactNode; text: string }[] = [
+const depositRules = (landlord: string): { icon: ReactNode; text: string }[] => [
   {
     icon: <Vault />,
-    text: "Held by Amahoro Residences Ltd as a liability. It is never counted as rent or income.",
+    text: `Held by ${landlord || "the landlord"} as a liability. It is never counted as rent or income.`,
   },
   {
     icon: <ListCheck />,
@@ -95,16 +90,13 @@ const initials = (name: string) =>
     .slice(0, 2)
     .join("");
 
-const fileSize = (bytes: number) =>
-  bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+/** "one month’s" / "2 months’" */
+const monthsOf = (n: number) => (n === 1 ? "one month’s" : `${n} months’`);
 
-export function LeasesView({ persona, data }: { persona: Persona; data: LeasesData }) {
+export function LeasesView({ data, building }: { persona: Persona; data: LeasesData; building?: string }) {
   const [sel, setSel] = useState(data.leases[0]?.id ?? "");
   const [tab, setTab] = useState<Tab>("overview");
   const [query, setQuery] = useState("");
-  const [ack, setAck] = useState<Record<string, Ack>>({});
-  const [ackFile, setAckFile] = useState<Record<string, { name: string; size: number }>>({});
-  const [ackRef, setAckRef] = useState("");
 
   const activeLeases = data.units.filter((u) => u.lease).length;
   const drafts = data.leases.filter((l) => !l.signedOn).length;
@@ -118,24 +110,29 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
 
   const isDraft = !lease.signedOn;
   const isCompany = lease.resident.includes("Ltd");
-  const ackState = ack[lease.id] ?? "missing";
-  const stage: FilingStage = lease.filing.stage === "followup" && ackState === "done" ? "ack" : lease.filing.stage;
-  const filing = FILING[stage];
-  const term = `${lease.start} – ${lease.end} · 12 months`;
+  const stage: FilingStage = lease.filing.stage;
+  // What the API holds for this lease (absent on a fixture document): never a fixed landlord, signer, deposit or term.
+  const rec = lease.record;
+  const filing = rec?.filingSample ? SAMPLE_FILING : FILING[stage];
+  const landlord = rec?.landlord ?? "";
+  const deposit = rec?.deposit ?? null;
+  const term = `${lease.start} – ${lease.end}${rec?.termMonths ? ` · ${rec.termMonths} months` : ""}`;
+  const depositText =
+    deposit === null
+      ? "Not on file"
+      : `${money(deposit)}${lease.rent > 0 && deposit > 0 && deposit % lease.rent === 0 ? ` · ${monthsOf(deposit / lease.rent)} rent` : ""}`;
 
   const parties = [
     {
       role: "Landlord",
-      name: "Amahoro Residences Ltd",
-      sub: "TIN 102 345 990 · represented by Solange Uwimana",
-      initials: "AR",
+      name: landlord || "Landlord not on file",
+      sub: rec?.landlordId || "TIN not on file",
+      initials: landlord ? initials(landlord) : "?",
     },
     {
       role: "Tenant",
       name: lease.resident,
-      sub: isCompany
-        ? "Company tenant · staff housing for one named occupant"
-        : "Resident profile · ID checked in person",
+      sub: isCompany ? `Company tenant${lease.occupant ? " · housing a named occupant" : ""}` : "Resident",
       initials: initials(lease.resident),
     },
     ...(lease.occupant ? [{ role: "Occupant", ...lease.occupant }] : []),
@@ -146,8 +143,9 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
       icon: <Wallet />,
       title: "Rent schedule",
       desc: isDraft
-        ? "Generated when the lease is signed"
-        : `Next charge ${money(lease.rent)} due on the ${lease.dueDay}`,
+        ? "Not started: the lease is not signed"
+        : // The lease's terms, not a charge: nothing raises next month's charge yet.
+          `${money(lease.rent)} a month, due on the ${lease.dueDay} (lease terms)`,
       chip: lease.rentChip?.label ?? (isDraft ? "Not started" : "Up to date"),
       tone: lease.rentChip?.tone ?? (isDraft ? "default" : "success"),
       board: "RentRoll",
@@ -155,10 +153,13 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
     {
       icon: <Vault />,
       title: "Caution deposit",
-      desc: isDraft
-        ? `${money(lease.rent * 2)} to be collected at signing`
-        : `${money(lease.rent * 2)} held as a liability`,
-      chip: isDraft ? "Not collected" : "Held",
+      desc:
+        deposit === null
+          ? "Amount not recorded on the lease"
+          : isDraft
+            ? `${money(deposit)} to be collected at signing`
+            : `${money(deposit)} agreed in the lease`,
+      chip: isDraft ? "Not collected" : "Agreed",
       tone: isDraft ? "default" : "success",
       board: "MoveOuts",
     },
@@ -172,40 +173,41 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
     },
   ];
 
-  const sigs = isDraft
-    ? [
-        {
-          name: lease.resident,
-          party: "Tenant",
-          state: "Not sent",
-          tone: "default" as Tone,
-          evidence: "Send for signature once the clauses are final.",
-        },
-        {
-          name: "Solange Uwimana",
-          party: "Landlord · Amahoro Residences Ltd",
-          state: "Not sent",
-          tone: "default" as Tone,
-          evidence: "Landlord signs after the tenant.",
-        },
-      ]
-    : [
-        {
-          name: lease.resident,
-          party: "Tenant",
-          state: "Signed",
-          tone: "success" as Tone,
-          evidence:
-            lease.signatures?.tenant ?? `Signed before ${lease.signedOn} · one-time code verified · fingerprint stored`,
-        },
-        {
-          name: "Solange Uwimana",
-          party: "Landlord · Amahoro Residences Ltd",
-          state: "Signed",
-          tone: "success" as Tone,
-          evidence: lease.signatures?.landlord ?? `Signed ${lease.signedOn} · one-time code verified`,
-        },
-      ];
+  // Each side's own signature date as the API records it; the person who signs for the landlord is not on file.
+  const tenantSigned = rec ? rec.tenantSignedOn : lease.signedOn;
+  const landlordSigned = rec ? rec.landlordSignedOn : lease.signedOn;
+  const sigState = (signedOn: string) =>
+    signedOn
+      ? { state: "Signed", tone: "success" as Tone }
+      : isDraft
+        ? { state: "Not sent", tone: "default" as Tone }
+        : { state: "Not signed", tone: "warning" as Tone };
+  const sigs = [
+    {
+      name: lease.resident,
+      party: "Tenant",
+      ...sigState(tenantSigned),
+      evidence:
+        lease.signatures?.tenant ??
+        (tenantSigned
+          ? `Signed ${tenantSigned}`
+          : isDraft
+            ? "Send for signature once the clauses are final."
+            : "No tenant signature recorded."),
+    },
+    {
+      name: landlord || "Landlord not on file",
+      party: "Landlord · signer not on file",
+      ...sigState(landlordSigned),
+      evidence:
+        lease.signatures?.landlord ??
+        (landlordSigned
+          ? `Signed ${landlordSigned}`
+          : isDraft
+            ? "Landlord signs after the tenant."
+            : "No landlord signature recorded."),
+    },
+  ];
 
   const clauses = data.clauses.map((c, i) => {
     const edit = lease.edits?.find((e) => e.index === i);
@@ -227,17 +229,7 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
     { id: "filings", label: "Filings & declarations", count: stage === "followup" || stage === "draft" ? 1 : 0 },
   ];
 
-  const attach = (file: { name: string; size: number }) => {
-    setAckFile((m) => ({ ...m, [lease.id]: file }));
-    setAck((m) => ({ ...m, [lease.id]: "uploaded" }));
-  };
-  // A filing's acknowledgement has nowhere to be kept yet: the filing record is the filing adapter's
-  // (pending, filed, failed), not a delivered paper with a stamp. Say so rather than pretend it saved.
-  const recordAck = () => {
-    toast.danger(
-      `Recording an acknowledgement is not available yet. ${lease.id}'s filing status comes from the filing service.`,
-    );
-  };
+  const attach = () => toast.warning(ACK_UNAVAILABLE);
 
   /** Chase the resident about the open offer (`POST /ops/residence/offers/:id/remind`). */
   const remindOffer = async () => {
@@ -246,7 +238,7 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
       toast.danger(result.error);
       return;
     }
-    toast.success(`Reminder sent to ${lease.resident} · in the resident app`, {
+    toast.success(`Reminder recorded for ${lease.resident} · shown in the resident app if they use it`, {
       indicator: <CircleCheck className="size-4" />,
     });
   };
@@ -264,7 +256,7 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
   return (
     <PageContent>
       <PageHeader
-        eyebrow="Tenancy · Kacyiru Court Residences"
+        eyebrow={building ? `Tenancy · ${building}` : "Tenancy"}
         title="Leases"
         description={`${activeLeases} active leases, ${drafts} draft, ${renewing} renewals in progress. Each lease is its own record, separate from rent charges and deposits.`}
         actions={
@@ -275,7 +267,7 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
             </LinkButton>
             <LinkButton href={screenHref("Applicants")}>
               <FilePlus className="size-4" />
-              New lease from applicant
+              Open applicants
             </LinkButton>
           </>
         }
@@ -375,12 +367,16 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                       { label: "Rent", value: <span className="tabular">{money(lease.rent)} a month</span> },
                       {
                         label: "Rent cycle",
-                        value: `Monthly, due on the ${lease.dueDay} · 5-day grace · MoMo or bank transfer`,
+                        value: `Monthly, due on the ${lease.dueDay}${rec?.graceDays != null ? ` · ${rec.graceDays}-day grace` : ""}`,
                       },
-                      { label: "Notice period", value: "30 days in writing, either party" },
+                      {
+                        label: "Notice period",
+                        value:
+                          rec?.noticeDays != null ? `${rec.noticeDays} days in writing, either party` : "Not on file",
+                      },
                       {
                         label: "Caution deposit",
-                        value: <span className="tabular">{money(lease.rent * 2)} · two months’ rent</span>,
+                        value: <span className="tabular">{depositText}</span>,
                       },
                     ]}
                   />
@@ -407,7 +403,7 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                 <div className="flex min-w-0 flex-col gap-2.5">
                   <SubHeading>Caution deposit conditions</SubHeading>
                   <ul className="m-0 flex list-none flex-col gap-2 p-0 text-[13px] leading-5">
-                    {DEPOSIT_RULES.map((r) => (
+                    {depositRules(landlord).map((r) => (
                       <li key={r.text} className="flex items-start gap-2">
                         <span className="mt-0.5 shrink-0 text-muted [&_svg]:size-4" aria-hidden="true">
                           {r.icon}
@@ -448,11 +444,15 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                     <div className="flex min-w-0 flex-col gap-1">
                       <SubHeading>Contract clauses</SubHeading>
                       <span className="text-[12px] text-muted">
-                        Kacyiru Court residential lease v3 ·{" "}
-                        {isDraft ? "Draft · editable" : "Signed version 2 · locked"}
+                        The building’s standard lease · {isDraft ? "Draft · editable" : "Signed · locked"}
                       </span>
                     </div>
-                    <Button size="sm" variant="secondary" isDisabled={!isDraft}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      isDisabled={!isDraft}
+                      onPress={() => toast.warning(CLAUSES_UNAVAILABLE)}
+                    >
                       <Pencil className="size-4" />
                       Edit clauses
                     </Button>
@@ -501,10 +501,10 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                       <ShieldKeyhole />
                     </Alert.Indicator>
                     <Alert.Content>
-                      <Alert.Title>Signature evidence kept 7 years</Alert.Title>
+                      <Alert.Title>Signature evidence</Alert.Title>
                       <Alert.Description>
-                        One-time code, time, device and document fingerprint are stored with the signed PDF. The
-                        retention period is your configured policy and has not been verified as a legal requirement.
+                        The lease record holds the day each side signed. One-time code, device and document fingerprint
+                        evidence is not stored yet, so keep the signed paper copy on file.
                       </Alert.Description>
                     </Alert.Content>
                   </Alert>
@@ -638,27 +638,21 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                       { label: "Last signature", value: lease.signedOn || "Not signed yet" },
                       {
                         label: "Deadline (configured)",
-                        value: stage === "ack" ? "Met" : lease.filing.deadline,
+                        value: lease.filing.deadline,
                       },
                       {
                         label: "Delivery",
-                        value: stage === "ack" ? "Signed acknowledgement on file" : lease.filing.delivery,
+                        value: lease.filing.delivery,
                       },
                       { label: "Status", value: <ToneChip tone={filing.tone}>{filing.state}</ToneChip> },
                     ]}
                   />
-                  {stage === "followup" && ackState === "missing" ? (
+                  {stage === "followup" ? (
                     <DropZone>
                       <DropZone.Area
                         className="p-[18px]"
                         onDrop={async (e) => {
-                          for (const item of e.items) {
-                            if (item.kind === "file") {
-                              const f = await item.getFile();
-                              attach({ name: f.name, size: f.size });
-                              return;
-                            }
-                          }
+                          if (e.items.some((item) => item.kind === "file")) attach();
                         }}
                       >
                         <DropZone.Icon>
@@ -666,46 +660,20 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                         </DropZone.Icon>
                         <DropZone.Label>Upload the signed or stamped acknowledgement</DropZone.Label>
                         <DropZone.Description>
-                          PDF or photo. Nothing is marked acknowledged without this evidence.
+                          Not available yet. Nothing is marked acknowledged without this evidence.
                         </DropZone.Description>
                         <DropZone.Trigger>Choose file</DropZone.Trigger>
                       </DropZone.Area>
                       <DropZone.Input
                         accept="application/pdf,image/*"
                         onSelect={(files) => {
-                          const f = files[0];
-                          if (f) attach({ name: f.name, size: f.size });
+                          if (files[0]) attach();
                         }}
                       />
                     </DropZone>
                   ) : null}
-                  {stage === "followup" && ackState === "uploaded" ? (
-                    <>
-                      <DropZone>
-                        <DropZone.FileList>
-                          <DropZone.FileItem status="complete">
-                            <FileCheck className="size-5 shrink-0 text-success" aria-hidden="true" />
-                            <DropZone.FileInfo>
-                              <DropZone.FileName>{ackFile[lease.id]?.name}</DropZone.FileName>
-                              <DropZone.FileMeta>
-                                {fileSize(ackFile[lease.id]?.size ?? 0)} · uploaded just now by {persona.name}
-                              </DropZone.FileMeta>
-                            </DropZone.FileInfo>
-                          </DropZone.FileItem>
-                        </DropZone.FileList>
-                      </DropZone>
-                      <div className="flex flex-wrap items-end gap-2">
-                        <TextField fullWidth value={ackRef} onChange={setAckRef} className="min-w-[220px] flex-1 gap-1">
-                          <Label>Reference written on the acknowledgement</Label>
-                          <Input placeholder="As shown on the stamp or receipt" />
-                        </TextField>
-                        <Button onPress={recordAck}>Record acknowledgement</Button>
-                      </div>
-                    </>
-                  ) : null}
                   <span className="text-[12px] leading-4 text-muted">
-                    Injishi does not file leases with any authority. It tracks your configured deadline and the evidence
-                    you upload.
+                    Injishi does not file leases with any authority. It tracks your configured deadline.
                   </span>
                 </Card>
 
@@ -723,7 +691,10 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                         label: `Verified rent, ${kigaliCalendar().year} to date`,
                         value: <span className="tabular">{lease.income}</span>,
                       },
-                      { label: "Legal entity", value: "Amahoro Residences Ltd · TIN 102 345 990" },
+                      {
+                        label: "Legal entity",
+                        value: landlord ? `${landlord}${rec?.landlordId ? ` · ${rec.landlordId}` : ""}` : "Not on file",
+                      },
                       {
                         label: "Tax rules applied",
                         value: "None until verified. Hotel tourism and EBM rules are not applied to residential rent.",
@@ -743,7 +714,7 @@ export function LeasesView({ persona, data }: { persona: Persona; data: LeasesDa
                             "Legal entity",
                             `Verified rent, ${kigaliCalendar().year} to date`,
                           ],
-                          [lease.id, lease.unit, lease.resident, "Amahoro Residences Ltd", lease.income],
+                          [lease.id, lease.unit, lease.resident, landlord || "Not on file", lease.income],
                         ])
                       }
                     >

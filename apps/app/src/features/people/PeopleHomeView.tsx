@@ -326,7 +326,8 @@ export function PeopleHomeView({
               <div className="flex-1">
                 <ItemCardGroup.Title id="leave-h">Leave to Decide</ItemCardGroup.Title>
                 <ItemCardGroup.Description>
-                  Line manager first, then you. Approving updates the roster and balances.
+                  Two-step leave types reach you after the line manager; the others come straight to you. Approving
+                  updates the roster and balances.
                 </ItemCardGroup.Description>
               </div>
               <LinkButton href={screenHref("Leave")} size="sm" variant="ghost">
@@ -335,7 +336,6 @@ export function PeopleHomeView({
             </ItemCardGroup.Header>
             {homeLeave.map((l) => {
               const canDecide = l.step === "hr" && !l.hrDecision;
-              const first = firstName(l.name);
               return (
                 <ItemCard key={l.id} className="flex-wrap items-start">
                   <Avatar size="sm" variant="soft">
@@ -384,12 +384,12 @@ export function PeopleHomeView({
                     {l.hrDecision === "approved" ? (
                       <Chip variant="soft" color="success">
                         <Check className="size-3" />
-                        <Chip.Label>Approved · {first} notified</Chip.Label>
+                        <Chip.Label>Approved · recorded</Chip.Label>
                       </Chip>
                     ) : null}
                     {l.hrDecision === "declined" ? (
                       <Chip variant="soft">
-                        <Chip.Label>Declined · {first} notified</Chip.Label>
+                        <Chip.Label>Declined · recorded</Chip.Label>
                       </Chip>
                     ) : null}
                     {l.step === "lm" ? <span className="text-xs text-muted">Not yours yet</span> : null}
@@ -449,7 +449,7 @@ export function PeopleHomeView({
         <PanelCard
           id="exp-h"
           title="Expiring Contracts and Documents"
-          description="Next 45 days · only HR and the line manager are reminded"
+          description="Ending in the next 45 days · no reminder is sent from this screen"
         >
           <Timeline size="sm" density="compact">
             {data.expiring.map((e) => (

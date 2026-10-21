@@ -25,12 +25,12 @@ import {
   Meter,
   ProgressBar,
   Table,
-  Tag,
-  TagGroup,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { ItemCard, Segment, Timeline } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
+import { type BoardId, screenHref } from "@injishi/data";
 import type {
   Certificate,
   Course,
@@ -44,8 +44,10 @@ import { stock } from "@injishi/data/media";
 import { KeyValueList, LinkButton, toneColor } from "@injishi/ui";
 import NextLink from "next/link";
 import { useState } from "react";
+import type { CertificateCheck } from "@/server/mutations/public";
+import { checkCertificateAction } from "./actions";
 import type { DemoLinks } from "./links";
-import { CaptionedPhoto, PublicFooter, PublicHeader, PublicMain } from "./PublicChrome";
+import { CaptionedPhoto, PublicFooter, PublicHeader, PublicMain, SignInAction } from "./PublicChrome";
 import { linkTo, Pending } from "./shared";
 
 export interface TrainingData {
@@ -54,6 +56,15 @@ export interface TrainingData {
   learners: Learner[];
   enrolments: Enrolment[];
   certificates: Certificate[];
+}
+
+/** The signed-in person reading the page (null: nobody is signed in). */
+export interface TrainingVisitor {
+  personaId: string;
+  name: string;
+  initials: string;
+  /** Where "Back to work" goes. */
+  home: BoardId;
 }
 
 type TeamFilter = "all" | CourseTeam;
@@ -65,23 +76,36 @@ const TEAMS: { id: TeamFilter; label: string }[] = [
   { id: "hk", label: "Housekeeping" },
 ];
 
-const SAMPLES = [
-  { id: "INJ-FDE-26-0417", label: "Valid" },
-  { id: "INJ-EBM-25-0112", label: "Revoked" },
-  { id: "INJ-HKS-26-9999", label: "Unknown code" },
-];
+/** A day the API sends ("2026-10-12" or an ISO instant) as the page writes dates: "12 Oct 2026", in Kigali. */
+function kigaliDay(iso: string): string {
+  const at = new Date(iso.length === 10 ? `${iso}T12:00:00Z` : iso);
+  if (Number.isNaN(at.getTime())) return iso;
+  return at.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Kigali" });
+}
 
-function seatOf(session: CourseSession, requested: boolean) {
+/**
+ * Why a seat cannot be asked for here yet: the sessions on this page are the prototype's (the training collections
+ * are deferred until the course schema grows, data map public.courseSessions), so there is no real session to
+ * register for, and the API's registration (`POST /training/registrations`) has no employer approval or waitlist.
+ */
+const SEAT_UNAVAILABLE =
+  "Asking for a seat is not available here yet. Nothing was requested; ask your manager to register you.";
+
+/**
+ * A session's seat line. `attended` and `mine` describe the sample learner, so they are read only when that learner
+ * is the person signed in (`isLearner`); anyone else is never told they attended or enrolled.
+ */
+function seatOf(session: CourseSession, isLearner: boolean) {
+  const attended = isLearner ? session.attended : undefined;
+  const mine = isLearner && session.mine;
   const full = session.taken >= session.capacity;
-  const taken = session.taken + (requested && !full ? 1 : 0);
+  const taken = session.taken;
   let chip: { label: string; tone: Tone } | null = null;
-  if (session.attended) chip = { label: `Completed · ${session.attended}`, tone: "default" };
-  else if (session.mine) chip = { label: "You're enrolled", tone: "success" };
-  else if (requested && full) chip = { label: "On waitlist · position 3", tone: "info" };
-  else if (requested) chip = { label: "Requested · waiting for your manager", tone: "warning" };
-  const open = !session.attended && !session.mine && !requested;
-  const seatText = session.attended
-    ? session.attended
+  if (attended) chip = { label: `Completed · ${attended}`, tone: "default" };
+  else if (mine) chip = { label: "You're enrolled", tone: "success" };
+  const open = !attended && !mine;
+  const seatText = attended
+    ? attended
     : full
       ? `Full · ${session.capacity} of ${session.capacity}`
       : `${taken} of ${session.capacity} taken`;
@@ -96,37 +120,55 @@ function seatOf(session: CourseSession, requested: boolean) {
 }
 
 /** Training and certification (artifact: Training.dc.html) — courses, sessions, learning and the public register. */
-export function TrainingView({ links, data }: { links: DemoLinks; data: TrainingData }) {
+export function TrainingView({
+  links,
+  data,
+  visitor,
+}: {
+  links: DemoLinks;
+  data: TrainingData;
+  visitor: TrainingVisitor | null;
+}) {
   const [team, setTeam] = useState<TeamFilter>("all");
   const [courseId, setCourseId] = useState("fde");
-  const [requested, setRequested] = useState<string[]>([]);
-  const [code, setCode] = useState("INJ-FDE-26-0417");
-  const [checked, setChecked] = useState("INJ-FDE-26-0417");
-  const [qr, setQr] = useState(false);
+  const [code, setCode] = useState("");
+  // The API's answer for the code last checked (`GET /verify/:token`), never a lookup in this page's own data.
+  const [check, setCheck] = useState<{ code: string; answer: CertificateCheck } | null>(null);
+  const [checking, setChecking] = useState(false);
 
-  const learner = data.learners[0];
+  // The sample learning record is shown only to the person it describes; another visitor never sees it as theirs.
+  // Matched on the person, not only on the shell: every receptionist gets the front-desk shell, and only the one the
+  // sample describes may see it.
+  const learner = visitor
+    ? data.learners.find((l) => l.personaId === visitor.personaId && l.name === visitor.name)
+    : undefined;
   const course = data.courses.find((c) => c.id === courseId) ?? data.courses[0];
   const visible = data.courses.filter((c) => team === "all" || c.team === team);
   const mine = learner ? data.enrolments.filter((e) => e.learner === learner.id) : [];
   const held = learner ? data.certificates.find((c) => c.learner === learner.id && c.status === "valid") : undefined;
-  const checkedCode = checked.trim().toUpperCase();
-  const found = data.certificates.find((c) => c.id === checkedCode);
-  const result = !checkedCode
-    ? "idle"
-    : found?.status === "valid"
-      ? "valid"
-      : found?.status === "revoked"
-        ? "revoked"
-        : "none";
+  const answer = check?.answer;
+  const result = answer?.status ?? "idle";
 
-  const ask = (id: string) => setRequested((cur) => (cur.includes(id) ? cur : [...cur, id]));
-  const checkCode = (value: string) => {
-    const next = value.trim().toUpperCase();
-    setCode(next);
-    setChecked(next);
+  const ask = () => toast.warning(SEAT_UNAVAILABLE);
+  const verify = async () => {
+    const typed = code.trim().toUpperCase();
+    if (!typed) {
+      toast.warning("Type the verification code printed under the certificate's QR code.");
+      return;
+    }
+    setChecking(true);
+    try {
+      const res = await checkCertificateAction(typed);
+      if (res.ok) setCheck({ code: typed, answer: res.value });
+      else toast.danger(res.error);
+    } catch {
+      toast.danger("The certificate could not be checked. Try again.");
+    } finally {
+      setChecking(false);
+    }
   };
 
-  if (!learner || !course) {
+  if (!course) {
     return (
       <>
         <PublicHeader />
@@ -141,21 +183,25 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
     <>
       <PublicHeader
         actions={
-          <>
-            <LinkButton href={linkTo(links, learner.home)} variant="ghost" size="sm">
-              <ArrowLeft className="size-4" />
-              Back to work
-            </LinkButton>
-            <NextLink
-              href={linkTo(links, "Account")}
-              aria-label={`Your account, ${learner.name}`}
-              className="inline-flex no-underline"
-            >
-              <Avatar size="sm" variant="soft" color="accent">
-                <Avatar.Fallback>{learner.initials}</Avatar.Fallback>
-              </Avatar>
-            </NextLink>
-          </>
+          visitor ? (
+            <>
+              <LinkButton href={linkTo(links, visitor.home)} variant="ghost" size="sm">
+                <ArrowLeft className="size-4" />
+                Back to work
+              </LinkButton>
+              <NextLink
+                href={linkTo(links, "Account")}
+                aria-label={`Your account, ${visitor.name}`}
+                className="inline-flex no-underline"
+              >
+                <Avatar size="sm" variant="soft" color="accent">
+                  <Avatar.Fallback>{visitor.initials}</Avatar.Fallback>
+                </Avatar>
+              </NextLink>
+            </>
+          ) : (
+            <SignInAction visitor={null} />
+          )
         }
       />
 
@@ -275,7 +321,7 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                   {data.sessions
                     .filter((session) => session.course === course.id)
                     .map((session) => {
-                      const seat = seatOf(session, requested.includes(session.id));
+                      const seat = seatOf(session, Boolean(learner));
                       return (
                         <Table.Row key={session.id} id={session.id}>
                           <Table.Cell>
@@ -318,12 +364,12 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                           </Table.Cell>
                           <Table.Cell className="text-right">
                             {seat.canEnrol ? (
-                              <Button size="sm" onPress={() => ask(session.id)}>
+                              <Button size="sm" onPress={ask}>
                                 Request a seat
                               </Button>
                             ) : null}
                             {seat.canWait ? (
-                              <Button size="sm" variant="secondary" onPress={() => ask(session.id)}>
+                              <Button size="sm" variant="secondary" onPress={ask}>
                                 Join waitlist
                               </Button>
                             ) : null}
@@ -353,7 +399,11 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                 My Learning
               </h2>
               <span className="text-[12px] text-muted">
-                {learner.name} · {learner.context}
+                {learner
+                  ? `${learner.name} · ${learner.context} · a sample record, not yet read from Injishi`
+                  : visitor
+                    ? "No courses or certificates of yours are shown on this page yet."
+                    : "Sign in to see your courses and certificates."}
               </span>
             </div>
             {mine.map((enrolment) => (
@@ -426,31 +476,21 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                         variant="ghost"
                         aria-label="Download certificate PDF"
                         className="min-w-8 px-1.5"
+                        onPress={() => toast.warning("Downloading the certificate is not available here yet.")}
                       >
                         <FileArrowDown className="size-4" />
                       </Button>
-                      <Button size="sm" variant="secondary" aria-expanded={qr} onPress={() => setQr((open) => !open)}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onPress={() => toast.warning("Showing your certificate's QR code is not available here yet.")}
+                      >
                         <QrCode className="size-4" />
-                        {qr ? "Hide QR" : "Show QR"}
+                        Show QR
                       </Button>
                     </span>
                   </ItemCard.Action>
                 </ItemCard>
-                {qr ? (
-                  <Card variant="secondary" className="flex-row items-center gap-2.5 p-3.5">
-                    <div
-                      className="flex size-24 shrink-0 items-center justify-center rounded-xl bg-surface"
-                      role="img"
-                      aria-label={`QR code for certificate ${held.id}`}
-                    >
-                      <QrCode className="size-16" aria-hidden="true" />
-                    </div>
-                    <span className="text-[12px] leading-[17px] text-muted">
-                      Show this to an employer. Scanning it opens the public check below with the code filled in. The QR
-                      is signed, so a copied image still verifies against our register.
-                    </span>
-                  </Card>
-                ) : null}
               </div>
             ) : null}
           </Card>
@@ -465,46 +505,28 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                 Verify a Certificate
               </h2>
               <span className="text-[12px] text-muted">
-                For employers and anyone else. We only show what is printed on the certificate.
+                For employers and anyone else. Type the verification code printed under the certificate's QR code and
+                Injishi checks it.
               </span>
             </div>
             <div className="flex items-end gap-2">
               <TextField value={code} onChange={setCode} className="min-w-0 flex-1 gap-1">
-                <Label htmlFor="code">Certificate code</Label>
-                <Input id="code" placeholder="INJ-XXX-00-0000" className="uppercase tabular" />
+                <Label htmlFor="code">Verification code</Label>
+                <Input id="code" placeholder="The code under the QR" className="uppercase tabular" />
               </TextField>
-              <Button onPress={() => setChecked(code)}>Verify</Button>
+              <Button onPress={() => void verify()} isDisabled={checking}>
+                Verify
+              </Button>
             </div>
-            <Button variant="secondary" className="self-start" onPress={() => checkCode("INJ-FDE-26-0417")}>
+            <Button
+              variant="secondary"
+              className="self-start"
+              onPress={() => toast.warning("Scanning a QR code is not available here yet. Type the code instead.")}
+            >
               <Camera className="size-4" />
               Scan QR instead
             </Button>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span id="try-l" className="text-[12px] text-muted">
-                Try:
-              </span>
-              <TagGroup
-                aria-labelledby="try-l"
-                size="sm"
-                variant="surface"
-                selectionMode="single"
-                selectedKeys={SAMPLES.some((sample) => sample.id === checkedCode) ? [checkedCode] : []}
-                onSelectionChange={(keys) => {
-                  if (keys === "all") return;
-                  const next = [...keys][0];
-                  if (next != null) checkCode(String(next));
-                }}
-              >
-                <TagGroup.List className="flex flex-wrap gap-1.5">
-                  {SAMPLES.map((sample) => (
-                    <Tag key={sample.id} id={sample.id}>
-                      {sample.label}
-                    </Tag>
-                  ))}
-                </TagGroup.List>
-              </TagGroup>
-            </div>
-            {result === "valid" && found ? (
+            {result === "valid" && answer ? (
               <>
                 <Alert status="success" role="status">
                   <Alert.Indicator>
@@ -512,21 +534,36 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                   </Alert.Indicator>
                   <Alert.Content>
                     <Alert.Title>Valid certificate</Alert.Title>
-                    <Alert.Description>Signature checked against the Injishi register just now.</Alert.Description>
+                    <Alert.Description>Checked with Injishi just now.</Alert.Description>
                   </Alert.Content>
                 </Alert>
                 <KeyValueList
                   items={[
-                    { label: "Code", value: <span className="tabular">{found.id}</span> },
-                    { label: "Issued to", value: found.holder },
-                    { label: "Course", value: found.course },
-                    { label: "Issued", value: `${found.issuedOn} by ${found.issuer}` },
-                    { label: "Valid until", value: found.validUntil },
+                    { label: "Certificate", value: <span className="tabular">{answer.serial ?? check?.code}</span> },
+                    { label: "Issued to", value: answer.holderName ?? "Not shown" },
+                    { label: "Course", value: answer.courseTitle ?? "Not shown" },
+                    {
+                      label: "Session",
+                      value:
+                        [
+                          answer.sessionDate ? kigaliDay(answer.sessionDate) : null,
+                          answer.venueName,
+                          answer.districtName,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "Not shown",
+                    },
+                    {
+                      label: "Issued",
+                      value: answer.issuedAt
+                        ? `${kigaliDay(answer.issuedAt)}${answer.leadTrainerName ? ` · trainer ${answer.leadTrainerName}` : ""}`
+                        : "Not shown",
+                    },
                   ]}
                 />
               </>
             ) : null}
-            {result === "revoked" && found ? (
+            {result === "revoked" && answer ? (
               <>
                 <Alert status="danger" role="status">
                   <Alert.Indicator>
@@ -535,22 +572,22 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                   <Alert.Content>
                     <Alert.Title>Revoked · do not accept</Alert.Title>
                     <Alert.Description>
-                      Injishi revoked this certificate on {found.revokedOn}. The reason is recorded with the issuer and
-                      not shown publicly.
+                      Marked revoked{answer.revokedAt ? ` on ${kigaliDay(answer.revokedAt)}` : ""}. The reason is not
+                      shown publicly.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>
                 <KeyValueList
                   items={[
-                    { label: "Code", value: <span className="tabular">{found.id}</span> },
-                    { label: "Course", value: found.course },
-                    { label: "Originally issued", value: found.issuedOn },
-                    { label: "Revoked", value: found.revokedOn },
+                    { label: "Certificate", value: <span className="tabular">{answer.serial ?? check?.code}</span> },
+                    { label: "Course", value: answer.courseTitle ?? "Not shown" },
+                    { label: "Originally issued", value: answer.issuedAt ? kigaliDay(answer.issuedAt) : "Not shown" },
+                    { label: "Revoked", value: answer.revokedAt ? kigaliDay(answer.revokedAt) : "Not shown" },
                   ]}
                 />
               </>
             ) : null}
-            {result === "none" ? (
+            {result === "unknown" ? (
               <Alert status="warning" role="status">
                 <Alert.Indicator>
                   <CircleQuestion />
@@ -558,7 +595,7 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
                 <Alert.Content>
                   <Alert.Title>Not found</Alert.Title>
                   <Alert.Description>
-                    No certificate matches “{checkedCode}”. Check the code for typos, or ask the holder to show the QR
+                    No certificate matches “{check?.code}”. Check the code for typos, or ask the holder to show the QR
                     code.
                   </Alert.Description>
                 </Alert.Content>
@@ -566,13 +603,13 @@ export function TrainingView({ links, data }: { links: DemoLinks; data: Training
             ) : null}
             <p className="flex gap-1.5 text-[12px] leading-[17px] text-muted">
               <ShieldCheck className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
-              We never show the holder’s employer, contact details or scores. Each check is logged without storing who
-              checked.
+              We never show the holder’s employer, contact details or scores.
             </p>
           </Card>
         </div>
       </PublicMain>
 
+      <Toast.Provider placement="bottom" />
       <PublicFooter
         links={[
           { label: "Help centre", href: screenHref("PublicHelp") },

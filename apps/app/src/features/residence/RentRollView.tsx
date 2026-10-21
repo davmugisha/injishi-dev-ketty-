@@ -1,7 +1,20 @@
 "use client";
 
 import { ArrowDownToLine, Bell, CircleCheck, Lock, Plus } from "@gravity-ui/icons";
-import { Button, Card, Description, Input, Label, Table, Tabs, TextArea, TextField, Toast, toast } from "@heroui/react";
+import {
+  Button,
+  Card,
+  Description,
+  FieldError,
+  Input,
+  Label,
+  Table,
+  Tabs,
+  TextArea,
+  TextField,
+  Toast,
+  toast,
+} from "@heroui/react";
 import { KPIGroup, ListView, Timeline } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
 import { type Persona, screenHref } from "@injishi/data";
@@ -17,6 +30,7 @@ import type {
 } from "@injishi/data/fixtures/residence";
 import { GateChip, Icon, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { Fragment, useState } from "react";
+import { readFrancs } from "@/lib/francs";
 import { recordPaymentAction, remindResidentsAction } from "./actions";
 import {
   Dot,
@@ -41,7 +55,7 @@ export interface RentRollData {
   payouts: LandlordPayout[];
 }
 
-type Filter = "all" | "arrears" | "pending" | "paid";
+type Filter = "all" | "arrears" | "due" | "pending" | "paid" | "none";
 
 const STATUS: Record<RentStatus, { label: string; tone: Tone }> = {
   paid: { label: "Paid", tone: "success" },
@@ -49,6 +63,19 @@ const STATUS: Record<RentStatus, { label: string; tone: Tone }> = {
   pending: { label: "Pending", tone: "info" },
   unknown: { label: "Unknown", tone: "warning" },
 };
+/**
+ * A charge open and not yet overdue with no payment recorded against it: the roll calls it pending, but nothing
+ * is in flight (this month reads "unpaid"), so it is due, not awaiting verification.
+ */
+const dueUnpaid = (r: RentRollRow) => r.status === "pending" && r.history[r.history.length - 1] === "unpaid";
+const DUE: { label: string; tone: Tone } = { label: "Due · not paid", tone: "default" };
+/**
+ * No rent charge raised this month (this month reads "none"): the roll calls it paid, but nothing was charged or
+ * paid. The API raises a lease's first charge only, so from the second month this is most leases not overdue.
+ */
+const noCharge = (r: RentRollRow) => r.status === "paid" && r.history[r.history.length - 1] === "none";
+const NO_CHARGE: { label: string; tone: Tone } = { label: "No charge this month", tone: "default" };
+const stateOf = (r: RentRollRow) => (dueUnpaid(r) ? DUE : noCharge(r) ? NO_CHARGE : STATUS[r.status]);
 const MONTH_TONE: Record<RentMonth, Tone> = {
   paid: "success",
   late: "accent",
@@ -63,7 +90,7 @@ const MONTH_WORD: Record<RentMonth, string> = {
   unpaid: "unpaid or part-paid",
   pending: "pending verification",
   unknown: "result unknown",
-  none: "no lease",
+  none: "no charge",
 };
 const LEGEND: { tone: Tone; label: string }[] = [
   { tone: "success", label: "Paid on time" },
@@ -71,50 +98,83 @@ const LEGEND: { tone: Tone; label: string }[] = [
   { tone: "danger", label: "Unpaid or part-paid" },
   { tone: "info", label: "Pending verification" },
   { tone: "warning", label: "Result unknown" },
-  { tone: "default", label: "No lease that month" },
+  { tone: "default", label: "No charge that month" },
 ];
 const FILTERS: { id: Filter; label: string; test: (r: RentRollRow) => boolean }[] = [
   { id: "all", label: "All", test: () => true },
   { id: "arrears", label: "Arrears", test: (r) => r.status === "arrears" },
-  { id: "pending", label: "Awaiting verification", test: (r) => r.status === "pending" || r.status === "unknown" },
-  { id: "paid", label: "Paid", test: (r) => r.status === "paid" },
+  { id: "due", label: "Due, not paid", test: dueUnpaid },
+  {
+    id: "pending",
+    label: "Awaiting verification",
+    test: (r) => (r.status === "pending" && !dueUnpaid(r)) || r.status === "unknown",
+  },
+  { id: "paid", label: "Paid", test: (r) => r.status === "paid" && !noCharge(r) },
+  { id: "none", label: "No charge this month", test: noCharge },
 ];
 const METHODS = ["Bank transfer", "MTN MoMo", "Airtel Money", "Cash at the office"];
-const REMINDER_TEXT =
-  "Hello, your rent balance at Kacyiru Court is overdue. Please pay in the resident app or contact Solange to agree a plan.";
+/** The default reminder names the building the roll is for and no one in particular; the manager may edit it. */
+const reminderText = (building: string) =>
+  `Hello, your rent balance${building ? ` at ${building}` : ""} is overdue. Please pay by bank transfer or at the office, or contact management to agree a plan.`;
 
-/** The ledger of a lease with nothing outstanding: this month's charge closed by a verified payment. */
+/**
+ * The ledger of a lease with nothing outstanding (the API details only leases with an open charge). It states
+ * only what the roll row holds: this month's charge closed by the verified payments counted against it, or no
+ * charge open at all. It names no payment reference it was not given.
+ */
 function closedLedger(row: RentRollRow, month: string): LedgerEntry[] {
+  if (row.verified <= 0) {
+    return [
+      {
+        icon: "FileDollar",
+        title: `${month} rent`,
+        desc: "No unpaid charge on this lease",
+        amount: 0,
+        state: "Nothing open",
+        tone: "default",
+      },
+    ];
+  }
   return [
     {
       icon: "FileDollar",
       title: `${month} rent`,
-      desc: `Charged on the ${row.due} · closed by verified payment`,
-      amount: row.rent,
+      desc: `Due on the ${row.due} · closed by verified payments`,
+      amount: row.verified,
       state: "Closed",
       tone: "success",
     },
     {
       icon: "Receipt",
-      title: "Verified payment",
-      desc: `Provider or bank reference on file · allocated to ${month} rent`,
-      amount: row.rent,
+      title: "Verified payments",
+      desc: `Allocated to ${month} rent`,
+      amount: row.verified,
       state: "Verified",
       tone: "success",
     },
   ];
 }
 
-export function RentRollView({ persona, data }: { persona: Persona; data: RentRollData }) {
+export function RentRollView({
+  persona,
+  data,
+  building = "",
+}: {
+  persona: Persona;
+  data: RentRollData;
+  /** The building(s) this roll covers, from the session's workspace. */
+  building?: string;
+}) {
   // The roll's month and its four-month history are this month's in Kigali, not the prototype's October.
   const cal = kigaliCalendar();
   const MONTHS = cal.lastFourMonths;
   const [filter, setFilter] = useState<Filter>("all");
-  const [sel, setSel] = useState("A-03");
+  // Opens on the first lease in arrears, else the first row (the prototype opened on "A-03").
+  const [sel, setSel] = useState(() => (data.rows.find((r) => r.status === "arrears") ?? data.rows[0])?.id ?? "");
   const [recordOpen, setRecordOpen] = useState(false);
   const [record, setRecord] = useState({ method: METHODS[0], amount: "", ref: "" });
   const [remindFor, setRemindFor] = useState<string[] | null>(null);
-  const [message, setMessage] = useState(REMINDER_TEXT);
+  const [message, setMessage] = useState(() => reminderText(building));
   const [busy, setBusy] = useState(false);
 
   const counts = Object.fromEntries(FILTERS.map((f) => [f.id, data.rows.filter(f.test).length])) as Record<
@@ -126,14 +186,24 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
   // The ledger and the reminders are the API's: a saved payment or a sent reminder comes back with the page.
   const ledger = detail?.ledger ?? closedLedger(row, cal.month);
   const reminders = detail?.reminders ?? [];
-  const status = STATUS[row.status];
+  const status = stateOf(row);
   const balanceLabel =
-    row.status === "arrears" ? "Overdue balance" : row.status === "paid" ? "Balance" : "Balance · payment in flight";
+    row.status === "arrears"
+      ? "Overdue balance"
+      : noCharge(row)
+        ? "No charge raised this month"
+        : row.status === "paid"
+          ? "Balance"
+          : dueUnpaid(row)
+            ? "Balance due · no payment recorded"
+            : "Balance · payment in flight";
   const balance = row.overdue
     ? money(row.overdue)
-    : row.status === "paid"
-      ? "RWF 0"
-      : `${money(row.rent)} open, not overdue`;
+    : noCharge(row)
+      ? "Nothing charged or paid"
+      : row.status === "paid"
+        ? "RWF 0"
+        : `${money(row.rent)} open, not overdue`;
 
   const arrears = data.rows
     .filter((r) => r.status === "arrears")
@@ -145,8 +215,9 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
     });
   const recipients = arrears.filter((a) => remindFor?.includes(a.id));
 
-  const amount = Number(record.amount.replace(/[^\d]/g, ""));
-  const canSave = amount > 0 && record.ref.trim().length > 2;
+  // Whole francs as typed: "20000.5" is refused, never read as 200,005 (lib/francs).
+  const { amount, error: amountError } = readFrancs(record.amount);
+  const canSave = amount > 0 && !amountError && record.ref.trim().length > 2;
   /**
    * Save as pending (`POST /ops/residence/rent-payments`). The Idempotency-Key is minted here, once per
    * press, so a request the network retries is still one payment.
@@ -183,13 +254,13 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
     }
     setRemindFor(null);
     toast.success(
-      `${ids.length} ${ids.length === 1 ? "reminder" : "reminders"} queued · delivery status appears in each history`,
+      `${ids.length} ${ids.length === 1 ? "reminder" : "reminders"} recorded · residents who use the app see it there`,
       { indicator: <CircleCheck className="size-4" /> },
     );
   };
 
   const exportCsv = () =>
-    downloadCsv(`kacyiru-court-rent-roll-${cal.iso.slice(0, 7)}.csv`, [
+    downloadCsv(`rent-roll-${cal.iso.slice(0, 7)}.csv`, [
       ["Unit", "Resident", "Lease", "Due", ...MONTHS, `${cal.month} charge`, "Verified", "Overdue", "Status"],
       ...data.rows.map((r) => [
         r.id,
@@ -200,14 +271,14 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
         r.rent,
         r.verified,
         r.overdue,
-        STATUS[r.status].label,
+        stateOf(r).label,
       ]),
     ]);
 
   return (
     <PageContent>
       <PageHeader
-        eyebrow={`Tenancy · ${cal.month} ${cal.year} · Kacyiru Court Residences`}
+        eyebrow={`Tenancy · ${cal.month} ${cal.year}${building ? ` · ${building}` : ""}`}
         title="Rent Roll"
         description={`Scheduled rent from ${data.rows.length} active leases. A charge closes only when verified payments cover it in full.`}
         actions={
@@ -323,8 +394,8 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
                               {r.overdue ? money(r.overdue) : "—"}
                             </Table.Cell>
                             <Table.Cell>
-                              <ToneChip tone={STATUS[r.status].tone} className="whitespace-nowrap">
-                                {STATUS[r.status].label}
+                              <ToneChip tone={stateOf(r).tone} className="whitespace-nowrap">
+                                {stateOf(r).label}
                               </ToneChip>
                             </Table.Cell>
                           </Table.Row>
@@ -409,7 +480,7 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
                   ))}
                 </Timeline>
               ) : (
-                <p className="text-[13px] text-muted">No reminders needed for this lease.</p>
+                <p className="text-[13px] text-muted">No reminders sent for this lease yet.</p>
               )}
             </div>
 
@@ -427,10 +498,12 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
                     fullWidth
                     value={record.amount}
                     onChange={(v) => setRecord((s) => ({ ...s, amount: v }))}
+                    isInvalid={!!amountError}
                     className="gap-1"
                   >
                     <Label>Amount (RWF)</Label>
                     <Input inputMode="numeric" placeholder="0" className="tabular" />
+                    <FieldError>{amountError}</FieldError>
                   </TextField>
                 </div>
                 <TextField
@@ -442,7 +515,7 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
                   <Label>Bank or provider reference</Label>
                   <Input placeholder="From the bank slip or SMS" />
                   <Description>
-                    Stays Pending until Payments matches it to the bank statement or provider report.
+                    Saved as Pending. Matching it to a bank statement or provider report is not available yet.
                   </Description>
                 </TextField>
                 <div className="flex justify-end gap-2">
@@ -505,7 +578,7 @@ export function RentRollView({ persona, data }: { persona: Persona; data: RentRo
         isOpen={remindFor !== null}
         onOpenChange={(open) => (open ? null : setRemindFor(null))}
         title="Send rent reminders"
-        description="In-app message and email · SMS is not available yet"
+        description="Shown in the resident app to residents who use it · email and SMS are not available yet"
         footer={
           <>
             <Button variant="secondary" onPress={() => setRemindFor(null)}>

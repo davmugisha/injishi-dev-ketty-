@@ -2,26 +2,20 @@
 
 import { BookOpen, Calculator, Comment, Eye, Lock, Pencil, Persons, ShieldKeyhole } from "@gravity-ui/icons";
 import { Alert, Avatar, Button, Card, Chip, Input, Label, Table, Tabs, TextField, toast } from "@heroui/react";
-import { EmptyState, ListView, NativeSelect, Timeline } from "@heroui-pro/react";
+import { EmptyState, ListView, NativeSelect } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type {
   CompensationChange,
   Employee,
   FamilyMember,
-  FileAccess,
   FileDocument,
   PolicyAck,
 } from "@injishi/data/fixtures/people";
 import { formatRwf, Icon, KeyValueList, LinkButton, toneColor } from "@injishi/ui";
 import { useState } from "react";
+import { addDays, dayMonthYear, monthLong } from "./days";
 import { LoginChip, STATUS } from "./employee-status";
 import { firstName, initials } from "./parts";
-
-export interface FileLogEntry {
-  id: string;
-  what: string;
-  when: string;
-}
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -34,18 +28,21 @@ const TABS = [
 /** "+RWF 15,000" for raises, "-RWF 15,000" for cuts. */
 const signed = (n: number) => `${n > 0 ? "+" : ""}${formatRwf(Math.round(n))}`;
 
-/** Right-hand employee file: overview, pay with a proposed change, documents and access log, family, policies. */
+/**
+ * Right-hand employee file: overview, pay with a proposed change, the documents HR asks for, family, policies.
+ * Everything stated about the person is read from People; what no route serves (notice period, devices, the
+ * access log, policy acknowledgements) is not stated, or is labelled as sample.
+ */
 export function EmployeeFileCard({
   employee: e,
   propertyName,
   compensation,
   documents,
-  access,
   family,
   policies,
   tab,
   onTabChange,
-  log,
+  today,
   loginRequested,
   onRequestLogin,
 }: {
@@ -53,38 +50,38 @@ export function EmployeeFileCard({
   propertyName: string;
   compensation: CompensationChange[];
   documents: FileDocument[];
-  access: FileAccess[];
   family: FamilyMember[];
   policies: PolicyAck[];
   tab: string;
   onTabChange: (tab: string) => void;
-  log: FileLogEntry[];
-  onView: (entry: FileLogEntry) => void;
+  /** Today in Kigali ("2026-10-20"): the proposal's two start dates are worked out from it. */
+  today: string;
   loginRequested: boolean;
   onRequestLogin: () => void;
 }) {
   const first = firstName(e.name);
   const [proposal, setProposal] = useState<"closed" | "open">("closed");
-  const [newBase, setNewBase] = useState(String(e.base + 15000));
+  // The proposal starts at today's base (no change) and its dates come from today, never a sample month.
+  const [newBase, setNewBase] = useState(String(e.base));
   const [effective, setEffective] = useState<"next" | "mid">("next");
 
   const parsed = Number.parseInt(newBase.replace(/[^0-9]/g, ""), 10);
   const diff = (Number.isNaN(parsed) ? e.base : parsed) - e.base;
   const mid = effective === "mid";
+  const monthDays = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)), 0)).getUTCDate();
+  const daysLeft = monthDays - Number(today.slice(8, 10)) + 1;
+  const nextStart = addDays(today, daysLeft);
+  const thisMonth = monthLong(today);
+  const nextMonth = monthLong(nextStart);
   const impact =
     diff === 0
       ? "none yet"
       : mid
-        ? `${signed((diff * 17) / 31)} in October, then ${signed(diff)} a month`
-        : `${signed(diff)} a month from November`;
+        ? `${signed((diff * daysLeft) / monthDays)} in ${thisMonth}, then ${signed(diff)} a month`
+        : `${signed(diff)} a month from ${nextMonth}`;
   const impactNote = mid
-    ? "Mid-period: 17 of 31 October days at the new rate. The October run is with the owner, so this becomes a retroactive line in November with this reason attached."
-    : "Starts with the November run. Nothing changes in the October run already submitted.";
-
-  const accessLog = [
-    ...log.map((a) => ({ ...a, status: "current" as const })),
-    ...access.map((a) => ({ ...a, what: a.what.replace("{first}", first), status: "default" as const })),
-  ];
+    ? `From today: ${daysLeft} of ${monthDays} ${thisMonth} days at the new rate. A confirmed pay run never changes, so if ${thisMonth}’s run is already confirmed the difference is paid as an adjustment in ${nextMonth}.`
+    : `Starts with the ${nextMonth} run. Nothing changes in ${thisMonth}’s run.`;
 
   return (
     <Card
@@ -154,7 +151,6 @@ export function EmployeeFileCard({
               </Chip>
             </div>
             <span className="text-[13px]">{e.contractDates}</span>
-            <span className="text-xs text-muted">Notice period 30 days · signed copy in Documents</span>
           </Card>
           <Card variant="secondary" className="gap-2 p-[14px] text-sm">
             <div className="flex items-center justify-between gap-2">
@@ -171,19 +167,12 @@ export function EmployeeFileCard({
               </>
             ) : (
               <>
-                <span className="text-[13px]">
-                  None. Clocks in at the kiosk with a PIN and receives payslips by SMS link.
-                </span>
+                <span className="text-[13px]">No linked user account.</span>
                 <div className="flex flex-wrap items-center gap-2">
-                  {loginRequested ? (
-                    <Chip size="sm" variant="soft" color="accent">
-                      Request sent to Didier Mugenzi
-                    </Chip>
-                  ) : (
-                    <Button size="sm" variant="secondary" onPress={onRequestLogin}>
-                      Ask the owner for a login
-                    </Button>
-                  )}
+                  {/* Asking for a login is not available yet (the press says so), so nothing reads "request sent". */}
+                  <Button size="sm" variant="secondary" isDisabled={loginRequested} onPress={onRequestLogin}>
+                    Ask the owner for a login
+                  </Button>
                   <span className="text-xs text-muted">HR cannot grant logins.</span>
                 </div>
               </>
@@ -223,12 +212,7 @@ export function EmployeeFileCard({
               </Table.Content>
             </Table.ScrollContainer>
           </Table>
-          <KeyValueList
-            items={[
-              { label: "Paid by", value: e.payMethod },
-              { label: "Payment details", value: "Confirmed by the employee in the staff app" },
-            ]}
-          />
+          <KeyValueList items={[{ label: "Paid by", value: e.payMethod }]} />
           {proposal === "closed" ? (
             <Button variant="secondary" className="self-start" onPress={() => setProposal("open")}>
               <Pencil className="size-4" />
@@ -250,8 +234,8 @@ export function EmployeeFileCard({
                     value={effective}
                     onChange={(ev) => setEffective(ev.target.value === "mid" ? "mid" : "next")}
                   >
-                    <NativeSelect.Option value="next">1 Nov 2026 · next period</NativeSelect.Option>
-                    <NativeSelect.Option value="mid">15 Oct 2026 · mid-period</NativeSelect.Option>
+                    <NativeSelect.Option value="next">{dayMonthYear(nextStart)} · next period</NativeSelect.Option>
+                    <NativeSelect.Option value="mid">{dayMonthYear(today)} · from today</NativeSelect.Option>
                     <NativeSelect.Indicator />
                   </NativeSelect.Trigger>
                 </NativeSelect>
@@ -271,7 +255,7 @@ export function EmployeeFileCard({
                 </Button>
                 <Button
                   onPress={() =>
-                    toast.danger("Pay change approval is not available yet. This proposal has not been sent or saved.")
+                    toast.warning("Pay change approval is not available yet. This proposal has not been sent or saved.")
                   }
                 >
                   Send to owner for approval
@@ -289,11 +273,12 @@ export function EmployeeFileCard({
             <Alert.Content>
               <Alert.Title>Restricted to HR, the owner and {first}</Alert.Title>
               <Alert.Description>
-                Document downloads and the access log are not available in this interface yet.
+                These are the documents the business asks every employee for. Whether {first} has handed each one in,
+                document downloads and the access log are not available in this interface yet.
               </Alert.Description>
             </Alert.Content>
           </Alert>
-          <ListView aria-label="Documents on file" variant="secondary" items={documents}>
+          <ListView aria-label="Documents the business asks for" variant="secondary" items={documents}>
             {(d) => (
               <ListView.Item id={d.id} textValue={d.title}>
                 <ListView.ItemContent>
@@ -310,7 +295,7 @@ export function EmployeeFileCard({
                     size="sm"
                     variant="secondary"
                     aria-label={`View ${d.title.toLowerCase()}`}
-                    onPress={() => toast.danger("Document viewing is not available yet. No document has been opened.")}
+                    onPress={() => toast.warning("Document viewing is not available yet. No document has been opened.")}
                   >
                     <Eye className="size-4" />
                     View
@@ -320,22 +305,10 @@ export function EmployeeFileCard({
             )}
           </ListView>
           <h3 className="text-[15px] leading-[22px] font-semibold">Access Log</h3>
-          <Timeline size="sm" density="compact" aria-label={`Access log for ${e.name}`}>
-            {accessLog.map((a) => (
-              <Timeline.Item key={a.id} status={a.status}>
-                <Timeline.Rail>
-                  <Timeline.Marker>
-                    <Eye className="size-3" />
-                  </Timeline.Marker>
-                  <Timeline.Connector />
-                </Timeline.Rail>
-                <Timeline.Content className="flex flex-col text-sm">
-                  <span className="font-medium">{a.what}</span>
-                  <span className="text-xs text-muted">{a.when}</span>
-                </Timeline.Content>
-              </Timeline.Item>
-            ))}
-          </Timeline>
+          {/* No route serves who opened this file, so no entry is shown (the sample entries were nobody's). */}
+          <p className="text-[13px] text-muted">
+            Who opened {first}’s file is not shown here yet: the access log is not available in this interface.
+          </p>
         </Tabs.Panel>
 
         <Tabs.Panel id="family" className="flex flex-col gap-4 px-[18px] pt-4 pb-5">
@@ -371,7 +344,7 @@ export function EmployeeFileCard({
                 </EmptyState.Media>
                 <EmptyState.Title>No beneficiaries or dependants</EmptyState.Title>
                 <EmptyState.Description>
-                  {first} can add them from the staff app. HR confirms them against documents.
+                  None recorded for {first}. Adding them from the staff app is not available yet.
                 </EmptyState.Description>
               </EmptyState.Header>
               <EmptyState.Content>
@@ -379,7 +352,7 @@ export function EmployeeFileCard({
                   size="sm"
                   variant="secondary"
                   onPress={() =>
-                    toast.danger("Family record reminders are not available yet. Contact the employee directly.")
+                    toast.warning("Family record reminders are not available yet. Contact the employee directly.")
                   }
                 >
                   Send a reminder
@@ -390,6 +363,9 @@ export function EmployeeFileCard({
         </Tabs.Panel>
 
         <Tabs.Panel id="policies" className="flex flex-col gap-4 px-[18px] pt-4 pb-5">
+          <p className="text-[13px] text-muted">
+            Sample policies: acknowledgements are not recorded per person yet, so none of these is {first}’s.
+          </p>
           <ListView aria-label="Policy acknowledgements" variant="secondary" items={policies}>
             {(p) => (
               <ListView.Item id={p.id} textValue={p.title}>

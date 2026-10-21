@@ -1,9 +1,10 @@
 "use client";
 
+import { Toast } from "@heroui/react";
 import { Sheet } from "@heroui-pro/react";
 import type { StockKey } from "@injishi/data/media";
 import { stock } from "@injishi/data/media";
-import { Photo } from "@injishi/ui";
+import { PhoneBody, PhoneTop, Photo } from "@injishi/ui";
 import { type ComponentPropsWithRef, type ReactNode, useEffect, useRef, useState } from "react";
 import { UNSAFE_PortalProvider } from "react-aria";
 import { createPortal } from "react-dom";
@@ -109,6 +110,23 @@ export function PhoneSheet({
   );
 }
 
+/**
+ * Toasts of a staff phone screen, inside the phone frame and above the tab bar. Every refusal the API sends
+ * back (`reported()`) and every "not available yet" is a toast, so a screen that toasts must render this.
+ */
+export function PhoneToasts() {
+  const { anchor, portal, host } = usePhoneOverlayHost();
+  return (
+    <>
+      {anchor}
+      {portal}
+      <UNSAFE_PortalProvider getContainer={() => host}>
+        <Toast.Provider placement="bottom" className="bottom-[96px] w-[calc(100%-32px)] min-w-0" />
+      </UNSAFE_PortalProvider>
+    </>
+  );
+}
+
 /** Action bar pinned above the tab bar (artifact: the surface row with a top hairline). */
 export function PhoneActionBar({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -191,5 +209,24 @@ export function PhotoTile({
       ) : null}
       {children}
     </figure>
+  );
+}
+
+/**
+ * A phone screen for a person with nothing on it yet (no room today, nothing to inspect, no open order): the
+ * screen says so plainly instead of answering 404 or borrowing a sample record.
+ */
+export function NothingYet({ title, sub, message }: { title: string; sub?: string; message: string }) {
+  return (
+    <>
+      <PhoneTop>
+        <PhoneTitle title={title} sub={sub} />
+      </PhoneTop>
+      <PhoneBody>
+        <p role="status" className="rounded-[14px] bg-surface p-[16px] text-[14px] leading-5 text-muted">
+          {message}
+        </p>
+      </PhoneBody>
+    </>
   );
 }

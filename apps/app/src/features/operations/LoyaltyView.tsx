@@ -6,7 +6,6 @@ import {
   CircleCheckFill,
   CircleInfo,
   CircleMinus,
-  CirclePause,
   Clock,
   Medal,
   PersonPlus,
@@ -29,10 +28,12 @@ import {
   Tabs,
   TextArea,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { KPIGroup, Segment } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import { type Persona, personas, screenHref } from "@injishi/data";
+import { type Persona, screenHref } from "@injishi/data";
 import type {
   LoyaltyCandidate,
   LoyaltyLiability,
@@ -46,7 +47,7 @@ import type {
 } from "@injishi/data/fixtures/operations";
 import { formatNumber, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { Fragment, useState } from "react";
-import { downloadCsv, FieldLabel, FooterHint, FormDialog, firstKey, NOW, nextId, SelectField } from "./shared";
+import { downloadCsv, FieldLabel, FooterHint, FormDialog, firstKey, SelectField } from "./shared";
 
 export interface LoyaltyData {
   programme: LoyaltyProgramme;
@@ -92,11 +93,6 @@ interface Benefit {
   name: string;
   why: string;
   state: BenefitState;
-}
-interface OwnerRequest {
-  points: number;
-  reason: string;
-  note: string;
 }
 
 /** Benefit eligibility of a member, from tier, points and whether redemptions are open. */
@@ -150,59 +146,38 @@ function BenefitIcon({ state }: { state: BenefitState }) {
 
 const signed = (n: number) => `${n < 0 ? "−" : "+"}${fmt(Math.abs(n))}`;
 
-export function LoyaltyView({ persona, data }: { persona: Persona; data: LoyaltyData }) {
+/**
+ * What this screen cannot do yet, said plainly. The programme, its members and its transactions are sample data
+ * (`operations.loyalty*` are deferred: no loyalty tables or routes exist), so enrolling, adjusting points and
+ * pausing redemptions change nothing on screen: no member is added, no points are posted and nobody is asked.
+ */
+const unavailable = (what: string) =>
+  toast.warning(`${what} is not available yet. The loyalty programme is sample data; nothing was recorded.`);
+
+// Loyalty writes would act as the signed-in person; none exists yet.
+export function LoyaltyView({ persona: _persona, data }: { persona: Persona; data: LoyaltyData }) {
   const { programme: p } = data;
-  const candidate = data.candidates[0];
-  const ownerName = personas.owner.name;
   const [tab, setTab] = useState("members");
   const [memberId, setMemberId] = useState(data.members[0]?.id ?? "");
   const [txFilter, setTxFilter] = useState<string>("all");
-  const [redeemOpen, setRedeemOpen] = useState(true);
-  // Enrolment
+  // Enrolment form (never sent: enrolling is not available yet)
   const [enrolOpen, setEnrolOpen] = useState(false);
   const [terms, setTerms] = useState(false);
   const [marketing, setMarketing] = useState(false);
   const [method, setMethod] = useState(CONSENT_METHODS[0].id);
-  const [enrolled, setEnrolled] = useState(false);
-  // Point adjustments
+  // Point adjustment form (never sent: adjusting is not available yet)
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjDirection, setAdjDirection] = useState<"add" | "remove">("add");
   const [adjPoints, setAdjPoints] = useState(500);
   const [adjReason, setAdjReason] = useState(ADJUST_REASONS[0]);
   const [adjNote, setAdjNote] = useState("");
-  const [posted, setPosted] = useState<LoyaltyTransaction[]>([]);
-  const [ownerRequests, setOwnerRequests] = useState<Record<string, OwnerRequest>>({});
 
-  const methodShort = CONSENT_METHODS.find((m) => m.id === method)?.short ?? CONSENT_METHODS[0].short;
-  const enrolledMember: LoyaltyMember | null =
-    enrolled && candidate
-      ? {
-          id: candidate.id,
-          name: candidate.name,
-          initials: candidate.initials,
-          account: candidate.newAccount,
-          tier: "Circle",
-          points: 0,
-          lastActivity: "Enrolled today",
-          programmeConsent: true,
-          marketing,
-          consent: `Accepted v2 today at 11:06 ${method === "desk" ? "at the desk" : methodShort}`,
-          marketingDetail: marketing ? "On · SMS and email" : "Off",
-          stay: candidate.stay,
-        }
-      : null;
-  // Members with adjustments posted on this screen applied.
-  const members = (enrolledMember ? [enrolledMember, ...data.members] : data.members).map((m) => {
-    const mine = posted.filter((t) => t.member === m.name);
-    return mine.length
-      ? { ...m, points: m.points + mine.reduce((a, t) => a + t.points, 0), lastActivity: "Adjusted 12 Oct" }
-      : m;
-  });
+  const candidate = data.candidates[0];
+  const members = data.members;
   const member = members.find((m) => m.id === memberId) ?? members[0];
-  const memberCount = p.members + (enrolledMember ? 1 : 0);
-  const consented = p.consented + (enrolledMember ? 1 : 0);
-  const allTransactions = [...posted, ...data.transactions];
-  const transactions = allTransactions.filter((t) => txFilter === "all" || t.type === txFilter);
+  const memberCount = p.members;
+  const consented = p.consented;
+  const transactions = data.transactions.filter((t) => txFilter === "all" || t.type === txFilter);
 
   const kpis = [
     {
@@ -234,7 +209,7 @@ export function LoyaltyView({ persona, data }: { persona: Persona; data: Loyalty
   ];
   const tabs = [
     { id: "members", label: "Members", count: fmt(memberCount) },
-    { id: "tx", label: "Points transactions", count: `${p.transactionsToday + posted.length} today` },
+    { id: "tx", label: "Points transactions", count: `${p.transactionsToday} today` },
     {
       id: "liab",
       label: "Points liability",
@@ -242,12 +217,7 @@ export function LoyaltyView({ persona, data }: { persona: Persona; data: Loyalty
     },
   ];
 
-  const enrol = () => {
-    setEnrolOpen(false);
-    setEnrolled(true);
-    if (candidate) setMemberId(candidate.id);
-    setTab("members");
-  };
+  const enrol = () => unavailable("Enrolling a guest");
   const exportLiability = () =>
     downloadCsv("amahoro-circle-points-liability.csv", [
       ["Breakdown", "Group", "Points"],
@@ -268,32 +238,12 @@ export function LoyaltyView({ persona, data }: { persona: Persona; data: Loyalty
   const overLimit = adjAmount > MANAGER_LIMIT;
   const overdraw = member ? adjDirection === "remove" && adjAmount > member.points : false;
   const canAdjust = Boolean(member) && adjAmount >= 1 && adjNote.trim().length > 0 && !overdraw;
-  const submitAdjust = () => {
-    if (!member || !canAdjust) return;
-    if (overLimit) {
-      setOwnerRequests((r) => ({ ...r, [member.id]: { points: adjSigned, reason: adjReason, note: adjNote.trim() } }));
-    } else {
-      const tx: LoyaltyTransaction = {
-        id: nextId(
-          "T-",
-          allTransactions.map((t) => t.id),
-        ),
-        when: `12 Oct, ${NOW}`,
-        member: member.name,
-        type: "Adjust",
-        source: adjReason,
-        points: adjSigned,
-        by: persona.name,
-        note: `${adjNote.trim()} · within manager limit of ${fmt(MANAGER_LIMIT)}`,
-      };
-      setPosted((t) => [tx, ...t]);
-    }
-    setAdjustOpen(false);
-  };
-  const request = member ? ownerRequests[member.id] : undefined;
+  const submitAdjust = () =>
+    unavailable(overLimit ? "Sending a points adjustment to the owner" : "Posting a points adjustment");
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <PageHeader
         eyebrow={`${p.name} · run by ${p.operator} · earns at ${p.earnsAt}`}
         title="Loyalty"
@@ -311,23 +261,6 @@ export function LoyaltyView({ persona, data }: { persona: Persona; data: Loyalty
           </>
         }
       />
-
-      {enrolledMember ? (
-        <Alert status="accent" role="status">
-          <Alert.Indicator>
-            <PersonPlus />
-          </Alert.Indicator>
-          <Alert.Content>
-            <Alert.Title>
-              {enrolledMember.name} enrolled · {enrolledMember.account}
-            </Alert.Title>
-            <Alert.Description>
-              Programme consent recorded at 11:06 by {persona.name} ({methodShort}). Marketing messages:{" "}
-              {marketing ? "on" : "off"}. Points start with her current stay once the folio is settled.
-            </Alert.Description>
-          </Alert.Content>
-        </Alert>
-      ) : null}
 
       <section aria-label="Programme figures">
         <KPIGroup className="flex-wrap">
@@ -424,7 +357,7 @@ export function LoyaltyView({ persona, data }: { persona: Persona; data: Loyalty
             <Card.Description>Applied at the desk, in outlets and online</Card.Description>
           </Card.Header>
           <Card.Content className="flex flex-col gap-3">
-            <Switch isSelected={redeemOpen} onChange={setRedeemOpen}>
+            <Switch isSelected onChange={() => unavailable("Pausing redemptions")}>
               <Switch.Content className="text-[14px]">
                 <Switch.Control>
                   <Switch.Thumb />
@@ -432,19 +365,6 @@ export function LoyaltyView({ persona, data }: { persona: Persona; data: Loyalty
                 Redemptions open
               </Switch.Content>
             </Switch>
-            {!redeemOpen ? (
-              <Alert status="warning">
-                <Alert.Indicator>
-                  <CirclePause />
-                </Alert.Indicator>
-                <Alert.Content>
-                  <Alert.Title>Redemptions paused</Alert.Title>
-                  <Alert.Description>
-                    Members still earn. Staff see “Redemptions paused by the general manager” when they try to redeem.
-                  </Alert.Description>
-                </Alert.Content>
-              </Alert>
-            ) : null}
             <KeyValueList
               items={[
                 { label: "Minimum", value: "2,000 points" },
@@ -574,7 +494,7 @@ export function LoyaltyView({ persona, data }: { persona: Persona; data: Loyalty
                 <Separator />
                 <h3 className="text-[15px] leading-[22px] font-semibold">Benefit Eligibility</h3>
                 <ul className="m-0 flex list-none flex-col gap-2 p-0">
-                  {benefitsFor(member, redeemOpen).map((b) => (
+                  {benefitsFor(member, true).map((b) => (
                     <li key={b.name} className="flex items-start gap-2.5">
                       <BenefitIcon state={b.state} />
                       <span className="flex flex-1 flex-col gap-0.5">
@@ -584,29 +504,8 @@ export function LoyaltyView({ persona, data }: { persona: Persona; data: Loyalty
                     </li>
                   ))}
                 </ul>
-                {request ? (
-                  <Alert status="warning" role="status">
-                    <Alert.Indicator>
-                      <Clock />
-                    </Alert.Indicator>
-                    <Alert.Content>
-                      <Alert.Title>
-                        {signed(request.points)} points waiting for {ownerName}
-                      </Alert.Title>
-                      <Alert.Description>
-                        {request.reason}: {request.note}. Sent by {persona.name} at {NOW}; nothing is posted until the
-                        owner approves.
-                      </Alert.Description>
-                    </Alert.Content>
-                  </Alert>
-                ) : null}
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    isDisabled={member.tier === "Pending" || Boolean(request)}
-                    onPress={openAdjust}
-                  >
+                  <Button size="sm" variant="secondary" isDisabled={member.tier === "Pending"} onPress={openAdjust}>
                     Adjust points
                   </Button>
                   <span className="text-[12px] text-muted">
@@ -796,8 +695,8 @@ export function LoyaltyView({ persona, data }: { persona: Persona; data: Loyalty
                 {overdraw
                   ? `Cannot remove more than the ${fmt(member.points)} points on the account`
                   : overLimit
-                    ? `Above ${fmt(MANAGER_LIMIT)} points needs the owner. ${ownerName} gets the request with your note.`
-                    : `Posted now and recorded against ${persona.name}.`}
+                    ? `Above ${fmt(MANAGER_LIMIT)} points needs the owner. Adjusting points is not available yet.`
+                    : "Adjusting points is not available yet: the programme is sample data."}
               </FooterHint>
               <Button variant="secondary" onPress={() => setAdjustOpen(false)}>
                 Cancel

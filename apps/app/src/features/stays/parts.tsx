@@ -11,10 +11,8 @@ export function rwf(n: number): string {
   return n < 0 ? `− ${formatRwf(-n)}` : formatRwf(n);
 }
 
-/** Digits of a typed amount ("12,000" → 12000). */
-export function parseAmount(v: string): number {
-  return Number.parseInt(v.replace(/[^0-9]/g, ""), 10) || 0;
-}
+/** Whole francs of a typed amount ("12,000" → 12000); a decimal part is refused, never folded in. */
+export { parseAmount, readFrancs } from "@/lib/francs";
 
 /** Status chip from a semantic tone (artifact: chip chip--{tone} chip--soft|tertiary). */
 export function ToneChip({

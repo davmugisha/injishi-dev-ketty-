@@ -33,6 +33,7 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  toast,
 } from "@heroui/react";
 import { ItemCard, ListView, Segment, Timeline } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
@@ -46,12 +47,11 @@ import type {
   MinibarItem,
   StaffProfile,
 } from "@injishi/data/fixtures/staff";
-import { stock } from "@injishi/data/media";
-import { Icon, LinkButton, PhoneBody, PhoneTop, Photo, toneColor } from "@injishi/ui";
+import { Icon, LinkButton, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
 import { useState, useTransition } from "react";
 import { reported } from "../operations/shared";
 import { logRoomFoundItemAction, moveRoomTaskAction, sendMinibarCountAction, setRoomCheckAction } from "./actions";
-import { kigaliClock, PhoneActionBar, PhoneSheet, PhoneTitle, renderSection, ToneTile } from "./parts";
+import { kigaliClock, PhoneActionBar, PhoneSheet, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "./parts";
 
 export interface StaffTaskData {
   rooms: CleaningRoom[];
@@ -59,11 +59,25 @@ export interface StaffTaskData {
   sections: ChecklistSection[];
   minibar: MinibarItem[];
   spots: FoundItemSpot[];
-  found: FoundItem;
-  profile: StaffProfile;
+  /** Items already logged to Lost and found from the person's rooms, as the register holds them (never a form default). */
+  found: FoundItem[];
+  /** The caller's own profile from their HR file; null when none is on file (never another person's). */
+  profile: StaffProfile | null;
+  /** Today's housekeeping supervisor as the API names them, or null when it names nobody. */
+  supervisor: string | null;
 }
 
 type RoomStatus = CleaningRoom["status"];
+
+/** With no signal nothing is kept on the phone, so nothing is pretended: the person is told it was not saved. */
+/**
+ * Which finished cleans wait for a supervisor: the API sets the room Clean (waiting for inspection) only after a checkout, a
+ * deep clean or a re-clean. A stayover or a turndown is recorded as done and changes nothing the desk sells, so
+ * no inspection is claimed for it.
+ */
+const awaitsInspection = (kind: string) => kind === "Checkout" || kind === "Deep clean" || kind === "Re-clean";
+
+const NO_SIGNAL = "No signal: this was not saved and is not kept on the phone. Do it again when you have signal.";
 
 /** Housekeeper's room task: checklist, minibar count, found items and "mark clean" (artifact: StaffTask). */
 export function StaffTaskView({
@@ -75,25 +89,34 @@ export function StaffTaskView({
   data: StaffTaskData;
   offline?: boolean;
 }) {
-  const { rooms, finished, sections, minibar, spots, found, profile } = data;
+  const { rooms, finished, sections, minibar, spots, profile, supervisor } = data;
+  /** The supervisor's first name as the API gives it, or "your supervisor": never a name the screen made up. */
+  const boss = supervisor?.split(" ")[0] || "your supervisor";
+  const Boss = supervisor?.split(" ")[0] || "Your supervisor";
   const [view, setView] = useState<"task" | "rooms">("task");
-  const [roomNo, setRoomNo] = useState(() => (rooms.find((r) => r.status === "cleaning") ?? rooms[0]).no);
+  // The room in progress is the one whose minibar count the API holds (staff.minibarItems); another room starts at 0.
+  const [taskRoom] = useState(() => (rooms.find((r) => r.status === "cleaning") ?? rooms[0]).no);
+  const [roomNo, setRoomNo] = useState(taskRoom);
   const [status, setStatus] = useState<Record<string, RoomStatus>>(() =>
     Object.fromEntries(rooms.map((r) => [r.no, r.status])),
   );
   const [checks, setChecks] = useState<Set<string>>(
     () => new Set(rooms.flatMap((r) => r.ticked.map((id) => `${r.no}:${id}`))),
   );
-  const [paused, setPaused] = useState(false);
   const [used, setUsed] = useState<Record<string, number>>(() =>
     Object.fromEntries(minibar.map((m) => [m.id, m.used])),
   );
   const [miniSent, setMiniSent] = useState<string | null>(null);
   const [sheet, setSheet] = useState<"" | "confirm" | "found">("");
-  const [spot, setSpot] = useState(found.spot);
-  const [foundPhoto, setFoundPhoto] = useState(true);
-  const [foundText, setFoundText] = useState(found.description);
-  const [foundLogged, setFoundLogged] = useState<{ ref: string; name: string } | null>(null);
+  // The found-item form starts empty: what the person types and the spot they pick is all that is sent.
+  const [spot, setSpot] = useState("");
+  const [foundText, setFoundText] = useState("");
+  const [foundLogged, setFoundLogged] = useState<{
+    ref: string;
+    name: string;
+    spot: string;
+    holder: string | null;
+  } | null>(null);
   const [cleanedAt, setCleanedAt] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
 
@@ -127,15 +150,15 @@ export function StaffTaskView({
       return next;
     });
   const toggleCheck = (key: string, itemId: string, on: boolean) => {
+    if (offline) return toast.warning(NO_SIGNAL);
     setCheck(key, on);
-    if (offline) return;
     startTransition(async () => {
       if (!reported(await setRoomCheckAction(r.id, itemId, on))) setCheck(key, !on);
     });
   };
 
   const moveRoom = (to: "in_progress" | "done", after: () => void) => {
-    if (offline) return after();
+    if (offline) return toast.warning(NO_SIGNAL);
     startTransition(async () => {
       if (reported(await moveRoomTaskAction(r.id, to))) after();
     });
@@ -143,12 +166,11 @@ export function StaffTaskView({
   const finish = () =>
     moveRoom("done", () => {
       setSheet("");
-      setPaused(false);
       setCleanedAt((c) => ({ ...c, [r.no]: kigaliClock() }));
       setStatus((s) => ({ ...s, [r.no]: "done" }));
     });
   const sendMinibar = () => {
-    if (offline) return setMiniSent(kigaliClock());
+    if (offline) return toast.warning(NO_SIGNAL);
     startTransition(async () => {
       const counts = minibar.map((m) => ({ itemId: m.id, used: used[m.id] ?? 0 }));
       if (reported(await sendMinibarCountAction(r.id, counts))) setMiniSent(kigaliClock());
@@ -156,16 +178,19 @@ export function StaffTaskView({
   };
   const logFound = () => {
     const name = foundText.split(",")[0]?.trim() || foundText.trim();
-    if (offline) {
-      setSheet("");
-      setFoundLogged({ ref: "not sent yet", name });
-      return;
-    }
+    if (offline) return toast.warning(NO_SIGNAL);
     startTransition(async () => {
       const result = await logRoomFoundItemAction(r.id, { description: foundText, spot: spotPhrase });
       if (!reported(result) || !result.ok) return;
       setSheet("");
-      setFoundLogged({ ref: result.value, name });
+      setFoundLogged({
+        ref: result.value.reference,
+        name,
+        spot: spotPhrase,
+        holder: result.value.custodianName?.split(" ")[0] ?? null,
+      });
+      setFoundText("");
+      setSpot("");
     });
   };
   const doneAt = cleanedAt[r.no] ?? kigaliClock();
@@ -173,14 +198,10 @@ export function StaffTaskView({
 
   const statusChip =
     roomStatus === "cleaning"
-      ? paused
-        ? { label: "Paused", color: "default" as const }
-        : { label: "Cleaning", color: "accent" as const }
+      ? { label: "Cleaning", color: "accent" as const }
       : roomStatus === "waiting"
         ? { label: "Waiting", color: "default" as const }
-        : offline
-          ? { label: "Not sent yet", color: "warning" as const }
-          : { label: "Clean", color: "success" as const };
+        : { label: "Clean", color: "success" as const };
 
   const nextRoom = rooms.find((x) => x.no !== r.no && status[x.no] !== "done");
   const todo = rooms.filter((x) => status[x.no] !== "done");
@@ -190,14 +211,22 @@ export function StaffTaskView({
       id: x.id,
       no: x.no,
       kind: x.kind,
-      when: offline ? "Just now · saved on phone" : "Just now · waiting for inspection",
-      state: offline ? "Not sent yet" : "Clean",
-      stateTone: offline ? ("warning" as const) : ("success" as const),
+      when: awaitsInspection(x.kind) ? "Just now · waiting for inspection" : "Just now",
+      state: "Clean",
+      stateTone: "success" as const,
     }));
   const fin = [...finishedNow, ...finished];
   const spotPhrase = spots.find((s) => s.id === spot)?.phrase ?? spot;
 
   const openRoom = (no: string) => {
+    if (no !== roomNo) {
+      // A count, a found item and their results belong to one room: another room never shows them as its own.
+      setUsed(Object.fromEntries(minibar.map((m) => [m.id, no === taskRoom ? m.used : 0])));
+      setMiniSent(null);
+      setFoundLogged(null);
+      setFoundText("");
+      setSpot("");
+    }
     setRoomNo(no);
     setView("task");
     setSheet("");
@@ -218,7 +247,11 @@ export function StaffTaskView({
         </LinkButton>
         <PhoneTitle
           title={isTask ? `Room ${r.no}` : "My rooms"}
-          sub={isTask ? `${r.kind} · ${r.type} · ${r.floor}` : `${persona.name} · ${profile.area} · ${profile.site}`}
+          sub={
+            isTask
+              ? `${r.kind} · ${r.type} · ${r.floor}`
+              : [persona.name, profile?.area, profile?.site].filter(Boolean).join(" · ")
+          }
         />
         <LinkButton
           href={screenHref("StaffReport")}
@@ -261,7 +294,7 @@ export function StaffTaskView({
             <Alert.Content>
               <Alert.Title>No connection</Alert.Title>
               <Alert.Description>
-                Keep working. Ticks and reports are saved on this phone and send when signal is back.
+                Nothing is saved on this phone. Ticks, counts and found items are sent only when there is signal.
               </Alert.Description>
             </Alert.Content>
           </Alert>
@@ -340,7 +373,7 @@ export function StaffTaskView({
                     Minibar count
                   </h2>
                   <span className="text-xs leading-4 text-muted">
-                    Count what was used. Front desk checks it and decides any charge.
+                    Count what was used. It is recorded with this room; the phone makes no charge.
                   </span>
                 </div>
                 <Chip size="sm" variant="soft">
@@ -372,22 +405,18 @@ export function StaffTaskView({
               ))}
               {miniSent ? (
                 <>
-                  <Alert status={offline ? "warning" : "success"} role="status">
-                    <Alert.Indicator>{offline ? <CloudSlash /> : <CircleCheck />}</Alert.Indicator>
+                  <Alert status="success" role="status">
+                    <Alert.Indicator>
+                      <CircleCheck />
+                    </Alert.Indicator>
                     <Alert.Content>
                       <Alert.Title>
-                        {offline
-                          ? "Saved on phone · will send"
-                          : usedTotal
-                            ? `Sent to front desk at ${miniSent}`
-                            : `Nothing used · sent at ${miniSent}`}
+                        {usedTotal ? `Count recorded at ${miniSent}` : `Nothing used · recorded at ${miniSent}`}
                       </Alert.Title>
                       <Alert.Description>
-                        {offline
-                          ? "Front desk gets the count when you are back online."
-                          : usedTotal
-                            ? `${usedTotal} items reported. Eric checks the folio; you do not take any money.`
-                            : "Front desk will not add minibar charges for this stay."}
+                        {usedTotal
+                          ? `${usedTotal} items recorded with room ${r.no}. No charge is made from the phone; you do not take any money.`
+                          : `Recorded with room ${r.no} as nothing used. No charge is made from the phone.`}
                       </Alert.Description>
                     </Alert.Content>
                   </Alert>
@@ -405,7 +434,7 @@ export function StaffTaskView({
                   onPress={sendMinibar}
                 >
                   <PaperPlane className="size-4" />
-                  Send count to front desk
+                  Send count
                 </Button>
               )}
             </Card>
@@ -430,6 +459,28 @@ export function StaffTaskView({
                   Report a problem
                 </LinkButton>
               </div>
+              {data.found
+                .filter((f) => f.room === r.no && f.ref !== foundLogged?.ref)
+                .map((f) => (
+                  <ItemCard key={f.id} variant="secondary">
+                    <ItemCard.Icon>
+                      <Box />
+                    </ItemCard.Icon>
+                    <ItemCard.Content>
+                      <ItemCard.Title>
+                        {f.name} · {f.ref}
+                      </ItemCard.Title>
+                      <ItemCard.Description className="whitespace-normal">
+                        Already in Lost and found from this room
+                      </ItemCard.Description>
+                    </ItemCard.Content>
+                    <ItemCard.Action>
+                      <Chip size="sm" variant="soft">
+                        Logged
+                      </Chip>
+                    </ItemCard.Action>
+                  </ItemCard>
+                ))}
               {foundLogged ? (
                 <ItemCard variant="secondary">
                   <ItemCard.Icon>
@@ -440,12 +491,14 @@ export function StaffTaskView({
                       {foundLogged.name} · {foundLogged.ref}
                     </ItemCard.Title>
                     <ItemCard.Description className="whitespace-normal">
-                      Found in the {spotPhrase} · with you until you hand it to {found.holder}
+                      {foundLogged.holder
+                        ? `Found in the ${foundLogged.spot} · with you until you hand it to ${foundLogged.holder}`
+                        : `Found in the ${foundLogged.spot} · the register names nobody to hand it to yet`}
                     </ItemCard.Description>
                   </ItemCard.Content>
                   <ItemCard.Action>
-                    <Chip size="sm" variant="soft" color={offline ? "warning" : "default"}>
-                      {offline ? "Not sent yet" : "Logged"}
+                    <Chip size="sm" variant="soft">
+                      Logged
                     </Chip>
                   </ItemCard.Action>
                 </ItemCard>
@@ -456,54 +509,60 @@ export function StaffTaskView({
 
         {isTask && roomStatus === "done" ? (
           <Card render={renderSection} className="gap-[14px] p-[20px]" aria-labelledby="done-h">
-            <ToneTile tone={offline ? "warning" : "success"}>{offline ? <CloudSlash /> : <CircleCheck />}</ToneTile>
+            <ToneTile tone="success">
+              <CircleCheck />
+            </ToneTile>
             <div className="flex flex-col gap-1">
               <h2 id="done-h" className="text-xl leading-[26px] font-semibold">
                 Room {r.no} marked clean
               </h2>
               <p className="text-muted">
-                {offline
-                  ? `Saved on this phone at ${doneAt}. Front desk still sees the room as dirty until it sends.`
-                  : `Sent at ${doneAt}. Front desk sees it as Clean, not Ready. It becomes Ready after Beatrice inspects it.`}
+                {awaitsInspection(r.kind)
+                  ? `Sent at ${doneAt}. Front desk sees it as Clean. A supervisor inspects it next.`
+                  : `Sent at ${doneAt}. Recorded as ${r.kind.toLowerCase()} done. It needs no inspection, and the room's status does not change.`}
               </p>
             </div>
             <Timeline size="sm" density="compact">
-              <Timeline.Item status={offline ? "warning" : "success"}>
+              <Timeline.Item status="success">
                 <Timeline.Rail>
-                  <Timeline.Marker>{offline ? <CloudSlash /> : <Check />}</Timeline.Marker>
+                  <Timeline.Marker>
+                    <Check />
+                  </Timeline.Marker>
                   <Timeline.Connector />
                 </Timeline.Rail>
                 <Timeline.Content>
                   <span className="font-medium">Cleaned by you</span>
-                  <span className="text-xs leading-4 text-muted">
-                    {offline ? `${doneAt} · waiting for signal` : `${doneAt} · ${doneN} of ${totalN} checks ticked`}
-                  </span>
+                  <span className="text-xs leading-4 text-muted">{`${doneAt} · ${doneN} of ${totalN} checks ticked`}</span>
                 </Timeline.Content>
               </Timeline.Item>
-              <Timeline.Item status={offline ? "default" : "current"}>
-                <Timeline.Rail>
-                  <Timeline.Marker>
-                    <CheckDouble />
-                  </Timeline.Marker>
-                  <Timeline.Connector />
-                </Timeline.Rail>
-                <Timeline.Content>
-                  <span className="font-medium">Inspection by Beatrice</span>
-                  <span className="text-xs leading-4 text-muted">Required before the room can be sold</span>
-                </Timeline.Content>
-              </Timeline.Item>
-              <Timeline.Item status="default">
-                <Timeline.Rail>
-                  <Timeline.Marker>
-                    <Key />
-                  </Timeline.Marker>
-                  <Timeline.Connector />
-                </Timeline.Rail>
-                <Timeline.Content>
-                  <span className="font-medium">Ready for front desk</span>
-                  <span className="text-xs leading-4 text-muted">{r.arrival}</span>
-                </Timeline.Content>
-              </Timeline.Item>
+              {awaitsInspection(r.kind) ? (
+                <>
+                  <Timeline.Item status="current">
+                    <Timeline.Rail>
+                      <Timeline.Marker>
+                        <CheckDouble />
+                      </Timeline.Marker>
+                      <Timeline.Connector />
+                    </Timeline.Rail>
+                    <Timeline.Content>
+                      <span className="font-medium">Inspection by a supervisor</span>
+                      <span className="text-xs leading-4 text-muted">Passes it as Inspected or returns it</span>
+                    </Timeline.Content>
+                  </Timeline.Item>
+                  <Timeline.Item status="default">
+                    <Timeline.Rail>
+                      <Timeline.Marker>
+                        <Key />
+                      </Timeline.Marker>
+                      <Timeline.Connector />
+                    </Timeline.Rail>
+                    <Timeline.Content>
+                      <span className="font-medium">Ready for front desk</span>
+                      <span className="text-xs leading-4 text-muted">{r.arrival}</span>
+                    </Timeline.Content>
+                  </Timeline.Item>
+                </>
+              ) : null}
             </Timeline>
             {nextRoom ? (
               <Button size="lg" fullWidth className="min-h-14" onPress={() => openRoom(nextRoom.no)}>
@@ -520,7 +579,7 @@ export function StaffTaskView({
         {!isTask ? (
           <>
             <p className="text-[13px] leading-[18px] text-muted">
-              Only rooms Beatrice assigned to you today. If a room is missing, ask her to add it.
+              Only rooms assigned to you today. If a room is missing, ask {boss} to add it.
             </p>
             <section className="flex flex-col gap-[8px]" aria-labelledby="todo-h">
               <h2 id="todo-h" className="text-[15px] leading-[22px] font-semibold">
@@ -582,14 +641,16 @@ export function StaffTaskView({
             size="lg"
             isIconOnly
             className="h-14 w-14"
-            aria-label={paused ? "Resume timer" : "Pause timer"}
-            onPress={() => setPaused((p) => !p)}
+            aria-label="Pause timer"
+            onPress={() =>
+              toast.warning("Pausing the room timer is not available yet. The time runs until you mark the room clean.")
+            }
           >
-            {paused ? <CirclePlay className="size-5" /> : <CirclePause className="size-5" />}
+            <CirclePause className="size-5" />
           </Button>
           <span className="flex min-w-[72px] flex-col" role="timer" aria-label="Time in room">
             <span className="text-[17px] leading-[22px] font-semibold tabular">{r.timer}</span>
-            <span className="text-[11px] leading-[14px] text-muted">{paused ? "Paused" : r.started}</span>
+            <span className="text-[11px] leading-[14px] text-muted">{r.started}</span>
           </span>
           <Button size="lg" className="min-h-14 flex-1" isDisabled={pending} onPress={markClean}>
             <Check className="size-4" />
@@ -615,7 +676,7 @@ export function StaffTaskView({
         isOpen={sheet === "confirm"}
         onOpenChange={(open) => !open && setSheet("")}
         heading={`${left.length} checks not ticked`}
-        description="Beatrice sees anything you skip when she inspects the room."
+        description={`${Boss} sees anything you skip when the room is inspected.`}
       >
         <ul className="flex flex-col gap-[8px]">
           {left.map((label) => (
@@ -639,27 +700,26 @@ export function StaffTaskView({
         heading={`Found an item in room ${r.no}`}
         description="It goes to Lost and found with you as the first person holding it."
       >
-        {foundPhoto ? (
-          <div className="flex items-center gap-[12px]">
-            <Photo image={stock[found.photo]} className="h-[72px] w-[96px] shrink-0 rounded-[14px]" sizes="96px" />
-            <div className="flex flex-1 flex-col gap-[2px]">
-              <span className="font-medium">Photo taken</span>
-              <span className="text-xs text-muted">Small file · sends on weak signal</span>
-            </div>
-            <Button variant="ghost" className="min-h-11" onPress={() => setFoundPhoto(false)}>
-              <Camera className="size-4" />
-              Retake
-            </Button>
-          </div>
-        ) : (
-          <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setFoundPhoto(true)}>
+        <div className="flex flex-col gap-[4px]">
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            className="min-h-14"
+            onPress={() =>
+              toast.warning("A photo cannot be logged with a found item yet. Say what it is and where it was.")
+            }
+          >
             <Camera className="size-4" />
             Take a photo of the item
           </Button>
-        )}
+          <span className="text-xs leading-4 text-muted">
+            Not available yet: the register takes no photo from the phone.
+          </span>
+        </div>
         <TextField value={foundText} onChange={setFoundText} fullWidth className="flex flex-col gap-1">
           <Label>What is it?</Label>
-          <Input className="min-h-11" />
+          <Input className="min-h-11" placeholder="Phone charger, white" />
         </TextField>
         <div className="flex flex-col gap-[6px]">
           <span className="text-sm font-medium" id="fd-where">
@@ -670,7 +730,7 @@ export function StaffTaskView({
             selectionMode="single"
             disallowEmptySelection
             isDetached
-            selectedKeys={[spot]}
+            selectedKeys={spot ? [spot] : []}
             onSelectionChange={(keys) => {
               const k = [...keys][0];
               if (k) setSpot(String(k));
@@ -686,17 +746,24 @@ export function StaffTaskView({
         </div>
         <p className="flex items-start gap-[8px] text-xs leading-4 text-muted">
           <ShieldExclamation className="mt-[1px] size-4 shrink-0" aria-hidden="true" />
-          <span>Cash, passports or jewellery: do not move them. Call Beatrice to the room.</span>
+          <span>Cash, passports or jewellery: do not move them. Call {boss} to the room.</span>
         </p>
         <div className="grid grid-cols-[1fr_2fr] gap-[8px]">
           <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSheet("")}>
             Cancel
           </Button>
-          <Button size="lg" fullWidth className="min-h-14" isDisabled={pending || !foundText.trim()} onPress={logFound}>
+          <Button
+            size="lg"
+            fullWidth
+            className="min-h-14"
+            isDisabled={pending || !foundText.trim() || !spot}
+            onPress={logFound}
+          >
             Log the item
           </Button>
         </div>
       </PhoneSheet>
+      <PhoneToasts />
     </>
   );
 }

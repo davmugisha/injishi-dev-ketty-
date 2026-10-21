@@ -69,13 +69,12 @@ export function isReady(status: RoomStatus | null | undefined): boolean {
 }
 
 /**
- * Where a booking opens: its full record when the database has one, otherwise the reservations
- * list with that booking selected in the inspector.
+ * Where a booking opens: the reservations list with that booking selected in the inspector, which reads
+ * the booking from the API. The full reservation record (/reservations/[id]) is still the prototype's
+ * sample (frontdesk.reservationRecords is deferred), so a booking is never routed there by its reference.
  */
-export function bookingHref(bookingId: string, recordIds: readonly string[]): string {
-  return recordIds.includes(bookingId)
-    ? `${screenHref("Reservations")}/${bookingId}`
-    : `${screenHref("Reservations")}?booking=${encodeURIComponent(bookingId)}`;
+export function bookingHref(bookingId: string): string {
+  return `${screenHref("Reservations")}?booking=${encodeURIComponent(bookingId)}`;
 }
 
 /** "1 night" / "2 nights". */

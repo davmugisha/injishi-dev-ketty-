@@ -1,24 +1,22 @@
 "use client";
 
 import { ChevronDown, ShieldExclamation, ShieldKeyhole } from "@gravity-ui/icons";
-import { Button, Card, Chip, ListBox } from "@heroui/react";
+import { Button, Card, ListBox } from "@heroui/react";
 import { CellSelect, CellSwitch } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type { AuditLogRetentionRule } from "@injishi/data/fixtures/owner";
 import { GateChip, SectionHeader, TextLink } from "@injishi/ui";
 
-/** Retention settings being edited, the last saved baseline, and the entry recorded by the last save. */
+/** Retention settings being edited and the baseline they started from (nothing is saved yet). */
 export interface AuditLogRetentionState {
   values: Record<string, string>;
   hold: boolean;
   saved: { values: Record<string, string>; hold: boolean };
-  /** Entry number of the last save, shown until the next edit; null when nothing was just saved. */
-  savedEntry: string | null;
 }
 
 export function auditLogRetentionInitial(rules: AuditLogRetentionRule[]): AuditLogRetentionState {
   const values = Object.fromEntries(rules.map((r) => [r.id, r.value]));
-  return { values, hold: false, saved: { values, hold: false }, savedEntry: null };
+  return { values, hold: false, saved: { values, hold: false } };
 }
 
 export function auditLogRetentionDirty(rules: AuditLogRetentionRule[], s: AuditLogRetentionState): boolean {
@@ -27,7 +25,7 @@ export function auditLogRetentionDirty(rules: AuditLogRetentionRule[], s: AuditL
 
 /**
  * "Retention policy" tab: how long each kind of record is kept, the legal hold, and what happens when
- * a period ends. Saving makes the edited values the new baseline and is itself an audit entry.
+ * a period ends. Saving is not available yet (no route stores retention rules): edits stay unsaved on screen.
  */
 export function AuditLogRetention({
   rules,
@@ -41,8 +39,7 @@ export function AuditLogRetention({
   onSave: () => void;
 }) {
   const dirty = auditLogRetentionDirty(rules, state);
-  const setValue = (id: string, value: string) =>
-    onChange({ ...state, values: { ...state.values, [id]: value }, savedEntry: null });
+  const setValue = (id: string, value: string) => onChange({ ...state, values: { ...state.values, [id]: value } });
 
   return (
     <div className="flex flex-wrap items-start gap-4">
@@ -98,7 +95,7 @@ export function AuditLogRetention({
           <CellSwitch
             variant="secondary"
             isSelected={state.hold}
-            onChange={(on) => onChange({ ...state, hold: on, savedEntry: null })}
+            onChange={(on) => onChange({ ...state, hold: on })}
             className="w-full"
           >
             <CellSwitch.Trigger>
@@ -134,11 +131,6 @@ export function AuditLogRetention({
               </TextLink>
             </li>
           </ul>
-          {state.savedEntry ? (
-            <Chip color="success" variant="soft" className="self-start">
-              Saved 10:42 · entry #{state.savedEntry}
-            </Chip>
-          ) : null}
         </Card>
       </section>
     </div>

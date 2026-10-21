@@ -35,7 +35,6 @@ import type { Persona } from "@injishi/data";
 import type {
   LeaveApprover,
   LeaveBalance,
-  LeaveDraft,
   LeaveType,
   RequestStatus,
   Shift,
@@ -47,17 +46,17 @@ import { GateChip, Icon, KeyValueList, PhoneBody, PhoneTop, toneColor } from "@i
 import { type ReactNode, useState, useTransition } from "react";
 import { reported } from "../operations/shared";
 import { askLeaveAction, cancelRequestAction } from "./actions";
-import { PhoneSheet, PhoneTitle, renderArticle, renderSection } from "./parts";
+import { PhoneSheet, PhoneTitle, PhoneToasts, renderArticle, renderSection } from "./parts";
 
 export interface StaffScheduleData {
-  profile: StaffProfile;
+  /** The caller's own profile; null when none is on file (never another person's). */
+  profile: StaffProfile | null;
   shifts: Shift[];
   colleagues: SwapColleague[];
   requests: StaffRequest[];
   leaveTypes: LeaveType[];
   balance: LeaveBalance;
   approvers: LeaveApprover[];
-  draft: LeaveDraft;
 }
 
 type Tab = "shifts" | "leave" | "requests";
@@ -116,19 +115,43 @@ function spanLabel(from: Date | null, to: Date | null): string {
     : `${from.getUTCDate()} ${MONTH_NAMES[from.getUTCMonth()]} – ${end}`;
 }
 
-const NOT_YET_SWAP = "Swaps cannot be asked from the phone yet. Ask Beatrice to arrange it.";
+/** "15 Dec 2026" or "Tue 15 Dec 2026", as the leave form shows a date, at noon UTC; null when unreadable. */
+function formDay(text: string): Date | null {
+  const m = text.trim().match(/(\d{1,2}) ([A-Z][a-z]{2})[a-z]* (\d{4})$/);
+  const month = m ? MONTHS.indexOf(m[2] as string) : -1;
+  if (!m || month < 0) return null;
+  return new Date(Date.UTC(Number(m[3]), month, Number(m[1]), 12));
+}
+
+/** Monday to Friday from one date to another, both counted; null when either is unreadable or they run backwards. */
+function weekdaysBetween(from: string, to: string): number | null {
+  const a = formDay(from);
+  const b = formDay(to);
+  if (!a || !b || b < a) return null;
+  let n = 0;
+  for (let d = a.getTime(); d <= b.getTime(); d += 86_400_000) {
+    const day = new Date(d).getUTCDay();
+    if (day !== 0 && day !== 6) n++;
+  }
+  return n;
+}
 
 /** Shifts, leave and requests of a staff member (artifact: StaffSchedule). */
 export function StaffScheduleView({ persona, data }: { persona: Persona; data: StaffScheduleData }) {
-  const { profile, shifts, colleagues, leaveTypes, balance, approvers, draft } = data;
+  const { profile, shifts, colleagues, leaveTypes, balance, approvers } = data;
+  // The line manager the API names as the first approver, or plain words when it names nobody.
+  const manager = approvers.find((a) => a.role === "Your line manager")?.name.split(" ")[0] ?? "";
+  const boss = manager || "your line manager";
+  const notYetSwap = `Swaps cannot be asked from the phone yet. Ask ${boss} to arrange it.`;
   const [tab, setTab] = useState<Tab>("shifts");
   const [week, setWeek] = useState(0);
   const [swapFor, setSwapFor] = useState<string | null>(null);
   const [mate, setMate] = useState(colleagues[0]?.id ?? "");
   const [leaveType, setLeaveType] = useState(leaveTypes[0]?.id ?? "annual");
-  const [note, setNote] = useState(draft.note);
-  const [from, setFrom] = useState(draft.from);
-  const [to, setTo] = useState(draft.to);
+  // The form starts empty: only what the person types is sent.
+  const [note, setNote] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [justSent, setJustSent] = useState("");
   const swapped: Record<string, string> = Object.fromEntries(
     shifts.filter((s) => s.swapPendingWith).map((s) => [s.id, s.swapPendingWith ?? ""]),
@@ -139,10 +162,15 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
   const open = requests.filter((q) => q.status === "manager" || q.status === "colleague").length;
   const pendingDays = requests.filter((q) => q.status === "manager").reduce((a, q) => a + q.days, 0);
   const type = leaveTypes.find((t) => t.id === leaveType) ?? leaveTypes[0];
-  const left = balance.left - pendingDays - draft.workingDays;
-  const afterText = type.usesBalance
-    ? `If approved, with the ${pendingDays} days already asked for, you have ${fmtDays(left)} days left.`
-    : "This does not change your annual leave balance.";
+  // Counted here from the dates typed; HR counts again on approval (rostered days, public holidays).
+  const asked = weekdaysBetween(from, to);
+  const left = balance.left - pendingDays - (asked ?? 0);
+  const afterText =
+    asked === null
+      ? "Write both dates as “15 Dec 2026” to see the days."
+      : type.usesBalance
+        ? `About ${asked} weekdays. If approved, with the ${pendingDays} days already asked for, you have ${fmtDays(left)} days left. HR counts your rostered days and public holidays.`
+        : "This does not change your annual leave balance.";
 
   const weekShifts = shifts.filter((s) => s.week === 0);
   const firstDay = dayOf(weekShifts[0]?.long ?? "");
@@ -162,7 +190,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
 
   const sendSwap = () => {
     setSwapFor(null);
-    toast.danger(NOT_YET_SWAP);
+    toast.danger(notYetSwap);
   };
 
   const sendLeave = () => {
@@ -170,7 +198,12 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
     startTransition(async () => {
       if (!reported(await askLeaveAction({ leaveTypeId: type.id, from, to, reason }))) return;
       setTab("requests");
-      setJustSent("Beatrice gets it first. Diane (HR) checks your balance after she approves.");
+      setFrom("");
+      setTo("");
+      setNote("");
+      setJustSent(
+        approvers.length ? `Sent for approval: ${approvers.map((a) => a.name).join(", then ")}.` : "Sent for approval.",
+      );
     });
   };
 
@@ -187,7 +220,10 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
         <Avatar size="sm" variant="soft" color="accent">
           <Avatar.Fallback>{persona.initials}</Avatar.Fallback>
         </Avatar>
-        <PhoneTitle title="My schedule" sub={`${persona.name} · ${profile.department} · ${profile.site}`} />
+        <PhoneTitle
+          title="My schedule"
+          sub={[persona.name, profile?.department, profile?.site].filter(Boolean).join(" · ")}
+        />
       </PhoneTop>
 
       <div className="shrink-0 px-[16px] pb-[8px]">
@@ -308,7 +344,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                   }}
                 </ListView>
                 <p className="text-xs leading-4 text-muted">
-                  Need a day off instead? Use Leave. Swaps need your colleague to agree, then Beatrice approves.
+                  Need a day off instead? Use Leave. Swaps need your colleague to agree, then {boss} approves.
                 </p>
               </>
             ) : (
@@ -320,7 +356,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                     </EmptyState.Media>
                     <EmptyState.Title>Not published yet</EmptyState.Title>
                     <EmptyState.Description>
-                      Beatrice publishes next week's roster by Thursday. You get a message when it is ready.
+                      Next week's shifts show here once the roster is published.
                     </EmptyState.Description>
                   </EmptyState.Header>
                 </EmptyState>
@@ -343,7 +379,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
               </div>
               <Meter
                 aria-label="Annual leave used"
-                value={Math.round((balance.used / balance.entitlement) * 100)}
+                value={balance.entitlement > 0 ? Math.round((balance.used / balance.entitlement) * 100) : 0}
                 valueLabel={`${pendingDays} days asked for`}
                 className="flex flex-col gap-[6px]"
               >
@@ -403,11 +439,11 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
               <div className="grid grid-cols-2 gap-[8px]">
                 <TextField value={from} onChange={setFrom} fullWidth className="flex flex-col gap-1">
                   <Label>From</Label>
-                  <Input className="min-h-11" />
+                  <Input className="min-h-11" placeholder="15 Dec 2026" />
                 </TextField>
                 <TextField value={to} onChange={setTo} fullWidth className="flex flex-col gap-1">
                   <Label>To</Label>
-                  <Input className="min-h-11" />
+                  <Input className="min-h-11" placeholder="19 Dec 2026" />
                 </TextField>
               </div>
               <Alert>
@@ -415,7 +451,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
                   <Calculator />
                 </Alert.Indicator>
                 <Alert.Content>
-                  <Alert.Title>{draft.workingDays} working days</Alert.Title>
+                  <Alert.Title>{asked === null ? "Working days" : `${asked} working days`}</Alert.Title>
                   <Alert.Description>{afterText}</Alert.Description>
                 </Alert.Content>
               </Alert>
@@ -445,9 +481,15 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
               </div>
               <p className="flex items-start gap-[8px] text-xs leading-4 text-muted">
                 <CircleInfo className="mt-[1px] size-4 shrink-0" aria-hidden="true" />
-                <span>{draft.busyDates}</span>
+                <span>It is sent with the dates and note you typed, to the people above in order.</span>
               </p>
-              <Button size="lg" fullWidth className="min-h-14" isDisabled={pending} onPress={sendLeave}>
+              <Button
+                size="lg"
+                fullWidth
+                className="min-h-14"
+                isDisabled={pending || asked === null}
+                onPress={sendLeave}
+              >
                 <PaperPlane className="size-4" />
                 Send leave request
               </Button>
@@ -541,7 +583,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
           ))}
         </RadioButtonGroup>
         <p className="text-xs leading-4 text-muted">
-          {mateDoc?.first} says yes first, then Beatrice approves. The shift stays yours until then.
+          {mateDoc?.first} says yes first, then {boss} approves. The shift stays yours until then.
         </p>
         <div className="grid grid-cols-[1fr_2fr] gap-[8px]">
           <Button variant="secondary" size="lg" fullWidth className="min-h-14" onPress={() => setSwapFor(null)}>
@@ -552,6 +594,7 @@ export function StaffScheduleView({ persona, data }: { persona: Persona; data: S
           </Button>
         </div>
       </PhoneSheet>
+      <PhoneToasts />
     </>
   );
 }

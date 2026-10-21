@@ -5,7 +5,6 @@ import { Button, Card, Input, Label, Switch, TextArea, TextField, toast } from "
 import { ListView, NativeSelect, Segment } from "@heroui-pro/react";
 import type {
   RepairCategory,
-  RepairDraft,
   RepairRequest,
   Tenancy,
   VisitorDraft,
@@ -23,25 +22,26 @@ type Tab = "repairs" | "visitors";
 export function TenantRequestsView({
   tenancy,
   categories,
-  draft,
   repairs,
   visitorDraft,
   visitors,
 }: {
   tenancy: Tenancy;
   categories: RepairCategory[];
-  draft: RepairDraft;
   repairs: RepairRequest[];
   visitorDraft: VisitorDraft;
   visitors: VisitorPass[];
 }) {
   const [tab, setTab] = useState<Tab>("repairs");
-  const [category, setCategory] = useState(draft.category);
+  // Both forms start empty: what is sent is what the resident chose and typed, never a sample draft. The
+  // category list needs one choice, so it opens on the first; entering when nobody is home is the resident's
+  // own permission, so it starts off.
+  const [category, setCategory] = useState(categories[0]?.id ?? "other");
   const [desc, setDesc] = useState("");
-  const [entry, setEntry] = useState(draft.staffMayEnter);
-  const [visitorName, setVisitorName] = useState(visitorDraft.name);
-  const [visitDate, setVisitDate] = useState(visitorDraft.date);
-  const [visitTime, setVisitTime] = useState(visitorDraft.time);
+  const [entry, setEntry] = useState(false);
+  const [visitorName, setVisitorName] = useState("");
+  const [visitDate, setVisitDate] = useState("");
+  const [visitTime, setVisitTime] = useState("");
   const [overnight, setOvernight] = useState(false);
   /** The code the gate issued for the visitor just registered, with the name and day it was issued for. */
   const [issued, setIssued] = useState<{ code: string; name: string; when: string } | null>(null);
@@ -85,7 +85,10 @@ export function TenantRequestsView({
       toast.danger(result.error);
       return;
     }
-    setIssued({ code: result.value.code, name, when: `${visitDate}, ${visitTime}` });
+    setIssued({ code: result.value.code, name, when: `${visitDate.trim() || "Today"}, ${visitTime.trim()}` });
+    setVisitorName("");
+    setVisitDate("");
+    setVisitTime("");
     router.refresh();
   };
 
@@ -222,16 +225,16 @@ export function TenantRequestsView({
               </h2>
               <TextField fullWidth value={visitorName} onChange={setVisitorName} className="gap-1">
                 <Label htmlFor="pv-n">Visitor’s name</Label>
-                <Input id="pv-n" />
+                <Input id="pv-n" placeholder="Full name" />
               </TextField>
               <div className="grid grid-cols-2 gap-[10px]">
                 <TextField fullWidth value={visitDate} onChange={setVisitDate} className="gap-1">
                   <Label htmlFor="pv-d">Date</Label>
-                  <Input id="pv-d" />
+                  <Input id="pv-d" placeholder="Today" />
                 </TextField>
                 <TextField fullWidth value={visitTime} onChange={setVisitTime} className="gap-1">
                   <Label htmlFor="pv-t">Time</Label>
-                  <Input id="pv-t" />
+                  <Input id="pv-t" placeholder="e.g. 10:00–16:00" />
                 </TextField>
               </div>
               <Switch isSelected={overnight} onChange={setOvernight} className="w-full text-left">
@@ -248,7 +251,13 @@ export function TenantRequestsView({
                   issued.
                 </span>
               ) : null}
-              <Button variant="primary" size="lg" fullWidth onPress={getCode} isDisabled={busy || !visitorName.trim()}>
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                onPress={getCode}
+                isDisabled={busy || !visitorName.trim() || !visitTime.trim()}
+              >
                 Get access code
               </Button>
             </Card>

@@ -3,8 +3,8 @@
  * frontdesk fixture document types. One read per request feeds every collection of the board: the
  * server decides "today" once, in Kigali, and every queue is cut from that one snapshot.
  *
- * What is not here stays on fixtures, each with its reason in the data map: the walk-in quote and its
- * room types (quote holds have no table), the room rack (group and out-of-order blocks), guest
+ * What is not here stays on fixtures, each with its reason in the data map: the walk-in quote (quote
+ * holds have no table; its room types are live), the room rack (group and out-of-order blocks), guest
  * requests (no request workflow on threads), the reservation record (booking parties, terms snapshot,
  * payment history) and the property-named cancellation policy.
  */
@@ -21,6 +21,7 @@ import type {
   ReadinessRoom,
   Reservation,
   RoomStatus,
+  RoomType,
   Tone,
 } from "@injishi/data/fixtures/frontdesk";
 import { clock, dayMonth, dayMonthYear, kigaliDate, rwf } from "../format";
@@ -74,7 +75,7 @@ export interface ApiBooking {
   totalRwf: number;
   lockedNightlyRateRwf: number;
   paidRwf: number;
-  paymentStatus: string | null;
+  paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
   approvalExpiresAt: string | null;
   createdAt: string;
   confirmedAt: string | null;
@@ -126,6 +127,18 @@ export interface ApiRoom {
   heldTonightBy: { bookingId: string; reference: string; guestName: string | null } | null;
 }
 
+/** FrontDeskRoomType: a type of room at the property, with what is left of it tonight. */
+export interface ApiRoomType {
+  id: string;
+  name: string;
+  sleeps: number;
+  rateRwf: number | null;
+  beds: string | null;
+  active: boolean;
+  roomCount: number;
+  freeTonight: number;
+}
+
 export interface ApiBoard {
   property: { id: string; name: string; checkInTime: string | null; checkOutTime: string | null };
   today: string;
@@ -134,6 +147,7 @@ export interface ApiBoard {
   bookings: ApiBooking[];
   stays: ApiStay[];
   rooms: ApiRoom[];
+  roomTypes: ApiRoomType[];
 }
 
 const boards = new WeakMap<SourceContext, Promise<ApiBoard>>();
@@ -156,6 +170,27 @@ export function deskBoard(ctx: SourceContext): Promise<ApiBoard> {
 /** Drop the remembered day after a write, so the next read through this context is fresh. */
 export function forgetDeskBoard(ctx: SourceContext): void {
   boards.delete(ctx);
+}
+
+/**
+ * The name of the property the desk's day is read for, as the API returns it: the desk screens head
+ * themselves with it instead of a property named in the prototype. Read after the page's collections,
+ * it is the same read (one board per request context).
+ */
+export async function deskPropertyName(ctx: SourceContext): Promise<string> {
+  return (await deskBoard(ctx)).property.name;
+}
+
+/**
+ * What the guest paid online with the booking, in the desk's words: the escrow the API reports
+ * (`paidRwf`, by `paymentStatus`), never assumed. "Nothing paid online" when no payment was taken.
+ */
+export function onlinePayment(b: Pick<ApiBooking, "paidRwf" | "totalRwf" | "paymentStatus">): string {
+  if (b.paidRwf <= 0) return "nothing paid online";
+  const what = b.paidRwf >= b.totalRwf ? `${rwf(b.paidRwf)} paid online in full` : `${rwf(b.paidRwf)} paid online`;
+  if (b.paymentStatus === "paid_out") return `${what} · paid out to the business`;
+  if (b.paymentStatus === "forfeited") return `${what} · kept under the booking's policy`;
+  return `${what} · held by Injishi until the stay`;
 }
 
 // ── Words and numbers ────────────────────────────────────────────────────────
@@ -266,7 +301,7 @@ export function arrivalsOf(board: ApiBoard): ApiBooking[] {
 
 function balanceOfArrival(b: ApiBooking): { balance: number; note: string; flag: boolean } {
   const due = Math.max(0, b.totalRwf - b.paidRwf);
-  if (due === 0) return { balance: 0, note: "Prepaid · verified", flag: false };
+  if (due === 0) return { balance: 0, note: b.paidRwf > 0 ? "Prepaid · verified" : "Nothing due", flag: false };
   if (b.paidRwf > 0) return { balance: due, note: "Deposit verified · balance due", flag: true };
   return { balance: due, note: "Pays on arrival", flag: true };
 }
@@ -348,6 +383,26 @@ function presentInHouse(s: ApiStay, board: ApiBoard): InHouseStay {
   };
 }
 
+/**
+ * The order the desk deals with guests who are leaving: whoever is due out first, and at the same
+ * hour whoever still owes money first, then by stay reference so two reads never disagree. Today's
+ * Departures and the Checkout screen share it, so the first open row on Today is the guest Checkout
+ * opens on.
+ */
+export function departureOrder(a: ApiStay, b: ApiStay): number {
+  const owes = (s: ApiStay) => ((s.folio?.balanceRwf ?? 0) > 0 ? 0 : 1);
+  return (
+    (a.plannedExitAt ?? "9999").localeCompare(b.plannedExitAt ?? "9999") ||
+    owes(a) - owes(b) ||
+    (a.reference ?? a.id).localeCompare(b.reference ?? b.id)
+  );
+}
+
+/** The guest the Checkout screen opens on: the next one due out (today's first, else the next day's). */
+export function nextDeparture(board: ApiBoard): ApiStay | null {
+  return board.stays.filter((s) => s.lifecycle === "open").sort(departureOrder)[0] ?? null;
+}
+
 /** Everyone leaving today: still in the building (due or late) and already out. */
 function departuresOf(board: ApiBoard): ApiStay[] {
   const today = board.today;
@@ -356,14 +411,24 @@ function departuresOf(board: ApiBoard): ApiStay[] {
       (s.lifecycle === "open" && s.plannedExitAt && kigaliDate(s.plannedExitAt) <= today) ||
       (s.lifecycle === "closed" && s.actualExitAt && kigaliDate(s.actualExitAt) === today),
   );
-  const at = (s: ApiStay) => (s.lifecycle === "open" ? (s.plannedExitAt ?? "") : (s.actualExitAt ?? ""));
   return leaving.sort((a, b) =>
-    a.lifecycle === b.lifecycle ? at(a).localeCompare(at(b)) : a.lifecycle === "open" ? -1 : 1,
+    a.lifecycle === b.lifecycle
+      ? a.lifecycle === "open"
+        ? departureOrder(a, b)
+        : (a.actualExitAt ?? "").localeCompare(b.actualExitAt ?? "")
+      : a.lifecycle === "open"
+        ? -1
+        : 1,
   );
 }
 
+/** Is the guest due out after the property's own check-out time? Never "late" when the property states none. */
+function lateCheckout(s: ApiStay, board: ApiBoard): boolean {
+  const checkout = board.property.checkOutTime;
+  return !!checkout && !!s.plannedExitAt && clock(s.plannedExitAt) > checkout;
+}
+
 function presentDeparture(s: ApiStay, board: ApiBoard): Departure {
-  const checkout = board.property.checkOutTime ?? "11:00";
   const nights =
     s.checkIn && s.checkOut ? daysBetween(s.checkIn, s.checkOut) : daysBetween(kigaliDate(s.entryAt), board.today);
   const base = {
@@ -387,14 +452,22 @@ function presentDeparture(s: ApiStay, board: ApiBoard): Departure {
     };
   }
   const time = clock(s.plannedExitAt);
-  const late = time > checkout;
+  const late = lateCheckout(s, board);
   const balance = s.folio?.balanceRwf ?? 0;
   return {
     ...base,
     checkout: late ? "late" : "due",
     checkoutLabel: late ? `Late · ${time}` : `Due ${time}`,
     balance,
-    balanceNote: balance > 0 ? "To settle at checkout" : balance < 0 ? "In credit" : "Settled",
+    // A role that may not read bills gets no balance from the API: never call that "Settled".
+    balanceNote:
+      s.folio && s.folio.balanceRwf === null
+        ? "Bill not shown to your role"
+        : balance > 0
+          ? "To settle at checkout"
+          : balance < 0
+            ? "In credit"
+            : "Settled",
     time,
     note: s.deskNote ?? "",
   };
@@ -428,9 +501,7 @@ function presentKpis(board: ApiBoard): DeskKpi[] {
   const guestsIn = inHouse.reduce((n, s) => n + (board.bookings.find((b) => b.id === s.bookingId)?.guestCount ?? 1), 0);
   const departures = departuresOf(board);
   const out = departures.filter((s) => s.lifecycle === "closed").length;
-  const late = departures.filter(
-    (s) => s.lifecycle === "open" && clock(s.plannedExitAt) > (board.property.checkOutTime ?? "11:00"),
-  ).length;
+  const late = departures.filter((s) => s.lifecycle === "open" && lateCheckout(s, board)).length;
   const readiness = presentReadiness(board);
   const ready = readiness.filter((r) => READY.has(r.status)).length;
   const cleaning = readiness.filter((r) => r.status === "dirty").length;
@@ -474,12 +545,13 @@ function presentKpis(board: ApiBoard): DeskKpi[] {
       status: ready < readiness.length || unassigned > 0 ? "warning" : "default",
     },
     {
-      // Guest requests are not on the desk yet (frontdesk.guestRequests is deferred); the view counts the queue it shows.
+      // Guest requests are not on the desk yet (frontdesk.guestRequests is deferred): there is no count to
+      // give, so the view shows none (never the sample queue's length) and this foot says why.
       id: "requests",
       label: "Open requests",
       value: 0,
       total: null,
-      foot: "From the guest request queue",
+      foot: "Not available yet · guest requests are not connected to the desk",
       icon: "Comments",
       status: "default",
     },
@@ -535,6 +607,27 @@ function presentRooms(board: ApiBoard): DeskRoom[] {
     });
 }
 
+/**
+ * The room types the desk sells, with what is left tonight (Today's quick walk-in panel and the
+ * walk-in screen). `id` is the type's own id: the walk-in names it when it opens the stay. The
+ * prototype keyed types by slugs ("queen", "dlv") the database does not have; nothing reads them
+ * as slugs once the quote's sample conflict is gone.
+ */
+function presentRoomTypes(board: ApiBoard): RoomType[] {
+  return board.roomTypes
+    .filter((t) => t.active)
+    .map((t) => ({
+      id: t.id as RoomType["id"],
+      name: t.name,
+      beds: t.beds ?? "",
+      sleeps: t.sleeps,
+      rate: t.rateRwf ?? 0,
+      left: t.freeTonight,
+      free: t.freeTonight,
+      soldNote: t.freeTonight === 0 ? "Full tonight" : null,
+    }));
+}
+
 // ── Check-in ─────────────────────────────────────────────────────────────────
 
 /** A check-in file for one of today's arrivals (or one checked in today). */
@@ -587,7 +680,7 @@ async function presentCheckIn(ctx: SourceContext, b: ApiBooking, board: ApiBoard
       { label: "Room type", value: b.roomTypeName },
       { label: "Guests", value: guestsLabel(b) },
       { label: "Booked by", value: booker ? channelOf(b.channel) : `${name} · ${channelOf(b.channel)}` },
-      { label: "Stay total", value: `${rwf(b.totalRwf)} · ${rwf(b.paidRwf)} paid online` },
+      { label: "Stay total", value: `${rwf(b.totalRwf)} · ${onlinePayment(b).split(" · ")[0]}` },
       {
         label: "Terms",
         value: `${b.bookingMode === "request_to_book" ? "Request to book" : "Instant booking"} · ${(b.cancellationTier ?? "flexible").replace(/_/g, " ")} cancellation`,
@@ -632,18 +725,20 @@ async function presentCheckIn(ctx: SourceContext, b: ApiBooking, board: ApiBoard
           ]
         : []),
     ],
-    preAssignedRoom: preAssigned,
+    // A guest already checked in is in the stay's room, which may not be the one held for the booking.
+    preAssignedRoom: stay?.roomLabel ?? preAssigned,
     defaultRoom: preReady?.room ?? ready[0]?.room ?? preAssigned,
     rooms: options,
     override: {
       reasons: ["Guest insists on the booked room", "Accessibility need", "Loyalty or VIP commitment"],
       approvers: ["Duty manager", "Owner"],
-      note: preAssigned ? `Guest asked for ${preAssigned}.` : "",
+      // The person writes the note; nothing is claimed for the guest.
+      note: "",
       sentAt: "",
     },
     deposit: {
       amount: due,
-      policy: due === 0 ? "Paid online when booked" : "Balance at check-in",
+      policy: due > 0 ? "Balance due at check-in" : b.paidRwf > 0 ? "Paid online when booked" : "Nothing due",
       voucher: b.reference,
       stayTotal: b.totalRwf,
       phone,
@@ -691,16 +786,18 @@ async function presentCheckIn(ctx: SourceContext, b: ApiBooking, board: ApiBoard
         id: "rc",
         icon: "FileText",
         title: `Registration card · ${b.reference}`,
-        desc: `${name} · recorded on the stay at check-in`,
-        chip: stay ? "Recorded" : "At check-in",
-        tone: stay ? "success" : "default",
+        // The card is printed for the guest to sign; the stay records an ID only when the guest sent one ahead.
+        desc: `${name} · ${b.preArrivalIdentity ? "ID sent from the guest app before arrival" : "print it for the guest to sign"}`,
+        chip: stay ? "Print to sign" : "At check-in",
+        tone: "default",
         printable: !!stay,
       },
       {
         id: "pro",
         icon: "File",
         title: "Booking confirmation",
-        desc: `${rwf(b.totalRwf)} · paid online when booked · not a tax invoice or receipt`,
+        // What the booking's own payment says, never "paid online" for a booking nobody paid.
+        desc: `${rwf(b.totalRwf)} · ${onlinePayment(b).split(" · ")[0]} · not a tax invoice or receipt`,
         chip: "Confirmation",
         tone: "default",
         printable: true,
@@ -762,14 +859,18 @@ function presentReservation(b: ApiBooking, board: ApiBoard, atDesk: string | nul
   let paymentDetail = "";
   let info: string | null = null;
 
-  const paidDetail = `${rwf(b.paidRwf)} paid online when booked · held until the stay`;
+  // The booking's own payment (escrow and its status), never "paid online" for a booking nobody paid.
+  const paidDetail = onlinePayment(b).replace(/^./, (c) => c.toUpperCase());
   switch (kind) {
     case "request":
       status = "Requested";
       statusTone = "warning";
       stayText = decideBy(b.approvalExpiresAt, today);
-      payment = "Payment held";
-      paymentDetail = `${rwf(b.paidRwf)} held until the request is answered; declined, it goes back in full`;
+      payment = b.paidRwf > 0 ? "Payment held" : "No payment taken";
+      paymentDetail =
+        b.paidRwf > 0
+          ? `${rwf(b.paidRwf)} held until the request is answered; declined, it goes back in full`
+          : "No payment was taken with the request";
       break;
     case "cancelled":
       if (b.state === "no_show") {
@@ -785,7 +886,8 @@ function presentReservation(b: ApiBooking, board: ApiBoard, atDesk: string | nul
         stayText = b.cancelledAt ? `Cancelled ${dayMonth(b.cancelledAt)}` : "Cancelled";
         payment = (b.refundRwf ?? 0) > 0 ? "Refunded" : "Nothing refunded";
         paymentTone = (b.refundRwf ?? 0) > 0 ? "success" : "default";
-        paymentDetail = `Refund ${rwf(b.refundRwf ?? 0)} to the original wallet`;
+        paymentDetail =
+          (b.refundRwf ?? 0) > 0 ? `Refund ${rwf(b.refundRwf ?? 0)} to the wallet the guest paid from` : "No refund";
         info = `Cancelled by the ${b.cancelledBy === "host" ? "property" : "guest"}${b.cancelledAt ? ` on ${dayMonth(b.cancelledAt)}` : ""}. ${
           (b.refundRwf ?? 0) > 0
             ? `${rwf(b.refundRwf ?? 0)} went back to the guest.`
@@ -806,8 +908,8 @@ function presentReservation(b: ApiBooking, board: ApiBoard, atDesk: string | nul
       status = "Not arrived";
       statusTone = "danger";
       stayText = "No stay opened";
-      payment = b.paidRwf >= b.totalRwf ? "Prepaid · verified" : "Deposit verified";
-      paymentTone = "success";
+      payment = b.paidRwf <= 0 ? "Nothing paid" : b.paidRwf >= b.totalRwf ? "Prepaid · verified" : "Deposit verified";
+      paymentTone = b.paidRwf > 0 ? "success" : "warning";
       paymentDetail = paidDetail;
       break;
     default: {
@@ -818,9 +920,16 @@ function presentReservation(b: ApiBooking, board: ApiBoard, atDesk: string | nul
             : `Expected ${b.eta ?? "today"}`
           : `Expected ${dayMonth(b.checkIn)}`;
       const due = Math.max(0, b.totalRwf - b.paidRwf);
-      payment = due === 0 ? "Prepaid · verified" : b.paidRwf > 0 ? "Deposit verified" : "Pays on arrival";
+      payment =
+        due === 0
+          ? b.paidRwf > 0
+            ? "Prepaid · verified"
+            : "Nothing due"
+          : b.paidRwf > 0
+            ? "Deposit verified"
+            : "Pays on arrival";
       paymentTone = due === 0 || b.paidRwf > 0 ? "success" : "warning";
-      paymentDetail = due === 0 ? paidDetail : `${rwf(due)} due at check-in`;
+      paymentDetail = due === 0 ? paidDetail : `${rwf(due)} due at check-in · ${onlinePayment(b)}`;
     }
   }
 
@@ -963,6 +1072,12 @@ export const sources = defineSources({
       const board = await deskBoard(ctx);
       const atDesk = arrivalsOf(board)[0]?.id ?? null;
       return reservationsOf(board).map((b) => presentReservation(b, board, atDesk));
+    },
+  },
+  "frontdesk.roomTypes": {
+    naturalKey: "name",
+    async list(ctx): Promise<RoomType[]> {
+      return presentRoomTypes(await deskBoard(ctx));
     },
   },
   "frontdesk.bookingRequests": {

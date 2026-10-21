@@ -1,18 +1,6 @@
 "use client";
 
-import {
-  ArrowDownToLine,
-  Calendar,
-  Check,
-  CircleCheck,
-  CircleInfo,
-  Clock,
-  Paperclip,
-  PaperPlane,
-  Plus,
-  ScalesUnbalanced,
-  Vault,
-} from "@gravity-ui/icons";
+import { ArrowDownToLine, Calendar, CircleCheck, Paperclip, Plus, ScalesUnbalanced, Vault } from "@gravity-ui/icons";
 import {
   Alert,
   Button,
@@ -22,48 +10,45 @@ import {
   Label,
   Table,
   Tabs,
-  TextArea,
   TextField,
   Toast,
   ToggleButton,
   toast,
 } from "@heroui/react";
-import { EmptyState, KPIGroup, ListView, Stepper, Timeline } from "@heroui-pro/react";
+import { EmptyState, KPIGroup, ListView, Stepper } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
 import type { Persona } from "@injishi/data";
-import type {
-  Deduction,
-  DepositKpi,
-  DisputeDecision,
-  MoveOutCase,
-  ResidenceUnit,
-  Tone,
-} from "@injishi/data/fixtures/residence";
+import type { DepositKpi, MoveOutCase, ResidenceUnit, Tone } from "@injishi/data/fixtures/residence";
 import { stock } from "@injishi/data/media";
-import { KeyValueList, PageContent, PageHeader, Photo } from "@injishi/ui";
+import { PageContent, PageHeader, Photo } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { type CSSProperties, Fragment, useState } from "react";
-import { TopbarStatus } from "@/components/shell/TopbarStatus";
+import type { LiveLease } from "@/server/sources/residence";
 import { recordNoticeAction } from "./actions";
-import { downloadCsv, FormDialog, kigaliCalendar, lineTab, money, SelectField, SubHeading, ToneChip } from "./shared";
+import { downloadCsv, FormDialog, kigaliCalendar, lineTab, money, SelectField, ToneChip } from "./shared";
 
 export interface MoveOutsData {
   kpis: DepositKpi[];
   cases: MoveOutCase[];
   units: ResidenceUnit[];
+  /** The live leases, for each unit's caution deposit (LeaseRecord); absent on fixtures. */
+  leases?: LiveLease[];
 }
 
 type Tab = "insp" | "settle";
-type Stage = "dispute" | "ready" | "approval";
 
 const STEPS = ["Notice", "Inspection", "Deductions", "Resident response", "Approval", "Refund"];
-const REASONS = [
-  "Damage beyond fair wear, with evidence",
-  "Unpaid rent or utilities",
-  "Cleaning beyond the move-in condition",
-  "Other, explained in the note",
-];
 const CHANNELS = ["Letter", "Resident app", "Email", "In person"];
+/**
+ * What this screen cannot do yet. The cases below are the prototype's (data map residence.moveOuts is deferred): the
+ * platform records a notice (`POST /ops/residence/notices`) but has no inspection, deduction, dispute or approval
+ * record, so a decision or a booking here would be kept nowhere. Each says so and changes nothing.
+ */
+const DISPUTE_UNAVAILABLE =
+  "Deciding a disputed deduction is not available yet. Nothing was recorded and the resident was not told.";
+const INSPECTION_UNAVAILABLE = "Booking a move-out inspection is not available yet. Nothing was booked.";
+const INSPECTION_REPORT_UNAVAILABLE = "An inspection report is not available yet: inspections are not recorded.";
+
 /** Thumbnails of one area cycle the crop so several shots of the same stock photo read as different photos. */
 const CROPS = ["object-center", "object-left", "object-right"];
 
@@ -79,7 +64,6 @@ const caseVars = {
   "--toggle-button-fg-selected": "var(--foreground)",
 } as CSSProperties;
 
-const firstName = (name: string) => name.split(" ")[0];
 /** "14 Nov 2026": a calendar day `days` after `iso`. */
 const dayMonthYearOf = (iso: string, days: number) =>
   new Date(Date.parse(`${iso}T12:00:00Z`) + days * 86_400_000).toLocaleDateString("en-GB", {
@@ -89,19 +73,22 @@ const dayMonthYearOf = (iso: string, days: number) =>
     timeZone: "UTC",
   });
 
-export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOutsData }) {
-  const [added, setAdded] = useState<MoveOutCase[]>([]);
-  const cases = [...data.cases, ...added];
+export function MoveOutsView({
+  data,
+  building = "",
+}: {
+  persona: Persona;
+  data: MoveOutsData;
+  /** The building(s) the workspace covers, from the session. */
+  building?: string;
+}) {
+  const cases = data.cases;
   const [sel, setSel] = useState(data.cases[0]?.id ?? "");
   const [tab, setTab] = useState<Tab>("settle");
-  const [stage, setStage] = useState<Stage>("dispute");
-  const [decision, setDecision] = useState<DisputeDecision | null>(null);
-  const [approveOpen, setApproveOpen] = useState(false);
-  const [reason, setReason] = useState(REASONS[0]);
-  const [approveNote, setApproveNote] = useState("Photos and move-in report attached. Resident accepted two items.");
   const [registerOpen, setRegisterOpen] = useState(false);
   const [noticeOpen, setNoticeOpen] = useState(false);
-  const noticeUnits = data.units.filter((u) => u.lease && !cases.some((c) => c.id === u.id));
+  // A unit already under notice is not offered again (the API refuses a second notice on a lease).
+  const noticeUnits = data.units.filter((u) => u.lease && u.status !== "notice");
   const [today] = useState(() => kigaliCalendar());
   const [notice, setNotice] = useState({
     unit: noticeUnits[0]?.id ?? "",
@@ -115,96 +102,44 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
   const c = cases.find((x) => x.id === sel) ?? cases[0];
   if (!c) return null;
 
-  // The disputed deduction follows the manager's decision; everything else is as recorded.
   const dispute = c.dispute;
-  const disputedAmount = (d: Deduction) => {
-    if (!dispute || d.id !== dispute.deduction || !decision) return d.amount;
-    if (decision === "reduce") return dispute.reduceTo;
-    if (decision === "drop") return 0;
-    return d.amount;
+  const deductions = c.deductions;
+  const status = { label: c.status, tone: c.statusTone };
+  const step = c.step;
+  const summary = c.summary;
+
+  // Each deposit is the caution its lease records (LeaseRecord), never two months' rent assumed; a lease with
+  // none recorded says so and is left out of the total.
+  const depositOf = (leaseId: string): number | null => {
+    const l = data.leases?.find((x) => x.id === leaseId);
+    return l?.record?.deposit ?? null;
   };
-  const deductions = c.deductions.map((d) => {
-    if (!dispute || d.id !== dispute.deduction || !decision) return d;
-    return {
-      ...d,
-      amount: disputedAmount(d),
-      response: decision === "drop" ? "Withdrawn" : "Decision recorded",
-      tone: "default" as Tone,
-      note: dispute.notes[decision],
-    };
-  });
-  const dedTotal = deductions.reduce((t, d) => t + d.amount, 0);
-  const refund = c.deposit - dedTotal;
-  const disputed = c.deductions.find((d) => d.id === dispute?.deduction);
-
-  const status = dispute
-    ? stage === "dispute"
-      ? { label: c.status, tone: c.statusTone }
-      : { label: stage === "ready" ? "Ready for approval" : "Awaiting approval", tone: "info" as Tone }
-    : { label: c.status, tone: c.statusTone };
-  const step = dispute && stage === "approval" ? c.step + 1 : c.step;
-  const summary = c.summary.map((m, i) => {
-    if (!dispute) return m;
-    if (i === 1)
-      return {
-        ...m,
-        value: money(dedTotal),
-        foot: decision ? "After your decision" : `${money(disputed?.amount ?? 0)} disputed`,
-      };
-    if (i === 2) return { ...m, value: money(refund) };
-    return m;
-  });
-  const resolution = dispute && decision ? dispute.resolutions[decision] : "";
-  const approver = c.approver;
-
-  // Notices recorded on this screen join the running notices.
-  const kpiValue = (k: DepositKpi) => (k.id === "notices" ? k.value + added.length : k.value);
-  const kpiFoot = (k: DepositKpi) =>
-    k.id === "notices" && added.length
-      ? [k.foot, ...added.map((a) => `${a.id} ${a.when.charAt(0).toLowerCase()}${a.when.slice(1)}`)].join(" · ")
-      : k.foot;
-
-  const decide = (d: DisputeDecision) => {
-    setDecision(d);
-    setStage("ready");
-  };
-  // Deposit settlements are not wired: deductions, disputes and their approval have no record yet (the
-  // data map's residence.moveOuts). Say so rather than claim it was sent.
-  const sendForApproval = () => {
-    setApproveOpen(false);
-    toast.danger(
-      `Sending a settlement for approval is not available yet. Nothing was sent to ${approver?.name ?? "the approver"}.`,
-    );
-  };
-
   const deposits = [
     ...data.units
       .filter((u) => u.lease)
       .map((u) => {
-        const leaving = u.status === "notice" || added.some((a) => a.id === u.id);
+        const leaving = u.status === "notice";
         return {
           id: u.id,
           who: u.resident,
           lease: u.lease,
-          amount: u.rent * 2,
-          state: leaving ? "Notice running" : "Held",
+          amount: depositOf(u.lease),
+          // The caution the lease agrees, not a payment the register has seen: "Agreed", never "Held".
+          state: leaving ? "Notice running" : "Agreed",
           tone: (leaving ? "accent" : "success") as Tone,
         };
       }),
-    ...cases
-      .filter((x) => x.step < STEPS.length && x.inspection.done)
-      .map((x) => ({
-        id: `${x.id}-prev`,
-        who: `${x.name} (previous resident of ${x.id})`,
-        lease: x.lease,
-        amount: x.deposit,
-        state: "In settlement",
-        tone: "warning" as Tone,
-      })),
   ];
-  const depositTotal = deposits.reduce((t, d) => t + d.amount, 0);
+  const depositTotal = deposits.reduce((t, d) => t + (d.amount ?? 0), 0);
+  // The notice period of the lease the notice is being recorded for, as the lease records it.
+  const noticeLease = data.leases?.find((l) => l.id === data.units.find((u) => u.id === notice.unit)?.lease);
+  const noticeDays = noticeLease?.record?.noticeDays ?? null;
 
-  /** Record a notice → `POST /ops/residence/notices`; the case joins the list once the API has it. */
+  /**
+   * Record a notice → `POST /ops/residence/notices`. The notice is the platform's record: after the refresh the unit
+   * reads "notice" and Notices running counts it. No case is drawn for it here, because the cases on this screen are
+   * sample data and the platform keeps no move-out case yet; the toast says so.
+   */
   const recordNotice = async () => {
     const u = data.units.find((x) => x.id === notice.unit);
     if (!u || busy) return;
@@ -215,53 +150,19 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
       toast.danger(result.error);
       return;
     }
-    router.refresh();
-    const held = u.rent * 2;
-    const next: MoveOutCase = {
-      id: u.id,
-      name: u.resident,
-      lease: u.lease,
-      when: `Moves out ${notice.movesOut.replace(/ \d{4}$/, "")}`,
-      status: "Notice recorded",
-      statusTone: "info",
-      sub: `Notice received ${notice.received.replace(/ \d{4}$/, "")} by ${notice.channel.toLowerCase()} · deposit ${money(held)} held`,
-      step: 1,
-      deposit: held,
-      inspection: {
-        done: false,
-        booked: false,
-        title: "Inspection not booked yet",
-        text: `Book a joint inspection with ${firstName(u.resident)} for ${notice.movesOut}. The checklist is prepared from the move-in report.`,
-        hint: "Start becomes available on the move-out day.",
-      },
-      deductions: [],
-      summary: [
-        { label: "Caution held", value: money(held), foot: "Liability until settled" },
-        { label: "Proposed deductions", value: "None yet", foot: "After inspection" },
-        { label: "Final rent", value: "Scheduled", foot: "Charged up to the move-out day" },
-        { label: "Remaining liability", value: money(held), foot: "Held in full" },
-      ],
-      heldNote: `Deductions can be proposed only after the inspection report is signed. The full ${money(held)} stays held until then.`,
-    };
-    setAdded((a) => [...a, next]);
-    setSel(next.id);
-    setTab("insp");
     setNoticeOpen(false);
-    toast.success(`Notice recorded for ${u.id} · ${u.resident}`, { indicator: <CircleCheck className="size-4" /> });
+    router.refresh();
+    toast.success(`Notice recorded for ${u.id} · ${u.resident}`, {
+      description:
+        "It shows on the unit and in Notices running. Move-out cases are not recorded on the platform yet, so none is added below.",
+      indicator: <CircleCheck className="size-4" />,
+    });
   };
 
   return (
     <PageContent>
-      {dispute && stage !== "dispute" ? (
-        <TopbarStatus
-          kind="chip"
-          tone="default"
-          dot={stage === "ready" ? "accent" : "warning"}
-          label={stage === "ready" ? `${c.id} settlement ready for approval` : `${c.id} settlement awaiting approval`}
-        />
-      ) : null}
       <PageHeader
-        eyebrow="Tenancy · Kacyiru Court Residences"
+        eyebrow={building ? `Tenancy · ${building}` : "Tenancy"}
         title="Move-outs"
         description="From notice to inspection to caution settlement. A deposit stays a liability until its refund is verified."
         actions={
@@ -295,13 +196,13 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
                 </KPI.Header>
                 <KPI.Content>
                   <KPI.Value
-                    value={kpiValue(k)}
+                    value={k.value}
                     formatOptions={k.format === "currency" ? { style: "currency", currency: "RWF" } : undefined}
                     className="text-[22px] tabular"
                   />
                 </KPI.Content>
                 <KPI.Footer>
-                  <p className="text-[12px] leading-4 text-muted">{kpiFoot(k)}</p>
+                  <p className="text-[12px] leading-4 text-muted">{k.foot}</p>
                 </KPI.Footer>
               </KPI>
             </Fragment>
@@ -387,17 +288,7 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[13px] text-muted">{c.inspection.meta}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onPress={() => {
-                        if (!c.inspection.done) return;
-                        downloadCsv(`${c.lease}-move-out-inspection.csv`, [
-                          ["Area", "At move-in", "At move-out", "Photos", "Finding"],
-                          ...c.inspection.checklist.map((i) => [i.area, i.before, i.after, i.photos, i.finding]),
-                        ]);
-                      }}
-                    >
+                    <Button size="sm" variant="ghost" onPress={() => toast.warning(INSPECTION_REPORT_UNAVAILABLE)}>
                       <ArrowDownToLine className="size-4" />
                       Inspection report
                     </Button>
@@ -459,14 +350,14 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
                   </EmptyState.Header>
                   <EmptyState.Content className="flex flex-col items-center gap-2">
                     <span className="flex flex-wrap justify-center gap-2">
-                      <Button size="sm" variant="secondary">
+                      <Button size="sm" variant="secondary" onPress={() => toast.warning(INSPECTION_UNAVAILABLE)}>
                         {c.inspection.booked ? "Reschedule" : "Book inspection"}
                       </Button>
                       <Button size="sm" isDisabled>
                         Start inspection
                       </Button>
                     </span>
-                    <span className="text-[12px] text-muted">{c.inspection.hint}</span>
+                    <span className="text-[12px] text-muted">Inspections are not recorded on the platform yet.</span>
                   </EmptyState.Content>
                 </EmptyState>
               )}
@@ -526,7 +417,7 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
                   </Table>
                 ) : null}
 
-                {dispute && stage === "dispute" ? (
+                {dispute ? (
                   <>
                     <Alert status="warning">
                       <Alert.Indicator>
@@ -538,101 +429,17 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
                       </Alert.Content>
                     </Alert>
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="secondary" onPress={() => decide("keep")}>
+                      <Button size="sm" variant="secondary" onPress={() => toast.warning(DISPUTE_UNAVAILABLE)}>
                         {dispute.options.keep}
                       </Button>
-                      <Button size="sm" variant="secondary" onPress={() => decide("reduce")}>
+                      <Button size="sm" variant="secondary" onPress={() => toast.warning(DISPUTE_UNAVAILABLE)}>
                         {dispute.options.reduce}
                       </Button>
-                      <Button size="sm" variant="ghost" onPress={() => decide("drop")}>
+                      <Button size="sm" variant="ghost" onPress={() => toast.warning(DISPUTE_UNAVAILABLE)}>
                         {dispute.options.drop}
                       </Button>
                     </div>
                   </>
-                ) : null}
-
-                {dispute && stage === "ready" ? (
-                  <>
-                    <Alert status="accent">
-                      <Alert.Indicator>
-                        <CircleInfo />
-                      </Alert.Indicator>
-                      <Alert.Content>
-                        <Alert.Title>{resolution}</Alert.Title>
-                        <Alert.Description>
-                          {firstName(c.name)} is notified of the decision. Deductions over RWF 50,000 need approval from
-                          the owner before any refund starts.
-                        </Alert.Description>
-                      </Alert.Content>
-                    </Alert>
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        onPress={() => {
-                          setDecision(null);
-                          setStage("dispute");
-                        }}
-                      >
-                        Change decision
-                      </Button>
-                      <Button onPress={() => setApproveOpen(true)}>
-                        <PaperPlane className="size-4" />
-                        Send for approval
-                      </Button>
-                    </div>
-                  </>
-                ) : null}
-
-                {dispute && stage === "approval" ? (
-                  <Timeline size="sm" density="compact" aria-label="Settlement approval">
-                    <Timeline.Item status="success">
-                      <Timeline.Rail>
-                        <Timeline.Marker>
-                          <Check className="size-3" />
-                        </Timeline.Marker>
-                        <Timeline.Connector />
-                      </Timeline.Rail>
-                      <Timeline.Content className="flex flex-col pb-0.5">
-                        <span className="text-[13px] leading-[18px] font-medium">
-                          Settlement proposed by {persona.name}
-                        </span>
-                        <span className="text-[12px] leading-4 text-muted">Today 10:05 · {resolution}</span>
-                      </Timeline.Content>
-                    </Timeline.Item>
-                    <Timeline.Item status="current">
-                      <Timeline.Rail>
-                        <Timeline.Marker>
-                          <Clock className="size-3" />
-                        </Timeline.Marker>
-                        <Timeline.Connector />
-                      </Timeline.Rail>
-                      <Timeline.Content className="flex flex-col pb-0.5">
-                        <span className="text-[13px] leading-[18px] font-medium">
-                          Waiting for {approver?.name}, {approver?.role}
-                        </span>
-                        <span className="text-[12px] leading-4 text-muted">
-                          Approver must be a different person from the proposer
-                        </span>
-                      </Timeline.Content>
-                    </Timeline.Item>
-                    <Timeline.Item>
-                      <Timeline.Rail>
-                        <Timeline.Marker>
-                          <Vault className="size-3" />
-                        </Timeline.Marker>
-                        <Timeline.Connector />
-                      </Timeline.Rail>
-                      <Timeline.Content className="flex flex-col pb-0.5">
-                        <span className="text-[13px] leading-[18px] font-medium">
-                          Refund by Payments · {money(refund)}
-                        </span>
-                        <span className="text-[12px] leading-4 text-muted">
-                          Not started. Paid to {firstName(c.name)}’s registered MTN MoMo number; stays Pending until the
-                          provider confirms.
-                        </span>
-                      </Timeline.Content>
-                    </Timeline.Item>
-                  </Timeline>
                 ) : null}
 
                 {c.refund ? (
@@ -652,37 +459,6 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
           </Tabs>
         </Card>
       </div>
-
-      {dispute ? (
-        <FormDialog
-          isOpen={approveOpen}
-          onOpenChange={setApproveOpen}
-          title="Send settlement for approval"
-          description={`${c.lease} · ${c.id} · ${c.name}`}
-          footer={
-            <>
-              <Button variant="secondary" onPress={() => setApproveOpen(false)}>
-                Cancel
-              </Button>
-              <Button onPress={sendForApproval}>Send to {firstName(approver?.name ?? "approver")}</Button>
-            </>
-          }
-        >
-          <KeyValueList
-            items={[
-              { label: "Caution held", value: <span className="tabular">{money(c.deposit)}</span> },
-              { label: "Deductions", value: <span className="tabular">{money(dedTotal)}</span> },
-              { label: "Refund to resident", value: <span className="tabular">{money(refund)}</span> },
-              { label: "Approver", value: `${approver?.name} · ${approver?.role}` },
-            ]}
-          />
-          <SelectField label="Reason code" value={reason} options={REASONS} onChange={setReason} />
-          <TextField fullWidth value={approveNote} onChange={setApproveNote} className="gap-1">
-            <Label>Note for the approver</Label>
-            <TextArea rows={2} />
-          </TextField>
-        </FormDialog>
-      ) : null}
 
       <FormDialog
         isOpen={noticeOpen}
@@ -732,7 +508,11 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
           options={CHANNELS}
           onChange={(channel) => setNotice((n) => ({ ...n, channel }))}
         />
-        <p className="text-[12px] leading-4 text-muted">The lease requires 30 days in writing, either party.</p>
+        <p className="text-[12px] leading-4 text-muted">
+          {noticeDays === null
+            ? "This lease’s notice period is not on file."
+            : `The lease requires ${noticeDays} days in writing, either party.`}
+        </p>
       </FormDialog>
 
       <Drawer.Backdrop isOpen={registerOpen} onOpenChange={setRegisterOpen}>
@@ -744,7 +524,7 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
                 Caution deposit register
               </Drawer.Heading>
               <p className="text-[13px] text-muted tabular">
-                {deposits.length} deposits · {money(depositTotal)} held as a liability, not income
+                {deposits.length} deposits · {money(depositTotal)} agreed in leases, a liability, not income
               </p>
             </Drawer.Header>
             <Drawer.Body>
@@ -756,7 +536,7 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
                       <div className="flex min-w-0 flex-col">
                         <ListView.Title className="whitespace-normal">{d.who}</ListView.Title>
                         <ListView.Description className="tabular">
-                          {d.lease} · {money(d.amount)}
+                          {d.lease} · {d.amount === null ? "amount not on file" : money(d.amount)}
                         </ListView.Description>
                       </div>
                     </ListView.ItemContent>
@@ -773,9 +553,9 @@ export function MoveOutsView({ persona, data }: { persona: Persona; data: MoveOu
               <Button
                 variant="secondary"
                 onPress={() =>
-                  downloadCsv("kacyiru-court-caution-deposits.csv", [
+                  downloadCsv("caution-deposits.csv", [
                     ["Unit", "Held for", "Lease", "Amount (RWF)", "State"],
-                    ...deposits.map((d) => [d.id.replace("-prev", ""), d.who, d.lease, d.amount, d.state]),
+                    ...deposits.map((d) => [d.id.replace("-prev", ""), d.who, d.lease, d.amount ?? "", d.state]),
                   ])
                 }
               >

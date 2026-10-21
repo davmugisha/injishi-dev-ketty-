@@ -730,6 +730,15 @@ export async function seed({ c, fx, log, keep }) {
       auto_closed: false,
     });
   }
+  // Records are keyed by the day they belong to, so a seed run on a later day writes new ids while the
+  // previous day's seeded records are still open (and yesterday's "today" row becomes today's "yesterday"
+  // row): mid-statement one person would hold two open records, which attendance_records_one_open_uk
+  // refuses. Neutralise every open record first, as the leftovers above are; the upsert below writes each
+  // seeded row's own status back, and convergence removes the rest afterwards.
+  await c.query(
+    `UPDATE attendance_records SET status = 'superseded' WHERE org_id = ANY($1::uuid[]) AND status = 'open'`,
+    [ORGS],
+  );
   const recordIds = await upsert(c, 'attendance_records', recordRows);
   keep('attendance_records', recordIds, BY_ORG);
   const recordOf = (fixtureId, offset) => iid('attendance', `${fixtureId}:${day(offset)}`);

@@ -15,17 +15,25 @@ export function ChoiceField({
   value,
   onChange,
   options,
+  placeholder,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: readonly Choice[];
+  /** Shown while nothing is chosen (value ""), so no option is ever picked for the person. */
+  placeholder?: string;
 }) {
   return (
     <NativeSelect fullWidth variant="secondary" className="flex flex-col gap-[4px]">
       <Label htmlFor={id}>{label}</Label>
       <NativeSelect.Trigger id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+        {placeholder !== undefined ? (
+          <NativeSelect.Option value="" disabled>
+            {placeholder}
+          </NativeSelect.Option>
+        ) : null}
         {options.map((o) => (
           <NativeSelect.Option key={o.id} value={o.id}>
             {o.label}

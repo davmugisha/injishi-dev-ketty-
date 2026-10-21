@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  ArrowsRotateRight,
   Ban,
-  Bell,
   Camera,
   Check,
   ChevronLeft,
@@ -11,16 +9,13 @@ import {
   CircleCheckFill,
   CircleInfo,
   CloudSlash,
-  FloppyDisk,
   PaperPlane,
-  Plus,
   Wrench,
 } from "@gravity-ui/icons";
 import {
   Alert,
   Button,
   Card,
-  Chip,
   Description,
   Label,
   Switch,
@@ -28,6 +23,7 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  toast,
 } from "@heroui/react";
 import { RadioButtonGroup, Timeline } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
@@ -37,13 +33,14 @@ import type { ReactNode } from "react";
 import { useState, useTransition } from "react";
 import { reported } from "../operations/shared";
 import { reportProblemAction } from "./actions";
-import { kigaliClock, PhoneActionBar, PhoneTitle, PhotoTile, renderSection, ToneTile } from "./parts";
+import { kigaliClock, PhoneActionBar, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "./parts";
 
 export interface StaffReportData {
   places: ReportPlace[];
   categories: ProblemCategory[];
   urgencies: UrgencyLevel[];
-  report: ProblemReport;
+  /** The person's own reports still open in maintenance, as the API holds them: listed so nothing is sent twice. */
+  open: ProblemReport[];
 }
 
 interface Step {
@@ -53,30 +50,41 @@ interface Step {
   detail: string;
 }
 
-const photoLabel = (n: number) => (n ? `${n} ${n === 1 ? "photo" : "photos"}` : "None");
+/**
+ * Why the photo button does nothing yet: a work order is raised without photos (`POST /ops/work-orders` names
+ * none), so a photo taken here would never reach maintenance.
+ */
+const PHOTO_UNAVAILABLE = "Photos cannot be sent with a report yet. Say what you see in a few words instead.";
 
-/** Housekeeper reports a problem to maintenance: place, category, urgency, photo (artifact: StaffReport). */
+const BACK_LABEL = "Back to my rooms";
+
+/**
+ * Housekeeper reports a problem to maintenance: place, category, urgency, photo (artifact: StaffReport). The form
+ * starts empty: the place, what is wrong and how urgent are the person's choices, never copied from an earlier report.
+ */
 export function StaffReportView({ data, offline = false }: { data: StaffReportData; offline?: boolean }) {
-  const { places, categories, urgencies, report } = data;
-  const [place, setPlace] = useState(() =>
-    places.some((p) => p.id === report.place) ? report.place : (places[0]?.id ?? ""),
-  );
-  const [category, setCategory] = useState(report.category);
-  const [urgency, setUrgency] = useState(report.urgency);
-  const [photos, setPhotos] = useState(report.photos);
-  const [block, setBlock] = useState(report.askBlock);
-  const [description, setDescription] = useState(report.description);
-  /** The ticket the report got and when it was sent (or saved, offline). */
+  const { places, categories, urgencies } = data;
+  const [place, setPlace] = useState("");
+  const [category, setCategory] = useState("");
+  const [urgency, setUrgency] = useState("");
+  const [block, setBlock] = useState(false);
+  const [description, setDescription] = useState("");
+  /** The work order the report became, and when the API took it. */
   const [sent, setSent] = useState<{ ticket: string; at: string } | null>(null);
-  const [retried, setRetried] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const placeDoc = places.find((p) => p.id === place) ?? places[0];
-  const isRoom = placeDoc.isRoom;
+  const placeDoc = places.find((p) => p.id === place);
+  const isRoom = placeDoc?.isRoom ?? false;
   const blockOn = block && isRoom;
-  const where = isRoom ? `Room ${placeDoc.label}` : placeDoc.label;
+  const where = placeDoc ? (isRoom ? `Room ${placeDoc.label}` : placeDoc.label) : "";
+  const ready = Boolean(placeDoc && category && urgency && description.trim());
   const send = () => {
-    if (offline) return setSent({ ticket: "", at: kigaliClock() });
+    // Nothing is kept on the phone: with no signal the report is not sent, and the screen says so.
+    if (offline) {
+      toast.warning("No signal: the report was not sent and is not saved on this phone. Send it when you have signal.");
+      return;
+    }
+    if (!placeDoc) return;
     startTransition(async () => {
       const result = await reportProblemAction({
         place: placeDoc.label,
@@ -86,81 +94,52 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
         description,
         askBlock: blockOn,
       });
-      if (reported(result) && result.ok) {
-        setSent({ ticket: result.value, at: kigaliClock() });
-        setRetried(null);
-      }
+      if (reported(result) && result.ok) setSent({ ticket: result.value, at: kigaliClock() });
     });
   };
   const cat = categories.find((c) => c.id === category) ?? categories[0];
   const sev = urgencies.find((u) => u.id === urgency) ?? urgencies[0];
-  const backLabel = `Back to room ${report.place}`;
 
-  const steps: Step[] = offline
-    ? [
-        {
-          status: "warning",
-          icon: <FloppyDisk />,
-          title: "Saved on this phone",
-          detail: `${sent?.at ?? ""} · waiting for signal`,
-        },
-        {
-          status: "default",
-          icon: <PaperPlane />,
-          title: "Sends to maintenance",
-          detail: "Automatically, as soon as there is signal",
-        },
-        {
-          status: "default",
-          icon: <Wrench />,
-          title: `${report.assigneeFirst} gets the job`,
-          detail: "Ticket number is given when it arrives",
-        },
-      ]
-    : [
-        {
-          status: "success",
-          icon: <Check />,
-          title: "Sent to maintenance",
-          detail: `${sent?.at ?? ""} · ${photos ? `with ${photoLabel(photos)}` : "no photo"}`,
-        },
-        {
-          status: "current",
-          icon: <Wrench />,
-          title: `${report.assignee} notified`,
-          detail: "It is in his queue · Beatrice gets a copy",
-        },
-        ...(blockOn
-          ? [
-              {
-                status: "warning" as const,
-                icon: <Ban />,
-                title: `Out-of-order request with ${report.manager}`,
-                detail: `Room ${placeDoc.label} stays on sale until she approves`,
-              },
-            ]
-          : []),
-        {
-          status: "default",
-          icon: <Bell />,
-          title: "You get a message when it is fixed",
-          detail: "Check it in Today",
-        },
-      ];
+  const steps: Step[] = [
+    {
+      status: "success",
+      icon: <Check />,
+      title: "Sent to maintenance",
+      detail: `${sent?.at ?? ""} · ${sent?.ticket ?? ""} · no photo`,
+    },
+    {
+      status: "current",
+      icon: <Wrench />,
+      title: "In the maintenance queue",
+      detail: "A technician takes it from the work order list",
+    },
+    ...(blockOn
+      ? [
+          {
+            status: "warning" as const,
+            icon: <Ban />,
+            title: "Out-of-order request with a manager",
+            detail: `${where} stays on sale until a manager approves`,
+          },
+        ]
+      : []),
+  ];
 
-  const blockNote = !isRoom
-    ? "Corridors are not sold, so there is nothing to block."
-    : blockOn
-      ? `This asks ${report.managerFirst} (manager) to take room ${placeDoc.label} out of order. Front desk keeps selling it until she approves.`
-      : "Leave this off if guests can still use the room.";
+  const blockNote = !placeDoc
+    ? "Choose where first. Only a room can be taken out of order."
+    : !isRoom
+      ? "Corridors and shared spaces are not sold, so there is nothing to block."
+      : blockOn
+        ? `This asks a manager to take room ${placeDoc.label} out of order. Front desk keeps selling it until a manager approves.`
+        : "Leave this off if guests can still use the room.";
 
   const reset = () => {
     setSent(null);
-    setPhotos(0);
-    setUrgency(report.urgency);
-    setCategory(report.category);
+    setPlace("");
+    setCategory("");
+    setUrgency("");
+    setBlock(false);
     setDescription("");
-    setRetried(null);
   };
 
   return (
@@ -170,13 +149,13 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
           href={screenHref("StaffTask")}
           variant="ghost"
           isIconOnly
-          aria-label={backLabel}
-          title={backLabel}
+          aria-label={BACK_LABEL}
+          title={BACK_LABEL}
           className="size-11"
         >
           <ChevronLeft className="size-4" />
         </LinkButton>
-        <PhoneTitle title="Report a problem" sub={`Goes to maintenance · ${report.assigneeFirst} is on shift`} />
+        <PhoneTitle title="Report a problem" sub="Goes to maintenance as a work order" />
       </PhoneTop>
 
       <PhoneBody>
@@ -188,10 +167,16 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
             <Alert.Content>
               <Alert.Title>No connection</Alert.Title>
               <Alert.Description>
-                You can still report. It is saved on this phone and sends when signal is back.
+                A report is not saved on this phone. Send it once signal is back, or tell a supervisor.
               </Alert.Description>
             </Alert.Content>
           </Alert>
+        ) : null}
+
+        {!sent && data.open.length ? (
+          <p className="text-[13px] leading-[18px] text-muted">
+            Already open from you: {data.open.map((o) => (o.place ? `${o.ticket} (${o.place})` : o.ticket)).join(", ")}
+          </p>
         ) : null}
 
         {!sent ? (
@@ -205,7 +190,7 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
                 selectionMode="single"
                 disallowEmptySelection
                 isDetached
-                selectedKeys={[place]}
+                selectedKeys={place ? [place] : []}
                 onSelectionChange={(keys) => {
                   const k = [...keys][0];
                   if (k) setPlace(String(k));
@@ -218,7 +203,11 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
                   </ToggleButton>
                 ))}
               </ToggleButtonGroup>
-              <p className="text-xs leading-4 text-muted">Your rooms today and the floor 2 corridor.</p>
+              <p className="text-xs leading-4 text-muted">
+                {places.length
+                  ? "Your rooms today and the shared spaces on your floors."
+                  : "No room or space is assigned to you today, so there is nowhere to choose. Tell a supervisor."}
+              </p>
             </section>
 
             <section className="flex flex-col gap-[8px]" aria-labelledby="cat-h">
@@ -230,7 +219,7 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
                 selectionMode="single"
                 disallowEmptySelection
                 isDetached
-                selectedKeys={[category]}
+                selectedKeys={category ? [category] : []}
                 onSelectionChange={(keys) => {
                   const k = [...keys][0];
                   if (k) setCategory(String(k));
@@ -283,51 +272,22 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
               <h2 id="ph-h" className="text-[15px] leading-[22px] font-semibold">
                 Photo
               </h2>
-              {photos > 0 ? (
-                <>
-                  <PhotoTile image={report.photo} caption={report.photoCaption} className="h-[168px] w-full" priority>
-                    {photos > 1 ? (
-                      <Chip size="sm" variant="soft" className="absolute top-[10px] right-[10px]">
-                        {photoLabel(photos)}
-                      </Chip>
-                    ) : null}
-                  </PhotoTile>
-                  <div className="grid grid-cols-2 gap-[8px]">
-                    <Button variant="secondary" size="lg" fullWidth className="min-h-12" onPress={() => setPhotos(0)}>
-                      <Camera className="size-4" />
-                      Retake
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="lg"
-                      fullWidth
-                      className="min-h-12"
-                      isDisabled={photos >= 3}
-                      onPress={() => setPhotos((n) => Math.min(3, n + 1))}
-                    >
-                      <Plus className="size-4" />
-                      Add another
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  fullWidth
-                  className="min-h-24 flex-col gap-[6px]"
-                  onPress={() => setPhotos(1)}
-                >
-                  <Camera className="size-6" />
-                  Take a photo
-                </Button>
-              )}
-              <p className="text-xs leading-4 text-muted">Photos are made smaller so they send on weak signal.</p>
+              <Button
+                variant="secondary"
+                size="lg"
+                fullWidth
+                className="min-h-24 flex-col gap-[6px]"
+                onPress={() => toast.warning(PHOTO_UNAVAILABLE)}
+              >
+                <Camera className="size-6" />
+                Take a photo
+              </Button>
+              <p className="text-xs leading-4 text-muted">Not available yet: photos are not sent with a report.</p>
             </section>
 
             <TextField value={description} onChange={setDescription} fullWidth className="flex flex-col gap-1">
               <Label>What did you see?</Label>
-              <TextArea rows={3} />
+              <TextArea rows={3} placeholder="Water under the basin, the pipe drips" />
               <Description>A few words is enough.</Description>
             </TextField>
 
@@ -363,26 +323,21 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
           </>
         ) : (
           <Card render={renderSection} role="status" aria-labelledby="ok-h" className="gap-[14px] p-[20px]">
-            <ToneTile tone={offline ? "warning" : "success"}>{offline ? <CloudSlash /> : <CircleCheck />}</ToneTile>
+            <ToneTile tone="success">
+              <CircleCheck />
+            </ToneTile>
             <div className="flex flex-col gap-1">
               <h2 id="ok-h" className="text-xl leading-[26px] font-semibold">
-                {offline ? "Saved on phone · will send" : "Report sent"}
+                Report sent
               </h2>
-              {!offline ? (
-                <span className="text-[28px] leading-9 font-semibold tracking-[-0.01em] tabular">{sent?.ticket}</span>
-              ) : null}
-              <p className="text-muted">
-                {offline
-                  ? "No signal right now. Your report is safe on this phone. It gets a ticket number when it reaches maintenance."
-                  : "Maintenance has your report. Keep this number if anyone asks."}
-              </p>
+              <span className="text-[28px] leading-9 font-semibold tracking-[-0.01em] tabular">{sent?.ticket}</span>
+              <p className="text-muted">Maintenance has your report. Keep this number if anyone asks.</p>
             </div>
             <KeyValueList
               items={[
                 { label: "Where", value: where },
                 { label: "Problem", value: cat.label },
                 { label: "Urgency", value: sev.label },
-                { label: "Photo", value: photoLabel(photos) },
               ]}
             />
             <Timeline size="sm" density="compact">
@@ -399,27 +354,8 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
                 </Timeline.Item>
               ))}
             </Timeline>
-            {offline ? (
-              <>
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  fullWidth
-                  className="min-h-14"
-                  onPress={() => setRetried(kigaliClock())}
-                >
-                  <ArrowsRotateRight className="size-4" />
-                  Try sending now
-                </Button>
-                {retried ? (
-                  <p role="status" className="text-xs leading-4 text-muted">
-                    Still no signal at {retried}. The phone keeps trying on its own.
-                  </p>
-                ) : null}
-              </>
-            ) : null}
             <LinkButton href={screenHref("StaffTask")} size="lg" fullWidth className="min-h-14">
-              {backLabel}
+              {BACK_LABEL}
             </LinkButton>
             <Button variant="ghost" size="lg" fullWidth className="min-h-12" onPress={reset}>
               Report another problem
@@ -430,12 +366,13 @@ export function StaffReportView({ data, offline = false }: { data: StaffReportDa
 
       {!sent ? (
         <PhoneActionBar className="flex-col">
-          <Button size="lg" fullWidth className="min-h-14" isDisabled={pending || !description.trim()} onPress={send}>
-            {offline ? <FloppyDisk className="size-4" /> : <PaperPlane className="size-4" />}
-            {offline ? "Save report on phone" : "Send report"}
+          <Button size="lg" fullWidth className="min-h-14" isDisabled={pending || !ready} onPress={send}>
+            <PaperPlane className="size-4" />
+            Send report
           </Button>
         </PhoneActionBar>
       ) : null}
+      <PhoneToasts />
     </>
   );
 }

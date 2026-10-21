@@ -48,10 +48,11 @@ import { formatRwf, Icon, PhoneBody, PhoneTop, StatusDot, toneColor } from "@inj
 import NextLink from "next/link";
 import { type ComponentPropsWithRef, Fragment, useState, useTransition } from "react";
 import { signOut } from "@/lib/auth-actions";
-import { PhoneSheet, renderAsButton, renderSection, ToneTile } from "./parts";
+import { PhoneSheet, PhoneToasts, renderAsButton, renderSection, ToneTile } from "./parts";
 
 export interface StaffMeData {
-  profile: StaffProfile;
+  /** The caller's own profile; null when none is on file (never another person's). */
+  profile: StaffProfile | null;
   payslips: Payslip[];
   balance: LeaveBalance;
   requests: StaffRequest[];
@@ -59,6 +60,8 @@ export interface StaffMeData {
   assets: LoanedAsset[];
   tickets: HelpTicket[];
   topics: HelpTopic[];
+  /** The caller's clock-in time today from their attendance record ("07:02"), or null when not clocked in. */
+  clockedInAt: string | null;
 }
 
 const COPY = {
@@ -86,6 +89,13 @@ const COPY = {
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "bio", "0", "del"] as const;
 
+/**
+ * Why the payslip lock does not open: no API checks a payslip PIN or a fingerprint for a person, so this phone
+ * cannot tell whether a PIN is right. Rather than let any PIN through, the payslips stay locked.
+ */
+const PIN_UNAVAILABLE =
+  "Checking a payslip PIN is not available yet, so payslips stay locked on the phone. Ask HR for your payslip.";
+
 function renderLeaveLink(props: ComponentPropsWithRef<"a">) {
   const { href, ...rest } = props;
   return <NextLink href={href ?? screenHref("StaffSchedule")} {...rest} />;
@@ -103,19 +113,18 @@ function SectionTitle({ id, children }: { id: string; children: string }) {
 export function StaffMeView({
   persona,
   data,
-  initialPayslips = "locked",
 }: {
   persona: Persona;
   data: StaffMeData;
+  /** Ignored: the payslips open only behind a PIN this phone can check, and none can be checked yet. */
   initialPayslips?: "locked" | "unlocked";
 }) {
   const { profile, payslips, balance, requests, assets, topics } = data;
-  const [unlocked, setUnlocked] = useState(initialPayslips === "unlocked");
+  const [unlocked, setUnlocked] = useState(false);
   const [sheet, setSheet] = useState<"" | "pin" | "help">("");
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState(false);
   const [openSlip, setOpenSlip] = useState<string | null>("sep");
-  const [pdfSaved, setPdfSaved] = useState(false);
   const [lang, setLang] = useState<"en" | "rw">("en");
   const [topic, setTopic] = useState("uniform");
   const [signingOut, startSignOut] = useTransition();
@@ -137,15 +146,9 @@ export function StaffMeView({
       setPinError(false);
       return;
     }
-    if (next === "0000") {
-      setPin("");
-      setPinError(true);
-      return;
-    }
+    // A full PIN cannot be checked against anything, so it opens nothing.
     setPin("");
-    setPinError(false);
-    setUnlocked(true);
-    setSheet("");
+    setPinError(true);
   };
 
   const closeSheet = () => {
@@ -157,10 +160,17 @@ export function StaffMeView({
     <>
       <PhoneTop>
         <h1 className="flex-1 text-[22px] leading-7 font-semibold">{t.me}</h1>
-        <Chip color="success" variant="soft">
-          <StatusDot tone="success" />
-          <Chip.Label>In since {profile.clockedInAt}</Chip.Label>
-        </Chip>
+        {data.clockedInAt ? (
+          <Chip color="success" variant="soft">
+            <StatusDot tone="success" />
+            <Chip.Label>In since {data.clockedInAt}</Chip.Label>
+          </Chip>
+        ) : (
+          <Chip variant="soft">
+            <StatusDot tone="default" />
+            <Chip.Label>Not clocked in</Chip.Label>
+          </Chip>
+        )}
       </PhoneTop>
 
       <PhoneBody>
@@ -171,10 +181,13 @@ export function StaffMeView({
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="text-base leading-[22px] font-semibold">{persona.name}</span>
             <span className="text-[13px] leading-[18px] text-muted">
-              {persona.role} · {profile.workplace}
+              {[persona.role, profile?.workplace].filter(Boolean).join(" · ")}
             </span>
+            {/* From the caller's own HR file; what it does not carry is said to be not on file. */}
             <span className="text-xs leading-4 text-muted tabular">
-              Staff no. {profile.staffNo} · since {profile.since}
+              {`${profile?.staffNo ? `Staff no. ${profile.staffNo}` : "Staff number not on file"} · ${
+                profile?.since ? `since ${profile.since}` : "start date not on file"
+              }`}
             </span>
           </div>
         </Card>
@@ -314,7 +327,7 @@ export function StaffMeView({
                       size="lg"
                       fullWidth
                       className="min-h-12"
-                      onPress={() => setPdfSaved(true)}
+                      onPress={() => toast.warning("Saving a payslip PDF on the phone is not available yet.")}
                     >
                       <ArrowDownToLine className="size-4" />
                       Save PDF
@@ -333,11 +346,6 @@ export function StaffMeView({
                       Ask about it
                     </Button>
                   </div>
-                  {pdfSaved ? (
-                    <p role="status" className="text-xs leading-4 text-muted">
-                      Saved to this phone. The PDF opens without internet and needs your PIN.
-                    </p>
-                  ) : null}
                 </Card>
               ) : null}
             </>
@@ -368,7 +376,7 @@ export function StaffMeView({
             <Button
               variant="ghost"
               className="min-h-11"
-              onPress={() => toast.danger("Documents cannot be sent from the phone yet. Hand the paper to HR.")}
+              onPress={() => toast.warning("Documents cannot be sent from the phone yet. Hand the paper to HR.")}
             >
               <Camera className="size-4" />
               Add
@@ -503,8 +511,8 @@ export function StaffMeView({
           ))}
         </div>
         {pinError ? (
-          <p role="alert" className="text-[13px] text-danger-soft-foreground">
-            That PIN is not right. 2 tries left.
+          <p role="alert" className="text-center text-[13px] text-warning-soft-foreground">
+            {PIN_UNAVAILABLE}
           </p>
         ) : null}
         <div className="grid w-full grid-cols-3 gap-[8px]">
@@ -517,8 +525,7 @@ export function StaffMeView({
                   className="h-14 w-full"
                   onPress={() => {
                     setPin("");
-                    setUnlocked(true);
-                    setSheet("");
+                    setPinError(true);
                   }}
                 >
                   <Fingerprint className="size-5" />
@@ -549,7 +556,7 @@ export function StaffMeView({
           <Button variant="ghost" className="min-h-11" onPress={closeSheet}>
             Cancel
           </Button>
-          <span className="text-xs text-muted">Forgot it? Ask Diane in HR.</span>
+          <span className="text-xs text-muted">Forgot it? Ask HR.</span>
         </div>
       </PhoneSheet>
 
@@ -557,7 +564,7 @@ export function StaffMeView({
         isOpen={sheet === "help"}
         onOpenChange={(o) => !o && closeSheet()}
         heading="Ask HR or IT"
-        description="Diane Ingabire (HR) answers here and by SMS, usually within a day."
+        description="Sending a question from the phone is not available yet. Ask HR in person."
       >
         <ToggleButtonGroup
           aria-label="Topic"
@@ -591,7 +598,7 @@ export function StaffMeView({
             className="min-h-14"
             onPress={() => {
               setSheet("");
-              toast.danger("Questions cannot be sent to HR or IT from the phone yet. Ask Diane in person.");
+              toast.warning("Questions cannot be sent to HR or IT from the phone yet. Ask HR in person.");
             }}
           >
             <PaperPlane className="size-4" />
@@ -599,6 +606,7 @@ export function StaffMeView({
           </Button>
         </div>
       </PhoneSheet>
+      <PhoneToasts />
     </>
   );
 }

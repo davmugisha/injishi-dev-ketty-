@@ -41,11 +41,22 @@ import type { StaffProfile, StorePart, WorkOrder, WorkOrderPart } from "@injishi
 import { Icon, KeyValueList, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
 import { type ReactNode, useState, useTransition } from "react";
 import { reported } from "../operations/shared";
-import { noteWorkOrderAction, resolveWorkOrderAction, setWorkOrderTimerAction } from "./actions";
-import { kigaliClock, PhoneActionBar, PhoneSheet, PhoneTitle, PhotoTile, renderAsButton, renderSection } from "./parts";
+import { noteWorkOrderAction, resolveWorkOrderAction, setWorkOrderTimerAction, startWorkOrderAction } from "./actions";
+import {
+  kigaliClock,
+  NothingYet,
+  PhoneActionBar,
+  PhoneSheet,
+  PhoneTitle,
+  PhoneToasts,
+  PhotoTile,
+  renderAsButton,
+  renderSection,
+} from "./parts";
 
 export interface TechWorkOrdersData {
-  profile: StaffProfile;
+  /** The caller's own profile; null when none is on file (never another person's). */
+  profile: StaffProfile | null;
   orders: WorkOrder[];
   store: StorePart[];
 }
@@ -72,7 +83,7 @@ type KeyedNote = WorkOrder["notes"][number] & { key: string };
 
 const NOT_YET = {
   photo: "Photos cannot be sent from the phone yet. Show the problem in a note.",
-  part: "The store is not connected yet. Ask Patrick to issue the part.",
+  part: "The store is not connected yet. Ask whoever keeps the store to issue the part.",
   reopen: "A fixed order cannot be reopened from the phone yet. Ask the office to raise a new one.",
 };
 
@@ -96,10 +107,11 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
   const [resolved, setResolved] = useState<Record<string, { order: WorkOrder; at: string }>>({});
   const [pending, startTransition] = useTransition();
   const orders = [...data.orders.filter((o) => !resolved[o.id]), ...Object.values(resolved).map((x) => x.order)];
+  if (!orders.length) return <NothingYet title="Work orders" message="No work order is open for you right now." />;
 
   const statusOf = (o: WorkOrder): Status => (resolved[o.id] ? "resolved" : o.status);
   const openCount = orders.filter((o) => statusOf(o) !== "resolved").length;
-  const until = profile.shift.split("–")[1]?.trim() ?? "";
+  const until = profile?.shift.split("–")[1]?.trim() ?? "";
 
   const w = orders.find((o) => o.id === woId) ?? orders[0];
   const s = statusOf(w);
@@ -119,33 +131,50 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
   const canTime = !isResolved && (!!w.repair || s === "progress");
   const woNotes: KeyedNote[] = w.notes.map((n) => ({ ...n, key: `${n.who}-${n.when}-${n.text.slice(0, 24)}` }));
   const block = w.block;
+  /**
+   * Only an approved block ("Not sellable") can be asked back on sale: the API records the ask for an active block
+   * only. A requested block is still on sale and stays with the manager to decide.
+   */
+  const blockActive = block?.tone === "danger";
 
   const fixed: Step = {
     status: "success",
     icon: <Check />,
     title: "Fixed by you",
-    detail: `Today ${resolved[w.id]?.at ?? kigaliClock()} · ${parts.length} part${parts.length === 1 ? "" : "s"} · time logged`,
+    detail: `Today ${resolved[w.id]?.at ?? kigaliClock()} · ${parts.length} part${parts.length === 1 ? "" : "s"}`,
   };
   const release: Step[] = !block
-    ? [fixed, { status: "default", icon: <Bell />, title: "Reporter gets a message", detail: w.from }]
-    : askRelease
+    ? [
+        fixed,
+        { status: "default", icon: <Bell />, title: "Shows as fixed on the work order", detail: `Raised by ${w.from}` },
+      ]
+    : askRelease && blockActive
       ? [
           fixed,
           {
             status: "current",
             icon: <CheckDouble />,
-            title: "Room check by Beatrice",
-            detail: "Housekeeping inspects before guests",
+            title: "Room check by housekeeping",
+            // Asked for in the note the API records; no housekeeping task is created for it.
+            detail: "Asked for in your note · no housekeeping task is booked for you",
           },
           {
             status: "default",
             icon: <LockOpen />,
-            title: "Aline releases the block",
+            title: "A manager releases the block",
             detail: "Only the manager can put the room back on sale",
           },
           { status: "default", icon: <Key />, title: "Back on sale", detail: "Front desk sees it as available" },
         ]
-      : [fixed, { status: "default", icon: <Ban />, title: "Block stays as approved", detail: block.keep }];
+      : [
+          fixed,
+          {
+            status: "default",
+            icon: <Ban />,
+            title: blockActive ? "Block stays as approved" : "Block request stays with the manager",
+            detail: block.keep,
+          },
+        ];
 
   const openOrder = (id: string) => {
     setWoId(id);
@@ -165,10 +194,15 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
     startTransition(async () => {
       reported(await setWorkOrderTimerAction(w.id, on));
     });
+  /** "Start work": the order goes In progress on the API (`/ops/work-orders/:id/start`); the repair timer is its own button. */
+  const startWork = () =>
+    startTransition(async () => {
+      reported(await startWorkOrderAction(w.id));
+    });
   const fixText = fix[w.id] ?? w.fix;
   const resolve = () =>
     startTransition(async () => {
-      if (!reported(await resolveWorkOrderAction(w.id, { fix: fixText, askRelease: Boolean(block) && askRelease })))
+      if (!reported(await resolveWorkOrderAction(w.id, { fix: fixText, askRelease: blockActive && askRelease })))
         return;
       setSheet("");
       setResolved((r) => ({ ...r, [w.id]: { order: { ...w, repair: null, fix: fixText }, at: kigaliClock() } }));
@@ -181,7 +215,10 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
           <Avatar size="sm" variant="soft" color="warning">
             <Avatar.Fallback>{persona.initials}</Avatar.Fallback>
           </Avatar>
-          <PhoneTitle title="My work orders" sub={`${persona.name} · ${profile.department} · until ${until}`} />
+          <PhoneTitle
+            title="My work orders"
+            sub={[persona.name, profile?.department, until ? `until ${until}` : ""].filter(Boolean).join(" · ")}
+          />
         </PhoneTop>
       ) : (
         <PhoneTop>
@@ -262,7 +299,13 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
               <Card render={renderSection} role="status" aria-labelledby="rs-h" className="gap-[12px] p-[16px]">
                 <div className="flex items-start justify-between gap-[8px]">
                   <h2 id="rs-h" className="text-[15px] leading-[22px] font-semibold">
-                    {!block ? "Resolved" : askRelease ? "Resolved · release requested" : "Resolved · block kept"}
+                    {!block
+                      ? "Resolved"
+                      : !blockActive
+                        ? "Resolved · block request still with the manager"
+                        : askRelease
+                          ? "Resolved · release requested"
+                          : "Resolved · block kept"}
                   </h2>
                   {block ? (
                     <Chip size="sm" variant="soft" color={block.tone}>
@@ -284,7 +327,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
                     </Timeline.Item>
                   ))}
                 </Timeline>
-                <Button variant="ghost" className="min-h-11 self-start" onPress={() => toast.danger(NOT_YET.reopen)}>
+                <Button variant="ghost" className="min-h-11 self-start" onPress={() => toast.warning(NOT_YET.reopen)}>
                   Reopen
                 </Button>
               </Card>
@@ -319,7 +362,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
                   variant="secondary"
                   fullWidth
                   className="h-[84px] flex-col gap-[4px] rounded-[14px]"
-                  onPress={() => toast.danger(NOT_YET.photo)}
+                  onPress={() => toast.warning(NOT_YET.photo)}
                 >
                   <Camera className="size-5" />
                   Add
@@ -484,7 +527,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
 
       {view === "detail" && s === "new" ? (
         <PhoneActionBar>
-          <Button size="lg" className="min-h-14 flex-1" isDisabled={pending} onPress={() => setTimer(true)}>
+          <Button size="lg" className="min-h-14 flex-1" isDisabled={pending} onPress={startWork}>
             <CirclePlay className="size-4" />
             Start work
           </Button>
@@ -503,7 +546,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
         isOpen={sheet === "parts"}
         onOpenChange={(o) => !o && setSheet("")}
         heading="Add part from store"
-        description="Patrick issues it from the store. It counts as used once he confirms."
+        description="Not connected yet: these are sample parts, and nothing is issued from here."
       >
         <ListView
           aria-label="Parts in store"
@@ -513,7 +556,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
             const part = store.find((p) => p.id === key);
             if (!part?.available) return;
             setSheet("");
-            toast.danger(NOT_YET.part);
+            toast.warning(NOT_YET.part);
           }}
           className="shrink-0"
         >
@@ -557,7 +600,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
           <Label>What did you do?</Label>
           <TextArea rows={3} />
         </TextField>
-        {block ? (
+        {blockActive && block ? (
           <>
             <Switch
               size="lg"
@@ -577,7 +620,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
               <CircleInfo className="mt-[1px] size-4 shrink-0" aria-hidden="true" />
               <span>
                 {askRelease
-                  ? "The room stays blocked until Beatrice checks it and Aline releases it. You cannot put it back on sale yourself."
+                  ? "The room stays blocked until housekeeping checks it and a manager releases it. You cannot put it back on sale yourself."
                   : block.keep}
               </span>
             </p>
@@ -592,6 +635,7 @@ export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: 
           </Button>
         </div>
       </PhoneSheet>
+      <PhoneToasts />
     </>
   );
 }

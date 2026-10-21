@@ -147,7 +147,7 @@ export const flows: Flow[] = [
       const answered = (await read<RenewalOffer>(olivier, "resident.renewalOffers")).find((o) => o.id === offer.id);
       const after = (await read<Tenancy>(olivier, "resident.tenancies")).find((t) => t.id === tenancy.id);
       check(
-        answered?.status === "accepted" && after?.status === "Renewing",
+        answered?.status === "accepted" && after?.status === "Renewal accepted",
         `after Accept: ${answered?.status}, ${after?.status}`,
       );
       const lease = (await readBoard<{ id: string; status: string }>(solange, "residence.leases")).find(

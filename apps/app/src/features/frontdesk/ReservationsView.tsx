@@ -36,7 +36,6 @@ import { Segment } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
 import type {
   BookingRequest,
-  CancellationTier,
   Reservation,
   ReservationsSummary,
   ReservationView,
@@ -44,20 +43,20 @@ import type {
 import { formatRwf, GateChip, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useMemo, useState, useTransition } from "react";
 import { approveBookingRequest, cancelBooking, declineBookingRequest, recordNoShow } from "./actions";
-import { ChoiceSelect, PolicyTiers, plural } from "./shared";
+import { ChoiceSelect, plural } from "./shared";
 
 export interface ReservationsData {
   bookings: Reservation[];
   views: ReservationView[];
   summary: ReservationsSummary;
   requests: BookingRequest[];
-  tiers: CancellationTier[];
-  recordIds: string[];
   /** Today's day number, including when the live desk has no bookings. */
   today?: number;
+  /** The property the desk's day is read for, as the API names it. */
+  property: string;
 }
 
-type Mode = "view" | "cancel" | "cancelled" | "modify" | "modified" | "noshow" | "noshowDone";
+type Mode = "view" | "cancel" | "cancelled" | "modify" | "noshow" | "noshowDone";
 
 /** What the list shows: a saved view plus the filters above the table. */
 interface Filters {
@@ -129,13 +128,6 @@ const nowClock = () =>
     hour12: false,
   }).format(new Date());
 
-/** Mobile money or card provider named in the payment detail. */
-function providerOf(detail: string): string {
-  if (detail.includes("MTN")) return "MTN";
-  if (detail.includes("Airtel")) return "Airtel";
-  return "the provider";
-}
-
 export function ReservationsView({
   persona,
   data,
@@ -168,11 +160,11 @@ export function ReservationsView({
     range: defaultRange,
   });
   const [activeView, setActiveView] = useState<string>("all");
-  const [custom, setCustom] = useState<CustomView[]>([]);
+  // Saved views are not kept anywhere yet (see saveView), so there are none to list.
+  const custom: CustomView[] = [];
   const [cancelReason, setCancelReason] = useState(summary.cancelReasons[0] ?? "");
   const [noShowReason, setNoShowReason] = useState(summary.noShowReasons[0] ?? "");
   const [req, setReq] = useState<Record<string, RequestState>>({});
-  const [reason, setReason] = useState<Record<string, string>>({});
 
   const statuses = useMemo(() => [ANY_STATUS, ...new Set(bookings.map((b) => b.status))], [bookings]);
   const channels = useMemo(() => [ALL_CHANNELS, ...new Set(bookings.map((b) => b.channel))], [bookings]);
@@ -217,23 +209,20 @@ export function ReservationsView({
   ]
     .filter(Boolean)
     .join(" · ");
+  /**
+   * Saved views live in `list_saved_views` per list, and this list has no key there yet; a view kept only in
+   * this browser would vanish on reload while saying it was saved. So nothing is saved, and the screen says so.
+   */
   const saveView = () => {
     if (!filtersLabel) return;
-    const existing = custom.find((c) => c.label === filtersLabel);
-    if (existing) {
-      setActiveView(existing.id);
-      return;
-    }
-    const view: CustomView = { id: `custom-${custom.length + 1}`, label: filtersLabel, filters };
-    setCustom((c) => [...c, view]);
-    setActiveView(view.id);
+    toast.warning("Saving a view is not available yet. Your filters stay until you leave this page.");
   };
 
   return (
     <PageContent className="gap-4 text-[14px] leading-5">
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Front office · Isangano Lakeside Hotel"
+        eyebrow={`Front office · ${data.property}`}
         title="Reservations"
         description="Find, change and approve bookings. Refunds follow the booking's policy and are paid out by Payments, not from the desk."
         actions={
@@ -460,7 +449,6 @@ export function ReservationsView({
                 mode={mode}
                 setMode={setMode}
                 summary={summary}
-                tiers={data.tiers}
                 today={TODAY}
                 actedAt={actedAt}
                 onActed={() => setActedAt(nowClock())}
@@ -490,13 +478,10 @@ export function ReservationsView({
               key={r.id}
               r={r}
               st={st}
-              reasons={summary.declineReasons}
-              reason={reason[r.id] ?? null}
               actedAt={actedAt}
               onActed={() => setActedAt(nowClock())}
               decidedBy={persona.name}
               setState={(s) => setReq((m) => ({ ...m, [r.id]: s }))}
-              setReason={(v) => setReason((m) => ({ ...m, [r.id]: v }))}
             />
           ))}
         </div>
@@ -510,7 +495,6 @@ function BookingInspector({
   mode,
   setMode,
   summary,
-  tiers,
   cancelReason,
   setCancelReason,
   noShowReason,
@@ -524,7 +508,6 @@ function BookingInspector({
   mode: Mode;
   setMode: (m: Mode) => void;
   summary: ReservationsSummary;
-  tiers: CancellationTier[];
   cancelReason: string;
   setCancelReason: (v: string) => void;
   noShowReason: string;
@@ -566,28 +549,19 @@ function BookingInspector({
   const nights = plural(b.nights, "night");
   const roomLabel = b.room ? `Room ${b.room}` : "No room yet";
   const quote = b.cancelQuote ?? null;
-  const terms =
-    k === "request"
-      ? "Quote only · terms saved on approval"
-      : b.today !== undefined
-        ? "Cancellation tier locked at booking · refunds follow it"
-        : `${summary.policy} · DEP-STD v2 · saved at booking`;
+  // The tier is locked when the booking (or the request) is made; the API refunds on it.
+  const terms = "Cancellation tier locked at booking · refunds follow it";
 
-  const days = b.arrivalDay - TODAY;
-  const tierIx = days > 7 ? 0 : days >= 2 ? 1 : 2;
-  const kept = quote ? quote.kept : tierIx === 0 ? 0 : tierIx === 1 ? b.deposit / 2 : Math.min(b.deposit, b.firstNight);
-  const refund = quote ? quote.refund : b.deposit - kept;
-  const provider = providerOf(b.paymentDetail);
+  // What cancelling or recording a no-show would refund is the API's quote on the booking's own tier. Without
+  // one the API would refuse the command, so the desk is told so and offered nothing to press.
+  const kept = quote?.kept ?? 0;
+  const refund = quote?.refund ?? 0;
   const cxNote = quote
     ? `${quote.rule} The refund goes back to the wallet the guest paid from; it shows Pending until the provider confirms.`
-    : b.deposit > 0
-      ? `Today is ${days} days before arrival, so tier ${tierIx + 1} applies. The refund is decided here by policy and paid by Payments to the original wallet; it shows Pending until the provider confirms.`
-      : "No verified payment to refund. Any pending payment request is cancelled with the provider; nothing is marked refunded.";
+    : "This booking cannot be cancelled from the desk now: the platform gives no refund quote for it (its payment may no longer be held). Nothing was changed.";
   const cxAfter = outcome
-    ? `${outcome.refund > 0 ? `${formatRwf(outcome.refund)} back to the guest's wallet` : "No refund due"} · ${formatRwf(outcome.kept)} kept. ${outcome.rule} Logged with your name.`
-    : refund > 0
-      ? `Refund ${summary.refundId} for ${formatRwf(refund)} sent to Payments · Pending until ${provider} confirms. Kept ${formatRwf(kept)} under ${summary.policy}. Logged with your name.`
-      : "No refund due. Pending payment requests were cancelled. Logged with your name.";
+    ? `${outcome.refund > 0 ? `${formatRwf(outcome.refund)} back to the guest's wallet` : "No refund due"} · ${formatRwf(outcome.kept)} kept. ${outcome.rule}`
+    : "Cancelled.";
   const change = b.change ?? {
     arrival: dayLabelYear(b.arrivalDay),
     departure: dayLabelYear(b.arrivalDay + b.nights),
@@ -615,9 +589,19 @@ function BookingInspector({
         >
           <Comment className="size-4" />
         </LinkButton>
-        <LinkButton href={`${screenHref("Reservations")}/${b.id}`} size="sm" variant="secondary">
+        {/* The full reservation record (parties, saved terms, payment history) is still the prototype's sample,
+            so a live booking is never opened there: this panel is the booking as the API holds it. */}
+        <Button
+          size="sm"
+          variant="secondary"
+          onPress={() =>
+            toast.warning(
+              "The full reservation record is not available yet. This panel shows the booking as it is saved.",
+            )
+          }
+        >
           Open
-        </LinkButton>
+        </Button>
       </div>
       <div className="flex flex-wrap gap-1.5">
         <Chip size="sm" variant="soft" color={toneColor(b.statusTone)}>
@@ -683,15 +667,10 @@ function BookingInspector({
           <div className="flex flex-col gap-0.5">
             <span className="font-semibold">Cancel {b.id}</span>
             <span className="text-xs text-muted">
-              {quote
-                ? "At the guest's request · the tier this booking locked"
-                : `Policy ${summary.policy}, the version saved in this booking's terms`}
+              {quote ? "At the guest's request · the tier this booking locked" : "No refund quote for this booking"}
             </span>
           </div>
-          {quote ? null : (
-            <PolicyTiers tiers={tiers} current={tierIx} label={`Cancellation tiers of ${summary.policy}`} />
-          )}
-          <ul className="flex flex-col gap-1.5 text-[13px]">
+          <ul className="flex flex-col gap-1.5 text-[13px]" hidden={!quote}>
             <li className="flex justify-between gap-2">
               <span>Verified payments</span>
               <span className="tabular">{formatRwf(b.deposit)}</span>
@@ -716,7 +695,7 @@ function BookingInspector({
             <Button size="sm" variant="secondary" onPress={() => setMode("view")}>
               Keep booking
             </Button>
-            <Button size="sm" variant="danger" isDisabled={busy} onPress={confirmCancel}>
+            <Button size="sm" variant="danger" isDisabled={busy || !quote} onPress={confirmCancel}>
               Cancel booking
             </Button>
           </div>
@@ -748,9 +727,10 @@ function BookingInspector({
               <Input className="tabular" />
             </TextField>
           </div>
-          <Chip size="sm" variant="soft" color="success" className="self-start">
-            <CircleCheck className="size-3" />
-            <Chip.Label>{b.roomType} free for the new dates</Chip.Label>
+          {/* Nothing checks the new dates (no route changes a booking's dates), so nothing claims they are free. */}
+          <Chip size="sm" variant="soft" color="default" className="self-start">
+            <CircleInfo className="size-3" />
+            <Chip.Label>Availability for new dates is not checked here</Chip.Label>
           </Chip>
           <p className="text-xs text-muted">
             New nights are priced at today's published rate; the cancellation policy stays at the booking's version.
@@ -772,26 +752,13 @@ function BookingInspector({
           </div>
         </Card>
       ) : null}
-      {canChange && mode === "modified" ? (
-        <Alert status="default" role="status">
-          <Alert.Indicator>
-            <Pencil />
-          </Alert.Indicator>
-          <Alert.Content>
-            <Alert.Title>Dates changed {actedAt}</Alert.Title>
-            <Alert.Description>
-              Saved in the change history with your name. The guest gets an updated confirmation.
-            </Alert.Description>
-          </Alert.Content>
-        </Alert>
-      ) : null}
       {k === "noshow" && mode === "noshow" ? (
         <Card variant="secondary" className="gap-2.5 p-3.5">
           <span className="font-semibold">Mark {b.guest} as a no-show?</span>
           <p className="text-[13px]">
             {noShow
               ? `Arrival was ${dayLabel(b.arrivalDay)} and nobody checked in. ${noShow.rule} ${formatRwf(noShow.kept)} is kept and ${formatRwf(noShow.refund)} goes back; the rooms held from ${dayLabel(TODAY)} are released.`
-              : `Arrival was ${dayLabel(b.arrivalDay)}; night audit flagged it at 02:00. Under ${summary.policy} the first night (${formatRwf(b.deposit)}) is kept from the verified deposit and ${dayLabel(TODAY)} is released.`}
+              : `Arrival was ${dayLabel(b.arrivalDay)} and nobody checked in, but a no-show cannot be recorded for this booking now: the platform gives no refund quote for it (its payment may no longer be held). Nothing was changed.`}
           </p>
           <ChoiceSelect
             label="Reason"
@@ -803,7 +770,7 @@ function BookingInspector({
             <Button size="sm" variant="secondary" onPress={() => setMode("view")}>
               Guest is still coming
             </Button>
-            <Button size="sm" variant="danger" isDisabled={busy} onPress={confirmNoShow}>
+            <Button size="sm" variant="danger" isDisabled={busy || !noShow} onPress={confirmNoShow}>
               Mark no-show
             </Button>
           </div>
@@ -817,8 +784,7 @@ function BookingInspector({
           <Alert.Content>
             <Alert.Title>Marked no-show {actedAt}</Alert.Title>
             <Alert.Description>
-              {dayLabel(TODAY)} released to inventory.{" "}
-              {noShow ? noShow.rule : `First night kept under ${summary.policy}; Finance sees it in night audit.`}
+              {dayLabel(TODAY)} released to inventory. {noShow ? noShow.rule : "Recorded as a no-show."}
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -830,23 +796,17 @@ function BookingInspector({
 function RequestCard({
   r,
   st,
-  reasons,
-  reason,
   actedAt,
   onActed,
   decidedBy,
   setState,
-  setReason,
 }: {
   r: BookingRequest;
   st: RequestState;
-  reasons: string[];
-  reason: string | null;
   actedAt: string;
   onActed: () => void;
   decidedBy: string;
   setState: (s: RequestState) => void;
-  setReason: (v: string) => void;
 }) {
   const [busy, startBusy] = useTransition();
   /** Approve or decline on the API; the request leaves the queue once it is answered. */
@@ -936,35 +896,16 @@ function RequestCard({
       ) : null}
       {st === "declining" ? (
         <Card variant="secondary" className="gap-2.5 px-3.5 py-3">
-          <TagGroup
-            selectionMode="single"
-            selectedKeys={reason ? [reason] : []}
-            onSelectionChange={(keys) => {
-              const k = [...keys][0];
-              if (k) setReason(String(k));
-            }}
-            size="sm"
-            className="flex flex-col gap-2"
-          >
-            <Label>Reason the guest will see</Label>
-            <TagGroup.List className="flex flex-wrap gap-1.5">
-              {reasons.map((x) => (
-                <Tag key={x} id={x}>
-                  {x}
-                </Tag>
-              ))}
-            </TagGroup.List>
-          </TagGroup>
+          {/* The decline command carries no reason (POST /ops/reservations/:id/decline takes no body), so none is asked for. */}
+          <p className="text-[13px]">
+            Decline {r.name}'s request? The guest is emailed that it was declined, the hold is released and the payment
+            taken with the request goes back in full.
+          </p>
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="ghost" onPress={() => setState("open")}>
               Back
             </Button>
-            <Button
-              size="sm"
-              variant="danger"
-              isDisabled={!reason || busy}
-              onPress={() => reason && decide("declined")}
-            >
+            <Button size="sm" variant="danger" isDisabled={busy} onPress={() => decide("declined")}>
               Decline request
             </Button>
           </div>
@@ -978,8 +919,8 @@ function RequestCard({
           <Alert.Content>
             <Alert.Title>Approved {actedAt} · booking confirmed</Alert.Title>
             <Alert.Description>
-              The payment taken with the request now pays for the booking. The guest is told and can see it in their
-              trips.
+              The payment taken with the request now pays for the booking. The guest is emailed the confirmation and
+              sees it in their trips.
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -990,11 +931,10 @@ function RequestCard({
             <CircleXmark />
           </Alert.Indicator>
           <Alert.Content>
-            <Alert.Title>
-              Declined {actedAt} · {reason}
-            </Alert.Title>
+            <Alert.Title>Declined {actedAt}</Alert.Title>
             <Alert.Description>
-              The guest was told and the hold was released. The payment taken with the request goes back in full.
+              The guest is emailed the decision and the hold was released. The payment taken with the request goes back
+              in full.
             </Alert.Description>
           </Alert.Content>
         </Alert>

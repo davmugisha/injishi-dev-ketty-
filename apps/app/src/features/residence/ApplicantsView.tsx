@@ -56,13 +56,26 @@ export interface ApplicantsData {
 
 type Tab = "applicants" | "invites";
 
-const TEMPLATES = ["Kacyiru Court residential lease v3", "Kacyiru Court company lease v2"];
+/**
+ * The one lease a draft is made from: the convert route takes no template (`ConvertApplicationRequest`) and the
+ * API copies the landlord's standard clauses onto the draft, so the field names that, not a template by name.
+ */
+const TEMPLATE = "The building’s standard lease";
 const UNAVAILABLE_INVITES = "Invitations to apply are not available yet. Nothing was sent.";
 
 const inviteMessage = (unit: string) =>
   `Thank you for viewing ${unit}. Please register and upload your ID and proof of income.`;
 
-export function ApplicantsView({ persona, data }: { persona: Persona; data: ApplicantsData }) {
+export function ApplicantsView({
+  persona,
+  data,
+  building = "",
+}: {
+  persona: Persona;
+  data: ApplicantsData;
+  /** The building(s) the workspace covers, from the session. */
+  building?: string;
+}) {
   const [tab, setTab] = useState<Tab>("applicants");
   const [sel, setSel] = useState(data.applicants[0]?.id ?? "");
   const [query, setQuery] = useState("");
@@ -70,7 +83,6 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
     Object.fromEntries(data.applicants.filter((a) => a.profile).map((a) => [a.id, [...(a.profile?.checks ?? [])]])),
   );
   const [convertOpen, setConvertOpen] = useState(false);
-  const [template, setTemplate] = useState(TEMPLATES[0]);
   const [terms, setTerms] = useState({ start: "", term: "", rent: "", deposit: "", notice: "30 days" });
   const [busy, setBusy] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
@@ -169,7 +181,7 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
   // Invitations to apply are not wired: nothing would carry them (see the data map's residence.invitations).
   const sendInvite = () => {
     if (!canSend) return;
-    toast.danger(UNAVAILABLE_INVITES);
+    toast.warning(UNAVAILABLE_INVITES);
   };
 
   const openProfile = (id: string) => {
@@ -181,7 +193,7 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
   return (
     <PageContent>
       <PageHeader
-        eyebrow="Tenancy · Kacyiru Court Residences"
+        eyebrow={building ? `Tenancy · ${building}` : "Tenancy"}
         title="Applicants"
         description="Invite prospective residents to register, check their documents, and turn a successful application into a lease draft."
         actions={
@@ -297,10 +309,10 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
                     <EmptyState.Description>{applicant.pendingNote}</EmptyState.Description>
                   </EmptyState.Header>
                   <EmptyState.Content className="flex flex-row flex-wrap justify-center gap-2">
-                    <Button size="sm" variant="secondary" onPress={() => toast.danger(UNAVAILABLE_INVITES)}>
+                    <Button size="sm" variant="secondary" onPress={() => toast.warning(UNAVAILABLE_INVITES)}>
                       Resend invitation
                     </Button>
-                    <Button size="sm" variant="ghost" onPress={() => toast.danger(UNAVAILABLE_INVITES)}>
+                    <Button size="sm" variant="ghost" onPress={() => toast.warning(UNAVAILABLE_INVITES)}>
                       Revoke
                     </Button>
                   </EmptyState.Content>
@@ -313,8 +325,8 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
         <Tabs.Panel id="invites" className="pt-5">
           <section className="flex flex-col gap-3" aria-label="Registration invitations">
             <p className="text-[13px] text-muted">
-              Invitations are sent by email or in-app link and expire after 7 days. Accepting creates a resident
-              profile, not a lease.
+              Sending invitations is not available yet, and the rows below are sample data. When it is, accepting an
+              invitation will create a resident profile, not a lease.
             </p>
             <Table>
               <Table.ScrollContainer>
@@ -359,7 +371,7 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
                               size="sm"
                               variant="ghost"
                               aria-label={`Resend invitation to ${i.name}`}
-                              onPress={() => toast.danger(UNAVAILABLE_INVITES)}
+                              onPress={() => toast.warning(UNAVAILABLE_INVITES)}
                             >
                               Resend
                             </Button>
@@ -431,7 +443,7 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
             >
               <Label>Caution deposit (RWF)</Label>
               <Input inputMode="numeric" className="tabular" />
-              <Description>Two months’ rent, held as a liability</Description>
+              <Description>Held as a liability, never counted as rent</Description>
             </TextField>
             <TextField
               fullWidth
@@ -442,7 +454,13 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
               <Label>Notice period</Label>
               <Input />
             </TextField>
-            <SelectField label="Contract template" value={template} options={TEMPLATES} onChange={setTemplate} />
+            <TextField fullWidth value={TEMPLATE} isReadOnly className="gap-1">
+              <Label>Contract template</Label>
+              <Input />
+              <Description>
+                The landlord’s standard clauses are copied onto the draft. Another template cannot be chosen yet.
+              </Description>
+            </TextField>
           </div>
           <Alert status="accent">
             <Alert.Indicator>
@@ -469,7 +487,7 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
           isOpen={declineOpen}
           onOpenChange={setDeclineOpen}
           title={`Decline ${applicant.name}`}
-          description={`${applicant.unit} · the reason is what the applicant is told`}
+          description={`${applicant.unit} · the reason is kept with the application; the applicant is not sent it`}
           footer={
             <>
               <Button variant="secondary" onPress={() => setDeclineOpen(false)}>
@@ -543,9 +561,7 @@ export function ApplicantsView({ persona, data }: { persona: Persona; data: Appl
                 <Label>Message</Label>
                 <TextArea rows={3} />
               </TextField>
-              <p className="text-[12px] text-muted">
-                Expires in 7 days. You can resend or revoke it from Registration invitations.
-              </p>
+              <p className="text-[12px] text-muted">Sending invitations is not available yet.</p>
             </Drawer.Body>
             <Drawer.Footer className="flex justify-end gap-2">
               <Button variant="secondary" onPress={() => setInviteOpen(false)}>
@@ -681,7 +697,13 @@ function ProfileCard({
               </ListView.ItemContent>
               <ListView.ItemAction className="flex items-center gap-2">
                 <ToneChip tone={d.tone}>{d.state}</ToneChip>
-                <Button size="sm" variant="ghost" isIconOnly aria-label={`View ${d.name}`}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  isIconOnly
+                  aria-label={`View ${d.name}`}
+                  onPress={() => toast.warning("Opening an applicant's document is not available yet.")}
+                >
                   <Eye className="size-4" />
                 </Button>
               </ListView.ItemAction>

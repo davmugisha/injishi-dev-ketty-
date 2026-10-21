@@ -35,6 +35,7 @@ export function sourceContext(api: ApiClient, account: Account | null, now: Date
     account,
     persona: account?.persona ?? null,
     today: kigaliToday(now),
+    now,
     ops(domain: Domain = "hospitality") {
       let s = cache.get(domain);
       if (!s) {

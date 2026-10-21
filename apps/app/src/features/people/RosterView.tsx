@@ -78,6 +78,7 @@ const SWATCH: Record<ShiftCode, string> = {
   O: "bg-transparent text-muted shadow-[inset_0_0_0_1px_var(--separator)]",
   L: "bg-warning-soft text-warning-soft-foreground",
 };
+/** Rwanda's labour law caps the normal working week at 45 hours; no business setting on the API changes it. */
 const MAX_WEEK_HOURS = 45;
 const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many);
 
@@ -97,6 +98,8 @@ export function RosterView({
   otherBranchName: string;
 }) {
   const { groups, staff, rotations, holidays } = data;
+  // A lent shift's cell names the branch it is lent to, shortened to its first word ("Ishyamba").
+  const lentShort = otherBranchName.trim().split(" ")[0] || otherBranchName;
   const weekOf = (w: WeekId) => data.weeks.find((x) => x.id === w) ?? data.weeks[0];
 
   const [wk, setWk] = useState<WeekId>(initialWeek);
@@ -147,8 +150,8 @@ export function RosterView({
   const gridOf = (w: WeekId): Grid => grids[w] ?? initialGrid(w);
   const grid = gridOf(wk);
   const lentNow = lent[wk];
-  // A change to a published week reaches the person at once (the API publishes it and tells them),
-  // so nothing waits to be sent: only a draft week's changes wait for Publish.
+  // A change to a published week shows in the person's staff app at once (the API publishes it; its
+  // `roster.changed` outbox row is not delivered as a message), so only a draft week's changes wait.
   const bump = (_w: WeekId, _n: number) => edits;
   const copy = (g: Grid): Grid => Object.fromEntries(Object.entries(g).map(([k, v]) => [k, [...v]]));
   const setCell = (rid: string, d: number, v: ShiftCode) => {
@@ -247,8 +250,8 @@ export function RosterView({
             ? "No change to cover"
             : `Cover changes by ${delta}`
           : st === "approved"
-            ? "Approved · both notified"
-            : "Declined · both notified",
+            ? "Approved · recorded"
+            : "Declined · recorded",
       tone: st === "declined" ? ("default" as const) : delta < 0 ? ("warning" as const) : ("success" as const),
       outcome:
         st === "approved"
@@ -263,17 +266,17 @@ export function RosterView({
   const otherWeek = data.weeks.find((x) => x.id !== wk);
   const pubTitle = `Week ${wkNo} published ${pubAt[wk] || "today"} to ${staff.length} staff`;
   const pubNote = ed
-    ? `${ed} shift ${plural(ed, "change")} since publishing. Publish them to notify only the people affected.`
+    ? `${ed} shift ${plural(ed, "change")} since publishing. Publish them so the people affected see them in the staff app.`
     : wk === "this" && otherWeek && pub[otherWeek.id] !== "published"
-      ? `Everyone has seen their week in the staff app. Week ${otherWeek.number} (${otherWeek.range}) is still a draft.`
-      : "Staff confirm they have seen their week in the staff app.";
+      ? `This week shows in the staff app. Week ${otherWeek.number} (${otherWeek.range}) is still a draft.`
+      : "Published weeks show in the staff app.";
   const pubLabel = `Week ${wkNo} · ${isPub ? (ed ? `published, ${ed} unsent changes` : "published") : "draft, not published"}`;
   const showPublish = !isPub || ed > 0;
   const publishLabel = isPub ? `Publish ${ed} ${plural(ed, "change")}` : "Publish roster";
   const dlgTitle = isPub ? `Send ${ed} ${plural(ed, "change")} for week ${wkNo}?` : `Publish week ${W.range}?`;
   const dlgText = isPub
-    ? "Only the people whose shifts changed are notified, in the staff app and by SMS."
-    : `${staff.length} staff at ${branchName} get their shifts in the staff app and by SMS. Later changes notify only the people affected.`;
+    ? "The changed shifts show in the staff app of the people affected. No SMS or message is sent."
+    : `${staff.length} staff at ${branchName} see their shifts in the staff app. No SMS or message is sent.`;
   const confirmLabel = `${isPub ? "Send changes" : "Publish"}${hasWarnings ? ` with ${gaps.length} ${plural(gaps.length, "gap")}` : ""}`;
 
   const publish = () => {
@@ -294,7 +297,7 @@ export function RosterView({
     });
   };
   const reset = () => {
-    toast.danger("Resetting the whole roster to rotations is not available yet. Edit individual shifts to save them.");
+    toast.warning("Resetting the whole roster to rotations is not available yet. Edit individual shifts to save them.");
   };
   const decideSwap = (w: (typeof swaps)[number], decision: "approved" | "declined") => {
     const before = grids.this ?? null;
@@ -323,7 +326,7 @@ export function RosterView({
       <PageHeader
         eyebrow={`${W.label} · ${branchName} · today is ${longDay(today)}`}
         title="Roster"
-        description="Click any shift to change it. Staff see a week in the staff app once you publish it; later changes notify only the people affected."
+        description="Click any shift to change it. Staff see a week in the staff app once you publish it, and later changes show there for the people affected. No SMS or message is sent."
         actions={
           <>
             <Segment
@@ -463,7 +466,9 @@ export function RosterView({
                                   >
                                     {LABEL[v]}
                                     {isLent ? (
-                                      <span className="block text-[10px] leading-[11px] font-medium">Lodge</span>
+                                      <span className="block max-w-full truncate text-[10px] leading-[11px] font-medium">
+                                        {lentShort}
+                                      </span>
                                     ) : null}
                                   </Button>
                                 </Table.Cell>
@@ -560,7 +565,7 @@ export function RosterView({
               items={[
                 {
                   label: "Hours that week",
-                  value: `${hrs} h of a configured ${MAX_WEEK_HOURS} h week${hrs > MAX_WEEK_HOURS ? ` · ${hrs - MAX_WEEK_HOURS} h overtime needs approval` : ""}`,
+                  value: `${hrs} h rostered${hrs > MAX_WEEK_HOURS ? ` · ${hrs - MAX_WEEK_HOURS} h over the ${MAX_WEEK_HOURS} h legal week` : ""}`,
                 },
                 {
                   label: "Rotation",
@@ -606,7 +611,7 @@ export function RosterView({
             dense
             id="sw-h"
             title="Shift Swap Requests"
-            description="This week · both people agreed in the staff app"
+            description="This week · the colleague named in each has agreed to it"
             className="gap-2.5"
           >
             {swaps.map((w) => (
@@ -666,14 +671,15 @@ export function RosterView({
           dense
           id="hol-h"
           title="Public Holidays"
-          description="Rwanda calendar 2026 · configured list, dates of religious holidays confirmed when announced"
-          action={<GateChip icon={<ShieldExclamation className="size-3" />}>Configured · unverified</GateChip>}
+          description="Rwanda calendar 2026 · sample list, dates of religious holidays confirmed when announced"
+          action={<GateChip icon={<ShieldExclamation className="size-3" />}>Sample · unverified</GateChip>}
           className="gap-2.5"
         >
           <div className="flex items-start gap-2">
             <CircleInfo className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
             <span className="text-[13px]">
-              No public holidays from 12 to 25 October. Holiday shifts are paid at the holiday rate in Payroll rules.
+              Sample list: the roster does not read public holidays yet, so check these dates before publishing a week.
+              Holiday shifts are paid at the holiday rate in Payroll rules.
             </span>
           </div>
           <ListView aria-label="Public holidays" variant="secondary" items={holidays}>
@@ -716,7 +722,7 @@ export function RosterView({
                   <Alert.Content>
                     <Alert.Title>{warnTitle}</Alert.Title>
                     <Alert.Description>
-                      Department heads are told about each gap. You can still fill them after publishing.
+                      Nobody is told about the gaps automatically. You can still fill them after publishing.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>

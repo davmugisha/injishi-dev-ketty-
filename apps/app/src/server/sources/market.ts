@@ -7,10 +7,11 @@
  * someone is signed in; a public page with nobody signed in gets no account data at all (an empty list),
  * never a stand-in person.
  *
- * The visitor's search is not passed to a source, so "the stay being looked at" is the default search the
- * prototype draws: two adults, checking in eleven days from today for two nights (the prototype's 23 to 25
- * October seen from its 12 October). The checkout prices that stay through `/marketplace/quote`, which uses
- * the booking service's own arithmetic, so the total on screen is the total the charge takes.
+ * A property page opens on a default stay (two adults, checking in eleven days from today for two nights: the
+ * prototype's 23 to 25 October seen from its 12 October) that the visitor then changes. What they choose there
+ * (room, dates, party, plan) is carried to the checkout as a stay key (`stayKey`), and the checkout prices
+ * exactly that stay through `/marketplace/quote`, which uses the booking service's own arithmetic, so the total
+ * on screen is the total the charge takes. With no stay chosen, the checkout shows the default stay.
  */
 import type {
   GuestConsent,
@@ -241,6 +242,49 @@ export function defaultStay(ctx: SourceContext) {
   return { checkIn: addDays(ctx.today, 11), checkOut: addDays(ctx.today, 13), adults: 2, children: 0 };
 }
 
+/** The stay a visitor chose on a property page: the room, the nights, the party and the rate plan. */
+export interface StayChoice {
+  roomTypeId: string;
+  checkIn: string;
+  checkOut: string;
+  adults: number;
+  children: number;
+  /** The Non-refundable plan. The booking service grants it only on a room eligible for it. */
+  nonRefundable: boolean;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** The checkout document id of a chosen stay ("stay:<room>:<in>:<out>:<adults>:<children>:<flex|saver>"). */
+export function stayKey(c: StayChoice): string {
+  return ["stay", c.roomTypeId, c.checkIn, c.checkOut, c.adults, c.children, c.nonRefundable ? "saver" : "flex"].join(
+    ":",
+  );
+}
+
+/** A stay key read back, or null when it is not one (a malformed address never reaches the API). */
+export function parseStayKey(key: string): StayChoice | null {
+  const parts = key.split(":");
+  if (parts.length !== 7) return null;
+  const [tag, roomTypeId, checkIn, checkOut, adults, children, plan] = parts as [
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
+  if (tag !== "stay" || !UUID.test(roomTypeId)) return null;
+  if (!ISO_DAY.test(checkIn) || !ISO_DAY.test(checkOut) || !(checkOut > checkIn)) return null;
+  const a = Number(adults);
+  const c = Number(children);
+  if (!Number.isInteger(a) || a < 1 || a > 50 || !Number.isInteger(c) || c < 0 || a + c > 50) return null;
+  if (plan !== "flex" && plan !== "saver") return null;
+  return { roomTypeId, checkIn, checkOut, adults: a, children: c, nonRefundable: plan === "saver" };
+}
+
 const KIND_LABEL: Record<string, string> = {
   hotel: "Hotel",
   lodge: "Lodge",
@@ -445,10 +489,16 @@ export function defaultRoom<T extends { bookingMode: BookingModeApi | null; pric
   return byPrice.find((r) => r.bookingMode === "instant_book") ?? byPrice[0];
 }
 
-/** The refund schedule as the checkout draws it: each step, how long it lasts (its bar), and until when. */
-function refundTiers(q: QuoteApi): MarketCheckout["cancellation"] {
+/**
+ * The refund schedule as the checkout draws it: each step, how long it lasts (its bar), and until when. A
+ * non-refundable stay has one step: nothing comes back once it is booked.
+ */
+function refundTiers(q: QuoteApi, now: Date, nonRefundable: boolean): MarketCheckout["cancellation"] {
+  if (nonRefundable) {
+    return [{ id: "none", label: "No refund", until: "From booking", tone: "danger", weight: 1 }];
+  }
   const checkInAt = Date.parse(`${q.checkIn}T${(q.checkInTime ?? "14:00").slice(0, 5)}:00+02:00`);
-  let from = Date.now();
+  let from = now.getTime();
   return q.refunds.map((step) => {
     const end = step.until ? Date.parse(step.until) : checkInAt + DAY_MS;
     const weight = Math.min(12, Math.max(1, Math.round((end - from) / DAY_MS)));
@@ -479,27 +529,68 @@ function splitName(name: string): { firstName: string; lastName: string } {
   return { firstName: parts[0] ?? "", lastName: parts.slice(1).join(" ") };
 }
 
-/** A checkout draft of the default stay in one room (see the file comment). */
-function toCheckout(id: "instant" | "request", q: QuoteApi, slug: string, who: GuestContactApi | null): MarketCheckout {
+/**
+ * A checkout as the screen takes it, plus the non-refundable discount of a stay booked on that plan (absent from
+ * the prototype's documents, which drew no discount at checkout).
+ */
+export type CheckoutDocument = MarketCheckout & { nonRefundableDiscountRwf?: number };
+
+/**
+ * The guest service fee rate (`GUEST_SERVICE_FEE_RATE` in @injishi/contracts booking.ts; the app does not depend
+ * on contracts). `/marketplace/quote` prices only the refundable plan, so a non-refundable stay's preview applies
+ * the booking service's arithmetic here; once Pay is pressed the screen shows the amount the API prompts for.
+ */
+const GUEST_SERVICE_FEE_RATE = 0.05;
+
+interface CheckoutTerms {
+  adults: number;
+  children: number;
+  /** Booked on the Non-refundable plan (asked for AND the room is eligible). */
+  nonRefundable: boolean;
+  /** Asked for the Non-refundable plan on a room that has none: booked refundable, and said so. */
+  saverRefused: boolean;
+  /** The plan's discount, a fraction (`nonRefundableDiscount` on the property page). */
+  discount: number;
+}
+
+/** A checkout draft of one stay in one room: the default stay (see the file comment) or the one the visitor chose. */
+function toCheckout(
+  id: "instant" | "request",
+  q: QuoteApi,
+  slug: string,
+  who: GuestContactApi | null,
+  now: Date,
+  terms: CheckoutTerms = { adults: q.guests, children: 0, nonRefundable: false, saverRefused: false, discount: 0 },
+): CheckoutDocument {
   const nights = q.breakdown.nights;
   const request = id === "request";
-  const full = q.refunds[0]?.percent === 100 && q.refunds[0].until ? q.refunds[0].until : null;
+  const full = !terms.nonRefundable && q.refunds[0]?.percent === 100 && q.refunds[0].until ? q.refunds[0].until : null;
   const replyBy =
-    request && q.approvalWindowHours ? new Date(Date.now() + q.approvalWindowHours * 3_600_000).toISOString() : null;
+    request && q.approvalWindowHours ? new Date(now.getTime() + q.approvalWindowHours * 3_600_000).toISOString() : null;
+  const accommodation = q.breakdown.accommodationRwf;
+  const discountRwf = terms.nonRefundable ? Math.round(accommodation * terms.discount) : 0;
+  const serviceFee = terms.nonRefundable
+    ? Math.round((accommodation - discountRwf) * GUEST_SERVICE_FEE_RATE)
+    : q.breakdown.serviceFeeRwf;
+  const plan = terms.nonRefundable ? "Non-refundable" : full ? "Free cancellation" : "Partly refundable";
+  const party =
+    plural(terms.adults, "adult", "adults") +
+    (terms.children ? `, ${plural(terms.children, "child", "children")}` : "");
   return {
     id,
     reference: "",
     property: slug,
     room: q.roomName,
-    plan: full ? "Free cancellation" : "Partly refundable",
+    plan: terms.saverRefused ? `${plan} (this room has no non-refundable rate)` : plan,
     dates: `${stayRange(q.checkIn, q.checkOut)} · ${plural(nights, "night", "nights")}`,
     nights,
     // The party's nightly charge (per-guest rate × guests), the figure the booking locks.
-    rate: Math.round(q.breakdown.accommodationRwf / nights),
-    serviceFee: q.breakdown.serviceFeeRwf,
+    rate: Math.round(accommodation / nights),
+    serviceFee,
+    ...(discountRwf ? { nonRefundableDiscountRwf: discountRwf } : {}),
     vatRate: q.vatRatePercent,
     vatStatus: "EBM tax class B",
-    guests: plural(q.guests, "adult", "adults"),
+    guests: party,
     checkIn: { day: weekdayDay(q.checkIn), time: `From ${(q.checkInTime ?? "14:00").slice(0, 5)}` },
     checkOut: { day: weekdayDay(q.checkOut), time: `By ${(q.checkOutTime ?? "11:00").slice(0, 5)}` },
     confirmation: request ? `Host replies within ${q.approvalWindowHours ?? 24} h` : "Instant confirmation",
@@ -513,10 +604,12 @@ function toCheckout(id: "instant" | "request", q: QuoteApi, slug: string, who: G
     arrival: "",
     requests: [],
     note: "",
-    cancellation: refundTiers(q),
-    freeCancellation: full
-      ? `Free cancellation until ${weekdayDay(kigaliIso(full))}, ${clock(full)}`
-      : "No free cancellation on this room",
+    cancellation: refundTiers(q, now, terms.nonRefundable),
+    freeCancellation: terms.nonRefundable
+      ? "Non-refundable: nothing is refunded if you cancel"
+      : full
+        ? `Free cancellation until ${weekdayDay(kigaliIso(full))}, ${clock(full)}`
+        : "No free cancellation on this room",
     payee: q.legalName,
     payment: { intent: "", heldUntil: "", checks: [] },
   };
@@ -558,9 +651,10 @@ function toProperty(p: PropertyPageApi, ctx: SourceContext, savedTo: string): Ma
       adults: { min: 1, max: maxAdults, sub: "Age 13+" },
       children: { min: 0, max: maxChildren, sub: "Age 0–12" },
     },
-    // Filled from the default room's quote by the caller (it needs the API); a safe default until then.
+    // Filled from the default room's quote by the caller (it needs the API). Until then nothing is promised:
+    // no full-refund step (-1) and no refund.
     cancellation: {
-      fullRefundDays: 1,
+      fullRefundDays: -1,
       cutoff: (p.checkInTime ?? "14:00").slice(0, 5),
       partialRefund: "No refund",
       nonRefundableNote: "Non-refundable rate: no refunds.",
@@ -590,12 +684,18 @@ function toProperty(p: PropertyPageApi, ctx: SourceContext, savedTo: string): Ma
       runs: others.length
         ? `Runs this ${kind.toLowerCase()} and ${others.join(", ")}`
         : `Runs this ${kind.toLowerCase()}`,
-      verified: p.business.verifiedAt ? `Verified ${dayMonthYear(p.business.verifiedAt)}` : "Verified business",
+      // Only what the API holds: "" when it records no verification or no licence, and the page then draws no
+      // "Verified" or success chip at all (MarketPropertyView). A licence past its date is expired, never active.
+      verified: p.business.verifiedAt ? `Verified ${dayMonthYear(p.business.verifiedAt)}` : "",
       licence: p.business.licenceValidTo
-        ? `Active to ${dayMonthYear(p.business.licenceValidTo)}`
-        : "Licence not on file",
+        ? p.business.licenceValidTo.slice(0, 10) < ctx.today.iso
+          ? `Expired ${dayMonthYear(p.business.licenceValidTo)}`
+          : `Active to ${dayMonthYear(p.business.licenceValidTo)}`
+        : "",
       tin: p.business.tin ? groupDigits(p.business.tin) : (p.business.upi ?? ""),
-      evidence: "Checked against documents, not a live registry",
+      evidence: p.business.verifiedAt
+        ? "Checked against documents, not a live registry"
+        : "No verification on file for this business",
     },
   };
 }
@@ -609,7 +709,8 @@ function withCancellation(property: MarketProperty, q: QuoteApi | undefined, non
   return {
     ...property,
     cancellation: {
-      fullRefundDays: fullUntil ? Math.max(0, Math.round((checkInAt - Date.parse(fullUntil)) / DAY_MS)) : 0,
+      // -1: the policy has no full-refund step, so the page promises no free cancellation at all.
+      fullRefundDays: fullUntil ? Math.max(0, Math.round((checkInAt - Date.parse(fullUntil)) / DAY_MS)) : -1,
       cutoff: (q.checkInTime ?? "14:00").slice(0, 5),
       partialRefund: partial ? `${partial.percent}% refund` : "No refund",
       nonRefundableNote: nonRefundable ? "Non-refundable rate: no refunds." : "This room has no non-refundable rate.",
@@ -733,16 +834,10 @@ function upcomingTrip(
     ref: `${request ? "Booking request" : "Booking"} ${trip.reference} · ${facts?.legalName ?? ""}`,
     photo: photoKey(facts?.stockPhoto),
     facts: [booked, paid, ...preArrival],
+    // Shown once the guest withdraws on this screen. The refund line is the API's answer to that press
+    // (`refundRwf` of POST /bookings/:reference/cancel), added by the screen, never worked out here.
     withdrawnFacts: request
-      ? [
-          { label: "Booking", chip: "Withdrawn by you", tone: "default", note: dayMonth(today.iso) },
-          {
-            label: "Payment",
-            chip: "Refunded in full",
-            tone: "default",
-            note: trip.grossRwf !== null ? rwf(trip.grossRwf) : "",
-          },
-        ]
+      ? [{ label: "Booking", chip: "Withdrawn by you", tone: "default", note: dayMonth(today.iso) }]
       : null,
     links: request
       ? []
@@ -858,10 +953,51 @@ export async function checkoutDrafts(
     rooms.map(async ([id, room]) => {
       if (!room) return null;
       const q = await quote(ctx, room.id, { checkIn: stay.checkIn, checkOut: stay.checkOut, guests: stay.adults });
-      return { draft: toCheckout(id, q, featured.slug, who), roomTypeId: room.id, quote: q };
+      return { draft: toCheckout(id, q, featured.slug, who, ctx.now), roomTypeId: room.id, quote: q };
     }),
   );
   return drafts.filter((d) => d !== null);
+}
+
+/** What the checkout books for a chosen stay: the draft the page shows, and exactly what `POST /bookings` takes. */
+export interface ChosenCheckout {
+  draft: CheckoutDocument;
+  roomTypeId: string;
+  quote: QuoteApi;
+  nonRefundable: boolean;
+}
+
+/**
+ * The checkout of the stay a visitor chose on a property page, priced by `/marketplace/quote`. A stay the API will
+ * not quote (no such room, too many guests for it, too long) is no checkout at all: undefined.
+ */
+export async function chosenCheckout(ctx: SourceContext, choice: StayChoice): Promise<ChosenCheckout | undefined> {
+  let q: QuoteApi;
+  try {
+    q = await quote(ctx, choice.roomTypeId, {
+      checkIn: choice.checkIn,
+      checkOut: choice.checkOut,
+      guests: choice.adults + choice.children,
+    });
+  } catch (error) {
+    const status = (error as { status?: number }).status;
+    if (status === 400 || status === 404 || status === 409) return undefined;
+    throw error;
+  }
+  if (!q.propertySlug) return undefined;
+  const [p, who] = await Promise.all([page(ctx, q.propertySlug), contact(ctx)]);
+  const room = p?.rooms.find((r) => r.id === choice.roomTypeId);
+  if (!p || !room) return undefined;
+  const nonRefundable = choice.nonRefundable && room.nonrefundableEligible;
+  const mode = q.bookingMode === "request_to_book" ? "request" : "instant";
+  const draft = toCheckout(mode, q, q.propertySlug, who, ctx.now, {
+    adults: choice.adults,
+    children: choice.children,
+    nonRefundable,
+    saverRefused: choice.nonRefundable && !nonRefundable,
+    discount: p.nonRefundableDiscount,
+  });
+  return { draft, roomTypeId: q.roomTypeId, quote: q, nonRefundable };
 }
 
 // ── Sources ───────────────────────────────────────────────────────────────────────────────────────────
@@ -914,6 +1050,12 @@ export const sources = defineSources({
     naturalKey: "id",
     async list(ctx): Promise<MarketCheckout[]> {
       return (await checkoutDrafts(ctx)).map((d) => d.draft);
+    },
+    /** "instant" / "request" (the default stay's drafts), or a chosen stay's key (`stayKey`). */
+    async get(ctx, id): Promise<CheckoutDocument | undefined> {
+      const choice = parseStayKey(id);
+      if (choice) return (await chosenCheckout(ctx, choice))?.draft;
+      return (await checkoutDrafts(ctx)).find((d) => d.draft.id === id)?.draft;
     },
   },
 

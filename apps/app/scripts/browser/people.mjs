@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * The HR officer's decisions, in a real browser: Diane signs in, the Leave screen draws from Postgres
- * (no sample-data mark), she declines a leave request with a reason and the decision survives a reload;
+ * (no sample-data mark), she declines a leave request with a reason and the decision survives a reload (and
+ * the screen no longer claims anyone was notified: nothing delivers messages yet);
  * then on Attendance she approves a clock correction and it survives a reload too.
  *
  *   APP_URL=http://localhost:3040 node scripts/browser/people.mjs
@@ -39,7 +40,7 @@ try {
   await page.waitFor("!!document.querySelector('textarea')", "the reason field");
   await page.type("textarea", "Housekeeping is short that day; please pick another date");
   await page.press("Confirm decline");
-  await page.waitForText("Declined · Vestine notified", 60_000);
+  await page.waitForText("Declined · Vestine sees it in the staff app", 60_000);
   // Wait for the server round trip before leaving the page: a fresh render of the screen carries the reason.
   await page.waitFor(
     `fetch('/leave?request=${id}&tab=done', { cache: 'no-store' }).then((r) => r.text()).then((t) => t.includes('Housekeeping is short that day'))`,
@@ -47,9 +48,10 @@ try {
     60_000,
   );
   await page.goto(`${APP}/leave?request=${id}&tab=done`);
-  await page.waitForText("Declined · Vestine notified", 60_000);
+  await page.waitForText("Declined · Vestine sees it in the staff app", 60_000);
   if (!(await page.text()).includes("Housekeeping is short that day"))
     fail("the decline reason did not survive a reload");
+  if ((await page.text()).includes("notified")) fail("the leave screen still claims somebody was notified");
   console.log("  declined Vestine's leave with a reason; it is still declined after a reload");
 
   // Attendance: approve the first correction waiting for HR.
@@ -57,6 +59,9 @@ try {
   await page.waitForText("Correction Requests", 120_000);
   if ((await page.text()).includes("Sample data"))
     fail("/attendance is marked as sample data, but its collections are live");
+  // Nothing in the product asks a line manager to confirm a correction: the screen must not say one did.
+  if (/confirmed by line managers|line manager confirms/i.test(await page.text()))
+    fail("/attendance still claims line managers confirmed the corrections");
   const waiting = await page.eval(
     `[...document.querySelectorAll('button')].filter((b) => b.innerText.trim() === 'Approve correction').length`,
   );

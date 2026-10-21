@@ -7,6 +7,7 @@ import { requirePersona } from "@/lib/session";
 import { ApiError, ApiUnreachableError } from "@/server/api";
 import { requestContext } from "@/server/data";
 import * as residence from "@/server/mutations/residence";
+import { NoWorkspaceError } from "@/server/sources/types";
 
 /**
  * The residence manager's writes. Each checks the screen is the person's, calls the API through
@@ -30,6 +31,7 @@ async function run<T>(board: BoardId, act: () => Promise<T>): Promise<ActionResu
       return { ok: false, error: error.message };
     }
     if (error instanceof residence.ResidenceInputError) return { ok: false, error: error.message };
+    if (error instanceof NoWorkspaceError) return { ok: false, error: error.message };
     if (error instanceof ApiUnreachableError)
       return { ok: false, error: "The Injishi service did not answer. Try again." };
     throw error;

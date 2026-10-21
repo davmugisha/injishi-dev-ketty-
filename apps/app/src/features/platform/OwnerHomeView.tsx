@@ -2,7 +2,7 @@
 
 import { ChartColumn, ChevronRight } from "@gravity-ui/icons";
 import { Avatar, Card, Chip, ProgressBar, Table } from "@heroui/react";
-import { ItemCard, ItemCardGroup, KPIGroup, Segment, Timeline, TrendChip, Widget } from "@heroui-pro/react";
+import { ItemCard, ItemCardGroup, KPIGroup, Timeline, TrendChip, Widget } from "@heroui-pro/react";
 import { BarChart } from "@heroui-pro/react/bar-chart";
 import { KPI } from "@heroui-pro/react/kpi";
 import { type Persona, screenHref } from "@injishi/data";
@@ -16,7 +16,7 @@ import type {
 } from "@injishi/data/fixtures/platform";
 import { Icon, LinkButton, PageContent, PageHeader, SectionHeader, StatusDot, toneColor } from "@injishi/ui";
 import NextLink from "next/link";
-import { Fragment, useState } from "react";
+import { Fragment } from "react";
 
 export interface OwnerHomeData {
   kpis: OwnerKpi[];
@@ -26,12 +26,6 @@ export interface OwnerHomeData {
   insights: OwnerInsight[];
   compliance: ComplianceEvent[];
 }
-
-const PERIODS = [
-  { id: "today", label: "Today" },
-  { id: "week", label: "This week" },
-  { id: "mtd", label: "Month to date" },
-];
 
 function KpiTrend({ kpi }: { kpi: OwnerKpi }) {
   if (kpi.trendTone === "success" || kpi.trendTone === "danger") {
@@ -68,10 +62,17 @@ function kigaliLongDate(now = new Date()): string {
     .replace(",", "");
 }
 
+/** "Good morning" until noon in Kigali, "Good afternoon" until six, then "Good evening". */
+function greeting(now = new Date()): string {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Kigali", hour: "2-digit", hourCycle: "h23" }).format(now),
+  );
+  return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+}
+
 const COUNT_WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
 
 export function OwnerHomeView({ persona, data }: { persona: Persona; data: OwnerHomeData }) {
-  const [period, setPeriod] = useState("today");
   const waiting = data.decisions.length;
   const unsettled = data.kpis.find((k) => k.id === "unsettled");
   const labelAt = (i: number) =>
@@ -86,24 +87,17 @@ export function OwnerHomeView({ persona, data }: { persona: Persona; data: Owner
             {kigaliLongDate()} · {persona.role}
           </>
         }
-        title={`Good morning, ${persona.firstName}`}
+        title={`${greeting()}, ${persona.firstName}`}
         description={`${COUNT_WORDS[waiting] ?? waiting} ${waiting === 1 ? "decision is" : "decisions are"} waiting for you.${
           unsettled && unsettled.trendTone === "danger" ? ` ${unsettled.trend} unsettled are with Finance.` : ""
         }`}
         actions={
-          <>
-            <Segment aria-label="Period" selectedKey={period} onSelectionChange={(k) => setPeriod(String(k))}>
-              {PERIODS.map((p) => (
-                <Segment.Item key={p.id} id={p.id}>
-                  {p.label}
-                </Segment.Item>
-              ))}
-            </Segment>
-            <LinkButton href={screenHref("Reports")} variant="secondary">
-              <ChartColumn className="size-4" />
-              Open reports
-            </LinkButton>
-          </>
+          // The figures here are tonight's and today's, as each one's label says. A period switch changed none
+          // of them, so other periods are in Reports.
+          <LinkButton href={screenHref("Reports")} variant="secondary">
+            <ChartColumn className="size-4" />
+            Open reports
+          </LinkButton>
         }
       />
 
@@ -204,8 +198,8 @@ export function OwnerHomeView({ persona, data }: { persona: Persona; data: Owner
               </BarChart>
             </div>
             <p className="text-xs text-muted">
-              Posted folio and outlet charges, before fiscal adjustments. Tenant outlet Ikawa Corner is a separate
-              merchant and is not included.
+              Posted folio and outlet charges in the rooms and food and beverage departments, before fiscal adjustments.
+              Other departments are not drawn.
             </p>
           </Widget.Content>
         </Widget>

@@ -44,7 +44,6 @@ const STATUS_TONE: Record<MessageThread["status"], Tone> = {
   Closed: "default",
   "Waiting on guest": "default",
 };
-const ROUTING = ["Front desk", "Housekeeping", "Maintenance", "Isangano Terrace", "Concierge"];
 const SERVICE_TRACK = ["Created", "Assigned", "In progress", "Fulfilled", "Closed"];
 const ORDER_TRACK = ["Placed", "Preparing", "Delivered", "Posted to folio"];
 const FILTERS = [
@@ -107,10 +106,13 @@ export function MessagesView({
   persona,
   threads,
   templates,
+  property,
 }: {
   persona: Persona;
   threads: MessageThread[];
   templates: MessageTemplate[];
+  /** The property the desk's day is read for, as the API names it. */
+  property: string;
 }) {
   const [sel, setSel] = useState(threads[0]?.id ?? "");
   const [filter, setFilter] = useState("all");
@@ -120,12 +122,12 @@ export function MessagesView({
   const [lang, setLang] = useState<Lang>("EN");
   const [chan, setChan] = useState<"app" | "sms">("app");
   const [draft, setDraft] = useState("");
-  const [retried, setRetried] = useState<Record<string, boolean>>({});
-  const [assigned, setAssigned] = useState<Record<string, boolean>>({});
-  const [esc, setEsc] = useState<Record<string, boolean>>({});
-  const [dept, setDept] = useState<Record<string, string>>({});
   const [sending, startSending] = useTransition();
-  const you = `${persona.name} (you)`;
+  /**
+   * Conversations carry no assignee, department routing, escalation or SMS delivery yet (threads are active or
+   * archived, nothing more): those controls say so and change nothing.
+   */
+  const unavailable = (what: string) => toast.warning(`${what} is not available yet. Nothing was changed.`);
   /** Today's date for the header, on the Kigali calendar. */
   const todayLabel = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Africa/Kigali",
@@ -134,13 +136,11 @@ export function MessagesView({
     month: "long",
   }).format(new Date());
 
+  // The departments this inbox's conversations are with (routing is not available yet, so this only shows them).
+  const routing = [...new Set(["Front desk", ...threads.map((t) => t.dept)])];
   const all = threads.map((t) => ({
     ...t,
-    dept: dept[t.id] ?? t.dept,
-    assignee: assigned[t.id] ? persona.initials : t.assignee,
-    assigneeFull: assigned[t.id] ? you : t.assigneeFull,
     unread: read[t.id] || sel === t.id ? 0 : t.unread,
-    status: esc[t.id] ? ("Escalated" as const) : t.status,
   }));
   const unreadTotal = all.reduce((a, t) => a + t.unread, 0);
   const needle = q.trim().toLowerCase();
@@ -170,7 +170,11 @@ export function MessagesView({
       </PageContent>
     );
   }
-  const escalatedText = cur.escalated ?? (esc[cur.id] ? "Escalated to Aline Uwase 10:52" : null);
+  const escalatedText = cur.escalated;
+  // The stay's own page, from the reference the conversation names ("ST-8812 · room 305").
+  const stayRef = cur.facts.find((f) => f.label === "Stay")?.value.split(" · ")[0] ?? "";
+  const linkHref = (board: (typeof cur.links)[number]["board"]) =>
+    board === "StayFolio" && /^ST-/.test(stayRef) ? `/stays/${encodeURIComponent(stayRef)}` : screenHref(board);
   const closed = cur.closed;
   const smsOk = cur.channels.includes("sms");
   const primary: MessageChannel = cur.channels.includes("app") ? "app" : "email";
@@ -220,10 +224,10 @@ export function MessagesView({
     <PageContent className="gap-3.5">
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow={`${todayLabel} · Isangano Lakeside Hotel`}
+        eyebrow={`${todayLabel} · ${property}`}
         title="Guest Messages"
         description="Booking threads before arrival, stay threads after check-in. Internal notes never reach the guest."
-        actions={<ToneChip tone="default">First reply today · median 4 min</ToneChip>}
+        actions={<ToneChip tone="default">Replies reach the guest app</ToneChip>}
       />
 
       <div className="flex flex-wrap items-stretch gap-3">
@@ -352,7 +356,7 @@ export function MessagesView({
             </div>
             <div className="flex items-center gap-1.5">
               <ToneChip tone={STATUS_TONE[cur.status]}>{cur.status}</ToneChip>
-              <ToneChip tone="default">{cur.assigneeFull}</ToneChip>
+              <ToneChip tone="default">{cur.assigneeFull || "Unassigned"}</ToneChip>
             </div>
           </div>
 
@@ -399,12 +403,7 @@ export function MessagesView({
                   );
                 if (m.t === "staff") {
                   const sms = !!m.sms;
-                  let delivery = m.delivery;
-                  if (sms && retried[key])
-                    delivery = [
-                      ...delivery.slice(0, 1),
-                      { icon: "pending", text: "SMS retry 3 sent 10:52 · Pending with MTN" },
-                    ];
+                  const delivery = m.delivery;
                   return (
                     <ChatMessage.User key={key} className="gap-1">
                       <ChatMessage.Bubble className="max-w-[82%] bg-accent-soft">
@@ -414,8 +413,8 @@ export function MessagesView({
                       {delivery.map((d) => (
                         <DeliveryLine key={d.text} d={d} />
                       ))}
-                      {sms && !retried[key] ? (
-                        <Button size="sm" variant="secondary" onPress={() => setRetried({ ...retried, [key]: true })}>
+                      {sms ? (
+                        <Button size="sm" variant="secondary" onPress={() => unavailable("Retrying an SMS")}>
                           <ArrowsRotateRight className="size-4" />
                           Retry SMS
                         </Button>
@@ -519,7 +518,11 @@ export function MessagesView({
                 </PromptInput.Content>
                 <PromptInput.Toolbar>
                   <PromptInput.ToolbarStart className="gap-2">
-                    <PromptInput.Action aria-label="Attach a file" tooltip="Attach a file">
+                    <PromptInput.Action
+                      aria-label="Attach a file"
+                      tooltip="Attachments are not available yet"
+                      onPress={() => unavailable("Attaching a file to a reply")}
+                    >
                       <Paperclip className="size-4" />
                     </PromptInput.Action>
                     <Segment
@@ -536,7 +539,9 @@ export function MessagesView({
                   </PromptInput.ToolbarStart>
                   <PromptInput.ToolbarEnd className="gap-2">
                     {isNote || !smsOk ? (
-                      <span className="text-[11px] text-muted">{isNote ? "Staff only" : "No SMS consent on file"}</span>
+                      <span className="text-[11px] text-muted">
+                        {isNote ? "Staff only" : "SMS replies are not connected yet"}
+                      </span>
                     ) : null}
                     <Button size="sm" isDisabled={!draft.trim() || closed || sending} onPress={send}>
                       <PaperPlane className="size-4" />
@@ -575,7 +580,7 @@ export function MessagesView({
           </dl>
           <div className="flex flex-wrap gap-1.5">
             {cur.links.map((l) => (
-              <LinkButton key={l.label} href={screenHref(l.board)} size="sm" variant="secondary">
+              <LinkButton key={l.label} href={linkHref(l.board)} size="sm" variant="secondary">
                 {l.label}
               </LinkButton>
             ))}
@@ -586,20 +591,21 @@ export function MessagesView({
             <SelectField
               label="Department"
               value={cur.dept}
-              onChange={(v) => setDept({ ...dept, [cur.id]: v })}
-              options={ROUTING}
+              onChange={() => unavailable("Routing a conversation to another department")}
+              options={routing}
             />
             <span className="text-[12px] text-muted">
-              Assigned to {cur.assigneeFull} · {cur.sla}
+              {cur.assigneeFull ? `Assigned to ${cur.assigneeFull}` : "Not assigned"}
+              {cur.sla ? ` · ${cur.sla}` : ""}
             </span>
             <div className="flex flex-wrap items-center gap-1.5">
               {!cur.assignee && !closed ? (
-                <Button size="sm" variant="secondary" onPress={() => setAssigned({ ...assigned, [cur.id]: true })}>
+                <Button size="sm" variant="secondary" onPress={() => unavailable("Assigning a conversation")}>
                   Assign to me
                 </Button>
               ) : null}
               {!escalatedText && !closed ? (
-                <Button size="sm" variant="secondary" onPress={() => setEsc({ ...esc, [cur.id]: true })}>
+                <Button size="sm" variant="secondary" onPress={() => unavailable("Escalating a conversation")}>
                   <ArrowUp className="size-4" />
                   Escalate to duty manager
                 </Button>

@@ -1,7 +1,20 @@
 "use client";
 
-import { ArrowsRotateRight, Check, Clock, CloudCheck, CloudSlash } from "@gravity-ui/icons";
-import { Alert, Button, Card, Description, Input, Label, Separator, Table, TextField } from "@heroui/react";
+import { ArrowsRotateRight, Check, Clock, CloudSlash, Eye } from "@gravity-ui/icons";
+import {
+  Alert,
+  Button,
+  Card,
+  Description,
+  FieldError,
+  Input,
+  Label,
+  Separator,
+  Table,
+  TextField,
+  Toast,
+  toast,
+} from "@heroui/react";
 import { ListView, RadioButtonGroup, Segment } from "@heroui-pro/react";
 import { type Persona, screenHref } from "@injishi/data";
 import type {
@@ -16,7 +29,7 @@ import type {
 import { LinkButton, PageContent, PageHeader, StatusDot } from "@injishi/ui";
 import { useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
-import { CardHeading, IconTile, InfoRow, parseAmount, rwf, ToneChip } from "./parts";
+import { CardHeading, IconTile, InfoRow, readFrancs, ToneChip } from "./parts";
 
 export interface OfflineDeskData {
   arrivals: OfflineArrival[];
@@ -27,12 +40,12 @@ export interface OfflineDeskData {
   choices: ConflictChoice[];
 }
 
-interface CashEntry {
-  amount: number;
-  name: string;
-  folio: string;
-}
-
+/**
+ * The offline desk is a preview. Working without a connection needs a cached copy of the day and an outbox
+ * replayed on reconnect (with check-in and walk-in idempotent, which they are not yet), and none of that
+ * exists: this browser stores nothing and sends nothing later. The screen shows the prototype's sample day
+ * so the design can be read, and every action on it says plainly that it is not available.
+ */
 export function OfflineDeskView({
   data,
   initialOffline,
@@ -41,111 +54,58 @@ export function OfflineDeskView({
   data: OfflineDeskData;
   initialOffline: boolean;
 }) {
-  const [reconnected, setReconnected] = useState(false);
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
-  const [cash, setCash] = useState<CashEntry[]>([]);
   const [cashAmt, setCashAmt] = useState("");
   const [cashGuest, setCashGuest] = useState(data.cashGuests[0]?.id ?? "");
   const [choice, setChoice] = useState<ConflictChoice["id"]>("keep");
-  const [resolved, setResolved] = useState(false);
 
-  const offline = initialOffline && !reconnected;
+  const offline = initialOffline;
   const online = !offline;
-  const keepPierre = choice === "keep";
-  const conflictOpen = online && !resolved;
+  const unavailable = (what: string) =>
+    toast.warning(
+      `${what} is not available yet: the offline desk is a preview, and nothing is saved on this computer.`,
+    );
 
-  const queued: OfflineAction[] = [
-    ...data.queue,
-    ...data.arrivals
-      .filter((a) => !a.queued && checked[a.id])
-      .map((a) => ({
-        id: `c-${a.id}`,
-        icon: "ArrowRightToSquare",
-        title: `Check in ${a.name} → room ${a.room}`,
-        detail: "10:52 · passport checked · key card encoded",
-        kind: "checkin" as const,
-        conflict: false,
-      })),
-    ...cash.map((c, i) => ({
-      id: `mx${i}`,
-      icon: "Wallet",
-      title: `Cash ${rwf(c.amount)} · ${c.name} · folio ${c.folio}`,
-      detail: `10:5${3 + i} · Till 1`,
-      kind: "cash" as const,
-      conflict: false,
-    })),
-  ];
-  const queue = queued.map((q) => {
-    let state: { label: string; tone: Tone };
-    if (offline)
-      state =
-        q.kind === "cash"
-          ? { label: "Recorded offline — not verified", tone: "warning" }
-          : { label: "Will sync", tone: "default" };
-    else if (q.conflict && !resolved) state = { label: "Conflict · needs you", tone: "danger" };
-    else if (q.kind === "cash") state = { label: "Synced · unverified until shift count", tone: "warning" };
-    else if (q.conflict) state = { label: keepPierre ? "Synced · kept 207" : "Synced · moved to 209", tone: "success" };
-    else state = { label: "Synced 10:53", tone: "success" };
-    return { ...q, state };
-  });
+  const queue = data.queue.map((q) => ({ ...q, state: { label: "Sample · not saved", tone: "default" as Tone } }));
   const total = queue.length;
 
   const arrivals = data.arrivals.map((a) => {
-    const isQueued = a.queued || !!checked[a.id];
-    let room = a.room;
-    if (a.noRoom) room = offline ? "Unassigned" : resolved && keepPierre ? "209" : a.room;
-    if (a.conflict && online && resolved && !keepPierre) room = "209";
     const noRoom = offline && a.noRoom;
     const dirty = offline && a.dirty;
-    const blocked = !isQueued && (noRoom || dirty);
-    let state: { label: string; tone: Tone } | null = null;
-    if (isQueued)
-      state = offline
-        ? { label: "Will sync", tone: "default" }
-        : a.conflict && !resolved
-          ? { label: "Conflict", tone: "danger" }
-          : { label: "Checked in", tone: "success" };
-    else if (online) state = { label: "Ready", tone: "default" };
+    const blocked = !a.queued && (noRoom || dirty);
     return {
       ...a,
-      room,
+      room: a.noRoom && offline ? "Unassigned" : a.room,
       status: offline ? a.statusOffline : a.statusOnline,
       tone: offline ? a.toneOffline : ("success" as Tone),
-      canCheckIn: !isQueued && !blocked && offline,
+      canCheckIn: !a.queued && !blocked && offline,
       blocked,
       why: noRoom
         ? "Room assignment needs the live room rack."
-        : "Room was dirty when cached. Check in once housekeeping confirms it online.",
-      state,
+        : "Room was dirty in the sample copy. Check in once housekeeping confirms it online.",
+      state: a.queued ? { label: "Sample · not checked in", tone: "default" as Tone } : null,
     };
   });
 
   const rails = data.rails.filter((r) => r.mode === (offline ? "offline" : "online"));
-  const amount = parseAmount(cashAmt);
-  const addCash = () => {
-    if (!amount) return;
-    const g = data.cashGuests.find((x) => x.id === cashGuest);
-    if (!g) return;
-    setCash([...cash, { amount, name: g.name, folio: g.folio }]);
-    setCashAmt("");
-  };
+  const { amount, error: amountError } = readFrancs(cashAmt);
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <TopbarStatus
         kind="chip"
-        tone={offline || conflictOpen ? "warning" : "success"}
+        tone="warning"
         icon={offline ? "CloudSlash" : "CloudCheck"}
-        label={offline ? `Offline · ${total} queued` : conflictOpen ? "Online · 1 conflict" : "Online · all synced"}
+        label={offline ? "Offline preview · nothing queued" : "Offline desk preview"}
       />
       <PageHeader
-        eyebrow="Desk 1 · Isangano Lakeside Hotel · Monday 12 October"
+        eyebrow="Desk 1 · sample day"
         title="Offline Desk"
-        description="Keep arrivals moving when the connection drops. Nothing financial is confirmed until it syncs."
+        description="A preview of keeping arrivals moving when the connection drops. Nothing on this page is saved or sent."
         actions={
           <>
             {offline ? (
-              <Button variant="secondary" onPress={() => setReconnected(true)}>
+              <Button variant="secondary" onPress={() => unavailable("Reconnecting the offline desk")}>
                 <ArrowsRotateRight className="size-4" />
                 Try to reconnect
               </Button>
@@ -157,36 +117,16 @@ export function OfflineDeskView({
         }
       />
 
-      {offline ? (
-        <Alert status="warning" role="status">
-          <Alert.Indicator>
-            <CloudSlash />
-          </Alert.Indicator>
-          <Alert.Content>
-            <Alert.Title className="text-[15px]">You are offline · last synced 10:42:18</Alert.Title>
-            <Alert.Description>
-              {total} actions are saved on this computer and sync in order when the connection returns. Other desks and
-              the guest app cannot see them yet. Retrying every 30 seconds · last try 10:52.
-            </Alert.Description>
-          </Alert.Content>
-        </Alert>
-      ) : (
-        <Alert status={conflictOpen ? "accent" : "success"} role="status">
-          <Alert.Indicator>{conflictOpen ? <ArrowsRotateRight /> : <CloudCheck />}</Alert.Indicator>
-          <Alert.Content>
-            <Alert.Title className="text-[15px]">
-              {conflictOpen
-                ? `Back online at 10:53 · ${total - 1} of ${total} actions synced`
-                : `All ${total} actions synced at 10:54`}
-            </Alert.Title>
-            <Alert.Description>
-              {conflictOpen
-                ? "One check-in clashes with a change made on Desk 2 while you were offline. Nothing was overwritten; choose below."
-                : "Other desks, housekeeping and the guest app now see your changes. Cash noted offline stays unverified until the shift count."}
-            </Alert.Description>
-          </Alert.Content>
-        </Alert>
-      )}
+      <Alert status="warning" role="status">
+        <Alert.Indicator>{offline ? <CloudSlash /> : <Eye />}</Alert.Indicator>
+        <Alert.Content>
+          <Alert.Title className="text-[15px]">Preview · working offline is not available yet</Alert.Title>
+          <Alert.Description>
+            The arrivals, queue and conflict below are the prototype's sample day. This computer keeps no copy of the
+            day and no queue of actions: check in, take payments and resolve rooms on Today while you are connected.
+          </Alert.Description>
+        </Alert.Content>
+      </Alert>
 
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex min-w-0 flex-[1_1_580px] flex-col gap-4">
@@ -194,18 +134,14 @@ export function OfflineDeskView({
             <CardHeading
               id="ar-h"
               title="Arrivals Today"
-              sub={
-                offline
-                  ? "Read-only copy saved at 10:42. Room status may have changed since."
-                  : "Live from the room rack"
-              }
+              sub={offline ? "Sample copy: not today's arrivals" : "Sample: today's arrivals are on Today"}
               action={
                 <ToneChip
                   size="sm"
-                  tone={offline ? "warning" : "success"}
+                  tone="warning"
                   icon={offline ? <Clock className="size-3" /> : <Check className="size-3" />}
                 >
-                  {offline ? "Cached 10:42" : "Live"}
+                  Sample
                 </ToneChip>
               }
             />
@@ -240,11 +176,7 @@ export function OfflineDeskView({
                         </Table.Cell>
                         <Table.Cell>
                           {a.canCheckIn ? (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onPress={() => setChecked({ ...checked, [a.id]: true })}
-                            >
+                            <Button size="sm" variant="secondary" onPress={() => unavailable("Checking in offline")}>
                               Check in offline
                             </Button>
                           ) : null}
@@ -270,7 +202,7 @@ export function OfflineDeskView({
               id="q-h"
               title="Queued on This Computer"
               className="items-center"
-              action={<span className="text-[12px] text-muted tabular">{total} actions · oldest 10:44</span>}
+              action={<span className="text-[12px] text-muted tabular">{total} sample actions · none saved</span>}
             />
             <ListView aria-label="Queued actions" variant="secondary" items={queue}>
               {(q) => (
@@ -297,55 +229,47 @@ export function OfflineDeskView({
               <CardHeading
                 id="cf-h"
                 title={`Room ${data.conflict.room} Was Assigned Twice`}
-                sub={`Found during sync at ${data.conflict.foundAt}. Choose who keeps the room.`}
+                sub={`Sample conflict, as a sync would raise it at ${data.conflict.foundAt}.`}
                 action={
-                  <ToneChip size="sm" tone={resolved ? "success" : "danger"}>
-                    {resolved ? "Resolved" : "Needs your choice"}
+                  <ToneChip size="sm" tone="default">
+                    Sample
                   </ToneChip>
                 }
               />
-              {resolved ? (
-                <p className="text-[13px] leading-[18px]">
-                  {keepPierre ? data.conflict.resolved.keep : data.conflict.resolved.swap}
-                </p>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 gap-2">
-                    {data.conflict.sides.map((side) => (
-                      <Card key={side.source} variant="secondary" className="gap-0.5 px-3 py-2.5">
-                        <span className="text-[12px] text-muted">{side.source}</span>
-                        <span className="font-semibold">{side.guest}</span>
-                        <span className="text-[12px] leading-4 text-muted tabular">{side.detail}</span>
-                      </Card>
-                    ))}
-                  </div>
-                  <RadioButtonGroup
-                    aria-label="Resolution"
-                    value={choice}
-                    onChange={(v) => setChoice(v as ConflictChoice["id"])}
-                    className="flex-col gap-2"
-                  >
-                    {data.choices.map((c) => (
-                      <RadioButtonGroup.Item key={c.id} value={c.id} className="px-3.5 py-2.5">
-                        <RadioButtonGroup.ItemContent className="gap-0.5">
-                          <span className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[13px] font-medium">{c.label}</span>
-                            {c.suggested ? (
-                              <ToneChip size="sm" tone="accent">
-                                Suggested
-                              </ToneChip>
-                            ) : null}
-                          </span>
-                          <span className="text-[12px] leading-4 text-muted">{c.hint}</span>
-                        </RadioButtonGroup.ItemContent>
-                      </RadioButtonGroup.Item>
-                    ))}
-                  </RadioButtonGroup>
-                  <Button className="self-start" onPress={() => setResolved(true)}>
-                    Apply and tell Aline
-                  </Button>
-                </>
-              )}
+              <div className="grid grid-cols-2 gap-2">
+                {data.conflict.sides.map((side) => (
+                  <Card key={side.source} variant="secondary" className="gap-0.5 px-3 py-2.5">
+                    <span className="text-[12px] text-muted">{side.source}</span>
+                    <span className="font-semibold">{side.guest}</span>
+                    <span className="text-[12px] leading-4 text-muted tabular">{side.detail}</span>
+                  </Card>
+                ))}
+              </div>
+              <RadioButtonGroup
+                aria-label="Resolution"
+                value={choice}
+                onChange={(v) => setChoice(v as ConflictChoice["id"])}
+                className="flex-col gap-2"
+              >
+                {data.choices.map((c) => (
+                  <RadioButtonGroup.Item key={c.id} value={c.id} className="px-3.5 py-2.5">
+                    <RadioButtonGroup.ItemContent className="gap-0.5">
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-[13px] font-medium">{c.label}</span>
+                        {c.suggested ? (
+                          <ToneChip size="sm" tone="accent">
+                            Suggested
+                          </ToneChip>
+                        ) : null}
+                      </span>
+                      <span className="text-[12px] leading-4 text-muted">{c.hint}</span>
+                    </RadioButtonGroup.ItemContent>
+                  </RadioButtonGroup.Item>
+                ))}
+              </RadioButtonGroup>
+              <Button className="self-start" onPress={() => unavailable("Resolving a sync conflict")}>
+                Apply and tell the duty manager
+              </Button>
             </Card>
           ) : null}
 
@@ -353,7 +277,7 @@ export function OfflineDeskView({
             <CardHeading
               id="pm-h"
               title="Payments and Folios"
-              sub={offline ? "What works while offline" : "Connection restored"}
+              sub={offline ? "What would work while offline" : "Connection restored"}
             />
             {rails.map((r) => (
               <InfoRow
@@ -388,16 +312,21 @@ export function OfflineDeskView({
                     ))}
                   </Segment>
                   <div className="flex items-end gap-2">
-                    <TextField value={cashAmt} onChange={setCashAmt} className="flex-1">
+                    <TextField value={cashAmt} onChange={setCashAmt} isInvalid={!!amountError} className="flex-1">
                       <Label>Amount (RWF)</Label>
                       <Input variant="secondary" inputMode="numeric" placeholder="e.g. 20,000" className="tabular" />
+                      <FieldError>{amountError}</FieldError>
                     </TextField>
-                    <Button variant="secondary" isDisabled={!amount} onPress={addCash}>
+                    <Button
+                      variant="secondary"
+                      isDisabled={!amount}
+                      onPress={() => unavailable("Recording cash offline")}
+                    >
                       Record offline
                     </Button>
                   </div>
                   <Description>
-                    Saved as “Recorded offline — not verified”. Put the cash in Till 1; it is counted at shift close.
+                    Not available offline. Record cash on the guest's bill (Stay and folio) while you are connected.
                   </Description>
                 </div>
               </>

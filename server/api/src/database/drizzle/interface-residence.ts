@@ -164,57 +164,6 @@ export const rentReminders = pgTable(
   ],
 );
 
-/**
- * A gate code: who may come in, to which unit, between when and when.
- *
- * A code is four digits and unique among the codes still in use at the building (`expected` or
- * `approved`), which the partial index holds when two people ask at once. A used or expired code may
- * come round again. A management pass for a vacant unit has no lease.
- */
-export const visitorPasses = pgTable(
-  'visitor_passes',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    workspaceId: uuid('workspace_id')
-      .notNull()
-      .references(() => workspaces.id),
-    propertyId: uuid('property_id')
-      .notNull()
-      .references(() => properties.id),
-    roomId: uuid('room_id')
-      .notNull()
-      .references(() => rooms.id),
-    leaseId: uuid('lease_id').references(() => leases.id),
-    /** The repair a contractor's pass was arranged for. */
-    maintenanceTicketId: uuid('maintenance_ticket_id').references(() => maintenanceTickets.id, {
-      onDelete: 'set null',
-    }),
-    kind: text('kind').notNull().default('guest'),
-    visitorName: text('visitor_name').notNull(),
-    code: text('code').notNull(),
-    validFrom: timestamp('valid_from', { withTimezone: true }).notNull(),
-    validTo: timestamp('valid_to', { withTimezone: true }).notNull(),
-    overnight: boolean('overnight').notNull().default(false),
-    status: text('status').notNull().default('expected'),
-    createdByUserId: uuid('created_by_user_id').references(() => users.id),
-    /** Registered by the tenant rather than by management. */
-    byTenant: boolean('by_tenant').notNull().default(false),
-    usedAt: timestamp('used_at', { withTimezone: true }),
-    leftAt: timestamp('left_at', { withTimezone: true }),
-    ...timestamps,
-  },
-  (t) => [
-    uniqueIndex('visitor_passes_live_code_uk')
-      .on(t.propertyId, t.code)
-      .where(sql`${t.status} IN ('expected', 'approved')`),
-    index('visitor_passes_scope_status_idx').on(t.workspaceId, t.status, t.validFrom),
-    index('visitor_passes_lease_idx').on(t.leaseId),
-    check('visitor_passes_window', sql`${t.validTo} > ${t.validFrom}`),
-    check('visitor_passes_code_shape', sql`${t.code} ~ '^[0-9]{4}$'`),
-    check('visitor_passes_kind_known', sql`${t.kind} IN ('guest', 'contractor')`),
-    check('visitor_passes_status_known', sql`${t.status} IN ('expected', 'approved', 'used', 'expired', 'revoked')`),
-  ],
-);
 
 /** The landlord's standard lease clauses, in contract order. A lease copies them when it is drafted. */
 export const leaseClauseTemplates = pgTable(

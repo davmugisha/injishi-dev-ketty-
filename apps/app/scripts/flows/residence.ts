@@ -17,7 +17,7 @@ import type {
 } from "@injishi/data/fixtures/residence";
 import type { ThreadMessage } from "@injishi/data/fixtures/resident";
 import * as res from "../../src/server/mutations/residence";
-import { forgetResidence, sources } from "../../src/server/sources/residence";
+import { forgetResidence, type LiveLease, sources } from "../../src/server/sources/residence";
 import { forgetTenancy, sources as tenantSources } from "../../src/server/sources/resident";
 import type { SourceContext } from "../../src/server/sources/types";
 import type { Flow } from "./types";
@@ -36,6 +36,33 @@ async function readTenant<T>(ctx: SourceContext, name: keyof typeof tenantSource
 const stamp = () => Date.now().toString(36).toUpperCase();
 
 export const flows: Flow[] = [
+  {
+    name: "amounts: rent and a draft lease take whole francs as typed, and a decimal is refused, never multiplied",
+    async run({ check, step }) {
+      // The amount reader behind Save as pending and Create draft lease. It used to strip every non-digit, so
+      // "450,000.00" became 45,000,000 a month and "20000.5" became 200,005.
+      const read: [string, number][] = [
+        ["450,000", 450_000],
+        ["RWF 950 000", 950_000],
+        ["1.250.000", 1_250_000],
+        ["20000", 20_000],
+      ];
+      for (const [text, want] of read) {
+        check(res.readAmount(text) === want, `"${text}" must read ${want}, it reads ${res.readAmount(text)}`);
+      }
+      const refusedText = ["450,000.00", "20000.5", "20.000", "0", ""];
+      for (const text of refusedText) {
+        let threw = false;
+        try {
+          res.readAmount(text);
+        } catch (error) {
+          threw = error instanceof res.ResidenceInputError;
+        }
+        check(threw, `"${text}" must be refused with a reason, not read as an amount`);
+      }
+      step(`${read.length} amounts read exactly; ${refusedText.length} refused, "450,000.00" among them`);
+    },
+  },
   {
     name: "repairs: raised on a unit, moved across the board, noted, answered to the resident, refused backwards",
     async run({ as, check, refused, step }) {
@@ -274,6 +301,12 @@ export const flows: Flow[] = [
       const applicants = await read<Applicant>(solange, "residence.applicants");
       const screening = applicants.find((a) => a.stage === "Screening" || a.stage === "Ready");
       check(screening?.profile, `no applicant in screening: ${JSON.stringify(applicants.map((a) => a.stage))}`);
+      // Nothing is sent to an invited applicant, so the screen never says an email went or when it expires.
+      const invited = applicants.filter((a) => a.stage === "Invited");
+      check(
+        invited.every((a) => !/email|expires|invitation sent/i.test(`${a.source} ${a.pendingNote ?? ""}`)),
+        `an invited applicant claims a message: ${JSON.stringify(invited.map((a) => [a.source, a.pendingNote]))}`,
+      );
 
       await res.recordScreening(solange, screening.id, [true, true, true, true, true, true]);
       let row = (await read<Applicant>(solange, "residence.applicants")).find((a) => a.id === screening.id);
@@ -288,8 +321,19 @@ export const flows: Flow[] = [
         notice: "30 days",
       });
       check(reference, "converting answered no lease number");
-      const draft = (await read<Lease>(solange, "residence.leases")).find((l) => l.id === reference);
+      const draft = (await read<LiveLease>(solange, "residence.leases")).find((l) => l.id === reference);
       check(draft?.status === "Draft" && draft.unit === screening.unit, `the draft reads ${JSON.stringify(draft)}`);
+      // The Leases screen shows the draft's own terms and landlord, never a fixed deposit, term or signer.
+      const rec = draft.record;
+      check(
+        rec?.deposit === screening.profile.deposit &&
+          rec.termMonths === 12 &&
+          rec.noticeDays === 30 &&
+          rec.landlord !== "" &&
+          rec.tenantSignedOn === "" &&
+          rec.landlordSignedOn === "",
+        `the draft's record reads ${JSON.stringify(rec)}`,
+      );
       row = (await read<Applicant>(solange, "residence.applicants")).find((a) => a.id === screening.id);
       check(!row, "the converted applicant is still in the pipeline");
       step(`converted ${screening.name} into lease draft ${reference} on ${screening.unit}`);

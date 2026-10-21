@@ -1,11 +1,5 @@
 import { screens } from "@injishi/data";
-import type {
-  CheckoutCase,
-  CheckoutKey,
-  CheckoutLedgerLine,
-  FiscalReceiptDraft,
-  MomoEvent,
-} from "@injishi/data/fixtures/stays";
+import type { CheckoutCase, CheckoutLedgerLine } from "@injishi/data/fixtures/stays";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CheckoutView, type MomoState, type ReceiptOutcome } from "@/features/stays/CheckoutView";
@@ -17,18 +11,19 @@ export const metadata: Metadata = { title: screens.Checkout.pageTitle };
 const RECEIPTS: ReceiptOutcome[] = ["pending", "issued", "unknown"];
 const MOMO: MomoState[] = ["idle", "pending", "unknown", "verified"];
 
+/**
+ * Checkout opens on the next guest due out, read live with the evidence behind the balance. The
+ * prototype's MoMo trail, receipt drafts and key list are not read (none of them is this guest's).
+ */
 export default async function CheckoutPage({
   searchParams,
 }: {
   searchParams: Promise<{ receipt?: string; momo?: string }>;
 }) {
   const persona = await requirePersona("Checkout");
-  const [checkouts, ledger, momoTrail, receipts, keys] = await Promise.all([
+  const [checkouts, ledger] = await Promise.all([
     getCollection<CheckoutCase>("stays.checkouts"),
     getCollection<CheckoutLedgerLine>("stays.checkoutLedger"),
-    getCollection<MomoEvent>("stays.momoTrail"),
-    getCollection<FiscalReceiptDraft>("stays.fiscalReceipts"),
-    getCollection<CheckoutKey>("stays.checkoutKeys"),
   ]);
   const checkout = checkouts[0];
   if (!checkout) notFound();
@@ -36,7 +31,7 @@ export default async function CheckoutPage({
   return (
     <CheckoutView
       persona={persona}
-      data={{ checkout, ledger, momoTrail, receipts, keys }}
+      data={{ checkout, ledger }}
       receipt={RECEIPTS.find((r) => r === receipt) ?? "pending"}
       initialMomo={MOMO.find((m) => m === momo) ?? "pending"}
     />

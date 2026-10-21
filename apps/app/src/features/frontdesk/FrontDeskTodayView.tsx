@@ -77,9 +77,10 @@ export interface FrontDeskTodayData {
   readiness: ReadinessRoom[];
   roomTypes: RoomType[];
   rooms: DeskRoom[];
-  recordIds: string[];
   /** Today in Kigali (YYYY-MM-DD), as the page read it; the header's date. */
-  today?: string;
+  today: string;
+  /** The property the desk's day is read for, as the API names it. */
+  property: string;
 }
 
 type TabId = QueueTab["id"];
@@ -105,6 +106,9 @@ function longDay(iso: string): string {
   const d = new Date(`${iso}T12:00:00Z`);
   return `${DAY_NAME[d.getUTCDay()]} ${d.getUTCDate()} ${MONTH_NAME[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
+
+/** A stay's own page (Stay and folio), by the stay's id. */
+const stayHref = (stayId: string) => `/stays/${encodeURIComponent(stayId)}`;
 
 /** Where the check-in of one arrival opens. */
 const checkInHref = (bookingId: string) => `${screenHref("CheckIn")}?booking=${encodeURIComponent(bookingId)}`;
@@ -176,7 +180,6 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
   const [assigned, setAssigned] = useState<Record<string, string>>({});
   const [assignFor, setAssignFor] = useState<string | null>(null);
   const [pick, setPick] = useState<string | null>(null);
-  const [doneReq, setDoneReq] = useState<Record<string, boolean>>({});
   const [assigning, startAssign] = useTransition();
   const [nights, setNights] = useState(1);
   const [adults, setAdults] = useState(2);
@@ -185,21 +188,23 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
   const rows = useMemo<QueueRow[]>(() => {
     if (tab === "arrivals") {
       return data.arrivals.map((r) => {
-        const fresh = assigned[r.id];
+        // Until the page reads the hold back from the API; then the API's own room and state show.
+        const fresh = assigned[r.id] && assigned[r.id] !== r.room ? assigned[r.id] : undefined;
         const room = fresh ?? r.room;
-        const status = fresh ? "inspected" : r.roomStatus;
+        // A room just assigned shows the state the desk read for it (clean or inspected), not an assumed one.
+        const status = fresh ? (data.rooms.find((x) => x.room === fresh)?.status ?? null) : r.roomStatus;
         const rs = status ? ROOM_STATUS[status] : null;
         return {
           id: r.id,
           name: r.name,
           sub: `${r.bookingId} · ${plural(r.nights, "night")} · ${r.source}`,
           search: `${r.name} ${r.bookingId} ${room ?? r.roomType}`,
-          openHref: bookingHref(r.bookingId, data.recordIds),
+          openHref: bookingHref(r.bookingId),
           openLabel: `Open booking for ${r.name}`,
           room: room
             ? {
                 no: room,
-                label: fresh ? "Inspected · just assigned" : (r.roomStatusLabel ?? rs?.label ?? ""),
+                label: fresh ? `${rs?.label ?? "Assigned"} · just assigned` : (r.roomStatusLabel ?? rs?.label ?? ""),
                 tone: rs?.tone ?? "default",
                 reassign: true,
               }
@@ -229,7 +234,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         name: r.name,
         sub: `${r.bookingId} · night ${r.night} of ${r.of} · ${r.source}`,
         search: `${r.name} ${r.bookingId} ${r.room} ${r.stayId}`,
-        openHref: screenHref("StayFolio"),
+        openHref: stayHref(r.id),
         openLabel: `Open stay for ${r.name}`,
         room: { no: r.room, label: "Occupied", tone: "default", reassign: false },
         status: { tone: "success", icon: <House className="size-3" />, label: `${r.stayId} · In house` },
@@ -238,7 +243,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         balanceChip: false,
         time: r.leaving,
         note: r.note,
-        primary: { kind: "link", href: screenHref("StayFolio"), label: "Folio", variant: "secondary" },
+        primary: { kind: "link", href: stayHref(r.id), label: "Folio", variant: "secondary" },
         extra: {
           href: screenHref("RoomRack"),
           label: `Move ${r.name} to another room`,
@@ -247,17 +252,26 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         arrival: null,
       }));
     }
-    return data.departures.map((r, i) => {
+    // Checkout opens on the first guest still due out; everyone else checks out from their stay's page.
+    const next = data.departures.find((d) => d.checkout === "due" || d.checkout === "late")?.id;
+    return data.departures.map((r) => {
       const done = r.checkout === "out" || r.checkout === "fiscal";
       return {
         id: r.id,
         name: r.name,
         sub: `${r.bookingId} · ${plural(r.nights, "night")} · ${r.source}`,
         search: `${r.name} ${r.bookingId} ${r.room}`,
-        openHref: screenHref("StayFolio"),
+        openHref: stayHref(r.id),
         openLabel: `Open stay for ${r.name}`,
+        // A room the guest has left shows its state now (the desk's read of the room), never an assumed "Dirty".
         room: done
-          ? { no: r.room, label: "Dirty · to clean", tone: "warning", reassign: false }
+          ? (() => {
+              const now = data.rooms.find((x) => x.room === r.room);
+              const st = now ? ROOM_STATUS[now.status] : null;
+              const held = now?.status === "occupied" && now.note.startsWith("Held for");
+              const label = held ? "Held for an arrival" : (st?.label ?? "Checked out");
+              return { no: r.room, label, tone: st?.tone ?? "default", reassign: false };
+            })()
           : { no: r.room, label: "Occupied", tone: "default", reassign: false },
         status: { ...CHECKOUT[r.checkout], label: r.checkoutLabel },
         balance: r.balance,
@@ -266,16 +280,16 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         time: r.time,
         note: r.note,
         primary: done
-          ? { kind: "link", href: screenHref("StayFolio"), label: "View", variant: "ghost" }
+          ? { kind: "link", href: stayHref(r.id), label: "View", variant: "ghost" }
           : {
               kind: "link",
-              href: screenHref("Checkout"),
+              href: r.id === next ? screenHref("Checkout") : stayHref(r.id),
               label: "Check out",
-              variant: i === 0 ? "primary" : "secondary",
+              variant: r.id === next ? "primary" : "secondary",
             },
         extra: done
           ? null
-          : { href: screenHref("StayFolio"), label: `Open folio for ${r.name}`, icon: <Receipt className="size-4" /> },
+          : { href: stayHref(r.id), label: `Open folio for ${r.name}`, icon: <Receipt className="size-4" /> },
         arrival: null,
       };
     });
@@ -286,7 +300,9 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
   const tabDef = data.tabs.find((t) => t.id === tab) ?? data.tabs[0];
   const cols = COLUMNS[tab];
 
-  const openRequests = data.requests.filter((r) => !doneReq[r.id]).length;
+  // Guest requests are the prototype's sample (frontdesk.guestRequests is deferred): they are labelled as
+  // such and never counted as this desk's open requests.
+  const sampleRequests = data.requests.length;
   const readyCount = data.readiness.filter((r) => isReady(r.status)).length;
   const readyPct = data.readiness.length ? Math.round((readyCount / data.readiness.length) * 100) : 0;
   const unassigned = data.arrivals.filter((a) => !a.room && !assigned[a.id]);
@@ -322,7 +338,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         return;
       }
       setAssigned((a) => ({ ...a, [arrival.id]: chosen }));
-      toast.success(`Room ${chosen} assigned to ${arrival.name} · housekeeping notified`, {
+      toast.success(`Room ${chosen} held for ${arrival.name} for the whole stay`, {
         indicator: <CircleCheck className="size-4" />,
       });
       closeAssign();
@@ -375,12 +391,12 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
           kind="chip"
           tone="warning"
           icon="CloudSlash"
-          label="Offline · 2 queued"
+          label="Offline preview"
           board="OfflineDesk"
         />
       ) : null}
       <PageHeader
-        eyebrow={`${data.today ? longDay(data.today) : "Monday 12 October 2026"} · Isangano Lakeside Hotel · Morning shift`}
+        eyebrow={`${longDay(data.today)} · ${data.property}`}
         title="Today"
         description={headline}
         actions={
@@ -407,11 +423,11 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
             <CloudSlash />
           </Alert.Indicator>
           <Alert.Content>
-            <Alert.Title>Connection lost at 10:38 · working from this desk's copy</Alert.Title>
+            <Alert.Title>Offline desk preview · nothing is queued on this computer</Alert.Title>
             <Alert.Description>
-              Lists below are from 10:38. Check-ins and notes are queued and sent when the line is back. Payments and
-              keys wait for the connection; nothing is marked paid offline.{" "}
-              <TextLink href={screenHref("OfflineDesk")}>Open the offline queue</TextLink>
+              Working offline is not available yet: this page still reads and writes through the connection, and no
+              check-in or note is kept to send later.{" "}
+              <TextLink href={screenHref("OfflineDesk")}>See the offline desk preview</TextLink>
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -420,7 +436,8 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
       <section aria-label="Today at a glance">
         <KPIGroup className="flex-wrap">
           {data.kpis.map((k, i) => {
-            const value = k.id === "requests" ? openRequests : k.value;
+            // No count of guest requests exists yet: the tile says so instead of showing a number.
+            const unavailable = k.id === "requests";
             return (
               <Fragment key={k.id}>
                 {i > 0 ? <KPIGroup.Separator /> : null}
@@ -432,9 +449,15 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
                     <KPI.Title>{k.label}</KPI.Title>
                   </KPI.Header>
                   <KPI.Content>
-                    <KPI.Value value={value} className="text-[22px] tabular">
-                      {(formatted) => (k.total === null ? formatted : `${formatted} of ${k.total}`)}
-                    </KPI.Value>
+                    {unavailable ? (
+                      <span className="text-[22px] leading-7 font-semibold text-muted" title="Not available yet">
+                        —
+                      </span>
+                    ) : (
+                      <KPI.Value value={k.value} className="text-[22px] tabular">
+                        {(formatted) => (k.total === null ? formatted : `${formatted} of ${k.total}`)}
+                      </KPI.Value>
+                    )}
                   </KPI.Content>
                   <KPI.Footer>
                     <p className="text-xs leading-4 text-muted">{k.foot}</p>
@@ -532,13 +555,17 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
               <h2 id="req-h" className="text-[15px] leading-[22px] font-semibold">
                 Guest Requests
               </h2>
-              <Chip size="sm" variant="soft" color="warning">
-                {openRequests} open
+              <Chip size="sm" variant="soft" color="default">
+                Sample
               </Chip>
             </div>
+            <p className="text-xs leading-4 text-muted">
+              Guest requests are not connected to the desk yet. The {plural(sampleRequests, "request")} below are sample
+              data, not this property's guests.
+            </p>
             <ul className="flex flex-col gap-1.5">
               {data.requests.map((rq) => {
-                const done = !!doneReq[rq.id];
+                const done = false;
                 return (
                   <li key={rq.id}>
                     <ItemCard variant="secondary" className="items-center gap-2.5 px-2.5 py-2">
@@ -563,7 +590,10 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
                             variant="secondary"
                             isIconOnly
                             aria-label={`Mark ${rq.title} done`}
-                            onPress={() => setDoneReq((d) => ({ ...d, [rq.id]: true }))}
+                            onPress={() =>
+                              // Guest requests have no workflow on threads yet (frontdesk.guestRequests is sample data).
+                              toast.warning("Completing a guest request is not available yet. Nothing was changed.")
+                            }
                           >
                             <Check className="size-4" />
                           </Button>
@@ -689,7 +719,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
               <ArrowRight className="size-4" />
             </LinkButton>
             <p className="text-xs leading-4 text-muted">
-              Published walk-in rates, excluding VAT. Rates are managed by your general manager.
+              Each room type's default rate a night. Rates are managed by your general manager.
             </p>
           </Card>
         </aside>
@@ -742,7 +772,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
                 })}
               </RadioButtonGroup>
               <p className="text-xs text-muted">
-                Housekeeping is told about the assignment. The rate doesn't change within the booked room type.
+                The room is held for this guest's whole stay. The rate doesn't change within the booked room type.
               </p>
             </Drawer.Body>
             <Drawer.Footer className="flex justify-end gap-2">

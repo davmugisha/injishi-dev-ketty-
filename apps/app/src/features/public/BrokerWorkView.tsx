@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowRight, Check, Lock, Magnifier, Paperclip, Plus, SealCheck } from "@gravity-ui/icons";
-import { Avatar, Button, Card, Chip, Switch, Table } from "@heroui/react";
+import { ArrowRight, Lock, Magnifier, Paperclip, Plus, SealCheck } from "@gravity-ui/icons";
+import { Avatar, Button, Card, Chip, Switch, Table, Toast, toast } from "@heroui/react";
 import { Kanban, KPIGroup, ListView, Segment, Timeline } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
 import { type Persona, screenHref } from "@injishi/data";
@@ -41,16 +41,27 @@ const LEAD_TABS = [
 
 type LeadTab = (typeof LEAD_TABS)[number]["id"];
 
+/**
+ * The broker's work on this page is the prototype's: the broker placement lifecycle and leads, disputes and the
+ * directory listing switch have no tables or routes yet (data map public.placements, brokerLeads, brokerDisputes;
+ * an /architect decision is owed). So every control here says it is not available and changes nothing.
+ */
+const unavailable = (what: string) => () => toast.warning(`${what} is not available yet. Nothing was changed.`);
+
 /** Broker · work (artifact: BrokerWork.dc.html) — registration, placements, leads, earnings and disputes. */
-export function BrokerWorkView({ persona, data }: { persona: Persona; data: BrokerWorkData }) {
+export function BrokerWorkView({
+  persona,
+  data,
+  today,
+}: {
+  persona: Persona;
+  data: BrokerWorkData;
+  /** The real day and greeting in Kigali ("Tuesday 20 October 2026", "Good afternoon"), worked out by the page. */
+  today: { label: string; greeting: string };
+}) {
   const registration = data.registrations[0];
-  const [listed, setListed] = useState(registration?.listed ?? true);
-  const [stages, setStages] = useState<Record<string, number>>(() =>
-    Object.fromEntries(data.placements.map((placement) => [placement.id, placement.stage])),
-  );
+  const listed = registration?.listed ?? true;
   const [leadTab, setLeadTab] = useState<LeadTab>("all");
-  const [contacted, setContacted] = useState<string[]>([]);
-  const [added, setAdded] = useState(false);
 
   const dirNote = listed
     ? "Landlords in your areas can find you and send leads"
@@ -61,16 +72,16 @@ export function BrokerWorkView({ persona, data }: { persona: Persona; data: Brok
     <PageContent>
       <PageHeader
         size="hello"
-        eyebrow={`Monday 12 October 2026 · ${persona.role}`}
-        title={`Good morning, ${persona.firstName}`}
-        description="Two new leads since Friday. Olivier Habineza’s fee is due from the landlord on 15 Oct."
+        eyebrow={`${today.label} · ${persona.role}`}
+        title={`${today.greeting}, ${persona.firstName}`}
+        description="Your leads, placements and earnings. They are sample data until the broker workspace reads them from Injishi."
         actions={
           <>
             <LinkButton href={screenHref("BrokerDirectory")} variant="secondary">
               <Magnifier className="size-4" />
               Directory and credits
             </LinkButton>
-            <Button>
+            <Button onPress={unavailable("Adding a lead")}>
               <Plus className="size-4" />
               Add a lead
             </Button>
@@ -111,7 +122,11 @@ export function BrokerWorkView({ persona, data }: { persona: Persona; data: Brok
                 <span className="font-medium">Listed in the broker directory</span>
                 <span className="text-[12px] text-muted">{dirNote}</span>
               </div>
-              <Switch isSelected={listed} onChange={setListed} aria-label="Listed in the broker directory">
+              <Switch
+                isSelected={listed}
+                onChange={unavailable("Changing your directory listing")}
+                aria-label="Listed in the broker directory"
+              >
                 <Switch.Content>
                   <Switch.Control>
                     <Switch.Thumb />
@@ -158,7 +173,7 @@ export function BrokerWorkView({ persona, data }: { persona: Persona; data: Brok
           style={{ "--kanban-column-min-width": "240px", "--kanban-column-gap": "12px" } as CSSProperties}
         >
           {STAGES.map((stage, index) => {
-            const cards = data.placements.filter((placement) => (stages[placement.id] ?? placement.stage) === index);
+            const cards = data.placements.filter((placement) => placement.stage === index);
             return (
               <Kanban.Column key={stage.title} className="min-w-[240px] flex-1">
                 <Kanban.ColumnHeader>
@@ -188,7 +203,7 @@ export function BrokerWorkView({ persona, data }: { persona: Persona; data: Brok
                               size="sm"
                               variant="secondary"
                               className="self-start"
-                              onPress={() => setStages((cur) => ({ ...cur, [card.id]: index + 1 }))}
+                              onPress={unavailable("Moving a placement")}
                             >
                               {stage.next}
                               <ArrowRight className="size-4" />
@@ -236,8 +251,7 @@ export function BrokerWorkView({ persona, data }: { persona: Persona; data: Brok
           </div>
           <ListView aria-labelledby="leads-h" variant="secondary">
             {leads.map((lead) => {
-              const done = contacted.includes(lead.id);
-              const status = done ? "Contacted today" : lead.status;
+              const status = lead.status;
               const tone = status === "New" ? "accent" : status === "Mandate active" ? "success" : "default";
               return (
                 <ListView.Item key={lead.id} id={lead.id} textValue={lead.name} className="items-start">
@@ -258,8 +272,8 @@ export function BrokerWorkView({ persona, data }: { persona: Persona; data: Brok
                     <Chip size="sm" variant="soft" color={toneColor(tone)}>
                       <Chip.Label>{status}</Chip.Label>
                     </Chip>
-                    {lead.status === "New" && !done ? (
-                      <Button size="sm" variant="secondary" onPress={() => setContacted((cur) => [...cur, lead.id])}>
+                    {lead.status === "New" ? (
+                      <Button size="sm" variant="secondary" onPress={unavailable("Marking a lead contacted")}>
                         Mark contacted
                       </Button>
                     ) : null}
@@ -279,7 +293,9 @@ export function BrokerWorkView({ persona, data }: { persona: Persona; data: Brok
             <h2 id="earn-h" className="text-[15px] leading-[22px] font-semibold">
               Earnings
             </h2>
-            <span className="text-[12px] text-muted">Payouts to MTN MoMo 078 ••• 2231 through Injishi Payments</span>
+            <span className="text-[12px] text-muted">
+              Payouts through Injishi Payments · payout number not on file here yet
+            </span>
           </div>
           <Table>
             <Table.ScrollContainer>
@@ -357,17 +373,10 @@ export function BrokerWorkView({ persona, data }: { persona: Persona; data: Brok
                   ))}
                 </Timeline>
                 <div className="flex flex-wrap items-center gap-2">
-                  {added ? (
-                    <Chip size="sm" variant="soft" color="success">
-                      <Check className="size-3" aria-hidden="true" />
-                      <Chip.Label>Viewing confirmation added · support notified</Chip.Label>
-                    </Chip>
-                  ) : (
-                    <Button size="sm" onPress={() => setAdded(true)}>
-                      <Paperclip className="size-4" />
-                      Add evidence
-                    </Button>
-                  )}
+                  <Button size="sm" onPress={unavailable("Adding evidence to a dispute")}>
+                    <Paperclip className="size-4" />
+                    Add evidence
+                  </Button>
                   <LinkButton href={screenHref("PublicHelp")} size="sm" variant="ghost">
                     How disputes are decided
                   </LinkButton>
@@ -390,6 +399,7 @@ export function BrokerWorkView({ persona, data }: { persona: Persona; data: Brok
           )}
         </div>
       </Card>
+      <Toast.Provider placement="bottom" />
     </PageContent>
   );
 }

@@ -15,7 +15,7 @@ import {
   Lock,
   ShieldExclamation,
 } from "@gravity-ui/icons";
-import { Alert, Button, Card, Chip, Spinner, Table } from "@heroui/react";
+import { Alert, Button, Card, Chip, Spinner, Table, Toast, toast } from "@heroui/react";
 import { ChatMessage, ItemCard, Timeline } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type {
@@ -64,7 +64,8 @@ function LinkedCard({ lk }: { lk: LinkedRecord & { state: string; note: string }
       </ItemCard.Content>
     </ItemCard>
   );
-  return lk.board ? (
+  // This record is the prototype's sample; its stay has no live record, so it is not linked to a stay page.
+  return lk.board && lk.board !== "StayFolio" ? (
     <NextLink
       href={screenHref(lk.board)}
       aria-label={`${lk.kind} ${lk.recordId}, ${lk.state}`}
@@ -86,8 +87,9 @@ export function ReservationDetailView({
   tiers: CancellationTier[];
   payment: PaymentOutcome;
 }) {
-  const [pay, setPay] = useState<PaymentOutcome>(payment);
-  const [emailed, setEmailed] = useState(false);
+  const [pay] = useState<PaymentOutcome>(payment);
+  /** Nothing on this sample record reaches a provider or a mailbox: say so, and change nothing. */
+  const unavailable = (what: string) => toast.warning(`${what} is not available yet. Nothing was changed.`);
   const P = record.outcomes[pay];
   const d = record.deposit;
 
@@ -104,6 +106,7 @@ export function ReservationDetailView({
 
   return (
     <PageContent className="gap-4 text-[14px] leading-5">
+      <Toast.Provider placement="bottom" />
       <PageHeader
         eyebrow={
           <>
@@ -112,6 +115,9 @@ export function ReservationDetailView({
             </NextLink>
             <span aria-hidden="true">›</span>
             <span className="tabular">{record.id}</span>
+            {/* The full record (parties, saved terms, payment history) is the prototype's sample: say so. */}
+            <span aria-hidden="true">·</span>
+            <span>sample record</span>
           </>
         }
         title={record.guest}
@@ -124,9 +130,9 @@ export function ReservationDetailView({
             </LinkButton>
             <LinkButton href={screenHref("RoomRack")} variant="secondary">
               <ArrowRightArrowLeft className="size-4" />
-              Split stay
+              Room rack
             </LinkButton>
-            <LinkButton href={screenHref("CheckIn")}>
+            <LinkButton href={`${screenHref("CheckIn")}?booking=${encodeURIComponent(record.id)}`}>
               <ArrowRightToSquare className="size-4" />
               Check in
             </LinkButton>
@@ -328,10 +334,11 @@ export function ReservationDetailView({
                 <Alert.Content>
                   <Alert.Title>Pending · waiting for MTN to confirm</Alert.Title>
                   <Alert.Description>
-                    {record.firstName} approves on his phone. Last checked {d.lastChecked}. Not paid until MTN confirms.
+                    {record.firstName} approves on their phone. Last checked {d.lastChecked}. Not paid until MTN
+                    confirms.
                   </Alert.Description>
                   <div className="mt-2">
-                    <Button size="sm" variant="secondary" onPress={() => setPay("verified")}>
+                    <Button size="sm" variant="secondary" onPress={() => unavailable("Checking a payment with MTN")}>
                       <ArrowsRotateRight className="size-4" />
                       Check status
                     </Button>
@@ -365,7 +372,7 @@ export function ReservationDetailView({
                     until MTN replies; Payments keeps checking.
                   </Alert.Description>
                   <div className="mt-2">
-                    <Button size="sm" variant="secondary" onPress={() => setPay("pending")}>
+                    <Button size="sm" variant="secondary" onPress={() => unavailable("Checking a payment with MTN")}>
                       <ArrowsRotateRight className="size-4" />
                       Check again
                     </Button>
@@ -425,16 +432,11 @@ export function ReservationDetailView({
                 <ArrowDownToLine className="size-4" />
                 Download
               </Button>
-              <Button size="sm" variant="ghost" isDisabled={emailed} onPress={() => setEmailed(true)}>
+              <Button size="sm" variant="ghost" onPress={() => unavailable("Emailing the proforma")}>
                 <Envelope className="size-4" />
                 Email again
               </Button>
             </div>
-            {emailed ? (
-              <p className="text-xs text-muted" role="status">
-                Sent again just now to {record.guest}.
-              </p>
-            ) : null}
           </Card>
 
           <Card className="gap-3 p-[18px]" aria-labelledby="hi-h">

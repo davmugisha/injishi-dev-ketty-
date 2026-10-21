@@ -26,6 +26,8 @@ import {
   Label,
   ProgressBar,
   TextField,
+  Toast,
+  toast,
 } from "@heroui/react";
 import { ItemCard, Segment } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
@@ -33,7 +35,8 @@ import type { HostFeature, HostFee, HostKind, HostPlan, HostStep, ReadinessItem 
 import { stock } from "@injishi/data/media";
 import { GateChip, Icon, LinkButton, StatusDot, TextLink } from "@injishi/ui";
 import NextLink from "next/link";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useState, useTransition } from "react";
+import { requestDemoAction } from "./actions";
 import { ChoiceField, filled } from "./fields";
 import type { DemoLinks } from "./links";
 import {
@@ -75,16 +78,39 @@ const BUSINESS_TYPES = [
   { id: "outlet", label: "Restaurant, bar or café" },
 ];
 
+/** Rwanda's thirty districts: the API resolves the one chosen to its id (`GET /geography/districts`). */
 const DISTRICTS = [
-  { id: "gasabo", label: "Gasabo" },
-  { id: "kicukiro", label: "Kicukiro" },
-  { id: "nyarugenge", label: "Nyarugenge" },
-  { id: "rubavu", label: "Rubavu" },
-  { id: "musanze", label: "Musanze" },
-  { id: "huye", label: "Huye" },
-  { id: "nyamagabe", label: "Nyamagabe" },
-  { id: "other", label: "Another district" },
-];
+  "Bugesera",
+  "Burera",
+  "Gakenke",
+  "Gasabo",
+  "Gatsibo",
+  "Gicumbi",
+  "Gisagara",
+  "Huye",
+  "Kamonyi",
+  "Karongi",
+  "Kayonza",
+  "Kicukiro",
+  "Kirehe",
+  "Muhanga",
+  "Musanze",
+  "Ngoma",
+  "Ngororero",
+  "Nyabihu",
+  "Nyagatare",
+  "Nyamagabe",
+  "Nyamasheke",
+  "Nyanza",
+  "Nyarugenge",
+  "Nyaruguru",
+  "Rubavu",
+  "Ruhango",
+  "Rulindo",
+  "Rusizi",
+  "Rutsiro",
+  "Rwamagana",
+].map((name) => ({ id: name, label: name }));
 
 const SOURCES = [
   { id: "agent", label: "A field agent visited" },
@@ -112,25 +138,63 @@ export function PublicHostView({
 }) {
   const [kind, setKind] = useState<HostKind>("hotel");
   const [plan, setPlan] = useState("property");
+  // Only a plan the visitor asked about goes with a demo request; the highlighted default is never sent as theirs.
+  const [askedPlan, setAskedPlan] = useState(false);
 
-  const [visitAsked, setVisitAsked] = useState(false);
-  const [agentApplied, setAgentApplied] = useState(false);
-
-  const [name, setName] = useState("Didier Mugenzi");
-  const [business, setBusiness] = useState("Amahoro Hospitality Group");
-  const [bizType, setBizType] = useState("hotel");
-  const [district, setDistrict] = useState("rubavu");
-  const [phone, setPhone] = useState("078 300 1122");
-  const [source, setSource] = useState("agent");
-  const [format, setFormat] = useState("online");
-  const [demoSent, setDemoSent] = useState(false);
+  // A demo request becomes a support ticket (`POST /support/tickets`): the support team reads it.
+  const [name, setName] = useState(visitor?.name ?? "");
+  const [email, setEmail] = useState("");
+  const [business, setBusiness] = useState("");
+  // Every choice starts unset: an answer the visitor did not pick is never filed into the ticket as theirs.
+  // Business type, district and demo format must be chosen; "How did you hear" goes only when answered.
+  const [bizType, setBizType] = useState("");
+  const [district, setDistrict] = useState("");
+  const [phone, setPhone] = useState("");
+  const [source, setSource] = useState("");
+  const [format, setFormat] = useState("");
+  const [demoTicket, setDemoTicket] = useState<string | null>(null);
+  const [sendingDemo, startSendingDemo] = useTransition();
 
   const features = data.features.filter((f) => f.kind === kind);
   const formatNote = FORMATS.find((f) => f.id === format)?.note;
+  const label = (list: readonly { id: string; label: string }[], id: string) =>
+    list.find((o) => o.id === id)?.label ?? id;
 
   const sendDemo = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setDemoSent(true);
+    const unchosen = [
+      bizType ? "" : "business type",
+      district ? "" : "district",
+      format ? "" : "demo format (online or at your property)",
+    ].filter(Boolean);
+    if (unchosen.length) {
+      toast.danger(`Choose your ${unchosen.join(", ")}.`);
+      return;
+    }
+    startSendingDemo(async () => {
+      const result = await requestDemoAction({
+        name,
+        email,
+        phone,
+        business,
+        businessType: label(BUSINESS_TYPES, bizType),
+        district,
+        heardFrom: source ? label(SOURCES, source) : undefined,
+        format: label(FORMATS, format),
+        plan: askedPlan ? data.plans.find((p) => p.id === plan)?.name : undefined,
+      });
+      if (!result.ok) {
+        toast.danger(result.error);
+        return;
+      }
+      setDemoTicket(result.value.id);
+    });
+  };
+  /** "Request an agent visit": the demo form, set to a visit at the property. The request is sent from there. */
+  const askForVisit = () => {
+    setFormat("onsite");
+    setDemoTicket(null);
+    document.getElementById("demo-h")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -363,7 +427,12 @@ export function PublicHostView({
                   variant="secondary"
                   className="mt-auto self-start"
                   aria-pressed={plan === p.id}
-                  onPress={() => setPlan(p.id)}
+                  onPress={() => {
+                    setPlan(p.id);
+                    setAskedPlan(true);
+                    setDemoTicket(null);
+                    document.getElementById("demo-h")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
                 >
                   Ask about {p.name}
                 </Button>
@@ -407,13 +476,16 @@ export function PublicHostView({
             </p>
           </div>
           <div className="flex min-w-0 flex-[0_1_230px] flex-col gap-[8px]">
-            <Button variant="secondary" isDisabled={visitAsked} onPress={() => setVisitAsked(true)}>
+            <Button variant="secondary" onPress={askForVisit}>
               <MapPin className="size-4" />
-              {visitAsked ? "Visit requested · we’ll call you" : "Request an agent visit"}
+              Request an agent visit
             </Button>
-            <Button variant="tertiary" isDisabled={agentApplied} onPress={() => setAgentApplied(true)}>
+            <Button
+              variant="tertiary"
+              onPress={() => toast.warning("Applying as a field agent is not available yet. Nothing was sent.")}
+            >
               <PersonPlus className="size-4" />
-              {agentApplied ? "Application started · check your email" : "Apply as a field agent"}
+              Apply as a field agent
             </Button>
             <TextLink href={`${screenHref("Training")}#verify`} className="self-center text-[13px]">
               Verify an agent’s certificate
@@ -433,22 +505,21 @@ export function PublicHostView({
               title="Request a Demo"
               sub="We walk you through your own kind of property, online or on site."
             />
-            {demoSent ? (
+            {demoTicket ? (
               <>
                 <Alert status="success" role="status">
                   <Alert.Indicator>
                     <CircleCheck />
                   </Alert.Indicator>
                   <Alert.Content>
-                    <Alert.Title>Request received · DEM-1042</Alert.Title>
+                    <Alert.Title>Sent to Injishi support · ticket {demoTicket.slice(0, 8).toUpperCase()}</Alert.Title>
                     <Alert.Description>
-                      A team member will call {phone} within 2 working days to agree a time. This is a request, not a
-                      booked slot yet.
+                      A person on the Injishi team reads it. This is a request, not a booked slot.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>
-                <Button variant="ghost" size="sm" className="self-start" onPress={() => setDemoSent(false)}>
-                  Edit request
+                <Button variant="ghost" size="sm" className="self-start" onPress={() => setDemoTicket(null)}>
+                  Send another request
                 </Button>
               </>
             ) : (
@@ -463,6 +534,18 @@ export function PublicHostView({
                   >
                     <Label>Your name</Label>
                     <Input />
+                    <FieldError />
+                  </TextField>
+                  <TextField
+                    variant="secondary"
+                    type="email"
+                    value={email}
+                    onChange={setEmail}
+                    validate={filled("Enter an email address we can reply to.")}
+                    className="gap-[4px]"
+                  >
+                    <Label>Email</Label>
+                    <Input autoComplete="email" />
                     <FieldError />
                   </TextField>
                   <TextField
@@ -482,6 +565,7 @@ export function PublicHostView({
                     value={bizType}
                     onChange={setBizType}
                     options={BUSINESS_TYPES}
+                    placeholder="Choose a type"
                   />
                   <ChoiceField
                     id="d-dist"
@@ -489,6 +573,7 @@ export function PublicHostView({
                     value={district}
                     onChange={setDistrict}
                     options={DISTRICTS}
+                    placeholder="Choose a district"
                   />
                   <TextField
                     variant="secondary"
@@ -507,14 +592,17 @@ export function PublicHostView({
                     value={source}
                     onChange={setSource}
                     options={SOURCES}
+                    placeholder="Choose one (optional)"
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-[16px]">
                   <Label id="d-format">Demo</Label>
                   <Segment
                     aria-labelledby="d-format"
-                    selectedKey={format}
-                    onSelectionChange={(k) => setFormat(String(k))}
+                    selectedKey={format || null}
+                    onSelectionChange={(k) => {
+                      if (k != null) setFormat(String(k));
+                    }}
                   >
                     {FORMATS.map((f, i) => (
                       <Segment.Item key={f.id} id={f.id}>
@@ -529,9 +617,10 @@ export function PublicHostView({
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-[12px]">
                   <span className="max-w-[420px] text-[12px] text-muted">
-                    We use these details only to arrange your demo. See the privacy notice in the help centre.
+                    Sent to Injishi support as a ticket and used only to arrange your demo. See the privacy notice in
+                    the help centre.
                   </span>
-                  <Button type="submit">
+                  <Button type="submit" isDisabled={sendingDemo}>
                     <PaperPlane className="size-4" />
                     Request demo
                   </Button>
@@ -542,6 +631,7 @@ export function PublicHostView({
         </div>
       </PublicMain>
 
+      <Toast.Provider placement="bottom" />
       <PublicFooter
         links={[
           { label: "Help centre", href: screenHref("PublicHelp") },

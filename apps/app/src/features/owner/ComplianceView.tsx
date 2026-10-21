@@ -1,7 +1,7 @@
 "use client";
 
 import { CirclePause, FileArrowUp, Paperclip, Plus, ShieldExclamation } from "@gravity-ui/icons";
-import { Button, Card, Chip, Table, Tabs } from "@heroui/react";
+import { Button, Card, Chip, Table, Tabs, Toast, toast } from "@heroui/react";
 import { ItemCard, KPIGroup } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
 import { screenHref } from "@injishi/data";
@@ -15,7 +15,7 @@ import type {
   ComplianceStage,
   ComplianceSubmission,
 } from "@injishi/data/fixtures/owner";
-import { GateChip, Icon, LinkButton, PageContent, PageHeader, SectionHeader, TextLink, toneColor } from "@injishi/ui";
+import { GateChip, Icon, LinkButton, PageContent, PageHeader, SectionHeader, toneColor } from "@injishi/ui";
 import { Fragment, useState } from "react";
 import { CompliancePrivacy } from "./CompliancePrivacy";
 import { ComplianceSubmissionDetail, complianceStateOf, complianceToneOf } from "./ComplianceSubmissionDetail";
@@ -35,38 +35,53 @@ export type ComplianceTab = "licences" | "privacy";
 const kpiStatus = (tone: ComplianceKpi["status"]) =>
   tone === "success" || tone === "warning" || tone === "danger" ? tone : undefined;
 
-export function ComplianceView({ initialTab, data }: { initialTab: ComplianceTab; data: ComplianceData }) {
+/**
+ * What this screen cannot record yet, said plainly. Licences and memberships are live, but no route adds a
+ * licence, and submissions, disclosure requests and data subject requests are sample data
+ * (`owner.complianceSubmissions` and `owner.complianceDataRequests` wait on /architect decisions), so these
+ * controls change nothing on screen.
+ */
+const unavailable = (what: string, why = "nothing was recorded or sent") =>
+  toast.warning(`${what} is not available yet: ${why}.`);
+
+export function ComplianceView({
+  initialTab,
+  data,
+  businessName,
+}: {
+  initialTab: ComplianceTab;
+  data: ComplianceData;
+  /** The business, as the API names it (never the prototype's group). */
+  businessName: string;
+}) {
   const [tab, setTab] = useState<ComplianceTab>(initialTab);
   const [selectedId, setSelectedId] = useState(data.submissions[0]?.id ?? "");
-  const [stages, setStages] = useState<Record<string, ComplianceStage>>({});
-  const [proofs, setProofs] = useState<Record<string, string>>({});
-  const [decided, setDecided] = useState<string[]>([]);
 
-  const stageOf = (s: ComplianceSubmission) => stages[s.id] ?? s.stage;
+  const stageOf = (s: ComplianceSubmission): ComplianceStage => s.stage;
   const selected = data.submissions.find((s) => s.id === selectedId) ?? data.submissions[0];
   const selectedStage = selected ? stageOf(selected) : 0;
 
-  const requests = data.requests.map((r) =>
-    r.decision && decided.includes(r.id) ? { ...r, ...r.decision, open: false, decision: null } : r,
-  );
+  const requests = data.requests;
   const openRequests = requests.filter((r) => r.open).length;
   const kpiValue = (k: ComplianceKpi) => (k.id === "requests" ? openRequests : k.value);
 
-  const setStage = (id: string, stage: ComplianceStage) => setStages((prev) => ({ ...prev, [id]: stage }));
-
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Amahoro Hospitality Group · Compliance"
+        eyebrow={`${businessName} · Compliance`}
         title="Compliance"
         description="Licences, memberships and anything sent to an authority. Nothing is marked done without the counterpart’s evidence."
         actions={
           <>
-            <Button variant="secondary">
+            <Button
+              variant="secondary"
+              onPress={() => unavailable("Adding a licence here", "licences come from the documents on file")}
+            >
               <FileArrowUp className="size-4" />
               Add licence
             </Button>
-            <Button>
+            <Button onPress={() => unavailable("Starting a submission", "submissions on this screen are sample data")}>
               <Plus className="size-4" />
               New submission
             </Button>
@@ -226,13 +241,11 @@ export function ComplianceView({ initialTab, data }: { initialTab: ComplianceTab
                               </span>
                             </Table.Cell>
                             <Table.Cell>
-                              <TextLink
-                                href={screenHref("Compliance")}
-                                className="inline-flex items-center gap-1.5 text-[13px] whitespace-nowrap"
-                              >
+                              {/* The document's name only: opening a stored certificate is not available here yet. */}
+                              <span className="inline-flex items-center gap-1.5 text-[13px] whitespace-nowrap">
                                 <Paperclip className="size-3.5 shrink-0" aria-hidden="true" />
                                 {l.file}
-                              </TextLink>
+                              </span>
                             </Table.Cell>
                             <Table.Cell>
                               <Chip size="sm" variant="soft" color={toneColor(l.tone)}>
@@ -254,12 +267,7 @@ export function ComplianceView({ initialTab, data }: { initialTab: ComplianceTab
                   key={selected.id}
                   submission={selected}
                   stage={selectedStage}
-                  proofName={proofs[selected.id]}
-                  onAdvance={() =>
-                    setStage(selected.id, selectedStage < 3 ? ((selectedStage + 1) as ComplianceStage) : 4)
-                  }
-                  onReturn={() => setStage(selected.id, 0)}
-                  onAttach={(name) => setProofs((prev) => ({ ...prev, [selected.id]: name }))}
+                  onUnavailable={(what) => unavailable(what, "this submission is sample data, so its stage stays")}
                 />
               ) : null}
 
@@ -330,7 +338,11 @@ export function ComplianceView({ initialTab, data }: { initialTab: ComplianceTab
                     anything is shared, and every access is logged.
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button size="sm" variant="secondary">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onPress={() => unavailable("Recording a disclosure request", "nothing was recorded or shared")}
+                    >
                       Record a disclosure request
                     </Button>
                     <LinkButton href={screenHref("SettingsPolicies")} size="sm" variant="ghost">
@@ -347,7 +359,9 @@ export function ComplianceView({ initialTab, data }: { initialTab: ComplianceTab
           <CompliancePrivacy
             access={data.access}
             requests={requests}
-            onApprove={(id) => setDecided((prev) => [...prev, id])}
+            onApprove={() =>
+              unavailable("Approving an erasure", "these requests are sample data, so nothing was erased or decided")
+            }
           />
         </Tabs.Panel>
       </Tabs>

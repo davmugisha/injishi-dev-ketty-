@@ -29,28 +29,57 @@ import { RadioButtonGroup } from "@heroui-pro/react";
 import type { Persona } from "@injishi/data";
 import type { CheckResult, InspectionCheck, InspectionRoom, StaffProfile } from "@injishi/data/fixtures/staff";
 import { PhoneBody, PhoneTop, StatusDot } from "@injishi/ui";
-import { useState, useTransition } from "react";
+import { type ChangeEvent, useEffect, useRef, useState, useTransition } from "react";
 import { reported } from "../operations/shared";
-import { inspectRoomAction } from "./actions";
-import { kigaliClock, PhoneTitle, PhotoTile, renderSection, ToneTile } from "./parts";
+import { inspectRoomAction, uploadInspectionPhotoAction } from "./actions";
+import { kigaliClock, NothingYet, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "./parts";
+import { attemptToken, shrinkPhoto } from "./photo";
+
+/** A room waiting for inspection; a live one also says which clean it follows (`task`, see sources/staff.ts). */
+export type InspectableRoom = InspectionRoom & { task?: string };
 
 export interface InspectRoomData {
-  profile: StaffProfile;
-  rooms: InspectionRoom[];
+  /** The caller's own profile; null when none is on file (never another person's). */
+  profile: StaffProfile | null;
+  rooms: InspectableRoom[];
   checks: InspectionCheck[];
 }
 
 type Decision = { kind: "released" | "returned"; at: string };
 
+/**
+ * A failed check's photo: `key` is what the API stored it as (`POST /api/v1/uploads`) and the inspection names on
+ * the check; `preview` is the photo on this phone. A photo already on record from an earlier inspection of the same
+ * clean has no preview here, and the mutation keeps its key (`inspectRoom`).
+ */
+type CheckPhoto = { key: string | null; preview: string | null };
+
 /** Supervisor inspects cleaned rooms and releases them to the front desk or returns them (artifact: InspectRoom). */
 export function InspectRoomView({ persona, data }: { persona: Persona; data: InspectRoomData }) {
-  const { profile, rooms, checks } = data;
+  const { profile, checks } = data;
+  // A decided room leaves the API's list on the next read; the screen keeps it so its result stays on screen.
+  const [kept, setKept] = useState<InspectableRoom[]>([]);
+  const rooms = [...data.rooms, ...kept.filter((k) => !data.rooms.some((x) => x.no === k.no))];
   const [roomNo, setRoomNo] = useState(rooms[0]?.no ?? "");
   const [results, setResults] = useState<Record<string, Record<string, CheckResult>>>(() =>
     Object.fromEntries(rooms.map((r) => [r.no, r.results])),
   );
-  const [photos, setPhotos] = useState<Set<string>>(
-    () => new Set(rooms.flatMap((r) => r.photos.map((id) => `${r.no}:${id}`))),
+  const [photos, setPhotos] = useState<Record<string, CheckPhoto>>(() =>
+    Object.fromEntries(
+      rooms.flatMap((r) => r.photos.map((id) => [`${r.no}:${id}`, { key: null, preview: null } as CheckPhoto])),
+    ),
+  );
+  /** The check the camera was opened for (a cancelled camera leaves it set and harmless). */
+  const target = useRef<string | null>(null);
+  /** The check whose photo is on its way to the API: every photo button waits for it. */
+  const [shooting, setShooting] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const previews = useRef<string[]>([]);
+  useEffect(
+    () => () => {
+      for (const url of previews.current) URL.revokeObjectURL(url);
+    },
+    [],
   );
   const [outcomes, setOutcomes] = useState<Record<string, "release" | "return">>(() =>
     Object.fromEntries(rooms.filter((r) => r.outcome).map((r) => [r.no, r.outcome as "release" | "return"])),
@@ -60,6 +89,9 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
     Object.fromEntries(rooms.map((x) => [x.no, x.note])),
   );
   const [pending, startTransition] = useTransition();
+
+  if (!rooms.length)
+    return <NothingYet title="Inspections" message="No room is waiting for your inspection right now." />;
 
   const r = rooms.find((x) => x.no === roomNo) ?? rooms[0];
   const res = results[r.no] ?? {};
@@ -71,7 +103,9 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
   const failed = checks.filter((c) => res[c.id] === "fail");
   const fails = failed.length;
   const unchecked = checks.length - checked;
-  const missingPhoto = failed.some((c) => !photos.has(`${r.no}:${c.id}`));
+  const photoOf = (checkId: string): CheckPhoto | undefined => photos[`${r.no}:${checkId}`];
+  const missingPhoto = failed.some((c) => !photoOf(c.id));
+  const photoCount = failed.filter((c) => photoOf(c.id)).length;
   const outcome = outcomes[r.no] ?? (fails ? "return" : "release");
   const canRelease = unchecked === 0 && fails === 0;
   const isReturn = outcome === "return";
@@ -91,28 +125,62 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
       else delete room[checkId];
       return { ...all, [r.no]: room };
     });
-  const setPhoto = (checkId: string, on: boolean) =>
-    setPhotos((p) => {
-      const next = new Set(p);
-      if (on) next.add(`${r.no}:${checkId}`);
-      else next.delete(`${r.no}:${checkId}`);
-      return next;
-    });
+  /** "Add a photo" / "Retake": open the camera for this check. */
+  const takePhoto = (checkId: string) => {
+    target.current = `${r.no}:${checkId}`;
+    if (fileInput.current) {
+      fileInput.current.value = "";
+      fileInput.current.click();
+    }
+  };
+  /** The photo taken: made small on the phone, stored by the API, and kept against the check by its key. */
+  const photoTaken = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    const forCheck = target.current;
+    if (!file || !forCheck) return;
+    setShooting(forCheck);
+    try {
+      const shrunk = await shrinkPhoto(file);
+      if (!shrunk.ok) {
+        toast.danger(shrunk.error);
+        return;
+      }
+      const form = new FormData();
+      form.set("photo", shrunk.photo);
+      form.set("attemptToken", attemptToken());
+      const result = await uploadInspectionPhotoAction(form);
+      if (!reported(result) || !result.ok) return;
+      const preview = URL.createObjectURL(shrunk.photo);
+      previews.current.push(preview);
+      setPhotos((p) => ({ ...p, [forCheck]: { key: result.value, preview } }));
+    } catch {
+      toast.danger("The photo was not sent. Check the signal and take it again.");
+    } finally {
+      setShooting(null);
+    }
+  };
 
   const decide = () => {
     const note = (notes[r.no] ?? "").trim();
     const reason = isReturn
       ? [failed.map((c) => c.label).join("; "), note].filter(Boolean).join(". ").slice(0, 300)
       : undefined;
-    const verdicts = checks.flatMap((c) => (res[c.id] ? [{ itemId: c.id, result: res[c.id] as "pass" | "fail" }] : []));
+    const verdicts = checks.flatMap((c) => {
+      const result = res[c.id];
+      if (!result) return [];
+      const key = result === "fail" ? photoOf(c.id)?.key : null;
+      return [key ? { itemId: c.id, result, photoObjectKey: key } : { itemId: c.id, result }];
+    });
     startTransition(async () => {
       const result = await inspectRoomAction(r.id, {
         result: isReturn ? "fail" : "pass",
         reason,
         checks: verdicts,
       });
-      if (reported(result))
+      if (reported(result)) {
+        setKept((k) => (k.some((x) => x.no === r.no) ? k : [...k, r]));
         setDecided((d) => ({ ...d, [r.no]: { kind: isReturn ? "returned" : "released", at: kigaliClock() } }));
+      }
     });
   };
 
@@ -123,16 +191,19 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
           tone: "warning" as const,
           icon: <ArrowUturnCcwLeft />,
           title: `Returned to ${r.cleanedByFirst}`,
-          text: "It is at the top of her list now. The room stays Clean, not Ready, until you inspect it again.",
-          chip: "Returned · not sellable",
-          history: `Returned by ${persona.name} at ${NOW} · ${fails} failed check${fails === 1 ? "" : "s"}, with photo`,
+          text: `The room goes back to dirty with a re-clean on ${r.cleanedByFirst ? `${r.cleanedByFirst}'s` : "the cleaner's"} list. It is inspected again after that.`,
+          chip: "Returned · dirty",
+          history: `Returned by ${persona.name} at ${NOW} · ${fails} failed check${fails === 1 ? "" : "s"}${
+            photoCount ? `, ${photoCount} photo${photoCount === 1 ? "" : "s"}` : ""
+          }`,
         }
       : {
           tone: "success" as const,
           icon: <CheckDouble />,
           title: `Room ${r.no} is Inspected`,
-          text: `Front desk sees it as Ready from ${NOW}. ${
-            arrivalTime ? `Eric can assign it for the ${arrivalTime} arrival.` : "It can be sold tonight."
+          // Passing sets the room Inspected; nothing else at the desk waits on it (check-in reads the room's status).
+          text: `Front desk sees it as Inspected from ${NOW}. ${
+            arrivalTime ? `Front desk can assign it for the ${arrivalTime} arrival.` : "It can be sold tonight."
           }`,
           chip: "Inspected",
           history: `Inspected by ${persona.name} at ${NOW} · ${checked} of ${checks.length} passed`,
@@ -144,7 +215,10 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
         <Avatar size="sm" variant="soft" color="success">
           <Avatar.Fallback>{persona.initials}</Avatar.Fallback>
         </Avatar>
-        <PhoneTitle title="Inspections" sub={`${persona.name} · Supervisor · ${profile.area}`} />
+        <PhoneTitle
+          title="Inspections"
+          sub={[persona.name, profile?.department, profile?.area].filter(Boolean).join(" · ")}
+        />
         <Chip color="warning" variant="soft" className="shrink-0">
           {waiting} waiting
         </Chip>
@@ -180,7 +254,7 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
         </ToggleButtonGroup>
         <p className="flex items-center gap-[6px] text-xs leading-4 text-muted">
           <ShieldCheck className="size-3 shrink-0" aria-hidden="true" />
-          <span>Front desk can only give a room to a guest after you pass it here.</span>
+          <span>Passing a room marks it Inspected for the front desk; returning it sends it back to dirty.</span>
         </p>
       </div>
 
@@ -191,7 +265,8 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
               <h2 id="rm-h" className="text-2xl leading-[30px] font-semibold tabular">
                 Room {r.no}
               </h2>
-              <span className="text-[13px] text-muted">{r.type} · checkout clean</span>
+              {/* The clean this inspection follows, as the task says (checkout, deep clean or re-clean). */}
+              <span className="text-[13px] text-muted">{r.task ? `${r.type} · ${r.task}` : r.type}</span>
             </div>
             <Chip color={r.late ? "warning" : "default"} variant="soft" className="shrink-0">
               <Clock className="size-3" />
@@ -230,7 +305,8 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
               </div>
               {checks.map((c) => {
                 const v = res[c.id];
-                const hasPhoto = photos.has(`${r.no}:${c.id}`);
+                const photo = photoOf(c.id);
+                const busyHere = shooting === `${r.no}:${c.id}`;
                 return (
                   <div key={c.id} className="flex flex-col gap-[8px] border-t border-separator py-[8px]">
                     <div className="flex items-center gap-[8px]">
@@ -263,10 +339,15 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
                       </ToggleButtonGroup>
                     </div>
                     {v === "fail" ? (
-                      hasPhoto ? (
+                      photo ? (
                         <div className="flex items-center gap-[10px]">
-                          {c.photo ? (
-                            <PhotoTile image={c.photo} className="h-16 w-[88px] shrink-0 rounded-[12px]" sizes="88px" />
+                          {photo.preview ? (
+                            <span
+                              role="img"
+                              aria-label={`Photo of ${c.label.toLowerCase()}`}
+                              className="h-16 w-[88px] shrink-0 rounded-[12px] bg-surface-secondary bg-cover bg-center"
+                              style={{ backgroundImage: `url(${photo.preview})` }}
+                            />
                           ) : (
                             <span
                               role="img"
@@ -277,12 +358,23 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
                             </span>
                           )}
                           <span className="flex flex-1 flex-col">
-                            <span className="text-[13px] font-medium">Photo added</span>
-                            <span className="text-xs text-muted">Goes to {r.cleanedByFirst} with the reason</span>
+                            <span className="text-[13px] font-medium">
+                              {photo.preview ? "Photo added" : "Photo on record"}
+                            </span>
+                            <span className="text-xs text-muted">
+                              {photo.preview
+                                ? "Sent with the inspection when you return the room"
+                                : "Kept with this inspection"}
+                            </span>
                           </span>
-                          <Button variant="ghost" className="min-h-11" onPress={() => setPhoto(c.id, false)}>
+                          <Button
+                            variant="ghost"
+                            className="min-h-11"
+                            isDisabled={shooting !== null || pending}
+                            onPress={() => takePhoto(c.id)}
+                          >
                             <Camera className="size-4" />
-                            Retake
+                            {busyHere ? "Sending…" : "Retake"}
                           </Button>
                         </div>
                       ) : (
@@ -290,10 +382,11 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
                           variant="secondary"
                           fullWidth
                           className="min-h-12 text-danger-soft-foreground"
-                          onPress={() => setPhoto(c.id, true)}
+                          isDisabled={shooting !== null || pending}
+                          onPress={() => takePhoto(c.id)}
                         >
                           <Camera className="size-4" />
-                          Add a photo of the problem
+                          {busyHere ? "Sending the photo…" : "Add a photo of the problem"}
                         </Button>
                       )
                     ) : null}
@@ -337,7 +430,7 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
                   <RadioButtonGroup.ItemContent className="flex-1">
                     <Label className="font-semibold">Return to {r.cleanedByFirst}</Label>
                     <Description className="text-xs leading-4">
-                      She gets it back on her phone with your reason and photos.
+                      A re-clean goes on their phone with your reason.
                     </Description>
                   </RadioButtonGroup.ItemContent>
                 </RadioButtonGroup.Item>
@@ -362,7 +455,7 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
                     fullWidth
                   >
                     <Label className="sr-only">Note for {r.cleanedByFirst}</Label>
-                    <TextArea rows={2} placeholder="Tell her what to fix" />
+                    <TextArea rows={2} placeholder="Say what to fix" />
                   </TextField>
                 </div>
               ) : null}
@@ -400,7 +493,7 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
               variant="ghost"
               className="min-h-11"
               onPress={() =>
-                toast.danger(
+                toast.warning(
                   "Undo is not available yet. A returned room comes back to you after the re-clean; ask the front desk to hold a released one.",
                 )
               }
@@ -410,6 +503,17 @@ export function InspectRoomView({ persona, data }: { persona: Persona; data: Ins
           </Card>
         )}
       </PhoneBody>
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={photoTaken}
+      />
+      <PhoneToasts />
     </>
   );
 }

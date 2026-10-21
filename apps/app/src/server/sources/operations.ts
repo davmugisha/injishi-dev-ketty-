@@ -30,6 +30,7 @@ import type {
   WorkOrderPhoto,
 } from "@injishi/data/fixtures/operations";
 import { type StockKey, stock } from "@injishi/data/media";
+import type { Workspace } from "../auth";
 import { clock, dayMonth, kigaliDate } from "../format";
 import { defineSources, type SourceContext } from "./types";
 
@@ -299,6 +300,22 @@ function once<T>(ctx: SourceContext, key: string, load: () => Promise<T>): Promi
 /** Drop what this context read, so the next read sees a write. Every operations mutation calls it. */
 export function forgetOperations(ctx: SourceContext): void {
   memo.delete(ctx);
+}
+
+/**
+ * The place an operations screen is about, for its eyebrow: the one branch the person covers, else their
+ * business, as the API names them. Never a prototype hotel's name.
+ */
+export function placeName(ctx: SourceContext): string {
+  let ws: Workspace;
+  try {
+    ws = ctx.ops().workspace;
+  } catch {
+    return "Your business";
+  }
+  const branches = (ws.branches ?? []) as { name?: string }[];
+  if (branches.length === 1 && branches[0]?.name) return branches[0].name;
+  return ws.orgName?.trim() || ws.label;
 }
 
 export const readBoard = (ctx: SourceContext) =>
@@ -600,14 +617,21 @@ function presentEscalations(board: ApiBoard, now: Date): HousekeepingEscalation[
     } else {
       const cleaned = t.completedAt ?? t.createdAt;
       const who = firstName(supervisor?.name ?? e.escalatedToName) || "the supervisor";
-      const doneCta = `${who} reminded`;
+      // The API records the reminder on the escalation (reminded_at) and leaves an outbox row that
+      // nothing delivers yet: no phone, staff screen or message reads it. So the control records a
+      // reminder and says it is not delivered, and the time shown is the API's, never the clock's.
+      const doneCta = "Reminder recorded · not delivered";
+      const waited = `Room ${room} ${minutesBetween(cleaned, now) > 0 ? `has waited ${waitedText(minutesBetween(cleaned, now))}` : "is waiting"} for inspection after ${firstName(t.assignedToName) || "housekeeping"} cleaned it at ${clock(cleaned)}.`;
+      const note = e.remindedAt
+        ? ` A reminder was recorded on the task at ${clock(e.remindedAt)}${e.remindedByName ? ` by ${firstName(e.remindedByName)}` : ""}; it is not delivered to ${who} yet.`
+        : ` A reminder is recorded on the task only; nothing delivers it to ${who} yet.`;
       out.push({
         id: e.id,
         task: t.id,
         action: "remind",
-        text: `Room ${room} ${minutesBetween(cleaned, now) > 0 ? `has waited ${waitedText(minutesBetween(cleaned, now))}` : "is waiting"} for inspection after ${firstName(t.assignedToName) || "housekeeping"} cleaned it at ${clock(cleaned)}.`,
-        // Already reminded: the button reads as done (the view starts disabled on it).
-        cta: e.remindedAt ? doneCta : `Remind ${who} to inspect ${room}`,
+        text: `${waited}${note}`,
+        // Already recorded: the button reads as done (the view starts disabled on it).
+        cta: e.remindedAt ? doneCta : `Record a reminder for ${room}`,
         doneCta,
       });
     }
@@ -946,7 +970,8 @@ const CATEGORY_LABEL: Record<string, string> = {
 function presentFoundItem(i: ApiFoundItem, today: string): FoundItem {
   const open = i.status !== "returned" && i.status !== "disposed";
   const custody: HistoryEvent[] = i.events.map((e, n) => ({
-    what: e.summary,
+    // The API words an intake "Logged, tag printed", but nothing prints a tag: staff write the reference on it.
+    what: e.summary.replace(/, tag printed$/, ""),
     who: [e.actorName, when(e.occurredAt, today), e.detail].filter(Boolean).join(" · "),
     tone:
       e.kind === "returned" || e.kind === "disposal_approved"
@@ -1005,7 +1030,7 @@ export const sources = defineSources({
   "operations.rooms": {
     naturalKey: "id",
     async list(ctx): Promise<HousekeepingRoom[]> {
-      return presentRooms(await readBoard(ctx), new Date(), ctx.today.iso);
+      return presentRooms(await readBoard(ctx), ctx.now, ctx.today.iso);
     },
   },
   "operations.roomHistory": {
@@ -1017,19 +1042,19 @@ export const sources = defineSources({
   "operations.cleaningTasks": {
     naturalKey: "room",
     async list(ctx): Promise<CleaningTask[]> {
-      return presentTasks(await readBoard(ctx), new Date());
+      return presentTasks(await readBoard(ctx), ctx.now);
     },
   },
   "operations.housekeepingStaff": {
     naturalKey: "name",
     async list(ctx): Promise<HousekeepingStaff[]> {
-      return presentStaff(await readBoard(ctx), new Date());
+      return presentStaff(await readBoard(ctx), ctx.now);
     },
   },
   "operations.housekeepingEscalations": {
     naturalKey: "action",
     async list(ctx): Promise<HousekeepingEscalation[]> {
-      return presentEscalations(await readBoard(ctx), new Date());
+      return presentEscalations(await readBoard(ctx), ctx.now);
     },
   },
   "operations.housekeepingRules": {
@@ -1047,7 +1072,7 @@ export const sources = defineSources({
     naturalKey: "id",
     async list(ctx): Promise<WorkOrder[]> {
       const list = await readWorkOrders(ctx);
-      const now = new Date();
+      const now = ctx.now;
       return list.workOrders.map((o) => presentWorkOrder(o, list, ctx, now));
     },
   },
@@ -1055,7 +1080,7 @@ export const sources = defineSources({
     naturalKey: "rule",
     async list(ctx): Promise<ConditionSignal[]> {
       const [{ signals }, list] = await Promise.all([readSignals(ctx), readWorkOrders(ctx)]);
-      const now = new Date();
+      const now = ctx.now;
       return signals.filter((s) => s.status === "open").map((s) => presentSignal(s, list, ctx, now));
     },
   },

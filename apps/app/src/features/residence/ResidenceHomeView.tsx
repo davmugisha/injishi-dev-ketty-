@@ -23,6 +23,7 @@ import type {
 import { GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import NextLink from "next/link";
 import { type CSSProperties, Fragment, useState } from "react";
+import type { LiveLease } from "@/server/sources/residence";
 import { Dot, HBar, kigaliCalendar, Legend, money, plain, ToneChip } from "./shared";
 
 export interface ResidenceHomeData {
@@ -36,6 +37,29 @@ export interface ResidenceHomeData {
   homeTickets: HomeTicket[];
   tickets: ServiceTicket[];
   filings: LeaseFiling[];
+  /** The live leases, for each unit's caution deposit (LeaseRecord); absent on fixtures. */
+  leases?: LiveLease[];
+}
+
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * The header's one-line summary, from this business's own units and renewals (the prototype always said three
+ * residents were in arrears and named Olivier Habineza).
+ */
+function summaryOf(data: ResidenceHomeData): string {
+  const arrears = data.units.filter((u) => u.status === "arrears").length;
+  const vacant = data.units.filter((u) => u.status === "vacant").length;
+  const offer = data.renewals.find((r) => r.icon === "ArrowsRotateRight");
+  const who = offer ? offer.title.split(" · ").slice(1).join(" · ").trim() || `Unit ${offer.unit}` : "";
+  const by = offer?.desc.match(/answer due (.+)$/)?.[1];
+  const parts = [
+    arrears ? `${count(arrears, "resident is", "residents are")} in arrears` : "No resident is in arrears",
+    ...(offer ? [`${who} answers a renewal offer${by ? ` by ${by}` : ""}`] : []),
+    vacant ? `${count(vacant, "unit is", "units are")} waiting for tenants` : "no unit is waiting for a tenant",
+  ];
+  const last = parts.pop();
+  return `${parts.join(", ")}${parts.length > 1 ? "," : ""} and ${last}.`;
 }
 
 /** How a unit's rent status reads on its tile, in the selected-unit panel and in the legend. */
@@ -120,7 +144,16 @@ function CardHeading({ id, children }: { id: string; children: string }) {
   );
 }
 
-export function ResidenceHomeView({ persona, data }: { persona: Persona; data: ResidenceHomeData }) {
+export function ResidenceHomeView({
+  persona,
+  data,
+  building = "",
+}: {
+  persona: Persona;
+  data: ResidenceHomeData;
+  /** The building(s) the workspace covers, from the session. */
+  building?: string;
+}) {
   // Today and this month are Kigali's, not the prototype's Monday 12 October.
   const cal = kigaliCalendar();
   const [selected, setSelected] = useState("B-07");
@@ -156,6 +189,10 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
   const unit = data.units.find((u) => u.id === selected) ?? data.units[0];
   const unitStatus = STATUS[unit.status];
   const isVacant = unit.status === "vacant";
+  // The caution the unit's lease records, never two months' rent assumed.
+  const unitLease = data.leases?.find((l) => l.id === unit.lease);
+  const unitDeposit = unitLease?.record?.deposit ?? null;
+  const cautionHeld = unitDeposit === null ? "Not on file" : money(unitDeposit);
   const blockName = data.blocks.find((b) => b.id === unit.block)?.name ?? `Block ${unit.block}`;
 
   const openTickets = data.tickets.filter((t) => t.status !== "done");
@@ -167,9 +204,9 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
     <PageContent>
       <PageHeader
         size="hello"
-        eyebrow={`${cal.longDate} · Kacyiru Court Residences · Gasabo`}
+        eyebrow={`${cal.longDate}${building ? ` · ${building}` : ""}`}
         title={`Good morning, ${persona.firstName}`}
-        description="Three residents are in arrears, Olivier Habineza answers his renewal offer by Thursday, and two units are waiting for tenants."
+        description={summaryOf(data)}
         actions={
           <>
             <LinkButton href={screenHref("RentRoll")} variant="secondary">
@@ -178,7 +215,7 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
             </LinkButton>
             <LinkButton href={screenHref("Applicants")}>
               <PersonPlus className="size-4" />
-              Invite applicant
+              Open applicants
             </LinkButton>
           </>
         }
@@ -282,8 +319,7 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
               }))}
             />
             <p className="text-[12px] leading-4 text-muted">
-              Only provider-confirmed payments count as collected. Caution deposits are held separately and never
-              counted as rent.
+              Only verified payments count as collected. Caution deposits are held separately and never counted as rent.
             </p>
           </Widget.Content>
         </Widget>
@@ -448,8 +484,8 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
                   value: <span className="tabular">{`${money(unit.rent)}${isVacant ? " asking" : " a month"}`}</span>,
                 },
                 {
-                  label: "Caution held",
-                  value: <span className="tabular">{isVacant ? "None" : money(unit.rent * 2)}</span>,
+                  label: "Caution agreed",
+                  value: <span className="tabular">{isVacant ? "None" : cautionHeld}</span>,
                 },
                 { label: "Sale mode", value: "Residence only" },
               ]}
@@ -458,7 +494,7 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
             {isVacant ? (
               <LinkButton href={screenHref("Applicants")} size="sm" className="self-start">
                 <PersonPlus className="size-4" />
-                Invite an applicant
+                Open applicants
               </LinkButton>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -535,7 +571,7 @@ export function ResidenceHomeView({ persona, data }: { persona: Persona; data: R
           <Card.Header>
             <CardHeading id="fil-h">Lease Filings Open</CardHeading>
             <Card.Description>
-              {awaitingAck} awaiting acknowledgement · {drafts} draft · deadlines from your configured policy
+              Sample filings, not yet read from Injishi · {awaitingAck} awaiting acknowledgement · {drafts} draft
             </Card.Description>
           </Card.Header>
           <GateChip icon={<ShieldExclamation className="size-3" />} className="self-start">

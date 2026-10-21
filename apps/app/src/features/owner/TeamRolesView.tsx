@@ -12,7 +12,13 @@ import type {
 } from "@injishi/data/fixtures/owner";
 import { LinkButton, PageContent, PageHeader, SectionHeader, TextLink, toneColor } from "@injishi/ui";
 import { type ReactNode, useMemo, useState } from "react";
-import { cancelTeamInvite, changeTeamMember, saveTeamRolePresets, sendTeamInvite } from "./TeamRolesActions";
+import {
+  cancelTeamInvite,
+  changeTeamMember,
+  saveTeamRolePresets,
+  sendTeamInvite,
+  sendTeamStepUpCode,
+} from "./TeamRolesActions";
 import {
   allPermissionKeys,
   applyEdits,
@@ -36,6 +42,7 @@ import {
   TeamRolesRolePicker,
   TeamRolesScopePicker,
   TeamRolesStepUp,
+  type TeamRolesStepUpChannel,
 } from "./TeamRolesPanel";
 import { TeamRolesPresets } from "./TeamRolesPresets";
 import { TeamRolesTransfer } from "./TeamRolesTransfer";
@@ -50,10 +57,6 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: "invited", label: "Invited" },
   { id: "revoked", label: "Revoked" },
 ];
-
-/** The demo clock of the prototype: a transfer requested now is recorded at 10:42 and expires on 19 Oct. */
-const TRANSFER_AT = "10:42";
-const TRANSFER_EXPIRES = "19 Oct";
 
 /** "Invited" also lists invites waiting for the owner's approval. */
 const inFilter = (status: TeamRolesMemberStatus, filter: Filter) =>
@@ -80,7 +83,9 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
   });
   const [busy, setBusy] = useState(false);
   const [changed, setChanged] = useState<Record<string, Partial<TeamRolesMember>>>({});
-  const [removed, setRemoved] = useState<string[]>([]);
+  // Where the API emailed the last step-up code (masked), once one was asked for.
+  const [stepUpTo, setStepUpTo] = useState<string | null>(null);
+  const [sendingCode, setSendingCode] = useState(false);
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(areas.map((a) => [a.id, a.defaultOpen])),
   );
@@ -88,7 +93,7 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
   const [edits, setEdits] = useState<TeamRolesEdits>({});
   const [customise, setCustomise] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [transfer, setTransfer] = useState<"idle" | "open" | { to: string }>("idle");
+  const [transferOpen, setTransferOpen] = useState(false);
   const [edit, setEdit] = useState<{ role: TeamRolesRoleId; scope: string[]; code: string } | null>(null);
 
   const has = makeHas(presets, edits);
@@ -99,7 +104,7 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
   // Members: the business's list as the API answered it. A change made here is written there and the page
   // is read again after it, so the list never shows something that was not saved.
   const everyone = useMemo(() => data.members.map((m) => ({ ...m, ...changed[m.id] })), [data.members, changed]);
-  const members = everyone.filter((m) => !removed.includes(m.id));
+  const members = everyone;
   const shown = members.filter((m) => inFilter(m.status, filter));
   const owner = members.find((m) => m.role === "owner");
 
@@ -143,6 +148,21 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
     }
   };
 
+  /** "Email me a code": the API emails a fresh step-up code for this session and says where it went. */
+  const sendCode = async () => {
+    setSendingCode(true);
+    try {
+      const result = await sendTeamStepUpCode();
+      if (result.ok) {
+        setStepUpTo(result.sentTo);
+        toast.success(`Code sent to ${result.sentTo}`);
+      } else toast.danger(result.message);
+    } finally {
+      setSendingCode(false);
+    }
+  };
+  const stepUp: TeamRolesStepUpChannel = { sentTo: stepUpTo, sending: sendingCode, onSend: () => void sendCode() };
+
   const sendInvite = () => {
     const name = inviteState.name.trim() || inviteState.contact.trim();
     void write(
@@ -152,6 +172,7 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
           contact: inviteState.contact,
           role: inviteState.role,
           scope: inviteState.scope,
+          code: inviteState.code,
         }),
       () => {
         setFilter("all");
@@ -163,9 +184,11 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
 
   const revoke = (m: TeamRolesMember) => {
     if (m.status !== "invited") {
-      // Taking somebody off the business is offboarding their staff file in People, which ends the
-      // membership with the employment record; this screen does not do it on its own.
-      toast.warning(`To take ${m.name} off the business, offboard them in People. Their access ends with it.`);
+      // Access ends when the person's staff file is offboarded, which ends the membership with the employment
+      // record. Neither this screen nor People can do that yet, so nothing changes here and the screen says so.
+      toast.warning(
+        `Revoking ${m.name}'s access is not available yet. It ends when their staff file is offboarded, which this interface cannot do yet.`,
+      );
       return;
     }
     void write(
@@ -176,11 +199,11 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
       },
     );
   };
-  const remove = (m: TeamRolesMember) => {
-    setRemoved((r) => [...r, m.id]);
-    closePanel();
-    toast.success(`${m.name} removed from the list · audit trail kept`);
-  };
+  /** Removed members stay listed: the record of who had access is the business's, and the API keeps it. */
+  const remove = (m: TeamRolesMember) =>
+    toast.warning(
+      `Hiding ${m.name} from this list is not available yet. People whose access ended stay listed as the record of who had access.`,
+    );
   const startEdit = (m: TeamRolesMember) => {
     setEdit({ role: m.role, scope: m.scopeIds, code: "" });
     setPanel({ kind: "member", id: m.id, editing: true });
@@ -190,7 +213,7 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
     const sameScope = edit.scope.length === m.scopeIds.length && edit.scope.every((s) => m.scopeIds.includes(s));
     const next = { role: edit.role, scope: edit.scope };
     void write(
-      () => changeTeamMember(m.id, next),
+      () => changeTeamMember(m.id, { ...next, code: edit.code }),
       () => {
         setChanged((c) => ({
           ...c,
@@ -208,7 +231,6 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
     );
   };
 
-  const transferTo = typeof transfer === "object" ? members.find((m) => m.id === transfer.to) : undefined;
   const candidates = members
     .filter((m) => m.role !== "owner" && m.status === "active" && m.identityVerified)
     .map((m) => ({ id: m.id, label: `${m.name} · ${roleName(m.role)} · identity verified` }));
@@ -217,17 +239,9 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
     .map((r) => ({ id: r.id, label: `${r.name} · all properties` }));
   const openTransfer = () => {
     closePanel();
-    setTransfer("open");
+    setTransferOpen(true);
   };
-  const requestTransfer = (_to: string) => {
-    // Ownership changes hands through the owner claim, which checks the new owner's identity document;
-    // the platform has no transfer request yet, so nothing is recorded here and the screen says so.
-    setTransfer("idle");
-    toast.warning("Ownership transfer is not available yet. It will go through the owner claim, which checks an ID.");
-  };
-  const ownText = transferTo
-    ? `Transfer requested to ${transferTo.name} at ${TRANSFER_AT}. You stay owner until she accepts with verified identity; the request expires ${TRANSFER_EXPIRES}.`
-    : `${owner?.name ?? "The owner"} owns this business. Ownership moves only when another verified member accepts, after step-up verification.`;
+  const ownText = `${owner?.name ?? "The owner"} owns this business. Ownership moves only when another verified member accepts, after step-up verification.`;
 
   const selectTab = (next: Tab) => {
     setTab(next);
@@ -260,6 +274,7 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
           scopes={scopes}
           countFor={countFor}
           permissionsFor={permissionsFor}
+          stepUp={stepUp}
         />
       ),
       footer: (
@@ -306,7 +321,7 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
               onChange={(scope) => setEdit({ ...edit, scope })}
             />
             <TeamRolesStepUp
-              phone={draft.verifyPhone}
+              channel={stepUp}
               value={edit.code}
               onChange={(code) => setEdit({ ...edit, code })}
               description="Granting access always needs step-up verification."
@@ -328,17 +343,17 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
         ),
       };
     } else {
-      const sessions =
-        sel.status === "active"
-          ? sel.signIn === "Staff app PIN"
-            ? "1 · Android staff app"
-            : "2 · Chrome on Windows, Android app"
-          : "None";
-      const employee = isOwner
-        ? "Not an employee"
-        : sel.status === "invited" || sel.status === "pending"
-          ? "Linked when they accept"
-          : "Linked · see People";
+      // Read from People (active files, matched on the sign-in's email), never assumed. Sessions are not
+      // listed: no route reports a member's devices, so the panel names none.
+      const email = sel.contact.trim().toLowerCase();
+      const employee =
+        sel.status === "invited" || sel.status === "pending"
+          ? "None yet · an invitation is not a person"
+          : data.employeeFiles === null
+            ? "Not checked here · see People"
+            : data.employeeFiles.includes(email)
+              ? "On file · see People"
+              : "No active file with this email in People";
       const help = TEAM_ROLES_HELP[isOwner ? "owner" : sel.status];
       const actions =
         sel.status === "pending" || canRevoke || sel.status === "revoked" ? (
@@ -374,7 +389,6 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
               { label: "Scope", value: sel.scope },
               { label: "Last active", value: sel.lastActive },
               { label: "Sign-in", value: sel.status === "revoked" ? "—" : sel.signIn },
-              { label: "Sessions", value: sessions },
               { label: "Employee file", value: employee },
             ]}
             help={help}
@@ -389,12 +403,12 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
     <PageContent>
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Amahoro Hospitality Group · Business"
+        eyebrow={`${data.businessName} · Business`}
         title="Team and Roles"
         description="Who can sign in to your business, what each role can do, and where."
         actions={
           <>
-            <Button variant="ghost" onPress={openTransfer} isDisabled={typeof transfer === "object"}>
+            <Button variant="ghost" onPress={openTransfer}>
               <ShieldKeyhole className="size-4" aria-hidden="true" />
               Transfer ownership
             </Button>
@@ -546,7 +560,7 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
                 </h2>
                 <p className="text-[13px] leading-[18px] text-muted">{ownText}</p>
               </div>
-              <Button variant="secondary" onPress={openTransfer} isDisabled={typeof transfer === "object"}>
+              <Button variant="secondary" onPress={openTransfer}>
                 <ShieldKeyhole className="size-4" aria-hidden="true" />
                 Transfer ownership
               </Button>
@@ -606,12 +620,10 @@ export function TeamRolesView({ data }: { data: TeamRolesData }) {
       </TeamRolesDrawer>
 
       <TeamRolesTransfer
-        isOpen={transfer === "open"}
-        onClose={() => setTransfer((t) => (t === "open" ? "idle" : t))}
+        isOpen={transferOpen}
+        onClose={() => setTransferOpen(false)}
         candidates={candidates}
         afterRoles={afterRoles}
-        phone={draft.verifyPhone}
-        onRequest={(to) => requestTransfer(to)}
       />
     </PageContent>
   );
