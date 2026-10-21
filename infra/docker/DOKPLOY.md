@@ -372,6 +372,23 @@ else. To prove the wiring on the demo, a staff session with
 `admin.system.view` may call `GET /api/v1/demo/crash`, which answers a 500 and
 is a 404 on every other stack.
 
+## Visit counting
+
+Web counts visits with a cookie-free counter that speaks Plausible's script API
+(`apps/web/src/lib/analytics.ts`). It sets no cookie and stores nothing on the
+device, so it needs no consent banner. Both values are BUILD arguments of the web
+image, so changing one means rebuilding web, and both default to empty, which
+means off: no script and no events.
+
+| Stack | Counts | Values |
+| --- | --- | --- |
+| Production | once `PLAUSIBLE_DOMAIN` is set | `PLAUSIBLE_DOMAIN=www.injishi.com` in the stack's `.env`; `PLAUSIBLE_SRC` only for a self-hosted instance, as that instance's script URL |
+| Demo and staging | never | not passed, on purpose: a rehearsal must not count as real traffic |
+
+Add the site in Plausible (or the self-hosted instance) before setting the value,
+or the counts are refused there. Campaign links count by their `utm_*` tags with
+no other setup.
+
 ## Admin network gate
 
 `admin`, `admin-demo` and the demo's `mail-demo` inbox answer only to

@@ -356,6 +356,11 @@ services:
       args:
         <<: *production-public
         OPERATOR_APP_URL: http://app:3002
+        # The visit counter (apps/web/src/lib/analytics.ts), web only. Empty
+        # means off. Set PLAUSIBLE_DOMAIN to www.injishi.com once the site is
+        # added in Plausible; PLAUSIBLE_SRC only for a self-hosted instance.
+        NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${PLAUSIBLE_DOMAIN:-}
+        NEXT_PUBLIC_PLAUSIBLE_SRC: ${PLAUSIBLE_SRC:-}
     restart: unless-stopped
     environment:
       <<: *production-public

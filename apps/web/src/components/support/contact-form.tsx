@@ -21,7 +21,10 @@ import {
   SelectValue,
 } from "@injishi/ui";
 
+import { CONTACT } from "@/data/navigation";
 import { submitSupportTicket } from "@/data/support";
+import { track } from "@/lib/analytics";
+import { SUPPORT_INTENTS, type SupportIntent } from "@/lib/support-intent";
 
 /**
  * The support contact form.
@@ -79,9 +82,16 @@ function toInput(topic: SupportTopic, data: FormData): CreateSupportTicketInput 
 
 type Status = "idle" | "sending" | "sent" | "error";
 
-export function ContactForm() {
+/**
+ * `intent` is why another page sent the visitor here (`lib/support-intent.ts`):
+ * the home page's "tell me when my district opens", the host page's "call me".
+ * It only chooses the starting topic and the first words of the message; the
+ * visitor can change both.
+ */
+export function ContactForm({ intent = null }: { intent?: SupportIntent | null }) {
+  const start = intent ? SUPPORT_INTENTS[intent] : null;
   const [status, setStatus] = useState<Status>("idle");
-  const [topic, setTopic] = useState<SupportTopic>("booking");
+  const [topic, setTopic] = useState<SupportTopic>(start?.topic ?? "booking");
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -90,6 +100,9 @@ export function ContactForm() {
 
     const result = await submitSupportTicket(toInput(topic, new FormData(form)));
     if (result.status === "ok") {
+      // The topic and the page that sent them, which is how a "tell me when my
+      // district opens" or a host's call request is counted. Never the words.
+      track("Support Sent", { topic, intent: intent ?? "none" });
       setStatus("sent");
       form.reset();
     } else {
@@ -163,6 +176,7 @@ export function ContactForm() {
           name="message"
           required
           maxLength={SUPPORT_MESSAGE_MAX}
+          defaultValue={start?.message}
           rows={5}
           className="w-full rounded-card border border-input px-5 py-3 text-base [--field-background:transparent]"
         />
@@ -179,7 +193,7 @@ export function ContactForm() {
           ) : null}
           {status === "error" ? (
             <span className="text-destructive">
-              That did not send. Call us on +250 784 530 000 and we will pick it up.
+              That did not send. Call us on {CONTACT.phone} and we will pick it up.
             </span>
           ) : null}
         </p>

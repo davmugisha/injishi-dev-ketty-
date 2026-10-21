@@ -28,6 +28,15 @@ import {
  * indexes *places* for a typeahead, so it legitimately carries landmarks and
  * pre-1994 names that have no properties behind them.
  */
+/*
+ * `huye` and `kayonza` joined on 2026-10-21. The typeahead already resolved
+ * "Huye", "Butare" and "Nyungwe" to `huye` and "Akagera" to `kayonza`
+ * (`data/destinations.ts`), but neither was a facet, so those searches could
+ * never match a stay, and a property in either district was filed under Kigali
+ * by `districtSlug` in `data/discovery.ts`: an Akagera lodge listed as a
+ * Kigali stay. A slug here must be a district's own name, lowercased, because
+ * that is how a property's `districtName` is matched to it.
+ */
 export const DISTRICT_SLUGS = [
   "kigali",
   "musanze",
@@ -35,6 +44,8 @@ export const DISTRICT_SLUGS = [
   "rusizi",
   "karongi",
   "rubavu",
+  "huye",
+  "kayonza",
 ] as const;
 
 export type DistrictSlug = (typeof DISTRICT_SLUGS)[number];
@@ -47,6 +58,8 @@ const DISTRICT_NAME: Readonly<Record<DistrictSlug, string>> = {
   rusizi: "Rusizi",
   karongi: "Karongi",
   rubavu: "Rubavu",
+  huye: "Huye",
+  kayonza: "Kayonza",
 };
 
 export interface PropertyKindOption {

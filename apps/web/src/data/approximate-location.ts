@@ -57,6 +57,8 @@ const DISTRICT_CENTRE: Readonly<Record<DistrictSlug, LatLng>> = {
   karongi: [-2.0567, 29.3833],
   rusizi: [-2.484, 28.907],
   nyagatare: [-1.2925, 30.3273],
+  huye: [-2.5967, 29.7394],
+  kayonza: [-1.879, 30.645],
 };
 
 /** "Gisenyi shore" → "gisenyi"; "Kayonza gate" → "kayonza". */

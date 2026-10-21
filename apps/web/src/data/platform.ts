@@ -48,6 +48,16 @@ export function isDemo(platform: PlatformInfo | null): boolean {
 }
 
 /**
+ * True only on a positive answer that the API serves a SAMPLE database: the
+ * demo, staging, a laptop. The pages built on invented fixtures (`/services`)
+ * answer only then, because fictional hotels at made-up prices are a demo
+ * prop, and production served them as real offers until 2026-10-21.
+ */
+export function servesSampleData(platform: PlatformInfo | null): boolean {
+  return platform?.sampleData === true;
+}
+
+/**
  * The demo roster for the sign in picker: `GET /api/v1/demo/personas`
  * (ADR-043, AC-18). Ask only once `fetchPlatform` said demo.
  *
