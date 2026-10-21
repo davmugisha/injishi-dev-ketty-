@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/copy-maplibre-worker.mjs && next dev --port 3000",
-    "preview:registration": "node scripts/run-registration-preview.mjs",
     "build": "node scripts/copy-maplibre-worker.mjs && next build",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
