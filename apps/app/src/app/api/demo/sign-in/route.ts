@@ -1,6 +1,6 @@
 import { homeHref, type PersonaId, personas } from "@injishi/data";
 import { type NextRequest, NextResponse } from "next/server";
-import { encodeSessionCookie, SESSION_COOKIE, safeNext } from "@/lib/session";
+import { applyApiCookies, LEGACY_SESSION_COOKIE, safeNext } from "@/lib/session";
 import { demoSignInCode, sendSignInCode, verifySignInCode } from "@/server/auth";
 
 /**
@@ -24,11 +24,7 @@ export async function GET(request: NextRequest) {
   if (!verified.ok) return NextResponse.json({ error: `sign-in refused: ${verified.reason}` }, { status: 502 });
   const next = safeNext(request.nextUrl.searchParams.get("next")) ?? homeHref(id);
   const response = NextResponse.redirect(new URL(next, request.url));
-  response.cookies.set(SESSION_COOKIE, encodeSessionCookie(verified.cookie), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    expires: verified.expiresAt,
-  });
+  applyApiCookies(response.cookies, verified.setCookies);
+  response.cookies.delete(LEGACY_SESSION_COOKIE);
   return response;
 }

@@ -410,10 +410,12 @@ services:
       - dokploy-network
 
   # The operator app on its own host, app.injishi.com, a Dokploy domain row
-  # (port 3002). It holds the API's session in its own `ij_session` cookie on
-  # that origin and calls the API server side only, over this project's
-  # network. Its embedded fixture database (@injishi/db, libSQL) lives on the
-  # app-data volume so a restart does not reseed it.
+  # (port 3002). Its sign-in hands the browser the API's own session cookie,
+  # on AUTH_COOKIE_DOMAIN, so web and the app share one session; it calls the
+  # API server side over this project's network, forwarding the visitor's
+  # address. Only its Google button reaches the API from the browser, on
+  # NEXT_PUBLIC_API_URL. Its embedded fixture database (@injishi/db, libSQL)
+  # lives on the app-data volume so a restart does not reseed it.
   app:
     image: injishi-app:production
     build:

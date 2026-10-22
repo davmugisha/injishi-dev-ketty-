@@ -14,7 +14,9 @@ import type { LegalContent } from "./types";
  * - `injishi_otp_email`: `lib/otp-email-cookie.ts`, ten minutes.
  * - `injishi_assistant`: `api/public/assistant/assistant-cookie.ts` in the API,
  *   scoped to `/api/v1/assistant`, `ANONYMOUS_RETENTION_DAYS`.
- * - `ij_session` and `ij_otp`: the operator app (`apps/app/src/lib/session.ts`).
+ * - `ij_otp`: the operator app (`apps/app/src/lib/session.ts`), ten minutes. The
+ *   app signs people in with the same `better-auth.session_token` as web; its
+ *   own `ij_session` is gone and only ever deleted now.
  * - `injishi_kiosk`: `KioskGuard` and `KIOSK_COOKIE_MAX_AGE_S` (400 days).
  * - Browser storage: `injishi-theme` (next-themes and `ThemeBoot`),
  *   `injishi:saved-stays`, `injishi:recently-viewed` (hooks/), and
@@ -56,7 +58,7 @@ export const COOKIES: LegalContent = {
             rows: [
               [
                 "`__Secure-better-auth.session_token`",
-                "Keeps you signed in. It is set for injishi.com and its subdomains, so the website and our API both recognise you, and scripts on the page cannot read it.",
+                "Keeps you signed in. It is set for injishi.com and its subdomains, so the website, the business workspace and our API all recognise you, and scripts on the page cannot read it.",
                 "7 days, renewed while you use Injishi. Deleted when you sign out.",
                 "Strictly necessary",
               ],
@@ -79,9 +81,9 @@ export const COOKIES: LegalContent = {
                 "Strictly necessary",
               ],
               [
-                "`ij_session`, `ij_otp`",
-                "Used by the business workspace: the first keeps a business user signed in to it, the second remembers where a sign-in code went.",
-                "Until the session ends; 10 minutes",
+                "`ij_otp`",
+                "Used by the business workspace's sign-in: remembers which email address a sign-in code went to, between asking for the code and typing it.",
+                "10 minutes",
                 "Strictly necessary",
               ],
               [

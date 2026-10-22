@@ -9,7 +9,8 @@ import { TabBar } from "./phone";
  * The tab bar follows the persona's own app (a supervisor sees supervisor tabs in /staff), otherwise `fallback`.
  */
 export function AppShell({ fallback }: { fallback: PhoneAppId }) {
-  const { persona } = useSession();
+  const { status, persona } = useSession();
+  if (status === "loading") return null;
   if (!persona) return <Redirect href="/sign-in" />;
   const app = persona.app.kind === "phone" ? persona.app.app : fallback;
   return (

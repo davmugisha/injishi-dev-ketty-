@@ -31,6 +31,23 @@ test("the demo instance carries the same session plugin", () => {
   assert.ok(plugin(build({ demoOtpCode: "123456" }), "bearer"));
 });
 
+test("the phone app's sign-in plugin is installed, so its origin and Google return are honoured", () => {
+  assert.ok(
+    plugin(build(), "expo"),
+    "expo() is missing: the phone app's requests carry no Origin and are refused, and Google never returns to it",
+  );
+});
+
+test("a native request's expo-origin stands in for the Origin it cannot send", async () => {
+  const expo = plugin(build(), "expo");
+  const request = new Request("http://localhost:8000/api/auth/sign-in/email-otp", {
+    method: "POST",
+    headers: { "expo-origin": "injishi://" },
+  });
+  const result = await expo.onRequest(request, {});
+  assert.equal((result?.request ?? request).headers.get("origin"), "injishi://");
+});
+
 // Resolved through the context Better Auth builds, which is where its default
 // (`enabled ?? isProduction`) is applied. Better Auth reads NODE_ENV once, when
 // its module loads, so this runs in a fresh process under the NODE_ENV every

@@ -8,6 +8,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { BrandPalm } from "@/components/brand";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { type SignInState, signInAs, startSignIn } from "@/lib/auth-actions";
+import { GoogleButton } from "./GoogleButton";
 import { HeroCarousel } from "./HeroCarousel";
 
 const GROUP_LABEL: Record<PersonaGroup, string> = {
@@ -123,12 +124,19 @@ export function SignInView({
   next,
   highlight,
   demo,
+  google,
+  notice,
 }: {
   personas: Persona[];
+  /** Where to go once signed in: a screen here, or a page on web (`return-to.ts`). */
   next: string;
   highlight: string | null;
   /** The demo's fixed code and last reset; null outside the demo, where the persona list is not drawn. */
   demo: { code: string; seededAt: string | null } | null;
+  /** The API has Google credentials, so the button works; otherwise it says it is coming. */
+  google: boolean;
+  /** Why the person is back here, from `?error=` (Google did not finish, a persona's code was refused). */
+  notice: string | null;
 }) {
   const [state, formAction, pending] = useActionState<SignInState, FormData>(startSignIn, {});
   const [email, setEmail] = useState(state.email ?? "");
@@ -151,15 +159,27 @@ export function SignInView({
           <BrandPalm size={44} className="h-11 w-auto" />
           <h1 className="text-center text-[32px] leading-10 font-medium tracking-[-0.02em]">Welcome to Injishi</h1>
 
+          {notice ? (
+            <p role="alert" className="w-full text-center text-sm text-danger">
+              {notice}
+            </p>
+          ) : null}
+
           <div className="flex w-full flex-col items-center gap-2">
             <span className="text-[13px] text-muted">Continue with</span>
-            <Button variant="secondary" fullWidth isDisabled className="rounded-full">
-              <span aria-hidden="true" className="font-bold">
-                G
-              </span>
-              Continue with Google
-            </Button>
-            <span className="text-xs text-muted">Sign in with Google isn’t available in the demo yet.</span>
+            {google ? (
+              <GoogleButton next={next} />
+            ) : (
+              <>
+                <Button variant="secondary" fullWidth isDisabled className="rounded-full">
+                  <span aria-hidden="true" className="font-bold">
+                    G
+                  </span>
+                  Continue with Google
+                </Button>
+                <span className="text-xs text-muted">Sign in with Google is coming soon. Use your email for now.</span>
+              </>
+            )}
           </div>
 
           <div className="flex w-full items-center gap-3">

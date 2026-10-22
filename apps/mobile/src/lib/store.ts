@@ -1,18 +1,17 @@
 // Embedded database for the phone apps (iOS/Android): SQLite via expo-sqlite + Drizzle, using the same schema
 // as the web app (@injishi/db/schema) and seeded from the same fixtures (@injishi/data). Synchronous on purpose:
 // reads are local and tiny, so screens can render from it directly. The web build uses store.web.ts instead.
+// Sign-in is not here: a phone signs in through the API (auth.ts).
 
 import { allCollections } from "@injishi/data/fixtures/index";
-import { DEMO_OTP, personaByEmail, personas } from "@injishi/data/personas";
+import { personas } from "@injishi/data/personas";
 import { screens } from "@injishi/data/screens";
-import type { Doc, PersonaId } from "@injishi/data/types";
-import { BOOTSTRAP_SQL, documents, meta, otpChallenges, schema, sessions, users } from "@injishi/db/schema";
+import type { Doc } from "@injishi/data/types";
+import { BOOTSTRAP_SQL, documents, meta, schema, users } from "@injishi/db/schema";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import { openDatabaseSync } from "expo-sqlite";
-import { fnv1a, newId, type OtpCheck, type OtpStart } from "./store-shared";
-
-export type { OtpCheck, OtpStart } from "./store-shared";
+import { fnv1a } from "./store-shared";
 
 const sqlite = openDatabaseSync("injishi.db");
 const db = drizzle(sqlite, { schema });
@@ -90,82 +89,5 @@ export function saveDocument<T extends Doc>(collection: string, doc: T): void {
 export function deleteDocument(collection: string, id: string): void {
   db.delete(documents)
     .where(and(eq(documents.collection, collection), eq(documents.id, id)))
-    .run();
-}
-
-// ── One-time codes and sessions (same rules as the web app: the demo code is 123456) ──
-
-export function startOtp(email: string): OtpStart {
-  const persona = personaByEmail(email);
-  if (!persona) return { ok: false, reason: "unknown-email" };
-  const now = new Date();
-  const challenge = {
-    id: newId(),
-    userId: persona.id,
-    email: persona.email,
-    code: DEMO_OTP,
-    attempts: 0,
-    createdAt: now,
-    expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
-  };
-  db.insert(otpChallenges).values(challenge).run();
-  return { ok: true, challengeId: challenge.id, email: persona.email, expiresAt: challenge.expiresAt };
-}
-
-export function verifyOtp(challengeId: string, code: string): OtpCheck {
-  const c = db.select().from(otpChallenges).where(eq(otpChallenges.id, challengeId)).get();
-  if (!c || c.consumedAt) return { ok: false, reason: "not-found" };
-  if (c.expiresAt.getTime() < Date.now()) return { ok: false, reason: "expired" };
-  if (c.attempts >= 5) return { ok: false, reason: "locked" };
-  if (code.replace(/\D/g, "") !== c.code) {
-    const attempts = c.attempts + 1;
-    db.update(otpChallenges).set({ attempts }).where(eq(otpChallenges.id, challengeId)).run();
-    return attempts >= 5
-      ? { ok: false, reason: "locked" }
-      : { ok: false, reason: "wrong-code", attemptsLeft: 5 - attempts };
-  }
-  db.update(otpChallenges).set({ consumedAt: new Date() }).where(eq(otpChallenges.id, challengeId)).run();
-  const token = newId();
-  const now = new Date();
-  db.insert(sessions)
-    .values({ id: token, userId: c.userId, createdAt: now, expiresAt: new Date(now.getTime() + 30 * 24 * 3600 * 1000) })
-    .run();
-  db.insert(meta)
-    .values({ key: "current_session", value: token })
-    .onConflictDoUpdate({ target: meta.key, set: { value: token } })
-    .run();
-  return { ok: true, personaId: c.userId as PersonaId };
-}
-
-/** The signed-in persona on this device, if any. */
-export function currentPersonaId(): PersonaId | null {
-  const cur = db.select().from(meta).where(eq(meta.key, "current_session")).get();
-  if (!cur?.value) return null;
-  const s = db.select().from(sessions).where(eq(sessions.id, cur.value)).get();
-  if (!s || s.expiresAt.getTime() < Date.now()) return null;
-  return s.userId as PersonaId;
-}
-
-export function signOutStore(): void {
-  const cur = db.select().from(meta).where(eq(meta.key, "current_session")).get();
-  if (cur?.value) db.delete(sessions).where(eq(sessions.id, cur.value)).run();
-  db.delete(meta).where(eq(meta.key, "current_session")).run();
-}
-
-/** Development/preview only: sign in as a persona without the code step. */
-export function signInDirect(personaId: PersonaId): void {
-  const token = newId();
-  const now = new Date();
-  db.insert(sessions)
-    .values({
-      id: token,
-      userId: personaId,
-      createdAt: now,
-      expiresAt: new Date(now.getTime() + 30 * 24 * 3600 * 1000),
-    })
-    .run();
-  db.insert(meta)
-    .values({ key: "current_session", value: token })
-    .onConflictDoUpdate({ target: meta.key, set: { value: token } })
     .run();
 }

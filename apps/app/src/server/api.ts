@@ -62,9 +62,21 @@ export interface RequestOptions {
   /** Money routes need one key per press, minted at the call site. */
   idempotencyKey?: string;
   query?: Record<string, string | number | boolean | null | undefined>;
+  /** The visitor's address, forwarded so the API's per-IP sign-in limits count them and not this server. */
+  clientIp?: string | null;
 }
 
-/** A cookie pair as the API set it: `injishi-demo.session_token=…` (name differs per environment). */
+/**
+ * The header that names the visitor to the API. Every call here reaches the API from THIS server, so
+ * without it Better Auth sees no client address at all: in production it then skips its rate limiter and
+ * the per-IP send cap altogether ("Rate limiting skipped: could not determine client IP address").
+ * Web's sign-in form forwards it the same way (`apps/web/src/lib/otp.server.ts`).
+ */
+export function clientIpHeaders(clientIp: string | null | undefined): Record<string, string> {
+  return clientIp ? { "x-forwarded-for": clientIp } : {};
+}
+
+/** The browser's Better Auth cookies as a `Cookie` header: `injishi-demo.session_token=…` (name differs per environment). */
 export type SessionCookie = string;
 
 function messageOf(body: unknown, status: number): { code: string | null; message: string } {
@@ -88,7 +100,11 @@ export async function apiRequest<T>(
   for (const [key, value] of Object.entries(options.query ?? {})) {
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
   }
-  const headers: Record<string, string> = { accept: "application/json", origin: apiOrigin() };
+  const headers: Record<string, string> = {
+    accept: "application/json",
+    origin: apiOrigin(),
+    ...clientIpHeaders(options.clientIp),
+  };
   if (cookie) headers.cookie = cookie;
   if (options.workspaceId) headers["x-workspace-id"] = options.workspaceId;
   if (options.branchId) headers["x-branch-id"] = options.branchId;

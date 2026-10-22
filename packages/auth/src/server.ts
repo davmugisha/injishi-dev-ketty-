@@ -1,3 +1,4 @@
+import { expo } from "@better-auth/expo";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { bearer, emailOTP } from "better-auth/plugins";
@@ -389,6 +390,14 @@ export function createAuth(config: CreateAuthConfig): AuthInstance {
             // `requireSignature` refuses a bare session id: only the signed value
             // the header carried is accepted.
             bearer({ requireSignature: true }),
+            // The phone app's other half (`@better-auth/expo/client`). A native
+            // request carries no Origin, so the app names its scheme in
+            // `expo-origin` and this treats it as one, which Better Auth's CSRF
+            // check then holds to `trustedOrigins` like any browser origin. It
+            // also hands a Google sign in back to the app: the callback that
+            // lands on the app's deep link carries the new session with it,
+            // because the in-app browser's cookie jar is not the app's.
+            expo(),
             // Phone sign in, only where a handset can actually be reached.
             ...(config.sendSms && config.sendPhoneRemovedNotice
                 ? [
