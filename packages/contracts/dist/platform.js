@@ -46,6 +46,18 @@ exports.PlatformInfo = zod_1.z.object({
      * missing one means "an API that could not tell you".
      */
     commit: zod_1.z.string().nullish(),
+    /**
+     * Whether this API can sign a person in with Google: both Google OAuth
+     * credentials are configured, so the provider is mounted.
+     *
+     * Every sign in screen asks before drawing the button as pressable. Without
+     * it a screen either hides a route that works or offers one that answers
+     * "provider not found" after the press.
+     *
+     * `nullish` for the reason `commit` gives: an API older than this field
+     * does not send it, and a client reads a missing key as "not offered".
+     */
+    googleSignIn: zod_1.z.boolean().nullish(),
 });
 /**
  * `GET /api/v1/demo/personas`: the demo roster for the sign in picker (ADR-038

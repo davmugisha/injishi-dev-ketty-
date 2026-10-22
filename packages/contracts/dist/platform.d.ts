@@ -45,16 +45,30 @@ export declare const PlatformInfo: z.ZodObject<{
      * missing one means "an API that could not tell you".
      */
     commit: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /**
+     * Whether this API can sign a person in with Google: both Google OAuth
+     * credentials are configured, so the provider is mounted.
+     *
+     * Every sign in screen asks before drawing the button as pressable. Without
+     * it a screen either hides a route that works or offers one that answers
+     * "provider not found" after the press.
+     *
+     * `nullish` for the reason `commit` gives: an API older than this field
+     * does not send it, and a client reads a missing key as "not offered".
+     */
+    googleSignIn: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
 }, "strip", z.ZodTypeAny, {
     environment: "production" | "demo";
     sampleData: boolean;
     seededAt: string | null;
     commit?: string | null | undefined;
+    googleSignIn?: boolean | null | undefined;
 }, {
     environment: "production" | "demo";
     sampleData: boolean;
     seededAt: string | null;
     commit?: string | null | undefined;
+    googleSignIn?: boolean | null | undefined;
 }>;
 export type PlatformInfo = z.infer<typeof PlatformInfo>;
 /**

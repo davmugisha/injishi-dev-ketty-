@@ -30,17 +30,22 @@ export function VerifyView({
   next,
   expiresIn,
   demoCode,
+  google,
 }: {
   email: string;
   next: string;
   expiresIn: number;
   demoCode: string | null;
+  /** Google sign-in works here, so the promise that it opens this same account can be made. */
+  google: boolean;
 }) {
   const [state, formAction, pending] = useActionState<VerifyState, FormData>(verifyCode, {});
   const [code, setCode] = useState(demoCode ?? "");
   const expiry = useCountdown(expiresIn);
   const resend = useCountdown(30);
   const [resending, startResend] = useTransition();
+  const [resendError, setResendError] = useState<string | null>(null);
+  const signInHref = next ? `/sign-in?next=${encodeURIComponent(next)}` : "/sign-in";
 
   return (
     <div className="flex min-h-dvh bg-background">
@@ -130,12 +135,7 @@ export function VerifyView({
           </Form>
 
           <div className="flex items-center justify-between gap-3">
-            <LinkButton
-              href={next ? `/sign-in?next=${encodeURIComponent(next)}` : "/sign-in"}
-              variant="ghost"
-              size="sm"
-              className="px-2"
-            >
+            <LinkButton href={signInHref} variant="ghost" size="sm" className="px-2">
               <ArrowLeft className="size-4" />
               Different email
             </LinkButton>
@@ -146,25 +146,40 @@ export function VerifyView({
                 variant="ghost"
                 size="sm"
                 isPending={resending}
-                onPress={() => startResend(() => resendCode(email, next))}
+                onPress={() =>
+                  startResend(async () => {
+                    setResendError(null);
+                    // On success the action moves to a fresh code step, so only a failure comes back.
+                    const result = await resendCode(next);
+                    if (result.error) setResendError(result.error);
+                  })
+                }
               >
                 Resend code
               </Button>
             )}
           </div>
+          {resendError ? (
+            <p role="alert" className="text-sm text-danger">
+              {resendError}
+            </p>
+          ) : null}
 
-          <Alert status="default" className="bg-transparent ring-1 ring-border">
-            <Alert.Indicator>
-              <CircleInfo />
-            </Alert.Indicator>
-            <Alert.Content>
-              <Alert.Description className="text-xs">
-                Use the same email with Google later and it opens this same account.
-              </Alert.Description>
-            </Alert.Content>
-          </Alert>
+          {google ? (
+            <Alert status="default" className="bg-transparent ring-1 ring-border">
+              <Alert.Indicator>
+                <CircleInfo />
+              </Alert.Indicator>
+              <Alert.Content>
+                <Alert.Description className="text-xs">
+                  Use the same email with Google later and it opens this same account.
+                </Alert.Description>
+              </Alert.Content>
+            </Alert>
+          ) : null}
           <p className="text-center text-xs text-muted">
-            Not you? <TextLink href="/sign-in">Choose another person</TextLink>
+            Not you?{" "}
+            <TextLink href={signInHref}>{demoCode ? "Choose another person" : "Use a different email"}</TextLink>
           </p>
         </div>
       </main>
