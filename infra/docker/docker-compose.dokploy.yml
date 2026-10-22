@@ -435,6 +435,10 @@ services:
       INJISHI_API_URL: http://injishi-api:8000
       # The Origin its calls carry, listed in the API's CORS_ORIGINS.
       INJISHI_API_ORIGIN: https://${APP_HOST:-app.injishi.com}
+      # The domain the API writes the session cookie on, the same expression as
+      # the API's. Signing out with the API unreachable can only remove the
+      # cookie with a write naming this domain (apps/app/src/server/session-cookies.ts).
+      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.injishi.com}
       INJISHI_DB_URL: file:/data/injishi.db
     volumes:
       - app-data:/data

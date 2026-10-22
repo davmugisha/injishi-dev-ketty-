@@ -1,4 +1,4 @@
-import { canAccess, homeHref, type PersonaId, screenByPath } from "@injishi/data";
+import { canAccess, homeHref, type PersonaId, personaByEmail, screenByPath } from "@injishi/data";
 
 /**
  * Where a person goes once they are signed in.
@@ -81,15 +81,36 @@ export function returnTargetFrom(params: { next?: string | null; redirect?: stri
 }
 
 /**
- * Where to land after sign-in. A web page goes back to web. A screen here is honoured when this person
- * may open it, and anything else falls back to their own home.
+ * Web's landing for a signed-in person with nowhere else in mind (`HOME` in apps/web/src/lib/app-nav.ts):
+ * their own trips, stays, lease, inbox and account, read from the API, with web's sign-out.
  */
-export function destinationAfterSignIn(personaId: PersonaId, raw: string | null | undefined): string {
+export const WEB_HOME = `${WEB_URL}/trips`;
+
+/**
+ * A person's own home. Someone holding no business, staff or oversight grant resolves to the guest shell,
+ * and in this app that shell is the demo guest's sample trip, with no way to sign out: a real person who
+ * signed in here landed on a stranger's booking and stayed there. Their side of the product is web's, so
+ * they go to it. The demo's own guest, matched by her email, keeps the story written for her.
+ */
+export function homeAfterSignIn(personaId: PersonaId, email: string | null | undefined): string {
+  if (personaId === "guest" && !personaByEmail(email ?? "")) return WEB_HOME;
+  return homeHref(personaId);
+}
+
+/**
+ * Where to land after sign-in. A web page goes back to web. A screen here is honoured when this person
+ * may open it, and anything else falls back to their own home (`homeAfterSignIn`).
+ */
+export function destinationAfterSignIn(
+  personaId: PersonaId,
+  raw: string | null | undefined,
+  email: string | null | undefined,
+): string {
   const target = safeReturn(raw);
   if (target && !target.startsWith("/")) return target;
   if (target) {
     const screen = screenByPath(target.split(/[?#]/)[0]);
     if (screen && canAccess(personaId, screen.board)) return target;
   }
-  return homeHref(personaId);
+  return homeAfterSignIn(personaId, email);
 }

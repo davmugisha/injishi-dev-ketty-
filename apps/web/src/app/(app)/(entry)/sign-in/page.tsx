@@ -5,7 +5,7 @@ import GoogleButton from "@/components/auth/google-button";
 import ThemeToggleButton from "@/components/app/theme-toggle-button";
 import { AppleMark, InjishiGlyph } from "@/components/icons/marks";
 import { Button } from "@injishi/ui";
-import { fetchDemoPersonas, fetchPlatform, isDemo } from "@/data/platform";
+import { fetchDemoPersonas, fetchPlatform, isDemo, offersGoogle } from "@/data/platform";
 import { sendCodeAction } from "@/lib/otp.server";
 import { safeRedirect } from "@/lib/redirect";
 
@@ -160,10 +160,11 @@ export default async function Page({
               </p>
 
               <div className="flex flex-col gap-2">
-                {/* Not on the demo: it signs in with the persona picker and a
-                    fixed code, and has no Google client of its own, so the
-                    button could only ever end in "couldn't start". */}
-                {demo ? null : (
+                {/* Not on the demo, nor on any API without Google credentials:
+                    the demo signs in with the persona picker and a fixed code,
+                    and either way the button could only end in "couldn't
+                    start". */}
+                {demo || !offersGoogle(platform) ? null : (
                   <GoogleButton redirectTo={redirectTo} bounced={bounced} />
                 )}
 
