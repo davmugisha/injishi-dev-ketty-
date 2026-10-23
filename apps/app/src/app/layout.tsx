@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Figtree, Instrument_Sans } from "next/font/google";
 import type { ReactNode } from "react";
+import { THEME_MIGRATION } from "@/lib/theme";
 import { Providers } from "./providers";
-import { ThemeMigrationScript } from "./theme-migration-script";
 import "./globals.css";
 
 const figtree = Figtree({ subsets: ["latin", "latin-ext"], variable: "--font-figtree", display: "swap" });
@@ -32,7 +32,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       suppressHydrationWarning
     >
       <head>
-        <ThemeMigrationScript />
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static pre-paint script, no user input (Next "Preventing Flash" guide) */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_MIGRATION }} />
       </head>
       <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
         <Providers>{children}</Providers>
