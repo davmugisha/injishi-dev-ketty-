@@ -62,6 +62,8 @@ export interface RequestOptions {
   /** Money routes need one key per press, minted at the call site. */
   idempotencyKey?: string;
   query?: Record<string, string | number | boolean | null | undefined>;
+  /** A multipart body (a file upload). Sent as is; the runtime sets the multipart content type and boundary. */
+  form?: FormData;
 }
 
 /** A cookie pair as the API set it: `injishi-demo.session_token=…` (name differs per environment). */
@@ -93,8 +95,10 @@ export async function apiRequest<T>(
   if (options.workspaceId) headers["x-workspace-id"] = options.workspaceId;
   if (options.branchId) headers["x-branch-id"] = options.branchId;
   if (options.idempotencyKey) headers["idempotency-key"] = options.idempotencyKey;
-  let payload: string | undefined;
-  if (options.body !== undefined) {
+  let payload: string | FormData | undefined;
+  if (options.form) {
+    payload = options.form;
+  } else if (options.body !== undefined) {
     headers["content-type"] = "application/json";
     payload = JSON.stringify(options.body);
   }
@@ -133,6 +137,8 @@ export interface ApiClient {
   put<T>(path: string, body?: unknown, options?: Omit<RequestOptions, "method" | "body">): Promise<T>;
   patch<T>(path: string, body?: unknown, options?: Omit<RequestOptions, "method" | "body">): Promise<T>;
   delete<T>(path: string, options?: Omit<RequestOptions, "method" | "body">): Promise<T>;
+  /** POST a file as multipart/form-data. */
+  upload<T>(path: string, form: FormData, options?: Omit<RequestOptions, "method" | "body" | "form">): Promise<T>;
 }
 
 export function createApiClient(cookie: SessionCookie | null): ApiClient {
@@ -143,5 +149,6 @@ export function createApiClient(cookie: SessionCookie | null): ApiClient {
     put: (path, body, options) => apiRequest(cookie, path, { ...options, method: "PUT", body: body ?? {} }),
     patch: (path, body, options) => apiRequest(cookie, path, { ...options, method: "PATCH", body: body ?? {} }),
     delete: (path, options) => apiRequest(cookie, path, { ...options, method: "DELETE" }),
+    upload: (path, form, options) => apiRequest(cookie, path, { ...options, method: "POST", form }),
   };
 }

@@ -2,6 +2,7 @@ import { PERSONA_IDS, personas, screenByPath, screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { SignInView } from "@/features/platform/auth/SignInView";
 import { requireScreen, safeNext } from "@/lib/session";
+import { isSetupPath } from "@/lib/setup-path";
 import { demoPlatform } from "@/server/auth";
 
 export const metadata: Metadata = { title: screens.SignIn.pageTitle };
@@ -18,7 +19,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   return (
     <SignInView
       personas={PERSONA_IDS.map((id) => personas[id])}
-      next={target && screenByPath(target.split("?")[0]) ? target : ""}
+      next={target && (screenByPath(target.split("?")[0]) || isSetupPath(target)) ? target : ""}
       highlight={highlight}
       demo={await demoPlatform()}
     />

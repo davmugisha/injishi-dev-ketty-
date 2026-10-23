@@ -20,6 +20,7 @@ import {
   SESSION_COOKIE,
   safeNext,
 } from "./session";
+import { isSetupPath } from "./setup-path";
 
 export type SignInState = { error?: string; email?: string };
 
@@ -100,6 +101,8 @@ export async function verifyCode(_prev: VerifyState, form: FormData): Promise<Ve
 }
 
 function canAccessPath(personaId: PersonaId, path: string): boolean {
+  // The setup page checks for itself that the workspace is this person's (lib/setup-path.ts).
+  if (isSetupPath(path)) return true;
   const screen = screenByPath(path.split("?")[0]);
   return screen ? canAccess(personaId, screen.board) : false;
 }

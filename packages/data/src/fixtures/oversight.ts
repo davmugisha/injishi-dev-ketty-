@@ -94,6 +94,10 @@ export interface QueueCase {
   cta: string | null;
   foot: string;
   board: BoardId;
+  /** Reference shown beside the business (live cases: a short registration reference); `id` when absent. */
+  ref?: string;
+  /** Where "open" goes when the case has its own page (live cases: /officer/cases/<orgId>). */
+  href?: string;
 }
 
 /** A recent decision by the officer or routed to them. */
@@ -135,6 +139,8 @@ export interface CaseDocument {
   status: string;
   statusTone: Tone;
   fields: { label: string; onDocument: string; declared: string; result: FieldResult }[];
+  /** Live cases: a short-lived signed link to the file itself, or null when nothing was uploaded. */
+  url?: string | null;
 }
 
 export interface CaseCheck {
@@ -199,6 +205,13 @@ export interface CaseFile {
   infoMessage: string;
   infoDue: string;
   rejectionNote: string;
+  /**
+   * Live cases only: the gate this officer decides here. `field` is the field verifier's (verify or
+   * reject), `approval` the second officer's (approve or reject). Absent on sample cases.
+   */
+  gate?: "field" | "approval";
+  /** Live approval cases: this officer field-verified it, so separation of duties bars their approval. */
+  blocked?: boolean;
 }
 
 /** Rejection reason code the business sees. */

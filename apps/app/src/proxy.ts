@@ -1,5 +1,6 @@
 import { screenByPath } from "@injishi/data";
 import { type NextRequest, NextResponse } from "next/server";
+import { isSetupPath } from "@/lib/setup-path";
 
 /**
  * Route guard (Next.js 16 proxy). Public screens pass; protected screens need a session cookie,
@@ -9,7 +10,9 @@ import { type NextRequest, NextResponse } from "next/server";
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const screen = screenByPath(pathname);
-  if (!screen || screen.persona === null) return NextResponse.next();
+  // The property setup page is not a registered screen, but it is never public (lib/setup-path.ts).
+  const gated = screen ? screen.persona !== null : isSetupPath(pathname);
+  if (!gated) return NextResponse.next();
   if (request.cookies.get("ij_session")?.value) return NextResponse.next();
   const url = request.nextUrl.clone();
   url.pathname = "/sign-in";
