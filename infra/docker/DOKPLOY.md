@@ -518,6 +518,10 @@ arguments, set per stack in its compose file from the host variables.
 | `NEXT_PUBLIC_INJISHI_ENVIRONMENT` | `production` | `demo` |
 | `INTERNAL_API_URL` on web, runtime only | `http://injishi-api:8000` | the same, on its own network |
 
+The app reads `AUTH_COOKIE_DOMAIN` too, at runtime: when it signs someone out
+with the API unreachable it must remove the session cookie itself, and a
+browser removes a cookie only for a write naming the cookie's own domain.
+
 Web's sign-in Server Action calls the API at `INTERNAL_API_URL`, the `api`
 service's `injishi-api` alias on the stack's own network, and forwards the
 visitor's `x-forwarded-for`. Through the public API host, Traefik would replace

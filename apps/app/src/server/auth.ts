@@ -76,8 +76,17 @@ export type VerifyResult =
   | { ok: true; cookie: SessionCookie; setCookies: ForwardedCookie[] }
   | { ok: false; reason: "wrong-code" | "expired" | "too-many" | "unavailable" };
 
-/** "Verify and continue": exchange the typed code for the API's session cookie. */
-export async function verifySignInCode(email: string, code: string, clientIp?: string | null): Promise<VerifyResult> {
+/**
+ * "Verify and continue": exchange the typed code for the API's session cookie. The visitor's browser is
+ * named to the API (`userAgent`), because the session it opens records the user agent that asked for it,
+ * and from this server that was Node's: every device on the account screen read "Unknown device".
+ */
+export async function verifySignInCode(
+  email: string,
+  code: string,
+  clientIp?: string | null,
+  userAgent?: string | null,
+): Promise<VerifyResult> {
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl()}${AUTH}/sign-in/email-otp`, {
@@ -87,6 +96,7 @@ export async function verifySignInCode(email: string, code: string, clientIp?: s
         accept: "application/json",
         origin: apiOrigin(),
         ...clientIpHeaders(clientIp),
+        ...(userAgent ? { "user-agent": userAgent } : {}),
       },
       body: JSON.stringify({ email: email.trim().toLowerCase(), otp: code.replace(/\D/g, "") }),
       cache: "no-store",
@@ -165,7 +175,70 @@ export interface Account {
 
 interface SessionBody {
   user: ApiUser;
-  session: { expiresAt: string };
+  session: { id: string; expiresAt: string };
+}
+
+// ── The person's own sessions ───────────────────────────────────────────────
+
+/** A session as Better Auth's `list-sessions` returns it. The token is the session: it never leaves the server. */
+interface ApiSession {
+  id: string;
+  token: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}
+
+/** One of the person's active sessions, as the account screen may show it. */
+export interface SessionSummary {
+  id: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** The session this browser holds. */
+  current: boolean;
+}
+
+/** Every active session of the person behind this cookie, this one first, then the most recently used. */
+export async function sessionsFor(cookie: SessionCookie): Promise<SessionSummary[]> {
+  const [sessions, own] = await Promise.all([
+    apiRequest<ApiSession[]>(cookie, `${AUTH}/list-sessions`),
+    apiRequest<SessionBody | null>(cookie, `${AUTH}/get-session`),
+  ]);
+  return sessions
+    .map((s) => ({
+      id: s.id,
+      userAgent: s.userAgent ?? null,
+      ipAddress: s.ipAddress ?? null,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
+      current: s.id === own?.session.id,
+    }))
+    .sort((a, b) => Number(b.current) - Number(a.current) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+}
+
+/**
+ * Sign one of the person's other sessions out. The page names it by id; the token is looked up here, among
+ * this person's own sessions, so a forged id can only ever miss. This browser's own session is refused:
+ * signing out of it is the Sign out button, which also clears the cookie.
+ */
+export async function revokeSession(cookie: SessionCookie, id: string): Promise<boolean> {
+  const [sessions, own] = await Promise.all([
+    apiRequest<ApiSession[]>(cookie, `${AUTH}/list-sessions`),
+    apiRequest<SessionBody | null>(cookie, `${AUTH}/get-session`),
+  ]);
+  const target = sessions.find((s) => s.id === id);
+  if (!target || target.id === own?.session.id) return false;
+  await apiRequest(cookie, `${AUTH}/revoke-session`, { method: "POST", body: { token: target.token } });
+  return true;
+}
+
+/** Sign out every session of this person except the one this browser holds. */
+export async function revokeOtherSessions(cookie: SessionCookie): Promise<void> {
+  await apiRequest(cookie, `${AUTH}/revoke-other-sessions`, { method: "POST", body: {} });
 }
 
 /** The person behind a session cookie, or null when the API says the session is gone. */

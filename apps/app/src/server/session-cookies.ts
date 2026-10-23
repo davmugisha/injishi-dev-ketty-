@@ -104,6 +104,28 @@ export function authCookiesFrom(response: Response): ForwardedCookie[] {
     .filter((c): c is ForwardedCookie => c !== null && isAuthCookie(c.name));
 }
 
+/**
+ * The writes that remove the named Better Auth cookies from the browser, for when the API cannot be asked
+ * to (sign-out with the API down). A browser removes a cookie only for a write naming the cookie's own
+ * Domain, and accepts a `__Secure-` cookie only with Secure, so a bare delete from this origin removed
+ * nothing deployed: the session lives on the parent domain the API names (`AUTH_COOKIE_DOMAIN`, deployed
+ * `.injishi.com`) under `__Secure-better-auth.session_token`. Locally there is no domain and the cookie is
+ * host-only, which a write without one matches.
+ */
+export function expiredAuthCookies(names: readonly string[], domain: string | undefined): ForwardedCookie[] {
+  return names.filter(isAuthCookie).map((name) => ({
+    name,
+    value: "",
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+    httpOnly: true,
+    secure: name.startsWith("__Secure-"),
+    sameSite: "lax",
+    ...(domain ? { domain } : {}),
+  }));
+}
+
 /** The `Cookie` header the API would read back from a set of cookies it just set (a live session only). */
 export function cookieHeaderFor(cookies: readonly ForwardedCookie[]): SessionCookie | null {
   return sessionCookieHeader(

@@ -1,12 +1,16 @@
 "use server";
 
 import { type PersonaId, personas } from "@injishi/data";
+import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { ApiError } from "@/server/api";
 import {
   accountFor,
   demoSignInCode,
   OTP_TTL_SECONDS,
+  revokeOtherSessions,
+  revokeSession,
   sendSignInCode,
   signOutOfApi,
   verifySignInCode,
@@ -87,13 +91,13 @@ export async function verifyCode(_prev: VerifyState, form: FormData): Promise<Ve
   const code = String(form.get("code") ?? "");
   if (!pending) return { error: VERIFY_ERRORS.expired };
   if (code.replace(/\D/g, "").length !== 6) return { error: "Enter all 6 digits of the code." };
-  const result = await verifySignInCode(pending.email, code, await visitorIp());
+  const result = await verifySignInCode(pending.email, code, await visitorIp(), (await headers()).get("user-agent"));
   if (!result.ok) return { error: VERIFY_ERRORS[result.reason] };
   applyApiCookies(store, result.setCookies);
   store.delete(LEGACY_SESSION_COOKIE);
   store.delete(OTP_COOKIE);
   const account = await accountFor(result.cookie);
-  redirect(destinationAfterSignIn(account?.persona.id ?? "guest", String(form.get("next") ?? "")));
+  redirect(destinationAfterSignIn(account?.persona.id ?? "guest", String(form.get("next") ?? ""), account?.user.email));
 }
 
 /** "Resend code" on the code step, to the address the first code went to. Says why when it cannot. */
@@ -101,6 +105,43 @@ export async function resendCode(next?: string): Promise<{ error?: string }> {
   const pending = readPendingSignIn((await cookies()).get(OTP_COOKIE)?.value);
   if (!pending) return { error: VERIFY_ERRORS.expired };
   return { error: SEND_ERRORS[await beginChallenge(pending.email, safeReturn(next))] };
+}
+
+export type SessionsState = { error?: string };
+
+const SESSIONS_UNREACHABLE = "We couldn’t reach Injishi to sign that out. Try again in a moment.";
+
+/**
+ * Run one change to the person's sessions, then have the account screen read them again. A session that
+ * is no longer signed in goes to sign-in; an outage says so and changes nothing.
+ */
+async function changeSessions(change: (cookie: string) => Promise<string | undefined>): Promise<SessionsState> {
+  const cookie = await currentSessionCookie();
+  if (!cookie) redirect("/sign-in");
+  let error: string | undefined;
+  try {
+    error = await change(cookie);
+  } catch (failure) {
+    if (failure instanceof ApiError && failure.unauthenticated) redirect("/sign-in");
+    error = SESSIONS_UNREACHABLE;
+  }
+  revalidatePath("/account");
+  return error ? { error } : {};
+}
+
+/** "Sign out" on one row of Sign-in & sessions: ends that session on the API, wherever it is. */
+export async function signOutSession(id: string): Promise<SessionsState> {
+  return changeSessions(async (cookie) =>
+    (await revokeSession(cookie, id)) ? undefined : "That session had already ended.",
+  );
+}
+
+/** "Sign out all other sessions": ends every session of this person but this browser's. */
+export async function signOutOtherSessions(): Promise<SessionsState> {
+  return changeSessions(async (cookie) => {
+    await revokeOtherSessions(cookie);
+    return undefined;
+  });
 }
 
 /**

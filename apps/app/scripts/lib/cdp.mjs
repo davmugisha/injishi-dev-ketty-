@@ -30,7 +30,8 @@ function findChromium() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function launch({ width = 1280, height = 900 } = {}) {
+/** `args`: extra Chromium switches, e.g. the host mapping `prod-stack.mjs` needs. */
+export async function launch({ width = 1280, height = 900, args = [] } = {}) {
   const port = 9300 + Math.floor(Math.random() * 500);
   const profile = mkdtempSync(path.join(os.tmpdir(), "ij-cdp-"));
   const proc = spawn(
@@ -43,6 +44,7 @@ export async function launch({ width = 1280, height = 900 } = {}) {
       "--disable-gpu",
       "--force-prefers-reduced-motion",
       "--force-device-scale-factor=1",
+      ...args,
       "about:blank",
     ],
     { stdio: "ignore" },

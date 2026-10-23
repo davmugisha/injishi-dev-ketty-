@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { type ApiClient, ApiError, createApiClient, type SessionCookie } from "@/server/api";
 import { type Account, accountFor, OTP_TTL_SECONDS } from "@/server/auth";
-import { type ForwardedCookie, isAuthCookie, sessionCookieHeader } from "@/server/session-cookies";
+import { expiredAuthCookies, type ForwardedCookie, sessionCookieHeader } from "@/server/session-cookies";
 import { safePath } from "./return-to";
 
 /**
@@ -30,9 +30,21 @@ export const currentSessionCookie = cache(async (): Promise<SessionCookie | null
   return sessionCookieHeader((await cookies()).getAll());
 });
 
-/** Clear every Better Auth cookie this origin can see, for when the API cannot be asked to. */
-export function clearAuthCookies(store: Pick<CookieStore, "getAll" | "delete">): void {
-  for (const { name } of store.getAll()) if (isAuthCookie(name)) store.delete(name);
+/**
+ * Clear every Better Auth cookie this origin can see, for when the API cannot be asked to, on the domain
+ * the API sets them on (`expiredAuthCookies` says why a plain delete is not enough).
+ */
+export function clearAuthCookies(
+  store: Pick<CookieStore, "getAll" | "set" | "delete">,
+  domain: string | undefined = process.env.AUTH_COOKIE_DOMAIN?.trim() || undefined,
+): void {
+  applyApiCookies(
+    store,
+    expiredAuthCookies(
+      store.getAll().map((c) => c.name),
+      domain,
+    ),
+  );
   store.delete(LEGACY_SESSION_COOKIE);
 }
 
