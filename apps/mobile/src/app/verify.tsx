@@ -1,4 +1,4 @@
-import { DEMO_OTP, homeHref } from "@injishi/data";
+import { DEMO_OTP } from "@injishi/data";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { Alert, Button, InputOTP, REGEXP_ONLY_DIGITS } from "heroui-native";
@@ -6,8 +6,21 @@ import { useEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/icon";
+import { requestCode, verifyCode } from "@/lib/auth";
 import { useSession } from "@/lib/session";
-import { startOtp, verifyOtp } from "@/lib/store";
+
+const VERIFY_ERRORS = {
+  "wrong-code": "That code didn’t match. Use the newest message we sent.",
+  expired: "This code has expired. Go back and ask for a new one.",
+  "too-many": "Too many wrong codes. Ask for a new code.",
+  unavailable: "We couldn’t reach Injishi to check your code. Check your connection and try again.",
+} as const;
+
+const RESEND_ERRORS = {
+  "invalid-email": "That doesn’t look like an email address. Go back and check it.",
+  "too-many": "Too many codes for this email. Wait an hour, or use the newest code we sent.",
+  unavailable: "We couldn’t reach Injishi to send a new code. Check your connection and try again.",
+} as const;
 
 /** Seconds left, restarting whenever `resetKey` changes. */
 function useCountdown(seconds: number, resetKey: number) {
@@ -21,32 +34,40 @@ function useCountdown(seconds: number, resetKey: number) {
   return left;
 }
 
-/** One-time-code step cloned from the legacy demo (phone layout). The demo code is filled in. */
+/** One-time-code step (phone layout). The API checks the code; on the demo it is 123456, filled in. */
 export default function VerifyScreen() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ challenge: string; email: string }>();
-  const [challenge, setChallenge] = useState(params.challenge);
-  const [code, setCode] = useState(DEMO_OTP);
+  const params = useLocalSearchParams<{ email: string; demo?: string }>();
+  const demo = params.demo === "1";
+  const [code, setCode] = useState(demo ? DEMO_OTP : "");
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const [resendKey, setResendKey] = useState(0);
   const expiry = useCountdown(600, resendKey);
   const resend = useCountdown(30, resendKey);
   const { refresh } = useSession();
 
-  const verify = () => {
-    const result = verifyOtp(challenge, code);
+  const verify = async () => {
+    setChecking(true);
+    const result = await verifyCode(params.email, code);
     if (!result.ok) {
-      if (result.reason === "wrong-code")
-        setError(
-          `That code didn’t match. Use the newest message we sent. ${result.attemptsLeft} ${result.attemptsLeft === 1 ? "try" : "tries"} left.`,
-        );
-      else if (result.reason === "locked")
-        setError("Too many wrong codes. Sign-in is paused for 15 minutes for this email.");
-      else setError("This code has expired. Go back and ask for a new one.");
+      setChecking(false);
+      setError(VERIFY_ERRORS[result.reason]);
       return;
     }
-    refresh();
-    router.replace(homeHref(result.personaId) as never);
+    await refresh();
+    // The start route sends the person to their own app.
+    router.replace("/");
+  };
+
+  const sendAgain = async () => {
+    const again = await requestCode(params.email);
+    if (!again.ok) {
+      setError(RESEND_ERRORS[again.reason]);
+      return;
+    }
+    setError(null);
+    setResendKey((k) => k + 1);
   };
 
   return (
@@ -72,17 +93,19 @@ export default function VerifyScreen() {
         </Text>
       </View>
 
-      <Alert status="default">
-        <Alert.Indicator>
-          <Icon name="CircleInfo" />
-        </Alert.Indicator>
-        <Alert.Content>
-          <Alert.Description>
-            This is the Injishi demo, so every code is <Text className="font-semibold text-foreground">123456</Text>.
-            We’ve filled it in for you.
-          </Alert.Description>
-        </Alert.Content>
-      </Alert>
+      {demo ? (
+        <Alert status="default">
+          <Alert.Indicator>
+            <Icon name="CircleInfo" />
+          </Alert.Indicator>
+          <Alert.Content>
+            <Alert.Description>
+              This is the Injishi demo, so every code is <Text className="font-semibold text-foreground">123456</Text>.
+              We’ve filled it in for you.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
 
       <InputOTP
         maxLength={6}
@@ -103,8 +126,8 @@ export default function VerifyScreen() {
           {error}
         </Text>
       ) : null}
-      <Button className="rounded-full" isDisabled={code.length !== 6} onPress={verify}>
-        <Button.Label>Verify and continue</Button.Label>
+      <Button className="rounded-full" isDisabled={code.length !== 6 || checking} onPress={() => void verify()}>
+        <Button.Label>{checking ? "Checking…" : "Verify and continue"}</Button.Label>
       </Button>
 
       <View className="flex-row items-center justify-between">
@@ -115,22 +138,11 @@ export default function VerifyScreen() {
         {resend > 0 ? (
           <Text className="text-[13px] text-muted">Resend in {resend}s</Text>
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            onPress={() => {
-              const again = startOtp(params.email);
-              if (again.ok) {
-                setChallenge(again.challengeId);
-                setResendKey((k) => k + 1);
-              }
-            }}
-          >
+          <Button variant="ghost" size="sm" onPress={() => void sendAgain()}>
             <Button.Label>Resend code</Button.Label>
           </Button>
         )}
       </View>
-      <Text className="text-xs text-muted">Use the same email with Google later and it opens this same account.</Text>
     </ScrollView>
   );
 }

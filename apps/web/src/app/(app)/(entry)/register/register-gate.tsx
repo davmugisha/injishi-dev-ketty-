@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@injishi/ui";
 
-import { fetchPlatform, isDemo } from "@/data/platform";
+import { fetchPlatform, isDemo, offersGoogle } from "@/data/platform";
 import { useSessionUser } from "@/lib/session";
 import { gateView, nextReconnectDelay } from "@/lib/session-reconnect";
 
@@ -66,11 +66,15 @@ export default function RegisterGate({
 
   // Whether the API is the demo (ADR-043): its code is published and it has no
   // Google client. Null until it answers, and a failed answer is production's.
+  // Google is offered only where the API says its provider is mounted.
   const [demo, setDemo] = useState<boolean | null>(null);
+  const [google, setGoogle] = useState(false);
   useEffect(() => {
     let live = true;
     void fetchPlatform().then((p) => {
-      if (live) setDemo(isDemo(p));
+      if (!live) return;
+      setDemo(isDemo(p));
+      setGoogle(offersGoogle(p));
     });
     return () => {
       live = false;
@@ -145,7 +149,7 @@ export default function RegisterGate({
       ) : view === "anonymous" ? (
         <EmailPanel
           demo={demo}
-          googleReturn={here}
+          googleReturn={google ? here : null}
           fallbackHref={signInHref}
           onSignedIn={async () => (await refresh()).status === "authenticated"}
         />

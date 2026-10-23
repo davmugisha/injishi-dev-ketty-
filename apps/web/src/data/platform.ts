@@ -48,6 +48,16 @@ export function isDemo(platform: PlatformInfo | null): boolean {
 }
 
 /**
+ * True only on a positive answer that the API has Google credentials, so its
+ * Google provider is mounted. Anywhere else "Continue with Google" can only end
+ * in "Google sign-in couldn't start", so the button is not drawn: production
+ * without credentials offered it to every visitor on `/register`.
+ */
+export function offersGoogle(platform: PlatformInfo | null): boolean {
+  return platform?.googleSignIn === true;
+}
+
+/**
  * True only on a positive answer that the API serves a SAMPLE database: the
  * demo, staging, a laptop. The pages built on invented fixtures (`/services`)
  * answer only then, because fictional hotels at made-up prices are a demo

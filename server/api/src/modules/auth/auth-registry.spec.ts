@@ -13,7 +13,7 @@ import type { AuthInstance, SendOtp } from '@injishi/auth';
 
 import type { Platform } from '../../shared/config/platform';
 import type { Database } from '../../shared/database/database.module';
-import { createAuthRegistry } from './auth.module';
+import { createAuthRegistry, googleCredentials } from './auth.module';
 
 /*
  * One environment per process (ADR-043). The registry used to hold a
@@ -40,6 +40,8 @@ type Requested = {
   cookiePrefix?: string;
   cookieDomain?: string;
   demoOtpCode?: string;
+  trustedOrigins: string[];
+  google?: { clientId: string; clientSecret: string };
   sendOtp: SendOtp;
 };
 
@@ -179,5 +181,38 @@ describe('createAuthRegistry · local development', () => {
     expect(marketplace.baseURL).toBe('http://localhost:8000');
     expect(marketplace.demoOtpCode).toBe('123456');
     expect(marketplace.cookiePrefix).toBe(DEMO_COOKIE_PREFIX);
+  });
+});
+
+describe('createAuthRegistry · the phone app and Google', () => {
+  it('trusts the browser apps and the phone app scheme, and never Expo Go in production', () => {
+    const registry = createAuthRegistry(PRODUCTION, db, configFrom(DEPLOYED), mailer);
+    const origins = requested(registry.for('marketplace')).trustedOrigins;
+    expect(origins).toEqual(expect.arrayContaining(['https://www.injishi.com', 'injishi://']));
+    expect(origins.some((o) => o.startsWith('exp://'))).toBe(false);
+  });
+
+  it('trusts Expo Go on a laptop, where the phone app runs in it', () => {
+    const local = { BETTER_AUTH_SECRET: 'dev-secret', CORS_ORIGINS: 'http://localhost:3002' };
+    const registry = createAuthRegistry(DEMO, db, configFrom(local), mailer);
+    expect(requested(registry.for('marketplace')).trustedOrigins).toEqual(
+      expect.arrayContaining(['http://localhost:3002', 'injishi://', 'exp://']),
+    );
+  });
+
+  it('mounts Google only when both halves of the credential are set', () => {
+    const withGoogle = { ...DEPLOYED, GOOGLE_CLIENT_ID: 'id', GOOGLE_CLIENT_SECRET: 'secret' };
+    const registry = createAuthRegistry(PRODUCTION, db, configFrom(withGoogle), mailer);
+    expect(requested(registry.for('marketplace')).google).toEqual({ clientId: 'id', clientSecret: 'secret' });
+
+    const halfSet = { ...DEPLOYED, GOOGLE_CLIENT_ID: 'id', GOOGLE_CLIENT_SECRET: '  ' };
+    const without = createAuthRegistry(PRODUCTION, db, configFrom(halfSet), mailer);
+    expect(requested(without.for('marketplace')).google).toBeUndefined();
+  });
+
+  it('answers the platform endpoint from the same rule', () => {
+    expect(googleCredentials(configFrom({ GOOGLE_CLIENT_ID: 'id', GOOGLE_CLIENT_SECRET: 's' }))).toBeDefined();
+    expect(googleCredentials(configFrom({ GOOGLE_CLIENT_ID: 'id' }))).toBeUndefined();
+    expect(googleCredentials(configFrom({}))).toBeUndefined();
   });
 });

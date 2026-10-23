@@ -1,6 +1,6 @@
 /**
  * The officer and setup pages, rendered by the running app (:3002) for each person over HTTP, exactly as a
- * browser gets them: the API session cookie wrapped in `ij_session`, as the sign-in action stores it.
+ * browser gets them: the API's own Better Auth session cookie, which the app reads as it is.
  *
  *   APP_URL=http://localhost:3002 pnpm --filter @injishi/app exec tsx scripts/verify-pages-oversight.ts
  *
@@ -19,9 +19,6 @@ import { GASABO, OFFICERS, registerBusiness } from "./lib/registration";
 
 const APP = (process.env.APP_URL ?? "http://localhost:3002").replace(/\/$/, "");
 
-/** As `encodeSessionCookie` in lib/session.ts stores it: the API cookie pair, base64url. */
-const encodeSessionCookie = (cookie: string) => Buffer.from(cookie, "utf8").toString("base64url");
-
 /** Sample businesses the oversight fixtures draw; none may appear on a live page. */
 const SAMPLE_NAMES = [
   "Kivu Sunset Guesthouse",
@@ -39,7 +36,7 @@ function expect(condition: unknown, message: string): asserts condition {
 /** A page as this person's browser gets it. Next dev compiles a route on first request, so the wait is long. */
 async function page(path: string, email: string | null): Promise<{ status: number; html: string; location: string }> {
   const headers: Record<string, string> = { accept: "text/html" };
-  if (email) headers.cookie = `ij_session=${encodeSessionCookie(await cookieForEmail(email))}`;
+  if (email) headers.cookie = await cookieForEmail(email);
   const res = await fetch(`${APP}${path}`, { headers, redirect: "manual", signal: AbortSignal.timeout(240_000) });
   return { status: res.status, html: await res.text(), location: res.headers.get("location") ?? "" };
 }
