@@ -549,9 +549,10 @@ describe('pay runs: drafted by payroll.draft, confirmed by payroll.run (ADR-069 
 
 /**
  * The rentals writes (blueprint 2.1): each names the one permission it needs.
- * Units are `unit.manage`; drafting, editing and cancelling a lease, the lease
- * defaults and tenant records are `lease.manage`; who signs leases for the
- * business is `lease.sign`, and where rent is paid out is `payout.manage`,
+ * Units are `unit.manage`; drafting, editing, cancelling and starting a lease,
+ * the invitation, the lease defaults and tenant records are `lease.manage`;
+ * who signs leases for the business, and signing them, is `lease.sign`, and
+ * where rent is paid out is `payout.manage`,
  * both the owner's by default (`OWNER_BY_DEFAULT`), so a manager holds neither
  * until an owner grants it.
  */
@@ -577,6 +578,11 @@ describe('rentals writes (blueprint 2.1)', () => {
     'POST /ops/leases': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
     'PATCH /ops/leases/:id': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
     'POST /ops/leases/:id/cancel': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    // WP 1.5b: signing for the business is the owner's by default; the invitation and Start are lease.manage.
+    'POST /ops/leases/:id/sign/code': { allOf: ['lease.sign'], roles: ['owner'] },
+    'POST /ops/leases/:id/sign': { allOf: ['lease.sign'], roles: ['owner'] },
+    'POST /ops/leases/:id/invitation/resend': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/leases/:id/start': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
   };
 
   it('judges every rentals write', () => {

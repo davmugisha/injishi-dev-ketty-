@@ -3,11 +3,14 @@ import {
   CreateLeaseRequest,
   EditLeaseRequest,
   LeaseListQuery,
+  ResendInvitationRequest,
+  SignLeaseRequest,
   type LeaseContractView,
   type LeaseCounts,
   type LeaseDetail,
   type LeaseEventList,
   type LeaseListPage,
+  type SigningCodeSent,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -20,13 +23,18 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 
 import { LeaseContractService } from '../../../../modules/rentals/application/lease-contract.service';
 import { LeaseDraftingService } from '../../../../modules/rentals/application/lease-drafting.service';
+import { LeaseInvitationsService } from '../../../../modules/rentals/application/lease-invitations.service';
+import { LeaseLifecycleService } from '../../../../modules/rentals/application/lease-lifecycle.service';
 import { LeaseReadsService } from '../../../../modules/rentals/application/lease-reads.service';
+import { LeaseSigningService } from '../../../../modules/rentals/application/lease-signing.service';
 import type { ScopedWorkspace } from '../../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../../shared/auth/session.guard';
 import {
@@ -35,18 +43,23 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../../shared/auth/workspace.guard';
+import { UserThrottlerGuard } from '../../../../shared/http/user-throttler.guard';
 import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.pipe';
 import type { FileReply } from '../pay-runs.controller';
+import { signingContext, type SigningRequest } from './signing-context';
 
 /**
- * Leases → /api/v1/ops/leases (blueprint 2.3, WP 1.5a): the list by tab with
- * counts, the lease record, its timeline, its contract and the contract as a
- * PDF; drafting, editing before the tenant signs, and cancelling.
+ * Leases → /api/v1/ops/leases (blueprint 2.3, WP 1.5a and 1.5b): the list by
+ * tab with counts, the lease record, its timeline, its contract and the
+ * contract as a PDF; drafting, editing before the tenant signs; signing as the
+ * landlord, the tenant's invitation, starting the tenancy and cancelling.
  *
  * Reads admit anyone who works the leases or the money (`lease.manage`,
- * `rent.record`, `money.view`, `deposit.return`); drafting is `lease.manage`.
- * Signing (`lease.sign`), the invitation, starting and moving out come in WP
- * 1.5b and 1.7.
+ * `rent.record`, `money.view`, `deposit.return`); drafting, the invitation,
+ * starting and cancelling are `lease.manage`; signing for the business is
+ * `lease.sign`, the owner's by default. The signing and invitation routes are
+ * throttled per person (`UserThrottlerGuard`, after the session). Notices and
+ * moving out come in WP 1.7.
  */
 @Controller({ path: 'ops/leases', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
@@ -55,6 +68,9 @@ export class OpsLeasesController {
     private readonly reads: LeaseReadsService,
     private readonly drafting: LeaseDraftingService,
     private readonly contracts: LeaseContractService,
+    private readonly signing: LeaseSigningService,
+    private readonly invitations: LeaseInvitationsService,
+    private readonly lifecycle: LeaseLifecycleService,
   ) {}
 
   @Get()
@@ -108,7 +124,64 @@ export class OpsLeasesController {
     @CurrentWorkspace() workspace: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
   ): Promise<LeaseDetail> {
-    return this.drafting.cancel(workspace, user.id, id, body);
+    return this.lifecycle.cancel(workspace, user.id, id, body);
+  }
+
+  /** Email the signer a 6 digit code to sign this draft with. A second ask within a minute sends nothing new. */
+  @Post(':id/sign/code')
+  @HttpCode(200)
+  @RequirePermission('lease.sign')
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({ money: { limit: 6, ttl: 600_000 } })
+  signingCode(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<SigningCodeSent> {
+    return this.signing.landlordCode(workspace, user, id);
+  }
+
+  /** Sign the draft for the business: the lease goes out for signature and the tenant is invited. */
+  @Post(':id/sign')
+  @HttpCode(200)
+  @RequirePermission('lease.sign')
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({ money: { limit: 10, ttl: 60_000 } })
+  sign(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(SignLeaseRequest)) body: SignLeaseRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+    @Req() request: SigningRequest,
+  ): Promise<LeaseDetail> {
+    return this.signing.signAsLandlord(workspace, user, id, body, signingContext(request));
+  }
+
+  /** Email the invitation again with a fresh link, or send it to a corrected address (which returns the lease to draft). */
+  @Post(':id/invitation/resend')
+  @HttpCode(200)
+  @RequirePermission('lease.manage')
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({ money: { limit: 5, ttl: 600_000 } })
+  resendInvitation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(ResendInvitationRequest)) body: ResendInvitationRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<LeaseDetail> {
+    return this.invitations.resend(workspace, user.id, id, body);
+  }
+
+  /** Start a signed tenancy, on or after its start date: the rent due within 7 days is raised. */
+  @Post(':id/start')
+  @HttpCode(200)
+  @RequirePermission('lease.manage')
+  start(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<LeaseDetail> {
+    return this.lifecycle.start(workspace, user.id, id);
   }
 
   @Get(':id/events')

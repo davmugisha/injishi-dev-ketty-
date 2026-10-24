@@ -344,26 +344,44 @@ export class StorageService {
    * scan of somebody's tax clearance as a photograph of a hotel.
    */
   async describe(objectKey: string): Promise<{
+    id: string;
     objectKey: string;
     kind: string;
     mime: string | null;
     sizeBytes: number | null;
     uploadedByUserId: string | null;
     workspaceId: string | null;
+    legalHold: boolean;
   } | null> {
     const [row] = await this.db
       .select({
+        id: storedObjects.id,
         objectKey: storedObjects.objectKey,
         kind: storedObjects.kind,
         mime: storedObjects.mime,
         sizeBytes: storedObjects.sizeBytes,
         uploadedByUserId: storedObjects.uploadedByUserId,
         workspaceId: storedObjects.workspaceId,
+        legalHold: storedObjects.legalHold,
       })
       .from(storedObjects)
       .where(eq(storedObjects.objectKey, objectKey))
       .limit(1);
     return row ?? null;
+  }
+
+  /**
+   * Put an object under legal hold and give it a home: it has become evidence
+   * (a drawn signature on a lease the moment the signature stands). Held, it
+   * can no longer be removed by its uploader (`removeOwnUnattached`) or any
+   * retention sweep. Never lifted here: a hold is released by a person, on
+   * the record, or not at all.
+   */
+  async holdObject(id: string, workspaceId: string | null): Promise<void> {
+    await this.db
+      .update(storedObjects)
+      .set({ legalHold: true, ...(workspaceId ? { workspaceId } : {}) })
+      .where(eq(storedObjects.id, id));
   }
 
   /**

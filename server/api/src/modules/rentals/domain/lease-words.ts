@@ -1,18 +1,23 @@
-import type { LeaseStatus } from '@injishi/contracts';
+import { longDate, type LeaseStatus } from '@injishi/contracts';
 
 /**
  * What the landlord does next on a lease, in words, for the list and the
  * record (blueprint 3.5: one main action per stage). Null when nothing waits
- * on them.
+ * on them. A signed lease starts on its start date, not before.
  */
-export function leaseNextAction(status: LeaseStatus, opts: { invitationAccepted?: boolean } = {}): string | null {
+export function leaseNextAction(
+  status: LeaseStatus,
+  opts: { invitationAccepted?: boolean; startDate?: string; today?: string } = {},
+): string | null {
   switch (status) {
     case 'draft':
       return 'Review and sign';
     case 'pending_signature':
       return opts.invitationAccepted === false ? 'Waiting for the tenant to accept the invitation' : 'Waiting for the tenant to sign';
     case 'signed':
-      return 'Start the tenancy';
+      return opts.startDate && opts.today && opts.startDate > opts.today
+        ? `Start the tenancy on ${longDate(opts.startDate)}`
+        : 'Start the tenancy';
     case 'ending':
       return 'Record the move out';
     default:

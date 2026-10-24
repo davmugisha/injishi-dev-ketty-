@@ -128,6 +128,10 @@ x-api-env: &api-env
   # invitation, ADR-053). The same host NEXT_PUBLIC_WEB_URL is built from below,
   # so a mail and a page agree. Production refuses to boot without it.
   WEB_URL: https://${WEB_HOST:-www.injishi.com}
+  # The app's public origin, for a mail that opens a page in the app (a lease
+  # invitation, a tenant's lease, a landlord's lease record). The same host the
+  # app is served on. Production refuses to boot without it.
+  APP_URL: https://${APP_HOST:-app.injishi.com}
   LOG_LEVEL: ${LOG_LEVEL:-info}
 
 # The public origins each frontend build compiles in. Used as build args (they

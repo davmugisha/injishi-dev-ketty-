@@ -21,8 +21,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
  * the lease state machine and drafting shapes, the calendar-month rent
  * schedule, payment allocation, the lease contract and its fingerprint, and
  * the money rules (rental income tax, payout accounts), and what each landlord
- * route takes and answers (`api.ts`). Pure functions and zod schemas only:
- * no clock but `kigaliToday()`, no I/O.
+ * route takes and answers (`api.ts`), signing and the tenant's invitation
+ * (`signing.ts`), and the tenant's own tenancies (`tenancy.ts`). Pure
+ * functions and zod schemas only: no clock but `kigaliToday()`, no I/O.
  */
 __exportStar(require("./vocab"), exports);
 __exportStar(require("./dates"), exports);
@@ -34,4 +35,6 @@ __exportStar(require("./allocation"), exports);
 __exportStar(require("./money"), exports);
 __exportStar(require("./contract"), exports);
 __exportStar(require("./api"), exports);
+__exportStar(require("./signing"), exports);
+__exportStar(require("./tenancy"), exports);
 //# sourceMappingURL=index.js.map

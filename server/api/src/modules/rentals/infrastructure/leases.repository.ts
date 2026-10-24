@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { LeaseStatus } from '@injishi/contracts';
-import { aliasedTable, and, asc, count, desc, eq, getTableColumns, ilike, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
+import { aliasedTable, and, asc, count, desc, eq, getTableColumns, ilike, inArray, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 
 import {
   brokers,
+  landlordProfiles,
   leaseCharges,
   leaseContractVersions,
   leaseDeposits,
@@ -173,6 +174,27 @@ export class LeasesRepository {
       .orderBy(asc(leases.startDate))
       .limit(1);
     return row ?? null;
+  }
+
+  /**
+   * Signed leases whose start date has come, in businesses that let Injishi
+   * start leases (`landlord_profiles.auto_start_leases`, on unless turned off):
+   * what the RentCycle job starts. Oldest start first.
+   */
+  async signedDueToStart(today: string): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: leases.id })
+      .from(leases)
+      .leftJoin(landlordProfiles, eq(landlordProfiles.orgId, leases.orgId))
+      .where(
+        and(
+          eq(leases.status, 'signed'),
+          lte(leases.startDate, today),
+          sql`coalesce(${landlordProfiles.autoStartLeases}, true)`,
+        ),
+      )
+      .orderBy(asc(leases.startDate), asc(leases.id));
+    return rows.map((r) => r.id);
   }
 
   /** The references a workspace has used, for the next number. */

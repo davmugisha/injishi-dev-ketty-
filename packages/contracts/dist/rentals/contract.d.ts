@@ -68,23 +68,23 @@ export declare const LeasePremises: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     province: string | null;
     district: string | null;
+    sector: string | null;
+    cell: string | null;
+    village: string | null;
     street: string | null;
     property: string;
     unit: string | null;
     block: string | null;
-    village: string | null;
-    cell: string | null;
-    sector: string | null;
 }, {
     province: string | null;
     district: string | null;
+    sector: string | null;
+    cell: string | null;
+    village: string | null;
     street: string | null;
     property: string;
     unit: string | null;
     block: string | null;
-    village: string | null;
-    cell: string | null;
-    sector: string | null;
 }>;
 export type LeasePremises = z.infer<typeof LeasePremises>;
 /** The terms the contract states. The lease row holds the same figures. */
@@ -104,24 +104,24 @@ export declare const LeaseContractTerms: z.ZodObject<{
     monthlyRentRwf: number;
     startDate: string;
     endDate: string;
+    billingStartsOn: string | null;
     noticeDays: number;
     rentDueDay: number;
     graceDays: number;
     occupants: string[];
     otherTerms: string | null;
     depositRwf: number;
-    billingStartsOn: string | null;
 }, {
     monthlyRentRwf: number;
     startDate: string;
     endDate: string;
+    billingStartsOn: string | null;
     noticeDays: number;
     rentDueDay: number;
     graceDays: number;
     occupants: string[];
     otherTerms: string | null;
     depositRwf: number;
-    billingStartsOn: string | null;
 }>;
 export type LeaseContractTerms = z.infer<typeof LeaseContractTerms>;
 /** One clause, as it was frozen. */
@@ -232,23 +232,23 @@ export declare const LeaseContract: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         province: string | null;
         district: string | null;
+        sector: string | null;
+        cell: string | null;
+        village: string | null;
         street: string | null;
         property: string;
         unit: string | null;
         block: string | null;
-        village: string | null;
-        cell: string | null;
-        sector: string | null;
     }, {
         province: string | null;
         district: string | null;
+        sector: string | null;
+        cell: string | null;
+        village: string | null;
         street: string | null;
         property: string;
         unit: string | null;
         block: string | null;
-        village: string | null;
-        cell: string | null;
-        sector: string | null;
     }>;
     /** The home in one line, as the clauses name it. */
     premisesLine: z.ZodString;
@@ -268,24 +268,24 @@ export declare const LeaseContract: z.ZodObject<{
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
+        billingStartsOn: string | null;
         noticeDays: number;
         rentDueDay: number;
         graceDays: number;
         occupants: string[];
         otherTerms: string | null;
         depositRwf: number;
-        billingStartsOn: string | null;
     }, {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
+        billingStartsOn: string | null;
         noticeDays: number;
         rentDueDay: number;
         graceDays: number;
         occupants: string[];
         otherTerms: string | null;
         depositRwf: number;
-        billingStartsOn: string | null;
     }>;
     clauses: z.ZodArray<z.ZodObject<{
         heading: z.ZodString;
@@ -302,6 +302,18 @@ export declare const LeaseContract: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     title: string;
     version: 3;
+    terms: {
+        monthlyRentRwf: number;
+        startDate: string;
+        endDate: string;
+        billingStartsOn: string | null;
+        noticeDays: number;
+        rentDueDay: number;
+        graceDays: number;
+        occupants: string[];
+        otherTerms: string | null;
+        depositRwf: number;
+    };
     parties: {
         landlord: {
             email: string;
@@ -320,18 +332,6 @@ export declare const LeaseContract: z.ZodObject<{
         };
     };
     issuedAt: string;
-    terms: {
-        monthlyRentRwf: number;
-        startDate: string;
-        endDate: string;
-        noticeDays: number;
-        rentDueDay: number;
-        graceDays: number;
-        occupants: string[];
-        otherTerms: string | null;
-        depositRwf: number;
-        billingStartsOn: string | null;
-    };
     clauses: {
         body: string;
         heading: string;
@@ -339,18 +339,30 @@ export declare const LeaseContract: z.ZodObject<{
     premises: {
         province: string | null;
         district: string | null;
+        sector: string | null;
+        cell: string | null;
+        village: string | null;
         street: string | null;
         property: string;
         unit: string | null;
         block: string | null;
-        village: string | null;
-        cell: string | null;
-        sector: string | null;
     };
     premisesLine: string;
 }, {
     title: string;
     version: 3;
+    terms: {
+        monthlyRentRwf: number;
+        startDate: string;
+        endDate: string;
+        billingStartsOn: string | null;
+        noticeDays: number;
+        rentDueDay: number;
+        graceDays: number;
+        occupants: string[];
+        otherTerms: string | null;
+        depositRwf: number;
+    };
     parties: {
         landlord: {
             email: string;
@@ -369,18 +381,6 @@ export declare const LeaseContract: z.ZodObject<{
         };
     };
     issuedAt: string;
-    terms: {
-        monthlyRentRwf: number;
-        startDate: string;
-        endDate: string;
-        noticeDays: number;
-        rentDueDay: number;
-        graceDays: number;
-        occupants: string[];
-        otherTerms: string | null;
-        depositRwf: number;
-        billingStartsOn: string | null;
-    };
     clauses: {
         body: string;
         heading: string;
@@ -388,13 +388,13 @@ export declare const LeaseContract: z.ZodObject<{
     premises: {
         province: string | null;
         district: string | null;
+        sector: string | null;
+        cell: string | null;
+        village: string | null;
         street: string | null;
         property: string;
         unit: string | null;
         block: string | null;
-        village: string | null;
-        cell: string | null;
-        sector: string | null;
     };
     premisesLine: string;
 }>;
@@ -439,36 +439,46 @@ export declare function typedNameProblem(typed: string, contract: LeaseContract,
  * proves it is them with the code emailed to them or their password.
  * `documentHash` is the `contractHash` they were shown; the API recomputes it
  * and refuses a signature on a contract that has changed since.
+ *
+ * The landlord's signature sends the invitation to the tenant's email, so the
+ * API checks that address for a likely typo once more; `confirmEmail` says it
+ * is right as typed. The tenant's side ignores it.
  */
 export declare const SignLeaseRequest: z.ZodEffects<z.ZodObject<{
     typedName: z.ZodString;
+    /** The drawn signature, uploaded first by the signer (`POST /uploads`, kind `lease_signature`). */
     signatureObjectKey: z.ZodOptional<z.ZodString>;
     code: z.ZodOptional<z.ZodString>;
     password: z.ZodOptional<z.ZodString>;
     documentHash: z.ZodString;
+    confirmEmail: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     typedName: string;
     documentHash: string;
     code?: string | undefined;
     password?: string | undefined;
+    confirmEmail?: boolean | undefined;
     signatureObjectKey?: string | undefined;
 }, {
     typedName: string;
     documentHash: string;
     code?: string | undefined;
     password?: string | undefined;
+    confirmEmail?: boolean | undefined;
     signatureObjectKey?: string | undefined;
 }>, {
     typedName: string;
     documentHash: string;
     code?: string | undefined;
     password?: string | undefined;
+    confirmEmail?: boolean | undefined;
     signatureObjectKey?: string | undefined;
 }, {
     typedName: string;
     documentHash: string;
     code?: string | undefined;
     password?: string | undefined;
+    confirmEmail?: boolean | undefined;
     signatureObjectKey?: string | undefined;
 }>;
 export type SignLeaseRequest = z.infer<typeof SignLeaseRequest>;

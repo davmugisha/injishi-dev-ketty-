@@ -189,31 +189,64 @@ export class LeaseContractService {
   }
 
   /**
-   * The lease as a PDF: the current version, or `versionNumber`.
-   *
-   * A version nobody has signed is printed once and kept (`pdf_object_id`,
-   * kind lease_contract); one both sides signed is kept as the signed copy
-   * under legal hold (`signed_pdf_object_id`); one signed by the landlord only
-   * is printed fresh each time, since the copy changes when the tenant signs.
+   * The lease as a PDF, for the landlord: the current version, or
+   * `versionNumber`. The tenant's route reads the same file through `pdfOf`.
    */
   async pdf(ws: ScopedWorkspace, leaseId: string, versionNumber?: number): Promise<{ body: Buffer; filename: string }> {
     const r = assertResidence(ws);
     const record = await this.leases.find(leaseId);
     if (!record || record.lease.workspaceId !== r.workspaceId) throw new NotFoundException('Lease not found.');
     assertBuildingInScope(ws, record.lease.propertyId, 'Lease');
-    const versions = await this.leases.versions(leaseId);
+    return this.pdfOf(record, versionNumber);
+  }
+
+  /**
+   * The PDF of a lease the caller was already allowed to read.
+   *
+   * A version nobody has signed is printed once and kept (`pdf_object_id`,
+   * kind lease_contract); one both sides signed is kept as the signed copy
+   * under legal hold (`signed_pdf_object_id`); one signed by the landlord only
+   * is printed fresh each time, since the copy changes when the tenant signs.
+   */
+  async pdfOf(record: LeaseRecord, versionNumber?: number): Promise<{ body: Buffer; filename: string }> {
+    const versions = await this.leases.versions(record.lease.id);
     const version =
       versionNumber !== undefined
         ? versions.find((v) => v.version === versionNumber)
         : (versions.find((v) => v.id === record.lease.currentVersionId) ?? versions[0]);
     if (!version) throw new NotFoundException(versionNumber !== undefined ? 'That version of the contract was not found.' : 'This lease has no contract yet.');
+    const file = await this.print(record, version, false);
+    return { body: file.body, filename: file.filename };
+  }
+
+  /**
+   * The signed copy of a version both sides signed, with its audit trail
+   * page: printed once, kept under legal hold (`signed_pdf_object_id`), and
+   * read back every time after. Null when both sides have not signed it.
+   *
+   * The LeaseDocuments job calls this after the second signature; a download
+   * before the job ran makes the same copy (the stored key is derived from the
+   * version, so the two converge on one file). Unlike a download, a copy that
+   * cannot be kept is an error here, so the job tries again.
+   */
+  async signedCopy(record: LeaseRecord, version: VersionRow): Promise<{ body: Buffer; filename: string; objectId: string } | null> {
+    const file = await this.print(record, version, true);
+    if (!file.signed || !file.objectId) return null;
+    return { body: file.body, filename: file.filename, objectId: file.objectId };
+  }
+
+  private async print(
+    record: LeaseRecord,
+    version: VersionRow,
+    mustKeep: boolean,
+  ): Promise<{ body: Buffer; filename: string; signed: boolean; objectId: string | null }> {
     const parsed = LeaseContract.safeParse(version.content);
     if (version.templateVersion !== LEASE_CONTRACT_TEMPLATE_VERSION || !parsed.success) {
       throw new ConflictException(
         'This version was carried over from before contracts were kept as text, so there is no PDF of it.',
       );
     }
-    const signatures = (await this.leases.signatures(leaseId)).filter((s) => s.versionId === version.id && !s.voidedAt);
+    const signatures = (await this.leases.signatures(record.lease.id)).filter((s) => s.versionId === version.id && !s.voidedAt);
     const signed = signatures.some((s) => s.signerRole === 'landlord') && signatures.some((s) => s.signerRole === 'tenant');
     const filename = `${record.lease.reference}-v${version.version}${signed ? '-signed' : ''}.pdf`;
 
@@ -222,7 +255,7 @@ export class LeaseContractService {
       const key = await this.leases.storedObjectKey(kept);
       if (key) {
         try {
-          return { body: await this.storage.readBytes(key), filename };
+          return { body: await this.storage.readBytes(key), filename, signed, objectId: kept };
         } catch (cause) {
           this.log.warn(`stored lease PDF ${key} could not be read, printing it again: ${String(cause)}`);
         }
@@ -231,7 +264,7 @@ export class LeaseContractService {
 
     const body = await renderLeasePdf({
       reference: record.lease.reference,
-      leaseId,
+      leaseId: record.lease.id,
       version: version.version,
       contract: parsed.data,
       documentHash: version.contentHash,
@@ -252,13 +285,21 @@ export class LeaseContractService {
       generatedAt: new Date(),
     });
 
+    let objectId: string | null = null;
     if (signed || signatures.length === 0) {
-      await this.keep(version, body, filename, record, signed);
+      objectId = await this.keep(version, body, filename, record, signed, mustKeep);
     }
-    return { body, filename };
+    return { body, filename, signed, objectId };
   }
 
-  private async keep(version: VersionRow, body: Buffer, filename: string, record: LeaseRecord, signed: boolean): Promise<void> {
+  private async keep(
+    version: VersionRow,
+    body: Buffer,
+    filename: string,
+    record: LeaseRecord,
+    signed: boolean,
+    mustKeep: boolean,
+  ): Promise<string | null> {
     try {
       const stored = await this.storage.putLeaseContract({
         body,
@@ -269,9 +310,12 @@ export class LeaseContractService {
         legalHold: signed,
       });
       await this.leases.setVersionPdf(version.id, signed ? 'signedPdfObjectId' : 'pdfObjectId', stored.id);
+      return stored.id;
     } catch (cause) {
+      if (mustKeep) throw cause;
       // The reader still gets the PDF; keeping a copy is retried next time.
       this.log.error(`keeping the PDF of lease version ${version.id} failed: ${String(cause)}`);
+      return null;
     }
   }
 

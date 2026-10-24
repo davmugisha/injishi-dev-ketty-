@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { LeaseActorRole, LeaseEventKind } from '@injishi/contracts';
+import { sql } from 'drizzle-orm';
 
 import { auditEvents, leaseEvents } from '../../../database/drizzle/schema';
 import type { Database } from '../../../shared/database/database.module';
@@ -39,6 +40,9 @@ export class LeaseEventsWriter {
       actorRole: event.actorRole,
       visibleToTenant: event.visibleToTenant ?? false,
       payload: event.payload ?? {},
+      // The wall clock, not the transaction's start: several events written in
+      // one transaction (signed, then the invitation sent) keep their order.
+      occurredAt: sql`clock_timestamp()`,
     });
   }
 }
@@ -47,7 +51,8 @@ export class LeaseEventsWriter {
 export type RentalsAuditSubject = 'lease' | 'tenant' | 'rental_unit' | 'payout_account' | 'deposit';
 
 export interface RentalsAuditInput {
-  actorUserId: string;
+  /** Null for an act of the system (a job starting a lease on its start date). */
+  actorUserId: string | null;
   subjectType: RentalsAuditSubject;
   subjectId: string;
   /** `lease.cancelled`, `payout_account.added`, ... */

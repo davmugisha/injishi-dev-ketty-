@@ -45,6 +45,8 @@ export type StoredObjectKind =
   | 'hr_attachment'
   /** 058-payroll: a bank or MoMo file, or a declaration; `payroll.run` only. */
   | 'hr_pay_file'
+  /** Rentals (migration 0073): a signature drawn before signing a lease, a PNG; held once it stands. */
+  | 'lease_signature'
   /**
    * Rentals (migration 0073): a lease contract PDF the platform rendered, a
    * preview of one version or its signed copy. Never uploaded by anybody.
@@ -168,12 +170,18 @@ export const MAX_CERTIFICATE_BYTES = 10 * 1024 * 1024;
  *
  * `certificate`, `contract` and `filing_copy` are absent on purpose: each has
  * its own bounded path, and none of them is uploaded from a phone.
+ *
+ * `lease_signature` (rentals, WP 1.5b) is the signature a person draws before
+ * signing a lease: a PNG from the signature pad, uploaded by the signer and
+ * named by its key in the signing request, which checks it is theirs and puts
+ * it under legal hold once the signature stands.
  */
 export const ATTACHMENT_KINDS = [
   'id_photo',
   'property_photo',
   'message_attachment',
   'avatar',
+  'lease_signature',
 ] as const satisfies ReadonlyArray<StoredObjectKind>;
 
 export type AttachmentKind = (typeof ATTACHMENT_KINDS)[number];

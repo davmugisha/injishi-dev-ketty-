@@ -86,6 +86,8 @@ export class LeaseReadsService {
       actions: leaseActionsFrom(lease.status),
       nextAction: leaseNextAction(lease.status, {
         invitationAccepted: invitation ? invitation.status === 'accepted' : undefined,
+        startDate: lease.startDate,
+        today: kigaliToday(),
       }),
       property: { id: lease.propertyId, name: record.propertyName },
       unit: { id: lease.unitId, label: record.unitLabel, blockCode: record.blockCode, blockName: record.blockName },
@@ -168,9 +170,17 @@ export class LeaseReadsService {
     };
   }
 
-  /** The current contract version's text, and every version before it. */
+  /**
+   * The current contract version's text, and every version before it. A
+   * draft's text is brought up to date first (its landlord, building, unit or
+   * tenant may have changed since it was frozen), so what the landlord reads
+   * here is what they sign: the signature repeats this version's hash.
+   */
   async contract(ws: ScopedWorkspace, leaseId: string): Promise<LeaseContractView> {
-    const record = await this.owned(ws, leaseId);
+    let record = await this.owned(ws, leaseId);
+    if (record.lease.status === 'draft' && (await this.contracts.refreshDrafts([leaseId], null)) > 0) {
+      record = await this.owned(ws, leaseId);
+    }
     const versions = await this.leases.versions(leaseId);
     const current = versions.find((v) => v.id === record.lease.currentVersionId) ?? versions[0];
     if (!current) throw new NotFoundException('This lease has no contract yet.');

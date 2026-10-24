@@ -1,4 +1,5 @@
 import {
+  kigaliToday,
   leaseTab,
   type LeaseListItem,
   type LeaseVersionSummary,
@@ -101,7 +102,7 @@ export function presentLeaseListItem(r: LeaseRecord): LeaseListItem {
     monthlyRentRwf: r.lease.monthlyRentRwf,
     startDate: r.lease.startDate,
     endDate: r.lease.endDate,
-    nextAction: leaseNextAction(r.lease.status),
+    nextAction: leaseNextAction(r.lease.status, { startDate: r.lease.startDate, today: kigaliToday() }),
     createdAt: r.lease.createdAt.toISOString(),
     updatedAt: r.lease.updatedAt.toISOString(),
   };

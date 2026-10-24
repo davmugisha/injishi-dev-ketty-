@@ -315,10 +315,15 @@ export function typedNameProblem(typed: string, contract: LeaseContract, role: "
  * proves it is them with the code emailed to them or their password.
  * `documentHash` is the `contractHash` they were shown; the API recomputes it
  * and refuses a signature on a contract that has changed since.
+ *
+ * The landlord's signature sends the invitation to the tenant's email, so the
+ * API checks that address for a likely typo once more; `confirmEmail` says it
+ * is right as typed. The tenant's side ignores it.
  */
 export const SignLeaseRequest = z
   .object({
     typedName: z.string().trim().min(2, "Type your full name.").max(120, "That name is too long."),
+    /** The drawn signature, uploaded first by the signer (`POST /uploads`, kind `lease_signature`). */
     signatureObjectKey: z.string().min(3).max(300).optional(),
     code: z
       .string()
@@ -327,6 +332,7 @@ export const SignLeaseRequest = z
       .optional(),
     password: z.string().min(1).max(256).optional(),
     documentHash: ContractHash,
+    confirmEmail: z.boolean().optional(),
   })
   .refine((v) => Boolean(v.code) !== Boolean(v.password), {
     message: "Enter the code from your email.",

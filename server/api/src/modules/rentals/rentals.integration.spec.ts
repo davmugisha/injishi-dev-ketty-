@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
-import { ConflictException } from '@nestjs/common';
-import { CreateLeaseRequest, addDays, addMonths, kigaliToday } from '@injishi/contracts';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { CreateLeaseRequest, SignatoryRequest, addDays, addMonths, kigaliToday } from '@injishi/contracts';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
@@ -11,15 +11,29 @@ import type { ScopedWorkspace } from '../../shared/auth/branch-scope';
 import type { Database } from '../../shared/database/database.module';
 import type { StorageService } from '../storage/application/storage.service';
 import { LeaseContractService } from './application/lease-contract.service';
+import { LeaseDocumentsService } from './application/lease-documents.service';
 import { LeaseDraftingService } from './application/lease-drafting.service';
+import { LeaseInvitationsService } from './application/lease-invitations.service';
+import { LeaseLifecycleService } from './application/lease-lifecycle.service';
 import { LeaseReadsService } from './application/lease-reads.service';
+import { LeaseSigningService } from './application/lease-signing.service';
 import { PayoutAccountsService } from './application/payout-accounts.service';
+import { RentalsProfileService } from './application/rentals-profile.service';
+import { TenanciesService } from './application/tenancies.service';
 import { UnitsService } from './application/units.service';
+import type { RentalsMail } from './domain/rentals-mail';
+import { LeaseChargesRepository } from './infrastructure/lease-charges.repository';
+import type { LeaseDocumentsQueue, SignedCopyJob } from './infrastructure/lease-documents.queue';
+import { LeaseDocumentsRepository } from './infrastructure/lease-documents.repository';
 import { LeasesRepository } from './infrastructure/leases.repository';
 import { resolvePayoutAccountCipher } from './infrastructure/payout-account-cipher';
 import { PayoutAccountsRepository } from './infrastructure/payout-accounts.repository';
 import { RentalsContextRepository } from './infrastructure/rentals-context.repository';
 import { LeaseEventsWriter, RentalsAuditWriter } from './infrastructure/rentals-writers';
+import type { RentalsMailer } from './infrastructure/rentals.mailer';
+import type { SignerPasswordVerifier } from './infrastructure/signer-password';
+import { SigningRepository } from './infrastructure/signing.repository';
+import { TenanciesRepository } from './infrastructure/tenancies.repository';
 import { TenantsRepository } from './infrastructure/tenants.repository';
 import { UnitsRepository } from './infrastructure/units.repository';
 
@@ -45,7 +59,10 @@ maybe('rentals against Postgres (RENTALS_IT_DATABASE_URL)', () => {
   let db: Database;
   let ws: ScopedWorkspace;
   let userId: string;
-  const pdfs: Buffer[] = [];
+  const pdfs = new Map<string, Buffer>();
+  /** Every email the services sent, in order. */
+  const mails: { to: string; subject: string; text: string; code?: string; attachments: number }[] = [];
+  const queued: SignedCopyJob[] = [];
 
   const services = (): {
     units: UnitsService;
@@ -53,30 +70,85 @@ maybe('rentals against Postgres (RENTALS_IT_DATABASE_URL)', () => {
     reads: LeaseReadsService;
     contracts: LeaseContractService;
     payouts: PayoutAccountsService;
+    profile: RentalsProfileService;
+    signing: LeaseSigningService;
+    invitations: LeaseInvitationsService;
+    lifecycle: LeaseLifecycleService;
+    tenancies: TenanciesService;
+    documents: LeaseDocumentsService;
   } => {
     const context = new RentalsContextRepository(db);
     const leases = new LeasesRepository(db);
     const tenants = new TenantsRepository(db);
     const unitsRepo = new UnitsRepository(db);
+    const signingRepo = new SigningRepository(db);
+    const charges = new LeaseChargesRepository(db);
     const audit = new RentalsAuditWriter();
+    const events = new LeaseEventsWriter();
     const storage = {
-      putLeaseContract: async (input: { body: Buffer }) => {
-        pdfs.push(input.body);
-        const [row] = await db
+      putLeaseContract: async (input: { body: Buffer; keyHint: string; legalHold: boolean }) => {
+        const objectKey = `lease_contract/${input.keyHint}.pdf`;
+        pdfs.set(objectKey, input.body);
+        await db
           .insert(schema.storedObjects)
-          .values({ objectKey: `lease_contract/${randomUUID()}.pdf`, kind: 'lease_contract', mime: 'application/pdf' })
-          .returning({ id: schema.storedObjects.id, objectKey: schema.storedObjects.objectKey });
-        return { id: row!.id, objectKey: row!.objectKey };
+          .values({ objectKey, kind: 'lease_contract', mime: 'application/pdf', legalHold: input.legalHold })
+          .onConflictDoNothing();
+        const [row] = await db.select({ id: schema.storedObjects.id }).from(schema.storedObjects).where(eq(schema.storedObjects.objectKey, objectKey));
+        return { id: row!.id, objectKey };
       },
-      readBytes: async () => pdfs[pdfs.length - 1] as Buffer,
+      readBytes: async (key: string) => pdfs.get(key) as Buffer,
+      describe: async (key: string) => {
+        const [row] = await db.select().from(schema.storedObjects).where(eq(schema.storedObjects.objectKey, key));
+        return row ? { id: row.id, objectKey: row.objectKey, kind: row.kind, uploadedByUserId: row.uploadedByUserId, legalHold: row.legalHold } : null;
+      },
+      holdObject: async (id: string) => {
+        await db.update(schema.storedObjects).set({ legalHold: true }).where(eq(schema.storedObjects.id, id));
+      },
     } as unknown as StorageService;
+    const mailer = {
+      appUrl: 'http://localhost:3002',
+      signingCode: async (to: string, code: string) => {
+        mails.push({ to, subject: 'code', text: code, code, attachments: 0 });
+        return true;
+      },
+      send: async (_ref: string, to: string, mail: RentalsMail, attachments?: unknown[]) => {
+        mails.push({ to, subject: mail.subject, text: [...mail.lines, mail.action.url].join('\n'), attachments: attachments?.length ?? 0 });
+        return true;
+      },
+    } as unknown as RentalsMailer;
     const contracts = new LeaseContractService(db, leases, context, storage);
     const reads = new LeaseReadsService(leases, tenants, contracts);
+    const drafting = new LeaseDraftingService(db, leases, tenants, unitsRepo, context, contracts, events, audit, reads);
+    const tenancies = new TenanciesService(new TenanciesRepository(db), leases, signingRepo, context, contracts);
+    const invitations = new LeaseInvitationsService(db, leases, signingRepo, context, events, audit, reads, drafting, tenancies, mailer);
+    const documentsQueue = { signedCopy: async (job: SignedCopyJob) => (queued.push(job), true) } as unknown as LeaseDocumentsQueue;
+    const passwords = { verify: async () => false } as unknown as SignerPasswordVerifier;
     return {
       units: new UnitsService(db, unitsRepo, context, contracts, audit),
-      drafting: new LeaseDraftingService(db, leases, tenants, unitsRepo, context, contracts, new LeaseEventsWriter(), audit, reads),
+      drafting,
       reads,
       contracts,
+      profile: new RentalsProfileService(db, context, contracts),
+      signing: new LeaseSigningService(
+        db,
+        leases,
+        signingRepo,
+        charges,
+        contracts,
+        events,
+        audit,
+        reads,
+        tenancies,
+        invitations,
+        storage,
+        passwords,
+        mailer,
+        documentsQueue,
+      ),
+      invitations,
+      lifecycle: new LeaseLifecycleService(db, leases, signingRepo, charges, context, events, audit, reads, mailer),
+      tenancies,
+      documents: new LeaseDocumentsService(db, leases, signingRepo, new LeaseDocumentsRepository(db), context, contracts, mailer),
       payouts: new PayoutAccountsService(
         db,
         new PayoutAccountsRepository(db),
@@ -183,8 +255,139 @@ maybe('rentals against Postgres (RENTALS_IT_DATABASE_URL)', () => {
     const events = await s.reads.events(ws, first.id);
     expect(events.events.map((e) => e.kind)).toEqual(['terms_edited', 'created']);
 
-    const cancelled = await s.drafting.cancel(ws, userId, second.id, { reason: 'Drafted twice' });
+    const cancelled = await s.lifecycle.cancel(ws, userId, second.id, { reason: 'Drafted twice' });
     expect(cancelled).toMatchObject({ status: 'cancelled', cancelReason: 'Drafted twice' });
+  });
+
+  it('signs on both sides, invites and links the tenant, sends the signed copy once, and starts the tenancy', async () => {
+    const s = services();
+    await s.profile.setSignatory(
+      ws,
+      userId,
+      SignatoryRequest.parse({
+        name: 'Jean Mugabo',
+        idKind: 'national_id',
+        idNumber: '1198780012345678',
+        contactPhone: '0788 111 222',
+        contactEmail: `owner-${randomUUID().slice(0, 6)}@rentals.test`,
+      }),
+    );
+    const landlord = { id: userId, email: (await db.select().from(schema.users).where(eq(schema.users.id, userId)))[0]!.email };
+    const unit = await s.units.create(ws, userId, { label: 'S-01', askingRentRwf: 300_000 });
+    const start = kigaliToday();
+    const tenantEmail = `tenant-${randomUUID().slice(0, 6)}@rentals.test`;
+    const lease = await s.drafting.create(
+      ws,
+      userId,
+      CreateLeaseRequest.parse({
+        unitId: unit.id,
+        tenant: { fullName: 'Aimée Uwera', email: tenantEmail, phone: '0788 333 444', idKind: 'passport', idNumber: 'PC123456', nationality: 'UG' },
+        terms: { startDate: start, endDate: addDays(addMonths(start, 12), -1), monthlyRentRwf: 300_000, depositRwf: 600_000, rentDueDay: 5 },
+      }),
+    );
+    expect(lease.contractProblems).toEqual([]);
+    const contract = await s.reads.contract(ws, lease.id);
+    const hash = contract.version.contentHash;
+
+    // The landlord's code, a wrong try, a wrong name, then the signature.
+    const sent = await s.signing.landlordCode(ws, landlord, lease.id);
+    expect(sent).toMatchObject({ sent: true, expiresInSeconds: 600, resendInSeconds: 60 });
+    expect(await s.signing.landlordCode(ws, landlord, lease.id)).toMatchObject({ sent: false });
+    const code = mails.filter((m) => m.code).at(-1)!.code!;
+    const wrong = code === '000000' ? '111111' : '000000';
+    await expect(s.signing.signAsLandlord(ws, landlord, lease.id, { typedName: 'Jean Mugabo', code: wrong, documentHash: hash }, { ip: null, userAgent: null })).rejects.toThrow(BadRequestException);
+    const tries = await pool.query(`select attempts from lease_signing_codes where lease_id = $1 and consumed_at is null`, [lease.id]);
+    expect(tries.rows[0].attempts).toBe(1);
+    await expect(s.signing.signAsLandlord(ws, landlord, lease.id, { typedName: 'Jean M.', code, documentHash: hash }, { ip: null, userAgent: null })).rejects.toThrow(BadRequestException);
+    const out = await s.signing.signAsLandlord(ws, landlord, lease.id, { typedName: ' jean  mugabo ', code, documentHash: hash }, { ip: '127.0.0.1', userAgent: 'jest' });
+    expect(out).toMatchObject({ status: 'pending_signature', invitation: { status: 'sent', email: tenantEmail, sendCount: 1 } });
+    await new Promise((r) => setTimeout(r, 50));
+    const invite = mails.filter((m) => m.to === tenantEmail).at(-1)!;
+    const token = /\/invite\/lease\/([A-Za-z0-9_-]+)/.exec(invite.text)![1]!;
+
+    // The preview, and accepting from the wrong account and then the right one.
+    expect(await s.invitations.preview(token)).toMatchObject({ state: 'open', unitLabel: 'S-01', monthlyRentRwf: 300_000, invitedEmail: expect.stringContaining('••') });
+    const [stranger] = await db.insert(schema.users).values({ email: `other-${randomUUID().slice(0, 6)}@rentals.test` }).returning();
+    await expect(s.invitations.accept({ id: stranger!.id, email: stranger!.email }, { token })).rejects.toThrow(ForbiddenException);
+    const [tenantUser] = await db.insert(schema.users).values({ email: tenantEmail, name: 'Aimée Uwera' }).returning();
+    const tenant = { id: tenantUser!.id, email: tenantEmail.toUpperCase() };
+    const accepted = await s.invitations.accept(tenant, { token });
+    expect(accepted).toMatchObject({ status: 'pending_signature', needsMySignature: true, landlord: { signatoryName: 'Jean Mugabo' } });
+    expect((await s.invitations.accept(tenant, { token })).id).toBe(lease.id);
+    await expect(s.tenancies.resolve(stranger!.id, lease.id)).rejects.toThrow(NotFoundException);
+    const ref = await s.tenancies.resolve(tenant.id, lease.id);
+
+    // The tenant signs: the lease is signed, the deposit raised, the signed copy queued.
+    await s.signing.tenantCode(ref, tenant);
+    const tenantCode = mails.filter((m) => m.code).at(-1)!.code!;
+    const signed = await s.signing.signAsTenant(ref, tenant, { typedName: 'Aimee Uwera', code: tenantCode, documentHash: hash }, { ip: '127.0.0.2', userAgent: 'jest' });
+    expect(signed).toMatchObject({ status: 'signed', needsMySignature: false, charges: { balanceRwf: 600_000, depositStatus: 'awaiting' } });
+    expect(queued.at(-1)).toMatchObject({ leaseId: lease.id });
+
+    // The signed copy: made and mailed once to both sides.
+    const versionId = queued.at(-1)!.versionId;
+    const before = mails.length;
+    expect(await s.documents.deliverSignedCopy(versionId)).toBe('sent');
+    const copies = mails.slice(before);
+    expect(copies.map((m) => m.attachments)).toEqual(copies.map(() => 1));
+    expect(copies.map((m) => m.to)).toEqual(expect.arrayContaining([tenantEmail, landlord.email]));
+    expect(await s.documents.deliverSignedCopy(versionId)).toBe('already_sent');
+    expect(mails.length).toBe(before + copies.length);
+    const ready = await pool.query(`select count(*)::int as n from lease_events where lease_id = $1 and kind = 'signed_copy_ready'`, [lease.id]);
+    expect(ready.rows[0].n).toBe(1);
+    expect((await s.tenancies.detail(ref)).signedCopyReady).toBe(true);
+
+    // Start: active, the rent due within 7 days raised, a repeat raises nothing.
+    const started = await s.lifecycle.start(ws, userId, lease.id);
+    expect(started.status).toBe('active');
+    const rent = await pool.query(`select period_start::text, due_on::text, amount_rwf::int from lease_charges where lease_id = $1 and kind = 'rent'`, [lease.id]);
+    expect(rent.rows.length).toBeGreaterThanOrEqual(1);
+    expect(rent.rows[0].period_start).toBe(start);
+    await s.lifecycle.start(ws, userId, lease.id);
+    const again = await pool.query(`select count(*)::int as n from lease_charges where lease_id = $1 and kind = 'rent'`, [lease.id]);
+    expect(again.rows[0].n).toBe(rent.rows.length);
+    const timeline = await s.tenancies.events(ref);
+    expect(timeline.events.map((e) => e.kind)).toEqual(expect.arrayContaining(['landlord_signed', 'invitation_accepted', 'tenant_signed', 'signed_copy_ready', 'started', 'charge_raised']));
+    expect(timeline.events.every((e) => e.visibleToTenant)).toBe(true);
+  });
+
+  it('an edit after the landlord signed voids the signature and the link; signing again sends a new one', async () => {
+    const s = services();
+    const landlord = { id: userId, email: (await db.select().from(schema.users).where(eq(schema.users.id, userId)))[0]!.email };
+    const unit = await s.units.create(ws, userId, { label: 'S-02', askingRentRwf: 250_000 });
+    const start = addDays(kigaliToday(), 10);
+    const tenantEmail = `t2-${randomUUID().slice(0, 6)}@rentals.test`;
+    const lease = await s.drafting.create(
+      ws,
+      userId,
+      CreateLeaseRequest.parse({
+        unitId: unit.id,
+        tenant: { fullName: 'Eric Nkusi', email: tenantEmail, phone: '0788 555 666', idKind: 'national_id', idNumber: '1199080012345099', nationality: 'RW' },
+        terms: { startDate: start, endDate: addDays(addMonths(start, 6), -1), monthlyRentRwf: 250_000, depositRwf: 0 },
+      }),
+    );
+    const signOnce = async (): Promise<string> => {
+      const hash = (await s.reads.contract(ws, lease.id)).version.contentHash;
+      await pool.query(`update lease_signing_codes set created_at = now() - interval '2 minutes' where lease_id = $1`, [lease.id]);
+      await s.signing.landlordCode(ws, landlord, lease.id);
+      const code = mails.filter((m) => m.code).at(-1)!.code!;
+      await s.signing.signAsLandlord(ws, landlord, lease.id, { typedName: 'Jean Mugabo', code, documentHash: hash }, { ip: null, userAgent: null });
+      await new Promise((r) => setTimeout(r, 50));
+      return /\/invite\/lease\/([A-Za-z0-9_-]+)/.exec(mails.filter((m) => m.to === tenantEmail).at(-1)!.text)![1]!;
+    };
+    const firstToken = await signOnce();
+    const edited = await s.drafting.edit(ws, userId, lease.id, { terms: { monthlyRentRwf: 260_000 } });
+    expect(edited).toMatchObject({ status: 'draft', invitation: { status: 'revoked' } });
+    expect(edited.signatures.every((sig) => sig.voidedAt !== null)).toBe(true);
+    expect((await s.invitations.preview(firstToken)).state).toBe('revoked');
+    const secondToken = await signOnce();
+    expect(secondToken).not.toBe(firstToken);
+    expect((await s.invitations.preview(secondToken)).state).toBe('open');
+
+    // Cancelling a lease out for signature voids its signature and withdraws the link.
+    const cancelled = await s.lifecycle.cancel(ws, userId, lease.id, { reason: 'The tenant found another home' });
+    expect(cancelled.signatures.every((sig) => sig.voidedAt !== null)).toBe(true);
+    expect((await s.invitations.preview(secondToken)).state).toBe('revoked');
   });
 
   it('keeps one primary payout account per business, numbers sealed', async () => {

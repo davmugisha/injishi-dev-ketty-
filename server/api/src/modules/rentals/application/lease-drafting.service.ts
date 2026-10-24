@@ -15,7 +15,6 @@ import {
   leaseDatesProblem,
   longDate,
   nextLeaseStatus,
-  type CancelLeaseRequest,
   type CreateLeaseRequest,
   type EditLeaseRequest,
   type LeaseDetail,
@@ -57,12 +56,12 @@ type TenantField = (typeof TENANT_FIELDS)[number];
 const REFERENCE_ATTEMPTS = 3;
 
 /**
- * Drafting a lease (blueprint 2.3, WP 1.5a): create, edit before the tenant
- * signs, cancel before it starts. The state machine is contracts'
- * `LEASE_TRANSITIONS`; this service is the only thing that moves a lease along
- * it from the landlord's side. Every write locks the lease row, writes its
- * timeline event (and an audit row for signatures voided and cancellations)
- * in the same transaction, and answers the lease record.
+ * Drafting a lease (blueprint 2.3, WP 1.5a): create, and edit before the
+ * tenant signs. The state machine is contracts' `LEASE_TRANSITIONS`; signing
+ * moves a lease on in `LeaseSigningService`, starting and cancelling in
+ * `LeaseLifecycleService`. Every write locks the lease row, writes its
+ * timeline event (and an audit row for a signature voided) in the same
+ * transaction, and answers the lease record.
  */
 @Injectable()
 export class LeaseDraftingService {
@@ -297,45 +296,6 @@ export class LeaseDraftingService {
         throw mapConstraint(cause);
       });
     if (otherDrafts.length > 0) await this.contracts.refreshDrafts(otherDrafts, userId);
-    return this.reads.detail(ws, leaseId);
-  }
-
-  /** Cancel a lease that has not started: a draft, one out for signing, or one signed and not started. */
-  async cancel(ws: ScopedWorkspace, userId: string, leaseId: string, body: CancelLeaseRequest): Promise<LeaseDetail> {
-    const r = assertResidence(ws);
-    await this.db.transaction(async (tx) => {
-      const row = await this.lockOwned(tx, ws, leaseId);
-      const next = nextLeaseStatus(row.status, 'cancel');
-      if (!next) {
-        throw leaseStateConflict(
-          row.status,
-          row.status === 'active' || row.status === 'ending'
-            ? 'A tenancy that has started ends with a move out, not a cancellation.'
-            : 'It can no longer be cancelled.',
-        );
-      }
-      const now = new Date();
-      await this.leases.update(tx, row.id, { status: next, cancelledAt: now, cancelReason: body.reason });
-      const invitation = await this.leases.revokeLiveInvitation(tx, row.id);
-      await this.events.write(tx, {
-        leaseId: row.id,
-        workspaceId: r.workspaceId,
-        kind: 'cancelled',
-        actorUserId: userId,
-        actorRole: 'landlord',
-        // The tenant saw it once it was sent; a draft was never theirs to see.
-        visibleToTenant: row.status !== 'draft',
-        payload: { from: row.status, invitationRevoked: invitation !== null },
-      });
-      await this.audit.write(tx, {
-        actorUserId: userId,
-        subjectType: 'lease',
-        subjectId: row.id,
-        eventType: 'lease.cancelled',
-        diff: { from: row.status, to: next, reference: row.reference },
-        reason: body.reason,
-      });
-    });
     return this.reads.detail(ws, leaseId);
   }
 

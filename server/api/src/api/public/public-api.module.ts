@@ -24,6 +24,9 @@ import { EbmOauthController } from './ebm/ebm-oauth.controller';
 import { GeographyController } from './geography/geography.controller';
 import { HealthController } from './health/health.controller';
 import { MeController } from './me/me.controller';
+// Rentals, the tenant's side (blueprint 2.4 and 2.5): their tenancies, accepting an invitation.
+import { MeLeaseInvitationsController, MeTenanciesController } from './me/tenancies.controller';
+import { LeaseInvitationsController } from './lease-invitations/lease-invitations.controller';
 import { MeStaysController } from './me/stays.controller';
 import { MeWorkController } from './me/work.controller';
 import { MeWorkLeaveController } from './me/work-leave.controller';
@@ -301,14 +304,19 @@ import { TrainingPublicModule } from './training/training.module';
     OpsMessageTemplatesController,
     OpsThreadsController,
     OpsTicketsController,
-    // Rentals (blueprint 2.3, WP 1.4 and 1.5a). Every route answers 404 for a
-    // business that is not a residence.
+    // Rentals (blueprint 2.3, WP 1.4, 1.5a and 1.5b). Every landlord route
+    // answers 404 for a business that is not a residence.
     OpsRentalsController,
     OpsPayoutAccountsController,
     OpsUnitsController,
     OpsBlocksController,
     OpsTenantsController,
     OpsLeasesController,
+    // The tenant's side (WP 1.5b): the public invitation preview, accepting it,
+    // and the tenant's own tenancies behind TenancyGuard.
+    LeaseInvitationsController,
+    MeLeaseInvitationsController,
+    MeTenanciesController,
     // The broker workspace's directory, reveals, placements and earnings
     // (ADR-038 child 6).
     OpsBrokerController,

@@ -109,6 +109,9 @@ describe('lease words', () => {
       'Waiting for the tenant to accept the invitation',
     );
     expect(leaseNextAction('signed')).toBe('Start the tenancy');
+    // A signed lease starts on its start date, not before.
+    expect(leaseNextAction('signed', { startDate: '2026-11-01', today: '2026-10-24' })).toBe('Start the tenancy on 1 November 2026');
+    expect(leaseNextAction('signed', { startDate: '2026-11-01', today: '2026-11-01' })).toBe('Start the tenancy');
     expect(leaseNextAction('cancelled')).toBeNull();
   });
 });

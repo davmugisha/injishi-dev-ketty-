@@ -19,8 +19,8 @@ import type { LeaseReadsService } from './lease-reads.service';
  * a signed contract names them differently); dates that meet a live lease on
  * the unit are refused in words; editing a lease out for signature voids the
  * landlord's signature, withdraws the invitation and returns it to draft; a
- * started lease cannot be edited or cancelled; and a business that is not a
- * residence is answered 404 before anything is read.
+ * signed lease cannot be edited; and a business that is not a residence is
+ * answered 404 before anything is read. Cancelling is `LeaseLifecycleService`'s.
  */
 const WS = '11111111-1111-4111-8111-111111111111';
 const ORG = '22222222-2222-4222-8222-222222222222';
@@ -321,29 +321,5 @@ describe('LeaseDraftingService.edit', () => {
   it('a lease of another business is 404', async () => {
     const h = harness({ lease: leaseRow({ workspaceId: 'someone-else' }) });
     await expect(h.service.edit(ws, USER, LEASE, { terms: { graceDays: 3 } })).rejects.toThrow('Lease not found.');
-  });
-});
-
-describe('LeaseDraftingService.cancel', () => {
-  it('cancels a lease out for signing, withdraws the invitation, tells the tenant and audits it with the reason', async () => {
-    const h = harness({ lease: leaseRow({ status: 'pending_signature' }) });
-    await h.service.cancel(ws, USER, LEASE, { reason: 'The tenant changed their mind' });
-    expect(h.calls.updateLease?.[0]?.[1]).toMatchObject({ status: 'cancelled', cancelReason: 'The tenant changed their mind' });
-    expect(h.leases.revokeLiveInvitation).toHaveBeenCalled();
-    expect(h.calls.event?.[0]?.[0]).toMatchObject({ kind: 'cancelled', visibleToTenant: true });
-    expect(h.calls.audit?.[0]?.[0]).toMatchObject({ eventType: 'lease.cancelled', reason: 'The tenant changed their mind' });
-  });
-
-  it('a draft is cancelled without the tenant seeing it', async () => {
-    const h = harness({ lease: leaseRow({ status: 'draft' }) });
-    await h.service.cancel(ws, USER, LEASE, { reason: 'Drafted by mistake' });
-    expect(h.calls.event?.[0]?.[0]).toMatchObject({ kind: 'cancelled', visibleToTenant: false });
-  });
-
-  it('a started tenancy ends with a move out, not a cancellation', async () => {
-    const h = harness({ lease: leaseRow({ status: 'active' }) });
-    await expect(h.service.cancel(ws, USER, LEASE, { reason: 'Changed my mind' })).rejects.toThrow(
-      'This lease is active. A tenancy that has started ends with a move out, not a cancellation.',
-    );
   });
 });

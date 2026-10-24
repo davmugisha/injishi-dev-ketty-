@@ -2,19 +2,34 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { PLATFORM, type Platform } from '../../shared/config/platform';
+import { isWorkerProcess } from '../../shared/process/process-role';
+import { MailerModule } from '../mailer/mailer.module';
 import { StorageModule } from '../storage/storage.module';
 import { LeaseContractService } from './application/lease-contract.service';
+import { LeaseDocumentsService } from './application/lease-documents.service';
 import { LeaseDraftingService } from './application/lease-drafting.service';
+import { LeaseInvitationsService } from './application/lease-invitations.service';
+import { LeaseLifecycleService } from './application/lease-lifecycle.service';
 import { LeaseReadsService } from './application/lease-reads.service';
+import { LeaseSigningService } from './application/lease-signing.service';
 import { PayoutAccountsService } from './application/payout-accounts.service';
 import { RentalsProfileService } from './application/rentals-profile.service';
+import { TenanciesService } from './application/tenancies.service';
 import { TenantsService } from './application/tenants.service';
 import { UnitsService } from './application/units.service';
+import { LeaseChargesRepository } from './infrastructure/lease-charges.repository';
+import { LeaseDocumentsProcessor } from './infrastructure/lease-documents.processor';
+import { LeaseDocumentsQueue } from './infrastructure/lease-documents.queue';
+import { LeaseDocumentsRepository } from './infrastructure/lease-documents.repository';
 import { LeasesRepository } from './infrastructure/leases.repository';
 import { PAYOUT_ACCOUNT_CIPHER, resolvePayoutAccountCipher } from './infrastructure/payout-account-cipher';
 import { PayoutAccountsRepository } from './infrastructure/payout-accounts.repository';
 import { RentalsContextRepository } from './infrastructure/rentals-context.repository';
 import { LeaseEventsWriter, RentalsAuditWriter } from './infrastructure/rentals-writers';
+import { RentalsMailer } from './infrastructure/rentals.mailer';
+import { SignerPasswordVerifier } from './infrastructure/signer-password';
+import { SigningRepository } from './infrastructure/signing.repository';
+import { TenanciesRepository } from './infrastructure/tenancies.repository';
 import { TenantsRepository } from './infrastructure/tenants.repository';
 import { UnitsRepository } from './infrastructure/units.repository';
 
@@ -22,19 +37,25 @@ import { UnitsRepository } from './infrastructure/units.repository';
  * Rentals: the residence side of Injishi, rebuilt (blueprint 2.2).
  *
  * The landlord's profile and setup, getting paid, units and blocks, tenants,
- * and leases from draft to cancel (WP 1.4 and 1.5a); signing, the rent cycle,
- * payments, deposits, notices, faults, taxes, guests and brokers join it in
- * later packages. Every service refuses a business that is not a residence
- * (`assertResidence`, 404) before it reads anything.
+ * and leases from draft to cancel (WP 1.4 and 1.5a); signing on both sides,
+ * the tenant's invitation, the tenant's own tenancies, the signed copy, and
+ * starting a tenancy (WP 1.5b). The rent cycle, payments, deposits, notices,
+ * faults, taxes, guests and brokers join it in later packages. Every landlord
+ * service refuses a business that is not a residence (`assertResidence`, 404)
+ * before it reads anything; the tenant's side is scoped by the tenant record
+ * the caller's account is linked to.
  *
- * `DatabaseModule` is `@Global`, so `DRIZZLE` resolves without being named.
- * Files go through `StorageModule` and nowhere else. The payout account cipher
- * is resolved once, at boot: a production platform without
- * `PAYOUT_ACCOUNT_ENCRYPTION_KEY` refuses to start. The queues the rentals jobs
- * will use are named in `domain/rentals-queues.ts`; no processor runs yet.
+ * `DatabaseModule` is `@Global`, so `DRIZZLE` resolves without being named;
+ * so is the queues module, so the LeaseDocuments queue is injected anywhere.
+ * Files go through `StorageModule` and nowhere else, mail through
+ * `MailerModule` (`RentalsMailer`, which resolves `APP_URL` at boot). The
+ * payout account cipher is resolved once, at boot: a production platform
+ * without `PAYOUT_ACCOUNT_ENCRYPTION_KEY` refuses to start. The LeaseDocuments
+ * processor runs in the worker process only; the other queues are named in
+ * `domain/rentals-queues.ts` for their packages.
  */
 @Module({
-  imports: [StorageModule],
+  imports: [StorageModule, MailerModule],
   providers: [
     {
       provide: PAYOUT_ACCOUNT_CIPHER,
@@ -53,13 +74,26 @@ import { UnitsRepository } from './infrastructure/units.repository';
     UnitsRepository,
     TenantsRepository,
     LeasesRepository,
+    SigningRepository,
+    LeaseChargesRepository,
+    LeaseDocumentsRepository,
+    TenanciesRepository,
+    RentalsMailer,
+    SignerPasswordVerifier,
+    LeaseDocumentsQueue,
     LeaseContractService,
     LeaseReadsService,
     LeaseDraftingService,
+    TenanciesService,
+    LeaseInvitationsService,
+    LeaseSigningService,
+    LeaseLifecycleService,
+    LeaseDocumentsService,
     RentalsProfileService,
     PayoutAccountsService,
     UnitsService,
     TenantsService,
+    ...(isWorkerProcess() ? [LeaseDocumentsProcessor] : []),
   ],
   exports: [
     LeaseEventsWriter,
@@ -67,6 +101,11 @@ import { UnitsRepository } from './infrastructure/units.repository';
     LeaseContractService,
     LeaseReadsService,
     LeaseDraftingService,
+    TenanciesService,
+    LeaseInvitationsService,
+    LeaseSigningService,
+    LeaseLifecycleService,
+    LeaseDocumentsService,
     RentalsProfileService,
     PayoutAccountsService,
     UnitsService,

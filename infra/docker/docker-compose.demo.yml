@@ -116,6 +116,9 @@ x-api-env: &api-env
   # Web's public origin, for a mail that links to a page on web (ADR-053). The
   # same host NEXT_PUBLIC_WEB_URL uses, so demo mail links to demo web.
   WEB_URL: https://${WEB_HOST:-www-demo.injishi.com}
+  # The app's public origin, for a mail that opens a page in the app (a lease
+  # invitation, a tenant's lease). The same host the app is served on.
+  APP_URL: https://${APP_HOST:-app-demo.injishi.com}
   LOG_LEVEL: ${LOG_LEVEL:-info}
 
 x-demo-public: &demo-public
