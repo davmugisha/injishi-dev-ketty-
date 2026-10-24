@@ -12,7 +12,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
-    "test": "node ../../scripts/no-tests.mjs"
+    "test": "node --test \"tests/*.test.ts\""
   },
   "peerDependencies": {
     "@gravity-ui/icons": "2.22.1",

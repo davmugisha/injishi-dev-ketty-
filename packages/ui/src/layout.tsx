@@ -4,7 +4,11 @@ import { type Tone, toneBg } from "./tone.ts";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
-/** Page heading block of the workspace screens (artifact: .ij-ph — eyebrow, title, subtitle, actions). */
+/**
+ * The heading block of a page: an optional eyebrow, the title, one helper line, and the page's actions
+ * (the one page-level primary action may be solid; everything else is outlined). On a phone the actions
+ * wrap under the title.
+ */
 export function PageHeader({
   eyebrow,
   title,
@@ -17,35 +21,30 @@ export function PageHeader({
   title: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
-  /** "hello" = 28px greeting (home screens), "title" = 24px page title. */
+  /** "hello" for a home screen's greeting, "title" for every other page. */
   size?: "hello" | "title";
   className?: string;
 }) {
   return (
-    <div className={cx("flex flex-wrap items-end gap-x-4 gap-y-3", className)}>
-      <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-1">
-        {eyebrow ? (
-          <p className="flex flex-wrap items-center gap-2 text-[13px] leading-[18px] font-medium text-muted">
-            {eyebrow}
-          </p>
-        ) : null}
+    <header className={cx("flex flex-wrap items-end gap-x-4 gap-y-3", className)}>
+      <div className="flex min-w-0 flex-1 basis-72 flex-col gap-1">
+        {eyebrow ? <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-muted">{eyebrow}</p> : null}
         <h1
-          className={
-            size === "hello"
-              ? "text-[28px] leading-9 font-semibold tracking-[-0.02em]"
-              : "text-2xl leading-8 font-semibold tracking-[-0.015em]"
-          }
+          className={cx(
+            "font-semibold text-balance text-foreground",
+            size === "hello" ? "text-3xl tracking-tight" : "text-2xl",
+          )}
         >
           {title}
         </h1>
-        {description ? <p className="text-sm text-muted">{description}</p> : null}
+        {description ? <p className="text-sm text-pretty text-muted">{description}</p> : null}
       </div>
       {actions ? <div className="flex min-w-0 flex-wrap items-center gap-2">{actions}</div> : null}
-    </div>
+    </header>
   );
 }
 
-/** Section heading with optional description and trailing content (artifact: .ij-section-title). */
+/** A section heading inside a page, with an optional helper line and trailing content. */
 export function SectionHeader({
   title,
   description,
@@ -62,31 +61,31 @@ export function SectionHeader({
   return (
     <div className={cx("flex flex-wrap items-end justify-between gap-2", className)}>
       <div className="flex min-w-0 flex-col gap-0.5">
-        <h2 id={id} className="text-[15px] leading-[22px] font-semibold">
+        <h2 id={id} className="text-base font-semibold">
           {title}
         </h2>
-        {description ? <p className="text-[13px] leading-[18px] text-muted">{description}</p> : null}
+        {description ? <p className="text-sm text-muted">{description}</p> : null}
       </div>
       {action}
     </div>
   );
 }
 
-/** Small round status dot (artifact: .ij-dot). Decorative; pair it with text. */
+/** Small round status dot. Decorative; pair it with text. */
 export function StatusDot({ tone, className }: { tone?: Tone | null; className?: string }) {
   return (
     <span aria-hidden="true" className={cx("inline-block size-2 shrink-0 rounded-full", toneBg(tone), className)} />
   );
 }
 
-/** Outlined status pill used in top bars and filters (artifact: .ij-gate). */
+/** Outlined status pill used in top bars and filters. */
 export function GateChip({ icon, children, className }: { icon?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <Chip
       variant="tertiary"
       size="sm"
       className={cx(
-        "h-[22px] gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap text-muted shadow-[inset_0_0_0_1px_var(--border)]",
+        "h-6 gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap text-muted inset-ring inset-ring-border",
         className,
       )}
     >
@@ -96,7 +95,7 @@ export function GateChip({ icon, children, className }: { icon?: ReactNode; chil
   );
 }
 
-/** Two-column label/value list (artifact: .ij-kv). */
+/** Two-column label and value list. Amounts in it should be `<Money>` (tabular figures). */
 export function KeyValueList({
   items,
   className,
@@ -105,28 +104,23 @@ export function KeyValueList({
   className?: string;
 }) {
   return (
-    <dl
-      className={cx(
-        "grid grid-cols-[minmax(120px,max-content)_minmax(0,1fr)] gap-x-4 gap-y-2 text-[13px] leading-5",
-        className,
-      )}
-    >
+    <dl className={cx("grid grid-cols-[max-content_minmax(0,1fr)] gap-x-6 gap-y-2 text-sm", className)}>
       {items.map((it, i) => (
         <div key={i} className="contents">
           <dt className="text-muted">{it.label}</dt>
-          <dd className="font-medium">{it.value}</dd>
+          <dd className="min-w-0 font-medium">{it.value}</dd>
         </div>
       ))}
     </dl>
   );
 }
 
-/** Workspace page content column (artifact: .ij-content). */
+/** The workspace page's content column: full width up to a comfortable maximum, padded for phones. */
 export function PageContent({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div
       className={cx(
-        "mx-auto flex w-full max-w-[1400px] min-w-0 flex-col gap-5 px-4 pt-5 pb-10 sm:px-8 sm:pt-8 sm:pb-12",
+        "mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-5 px-4 pt-5 pb-10 sm:px-8 sm:pt-8 sm:pb-12",
         className,
       )}
     >

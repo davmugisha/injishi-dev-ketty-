@@ -90,6 +90,29 @@
   --chart-3: oklch(55% 0.18 177.9);
   --chart-4: oklch(65% 0.14 177.9);
   --chart-5: oklch(75% 0.1 177.9);
+
+  /* Injishi chart roles (charts.tsx). Categories in this fixed order, checked with the dataviz
+     validator on this surface: slot 1 is the accent's teal. */
+  --chart-cat-1: oklch(58.1% 0.114 170.6);
+  --chart-cat-2: oklch(43.3% 0.167 283.6);
+  --chart-cat-3: oklch(67.1% 0.175 40.6);
+  --chart-cat-4: oklch(57.5% 0.163 255.5);
+  --chart-cat-5: oklch(76.4% 0.161 75.1);
+  --chart-cat-6: oklch(71.6% 0.141 357.4);
+  /* "Other" and reference series (what was expected): neutral greys. */
+  --chart-other: oklch(72% 0.015 177.9);
+  --chart-neutral: oklch(84% 0.016 177.9);
+  /* How overdue: one hue, mild (light) to severe (dark). */
+  --chart-age-1: oklch(74% 0.12 45);
+  --chart-age-2: oklch(64% 0.16 38);
+  --chart-age-3: oklch(54% 0.18 32);
+  --chart-age-4: oklch(43% 0.15 28);
+
+  /* Status chip text (status-chip.tsx): darker than the tint, at least 4.5:1 on it. */
+  --status-success-fg: oklch(44% 0.12 150);
+  --status-warning-fg: oklch(47% 0.11 62);
+  --status-danger-fg: oklch(49% 0.19 27);
+  --status-info-fg: oklch(42% 0.09 177.9);
 }
 
 .mouve-dark,
@@ -118,6 +141,24 @@
   --chart-3: oklch(70% 0.16 177.9);
   --chart-4: oklch(78% 0.12 177.9);
   --chart-5: oklch(85% 0.08 177.9);
+
+  --chart-cat-1: oklch(63.7% 0.124 171.6);
+  --chart-cat-2: oklch(67% 0.145 286.8);
+  --chart-cat-3: oklch(62.2% 0.173 40.1);
+  --chart-cat-4: oklch(62.2% 0.161 255.1);
+  --chart-cat-5: oklch(67% 0.143 73.2);
+  --chart-cat-6: oklch(62.2% 0.171 0.8);
+  --chart-other: oklch(50% 0.02 177.9);
+  --chart-neutral: oklch(36% 0.022 177.9);
+  --chart-age-1: oklch(80% 0.11 46);
+  --chart-age-2: oklch(70% 0.15 40);
+  --chart-age-3: oklch(60% 0.17 34);
+  --chart-age-4: oklch(50% 0.15 30);
+
+  --status-success-fg: oklch(84% 0.14 150);
+  --status-warning-fg: oklch(86% 0.12 80);
+  --status-danger-fg: oklch(80% 0.12 25);
+  --status-info-fg: oklch(84% 0.09 177.9);
 }
 
 @layer base {
@@ -200,4 +241,42 @@
 /* Tabular numbers for figures, as in the artifact (.ij-num). */
 @utility tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Charts (charts.tsx): axis ticks on the type scale with tabular figures. Unlayered, after the Pro
+   chart sheets, so it wins over their 10px ticks. */
+.ij-chart .recharts-cartesian-axis-tick-value {
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status and trend chips (status-chip.tsx, kpi.tsx): a soft tint of the tone with darker text (light)
+   or lighter text (dark), never the raw tone, so the words keep 4.5:1. */
+.chip[data-tone="success"] {
+  --chip-bg: var(--success-soft);
+  --chip-fg: var(--status-success-fg);
+}
+.chip[data-tone="warning"] {
+  --chip-bg: var(--warning-soft);
+  --chip-fg: var(--status-warning-fg);
+}
+.chip[data-tone="danger"] {
+  --chip-bg: var(--danger-soft);
+  --chip-fg: var(--status-danger-fg);
+}
+.chip[data-tone="info"] {
+  --chip-bg: var(--accent-soft);
+  --chip-fg: var(--status-info-fg);
+}
+
+/* Skeletons stop shimmering for people who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::before,
+  .skeleton::after {
+    animation: none;
+    content: none;
+  }
+  .skeleton--pulse {
+    animation: none;
+  }
 }
