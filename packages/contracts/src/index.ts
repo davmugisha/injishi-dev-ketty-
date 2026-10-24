@@ -57,4 +57,6 @@ export * from "./staff-phone";
 // Rentals, rebuilt (blueprint WP 1.1): vocabulary, Kigali dates, the lease
 // state machine, the rent schedule, allocation, the contract, tax and payouts.
 export * from "./rentals";
+// Who am I, in one call (blueprint 2.5): where a person lands.
+export * from "./me-context";
 export * from "./guests";

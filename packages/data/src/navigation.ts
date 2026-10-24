@@ -643,75 +643,18 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       ],
     },
   ],
-  residence: [
+  // The landlord's sidebar is built per person from their permissions and the business's counts
+  // (apps/app `server/rentals/nav.ts`); nothing here is fixed.
+  landlord: [],
+  tenant: [
     {
       label: null,
       items: [
         {
           id: "home",
-          label: "Residence",
+          label: "My home",
           icon: "House",
-          board: "ResidenceHome",
-        },
-      ],
-    },
-    {
-      label: "Tenancy",
-      items: [
-        {
-          id: "applicants",
-          label: "Applicants",
-          icon: "PersonPlus",
-          board: "Applicants",
-          chip: "3",
-        },
-        {
-          id: "leases",
-          label: "Leases",
-          icon: "FileText",
-          board: "Leases",
-        },
-        {
-          id: "rentroll",
-          label: "Rent roll",
-          icon: "Wallet",
-          board: "RentRoll",
-          chip: "3",
-          alert: true,
-        },
-        {
-          id: "moveouts",
-          label: "Move-outs",
-          icon: "ArrowRightFromSquare",
-          board: "MoveOuts",
-        },
-      ],
-    },
-    {
-      label: "Service",
-      items: [
-        {
-          id: "service",
-          label: "Maintenance & visitors",
-          icon: "Wrench",
-          board: "ResidenceService",
-        },
-        {
-          id: "messages",
-          label: "Messages",
-          icon: "Comments",
-          board: "Messages",
-        },
-      ],
-    },
-    {
-      label: "Business",
-      items: [
-        {
-          id: "settings",
-          label: "Settings",
-          icon: "Gear",
-          board: "SettingsBusiness",
+          board: "TenantHome",
         },
       ],
     },
@@ -904,6 +847,23 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       ],
     },
     {
+      label: "Government",
+      items: [
+        {
+          id: "leaders",
+          label: "Leaders and officers",
+          icon: "Persons",
+          board: "AdminLeaders",
+        },
+        {
+          id: "coverage",
+          label: "Coverage",
+          icon: "MapPin",
+          board: "AdminCoverage",
+        },
+      ],
+    },
+    {
       label: "Oversight",
       items: [
         {
@@ -990,28 +950,6 @@ export const tabbars: Record<PhoneAppId, PhoneTab[]> = {
       board: "StaffMe",
       icon: "Person",
       label: "Me",
-    },
-  ],
-  resident: [
-    {
-      board: "TenantHome",
-      icon: "House",
-      label: "Home",
-    },
-    {
-      board: "TenantPay",
-      icon: "Wallet",
-      label: "Pay",
-    },
-    {
-      board: "TenantRequests",
-      icon: "Wrench",
-      label: "Requests",
-    },
-    {
-      board: "TenantLease",
-      icon: "FileText",
-      label: "Lease",
     },
   ],
   guest: [

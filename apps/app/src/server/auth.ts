@@ -9,7 +9,16 @@
  * the person is signed in on web and here at once.
  */
 
-import { DEMO_OTP, type Persona, type PersonaId, personaByEmail, personas } from "@injishi/data";
+import { landlordBusiness, type MeContext, type MeContextBusiness } from "@injishi/contracts";
+import {
+  type BoardId,
+  DEMO_OTP,
+  type Persona,
+  type PersonaId,
+  personaByEmail,
+  personas,
+  type WorkspaceContext,
+} from "@injishi/data";
 import { ApiError, apiBaseUrl, apiOrigin, apiRequest, clientIpHeaders, type SessionCookie } from "./api";
 import { authCookiesFrom, cookieHeaderFor, type ForwardedCookie } from "./session-cookies";
 
@@ -165,6 +174,12 @@ export interface Workspace {
 export interface Account {
   user: ApiUser;
   workspaces: Workspace[];
+  /**
+   * Who this person is across the product (`GET /me/context`): their businesses, the homes they rent,
+   * leader or officer seats, broker record, staff roles, and where they land. Null only when the API
+   * predates the route.
+   */
+  context: MeContext | null;
   persona: Persona;
   /**
    * The emailed step-up (F-S02). An email-code session is stepped up when it opens; a Google session is
@@ -251,29 +266,121 @@ export async function accountFor(cookie: SessionCookie): Promise<Account | null>
     throw error;
   }
   if (!session?.user) return null;
-  const { workspaces, twoFactor } = await apiRequest<{
-    workspaces: Workspace[];
-    twoFactor?: { required?: boolean; verified?: boolean };
-  }>(cookie, "/api/v1/me/workspaces");
-  const shell = await personaFor(cookie, session.user, workspaces);
+  const [{ workspaces, twoFactor }, context] = await Promise.all([
+    apiRequest<{
+      workspaces: Workspace[];
+      twoFactor?: { required?: boolean; verified?: boolean };
+    }>(cookie, "/api/v1/me/workspaces"),
+    meContext(cookie),
+  ]);
+  const shell = await personaFor(cookie, session.user, workspaces, context);
   return {
     user: session.user,
     workspaces,
-    persona: asPerson(shell, session.user),
+    context,
+    persona: asPerson(shell, session.user, workspaces, context),
     twoFactor: { required: twoFactor?.required === true, verified: twoFactor?.verified === true },
   };
 }
 
+/** `GET /me/context`, or null from an API that does not have it yet (a 404). Other failures throw. */
+async function meContext(cookie: SessionCookie): Promise<MeContext | null> {
+  try {
+    return await apiRequest<MeContext>(cookie, "/api/v1/me/context");
+  } catch (error) {
+    if (error instanceof ApiError && error.notFound) return null;
+    throw error;
+  }
+}
+
 /**
  * A demo persona is the person it describes. Anyone else borrows a shell (home, navigation) but keeps
- * their own name and email, so a real owner never sees "Didier Mugenzi" on their own workspace.
+ * their own name and email, so a real owner never sees "Didier Mugenzi" on their own workspace. A
+ * landlord's switcher is their own businesses, read from the API, never the shell's.
  */
-function asPerson(shell: Persona, user: ApiUser): Persona {
-  if (shell.email === user.email.toLowerCase()) return shell;
+function asPerson(shell: Persona, user: ApiUser, workspaces: Workspace[], context: MeContext | null): Persona {
+  if (shell.email && shell.email === user.email.toLowerCase()) return shell;
   const name = user.name?.trim() || user.email.split("@")[0];
   const parts = name.split(/\s+/).filter(Boolean);
+  const person = { ...shell, name, firstName: parts[0] ?? name, initials: initialsOf(name), email: user.email };
+  if (shell.id !== "landlord" || !context) return person;
+  const business = landlordBusiness(context.businesses, context.activeWorkspaceId);
+  if (!business) return person;
+  const role = ROLE_LABEL[business.role ?? ""] ?? "Member";
+  return { ...person, role, workspace: landlordSwitcher(business, workspaces, context) };
+}
+
+function initialsOf(name: string): string {
+  const parts = name.split(/\s+/).filter(Boolean);
   const initials = ((parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts.at(-1)?.[0] ?? "") : "")).toUpperCase();
-  return { ...shell, name, firstName: parts[0] ?? name, initials: initials || "?", email: user.email };
+  return initials || "?";
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  owner: "Owner",
+  manager: "Manager",
+  receptionist: "Front desk",
+  finance: "Finance",
+  hr: "HR",
+  housekeeper: "Housekeeping",
+};
+
+const ROLE_PHRASE: Record<string, string> = {
+  owner: "You\u2019re the owner here.",
+  manager: "You\u2019re a manager here.",
+  finance: "You look after the money here.",
+};
+
+/** Where another business of this person opens: a residence business on its home, a hotel on the role's. */
+function homeBoardOf(business: MeContextBusiness): BoardId {
+  if (business.domain === "residence") return "ResidenceHome";
+  const persona = ROLE_PERSONA[business.role ?? ""];
+  return persona ? personas[persona].home : "OwnerHome";
+}
+
+/**
+ * The landlord's business switcher, from real records: the business in view with its buildings, the
+ * person's other businesses (each switched to with `POST /me/active-workspace`), and their own home
+ * when they rent one too.
+ */
+function landlordSwitcher(business: MeContextBusiness, workspaces: Workspace[], context: MeContext): WorkspaceContext {
+  const grant = workspaces.find((w) => w.workspaceId === business.workspaceId);
+  const buildings = (grant?.branches ?? []).filter(
+    (b): b is { propertyId: string; name: string } => typeof b === "object" && b !== null && "propertyId" in b,
+  );
+  const branches = buildings.map((b) => ({ id: b.propertyId, name: b.name, meta: "" }));
+  const all =
+    branches.length > 1
+      ? [{ id: "all", name: "All buildings", meta: `${branches.length} buildings` }, ...branches]
+      : branches;
+  const others: WorkspaceContext["others"] = context.businesses
+    .filter((b) => b.workspaceId !== business.workspaceId && b.role !== null)
+    .map((b) => ({
+      ini: initialsOf(b.orgName),
+      name: b.orgName,
+      meta: `${b.domain === "residence" ? "Rentals" : "Hospitality"} · ${ROLE_LABEL[b.role ?? ""] ?? "Member"}${
+        b.operational ? "" : " · in review"
+      }`,
+      board: homeBoardOf(b),
+      workspaceId: b.workspaceId,
+    }));
+  if (context.tenancies.length > 0) {
+    others.push({ ini: "MH", name: "My home", meta: "The homes you rent", board: "TenantHome" });
+  }
+  const role = ROLE_LABEL[business.role ?? ""] ?? "Member";
+  return {
+    kind: "business",
+    ini: initialsOf(business.orgName),
+    name: business.orgName,
+    meta: `Rentals · ${buildings.length === 1 ? "1 building" : `${buildings.length} buildings`}`,
+    role,
+    rolePhrase: ROLE_PHRASE[business.role ?? ""] ?? `You\u2019re a member here as ${role.toLowerCase()}.`,
+    branches: all.length > 0 ? all : [{ id: business.workspaceId, name: business.orgName, meta: "" }],
+    currentBranch: all[0]?.id ?? business.workspaceId,
+    canManage: false,
+    others,
+    invite: null,
+  };
 }
 
 const ROLE_PERSONA: Record<string, PersonaId> = {
@@ -287,21 +394,34 @@ const ROLE_PERSONA: Record<string, PersonaId> = {
 
 /**
  * Which interface shell a person gets. A demo persona is matched by email (its story, home and
- * navigation are written for it); anyone else gets the shell of their strongest real grant, so a
- * real business owner signing in lands on the owner workspace of their own business.
+ * navigation are written for it); anyone else gets the shell of where they land (`/me/context`, from
+ * real records): a running residence business is the landlord's; a hotel is the shell of the
+ * person's role there; a tenancy is the tenant's home; then platform staff, an officer or leader, and
+ * otherwise the guest side. A residence business still in review opens nothing yet.
  */
-async function personaFor(cookie: SessionCookie, user: ApiUser, workspaces: Workspace[]): Promise<Persona> {
+async function personaFor(
+  cookie: SessionCookie,
+  user: ApiUser,
+  workspaces: Workspace[],
+  context: MeContext | null,
+): Promise<Persona> {
   const demo = personaByEmail(user.email);
   if (demo) return demo;
-  const business = workspaces.filter((w) => w.kind === "business" && w.orgRole);
+  const landing = context?.landing;
+  if (landing?.surface === "landlord") return personas.landlord;
+  if (landing?.surface === "business") {
+    const chosen = workspaces.find((w) => w.workspaceId === landing.workspaceId);
+    if (chosen?.orgRole && ROLE_PERSONA[chosen.orgRole]) return personas[ROLE_PERSONA[chosen.orgRole]];
+  }
+  const business = workspaces.filter((w) => w.kind === "business" && w.orgRole && w.domain !== "residence");
   const order = ["owner", "manager", "finance", "hr", "receptionist", "housekeeper"];
   business.sort((a, b) => order.indexOf(a.orgRole ?? "") - order.indexOf(b.orgRole ?? ""));
   const top = business[0];
   if (top?.domain === "broker") return personas.broker;
-  if (top?.domain === "residence" && (top.orgRole === "owner" || top.orgRole === "manager")) return personas.residence;
   if (top?.orgRole && ROLE_PERSONA[top.orgRole]) return personas[ROLE_PERSONA[top.orgRole]];
-  if (await holds(cookie, "/api/v1/me/staff")) return personas.ops;
-  if (await holds(cookie, "/api/v1/me/oversight")) return personas.officer;
+  if (landing?.surface === "tenant") return personas.tenant;
+  if (context ? context.staff.isStaff : await holds(cookie, "/api/v1/me/staff")) return personas.ops;
+  if (context ? context.oversight.length > 0 : await holds(cookie, "/api/v1/me/oversight")) return personas.officer;
   return personas.guest;
 }
 
@@ -324,11 +444,20 @@ async function holds(cookie: SessionCookie, path: string): Promise<boolean> {
   }
 }
 
-/** The business workspace a persona's screens act in, by org domain (owner Didier holds two). */
+/**
+ * The business workspace a persona's screens act in, by org domain (owner Didier holds two). A
+ * landlord acts in the residence business the session chose (the business switcher), else the first
+ * running one.
+ */
 export function workspaceFor(
-  account: Pick<Account, "workspaces">,
+  account: Pick<Account, "workspaces"> & Partial<Pick<Account, "context">>,
   domain: "hospitality" | "residence" | "broker" = "hospitality",
 ): Workspace | null {
   const business = account.workspaces.filter((w) => w.kind === "business");
+  if (domain === "residence" && account.context) {
+    const chosen = landlordBusiness(account.context.businesses, account.context.activeWorkspaceId);
+    const grant = chosen && business.find((w) => w.workspaceId === chosen.workspaceId);
+    if (grant) return grant;
+  }
   return business.find((w) => w.domain === domain) ?? business[0] ?? null;
 }

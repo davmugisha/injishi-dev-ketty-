@@ -481,12 +481,12 @@ const hostFeatures: HostFeature[] = [
     board: "Listing",
   },
   {
-    id: "residence-applicants",
+    id: "residence-units",
     kind: "residence",
-    icon: "PersonPlus",
-    title: "Applicants",
-    desc: "Applications, documents and viewing notes in one queue.",
-    board: "Applicants",
+    icon: "FolderHouse",
+    title: "Units",
+    desc: "Every unit with its photos, video tour, rent and tenant.",
+    board: "Units",
   },
   {
     id: "residence-leases",
@@ -494,7 +494,7 @@ const hostFeatures: HostFeature[] = [
     icon: "FileText",
     title: "Leases",
     desc: "Lease terms, signatures, renewals and notices.",
-    board: "Leases",
+    board: "ResidenceHome",
   },
   {
     id: "residence-rent-roll",
@@ -502,7 +502,7 @@ const hostFeatures: HostFeature[] = [
     icon: "Wallet",
     title: "Rent roll",
     desc: "Monthly rent, partial payments and arrears by unit.",
-    board: "RentRoll",
+    board: "ResidenceHome",
   },
   {
     id: "residence-move-outs",
@@ -510,7 +510,7 @@ const hostFeatures: HostFeature[] = [
     icon: "ArrowRightFromSquare",
     title: "Deposits and move-outs",
     desc: "Deposits held as liabilities and settled with evidence.",
-    board: "MoveOuts",
+    board: "ResidenceHome",
   },
   {
     id: "residence-app",
@@ -526,7 +526,7 @@ const hostFeatures: HostFeature[] = [
     icon: "Persons",
     title: "Service and visitors",
     desc: "Maintenance and visitor access for each unit.",
-    board: "ResidenceService",
+    board: "ResidenceHome",
   },
   {
     id: "outlet-pos",
@@ -831,7 +831,7 @@ const helpGuides: HelpGuide[] = [
     title: "Pay rent from the resident app",
     length: "2 min read",
     updated: "19 Sep",
-    board: "TenantPay",
+    board: "TenantHome",
   },
 ];
 

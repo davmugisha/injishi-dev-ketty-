@@ -32,7 +32,16 @@ export interface WorkspaceContext {
   branches: Branch[];
   currentBranch: string;
   canManage?: boolean;
-  others: { ini: string; name: string; meta: string; count?: string; countLabel?: string; board: BoardId }[];
+  others: {
+    ini: string;
+    name: string;
+    meta: string;
+    count?: string;
+    countLabel?: string;
+    board: BoardId;
+    /** A real business: choosing it switches the session's workspace (`POST /me/active-workspace`) first. */
+    workspaceId?: string;
+  }[];
   invite: { ini: string; name: string; role: string; board: BoardId } | null;
   /** Institution workspaces show a fixed header instead of the business switcher. */
   sub?: string;
@@ -325,41 +334,29 @@ export const personas: Record<PersonaId, Persona> = {
       invite: null,
     }),
   },
-  residence: {
-    id: "residence",
-    name: "Solange Uwimana",
-    firstName: "Solange",
-    initials: "SU",
-    email: "solange@app.demo.injishi.com",
-    phone: "+250 788 773 640",
-    role: "Residence manager",
-    tagline: "Solange Uwimana · residence mode",
-    headline: "Residence manager at Kacyiru Court Residences",
-    org: "Amahoro Residences Ltd",
+  // A real landlord: anyone who is an active member of an approved residence business. Not a demo
+  // person (no email matches it): the shell takes the account's own name, and the business, its
+  // buildings and the navigation come from the API (`/me/context`, `/ops/rentals/summary`).
+  landlord: {
+    id: "landlord",
+    name: "Landlord",
+    firstName: "",
+    initials: "",
+    email: "",
+    phone: "",
+    role: "Landlord",
+    tagline: "Landlord",
+    headline: "Landlord",
+    org: "",
     group: "operator",
-    status: { label: "Residence mode", tone: "default" },
-    device: { label: "Desktop", icon: "Display" },
-    lands: "Vacancy, arrears, rent due and notices. Leases and deposits, never hotel stays.",
+    status: { label: "Landlord", tone: "default" },
+    device: { label: "Desktop and phone", icon: "Display" },
+    lands: "Units, tenants, rent and what needs you.",
     home: "ResidenceHome",
     app: { kind: "workspace" },
-    avatarTone: "default",
-    tryItems: [
-      { label: "Leases", board: "Leases", note: "Leases, renewals and their filings." },
-      { label: "Rent roll", board: "RentRoll", note: "Rent due, collected and in arrears, unit by unit." },
-      { label: "Move-outs", board: "MoveOuts", note: "Inspections and caution deposits." },
-    ],
-    workspace: {
-      kind: "business",
-      ini: "AR",
-      name: "Amahoro Residences Ltd",
-      meta: "Residence · 1 property · TIN 102 345 990",
-      role: "Residence manager",
-      rolePhrase: "You’re the residence manager here.",
-      branches: [{ id: "kc", name: "Kacyiru Court Residences", meta: "24 units" }],
-      currentBranch: "kc",
-      others: [],
-      invite: null,
-    },
+    avatarTone: "accent",
+    tryItems: [],
+    access: ["BusinessSwitcher", "Account", "TenantHome", "TeamRoles"],
   },
   housekeeper: {
     id: "housekeeper",
@@ -511,28 +508,28 @@ export const personas: Record<PersonaId, Persona> = {
     ],
     access: ["GuestAccount", "MarketCheckout"],
   },
-  resident: {
-    id: "resident",
-    name: "Olivier Habineza",
-    firstName: "Olivier",
-    initials: "OH",
-    email: "olivier@app.demo.injishi.com",
-    phone: "+250 788 439 856",
-    role: "Resident",
-    tagline: "Olivier Habineza · tenant",
-    headline: "Resident at Kacyiru Court Residences",
-    org: "Kacyiru Court Residences",
+  // A real tenant: someone a landlord's lease names (through the tenant record their account is linked
+  // to) once it is out of draft. Not a demo person; the homes come from `/me/context`.
+  tenant: {
+    id: "tenant",
+    name: "Tenant",
+    firstName: "",
+    initials: "",
+    email: "",
+    phone: "",
+    role: "Tenant",
+    tagline: "Tenant",
+    headline: "Tenant",
+    org: "",
     group: "guests",
-    status: { label: "Resident portal", tone: "default" },
-    device: { label: "Phone", icon: "Smartphone" },
-    lands: "Rent due and receipts, deposit held, maintenance requests, visitors and lease documents.",
+    status: { label: "My home", tone: "default" },
+    device: { label: "Phone and desktop", icon: "Smartphone" },
+    lands: "The homes you rent.",
     home: "TenantHome",
-    app: { kind: "phone", app: "resident" },
+    app: { kind: "workspace" },
     avatarTone: "success",
-    tryItems: [
-      { label: "Pay rent", board: "TenantPay", note: "Pay rent by mobile money and get the receipt." },
-      { label: "My lease", board: "TenantLease", note: "Lease terms, documents and the deposit held." },
-    ],
+    tryItems: [],
+    access: ["Account"],
   },
   broker: {
     id: "broker",
@@ -753,5 +750,7 @@ export const OPEN_ENTRIES: {
 
 export function personaByEmail(email: string): Persona | undefined {
   const e = email.trim().toLowerCase();
+  // The landlord and tenant shells have no demo person (no email): nothing matches them.
+  if (!e) return undefined;
   return Object.values(personas).find((p) => p.email === e);
 }

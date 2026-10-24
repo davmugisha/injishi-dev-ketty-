@@ -17,6 +17,7 @@
     "@heroui/react": "3.2.6",
     "@heroui/styles": "3.2.6",
     "@injishi/auth": "workspace:*",
+    "@injishi/contracts": "workspace:*",
     "@injishi/data": "workspace:*",
     "@injishi/db": "workspace:*",
     "@injishi/ui": "workspace:*",

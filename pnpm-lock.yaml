@@ -140,6 +140,9 @@ importers:
       '@injishi/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@injishi/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@injishi/data':
         specifier: workspace:*
         version: link:../../packages/data

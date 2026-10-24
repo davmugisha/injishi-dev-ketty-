@@ -43,7 +43,7 @@ const BUSINESS_STAFF: readonly PersonaId[] = [
   "finance",
   "hr",
   "store",
-  "residence",
+  "landlord",
   "outlet",
   "waiter",
   "housekeeper",

@@ -7,6 +7,7 @@ import { canAccess, type Persona, screenHref, type WorkspaceContext } from "@inj
 import { LinkButton, TextLink } from "@injishi/ui";
 import NextLink from "next/link";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { switchBusiness } from "@/lib/workspace-actions";
 import { useWorkspaceStore } from "@/lib/workspace-store";
 
 function Tile({
@@ -43,6 +44,22 @@ function Row({ children, href, className }: { children: ReactNode; href?: string
     </NextLink>
   ) : (
     <div className={cls}>{children}</div>
+  );
+}
+
+/** A row that opens another real business: the session switches to it first, then its home opens. */
+function SwitchRow({ workspaceId, href, children }: { workspaceId: string; href: string; children: ReactNode }) {
+  return (
+    <form action={switchBusiness}>
+      <input type="hidden" name="workspaceId" value={workspaceId} />
+      <input type="hidden" name="next" value={href} />
+      <button
+        type="submit"
+        className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-[14px] px-2.5 py-1.5 text-left text-sm text-foreground hover:bg-default"
+      >
+        {children}
+      </button>
+    </form>
   );
 }
 
@@ -172,21 +189,32 @@ export function SwitcherPanel({
         {showOthers ? (
           <section className="border-t border-separator px-2 py-2.5" aria-labelledby="bs-others">
             <SectionLabel id="bs-others">Your Other Businesses</SectionLabel>
-            {others.map((o) => (
-              <Row key={o.name} href={screenHref(o.board)}>
-                <Tile ini={o.ini} variant="outline" />
-                <span className="flex min-w-0 flex-1 flex-col" onClickCapture={onNavigate}>
-                  <span className="truncate font-semibold">{o.name}</span>
-                  <span className="truncate text-xs text-muted">{o.meta}</span>
-                </span>
-                {o.count ? (
-                  <Chip size="sm" color="warning" variant="soft" aria-label={o.countLabel}>
-                    {o.count}
-                  </Chip>
-                ) : null}
-                <ChevronRight className="size-4 text-muted" aria-hidden="true" />
-              </Row>
-            ))}
+            {others.map((o) => {
+              const body = (
+                <>
+                  <Tile ini={o.ini} variant="outline" />
+                  <span className="flex min-w-0 flex-1 flex-col" onClickCapture={onNavigate}>
+                    <span className="truncate font-semibold">{o.name}</span>
+                    <span className="truncate text-xs text-muted">{o.meta}</span>
+                  </span>
+                  {o.count ? (
+                    <Chip size="sm" color="warning" variant="soft" aria-label={o.countLabel}>
+                      {o.count}
+                    </Chip>
+                  ) : null}
+                  <ChevronRight className="size-4 text-muted" aria-hidden="true" />
+                </>
+              );
+              return o.workspaceId ? (
+                <SwitchRow key={o.workspaceId} workspaceId={o.workspaceId} href={screenHref(o.board)}>
+                  {body}
+                </SwitchRow>
+              ) : (
+                <Row key={o.name} href={screenHref(o.board)}>
+                  {body}
+                </Row>
+              );
+            })}
             {showInvite && ctx.invite ? (
               accepted ? (
                 <Row href={screenHref(ctx.invite.board)}>
@@ -299,7 +327,8 @@ export function BusinessSwitcher({
 
   const isAll = current?.id === "all";
   const title = isAll ? ctx.name : (current?.name ?? ctx.name);
-  const sub = `${isAll ? "All branches" : ctx.name} · ${ctx.role}`;
+  // A business with one branch of its own name says the role alone, not the name twice.
+  const sub = !isAll && title === ctx.name ? ctx.role : `${isAll ? "All branches" : ctx.name} · ${ctx.role}`;
   const trigger = (props: { onPress?: () => void; expanded?: boolean }) => (
     <Button
       variant="secondary"

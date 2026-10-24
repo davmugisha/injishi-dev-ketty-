@@ -25,6 +25,8 @@ import { GeographyController } from './geography/geography.controller';
 import { GuestsPublicModule } from './guests/guests-public.module';
 import { HealthController } from './health/health.controller';
 import { MeController } from './me/me.controller';
+// Who am I, in one call (blueprint 2.5).
+import { MeContextController } from './me/context.controller';
 // Rentals, the tenant's side (blueprint 2.4 and 2.5): their tenancies, accepting an invitation.
 import { MeLeaseInvitationsController, MeTenanciesController } from './me/tenancies.controller';
 import { LeaseInvitationsController } from './lease-invitations/lease-invitations.controller';
@@ -331,6 +333,7 @@ import { TrainingPublicModule } from './training/training.module';
     EbmOauthController,
     OversightController,
     MeController,
+    MeContextController,
     /*
      * §6.8. The in-house guest's own surface: claim the stay a desk typed,
      * message a department, ask for money back, take an offer. Session guarded
