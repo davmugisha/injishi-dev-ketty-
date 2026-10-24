@@ -23,6 +23,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { apiEnvFile } from './env-file.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const arg = (name, fallback) => {
@@ -332,7 +333,7 @@ await section('personas', async () => {
 // --- Money integrity, straight from the database
 if (WITH_DB) {
   console.log('\n# integrity');
-  const envPath = path.join(HERE, '..', '.env');
+  const envPath = apiEnvFile() ?? path.join(HERE, '..', '.env');
   let url = process.env.DATABASE_URL;
   if (!url && existsSync(envPath)) url = readFileSync(envPath, 'utf8').match(/^DATABASE_URL=(.*)$/m)?.[1]?.trim();
   const { default: pg } = await import('pg');

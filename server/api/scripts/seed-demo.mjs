@@ -51,9 +51,11 @@ import pg from 'pg';
 
 import { assertSampleDatabase } from './sample-database.mjs';
 import { syntheticCoordFor } from './synthetic-coords.mjs';
+import { apiEnvFile } from './env-file.mjs';
 
 /**
- * Load `server/api/.env` when the variables are not already set.
+ * Load the env file (`env-file.mjs`: `.env.test` unless APP_ENV names another)
+ * when the variables are not already set.
  *
  * The script is run directly with `node`, which does not read a `.env`, and the
  * URL it needs carries characters a shell eats if you try to source the file
@@ -61,7 +63,7 @@ import { syntheticCoordFor } from './synthetic-coords.mjs';
  * unaffected — this only fills in what a local run has not been given.
  */
 function loadDotEnv() {
-  const file = path.join(process.cwd(), '.env');
+  const file = apiEnvFile() ?? path.join(process.cwd(), '.env');
   if (!fs.existsSync(file)) return;
   for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
     const match = /^([A-Za-z0-9_]+)=(.*)$/.exec(line.trim());

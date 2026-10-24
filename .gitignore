@@ -90,9 +90,15 @@ apps/mobile/dist-*/
 
 # ── Secrets ──────────────────────────────────────────────────────────────────
 # HeroUI Pro tokens live only in .env.local (or a CI secret), never in .npmrc.
+# Env files (2026-10-24, root .env.example): everything with a secret stays out
+# of git. Committed are the examples, the local test stack's file (made-up
+# local values), and the apps' development files (local addresses only).
 .env
 .env.*
 !.env.example
+!.env.*.example
+!server/api/.env.test
+!apps/*/.env.development
 .npmrc.local
 
 # ── Logs / coverage / test output ────────────────────────────────────────────

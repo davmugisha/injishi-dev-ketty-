@@ -36,6 +36,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import nodemailer from 'nodemailer';
 import pg from 'pg';
+import { apiEnvFile } from './env-file.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -44,7 +45,7 @@ const DEFAULT_MAIL_FROM = 'Injishi <no-reply@injishi.com>';
 /** A value from the environment, else from server/api/.env, else undefined. */
 function setting(name) {
   if (process.env[name] !== undefined) return process.env[name];
-  const envFile = path.join(here, '..', '.env');
+  const envFile = apiEnvFile() ?? path.join(here, '..', '.env');
   if (!existsSync(envFile)) return undefined;
   const line = readFileSync(envFile, 'utf8')
     .split(/\r?\n/)

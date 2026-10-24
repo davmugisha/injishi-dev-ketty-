@@ -385,6 +385,9 @@ function startApp(app, ctx, width) {
   // input", and that app never starts. ensureInstalled() already checked.
   delete env.pnpm_config_verify_deps_before_run;
   delete env.npm_config_verify_deps_before_run;
+  // `dev:all` brings up the LOCAL stack, so the API and worker read .env.test
+  // (2026-10-24), the file that stack is configured from, not .env.development.
+  if (app.needsStack) env.APP_ENV = 'test';
   if (app.name === 'mobile' && ctx.lan) {
     env.EXPO_PUBLIC_API_URL = `http://${ctx.lan.address}:${ctx.apiPort}`;
     env.REACT_NATIVE_PACKAGER_HOSTNAME = ctx.lan.address;

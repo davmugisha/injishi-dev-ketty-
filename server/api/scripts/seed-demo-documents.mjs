@@ -42,6 +42,7 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 import { assertSampleDatabase } from './sample-database.mjs';
+import { apiEnvFile } from './env-file.mjs';
 
 const CHECK_ONLY = process.argv.includes('--check');
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -58,7 +59,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
  */
 function setting(name) {
   if (process.env[name] !== undefined) return process.env[name];
-  const envFile = path.join(here, '..', '.env');
+  const envFile = apiEnvFile() ?? path.join(here, '..', '.env');
   if (!fs.existsSync(envFile)) return undefined;
   const line = readEnvLines(envFile).find((l) => l.startsWith(`${name}=`));
   return line ? line.slice(name.length + 1).trim() : undefined;

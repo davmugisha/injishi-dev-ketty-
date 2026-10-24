@@ -67,9 +67,10 @@ import {
 } from './contract-filings.mjs';
 import { rentHistory } from './rent-history.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
+import { apiEnvFile } from './env-file.mjs';
 
 function loadDotEnv() {
-  const file = path.join(process.cwd(), '.env');
+  const file = apiEnvFile() ?? path.join(process.cwd(), '.env');
   if (!fs.existsSync(file)) return;
   for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
     const match = /^([A-Za-z0-9_]+)=(.*)$/.exec(line.trim());

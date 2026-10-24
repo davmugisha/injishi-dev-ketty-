@@ -6,9 +6,11 @@
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
+    "dev:test": "cross-env APP_ENV=test nest start --watch",
     "start": "node dist/main.js",
     "worker": "node dist/main.js --worker",
     "worker:dev": "cross-env INJISHI_PROCESS=worker nest start --watch --config nest-cli.worker.json",
+    "worker:dev:test": "cross-env APP_ENV=test INJISHI_PROCESS=worker nest start --watch --config nest-cli.worker.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest && node --test \"scripts/*.test.mjs\"",

@@ -163,15 +163,25 @@ function parsePort(raw, name, envRel) {
   return port;
 }
 
+/**
+ * The local stack is the TEST environment (2026-10-24): `.env.test`, the same
+ * file `APP_ENV=test` gives the API and that scripts read by default. The
+ * development file points at the hosted dev services, which this script must
+ * never migrate or seed. A checkout that still has only the old single `.env`
+ * keeps working on it.
+ */
+export const STACK_ENV_FILE = '.env.test';
+
 export function readApiEnv(apiDir, apiRel) {
-  const envFile = path.join(apiDir, '.env');
-  const envRel = `${apiRel}/.env`;
+  const own = path.join(apiDir, STACK_ENV_FILE);
+  const legacy = path.join(apiDir, '.env');
+  const envFile = existsSync(own) || !existsSync(legacy) ? own : legacy;
+  const envRel = `${apiRel}/${path.basename(envFile)}`;
   if (!existsSync(envFile)) {
     throw new StackError(
       `${envRel} does not exist.\n` +
-        `Create it from the template (from injishi/), then run this again:\n` +
-        `  copy ${apiRel.replace(/\//g, '\\')}\\.env.example ${apiRel.replace(/\//g, '\\')}\\.env     (PowerShell/cmd)\n` +
-        `  cp ${apiRel}/.env.example ${apiRel}/.env       (bash)`,
+        `It is committed with the repo; restore it, then run this again:\n` +
+        `  git checkout -- ${apiRel}/${STACK_ENV_FILE}`,
     );
   }
   const { values: env, seen } = parseDotEnv(envFile);
@@ -495,8 +505,8 @@ export function warnAboutEnv(cfg) {
   const shellDb = process.env.DATABASE_URL?.trim();
   if (shellDb && shellDb !== cfg.db.url) {
     warnings.push(
-      'DATABASE_URL is also set in this shell, to a different value. `pnpm api:dev` gives the\n' +
-        '  shell precedence over .env, so it would serve THAT database, not this stack. Unset it\n' +
+      'DATABASE_URL is also set in this shell, to a different value. `pnpm api:dev:test` gives\n' +
+        '  the shell precedence over .env.test, so it would serve THAT database, not this stack. Unset it\n' +
         '  in the terminal you start the API from.',
     );
   }
@@ -508,7 +518,7 @@ export function warnAboutEnv(cfg) {
     );
   }
   if (cfg.redis.hasPassword) {
-    warnings.push('Your .env gives Redis a password; the dev stack Redis has none.');
+    warnings.push(`${cfg.envRel} gives Redis a password; the dev stack Redis has none.`);
   }
   if (isProductionProcess(cfg)) {
     warnings.push(
@@ -518,6 +528,11 @@ export function warnAboutEnv(cfg) {
     );
   }
   for (const w of warnings) console.warn(`\nWARNING: ${w}`);
+}
+
+/** Storage goes through S3 (MinIO locally) unless the env file says `local`. */
+export function usesMinio(cfg) {
+  return (cfg.env.STORAGE_ADAPTER_MODE?.trim().toLowerCase() || 'live') !== 'local';
 }
 
 /**
@@ -543,7 +558,8 @@ Dev stack is up, migrated, marked sample and seeded.
 
 Start every app in this one terminal (mobile included) with:  pnpm dev:all
 Or start what you need, each in its own terminal, from injishi/:
-  pnpm api:dev                        API       http://localhost:${apiPort}  (health: /api/v1/health)
+  pnpm api:dev:test                   API on THIS stack  http://localhost:${apiPort}  (health: /api/v1/health)
+                                      (\`pnpm api:dev\` is the hosted dev services, .env.development)
   pnpm web:dev                        web       http://localhost:3000
   pnpm app:dev                        operator  http://localhost:3002
   pnpm --filter @injishi/admin dev    admin     http://localhost:3001
@@ -552,8 +568,7 @@ Or start what you need, each in its own terminal, from injishi/:
                                       It builds into dist-worker/, so it runs beside api:dev.
 
   Mailpit   http://localhost:8025     every mail the API sends
-  MinIO     http://localhost:9001     object storage console
-
+${usesMinio(cfg) ? '  MinIO     http://localhost:9001     object storage console\n' : '  Storage   on disk (STORAGE_ADAPTER_MODE=local), no MinIO\n'}
 Sign in at http://localhost:3000/sign-in with a seeded account, or pick one of
 the demo personas listed there (*@demo.injishi.com):
   host@injishi.com      owner of the seeded hotel (operator app)
@@ -565,7 +580,7 @@ ${
     ? '  Code: 123456. The API runs as the demo (INJISHI_ENVIRONMENT unset), and every\n' +
       '  code also lands in Mailpit at http://localhost:8025.'
     : '  Code: random, since the API runs as production. Read it in Mailpit at\n' +
-      '  http://localhost:8025, or in the `pnpm api:dev` log when OTP_DEBUG_LOG=true.'
+      '  http://localhost:8025, or in the `pnpm api:dev:test` log when OTP_DEBUG_LOG=true.'
 }`);
 }
 
@@ -589,12 +604,12 @@ export async function up(api, cfg, { reset = false, seed = 'always', summary = t
   // in Mailpit, and `.env.example` points SMTP_URL and live storage at them,
   // but only db and redis were started: every mail then failed, a queued one
   // retried into the failed set, and uploads refused.
-  console.log('\n→ Starting Postgres, Redis, Mailpit and MinIO');
-  composeOrThrow(
-    cfg,
-    ['up', '-d', '--remove-orphans', 'db', 'redis', 'mailpit', 'minio'],
-    'docker compose up',
-  );
+  // MinIO only when the env file stores through S3 (2026-10-24): with
+  // STORAGE_ADAPTER_MODE=local nothing reads it, and its image registry is not
+  // reachable from every network, which used to stop the whole stack.
+  const services = usesMinio(cfg) ? ['db', 'redis', 'mailpit', 'minio'] : ['db', 'redis', 'mailpit'];
+  console.log(`\n→ Starting ${usesMinio(cfg) ? 'Postgres, Redis, Mailpit and MinIO' : 'Postgres, Redis and Mailpit'}`);
+  composeOrThrow(cfg, ['up', '-d', '--remove-orphans', ...services], 'docker compose up');
 
   console.log('\n→ Waiting for Postgres and Redis to report healthy');
   await waitHealthy(cfg, 'db', DB_HEALTH_TIMEOUT_MS);

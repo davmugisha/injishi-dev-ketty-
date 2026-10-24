@@ -17,14 +17,15 @@ import pg from 'pg';
 
 import { ensureTaxRates, upsertAmenities, upsertRdbClassifications } from './reference-data.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
+import { apiEnvFile } from './env-file.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function databaseUrl() {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  const env = readFileSync(resolve(__dirname, '../.env'), 'utf8');
+  const env = readFileSync(apiEnvFile() ?? resolve(__dirname, '../.env'), 'utf8');
   const m = env.match(/^DATABASE_URL=(.+)$/m);
-  if (!m) throw new Error('DATABASE_URL not set and not found in server/api/.env');
+  if (!m) throw new Error('DATABASE_URL not set and not found in server/api/.env.test (or the APP_ENV file)');
   return m[1].trim();
 }
 

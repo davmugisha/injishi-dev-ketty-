@@ -29,6 +29,7 @@ import { registerAuthRoutes } from './modules/auth/infrastructure/auth-http';
 import { BookingModule } from './modules/booking/booking.module';
 import { GeographyModule } from './modules/geography/geography.module';
 import { ListingModule } from './modules/listing/listing.module';
+import { envFilesFor } from './shared/config/env-files';
 import {
   resolveAllowedOrigins,
   resolveCookieSecret,
@@ -40,7 +41,8 @@ import { ReportingExceptionFilter } from './shared/observability/reporting-excep
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // One env file per environment, picked by APP_ENV (shared/config/env-files.ts).
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: envFilesFor() }),
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL ?? 'info',

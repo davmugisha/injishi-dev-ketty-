@@ -29,6 +29,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
+import { apiEnvFile } from "./env-file.mjs";
 
 const BASE = process.env.API_BASE || "http://127.0.0.1:8000";
 const WEB_ORIGIN = "http://localhost:3000";
@@ -50,10 +51,10 @@ function check(label, ok, detail) {
 
 function databaseUrl() {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  const line = readFileSync(new URL("../.env", import.meta.url), "utf8")
+  const line = readFileSync(apiEnvFile() ?? new URL("../.env", import.meta.url), "utf8")
     .split(/\r?\n/)
     .find((l) => l.startsWith("DATABASE_URL="));
-  if (!line) throw new Error("DATABASE_URL is not set and not in server/api/.env");
+  if (!line) throw new Error("DATABASE_URL is not set and not in server/api/.env.test (or the APP_ENV file)");
   return line.slice("DATABASE_URL=".length).trim();
 }
 const db = new pg.Pool({ connectionString: databaseUrl() });
