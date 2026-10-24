@@ -64,7 +64,6 @@ jobs:
       test_unit: ${{ steps.filter.outputs.test_unit }}
       build_web: ${{ steps.filter.outputs.build_web }}
       build_app: ${{ steps.filter.outputs.build_app }}
-      build_admin: ${{ steps.filter.outputs.build_admin }}
       build_api: ${{ steps.filter.outputs.build_api }}
       mobile: ${{ steps.filter.outputs.mobile }}
       tokens: ${{ steps.filter.outputs.tokens }}
@@ -92,8 +91,8 @@ jobs:
           if [ "$base" = "0000000000000000000000000000000000000000" ]; then base=""; fi
           node scripts/ci-changes.mjs "$base" "$HEAD_SHA"
 
-  # AC-2. `pnpm -r typecheck` now reaches every one of the eleven members;
-  # `check:manifests` is what stops a twelfth from quietly not being reached.
+  # AC-2. `pnpm -r typecheck` reaches every workspace member; `check:manifests`
+  # is what stops a new one from quietly not being reached.
   typecheck:
     name: typecheck
     needs: changes
@@ -152,15 +151,11 @@ jobs:
       # has two to four. A test job that fails for want of CPU teaches people to
       # rerun it until it passes, which is worse than having no test job.
       #
-      # `test:ci`, not `test`, because the `mobile` job below already runs
-      # `@injishi/mobile test` and that suite is the longest thing in the
-      # pipeline (577s on 2026-09-16, against 74s for everything else in that
-      # job). Running it here too put a second copy of it on this job's serial
-      # critical path for no extra coverage. Nothing is lost: `changes` marks
-      # `mobile` from the workspace dependency graph, so anything mobile depends
-      # on runs the `mobile` job, and a change that leaves mobile unaffected has
-      # no mobile suite worth running. `pnpm test` at the root still means
-      # EVERY suite, which is what a developer wants locally.
+      # `test:ci`, not `test`, because the `mobile` job below runs
+      # `@injishi/mobile test` itself. Nothing is lost: `changes` marks `mobile`
+      # from the workspace dependency graph, so anything mobile depends on runs
+      # the `mobile` job. `pnpm test` at the root still means EVERY suite, which
+      # is what a developer wants locally.
       - name: Run every suite
         run: pnpm test:ci
 
@@ -188,18 +183,6 @@ jobs:
       - run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
       - run: pnpm --filter @injishi/app build
 
-  build-admin:
-    name: build admin
-    needs: changes
-    if: needs.changes.outputs.build_admin == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/pnpm-setup
-      - run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
-      - run: pnpm --filter @injishi/admin build
-
   build-api:
     name: build api
     needs: changes
@@ -213,8 +196,12 @@ jobs:
       - run: pnpm --filter @injishi/api build
 
   # AC-6. Mobile is NOT in the root `build` filter and has no `build` script:
-  # it is an Expo export, not a `next build`, so these four checks are what
-  # standing behind a mobile change means. ADR-052 settles that deliberately.
+  # it is an Expo export, not a `next build`, so these checks are what standing
+  # behind a mobile change means. ADR-052 settles that deliberately. The Expo
+  # app (apps/mobile) has no palette check, no typed routes (`experiments.
+  # typedRoutes` is off in app.json) and no test suite yet: its `test` script
+  # says so out loud (scripts/no-tests.mjs), and runs here so the day it gains
+  # a suite, this job runs it.
   mobile:
     name: mobile
     needs: changes
@@ -224,23 +211,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/pnpm-setup
-      # Both compiled packages: mobile imports @injishi/contracts as well as the
-      # tokens, and consumers of either read dist/.
+      # The compiled packages, as every other job builds them: consumers read
+      # dist/, so a source change is checked against what it produces.
       - run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
-      - name: Palette matches the tokens
-        run: pnpm --filter @injishi/mobile palette:check
-      # `experiments.typedRoutes` is on, but the route types it produces
-      # (`expo-env.d.ts`, `.expo/types/router.d.ts`) are gitignored and only
-      # written by a dev server. Without this step every `href` and
-      # `router.push` target goes unchecked. `expo customize tsconfig.json`
-      # runs the same generator non-interactively when tsconfig.json already
-      # exists, and leaves the file itself untouched.
-      - name: Generate the typed route declarations
-        working-directory: apps/mobile
-        run: |
-          set -euo pipefail
-          pnpm exec expo customize tsconfig.json
-          test -s .expo/types/router.d.ts
       - run: pnpm --filter @injishi/mobile typecheck
       - run: pnpm --filter @injishi/mobile lint
       - run: pnpm --filter @injishi/mobile test
@@ -288,7 +261,6 @@ jobs:
       - test-unit
       - build-web
       - build-app
-      - build-admin
       - build-api
       - mobile
       - tokens

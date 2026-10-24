@@ -199,8 +199,11 @@ describe("labels", () => {
  * THE DECLARED BUT UNENFORCED PERMISSIONS, named so the gap is loud.
  *
  * A permission counts as IN USE when the API declares it on a route
- * (`@RequirePermission` / `@RequireStaffPermission`) or a nav leaf declares it
- * (`permission: "…"` in the operator or admin nav). Everything else is design
+ * (`@RequirePermission` / `@RequireStaffPermission` / `@RequireAnyPermission`).
+ * Nav leaves used to count too, from `apps/app/src/pms/lib/nav.ts` and
+ * `apps/admin/src/lib/nav.ts`; both apps are gone, and the new interface's
+ * navigation (`packages/data/src/navigation.ts`) declares no permissions, so the
+ * API is the one place a permission is enforced. Everything else is design
  * intent with nothing behind it. The list below must equal what the code says,
  * so wiring one up fails this test until it leaves the list, and a new orphan
  * fails it until it joins. That is the idiom this repository uses for a backlog:
@@ -266,21 +269,12 @@ describe("the unenforced permissions", () => {
     // of them, so `people.view`, which is only ever one of several, counts.
     for (const m of text.matchAll(/@RequireAnyPermission\(([^)]*)\)/g)) for (const p of names(m[1])) inUse.add(p);
   }
-  for (const nav of [
-    join(repo, "apps", "app", "src", "pms", "lib", "nav.ts"),
-    join(repo, "apps", "admin", "src", "lib", "nav.ts"),
-  ]) {
-    const text = readFileSync(nav, "utf8");
-    for (const m of text.matchAll(/permission:\s*"([a-z_.]+)"/g)) inUse.add(m[1]);
-    for (const m of text.matchAll(/anyPermission:\s*\[([^\]]*)\]/g)) for (const p of names(m[1])) inUse.add(p);
-  }
-
-  test("the scan found the API and both navs", () => {
+  test("the scan found the API's org and staff decorators", () => {
     // A path that moved would otherwise make EVERY permission look unenforced
     // and fail the test below with a misleading list.
     assert.ok(inUse.has("listing.manage"), "API decorators were not found");
-    assert.ok(inUse.has("admin.config.view"), "the admin nav was not found");
-    assert.ok(inUse.has("team.manage"), "the operator nav was not found");
+    assert.ok(inUse.has("admin.config.view"), "the API's staff decorators were not found");
+    assert.ok(inUse.has("team.manage"), "the API's team decorators were not found");
   });
 
   test("exactly the named permissions are declared and unenforced", () => {
@@ -289,7 +283,7 @@ describe("the unenforced permissions", () => {
     assert.deepEqual(unenforced.sort(), [...UNENFORCED].sort());
   });
 
-  test("unit.manage is enforced now, by the residence nav leaves it was written for", () => {
+  test("unit.manage is enforced now, by the residence routes it was written for", () => {
     assert.ok(inUse.has("unit.manage"));
   });
 });

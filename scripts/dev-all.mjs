@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 /**
- * Every app in one terminal.
+ * Every app in one terminal, as dev servers on the host (hot reload).
+ *
+ * `pnpm docker:up` is the main way to run the whole product; this is for
+ * working on the code with each app recompiling on save.
  *
  *   pnpm dev:all                      the whole product: the Docker services,
- *                                     then api, worker, web, admin, app, mobile
+ *                                     then api, worker, web, app, mobile
  *   pnpm dev:all --skip mobile        everything except these (comma separated)
  *   pnpm dev:all --only web,api       just these
  *   pnpm dev:all --lan 192.168.1.68   the address a phone reaches this PC on
  *
- * Ctrl+C stops every app it started. Postgres, Redis, MinIO and Mailpit keep
- * running in Docker, because they hold the data and are slow to come back;
- * `pnpm dev:stack:down` stops them.
+ * Ctrl+C stops every app it started. Postgres, Redis and Mailpit (and MinIO,
+ * when the API's env file stores through S3) keep running in Docker, because
+ * they hold the data and are slow to come back; `pnpm dev:stack:down` stops
+ * them.
  *
  * In order, it:
  *   1. runs `pnpm install --frozen-lockfile` when pnpm-lock.yaml no longer
@@ -26,7 +30,7 @@
  *      prints with its name;
  *   6. says where everything is once it answers, with a QR code for Expo Go.
  *
- * MOBILE STARTS FOR EXPO GO ON A PHONE (`start:go`). A phone cannot reach
+ * MOBILE STARTS FOR EXPO GO ON A PHONE (its `dev` script, `expo start`). A phone cannot reach
  * `localhost`, which is the phone itself, so Metro advertises this PC's LAN
  * address and the bundle inlines the API at that address too:
  * EXPO_PUBLIC_API_URL from the environment beats the one in apps/mobile/.env.
@@ -37,7 +41,7 @@
  * Plain Node, no dependencies, like dev-stack.mjs.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
@@ -52,6 +56,7 @@ import {
   readApiEnv,
   resolveApiDir,
   up,
+  usesMinio,
   warnAboutEnv,
 } from './dev-stack.mjs';
 
@@ -76,9 +81,8 @@ const APPS = [
   { name: 'api', pkg: '@injishi/api', script: 'dev', color: 32, needsStack: true },
   { name: 'worker', pkg: '@injishi/api', script: 'worker:dev', color: 90, needsStack: true },
   { name: 'web', pkg: '@injishi/web', script: 'dev', dir: 'apps/web', color: 36 },
-  { name: 'admin', pkg: '@injishi/admin', script: 'dev', dir: 'apps/admin', color: 35 },
   { name: 'app', pkg: '@injishi/app', script: 'dev', dir: 'apps/app', color: 94 },
-  { name: 'mobile', pkg: '@injishi/mobile', script: 'start:go', color: 33 },
+  { name: 'mobile', pkg: '@injishi/mobile', script: 'dev', color: 33 },
 ];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -90,10 +94,10 @@ function usage() {
   return [
     'Usage: pnpm dev:all [--skip <apps>] [--only <apps>] [--lan <address>]',
     '',
-    'Starts Postgres, Redis, MinIO and Mailpit in Docker, migrates, then every app',
+    'Starts Postgres, Redis and Mailpit in Docker, migrates, then every app',
     `in this one terminal: ${APPS.map((a) => a.name).join(', ')}.`,
     '',
-    '  --skip mobile,admin   everything except these',
+    '  --skip mobile,worker  everything except these',
     '  --only web,api        just these',
     "  --lan 192.168.1.68    the address your phone reaches this PC on (Expo Go).",
     "                        Default: this PC's Wi-Fi address",
@@ -159,10 +163,13 @@ function pnpmCommand(args) {
  * the old tree. Compared without line endings: a Windows checkout may hold CRLF.
  */
 function ensureInstalled() {
-  const read = (file) => (existsSync(file) ? readFileSync(file, 'utf8').replace(/\r/g, '') : null);
-  const wanted = read(path.join(ROOT, 'pnpm-lock.yaml'));
-  const installed = read(path.join(ROOT, 'node_modules', '.pnpm', 'lock.yaml'));
-  if (wanted !== null && wanted === installed) return;
+  // pnpm writes node_modules/.pnpm/lock.yaml on every install. Its content is not a copy of
+  // pnpm-lock.yaml under pnpm 12 (no packageManager document, no other platforms' packages),
+  // so the two are compared by age: a lockfile newer than the last install was changed since.
+  const mtime = (file) => (existsSync(file) ? statSync(file).mtimeMs : null);
+  const wanted = mtime(path.join(ROOT, 'pnpm-lock.yaml'));
+  const installed = mtime(path.join(ROOT, 'node_modules', '.pnpm', 'lock.yaml'));
+  if (wanted !== null && installed !== null && wanted <= installed) return;
 
   console.log(
     installed === null
@@ -475,17 +482,16 @@ function printServerSummary(servers, results, ctx) {
     api: `http://localhost:${ctx.apiPort}/api/v1/health`,
     worker: 'running (queues, no port)',
     web: `http://localhost:${portOf('web')}`,
-    admin: `http://localhost:${portOf('admin')}   (sends you to web's sign-in first)`,
-    app: `http://localhost:${portOf('app')}   (sends you to web's sign-in first)`,
+    app: `http://localhost:${portOf('app')}   the app (its screens, /admin; sign in here)`,
   };
-  const order = ['web', 'admin', 'app', 'api', 'worker'];
+  const order = ['web', 'app', 'api', 'worker'];
   const rows = order
     .map((name) => servers.findIndex((a) => a.name === name))
     .filter((i) => i !== -1)
     .map((i) => `  ${servers[i].name.padEnd(8)}${stateOf(servers[i], results[i]) ?? where[servers[i].name]}`);
   if (ctx.stackStarted) {
     rows.push('  mailpit http://localhost:8025   every mail the API sends');
-    rows.push('  minio   http://localhost:9001   object storage console');
+    if (ctx.minio) rows.push('  minio   http://localhost:9001   object storage console');
   }
 
   const rule = paint(90, '─'.repeat(72));
@@ -493,8 +499,8 @@ function printServerSummary(servers, results, ctx) {
   if (servers.some((a) => a.name === 'web')) {
     lines.push(
       '',
-      `  Sign in at ${where.web}/sign-in as host@injishi.com (hotel owner),`,
-      '  admin@injishi.com (admin console) or guest@injishi.com, or pick a demo persona.',
+      `  Sign in at ${where.web}/sign-in (it hands you to the app) as landlord@injishi.com,`,
+      '  host@injishi.com, admin@injishi.com or guest@injishi.com, or pick a demo persona.',
       ctx.fixedCode
         ? '  The code is 123456.'
         : '  The code is random (the API runs as production): read it in Mailpit.',
@@ -571,7 +577,7 @@ function killTree(app) {
   });
 }
 
-function installStopHandlers(apps) {
+function installStopHandlers(apps, minio) {
   const stop = async (signal) => {
     if (stopping) return;
     stopping = true;
@@ -581,7 +587,7 @@ function installStopHandlers(apps) {
     const stackStarted = apps.some((a) => a.needsStack);
     console.log(
       stackStarted
-        ? 'Stopped. Postgres, Redis, MinIO and Mailpit are still running in Docker;\n' +
+        ? `Stopped. Postgres, Redis${minio ? ', MinIO' : ''} and Mailpit are still running in Docker;\n` +
             '`pnpm dev:stack:down` stops them.'
         : 'Stopped.',
     );
@@ -652,12 +658,13 @@ async function main() {
     }
   }
 
-  const ctx = { apps, apiPort, lan, stackStarted, fixedCode: !isProductionProcess(cfg) };
+  const minio = usesMinio(cfg);
+  const ctx = { apps, apiPort, lan, stackStarted, minio, fixedCode: !isProductionProcess(cfg) };
   const width = Math.max(...apps.map((a) => a.name.length));
   console.log(
     `\n→ Starting ${apps.map((a) => a.name).join(', ')}. Ctrl+C stops ${apps.length === 1 ? 'it' : 'them all'}.\n`,
   );
-  installStopHandlers(apps);
+  installStopHandlers(apps, minio);
   for (const app of apps) startApp(app, ctx, width);
   await announce(apps, ctx);
 }

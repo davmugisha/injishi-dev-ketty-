@@ -13,14 +13,16 @@
  * backlog grow with nothing watching. The ratchet is the only policy that
  * matches what the configs already mean.
  *
- * The count comes from `eslint --format json`, never from parsing human
- * readable output, because the human format is not a stable interface and a
- * counter that silently reads zero is worse than no counter at all.
+ * The count comes from `eslint --format json` (or Biome's `--reporter=json`
+ * for the members Biome lints: apps/app, apps/mobile, packages/data, db, ui),
+ * never from parsing human readable output, because the human format is not a
+ * stable interface and a counter that silently reads zero is worse than no
+ * counter at all.
  *
  * Each member is linted through ITS OWN `lint` script, so this file never
  * restates a package's globs or config. Extra arguments are appended by pnpm,
  * which is what puts `--format json` on the end of that package's own eslint
- * invocation.
+ * invocation (`--reporter=json --reporter-file` on a Biome one).
  *
  * Usage:
  *   node scripts/lint-ratchet.mjs            check against the baseline
@@ -67,12 +69,16 @@ function countFor(member, workDir) {
   const useShell = process.platform === 'win32';
   const quote = (arg) => (useShell && /[\s"]/.test(arg) ? `"${arg.replace(/"/g, '\\"')}"` : arg);
 
+  const biome = isBiome(member);
+  const reportArgs = biome
+    ? ['--reporter=json', `--reporter-file=${reportFile}`]
+    : ['--format', 'json', '--output-file', reportFile];
   const result = spawnSync(
     'pnpm',
     // No `--` separator: pnpm 10 forwards trailing arguments to the script as
     // they are, and passing `--` makes eslint read the flags after it as FILE
     // PATTERNS ("No files matching the pattern --format were found").
-    ['--filter', member.name, '--silent', 'run', 'lint', '--format', 'json', '--output-file', reportFile].map(quote),
+    ['--filter', member.name, '--silent', 'run', 'lint', ...reportArgs].map(quote),
     { cwd: REPO_ROOT, encoding: 'utf8', shell: useShell },
   );
 
@@ -87,6 +93,7 @@ function countFor(member, workDir) {
   }
 
   const report = JSON.parse(readFileSync(reportFile, 'utf8'));
+  if (biome) return biomeCount(report);
   let errorCount = 0;
   let warningCount = 0;
   const errorMessages = [];
@@ -100,6 +107,27 @@ function countFor(member, workDir) {
     }
   }
   return { failed: false, errorCount, warningCount, errorMessages };
+}
+
+/** A member whose `lint` script runs Biome rather than ESLint. */
+function isBiome(member) {
+  return /^\s*biome\s/.test(member.scripts.lint ?? '');
+}
+
+/**
+ * Counts from Biome's JSON report. The summary counts every diagnostic, also the
+ * ones past `--max-diagnostics` that the list leaves out.
+ */
+function biomeCount(report) {
+  const summary = report.summary ?? {};
+  if (typeof summary.errors !== 'number' || typeof summary.warnings !== 'number') {
+    return { failed: true, reason: 'the Biome report has no summary counts' };
+  }
+  const errorMessages = (report.diagnostics ?? [])
+    .filter((d) => d.severity === 'error' || d.severity === 'fatal')
+    .slice(0, 10)
+    .map((d) => `${d.location?.path ?? '?'}:${d.location?.start?.line ?? 0}  ${d.category ?? 'error'}  ${d.message ?? ''}`);
+  return { failed: false, errorCount: summary.errors, warningCount: summary.warnings, errorMessages };
 }
 
 const members = workspaceMembers().filter((member) => typeof member.scripts.lint === 'string');
@@ -134,7 +162,7 @@ if (update) {
   }
   const counts = Object.fromEntries(results.map((r) => [r.member.name, r.warningCount]));
   const file = {
-    '//': 'ESLint warning counts per workspace member, the ADR-052 AC-3 ratchet baseline.',
+    '//': 'Lint warning counts per workspace member (ESLint, or Biome for the new interface), the ADR-052 AC-3 ratchet baseline.',
     '//how': 'A count that RISES above its entry fails CI. Regenerate with: node scripts/lint-ratchet.mjs --update',
     '//when': 'Update this in the commit that FIXES warnings, never to make a failing run pass.',
     '//zero': 'When a count reaches 0, flip that rule to `error` in the app config and drop the row.',
@@ -159,7 +187,7 @@ for (const result of results) {
 
   if (result.errorCount > 0) {
     failures.push(
-      `${member.name}: ${result.errorCount} ESLint error(s). Errors always fail, ratchet or not.\n` +
+      `${member.name}: ${result.errorCount} lint error(s). Errors always fail, ratchet or not.\n` +
         result.errorMessages.map((m) => `      ${m}`).join('\n'),
     );
   }

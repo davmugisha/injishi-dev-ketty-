@@ -7,9 +7,13 @@ name: mobile-release
 #
 # Mobile is outside `pnpm build` and has no `build` script: it is an Expo
 # export, not a `next build`. What standing behind a mobile change means on a
-# pull request is the four checks in `ci.yml`'s `mobile` job (typecheck, lint,
-# palette drift and its jest suite), and this workflow is what turns a tagged
-# commit into an artifact.
+# pull request is the checks in `ci.yml`'s `mobile` job (typecheck, lint and
+# test), and this workflow is what turns a tagged commit into an artifact.
+#
+# NOT SET UP YET: apps/mobile has no eas.json (no build profiles, no project
+# id). Until one is committed, a tag runs the checks and then stops with a
+# notice instead of failing inside `eas build`. Adding eas.json (with a
+# `production` profile) and the EXPO_TOKEN secret is what turns the build on.
 
 on:
   push:
@@ -34,33 +38,34 @@ jobs:
       - name: Build the compiled packages
         run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
 
-      # Typed routes are gitignored and only a dev server writes them; this
-      # runs the same generator non-interactively so the typecheck below checks
-      # every link target. See the same step in ci.yml.
-      - name: Generate the typed route declarations
-        working-directory: apps/mobile
-        run: |
-          set -euo pipefail
-          pnpm exec expo customize tsconfig.json
-          test -s .expo/types/router.d.ts
-
       # Fail here rather than 20 minutes into an EAS build. These are the same
       # checks ci.yml runs; a tag can point at any commit, including one that
       # never went through a pull request.
       - name: Check before spending build minutes
         run: |
           set -euo pipefail
-          pnpm --filter @injishi/mobile palette:check
           pnpm --filter @injishi/mobile typecheck
           pnpm --filter @injishi/mobile lint
           pnpm --filter @injishi/mobile test
 
+      - name: Is EAS set up
+        id: eas
+        run: |
+          if [ -f apps/mobile/eas.json ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice file=apps/mobile::No apps/mobile/eas.json yet, so no EAS build starts. The checks above passed."
+          fi
+
       - uses: expo/expo-github-action@v8
+        if: steps.eas.outputs.configured == 'true'
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Start the build
+        if: steps.eas.outputs.configured == 'true'
         working-directory: apps/mobile
         # The `production` profile in eas.json. Derived from the tag rather than
         # taken as an input: `mobile-v*` means a release, and a release builds

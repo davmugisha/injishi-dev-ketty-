@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "turbo run dev --filter=@injishi/web --filter=@injishi/app",
     "dev:mobile": "turbo run dev --filter=@injishi/mobile",
+    "dev:all": "node scripts/dev-all.mjs",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "biome check . && pnpm -r lint",
