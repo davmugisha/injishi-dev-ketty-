@@ -9,7 +9,7 @@ import { HOST_FAQ } from "@/data/host";
 import { shareMetadata } from "@/lib/share-metadata";
 import { faqPageJsonLd } from "@/lib/structured-data";
 
-import { HostBrokerLine, HostClosing } from "./host-entry-lines";
+import { HostClosing } from "./host-entry-lines";
 
 const DESCRIPTION =
   "Register your business, and we verify your place, photograph it and get it live. A one time registration fee, a monthly plan once you are live, and no commission on a booking.";
@@ -34,10 +34,10 @@ export const metadata: Metadata = {
  * The page opens on the chooser, not a pitch: what kind of place do you have.
  * A tile press IS the answer and goes straight into registration
  * (`hostKindHref`), with no Continue and no page in between, and registration
- * opens on the first question it does not yet know. Under the chooser, the one
- * other answer (a broker), then How it works, told once, here: the registration
- * itself does not tell it again until In review, where it is told live. After
- * that the reasons, the costs and the questions, unchanged.
+ * opens on the first question it does not yet know. Under the chooser, How it
+ * works is told once, here: the registration itself does not tell it again
+ * until In review, where it is told live. After that the reasons, the costs
+ * and the questions, unchanged.
  *
  * The closing card sends people back up to the chooser rather than into a
  * registration with no kind, which asked the kind a second time.
@@ -52,7 +52,6 @@ export default function HostPage() {
     <div className="flex flex-col overflow-x-clip">
       <JsonLd data={faqPageJsonLd(HOST_FAQ.flatMap((group) => group.entries))} />
       <HostHero />
-      <HostBrokerLine />
       <HostSteps />
       <HostBenefits />
       <HostCharges />
