@@ -50,6 +50,7 @@ __exportStar(require("./waitlist"), exports);
 __exportStar(require("./platform"), exports);
 __exportStar(require("./training"), exports);
 __exportStar(require("./psf"), exports);
+__exportStar(require("./psf-public"), exports);
 __exportStar(require("./business-code"), exports);
 __exportStar(require("./identity"), exports);
 __exportStar(require("./people"), exports);

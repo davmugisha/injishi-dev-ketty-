@@ -117,6 +117,7 @@ import {
   PsfMembershipController,
   PsfTiersController,
 } from './psf/psf-membership.controller';
+import { OversightPsfConsoleController, PsfPublicController } from './psf/psf-public.controller';
 import { OrgClaimsController } from './registrations/org-claims.controller';
 import { IdentityController } from './me/identity.controller';
 import { SelfCheckInController } from './me/self-check-in.controller';
@@ -202,6 +203,9 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     PsfMembershipController,
     OversightPsfController,
     OversightPsfRegisterController,
+    // The public PSF path and the officer console's report (2026-10-19).
+    PsfPublicController,
+    OversightPsfConsoleController,
     UploadsController,
     InventoryController,
     OpsReservationsController,

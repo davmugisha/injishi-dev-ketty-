@@ -76,6 +76,25 @@ export class IdentityService {
     return this.registry.mode !== 'off' || this.documents.mode !== 'off';
   }
 
+  /**
+   * The population register, asked directly, for the public PSF form
+   * (2026-10-19), which binds the answer to the phone itself and records it
+   * on the application rather than on an account. Never throws: an outage is
+   * `unavailable`, like every lookup here.
+   */
+  lookupRegister(documentNumber: string): Promise<RegistryLookup> {
+    return this.lookupSafely(documentNumber);
+  }
+
+  /** The fixed code the demo issues over a sample database, else null. */
+  get demoCode(): string | null {
+    return this.isDemo ? DEMO_OTP_CODE : null;
+  }
+
+  get registryMode(): string {
+    return this.registry.mode;
+  }
+
   async status(userId: string): Promise<IdentityStatus> {
     const row = await this.repo.find(userId);
     const verified =

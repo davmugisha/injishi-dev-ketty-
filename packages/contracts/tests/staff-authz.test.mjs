@@ -208,7 +208,6 @@ describe("labels", () => {
  *
  * Why each is here:
  *   admin.user.impersonate     F-A13, not built
- *   admin.payout.release        F-A06, not built
  *   admin.dsr.action            F-A08, not built
  *   admin.money.override        FL32, not built
  *   admin.environment.manage, admin.announcement.publish, admin.moderation.act,
@@ -223,7 +222,8 @@ describe("labels", () => {
 const UNENFORCED = [
   // `property.switch` left this list by leaving `Permission` (ADR-054 AC-S4).
   "admin.user.impersonate",
-  "admin.payout.release",
+  // `admin.payout.release` left this list when finance's PSF refund release
+  // declared it (2026-10-20): `POST /admin/psf/refunds/:applicationId/release`.
   "admin.money.override",
   "admin.dsr.action",
   "admin.environment.manage",

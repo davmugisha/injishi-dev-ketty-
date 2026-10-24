@@ -8,7 +8,12 @@ import {
   BookingWidgetSkeleton,
 } from "@/components/property/booking-widget";
 import { PropertyFacilities } from "@/components/property/property-facilities";
+import {
+  ChooseRoomButton,
+  ChooseRoomButtonFallback,
+} from "@/components/property/choose-room-button";
 import { SectionHeading } from "@/components/shared/section-heading";
+import { isSellable } from "@/data/property-rooms";
 import type { PublicProperty } from "@/data/public-property";
 
 /**
@@ -149,22 +154,31 @@ function RoomRow({ room }: { room: RoomTypeSummary }) {
   ].filter((detail): detail is string => Boolean(detail));
 
   return (
-    <li className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-input py-4">
+    <li className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-input py-4">
       <span className="flex min-w-0 flex-col gap-1">
         <span className="text-base font-medium text-page-fg">{room.name}</span>
         {details.length > 0 ? (
           <span className="text-sm text-page-fg-70">{details.join(" · ")}</span>
         ) : null}
       </span>
-      <span className="text-base text-page-fg">
-        {room.nightlyRateRwf !== null ? (
-          <>
-            <b className="font-semibold">{formatPrice(room.nightlyRateRwf)}</b>{" "}
-            <span className="text-sm text-page-fg-70">per person, per night</span>
-          </>
-        ) : (
-          <span className="text-sm text-page-fg-70">Price on request</span>
-        )}
+      <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span className="text-base text-page-fg">
+          {room.nightlyRateRwf !== null ? (
+            <>
+              <b className="font-semibold">{formatPrice(room.nightlyRateRwf)}</b>{" "}
+              <span className="text-sm text-page-fg-70">per person, per night</span>
+            </>
+          ) : (
+            <span className="text-sm text-page-fg-70">Price on request</span>
+          )}
+        </span>
+        {/* Only a room the card can sell can be chosen for it. Suspense
+            because the button reads the address, as the card does. */}
+        {isSellable(room) ? (
+          <Suspense fallback={<ChooseRoomButtonFallback />}>
+            <ChooseRoomButton roomTypeId={room.id} roomName={room.name} />
+          </Suspense>
+        ) : null}
       </span>
     </li>
   );

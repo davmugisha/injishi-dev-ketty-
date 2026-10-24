@@ -221,6 +221,12 @@ export const PSF_OPEN_APPLICATION_MESSAGE = "This business already has an open a
 export const PSF_NOT_OPEN_MESSAGE = "This application has already been decided or withdrawn.";
 export const PSF_NOT_PAYABLE_MESSAGE = "This application is not waiting for a payment.";
 export const PSF_OWN_BUSINESS_MESSAGE = "You hold a role in this business, so another PSF officer must decide its application.";
+/**
+ * Only a PSF District Manager approves or declines (2026-10-23), and only in
+ * their own district: the application for its head office's, a branch for the
+ * branch's. Province and national managers read everything for reporting.
+ */
+export const PSF_DISTRICT_DECIDES_MESSAGE = "Only the PSF District Manager of its district approves or declines. Province and national managers see it for reporting.";
 export const PSF_NOT_FOR_RESIDENCE_MESSAGE = "PSF membership through Injishi is for businesses, not for residences let on a lease.";
 export const PSF_OUT_OF_SCOPE_MESSAGE = "This business is outside the region you cover.";
 // ---------------------------------------------------------------------------
@@ -242,7 +248,7 @@ export const OVERSIGHT_ROLE_POSTING: Readonly<Partial<Record<OversightRole, {
     psf_membership_officer: {
         governmentBodyCode: "PSF",
         scopeLevels: ["country", "province", "district"],
-        message: "A PSF membership officer is appointed at PSF.",
+        message: "A PSF District Manager is appointed at PSF.",
     },
 };
 // ---------------------------------------------------------------------------
@@ -394,6 +400,23 @@ export const PsfAssociation = z.object({
     active: z.boolean(),
 });
 export type PsfAssociation = z.infer<typeof PsfAssociation>;
+/**
+ * A sector's subtype (2026-10-20): Hospitality, Tourism, Transport under
+ * Services. National when `districtId` is null; otherwise offered only in
+ * that district. `associationCodes` are the associations the form offers
+ * once it is picked.
+ */
+export const PsfSubsector = z.object({
+    id: Uuid,
+    clusterCode: z.string(),
+    nameEn: z.string(),
+    districtId: z.number().int().nullable(),
+    districtName: z.string().nullable(),
+    sortOrder: z.number().int(),
+    active: z.boolean(),
+    associationCodes: z.array(z.string()),
+});
+export type PsfSubsector = z.infer<typeof PsfSubsector>;
 export const PsfCluster = z.object({
     code: z.string(),
     nameEn: z.string(),
@@ -403,9 +426,11 @@ export const PsfCluster = z.object({
     sortOrder: z.number().int(),
     active: z.boolean(),
     associations: z.array(PsfAssociation),
+    /** National subtypes, and the district's own when the catalogue was asked for one. */
+    subsectors: z.array(PsfSubsector).default([]),
 });
 export type PsfCluster = z.infer<typeof PsfCluster>;
-/** `GET /psf/catalogue`: the clusters in order, each with its associations. */
+/** `GET /psf/catalogue?district=`: the clusters in order, each with its associations and subtypes. */
 export const PsfCatalogue = z.object({ clusters: z.array(PsfCluster) });
 export type PsfCatalogue = z.infer<typeof PsfCatalogue>;
 const catalogueCode = z
@@ -548,6 +573,8 @@ export const PsfBusinessProfile = z.object({
     businessCode: z.string().nullable(),
     districtName: z.string().nullable(),
     clusterName: z.string().nullable(),
+    /** The subtype picked, or the one the business typed. */
+    subsectorName: z.string().nullable().default(null),
     associationName: z.string().nullable(),
     ownerGroups: z.array(PsfOwnerGroup),
     registrationKind: EnterpriseRegistrationKind.nullable(),
@@ -603,6 +630,45 @@ export type PayPsfMembershipRequest = z.infer<typeof PayPsfMembershipRequest>;
 // ---------------------------------------------------------------------------
 // The officer's side (AC-10 to AC-14)
 // ---------------------------------------------------------------------------
+/**
+ * A BRANCH of a business that applied through the public form (2026-10-23):
+ * another place it trades from. Each is admitted by the PSF officer of the
+ * branch's own district, beside the head office's decision on the business,
+ * so a business in Kicukiro with a shop in Musanze is seen in both offices.
+ */
+export const PsfBranchStatus = z.enum(["pending", "admitted", "declined"]);
+export type PsfBranchStatus = z.infer<typeof PsfBranchStatus>;
+export const PSF_BRANCH_STATUS_LABEL: Readonly<Record<PsfBranchStatus, string>> = {
+    pending: "Waiting on PSF",
+    admitted: "Admitted",
+    declined: "Declined",
+};
+/** A branch trades under the business's own name, so it is told apart by where it is. */
+export const PsfApplicationBranch = z.object({
+    id: Uuid,
+    districtId: z.number().int(),
+    districtName: z.string().nullable(),
+    sectorName: z.string().nullable(),
+    street: z.string(),
+    status: PsfBranchStatus,
+    note: z.string().nullable(),
+    decidedAt: z.string().nullable(),
+    /** True when this officer covers the branch's district, it waits on PSF, and they hold no stake. */
+    canDecide: z.boolean(),
+});
+export type PsfApplicationBranch = z.infer<typeof PsfApplicationBranch>;
+/** Admitting or declining one branch. A decline says why, so the business knows. */
+export const PsfBranchDecisionRequest = z
+    .object({
+    decision: z.enum(["admit", "decline"]),
+    note: z.string().trim().min(1).max(1000).optional(),
+})
+    .superRefine((value, ctx) => {
+    if (value.decision === "decline" && !value.note) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["note"], message: "Say why, so the business knows what to fix." });
+    }
+});
+export type PsfBranchDecisionRequest = z.infer<typeof PsfBranchDecisionRequest>;
 export const PsfQueueItem = z.object({
     applicationId: Uuid,
     orgId: Uuid,
@@ -611,6 +677,7 @@ export const PsfQueueItem = z.object({
     domain: Domain,
     districtName: z.string().nullable(),
     associationName: z.string().nullable(),
+    subsectorName: z.string().nullable().default(null),
     ownerGroups: z.array(PsfOwnerGroup),
     requestedTierName: z.string(),
     declaredFeeRwf: RwfAmount.nullable(),
@@ -619,11 +686,34 @@ export const PsfQueueItem = z.object({
     registrationStatus: OrgRegistrationStatus,
     /** False when the officer holds a stake in the business (AC-14). */
     canDecide: z.boolean(),
+    districtId: z.number().int().nullable(),
+    /** Whole days since it reached the queue. */
+    waitingDays: z.number().int(),
+    /** The docID a public applicant tracks it by; null for a hotel's. */
+    docId: z.string().nullable(),
+    clusterName: z.string().nullable().default(null),
+    /** What the business already paid for its membership, when it paid before review. */
+    paidRwf: RwfAmount.nullable().default(null),
+    /**
+     * False when the officer is here only for a branch: the head office is in
+     * another district, whose officer decides the business itself.
+     */
+    headOfficeInScope: z.boolean().default(true),
+    /** Branches in this officer's region still waiting on PSF. */
+    branchesPending: z.number().int().default(0),
+    /**
+     * Whether this officer is the one who decides it (2026-10-23): the PSF
+     * District Manager of its district. A province or national manager reads
+     * the queue for reporting and never decides.
+     */
+    decidesHere: z.boolean().default(true),
 });
 export type PsfQueueItem = z.infer<typeof PsfQueueItem>;
 export const PsfQueuePage = z.object({
     items: PsfQueueItem.array(),
     nextCursor: z.string().nullable(),
+    /** How many match the filters, across every page. */
+    total: z.number().int().default(0),
 });
 export type PsfQueuePage = z.infer<typeof PsfQueuePage>;
 /** The same cursor shape the officer's decision log pages by. */
@@ -636,6 +726,21 @@ export const PsfOfficerApplication = PsfApplication.extend({
     registrationStatus: OrgRegistrationStatus,
     profile: PsfBusinessProfile,
     canDecide: z.boolean(),
+    docId: z.string().nullable(),
+    waitingDays: z.number().int(),
+    /** The next number in this district's run for this year, for the approve dialog. */
+    suggestedMembershipNumber: z.string().nullable(),
+    /**
+     * Paid before review (the public path, 2026-10-20): approving makes the
+     * business a member at once. Declining keeps the fee: nothing is refunded
+     * (2026-10-23).
+     */
+    paidBeforeReview: z.boolean().default(false),
+    /** False when the officer reads it only for a branch in their district. */
+    headOfficeInScope: z.boolean().default(true),
+    branches: PsfApplicationBranch.array().default([]),
+    /** The officer is the District Manager who decides the business (2026-10-23); see `PsfQueueItem.decidesHere`. */
+    decidesHere: z.boolean().default(true),
 });
 export type PsfOfficerApplication = z.infer<typeof PsfOfficerApplication>;
 /**
@@ -696,7 +801,10 @@ const optionalText = (max: number) => z.string().trim().min(1).max(max).optional
  */
 export const PsfBusinessesQuery = z.object({
     q: optionalText(80),
+    subsector: Uuid.optional(),
     district: z.coerce.number().int().positive().optional(),
+    /** Narrow to one province of the officer's region (the province and national views). */
+    province: z.coerce.number().int().positive().optional(),
     cluster: optionalText(60),
     association: optionalText(60),
     tier: optionalText(60),
@@ -717,6 +825,7 @@ export const PsfBusinessRow = z.object({
     sectorName: z.string().nullable(),
     clusterCode: z.string().nullable(),
     clusterName: z.string().nullable(),
+    subsectorName: z.string().nullable().default(null),
     associationName: z.string().nullable(),
     associationAcronym: z.string().nullable(),
     ownerGroups: z.array(PsfOwnerGroup),
@@ -729,8 +838,32 @@ export const PsfBusinessRow = z.object({
     expiresOn: z.string().nullable(),
     /** The open application, when there is one, so the row can open it. */
     openApplicationId: Uuid.nullable(),
+    /** Paid in through Injishi: membership fees, and any registration fee. */
+    paidRwf: RwfAmount.default(0),
+    lastPaidAt: z.string().nullable().default(null),
+    /** Its branches (2026-10-23): the other places it trades from, on its newest application. */
+    branchCount: z.number().int().default(0),
+    /**
+     * False when the officer sees it only because a branch is in their region:
+     * its head office, and its decision, are another district's.
+     */
+    headOfficeInScope: z.boolean().default(true),
 });
 export type PsfBusinessRow = z.infer<typeof PsfBusinessRow>;
+/** One branch on a business's page, wherever it is: every officer who opens the business sees them all. */
+export const PsfBusinessBranch = z.object({
+    id: Uuid,
+    provinceName: z.string().nullable(),
+    districtId: z.number().int(),
+    districtName: z.string().nullable(),
+    sectorName: z.string().nullable(),
+    street: z.string(),
+    status: PsfBranchStatus,
+    note: z.string().nullable(),
+    /** In the officer's own region: theirs to decide on the application. */
+    inScope: z.boolean(),
+});
+export type PsfBusinessBranch = z.infer<typeof PsfBusinessBranch>;
 export const PsfBusinessesPage = z.object({
     items: z.array(PsfBusinessRow),
     nextCursor: z.string().nullable(),
@@ -804,3 +937,26 @@ export function splitPsfName(fullName: string): {
         return { firstName: trimmed, lastName: "" };
     return { firstName: trimmed.slice(0, at), lastName: trimmed.slice(at + 1) };
 }
+/** `GET /oversight/psf/subsectors`: what the officer may read and change. */
+export const PsfSubsectorsView = z.object({
+    clusters: z.array(z.object({ code: z.string(), nameEn: z.string(), subsectors: z.array(PsfSubsector.extend({ canEdit: z.boolean() })) })),
+    /** Where the officer may put a new subtype: null for national, or a district id. */
+    places: z.array(z.object({ districtId: z.number().int().nullable(), label: z.string() })),
+    associations: z.array(z.object({ code: z.string(), clusterCode: z.string(), nameEn: z.string() })),
+});
+export type PsfSubsectorsView = z.infer<typeof PsfSubsectorsView>;
+/** Add a subtype. A national officer may add one for the country; any officer for a district they cover. */
+export const CreatePsfSubsectorRequest = z.object({
+    clusterCode: z.string().trim().min(1),
+    nameEn: z.string().trim().min(2, "Give the subtype a name.").max(80),
+    districtId: z.number().int().positive().nullable(),
+    associationCodes: z.array(z.string().trim().min(1)).max(60).default([]),
+});
+export type CreatePsfSubsectorRequest = z.infer<typeof CreatePsfSubsectorRequest>;
+export const UpdatePsfSubsectorRequest = z.object({
+    nameEn: z.string().trim().min(2, "Give the subtype a name.").max(80).optional(),
+    active: z.boolean().optional(),
+    sortOrder: z.number().int().min(0).max(999).optional(),
+    associationCodes: z.array(z.string().trim().min(1)).max(60).optional(),
+});
+export type UpdatePsfSubsectorRequest = z.infer<typeof UpdatePsfSubsectorRequest>;

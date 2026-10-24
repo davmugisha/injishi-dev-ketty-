@@ -1219,8 +1219,8 @@ export declare const OperatorTicket: z.ZodObject<{
     noteCount: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
-    description: string | null;
     id: string;
+    description: string | null;
     title: string;
     createdAt: string;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
@@ -1233,8 +1233,8 @@ export declare const OperatorTicket: z.ZodObject<{
     noteCount: number;
 }, {
     status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
-    description: string | null;
     id: string;
+    description: string | null;
     title: string;
     createdAt: string;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
@@ -1265,8 +1265,8 @@ export declare const OperatorTicketList: z.ZodObject<{
         noteCount: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
-        description: string | null;
         id: string;
+        description: string | null;
         title: string;
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
@@ -1279,8 +1279,8 @@ export declare const OperatorTicketList: z.ZodObject<{
         noteCount: number;
     }, {
         status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
-        description: string | null;
         id: string;
+        description: string | null;
         title: string;
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
@@ -1295,8 +1295,8 @@ export declare const OperatorTicketList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     tickets: {
         status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
-        description: string | null;
         id: string;
+        description: string | null;
         title: string;
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
@@ -1311,8 +1311,8 @@ export declare const OperatorTicketList: z.ZodObject<{
 }, {
     tickets: {
         status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
-        description: string | null;
         id: string;
+        description: string | null;
         title: string;
         createdAt: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | null;
@@ -2415,8 +2415,8 @@ export declare const OperatorFolioCharge: z.ZodObject<{
     postedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     amountRwf: number;
-    description: string | null;
     id: string;
+    description: string | null;
     departmentName: string | null;
     chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
     departmentId: string | null;
@@ -2433,8 +2433,8 @@ export declare const OperatorFolioCharge: z.ZodObject<{
     postedAt: string;
 }, {
     amountRwf: number;
-    description: string | null;
     id: string;
+    description: string | null;
     departmentName: string | null;
     chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
     departmentId: string | null;
@@ -2495,8 +2495,8 @@ export declare const OperatorFolioDetail: z.ZodObject<{
         postedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         amountRwf: number;
-        description: string | null;
         id: string;
+        description: string | null;
         departmentName: string | null;
         chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
         departmentId: string | null;
@@ -2513,8 +2513,8 @@ export declare const OperatorFolioDetail: z.ZodObject<{
         postedAt: string;
     }, {
         amountRwf: number;
-        description: string | null;
         id: string;
+        description: string | null;
         departmentName: string | null;
         chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
         departmentId: string | null;
@@ -2538,8 +2538,8 @@ export declare const OperatorFolioDetail: z.ZodObject<{
     roomLabel: string | null;
     charges: {
         amountRwf: number;
-        description: string | null;
         id: string;
+        description: string | null;
         departmentName: string | null;
         chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
         departmentId: string | null;
@@ -2571,8 +2571,8 @@ export declare const OperatorFolioDetail: z.ZodObject<{
     roomLabel: string | null;
     charges: {
         amountRwf: number;
-        description: string | null;
         id: string;
+        description: string | null;
         departmentName: string | null;
         chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
         departmentId: string | null;
@@ -2686,8 +2686,8 @@ export declare const PostChargeResult: z.ZodObject<{
         postedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         amountRwf: number;
-        description: string | null;
         id: string;
+        description: string | null;
         departmentName: string | null;
         chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
         departmentId: string | null;
@@ -2704,8 +2704,8 @@ export declare const PostChargeResult: z.ZodObject<{
         postedAt: string;
     }, {
         amountRwf: number;
-        description: string | null;
         id: string;
+        description: string | null;
         departmentName: string | null;
         chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
         departmentId: string | null;
@@ -2731,8 +2731,8 @@ export declare const PostChargeResult: z.ZodObject<{
     roomLabel: string | null;
     charges: {
         amountRwf: number;
-        description: string | null;
         id: string;
+        description: string | null;
         departmentName: string | null;
         chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
         departmentId: string | null;
@@ -2765,8 +2765,8 @@ export declare const PostChargeResult: z.ZodObject<{
     roomLabel: string | null;
     charges: {
         amountRwf: number;
-        description: string | null;
         id: string;
+        description: string | null;
         departmentName: string | null;
         chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
         departmentId: string | null;
@@ -2909,8 +2909,8 @@ export declare const CloseFolioResult: z.ZodObject<{
         postedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         amountRwf: number;
-        description: string | null;
         id: string;
+        description: string | null;
         departmentName: string | null;
         chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
         departmentId: string | null;
@@ -2927,8 +2927,8 @@ export declare const CloseFolioResult: z.ZodObject<{
         postedAt: string;
     }, {
         amountRwf: number;
-        description: string | null;
         id: string;
+        description: string | null;
         departmentName: string | null;
         chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
         departmentId: string | null;
@@ -2970,8 +2970,8 @@ export declare const CloseFolioResult: z.ZodObject<{
     roomLabel: string | null;
     charges: {
         amountRwf: number;
-        description: string | null;
         id: string;
+        description: string | null;
         departmentName: string | null;
         chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
         departmentId: string | null;
@@ -3009,8 +3009,8 @@ export declare const CloseFolioResult: z.ZodObject<{
     roomLabel: string | null;
     charges: {
         amountRwf: number;
-        description: string | null;
         id: string;
+        description: string | null;
         departmentName: string | null;
         chargeType: "payment" | "refund" | "room" | "service_order" | "pos" | "tax" | "service_charge" | "adjustment" | "discount" | "deposit";
         departmentId: string | null;
@@ -4007,8 +4007,8 @@ export declare const OperatorServiceItem: z.ZodObject<{
     }[];
     status: "active" | "archived" | "out_of_stock";
     name: string;
-    description: string | null;
     id: string;
+    description: string | null;
     priceRwf: number;
     departmentId: string;
     taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
@@ -4036,8 +4036,8 @@ export declare const OperatorServiceItem: z.ZodObject<{
     }[];
     status: "active" | "archived" | "out_of_stock";
     name: string;
-    description: string | null;
     id: string;
+    description: string | null;
     priceRwf: number;
     departmentId: string;
     taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
@@ -4140,8 +4140,8 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         }[];
         status: "active" | "archived" | "out_of_stock";
         name: string;
-        description: string | null;
         id: string;
+        description: string | null;
         priceRwf: number;
         departmentId: string;
         taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
@@ -4169,8 +4169,8 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         }[];
         status: "active" | "archived" | "out_of_stock";
         name: string;
-        description: string | null;
         id: string;
+        description: string | null;
         priceRwf: number;
         departmentId: string;
         taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
@@ -4202,8 +4202,8 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         }[];
         status: "active" | "archived" | "out_of_stock";
         name: string;
-        description: string | null;
         id: string;
+        description: string | null;
         priceRwf: number;
         departmentId: string;
         taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
@@ -4246,8 +4246,8 @@ export declare const OperatorServiceCategory: z.ZodObject<{
         }[];
         status: "active" | "archived" | "out_of_stock";
         name: string;
-        description: string | null;
         id: string;
+        description: string | null;
         priceRwf: number;
         departmentId: string;
         taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
@@ -4364,8 +4364,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             }[];
             status: "active" | "archived" | "out_of_stock";
             name: string;
-            description: string | null;
             id: string;
+            description: string | null;
             priceRwf: number;
             departmentId: string;
             taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
@@ -4393,8 +4393,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             }[];
             status: "active" | "archived" | "out_of_stock";
             name: string;
-            description: string | null;
             id: string;
+            description: string | null;
             priceRwf: number;
             departmentId: string;
             taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
@@ -4426,8 +4426,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             }[];
             status: "active" | "archived" | "out_of_stock";
             name: string;
-            description: string | null;
             id: string;
+            description: string | null;
             priceRwf: number;
             departmentId: string;
             taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
@@ -4470,8 +4470,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             }[];
             status: "active" | "archived" | "out_of_stock";
             name: string;
-            description: string | null;
             id: string;
+            description: string | null;
             priceRwf: number;
             departmentId: string;
             taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
@@ -4516,8 +4516,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             }[];
             status: "active" | "archived" | "out_of_stock";
             name: string;
-            description: string | null;
             id: string;
+            description: string | null;
             priceRwf: number;
             departmentId: string;
             taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";
@@ -4562,8 +4562,8 @@ export declare const OperatorServiceCatalog: z.ZodObject<{
             }[];
             status: "active" | "archived" | "out_of_stock";
             name: string;
-            description: string | null;
             id: string;
+            description: string | null;
             priceRwf: number;
             departmentId: string;
             taxCode: "TAX_A" | "TAX_B" | "TAX_C" | "TAX_D";

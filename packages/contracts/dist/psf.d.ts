@@ -116,6 +116,12 @@ export declare const PSF_OPEN_APPLICATION_MESSAGE = "This business already has a
 export declare const PSF_NOT_OPEN_MESSAGE = "This application has already been decided or withdrawn.";
 export declare const PSF_NOT_PAYABLE_MESSAGE = "This application is not waiting for a payment.";
 export declare const PSF_OWN_BUSINESS_MESSAGE = "You hold a role in this business, so another PSF officer must decide its application.";
+/**
+ * Only a PSF District Manager approves or declines (2026-10-23), and only in
+ * their own district: the application for its head office's, a branch for the
+ * branch's. Province and national managers read everything for reporting.
+ */
+export declare const PSF_DISTRICT_DECIDES_MESSAGE = "Only the PSF District Manager of its district approves or declines. Province and national managers see it for reporting.";
 export declare const PSF_NOT_FOR_RESIDENCE_MESSAGE = "PSF membership through Injishi is for businesses, not for residences let on a lease.";
 export declare const PSF_OUT_OF_SCOPE_MESSAGE = "This business is outside the region you cover.";
 /**
@@ -369,6 +375,41 @@ export declare const PsfAssociation: z.ZodObject<{
     acronym: string | null;
 }>;
 export type PsfAssociation = z.infer<typeof PsfAssociation>;
+/**
+ * A sector's subtype (2026-10-20): Hospitality, Tourism, Transport under
+ * Services. National when `districtId` is null; otherwise offered only in
+ * that district. `associationCodes` are the associations the form offers
+ * once it is picked.
+ */
+export declare const PsfSubsector: z.ZodObject<{
+    id: z.ZodString;
+    clusterCode: z.ZodString;
+    nameEn: z.ZodString;
+    districtId: z.ZodNullable<z.ZodNumber>;
+    districtName: z.ZodNullable<z.ZodString>;
+    sortOrder: z.ZodNumber;
+    active: z.ZodBoolean;
+    associationCodes: z.ZodArray<z.ZodString, "many">;
+}, "strip", z.ZodTypeAny, {
+    active: boolean;
+    districtId: number | null;
+    districtName: string | null;
+    nameEn: string;
+    sortOrder: number;
+    clusterCode: string;
+    id: string;
+    associationCodes: string[];
+}, {
+    active: boolean;
+    districtId: number | null;
+    districtName: string | null;
+    nameEn: string;
+    sortOrder: number;
+    clusterCode: string;
+    id: string;
+    associationCodes: string[];
+}>;
+export type PsfSubsector = z.infer<typeof PsfSubsector>;
 export declare const PsfCluster: z.ZodObject<{
     code: z.ZodString;
     nameEn: z.ZodString;
@@ -399,6 +440,35 @@ export declare const PsfCluster: z.ZodObject<{
         clusterCode: string;
         acronym: string | null;
     }>, "many">;
+    /** National subtypes, and the district's own when the catalogue was asked for one. */
+    subsectors: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        clusterCode: z.ZodString;
+        nameEn: z.ZodString;
+        districtId: z.ZodNullable<z.ZodNumber>;
+        districtName: z.ZodNullable<z.ZodString>;
+        sortOrder: z.ZodNumber;
+        active: z.ZodBoolean;
+        associationCodes: z.ZodArray<z.ZodString, "many">;
+    }, "strip", z.ZodTypeAny, {
+        active: boolean;
+        districtId: number | null;
+        districtName: string | null;
+        nameEn: string;
+        sortOrder: number;
+        clusterCode: string;
+        id: string;
+        associationCodes: string[];
+    }, {
+        active: boolean;
+        districtId: number | null;
+        districtName: string | null;
+        nameEn: string;
+        sortOrder: number;
+        clusterCode: string;
+        id: string;
+        associationCodes: string[];
+    }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     code: string;
     active: boolean;
@@ -413,6 +483,16 @@ export declare const PsfCluster: z.ZodObject<{
         sortOrder: number;
         clusterCode: string;
         acronym: string | null;
+    }[];
+    subsectors: {
+        active: boolean;
+        districtId: number | null;
+        districtName: string | null;
+        nameEn: string;
+        sortOrder: number;
+        clusterCode: string;
+        id: string;
+        associationCodes: string[];
     }[];
 }, {
     code: string;
@@ -429,9 +509,19 @@ export declare const PsfCluster: z.ZodObject<{
         clusterCode: string;
         acronym: string | null;
     }[];
+    subsectors?: {
+        active: boolean;
+        districtId: number | null;
+        districtName: string | null;
+        nameEn: string;
+        sortOrder: number;
+        clusterCode: string;
+        id: string;
+        associationCodes: string[];
+    }[] | undefined;
 }>;
 export type PsfCluster = z.infer<typeof PsfCluster>;
-/** `GET /psf/catalogue`: the clusters in order, each with its associations. */
+/** `GET /psf/catalogue?district=`: the clusters in order, each with its associations and subtypes. */
 export declare const PsfCatalogue: z.ZodObject<{
     clusters: z.ZodArray<z.ZodObject<{
         code: z.ZodString;
@@ -463,6 +553,35 @@ export declare const PsfCatalogue: z.ZodObject<{
             clusterCode: string;
             acronym: string | null;
         }>, "many">;
+        /** National subtypes, and the district's own when the catalogue was asked for one. */
+        subsectors: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            clusterCode: z.ZodString;
+            nameEn: z.ZodString;
+            districtId: z.ZodNullable<z.ZodNumber>;
+            districtName: z.ZodNullable<z.ZodString>;
+            sortOrder: z.ZodNumber;
+            active: z.ZodBoolean;
+            associationCodes: z.ZodArray<z.ZodString, "many">;
+        }, "strip", z.ZodTypeAny, {
+            active: boolean;
+            districtId: number | null;
+            districtName: string | null;
+            nameEn: string;
+            sortOrder: number;
+            clusterCode: string;
+            id: string;
+            associationCodes: string[];
+        }, {
+            active: boolean;
+            districtId: number | null;
+            districtName: string | null;
+            nameEn: string;
+            sortOrder: number;
+            clusterCode: string;
+            id: string;
+            associationCodes: string[];
+        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         code: string;
         active: boolean;
@@ -477,6 +596,16 @@ export declare const PsfCatalogue: z.ZodObject<{
             sortOrder: number;
             clusterCode: string;
             acronym: string | null;
+        }[];
+        subsectors: {
+            active: boolean;
+            districtId: number | null;
+            districtName: string | null;
+            nameEn: string;
+            sortOrder: number;
+            clusterCode: string;
+            id: string;
+            associationCodes: string[];
         }[];
     }, {
         code: string;
@@ -493,6 +622,16 @@ export declare const PsfCatalogue: z.ZodObject<{
             clusterCode: string;
             acronym: string | null;
         }[];
+        subsectors?: {
+            active: boolean;
+            districtId: number | null;
+            districtName: string | null;
+            nameEn: string;
+            sortOrder: number;
+            clusterCode: string;
+            id: string;
+            associationCodes: string[];
+        }[] | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     clusters: {
@@ -509,6 +648,16 @@ export declare const PsfCatalogue: z.ZodObject<{
             sortOrder: number;
             clusterCode: string;
             acronym: string | null;
+        }[];
+        subsectors: {
+            active: boolean;
+            districtId: number | null;
+            districtName: string | null;
+            nameEn: string;
+            sortOrder: number;
+            clusterCode: string;
+            id: string;
+            associationCodes: string[];
         }[];
     }[];
 }, {
@@ -527,6 +676,16 @@ export declare const PsfCatalogue: z.ZodObject<{
             clusterCode: string;
             acronym: string | null;
         }[];
+        subsectors?: {
+            active: boolean;
+            districtId: number | null;
+            districtName: string | null;
+            nameEn: string;
+            sortOrder: number;
+            clusterCode: string;
+            id: string;
+            associationCodes: string[];
+        }[] | undefined;
     }[];
 }>;
 export type PsfCatalogue = z.infer<typeof PsfCatalogue>;
@@ -1037,6 +1196,8 @@ export declare const PsfBusinessProfile: z.ZodObject<{
     businessCode: z.ZodNullable<z.ZodString>;
     districtName: z.ZodNullable<z.ZodString>;
     clusterName: z.ZodNullable<z.ZodString>;
+    /** The subtype picked, or the one the business typed. */
+    subsectorName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     associationName: z.ZodNullable<z.ZodString>;
     ownerGroups: z.ZodArray<z.ZodEnum<["women", "youth", "pwd"]>, "many">;
     registrationKind: z.ZodNullable<z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>>;
@@ -1047,6 +1208,7 @@ export declare const PsfBusinessProfile: z.ZodObject<{
     districtName: string | null;
     businessCode: string | null;
     clusterName: string | null;
+    subsectorName: string | null;
     associationName: string | null;
 }, {
     domain: "hospitality" | "residence" | "enterprise";
@@ -1056,6 +1218,7 @@ export declare const PsfBusinessProfile: z.ZodObject<{
     businessCode: string | null;
     clusterName: string | null;
     associationName: string | null;
+    subsectorName?: string | null | undefined;
 }>;
 export type PsfBusinessProfile = z.infer<typeof PsfBusinessProfile>;
 /** `GET /orgs/:orgId/psf-membership` (AC-15). */
@@ -1072,6 +1235,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         businessCode: z.ZodNullable<z.ZodString>;
         districtName: z.ZodNullable<z.ZodString>;
         clusterName: z.ZodNullable<z.ZodString>;
+        /** The subtype picked, or the one the business typed. */
+        subsectorName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         associationName: z.ZodNullable<z.ZodString>;
         ownerGroups: z.ZodArray<z.ZodEnum<["women", "youth", "pwd"]>, "many">;
         registrationKind: z.ZodNullable<z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>>;
@@ -1082,6 +1247,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         districtName: string | null;
         businessCode: string | null;
         clusterName: string | null;
+        subsectorName: string | null;
         associationName: string | null;
     }, {
         domain: "hospitality" | "residence" | "enterprise";
@@ -1091,6 +1257,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         businessCode: string | null;
         clusterName: string | null;
         associationName: string | null;
+        subsectorName?: string | null | undefined;
     }>;
     current: z.ZodNullable<z.ZodObject<{
         id: z.ZodString;
@@ -1618,6 +1785,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         districtName: string | null;
         businessCode: string | null;
         clusterName: string | null;
+        subsectorName: string | null;
         associationName: string | null;
     };
     current: {
@@ -1765,6 +1933,7 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         businessCode: string | null;
         clusterName: string | null;
         associationName: string | null;
+        subsectorName?: string | null | undefined;
     };
     current: {
         expiresOn: string | null;
@@ -2520,6 +2689,67 @@ export declare const PayPsfMembershipRequest: z.ZodObject<{
     phoneE164: string;
 }>;
 export type PayPsfMembershipRequest = z.infer<typeof PayPsfMembershipRequest>;
+/**
+ * A BRANCH of a business that applied through the public form (2026-10-23):
+ * another place it trades from. Each is admitted by the PSF officer of the
+ * branch's own district, beside the head office's decision on the business,
+ * so a business in Kicukiro with a shop in Musanze is seen in both offices.
+ */
+export declare const PsfBranchStatus: z.ZodEnum<["pending", "admitted", "declined"]>;
+export type PsfBranchStatus = z.infer<typeof PsfBranchStatus>;
+export declare const PSF_BRANCH_STATUS_LABEL: Readonly<Record<PsfBranchStatus, string>>;
+/** A branch trades under the business's own name, so it is told apart by where it is. */
+export declare const PsfApplicationBranch: z.ZodObject<{
+    id: z.ZodString;
+    districtId: z.ZodNumber;
+    districtName: z.ZodNullable<z.ZodString>;
+    sectorName: z.ZodNullable<z.ZodString>;
+    street: z.ZodString;
+    status: z.ZodEnum<["pending", "admitted", "declined"]>;
+    note: z.ZodNullable<z.ZodString>;
+    decidedAt: z.ZodNullable<z.ZodString>;
+    /** True when this officer covers the branch's district, it waits on PSF, and they hold no stake. */
+    canDecide: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    status: "pending" | "declined" | "admitted";
+    districtId: number;
+    street: string;
+    decidedAt: string | null;
+    districtName: string | null;
+    sectorName: string | null;
+    id: string;
+    note: string | null;
+    canDecide: boolean;
+}, {
+    status: "pending" | "declined" | "admitted";
+    districtId: number;
+    street: string;
+    decidedAt: string | null;
+    districtName: string | null;
+    sectorName: string | null;
+    id: string;
+    note: string | null;
+    canDecide: boolean;
+}>;
+export type PsfApplicationBranch = z.infer<typeof PsfApplicationBranch>;
+/** Admitting or declining one branch. A decline says why, so the business knows. */
+export declare const PsfBranchDecisionRequest: z.ZodEffects<z.ZodObject<{
+    decision: z.ZodEnum<["admit", "decline"]>;
+    note: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    decision: "admit" | "decline";
+    note?: string | undefined;
+}, {
+    decision: "admit" | "decline";
+    note?: string | undefined;
+}>, {
+    decision: "admit" | "decline";
+    note?: string | undefined;
+}, {
+    decision: "admit" | "decline";
+    note?: string | undefined;
+}>;
+export type PsfBranchDecisionRequest = z.infer<typeof PsfBranchDecisionRequest>;
 export declare const PsfQueueItem: z.ZodObject<{
     applicationId: z.ZodString;
     orgId: z.ZodString;
@@ -2528,6 +2758,7 @@ export declare const PsfQueueItem: z.ZodObject<{
     domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
     districtName: z.ZodNullable<z.ZodString>;
     associationName: z.ZodNullable<z.ZodString>;
+    subsectorName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     ownerGroups: z.ZodArray<z.ZodEnum<["women", "youth", "pwd"]>, "many">;
     requestedTierName: z.ZodString;
     declaredFeeRwf: z.ZodNullable<z.ZodNumber>;
@@ -2536,7 +2767,29 @@ export declare const PsfQueueItem: z.ZodObject<{
     registrationStatus: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
     /** False when the officer holds a stake in the business (AC-14). */
     canDecide: z.ZodBoolean;
+    districtId: z.ZodNullable<z.ZodNumber>;
+    /** Whole days since it reached the queue. */
+    waitingDays: z.ZodNumber;
+    /** The docID a public applicant tracks it by; null for a hotel's. */
+    docId: z.ZodNullable<z.ZodString>;
+    clusterName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    /** What the business already paid for its membership, when it paid before review. */
+    paidRwf: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+    /**
+     * False when the officer is here only for a branch: the head office is in
+     * another district, whose officer decides the business itself.
+     */
+    headOfficeInScope: z.ZodDefault<z.ZodBoolean>;
+    /** Branches in this officer's region still waiting on PSF. */
+    branchesPending: z.ZodDefault<z.ZodNumber>;
+    /**
+     * Whether this officer is the one who decides it (2026-10-23): the PSF
+     * District Manager of its district. A province or national manager reads
+     * the queue for reporting and never decides.
+     */
+    decidesHere: z.ZodDefault<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
+    districtId: number | null;
     declaredFeeRwf: number | null;
     domain: "hospitality" | "residence" | "enterprise";
     ownerGroups: ("women" | "youth" | "pwd")[];
@@ -2547,11 +2800,20 @@ export declare const PsfQueueItem: z.ZodObject<{
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     requestedTierName: string;
     queuedAt: string | null;
+    clusterName: string | null;
+    subsectorName: string | null;
     associationName: string | null;
+    canDecide: boolean;
     applicationId: string;
     businessName: string;
-    canDecide: boolean;
+    waitingDays: number;
+    docId: string | null;
+    paidRwf: number | null;
+    headOfficeInScope: boolean;
+    branchesPending: number;
+    decidesHere: boolean;
 }, {
+    districtId: number | null;
     declaredFeeRwf: number | null;
     domain: "hospitality" | "residence" | "enterprise";
     ownerGroups: ("women" | "youth" | "pwd")[];
@@ -2563,9 +2825,17 @@ export declare const PsfQueueItem: z.ZodObject<{
     requestedTierName: string;
     queuedAt: string | null;
     associationName: string | null;
+    canDecide: boolean;
     applicationId: string;
     businessName: string;
-    canDecide: boolean;
+    waitingDays: number;
+    docId: string | null;
+    clusterName?: string | null | undefined;
+    subsectorName?: string | null | undefined;
+    paidRwf?: number | null | undefined;
+    headOfficeInScope?: boolean | undefined;
+    branchesPending?: number | undefined;
+    decidesHere?: boolean | undefined;
 }>;
 export type PsfQueueItem = z.infer<typeof PsfQueueItem>;
 export declare const PsfQueuePage: z.ZodObject<{
@@ -2577,6 +2847,7 @@ export declare const PsfQueuePage: z.ZodObject<{
         domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
         districtName: z.ZodNullable<z.ZodString>;
         associationName: z.ZodNullable<z.ZodString>;
+        subsectorName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         ownerGroups: z.ZodArray<z.ZodEnum<["women", "youth", "pwd"]>, "many">;
         requestedTierName: z.ZodString;
         declaredFeeRwf: z.ZodNullable<z.ZodNumber>;
@@ -2585,7 +2856,29 @@ export declare const PsfQueuePage: z.ZodObject<{
         registrationStatus: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
         /** False when the officer holds a stake in the business (AC-14). */
         canDecide: z.ZodBoolean;
+        districtId: z.ZodNullable<z.ZodNumber>;
+        /** Whole days since it reached the queue. */
+        waitingDays: z.ZodNumber;
+        /** The docID a public applicant tracks it by; null for a hotel's. */
+        docId: z.ZodNullable<z.ZodString>;
+        clusterName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        /** What the business already paid for its membership, when it paid before review. */
+        paidRwf: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+        /**
+         * False when the officer is here only for a branch: the head office is in
+         * another district, whose officer decides the business itself.
+         */
+        headOfficeInScope: z.ZodDefault<z.ZodBoolean>;
+        /** Branches in this officer's region still waiting on PSF. */
+        branchesPending: z.ZodDefault<z.ZodNumber>;
+        /**
+         * Whether this officer is the one who decides it (2026-10-23): the PSF
+         * District Manager of its district. A province or national manager reads
+         * the queue for reporting and never decides.
+         */
+        decidesHere: z.ZodDefault<z.ZodBoolean>;
     }, "strip", z.ZodTypeAny, {
+        districtId: number | null;
         declaredFeeRwf: number | null;
         domain: "hospitality" | "residence" | "enterprise";
         ownerGroups: ("women" | "youth" | "pwd")[];
@@ -2596,11 +2889,20 @@ export declare const PsfQueuePage: z.ZodObject<{
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
         requestedTierName: string;
         queuedAt: string | null;
+        clusterName: string | null;
+        subsectorName: string | null;
         associationName: string | null;
+        canDecide: boolean;
         applicationId: string;
         businessName: string;
-        canDecide: boolean;
+        waitingDays: number;
+        docId: string | null;
+        paidRwf: number | null;
+        headOfficeInScope: boolean;
+        branchesPending: number;
+        decidesHere: boolean;
     }, {
+        districtId: number | null;
         declaredFeeRwf: number | null;
         domain: "hospitality" | "residence" | "enterprise";
         ownerGroups: ("women" | "youth" | "pwd")[];
@@ -2612,13 +2914,24 @@ export declare const PsfQueuePage: z.ZodObject<{
         requestedTierName: string;
         queuedAt: string | null;
         associationName: string | null;
+        canDecide: boolean;
         applicationId: string;
         businessName: string;
-        canDecide: boolean;
+        waitingDays: number;
+        docId: string | null;
+        clusterName?: string | null | undefined;
+        subsectorName?: string | null | undefined;
+        paidRwf?: number | null | undefined;
+        headOfficeInScope?: boolean | undefined;
+        branchesPending?: number | undefined;
+        decidesHere?: boolean | undefined;
     }>, "many">;
     nextCursor: z.ZodNullable<z.ZodString>;
+    /** How many match the filters, across every page. */
+    total: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     items: {
+        districtId: number | null;
         declaredFeeRwf: number | null;
         domain: "hospitality" | "residence" | "enterprise";
         ownerGroups: ("women" | "youth" | "pwd")[];
@@ -2629,14 +2942,24 @@ export declare const PsfQueuePage: z.ZodObject<{
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
         requestedTierName: string;
         queuedAt: string | null;
+        clusterName: string | null;
+        subsectorName: string | null;
         associationName: string | null;
+        canDecide: boolean;
         applicationId: string;
         businessName: string;
-        canDecide: boolean;
+        waitingDays: number;
+        docId: string | null;
+        paidRwf: number | null;
+        headOfficeInScope: boolean;
+        branchesPending: number;
+        decidesHere: boolean;
     }[];
     nextCursor: string | null;
+    total: number;
 }, {
     items: {
+        districtId: number | null;
         declaredFeeRwf: number | null;
         domain: "hospitality" | "residence" | "enterprise";
         ownerGroups: ("women" | "youth" | "pwd")[];
@@ -2648,11 +2971,20 @@ export declare const PsfQueuePage: z.ZodObject<{
         requestedTierName: string;
         queuedAt: string | null;
         associationName: string | null;
+        canDecide: boolean;
         applicationId: string;
         businessName: string;
-        canDecide: boolean;
+        waitingDays: number;
+        docId: string | null;
+        clusterName?: string | null | undefined;
+        subsectorName?: string | null | undefined;
+        paidRwf?: number | null | undefined;
+        headOfficeInScope?: boolean | undefined;
+        branchesPending?: number | undefined;
+        decidesHere?: boolean | undefined;
     }[];
     nextCursor: string | null;
+    total?: number | undefined;
 }>;
 export type PsfQueuePage = z.infer<typeof PsfQueuePage>;
 /** The same cursor shape the officer's decision log pages by. */
@@ -2784,6 +3116,8 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         businessCode: z.ZodNullable<z.ZodString>;
         districtName: z.ZodNullable<z.ZodString>;
         clusterName: z.ZodNullable<z.ZodString>;
+        /** The subtype picked, or the one the business typed. */
+        subsectorName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         associationName: z.ZodNullable<z.ZodString>;
         ownerGroups: z.ZodArray<z.ZodEnum<["women", "youth", "pwd"]>, "many">;
         registrationKind: z.ZodNullable<z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>>;
@@ -2794,6 +3128,7 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         districtName: string | null;
         businessCode: string | null;
         clusterName: string | null;
+        subsectorName: string | null;
         associationName: string | null;
     }, {
         domain: "hospitality" | "residence" | "enterprise";
@@ -2803,12 +3138,70 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         businessCode: string | null;
         clusterName: string | null;
         associationName: string | null;
+        subsectorName?: string | null | undefined;
     }>;
     canDecide: z.ZodBoolean;
+    docId: z.ZodNullable<z.ZodString>;
+    waitingDays: z.ZodNumber;
+    /** The next number in this district's run for this year, for the approve dialog. */
+    suggestedMembershipNumber: z.ZodNullable<z.ZodString>;
+    /**
+     * Paid before review (the public path, 2026-10-20): approving makes the
+     * business a member at once. Declining keeps the fee: nothing is refunded
+     * (2026-10-23).
+     */
+    paidBeforeReview: z.ZodDefault<z.ZodBoolean>;
+    /** False when the officer reads it only for a branch in their district. */
+    headOfficeInScope: z.ZodDefault<z.ZodBoolean>;
+    branches: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        districtId: z.ZodNumber;
+        districtName: z.ZodNullable<z.ZodString>;
+        sectorName: z.ZodNullable<z.ZodString>;
+        street: z.ZodString;
+        status: z.ZodEnum<["pending", "admitted", "declined"]>;
+        note: z.ZodNullable<z.ZodString>;
+        decidedAt: z.ZodNullable<z.ZodString>;
+        /** True when this officer covers the branch's district, it waits on PSF, and they hold no stake. */
+        canDecide: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        status: "pending" | "declined" | "admitted";
+        districtId: number;
+        street: string;
+        decidedAt: string | null;
+        districtName: string | null;
+        sectorName: string | null;
+        id: string;
+        note: string | null;
+        canDecide: boolean;
+    }, {
+        status: "pending" | "declined" | "admitted";
+        districtId: number;
+        street: string;
+        decidedAt: string | null;
+        districtName: string | null;
+        sectorName: string | null;
+        id: string;
+        note: string | null;
+        canDecide: boolean;
+    }>, "many">>;
+    /** The officer is the District Manager who decides the business (2026-10-23); see `PsfQueueItem.decidesHere`. */
+    decidesHere: z.ZodDefault<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
     requestedTierCode: string;
     declaredFeeRwf: number | null;
+    branches: {
+        status: "pending" | "declined" | "admitted";
+        districtId: number;
+        street: string;
+        decidedAt: string | null;
+        districtName: string | null;
+        sectorName: string | null;
+        id: string;
+        note: string | null;
+        canDecide: boolean;
+    }[];
     decidedAt: string | null;
     orgId: string;
     districtName: string | null;
@@ -2864,10 +3257,17 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         districtName: string | null;
         businessCode: string | null;
         clusterName: string | null;
+        subsectorName: string | null;
         associationName: string | null;
     };
-    businessName: string;
     canDecide: boolean;
+    businessName: string;
+    waitingDays: number;
+    docId: string | null;
+    headOfficeInScope: boolean;
+    decidesHere: boolean;
+    suggestedMembershipNumber: string | null;
+    paidBeforeReview: boolean;
 }, {
     status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
     requestedTierCode: string;
@@ -2928,9 +3328,27 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         businessCode: string | null;
         clusterName: string | null;
         associationName: string | null;
+        subsectorName?: string | null | undefined;
     };
-    businessName: string;
     canDecide: boolean;
+    businessName: string;
+    waitingDays: number;
+    docId: string | null;
+    suggestedMembershipNumber: string | null;
+    branches?: {
+        status: "pending" | "declined" | "admitted";
+        districtId: number;
+        street: string;
+        decidedAt: string | null;
+        districtName: string | null;
+        sectorName: string | null;
+        id: string;
+        note: string | null;
+        canDecide: boolean;
+    }[] | undefined;
+    headOfficeInScope?: boolean | undefined;
+    decidesHere?: boolean | undefined;
+    paidBeforeReview?: boolean | undefined;
 }>;
 export type PsfOfficerApplication = z.infer<typeof PsfOfficerApplication>;
 /**
@@ -2945,12 +3363,12 @@ export declare const PsfApproveRequest: z.ZodObject<{
     note: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     membershipNumber: string;
-    feeRwf?: number | undefined;
     note?: string | undefined;
+    feeRwf?: number | undefined;
 }, {
     membershipNumber: string;
-    feeRwf?: number | undefined;
     note?: string | undefined;
+    feeRwf?: number | undefined;
 }>;
 export type PsfApproveRequest = z.infer<typeof PsfApproveRequest>;
 /** Declining an application (AC-12). A note is required with `other`. */
@@ -2994,7 +3412,10 @@ export type PsfBusinessKind = z.infer<typeof PsfBusinessKind>;
  */
 export declare const PsfBusinessesQuery: z.ZodObject<{
     q: z.ZodOptional<z.ZodString>;
+    subsector: z.ZodOptional<z.ZodString>;
     district: z.ZodOptional<z.ZodNumber>;
+    /** Narrow to one province of the officer's region (the province and national views). */
+    province: z.ZodOptional<z.ZodNumber>;
     cluster: z.ZodOptional<z.ZodString>;
     association: z.ZodOptional<z.ZodString>;
     tier: z.ZodOptional<z.ZodString>;
@@ -3004,22 +3425,26 @@ export declare const PsfBusinessesQuery: z.ZodObject<{
     kind: z.ZodOptional<z.ZodEnum<["enterprise", "hospitality"]>>;
     cursor: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    province?: number | undefined;
     district?: number | undefined;
     kind?: "hospitality" | "enterprise" | undefined;
     tin?: "with" | "without" | undefined;
     cursor?: string | undefined;
     q?: string | undefined;
+    subsector?: string | undefined;
     cluster?: string | undefined;
     association?: string | undefined;
     tier?: string | undefined;
     standing?: "member" | "declined" | "awaiting_payment" | "not_applied" | "applied" | "lapsed" | undefined;
     group?: "women" | "youth" | "pwd" | undefined;
 }, {
+    province?: number | undefined;
     district?: number | undefined;
     kind?: "hospitality" | "enterprise" | undefined;
     tin?: "with" | "without" | undefined;
     cursor?: string | undefined;
     q?: string | undefined;
+    subsector?: string | undefined;
     cluster?: string | undefined;
     association?: string | undefined;
     tier?: string | undefined;
@@ -3037,6 +3462,7 @@ export declare const PsfBusinessRow: z.ZodObject<{
     sectorName: z.ZodNullable<z.ZodString>;
     clusterCode: z.ZodNullable<z.ZodString>;
     clusterName: z.ZodNullable<z.ZodString>;
+    subsectorName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     associationName: z.ZodNullable<z.ZodString>;
     associationAcronym: z.ZodNullable<z.ZodString>;
     ownerGroups: z.ZodArray<z.ZodEnum<["women", "youth", "pwd"]>, "many">;
@@ -3049,6 +3475,16 @@ export declare const PsfBusinessRow: z.ZodObject<{
     expiresOn: z.ZodNullable<z.ZodString>;
     /** The open application, when there is one, so the row can open it. */
     openApplicationId: z.ZodNullable<z.ZodString>;
+    /** Paid in through Injishi: membership fees, and any registration fee. */
+    paidRwf: z.ZodDefault<z.ZodNumber>;
+    lastPaidAt: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    /** Its branches (2026-10-23): the other places it trades from, on its newest application. */
+    branchCount: z.ZodDefault<z.ZodNumber>;
+    /**
+     * False when the officer sees it only because a branch is in their region:
+     * its head office, and its decision, are another district's.
+     */
+    headOfficeInScope: z.ZodDefault<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     districtId: number | null;
     expiresOn: string | null;
@@ -3064,12 +3500,17 @@ export declare const PsfBusinessRow: z.ZodObject<{
     tierName: string | null;
     membershipNumber: string | null;
     clusterName: string | null;
+    subsectorName: string | null;
     associationName: string | null;
+    paidRwf: number;
+    headOfficeInScope: boolean;
     standing: "member" | "declined" | "awaiting_payment" | "not_applied" | "applied" | "lapsed";
     associationAcronym: string | null;
     hasTin: boolean;
     registeredAt: string;
     openApplicationId: string | null;
+    lastPaidAt: string | null;
+    branchCount: number;
 }, {
     districtId: number | null;
     expiresOn: string | null;
@@ -3091,8 +3532,47 @@ export declare const PsfBusinessRow: z.ZodObject<{
     hasTin: boolean;
     registeredAt: string;
     openApplicationId: string | null;
+    subsectorName?: string | null | undefined;
+    paidRwf?: number | undefined;
+    headOfficeInScope?: boolean | undefined;
+    lastPaidAt?: string | null | undefined;
+    branchCount?: number | undefined;
 }>;
 export type PsfBusinessRow = z.infer<typeof PsfBusinessRow>;
+/** One branch on a business's page, wherever it is: every officer who opens the business sees them all. */
+export declare const PsfBusinessBranch: z.ZodObject<{
+    id: z.ZodString;
+    provinceName: z.ZodNullable<z.ZodString>;
+    districtId: z.ZodNumber;
+    districtName: z.ZodNullable<z.ZodString>;
+    sectorName: z.ZodNullable<z.ZodString>;
+    street: z.ZodString;
+    status: z.ZodEnum<["pending", "admitted", "declined"]>;
+    note: z.ZodNullable<z.ZodString>;
+    /** In the officer's own region: theirs to decide on the application. */
+    inScope: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    status: "pending" | "declined" | "admitted";
+    districtId: number;
+    street: string;
+    districtName: string | null;
+    sectorName: string | null;
+    id: string;
+    note: string | null;
+    provinceName: string | null;
+    inScope: boolean;
+}, {
+    status: "pending" | "declined" | "admitted";
+    districtId: number;
+    street: string;
+    districtName: string | null;
+    sectorName: string | null;
+    id: string;
+    note: string | null;
+    provinceName: string | null;
+    inScope: boolean;
+}>;
+export type PsfBusinessBranch = z.infer<typeof PsfBusinessBranch>;
 export declare const PsfBusinessesPage: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
         orgId: z.ZodString;
@@ -3104,6 +3584,7 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         sectorName: z.ZodNullable<z.ZodString>;
         clusterCode: z.ZodNullable<z.ZodString>;
         clusterName: z.ZodNullable<z.ZodString>;
+        subsectorName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         associationName: z.ZodNullable<z.ZodString>;
         associationAcronym: z.ZodNullable<z.ZodString>;
         ownerGroups: z.ZodArray<z.ZodEnum<["women", "youth", "pwd"]>, "many">;
@@ -3116,6 +3597,16 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         expiresOn: z.ZodNullable<z.ZodString>;
         /** The open application, when there is one, so the row can open it. */
         openApplicationId: z.ZodNullable<z.ZodString>;
+        /** Paid in through Injishi: membership fees, and any registration fee. */
+        paidRwf: z.ZodDefault<z.ZodNumber>;
+        lastPaidAt: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        /** Its branches (2026-10-23): the other places it trades from, on its newest application. */
+        branchCount: z.ZodDefault<z.ZodNumber>;
+        /**
+         * False when the officer sees it only because a branch is in their region:
+         * its head office, and its decision, are another district's.
+         */
+        headOfficeInScope: z.ZodDefault<z.ZodBoolean>;
     }, "strip", z.ZodTypeAny, {
         districtId: number | null;
         expiresOn: string | null;
@@ -3131,12 +3622,17 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         tierName: string | null;
         membershipNumber: string | null;
         clusterName: string | null;
+        subsectorName: string | null;
         associationName: string | null;
+        paidRwf: number;
+        headOfficeInScope: boolean;
         standing: "member" | "declined" | "awaiting_payment" | "not_applied" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
         openApplicationId: string | null;
+        lastPaidAt: string | null;
+        branchCount: number;
     }, {
         districtId: number | null;
         expiresOn: string | null;
@@ -3158,6 +3654,11 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         hasTin: boolean;
         registeredAt: string;
         openApplicationId: string | null;
+        subsectorName?: string | null | undefined;
+        paidRwf?: number | undefined;
+        headOfficeInScope?: boolean | undefined;
+        lastPaidAt?: string | null | undefined;
+        branchCount?: number | undefined;
     }>, "many">;
     nextCursor: z.ZodNullable<z.ZodString>;
     /** How many businesses match the filters, across every page. */
@@ -3178,12 +3679,17 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         tierName: string | null;
         membershipNumber: string | null;
         clusterName: string | null;
+        subsectorName: string | null;
         associationName: string | null;
+        paidRwf: number;
+        headOfficeInScope: boolean;
         standing: "member" | "declined" | "awaiting_payment" | "not_applied" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
         openApplicationId: string | null;
+        lastPaidAt: string | null;
+        branchCount: number;
     }[];
     nextCursor: string | null;
     total: number;
@@ -3209,6 +3715,11 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         hasTin: boolean;
         registeredAt: string;
         openApplicationId: string | null;
+        subsectorName?: string | null | undefined;
+        paidRwf?: number | undefined;
+        headOfficeInScope?: boolean | undefined;
+        lastPaidAt?: string | null | undefined;
+        branchCount?: number | undefined;
     }[];
     nextCursor: string | null;
     total: number;
@@ -3377,4 +3888,181 @@ export declare function splitPsfName(fullName: string): {
     firstName: string;
     lastName: string;
 };
+/** `GET /oversight/psf/subsectors`: what the officer may read and change. */
+export declare const PsfSubsectorsView: z.ZodObject<{
+    clusters: z.ZodArray<z.ZodObject<{
+        code: z.ZodString;
+        nameEn: z.ZodString;
+        subsectors: z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            clusterCode: z.ZodString;
+            nameEn: z.ZodString;
+            districtId: z.ZodNullable<z.ZodNumber>;
+            districtName: z.ZodNullable<z.ZodString>;
+            sortOrder: z.ZodNumber;
+            active: z.ZodBoolean;
+            associationCodes: z.ZodArray<z.ZodString, "many">;
+        } & {
+            canEdit: z.ZodBoolean;
+        }, "strip", z.ZodTypeAny, {
+            active: boolean;
+            districtId: number | null;
+            districtName: string | null;
+            nameEn: string;
+            sortOrder: number;
+            clusterCode: string;
+            id: string;
+            associationCodes: string[];
+            canEdit: boolean;
+        }, {
+            active: boolean;
+            districtId: number | null;
+            districtName: string | null;
+            nameEn: string;
+            sortOrder: number;
+            clusterCode: string;
+            id: string;
+            associationCodes: string[];
+            canEdit: boolean;
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        code: string;
+        nameEn: string;
+        subsectors: {
+            active: boolean;
+            districtId: number | null;
+            districtName: string | null;
+            nameEn: string;
+            sortOrder: number;
+            clusterCode: string;
+            id: string;
+            associationCodes: string[];
+            canEdit: boolean;
+        }[];
+    }, {
+        code: string;
+        nameEn: string;
+        subsectors: {
+            active: boolean;
+            districtId: number | null;
+            districtName: string | null;
+            nameEn: string;
+            sortOrder: number;
+            clusterCode: string;
+            id: string;
+            associationCodes: string[];
+            canEdit: boolean;
+        }[];
+    }>, "many">;
+    /** Where the officer may put a new subtype: null for national, or a district id. */
+    places: z.ZodArray<z.ZodObject<{
+        districtId: z.ZodNullable<z.ZodNumber>;
+        label: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        districtId: number | null;
+        label: string;
+    }, {
+        districtId: number | null;
+        label: string;
+    }>, "many">;
+    associations: z.ZodArray<z.ZodObject<{
+        code: z.ZodString;
+        clusterCode: z.ZodString;
+        nameEn: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        code: string;
+        nameEn: string;
+        clusterCode: string;
+    }, {
+        code: string;
+        nameEn: string;
+        clusterCode: string;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    associations: {
+        code: string;
+        nameEn: string;
+        clusterCode: string;
+    }[];
+    clusters: {
+        code: string;
+        nameEn: string;
+        subsectors: {
+            active: boolean;
+            districtId: number | null;
+            districtName: string | null;
+            nameEn: string;
+            sortOrder: number;
+            clusterCode: string;
+            id: string;
+            associationCodes: string[];
+            canEdit: boolean;
+        }[];
+    }[];
+    places: {
+        districtId: number | null;
+        label: string;
+    }[];
+}, {
+    associations: {
+        code: string;
+        nameEn: string;
+        clusterCode: string;
+    }[];
+    clusters: {
+        code: string;
+        nameEn: string;
+        subsectors: {
+            active: boolean;
+            districtId: number | null;
+            districtName: string | null;
+            nameEn: string;
+            sortOrder: number;
+            clusterCode: string;
+            id: string;
+            associationCodes: string[];
+            canEdit: boolean;
+        }[];
+    }[];
+    places: {
+        districtId: number | null;
+        label: string;
+    }[];
+}>;
+export type PsfSubsectorsView = z.infer<typeof PsfSubsectorsView>;
+/** Add a subtype. A national officer may add one for the country; any officer for a district they cover. */
+export declare const CreatePsfSubsectorRequest: z.ZodObject<{
+    clusterCode: z.ZodString;
+    nameEn: z.ZodString;
+    districtId: z.ZodNullable<z.ZodNumber>;
+    associationCodes: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+}, "strip", z.ZodTypeAny, {
+    districtId: number | null;
+    nameEn: string;
+    clusterCode: string;
+    associationCodes: string[];
+}, {
+    districtId: number | null;
+    nameEn: string;
+    clusterCode: string;
+    associationCodes?: string[] | undefined;
+}>;
+export type CreatePsfSubsectorRequest = z.infer<typeof CreatePsfSubsectorRequest>;
+export declare const UpdatePsfSubsectorRequest: z.ZodObject<{
+    nameEn: z.ZodOptional<z.ZodString>;
+    active: z.ZodOptional<z.ZodBoolean>;
+    sortOrder: z.ZodOptional<z.ZodNumber>;
+    associationCodes: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+}, "strip", z.ZodTypeAny, {
+    active?: boolean | undefined;
+    nameEn?: string | undefined;
+    sortOrder?: number | undefined;
+    associationCodes?: string[] | undefined;
+}, {
+    active?: boolean | undefined;
+    nameEn?: string | undefined;
+    sortOrder?: number | undefined;
+    associationCodes?: string[] | undefined;
+}>;
+export type UpdatePsfSubsectorRequest = z.infer<typeof UpdatePsfSubsectorRequest>;
 //# sourceMappingURL=psf.d.ts.map

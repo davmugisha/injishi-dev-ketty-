@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarCheck, CalendarDays, ChevronDown, Flag, type LucideIcon, Users } from "lucide-react";
+import { BedDouble, CalendarCheck, CalendarDays, Check, ChevronDown, Flag, type LucideIcon, Users } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -8,6 +8,7 @@ import type { DateRange } from "react-day-picker";
 import { Button, Popover, PopoverContent, PopoverTrigger } from "@injishi/ui";
 import { formatPrice, nightsBetween, pluralize } from "@injishi/utils";
 import { BookingGuestPicker } from "@/components/property/booking-guest-picker";
+import { BOOKING_ANCHOR, useChosenRoom } from "@/components/property/chosen-room";
 import { StayDatePicker } from "@/components/search/stay-date-picker";
 import { computeQuote } from "@/lib/booking";
 import {
@@ -27,8 +28,9 @@ import {
 } from "@/data/availability";
 import {
   fetchPropertyRooms,
+  fitsParty,
   largestParty,
-  roomForParty,
+  roomToSell,
   type PropertyRooms,
 } from "@/data/property-rooms";
 import { retryWhileFailed, type ApiResult } from "@/lib/api";
@@ -80,6 +82,8 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
   const [guests, setGuests] = useState<GuestCounts>(() => arrived.guests);
   const [datesOpen, setDatesOpen] = useState(false);
   const [guestsOpen, setGuestsOpen] = useState(false);
+  const [roomsOpen, setRoomsOpen] = useState(false);
+  const [chosenRoomId, chooseRoom] = useChosenRoom();
 
   const nights = range?.from && range?.to ? nightsBetween(range.from, range.to) : 0;
 
@@ -135,7 +139,15 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
   const unreadable = rooms !== null && rooms.status !== "ok" && !notSold;
 
   const party = billableGuests(guests);
-  const bookable = roomForParty(sellable, party);
+  /*
+   * The room being sold: the one the guest chose, or the cheapest that fits.
+   *
+   * A chosen room that is too small for the party is NOT swapped for one that
+   * fits. The guest asked for that room by name; quietly pricing another would
+   * sell them something they did not pick. It is held as their choice and the
+   * card says it is too small, so they decide which to change.
+   */
+  const { room: bookable, chosen, chosenTooSmall } = roomToSell(sellable, chosenRoomId, party);
   const bookableRoomTypeId = bookable?.id ?? null;
   /*
    * The picker's ceiling is what the rooms take once they are known, so a guest
@@ -151,7 +163,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
   }, [guests.infants, maxGuests]);
 
   /** Rooms are on sale, but none sleeps this many. The guest can fix this one. */
-  const partyTooLarge = sellable.length > 0 && bookable === null;
+  const partyTooLarge = sellable.length > 0 && bookable === null && !chosenTooSmall;
 
   /*
    * What is left to sell (ADR-047 wave E).
@@ -184,7 +196,9 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
    * from somewhere else that a charge would then disagree with — the exact
    * defect `lib/booking.ts` exists to prevent one layer down.
    */
-  const quotedRateRwf = (bookable ?? sellable[0] ?? null)?.nightlyRateRwf ?? null;
+  const quotedRateRwf = (bookable ?? chosen ?? sellable[0] ?? null)?.nightlyRateRwf ?? null;
+  /** The room the card names: the guest's choice, else the one it would sell. */
+  const shownRoom = chosen ?? bookable;
 
   const quote = useMemo(
     () =>
@@ -242,7 +256,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
   return (
     <div className="flex h-max flex-col lg:sticky lg:top-24">
       <aside
-        id="booking"
+        id={BOOKING_ANCHOR}
         // The same soft surface as the key-facts tiles beside it: a hairline
         // ring, no heavy border, one quiet shadow.
         className="flex flex-col rounded-card bg-card p-6 shadow-control ring-1 ring-border"
@@ -263,6 +277,59 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
         {/* Three field tiles in the key-facts style: dates side by side,
             guests full width under them. */}
         <div className="flex flex-col gap-2">
+          {/* Only where there is a choice to make: one room needs no picker. */}
+          {sellable.length > 1 ? (
+            <Popover open={roomsOpen} onOpenChange={setRoomsOpen}>
+              <PopoverTrigger asChild>
+                <FieldButton
+                  icon={BedDouble}
+                  label={chosen ? "Room" : "Room (best fit for your party)"}
+                  value={shownRoom?.name ?? "Choose a room"}
+                  muted={!shownRoom}
+                  full
+                  chevron={roomsOpen ? "up" : "down"}
+                />
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                collisionPadding={16}
+                className="max-h-[var(--radix-popover-content-available-height)] w-[min(22rem,calc(100vw-2rem))] scrollbar overflow-y-auto p-1.5"
+              >
+                <ul role="listbox" aria-label="Rooms" className="m-0 flex list-none flex-col gap-0.5 p-0">
+                  <RoomOption
+                    selected={chosen === null}
+                    title="Best fit for your party"
+                    detail="The cheapest room that sleeps everyone"
+                    onPick={() => {
+                      chooseRoom(null);
+                      setRoomsOpen(false);
+                    }}
+                  />
+                  {sellable.map((room) => (
+                    <RoomOption
+                      key={room.id}
+                      selected={room.id === chosenRoomId}
+                      title={room.name}
+                      detail={[
+                        room.capacity ? `Sleeps ${room.capacity}` : null,
+                        room.nightlyRateRwf !== null
+                          ? `${formatPrice(room.nightlyRateRwf)} per person, per night`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                      warning={fitsParty(room, party) ? undefined : `Too small for ${pluralize(party, "guest")}`}
+                      onPick={() => {
+                        chooseRoom(room.id);
+                        setRoomsOpen(false);
+                      }}
+                    />
+                  ))}
+                </ul>
+              </PopoverContent>
+            </Popover>
+          ) : null}
+
           <div className="grid grid-cols-2 gap-2">
             <Popover open={datesOpen} onOpenChange={setDatesOpen}>
               <PopoverTrigger asChild>
@@ -358,6 +425,11 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
           <p role="alert" className="mt-4 text-sm text-danger-text">
             {dateProblem}
           </p>
+        ) : chosenTooSmall && chosen ? (
+          <p role="alert" className="mt-4 text-sm text-danger-text">
+            The {chosen.name} sleeps {pluralize(chosen.capacity ?? 0, "guest")}, not counting
+            infants. Choose another room, or fewer guests.
+          </p>
         ) : partyTooLarge ? (
           <p role="alert" className="mt-4 text-sm text-danger-text">
             No room here sleeps {party}. The largest takes {pluralize(maxGuests, "guest")},
@@ -381,6 +453,14 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
             onClick={() => setDatesOpen(true)}
           >
             Pick different dates
+          </Button>
+        ) : chosenTooSmall ? (
+          <Button
+            size="lg"
+            className="mt-4 h-12 w-full rounded-full text-base font-bold"
+            onClick={() => setRoomsOpen(true)}
+          >
+            Choose another room
           </Button>
         ) : partyTooLarge ? (
           <Button
@@ -480,6 +560,41 @@ function formatCell(date: Date): string {
   return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
 }
 
+
+/** One row of the Room picker: a name, what it sleeps and costs, a tick when chosen. */
+function RoomOption({
+  selected,
+  title,
+  detail,
+  warning,
+  onPick,
+}: {
+  selected: boolean;
+  title: string;
+  detail: string;
+  /** Said under the row when the party does not fit; the row stays pickable. */
+  warning?: string;
+  onPick: () => void;
+}) {
+  return (
+    <li role="option" aria-selected={selected}>
+      <button
+        type="button"
+        onClick={onPick}
+        className="flex w-full items-start gap-2.5 rounded-card px-3 py-2.5 text-left transition-colors hover:bg-surface-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center text-accent-text">
+          {selected ? <Check className="size-4" strokeWidth={2.6} aria-hidden /> : null}
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-bold text-page-fg">{title}</span>
+          <span className="block text-xs text-page-fg-70">{detail}</span>
+          {warning ? <span className="block text-xs text-danger-text">{warning}</span> : null}
+        </span>
+      </button>
+    </li>
+  );
+}
 function FieldButton({
   icon: Icon,
   label,

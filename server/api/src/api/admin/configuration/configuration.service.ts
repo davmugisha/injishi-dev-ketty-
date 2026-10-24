@@ -562,6 +562,7 @@ function toPsfCluster(
     sortOrder: row.sortOrder,
     active: row.active,
     associations: associations.map(toPsfAssociation),
+    subsectors: [],
   };
 }
 

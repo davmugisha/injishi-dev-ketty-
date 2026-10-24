@@ -53,6 +53,10 @@
  * Missing when it landed: its launcher lost `fixed` and rendered at the foot of
  * the page, where no visitor would find it. Caught in the browser walk. */
 @source "../components/assistant";
+/* The PSF pages (2026-10-19): the public form, the tracking page and the docID
+ * ticket, and the registration wizard's field primitives the form reuses. */
+@source "../components/psf";
+@source "./(app)/(entry)/register";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

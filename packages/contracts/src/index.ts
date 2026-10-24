@@ -34,6 +34,7 @@ export * from "./waitlist";
 export * from "./platform";
 export * from "./training";
 export * from "./psf";
+export * from "./psf-public";
 export * from "./business-code";
 export * from "./identity";
 export * from "./people";

@@ -1217,8 +1217,11 @@ export function navFor(ctx: NavContext): NavSection[] {
 }
 
 /**
- * A PSF business (the PSF path): its portal is its PSF membership, so that is
- * the whole nav. Gated on the grant's `canManage`, never a permission, for the
+ * A PSF business that registered through the account wizard, before joining
+ * PSF moved to the public, account-less form (2026-10-19). No new `enterprise`
+ * workspace is created now, but the ones that exist keep their portal: its PSF
+ * membership, so that is the whole nav, and `navFor` is the route guard, so
+ * this is what keeps `/psf-membership` open to them. Gated on the grant's `canManage`, never a permission, for the
  * reason Memberships is in a hotel's Settings: the owner must reach it at every
  * registration stage, and a pending business holds no permission.
  */

@@ -177,8 +177,8 @@ export declare const PropertyDetail: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     districtName: string | null;
-    description: string | null;
     id: string;
+    description: string | null;
     roomTypes: {
         name: string;
         domain: "hospitality" | "residence" | "enterprise";
@@ -219,8 +219,8 @@ export declare const PropertyDetail: z.ZodObject<{
 }, {
     name: string;
     districtName: string | null;
-    description: string | null;
     id: string;
+    description: string | null;
     roomTypes: {
         name: string;
         domain: "hospitality" | "residence" | "enterprise";
@@ -296,8 +296,8 @@ export declare const PropertyCard: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     districtName: string | null;
-    description: string | null;
     id: string;
+    description: string | null;
     roomTypeCount: number;
     fromNightlyRateRwf: number | null;
     maxGuests: number | null;
@@ -308,8 +308,8 @@ export declare const PropertyCard: z.ZodObject<{
 }, {
     name: string;
     districtName: string | null;
-    description: string | null;
     id: string;
+    description: string | null;
     roomTypeCount: number;
     fromNightlyRateRwf: number | null;
     maxGuests: number | null;

@@ -58,15 +58,20 @@ describe("a tile on /host", () => {
     }
   });
 
-  test("the PSF tile opens the PSF page, and its kind registers a PSF business", () => {
+  test("the PSF tile opens the PSF page, and the account wizard no longer registers PSF", () => {
     assert.equal(hostKindHref("psf"), "/psf");
-    assert.equal(findRegistrationKind("psf")?.label, "PSF business");
-    assert.equal(registrationForKind("psf").role, "enterprise");
-    assert.equal(registrationForKind("psf").accommodationClass, null);
+    // Joining PSF is the public form at /psf/register (2026-10-19); the
+    // wizard drops `?kind=psf`, and the page redirects it before that.
+    assert.equal(findRegistrationKind("psf"), null);
+    assert.match(
+      src("app/(app)/(entry)/register/page.tsx"),
+      /if \(kind === "psf"\) redirect\("\/psf\/register"\)/,
+    );
   });
 
   test("carries a kind the registration form accepts, so none lands unanswered", () => {
     for (const kind of HOST_PROPERTY_KINDS) {
+      if (kind.value === "psf") continue;
       const entry = findRegistrationKind(kind.value);
       assert.ok(entry, `/register would drop ?kind=${kind.value}`);
       // And a kind the server can price: every chooser tile is a business, never a broker.

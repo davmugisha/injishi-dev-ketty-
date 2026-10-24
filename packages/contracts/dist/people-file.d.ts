@@ -727,8 +727,8 @@ export declare const DocumentRequestSummary: z.ZodObject<{
         requested: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    description: string | null;
     id: string;
+    description: string | null;
     title: string;
     createdAt: string;
     dueOn: string | null;
@@ -741,8 +741,8 @@ export declare const DocumentRequestSummary: z.ZodObject<{
     formats: ("pdf" | "jpg" | "png" | "heic")[];
     maxMb: number;
 }, {
-    description: string | null;
     id: string;
+    description: string | null;
     title: string;
     createdAt: string;
     dueOn: string | null;
@@ -783,8 +783,8 @@ export declare const DocumentRequestList: z.ZodObject<{
             requested: number;
         }>;
     }, "strip", z.ZodTypeAny, {
-        description: string | null;
         id: string;
+        description: string | null;
         title: string;
         createdAt: string;
         dueOn: string | null;
@@ -797,8 +797,8 @@ export declare const DocumentRequestList: z.ZodObject<{
         formats: ("pdf" | "jpg" | "png" | "heic")[];
         maxMb: number;
     }, {
-        description: string | null;
         id: string;
+        description: string | null;
         title: string;
         createdAt: string;
         dueOn: string | null;
@@ -813,8 +813,8 @@ export declare const DocumentRequestList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     requests: {
-        description: string | null;
         id: string;
+        description: string | null;
         title: string;
         createdAt: string;
         dueOn: string | null;
@@ -829,8 +829,8 @@ export declare const DocumentRequestList: z.ZodObject<{
     }[];
 }, {
     requests: {
-        description: string | null;
         id: string;
+        description: string | null;
         title: string;
         createdAt: string;
         dueOn: string | null;
@@ -1578,8 +1578,8 @@ export declare const DisciplinaryAction: z.ZodObject<{
         id: string;
         title: string;
     };
-    description: string;
     id: string;
+    description: string;
     startsOn: string;
     employee: {
         employeeId: string;
@@ -1597,8 +1597,8 @@ export declare const DisciplinaryAction: z.ZodObject<{
         id: string;
         title: string;
     };
-    description: string;
     id: string;
+    description: string;
     startsOn: string;
     employee: {
         employeeId: string;
@@ -1654,8 +1654,8 @@ export declare const DisciplinaryActionList: z.ZodObject<{
             id: string;
             title: string;
         };
-        description: string;
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1673,8 +1673,8 @@ export declare const DisciplinaryActionList: z.ZodObject<{
             id: string;
             title: string;
         };
-        description: string;
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1694,8 +1694,8 @@ export declare const DisciplinaryActionList: z.ZodObject<{
             id: string;
             title: string;
         };
-        description: string;
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1715,8 +1715,8 @@ export declare const DisciplinaryActionList: z.ZodObject<{
             id: string;
             title: string;
         };
-        description: string;
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1817,8 +1817,8 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
             id: string;
             title: string;
         };
-        description: string;
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1836,8 +1836,8 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
             id: string;
             title: string;
         };
-        description: string;
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1859,8 +1859,8 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
             id: string;
             title: string;
         };
-        description: string;
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;
@@ -1881,8 +1881,8 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
             id: string;
             title: string;
         };
-        description: string;
         id: string;
+        description: string;
         startsOn: string;
         employee: {
             employeeId: string;

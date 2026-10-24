@@ -70,8 +70,8 @@ export declare const OrderableItem: z.ZodObject<{
         }[];
     }[];
     name: string;
-    description: string | null;
     id: string;
+    description: string | null;
     priceRwf: number;
     prepTimeMinutes: number | null;
 }, {
@@ -85,8 +85,8 @@ export declare const OrderableItem: z.ZodObject<{
         maxChoices?: number | undefined;
     }[];
     name: string;
-    description: string | null;
     id: string;
+    description: string | null;
     priceRwf: number;
     prepTimeMinutes: number | null;
 }>;
@@ -144,8 +144,8 @@ export declare const OrderableCategory: z.ZodObject<{
             }[];
         }[];
         name: string;
-        description: string | null;
         id: string;
+        description: string | null;
         priceRwf: number;
         prepTimeMinutes: number | null;
     }, {
@@ -159,8 +159,8 @@ export declare const OrderableCategory: z.ZodObject<{
             maxChoices?: number | undefined;
         }[];
         name: string;
-        description: string | null;
         id: string;
+        description: string | null;
         priceRwf: number;
         prepTimeMinutes: number | null;
     }>, "many">;
@@ -177,8 +177,8 @@ export declare const OrderableCategory: z.ZodObject<{
             }[];
         }[];
         name: string;
-        description: string | null;
         id: string;
+        description: string | null;
         priceRwf: number;
         prepTimeMinutes: number | null;
     }[];
@@ -196,8 +196,8 @@ export declare const OrderableCategory: z.ZodObject<{
             maxChoices?: number | undefined;
         }[];
         name: string;
-        description: string | null;
         id: string;
+        description: string | null;
         priceRwf: number;
         prepTimeMinutes: number | null;
     }[];
@@ -279,8 +279,8 @@ export declare const OrderableOutlet: z.ZodObject<{
                 }[];
             }[];
             name: string;
-            description: string | null;
             id: string;
+            description: string | null;
             priceRwf: number;
             prepTimeMinutes: number | null;
         }, {
@@ -294,8 +294,8 @@ export declare const OrderableOutlet: z.ZodObject<{
                 maxChoices?: number | undefined;
             }[];
             name: string;
-            description: string | null;
             id: string;
+            description: string | null;
             priceRwf: number;
             prepTimeMinutes: number | null;
         }>, "many">;
@@ -312,8 +312,8 @@ export declare const OrderableOutlet: z.ZodObject<{
                 }[];
             }[];
             name: string;
-            description: string | null;
             id: string;
+            description: string | null;
             priceRwf: number;
             prepTimeMinutes: number | null;
         }[];
@@ -331,8 +331,8 @@ export declare const OrderableOutlet: z.ZodObject<{
                 maxChoices?: number | undefined;
             }[];
             name: string;
-            description: string | null;
             id: string;
+            description: string | null;
             priceRwf: number;
             prepTimeMinutes: number | null;
         }[];
@@ -356,8 +356,8 @@ export declare const OrderableOutlet: z.ZodObject<{
                 }[];
             }[];
             name: string;
-            description: string | null;
             id: string;
+            description: string | null;
             priceRwf: number;
             prepTimeMinutes: number | null;
         }[];
@@ -388,8 +388,8 @@ export declare const OrderableOutlet: z.ZodObject<{
                 maxChoices?: number | undefined;
             }[];
             name: string;
-            description: string | null;
             id: string;
+            description: string | null;
             priceRwf: number;
             prepTimeMinutes: number | null;
         }[];
@@ -477,8 +477,8 @@ export declare const OrderableList: z.ZodObject<{
                     }[];
                 }[];
                 name: string;
-                description: string | null;
                 id: string;
+                description: string | null;
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }, {
@@ -492,8 +492,8 @@ export declare const OrderableList: z.ZodObject<{
                     maxChoices?: number | undefined;
                 }[];
                 name: string;
-                description: string | null;
                 id: string;
+                description: string | null;
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }>, "many">;
@@ -510,8 +510,8 @@ export declare const OrderableList: z.ZodObject<{
                     }[];
                 }[];
                 name: string;
-                description: string | null;
                 id: string;
+                description: string | null;
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
@@ -529,8 +529,8 @@ export declare const OrderableList: z.ZodObject<{
                     maxChoices?: number | undefined;
                 }[];
                 name: string;
-                description: string | null;
                 id: string;
+                description: string | null;
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
@@ -554,8 +554,8 @@ export declare const OrderableList: z.ZodObject<{
                     }[];
                 }[];
                 name: string;
-                description: string | null;
                 id: string;
+                description: string | null;
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
@@ -586,8 +586,8 @@ export declare const OrderableList: z.ZodObject<{
                     maxChoices?: number | undefined;
                 }[];
                 name: string;
-                description: string | null;
                 id: string;
+                description: string | null;
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
@@ -620,8 +620,8 @@ export declare const OrderableList: z.ZodObject<{
                     }[];
                 }[];
                 name: string;
-                description: string | null;
                 id: string;
+                description: string | null;
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
@@ -654,8 +654,8 @@ export declare const OrderableList: z.ZodObject<{
                     maxChoices?: number | undefined;
                 }[];
                 name: string;
-                description: string | null;
                 id: string;
+                description: string | null;
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];

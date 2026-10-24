@@ -4,30 +4,14 @@ import { apiFetchParsed, type ApiResult } from "@/lib/api";
 /**
  * What the marketplace can actually SELL for a property, read from the API.
  *
- * ## Why this exists
+ * A property is bookable when the API says it has a published listing with an
+ * active hospitality room type, and not otherwise: no flag, no borrowed room,
+ * and the same answer in every environment. The rate a guest sees is the room's
+ * own, because it is the rate the server will charge.
  *
- * `data/properties.ts` is a curated directory of fictional demo stays: their
- * neighbourhoods, their photographs, their demo rates. It is editorial content and it is honest about that. What it
- * is NOT, and was being used as, is a statement that any of them has inventory
- * on this platform.
- *
- * The gap was papered over by `data/demo-listing.ts`, which lent ONE seeded
- * room — Umurage Guesthouse's cheapest — to every property in the catalogue
- * whenever a build flag was set. Its own header said what that meant: opening
- * checkout from the Copperleaf Grand priced and reserved a room in Umurage. With
- * the flag off, which is what `.env.production` sets, no property in the
- * catalogue was bookable at all.
- *
- * This replaces both halves of that. A property is bookable when the API says
- * it has a published listing with an active hospitality room type, and not
- * otherwise — no flag, no borrowing, and the same answer in every environment.
- *
- * ## The rate a guest sees
- *
- * When there is a real room, its rate is the one the widget quotes, because it
- * is the rate the server will charge. The catalogue's `nightlyRateRwf` is then
- * a published rack rate the platform is not selling at, and showing it beside a
- * different total is how a quote comes to disagree with a charge.
+ * Which room is sold is the guest's choice where they made one (the property
+ * page's Rooms list and the booking card's Room field), else the cheapest room
+ * their party fits: see `roomToSell`.
  */
 
 /** The rooms a property can sell, and the room list behind them. */
@@ -88,7 +72,7 @@ export async function fetchPropertyRooms(
  * `filter` keeps the API's order, which is cheapest first — one ordering, and
  * it is the server's.
  */
-function isSellable(room: RoomTypeSummary): boolean {
+export function isSellable(room: RoomTypeSummary): boolean {
   return (
     room.domain === "hospitality" &&
     room.nightlyRateRwf !== null &&
@@ -114,7 +98,32 @@ export function roomForParty(
   sellable: RoomTypeSummary[],
   party: number,
 ): RoomTypeSummary | null {
-  return sellable.find((room) => room.capacity === null || room.capacity >= party) ?? null;
+  return sellable.find((room) => fitsParty(room, party)) ?? null;
+}
+
+/**
+ * The room a booking card sells, given the guest's choice.
+ *
+ * With no choice, or a choice that is not on sale here (a stale link, a room
+ * since archived), the cheapest room the party fits. With a choice, THAT room
+ * and only that room: one too small for the party is not swapped for one that
+ * fits, because the guest asked for it by name. `room` is then null and
+ * `chosenTooSmall` says why, so the card can ask them which to change.
+ */
+export function roomToSell(
+  sellable: RoomTypeSummary[],
+  chosenId: string | null,
+  party: number,
+): { room: RoomTypeSummary | null; chosen: RoomTypeSummary | null; chosenTooSmall: boolean } {
+  const chosen = sellable.find((room) => room.id === chosenId) ?? null;
+  if (!chosen) return { room: roomForParty(sellable, party), chosen: null, chosenTooSmall: false };
+  const fits = fitsParty(chosen, party);
+  return { room: fits ? chosen : null, chosen, chosenTooSmall: !fits };
+}
+
+/** Whether a room sleeps this party. A room with no stated capacity takes any. */
+export function fitsParty(room: RoomTypeSummary, party: number): boolean {
+  return room.capacity === null || room.capacity >= party;
 }
 
 /**

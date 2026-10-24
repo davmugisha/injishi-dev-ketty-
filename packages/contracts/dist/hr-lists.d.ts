@@ -3575,6 +3575,7 @@ export declare const LoanPage: z.ZodObject<{
         amountRwf: number;
         reason: string | null;
         id: string;
+        paidRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
@@ -3582,7 +3583,6 @@ export declare const LoanPage: z.ZodObject<{
         };
         createdAt: string;
         settledAt: string | null;
-        paidRwf: number;
         branchId: string | null;
         givenOn: string;
         installments: number;
@@ -3601,6 +3601,7 @@ export declare const LoanPage: z.ZodObject<{
         amountRwf: number;
         reason: string | null;
         id: string;
+        paidRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
@@ -3608,7 +3609,6 @@ export declare const LoanPage: z.ZodObject<{
         };
         createdAt: string;
         settledAt: string | null;
-        paidRwf: number;
         branchId: string | null;
         givenOn: string;
         installments: number;
@@ -3665,6 +3665,7 @@ export declare const LoanPage: z.ZodObject<{
         amountRwf: number;
         reason: string | null;
         id: string;
+        paidRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
@@ -3672,7 +3673,6 @@ export declare const LoanPage: z.ZodObject<{
         };
         createdAt: string;
         settledAt: string | null;
-        paidRwf: number;
         branchId: string | null;
         givenOn: string;
         installments: number;
@@ -3709,6 +3709,7 @@ export declare const LoanPage: z.ZodObject<{
         amountRwf: number;
         reason: string | null;
         id: string;
+        paidRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
@@ -3716,7 +3717,6 @@ export declare const LoanPage: z.ZodObject<{
         };
         createdAt: string;
         settledAt: string | null;
-        paidRwf: number;
         branchId: string | null;
         givenOn: string;
         installments: number;

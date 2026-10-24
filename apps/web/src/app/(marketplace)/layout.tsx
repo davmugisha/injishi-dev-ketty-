@@ -38,6 +38,8 @@ import "../_injishi-public.css";
  *   (site)      — the canonical header and footer.
  *   (results)   — its own nav on a navy band, then a white sheet. Holds /explore.
  *   (checkout)  — a minimal checkout header and no footer. Holds /book.
+ *   (partner)   — a partner's own header and footer, nothing of Injishi's.
+ *                 Holds /psf (2026-10-23).
  *
  * `MobileTabBar` is deliberately not composed here. `SiteFooter` mounts it, so
  * adding it would render a fixed bottom bar twice (ADR-013).

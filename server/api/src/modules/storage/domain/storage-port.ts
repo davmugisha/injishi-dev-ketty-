@@ -44,7 +44,9 @@ export type StoredObjectKind =
   /** ADR-058: a file hung on a note, a policy, an announcement or a disciplinary record. */
   | 'hr_attachment'
   /** 058-payroll: a bank or MoMo file, or a declaration; `payroll.run` only. */
-  | 'hr_pay_file';
+  | 'hr_pay_file'
+  /** 2026-10-23: a business's logo, for its PSF membership certificate. */
+  | 'org_logo';
 
 export interface PutObjectInput {
   /** The raw bytes. Callers must size-check BEFORE reading a stream to here. */
@@ -148,6 +150,14 @@ export const CERTIFICATE_MIME_TYPES: ReadonlyArray<string> = [
  * longer failed uploads.
  */
 export const MAX_CERTIFICATE_BYTES = 10 * 1024 * 1024;
+
+/**
+ * A business's logo (2026-10-23): a picture, never a document, and small. It
+ * is uploaded from the public PSF form under a verified ID check rather than
+ * a session, so the allowlist and the limit are kept narrow on purpose.
+ */
+export const LOGO_MIME_TYPES: readonly string[] = ['image/jpeg', 'image/png', 'image/webp'];
+export const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
 /**
  * The object kinds the shared mobile upload route accepts (ADR-038 parent

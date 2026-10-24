@@ -112,8 +112,8 @@ export declare const Offer: z.ZodObject<{
     code: string | null;
     status: "active" | "draft" | "archived";
     name: string;
-    description: string | null;
     id: string;
+    description: string | null;
     startsOn: string;
     createdAt: string;
     scope: "room" | "service" | "folio";
@@ -132,8 +132,8 @@ export declare const Offer: z.ZodObject<{
     code: string | null;
     status: "active" | "draft" | "archived";
     name: string;
-    description: string | null;
     id: string;
+    description: string | null;
     startsOn: string;
     createdAt: string;
     scope: "room" | "service" | "folio";
@@ -180,8 +180,8 @@ export declare const OfferList: z.ZodObject<{
         code: string | null;
         status: "active" | "draft" | "archived";
         name: string;
-        description: string | null;
         id: string;
+        description: string | null;
         startsOn: string;
         createdAt: string;
         scope: "room" | "service" | "folio";
@@ -200,8 +200,8 @@ export declare const OfferList: z.ZodObject<{
         code: string | null;
         status: "active" | "draft" | "archived";
         name: string;
-        description: string | null;
         id: string;
+        description: string | null;
         startsOn: string;
         createdAt: string;
         scope: "room" | "service" | "folio";
@@ -222,8 +222,8 @@ export declare const OfferList: z.ZodObject<{
         code: string | null;
         status: "active" | "draft" | "archived";
         name: string;
-        description: string | null;
         id: string;
+        description: string | null;
         startsOn: string;
         createdAt: string;
         scope: "room" | "service" | "folio";
@@ -244,8 +244,8 @@ export declare const OfferList: z.ZodObject<{
         code: string | null;
         status: "active" | "draft" | "archived";
         name: string;
-        description: string | null;
         id: string;
+        description: string | null;
         startsOn: string;
         createdAt: string;
         scope: "room" | "service" | "folio";
@@ -298,8 +298,8 @@ export declare const GuestOffer: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     reason: string | null;
-    description: string | null;
     id: string;
+    description: string | null;
     startsOn: string;
     propertyName: string | null;
     scope: "room" | "service" | "folio";
@@ -317,8 +317,8 @@ export declare const GuestOffer: z.ZodObject<{
 }, {
     name: string;
     reason: string | null;
-    description: string | null;
     id: string;
+    description: string | null;
     startsOn: string;
     propertyName: string | null;
     scope: "room" | "service" | "folio";
@@ -363,8 +363,8 @@ export declare const GuestOfferList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string;
         reason: string | null;
-        description: string | null;
         id: string;
+        description: string | null;
         startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
@@ -382,8 +382,8 @@ export declare const GuestOfferList: z.ZodObject<{
     }, {
         name: string;
         reason: string | null;
-        description: string | null;
         id: string;
+        description: string | null;
         startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
@@ -404,8 +404,8 @@ export declare const GuestOfferList: z.ZodObject<{
     offers: {
         name: string;
         reason: string | null;
-        description: string | null;
         id: string;
+        description: string | null;
         startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";
@@ -426,8 +426,8 @@ export declare const GuestOfferList: z.ZodObject<{
     offers: {
         name: string;
         reason: string | null;
-        description: string | null;
         id: string;
+        description: string | null;
         startsOn: string;
         propertyName: string | null;
         scope: "room" | "service" | "folio";

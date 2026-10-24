@@ -30,7 +30,7 @@ import { timestamps } from './columns';
 import { adapterModeEnum, documentTypeEnum, domainKindEnum, enterpriseRegistrationKindEnum, genderEnum, globalRoleEnum, identityDocumentStatusEnum, invitationPurposeEnum, invitationStatusEnum, kycStatusEnum, oboClaimStatusEnum, orgCertificateKindEnum, orgMembershipStatusEnum, orgRegistrationStatusEnum, orgRoleEnum, oversightRoleEnum, oversightScopeLevelEnum, psfOwnerGroupEnum, rdbClassificationKindEnum, registrationRejectionReasonEnum, registrationReviewDecisionEnum, registrationTransitionTriggerEnum, tinVerificationResultEnum, workspaceKindEnum } from './enums';
 import { districts, provinces, sectors, villages } from './geography';
 import { storedObjects } from './hospitality';
-import { psfAssociations } from './psf-catalogue';
+import { psfAssociations, psfSubsectors } from './psf-catalogue';
 
 export const rdbClassifications = pgTable('rdb_classifications', {
   code: text('code').primaryKey(),
@@ -91,6 +91,9 @@ export const orgs = pgTable(
     sectorId: integer('sector_id').references(() => sectors.id),
     villageId: integer('village_id').references(() => villages.id),
     addressText: text('address_text'),
+    // 2026-10-23: the business's own logo, optional, given on the public PSF
+    // form and printed on its membership certificate (`org_logo` objects).
+    logoObjectKey: text('logo_object_key').references((): AnyPgColumn => storedObjects.objectKey),
     /**
      * The operator contract this business accepted (ADR-053, AC-R8).
      *
@@ -120,6 +123,15 @@ export const orgs = pgTable(
     psfAssociationCode: text('psf_association_code').references(
       () => psfAssociations.code,
     ),
+    // The association a business named itself when PSF's list did not have it
+    // (2026-10-20). It sits beside the cluster's own "other" row
+    // (`industry_other`, …), so the catalogue keeps its foreign key and the
+    // officer still reads the name the business gave.
+    psfAssociationOther: text('psf_association_other'),
+    // The sector's subtype (Hospitality, Tourism…), or the one the business
+    // typed when neither the national nor its district's list had it.
+    psfSubsectorId: uuid('psf_subsector_id').references(() => psfSubsectors.id),
+    psfSubsectorOther: text('psf_subsector_other'),
     // PSF's Specialized cluster, as markers on a business of any sector.
     ownerGroups: psfOwnerGroupEnum('owner_groups')
       .array()

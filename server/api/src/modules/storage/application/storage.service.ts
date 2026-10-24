@@ -8,15 +8,17 @@ import { DRIZZLE, type Database } from '../../../shared/database/database.module
 import {
   ATTACHMENT_MIME_TYPES,
   CERTIFICATE_MIME_TYPES,
+  LOGO_MIME_TYPES,
   MAX_ATTACHMENT_BYTES,
   MAX_CERTIFICATE_BYTES,
+  MAX_LOGO_BYTES,
   STORAGE_PORT,
   type AttachmentKind,
   type StoragePort,
   type StoredObjectKind,
 } from '../domain/storage-port';
 import { sniffMime, type SniffedMime } from '../domain/sniff-mime';
-import { normalisePhoto } from './photo-normaliser';
+import { normaliseLogo, normalisePhoto } from './photo-normaliser';
 
 /** What an HR upload is for, and the stored kind, the formats and the ceiling of each. */
 const HR_FILE_RULES = {
@@ -333,6 +335,45 @@ export class StorageService {
       // without a second round trip to ask for it.
       url: await this.signedUrl(put.objectKey),
     };
+  }
+
+  /**
+   * A business's logo from the public PSF form (2026-10-23).
+   *
+   * There is no session on that form, so nobody is recorded as the uploader;
+   * the caller has already required a verified, unspent ID check. The bytes
+   * are sniffed rather than trusted, kept small, and re-encoded by
+   * `normaliseLogo`, so what is stored is always a clean PNG and never the
+   * file as sent.
+   */
+  async putOrgLogo(input: { body: Buffer; mime: string; filename: string }): Promise<{ objectKey: string; sizeBytes: number }> {
+    const mime = input.mime.split(';')[0].trim().toLowerCase();
+    if (!LOGO_MIME_TYPES.includes(mime)) {
+      throw new BadRequestException('A logo must be a PNG, JPEG or WebP image.');
+    }
+    if (input.body.byteLength === 0) throw new BadRequestException('That file is empty.');
+    if (input.body.byteLength > MAX_LOGO_BYTES) throw new BadRequestException('A logo must be 2 MB or smaller.');
+    const sniffed = sniffMime(input.body);
+    if (sniffed === null || !LOGO_MIME_TYPES.includes(sniffed)) {
+      throw new BadRequestException('A logo must be a PNG, JPEG or WebP image.');
+    }
+    const logo = await normaliseLogo(input.body);
+    const kind = 'org_logo' as const;
+    const put = await this.storage.put({
+      body: logo.body,
+      mime: logo.mime,
+      filename: `${input.filename.replace(/\.[^./\\]*$/, '') || 'logo'}.png`,
+      kind,
+    });
+    await this.db.insert(storedObjects).values({
+      objectKey: put.objectKey,
+      kind,
+      mime: logo.mime,
+      sizeBytes: put.sizeBytes,
+      uploadedByUserId: null,
+      workspaceId: null,
+    });
+    return { objectKey: put.objectKey, sizeBytes: put.sizeBytes };
   }
 
   /**

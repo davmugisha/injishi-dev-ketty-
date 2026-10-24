@@ -432,6 +432,9 @@ export const storedObjectKindEnum = pgEnum('stored_object_kind', [
   // 058-payroll: a bank or MoMo file, or a PAYE or RSSB declaration. Wages and
   // account numbers: `payroll.run` only, never shown to the person.
   'hr_pay_file',
+  // 2026-10-23: a business's logo, given on the public PSF form and printed on
+  // its membership certificate. Uploaded under a verified ID check, not a session.
+  'org_logo',
 ]);
 
 
@@ -1187,6 +1190,12 @@ export const psfApplicationStatusEnum = pgEnum('psf_application_status', [
   'declined',
   'withdrawn',
 ]);
+
+/**
+ * Where one branch of a public PSF application stands (2026-10-23). The PSF
+ * officer of the branch's own district admits or declines it.
+ */
+export const psfBranchStatusEnum = pgEnum('psf_branch_status', ['pending', 'admitted', 'declined']);
 
 /**
  * PSF's Specialized cluster, as a marker on a business of any sector: owned by

@@ -225,8 +225,8 @@ export declare const RestrictedLeavePeriod: z.ZodObject<{
     leaveTypeIds: z.ZodArray<z.ZodString, "many">;
     description: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    description: string | null;
     id: string;
+    description: string | null;
     title: string;
     departmentName: string | null;
     departmentId: string | null;
@@ -236,8 +236,8 @@ export declare const RestrictedLeavePeriod: z.ZodObject<{
     typeMode: "all" | "only" | "except";
     leaveTypeIds: string[];
 }, {
-    description: string | null;
     id: string;
+    description: string | null;
     title: string;
     departmentName: string | null;
     departmentId: string | null;
@@ -264,8 +264,8 @@ export declare const RestrictedLeavePeriodList: z.ZodObject<{
         leaveTypeIds: z.ZodArray<z.ZodString, "many">;
         description: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        description: string | null;
         id: string;
+        description: string | null;
         title: string;
         departmentName: string | null;
         departmentId: string | null;
@@ -275,8 +275,8 @@ export declare const RestrictedLeavePeriodList: z.ZodObject<{
         typeMode: "all" | "only" | "except";
         leaveTypeIds: string[];
     }, {
-        description: string | null;
         id: string;
+        description: string | null;
         title: string;
         departmentName: string | null;
         departmentId: string | null;
@@ -288,8 +288,8 @@ export declare const RestrictedLeavePeriodList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     periods: {
-        description: string | null;
         id: string;
+        description: string | null;
         title: string;
         departmentName: string | null;
         departmentId: string | null;
@@ -301,8 +301,8 @@ export declare const RestrictedLeavePeriodList: z.ZodObject<{
     }[];
 }, {
     periods: {
-        description: string | null;
         id: string;
+        description: string | null;
         title: string;
         departmentName: string | null;
         departmentId: string | null;

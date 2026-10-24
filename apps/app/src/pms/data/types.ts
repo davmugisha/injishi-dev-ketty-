@@ -46,7 +46,8 @@ export type { OrgRole } from "@injishi/contracts";
 /**
  * `enterprise` is a PSF business (the PSF path): a business of any sector that
  * registered to join the Private Sector Federation. It lists nothing, so its
- * workspace is its PSF portal and nothing else.
+ * workspace is its PSF portal and nothing else. Legacy: joining PSF has needed
+ * no account since 2026-10-19, so only workspaces made before then are this.
  */
 export type WorkspaceKey = "host" | "landlord" | "broker" | "enterprise";
 

@@ -759,6 +759,7 @@ export declare const Loan: z.ZodObject<{
     amountRwf: number;
     reason: string | null;
     id: string;
+    paidRwf: number;
     employee: {
         employeeId: string;
         displayName: string;
@@ -766,7 +767,6 @@ export declare const Loan: z.ZodObject<{
     };
     createdAt: string;
     settledAt: string | null;
-    paidRwf: number;
     branchId: string | null;
     givenOn: string;
     installments: number;
@@ -785,6 +785,7 @@ export declare const Loan: z.ZodObject<{
     amountRwf: number;
     reason: string | null;
     id: string;
+    paidRwf: number;
     employee: {
         employeeId: string;
         displayName: string;
@@ -792,7 +793,6 @@ export declare const Loan: z.ZodObject<{
     };
     createdAt: string;
     settledAt: string | null;
-    paidRwf: number;
     branchId: string | null;
     givenOn: string;
     installments: number;
@@ -1823,6 +1823,7 @@ export declare const MyLoanList: z.ZodObject<{
         amountRwf: number;
         reason: string | null;
         id: string;
+        paidRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1830,7 +1831,6 @@ export declare const MyLoanList: z.ZodObject<{
         };
         createdAt: string;
         settledAt: string | null;
-        paidRwf: number;
         branchId: string | null;
         givenOn: string;
         installments: number;
@@ -1849,6 +1849,7 @@ export declare const MyLoanList: z.ZodObject<{
         amountRwf: number;
         reason: string | null;
         id: string;
+        paidRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1856,7 +1857,6 @@ export declare const MyLoanList: z.ZodObject<{
         };
         createdAt: string;
         settledAt: string | null;
-        paidRwf: number;
         branchId: string | null;
         givenOn: string;
         installments: number;
@@ -1877,6 +1877,7 @@ export declare const MyLoanList: z.ZodObject<{
         amountRwf: number;
         reason: string | null;
         id: string;
+        paidRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1884,7 +1885,6 @@ export declare const MyLoanList: z.ZodObject<{
         };
         createdAt: string;
         settledAt: string | null;
-        paidRwf: number;
         branchId: string | null;
         givenOn: string;
         installments: number;
@@ -1905,6 +1905,7 @@ export declare const MyLoanList: z.ZodObject<{
         amountRwf: number;
         reason: string | null;
         id: string;
+        paidRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1912,7 +1913,6 @@ export declare const MyLoanList: z.ZodObject<{
         };
         createdAt: string;
         settledAt: string | null;
-        paidRwf: number;
         branchId: string | null;
         givenOn: string;
         installments: number;

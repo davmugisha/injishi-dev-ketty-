@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PsfMembershipOverview = exports.PsfBusinessProfile = exports.PsfApplicationPrefill = exports.PsfApplication = exports.PsfPayment = exports.PsfFiledForm = exports.PsfMembership = exports.CreatePsfAssociationRequest = exports.UpsertPsfAssociationRequest = exports.CreatePsfClusterRequest = exports.UpsertPsfClusterRequest = exports.PsfCatalogue = exports.PsfCluster = exports.PsfAssociation = exports.UpdatePsfTierRequest = exports.CreatePsfTierRequest = exports.PsfTier = exports.OVERSIGHT_ROLE_POSTING = exports.PSF_OUT_OF_SCOPE_MESSAGE = exports.PSF_NOT_FOR_RESIDENCE_MESSAGE = exports.PSF_OWN_BUSINESS_MESSAGE = exports.PSF_NOT_PAYABLE_MESSAGE = exports.PSF_NOT_OPEN_MESSAGE = exports.PSF_OPEN_APPLICATION_MESSAGE = exports.PSF_FEE_NOTICE = exports.REGISTRATION_TYPE_SHORT = exports.ENTERPRISE_REGISTRATION_KIND_LABEL = exports.PSF_OWNER_GROUP_SHORT = exports.PSF_OWNER_GROUP_LABEL = exports.PSF_CONTACT_ROLE_LABEL = exports.PSF_TRADE_DIRECTION_LABEL = exports.PSF_OWNERSHIP_LABEL = exports.PSF_COMPANY_TYPE_LABEL = exports.PSF_MEMBERSHIP_SOURCE_LABEL = exports.PSF_DECLINE_REASON_LABEL = exports.PSF_APPLICATION_STAGE_LABEL = exports.PSF_APPLICATION_STATUS_LABEL = exports.PSF_OFFERED_FAMILIES = exports.PSF_FAMILY_BLURB = exports.PSF_FAMILY_LABEL = exports.PSF_DOMAINS = exports.PSF_QUEUE_REGISTRATION_STATES = exports.PsfApplicationStage = exports.PsfMembershipSource = exports.PsfDeclineReason = exports.PsfSubmittedCapacity = exports.PSF_OPEN_APPLICATION_STATUSES = exports.PsfApplicationStatus = exports.PsfPriceKind = exports.PsfMembershipFamily = void 0;
-exports.PsfRegisterSummary = exports.PsfCount = exports.PsfBusinessesPage = exports.PsfBusinessRow = exports.PsfBusinessesQuery = exports.PsfBusinessKind = exports.PSF_STANDING_LABEL = exports.PsfStanding = exports.PsfDeclineRequest = exports.PsfApproveRequest = exports.PsfOfficerApplication = exports.PsfQueueQuery = exports.PsfQueuePage = exports.PsfQueueItem = exports.PayPsfMembershipRequest = exports.CreatePsfApplicationRequest = exports.AdminOrgPsf = exports.AdminPsfApplication = void 0;
+exports.PsfApplicationPrefill = exports.PsfApplication = exports.PsfPayment = exports.PsfFiledForm = exports.PsfMembership = exports.CreatePsfAssociationRequest = exports.UpsertPsfAssociationRequest = exports.CreatePsfClusterRequest = exports.UpsertPsfClusterRequest = exports.PsfCatalogue = exports.PsfCluster = exports.PsfSubsector = exports.PsfAssociation = exports.UpdatePsfTierRequest = exports.CreatePsfTierRequest = exports.PsfTier = exports.OVERSIGHT_ROLE_POSTING = exports.PSF_OUT_OF_SCOPE_MESSAGE = exports.PSF_NOT_FOR_RESIDENCE_MESSAGE = exports.PSF_DISTRICT_DECIDES_MESSAGE = exports.PSF_OWN_BUSINESS_MESSAGE = exports.PSF_NOT_PAYABLE_MESSAGE = exports.PSF_NOT_OPEN_MESSAGE = exports.PSF_OPEN_APPLICATION_MESSAGE = exports.PSF_FEE_NOTICE = exports.REGISTRATION_TYPE_SHORT = exports.ENTERPRISE_REGISTRATION_KIND_LABEL = exports.PSF_OWNER_GROUP_SHORT = exports.PSF_OWNER_GROUP_LABEL = exports.PSF_CONTACT_ROLE_LABEL = exports.PSF_TRADE_DIRECTION_LABEL = exports.PSF_OWNERSHIP_LABEL = exports.PSF_COMPANY_TYPE_LABEL = exports.PSF_MEMBERSHIP_SOURCE_LABEL = exports.PSF_DECLINE_REASON_LABEL = exports.PSF_APPLICATION_STAGE_LABEL = exports.PSF_APPLICATION_STATUS_LABEL = exports.PSF_OFFERED_FAMILIES = exports.PSF_FAMILY_BLURB = exports.PSF_FAMILY_LABEL = exports.PSF_DOMAINS = exports.PSF_QUEUE_REGISTRATION_STATES = exports.PsfApplicationStage = exports.PsfMembershipSource = exports.PsfDeclineReason = exports.PsfSubmittedCapacity = exports.PSF_OPEN_APPLICATION_STATUSES = exports.PsfApplicationStatus = exports.PsfPriceKind = exports.PsfMembershipFamily = void 0;
+exports.UpdatePsfSubsectorRequest = exports.CreatePsfSubsectorRequest = exports.PsfSubsectorsView = exports.PsfRegisterSummary = exports.PsfCount = exports.PsfBusinessesPage = exports.PsfBusinessBranch = exports.PsfBusinessRow = exports.PsfBusinessesQuery = exports.PsfBusinessKind = exports.PSF_STANDING_LABEL = exports.PsfStanding = exports.PsfDeclineRequest = exports.PsfApproveRequest = exports.PsfOfficerApplication = exports.PsfQueueQuery = exports.PsfQueuePage = exports.PsfQueueItem = exports.PsfBranchDecisionRequest = exports.PsfApplicationBranch = exports.PSF_BRANCH_STATUS_LABEL = exports.PsfBranchStatus = exports.PayPsfMembershipRequest = exports.CreatePsfApplicationRequest = exports.AdminOrgPsf = exports.AdminPsfApplication = exports.PsfMembershipOverview = exports.PsfBusinessProfile = void 0;
 exports.isInPsfQueueState = isInPsfQueueState;
 exports.isPsfApplicant = isPsfApplicant;
 exports.psfTierAcceptsFee = psfTierAcceptsFee;
@@ -214,6 +214,12 @@ exports.PSF_OPEN_APPLICATION_MESSAGE = "This business already has an open applic
 exports.PSF_NOT_OPEN_MESSAGE = "This application has already been decided or withdrawn.";
 exports.PSF_NOT_PAYABLE_MESSAGE = "This application is not waiting for a payment.";
 exports.PSF_OWN_BUSINESS_MESSAGE = "You hold a role in this business, so another PSF officer must decide its application.";
+/**
+ * Only a PSF District Manager approves or declines (2026-10-23), and only in
+ * their own district: the application for its head office's, a branch for the
+ * branch's. Province and national managers read everything for reporting.
+ */
+exports.PSF_DISTRICT_DECIDES_MESSAGE = "Only the PSF District Manager of its district approves or declines. Province and national managers see it for reporting.";
 exports.PSF_NOT_FOR_RESIDENCE_MESSAGE = "PSF membership through Injishi is for businesses, not for residences let on a lease.";
 exports.PSF_OUT_OF_SCOPE_MESSAGE = "This business is outside the region you cover.";
 // ---------------------------------------------------------------------------
@@ -231,7 +237,7 @@ exports.OVERSIGHT_ROLE_POSTING = {
     psf_membership_officer: {
         governmentBodyCode: "PSF",
         scopeLevels: ["country", "province", "district"],
-        message: "A PSF membership officer is appointed at PSF.",
+        message: "A PSF District Manager is appointed at PSF.",
     },
 };
 // ---------------------------------------------------------------------------
@@ -367,6 +373,22 @@ exports.PsfAssociation = zod_1.z.object({
     sortOrder: zod_1.z.number().int(),
     active: zod_1.z.boolean(),
 });
+/**
+ * A sector's subtype (2026-10-20): Hospitality, Tourism, Transport under
+ * Services. National when `districtId` is null; otherwise offered only in
+ * that district. `associationCodes` are the associations the form offers
+ * once it is picked.
+ */
+exports.PsfSubsector = zod_1.z.object({
+    id: primitives_1.Uuid,
+    clusterCode: zod_1.z.string(),
+    nameEn: zod_1.z.string(),
+    districtId: zod_1.z.number().int().nullable(),
+    districtName: zod_1.z.string().nullable(),
+    sortOrder: zod_1.z.number().int(),
+    active: zod_1.z.boolean(),
+    associationCodes: zod_1.z.array(zod_1.z.string()),
+});
 exports.PsfCluster = zod_1.z.object({
     code: zod_1.z.string(),
     nameEn: zod_1.z.string(),
@@ -376,8 +398,10 @@ exports.PsfCluster = zod_1.z.object({
     sortOrder: zod_1.z.number().int(),
     active: zod_1.z.boolean(),
     associations: zod_1.z.array(exports.PsfAssociation),
+    /** National subtypes, and the district's own when the catalogue was asked for one. */
+    subsectors: zod_1.z.array(exports.PsfSubsector).default([]),
 });
-/** `GET /psf/catalogue`: the clusters in order, each with its associations. */
+/** `GET /psf/catalogue?district=`: the clusters in order, each with its associations and subtypes. */
 exports.PsfCatalogue = zod_1.z.object({ clusters: zod_1.z.array(exports.PsfCluster) });
 const catalogueCode = zod_1.z
     .string()
@@ -510,6 +534,8 @@ exports.PsfBusinessProfile = zod_1.z.object({
     businessCode: zod_1.z.string().nullable(),
     districtName: zod_1.z.string().nullable(),
     clusterName: zod_1.z.string().nullable(),
+    /** The subtype picked, or the one the business typed. */
+    subsectorName: zod_1.z.string().nullable().default(null),
     associationName: zod_1.z.string().nullable(),
     ownerGroups: zod_1.z.array(registration_1.PsfOwnerGroup),
     registrationKind: registration_1.EnterpriseRegistrationKind.nullable(),
@@ -559,6 +585,42 @@ exports.PayPsfMembershipRequest = zod_1.z.object({
 // ---------------------------------------------------------------------------
 // The officer's side (AC-10 to AC-14)
 // ---------------------------------------------------------------------------
+/**
+ * A BRANCH of a business that applied through the public form (2026-10-23):
+ * another place it trades from. Each is admitted by the PSF officer of the
+ * branch's own district, beside the head office's decision on the business,
+ * so a business in Kicukiro with a shop in Musanze is seen in both offices.
+ */
+exports.PsfBranchStatus = zod_1.z.enum(["pending", "admitted", "declined"]);
+exports.PSF_BRANCH_STATUS_LABEL = {
+    pending: "Waiting on PSF",
+    admitted: "Admitted",
+    declined: "Declined",
+};
+/** A branch trades under the business's own name, so it is told apart by where it is. */
+exports.PsfApplicationBranch = zod_1.z.object({
+    id: primitives_1.Uuid,
+    districtId: zod_1.z.number().int(),
+    districtName: zod_1.z.string().nullable(),
+    sectorName: zod_1.z.string().nullable(),
+    street: zod_1.z.string(),
+    status: exports.PsfBranchStatus,
+    note: zod_1.z.string().nullable(),
+    decidedAt: zod_1.z.string().nullable(),
+    /** True when this officer covers the branch's district, it waits on PSF, and they hold no stake. */
+    canDecide: zod_1.z.boolean(),
+});
+/** Admitting or declining one branch. A decline says why, so the business knows. */
+exports.PsfBranchDecisionRequest = zod_1.z
+    .object({
+    decision: zod_1.z.enum(["admit", "decline"]),
+    note: zod_1.z.string().trim().min(1).max(1000).optional(),
+})
+    .superRefine((value, ctx) => {
+    if (value.decision === "decline" && !value.note) {
+        ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, path: ["note"], message: "Say why, so the business knows what to fix." });
+    }
+});
 exports.PsfQueueItem = zod_1.z.object({
     applicationId: primitives_1.Uuid,
     orgId: primitives_1.Uuid,
@@ -567,6 +629,7 @@ exports.PsfQueueItem = zod_1.z.object({
     domain: primitives_1.Domain,
     districtName: zod_1.z.string().nullable(),
     associationName: zod_1.z.string().nullable(),
+    subsectorName: zod_1.z.string().nullable().default(null),
     ownerGroups: zod_1.z.array(registration_1.PsfOwnerGroup),
     requestedTierName: zod_1.z.string(),
     declaredFeeRwf: primitives_1.RwfAmount.nullable(),
@@ -575,10 +638,33 @@ exports.PsfQueueItem = zod_1.z.object({
     registrationStatus: primitives_1.OrgRegistrationStatus,
     /** False when the officer holds a stake in the business (AC-14). */
     canDecide: zod_1.z.boolean(),
+    districtId: zod_1.z.number().int().nullable(),
+    /** Whole days since it reached the queue. */
+    waitingDays: zod_1.z.number().int(),
+    /** The docID a public applicant tracks it by; null for a hotel's. */
+    docId: zod_1.z.string().nullable(),
+    clusterName: zod_1.z.string().nullable().default(null),
+    /** What the business already paid for its membership, when it paid before review. */
+    paidRwf: primitives_1.RwfAmount.nullable().default(null),
+    /**
+     * False when the officer is here only for a branch: the head office is in
+     * another district, whose officer decides the business itself.
+     */
+    headOfficeInScope: zod_1.z.boolean().default(true),
+    /** Branches in this officer's region still waiting on PSF. */
+    branchesPending: zod_1.z.number().int().default(0),
+    /**
+     * Whether this officer is the one who decides it (2026-10-23): the PSF
+     * District Manager of its district. A province or national manager reads
+     * the queue for reporting and never decides.
+     */
+    decidesHere: zod_1.z.boolean().default(true),
 });
 exports.PsfQueuePage = zod_1.z.object({
     items: exports.PsfQueueItem.array(),
     nextCursor: zod_1.z.string().nullable(),
+    /** How many match the filters, across every page. */
+    total: zod_1.z.number().int().default(0),
 });
 /** The same cursor shape the officer's decision log pages by. */
 exports.PsfQueueQuery = registration_1.OversightDecisionQuery;
@@ -589,6 +675,21 @@ exports.PsfOfficerApplication = exports.PsfApplication.extend({
     registrationStatus: primitives_1.OrgRegistrationStatus,
     profile: exports.PsfBusinessProfile,
     canDecide: zod_1.z.boolean(),
+    docId: zod_1.z.string().nullable(),
+    waitingDays: zod_1.z.number().int(),
+    /** The next number in this district's run for this year, for the approve dialog. */
+    suggestedMembershipNumber: zod_1.z.string().nullable(),
+    /**
+     * Paid before review (the public path, 2026-10-20): approving makes the
+     * business a member at once. Declining keeps the fee: nothing is refunded
+     * (2026-10-23).
+     */
+    paidBeforeReview: zod_1.z.boolean().default(false),
+    /** False when the officer reads it only for a branch in their district. */
+    headOfficeInScope: zod_1.z.boolean().default(true),
+    branches: exports.PsfApplicationBranch.array().default([]),
+    /** The officer is the District Manager who decides the business (2026-10-23); see `PsfQueueItem.decidesHere`. */
+    decidesHere: zod_1.z.boolean().default(true),
 });
 /**
  * Approving an application (AC-11, as the PSF path changed it). PSF gives the
@@ -644,7 +745,10 @@ const optionalText = (max) => zod_1.z.string().trim().min(1).max(max).optional()
  */
 exports.PsfBusinessesQuery = zod_1.z.object({
     q: optionalText(80),
+    subsector: primitives_1.Uuid.optional(),
     district: zod_1.z.coerce.number().int().positive().optional(),
+    /** Narrow to one province of the officer's region (the province and national views). */
+    province: zod_1.z.coerce.number().int().positive().optional(),
     cluster: optionalText(60),
     association: optionalText(60),
     tier: optionalText(60),
@@ -664,6 +768,7 @@ exports.PsfBusinessRow = zod_1.z.object({
     sectorName: zod_1.z.string().nullable(),
     clusterCode: zod_1.z.string().nullable(),
     clusterName: zod_1.z.string().nullable(),
+    subsectorName: zod_1.z.string().nullable().default(null),
     associationName: zod_1.z.string().nullable(),
     associationAcronym: zod_1.z.string().nullable(),
     ownerGroups: zod_1.z.array(registration_1.PsfOwnerGroup),
@@ -676,6 +781,29 @@ exports.PsfBusinessRow = zod_1.z.object({
     expiresOn: zod_1.z.string().nullable(),
     /** The open application, when there is one, so the row can open it. */
     openApplicationId: primitives_1.Uuid.nullable(),
+    /** Paid in through Injishi: membership fees, and any registration fee. */
+    paidRwf: primitives_1.RwfAmount.default(0),
+    lastPaidAt: zod_1.z.string().nullable().default(null),
+    /** Its branches (2026-10-23): the other places it trades from, on its newest application. */
+    branchCount: zod_1.z.number().int().default(0),
+    /**
+     * False when the officer sees it only because a branch is in their region:
+     * its head office, and its decision, are another district's.
+     */
+    headOfficeInScope: zod_1.z.boolean().default(true),
+});
+/** One branch on a business's page, wherever it is: every officer who opens the business sees them all. */
+exports.PsfBusinessBranch = zod_1.z.object({
+    id: primitives_1.Uuid,
+    provinceName: zod_1.z.string().nullable(),
+    districtId: zod_1.z.number().int(),
+    districtName: zod_1.z.string().nullable(),
+    sectorName: zod_1.z.string().nullable(),
+    street: zod_1.z.string(),
+    status: exports.PsfBranchStatus,
+    note: zod_1.z.string().nullable(),
+    /** In the officer's own region: theirs to decide on the application. */
+    inScope: zod_1.z.boolean(),
 });
 exports.PsfBusinessesPage = zod_1.z.object({
     items: zod_1.z.array(exports.PsfBusinessRow),
@@ -741,4 +869,24 @@ function splitPsfName(fullName) {
         return { firstName: trimmed, lastName: "" };
     return { firstName: trimmed.slice(0, at), lastName: trimmed.slice(at + 1) };
 }
+/** `GET /oversight/psf/subsectors`: what the officer may read and change. */
+exports.PsfSubsectorsView = zod_1.z.object({
+    clusters: zod_1.z.array(zod_1.z.object({ code: zod_1.z.string(), nameEn: zod_1.z.string(), subsectors: zod_1.z.array(exports.PsfSubsector.extend({ canEdit: zod_1.z.boolean() })) })),
+    /** Where the officer may put a new subtype: null for national, or a district id. */
+    places: zod_1.z.array(zod_1.z.object({ districtId: zod_1.z.number().int().nullable(), label: zod_1.z.string() })),
+    associations: zod_1.z.array(zod_1.z.object({ code: zod_1.z.string(), clusterCode: zod_1.z.string(), nameEn: zod_1.z.string() })),
+});
+/** Add a subtype. A national officer may add one for the country; any officer for a district they cover. */
+exports.CreatePsfSubsectorRequest = zod_1.z.object({
+    clusterCode: zod_1.z.string().trim().min(1),
+    nameEn: zod_1.z.string().trim().min(2, "Give the subtype a name.").max(80),
+    districtId: zod_1.z.number().int().positive().nullable(),
+    associationCodes: zod_1.z.array(zod_1.z.string().trim().min(1)).max(60).default([]),
+});
+exports.UpdatePsfSubsectorRequest = zod_1.z.object({
+    nameEn: zod_1.z.string().trim().min(2, "Give the subtype a name.").max(80).optional(),
+    active: zod_1.z.boolean().optional(),
+    sortOrder: zod_1.z.number().int().min(0).max(999).optional(),
+    associationCodes: zod_1.z.array(zod_1.z.string().trim().min(1)).max(60).optional(),
+});
 //# sourceMappingURL=psf.js.map

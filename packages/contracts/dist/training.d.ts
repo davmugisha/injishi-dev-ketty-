@@ -1734,8 +1734,8 @@ export declare const AdminTrainingVenue: z.ZodObject<{
     address: string;
     districtName: string;
     id: string;
-    createdAt: string;
     provinceName: string;
+    createdAt: string;
     isOffice: boolean;
     retiredAt: string | null;
 }, {
@@ -1745,8 +1745,8 @@ export declare const AdminTrainingVenue: z.ZodObject<{
     address: string;
     districtName: string;
     id: string;
-    createdAt: string;
     provinceName: string;
+    createdAt: string;
     isOffice: boolean;
     retiredAt: string | null;
 }>;
@@ -1786,8 +1786,8 @@ export declare const AdminTrainingVenueListResponse: z.ZodObject<{
         address: string;
         districtName: string;
         id: string;
-        createdAt: string;
         provinceName: string;
+        createdAt: string;
         isOffice: boolean;
         retiredAt: string | null;
     }, {
@@ -1797,8 +1797,8 @@ export declare const AdminTrainingVenueListResponse: z.ZodObject<{
         address: string;
         districtName: string;
         id: string;
-        createdAt: string;
         provinceName: string;
+        createdAt: string;
         isOffice: boolean;
         retiredAt: string | null;
     }>, "many">;
@@ -1823,8 +1823,8 @@ export declare const AdminTrainingVenueListResponse: z.ZodObject<{
         address: string;
         districtName: string;
         id: string;
-        createdAt: string;
         provinceName: string;
+        createdAt: string;
         isOffice: boolean;
         retiredAt: string | null;
     }[];
@@ -1841,8 +1841,8 @@ export declare const AdminTrainingVenueListResponse: z.ZodObject<{
         address: string;
         districtName: string;
         id: string;
-        createdAt: string;
         provinceName: string;
+        createdAt: string;
         isOffice: boolean;
         retiredAt: string | null;
     }[];
@@ -1922,8 +1922,8 @@ export declare const RetireAdminTrainingVenueResult: z.ZodObject<{
         address: string;
         districtName: string;
         id: string;
-        createdAt: string;
         provinceName: string;
+        createdAt: string;
         isOffice: boolean;
         retiredAt: string | null;
     }, {
@@ -1933,8 +1933,8 @@ export declare const RetireAdminTrainingVenueResult: z.ZodObject<{
         address: string;
         districtName: string;
         id: string;
-        createdAt: string;
         provinceName: string;
+        createdAt: string;
         isOffice: boolean;
         retiredAt: string | null;
     }>;
@@ -1947,8 +1947,8 @@ export declare const RetireAdminTrainingVenueResult: z.ZodObject<{
         address: string;
         districtName: string;
         id: string;
-        createdAt: string;
         provinceName: string;
+        createdAt: string;
         isOffice: boolean;
         retiredAt: string | null;
     };
@@ -1961,8 +1961,8 @@ export declare const RetireAdminTrainingVenueResult: z.ZodObject<{
         address: string;
         districtName: string;
         id: string;
-        createdAt: string;
         provinceName: string;
+        createdAt: string;
         isOffice: boolean;
         retiredAt: string | null;
     };
@@ -2118,8 +2118,8 @@ export declare const AdminTrainingSession: z.ZodObject<{
         address: string;
         districtName: string;
         id: string;
-        createdAt: string;
         provinceName: string;
+        createdAt: string;
         isOffice: boolean;
         retiredAt: string | null;
     }, {
@@ -2129,8 +2129,8 @@ export declare const AdminTrainingSession: z.ZodObject<{
         address: string;
         districtName: string;
         id: string;
-        createdAt: string;
         provinceName: string;
+        createdAt: string;
         isOffice: boolean;
         retiredAt: string | null;
     }>;
@@ -2175,8 +2175,8 @@ export declare const AdminTrainingSession: z.ZodObject<{
         address: string;
         districtName: string;
         id: string;
-        createdAt: string;
         provinceName: string;
+        createdAt: string;
         isOffice: boolean;
         retiredAt: string | null;
     };
@@ -2214,8 +2214,8 @@ export declare const AdminTrainingSession: z.ZodObject<{
         address: string;
         districtName: string;
         id: string;
-        createdAt: string;
         provinceName: string;
+        createdAt: string;
         isOffice: boolean;
         retiredAt: string | null;
     };
@@ -2299,8 +2299,8 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
             address: string;
             districtName: string;
             id: string;
-            createdAt: string;
             provinceName: string;
+            createdAt: string;
             isOffice: boolean;
             retiredAt: string | null;
         }, {
@@ -2310,8 +2310,8 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
             address: string;
             districtName: string;
             id: string;
-            createdAt: string;
             provinceName: string;
+            createdAt: string;
             isOffice: boolean;
             retiredAt: string | null;
         }>;
@@ -2356,8 +2356,8 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
             address: string;
             districtName: string;
             id: string;
-            createdAt: string;
             provinceName: string;
+            createdAt: string;
             isOffice: boolean;
             retiredAt: string | null;
         };
@@ -2395,8 +2395,8 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
             address: string;
             districtName: string;
             id: string;
-            createdAt: string;
             provinceName: string;
+            createdAt: string;
             isOffice: boolean;
             retiredAt: string | null;
         };
@@ -2449,8 +2449,8 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
             address: string;
             districtName: string;
             id: string;
-            createdAt: string;
             provinceName: string;
+            createdAt: string;
             isOffice: boolean;
             retiredAt: string | null;
         };
@@ -2495,8 +2495,8 @@ export declare const AdminTrainingSessionListResponse: z.ZodObject<{
             address: string;
             districtName: string;
             id: string;
-            createdAt: string;
             provinceName: string;
+            createdAt: string;
             isOffice: boolean;
             retiredAt: string | null;
         };
@@ -2695,8 +2695,8 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
             address: string;
             districtName: string;
             id: string;
-            createdAt: string;
             provinceName: string;
+            createdAt: string;
             isOffice: boolean;
             retiredAt: string | null;
         }, {
@@ -2706,8 +2706,8 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
             address: string;
             districtName: string;
             id: string;
-            createdAt: string;
             provinceName: string;
+            createdAt: string;
             isOffice: boolean;
             retiredAt: string | null;
         }>;
@@ -2752,8 +2752,8 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
             address: string;
             districtName: string;
             id: string;
-            createdAt: string;
             provinceName: string;
+            createdAt: string;
             isOffice: boolean;
             retiredAt: string | null;
         };
@@ -2791,8 +2791,8 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
             address: string;
             districtName: string;
             id: string;
-            createdAt: string;
             provinceName: string;
+            createdAt: string;
             isOffice: boolean;
             retiredAt: string | null;
         };
@@ -2834,8 +2834,8 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
             address: string;
             districtName: string;
             id: string;
-            createdAt: string;
             provinceName: string;
+            createdAt: string;
             isOffice: boolean;
             retiredAt: string | null;
         };
@@ -2877,8 +2877,8 @@ export declare const CancelAdminTrainingSessionResult: z.ZodObject<{
             address: string;
             districtName: string;
             id: string;
-            createdAt: string;
             provinceName: string;
+            createdAt: string;
             isOffice: boolean;
             retiredAt: string | null;
         };

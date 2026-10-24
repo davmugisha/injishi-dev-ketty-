@@ -29,6 +29,8 @@ import {
   check,
   date,
   index,
+  integer,
+  jsonb,
   pgTable,
   smallint,
   text,
@@ -43,6 +45,7 @@ import {
   documentTypeEnum,
   genderEnum,
   psfApplicationStatusEnum,
+  psfBranchStatusEnum,
   psfCompanyTypeEnum,
   psfContactRoleEnum,
   psfDeclineReasonEnum,
@@ -53,6 +56,7 @@ import {
   psfSubmittedCapacityEnum,
   psfTradeDirectionEnum,
 } from './enums';
+import { districts, sectors } from './geography';
 import { orgs } from './org';
 
 export const psfMembershipTiers = pgTable(
@@ -93,6 +97,36 @@ export const psfMembershipTiers = pgTable(
   ],
 );
 
+/**
+ * What a membership band costs in a place (2026-10-20). A business no longer
+ * types its own amount: PSF's officers set it. `district_id` null is the
+ * national price, which a national officer sets; a district's own row (its
+ * district or province officer sets it) wins inside that district. With no
+ * row at all, the band's own starting price applies (`psfStartingFee`).
+ *
+ * The public form shows the price for the business's district and sends it
+ * back; the API refuses a form whose price no longer matches, so nobody is
+ * charged an amount they were not shown.
+ */
+export const psfTierFees = pgTable(
+  'psf_tier_fees',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tierCode: text('tier_code')
+      .notNull()
+      .references(() => psfMembershipTiers.code),
+    districtId: integer('district_id').references(() => districts.id),
+    annualFeeRwf: amount('annual_fee_rwf').notNull(),
+    setByUserId: uuid('set_by_user_id').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    // One price per band per place; null (national) counts as a place.
+    uniqueIndex('psf_tier_fees_place_uk').on(t.tierCode, sql`coalesce(${t.districtId}, 0)`),
+    check('psf_tier_fees_positive', sql`${t.annualFeeRwf} > 0`),
+  ],
+);
+
 export const psfMembershipApplications = pgTable(
   'psf_membership_applications',
   {
@@ -100,9 +134,16 @@ export const psfMembershipApplications = pgTable(
     orgId: uuid('org_id')
       .notNull()
       .references(() => orgs.id, { onDelete: 'cascade' }),
-    submittedByUserId: uuid('submitted_by_user_id')
-      .notNull()
-      .references(() => users.id),
+    // Null when the application came through the public PSF form
+    // (`/psf/register`, 2026-10-19): nobody signed in, and the docID stands in.
+    submittedByUserId: uuid('submitted_by_user_id').references(() => users.id),
+    // The bearer key the public applicant tracks the application by
+    // (`PSF-7K3M-Q9XD`, `newPsfDocId`). Random, never a counter. Every
+    // application has one, a hotel's included.
+    docId: text('doc_id').notNull(),
+    // Where status news goes when there is no account: SMS always, mail when given.
+    applicantPhoneE164: text('applicant_phone_e164'),
+    applicantEmail: text('applicant_email'),
     submittedCapacity: psfSubmittedCapacityEnum('submitted_capacity').notNull(),
     status: psfApplicationStatusEnum('status').notNull().default('submitted'),
     // The first time it entered PSF's queue. Orders the queue and makes the
@@ -181,6 +222,10 @@ export const psfMembershipApplications = pgTable(
     remittedAt: timestamp('remitted_at', { withTimezone: true }),
     remittanceRef: text('remittance_ref'),
 
+    // THE PUBLIC PATH PAYS BEFORE REVIEW (2026-10-20): PSF approves only a
+    // business that has paid. Nothing is refunded (2026-10-23): a decline
+    // keeps the fee, and it goes on to PSF like an approval's.
+
     withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
     withdrawnByUserId: uuid('withdrawn_by_user_id').references(
       () => users.id,
@@ -195,6 +240,12 @@ export const psfMembershipApplications = pgTable(
       .on(t.orgId)
       .where(sql`${t.status} NOT IN ('member', 'declined', 'withdrawn')`),
     index('psf_membership_applications_org_idx').on(t.orgId),
+    uniqueIndex('psf_membership_applications_doc_id_uk').on(t.docId),
+    // Nobody signed in means somebody to tell: the public form always gives a phone.
+    check(
+      'psf_membership_applications_public_shape',
+      sql`${t.submittedByUserId} IS NOT NULL OR ${t.applicantPhoneE164} IS NOT NULL`,
+    ),
     index('psf_membership_applications_queue_idx').on(t.status, t.queuedAt),
     check(
       'psf_membership_applications_ownership_shape',
@@ -224,7 +275,7 @@ export const psfMembershipApplications = pgTable(
           AND ((${t.paidAt} IS NULL) = (${t.paidAmountRwf} IS NULL)
                AND (${t.paidAt} IS NULL) = (${t.paymentRef} IS NULL)
                AND (${t.paidAt} IS NULL) = (${t.paymentMode} IS NULL))
-          AND (${t.paidAt} IS NULL OR ${t.status} = 'member')
+          AND (${t.paidAt} IS NULL OR ${t.status} IN ('submitted', 'member', 'declined'))
           AND (${t.remittedAt} IS NULL OR ${t.paidAt} IS NOT NULL)
           AND ((${t.remittedAt} IS NULL) = (${t.remittanceRef} IS NULL))`,
     ),
@@ -276,3 +327,88 @@ export const psfMemberships = pgTable(
     ),
   ],
 );
+
+/**
+ * One National ID check on the public PSF form (2026-10-19): the register was
+ * asked, a code went to the phone it holds, and, once the code is read back,
+ * a token that the submit spends. The same rules as `identity_challenges`
+ * (a code lives ten minutes, five wrong guesses end it), with no user, because
+ * nobody signs in. Nothing about the person is kept here past the token's
+ * thirty minutes except on the application the submit files.
+ */
+export const psfIdentityChecks = pgTable(
+  'psf_identity_checks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    documentNumber: text('document_number').notNull(),
+    codeHash: text('code_hash').notNull(),
+    codeExpiresAt: timestamp('code_expires_at', { withTimezone: true }).notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    /** The register's answer, written when the code is read back. */
+    person: jsonb('person').$type<{
+      fullName: string;
+      dateOfBirth: string;
+      gender: 'male' | 'female' | null;
+      phoneE164: string | null;
+      generated: boolean;
+    }>(),
+    tokenHash: text('token_hash'),
+    tokenExpiresAt: timestamp('token_expires_at', { withTimezone: true }),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    spentAt: timestamp('spent_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('psf_identity_checks_token_uk').on(t.tokenHash),
+    index('psf_identity_checks_created_idx').on(t.createdAt),
+  ],
+);
+
+/**
+ * The other places a business trades from, as its public application listed
+ * them (2026-10-23). Not `properties`: a PSF business has no workspace, and a
+ * branch here is something PSF admits, not something listed.
+ *
+ * Each branch is decided by the PSF officer of ITS district, not the head
+ * office's, so an officer's region reaches an application through a branch as
+ * well as through the business. A branch has no name of its own: it trades
+ * under the business's. Its place and street never change after submit; only
+ * the decision does.
+ */
+export const psfApplicationBranches = pgTable(
+  'psf_application_branches',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    applicationId: uuid('application_id')
+      .notNull()
+      .references(() => psfMembershipApplications.id, { onDelete: 'cascade' }),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    // No name: a branch trades under the business's own (2026-10-23).
+    districtId: integer('district_id')
+      .notNull()
+      .references(() => districts.id),
+    sectorId: integer('sector_id')
+      .notNull()
+      .references(() => sectors.id),
+    street: text('street').notNull(),
+    status: psfBranchStatusEnum('status').notNull().default('pending'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decidedByUserId: uuid('decided_by_user_id').references(() => users.id),
+    decisionNote: text('decision_note'),
+    ...timestamps,
+  },
+  (t) => [
+    index('psf_application_branches_application_idx').on(t.applicationId),
+    index('psf_application_branches_district_idx').on(t.districtId, t.status),
+    // Decided is all of its parts, and a decline always says why.
+    check(
+      'psf_application_branches_decision_shape',
+      sql`(${t.status} = 'pending') = (${t.decidedAt} IS NULL AND ${t.decidedByUserId} IS NULL)
+          AND (${t.status} <> 'declined' OR ${t.decisionNote} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export type PsfApplicationBranchRow = typeof psfApplicationBranches.$inferSelect;

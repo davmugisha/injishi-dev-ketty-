@@ -472,8 +472,8 @@ export declare const OperatorProperty: z.ZodObject<{
         provinceName: string | null;
     };
     isHeadOffice: boolean;
-    description: string | null;
     id: string;
+    description: string | null;
     roomTypeCount: number;
     rraBranchId: string | null;
     archivedAt: string | null;
@@ -516,8 +516,8 @@ export declare const OperatorProperty: z.ZodObject<{
         provinceName: string | null;
     };
     isHeadOffice: boolean;
-    description: string | null;
     id: string;
+    description: string | null;
     roomTypeCount: number;
     rraBranchId: string | null;
     archivedAt: string | null;

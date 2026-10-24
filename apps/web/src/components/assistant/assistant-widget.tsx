@@ -99,7 +99,11 @@ export function AssistantWidget() {
     endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [conversation, pending, open]);
 
-  if (!enabled) return null;
+  // The PSF pages are PSF's, with their own chrome (the `(partner)` group), and
+  // "Ask Injishi" does not belong on them. The widget is mounted by the root
+  // layout, so it is the one that has to stay away.
+  const onPartnerPage = pathname === "/psf" || pathname?.startsWith("/psf/");
+  if (!enabled || onPartnerPage) return null;
 
   async function send(text?: string) {
     const message = (text ?? draft).trim();

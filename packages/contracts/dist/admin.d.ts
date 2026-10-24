@@ -4340,16 +4340,16 @@ export declare const AdminFeeSchedule: z.ZodObject<{
         currency: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         currency: string;
+        paidRwf: number;
         pendingCount: number;
         pendingRwf: number;
         paidCount: number;
-        paidRwf: number;
     }, {
         currency: string;
+        paidRwf: number;
         pendingCount: number;
         pendingRwf: number;
         paidCount: number;
-        paidRwf: number;
     }>;
 }, "strip", z.ZodTypeAny, {
     registrationFees: {
@@ -4374,10 +4374,10 @@ export declare const AdminFeeSchedule: z.ZodObject<{
     }[];
     placementFeeSummary: {
         currency: string;
+        paidRwf: number;
         pendingCount: number;
         pendingRwf: number;
         paidCount: number;
-        paidRwf: number;
     };
 }, {
     registrationFees: {
@@ -4402,10 +4402,10 @@ export declare const AdminFeeSchedule: z.ZodObject<{
     }[];
     placementFeeSummary: {
         currency: string;
+        paidRwf: number;
         pendingCount: number;
         pendingRwf: number;
         paidCount: number;
-        paidRwf: number;
     };
 }>;
 export type AdminFeeSchedule = z.infer<typeof AdminFeeSchedule>;

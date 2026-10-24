@@ -549,6 +549,7 @@ export function Checkout() {
           property={property}
           selection={selection}
           quote={quote}
+          room={roomType}
           cancellationTier={roomType.cancellationTier}
           nonRefundable={nonRefundable}
         />
