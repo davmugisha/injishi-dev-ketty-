@@ -215,6 +215,8 @@ export default function RegisterWizard({
   const [docs, setDocs] = useState<DocumentDraft[]>([]);
   const [psf, setPsf] = useState<PsfDraft>(EMPTY_PSF);
   const [tiers, setTiers] = useState<PsfTier[] | null>(null);
+  const [tiersFailed, setTiersFailed] = useState(false);
+  const [tierRetry, setTierRetry] = useState(0);
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [identity, setIdentity] = useState<IdentityStatus | null>(null);
@@ -423,15 +425,17 @@ export default function RegisterWizard({
 
   // PSF's tiers, read once the step that offers them is reached.
   useEffect(() => {
-    if (step !== "branches" || tiers !== null) return;
+    if (step !== "branches" || tiers !== null || tiersFailed) return;
     let cancelled = false;
     void fetchPsfTiers().then((res) => {
-      if (!cancelled) setTiers(res.status === "ok" ? res.data : []);
+      if (cancelled) return;
+      if (res.status === "ok") setTiers(res.data);
+      else setTiersFailed(true);
     });
     return () => {
       cancelled = true;
     };
-  }, [step, tiers]);
+  }, [step, tiers, tiersFailed, tierRetry]);
 
   const locLine = useAddressLine(business.address);
 
@@ -1351,6 +1355,12 @@ export default function RegisterWizard({
             onPsfChange={setPsf}
             onApplyNow={seedPsf}
             tiers={tiers}
+            tiersFailed={tiersFailed}
+            onRetryTiers={() => {
+              setTiers(null);
+              setTiersFailed(false);
+              setTierRetry((n) => n + 1);
+            }}
             documentLine={documentOnFile}
             errors={errors}
           />

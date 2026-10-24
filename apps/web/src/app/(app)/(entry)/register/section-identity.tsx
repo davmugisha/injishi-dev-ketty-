@@ -10,7 +10,7 @@ import { apiResultMessage } from "@/lib/api";
 import { formatNationalId, nationalIdError } from "@/lib/rwanda-id";
 
 import { AddressPicker } from "./address-picker";
-import { PassportScanner } from "./identity-verifier";
+import { PassportScanner, VerifiedIdentityCard } from "./identity-verifier";
 import { PhoneInput } from "./phone-input";
 import type { RegisterPath } from "./register-steps";
 import { Callout } from "./register-shell";
@@ -94,8 +94,13 @@ export function SectionIdentity({
   const [message, setMessage] = useState<{ tone: "danger" | "warning"; text: string } | null>(null);
 
   const digits = nid.replace(/\s+/g, "");
-  const intro =
-    path === "owner"
+  const intro = idType === "passport"
+    ? !identity?.available.passport
+      ? "Passport checking is not available on this deployment yet."
+      : identity.modes.documents === "mock"
+      ? "This demo can create sample passport details from two different images. It does not read or verify a real passport."
+      : "A passport check needs a photo of the passport page and a selfie. The document verifier returns the holder's details."
+    : path === "owner"
       ? "We check your ID with the population register, which texts a code to the phone it holds for it. Then we check that the ID is one of RRA's directors for this TIN."
       : path === "landlord"
         ? "We check your ID with the population register, which texts a code to the phone it holds for it. The name it returns is the one the registration carries."
@@ -195,14 +200,17 @@ export function SectionIdentity({
         : null;
     return (
       <>
+        {person ? (
+          <VerifiedIdentityCard person={person} method={identity?.method ?? null} />
+        ) : (
         <Callout
           tone="success"
           icon={<CircleCheck size={16} aria-hidden />}
           title={`Checked${identity?.method === "document_scan" ? " from your passport" : identity?.method === "registry" ? " by the population register" : ""}: ${name}`}
         >
           {doc ? `${doc}.` : null}
-          {person?.generated ? " Demo: no real register is connected, so these details were generated." : null}
         </Callout>
+        )}
 
         {path === "owner" && isDirector === false ? (
           <>
@@ -238,7 +246,7 @@ export function SectionIdentity({
                   </Field>
                 )}
                 {phoneFromRegister ? null : (
-                  <Field label="Your phone" required hint="Pick your country, then the number as you dial it." error={errors["phoneE164"]}>
+                  <Field label="Your phone" required composite hint="Pick your country, then the number as you dial it." error={errors["phoneE164"]}>
                     <PhoneInput
                       id="register-you-phone"
                       value={draft.phoneE164}
@@ -293,6 +301,7 @@ export function SectionIdentity({
                 aria-pressed={idType === id}
                 onClick={() => {
                   setIdType(id);
+                  setConsent(false);
                   setMessage(null);
                 }}
                 className={
@@ -329,13 +338,20 @@ export function SectionIdentity({
               </Field>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              A passport is not on the population register, so it is read from a photo of its photo page, and a selfie
-              shows it is yours.
-            </p>
+            identity?.available.passport ? (
+              <p className="text-sm text-muted-foreground">
+                {identity.modes.documents === "mock"
+                  ? "The demo creates sample passport details from two different sample images. No passport information is extracted."
+                  : "The document verifier checks a photo of the passport page and a selfie."}
+              </p>
+            ) : (
+              <Callout tone="warning" icon={<TriangleAlert size={16} aria-hidden />} title="Passport checking is unavailable here">
+                A passport verifier has not been connected to this deployment. You can continue with a Rwandan National ID if you have one.
+              </Callout>
+            )
           )}
 
-          <Checkbox
+          {idType === "nid" || identity?.available.passport ? <><Checkbox
             isSelected={consent}
             onChange={(on: boolean) => {
               setConsent(on);
@@ -345,9 +361,17 @@ export function SectionIdentity({
             controlClassName="mt-0.5"
           >
             <span className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium">I agree to a check of this ID against the national register</span>
+              <span className="text-sm font-medium">
+                {idType === "passport"
+                  ? "I agree to upload two images for this passport check"
+                  : "I agree to a check of this ID against the national register"}
+              </span>
               <span className="text-xs text-muted-foreground">
-                Only your name, date of birth, gender and registered phone come back.
+                {idType === "passport"
+                  ? identity?.modes.documents === "mock"
+                    ? "The images create sample name, birth date, passport number and issuing country; no details are read from a real passport."
+                    : "The verifier returns the holder's name, birth date, gender, passport number and issuing country. It does not return a phone number."
+                  : "Only your name, date of birth, gender and registered phone come back."}
               </span>
             </span>
           </Checkbox>
@@ -357,6 +381,7 @@ export function SectionIdentity({
               {idType === "nid" ? "Check with the population register" : "Continue to the photos"}
             </Button>
           </div>
+          </> : null}
         </>
       ) : null}
 
@@ -385,6 +410,7 @@ export function SectionIdentity({
       {phase === "photo" ? (
         <>
           <PassportScanner
+            sample={identity?.modes.documents === "mock"}
             onVerified={(p) => {
               restart();
               onVerified(p);

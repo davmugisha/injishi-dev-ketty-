@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { createContext, isValidElement, useContext, useId, type ReactNode } from "react";
 import {
   Button,
   Input,
@@ -40,6 +40,7 @@ export const TextArea = HeroTextArea;
  * has.
  */
 const EMPTY_KEY = "__empty__";
+const FieldLabelId = createContext<string | null>(null);
 
 export interface SelectOption {
   value: string;
@@ -72,6 +73,7 @@ export function SelectField({
   disabled,
   id,
   invalid,
+  ariaLabel,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -80,7 +82,10 @@ export function SelectField({
   disabled?: boolean;
   id?: string;
   invalid?: boolean;
+  /** For a standalone select, such as the country code inside PhoneInput. */
+  ariaLabel?: string;
 }) {
+  const fieldLabelId = useContext(FieldLabelId);
   const toKey = (v: string) => (v === "" ? EMPTY_KEY : v);
   const fromKey = (k: unknown) => {
     const key = k === null || k === undefined ? "" : String(k);
@@ -99,6 +104,8 @@ export function SelectField({
       isDisabled={disabled}
       isInvalid={invalid}
       placeholder={placeholder}
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabel ? undefined : fieldLabelId ?? undefined}
       className="w-full"
     >
       <Select.Trigger id={id} className="w-full">
@@ -129,17 +136,22 @@ export function Field({
   hint,
   error,
   required,
+  composite = false,
   children,
 }: {
   label: string;
   hint?: ReactNode;
   error?: string;
   required?: boolean;
+  /** A compound control labels its parts individually and cannot sit in a label. */
+  composite?: boolean;
   children: ReactNode;
 }) {
-  return (
-    <label className="block">
-      <span className="text-sm font-semibold">
+  const labelId = useId();
+  const selectChild = isValidElement(children) && children.type === SelectField;
+  const content = (
+    <>
+      <span id={selectChild ? labelId : undefined} className="text-sm font-semibold">
         {label}
         {required ? (
           <span className="text-destructive" aria-hidden="true">
@@ -150,14 +162,28 @@ export function Field({
       {hint ? (
         <span className="mt-0.5 block text-xs text-muted-foreground">{hint}</span>
       ) : null}
-      <span className="mt-1.5 block">{children}</span>
+      {selectChild || composite ? (
+        <div className="mt-1.5">{children}</div>
+      ) : (
+        <span className="mt-1.5 block">{children}</span>
+      )}
       {error ? (
         <span className="mt-1 block text-sm text-destructive" role="alert">
           {error}
         </span>
       ) : null}
-    </label>
+    </>
   );
+  // A Select renders a button and its own hidden label/select. Nesting it inside
+  // an HTML label makes the option box's trigger ambiguous to browsers and AT.
+  if (selectChild || composite) {
+    return (
+      <FieldLabelId.Provider value={selectChild ? labelId : null}>
+        <div className="block">{content}</div>
+      </FieldLabelId.Provider>
+    );
+  }
+  return <label className="block">{content}</label>;
 }
 
 /** A group of related choices that is not a single labelled input. */

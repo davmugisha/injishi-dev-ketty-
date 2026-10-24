@@ -125,6 +125,8 @@ export function PsfApplication({
   draft,
   onChange,
   tiers,
+  tiersFailed,
+  onRetryTiers,
   documentLine,
   errors,
 }: {
@@ -132,6 +134,8 @@ export function PsfApplication({
   onChange: (next: PsfDraft) => void;
   /** Null while loading or when the tiers could not be read. */
   tiers: PsfTier[] | null;
+  tiersFailed: boolean;
+  onRetryTiers: () => void;
   /** "National ID ending 6789, the one checked", or null when no document is on file. */
   documentLine: string | null;
   errors: Record<string, string>;
@@ -154,13 +158,19 @@ export function PsfApplication({
           <SelectField
             id="psf-tier"
             value={draft.requestedTierCode}
-            placeholder={tiers === null ? "Loading PSF's tiers…" : "Pick a tier"}
-            disabled={tiers === null || tiers.length === 0}
+            placeholder={tiersFailed ? "Could not load tiers" : tiers === null ? "Loading PSF's tiers…" : tiers.some((t) => t.active) ? "Pick a tier" : "No active tiers"}
+            disabled={tiersFailed || tiers === null || !tiers.some((t) => t.active)}
             invalid={Boolean(e("requestedTierCode"))}
             options={(tiers ?? []).filter((t) => t.active).map((t) => ({ value: t.code, label: tierLabel(t) }))}
             onChange={(v) => set("requestedTierCode", v)}
           />
         </Field>
+        {tiersFailed || (tiers !== null && !tiers.some((t) => t.active)) ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
+            <span>{tiersFailed ? "We couldn't load PSF's membership tiers." : "PSF has no active membership tiers right now."}</span>
+            <Button variant="ghost" size="sm" onClick={onRetryTiers}>Try again</Button>
+          </div>
+        ) : null}
       </div>
 
       <p className="text-sm font-semibold">The business</p>
@@ -270,7 +280,7 @@ export function PsfApplication({
         {/* A row of its own: the country picker and the number side by side
             do not fit half a card. */}
         <div className="sm:col-span-2">
-          <Field label="Phone" error={e("phoneE164")}>
+          <Field label="Phone" composite error={e("phoneE164")}>
             <PhoneInput id="psf-phone" value={draft.phoneE164} invalid={Boolean(e("phoneE164"))} onChange={(v) => set("phoneE164", v)} />
           </Field>
         </div>

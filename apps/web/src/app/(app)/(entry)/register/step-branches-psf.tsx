@@ -35,6 +35,8 @@ export function StepBranchesPsf({
   onPsfChange,
   onApplyNow,
   tiers,
+  tiersFailed,
+  onRetryTiers,
   documentLine,
   errors,
 }: {
@@ -49,6 +51,8 @@ export function StepBranchesPsf({
   /** "Apply now" pressed: the wizard fills what it already knows into the form. */
   onApplyNow: () => void;
   tiers: PsfTier[] | null;
+  tiersFailed: boolean;
+  onRetryTiers: () => void;
   documentLine: string | null;
   errors: Record<string, string>;
 }) {
@@ -221,7 +225,7 @@ export function StepBranchesPsf({
         ) : null}
 
         {business.psfMember === false && business.psfApply === true ? (
-          <PsfApplication draft={psf} onChange={onPsfChange} tiers={tiers} documentLine={documentLine} errors={errors} />
+          <PsfApplication draft={psf} onChange={onPsfChange} tiers={tiers} tiersFailed={tiersFailed} onRetryTiers={onRetryTiers} documentLine={documentLine} errors={errors} />
         ) : null}
         {business.psfMember === false && business.psfApply === false ? (
           <p className="text-xs text-muted-foreground">PSF never holds up your registration.</p>
