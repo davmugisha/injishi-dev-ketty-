@@ -80,39 +80,14 @@ export function oversightNav(officer: Officer, O: OversightData): NavSection[] {
   ];
 }
 
-/** The PSF Membership console (ADR-056): its own route, beside the two gates. */
-export const MEMBERSHIP_CONSOLE_HOME = `${CONSOLE_BASE}/membership/queue`;
+/**
+ * The PSF Membership console (ADR-056): its own route, beside the two gates.
+ * It opens on the Overview, the report for the officer's place (2026-10-19).
+ */
+export const MEMBERSHIP_CONSOLE_HOME = `${CONSOLE_BASE}/membership/overview`;
 
 /** The register of every business in the officer's region (the PSF path). */
 export const MEMBERSHIP_BUSINESSES = `${CONSOLE_BASE}/membership/businesses`;
-
-/**
- * The Membership console's nav: the queue, which is the job, and the register
- * of the region's businesses, which is how PSF finds and counts them.
- */
-export function membershipNav(queued: number | null): NavSection[] {
-  return [
-    {
-      label: "PSF membership",
-      items: [
-        {
-          key: "queue",
-          label: "Membership queue",
-          icon: "inbox",
-          href: MEMBERSHIP_CONSOLE_HOME,
-          count: queued || null,
-        },
-        {
-          key: "businesses",
-          label: "Businesses",
-          icon: "building-2",
-          href: MEMBERSHIP_BUSINESSES,
-          count: null,
-        },
-      ],
-    },
-  ];
-}
 
 /** Where a console lands when it opens. The queue is the job. */
 export function consoleHome(officerKey: OfficerKey): string {

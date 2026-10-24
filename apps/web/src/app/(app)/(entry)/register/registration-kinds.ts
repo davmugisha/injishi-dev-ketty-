@@ -42,21 +42,19 @@ export type RegistrationKind =
   | AccommodationClass
   | "residence"
   | "broker"
-  | "bar_restaurant"
-  | "psf";
+  | "bar_restaurant";
 
 export interface RegistrationKindEntry {
   value: RegistrationKind;
   label: string;
   blurb: string;
   /** Which of the groups the tile sits in on the card. */
-  group: "stay" | "venue" | "lease" | "psf";
+  group: "stay" | "venue" | "lease";
 }
 
 const RESIDENCE_LABEL = "Residence";
 const BROKER_LABEL = "Broker";
 const BAR_RESTAURANT_LABEL = "Bar & Restaurant";
-const PSF_LABEL = "PSF business";
 
 /**
  * The tiles, in the order they are shown.
@@ -76,7 +74,7 @@ const PSF_LABEL = "PSF business";
 const ENTRIES: ReadonlyArray<{
   value: RegistrationKind;
   blurb: string;
-  group: "stay" | "venue" | "lease" | "psf";
+  group: "stay" | "venue" | "lease";
 }> = [
   { value: "hotel", blurb: "Serviced rooms, front desk", group: "stay" },
   { value: "motel", blurb: "Roadside rooms, drive-up", group: "stay" },
@@ -93,8 +91,6 @@ const ENTRIES: ReadonlyArray<{
   },
   { value: "residence", blurb: "Let on a lease, not nightly", group: "lease" },
   { value: "broker", blurb: "You place tenants for owners", group: "lease" },
-  // THE PSF PATH: any other sector, joining the Private Sector Federation.
-  { value: "psf", blurb: "Any sector: join the Private Sector Federation", group: "psf" },
 ];
 
 export const REGISTRATION_KINDS: RegistrationKindEntry[] = ENTRIES.map(
@@ -107,9 +103,7 @@ export const REGISTRATION_KINDS: RegistrationKindEntry[] = ENTRIES.map(
           ? BROKER_LABEL
           : value === "bar_restaurant"
             ? BAR_RESTAURANT_LABEL
-            : value === "psf"
-              ? PSF_LABEL
-              : ACCOMMODATION_CLASS_LABEL[value],
+            : ACCOMMODATION_CLASS_LABEL[value],
     blurb,
     group,
   }),
@@ -147,14 +141,6 @@ export function registrationForKind(kind: RegistrationKind): {
   if (kind === "broker")
     return {
       role: "broker",
-      accommodationClass: null,
-      entityGroup: null,
-      accommodationClassOther: null,
-    };
-  // A PSF business is the `enterprise` role: its own domain, fee and form.
-  if (kind === "psf")
-    return {
-      role: "enterprise",
       accommodationClass: null,
       entityGroup: null,
       accommodationClassOther: null,
@@ -202,8 +188,6 @@ export function whatWeAskFor(kind: RegistrationKind): string {
       return "We need your National ID and your contact details. There is no fee and no waiting.";
     case "residence":
       return "We need the UPI of the property, your address, and any documents you hold.";
-    case "psf":
-      return "We need your business's name, address and sector. A TIN is optional: a cooperative, an NGO or a business registered nowhere yet can register too.";
     case "bar_restaurant":
       return "We need your 9 digit RRA TIN, your address, and any licences you hold for serving food or drink.";
     default:

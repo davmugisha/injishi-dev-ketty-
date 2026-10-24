@@ -1,5 +1,7 @@
 "use client";
 
+import { PsfIcon } from "@/components/icons/search";
+
 import { iconFor } from "./kind-summary";
 import {
   REGISTRATION_KINDS,
@@ -34,9 +36,6 @@ import { Notice, StepActions, TileCard } from "./wizard-ui";
 /** One sentence, and no figure in it. */
 const FEE_LINE =
   "A one time registration fee, paid at the last step, then a monthly plan once you are live. No commission.";
-/** A PSF business lists nothing, so it has no plan: the fee, then PSF's own membership. */
-const PSF_FEE_LINE =
-  "A one time registration fee, paid at the last step. Your PSF membership fee is separate, and paid once PSF approves you.";
 
 export function StepPlace({
   kind,
@@ -54,7 +53,6 @@ export function StepPlace({
   const stay = REGISTRATION_KINDS.filter((k) => k.group === "stay");
   const venue = REGISTRATION_KINDS.filter((k) => k.group === "venue");
   const lease = REGISTRATION_KINDS.filter((k) => k.group === "lease");
-  const psf = REGISTRATION_KINDS.filter((k) => k.group === "psf");
 
   return (
     <section aria-labelledby="step-place">
@@ -148,21 +146,17 @@ export function StepPlace({
             Any other business, joining PSF
           </legend>
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {psf.map((entry) => {
-              const Icon = iconFor(entry.value);
-              return (
-                <TileCard
-                  key={entry.value}
-                  name="registrationKind"
-                  value={entry.value}
-                  checked={kind === entry.value}
-                  label={entry.label}
-                  blurb={entry.blurb}
-                  icon={<Icon size={20} />}
-                  onSelect={() => onChoose(entry.value)}
-                />
-              );
-            })}
+            {/* Not a registration kind: the PSF form is public and needs no
+                account (2026-10-19), so the tile only leaves for it. */}
+            <TileCard
+              name="registrationKind"
+              value="psf"
+              checked={false}
+              label="PSF business"
+              blurb="Any sector: join the Private Sector Federation"
+              icon={<PsfIcon size={20} />}
+              onSelect={() => window.location.assign("/psf/register")}
+            />
           </div>
         </fieldset>
 
@@ -171,9 +165,7 @@ export function StepPlace({
             <b>{chosen.label}.</b> {whatWeAskFor(chosen.value)}{" "}
             {chosen.value === "broker"
               ? "There is no registration fee."
-              : chosen.value === "psf"
-                ? PSF_FEE_LINE
-                : FEE_LINE}
+              : FEE_LINE}
           </Notice>
         ) : null}
       </div>

@@ -470,6 +470,62 @@
       "when": 1792404822000,
       "tag": "0066_escrow_receivable_account",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792420625941,
+      "tag": "0067_psf_public_path",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1792474618613,
+      "tag": "0068_psf_association_other",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792475076090,
+      "tag": "0069_psf_subsectors",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1792477120279,
+      "tag": "0070_psf_paid_before_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1792481216492,
+      "tag": "0071_psf_tier_fees",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1792739549922,
+      "tag": "0072_psf_branches",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1792742478813,
+      "tag": "0073_psf_no_refunds",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1792744008318,
+      "tag": "0074_org_logo",
+      "breakpoints": true
     }
   ]
 }

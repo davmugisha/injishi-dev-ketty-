@@ -32,7 +32,7 @@ const FUNCTIONS: { key: OversightRole; label: string }[] = [
   { key: "business_field_verifier", label: "Business field verifier — checks a business on site" },
   { key: "business_approver", label: "Business approver — approves a field-verified business" },
   { key: "tax_compliance_officer", label: "Tax compliance officer — reviews tax data" },
-  { key: "psf_membership_officer", label: "PSF membership officer — decides PSF membership applications" },
+  { key: "psf_membership_officer", label: "PSF District Manager — decides PSF membership applications" },
 ];
 
 const SCOPES: { key: OversightScopeLevel; label: string }[] = [

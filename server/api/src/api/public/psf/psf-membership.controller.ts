@@ -3,19 +3,26 @@ import {
   PayPsfMembershipRequest,
   PsfApproveRequest,
   PsfBusinessesQuery,
+  PsfBranchDecisionRequest,
   PsfDeclineRequest,
-  PsfQueueQuery,
+  PsfFeesQuery,
+  type PsfFeesView,
+  PsfAreaQuery,
+  PsfQueueAreaQuery,
   type OversightGrant,
   type PsfBusinessesPage,
   type PsfCatalogue,
   type PsfMembershipOverview,
   type PsfOfficerApplication,
+  type PsfBusinessDetail,
+  type PsfBusinessHistory,
   type PsfQueuePage,
   type PsfRegisterSummary,
   type PsfTier,
 } from '@injishi/contracts';
 import {
   Body,
+  ConflictException,
   Controller,
   Get,
   HttpCode,
@@ -23,11 +30,14 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 
 import { PsfMembershipService } from '../../../modules/organization/application/psf-membership.service';
+import { PsfPublicService } from '../../../modules/organization/application/psf-public.service';
+import type { FileReply } from '../ops/pay-runs.controller';
 import {
   CurrentOversight,
   OversightGuard,
@@ -62,9 +72,17 @@ export class PsfTiersController {
     return this.psf.tiers();
   }
 
+  /** `?district=` adds that district's own subtypes to the national ones. */
   @Get('catalogue')
-  catalogue(): Promise<PsfCatalogue> {
-    return this.psf.catalogue();
+  catalogue(@Query('district') district?: string): Promise<PsfCatalogue> {
+    const id = Number(district);
+    return this.psf.catalogue(Number.isInteger(id) && id > 0 ? id : undefined);
+  }
+
+  /** What each band costs in a district: PSF sets it, the form shows it read only. */
+  @Get('fees')
+  fees(@Query(new ZodValidationPipe(PsfFeesQuery)) query: PsfFeesQuery): Promise<PsfFeesView> {
+    return this.psf.feesIn(query.district);
   }
 }
 
@@ -138,15 +156,61 @@ export class PsfMembershipController {
 @UseGuards(SessionGuard, OversightGuard)
 @RequireOversight('psf_membership_officer')
 export class OversightPsfController {
-  constructor(private readonly psf: PsfMembershipService) {}
+  constructor(
+    private readonly psf: PsfMembershipService,
+    private readonly publicPsf: PsfPublicService,
+  ) {}
+
+  /** The member's certificate, for an officer covering the business. */
+  @Get(':applicationId/certificate')
+  async certificate(
+    @Param('applicationId', ParseUUIDPipe) applicationId: string,
+    @CurrentUser() user: SessionUser,
+    @CurrentOversight() grants: OversightGrant[],
+    @Res({ passthrough: true }) reply: FileReply,
+  ): Promise<void> {
+    const file = await this.publicPsf.certificate(await this.docIdOf(user.id, grants, applicationId));
+    reply
+      .header('content-type', 'application/pdf')
+      .header('content-disposition', `attachment; filename="${file.filename}"`)
+      .header('cache-control', 'no-store')
+      .send(file.content);
+  }
+
+  /** Mail the certificate to the email the business gave with its application. */
+  @Post(':applicationId/certificate/email')
+  @HttpCode(200)
+  async emailCertificate(
+    @Param('applicationId', ParseUUIDPipe) applicationId: string,
+    @CurrentUser() user: SessionUser,
+    @CurrentOversight() grants: OversightGrant[],
+  ): Promise<{ sentTo: string }> {
+    return this.publicPsf.emailCertificate(await this.docIdOf(user.id, grants, applicationId));
+  }
+
+  /** The docID of an application in the officer's region; a hotel's has none. */
+  private async docIdOf(userId: string, grants: OversightGrant[], applicationId: string): Promise<string> {
+    const app = await this.psf.officerApplication(userId, grants, applicationId);
+    if (!app.docId) throw new ConflictException('This application has no public certificate.');
+    return app.docId;
+  }
 
   @Get()
   queue(
     @CurrentUser() user: SessionUser,
     @CurrentOversight() grants: OversightGrant[],
-    @Query(new ZodValidationPipe(PsfQueueQuery)) query: PsfQueueQuery,
+    @Query(new ZodValidationPipe(PsfQueueAreaQuery)) query: PsfQueueAreaQuery,
   ): Promise<PsfQueuePage> {
-    return this.psf.queue(user.id, grants, query.cursor);
+    return this.psf.queue(user.id, grants, query);
+  }
+
+  /** The business behind an application: every payment, application and membership it has had. */
+  @Get(':applicationId/history')
+  history(
+    @Param('applicationId', ParseUUIDPipe) applicationId: string,
+    @CurrentOversight() grants: OversightGrant[],
+  ): Promise<PsfBusinessHistory> {
+    return this.psf.businessHistoryFor(grants, applicationId);
   }
 
   @Get(':applicationId')
@@ -179,6 +243,19 @@ export class OversightPsfController {
   ): Promise<PsfOfficerApplication> {
     return this.psf.decline(user.id, grants, applicationId, body);
   }
+
+  /** Admit or decline one branch: the officer of the branch's district decides it (2026-10-23). */
+  @Post(':applicationId/branches/:branchId/decision')
+  @HttpCode(200)
+  decideBranch(
+    @Param('applicationId', ParseUUIDPipe) applicationId: string,
+    @Param('branchId', ParseUUIDPipe) branchId: string,
+    @Body(new ZodValidationPipe(PsfBranchDecisionRequest)) body: PsfBranchDecisionRequest,
+    @CurrentUser() user: SessionUser,
+    @CurrentOversight() grants: OversightGrant[],
+  ): Promise<PsfOfficerApplication> {
+    return this.psf.decideBranch(user.id, grants, applicationId, branchId, body);
+  }
 }
 
 /**
@@ -200,8 +277,20 @@ export class OversightPsfRegisterController {
     return this.psf.register(grants, query);
   }
 
+  /** One business, with every payment, application and membership it has had. */
+  @Get('businesses/:orgId')
+  business(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @CurrentOversight() grants: OversightGrant[],
+  ): Promise<PsfBusinessDetail> {
+    return this.psf.businessDetail(grants, orgId);
+  }
+
   @Get('summary')
-  summary(@CurrentOversight() grants: OversightGrant[]): Promise<PsfRegisterSummary> {
-    return this.psf.registerSummary(grants);
+  summary(
+    @CurrentOversight() grants: OversightGrant[],
+    @Query(new ZodValidationPipe(PsfAreaQuery)) area: PsfAreaQuery,
+  ): Promise<PsfRegisterSummary> {
+    return this.psf.registerSummary(grants, area);
   }
 }

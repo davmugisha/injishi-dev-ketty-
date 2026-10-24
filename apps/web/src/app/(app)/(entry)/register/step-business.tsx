@@ -58,19 +58,6 @@ export interface BusinessDraft {
   psfMembershipNumber: string;
   eacStarGrade: string;
   address: AddressDraft;
-  /**
-   * THE PSF PATH (an `enterprise`). How it is registered (`tin`, `rca`, `rgb`,
-   * `other`, `none`, or empty until answered), the number for RCA, RGB and
-   * other, its sector, and who owns it. Owner groups are kept as a comma list
-   * because the server's draft holds strings, never arrays.
-   */
-  psfRegistrationKind: string;
-  psfRegistrationNumber: string;
-  psfClusterCode: string;
-  psfAssociationCode: string;
-  /** The chosen sector in words, `Industry · Metal Works Association`, for the read back. */
-  psfSectorLabel: string;
-  psfOwnerGroups: string;
 }
 
 export type TinCheck = { tin: string; verdict: TinCheckResult } | null;

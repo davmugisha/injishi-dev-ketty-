@@ -16,6 +16,7 @@
  * application open opens that application, where it can be decided.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BadgeCheck, Banknote, Building2, Download, Hourglass, Search, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -35,17 +36,18 @@ import { Input } from "@injishi/ui";
 import { formatPrice } from "@injishi/utils";
 
 import { LoadFailed } from "../../components/ui";
-import { fetchPsfBusinesses, fetchPsfCatalogue, fetchPsfRegisterSummary, fetchPsfTiers } from "../../data/psf";
+import { fetchPsfBusinesses, fetchPsfCatalogue, fetchPsfTiers } from "../../data/psf";
 import type { QueuedToast } from "../../lib/toast-queue";
 import { ActionButton, Badge, EmptyState, Skeleton, surfaceClass } from "../components/ui";
-import { MembershipShell } from "../components/membership-shell";
-import { PsfApplicationSheet, shortDate } from "../components/psf-application-sheet";
+import { PsfConsoleShell, usePsfConsole } from "../components/psf-console-shell";
+import { fetchPsfSummaryIn } from "../data/psf-console";
+import { psfBusinessHref, shortDate } from "../components/psf-format";
 import { cn } from "@/lib/utils";
 
 const selectClass =
   "h-10 w-full min-w-0 rounded border border-line2 bg-field px-2 text-sm text-foreground disabled:opacity-50";
 
-const STANDING_INTENT: Record<PsfStanding, "ok" | "warn" | "info" | "bad" | "neutral"> = {
+export const STANDING_INTENT: Record<PsfStanding, "ok" | "warn" | "info" | "bad" | "neutral"> = {
   member: "ok",
   awaiting_payment: "warn",
   applied: "info",
@@ -57,6 +59,16 @@ const STANDING_INTENT: Record<PsfStanding, "ok" | "warn" | "info" | "bad" | "neu
 type Filters = Omit<PsfBusinessesQuery, "cursor">;
 
 export function MembershipBusinesses() {
+  const [toasts, setToasts] = useState<QueuedToast[]>([]);
+  return (
+    <PsfConsoleShell title="Businesses" lede="Every business registered in your place" toasts={toasts}>
+      <RegisterBody push={(t) => setToasts((x) => [...x, t])} />
+    </PsfConsoleShell>
+  );
+}
+
+function RegisterBody({ push }: { push: (t: QueuedToast) => void }) {
+  const { area } = usePsfConsole();
   const [summary, setSummary] = useState<PsfRegisterSummary | null>(null);
   const [catalogue, setCatalogue] = useState<PsfCatalogue | null>(null);
   const [tiers, setTiers] = useState<PsfTier[]>([]);
@@ -68,18 +80,25 @@ export function MembershipBusinesses() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [toasts, setToasts] = useState<QueuedToast[]>([]);
-  const [selId, setSelId] = useState<string | null>(null);
+  const router = useRouter();
+  const params = useSearchParams();
+  const openBusiness = (orgId: string) => router.push(psfBusinessHref(orgId, params));
   const request = useRef(0);
 
-  const toast = useCallback((txt: string, intent: QueuedToast["intent"] = "ok") => {
-    setToasts((t) => [...t, { id: Date.now() + Math.random(), txt, intent }]);
-  }, []);
+  const toast = useCallback(
+    (txt: string, intent: QueuedToast["intent"] = "ok") => push({ id: Date.now() + Math.random(), txt, intent }),
+    [push],
+  );
+  // The console's place switcher narrows the register like any other filter.
+  const scoped = useCallback(
+    (f: Filters & { cursor?: string }) => ({ ...f, district: f.district ?? area.district, province: area.district ? undefined : area.province }),
+    [area],
+  );
 
   const loadSummary = useCallback(async () => {
-    const res = await fetchPsfRegisterSummary();
+    const res = await fetchPsfSummaryIn(area);
     if (res.outcome === "ok") setSummary(res.data);
-  }, []);
+  }, [area]);
 
   useEffect(() => {
     void loadSummary();
@@ -97,7 +116,7 @@ export function MembershipBusinesses() {
     const mine = ++request.current;
     setLoadFailed(false);
     setRows(null);
-    const res = await fetchPsfBusinesses(filters);
+    const res = await fetchPsfBusinesses(scoped(filters));
     if (mine !== request.current) return;
     if (res.outcome !== "ok") {
       setLoadFailed(true);
@@ -106,7 +125,7 @@ export function MembershipBusinesses() {
     setRows(res.data.items);
     setTotal(res.data.total);
     setNextCursor(res.data.nextCursor);
-  }, [filters]);
+  }, [filters, scoped]);
 
   useEffect(() => {
     void load();
@@ -115,7 +134,7 @@ export function MembershipBusinesses() {
   const loadMore = async () => {
     if (!nextCursor) return;
     setLoadingMore(true);
-    const res = await fetchPsfBusinesses({ ...filters, cursor: nextCursor });
+    const res = await fetchPsfBusinesses(scoped({ ...filters, cursor: nextCursor }));
     setLoadingMore(false);
     if (res.outcome !== "ok") {
       toast("We couldn't load more businesses. Try again.", "bad");
@@ -131,7 +150,7 @@ export function MembershipBusinesses() {
     const all: PsfBusinessRow[] = [];
     let cursor: string | undefined;
     for (let page = 0; page < 100; page += 1) {
-      const res = await fetchPsfBusinesses({ ...filters, cursor });
+      const res = await fetchPsfBusinesses(scoped({ ...filters, cursor }));
       if (res.outcome !== "ok") {
         setExporting(false);
         toast("We couldn't build the download. Try again.", "bad");
@@ -158,7 +177,7 @@ export function MembershipBusinesses() {
   const active = activeFilters(filters, { clusters, tiers, summary });
 
   return (
-    <MembershipShell title="Businesses" queued={summary?.waiting ?? null} toasts={toasts}>
+    <>
       <div className="flex flex-col gap-5">
         {/* ── The region at a glance ───────────────────────────────── */}
         <div className="flex flex-wrap items-end justify-between gap-2">
@@ -332,7 +351,7 @@ export function MembershipBusinesses() {
           <EmptyState>
             {active.length > 0
               ? "No business in your region matches these filters. Clear one to see more."
-              : "No business in your region has registered yet. They appear here the moment their registration fee is paid."}
+              : "No business in your region has registered yet. They appear here the moment their payment goes through."}
           </EmptyState>
         ) : (
           <section className="flex flex-col gap-2">
@@ -341,17 +360,18 @@ export function MembershipBusinesses() {
               <span className="pms-num font-semibold text-ink">{total}</span>
             </p>
             <div className={cn(surfaceClass, "overflow-hidden")}>
-              <div className="hidden grid-cols-[96px_minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.4fr)_110px] gap-3 border-b border-line bg-hover/50 px-4 py-2.5 text-2xs font-bold tracking-wide text-muted-foreground uppercase lg:grid">
+              <div className="hidden grid-cols-[88px_minmax(0,2fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_100px] gap-3 border-b border-line bg-hover/50 px-4 py-2.5 text-2xs font-bold tracking-wide text-muted-foreground uppercase lg:grid">
                 <span>Code</span>
                 <span>Business</span>
                 <span>Where</span>
                 <span>Owners</span>
                 <span>With PSF</span>
+                <span className="text-right">Paid</span>
                 <span className="text-right">Registered</span>
               </div>
               <ul className="divide-y divide-line">
                 {rows.map((b) => (
-                  <BusinessRow key={b.orgId} business={b} onOpen={b.openApplicationId ? () => setSelId(b.openApplicationId) : undefined} />
+                  <BusinessRow key={b.orgId} business={b} onOpen={() => openBusiness(b.orgId)} />
                 ))}
               </ul>
             </div>
@@ -364,17 +384,7 @@ export function MembershipBusinesses() {
         )}
       </div>
 
-      <PsfApplicationSheet
-        applicationId={selId}
-        onClose={() => setSelId(null)}
-        onDecided={(_decided, message) => {
-          setSelId(null);
-          toast(message);
-          void load();
-          void loadSummary();
-        }}
-      />
-    </MembershipShell>
+    </>
   );
 }
 
@@ -525,7 +535,20 @@ function BusinessRow({ business: b, onOpen }: { business: PsfBusinessRow; onOpen
           )}
         </span>
       </span>
-      <span className="min-w-0 truncate text-xs text-ink2">{[b.sectorName, b.districtName].filter(Boolean).join(", ") || "Not recorded"}</span>
+      <span className="flex min-w-0 flex-col gap-0.5 text-xs">
+        <span className="truncate text-ink2">{[b.sectorName, b.districtName].filter(Boolean).join(", ") || "Not recorded"}</span>
+        {/* Where else it trades (2026-10-23); and when only a branch is here, say so. */}
+        {b.branchCount > 0 ? (
+          <span className="truncate text-muted-foreground">
+            {b.branchCount === 1 ? "+1 branch" : `+${b.branchCount} branches`}
+          </span>
+        ) : null}
+        {!b.headOfficeInScope ? (
+          <Badge intent="accent" className="self-start">
+            Branch in your area
+          </Badge>
+        ) : null}
+      </span>
       <span className="flex flex-wrap gap-1">
         {b.ownerGroups.length === 0 ? (
           <span className="text-xs text-muted-foreground">—</span>
@@ -547,15 +570,25 @@ function BusinessRow({ business: b, onOpen }: { business: PsfBusinessRow; onOpen
           </span>
         )}
       </span>
+      <span className="text-xs lg:text-right">
+        {b.paidRwf > 0 ? (
+          <>
+            <span className="pms-num block font-semibold text-ink">{formatPrice(b.paidRwf)}</span>
+            {b.lastPaidAt ? <span className="block text-muted-foreground">last {shortDate(b.lastPaidAt)}</span> : null}
+          </>
+        ) : (
+          <span className="text-muted-foreground">Nothing yet</span>
+        )}
+      </span>
       <span className="text-xs text-muted-foreground lg:text-right">{shortDate(b.registeredAt)}</span>
     </>
   );
   const grid =
-    "grid grid-cols-[72px_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5 px-4 py-3 lg:grid-cols-[96px_minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.4fr)_110px]";
+    "grid grid-cols-[72px_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5 px-4 py-3 lg:grid-cols-[88px_minmax(0,2fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_100px]";
   return (
     <li>
       {onOpen ? (
-        <button type="button" onClick={onOpen} className={cn(grid, "w-full cursor-pointer text-left hover:bg-hover")} title="Open the application">
+        <button type="button" onClick={onOpen} className={cn(grid, "w-full cursor-pointer text-left hover:bg-hover")} title="Open the business: payments, applications, memberships">
           {content}
         </button>
       ) : (
@@ -592,7 +625,7 @@ function activeFilters(
 function downloadCsv(rows: PsfBusinessRow[], region: string) {
   const header = [
     "Code", "Business", "Kind", "Sector", "Association", "District", "Sector (place)", "Owners",
-    "TIN", "Standing", "Membership", "Membership number", "Valid until", "Registered",
+    "TIN", "Standing", "Membership", "Membership number", "Valid until", "Paid (RWF)", "Last paid", "Registered",
   ];
   const cell = (v: string | null | undefined) => {
     const s = v ?? "";
@@ -602,7 +635,7 @@ function downloadCsv(rows: PsfBusinessRow[], region: string) {
     [
       b.businessCode, b.legalName, b.domain === "enterprise" ? "Registered for PSF" : "Hotel", b.clusterName, b.associationName,
       b.districtName, b.sectorName, b.ownerGroups.map((g) => PSF_OWNER_GROUP_SHORT[g]).join(" "),
-      b.hasTin ? "Yes" : "No", PSF_STANDING_LABEL[b.standing], b.tierName, b.membershipNumber, b.expiresOn, b.registeredAt.slice(0, 10),
+      b.hasTin ? "Yes" : "No", PSF_STANDING_LABEL[b.standing], b.tierName, b.membershipNumber, b.expiresOn, String(b.paidRwf), b.lastPaidAt?.slice(0, 10), b.registeredAt.slice(0, 10),
     ]
       .map(cell)
       .join(","),

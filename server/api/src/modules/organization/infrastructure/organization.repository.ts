@@ -57,6 +57,8 @@ import {
 } from './registration-events';
 import {
   insertPsfApplication,
+  insertPsfBranches,
+  type NewPsfBranch,
   insertSelfDeclaredMembership,
   type NewPsfApplication,
 } from './psf-membership.repository';
@@ -418,6 +420,76 @@ export class OrganizationRepository {
   }
 
   /**
+   * THE PUBLIC PSF PATH (2026-10-19): a business, its application and its
+   * branches, in ONE transaction, with no workspace and no owner. There is no
+   * registration fee bill (2026-10-23): the membership fee is the payment.
+   *
+   * Nobody signed in, so nobody is given a workspace to open: the docID on the
+   * application is what the business keeps. The first event is the system's,
+   * because the actor shape needs a person behind any other trigger. Returns
+   * what the payment that follows needs.
+   */
+  async createPublicPsfRegistration(input: {
+    legalName: string;
+    tin: string | null;
+    districtId: number;
+    sectorId: number;
+    villageId: number | null;
+    addressText: string;
+    psfAssociationCode: string;
+    psfAssociationOther: string | null;
+    psfSubsectorId: string | null;
+    psfSubsectorOther: string | null;
+    ownerGroups: PsfOwnerGroup[];
+    registrationKind: EnterpriseRegistrationKind;
+    registrationNumber: string | null;
+    /** Its logo (2026-10-23), already checked to be an unused `org_logo` object. */
+    logoObjectKey: string | null;
+    application: Omit<NewPsfApplication, 'orgId'>;
+    /** The other places it trades from, each for its own district's officer. */
+    branches: readonly NewPsfBranch[];
+  }): Promise<{ orgId: string; applicationId: string; docId: string }> {
+    // No registration fee (2026-10-23): the membership fee is the one payment.
+    if (input.tin) {
+      const [clash] = await this.db.select({ id: orgs.id }).from(orgs).where(eq(orgs.tin, input.tin)).limit(1);
+      if (clash) throw new DuplicateTinError();
+    }
+    return this.db.transaction(async (tx) => {
+      const [org] = await tx
+        .insert(orgs)
+        .values({
+          legalName: input.legalName,
+          domain: 'enterprise',
+          tin: input.tin,
+          districtId: input.districtId,
+          sectorId: input.sectorId,
+          villageId: input.villageId,
+          addressText: input.addressText,
+          psfAssociationCode: input.psfAssociationCode,
+          psfAssociationOther: input.psfAssociationOther,
+          psfSubsectorId: input.psfSubsectorId,
+          psfSubsectorOther: input.psfSubsectorOther,
+          ownerGroups: input.ownerGroups,
+          registrationKind: input.registrationKind,
+          registrationNumber: input.registrationNumber,
+          logoObjectKey: input.logoObjectKey,
+          registrationStatus: 'pending_payment',
+        })
+        .returning({ id: orgs.id });
+      if (!org) throw new Error('Org insert returned no row.');
+      await recordRegistrationEvent(tx, {
+        orgId: org.id,
+        from: null,
+        to: 'pending_payment',
+        mover: { trigger: 'system', actorUserId: null },
+      });
+      const application = await insertPsfApplication(tx, { ...input.application, orgId: org.id });
+      await insertPsfBranches(tx, application.id, org.id, input.branches);
+      return { orgId: org.id, applicationId: application.id, docId: input.application.docId };
+    });
+  }
+
+  /**
    * The district each sector sits in, keyed by sector id. A sector that does
    * not exist is absent from the map, which the caller refuses.
    */
@@ -474,9 +546,34 @@ export class OrganizationRepository {
    * is never spent on a draft nobody paid for, and a paid business always has
    * one.
    */
+  /**
+   * The public PSF form's payment settled (2026-10-23): the membership fee is
+   * the one payment, with no registration fee invoice, so this moves the
+   * business to PSF and gives it its code, guarded on still waiting for it.
+   */
+  async settlePublicPsfPayment(orgId: string): Promise<boolean> {
+    return this.db.transaction(async (tx) => {
+      const advanced = await tx
+        .update(orgs)
+        .set({ registrationStatus: 'submitted', updatedAt: new Date() })
+        .where(and(eq(orgs.id, orgId), eq(orgs.registrationStatus, 'pending_payment'), eq(orgs.domain, 'enterprise')))
+        .returning({ id: orgs.id });
+      if (advanced.length === 0) return false;
+      await recordRegistrationEvent(tx, {
+        orgId,
+        from: 'pending_payment',
+        to: 'submitted',
+        mover: { trigger: 'system', actorUserId: null },
+      });
+      await issueBusinessCode(tx, orgId);
+      return true;
+    });
+  }
+
   async settleRegistrationFee(
     orgId: string,
-    actorUserId: string,
+    /** Null when nobody signed in paid it: the public PSF form. */
+    actorUserId: string | null,
   ): Promise<boolean> {
     try {
       return await this.db.transaction(async (tx) => {
@@ -515,7 +612,9 @@ export class OrganizationRepository {
           orgId,
           from: 'pending_payment',
           to: 'submitted',
-          mover: { trigger: 'registrant', actorUserId },
+          mover: actorUserId
+            ? { trigger: 'registrant', actorUserId }
+            : { trigger: 'system', actorUserId: null },
         });
         await issueBusinessCode(tx, orgId);
         return true;

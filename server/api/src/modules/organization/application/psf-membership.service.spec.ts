@@ -19,6 +19,7 @@ import {
   type PsfOrgFacts,
 } from '../infrastructure/psf-membership.repository';
 import { buildPsfApplicationRow } from './psf-application-row';
+import type { PsfReportRepository } from '../infrastructure/psf-report.repository';
 import { PsfMembershipService } from './psf-membership.service';
 
 /**
@@ -42,6 +43,7 @@ function facts(over: Partial<PsfOrgFacts> = {}): PsfOrgFacts {
     accommodationClass: 'guest_house',
     accommodationClassOther: null,
     registrationStatus: 'tin_verified',
+    subsectorName: null,
     districtId: 102,
     districtName: 'Gasabo',
     businessCode: 'GAS0007',
@@ -141,6 +143,7 @@ function setup(env: Record<string, string> = {}): {
     officerApplication: jest.fn().mockResolvedValue({
       id: APP,
       orgId: ORG,
+      districtId: 103,
       status: 'submitted',
       officerHasStake: false,
       requestedTierName: 'Indatwa',
@@ -188,6 +191,7 @@ function setup(env: Record<string, string> = {}): {
     { documentFor: jest.fn().mockResolvedValue(null) } as unknown as ProfileService,
     payments as unknown as PaymentPort,
     { get: (key: string) => env[key] } as unknown as ConfigService,
+    { lastMembershipNumber: jest.fn().mockResolvedValue(0), membershipNumberTaken: jest.fn().mockResolvedValue(false) } as unknown as PsfReportRepository,
   );
   // A decided application is read back for the officer; its detail is not under test here.
   jest
@@ -308,10 +312,22 @@ describe('PsfMembershipService · deciding (AC-11 to AC-14, the PSF path)', () =
   ];
   const kicukiro = [{ ...country[0], scopeLevel: 'district' as const, provinceId: 1, districtId: 103 }];
 
+  it('only a District Manager of its district decides: a national, province or other district manager is refused 403', async () => {
+    const { repo, service } = setup();
+    const province = [{ ...country[0], scopeLevel: 'province' as const, provinceId: 1, districtId: null }];
+    const gasabo = [{ ...country[0], scopeLevel: 'district' as const, provinceId: 1, districtId: 102 }];
+    for (const grants of [country, province, gasabo]) {
+      await expect(service.approve('u-officer', grants, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.decline('u-officer', grants, APP, { reason: 'details_incomplete' })).rejects.toBeInstanceOf(ForbiddenException);
+    }
+    expect(repo.approve).not.toHaveBeenCalled();
+    expect(repo.decline).not.toHaveBeenCalled();
+  });
+
   it('an officer with a stake is refused 403 and nothing is written', async () => {
     const { repo, service } = setup();
-    repo.officerApplication.mockResolvedValue({ id: APP, orgId: ORG, status: 'submitted', officerHasStake: true });
-    await expect(service.approve('u-officer', country, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(ForbiddenException);
+    repo.officerApplication.mockResolvedValue({ id: APP, orgId: ORG, districtId: 103, status: 'submitted', officerHasStake: true });
+    await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(ForbiddenException);
     expect(repo.approve).not.toHaveBeenCalled();
   });
 
@@ -319,52 +335,75 @@ describe('PsfMembershipService · deciding (AC-11 to AC-14, the PSF path)', () =
     const { repo, service } = setup();
     repo.officerApplication.mockResolvedValue(null);
     repo.applicationById.mockResolvedValue({ id: APP, orgId: ORG, status: 'member' });
-    await expect(service.approve('u-officer', country, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('an approved application waits on the payment and is not decided again', async () => {
     const { repo, service } = setup();
-    repo.officerApplication.mockResolvedValue({ id: APP, orgId: ORG, status: 'approved', officerHasStake: false });
+    repo.officerApplication.mockResolvedValue({ id: APP, orgId: ORG, districtId: 103, status: 'approved', officerHasStake: false });
     repo.applicationById.mockResolvedValue({ id: APP, orgId: ORG, status: 'approved' });
-    await expect(service.approve('u-officer', country, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('approving charges what the business declared, and asks it to pay', async () => {
     const { repo, mail, service } = setup();
-    await service.approve('u-officer', country, APP, { membershipNumber: 'PSF/GAS/0042' });
+    await service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/GAS/0042' });
     expect(repo.approve.mock.calls[0][0]).toEqual(expect.objectContaining({ bodyCode: 'PSF', feeRwf: 150000, membershipNumber: 'PSF/GAS/0042' }));
     expect(mail.approved).toHaveBeenCalledWith(ORG, expect.objectContaining({ feeRwf: 150000 }));
     expect(mail.member).not.toHaveBeenCalled();
   });
 
+  it('a paid application is approved straight to member, with no charge and no second ask', async () => {
+    const { repo, mail, payments, service } = setup();
+    repo.officerApplication.mockResolvedValue({
+      id: APP, orgId: ORG, districtId: 103, status: 'submitted', officerHasStake: false, requestedTierName: 'Indatwa',
+      quotedPriceKind: 'range', quotedFeeRwf: null, declaredFeeRwf: 150000, paidAt: new Date('2026-10-18T08:00:00Z'), paymentRef: 'mock_ref_paid',
+    });
+    repo.approvePaid = jest.fn().mockResolvedValue({ orgId: ORG, amountRwf: 150000 });
+    await service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/GAS/0042' });
+    expect(repo.approvePaid).toHaveBeenCalledWith(expect.objectContaining({ applicationId: APP, membershipNumber: 'PSF/GAS/0042' }));
+    expect(repo.approve).not.toHaveBeenCalled();
+    expect(payments.chargeOneTimeFee).not.toHaveBeenCalled();
+    expect(mail.member).toHaveBeenCalledWith(ORG, expect.objectContaining({ membershipNumber: 'PSF/GAS/0042', annualFeeRwf: 150000, paymentReference: 'mock_ref_paid' }));
+    expect(mail.approved).not.toHaveBeenCalled();
+  });
+
+  it('declining a paid application keeps its fee and passes it on to PSF: nothing is refunded', async () => {
+    const { repo, mail, payments, service } = setup({ PSF_PAYOUT_DESTINATION: 'bank', PSF_PAYOUT_REF: '000400012345' });
+    repo.applicationById.mockResolvedValue({ id: APP, orgId: ORG, status: 'declined', paidAt: new Date(), paidAmountRwf: 150000 });
+    await service.decline('u-officer', kicukiro, APP, { reason: 'details_incomplete' });
+    expect(payments.payout).toHaveBeenCalledWith(expect.objectContaining({ amountRwf: 150000, memo: 'PSF membership fee' }));
+    expect(mail.declined).toHaveBeenCalledWith(ORG, 'details_incomplete', null);
+  });
+
   it('a tier PSF prices itself needs the officer’s amount', async () => {
     const { repo, service } = setup();
     repo.officerApplication.mockResolvedValue({
-      id: APP, orgId: ORG, status: 'submitted', officerHasStake: false, quotedPriceKind: 'set_by_psf', quotedFeeRwf: null, declaredFeeRwf: null,
+      id: APP, orgId: ORG, districtId: 103, status: 'submitted', officerHasStake: false, quotedPriceKind: 'set_by_psf', quotedFeeRwf: null, declaredFeeRwf: null,
     });
-    await expect(service.approve('u-officer', country, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(UnprocessableEntityException);
-    await service.approve('u-officer', country, APP, { membershipNumber: 'PSF/1', feeRwf: 2_000_000 });
+    await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(UnprocessableEntityException);
+    await service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/1', feeRwf: 2_000_000 });
     expect(repo.approve.mock.calls[0][0].feeRwf).toBe(2_000_000);
   });
 
   it('losing the race is a 409, and no mail goes', async () => {
     const { repo, mail, service } = setup();
     repo.approve.mockResolvedValue(null);
-    await expect(service.approve('u-officer', country, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/1' })).rejects.toBeInstanceOf(ConflictException);
     expect(mail.approved).not.toHaveBeenCalled();
   });
 
   it('a decline mails the reason and the note', async () => {
     const { mail, service } = setup();
-    await service.decline('u-officer', country, APP, { reason: 'other', note: 'Send the certificate.' });
+    await service.decline('u-officer', kicukiro, APP, { reason: 'other', note: 'Send the certificate.' });
     expect(mail.declined).toHaveBeenCalledWith(ORG, 'other', 'Send the certificate.');
   });
 
   it('a district officer reads their district only, and a country officer everything', async () => {
     const { repo, service } = setup();
-    await service.queue('u-officer', kicukiro, undefined);
+    await service.queue('u-officer', kicukiro, { sort: 'newest' });
     expect(repo.queuePage.mock.calls[0][1]).toEqual([103]);
-    await service.queue('u-officer', country, undefined);
+    await service.queue('u-officer', country, { sort: 'newest' });
     expect(repo.queuePage.mock.calls[1][1]).toBeNull();
   });
 });

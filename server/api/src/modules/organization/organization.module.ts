@@ -4,11 +4,15 @@ import { isWorkerProcess } from '../../shared/process/process-role';
 import { GeographyModule } from '../geography/geography.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { MailerModule } from '../mailer/mailer.module';
+import { SmsModule } from '../sms/sms.module';
 import { UserModule } from '../user/user.module';
+import { StorageModule } from '../storage/storage.module';
 
 import { BrokerRegistrationService } from './application/broker-registration.service';
 import { OwnerClaimService } from './application/owner-claim.service';
 import { PsfMembershipService } from './application/psf-membership.service';
+import { PsfPublicService } from './application/psf-public.service';
+import { PsfReportService } from './application/psf-report.service';
 import { RegistrationDraftService } from './application/registration-draft.service';
 import { RegistrationService } from './application/registration.service';
 import { RolePermissionsService } from './application/role-permissions.service';
@@ -20,6 +24,8 @@ import { OrganizationRepository } from './infrastructure/organization.repository
 import { OwnerClaimRepository } from './infrastructure/owner-claim.repository';
 import { PsfMembershipMailer } from './infrastructure/psf-membership.mailer';
 import { PsfMembershipRepository } from './infrastructure/psf-membership.repository';
+import { PsfPublicRepository } from './infrastructure/psf-public.repository';
+import { PsfReportRepository } from './infrastructure/psf-report.repository';
 import { RegistrationDraftRepository } from './infrastructure/registration-draft.repository';
 import { RegistrationMailer } from './infrastructure/registration.mailer';
 import { RolePermissionsRepository } from './infrastructure/role-permissions.repository';
@@ -52,7 +58,9 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
   // module's table, so the join lives there and this module composes it.
   // PaymentsModule for the PSF membership fee (the PSF path): a business pays
   // it here, through the one payment seam, and it is passed on to PSF.
-  imports: [UserModule, MailerModule, GeographyModule, PaymentsModule],
+  // SmsModule for the public PSF path: status news reaches an applicant with
+  // no account by text message.
+  imports: [UserModule, MailerModule, GeographyModule, PaymentsModule, SmsModule, StorageModule],
   providers: [
     OrganizationRepository,
     BrokerRepository,
@@ -90,6 +98,12 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     PsfMembershipRepository,
     PsfMembershipMailer,
     PsfMembershipService,
+    // The public PSF path (2026-10-19): register without an account, track by
+    // docID. And the officer console's report and decision log.
+    PsfPublicRepository,
+    PsfPublicService,
+    PsfReportRepository,
+    PsfReportService,
     // The RRA TIN retry sweep (ADR-053, AC-R5). Worker only, like the night
     // audit, so an HTTP replica never consumes a job.
     ...(isWorkerProcess() ? [RegistrationTinRecheckProcessor] : []),
@@ -105,6 +119,8 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     RolePermissionsService,
     StaffInvitationService,
     PsfMembershipService,
+    PsfPublicService,
+    PsfReportService,
   ],
 })
 export class OrganizationModule {}

@@ -346,7 +346,7 @@ function OpenApplication({
       ) : (
         <p className="text-sm text-ink2">
           {open.stage === "with_psf"
-            ? "A PSF membership officer is reviewing it. We email you the moment they decide, and you pay only once they approve."
+            ? "A PSF District Manager is reviewing it. We email you the moment they decide, and you pay only once they approve."
             : "It goes to PSF as soon as the Rwanda Revenue Authority has checked your TIN. You do not need to do anything."}
         </p>
       )}

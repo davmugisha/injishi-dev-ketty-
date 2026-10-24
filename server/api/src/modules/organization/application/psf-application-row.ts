@@ -1,3 +1,6 @@
+import { randomBytes } from 'node:crypto';
+
+import { newPsfDocId } from '@injishi/contracts';
 import type {
   PsfApplication,
   PsfApplicationInput,
@@ -30,7 +33,11 @@ import type {
  * amount the business declared rides beside it.
  */
 export function buildPsfApplicationRow(input: {
-  submittedByUserId: string;
+  /** Null from the public form, where nobody signs in. */
+  submittedByUserId: string | null;
+  /** Where news goes without an account (the public form). */
+  applicantPhoneE164?: string | null;
+  applicantEmail?: string | null;
   capacity: PsfSubmittedCapacity;
   registrationType: string;
   registrationNumber: string | null;
@@ -44,6 +51,9 @@ export function buildPsfApplicationRow(input: {
   const trading = form.tradeDirection !== 'none';
   return {
     submittedByUserId: input.submittedByUserId,
+    docId: newPsfDocId((n) => randomBytes(n)),
+    applicantPhoneE164: input.applicantPhoneE164 ?? null,
+    applicantEmail: input.applicantEmail ?? null,
     submittedCapacity: input.capacity,
     status: 'submitted',
     requestedTierCode: tier.code,
@@ -166,5 +176,27 @@ export function toPsfTierView(row: PsfTierRow): PsfTier {
     benefitsRw: row.benefitsRw,
     sortOrder: row.sortOrder,
     active: row.active,
+  };
+}
+
+export function toSubsectorView(row: {
+  id: string;
+  clusterCode: string;
+  nameEn: string;
+  districtId: number | null;
+  districtName: string | null;
+  sortOrder: number;
+  active: boolean;
+  associationCodes: string[];
+}) {
+  return {
+    id: row.id,
+    clusterCode: row.clusterCode,
+    nameEn: row.nameEn,
+    districtId: row.districtId,
+    districtName: row.districtName,
+    sortOrder: row.sortOrder,
+    active: row.active,
+    associationCodes: row.associationCodes,
   };
 }

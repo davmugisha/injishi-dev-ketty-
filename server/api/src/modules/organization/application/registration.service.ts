@@ -26,6 +26,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  GoneException,
   Injectable,
   Logger,
   NotFoundException,
@@ -268,6 +269,13 @@ export class RegistrationService {
       // writing a half-broker into `orgs` and calling it registered.
       throw new BadRequestException(
         'A broker registers at /api/v1/registrations/broker, not here.',
+      );
+    }
+    if (request.role === 'enterprise') {
+      // Since 2026-10-19 a business joins PSF on the public form, with no
+      // account and no workspace: one form, one fee, a docID to track it by.
+      throw new GoneException(
+        'Joining PSF has its own form now, with no account needed. Register at /psf/register.',
       );
     }
 

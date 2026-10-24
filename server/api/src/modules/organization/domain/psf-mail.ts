@@ -22,7 +22,12 @@ export function psfMembershipLink(webUrl: string, workspaceId: string | null): s
     : new URL('/start', webUrl).toString();
 }
 
-/** The PSF membership officer's queue. */
+/** The public tracking page an applicant with no account follows (2026-10-19). */
+export function psfTrackLink(webUrl: string, docId: string): string {
+  return new URL(`/psf/track/${encodeURIComponent(docId)}`, webUrl).toString();
+}
+
+/** The PSF District Manager's queue. */
 export function psfQueueLink(webUrl: string): string {
   return new URL('/oversight/membership/queue', webUrl).toString();
 }
@@ -41,7 +46,7 @@ export function psfApplicationReceivedMail(input: {
     paragraphs: [
       `Your application to join the Private Sector Federation (PSF) as ${input.tierName} is saved.`,
       input.withPsf
-        ? 'It is now with a PSF membership officer, who will review it.'
+        ? 'It is now with a PSF District Manager, who will review it.'
         : 'It goes to PSF as soon as the Rwanda Revenue Authority has checked your TIN. You do not need to do anything.',
       PSF_FEE_NOTICE,
     ],
@@ -70,7 +75,7 @@ export function psfOfficerQueueMail(input: {
   });
 }
 
-/** PSF approved: the business now pays, from its portal. */
+/** PSF approved: the business now pays, from the link. */
 export function psfApprovedMail(input: {
   to: Addressee;
   legalName: string;
@@ -84,8 +89,8 @@ export function psfApprovedMail(input: {
     heading: 'PSF approved your application',
     greeting: greeting(input.to),
     paragraphs: [
-      `A PSF membership officer approved ${input.legalName} as ${input.tierName}.`,
-      'Pay the membership fee by mobile money from your portal. Your membership starts the day you pay, and lasts a year.',
+      `A PSF District Manager approved ${input.legalName} as ${input.tierName}.`,
+      'Pay the membership fee by mobile money from the link below. Your membership starts the day you pay, and lasts a year.',
     ],
     details: [
       ['Tier', input.tierName],
@@ -143,8 +148,8 @@ export function psfDeclinedMail(input: {
     heading: 'PSF application declined',
     greeting: greeting(input.to),
     paragraphs: [
-      'A PSF membership officer declined this application.',
-      'You can correct it and apply again from your workspace.',
+      'A PSF District Manager declined this application. Your business keeps its code.',
+      'You can correct it and apply again.',
     ],
     details: [
       ['Reason', input.reasonLabel],
@@ -167,7 +172,7 @@ export function psfExpiringMail(input: {
     greeting: greeting(input.to),
     paragraphs: [
       `Membership ${input.membershipNumber} ends on ${input.expiresOn}.`,
-      'To stay a member, apply again from your workspace before then.',
+      'To stay a member, apply again before then.',
     ],
     cta: { label: 'Renew your membership', href: input.link },
   });
@@ -185,8 +190,31 @@ export function psfExpiredMail(input: {
     greeting: greeting(input.to),
     paragraphs: [
       `Membership ${input.membershipNumber} has reached its end date, so ${input.legalName} is no longer shown as a PSF member.`,
-      'You can apply again from your workspace at any time.',
+      'You can apply again at any time.',
     ],
     cta: { label: 'Apply again', href: input.link },
+  });
+}
+
+/** The membership certificate, attached as a PDF, sent when the member or an officer asks. */
+export function psfCertificateMail(input: {
+  to: Addressee;
+  legalName: string;
+  tierName: string;
+  membershipNumber: string;
+  expiresOn: string | null;
+  link: string;
+}): RegistrationMail {
+  return compose({
+    subject: `PSF membership certificate for ${input.legalName}`,
+    heading: 'Your PSF certificate',
+    greeting: greeting(input.to),
+    paragraphs: [`The membership certificate for ${input.legalName} is attached as a PDF. Print it, or keep it to show.`],
+    details: [
+      ['Membership', input.tierName],
+      ['Membership number', input.membershipNumber],
+      ...(input.expiresOn ? ([['Valid until', input.expiresOn]] as [string, string][]) : []),
+    ],
+    cta: { label: 'See it online', href: input.link },
   });
 }

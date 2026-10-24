@@ -4,6 +4,7 @@ import {
   type EnterpriseRegistrationKind,
   type OrgRegistrationStatus,
   type OrgRole,
+  type PsfBranchStatus,
   type PsfDeclineReason,
   type PsfOwnerGroup,
   type PsfStanding,
@@ -20,12 +21,17 @@ import {
   orgs,
   oversightAssignments,
   provinces,
+  psfApplicationBranches,
   psfAssociations,
   psfClusters,
   psfMembershipApplications,
   psfMembershipTiers,
   psfMemberships,
+  psfSubsectorAssociations,
+  psfSubsectors,
+  psfTierFees,
   sectors,
+  subscriptionInvoices,
   userProfiles,
   users,
   verifiedIdentities,
@@ -56,6 +62,45 @@ export type PsfAssociationRow = typeof psfAssociations.$inferSelect;
  * (`districtScopeOf` in `@injishi/contracts`). An empty list sees nothing.
  */
 export type PsfScope = readonly number[] | null;
+
+/** One branch as the officer reads it, with its place in words. */
+export interface PsfBranchRow {
+  id: string;
+  applicationId: string;
+  districtId: number;
+  districtName: string | null;
+  sectorName: string | null;
+  street: string;
+  status: PsfBranchStatus;
+  decisionNote: string | null;
+  decidedAt: Date | null;
+}
+
+/** A branch to file with a public application (2026-10-23). */
+export interface NewPsfBranch {
+  districtId: number;
+  sectorId: number;
+  street: string;
+}
+
+/** Files the branches of a just-created application, inside its transaction. */
+export async function insertPsfBranches(
+  tx: Tx | Database,
+  applicationId: string,
+  orgId: string,
+  branches: readonly NewPsfBranch[],
+): Promise<void> {
+  if (branches.length === 0) return;
+  await tx.insert(psfApplicationBranches).values(
+    branches.map((b) => ({
+      applicationId,
+      orgId,
+      districtId: b.districtId,
+      sectorId: b.sectorId,
+      street: b.street,
+    })),
+  );
+}
 
 /** A second open application for the same business (AC-16). */
 export class OpenPsfApplicationExists extends Error {
@@ -124,6 +169,7 @@ export interface PsfOrgFacts {
   ownerGroups: PsfOwnerGroup[];
   associationName: string | null;
   clusterName: string | null;
+  subsectorName: string | null;
   obo: {
     registrantUserId: string;
     claimStatus: 'registrant_held' | 'owner_claimed' | 'expired';
@@ -148,6 +194,7 @@ export interface PsfQueueRow {
   domain: Domain;
   districtName: string | null;
   associationName: string | null;
+  subsectorName: string | null;
   ownerGroups: PsfOwnerGroup[];
   requestedTierName: string;
   declaredFeeRwf: number | null;
@@ -156,11 +203,27 @@ export interface PsfQueueRow {
   sortAt: Date;
   registrationStatus: OrgRegistrationStatus;
   officerHasStake: boolean;
+  districtId: number | null;
+  docId: string;
+  clusterName: string | null;
+  paidAmountRwf: number | null;
+  /** Branches in the officer's region still waiting on PSF. */
+  branchesPending: number;
+}
+
+/** The queue's filters, validated and resolved. */
+export interface PsfQueueFilter {
+  q?: string;
+  cluster?: string;
+  family?: string;
+  group?: PsfOwnerGroup;
+  sort: 'newest' | 'oldest' | 'amount';
 }
 
 /** An application as the officer reads it, with the business around it. */
 export type PsfOfficerApplicationRow = PsfApplicationWithNames & {
   businessName: string;
+  districtId: number | null;
   districtName: string | null;
   registrationStatus: OrgRegistrationStatus;
   officerHasStake: boolean;
@@ -168,6 +231,7 @@ export type PsfOfficerApplicationRow = PsfApplicationWithNames & {
   businessCode: string | null;
   clusterName: string | null;
   associationName: string | null;
+  subsectorName: string | null;
   ownerGroups: PsfOwnerGroup[];
   registrationKind: EnterpriseRegistrationKind | null;
 };
@@ -183,6 +247,7 @@ export interface PsfBusinessRegisterRow {
   sectorName: string | null;
   clusterCode: string | null;
   clusterName: string | null;
+  subsectorName: string | null;
   associationName: string | null;
   associationAcronym: string | null;
   ownerGroups: PsfOwnerGroup[];
@@ -194,6 +259,11 @@ export interface PsfBusinessRegisterRow {
   membershipNumber: string | null;
   expiresOn: string | null;
   openApplicationId: string | null;
+  /** Paid in through Injishi: membership fees, and any registration fee. */
+  paidRwf: number;
+  lastPaidAt: Date | null;
+  /** Branches on its newest application (2026-10-23). */
+  branchCount: number;
 }
 
 /** The register's filters, already validated and resolved. */
@@ -201,12 +271,15 @@ export interface PsfRegisterFilter {
   q?: string;
   districtId?: number;
   clusterCode?: string;
+  subsectorId?: string;
   associationCode?: string;
   tierCode?: string;
   standing?: PsfStanding;
   group?: PsfOwnerGroup;
   tin?: 'with' | 'without';
   kind?: 'enterprise' | 'hospitality';
+  /** One business, for its own page. */
+  orgId?: string;
 }
 
 const submitter = alias(users, 'psf_submitter');
@@ -234,11 +307,55 @@ const submittedByName = displayName(submitter, submitterIdentity);
 /** Open is `submitted` (with PSF) or `approved` (waiting on the payment). */
 const OPEN_STATUS_SQL = inArray(psfMembershipApplications.status, ['submitted', 'approved']);
 
+/** The business's subtype in words: the one it picked, or the one it typed. */
+const SUBSECTOR_NAME = sql<string | null>`coalesce(${orgs.psfSubsectorOther}, ${psfSubsectors.nameEn})`;
+
 /** A business's region, as a condition. Null scope is the whole country. */
 function inScope(scope: PsfScope): SQL | undefined {
   if (scope === null) return undefined;
   if (scope.length === 0) return sql`false`;
   return inArray(orgs.districtId, [...scope]);
+}
+
+/** The application on the outer row, named in full, for the same reason as `ORG_ID`. */
+const APPLICATION_ID = sql.raw('"psf_membership_applications"."id"');
+
+/**
+ * The branches of the outer row's application inside a region (2026-10-23),
+ * as a condition on the branch alias `b`. Null scope is the whole country.
+ */
+function branchPlace(scope: PsfScope): SQL {
+  if (scope === null) return sql``;
+  if (scope.length === 0) return sql` AND false`;
+  return sql` AND b.district_id IN (${sql.join(
+    scope.map((d) => sql`${d}`),
+    sql`, `,
+  )})`;
+}
+
+/** The application has a branch in the region; `pending` narrows to the undecided ones. */
+function branchInScope(scope: PsfScope, pendingOnly: boolean): SQL {
+  return sql`EXISTS (SELECT 1 FROM ${psfApplicationBranches} b
+                      WHERE b.application_id = ${APPLICATION_ID}${pendingOnly ? sql` AND b.status = 'pending'` : sql``}${branchPlace(scope)})`;
+}
+
+/** How many of the application's branches in the region still wait on PSF. */
+function branchesPendingIn(scope: PsfScope): SQL<number> {
+  return sql<number>`(SELECT count(*)::int FROM ${psfApplicationBranches} b
+                       WHERE b.application_id = ${APPLICATION_ID} AND b.status = 'pending'${branchPlace(scope)})`;
+}
+
+/**
+ * An application whose branch waits on an officer: the business is not
+ * declined or withdrawn, so a branch can still be admitted after the head
+ * office's decision, and paid past its registration fee.
+ */
+function branchWaitsOn(scope: PsfScope): SQL | undefined {
+  return and(
+    inArray(psfMembershipApplications.status, ['submitted', 'approved', 'member']),
+    inArray(orgs.registrationStatus, [...PSF_QUEUE_REGISTRATION_STATES]),
+    branchInScope(scope, true),
+  );
 }
 
 /**
@@ -278,6 +395,43 @@ END)`;
 /** The current membership, or the open application, of the business on this row. */
 const CURRENT_MEMBERSHIP = sql`(SELECT m.id FROM ${psfMemberships} m
   WHERE m.org_id = ${ORG_ID} AND m.ended_at IS NULL LIMIT 1)`;
+/**
+ * What a business has paid through Injishi: every membership fee, and a
+ * registration fee where one was paid (a hotel's, or a PSF business's from
+ * before the fee was dropped, 2026-10-23); and when it last paid. Nothing is
+ * refunded. Correlated on the register's own row.
+ */
+const PAID_RWF = sql<number>`(
+  coalesce((SELECT sum(i.amount_rwf) FROM ${subscriptionInvoices} i
+             WHERE i.org_id = ${ORG_ID} AND i.invoice_kind = 'registration_fee' AND i.status = 'paid'), 0)
+  + coalesce((SELECT sum(a.paid_amount_rwf) FROM ${psfMembershipApplications} a WHERE a.org_id = ${ORG_ID} AND a.paid_at IS NOT NULL), 0)
+)::int`;
+const LAST_PAID_AT = sql<Date | null>`greatest(
+  (SELECT max(i.updated_at) FROM ${subscriptionInvoices} i
+    WHERE i.org_id = ${ORG_ID} AND i.invoice_kind = 'registration_fee' AND i.status = 'paid'),
+  (SELECT max(a.paid_at) FROM ${psfMembershipApplications} a WHERE a.org_id = ${ORG_ID})
+)`;
+
+/**
+ * A business's branches are the ones its NEWEST application listed
+ * (2026-10-23): a business that applies again lists where it trades now, and
+ * an older application's list is history.
+ */
+const NEWEST_APPLICATION = sql`(SELECT a.id FROM ${psfMembershipApplications} a
+  WHERE a.org_id = ${ORG_ID} ORDER BY a.created_at DESC LIMIT 1)`;
+
+const BRANCH_COUNT = sql<number>`(SELECT count(*)::int FROM ${psfApplicationBranches} b
+  WHERE b.application_id = ${NEWEST_APPLICATION})`;
+
+/**
+ * A business with a branch in the region (2026-10-23): a district manager
+ * discovers it on their register even though its head office is elsewhere.
+ */
+function hasBranchIn(scope: PsfScope): SQL {
+  return sql`EXISTS (SELECT 1 FROM ${psfApplicationBranches} b
+                      WHERE b.application_id = ${NEWEST_APPLICATION}${branchPlace(scope)})`;
+}
+
 const OPEN_APPLICATION = sql`(SELECT a.id FROM ${psfMembershipApplications} a
   WHERE a.org_id = ${ORG_ID} AND a.status IN ('submitted', 'approved')
   ORDER BY a.created_at DESC LIMIT 1)`;
@@ -305,8 +459,10 @@ export class PsfMembershipRepository {
         registrationKind: orgs.registrationKind,
         registrationNumber: orgs.registrationNumber,
         ownerGroups: orgs.ownerGroups,
-        associationName: psfAssociations.nameEn,
+        // The name a business typed, when PSF's list did not have its association.
+        associationName: sql<string | null>`coalesce(${orgs.psfAssociationOther}, ${psfAssociations.nameEn})`,
         clusterName: psfClusters.nameEn,
+        subsectorName: SUBSECTOR_NAME,
         oboRegistrant: oboRegistrations.registrantUserId,
         oboClaimStatus: oboRegistrations.claimStatus,
         intendedOwnerName: oboRegistrations.intendedOwnerName,
@@ -317,6 +473,7 @@ export class PsfMembershipRepository {
       .leftJoin(districts, eq(districts.id, orgs.districtId))
       .leftJoin(psfAssociations, eq(psfAssociations.code, orgs.psfAssociationCode))
       .leftJoin(psfClusters, eq(psfClusters.code, psfAssociations.clusterCode))
+      .leftJoin(psfSubsectors, eq(psfSubsectors.id, orgs.psfSubsectorId))
       .leftJoin(oboRegistrations, eq(oboRegistrations.orgId, orgs.id))
       .where(eq(orgs.id, orgId))
       .limit(1);
@@ -410,6 +567,33 @@ export class PsfMembershipRepository {
       );
   }
 
+  /**
+   * The person the newest application names, for a business with no owner
+   * account (the public PSF form): where its news goes, and the docID it is
+   * tracked by.
+   */
+  async publicApplicant(orgId: string): Promise<{
+    docId: string;
+    name: string;
+    email: string | null;
+    phoneE164: string | null;
+  } | null> {
+    const [row] = await this.db
+      .select({
+        docId: psfMembershipApplications.docId,
+        firstName: psfMembershipApplications.firstName,
+        lastName: psfMembershipApplications.lastName,
+        email: psfMembershipApplications.applicantEmail,
+        phoneE164: psfMembershipApplications.applicantPhoneE164,
+      })
+      .from(psfMembershipApplications)
+      .where(and(eq(psfMembershipApplications.orgId, orgId), isNull(psfMembershipApplications.submittedByUserId)))
+      .orderBy(desc(psfMembershipApplications.createdAt))
+      .limit(1);
+    if (!row) return null;
+    return { docId: row.docId, name: `${row.firstName} ${row.lastName}`.trim(), email: row.email, phoneE164: row.phoneE164 };
+  }
+
   /** What the apply form can start from about a person. */
   async personFacts(userId: string): Promise<{
     email: string;
@@ -476,6 +660,49 @@ export class PsfMembershipRepository {
     return row ?? null;
   }
 
+  // --- What a band costs, by place (2026-10-20) ---------------------------------
+
+  /** The national prices, and the district's own when one is named. */
+  async tierFees(districtId: number | null): Promise<
+    { tierCode: string; districtId: number | null; annualFeeRwf: number; updatedAt: Date; updatedByName: string | null }[]
+  > {
+    return this.db
+      .select({
+        tierCode: psfTierFees.tierCode,
+        districtId: psfTierFees.districtId,
+        annualFeeRwf: psfTierFees.annualFeeRwf,
+        updatedAt: psfTierFees.updatedAt,
+        updatedByName: sql<string | null>`coalesce(nullif(trim(${verifiedIdentities.legalFullName}), ''), nullif(trim(${users.name}), ''))`,
+      })
+      .from(psfTierFees)
+      .leftJoin(users, eq(users.id, psfTierFees.setByUserId))
+      .leftJoin(verifiedIdentities, eq(verifiedIdentities.userId, users.id))
+      .where(
+        districtId === null
+          ? isNull(psfTierFees.districtId)
+          : or(isNull(psfTierFees.districtId), eq(psfTierFees.districtId, districtId)),
+      );
+  }
+
+  /** Set a band's price for a place, or clear it (`amountRwf` null). */
+  async setTierFee(input: { tierCode: string; districtId: number | null; amountRwf: number | null; userId: string }): Promise<void> {
+    const place = input.districtId === null ? isNull(psfTierFees.districtId) : eq(psfTierFees.districtId, input.districtId);
+    if (input.amountRwf === null) {
+      await this.db.delete(psfTierFees).where(and(eq(psfTierFees.tierCode, input.tierCode), place));
+      return;
+    }
+    await this.db.execute(sql`
+      INSERT INTO ${psfTierFees} (tier_code, district_id, annual_fee_rwf, set_by_user_id)
+      VALUES (${input.tierCode}, ${input.districtId}, ${input.amountRwf}, ${input.userId})
+      ON CONFLICT (tier_code, coalesce(district_id, 0))
+      DO UPDATE SET annual_fee_rwf = EXCLUDED.annual_fee_rwf, set_by_user_id = EXCLUDED.set_by_user_id, updated_at = now()`);
+  }
+
+  async districtName(districtId: number): Promise<string | null> {
+    const [row] = await this.db.select({ name: districts.name }).from(districts).where(eq(districts.id, districtId)).limit(1);
+    return row?.name ?? null;
+  }
+
   // --- The sector catalogue --------------------------------------------------
 
   async clusters(activeOnly: boolean): Promise<PsfClusterRow[]> {
@@ -492,6 +719,116 @@ export class PsfMembershipRepository {
       .from(psfAssociations)
       .where(activeOnly ? eq(psfAssociations.active, true) : undefined)
       .orderBy(asc(psfAssociations.sortOrder), asc(psfAssociations.nameEn));
+  }
+
+  // --- Subtypes (2026-10-20) ---------------------------------------------------
+
+  /**
+   * The subtypes a reader may see: national ones, and those of the districts
+   * named (`districtIds` null for every district, as admin and the country
+   * officer read them). Inactive ones only when asked.
+   */
+  async subsectors(districtIds: readonly number[] | null, includeInactive = false): Promise<
+    (typeof psfSubsectors.$inferSelect & { districtName: string | null; associationCodes: string[] })[]
+  > {
+    const where = and(
+      includeInactive ? undefined : eq(psfSubsectors.active, true),
+      districtIds === null
+        ? undefined
+        : districtIds.length
+          ? or(isNull(psfSubsectors.districtId), inArray(psfSubsectors.districtId, [...districtIds]))
+          : isNull(psfSubsectors.districtId),
+    );
+    const rows = await this.db
+      .select({ s: psfSubsectors, districtName: districts.name })
+      .from(psfSubsectors)
+      .leftJoin(districts, eq(districts.id, psfSubsectors.districtId))
+      .where(where)
+      .orderBy(asc(psfSubsectors.sortOrder), asc(psfSubsectors.nameEn));
+    const links = rows.length
+      ? await this.db
+          .select()
+          .from(psfSubsectorAssociations)
+          .where(inArray(psfSubsectorAssociations.subsectorId, rows.map((r) => r.s.id)))
+      : [];
+    return rows.map((r) => ({
+      ...r.s,
+      districtName: r.districtName,
+      associationCodes: links.filter((l) => l.subsectorId === r.s.id).map((l) => l.associationCode),
+    }));
+  }
+
+  async subsector(id: string): Promise<typeof psfSubsectors.$inferSelect | null> {
+    const [row] = await this.db.select().from(psfSubsectors).where(eq(psfSubsectors.id, id)).limit(1);
+    return row ?? null;
+  }
+
+  /** Add a subtype with its associations. False when the name is taken in that place. */
+  async insertSubsector(input: {
+    clusterCode: string;
+    nameEn: string;
+    districtId: number | null;
+    associationCodes: string[];
+    userId: string;
+  }): Promise<string | null> {
+    try {
+      return await this.db.transaction(async (tx) => {
+        const [row] = await tx
+          .insert(psfSubsectors)
+          .values({
+            clusterCode: input.clusterCode,
+            nameEn: input.nameEn,
+            districtId: input.districtId,
+            createdByUserId: input.userId,
+            updatedByUserId: input.userId,
+          })
+          .returning({ id: psfSubsectors.id });
+        if (!row) throw new Error('Subtype insert returned no row.');
+        if (input.associationCodes.length) {
+          await tx
+            .insert(psfSubsectorAssociations)
+            .values(input.associationCodes.map((code) => ({ subsectorId: row.id, associationCode: code })));
+        }
+        return row.id;
+      });
+    } catch (error) {
+      if ((error as { code?: string; cause?: { code?: string } }).code === '23505' || (error as { cause?: { code?: string } }).cause?.code === '23505') {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async updateSubsector(
+    id: string,
+    input: { nameEn?: string; active?: boolean; sortOrder?: number; associationCodes?: string[]; userId: string },
+  ): Promise<boolean> {
+    try {
+      await this.db.transaction(async (tx) => {
+        await tx
+          .update(psfSubsectors)
+          .set({
+            ...(input.nameEn !== undefined ? { nameEn: input.nameEn } : {}),
+            ...(input.active !== undefined ? { active: input.active } : {}),
+            ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
+            updatedByUserId: input.userId,
+            updatedAt: new Date(),
+          })
+          .where(eq(psfSubsectors.id, id));
+        if (input.associationCodes) {
+          await tx.delete(psfSubsectorAssociations).where(eq(psfSubsectorAssociations.subsectorId, id));
+          if (input.associationCodes.length) {
+            await tx
+              .insert(psfSubsectorAssociations)
+              .values(input.associationCodes.map((code) => ({ subsectorId: id, associationCode: code })));
+          }
+        }
+      });
+      return true;
+    } catch (error) {
+      if ((error as { code?: string }).code === '23505' || (error as { cause?: { code?: string } }).cause?.code === '23505') return false;
+      throw error;
+    }
   }
 
   /** An association a business may still name: it, and its cluster, active. */
@@ -650,55 +987,84 @@ export class PsfMembershipRepository {
     return sql<Date>`coalesce(${psfMembershipApplications.queuedAt}, ${psfMembershipApplications.createdAt})`;
   }
 
+  /**
+   * The queue, filtered and sorted as the console asks: newest first unless
+   * told otherwise. Paged by offset, because three orders cannot share one
+   * keyset cursor, and a queue is short enough for an offset to be honest.
+   */
   async queuePage(
     officerUserId: string,
     scope: PsfScope,
-    after: { sortAt: Date; id: string } | undefined,
+    filter: PsfQueueFilter,
+    offset: number,
     limit: number,
-  ): Promise<{ rows: PsfQueueRow[]; more: boolean }> {
+  ): Promise<{ rows: PsfQueueRow[]; more: boolean; total: number }> {
     const sortAt = this.sortAt();
-    const rows = await this.db
-      .select({
-        applicationId: psfMembershipApplications.id,
-        orgId: orgs.id,
-        businessName: orgs.legalName,
-        businessCode: orgs.businessCode,
-        domain: orgs.domain,
-        districtName: districts.name,
-        associationName: psfAssociations.nameEn,
-        ownerGroups: orgs.ownerGroups,
-        requestedTierName: psfMembershipTiers.nameEn,
-        declaredFeeRwf: psfMembershipApplications.declaredFeeRwf,
-        submittedAt: psfMembershipApplications.createdAt,
-        queuedAt: psfMembershipApplications.queuedAt,
-        sortAt: sortAt.mapWith((v: string | Date) => new Date(v)),
-        registrationStatus: orgs.registrationStatus,
-        officerHasStake: this.stakeSql(officerUserId).mapWith(Boolean),
-      })
+    const q = filter.q?.trim();
+    const like = q ? `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%` : null;
+    const where = and(
+      // The business is the officer's to decide, or one of its branches is.
+      or(and(this.inQueue(), inScope(scope)), branchWaitsOn(scope)),
+      filter.cluster ? eq(psfAssociations.clusterCode, filter.cluster) : undefined,
+      filter.family ? sql`${psfMembershipTiers.family} = ${filter.family}` : undefined,
+      filter.group ? sql`${filter.group}::psf_owner_group = ANY(${orgs.ownerGroups})` : undefined,
+      like
+        ? or(
+            sql`${orgs.legalName} ILIKE ${like}`,
+            sql`${orgs.businessCode} ILIKE ${like}`,
+            sql`${psfMembershipApplications.docId} ILIKE ${like}`,
+          )
+        : undefined,
+    );
+    const order =
+      filter.sort === 'oldest'
+        ? [asc(sortAt), asc(psfMembershipApplications.id)]
+        : filter.sort === 'amount'
+          ? [sql`${psfMembershipApplications.declaredFeeRwf} DESC NULLS LAST`, desc(sortAt)]
+          : [desc(sortAt), desc(psfMembershipApplications.id)];
+    const base = () =>
+      this.db
+        .select({
+          applicationId: psfMembershipApplications.id,
+          orgId: orgs.id,
+          businessName: orgs.legalName,
+          businessCode: orgs.businessCode,
+          domain: orgs.domain,
+          districtName: districts.name,
+          // The name a business typed, when PSF's list did not have its association.
+          associationName: sql<string | null>`coalesce(${orgs.psfAssociationOther}, ${psfAssociations.nameEn})`,
+          subsectorName: SUBSECTOR_NAME,
+          clusterName: psfClusters.nameEn,
+          ownerGroups: orgs.ownerGroups,
+          requestedTierName: psfMembershipTiers.nameEn,
+          declaredFeeRwf: psfMembershipApplications.declaredFeeRwf,
+          paidAmountRwf: psfMembershipApplications.paidAmountRwf,
+          submittedAt: psfMembershipApplications.createdAt,
+          queuedAt: psfMembershipApplications.queuedAt,
+          sortAt: sortAt.mapWith((v: string | Date) => new Date(v)),
+          registrationStatus: orgs.registrationStatus,
+          officerHasStake: this.stakeSql(officerUserId).mapWith(Boolean),
+          districtId: orgs.districtId,
+          docId: psfMembershipApplications.docId,
+          branchesPending: branchesPendingIn(scope).mapWith(Number),
+        })
+        .from(psfMembershipApplications)
+        .innerJoin(orgs, eq(orgs.id, psfMembershipApplications.orgId))
+        .innerJoin(psfMembershipTiers, eq(psfMembershipTiers.code, psfMembershipApplications.requestedTierCode))
+        .leftJoin(districts, eq(districts.id, orgs.districtId))
+        .leftJoin(psfAssociations, eq(psfAssociations.code, orgs.psfAssociationCode))
+        .leftJoin(psfClusters, eq(psfClusters.code, psfAssociations.clusterCode))
+        .leftJoin(psfSubsectors, eq(psfSubsectors.id, orgs.psfSubsectorId))
+        .where(where);
+    const rows = await base().orderBy(...order).limit(limit + 1).offset(offset);
+    const [counted] = await this.db
+      .select({ n: sql<number>`count(*)::int` })
       .from(psfMembershipApplications)
       .innerJoin(orgs, eq(orgs.id, psfMembershipApplications.orgId))
-      .innerJoin(
-        psfMembershipTiers,
-        eq(psfMembershipTiers.code, psfMembershipApplications.requestedTierCode),
-      )
-      .leftJoin(districts, eq(districts.id, orgs.districtId))
+      .innerJoin(psfMembershipTiers, eq(psfMembershipTiers.code, psfMembershipApplications.requestedTierCode))
       .leftJoin(psfAssociations, eq(psfAssociations.code, orgs.psfAssociationCode))
-      .where(
-        and(
-          this.inQueue(),
-          inScope(scope),
-          // Oldest first, so the cursor moves forward in time.
-          after
-            ? or(
-                gt(sortAt, after.sortAt),
-                and(sql`${sortAt} = ${after.sortAt}`, gt(psfMembershipApplications.id, after.id)),
-              )
-            : undefined,
-        ),
-      )
-      .orderBy(asc(sortAt), asc(psfMembershipApplications.id))
-      .limit(limit + 1);
-    return { rows: rows.slice(0, limit), more: rows.length > limit };
+      .where(where);
+    return { rows: rows.slice(0, limit), more: rows.length > limit, total: counted?.n ?? 0 };
   }
 
   /**
@@ -710,6 +1076,10 @@ export class PsfMembershipRepository {
     officerUserId: string,
     scope: PsfScope,
     applicationId: string,
+    /** True for a read: a decided application opens too, from the decision log. */
+    includeDecided = false,
+    /** True for a read: a branch in the region opens the application too (2026-10-23). */
+    throughBranch = false,
   ): Promise<PsfOfficerApplicationRow | null> {
     const [row] = await this.db
       .select({
@@ -717,13 +1087,16 @@ export class PsfMembershipRepository {
         requestedTierName: psfMembershipTiers.nameEn,
         submittedByName,
         businessName: orgs.legalName,
+        districtId: orgs.districtId,
         districtName: districts.name,
         registrationStatus: orgs.registrationStatus,
         officerHasStake: this.stakeSql(officerUserId).mapWith(Boolean),
         domain: orgs.domain,
         businessCode: orgs.businessCode,
         clusterName: psfClusters.nameEn,
-        associationName: psfAssociations.nameEn,
+        // The name a business typed, when PSF's list did not have its association.
+        associationName: sql<string | null>`coalesce(${orgs.psfAssociationOther}, ${psfAssociations.nameEn})`,
+        subsectorName: SUBSECTOR_NAME,
         ownerGroups: orgs.ownerGroups,
         registrationKind: orgs.registrationKind,
       })
@@ -738,18 +1111,93 @@ export class PsfMembershipRepository {
       .leftJoin(districts, eq(districts.id, orgs.districtId))
       .leftJoin(psfAssociations, eq(psfAssociations.code, orgs.psfAssociationCode))
       .leftJoin(psfClusters, eq(psfClusters.code, psfAssociations.clusterCode))
+      .leftJoin(psfSubsectors, eq(psfSubsectors.id, orgs.psfSubsectorId))
       .where(
         and(
           eq(psfMembershipApplications.id, applicationId),
-          OPEN_STATUS_SQL,
-          inArray(orgs.registrationStatus, [...PSF_QUEUE_REGISTRATION_STATES]),
-          inScope(scope),
+          includeDecided ? undefined : OPEN_STATUS_SQL,
+          includeDecided ? undefined : inArray(orgs.registrationStatus, [...PSF_QUEUE_REGISTRATION_STATES]),
+          throughBranch && scope !== null ? or(inScope(scope), branchInScope(scope, false)) : inScope(scope),
         ),
       )
       .limit(1);
     if (!row) return null;
     const { application, ...rest } = row;
     return { ...application, ...rest };
+  }
+
+  /** A business's branches, from its newest application, with their place in words. */
+  async orgBranches(orgId: string): Promise<(PsfBranchRow & { provinceName: string | null })[]> {
+    const [newest] = await this.db
+      .select({ id: psfMembershipApplications.id })
+      .from(psfMembershipApplications)
+      .where(eq(psfMembershipApplications.orgId, orgId))
+      .orderBy(desc(psfMembershipApplications.createdAt))
+      .limit(1);
+    if (!newest) return [];
+    const rows = await this.branchesOf(newest.id);
+    const ids = [...new Set(rows.map((r) => r.districtId))];
+    const named = ids.length
+      ? await this.db
+          .select({ id: districts.id, province: provinces.name })
+          .from(districts)
+          .leftJoin(provinces, eq(provinces.id, districts.provinceId))
+          .where(inArray(districts.id, ids))
+      : [];
+    return rows.map((r) => ({ ...r, provinceName: named.find((n) => n.id === r.districtId)?.province ?? null }));
+  }
+
+  /** The branches an application listed, in the order they were filed. */
+  async branchesOf(applicationId: string): Promise<PsfBranchRow[]> {
+    return this.db
+      .select({
+        id: psfApplicationBranches.id,
+        applicationId: psfApplicationBranches.applicationId,
+        districtId: psfApplicationBranches.districtId,
+        districtName: districts.name,
+        sectorName: sectors.name,
+        street: psfApplicationBranches.street,
+        status: psfApplicationBranches.status,
+        decisionNote: psfApplicationBranches.decisionNote,
+        decidedAt: psfApplicationBranches.decidedAt,
+      })
+      .from(psfApplicationBranches)
+      .leftJoin(districts, eq(districts.id, psfApplicationBranches.districtId))
+      .leftJoin(sectors, eq(sectors.id, psfApplicationBranches.sectorId))
+      .where(eq(psfApplicationBranches.applicationId, applicationId))
+      .orderBy(asc(psfApplicationBranches.createdAt), asc(psfApplicationBranches.id));
+  }
+
+  /**
+   * Admit or decline one branch, guarded like every move: only a branch still
+   * waiting moves, so two officers cannot both decide it.
+   */
+  async decideBranch(input: {
+    applicationId: string;
+    branchId: string;
+    officerUserId: string;
+    status: 'admitted' | 'declined';
+    note: string | null;
+  }): Promise<boolean> {
+    const now = new Date();
+    const moved = await this.db
+      .update(psfApplicationBranches)
+      .set({
+        status: input.status,
+        decidedAt: now,
+        decidedByUserId: input.officerUserId,
+        decisionNote: input.note,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(psfApplicationBranches.id, input.branchId),
+          eq(psfApplicationBranches.applicationId, input.applicationId),
+          eq(psfApplicationBranches.status, 'pending'),
+        ),
+      )
+      .returning({ id: psfApplicationBranches.id });
+    return moved.length > 0;
   }
 
   /**
@@ -805,6 +1253,7 @@ export class PsfMembershipRepository {
         decisionBodyCode: input.bodyCode,
         declineReason: input.reason,
         decisionNote: input.note,
+        // A paid application keeps its fee: nothing is refunded (2026-10-23).
         updatedAt: now,
       })
       .where(
@@ -882,6 +1331,154 @@ export class PsfMembershipRepository {
     });
   }
 
+  /**
+   * The membership fee a public application paid at submit, before PSF has
+   * seen it. Guarded: only an unpaid application still with PSF takes one.
+   */
+  async recordPrepayment(input: {
+    applicationId: string;
+    amountRwf: number;
+    paymentRef: string;
+    paymentMode: 'mock' | 'live';
+    paidAt: Date;
+  }): Promise<boolean> {
+    const rows = await this.db
+      .update(psfMembershipApplications)
+      .set({
+        paidAt: input.paidAt,
+        paidAmountRwf: input.amountRwf,
+        paymentRef: input.paymentRef,
+        paymentMode: input.paymentMode,
+        updatedAt: input.paidAt,
+      })
+      .where(
+        and(
+          eq(psfMembershipApplications.id, input.applicationId),
+          eq(psfMembershipApplications.status, 'submitted'),
+          isNull(psfMembershipApplications.paidAt),
+        ),
+      )
+      .returning({ id: psfMembershipApplications.id });
+    return rows.length > 0;
+  }
+
+  /**
+   * Approve a paid application: it becomes a member in the same move
+   * (`submitted → member`), with the membership starting today. One
+   * transaction, like `recordPayment`, which this is the paid-first twin of.
+   */
+  async approvePaid(input: {
+    applicationId: string;
+    officerUserId: string;
+    bodyCode: string;
+    membershipNumber: string;
+    note: string | null;
+    startsOn: string;
+    expiresOn: string;
+  }): Promise<{ orgId: string; amountRwf: number; tierCode: string } | null> {
+    return this.db.transaction(async (tx) => {
+      const now = new Date();
+      const [moved] = await tx
+        .update(psfMembershipApplications)
+        .set({
+          status: 'member',
+          decidedAt: now,
+          decidedByUserId: input.officerUserId,
+          decisionBodyCode: input.bodyCode,
+          decisionNote: input.note,
+          approvedMembershipNumber: input.membershipNumber,
+          approvedFeeRwf: sql`${psfMembershipApplications.paidAmountRwf}`,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(psfMembershipApplications.id, input.applicationId),
+            eq(psfMembershipApplications.status, 'submitted'),
+            sql`${psfMembershipApplications.paidAt} IS NOT NULL`,
+          ),
+        )
+        .returning({
+          orgId: psfMembershipApplications.orgId,
+          amountRwf: psfMembershipApplications.paidAmountRwf,
+          tierCode: psfMembershipApplications.requestedTierCode,
+        });
+      if (!moved || moved.amountRwf === null) return null;
+      await tx
+        .update(psfMemberships)
+        .set({ endedAt: now, updatedAt: now })
+        .where(and(eq(psfMemberships.orgId, moved.orgId), isNull(psfMemberships.endedAt)));
+      await tx.insert(psfMemberships).values({
+        orgId: moved.orgId,
+        source: 'psf_confirmed',
+        applicationId: input.applicationId,
+        tierCode: moved.tierCode,
+        membershipNumber: input.membershipNumber,
+        annualFeeRwf: moved.amountRwf,
+        startsOn: input.startsOn,
+        expiresOn: input.expiresOn,
+        recordedByUserId: input.officerUserId,
+      });
+      await tx.update(orgs).set({ psfMember: true, updatedAt: now }).where(eq(orgs.id, moved.orgId));
+      return { orgId: moved.orgId, amountRwf: moved.amountRwf, tierCode: moved.tierCode };
+    });
+  }
+
+  /** Everything the business has done with PSF through Injishi, for the officer's detail. */
+  async businessHistory(orgId: string): Promise<{
+    registeredAt: Date | null;
+    registrationFee: { amountRwf: number; paidAt: Date | null } | null;
+    applications: (PsfApplicationRow & { tierName: string })[];
+    memberships: (PsfMembershipRow & { tierName: string | null })[];
+  }> {
+    const [org] = await this.db.select({ createdAt: orgs.createdAt }).from(orgs).where(eq(orgs.id, orgId)).limit(1);
+    const [invoice] = await this.db
+      .select({ amountRwf: subscriptionInvoices.amountRwf, status: subscriptionInvoices.status, updatedAt: subscriptionInvoices.updatedAt })
+      .from(subscriptionInvoices)
+      .where(and(eq(subscriptionInvoices.orgId, orgId), eq(subscriptionInvoices.invoiceKind, 'registration_fee')))
+      .limit(1);
+    const apps = await this.db
+      .select({ a: psfMembershipApplications, tierName: psfMembershipTiers.nameEn })
+      .from(psfMembershipApplications)
+      .innerJoin(psfMembershipTiers, eq(psfMembershipTiers.code, psfMembershipApplications.requestedTierCode))
+      .where(eq(psfMembershipApplications.orgId, orgId))
+      .orderBy(desc(psfMembershipApplications.createdAt));
+    const ms = await this.db
+      .select({ m: psfMemberships, tierName: psfMembershipTiers.nameEn })
+      .from(psfMemberships)
+      .leftJoin(psfMembershipTiers, eq(psfMembershipTiers.code, psfMemberships.tierCode))
+      .where(eq(psfMemberships.orgId, orgId))
+      .orderBy(desc(psfMemberships.createdAt));
+    return {
+      registeredAt: org?.createdAt ?? null,
+      registrationFee: invoice ? { amountRwf: invoice.amountRwf ?? 0, paidAt: invoice.status === 'paid' ? invoice.updatedAt : null } : null,
+      applications: apps.map((r) => ({ ...r.a, tierName: r.tierName })),
+      memberships: ms.map((r) => ({ ...r.m, tierName: r.tierName })),
+    };
+  }
+
+  /** The person on a business's newest application, as filed. */
+  async newestApplicationContact(orgId: string): Promise<{
+    firstName: string;
+    lastName: string;
+    contactRole: PsfApplicationRow['contactRole'];
+    phoneE164: string;
+    email: string;
+  } | null> {
+    const [row] = await this.db
+      .select({
+        firstName: psfMembershipApplications.firstName,
+        lastName: psfMembershipApplications.lastName,
+        contactRole: psfMembershipApplications.contactRole,
+        phoneE164: psfMembershipApplications.phoneE164,
+        email: psfMembershipApplications.email,
+      })
+      .from(psfMembershipApplications)
+      .where(eq(psfMembershipApplications.orgId, orgId))
+      .orderBy(desc(psfMembershipApplications.createdAt))
+      .limit(1);
+    return row ?? null;
+  }
+
   /** Record that a paid fee was passed on to PSF. Once: a remitted row stays remitted. */
   async recordRemittance(applicationId: string, remittanceRef: string): Promise<void> {
     await this.db
@@ -935,9 +1532,12 @@ export class PsfMembershipRepository {
     const like = q ? `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%` : null;
     return and(
       ON_REGISTER_SQL,
-      inScope(scope),
+      // Its head office in the region, or one of its branches (2026-10-23).
+      scope === null ? undefined : or(inScope(scope), hasBranchIn(scope)),
+      f.orgId ? eq(orgs.id, f.orgId) : undefined,
       f.districtId !== undefined ? eq(orgs.districtId, f.districtId) : undefined,
       f.associationCode ? eq(orgs.psfAssociationCode, f.associationCode) : undefined,
+      f.subsectorId ? eq(orgs.psfSubsectorId, f.subsectorId) : undefined,
       f.clusterCode ? eq(psfAssociations.clusterCode, f.clusterCode) : undefined,
       f.group ? sql`${f.group}::psf_owner_group = ANY(${orgs.ownerGroups})` : undefined,
       f.tin === 'with' ? sql`${orgs.tin} IS NOT NULL` : f.tin === 'without' ? sql`${orgs.tin} IS NULL` : undefined,
@@ -983,7 +1583,9 @@ export class PsfMembershipRepository {
         sectorName: sectors.name,
         clusterCode: psfClusters.code,
         clusterName: psfClusters.nameEn,
-        associationName: psfAssociations.nameEn,
+        subsectorName: SUBSECTOR_NAME,
+        // The name a business typed, when PSF's list did not have its association.
+        associationName: sql<string | null>`coalesce(${orgs.psfAssociationOther}, ${psfAssociations.nameEn})`,
         associationAcronym: psfAssociations.acronym,
         ownerGroups: orgs.ownerGroups,
         registrationKind: orgs.registrationKind,
@@ -994,12 +1596,16 @@ export class PsfMembershipRepository {
         membershipNumber: sql<string | null>`coalesce(${current.membershipNumber}, ${open.approvedMembershipNumber})`,
         expiresOn: current.expiresOn,
         openApplicationId: open.id,
+        paidRwf: PAID_RWF.mapWith(Number),
+        lastPaidAt: LAST_PAID_AT,
+        branchCount: BRANCH_COUNT.mapWith(Number),
       })
       .from(orgs)
       .leftJoin(districts, eq(districts.id, orgs.districtId))
       .leftJoin(sectors, eq(sectors.id, orgs.sectorId))
       .leftJoin(psfAssociations, eq(psfAssociations.code, orgs.psfAssociationCode))
       .leftJoin(psfClusters, eq(psfClusters.code, psfAssociations.clusterCode))
+      .leftJoin(psfSubsectors, eq(psfSubsectors.id, orgs.psfSubsectorId))
       .leftJoin(current, sql`${current.id} = ${CURRENT_MEMBERSHIP}`)
       .leftJoin(currentTier, eq(currentTier.code, current.tierCode))
       .leftJoin(open, sql`${open.id} = ${OPEN_APPLICATION}`)
@@ -1023,7 +1629,9 @@ export class PsfMembershipRepository {
       .where(where);
 
     return {
-      rows: rows.slice(0, limit).map((r) => ({ ...r, standing: r.standing as PsfStanding })),
+      rows: rows
+        .slice(0, limit)
+        .map((r) => ({ ...r, standing: r.standing as PsfStanding, lastPaidAt: r.lastPaidAt ? new Date(r.lastPaidAt) : null })),
       more: rows.length > limit,
       total: counted?.n ?? 0,
     };

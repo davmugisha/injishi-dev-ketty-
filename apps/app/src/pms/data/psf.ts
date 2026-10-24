@@ -11,6 +11,7 @@ import type {
   CreatePsfApplicationRequest,
   PayPsfMembershipRequest,
   PsfApproveRequest,
+  PsfBranchDecisionRequest,
   PsfBusinessesPage,
   PsfBusinessesQuery,
   PsfCatalogue,
@@ -114,6 +115,11 @@ export function approvePsfApplication(applicationId: string, body: PsfApproveReq
 
 export function declinePsfApplication(applicationId: string, body: PsfDeclineRequest): Promise<PsfOfficerApplication> {
   return send<PsfOfficerApplication>(`/oversight/psf-applications/${applicationId}/decline`, body);
+}
+
+/** Admit or decline one branch, as the officer of the branch's district (2026-10-23). */
+export function decidePsfBranch(applicationId: string, branchId: string, body: PsfBranchDecisionRequest): Promise<PsfOfficerApplication> {
+  return send<PsfOfficerApplication>(`/oversight/psf-applications/${applicationId}/branches/${branchId}/decision`, body);
 }
 
 /** The officer's register: every filter optional, in the query string. */

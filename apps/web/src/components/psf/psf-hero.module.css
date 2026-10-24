@@ -1,0 +1,116 @@
+/*
+ * The PSF hero's motion (2026-10-20). Everything here is decoration, so all
+ * of it stops for a visitor who asks the system for less motion.
+ *
+ *   .rise    the text and buttons arrive, one after another (--delay)
+ *   .arrive  the picture grows into place
+ *   .ring    the dashed ring turns, slowly
+ *   .tint    the green shape behind the photograph drifts
+ *   .photo   the photograph pans and zooms inside its shape
+ *   .float   a leaf rises and falls (--delay, --dur)
+ *   .layer   follows the pointer by --depth (set by the component)
+ */
+
+.rise {
+  animation: rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--delay, 0ms);
+}
+
+.arrive {
+  animation: arrive 1100ms cubic-bezier(0.2, 0.7, 0.2, 1) 150ms both;
+}
+
+.ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: turn 80s linear infinite;
+}
+
+.tint {
+  animation: drift 14s ease-in-out infinite alternate;
+}
+
+.photo {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pan 24s ease-in-out infinite alternate;
+}
+
+.float {
+  animation: float var(--dur, 6s) ease-in-out var(--delay, 0s) infinite alternate;
+}
+
+.layer {
+  transform: translate3d(calc(var(--mx, 0) * var(--depth, 0) * 1px), calc(var(--my, 0) * var(--depth, 0) * 1px), 0);
+  transition: transform 600ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: scale(0.9) rotate(-3deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes drift {
+  from {
+    transform: translate(18px, 16px);
+  }
+  to {
+    transform: translate(-6px, 24px);
+  }
+}
+
+@keyframes pan {
+  from {
+    transform: scale(1.04) translate(0, 0);
+  }
+  to {
+    transform: scale(1.16) translate(-14px, -8px);
+  }
+}
+
+@keyframes float {
+  from {
+    transform: translateY(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(-14px) rotate(10deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .arrive,
+  .ring,
+  .tint,
+  .photo,
+  .float {
+    animation: none;
+  }
+  .layer {
+    transform: none;
+    transition: none;
+  }
+}
