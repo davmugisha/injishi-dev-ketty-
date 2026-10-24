@@ -334,7 +334,7 @@ export function assertDockerReady() {
 }
 
 /** Variables compose interpolates into docker-compose.yml. */
-function composeEnv(cfg) {
+export function composeEnv(cfg) {
   return {
     ...process.env,
     INJISHI_DB_PORT: String(cfg.db.port),

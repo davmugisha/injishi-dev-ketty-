@@ -37,6 +37,12 @@ apps/*/build
 **/.vercel
 .pnpm-store
 **/coverage
+# Uploaded files (LocalDiskStorageAdapter) and the embedded fixture database.
+# Dockerfile.app copies the whole context into its build stage, so without
+# these a laptop's uploads would sit in the build cache. The local Docker stack
+# bind mounts .storage instead (docker-compose.yml, `apps` profile).
+**/.storage
+.data
 
 # Editor / AI context
 .claude

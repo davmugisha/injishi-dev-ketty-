@@ -37,7 +37,12 @@
     "fixtures:reset": "pnpm --filter @injishi/db reset",
     "dev:stack": "node scripts/dev-stack.mjs",
     "dev:stack:down": "node scripts/dev-stack.mjs --down",
-    "dev:stack:reset": "node scripts/dev-stack.mjs --reset"
+    "dev:stack:reset": "node scripts/dev-stack.mjs --reset",
+    "docker:up": "node scripts/docker-stack.mjs up",
+    "docker:down": "node scripts/docker-stack.mjs down",
+    "docker:rebuild": "node scripts/docker-stack.mjs rebuild",
+    "docker:logs": "node scripts/docker-stack.mjs logs",
+    "docker:ps": "node scripts/docker-stack.mjs ps"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

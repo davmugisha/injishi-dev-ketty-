@@ -6,6 +6,7 @@ need, run from `injishi/`:
 
 ```bash
 pnpm dev:all            # the stack, then every app in this terminal (section 3)
+pnpm docker:up          # or everything, apps included, in Docker (section 4)
 ```
 
 The stack on its own:
@@ -178,25 +179,61 @@ pick a demo persona from the list the sign in screen shows. With
 `INJISHI_ENVIRONMENT` unset the API runs as the demo, so every code is
 `123456`, and every mail also lands in Mailpit at <http://localhost:8025>.
 
-## Why the API is not in this compose file
+## 4. Or everything in Docker
 
-The file used to have `api` and `web` services. They built the production
-images and could not work for local development:
+The API, the worker, web and the operator app can run in Docker too, built from
+the release images (`Dockerfile.api`, `.web`, `.app`) under the `apps` profile
+of `docker-compose.yml`, beside Postgres, Redis and Mailpit in the same compose
+project (`docker`). One command, from `injishi/`:
 
-- The image sets `NODE_ENV=production`. Under production nobody can sign in
-  locally: `OTP_DEBUG_LOG` is forced off and the process runs as production,
-  with no fixed code.
-  `SmsModule` also refuses to boot on its mock adapter.
-- Setting `NODE_ENV=development` instead crashes the logger. `pino-pretty` is
-  a devDependency, and the image leaves devDependencies out.
-- The `api` service published port 4000, but the API listens on `PORT` (8000).
-- It passed `SESSION_SECRET`, which the API never reads. The API reads
-  `BETTER_AUTH_SECRET` and `COOKIE_SECRET`.
-- It had no Redis.
+```bash
+pnpm docker:up                  # db, redis, mailpit (migrated, seeded once), then the apps
+pnpm docker:up --build          # rebuild every image first
+pnpm docker:rebuild web app     # after a code change: rebuild and restart (api, worker, web, app)
+pnpm docker:logs api            # follow a log (all four apps when none is named)
+pnpm docker:ps                  # what is running
+pnpm docker:down                # stop everything, keep the data
+pnpm docker:down --apps         # stop the apps, keep db, redis, mailpit
+```
 
-So local development runs the API on your machine, with hot reload, against
-`db` and `redis` here. The stack built from the images is
-`docker-compose.staging.yml`.
+| What    | Where                   |
+|---------|-------------------------|
+| web     | <http://localhost:3000> (marketplace, sign-in, registration; `/w/...` is the operator zone) |
+| app     | <http://localhost:3002> (the operator screens, `/residence`, `/owner`, ..., and `/admin`) |
+| API     | <http://localhost:8000> (health: `/api/v1/health`) |
+| Mailpit | <http://localhost:8025> |
+
+Code `123456` for every seeded account and persona. Operators sign in on the
+app (<http://localhost:3002/sign-in>) to land in their screens: web's sign-in
+sends them to `/w/<workspace>`, which the app no longer serves (its screens
+moved to its root), the same as under `pnpm dev`.
+
+- **Production builds, not dev servers.** `next build` and `node dist/main.js`:
+  nothing recompiles on save, so rebuild the service you changed. Builds run
+  one at a time: a `next build` alone peaks at about 3.3 GB. On a Docker VM
+  under 6 GB (Colima's default is 4) the script stops the apps while it builds
+  and starts them again after; `colima stop && colima start --memory 6` keeps
+  them up. A first build downloads every dependency and takes 15 to 20 minutes
+  per image; later ones reuse the install layer. On 4 GB a first web or app
+  build can still exhaust the VM (Docker then stops answering): run
+  `colima restart` and the same command again, and it resumes from the cached
+  install.
+- **The API runs as the demo**, as on the host: the image bakes
+  `NODE_ENV=production`, so compose pins `INJISHI_ENVIRONMENT=demo` (as the
+  demo stack does). Its other values are `server/api/.env.test` (and
+  `.env.test.local`), with `db`, `redis` and `mailpit` as hosts. Uploads go to
+  `server/api/.storage`, bind mounted, the same folder `pnpm api:dev:test` uses.
+- **One network namespace.** The frontends are built with `localhost` URLs,
+  and web's server calls them too, so api, web and app share the namespace of
+  a small `net` container that publishes 3000, 3002 and 8000.
+- **Needs** `HEROUI_AUTH_TOKEN` in the root `.env` (see `.env.example`); the
+  script passes it to the web and app builds as a BuildKit secret and never
+  prints it. Compose needs the buildx plugin for that: with Colima,
+  `brew install docker-buildx`. Stop host dev servers on 3000, 3002 and 8000
+  first; the script refuses ports it does not own.
+- `pnpm dev:stack`, `dev:stack:down` and `dev:stack:reset` leave the apps
+  running (their profile is off there). After a reset, restart them so they
+  boot on the new database: `pnpm docker:down --apps && pnpm docker:up`.
 
 ## Troubleshooting
 
