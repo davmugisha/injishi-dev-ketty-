@@ -494,6 +494,52 @@ export class StorageService {
     return put.objectKey;
   }
 
+  /**
+   * Store a lease contract PDF the rentals module rendered (blueprint 1.2): a
+   * version before signatures, or its signed copy with the audit trail page.
+   * Like a training certificate, the bytes were made here a moment ago, so
+   * there is no client to distrust. `keyHint` is derived from the version, so
+   * rendering the same copy twice converges on one object. A signed copy is
+   * put under legal hold: it is the evidence of an agreement.
+   */
+  async putLeaseContract(input: {
+    body: Buffer;
+    filename: string;
+    keyHint: string;
+    workspaceId: string;
+    createdByUserId: string | null;
+    legalHold: boolean;
+  }): Promise<{ objectKey: string; id: string }> {
+    const kind = 'lease_contract' as const;
+    const mime = 'application/pdf';
+    const put = await this.storage.put({
+      body: input.body,
+      mime,
+      filename: input.filename,
+      kind,
+      keyHint: input.keyHint,
+    });
+    await this.db
+      .insert(storedObjects)
+      .values({
+        objectKey: put.objectKey,
+        kind,
+        mime,
+        sizeBytes: put.sizeBytes,
+        uploadedByUserId: input.createdByUserId,
+        workspaceId: input.workspaceId,
+        legalHold: input.legalHold,
+      })
+      .onConflictDoNothing({ target: storedObjects.objectKey });
+    const [row] = await this.db
+      .select({ id: storedObjects.id })
+      .from(storedObjects)
+      .where(eq(storedObjects.objectKey, put.objectKey))
+      .limit(1);
+    if (!row) throw new Error(`stored object ${put.objectKey} vanished`);
+    return { objectKey: put.objectKey, id: row.id };
+  }
+
   /** A short-lived read, for showing back what was attached. */
   signedUrl(objectKey: string, ttlSeconds = 300): Promise<string> {
     return this.storage.signedUrl(objectKey, ttlSeconds);

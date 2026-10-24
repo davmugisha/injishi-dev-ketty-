@@ -55,6 +55,9 @@ x-api-env: &api-env
   # The kiosk PIN pepper (058-time AC-TM11). Staging runs the production
   # platform, so it refuses to boot without one. Never production's.
   HR_PIN_PEPPER: "${HR_PIN_PEPPER:?set HR_PIN_PEPPER to a kiosk PIN pepper via openssl rand -base64 32}"
+  # Seals landlords' bank account numbers (rentals payout accounts). Staging
+  # runs the production platform, so it refuses to boot without one.
+  PAYOUT_ACCOUNT_ENCRYPTION_KEY: "${PAYOUT_ACCOUNT_ENCRYPTION_KEY:?set PAYOUT_ACCOUNT_ENCRYPTION_KEY via openssl rand -base64 32}"
   BETTER_AUTH_URL: https://${API_HOST:-api-staging.injishi.com}
   # Empty: a host only cookie on the API's host. A cookie on `.injishi.com`
   # would reach production. The app keeps its session in its own cookie.

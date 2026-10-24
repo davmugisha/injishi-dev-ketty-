@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VillageListQuery = exports.VillageListResponse = exports.CellListQuery = exports.CellListResponse = exports.SectorListQuery = exports.SectorListResponse = exports.DistrictListQuery = exports.DistrictListResponse = exports.ProvinceListResponse = exports.Village = exports.Cell = exports.Sector = exports.District = exports.Province = void 0;
+exports.provinceWords = provinceWords;
 const zod_1 = require("zod");
 /**
  * Rwandan Province -> District -> Sector -> Cell -> Village hierarchy.
@@ -76,4 +77,19 @@ exports.VillageListResponse = zod_1.z.array(exports.Village);
 exports.VillageListQuery = zod_1.z.object({
     cellId: zod_1.z.coerce.number().int().positive().optional(),
 });
+/**
+ * A province's name as people say it (ported from feat/rentals). The
+ * reference table holds them as "KIGALI", "EAST" and so on; nobody writes an
+ * address that way, and a lease contract names the home as people do.
+ */
+const PROVINCE_WORDS = {
+    KIGALI: "Kigali City",
+    EAST: "Eastern Province",
+    NORTH: "Northern Province",
+    SOUTH: "Southern Province",
+    WEST: "Western Province",
+};
+function provinceWords(name) {
+    return PROVINCE_WORDS[name.trim().toUpperCase()] ?? name;
+}
 //# sourceMappingURL=geography.js.map

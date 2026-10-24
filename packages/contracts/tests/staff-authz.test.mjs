@@ -238,23 +238,15 @@ const UNENFORCED = [
   // require.
   "ebm.refund",
   // Rentals blueprint 2.1 declared these ahead of their routes (WP 1.1). Each
-  // leaves this list when its first route declares it: `lease.sign` with
-  // landlord signing (WP 1.5b), `payout.manage` with payout accounts (WP 1.6b),
-  // `expense.manage` and `tax.manage` with expenses and taxes (P4), and
-  // `guest.register` with the landlord's guests (P5).
-  "lease.sign",
-  "payout.manage",
+  // leaves this list when its first route declares it: `expense.manage` and
+  // `tax.manage` with expenses and taxes (P4), and `guest.register` with the
+  // landlord's guests (P5). `lease.manage`, `lease.sign`, `payout.manage`,
+  // `rent.record` and `deposit.return` left it with the rentals module's first
+  // routes (WP 1.4 and 1.5a): lease drafting, the signatory, payout accounts,
+  // and the lease reads the money side makes.
   "expense.manage",
   "tax.manage",
   "guest.register",
-  // The old landlord routes that declared these (ops/leases, ops/rent-roll,
-  // ops/deposits) went with the rentals rebuild's migrations 0073 to 0080. Each
-  // leaves this list again when the rentals module's first route declares it:
-  // `lease.manage` with lease drafts (WP 1.5a), `rent.record` with recorded
-  // payments (WP 1.6a), `deposit.return` with deposit settlement (WP 1.7).
-  "lease.manage",
-  "rent.record",
-  "deposit.return",
   // `payroll.draft` left this list when its draft routes declared it (ADR-069
   // D-e): `@RequireAnyPermission('payroll.draft', 'payroll.run')` on the pay
   // run's list, create, read, recompute and hold, the payroll dashboard and the

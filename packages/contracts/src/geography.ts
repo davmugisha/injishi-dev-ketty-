@@ -87,3 +87,19 @@ export const VillageListQuery = z.object({
     cellId: z.coerce.number().int().positive().optional(),
 });
 export type VillageListQuery = z.infer<typeof VillageListQuery>;
+
+/**
+ * A province's name as people say it (ported from feat/rentals). The
+ * reference table holds them as "KIGALI", "EAST" and so on; nobody writes an
+ * address that way, and a lease contract names the home as people do.
+ */
+const PROVINCE_WORDS: Readonly<Record<string, string>> = {
+    KIGALI: "Kigali City",
+    EAST: "Eastern Province",
+    NORTH: "Northern Province",
+    SOUTH: "Southern Province",
+    WEST: "Western Province",
+};
+export function provinceWords(name: string): string {
+    return PROVINCE_WORDS[name.trim().toUpperCase()] ?? name;
+}

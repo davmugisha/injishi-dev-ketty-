@@ -244,13 +244,17 @@ describe("drafting a lease", () => {
 
   const issues = (r) => r.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
 
-  test("a full draft parses, with the tenant normalised and the defaults filled", () => {
+  test("a full draft parses, with the tenant normalised and the defaults left to the landlord's", () => {
     const r = c.CreateLeaseRequest.safeParse(base);
     assert.equal(r.success, true, r.success ? "" : issues(r).join("; "));
     assert.equal(r.data.tenant.phone, "+250788123456");
     assert.equal(r.data.tenant.idNumber, "1199080012345012");
-    assert.equal(r.data.terms.graceDays, 5);
-    assert.equal(r.data.terms.noticeDays, 15);
+    // Grace, notice and the due day come from the landlord's lease defaults
+    // when left out, so the request keeps them absent for the API to fill.
+    assert.equal(r.data.terms.graceDays, undefined);
+    assert.equal(r.data.terms.noticeDays, undefined);
+    assert.equal(r.data.terms.rentDueDay, 5);
+    assert.equal(c.CreateLeaseRequest.safeParse({ ...base, terms: { ...terms, rentDueDay: undefined } }).data.terms.rentDueDay, undefined);
     assert.deepEqual(r.data.terms.occupants, []);
   });
 

@@ -20,8 +20,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
  * The vocabulary every rentals table and screen shares, Kigali calendar rules,
  * the lease state machine and drafting shapes, the calendar-month rent
  * schedule, payment allocation, the lease contract and its fingerprint, and
- * the money rules (rental income tax, payout accounts). Pure functions and zod
- * schemas only: no clock but `kigaliToday()`, no I/O.
+ * the money rules (rental income tax, payout accounts), and what each landlord
+ * route takes and answers (`api.ts`). Pure functions and zod schemas only:
+ * no clock but `kigaliToday()`, no I/O.
  */
 __exportStar(require("./vocab"), exports);
 __exportStar(require("./dates"), exports);
@@ -32,4 +33,5 @@ __exportStar(require("./schedule"), exports);
 __exportStar(require("./allocation"), exports);
 __exportStar(require("./money"), exports);
 __exportStar(require("./contract"), exports);
+__exportStar(require("./api"), exports);
 //# sourceMappingURL=index.js.map

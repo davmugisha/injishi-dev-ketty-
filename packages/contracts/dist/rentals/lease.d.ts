@@ -119,35 +119,90 @@ export declare const TenantInput: z.ZodEffects<z.ZodObject<{
     nationality: string;
 }>;
 export type TenantInput = z.infer<typeof TenantInput>;
+/**
+ * Change a tenant's record (`PATCH /ops/tenants/:id`). Only what is sent
+ * changes. The API refuses once the tenant has signed a contract: what they
+ * signed names them as they were. A new email goes through the same typo
+ * guard as a new lease's.
+ */
+export declare const UpdateTenantRequest: z.ZodEffects<z.ZodObject<{
+    confirmEmail: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
+    fullName: z.ZodOptional<z.ZodString>;
+    email: z.ZodOptional<z.ZodString>;
+    phone: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string | null, string>, z.ZodString>>;
+    idKind: z.ZodOptional<z.ZodEnum<["national_id", "passport"]>>;
+    idNumber: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+    nationality: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+}, "strip", z.ZodTypeAny, {
+    fullName?: string | undefined;
+    email?: string | undefined;
+    phone?: string | undefined;
+    idNumber?: string | undefined;
+    idKind?: "national_id" | "passport" | undefined;
+    nationality?: string | undefined;
+    confirmEmail?: boolean | undefined;
+}, {
+    fullName?: string | undefined;
+    email?: string | undefined;
+    phone?: string | undefined;
+    idNumber?: string | undefined;
+    idKind?: "national_id" | "passport" | undefined;
+    nationality?: string | undefined;
+    confirmEmail?: boolean | undefined;
+}>, {
+    fullName?: string | undefined;
+    email?: string | undefined;
+    phone?: string | undefined;
+    idNumber?: string | undefined;
+    idKind?: "national_id" | "passport" | undefined;
+    nationality?: string | undefined;
+    confirmEmail?: boolean | undefined;
+}, {
+    fullName?: string | undefined;
+    email?: string | undefined;
+    phone?: string | undefined;
+    idNumber?: string | undefined;
+    idKind?: "national_id" | "passport" | undefined;
+    nationality?: string | undefined;
+    confirmEmail?: boolean | undefined;
+}>;
+export type UpdateTenantRequest = z.infer<typeof UpdateTenantRequest>;
+/**
+ * The terms of a new lease. Grace days, notice days and the due day may be
+ * left out: the API fills them from the landlord's lease defaults
+ * (`landlord_profiles`), then from `DEFAULT_GRACE_DAYS`, `DEFAULT_NOTICE_DAYS`
+ * and `dueDayFromStart`, so a form that pre-fills from the defaults and an API
+ * client that sends nothing get the same lease.
+ */
 export declare const LeaseTermsInput: z.ZodObject<{
     billingStartsOn: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string, string>>>;
-    graceDays: z.ZodDefault<z.ZodNumber>;
-    noticeDays: z.ZodDefault<z.ZodNumber>;
+    rentDueDay: z.ZodOptional<z.ZodNumber>;
+    graceDays: z.ZodOptional<z.ZodNumber>;
+    noticeDays: z.ZodOptional<z.ZodNumber>;
     occupants: z.ZodDefault<z.ZodEffects<z.ZodArray<z.ZodString, "many">, string[], string[]>>;
     otherTerms: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     startDate: z.ZodEffects<z.ZodString, string, string>;
     endDate: z.ZodEffects<z.ZodString, string, string>;
     monthlyRentRwf: z.ZodNumber;
     depositRwf: z.ZodNumber;
-    rentDueDay: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     monthlyRentRwf: number;
     startDate: string;
     endDate: string;
-    noticeDays: number;
-    rentDueDay: number;
-    graceDays: number;
     occupants: string[];
     depositRwf: number;
+    noticeDays?: number | undefined;
+    rentDueDay?: number | undefined;
+    graceDays?: number | undefined;
     otherTerms?: string | null | undefined;
     billingStartsOn?: string | null | undefined;
 }, {
     monthlyRentRwf: number;
     startDate: string;
     endDate: string;
-    rentDueDay: number;
     depositRwf: number;
     noticeDays?: number | undefined;
+    rentDueDay?: number | undefined;
     graceDays?: number | undefined;
     occupants?: string[] | undefined;
     otherTerms?: string | null | undefined;
@@ -155,7 +210,7 @@ export declare const LeaseTermsInput: z.ZodObject<{
 }>;
 export type LeaseTermsInput = z.infer<typeof LeaseTermsInput>;
 /**
- * Draft a lease on one unit (`POST /ops/rentals/leases`).
+ * Draft a lease on one unit (`POST /ops/leases`).
  *
  * The tenant is an existing tenant record (`tenantId`) or a new one
  * (`tenant`), never both. The tenant's email is where the invitation to read
@@ -192,33 +247,33 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
     }>>;
     terms: z.ZodObject<{
         billingStartsOn: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string, string>>>;
-        graceDays: z.ZodDefault<z.ZodNumber>;
-        noticeDays: z.ZodDefault<z.ZodNumber>;
+        rentDueDay: z.ZodOptional<z.ZodNumber>;
+        graceDays: z.ZodOptional<z.ZodNumber>;
+        noticeDays: z.ZodOptional<z.ZodNumber>;
         occupants: z.ZodDefault<z.ZodEffects<z.ZodArray<z.ZodString, "many">, string[], string[]>>;
         otherTerms: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         startDate: z.ZodEffects<z.ZodString, string, string>;
         endDate: z.ZodEffects<z.ZodString, string, string>;
         monthlyRentRwf: z.ZodNumber;
         depositRwf: z.ZodNumber;
-        rentDueDay: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
-        noticeDays: number;
-        rentDueDay: number;
-        graceDays: number;
         occupants: string[];
         depositRwf: number;
+        noticeDays?: number | undefined;
+        rentDueDay?: number | undefined;
+        graceDays?: number | undefined;
         otherTerms?: string | null | undefined;
         billingStartsOn?: string | null | undefined;
     }, {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
-        rentDueDay: number;
         depositRwf: number;
         noticeDays?: number | undefined;
+        rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         occupants?: string[] | undefined;
         otherTerms?: string | null | undefined;
@@ -233,11 +288,11 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
-        noticeDays: number;
-        rentDueDay: number;
-        graceDays: number;
         occupants: string[];
         depositRwf: number;
+        noticeDays?: number | undefined;
+        rentDueDay?: number | undefined;
+        graceDays?: number | undefined;
         otherTerms?: string | null | undefined;
         billingStartsOn?: string | null | undefined;
     };
@@ -251,16 +306,16 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         idKind: "national_id" | "passport";
         nationality: string;
     } | undefined;
-    tenantId?: string | undefined;
     confirmEmail?: boolean | undefined;
+    tenantId?: string | undefined;
 }, {
     terms: {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
-        rentDueDay: number;
         depositRwf: number;
         noticeDays?: number | undefined;
+        rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         occupants?: string[] | undefined;
         otherTerms?: string | null | undefined;
@@ -276,18 +331,18 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         idKind: "national_id" | "passport";
         nationality: string;
     } | undefined;
-    tenantId?: string | undefined;
     confirmEmail?: boolean | undefined;
+    tenantId?: string | undefined;
 }>, {
     terms: {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
-        noticeDays: number;
-        rentDueDay: number;
-        graceDays: number;
         occupants: string[];
         depositRwf: number;
+        noticeDays?: number | undefined;
+        rentDueDay?: number | undefined;
+        graceDays?: number | undefined;
         otherTerms?: string | null | undefined;
         billingStartsOn?: string | null | undefined;
     };
@@ -301,16 +356,16 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         idKind: "national_id" | "passport";
         nationality: string;
     } | undefined;
-    tenantId?: string | undefined;
     confirmEmail?: boolean | undefined;
+    tenantId?: string | undefined;
 }, {
     terms: {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
-        rentDueDay: number;
         depositRwf: number;
         noticeDays?: number | undefined;
+        rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         occupants?: string[] | undefined;
         otherTerms?: string | null | undefined;
@@ -326,12 +381,12 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         idKind: "national_id" | "passport";
         nationality: string;
     } | undefined;
-    tenantId?: string | undefined;
     confirmEmail?: boolean | undefined;
+    tenantId?: string | undefined;
 }>;
 export type CreateLeaseRequest = z.infer<typeof CreateLeaseRequest>;
 /**
- * Change a lease before the tenant signs (`PATCH /ops/rentals/leases/:id`).
+ * Change a lease before the tenant signs (`PATCH /ops/leases/:id`).
  * Only what is sent changes. The API merges it with the lease and checks the
  * merged dates with `leaseDatesProblem`; an edit of a lease out for signature
  * voids the landlord's signature and returns it to draft.
@@ -396,6 +451,14 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
     }>>;
     confirmEmail: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
+    tenant?: {
+        fullName?: string | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        idKind?: "national_id" | "passport" | undefined;
+        nationality?: string | undefined;
+    } | undefined;
     terms?: {
         monthlyRentRwf?: number | undefined;
         startDate?: string | undefined;
@@ -408,17 +471,17 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         depositRwf?: number | undefined;
         billingStartsOn?: string | null | undefined;
     } | undefined;
-    tenant?: {
-        fullName?: string | undefined;
-        email?: string | undefined;
-        phone?: string | undefined;
-        idNumber?: string | undefined;
-        idKind?: "national_id" | "passport" | undefined;
-        nationality?: string | undefined;
-    } | undefined;
-    unitId?: string | undefined;
     confirmEmail?: boolean | undefined;
+    unitId?: string | undefined;
 }, {
+    tenant?: {
+        fullName?: string | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        idKind?: "national_id" | "passport" | undefined;
+        nationality?: string | undefined;
+    } | undefined;
     terms?: {
         monthlyRentRwf?: number | undefined;
         startDate?: string | undefined;
@@ -431,17 +494,17 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         depositRwf?: number | undefined;
         billingStartsOn?: string | null | undefined;
     } | undefined;
-    tenant?: {
-        fullName?: string | undefined;
-        email?: string | undefined;
-        phone?: string | undefined;
-        idNumber?: string | undefined;
-        idKind?: "national_id" | "passport" | undefined;
-        nationality?: string | undefined;
-    } | undefined;
-    unitId?: string | undefined;
     confirmEmail?: boolean | undefined;
+    unitId?: string | undefined;
 }>, {
+    tenant?: {
+        fullName?: string | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        idKind?: "national_id" | "passport" | undefined;
+        nationality?: string | undefined;
+    } | undefined;
     terms?: {
         monthlyRentRwf?: number | undefined;
         startDate?: string | undefined;
@@ -454,17 +517,17 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         depositRwf?: number | undefined;
         billingStartsOn?: string | null | undefined;
     } | undefined;
-    tenant?: {
-        fullName?: string | undefined;
-        email?: string | undefined;
-        phone?: string | undefined;
-        idNumber?: string | undefined;
-        idKind?: "national_id" | "passport" | undefined;
-        nationality?: string | undefined;
-    } | undefined;
-    unitId?: string | undefined;
     confirmEmail?: boolean | undefined;
+    unitId?: string | undefined;
 }, {
+    tenant?: {
+        fullName?: string | undefined;
+        email?: string | undefined;
+        phone?: string | undefined;
+        idNumber?: string | undefined;
+        idKind?: "national_id" | "passport" | undefined;
+        nationality?: string | undefined;
+    } | undefined;
     terms?: {
         monthlyRentRwf?: number | undefined;
         startDate?: string | undefined;
@@ -477,19 +540,11 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         depositRwf?: number | undefined;
         billingStartsOn?: string | null | undefined;
     } | undefined;
-    tenant?: {
-        fullName?: string | undefined;
-        email?: string | undefined;
-        phone?: string | undefined;
-        idNumber?: string | undefined;
-        idKind?: "national_id" | "passport" | undefined;
-        nationality?: string | undefined;
-    } | undefined;
-    unitId?: string | undefined;
     confirmEmail?: boolean | undefined;
+    unitId?: string | undefined;
 }>;
 export type EditLeaseRequest = z.infer<typeof EditLeaseRequest>;
-/** Cancel a lease that has not started (`POST /ops/rentals/leases/:id/cancel`). */
+/** Cancel a lease that has not started (`POST /ops/leases/:id/cancel`). */
 export declare const CancelLeaseRequest: z.ZodObject<{
     reason: z.ZodString;
 }, "strip", z.ZodTypeAny, {

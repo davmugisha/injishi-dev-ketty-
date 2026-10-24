@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CancelLeaseRequest = exports.EditLeaseRequest = exports.CreateLeaseRequest = exports.LeaseTermsInput = exports.TenantInput = exports.NoticeDays = exports.GraceDays = exports.RentDueDay = exports.MAX_OCCUPANTS = exports.DEFAULT_NOTICE_DAYS = exports.MAX_GRACE_DAYS = exports.DEFAULT_GRACE_DAYS = exports.LEASE_TAB_LABEL = exports.LeaseTab = exports.LEASE_ENDING_WINDOW_DAYS = exports.LIVE_LEASE_STATUSES = exports.FINAL_LEASE_STATUSES = exports.LEASE_TRANSITIONS = exports.LeaseAction = void 0;
+exports.CancelLeaseRequest = exports.EditLeaseRequest = exports.CreateLeaseRequest = exports.LeaseTermsInput = exports.UpdateTenantRequest = exports.TenantInput = exports.NoticeDays = exports.GraceDays = exports.RentDueDay = exports.MAX_OCCUPANTS = exports.DEFAULT_NOTICE_DAYS = exports.MAX_GRACE_DAYS = exports.DEFAULT_GRACE_DAYS = exports.LEASE_TAB_LABEL = exports.LeaseTab = exports.LEASE_ENDING_WINDOW_DAYS = exports.LIVE_LEASE_STATUSES = exports.FINAL_LEASE_STATUSES = exports.LEASE_TRANSITIONS = exports.LeaseAction = void 0;
 exports.nextLeaseStatus = nextLeaseStatus;
 exports.leaseActionsFrom = leaseActionsFrom;
 exports.canTransition = canTransition;
@@ -207,6 +207,23 @@ const TenantShape = {
     nationality: registration_1.CountryCode,
 };
 exports.TenantInput = zod_1.z.object(TenantShape).superRefine((t, ctx) => checkTenantId(t, ctx, []));
+/**
+ * Change a tenant's record (`PATCH /ops/tenants/:id`). Only what is sent
+ * changes. The API refuses once the tenant has signed a contract: what they
+ * signed names them as they were. A new email goes through the same typo
+ * guard as a new lease's.
+ */
+exports.UpdateTenantRequest = zod_1.z
+    .object({ ...TenantShape, confirmEmail: zod_1.z.boolean().optional() })
+    .partial()
+    .superRefine((v, ctx) => {
+    const { confirmEmail: _confirm, ...fields } = v;
+    if (Object.values(fields).every((x) => x === undefined)) {
+        ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, message: "Change at least one thing.", path: [] });
+    }
+    checkTenantId(v, ctx, []);
+    (0, identity_1.checkEmailTypo)(v.email, v.confirmEmail, ctx, ["email"]);
+});
 function checkTenantId(t, ctx, path) {
     if (t.idKind === undefined || t.idNumber === undefined)
         return;
@@ -232,16 +249,24 @@ const TermsShape = {
     occupants: Occupants,
     otherTerms: OtherTerms.nullable(),
 };
+/**
+ * The terms of a new lease. Grace days, notice days and the due day may be
+ * left out: the API fills them from the landlord's lease defaults
+ * (`landlord_profiles`), then from `DEFAULT_GRACE_DAYS`, `DEFAULT_NOTICE_DAYS`
+ * and `dueDayFromStart`, so a form that pre-fills from the defaults and an API
+ * client that sends nothing get the same lease.
+ */
 exports.LeaseTermsInput = zod_1.z.object({
     ...TermsShape,
     billingStartsOn: TermsShape.billingStartsOn.optional(),
-    graceDays: exports.GraceDays.default(exports.DEFAULT_GRACE_DAYS),
-    noticeDays: exports.NoticeDays.default(exports.DEFAULT_NOTICE_DAYS),
+    rentDueDay: exports.RentDueDay.optional(),
+    graceDays: exports.GraceDays.optional(),
+    noticeDays: exports.NoticeDays.optional(),
     occupants: Occupants.default([]),
     otherTerms: TermsShape.otherTerms.optional(),
 });
 /**
- * Draft a lease on one unit (`POST /ops/rentals/leases`).
+ * Draft a lease on one unit (`POST /ops/leases`).
  *
  * The tenant is an existing tenant record (`tenantId`) or a new one
  * (`tenant`), never both. The tenant's email is where the invitation to read
@@ -272,7 +297,7 @@ exports.CreateLeaseRequest = zod_1.z
         ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, message: dates.message, path: ["terms", dates.path] });
 });
 /**
- * Change a lease before the tenant signs (`PATCH /ops/rentals/leases/:id`).
+ * Change a lease before the tenant signs (`PATCH /ops/leases/:id`).
  * Only what is sent changes. The API merges it with the lease and checks the
  * merged dates with `leaseDatesProblem`; an edit of a lease out for signature
  * voids the landlord's signature and returns it to draft.
@@ -299,7 +324,7 @@ exports.EditLeaseRequest = zod_1.z
         ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, message: "The lease has to end after it starts.", path: ["terms", "endDate"] });
     }
 });
-/** Cancel a lease that has not started (`POST /ops/rentals/leases/:id/cancel`). */
+/** Cancel a lease that has not started (`POST /ops/leases/:id/cancel`). */
 exports.CancelLeaseRequest = zod_1.z.object({
     reason: zod_1.z.string().trim().min(3, "Say why the lease is cancelled.").max(500, "Keep the reason under 500 characters."),
 });

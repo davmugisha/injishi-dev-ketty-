@@ -11,6 +11,7 @@ import { OperationsModule } from '../../modules/operations/operations.module';
 import { OrganizationModule } from '../../modules/organization/organization.module';
 import { ListsModule } from '../../modules/lists/lists.module';
 import { PeopleModule } from '../../modules/people/people.module';
+import { RentalsModule } from '../../modules/rentals/rentals.module';
 import { StorageModule } from '../../modules/storage/storage.module';
 import { UserModule } from '../../modules/user/user.module';
 import { TwoFactorService } from '../../shared/auth/two-factor.service';
@@ -117,6 +118,12 @@ import { OpsRevenueController } from './ops/revenue.controller';
 import { OpsOwnerDashboardController, OpsReportsController } from './ops/owner-dashboard.controller';
 import { OpsCertificatesController } from './ops/certificates.controller';
 import { OpsTicketsController } from './ops/residence.controller';
+// Rentals (blueprint 2.3): the landlord's profile, getting paid, units, tenants and leases.
+import { OpsLeasesController } from './ops/rentals/leases.controller';
+import { OpsPayoutAccountsController } from './ops/rentals/payout-accounts.controller';
+import { OpsRentalsController } from './ops/rentals/rentals.controller';
+import { OpsTenantsController } from './ops/rentals/tenants.controller';
+import { OpsBlocksController, OpsUnitsController } from './ops/rentals/units.controller';
 import { OpsRoomsController } from './ops/rooms.controller';
 import { OpsThreadsController } from './ops/threads.controller';
 import { OpsStaysController } from './ops/stays.controller';
@@ -166,6 +173,8 @@ import { TrainingPublicModule } from './training/training.module';
     OrganizationModule,
     // The HR module (ADR-058): files, roster, attendance, leave and pay.
     PeopleModule,
+    // Rentals, rebuilt (blueprint 2.2): residence businesses only.
+    RentalsModule,
     // The list framework (ADR-058 slice 2): saved views and the export log.
     ListsModule,
     StorageModule,
@@ -292,6 +301,14 @@ import { TrainingPublicModule } from './training/training.module';
     OpsMessageTemplatesController,
     OpsThreadsController,
     OpsTicketsController,
+    // Rentals (blueprint 2.3, WP 1.4 and 1.5a). Every route answers 404 for a
+    // business that is not a residence.
+    OpsRentalsController,
+    OpsPayoutAccountsController,
+    OpsUnitsController,
+    OpsBlocksController,
+    OpsTenantsController,
+    OpsLeasesController,
     // The broker workspace's directory, reveals, placements and earnings
     // (ADR-038 child 6).
     OpsBrokerController,

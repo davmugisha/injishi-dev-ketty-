@@ -197,4 +197,5 @@ export declare const VillageListQuery: z.ZodObject<{
     cellId?: number | undefined;
 }>;
 export type VillageListQuery = z.infer<typeof VillageListQuery>;
+export declare function provinceWords(name: string): string;
 //# sourceMappingURL=geography.d.ts.map

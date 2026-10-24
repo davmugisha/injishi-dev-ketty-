@@ -233,6 +233,25 @@ const TenantShape = {
 export const TenantInput = z.object(TenantShape).superRefine((t, ctx) => checkTenantId(t, ctx, []));
 export type TenantInput = z.infer<typeof TenantInput>;
 
+/**
+ * Change a tenant's record (`PATCH /ops/tenants/:id`). Only what is sent
+ * changes. The API refuses once the tenant has signed a contract: what they
+ * signed names them as they were. A new email goes through the same typo
+ * guard as a new lease's.
+ */
+export const UpdateTenantRequest = z
+  .object({ ...TenantShape, confirmEmail: z.boolean().optional() })
+  .partial()
+  .superRefine((v, ctx) => {
+    const { confirmEmail: _confirm, ...fields } = v;
+    if (Object.values(fields).every((x) => x === undefined)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Change at least one thing.", path: [] });
+    }
+    checkTenantId(v, ctx, []);
+    checkEmailTypo(v.email, v.confirmEmail, ctx, ["email"]);
+  });
+export type UpdateTenantRequest = z.infer<typeof UpdateTenantRequest>;
+
 function checkTenantId(
   t: { idKind?: IdKind; idNumber?: string },
   ctx: z.RefinementCtx,
@@ -262,18 +281,26 @@ const TermsShape = {
   otherTerms: OtherTerms.nullable(),
 };
 
+/**
+ * The terms of a new lease. Grace days, notice days and the due day may be
+ * left out: the API fills them from the landlord's lease defaults
+ * (`landlord_profiles`), then from `DEFAULT_GRACE_DAYS`, `DEFAULT_NOTICE_DAYS`
+ * and `dueDayFromStart`, so a form that pre-fills from the defaults and an API
+ * client that sends nothing get the same lease.
+ */
 export const LeaseTermsInput = z.object({
   ...TermsShape,
   billingStartsOn: TermsShape.billingStartsOn.optional(),
-  graceDays: GraceDays.default(DEFAULT_GRACE_DAYS),
-  noticeDays: NoticeDays.default(DEFAULT_NOTICE_DAYS),
+  rentDueDay: RentDueDay.optional(),
+  graceDays: GraceDays.optional(),
+  noticeDays: NoticeDays.optional(),
   occupants: Occupants.default([]),
   otherTerms: TermsShape.otherTerms.optional(),
 });
 export type LeaseTermsInput = z.infer<typeof LeaseTermsInput>;
 
 /**
- * Draft a lease on one unit (`POST /ops/rentals/leases`).
+ * Draft a lease on one unit (`POST /ops/leases`).
  *
  * The tenant is an existing tenant record (`tenantId`) or a new one
  * (`tenant`), never both. The tenant's email is where the invitation to read
@@ -305,7 +332,7 @@ export const CreateLeaseRequest = z
 export type CreateLeaseRequest = z.infer<typeof CreateLeaseRequest>;
 
 /**
- * Change a lease before the tenant signs (`PATCH /ops/rentals/leases/:id`).
+ * Change a lease before the tenant signs (`PATCH /ops/leases/:id`).
  * Only what is sent changes. The API merges it with the lease and checks the
  * merged dates with `leaseDatesProblem`; an edit of a lease out for signature
  * voids the landlord's signature and returns it to draft.
@@ -334,7 +361,7 @@ export const EditLeaseRequest = z
   });
 export type EditLeaseRequest = z.infer<typeof EditLeaseRequest>;
 
-/** Cancel a lease that has not started (`POST /ops/rentals/leases/:id/cancel`). */
+/** Cancel a lease that has not started (`POST /ops/leases/:id/cancel`). */
 export const CancelLeaseRequest = z.object({
   reason: z.string().trim().min(3, "Say why the lease is cancelled.").max(500, "Keep the reason under 500 characters."),
 });

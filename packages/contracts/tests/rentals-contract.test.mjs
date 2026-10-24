@@ -237,3 +237,11 @@ describe("the typed signature", () => {
     assert.equal(c.SignLeaseRequest.safeParse({ typedName: "Aimée Uwera", documentHash: "nope", code: "123456" }).success, false);
   });
 });
+
+describe("a province as a contract names it", () => {
+  test("the reference table's capitals become the words people use", () => {
+    assert.equal(c.provinceWords("KIGALI"), "Kigali City");
+    assert.equal(c.provinceWords(" east "), "Eastern Province");
+    assert.equal(c.provinceWords("Somewhere"), "Somewhere");
+  });
+});

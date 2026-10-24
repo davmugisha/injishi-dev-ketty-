@@ -59,6 +59,8 @@ x-api-env: &api-env
   # Optional here: the demo platform falls back to a fixed pepper, because its
   # PINs guard sample people only (058-time AC-TM11). Set one to rehearse.
   HR_PIN_PEPPER: ${HR_PIN_PEPPER:-}
+  # Optional here: the demo falls back to a fixed key for sample landlords.
+  PAYOUT_ACCOUNT_ENCRYPTION_KEY: ${PAYOUT_ACCOUNT_ENCRYPTION_KEY:-}
   BETTER_AUTH_URL: https://${API_HOST:-api-demo.injishi.com}
   # The shared parent domain, as production's. Cookies stay apart by NAME: a
   # demo process names its session `injishi-demo.*` (AC-8).

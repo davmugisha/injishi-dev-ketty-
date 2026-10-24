@@ -66,6 +66,11 @@ import { OpsReservationsController, OpsRoomAssignmentsController } from './reser
 import {
   OpsTicketsController,
 } from './residence.controller';
+import { OpsLeasesController } from './rentals/leases.controller';
+import { OpsPayoutAccountsController } from './rentals/payout-accounts.controller';
+import { OpsRentalsController } from './rentals/rentals.controller';
+import { OpsTenantsController } from './rentals/tenants.controller';
+import { OpsBlocksController, OpsUnitsController } from './rentals/units.controller';
 import { OpsRevenueController } from './revenue.controller';
 import { OpsCertificatesController } from './certificates.controller';
 import { OpsOwnerDashboardController, OpsReportsController } from './owner-dashboard.controller';
@@ -173,6 +178,12 @@ const CONTROLLERS: Ctor[] = [
   OpsContractsController,
   OpsPayrollController,
   OpsPayFilesController,
+  OpsRentalsController,
+  OpsPayoutAccountsController,
+  OpsUnitsController,
+  OpsBlocksController,
+  OpsTenantsController,
+  OpsLeasesController,
 ];
 
 interface Read {
@@ -439,6 +450,27 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/payroll/dashboard': ['owner', 'hr'],
   '/ops/payroll/rules': ['owner', 'hr'],
   '/ops/pay-files/:id': ['owner'],
+  // Rentals (blueprint 2.3, WP 1.4 and 1.5a). The landlord's profile and setup
+  // read under any rentals permission: the leases, units, listing or money side.
+  // The housekeeper (faults) and the desk (guests) work the property without them.
+  '/ops/rentals/profile': ['owner', 'manager', 'finance'],
+  '/ops/rentals/setup': ['owner', 'manager', 'finance'],
+  // Where rent is paid out: whoever reads the money, or decides where it goes.
+  '/ops/payout-accounts': ['owner', 'manager', 'finance'],
+  // Units and blocks: whoever works units, leases or the money.
+  '/ops/units': ['owner', 'manager', 'finance'],
+  '/ops/units/:id': ['owner', 'manager', 'finance'],
+  '/ops/blocks': ['owner', 'manager', 'finance'],
+  // A tenant record holds an ID number: `lease.manage` alone.
+  '/ops/tenants': ['owner', 'manager'],
+  '/ops/tenants/:id': ['owner', 'manager'],
+  // Leases read under `lease.manage`, `rent.record`, `money.view` or `deposit.return`.
+  '/ops/leases': ['owner', 'manager', 'finance'],
+  '/ops/leases/counts': ['owner', 'manager', 'finance'],
+  '/ops/leases/:id': ['owner', 'manager', 'finance'],
+  '/ops/leases/:id/events': ['owner', 'manager', 'finance'],
+  '/ops/leases/:id/contract': ['owner', 'manager', 'finance'],
+  '/ops/leases/:id/contract/pdf': ['owner', 'manager', 'finance'],
 };
 
 describe('operator reads (audit H1)', () => {
@@ -512,5 +544,49 @@ describe('pay runs: drafted by payroll.draft, confirmed by payroll.run (ADR-069 
     // The default roles: the owner does both, hr drafts and never signs.
     const admitted = ROLES.filter((role) => admits(read, permissionsForRole(role)));
     expect(admitted).toEqual(drafting ? ['owner', 'hr'] : ['owner']);
+  });
+});
+
+/**
+ * The rentals writes (blueprint 2.1): each names the one permission it needs.
+ * Units are `unit.manage`; drafting, editing and cancelling a lease, the lease
+ * defaults and tenant records are `lease.manage`; who signs leases for the
+ * business is `lease.sign`, and where rent is paid out is `payout.manage`,
+ * both the owner's by default (`OWNER_BY_DEFAULT`), so a manager holds neither
+ * until an owner grants it.
+ */
+describe('rentals writes (blueprint 2.1)', () => {
+  const routes = handlers(
+    [OpsRentalsController, OpsPayoutAccountsController, OpsUnitsController, OpsBlocksController, OpsTenantsController, OpsLeasesController],
+    [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE],
+  );
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'PUT /ops/rentals/profile/lease-defaults': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'PUT /ops/rentals/profile/signatory': { allOf: ['lease.sign'], roles: ['owner'] },
+    'POST /ops/payout-accounts': { allOf: ['payout.manage'], roles: ['owner'] },
+    'PATCH /ops/payout-accounts/:id': { allOf: ['payout.manage'], roles: ['owner'] },
+    'POST /ops/payout-accounts/:id/primary': { allOf: ['payout.manage'], roles: ['owner'] },
+    'POST /ops/payout-accounts/:id/retire': { allOf: ['payout.manage'], roles: ['owner'] },
+    'POST /ops/units': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/units/bulk': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'PATCH /ops/units/:id': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/units/:id/retire': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/blocks': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'PATCH /ops/blocks/:id': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'PATCH /ops/tenants/:id': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/leases': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'PATCH /ops/leases/:id': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/leases/:id/cancel': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+  };
+
+  it('judges every rentals write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
   });
 });

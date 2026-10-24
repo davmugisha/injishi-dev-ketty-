@@ -44,7 +44,12 @@ export type StoredObjectKind =
   /** ADR-058: a file hung on a note, a policy, an announcement or a disciplinary record. */
   | 'hr_attachment'
   /** 058-payroll: a bank or MoMo file, or a declaration; `payroll.run` only. */
-  | 'hr_pay_file';
+  | 'hr_pay_file'
+  /**
+   * Rentals (migration 0073): a lease contract PDF the platform rendered, a
+   * preview of one version or its signed copy. Never uploaded by anybody.
+   */
+  | 'lease_contract';
 
 export interface PutObjectInput {
   /** The raw bytes. Callers must size-check BEFORE reading a stream to here. */
