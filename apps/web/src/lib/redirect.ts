@@ -6,12 +6,11 @@
  * about nothing only because both were the same two lines. They are one
  * function now, because the rule is about to get harder: sign-in is shared.
  *
- * WHY IT IS SHARED. There is one Better Auth instance and one sign-in screen,
- * and it lives here on web. The operator app (:3002) and the admin console
- * (:3001) have no sign-in of their own and must not grow one — a second screen
- * is a second place for the OTP contract to drift. So their gates bounce here
- * with `?redirect=` pointing back at an ABSOLUTE url on their own origin, and
- * this function has to be able to say yes to that.
+ * WHY IT IS SHARED. There is one Better Auth instance, and a person moves
+ * between two first-party origins: web, and the operator app (`apps/app`, its
+ * own host; :3002 on a laptop), which has its own sign-in and the admin console
+ * at `/admin`. A `?redirect=` may point back at an ABSOLUTE url on the app's
+ * origin, and this function has to be able to say yes to that.
  *
  * WHY AN ALLOWLIST AND NOT A PATTERN. `?redirect=` is attacker-controlled: it
  * arrives in a link anyone can send. Accepting any absolute url turns the
@@ -22,7 +21,7 @@
  * nothing else is ever allowed.
  *
  * The set is built from environment variables so a deployment can name its own
- * hosts, and it is deliberately small: the three first-party apps.
+ * hosts, and it is deliberately small: the two first-party apps.
  *
  * WHERE A REFUSED OR ABSENT DESTINATION GOES. Not `/`. This function only ever
  * runs on the two sign-in screens, so every value it returns is where somebody
@@ -35,12 +34,28 @@
  */
 import { HOME } from "@/lib/app-nav";
 
+/**
+ * The operator app's public origin (`NEXT_PUBLIC_PMS_URL`). `||`, not `??`: a
+ * build arg passed empty is set to nothing, not unset.
+ */
+const APP_URL = process.env.NEXT_PUBLIC_PMS_URL || "http://localhost:3002";
+
 /** The apps allowed to receive a signed-in visitor back from this screen. */
-const APP_ORIGINS = [
-  process.env.NEXT_PUBLIC_WEB_URL,
-  process.env.NEXT_PUBLIC_PMS_URL ?? "http://localhost:3002",
-  process.env.NEXT_PUBLIC_ADMIN_URL ?? "http://localhost:3001",
-];
+const APP_ORIGINS = [process.env.NEXT_PUBLIC_WEB_URL, APP_URL];
+
+/**
+ * The one door into the operator app for a signed-in person: its
+ * `/auth/continue`, which asks the API who they are and opens their persona's
+ * home (owner, landlord, officer, admin console, ...). The app decides the
+ * home; web only knows the person holds something there.
+ */
+export function appHome(): string {
+  try {
+    return new URL("/auth/continue", APP_URL).toString();
+  } catch {
+    return "http://localhost:3002/auth/continue";
+  }
+}
 
 /**
  * The allowlist, as exact origins.

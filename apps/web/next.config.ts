@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
-import { appHandoffRedirects } from "./src/lib/app-handoff";
+import { appHandoffRedirects, oldZoneRedirects } from "./src/lib/app-handoff";
 
 /**
  * The marketing `screens` list that used to sit here is gone with the captured
@@ -89,72 +89,25 @@ const nextConfig: NextConfig = {
     // A barrel import of @injishi/ui would otherwise pull all 16 of its client
     // components into a server page that wanted one Button (ADR-008).
     optimizePackageImports: ["@injishi/ui", "lucide-react"],
-    // The rewrite proxy to the operator zone gives up after 30s by default. In
-    // development the zone compiles a page on its first request, and
-    // `/w/[workspaceId]` alone took 29.8s cold, so web answered 500 ("socket
-    // hang up") while the zone was still finishing a 200. Production serves a
-    // prebuilt zone, so it keeps the default.
-    proxyTimeout: process.env.NODE_ENV === "development" ? 180_000 : undefined,
   },
   /**
-   * The operator app is a ZONE under this origin (one product, one sign-in,
-   * two code bases). Everything under these roots is forwarded to the app
-   * server, which keeps its own repo folder, build and deploy. Cookies travel
-   * because the browser only ever sees this origin.
-   *
-   * `/operator-static` is the zone's `assetPrefix`, so its chunks do not
-   * collide with this app's `/_next`. In development the zone's hot reload
-   * socket does not cross the rewrite; open :3002 directly for HMR on it.
+   * NO REWRITES. The operator app (`apps/app`) has its own origin in every
+   * stack (app.injishi.com, :3002 on a laptop), and web serves none of its
+   * pages: it used to forward `/w`, `/oversight`, `/landlord`, `/broker`,
+   * `/host/*` and `/operator-static` to it as a "zone", but the app's screens
+   * live at its root (`/residence`, `/owner`, ...), so the zone could only ever
+   * reach a 404. Web hands sign-in to the app and sends old zone links on.
    */
-  async rewrites() {
-    const raw = process.env.OPERATOR_APP_URL || "http://localhost:3002";
-    const zone = raw.endsWith("/") ? raw.slice(0, -1) : raw;
-    const forward = (r: string) => [
-      { source: `/${r}`, destination: `${zone}/${r}` },
-      { source: `/${r}/:path*`, destination: `${zone}/${r}/:path*` },
-    ];
-    /**
-     * Roots this app has NO pages under. Forwarding them before the file system
-     * is consulted costs nothing, because there is nothing here to consult.
-     */
-    const roots = ["w", "oversight", "landlord", "broker"];
-    return {
-      beforeFiles: [
-        { source: "/operator-static/:path*", destination: `${zone}/operator-static/:path*` },
-        ...roots.flatMap(forward),
-      ],
-      /**
-       * `host` IS WEB'S, AND HAS TO BE CHECKED LAST (ADR-044, D-b).
-       *
-       * It sat in `beforeFiles` with the four roots above, and `beforeFiles`
-       * runs before Next looks for a page. So `/host` and `/host/start` — the
-       * marketplace's own "list your property" pages, which exist in
-       * `(marketplace)/(site)/host` — never rendered once, and all seven
-       * "become a host" links in the chrome landed on the operator app's
-       * deprecated shim instead: an operator login shown to somebody still
-       * deciding whether to become one.
-       *
-       * `afterFiles` is checked AFTER pages, so those two pages answer and any
-       * other `/host/*` path still falls through to the shim, until ADR-018's
-       * D-h trigger deletes it. The other four stay above because web owns no
-       * page under them, so there is nothing for the file system to win.
-       */
-      afterFiles: forward("host"),
-    };
-  },
   async redirects() {
     /**
-     * Signing in and registering a business happen in the operator app
-     * (`apps/app`) when it runs on its OWN origin, as it does on a laptop
-     * (:3002). Redirects run before middleware, so the private-page gate's
-     * bounce to `/sign-in` lands there too.
-     *
-     * Only then. In a deployed stack the app is a zone under this origin, and
-     * the unconditional version of these two lines sent `/sign-in` to itself
-     * on www.injishi.com. `app-handoff.ts` says why and decides.
+     * Signing in happens in the app, on its own origin. Redirects run before the
+     * proxy, so the private-page gate's bounce to `/sign-in` lands there too.
+     * `app-handoff.ts` says why the hand-off checks the two origins differ, and
+     * where an old zone link goes.
      */
     return [
       ...appHandoffRedirects(process.env.NEXT_PUBLIC_WEB_URL, process.env.NEXT_PUBLIC_PMS_URL),
+      ...oldZoneRedirects(process.env.NEXT_PUBLIC_WEB_URL, process.env.NEXT_PUBLIC_PMS_URL),
       { source: "/home/index.html", destination: "/", permanent: false },
       { source: "/home", destination: "/", permanent: false },
       ...webAppScreens.map((s) => ({

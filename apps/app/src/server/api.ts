@@ -18,7 +18,12 @@ export function apiBaseUrl(): string {
  * (403 MISSING_OR_NULL_ORIGIN). The app's own public origin is on the API's CORS_ORIGINS list.
  */
 export function apiOrigin(): string {
-  return (process.env.INJISHI_API_ORIGIN ?? process.env.INJISHI_APP_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+  return (
+    process.env.INJISHI_API_ORIGIN ||
+    process.env.INJISHI_APP_URL ||
+    process.env.NEXT_PUBLIC_PMS_URL ||
+    "http://localhost:3002"
+  ).replace(/\/+$/, "");
 }
 
 const TIMEOUT_MS = 15_000;

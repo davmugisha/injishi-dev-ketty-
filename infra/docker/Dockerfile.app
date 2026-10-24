@@ -53,17 +53,17 @@ COPY --from=deps /repo ./
 COPY . .
 # Standalone output is opt-in; see the note in apps/app/next.config.ts.
 # OPERATOR_ASSET_PREFIX is baked into the client chunks at build time.
-# NEXT_PUBLIC_PMS_URL is the public web origin: this process is a zone under
-# web, so absolute "self" links must not name a second public host.
+# NEXT_PUBLIC_PMS_URL is this app's own public origin (app.injishi.com;
+# http://localhost:3002 locally): web hands sign-in to it.
 ARG OPERATOR_ASSET_PREFIX=/operator-static
 # The public origins have NO default: a default of production's origins let a
-# staging or demo build that forgot one ship a zone calling production. Each
+# staging or demo build that forgot one ship an app calling production. Each
 # compose file passes all three; the RUN below refuses a build missing one.
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_WEB_URL
 ARG NEXT_PUBLIC_PMS_URL
 # `demo` for the demo stack's image and nothing else (ADR-043, AC-14): the
-# middleware's strip of production's session cookies. Empty means production.
+# proxy's strip of production's session cookies. Empty means production.
 ARG NEXT_PUBLIC_INJISHI_ENVIRONMENT=
 ENV NEXT_TELEMETRY_DISABLED=1 \
     BUILD_STANDALONE=1 \
@@ -74,7 +74,7 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NEXT_PUBLIC_PMS_URL=$NEXT_PUBLIC_PMS_URL
 RUN : "${NEXT_PUBLIC_API_URL:?build arg NEXT_PUBLIC_API_URL is required (API public origin)}" \
  && : "${NEXT_PUBLIC_WEB_URL:?build arg NEXT_PUBLIC_WEB_URL is required (web public origin)}" \
- && : "${NEXT_PUBLIC_PMS_URL:?build arg NEXT_PUBLIC_PMS_URL is required (operator zone origin, which is web's)}"
+ && : "${NEXT_PUBLIC_PMS_URL:?build arg NEXT_PUBLIC_PMS_URL is required (this app's own public origin)}"
 RUN pnpm --filter @injishi/app build
 
 # ---- run -------------------------------------------------------------------

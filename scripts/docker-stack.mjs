@@ -249,14 +249,14 @@ function printSummary() {
   console.log(`
 Running in Docker (compose project "docker", profile "${PROFILE}"):
 
-  web       http://localhost:3000     marketplace, sign-in, registration; /w/... is the operator zone
-  app       http://localhost:3002     the operator app: its screens (/residence, /owner, ...), /admin
+  web       http://localhost:3000     marketplace, registration; /sign-in hands off to the app
+  app       http://localhost:3002     the app: sign-in, its screens (/residence, /owner, ...), /admin
   API       http://localhost:8000     health: http://localhost:8000/api/v1/health
   Mailpit   http://localhost:8025     every mail, sign-in codes included
 
 Code 123456 for every seeded account (landlord@injishi.com, host@injishi.com, ...) and
-the demo personas. Operators: sign in at http://localhost:3002/sign-in to land in
-their screens; guests at http://localhost:3000/sign-in.
+the demo personas. Sign in at http://localhost:3002/sign-in (or :3000/sign-in,
+which hands off there): each person lands on their own home.
 
 After a code change:  pnpm docker:rebuild web   (or api, app)
 Logs:                 pnpm docker:logs api

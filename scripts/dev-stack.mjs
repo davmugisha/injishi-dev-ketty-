@@ -561,19 +561,18 @@ Or start what you need, each in its own terminal, from injishi/:
   pnpm api:dev:test                   API on THIS stack  http://localhost:${apiPort}  (health: /api/v1/health)
                                       (\`pnpm api:dev\` is the hosted dev services, .env.development)
   pnpm web:dev                        web       http://localhost:3000
-  pnpm app:dev                        operator  http://localhost:3002
-  pnpm --filter @injishi/admin dev    admin     http://localhost:3001
+  pnpm app:dev                        app       http://localhost:3002  (sign-in, operator screens, /admin)
   pnpm api:worker:dev                 BullMQ worker. Booking and training mail
                                       is QUEUED and waits in Redis until this runs.
                                       It builds into dist-worker/, so it runs beside api:dev.
 
   Mailpit   http://localhost:8025     every mail the API sends
 ${usesMinio(cfg) ? '  MinIO     http://localhost:9001     object storage console\n' : '  Storage   on disk (STORAGE_ADAPTER_MODE=local), no MinIO\n'}
-Sign in at http://localhost:3000/sign-in with a seeded account, or pick one of
-the demo personas listed there (*@demo.injishi.com):
-  host@injishi.com      owner of the seeded hotel (operator app)
+Sign in at http://localhost:3002/sign-in (web's :3000/sign-in hands off there)
+with a seeded account, or pick one of the demo personas listed there:
+  host@injishi.com      owner of the seeded hotel
   landlord@injishi.com  owner of the seeded residence
-  admin@injishi.com     platform super_admin (admin console, :3001)
+  admin@injishi.com     platform super_admin (the app's /admin)
   guest@injishi.com     marketplace only
 ${
   fixedCode

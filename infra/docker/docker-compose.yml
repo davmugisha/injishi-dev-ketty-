@@ -17,8 +17,9 @@
 #   pnpm docker:down                stop everything, keep the data
 #   pnpm docker:down --apps         stop api, worker, web, app; keep db, redis, mailpit
 #
-#   web       http://localhost:3000   marketplace, sign-in; /w/... is the operator zone
-#   app       http://localhost:3002   the operator screens (/residence, ...), /admin
+#   web       http://localhost:3000   marketplace; /sign-in hands off to the app
+#   app       http://localhost:3002   the app: sign-in, operator screens (/residence,
+#                                     /owner, ...), the admin console at /admin
 #   API       http://localhost:8000   health: /api/v1/health
 #   Mailpit   http://localhost:8025   every mail, sign-in codes included
 #
@@ -68,22 +69,20 @@
 #     reach; here they are localhost, which inside a container is itself. So
 #     api, web and app share the namespace of `net`, a container that only
 #     holds it and publishes the ports: `localhost:8000` and `localhost:3002`
-#     mean the same inside them as in your browser, and web's rewrite to the
-#     operator zone is the one `pnpm dev` uses. db, redis and mailpit still
+#     mean the same inside them as in your browser. db, redis and mailpit still
 #     resolve by service name. Rebuilding one of them never moves the others.
 
 # The public origins the frontends are built with (inlined at compile time) and
-# run with: what apps/web and apps/app's .env.development name. The operator
-# app is a zone under web, so its public origin is web's. The admin console is
-# /admin inside the app (apps/admin is gone), so its origin is the app's own.
+# run with: what apps/web and apps/app's .env.development name. As in
+# production, the app has its own origin (app.injishi.com there, :3002 here):
+# web's /sign-in hands off to it, and the admin console is its /admin.
 # Empty INJISHI_ENVIRONMENT, as in `pnpm dev`: only a deployed demo build strips
 # production's session cookies, and there are none on localhost.
 x-local-public: &local-public
   NEXT_PUBLIC_API_URL: http://localhost:8000
   NEXT_PUBLIC_WEB_URL: http://localhost:3000
   NEXT_PUBLIC_SITE_URL: http://localhost:3000
-  NEXT_PUBLIC_PMS_URL: http://localhost:3000
-  NEXT_PUBLIC_ADMIN_URL: http://localhost:3002
+  NEXT_PUBLIC_PMS_URL: http://localhost:3002
   NEXT_PUBLIC_INJISHI_ENVIRONMENT: ""
 
 # server/api/.env.test, then only what differs inside Docker.
@@ -261,15 +260,12 @@ services:
         - heroui_token
       args:
         <<: *local-public
-        # Same namespace as app, so the zone rewrite is the one `pnpm dev` uses.
-        OPERATOR_APP_URL: http://localhost:3002
     profiles: ["apps"]
     restart: on-failure
     environment:
       <<: *local-public
       NODE_ENV: production
       PORT: "3000"
-      OPERATOR_APP_URL: http://localhost:3002
       INTERNAL_API_URL: http://localhost:8000
     network_mode: service:net
     healthcheck:
@@ -309,8 +305,9 @@ services:
       PORT: "3002"
       OPERATOR_ASSET_PREFIX: /operator-static
       INJISHI_API_URL: http://localhost:8000
-      # The Origin its server calls carry; on CORS_ORIGINS in .env.test.
-      INJISHI_API_ORIGIN: http://localhost:3000
+      # The Origin its server calls carry: its own, as in production. On
+      # CORS_ORIGINS in .env.test.
+      INJISHI_API_ORIGIN: http://localhost:3002
       AUTH_COOKIE_DOMAIN: ""
       INJISHI_DB_URL: file:/data/injishi.db
     volumes:

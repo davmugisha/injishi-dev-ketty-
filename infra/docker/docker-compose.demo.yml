@@ -63,7 +63,9 @@ x-api-env: &api-env
   # The shared parent domain, as production's. Cookies stay apart by NAME: a
   # demo process names its session `injishi-demo.*` (AC-8).
   AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.injishi.com}
-  CORS_ORIGINS: https://${WEB_HOST:-www-demo.injishi.com},https://${ADMIN_HOST:-admin-demo.injishi.com}
+  # The app's own host is here because its server side calls name it as their
+  # Origin (INJISHI_API_ORIGIN on the app), as in production.
+  CORS_ORIGINS: https://${WEB_HOST:-www-demo.injishi.com},https://${APP_HOST:-app-demo.injishi.com},https://${ADMIN_HOST:-admin-demo.injishi.com}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
   # Money alarms and what breaks (a 500, a fault inside Better Auth, a job's
@@ -118,9 +120,9 @@ x-demo-public: &demo-public
   NEXT_PUBLIC_API_URL: https://${API_HOST:-api-demo.injishi.com}
   NEXT_PUBLIC_WEB_URL: https://${WEB_HOST:-www-demo.injishi.com}
   NEXT_PUBLIC_SITE_URL: https://${WEB_HOST:-www-demo.injishi.com}
-  # The operator app is a zone under web, so its public URL is web's origin.
-  NEXT_PUBLIC_PMS_URL: https://${WEB_HOST:-www-demo.injishi.com}
-  NEXT_PUBLIC_ADMIN_URL: https://${ADMIN_HOST:-admin-demo.injishi.com}
+  # The operator app on its own host, as production's app.injishi.com: web hands
+  # `/sign-in` to it and signed-in operators open their home there.
+  NEXT_PUBLIC_PMS_URL: https://${APP_HOST:-app-demo.injishi.com}
   # Pinned (ADR-043, AC-14): these builds strip production's session cookies in
   # their middleware. It decides nothing on a screen; the screens ask
   # `GET /api/v1/platform`.
@@ -398,13 +400,11 @@ services:
         - heroui_token
       args:
         <<: *demo-public
-        OPERATOR_APP_URL: http://app:3002
     restart: unless-stopped
     environment:
       <<: *demo-public
       NODE_ENV: production
       PORT: "3000"
-      OPERATOR_APP_URL: http://app:3002
       # Server only, read at runtime. Sign-in sends reach the API over the compose
       # network so the visitor's IP can be forwarded (apps/web/src/lib/otp.server.ts).
       INTERNAL_API_URL: http://injishi-api:8000
@@ -432,7 +432,7 @@ services:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
       - traefik.http.services.injishi-demo-web.loadbalancer.server.port=3000
-      - traefik.http.routers.injishi-demo-web-http.rule=Host(`${WEB_HOST:-www-demo.injishi.com}`) || Host(`${APP_HOST:-app-demo.injishi.com}`)
+      - traefik.http.routers.injishi-demo-web-http.rule=Host(`${WEB_HOST:-www-demo.injishi.com}`)
       - traefik.http.routers.injishi-demo-web-http.entrypoints=web
       - traefik.http.routers.injishi-demo-web-http.middlewares=redirect-to-https@file
       - traefik.http.routers.injishi-demo-web-http.service=injishi-demo-web
@@ -440,29 +440,13 @@ services:
       - traefik.http.routers.injishi-demo-web.entrypoints=websecure
       - traefik.http.routers.injishi-demo-web.tls.certresolver=letsencrypt
       - traefik.http.routers.injishi-demo-web.service=injishi-demo-web
-      # app-demo is the operator zone's address, as app.* is production's: its
-      # root goes to /w, any other path keeps its path.
-      - traefik.http.routers.injishi-demo-app-root.rule=Host(`${APP_HOST:-app-demo.injishi.com}`) && Path(`/`)
-      - traefik.http.routers.injishi-demo-app-root.entrypoints=websecure
-      - traefik.http.routers.injishi-demo-app-root.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-demo-app-root.middlewares=injishi-demo-app-root-to-zone
-      - traefik.http.routers.injishi-demo-app-root.service=injishi-demo-web
-      - traefik.http.middlewares.injishi-demo-app-root-to-zone.redirectregex.regex=^https?://[^/]+/?$$
-      - traefik.http.middlewares.injishi-demo-app-root-to-zone.redirectregex.replacement=https://${WEB_HOST:-www-demo.injishi.com}/w
-      - traefik.http.routers.injishi-demo-app.rule=Host(`${APP_HOST:-app-demo.injishi.com}`)
-      - traefik.http.routers.injishi-demo-app.entrypoints=websecure
-      - traefik.http.routers.injishi-demo-app.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-demo-app.middlewares=injishi-demo-app-to-zone
-      - traefik.http.routers.injishi-demo-app.service=injishi-demo-web
-      - traefik.http.middlewares.injishi-demo-app-to-zone.redirectregex.regex=^https?://[^/]+/(.*)
-      - traefik.http.middlewares.injishi-demo-app-to-zone.redirectregex.replacement=https://${WEB_HOST:-www-demo.injishi.com}/$${1}
     networks:
       - default
       - dokploy-network
 
-  # The new interface (operator + staff). Public on admin-demo (staff console
-  # lives at /admin inside this app; apps/admin is gone). Compose-only for
-  # everything else: web still owns app-demo redirects into the marketplace zone.
+  # The operator app on its own host, app-demo, as production's app.injishi.com
+  # (its routes are at its root). admin-demo is the same app behind
+  # ADMIN_ALLOWED_IPS, its root sent to the console at /admin.
   app:
     image: injishi-app:${DEMO_IMAGE_TAG:-demo}
     build:
@@ -479,6 +463,11 @@ services:
       NODE_ENV: production
       PORT: "3002"
       OPERATOR_ASSET_PREFIX: /operator-static
+      # Server side calls reach the API over this project's network, naming the
+      # app's own host as their Origin (on the API's CORS_ORIGINS).
+      INJISHI_API_URL: http://injishi-api:8000
+      INJISHI_API_ORIGIN: https://${APP_HOST:-app-demo.injishi.com}
+      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.injishi.com}
     expose:
       - "3002"
     depends_on:
@@ -488,6 +477,15 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
+      - traefik.http.services.injishi-demo-app.loadbalancer.server.port=3002
+      - traefik.http.routers.injishi-demo-app-http.rule=Host(`${APP_HOST:-app-demo.injishi.com}`)
+      - traefik.http.routers.injishi-demo-app-http.entrypoints=web
+      - traefik.http.routers.injishi-demo-app-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.injishi-demo-app-http.service=injishi-demo-app
+      - traefik.http.routers.injishi-demo-app.rule=Host(`${APP_HOST:-app-demo.injishi.com}`)
+      - traefik.http.routers.injishi-demo-app.entrypoints=websecure
+      - traefik.http.routers.injishi-demo-app.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-demo-app.service=injishi-demo-app
       - traefik.http.services.injishi-demo-admin.loadbalancer.server.port=3002
       - traefik.http.middlewares.injishi-demo-admin-allow.ipallowlist.sourcerange=${ADMIN_ALLOWED_IPS:-127.0.0.1/32}
       - traefik.http.middlewares.injishi-demo-admin-root.redirectregex.regex=^https?://[^/]+/?$$

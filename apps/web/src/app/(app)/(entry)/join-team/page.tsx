@@ -24,6 +24,7 @@ import ThemeToggleButton from "@/components/app/theme-toggle-button";
 import { Icon } from "@/components/app/icon";
 import { acceptStaffInvitation, previewStaffInvitation } from "@/data/staff-invitation";
 import { apiResultMessage } from "@/lib/api";
+import { appHome } from "@/lib/redirect";
 
 type View =
   | { kind: "loading" }
@@ -152,7 +153,7 @@ export default function Page() {
             <div className={"mt-6 flex flex-col gap-3 sm:flex-row-reverse"}>
               {view.kind === "joined" ? (
                 <UiButton asChild variant="primary" className="grow">
-                  <a href={`/w/${view.accepted.workspaceId}`}>
+                  <a href={appHome()}>
                     {"Open the workspace"}
                     <Icon name="arrow-right" className="h-4 w-4" />
                   </a>

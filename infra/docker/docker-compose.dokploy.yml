@@ -133,11 +133,10 @@ x-production-public: &production-public
   NEXT_PUBLIC_API_URL: https://${API_HOST:-api.injishi.com}
   NEXT_PUBLIC_WEB_URL: https://${WEB_HOST:-www.injishi.com}
   NEXT_PUBLIC_SITE_URL: https://${WEB_HOST:-www.injishi.com}
-  # The operator app answers on its own host now (the interface PR #38 brought
-  # has its routes at the root, so web's `/w` zone no longer reaches it), and
-  # web's sign-in may send a visitor back there.
+  # The operator app answers on its own host (its routes are at its root), web
+  # hands `/sign-in` to it, and signed-in operators open their home there. The
+  # admin console is its `/admin`; nothing reads a separate admin url.
   NEXT_PUBLIC_PMS_URL: https://${APP_HOST:-app.injishi.com}
-  NEXT_PUBLIC_ADMIN_URL: https://${ADMIN_HOST:-admin.injishi.com}
   # Pinned (ADR-043, AC-14). A production build never strips session cookies:
   # only a `demo` build does, and it would strip production's own session.
   NEXT_PUBLIC_INJISHI_ENVIRONMENT: production
@@ -364,7 +363,6 @@ services:
         - heroui_token
       args:
         <<: *production-public
-        OPERATOR_APP_URL: http://app:3002
         # The visit counter (apps/web/src/lib/analytics.ts), web only. Empty
         # means off. Set PLAUSIBLE_DOMAIN to www.injishi.com once the site is
         # added in Plausible; PLAUSIBLE_SRC only for a self-hosted instance.
@@ -375,7 +373,6 @@ services:
       <<: *production-public
       NODE_ENV: production
       PORT: "3000"
-      OPERATOR_APP_URL: http://app:3002
       # Server only, read at runtime. Sign-in sends reach the API over the compose
       # network so the visitor's IP can be forwarded (apps/web/src/lib/otp.server.ts).
       INTERNAL_API_URL: http://injishi-api:8000

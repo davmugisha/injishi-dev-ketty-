@@ -92,7 +92,6 @@ const PUBLIC = {
   NEXT_PUBLIC_WEB_URL: WEB,
   NEXT_PUBLIC_SITE_URL: WEB,
   NEXT_PUBLIC_PMS_URL: APP,
-  NEXT_PUBLIC_ADMIN_URL: ADMIN,
   NEXT_PUBLIC_INJISHI_ENVIRONMENT: "production",
 };
 
@@ -158,7 +157,7 @@ function next(app) {
     NEXT_DIST_DIR: DIST,
     PORT: String(port),
     ...(app === "web"
-      ? { INTERNAL_API_URL: `http://127.0.0.1:${UPSTREAM.api}`, OPERATOR_APP_URL: `http://127.0.0.1:${UPSTREAM.app}` }
+      ? { INTERNAL_API_URL: `http://127.0.0.1:${UPSTREAM.api}` }
       : {
           INJISHI_API_URL: `http://127.0.0.1:${UPSTREAM.api}`,
           INJISHI_API_ORIGIN: APP,
@@ -175,7 +174,8 @@ function next(app) {
     const touched = ["tsconfig.json", "next-env.d.ts"].map((file) => path.join(cwd, file));
     const before = touched.map((file) => (existsSync(file) ? readFileSync(file) : null));
     try {
-      execFileSync(process.execPath, [bin, "build"], {
+      // Web builds with webpack under Next 16 (its service worker plugin; apps/web/next.config.ts).
+      execFileSync(process.execPath, [bin, "build", ...(app === "web" ? ["--webpack"] : [])], {
         cwd,
         env: { ...process.env, ...env, NODE_ENV: "production" },
         stdio: ["ignore", "inherit", "inherit"],
@@ -184,7 +184,9 @@ function next(app) {
       for (const [i, file] of touched.entries()) if (before[i] !== null) writeFileSync(file, before[i]);
     }
   }
-  const mode = DEV ? ["dev", "--port", String(port)] : ["start", "--port", String(port)];
+  const mode = DEV
+    ? ["dev", ...(app === "web" ? ["--webpack"] : []), "--port", String(port)]
+    : ["start", "--port", String(port)];
   return start(app, process.execPath, [bin, ...mode], {
     cwd,
     env: { ...env, NODE_ENV: DEV ? "development" : "production" },
