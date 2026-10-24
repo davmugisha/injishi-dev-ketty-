@@ -30,7 +30,7 @@ import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
 // Lazy only (inside `references`): interface-operations imports this module back.
 // Lazy only too: rentals.ts (the rentals leaf) imports this module back.
-import { adapterModeEnum, brokerStatusEnum, idKindEnum, leaseChargeKindEnum, leaseChargeStatusEnum, leaseSigningMethodEnum, paymentAttemptPurposeEnum, paymentAttemptStateEnum, cautionStatusEnum, escrowSourceEnum, escrowStatusEnum, filingStatusEnum, invitationStatusEnum, leaseStatusEnum, maintenanceCategoryEnum, maintenancePriorityEnum, maintenanceRaisedByRoleEnum, maintenanceStatusEnum, placementStatusEnum, renewalStatusEnum, signerRoleEnum } from './enums';
+import { adapterModeEnum, brokerStatusEnum, idKindEnum, moveOutNoticeChannelEnum, moveOutNoticeStatusEnum, moveOutReasonEnum, leaseChargeKindEnum, leaseChargeStatusEnum, leaseSigningMethodEnum, paymentAttemptPurposeEnum, paymentAttemptStateEnum, cautionStatusEnum, escrowSourceEnum, escrowStatusEnum, invitationStatusEnum, leaseStatusEnum, maintenanceCategoryEnum, maintenancePriorityEnum, maintenanceRaisedByRoleEnum, maintenanceStatusEnum, placementStatusEnum, renewalStatusEnum, signerRoleEnum } from './enums';
 import { bookings, guestStays, storedObjects } from './hospitality';
 import { listings, properties, rentalUnits, rooms, spaces } from './inventory';
 import { departments, serviceOrders } from './operations';
@@ -203,10 +203,11 @@ export const leases = pgTable(
     cancelReason: text('cancel_reason'),
     version: integer('version').notNull().default(0),
     // --- LEGACY, dropped by migration 0089 ---
-    /** @deprecated the unit is `unit_id` (same id). */
-    roomId: uuid('room_id')
-      .notNull()
-      .references(() => rooms.id),
+    /**
+     * @deprecated the unit is `unit_id` (same id). Nullable since migration
+     * 0082: a lease on a unit made after the rebuild has no room behind it.
+     */
+    roomId: uuid('room_id').references(() => rooms.id),
     /** @deprecated the tenant's account is `tenants.user_id`. */
     tenantUserId: uuid('tenant_user_id').references(() => users.id),
     /** @deprecated `deposit_rwf`. */
@@ -735,6 +736,17 @@ export const cautionSettlements = pgTable(
 );
 
 
+/**
+ * Notice that a tenancy will end early (blueprint 1.2, reshaped by migration
+ * 0082): given by the tenant (on Injishi, or by letter or in person, which the
+ * landlord records) or by the landlord. One live (not withdrawn) notice per
+ * lease. The landlord acknowledges it, which moves the lease to `ending`; the
+ * tenant may withdraw it, which moves an ending lease back to `active`. The
+ * day the tenant actually left is `leases.ended_on`, never stored here.
+ *
+ * `notice_days` is how far ahead it was given (`move_out_on - filed_on`), and
+ * `is_short_notice` whether that was less than the lease asks for.
+ */
 export const moveOutNotices = pgTable(
   'move_out_notices',
   {
@@ -742,27 +754,33 @@ export const moveOutNotices = pgTable(
     leaseId: uuid('lease_id')
       .notNull()
       .references(() => leases.id, { onDelete: 'cascade' }),
+    filedByRole: signerRoleEnum('filed_by_role').notNull(),
     filedByUserId: uuid('filed_by_user_id').references(() => users.id),
-    moveOutDate: date('move_out_date').notNull(),
+    channel: moveOutNoticeChannelEnum('channel').notNull(),
+    /** The Kigali day it was given. */
+    filedOn: date('filed_on').notNull(),
+    moveOutOn: date('move_out_on').notNull(),
+    reasonCode: moveOutReasonEnum('reason_code').notNull(),
     message: text('message'),
-    noticeGivenDays: integer('notice_given_days'),
+    noticeDays: integer('notice_days').notNull(),
     isShortNotice: boolean('is_short_notice').notNull().default(false),
+    status: moveOutNoticeStatusEnum('status').notNull().default('submitted'),
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+    acknowledgedByUserId: uuid('acknowledged_by_user_id').references(() => users.id),
+    withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
     filedAt: timestamp('filed_at', { withTimezone: true }).notNull().defaultNow(),
-    // --- real-data 1.3.1 ---
-    /** Why the resident is leaving, as the notice form offers it. */
-    reasonCode: text('reason_code'),
-    /** How the notice arrived: in the app (written notice), by letter, by email, in person. */
-    filedVia: text('filed_via'),
   },
   (t) => [
+    uniqueIndex('move_out_notices_live_uk')
+      .on(t.leaseId)
+      .where(sql`${t.status} <> 'withdrawn'`),
+    check('move_out_notices_dates_order', sql`${t.moveOutOn} > ${t.filedOn}`),
+    check('move_out_notices_days_shape', sql`${t.noticeDays} = ${t.moveOutOn} - ${t.filedOn}`),
     check(
-      'move_out_notices_reason_known',
-      sql`${t.reasonCode} IS NULL OR ${t.reasonCode} IN ('kigali', 'leaving', 'own-home', 'terms', 'other')`,
+      'move_out_notices_acknowledged_shape',
+      sql`${t.status} <> 'acknowledged' OR ${t.acknowledgedAt} IS NOT NULL`,
     ),
-    check(
-      'move_out_notices_channel_known',
-      sql`${t.filedVia} IS NULL OR ${t.filedVia} IN ('app', 'letter', 'email', 'in_person')`,
-    ),
+    check('move_out_notices_withdrawn_shape', sql`(${t.status} = 'withdrawn') = (${t.withdrawnAt} IS NOT NULL)`),
   ],
 );
 
@@ -1138,27 +1156,6 @@ export const tenantPlacements = pgTable('tenant_placements', {
   ...timestamps,
 });
 
-
-export const contractFilings = pgTable(
-  'contract_filings',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    leaseId: uuid('lease_id')
-      .notNull()
-      .references(() => leases.id),
-    status: filingStatusEnum('status').notNull().default('pending'),
-    clockStartAt: timestamp('clock_start_at', { withTimezone: true }),
-    dueBy: timestamp('due_by', { withTimezone: true }),
-    filingCopyObjectId: uuid('filing_copy_object_id').references(
-      () => storedObjects.id,
-    ),
-    attempts: integer('attempts').notNull().default(0),
-    failureReason: text('failure_reason'),
-    adapterMode: adapterModeEnum('adapter_mode').notNull().default('mock'),
-    ...timestamps,
-  },
-  (t) => [unique('contract_filings_lease_uk').on(t.leaseId)],
-);
 
 // ===========================================================================
 // Shared: MESSAGING (§6.7)

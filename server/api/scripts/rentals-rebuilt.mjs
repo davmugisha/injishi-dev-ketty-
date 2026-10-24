@@ -21,6 +21,12 @@ export async function rentalsRebuilt(client) {
   return rows[0]?.rebuilt === true;
 }
 
+/** `lease_filings` on a database past migration 0082, which renamed `contract_filings`. */
+export async function filingsTable(client) {
+  const { rows } = await client.query("select to_regclass('public.lease_filings') is not null as renamed");
+  return rows[0]?.renamed === true ? 'lease_filings' : 'contract_filings';
+}
+
 /** The one line every seed prints when it skips its rentals rows. */
 export function skipRentalsNote(script, what) {
   return `${script}: ${what} skipped. The rentals tables were rebuilt (migrations 0073-0080); rentals data comes through the app, not from seeds.`;

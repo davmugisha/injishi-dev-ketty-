@@ -15,6 +15,8 @@ import {
   LeaseChargeStatus,
   LeaseDepositStatus,
   LeaseEventKind,
+  LeaseFilingKind,
+  LeaseFilingStatus,
   LeasePaymentChannel,
   LeasePaymentMethod,
   LeasePaymentStatus,
@@ -22,6 +24,12 @@ import {
   LeaseReminderKind,
   LeaseSigningMethod,
   LeaseStatus,
+  MomoNetwork,
+  MoveOutNoticeChannel,
+  MoveOutNoticeStatus,
+  MoveOutReasonCode,
+  PayoutAccountKind,
+  PayoutAccountStatus,
   RentalUnitState,
   TaxpayerKind,
   UnitKitchen,
@@ -543,14 +551,15 @@ export const placementStatusEnum = pgEnum('placement_status', [
   'unavailable',
 ]);
 
-export const filingStatusEnum = pgEnum('filing_status', [
-  'pending',
-  'filed',
-  'failed',
-]);
+/**
+ * Where a lease filing stands (`LeaseFilingStatus` in contracts): pending
+ * (due) or filed. Migration 0082 swapped the type to drop `failed`, which only
+ * the mock filing adapter of the first residence screens ever wrote.
+ */
+export const filingStatusEnum = pgEnum('filing_status', LeaseFilingStatus.options);
 
 
-// §7b rentals (blueprint 1.1, migrations 0074-0080).
+// §7b rentals (blueprint 1.1, migrations 0074-0082).
 //
 // Every rentals status and kind is a zod enum in
 // `packages/contracts/src/rentals/vocab.ts`, and the database type is built
@@ -574,6 +583,14 @@ export const leaseDepositStatusEnum = pgEnum('lease_deposit_status', LeaseDeposi
 export const depositRefundMethodEnum = pgEnum('deposit_refund_method', DepositRefundMethod.options);
 export const leaseReminderKindEnum = pgEnum('lease_reminder_kind', LeaseReminderKind.options);
 export const leaseReminderChannelEnum = pgEnum('lease_reminder_channel', LeaseReminderChannel.options);
+// Migrations 0081 (getting paid) and 0082 (notices and filings).
+export const payoutAccountKindEnum = pgEnum('payout_account_kind', PayoutAccountKind.options);
+export const payoutAccountStatusEnum = pgEnum('payout_account_status', PayoutAccountStatus.options);
+export const momoNetworkEnum = pgEnum('momo_network', MomoNetwork.options);
+export const moveOutNoticeStatusEnum = pgEnum('move_out_notice_status', MoveOutNoticeStatus.options);
+export const moveOutNoticeChannelEnum = pgEnum('move_out_notice_channel', MoveOutNoticeChannel.options);
+export const moveOutReasonEnum = pgEnum('move_out_reason', MoveOutReasonCode.options);
+export const leaseFilingKindEnum = pgEnum('lease_filing_kind', LeaseFilingKind.options);
 
 
 // §8 money

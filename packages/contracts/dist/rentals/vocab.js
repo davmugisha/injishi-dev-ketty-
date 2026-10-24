@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MOMO_NETWORK_LABEL = exports.MomoNetwork = exports.PayoutAccountStatus = exports.PAYOUT_ACCOUNT_KIND_LABEL = exports.PayoutAccountKind = exports.LoanPurpose = exports.TAXPAYER_KIND_LABEL = exports.TaxpayerKind = exports.ID_KIND_LABEL = exports.IdKind = exports.UnitKitchen = exports.RENTAL_UNIT_STATE_LABEL = exports.RentalUnitState = exports.LeaseFilingKind = exports.MOVE_OUT_REASON_LABEL = exports.MoveOutReasonCode = exports.MoveOutNoticeChannel = exports.MOVE_OUT_NOTICE_STATUS_LABEL = exports.MoveOutNoticeStatus = exports.LeaseReminderChannel = exports.LeaseReminderKind = exports.DepositRefundMethod = exports.LEASE_DEPOSIT_STATUS_LABEL = exports.LeaseDepositStatus = exports.LEASE_PAYMENT_STATUS_LABEL = exports.LeasePaymentStatus = exports.GATEWAY_PAYMENT_METHODS = exports.LEASE_PAYMENT_METHOD_LABEL = exports.LeasePaymentMethod = exports.LEASE_PAYMENT_CHANNEL_LABEL = exports.LeasePaymentChannel = exports.LEASE_CHARGE_STATUS_LABEL = exports.LeaseChargeStatus = exports.LeaseChargeKind = exports.LeaseInvitationStatus = exports.LeaseEventKind = exports.LeaseActorRole = exports.LeaseSigningMethod = exports.LeaseSignerRole = exports.LEASE_STATUS_LABEL = exports.LeaseStatus = exports.PositiveRwf = exports.Rwf = exports.RWF_MAX = void 0;
+exports.MOMO_NETWORK_LABEL = exports.MomoNetwork = exports.PayoutAccountStatus = exports.PAYOUT_ACCOUNT_KIND_LABEL = exports.PayoutAccountKind = exports.LoanPurpose = exports.TAXPAYER_KIND_LABEL = exports.TaxpayerKind = exports.ID_KIND_LABEL = exports.IdKind = exports.UnitKitchen = exports.RENTAL_UNIT_STATE_LABEL = exports.RentalUnitState = exports.LEASE_FILING_STATUS_LABEL = exports.LeaseFilingStatus = exports.LEASE_FILING_KIND_LABEL = exports.LeaseFilingKind = exports.MOVE_OUT_REASON_LABEL = exports.MoveOutReasonCode = exports.MoveOutNoticeChannel = exports.MOVE_OUT_NOTICE_STATUS_LABEL = exports.MoveOutNoticeStatus = exports.LeaseReminderChannel = exports.LeaseReminderKind = exports.DepositRefundMethod = exports.LEASE_DEPOSIT_STATUS_LABEL = exports.LeaseDepositStatus = exports.LEASE_PAYMENT_STATUS_LABEL = exports.LeasePaymentStatus = exports.GATEWAY_PAYMENT_METHODS = exports.LEASE_PAYMENT_METHOD_LABEL = exports.LeasePaymentMethod = exports.LEASE_PAYMENT_CHANNEL_LABEL = exports.LeasePaymentChannel = exports.LEASE_CHARGE_STATUS_LABEL = exports.LeaseChargeStatus = exports.LeaseChargeKind = exports.LeaseInvitationStatus = exports.LeaseEventKind = exports.LeaseActorRole = exports.LeaseSigningMethod = exports.LeaseSignerRole = exports.LEASE_STATUS_LABEL = exports.LeaseStatus = exports.PositiveRwf = exports.Rwf = exports.RWF_MAX = void 0;
 exports.isRwf = isRwf;
 exports.sumRwf = sumRwf;
 exports.prorateRwf = prorateRwf;
@@ -209,6 +209,21 @@ exports.MOVE_OUT_REASON_LABEL = {
 };
 /** What a filing with the tax administration is about. */
 exports.LeaseFilingKind = zod_1.z.enum(["new_lease", "change", "termination"]);
+exports.LEASE_FILING_KIND_LABEL = {
+    new_lease: "New lease",
+    change: "Change to a lease",
+    termination: "Lease ended early",
+};
+/**
+ * Where a filing stands: `pending` is due (by `due_on`), `filed` once the
+ * landlord records the reference. Late is worked out (pending past its due
+ * day), never stored. The database type keeps its old name, `filing_status`.
+ */
+exports.LeaseFilingStatus = zod_1.z.enum(["pending", "filed"]);
+exports.LEASE_FILING_STATUS_LABEL = {
+    pending: "Due",
+    filed: "Filed",
+};
 // --- Units -----------------------------------------------------------------------
 /** Whether a unit can be let. Occupied or vacant is worked out from leases, never stored. */
 exports.RentalUnitState = zod_1.z.enum(["active", "off_market", "retired"]);

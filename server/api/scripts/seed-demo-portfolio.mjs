@@ -66,7 +66,7 @@ import {
   filingEntries,
 } from './contract-filings.mjs';
 import { rentHistory } from './rent-history.mjs';
-import { rentalsRebuilt, skipRentalsNote } from './rentals-rebuilt.mjs';
+import { filingsTable, rentalsRebuilt, skipRentalsNote } from './rentals-rebuilt.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
 import { apiEnvFile } from './env-file.mjs';
 
@@ -1072,7 +1072,8 @@ async function purge(c) {
     await q(`DELETE FROM caution_holds WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
     await q(`DELETE FROM maintenance_tickets WHERE id::text LIKE $1 OR lease_id::text LIKE $1 OR room_id::text LIKE $1`);
     await q(`DELETE FROM move_out_notices WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
-    await q(`DELETE FROM contract_filings WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
+    // Migration 0082 renamed contract_filings to lease_filings.
+    await q(`DELETE FROM ${(await filingsTable(c))} WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
     // The signatures this script backfilled onto seed-demo.mjs's five leases.
     // It owns them: they were null before it ran, and nothing else writes them.
     await c.query(
@@ -1127,7 +1128,7 @@ async function summary(c) {
     [DEMO.greenHillsWorkspace],
   );
   const filings = await one(
-    `SELECT cf.status s, count(*)::int n FROM contract_filings cf
+    `SELECT cf.status s, count(*)::int n FROM ${await filingsTable(c)} cf
        JOIN leases l ON l.id = cf.lease_id WHERE l.workspace_id = $1 GROUP BY 1 ORDER BY 1`,
     [DEMO.greenHillsWorkspace],
   );

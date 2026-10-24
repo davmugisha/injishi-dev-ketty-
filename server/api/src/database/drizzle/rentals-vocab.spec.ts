@@ -6,6 +6,8 @@ import {
   LeaseChargeStatus,
   LeaseDepositStatus,
   LeaseEventKind,
+  LeaseFilingKind,
+  LeaseFilingStatus,
   LeaseInvitationStatus,
   LeasePaymentChannel,
   LeasePaymentMethod,
@@ -15,6 +17,12 @@ import {
   LeaseSignerRole,
   LeaseSigningMethod,
   LeaseStatus,
+  MomoNetwork,
+  MoveOutNoticeChannel,
+  MoveOutNoticeStatus,
+  MoveOutReasonCode,
+  PayoutAccountKind,
+  PayoutAccountStatus,
   RentalUnitState,
   TaxpayerKind,
   UnitKitchen,
@@ -24,6 +32,7 @@ import { join } from 'node:path';
 
 import {
   depositRefundMethodEnum,
+  filingStatusEnum,
   idKindEnum,
   invitationStatusEnum,
   leaseActorRoleEnum,
@@ -31,6 +40,7 @@ import {
   leaseChargeStatusEnum,
   leaseDepositStatusEnum,
   leaseEventKindEnum,
+  leaseFilingKindEnum,
   leasePaymentChannelEnum,
   leasePaymentMethodEnum,
   leasePaymentStatusEnum,
@@ -38,6 +48,12 @@ import {
   leaseReminderKindEnum,
   leaseSigningMethodEnum,
   leaseStatusEnum,
+  momoNetworkEnum,
+  moveOutNoticeChannelEnum,
+  moveOutNoticeStatusEnum,
+  moveOutReasonEnum,
+  payoutAccountKindEnum,
+  payoutAccountStatusEnum,
   rentalUnitStateEnum,
   signerRoleEnum,
   taxpayerKindEnum,
@@ -51,7 +67,8 @@ import {
  * The pgEnums are built from the zod `.options`, so they cannot drift in the
  * code; what this pins is the pairing itself, and the two types the rentals
  * tables share with older ones (`signer_role`, `invitation_status`), which are
- * written out by hand. A value added to vocab.ts without its migration, or a
+ * written out by hand, and `filing_status`, which kept its name when
+ * migration 0082 rebuilt it from `LeaseFilingStatus`. A value added to vocab.ts without its migration, or a
  * shared type widened for someone else, fails here.
  *
  * Order matters too: Postgres sorts enum values by their declared order, so a
@@ -77,6 +94,14 @@ const PAIRS: ReadonlyArray<readonly [string, { enumName: string; enumValues: rea
   ['unit_kitchen', unitKitchenEnum, UnitKitchen],
   ['id_kind', idKindEnum, IdKind],
   ['taxpayer_kind', taxpayerKindEnum, TaxpayerKind],
+  ['payout_account_kind', payoutAccountKindEnum, PayoutAccountKind],
+  ['payout_account_status', payoutAccountStatusEnum, PayoutAccountStatus],
+  ['momo_network', momoNetworkEnum, MomoNetwork],
+  ['move_out_notice_status', moveOutNoticeStatusEnum, MoveOutNoticeStatus],
+  ['move_out_notice_channel', moveOutNoticeChannelEnum, MoveOutNoticeChannel],
+  ['move_out_reason', moveOutReasonEnum, MoveOutReasonCode],
+  ['lease_filing_kind', leaseFilingKindEnum, LeaseFilingKind],
+  ['filing_status', filingStatusEnum, LeaseFilingStatus],
 ];
 
 describe('rentals database enums match the contracts vocabulary', () => {

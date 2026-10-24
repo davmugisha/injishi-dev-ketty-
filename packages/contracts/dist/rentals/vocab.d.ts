@@ -95,6 +95,15 @@ export declare const MOVE_OUT_REASON_LABEL: Readonly<Record<MoveOutReasonCode, s
 /** What a filing with the tax administration is about. */
 export declare const LeaseFilingKind: z.ZodEnum<["new_lease", "change", "termination"]>;
 export type LeaseFilingKind = z.infer<typeof LeaseFilingKind>;
+export declare const LEASE_FILING_KIND_LABEL: Readonly<Record<LeaseFilingKind, string>>;
+/**
+ * Where a filing stands: `pending` is due (by `due_on`), `filed` once the
+ * landlord records the reference. Late is worked out (pending past its due
+ * day), never stored. The database type keeps its old name, `filing_status`.
+ */
+export declare const LeaseFilingStatus: z.ZodEnum<["pending", "filed"]>;
+export type LeaseFilingStatus = z.infer<typeof LeaseFilingStatus>;
+export declare const LEASE_FILING_STATUS_LABEL: Readonly<Record<LeaseFilingStatus, string>>;
 /** Whether a unit can be let. Occupied or vacant is worked out from leases, never stored. */
 export declare const RentalUnitState: z.ZodEnum<["active", "off_market", "retired"]>;
 export type RentalUnitState = z.infer<typeof RentalUnitState>;

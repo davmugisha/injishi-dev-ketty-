@@ -254,6 +254,23 @@ export const MOVE_OUT_REASON_LABEL: Readonly<Record<MoveOutReasonCode, string>> 
 /** What a filing with the tax administration is about. */
 export const LeaseFilingKind = z.enum(["new_lease", "change", "termination"]);
 export type LeaseFilingKind = z.infer<typeof LeaseFilingKind>;
+export const LEASE_FILING_KIND_LABEL: Readonly<Record<LeaseFilingKind, string>> = {
+  new_lease: "New lease",
+  change: "Change to a lease",
+  termination: "Lease ended early",
+};
+
+/**
+ * Where a filing stands: `pending` is due (by `due_on`), `filed` once the
+ * landlord records the reference. Late is worked out (pending past its due
+ * day), never stored. The database type keeps its old name, `filing_status`.
+ */
+export const LeaseFilingStatus = z.enum(["pending", "filed"]);
+export type LeaseFilingStatus = z.infer<typeof LeaseFilingStatus>;
+export const LEASE_FILING_STATUS_LABEL: Readonly<Record<LeaseFilingStatus, string>> = {
+  pending: "Due",
+  filed: "Filed",
+};
 
 // --- Units -----------------------------------------------------------------------
 

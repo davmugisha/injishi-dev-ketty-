@@ -9,6 +9,7 @@
  *   - money on a lease: payments, their allocations to charges, the deposit,
  *     and reminders (charges themselves live with the lease in `residence.ts`);
  *   - the lease timeline (`lease_events`);
+ *   - filings of a lease with the tax administration (`lease_filings`);
  *   - LEGACY tables of the first residence screens, kept only until migration
  *     0089 drops them once their rows are migrated and nothing reads them:
  *     `residence_units` (now `rental_units`), `lease_clause_templates`,
@@ -38,10 +39,12 @@ import { amount, currency, timestamps } from './columns';
 import {
   adapterModeEnum,
   depositRefundMethodEnum,
+  filingStatusEnum,
   idKindEnum,
   leaseActorRoleEnum,
   leaseDepositStatusEnum,
   leaseEventKindEnum,
+  leaseFilingKindEnum,
   leasePaymentChannelEnum,
   leasePaymentMethodEnum,
   leasePaymentStatusEnum,
@@ -88,6 +91,10 @@ export const landlordProfiles = pgTable(
     contactEmail: text('contact_email'),
     defaultGraceDays: integer('default_grace_days').notNull().default(5),
     defaultNoticeDays: integer('default_notice_days').notNull().default(15),
+    /** The day of the month rent falls due on a new lease (1 to 28). Null: the day the lease starts. */
+    defaultRentDueDay: integer('default_rent_due_day'),
+    /** When the landlord last saved the lease defaults; null while they are the starting values. */
+    leaseDefaultsSetAt: timestamp('lease_defaults_set_at', { withTimezone: true }),
     /** A broker's placement fee, as a percent of one month's rent. Null: not set. */
     brokerFeePercent: integer('broker_fee_percent'),
     /** Start a signed lease on its start date without the landlord pressing Start. */
@@ -99,6 +106,10 @@ export const landlordProfiles = pgTable(
     unique('landlord_profiles_workspace_uk').on(t.workspaceId),
     check('landlord_profiles_grace_days_range', sql`${t.defaultGraceDays} BETWEEN 0 AND 31`),
     check('landlord_profiles_notice_days_range', sql`${t.defaultNoticeDays} BETWEEN 15 AND 180`),
+    check(
+      'landlord_profiles_due_day_range',
+      sql`${t.defaultRentDueDay} IS NULL OR ${t.defaultRentDueDay} BETWEEN 1 AND 28`,
+    ),
     check(
       'landlord_profiles_broker_fee_range',
       sql`${t.brokerFeePercent} IS NULL OR ${t.brokerFeePercent} BETWEEN 0 AND 200`,
@@ -406,6 +417,47 @@ export const leaseReminders = pgTable(
       .on(t.chargeId, t.kind)
       .where(sql`${t.kind} <> 'manual'`),
     check('lease_reminders_charge_shape', sql`${t.kind} = 'manual' OR ${t.chargeId} IS NOT NULL`),
+  ],
+);
+
+// ===========================================================================
+// Filings with the tax administration
+// ===========================================================================
+
+/**
+ * A copy of a lease the landlord owes the tax administration (blueprint 1.2;
+ * `contract_filings` renamed by migration 0082): within 15 days of signing a
+ * new lease, 30 days of a change or an early end (`leaseFilingDueOn` in
+ * contracts). The landlord files it on RRA's own portal and records it here
+ * (`filed_on`, the RRA reference, a photo or PDF of the proof). Late is
+ * worked out (pending past `due_on`), never stored.
+ */
+export const leaseFilings = pgTable(
+  'lease_filings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    leaseId: uuid('lease_id')
+      .notNull()
+      .references(() => leases.id),
+    kind: leaseFilingKindEnum('kind').notNull().default('new_lease'),
+    dueOn: date('due_on').notNull(),
+    status: filingStatusEnum('status').notNull().default('pending'),
+    filedOn: date('filed_on'),
+    /** The reference RRA gave the filing. */
+    reference: text('reference'),
+    proofObjectId: uuid('proof_object_id').references(() => storedObjects.id),
+    filedByUserId: uuid('filed_by_user_id').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    // One new-lease filing and one termination per lease; changes may repeat.
+    uniqueIndex('lease_filings_lease_kind_uk')
+      .on(t.leaseId, t.kind)
+      .where(sql`${t.kind} <> 'change'`),
+    index('lease_filings_due_idx')
+      .on(t.dueOn)
+      .where(sql`${t.status} = 'pending'`),
+    check('lease_filings_filed_shape', sql`(${t.status} = 'filed') = (${t.filedOn} IS NOT NULL)`),
   ],
 );
 
