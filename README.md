@@ -53,8 +53,8 @@ pnpm dev:all                                  # the whole product, in this termi
 `pnpm dev:all` starts Docker Desktop when it is not running, brings up
 Postgres, Redis, MinIO and Mailpit, migrates (seeding only a database that was
 never seeded), then runs every app with each line labelled by its app: web on
-:3000, admin on :3001, the operator app on :3002, the API on :8000 with its
-queue worker, and mobile for Expo Go, with a QR code to scan on your phone. The
+:3000, the operator app on :3002, the API on :8000 with its queue worker, and
+mobile for Expo Go, with a QR code to scan on your phone. The
 API runs as the demo, so every sign-in code is `123456`. Ctrl+C stops the apps;
 Docker keeps running until `pnpm dev:stack:down`. `pnpm dev:all --skip mobile`
 or `--only web,api` start fewer. Installing Docker, and what the stack does, is
@@ -64,8 +64,8 @@ Open <http://localhost:3000>. The operator surfaces are reached through that
 same origin — `/w`, `/oversight`, `/host`, `/landlord`, `/broker`. Health check
 for the API is <http://localhost:8000/api/v1/health>.
 
-`pnpm dev` starts web alone; the operator routes then 502 until `pnpm app:dev`
-is running as well.
+`pnpm dev` starts web and the operator app only: no API, worker or Docker
+services.
 
 `infra/docker/docker-compose.yml` holds the backing services only. The apps run
 on the host, with hot reload; the header of that file says why. The stack built
@@ -260,12 +260,12 @@ Run everything from the repository root.
 ```bash
 pnpm install              # install
 pnpm dev:all              # everything: Docker services, migrations, then api,
-                          # worker, web, admin, app and mobile in one terminal
-pnpm dev                  # web on :3000
+                          # worker, web, app and mobile in one terminal
+pnpm dev                  # web on :3000 and the operator app on :3002
 pnpm app:dev              # operator app on :3002
 pnpm api:dev              # api on :8000, watch mode
 pnpm api:worker           # queue worker (needs the api built)
-pnpm build                # build web + app + admin + api (not mobile)
+pnpm build                # build web + app + api (not mobile)
 pnpm typecheck            # tsc --noEmit across the workspace
 pnpm lint                 # eslint across the workspace
 ```

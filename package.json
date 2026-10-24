@@ -33,6 +33,7 @@
     "db:seed": "pnpm --filter @injishi/api db:seed",
     "fixtures:seed": "pnpm --filter @injishi/db seed",
     "fixtures:reset": "pnpm --filter @injishi/db reset",
+    "dev:all": "node scripts/dev-all.mjs",
     "dev:stack": "node scripts/dev-stack.mjs",
     "dev:stack:down": "node scripts/dev-stack.mjs --down",
     "dev:stack:reset": "node scripts/dev-stack.mjs --reset"

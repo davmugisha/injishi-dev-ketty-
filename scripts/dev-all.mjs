@@ -3,7 +3,7 @@
  * Every app in one terminal.
  *
  *   pnpm dev:all                      the whole product: the Docker services,
- *                                     then api, worker, web, admin, app, mobile
+ *                                     then api, worker, web, app, mobile
  *   pnpm dev:all --skip mobile        everything except these (comma separated)
  *   pnpm dev:all --only web,api       just these
  *   pnpm dev:all --lan 192.168.1.68   the address a phone reaches this PC on
@@ -26,7 +26,7 @@
  *      prints with its name;
  *   6. says where everything is once it answers, with a QR code for Expo Go.
  *
- * MOBILE STARTS FOR EXPO GO ON A PHONE (`start:go`). A phone cannot reach
+ * MOBILE STARTS FOR EXPO GO ON A PHONE (its `dev` script). A phone cannot reach
  * `localhost`, which is the phone itself, so Metro advertises this PC's LAN
  * address and the bundle inlines the API at that address too:
  * EXPO_PUBLIC_API_URL from the environment beats the one in apps/mobile/.env.
@@ -76,9 +76,8 @@ const APPS = [
   { name: 'api', pkg: '@injishi/api', script: 'dev', color: 32, needsStack: true },
   { name: 'worker', pkg: '@injishi/api', script: 'worker:dev', color: 90, needsStack: true },
   { name: 'web', pkg: '@injishi/web', script: 'dev', dir: 'apps/web', color: 36 },
-  { name: 'admin', pkg: '@injishi/admin', script: 'dev', dir: 'apps/admin', color: 35 },
   { name: 'app', pkg: '@injishi/app', script: 'dev', dir: 'apps/app', color: 94 },
-  { name: 'mobile', pkg: '@injishi/mobile', script: 'start:go', color: 33 },
+  { name: 'mobile', pkg: '@injishi/mobile', script: 'dev', color: 33 },
 ];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -93,7 +92,7 @@ function usage() {
     'Starts Postgres, Redis, MinIO and Mailpit in Docker, migrates, then every app',
     `in this one terminal: ${APPS.map((a) => a.name).join(', ')}.`,
     '',
-    '  --skip mobile,admin   everything except these',
+    '  --skip mobile,app     everything except these',
     '  --only web,api        just these',
     "  --lan 192.168.1.68    the address your phone reaches this PC on (Expo Go).",
     "                        Default: this PC's Wi-Fi address",
@@ -157,10 +156,13 @@ function pnpmCommand(args) {
  * pnpm keeps a copy of the lockfile it last installed from. When the real one
  * no longer matches it, a pull moved a dependency and the apps would start on
  * the old tree. Compared without line endings: a Windows checkout may hold CRLF.
+ * pnpm 12 writes pnpm-lock.yaml as two YAML documents, its own version pin and
+ * then the lockfile proper, and its copy holds only the last one, so the last
+ * document is what is compared. A one-document lockfile compares whole.
  */
 function ensureInstalled() {
   const read = (file) => (existsSync(file) ? readFileSync(file, 'utf8').replace(/\r/g, '') : null);
-  const wanted = read(path.join(ROOT, 'pnpm-lock.yaml'));
+  const wanted = read(path.join(ROOT, 'pnpm-lock.yaml'))?.split(/^---\n/m).at(-1) ?? null;
   const installed = read(path.join(ROOT, 'node_modules', '.pnpm', 'lock.yaml'));
   if (wanted !== null && wanted === installed) return;
 
@@ -472,10 +474,9 @@ function printServerSummary(servers, results, ctx) {
     api: `http://localhost:${ctx.apiPort}/api/v1/health`,
     worker: 'running (queues, no port)',
     web: `http://localhost:${portOf('web')}`,
-    admin: `http://localhost:${portOf('admin')}   (sends you to web's sign-in first)`,
-    app: `http://localhost:${portOf('app')}   (sends you to web's sign-in first)`,
+    app: `http://localhost:${portOf('app')}   (the operator zone; open it here directly for hot reload)`,
   };
-  const order = ['web', 'admin', 'app', 'api', 'worker'];
+  const order = ['web', 'app', 'api', 'worker'];
   const rows = order
     .map((name) => servers.findIndex((a) => a.name === name))
     .filter((i) => i !== -1)
