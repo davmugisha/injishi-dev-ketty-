@@ -25,8 +25,8 @@ pnpm docker:down --apps         # stop the apps, keep db, redis, mailpit
 | Redis    | `127.0.0.1:6381` |
 
 Sign in at <http://localhost:3000/sign-in> or <http://localhost:3002/sign-in>
-with `landlord@injishi.com`, `host@injishi.com`, `admin@injishi.com`,
-`guest@injishi.com` or a demo persona; the code is `123456`. Each person lands
+as `admin@injishi.test` (the first Injishi admin) or any new email, which
+creates the account. Codes are real: read them in Mailpit. Each person lands
 on their own home in the app (a guest on web's `/trips`). This is the same
 model as production, where the app is `app.injishi.com`.
 
@@ -36,7 +36,8 @@ model as production, where the app is `app.injishi.com`.
   apps while it builds; `colima stop && colima start --memory 6` keeps them up.
   If Docker stops answering mid-build, `colima restart` and run the same
   command again; it resumes from the cached install.
-- **The API runs as the demo** (fixed code, persona picker) on
+- **The API runs as production on the testing database** (real codes in
+  Mailpit, no personas, mock payments; reference data and settings only) on
   `server/api/.env.test`, then `server/api/.env.test.local` if you have one,
   with `db`, `redis` and `mailpit` as hosts. Uploads go to `server/api/.storage`,
   the folder `pnpm api:dev:test` uses too.

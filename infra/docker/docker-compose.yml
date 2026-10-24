@@ -53,13 +53,12 @@
 # values. Production builds (`next build`, `node dist/main.js`), not dev
 # servers: nothing recompiles on save, so after a code change rebuild the one
 # service. What makes them right for a laptop:
-#   - the API runs as the DEMO platform, as `pnpm api:dev:test` does. The image
-#     bakes NODE_ENV=production, under which an unset INJISHI_ENVIRONMENT means
-#     production (random codes, no personas), so it is pinned to `demo` here,
-#     exactly as docker-compose.demo.yml pins it. That needs the sample database
-#     `pnpm dev:stack` marks, and gives the fixed code 123456 and the persona
-#     picker. Every mail lands in Mailpit. Logs are JSON (pino-pretty is a dev
-#     dependency the image does not carry), and OTP_DEBUG_LOG is off;
+#   - the API runs as PRODUCTION on the sample-marked TESTING database, as
+#     staging does and as `pnpm api:dev:test` does (server/api/.env.test): real
+#     random sign-in codes, read in Mailpit, no personas, mock payments. The
+#     database holds reference data and test settings only (STACK_SEED=reference).
+#     Logs are JSON (pino-pretty is a dev dependency the image does not carry),
+#     and OTP_DEBUG_LOG is off;
 #   - every other API value is server/api/.env.test (and .env.test.local when
 #     you have one), with the container addresses of db, redis and mailpit;
 #   - ONE NETWORK NAMESPACE for api, web and app. The public URLs are baked
@@ -87,8 +86,10 @@ x-local-public: &local-public
 
 # server/api/.env.test, then only what differs inside Docker.
 x-local-api-env: &local-api-env
-  # Pinned: the image says production, the local stack is the demo (above).
-  INJISHI_ENVIRONMENT: demo
+  # The testing database (2026-10-24): a production process on the
+  # sample-marked test database, as staging runs. Real codes in Mailpit, no
+  # personas, mock payments allowed. server/api/.env.test says the same.
+  INJISHI_ENVIRONMENT: production
   INJISHI_DATABASE_KIND: sample
   NODE_ENV: production
   # The script derives it from DATABASE_URL in .env.test (same credentials,

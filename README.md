@@ -39,9 +39,12 @@ pnpm docker:up        # Postgres, Redis, Mailpit, then the API, worker, web and 
 ```
 
 Open <http://localhost:3000> (marketplace) or <http://localhost:3002/sign-in>.
-Every seeded account (`landlord@injishi.com`, `host@injishi.com`,
-`admin@injishi.com`, `guest@injishi.com`) and demo persona signs in with the
-code `123456`; every mail lands in Mailpit at <http://localhost:8025>. For hot
+The local database is a TESTING database: reference data (geography, classes,
+amenities, tax rates) and test settings, no demo people or businesses. Sign in
+as `admin@injishi.test` (the first Injishi admin) or any new email to create an
+account; codes are real and land in Mailpit at <http://localhost:8025>. Set
+`STACK_SEED=sample` and `INJISHI_ENVIRONMENT=demo` in `server/api/.env.test`
+for the old demo world (fixed code `123456`). For hot
 reload, run the apps on your machine with `pnpm dev:all` instead.
 `infra/docker/README.md` has the details.
 

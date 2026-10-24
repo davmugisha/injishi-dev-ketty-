@@ -64,22 +64,53 @@ const REDIS_HEALTH_TIMEOUT_MS = 60_000;
 const PORT_TIMEOUT_MS = 30_000;
 
 /**
- * After migrating: mark the database sample, then run the one recipe. The same
- * two steps the first bring up of a deployed sample stack runs (ADR-043 AC-31).
+ * After migrating: mark the database sample (so payments, SMS and identity may
+ * stay on their mocks), then seed. Which seed is the env file's STACK_SEED
+ * (2026-10-24):
+ *   - `reference` (the default, the TESTING database): platform reference data
+ *     (seed-reference.mjs, what production runs), test settings
+ *     (seed-test-config.mjs) and the first admin (grant-staff.mjs, from
+ *     TEST_ADMIN_EMAIL). No demo people, businesses or homes.
+ *   - `sample`: the old demo world (seed-sample.mjs, ADR-043 AC-31).
  */
-const STEPS = [
-  {
-    script: 'mark-sample-database.mjs',
-    args: ['--sample'],
-    what: 'mark the database as sample data',
-    onFailure:
-      '\nThis database already holds accounts from before the sample marker existed, so\n' +
-      'Postgres will not mark it. Either:\n' +
-      '  pnpm dev:stack:reset     rebuild it as a sample database (deletes its data), or\n' +
-      '  keep it, and run the API with INJISHI_ENVIRONMENT=production (random codes, in Mailpit).',
-  },
-  { script: 'seed-sample.mjs', what: 'the sample recipe (seed-sample.mjs)' },
-];
+const MARK_STEP = {
+  script: 'mark-sample-database.mjs',
+  args: ['--sample'],
+  what: 'mark the database as sample data',
+  onFailure:
+    '\nThis database already holds accounts from before the sample marker existed, so\n' +
+    'Postgres will not mark it. Either:\n' +
+    '  pnpm dev:stack:reset     rebuild it (deletes its data), or\n' +
+    '  keep it, and run the API with INJISHI_DATABASE_KIND unset.',
+};
+
+export function stackSeed(cfg) {
+  const seed = cfg.env.STACK_SEED?.trim().toLowerCase() || 'reference';
+  if (seed !== 'reference' && seed !== 'sample') {
+    throw new StackError(`STACK_SEED in ${cfg.envRel} is "${seed}"; use reference or sample.`);
+  }
+  return seed;
+}
+
+export function stepsFor(cfg) {
+  if (stackSeed(cfg) === 'sample') {
+    return [MARK_STEP, { script: 'seed-sample.mjs', what: 'the sample recipe (seed-sample.mjs)' }];
+  }
+  const steps = [
+    MARK_STEP,
+    { script: 'seed-reference.mjs', what: 'platform reference data' },
+    { script: 'seed-test-config.mjs', what: 'test settings (registration fees)' },
+  ];
+  const admin = cfg.env.TEST_ADMIN_EMAIL?.trim();
+  if (admin) {
+    steps.push({
+      script: 'grant-staff.mjs',
+      args: ['--email', admin, '--role', 'super_admin'],
+      what: `the first admin, ${admin}`,
+    });
+  }
+  return steps;
+}
 
 /** Variables the API no longer reads (ADR-043). A line left in .env does nothing. */
 const RETIRED_VARIABLES = [
@@ -568,19 +599,22 @@ Or start what you need, each in its own terminal, from injishi/:
 
   Mailpit   http://localhost:8025     every mail the API sends
 ${usesMinio(cfg) ? '  MinIO     http://localhost:9001     object storage console\n' : '  Storage   on disk (STORAGE_ADAPTER_MODE=local), no MinIO\n'}
-Sign in at http://localhost:3002/sign-in (web's :3000/sign-in hands off there)
-with a seeded account, or pick one of the demo personas listed there:
-  host@injishi.com      owner of the seeded hotel
-  landlord@injishi.com  owner of the seeded residence
-  admin@injishi.com     platform super_admin (the app's /admin)
-  guest@injishi.com     marketplace only
 ${
-  fixedCode
-    ? '  Code: 123456. The API runs as the demo (INJISHI_ENVIRONMENT unset), and every\n' +
-      '  code also lands in Mailpit at http://localhost:8025.'
-    : '  Code: random, since the API runs as production. Read it in Mailpit at\n' +
-      '  http://localhost:8025, or in the `pnpm api:dev:test` log when OTP_DEBUG_LOG=true.'
-}`);
+  stackSeed(cfg) === 'reference'
+    ? 'This is the TESTING database: reference data and settings, no demo accounts.\n' +
+      'Sign in at http://localhost:3002/sign-in (web\'s :3000/sign-in hands off there) as\n' +
+      `${cfg.env.TEST_ADMIN_EMAIL?.trim() || 'an admin you grant with scripts/grant-staff.mjs'} (Injishi admin), or with any new email to create an\n` +
+      'account. Codes are real: read them in Mailpit at http://localhost:8025.'
+    : 'Sign in at http://localhost:3002/sign-in (web\'s :3000/sign-in hands off there)\n' +
+      'with a seeded account, or pick one of the demo personas listed there:\n' +
+      '  host@injishi.com      owner of the seeded hotel\n' +
+      '  landlord@injishi.com  owner of the seeded residence\n' +
+      '  admin@injishi.com     platform super_admin (the app\'s /admin)\n' +
+      '  guest@injishi.com     marketplace only\n' +
+      (fixedCode
+        ? '  Code: 123456. The API runs as the demo, and every code also lands in Mailpit.'
+        : '  Code: random, since the API runs as production. Read it in Mailpit.')
+}}`);
 }
 
 /**
@@ -625,7 +659,7 @@ export async function up(api, cfg, { reset = false, seed = 'always', summary = t
         '`pnpm dev:stack` reseeds.',
     );
   } else {
-    for (const step of STEPS) {
+    for (const step of stepsFor(cfg)) {
       runNodeScript(api, cfg, step, `${step.script}: ${step.what}`);
     }
   }

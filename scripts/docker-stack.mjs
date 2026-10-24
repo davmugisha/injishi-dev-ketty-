@@ -254,9 +254,10 @@ Running in Docker (compose project "docker", profile "${PROFILE}"):
   API       http://localhost:8000     health: http://localhost:8000/api/v1/health
   Mailpit   http://localhost:8025     every mail, sign-in codes included
 
-Code 123456 for every seeded account (landlord@injishi.com, host@injishi.com, ...) and
-the demo personas. Sign in at http://localhost:3002/sign-in (or :3000/sign-in,
-which hands off there): each person lands on their own home.
+The TESTING database: reference data and settings only, no demo accounts.
+Sign in at http://localhost:3002/sign-in (or :3000/sign-in, which hands off there)
+as admin@injishi.test (Injishi admin) or any new email; codes are real, read them
+in Mailpit. Each person lands on their own home.
 
 After a code change:  pnpm docker:rebuild web   (or api, app)
 Logs:                 pnpm docker:logs api
