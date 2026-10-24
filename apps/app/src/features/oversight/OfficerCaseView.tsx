@@ -15,6 +15,8 @@ import type {
 import { Icon, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import NextLink from "next/link";
 import { useState } from "react";
+import { caseRef } from "@/server/sources/oversight";
+import { approveAction, checkDocumentAction, fieldVerifyAction, rejectAction } from "./actions";
 import { CaseDecision, type Choice } from "./CaseDecision";
 import { CaseDocuments } from "./CaseDocuments";
 import { CaseInfoDialog } from "./CaseInfoDialog";
@@ -37,9 +39,48 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
   const [reason, setReason] = useState(reasons[0]?.id ?? "");
   const [note, setNote] = useState(file.rejectionNote);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [outcome, setOutcome] = useState<string | null>(null);
+
+  /** Set on a case read from the registry: which gate this officer decides here. Absent on sample cases. */
+  const gate = file.gate;
+  const live = gate !== undefined;
+  const ref = live ? caseRef(file.id) : file.id;
 
   const locked = stage !== "review";
-  const missing = file.checks.filter((c) => !checks[c.id]);
+  // The approver does not re-read the documents: they decide on what the field verifier recorded.
+  const missing = gate === "approval" ? [] : file.checks.filter((c) => !checks[c.id]);
+
+  /** Record one document as read on the registry (the field verifier's act), then tick it here. */
+  const readDocument = async (id: string) => {
+    setBusy(true);
+    setError("");
+    const res = await checkDocumentAction(file.id, id);
+    setBusy(false);
+    if (res.ok) setChecks((s) => ({ ...s, [id]: true }));
+    else setError(res.error);
+  };
+
+  /** Send a decision to the registry; the stage changes only when the registry accepted it. */
+  const decide = async (call: Promise<{ ok: true; value: string } | { ok: false; error: string }>, next: CaseStage) => {
+    setBusy(true);
+    setError("");
+    const res = await call;
+    setBusy(false);
+    if (res.ok) {
+      setOutcome(res.value);
+      setStage(next);
+    } else setError(res.error);
+  };
+  const onVerify = () => {
+    if (!gate) return setStage("verified");
+    void decide(gate === "field" ? fieldVerifyAction(file.id, "") : approveAction(file.id, ""), "verified");
+  };
+  const onReject = () => {
+    if (!gate) return setStage("rejected");
+    void decide(rejectAction(file.id, gate, reason, note), "rejected");
+  };
   const done = file.checks.length - missing.length;
   const pct = file.checks.length ? Math.round((done / file.checks.length) * 100) : 0;
   const approver = file.officers.find((o) => o.duty === "approver")?.name ?? "";
@@ -85,8 +126,78 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
     },
   }[stage];
 
-  const stageEvent: CaseEvent | null =
-    stage === "info"
+  const liveStep: { current: number; items: [string, string][] } | null = gate
+    ? {
+        current:
+          gate === "field" ? (stage === "review" ? 1 : stage === "verified" ? 2 : 3) : stage === "review" ? 2 : 3,
+        items: [
+          ["Submitted", submitted],
+          [
+            "Field verification",
+            gate === "approval"
+              ? "Recorded"
+              : stage === "review"
+                ? "You · in review"
+                : stage === "verified"
+                  ? "You · just now"
+                  : "Rejected · you",
+          ],
+          [
+            "Approval",
+            gate === "field"
+              ? stage === "verified"
+                ? "Waiting for an approver"
+                : stage === "rejected"
+                  ? "Not needed"
+                  : "Second officer"
+              : stage === "review"
+                ? "You · in review"
+                : stage === "verified"
+                  ? "You · just now"
+                  : "Rejected · you",
+          ],
+          ["Decision sent", stage === "review" ? "To the business" : "To the business · just now"],
+        ] as [string, string][],
+      }
+    : null;
+  const stepper = liveStep ?? steps;
+
+  const liveEvent: CaseEvent | null =
+    gate && stage !== "review"
+      ? stage === "rejected"
+        ? {
+            id: "rejected",
+            icon: "Xmark",
+            title: "Rejected · your reason code and explanation went to the owner",
+            when: "Just now · Injishi and email",
+            state: "Delivered",
+            tone: "danger",
+          }
+        : gate === "field"
+          ? {
+              id: "verified",
+              icon: "Check",
+              title: "Field verified · waiting for an approving officer",
+              when: "Just now · Injishi",
+              state: "Delivered",
+              tone: "success",
+            }
+          : {
+              id: "approved",
+              icon: "Check",
+              title:
+                outcome === "active"
+                  ? "Approved · the business is open"
+                  : "Approved · it opens once the owner claims it",
+              when: "Just now · Injishi and email",
+              state: "Delivered",
+              tone: "success",
+            }
+      : null;
+
+  const stageEvent: CaseEvent | null = gate
+    ? liveEvent
+    : stage === "info"
       ? {
           id: "info",
           icon: "Envelope",
@@ -118,8 +229,29 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
   const final = file.events.filter((e) => e.id === "final");
   const events = [...sent, ...(stageEvent ? [stageEvent] : []), ...final];
 
-  const auditTop: CaseAuditEntry | null =
-    stage === "info"
+  const liveAudit: CaseAuditEntry | null =
+    gate && stage !== "review"
+      ? stage === "rejected"
+        ? {
+            id: "now",
+            status: "danger",
+            title: "You recorded a rejection",
+            detail: `${reasonLabel} · sent to the business`,
+          }
+        : {
+            id: "now",
+            status: "success",
+            title: gate === "field" ? "You recorded the field verification" : "You approved the registration",
+            detail:
+              gate === "field"
+                ? "Just now · routed to an approving officer"
+                : "Just now · the registry holds the decision",
+          }
+      : null;
+
+  const auditTop: CaseAuditEntry | null = gate
+    ? liveAudit
+    : stage === "info"
       ? { id: "now", status: "warning", title: "You requested more information", detail: "Just now · SLA clock paused" }
       : stage === "verified"
         ? {
@@ -136,7 +268,7 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
               detail: `${reasonLabel} · held for confirmation`,
             }
           : null;
-  const audit = auditTop ? [auditTop, ...file.audit.slice(0, 5)] : file.audit;
+  const audit = auditTop ? [auditTop, ...file.audit.slice(0, gate ? 6 : 5)] : file.audit;
 
   const chip = STAGE_CHIP[stage];
 
@@ -151,7 +283,7 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
             <span aria-hidden="true">›</span>
             <span>{file.queue}</span>
             <span aria-hidden="true">›</span>
-            <span className="tabular">{file.id}</span>
+            <span className="tabular">{ref}</span>
           </>
         }
         title={file.business}
@@ -176,17 +308,19 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
               <ArrowLeft className="size-4" />
               Queues
             </LinkButton>
-            <Button variant="secondary" isDisabled={locked} onPress={() => setInfoOpen(true)}>
-              <Envelope className="size-4" />
-              Request more information
-            </Button>
+            {live ? null : (
+              <Button variant="secondary" isDisabled={locked} onPress={() => setInfoOpen(true)}>
+                <Envelope className="size-4" />
+                Request more information
+              </Button>
+            )}
           </>
         }
       />
 
       <Card render={(p) => <section {...p} />} aria-label="Approval progress" className="px-[18px] py-3.5">
-        <Stepper size="sm" currentStep={steps.current} className="w-full">
-          {steps.items.map(([title, sub]) => (
+        <Stepper size="sm" currentStep={stepper.current} className="w-full">
+          {stepper.items.map(([title, sub]) => (
             <Stepper.Step key={title}>
               <Stepper.Indicator />
               <Stepper.Content>
@@ -214,8 +348,9 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
               <Alert.Content>
                 <Alert.Title>Nothing is activated on paperwork alone</Alert.Title>
                 <Alert.Description>
-                  Isangano Lakeside Hotel shows as registered with Rubavu District only after you verify and a second
-                  officer approves. Injishi records the decision; it does not make it.
+                  {live
+                    ? `${file.business} is registered only after a field verifier has visited and a second officer approves. Injishi records the decision; it does not make it.`
+                    : "Isangano Lakeside Hotel shows as registered with Rubavu District only after you verify and a second officer approves. Injishi records the decision; it does not make it."}
                 </Alert.Description>
               </Alert.Content>
             </Alert>
@@ -226,9 +361,13 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
           <Card render={(p) => <section {...p} />} aria-labelledby="chk-h" className="gap-3 p-[18px]">
             <Card.Header className="flex flex-row items-start gap-3">
               <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <CardHeading id="chk-h">Checks</CardHeading>
+                <CardHeading id="chk-h">{live ? "Documents read" : "Checks"}</CardHeading>
                 <Card.Description>
-                  Every check records your name and time. All six are needed to verify.
+                  {live
+                    ? gate === "field"
+                      ? "Open each document, then tick it. The registry records your name and time. Every document must be read before you can verify."
+                      : "Recorded by the field verifier. You decide on what they saw."
+                    : "Every check records your name and time. All six are needed to verify."}
                 </Card.Description>
               </div>
               <span className="font-semibold tabular">
@@ -248,8 +387,10 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
                   <li key={c.id} className="flex items-start justify-between gap-3 border-t border-separator py-2">
                     <Checkbox
                       isSelected={on}
-                      isDisabled={locked}
-                      onChange={(v) => setChecks((s) => ({ ...s, [c.id]: v }))}
+                      isDisabled={locked || (live && (gate !== "field" || on || busy))}
+                      onChange={(v) =>
+                        live ? (v ? void readDocument(c.id) : undefined) : setChecks((s) => ({ ...s, [c.id]: v }))
+                      }
                     >
                       <Checkbox.Content className="flex items-start gap-2.5">
                         <Checkbox.Control className="mt-0.5">
@@ -281,8 +422,9 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
             note={note}
             onNote={setNote}
             officers={file.officers}
-            onVerify={() => setStage("verified")}
-            onReject={() => setStage("rejected")}
+            onVerify={onVerify}
+            onReject={onReject}
+            live={gate ? { gate, blocked: !!file.blocked, busy, error, outcome } : undefined}
             onWithdraw={() => setStage("review")}
             onCancelInfo={() => setStage("review")}
           />
@@ -290,7 +432,11 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
           <Card render={(p) => <section {...p} />} aria-labelledby="ev-h" className="gap-2.5 p-[18px]">
             <Card.Header>
               <CardHeading id="ev-h">Events Sent to the Business</CardHeading>
-              <Card.Description>What {file.owner} sees in Injishi and by SMS</Card.Description>
+              <Card.Description>
+                {live
+                  ? `What ${file.owner} sees in Injishi and by email`
+                  : `What ${file.owner} sees in Injishi and by SMS`}
+              </Card.Description>
             </Card.Header>
             <ListView aria-labelledby="ev-h" variant="secondary" items={events}>
               {(ev) => (

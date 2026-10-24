@@ -12,6 +12,7 @@ import type {
   MandateState,
   OfficerDecision,
   QueueCase,
+  QueueId,
   QueueKpi,
 } from "@injishi/data/fixtures/oversight";
 import { Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
@@ -29,6 +30,15 @@ export interface OfficerHomeData {
   cases: QueueCase[];
   decisions: OfficerDecision[];
   rules: MandateRule[];
+  /** Who the officer acts for, and where ("Private Sector Federation", "Gasabo"). */
+  institution: string;
+  scope: string;
+  /** Today in Kigali, long form. */
+  today: string;
+  /** The queues this officer's grants cover. */
+  held: QueueId[];
+  /** The oldest case waiting on this officer, or null when nothing waits. */
+  firstCaseHref: string | null;
 }
 
 export function OfficerHomeView({
@@ -50,7 +60,11 @@ export function OfficerHomeView({
       <TopbarStatus kind="chip" tone={state.tone} dot={state.tone} label={state.pill} />
       <PageHeader
         size="hello"
-        eyebrow={<>Monday 12 October 2026 · {persona.org}</>}
+        eyebrow={
+          <>
+            {data.today} · {data.scope}
+          </>
+        }
         title={`Good morning, ${persona.firstName}`}
         description={state.summary}
         actions={
@@ -59,8 +73,8 @@ export function OfficerHomeView({
               <Database className="size-4" />
               Delegated data
             </LinkButton>
-            {open ? (
-              <LinkButton href={screenHref("OfficerCase")}>
+            {open && data.firstCaseHref ? (
+              <LinkButton href={data.firstCaseHref}>
                 <FileText className="size-4" />
                 Open next case
               </LinkButton>
@@ -86,7 +100,7 @@ export function OfficerHomeView({
               <ToneChip tone={state.tone}>{state.chip}</ToneChip>
             </div>
             <p className="text-[13px] leading-[18px] text-muted">
-              You act for Rubavu District, not for Injishi. You only see businesses registered in this jurisdiction, and
+              You act for {data.institution}, not for Injishi. You only see businesses registered in {data.scope}, and
               every record you open is written to your access log.
             </p>
           </div>
@@ -155,8 +169,8 @@ export function OfficerHomeView({
               </EmptyState.Media>
               <EmptyState.Title>Your queues are hidden while access is paused</EmptyState.Title>
               <EmptyState.Description>
-                No case, document or dataset can be opened under this mandate until Rubavu District confirms your
-                access. Cases assigned to you stay with the district and keep their SLA.
+                No case, document or dataset can be opened under this mandate until {data.institution} confirms your
+                access.
               </EmptyState.Description>
             </EmptyState.Header>
             <EmptyState.Content>
@@ -196,7 +210,7 @@ export function OfficerHomeView({
             </KPIGroup>
           </section>
 
-          <OfficerQueues cases={data.cases} />
+          <OfficerQueues cases={data.cases} held={data.held} />
 
           <div className="grid items-start gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr))]">
             <Card render={(p) => <section {...p} />} aria-labelledby="act-h" className="gap-3 p-[18px]">
@@ -227,11 +241,15 @@ export function OfficerHomeView({
             <Card render={(p) => <section {...p} />} aria-labelledby="rules-h" className="gap-3 p-[18px]">
               <Card.Header>
                 <CardHeading id="rules-h">How This Mandate Works</CardHeading>
-                <Card.Description>Set by Rubavu District · next access review 1 December 2026</Card.Description>
+                <Card.Description>Set by {data.institution}, the body that assigned you</Card.Description>
               </Card.Header>
               <ListView aria-labelledby="rules-h" variant="secondary" items={data.rules}>
                 {(ru) => (
-                  <ListView.Item id={ru.id} textValue={ru.title} href={screenHref(ru.board)}>
+                  <ListView.Item
+                    id={ru.id}
+                    textValue={ru.title}
+                    href={ru.board === "OfficerCase" ? (data.firstCaseHref ?? undefined) : screenHref(ru.board)}
+                  >
                     <ListView.ItemContent>
                       <Icon name={ru.icon} className="size-4 shrink-0 text-muted" />
                       <div className="flex min-w-0 flex-col">

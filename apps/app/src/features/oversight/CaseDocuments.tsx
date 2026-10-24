@@ -1,6 +1,14 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Eye, FileExclamation, FileText, Magnifier } from "@gravity-ui/icons";
+import {
+  ArrowUpRightFromSquare,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  FileExclamation,
+  FileText,
+  Magnifier,
+} from "@gravity-ui/icons";
 import { Button, Card, Description, Label, Table, ToggleButton } from "@heroui/react";
 import { EmptyState, RadioButtonGroup } from "@heroui-pro/react";
 import type { CaseFile, FieldResult, Tone } from "@injishi/data/fixtures/oversight";
@@ -21,15 +29,44 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
   const [page, setPage] = useState(file.lastViewed.page);
   const [zoom, setZoom] = useState(false);
   const doc = file.documents.find((d) => d.id === docId) ?? file.documents[0];
+
+  if (!doc) {
+    return (
+      <Card render={(p) => <section {...p} />} aria-labelledby="docs-h" className="gap-3.5 p-[18px]">
+        <Card.Header>
+          <CardHeading id="docs-h">Submitted Documents</CardHeading>
+          <Card.Description>Nothing was uploaded with this registration</Card.Description>
+        </Card.Header>
+        <EmptyState size="sm">
+          <EmptyState.Header>
+            <EmptyState.Media variant="icon">
+              <FileText />
+            </EmptyState.Media>
+            <EmptyState.Title>No documents to read</EmptyState.Title>
+            <EmptyState.Description>
+              The business attached no certificate. Check what you need on the field visit, and reject with a reason if
+              a document the law requires is missing.
+            </EmptyState.Description>
+          </EmptyState.Header>
+        </EmptyState>
+      </Card>
+    );
+  }
+
   const current = Math.min(page, doc.pages);
   const unreadable = doc.unreadablePage === current;
+  const live = doc.url !== undefined;
 
   return (
     <Card render={(p) => <section {...p} />} aria-labelledby="docs-h" className="gap-3.5 p-[18px]">
       <Card.Header className="flex flex-row items-start gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <CardHeading id="docs-h">Submitted Documents</CardHeading>
-          <Card.Description>View only · watermarked with your name · downloads off for this mandate</Card.Description>
+          <Card.Description>
+            {live
+              ? "Open each file and read it · the link is signed for you and expires shortly"
+              : "View only · watermarked with your name · downloads off for this mandate"}
+          </Card.Description>
         </div>
         <GateChip icon={<Eye className="size-3" />}>Each view is logged</GateChip>
       </Card.Header>
@@ -105,7 +142,32 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
           </div>
 
           <div className="relative flex h-[230px] items-center justify-center overflow-hidden rounded-[14px] bg-surface-secondary">
-            {unreadable ? (
+            {live ? (
+              doc.url ? (
+                <a
+                  href={doc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex flex-col items-center gap-2 pb-6 text-center font-medium text-accent no-underline hover:underline"
+                >
+                  <ArrowUpRightFromSquare className="size-6" aria-hidden="true" />
+                  Open the {doc.name.toLowerCase()}
+                  <span className="text-[12px] font-normal text-muted">{doc.file} · opening it is logged</span>
+                </a>
+              ) : (
+                <EmptyState size="sm" className="pb-6">
+                  <EmptyState.Header>
+                    <EmptyState.Media variant="icon">
+                      <FileExclamation />
+                    </EmptyState.Media>
+                    <EmptyState.Title>No file on record</EmptyState.Title>
+                    <EmptyState.Description>
+                      The certificate is declared but its file is not stored. Ask for it on the field visit.
+                    </EmptyState.Description>
+                  </EmptyState.Header>
+                </EmptyState>
+              )
+            ) : unreadable ? (
               <EmptyState size="sm" className="pb-6">
                 <EmptyState.Header>
                   <EmptyState.Media variant="icon">
@@ -134,7 +196,10 @@ export function CaseDocuments({ file }: { file: CaseFile }) {
                 <span className="block size-7 self-end rounded-full bg-separator" />
               </div>
             )}
-            <div className="absolute inset-x-3 bottom-2.5 flex justify-between gap-3 text-[11px] leading-4 text-muted">
+            <div
+              className="absolute inset-x-3 bottom-2.5 flex justify-between gap-3 text-[11px] leading-4 text-muted"
+              hidden={live}
+            >
               <span className="truncate">
                 {doc.file} · uploaded {doc.uploaded}
               </span>

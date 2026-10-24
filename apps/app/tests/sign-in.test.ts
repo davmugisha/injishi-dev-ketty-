@@ -35,6 +35,15 @@ test("an explicit return target still wins over the home", () => {
   assert.equal(destinationAfterSignIn("guest", "https://evil.example/x", "a@b.co"), WEB_HOME);
 });
 
+test("a property setup page is honoured although it is no screen, and only that exact shape", () => {
+  // web's "Set up your property" sends the owner here; the page itself refuses a workspace not theirs.
+  const setup = "/w/0f9a1b00-0000-4000-8000-000000000001/setup";
+  assert.equal(destinationAfterSignIn("guest", setup, "owner@example.com"), setup);
+  assert.equal(destinationAfterSignIn("owner", `${setup}?step=rooms`, "owner@example.com"), `${setup}?step=rooms`);
+  assert.equal(destinationAfterSignIn("owner", `${setup}/extra`, "owner@example.com"), homeHref("owner"));
+  assert.equal(destinationAfterSignIn("owner", "/w/not-a-uuid/setup", "owner@example.com"), homeHref("owner"));
+});
+
 test("clearing without the API writes on the parent domain, Secure for a __Secure- cookie", () => {
   const writes = expiredAuthCookies(
     ["__Secure-better-auth.session_token", "better-auth.session_data", "ij_otp", "theme"],

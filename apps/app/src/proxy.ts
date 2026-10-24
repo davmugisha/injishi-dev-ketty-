@@ -6,6 +6,7 @@ import {
 } from "@injishi/auth/edge";
 import { screenByPath } from "@injishi/data";
 import { type NextRequest, NextResponse } from "next/server";
+import { isSetupPath } from "@/lib/setup-path";
 import { DEMO_BUILD } from "@/server/session-cookies";
 
 /**
@@ -22,7 +23,9 @@ export function proxy(request: NextRequest) {
   const pass = () => (DEMO_BUILD ? NextResponse.next({ request: { headers } }) : NextResponse.next());
   const { pathname, search } = request.nextUrl;
   const screen = screenByPath(pathname);
-  if (!screen || screen.persona === null) return pass();
+  // The property setup page is not a registered screen, but it is never public (lib/setup-path.ts).
+  const gated = screen ? screen.persona !== null : isSetupPath(pathname);
+  if (!gated) return pass();
   if (hasSessionCookie(cookieReaderFor(headers.get("cookie")), PLATFORM_SESSION_COOKIE_NAMES)) return pass();
   const url = request.nextUrl.clone();
   url.pathname = "/sign-in";

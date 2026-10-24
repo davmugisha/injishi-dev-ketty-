@@ -68,6 +68,30 @@ export async function contextFor(personaId: PersonaId | null): Promise<SourceCon
   return sourceContextFor(personaId ? await cookieFor(personaId) : null);
 }
 
+const emailSessions = new Map<string, string>();
+
+/**
+ * Sign any email in with the demo code, exactly as the sign-in page does, and return the cookie. This is how a
+ * flow becomes someone who is not a persona: a seeded government officer, or a registrant it just invented.
+ * The account is created on first sign-in.
+ */
+export async function cookieForEmail(email: string): Promise<string> {
+  const address = email.trim().toLowerCase();
+  const cached = emailSessions.get(address);
+  if (cached) return cached;
+  const sent = await sendSignInCode(address);
+  check(sent.ok, `could not send a code to ${address}: ${sent.ok ? "" : sent.reason}`);
+  const verified = await verifySignInCode(address, await demoCode());
+  check(verified.ok, `${address} could not sign in: ${verified.ok ? "" : verified.reason}`);
+  emailSessions.set(address, verified.cookie);
+  return verified.cookie;
+}
+
+/** The context a page gets when this email is signed in. */
+export async function contextForEmail(email: string): Promise<SourceContext> {
+  return sourceContextFor(await cookieForEmail(email));
+}
+
 export function fixtures<T extends Doc = Doc>(collection: string): T[] {
   const docs = allCollections()[collection];
   if (!docs) fail(`no fixture collection "${collection}"`);

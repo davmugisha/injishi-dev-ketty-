@@ -9,7 +9,7 @@
  */
 import { ApiError } from "../src/server/api";
 import type { Flow, FlowHelpers } from "./flows/types";
-import { check, contextFor, fail, main } from "./lib/harness";
+import { check, contextFor, contextForEmail, fail, main } from "./lib/harness";
 
 const loaders: Record<string, () => Promise<{ flows: Flow[] }>> = {
   platform: () => import("./flows/platform"),
@@ -23,6 +23,8 @@ const loaders: Record<string, () => Promise<{ flows: Flow[] }>> = {
   residence: () => import("./flows/residence"),
   resident: () => import("./flows/resident"),
   staff: () => import("./flows/staff"),
+  oversight: () => import("./flows/oversight"),
+  setup: () => import("./flows/setup"),
 };
 
 function arg(name: string): string | null {
@@ -32,6 +34,7 @@ function arg(name: string): string | null {
 
 const helpers: FlowHelpers = {
   as: (persona) => contextFor(persona),
+  asEmail: (email) => contextForEmail(email),
   check,
   async refused(status, call, what) {
     try {

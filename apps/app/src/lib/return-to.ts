@@ -1,4 +1,5 @@
 import { canAccess, homeHref, type PersonaId, personaByEmail, screenByPath } from "@injishi/data";
+import { isSetupPath } from "./setup-path";
 
 /**
  * Where a person goes once they are signed in.
@@ -99,7 +100,8 @@ export function homeAfterSignIn(personaId: PersonaId, email: string | null | und
 
 /**
  * Where to land after sign-in. A web page goes back to web. A screen here is honoured when this person
- * may open it, and anything else falls back to their own home (`homeAfterSignIn`).
+ * may open it, and so is a property setup page, which checks for itself that the workspace is this
+ * person's (`setup-path.ts`). Anything else falls back to their own home (`homeAfterSignIn`).
  */
 export function destinationAfterSignIn(
   personaId: PersonaId,
@@ -109,7 +111,9 @@ export function destinationAfterSignIn(
   const target = safeReturn(raw);
   if (target && !target.startsWith("/")) return target;
   if (target) {
-    const screen = screenByPath(target.split(/[?#]/)[0]);
+    const path = target.split(/[?#]/)[0];
+    if (isSetupPath(path)) return target;
+    const screen = screenByPath(path);
     if (screen && canAccess(personaId, screen.board)) return target;
   }
   return homeAfterSignIn(personaId, email);
