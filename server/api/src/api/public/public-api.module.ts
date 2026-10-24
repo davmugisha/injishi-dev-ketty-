@@ -130,6 +130,9 @@ import { OpsPayoutAccountsController } from './ops/rentals/payout-accounts.contr
 import { OpsRentalsController } from './ops/rentals/rentals.controller';
 import { OpsTenantsController } from './ops/rentals/tenants.controller';
 import { OpsBlocksController, OpsUnitsController } from './ops/rentals/units.controller';
+// The landlord's home, buildings and unit media (WP 2.2, 2.3).
+import { OpsRentalPropertiesController } from './ops/rentals/properties.controller';
+import { OpsRentalsOverviewController } from './ops/rentals/rentals-overview.controller';
 import { OpsRoomsController } from './ops/rooms.controller';
 import { OpsThreadsController } from './ops/threads.controller';
 import { OpsStaysController } from './ops/stays.controller';
@@ -318,6 +321,8 @@ import { TrainingPublicModule } from './training/training.module';
     OpsBlocksController,
     OpsTenantsController,
     OpsLeasesController,
+    OpsRentalsOverviewController,
+    OpsRentalPropertiesController,
     // The tenant's side (WP 1.5b): the public invitation preview, accepting it,
     // and the tenant's own tenancies behind TenancyGuard.
     LeaseInvitationsController,

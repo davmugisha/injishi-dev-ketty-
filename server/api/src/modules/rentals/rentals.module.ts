@@ -32,6 +32,11 @@ import { SigningRepository } from './infrastructure/signing.repository';
 import { TenanciesRepository } from './infrastructure/tenancies.repository';
 import { TenantsRepository } from './infrastructure/tenants.repository';
 import { UnitsRepository } from './infrastructure/units.repository';
+// The landlord's home, buildings and unit media (WP 2.2, 2.3).
+import { PropertiesService } from './application/properties.service';
+import { RentalsOverviewService } from './application/rentals-overview.service';
+import { PropertiesRepository } from './infrastructure/properties.repository';
+import { RentalsOverviewRepository } from './infrastructure/rentals-overview.repository';
 
 /**
  * Rentals: the residence side of Injishi, rebuilt (blueprint 2.2).
@@ -93,6 +98,10 @@ import { UnitsRepository } from './infrastructure/units.repository';
     PayoutAccountsService,
     UnitsService,
     TenantsService,
+    RentalsOverviewRepository,
+    PropertiesRepository,
+    RentalsOverviewService,
+    PropertiesService,
     ...(isWorkerProcess() ? [LeaseDocumentsProcessor] : []),
   ],
   exports: [
@@ -110,6 +119,8 @@ import { UnitsRepository } from './infrastructure/units.repository';
     PayoutAccountsService,
     UnitsService,
     TenantsService,
+    RentalsOverviewService,
+    PropertiesService,
   ],
 })
 export class RentalsModule {}

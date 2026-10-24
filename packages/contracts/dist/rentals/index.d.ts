@@ -19,6 +19,7 @@ export * from "./allocation";
 export * from "./money";
 export * from "./contract";
 export * from "./api";
+export * from "./overview";
 export * from "./signing";
 export * from "./tenancy";
 //# sourceMappingURL=index.d.ts.map
