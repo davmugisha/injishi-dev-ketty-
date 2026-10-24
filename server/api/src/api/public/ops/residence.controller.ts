@@ -55,7 +55,7 @@ export class OpsLeasesController {
   // Leases, the lease record and Move-outs: whoever advances a lease, records
   // its rent or returns its deposit.
   @Get()
-  @RequireAnyPermission('lease.advance', 'rent.record', 'deposit.return')
+  @RequireAnyPermission('lease.manage', 'rent.record', 'deposit.return')
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorLeaseList> {
@@ -70,7 +70,7 @@ export class OpsLeasesController {
    * second click would end a lease that was only meant to go active.
    */
   @Post(':id/advance')
-  @RequirePermission('lease.advance')
+  @RequirePermission('lease.manage')
   advance(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(AdvanceLeaseRequest)) body: AdvanceLeaseRequest,
@@ -143,7 +143,7 @@ export class OpsFilingsController {
   // the money: filing status is a compliance obligation of the business, not a
   // desk task.
   @Get()
-  @RequireAnyPermission('lease.advance', 'money.view')
+  @RequireAnyPermission('lease.manage', 'money.view')
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorFilingList> {
@@ -228,7 +228,7 @@ export class OpsDepositsController {
 
   // Move-outs, the rent roll's deposit column and the lease record.
   @Get()
-  @RequireAnyPermission('deposit.return', 'lease.advance', 'money.view')
+  @RequireAnyPermission('deposit.return', 'lease.manage', 'money.view')
   async list(
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<OperatorDepositList> {

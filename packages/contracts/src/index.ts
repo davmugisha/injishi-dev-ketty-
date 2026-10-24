@@ -54,3 +54,6 @@ export * from "./marketplace";
 // The residence screens of the new interface (real-data 1.3.1).
 export * from "./interface-residence";
 export * from "./staff-phone";
+// Rentals, rebuilt (blueprint WP 1.1): vocabulary, Kigali dates, the lease
+// state machine, the rent schedule, allocation, the contract, tax and payouts.
+export * from "./rentals";

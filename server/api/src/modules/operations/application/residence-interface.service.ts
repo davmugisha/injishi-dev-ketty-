@@ -115,8 +115,8 @@ export class ResidenceInterfaceService {
       money,
       rents: money,
       tickets: has('ticket.advance'),
-      tenancy: has('lease.advance'),
-      deposits: money || has('deposit.return') || has('lease.advance'),
+      tenancy: has('lease.manage'),
+      deposits: money || has('deposit.return') || has('lease.manage'),
     });
   }
 

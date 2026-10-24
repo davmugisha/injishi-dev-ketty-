@@ -1,7 +1,7 @@
 import type {
   AdvanceLeaseRequest,
   AdvanceTicketRequest,
-  LeaseStatus,
+  LegacyLeaseStatus,
   MaintenanceStatus,
   RaiseTicketRequest,
   OperatorContractFiling,
@@ -42,7 +42,7 @@ import {
  * moved again would break the `leases_active_room_uk` promise that one room has
  * at most one active lease.
  */
-const LEASE_NEXT: Record<LeaseStatus, readonly LeaseStatus[]> = {
+const LEASE_NEXT: Record<LegacyLeaseStatus, readonly LegacyLeaseStatus[]> = {
   draft: ['pending_signature', 'cancelled'],
   pending_signature: ['active', 'cancelled'],
   active: ['ending'],

@@ -53,7 +53,18 @@ exports.Permission = zod_1.z.enum([
     // `property.switch` was here. Seeing a branch is coverage, not a capability:
     // the switcher reads `branches` from the grant (ADR-054 AC-S4).
     "rent.record",
-    "lease.advance",
+    /**
+     * Run the business's leases (rentals blueprint 2.1): draft, edit, send,
+     * cancel and start them, record notices and move outs, and keep the tenant
+     * records. Was `lease.advance`, which only moved a lease along a board;
+     * migration 0083 renames stored overrides.
+     */
+    "lease.manage",
+    /**
+     * Sign a lease AS THE LANDLORD, which binds the business to it. Owner by
+     * default (`OWNER_BY_DEFAULT`); an owner may grant it to a manager.
+     */
+    "lease.sign",
     "deposit.return",
     "unit.manage",
     "listing.manage",
@@ -206,6 +217,19 @@ exports.Permission = zod_1.z.enum([
      * proposer, which the service refuses whatever permissions either holds.
      */
     "lostfound.manage",
+    /**
+     * Decide where the business's rent is paid out: add, change, retire and
+     * make primary a bank account, MoMo number or MoMo Pay code (rentals
+     * blueprint 2.1). Owner by default, because whoever holds it decides whose
+     * account the tenants' money lands in; an owner may grant it.
+     */
+    "payout.manage",
+    /** Record and void the business's expenses, and pay a fixer. Owner, manager and finance. */
+    "expense.manage",
+    /** Keep the tax side: the taxpayer kind, the year's declaration, and lease filings with RRA. Owner, manager and finance. */
+    "tax.manage",
+    /** Register the landlord's own guests, which go to the local leaders. Owner, manager and receptionist. */
+    "guest.register",
 ]);
 const ALL = exports.Permission.options;
 /**
@@ -247,21 +271,31 @@ const OWNER_ONLY = ["team.manage"];
  * holds. `hr` holds `people.manage` and `payroll.draft` by its own set, not by
  * inheriting from here, and `payroll.run` stays the owner's alone.
  */
-const OWNER_BY_DEFAULT = ["people.manage", "payroll.draft", "payroll.run"];
+const OWNER_BY_DEFAULT = [
+    "people.manage",
+    "payroll.draft",
+    "payroll.run",
+    // Rentals (blueprint 2.1): signing binds the business to a lease, and the
+    // payout account decides where the rent goes.
+    "lease.sign",
+    "payout.manage",
+];
 /**
  * Role to permissions, inside a business workspace.
  *
  * owner runs and OWNS the property: everything, the roster included.
  * manager runs the property: everything operational, money and the fiscal
  * account included — but does not decide who works here (`OWNER_ONLY`), and by
- * default neither reads HR files in full nor drafts or confirms payroll
- * (`OWNER_BY_DEFAULT`).
+ * default neither reads HR files in full nor drafts or confirms payroll, nor
+ * signs leases or decides where rent is paid out (`OWNER_BY_DEFAULT`).
  * receptionist works the front desk and takes service orders: no money, no
- * team, no housekeeping board, no menu editing. Clocks staff in and out.
+ * team, no housekeeping board, no menu editing. Clocks staff in and out, and
+ * registers the landlord's guests.
  * finance is the accountant (ADR-069 D-b): reads the money, posts and voids
  * charges, records payments, closes bills, keeps the EBM account, withdraws a
- * signed sale and answers refund requests. No rooms, no reservations to
- * write, no rates, no staff files, no guest inbox.
+ * signed sale and answers refund requests; on a residence it records rent,
+ * keeps the expenses and the tax side (rentals blueprint 2.1). No rooms, no
+ * reservations to write, no rates, no staff files, no guest inbox.
  * hr is the HR officer (ADR-069 D-b): reads and keeps the staff files, the
  * roster, attendance and leave, and DRAFTS the pay run; the owner confirms it.
  * No money, no folios, no reservations, no guest inbox.
@@ -286,6 +320,7 @@ const ROLE_PERMISSIONS = {
         "message.send",
         "attendance.record",
         "lostfound.manage",
+        "guest.register",
     ]),
     finance: new Set([
         "money.view",
@@ -295,6 +330,9 @@ const ROLE_PERMISSIONS = {
         "ebm.manage",
         "ebm.refund",
         "refund.decide",
+        "rent.record",
+        "expense.manage",
+        "tax.manage",
     ]),
     hr: new Set([
         "people.view",
@@ -330,7 +368,8 @@ exports.PERMISSION_LABEL = {
     "team.manage": "manage the team",
     "money.view": "view money",
     "rent.record": "record rent",
-    "lease.advance": "advance leases",
+    "lease.manage": "manage leases and tenants",
+    "lease.sign": "sign leases for the business",
     "deposit.return": "return deposits",
     "unit.manage": "change unit rents",
     "listing.manage": "manage listings and inventory",
@@ -353,6 +392,10 @@ exports.PERMISSION_LABEL = {
     "payroll.draft": "draft the pay run",
     "payroll.run": "confirm the pay run",
     "lostfound.manage": "keep the lost and found register",
+    "payout.manage": "choose where rent is paid out",
+    "expense.manage": "record expenses",
+    "tax.manage": "keep tax declarations and lease filings",
+    "guest.register": "register guests",
 };
 // ---------------------------------------------------------------------------
 // A business's own role customisation
@@ -522,7 +565,12 @@ exports.PERMISSION_AREA_OF = {
     "ebm.refund": "money",
     "refund.decide": "money",
     "rent.record": "money",
-    "lease.advance": "property",
+    "payout.manage": "money",
+    "expense.manage": "money",
+    "tax.manage": "money",
+    "lease.manage": "property",
+    "lease.sign": "property",
+    "guest.register": "property",
     "deposit.return": "property",
     "unit.manage": "property",
     "listing.manage": "property",

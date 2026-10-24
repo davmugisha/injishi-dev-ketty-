@@ -72,19 +72,24 @@ describe("the six org roles", () => {
     // 34: ADR-058 added the seven HR permissions (cross child contract 4).
     // 35: ADR-069 D-e added `payroll.draft`.
     // 36: real-data leaf 1.2.3 added `lostfound.manage`.
-    assert.equal(permissionsForRole("owner").length, 36);
+    // 41: rentals blueprint 2.1 renamed `lease.advance` to `lease.manage` and
+    // added `lease.sign`, `payout.manage`, `expense.manage`, `tax.manage` and
+    // `guest.register`.
+    assert.equal(permissionsForRole("owner").length, 41);
   });
 
-  test("manager holds everything except team.manage and the three HR disclosures", () => {
+  test("manager holds everything except team.manage, the HR disclosures, signing leases and payouts", () => {
     // ADR-058: `people.manage` and `payroll.run` start with the owner, and an
     // owner may grant them. `team.manage` never moves. ADR-069 D-e: so does
     // `payroll.draft`, because a manager is ALL minus what is withheld.
-    const withheld = ["team.manage", "people.manage", "payroll.draft", "payroll.run"];
+    // Rentals blueprint 2.1: `lease.sign` binds the business and
+    // `payout.manage` decides where the rent goes, so both start with the owner.
+    const withheld = ["team.manage", "people.manage", "payroll.draft", "payroll.run", "lease.sign", "payout.manage"];
     assert.deepEqual(
       permissionsForRole("manager"),
       Permission.options.filter((p) => !withheld.includes(p)),
     );
-    assert.equal(permissionsForRole("manager").length, 32);
+    assert.equal(permissionsForRole("manager").length, 35);
   });
 
   test("receptionist works the front desk and takes orders", () => {
@@ -103,6 +108,8 @@ describe("the six org roles", () => {
       "attendance.record",
       // real-data leaf 1.2.3: the desk takes lost property claims and hands items back.
       "lostfound.manage",
+      // rentals blueprint 2.1: the desk registers the landlord's guests.
+      "guest.register",
     ]);
   });
 
@@ -121,15 +128,19 @@ describe("the six org roles", () => {
     assert.equal(can("hr", "refund.decide"), false);
   });
 
-  test("finance is the accountant: exactly the seven the owner named (ADR-069 D-b)", () => {
+  test("finance is the accountant: the seven the owner named (ADR-069 D-b) and the rentals money", () => {
     assert.deepEqual(permissionsForRole("finance"), [
       "folio.charge",
       "folio.payment",
       "money.view",
+      // rentals blueprint 2.1: the accountant records rent, keeps expenses and the tax side.
+      "rent.record",
       "ebm.manage",
       "folio.close",
       "ebm.refund",
       "refund.decide",
+      "expense.manage",
+      "tax.manage",
     ]);
   });
 
@@ -158,7 +169,10 @@ describe("the six org roles", () => {
       "department.manage",
       "message.send",
       "housekeeping.set",
-      "rent.record",
+      "lease.manage",
+      "lease.sign",
+      "payout.manage",
+      "guest.register",
       "team.manage",
     ]) {
       assert.equal(can("finance", p), false, `finance must not hold ${p}`);
@@ -302,6 +316,60 @@ describe("the pay run is drafted by one person and confirmed by another (ADR-069
   test("both are worded as the two halves of one act", () => {
     assert.equal(PERMISSION_LABEL["payroll.draft"], "draft the pay run");
     assert.equal(PERMISSION_LABEL["payroll.run"], "confirm the pay run");
+  });
+});
+
+describe("the rentals permissions (blueprint 2.1)", () => {
+  test("lease.advance is gone and lease.manage took its place", () => {
+    assert.equal(Permission.options.includes("lease.advance"), false);
+    assert.equal(Permission.safeParse("lease.advance").success, false);
+    assert.deepEqual(
+      ROLES.filter((r) => can(r, "lease.manage")),
+      ["owner", "manager"],
+    );
+  });
+
+  test("signing a lease and choosing where rent goes start with the owner", () => {
+    for (const p of ["lease.sign", "payout.manage"]) {
+      assert.deepEqual(ROLES.filter((r) => can(r, p)), ["owner"], p);
+    }
+  });
+
+  test("expenses and tax: owner, manager and finance", () => {
+    for (const p of ["expense.manage", "tax.manage"]) {
+      assert.deepEqual(ROLES.filter((r) => can(r, p)), ["owner", "manager", "finance"], p);
+    }
+  });
+
+  test("rent is recorded by owner, manager and finance", () => {
+    assert.deepEqual(ROLES.filter((r) => can(r, "rent.record")), ["owner", "manager", "finance"]);
+  });
+
+  test("guests are registered by owner, manager and the desk", () => {
+    assert.deepEqual(ROLES.filter((r) => can(r, "guest.register")), ["owner", "manager", "receptionist"]);
+  });
+
+  test("the housekeeper keeps tickets and nothing of the rentals money", () => {
+    assert.equal(can("housekeeper", "ticket.advance"), true);
+    for (const p of ["lease.manage", "lease.sign", "payout.manage", "expense.manage", "tax.manage", "guest.register"]) {
+      assert.equal(can("housekeeper", p), false, p);
+    }
+  });
+
+  test("the Roles screen groups them: money for the money, property for leases and guests", () => {
+    for (const p of ["payout.manage", "expense.manage", "tax.manage", "rent.record"]) {
+      assert.equal(authz.PERMISSION_AREA_OF[p], "money", p);
+    }
+    for (const p of ["lease.manage", "lease.sign", "guest.register"]) {
+      assert.equal(authz.PERMISSION_AREA_OF[p], "property", p);
+    }
+  });
+
+  test("every permission has words and an area", () => {
+    for (const p of Permission.options) {
+      assert.equal(typeof PERMISSION_LABEL[p], "string", p);
+      assert.equal(typeof authz.PERMISSION_AREA_OF[p], "string", p);
+    }
   });
 });
 

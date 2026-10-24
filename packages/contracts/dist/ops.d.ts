@@ -377,8 +377,13 @@ export type HousekeepingStatus = z.infer<typeof HousekeepingStatus>;
  */
 export declare const MaintenanceStatus: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
 export type MaintenanceStatus = z.infer<typeof MaintenanceStatus>;
-export declare const LeaseStatus: z.ZodEnum<["draft", "pending_signature", "active", "ending", "ended", "cancelled"]>;
-export type LeaseStatus = z.infer<typeof LeaseStatus>;
+/**
+ * The OLD lease statuses (no `signed`), read by the residence code the rentals
+ * rebuild replaces. The rentals `LeaseStatus` (`rentals/vocab.ts`) is the one
+ * to use; this goes with that code.
+ */
+export declare const LegacyLeaseStatus: z.ZodEnum<["draft", "pending_signature", "active", "ending", "ended", "cancelled"]>;
+export type LegacyLeaseStatus = z.infer<typeof LegacyLeaseStatus>;
 export declare const RentStatus: z.ZodEnum<["paid", "due", "overdue"]>;
 export type RentStatus = z.infer<typeof RentStatus>;
 export declare const CautionStatus: z.ZodEnum<["held", "refunded", "forfeited"]>;

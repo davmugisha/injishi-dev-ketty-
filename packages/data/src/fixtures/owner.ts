@@ -2193,7 +2193,7 @@ const teamRolesPermissionAreas: TeamRolesPermissionArea[] = [
     id: "property",
     label: "Property & listings",
     permissions: [
-      { key: "lease.advance", description: "Advance leases" },
+      { key: "lease.manage", description: "Manage leases and tenants" },
       { key: "deposit.return", description: "Return deposits" },
       { key: "unit.manage", description: "Change unit rents" },
       { key: "listing.manage", description: "Manage listings and inventory" },

@@ -70,4 +70,7 @@ __exportStar(require("./marketplace"), exports);
 // The residence screens of the new interface (real-data 1.3.1).
 __exportStar(require("./interface-residence"), exports);
 __exportStar(require("./staff-phone"), exports);
+// Rentals, rebuilt (blueprint WP 1.1): vocabulary, Kigali dates, the lease
+// state machine, the rent schedule, allocation, the contract, tax and payouts.
+__exportStar(require("./rentals"), exports);
 //# sourceMappingURL=index.js.map

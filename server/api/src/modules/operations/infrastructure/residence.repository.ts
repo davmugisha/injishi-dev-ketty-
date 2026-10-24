@@ -1,7 +1,7 @@
 import type {
   AdapterMode,
   FilingStatus,
-  LeaseStatus,
+  LegacyLeaseStatus,
   MaintenanceCategory,
   MaintenancePriority,
   MaintenanceStatus,
@@ -43,7 +43,7 @@ export interface LeaseRow {
   cautionRwf: number | null;
   startDate: string | null;
   endDate: string | null;
-  status: LeaseStatus;
+  status: LegacyLeaseStatus;
   landlordSignedAt: Date | null;
   tenantSignedAt: Date | null;
 }
@@ -95,7 +95,7 @@ export interface ContractFilingRow {
   workspaceId: string;
   unitLabel: string | null;
   tenantName: string | null;
-  leaseStatus: LeaseStatus;
+  leaseStatus: LegacyLeaseStatus;
   startDate: string | null;
   signedAt: Date | null;
   status: FilingStatus | null;
@@ -165,8 +165,8 @@ export class ResidenceRepository {
    */
   async advanceLease(
     leaseId: string,
-    from: LeaseStatus,
-    to: LeaseStatus,
+    from: LegacyLeaseStatus,
+    to: LegacyLeaseStatus,
     firstCharge: FirstRentCharge | null = null,
   ): Promise<boolean> {
     return this.db.transaction(async (tx) => {

@@ -312,13 +312,13 @@ export function readResidence(ctx: SourceContext): Promise<ApiResidenceView> {
 
 /**
  * Whether each lease's filing row is a real one or a seeded `mock` one, from `GET /api/v1/ops/filings` (the only
- * route that carries the row's adapter mode). Read only when the caller's grant opens it (`lease.advance` or
+ * route that carries the row's adapter mode). Read only when the caller's grant opens it (`lease.manage` or
  * `money.view`), so a repairs-only persona never fires a refused read; a failed read leaves every row unknown,
  * which the screens treat as not a filing.
  */
 async function filingModes(ctx: SourceContext): Promise<Map<string, "mock" | "live">> {
   const ws = ctx.account ? workspaceFor(ctx.account, "residence") : null;
-  if (!ws?.permissions.some((p) => p === "lease.advance" || p === "money.view")) return new Map();
+  if (!ws?.permissions.some((p) => p === "lease.manage" || p === "money.view")) return new Map();
   try {
     const { filings } = await ctx
       .ops("residence")

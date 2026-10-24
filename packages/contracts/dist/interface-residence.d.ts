@@ -821,7 +821,7 @@ export declare const ResidenceNotificationRow: z.ZodObject<{
 /**
  * Everything the residence screens read, for one business (`/ops/residence`) or one tenant
  * (`/me/residence`). A part the caller may not read comes back empty rather than refused: rent and
- * deposits need `money.view` or `rent.record`, tickets `ticket.advance`, the rest `lease.advance`.
+ * deposits need `money.view` or `rent.record`, tickets `ticket.advance`, the rest `lease.manage`.
  * The tenant's copy never carries staff notes, other tenants' rows, applications or clauses.
  */
 export declare const ResidenceView: z.ZodObject<{

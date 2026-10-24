@@ -310,7 +310,8 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // plan.
   '/ops/reservations/:id/assignments': ['owner', 'manager', 'receptionist'],
   '/ops/room-assignments': ['owner', 'manager', 'receptionist'],
-  '/ops/leases': ['owner', 'manager'],
+  // Rentals blueprint 2.1: finance records rent, and `rent.record` already opened this read.
+  '/ops/leases': ['owner', 'manager', 'finance'],
   '/ops/rent-roll': ['owner', 'manager', 'finance'],
   // The Filings lens on Finance (F-R10). The same consumers as the leases it
   // reports on: whether a contract was filed is the business's compliance

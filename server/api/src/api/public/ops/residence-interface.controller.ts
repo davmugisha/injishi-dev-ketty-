@@ -41,9 +41,9 @@ export class OpsResidenceController {
   constructor(private readonly residence: ResidenceInterfaceService) {}
 
   // Anyone who works the building reads it; the service leaves out what their grant does not cover
-  // (rent and deposits need the money, tickets `ticket.advance`, the tenancy pipeline `lease.advance`).
+  // (rent and deposits need the money, tickets `ticket.advance`, the tenancy pipeline `lease.manage`).
   @Get()
-  @RequireAnyPermission('lease.advance', 'rent.record', 'money.view', 'ticket.advance', 'deposit.return')
+  @RequireAnyPermission('lease.manage', 'rent.record', 'money.view', 'ticket.advance', 'deposit.return')
   view(@CurrentWorkspace() ws: ScopedWorkspace): Promise<ResidenceView> {
     return this.residence.view(ws);
   }
@@ -82,9 +82,9 @@ export class OpsResidenceController {
     return this.residence.repairMessage(ws, id, body, user.id);
   }
 
-  /** Who may come through the gate is part of running the tenancies: `lease.advance`. */
+  /** Who may come through the gate is part of running the tenancies: `lease.manage`. */
   @Post('visitor-passes')
-  @RequirePermission('lease.advance')
+  @RequirePermission('lease.manage')
   issuePass(
     @CurrentWorkspace() ws: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
@@ -94,7 +94,7 @@ export class OpsResidenceController {
   }
 
   @Post('access-requests/:id/decision')
-  @RequirePermission('lease.advance')
+  @RequirePermission('lease.manage')
   decideAccess(
     @CurrentWorkspace() ws: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
@@ -131,7 +131,7 @@ export class OpsResidenceController {
 
   /** A notice that came by letter, email or in person; the resident's own goes through `/me/residence`. */
   @Post('notices')
-  @RequirePermission('lease.advance')
+  @RequirePermission('lease.manage')
   recordNotice(
     @CurrentWorkspace() ws: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
@@ -141,7 +141,7 @@ export class OpsResidenceController {
   }
 
   @Post('offers/:id/withdraw')
-  @RequirePermission('lease.advance')
+  @RequirePermission('lease.manage')
   withdrawOffer(
     @CurrentWorkspace() ws: ScopedWorkspace,
     @CurrentUser() user: SessionUser,
@@ -151,7 +151,7 @@ export class OpsResidenceController {
   }
 
   @Post('offers/:id/remind')
-  @RequirePermission('lease.advance')
+  @RequirePermission('lease.manage')
   remindOffer(
     @CurrentWorkspace() ws: ScopedWorkspace,
     @Param('id', ParseUUIDPipe) id: string,
@@ -161,7 +161,7 @@ export class OpsResidenceController {
 
   /** The manual screening checks recorded so far, as a whole set (a retry writes the same set). */
   @Put('applications/:id/screening')
-  @RequirePermission('lease.advance')
+  @RequirePermission('lease.manage')
   recordScreening(
     @CurrentWorkspace() ws: ScopedWorkspace,
     @Param('id', ParseUUIDPipe) id: string,
@@ -171,7 +171,7 @@ export class OpsResidenceController {
   }
 
   @Post('applications/:id/decline')
-  @RequirePermission('lease.advance')
+  @RequirePermission('lease.manage')
   declineApplication(
     @CurrentWorkspace() ws: ScopedWorkspace,
     @Param('id', ParseUUIDPipe) id: string,
@@ -181,7 +181,7 @@ export class OpsResidenceController {
   }
 
   @Post('applications/:id/convert')
-  @RequirePermission('lease.advance')
+  @RequirePermission('lease.manage')
   convertApplication(
     @CurrentWorkspace() ws: ScopedWorkspace,
     @Param('id', ParseUUIDPipe) id: string,
