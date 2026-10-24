@@ -81,7 +81,10 @@ async function inspect(route) {
     }),
   );
 
-  return { html, headEnd, links };
+  // The page that answered, which is not always web's: `/sign-in` hands off to
+  // the operator app when that is another origin (src/lib/app-handoff.ts), and
+  // that page's stylesheets live on the app's origin.
+  return { html, headEnd, links, origin: res.url };
 }
 
 describe("stylesheets reach the browser inside <head>", () => {
@@ -105,12 +108,12 @@ describe("stylesheets reach the browser inside <head>", () => {
     test(`${route} serves every stylesheet it references`, async (t) => {
       if (!serverUp) return t.skip("no server");
 
-      const { links } = await inspect(route);
+      const { links, origin } = await inspect(route);
       const local = links.filter((l) => l.href.startsWith("/"));
       assert.ok(local.length > 0, `${route} references no stylesheet at all`);
 
       for (const sheet of local) {
-        const res = await fetch(new URL(sheet.href, BASE_URL), {
+        const res = await fetch(new URL(sheet.href, origin), {
           signal: AbortSignal.timeout(15_000),
         });
         assert.equal(res.status, 200, `${sheet.href} did not resolve from ${route}`);
