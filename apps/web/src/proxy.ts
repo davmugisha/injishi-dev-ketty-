@@ -9,7 +9,8 @@ import {
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * The sign-in gate for the marketplace app (F-S01).
+ * The sign-in gate for the marketplace app (F-S01). Next 16's `proxy.ts`
+ * (`middleware.ts` before it), on the Node.js runtime.
  *
  * Web is the one app here that is mostly PUBLIC — the site, /explore and the
  * property pages are meant to be read by strangers, and gating them would be a
@@ -125,7 +126,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
  */
 const DEMO_BUILD = process.env.NEXT_PUBLIC_INJISHI_ENVIRONMENT === "demo";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // THE FIRST STATEMENT, ahead of every early return, the public bypass
   // included (AC-14). Production's session cookie reaches demo hosts through
   // the shared parent domain; a demo build drops it here, reads cookies only

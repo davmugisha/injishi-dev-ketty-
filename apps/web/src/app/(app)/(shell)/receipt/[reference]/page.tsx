@@ -19,7 +19,7 @@ import { ReceiptCancel } from "./receipt-cancel";
  * receipt with `SessionGuard`, and the Better Auth cookie belongs to the API
  * origin, so a server component would ask as nobody and be answered 401.
  *
- * NOT GATED BY `middleware.ts`, on purpose, and it does not need to be. The
+ * NOT GATED BY `proxy.ts`, on purpose, and it does not need to be. The
  * matcher there is an allowlist of private PREFIXES; this route renders no
  * booking data of its own, and the receipt itself is refused by the API to
  * anyone who does not own it. What a signed-out visitor gets here is the

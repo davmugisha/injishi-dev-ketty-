@@ -86,11 +86,6 @@ const nextConfig: NextConfig = {
     // document to render into; globalNotFound lets app/global-not-found.tsx
     // supply its own <html> and <body> (ADR-013 call 7).
     globalNotFound: true,
-    // Next 15.5.4's dev-only Segment Explorer devtool injects a client
-    // reference (segment-explorer-node.js#SegmentViewNode) that the RSC client
-    // manifest fails to resolve after a hot recompile, 500ing every route and
-    // killing the dev server. Off until the upstream regression is patched.
-    devtoolSegmentExplorer: false,
     // A barrel import of @injishi/ui would otherwise pull all 16 of its client
     // components into a server page that wanted one Button (ADR-008).
     optimizePackageImports: ["@injishi/ui", "lucide-react"],
@@ -237,6 +232,14 @@ const nextConfig: NextConfig = {
   },
 };
 
+/**
+ * WEBPACK, NOT TURBOPACK (Next 16). Next 16 builds with Turbopack by default and
+ * refuses a config that carries a `webpack` function, which `@serwist/next` adds
+ * to generate `public/sw.js`. So web's `dev` and `build` scripts pass
+ * `--webpack`, the bundler web always built with under Next 15, and the service
+ * worker keeps working unchanged. Moving to Turbopack means moving the service
+ * worker to `@serwist/turbopack` first.
+ */
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
