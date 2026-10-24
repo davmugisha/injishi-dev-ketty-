@@ -1,5 +1,6 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { parseEnv } from 'node:util';
 
 /**
  * Which env file the API reads (2026-10-24). One file per environment, next to
@@ -59,4 +60,32 @@ export function envFilesFor(
   if (exists(own)) return [own];
   const legacy = path.join(dir, LEGACY_ENV_FILE);
   return exists(legacy) ? [legacy] : [];
+}
+
+/**
+ * Put the env file's values into `process.env` NOW, before any module is loaded.
+ *
+ * `ConfigModule.forRoot` reads the same file, but only once `AppModule` has been
+ * imported, and importing it runs every module file's top level first. Some read
+ * `process.env` right there: `payments.module.ts` picks its adapter from
+ * `PAYMENT_ADAPTER_MODE` while its `@Module` decorator is evaluated, and
+ * `app.module.ts` reads `LOG_LEVEL` the same way. A value that lived only in
+ * `.env.*` was therefore invisible to them. `main.ts` calls this (through
+ * `load-env.ts`) before it imports anything else, so they see it.
+ *
+ * Same rule as ConfigModule: a variable already in the process (Docker,
+ * Dokploy, the shell) is never overridden. ConfigModule still loads the file
+ * afterwards and finds every key already set. Returns the files it read.
+ */
+export function loadEnvFiles(
+  files: string[] = envFilesFor(),
+  env: NodeJS.ProcessEnv = process.env,
+  read: (file: string) => string = (file) => readFileSync(file, 'utf8'),
+): string[] {
+  for (const file of files) {
+    for (const [key, value] of Object.entries(parseEnv(read(file)))) {
+      if (env[key] === undefined) env[key] = value;
+    }
+  }
+  return files;
 }
