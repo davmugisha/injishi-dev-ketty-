@@ -547,8 +547,11 @@ export default function RegisterWizard({
       setErrors({});
       setFormError("");
       void (async () => {
-        const res = await fetchIdentity();
+        // Verifying rewrote the stored profile (name, birth date, ID), so the
+        // one loaded with the page is stale: editing it would send the old name.
+        const [res, prof] = await Promise.all([fetchIdentity(), fetchMyProfile()]);
         if (res.status === "ok") setIdentity(res.data);
+        if (prof.status === "ok") setProfile(prof.data);
         // Whether this ID is one of the directors is RRA's answer to the TIN
         // ASKED BY A VERIFIED CALLER, so the TIN is asked again now.
         if (tinCheck && /^\d{9}$/.test(tinCheck.tin)) {
