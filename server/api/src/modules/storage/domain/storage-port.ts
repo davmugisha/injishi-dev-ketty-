@@ -51,7 +51,11 @@ export type StoredObjectKind =
    * Rentals (migration 0073): a lease contract PDF the platform rendered, a
    * preview of one version or its signed copy. Never uploaded by anybody.
    */
-  | 'lease_contract';
+  | 'lease_contract'
+  /** Rentals (migration 0073): a unit's photo, re-encoded as a JPEG on the way in. */
+  | 'unit_photo'
+  /** Rentals (migration 0073): a unit's video tour, or the still shown before it plays. */
+  | 'unit_video';
 
 export interface PutObjectInput {
   /** The raw bytes. Callers must size-check BEFORE reading a stream to here. */
@@ -78,6 +82,17 @@ export interface PutObjectInput {
    * Adapters that ignore it stay correct; they simply lose the convergence.
    */
   readonly keyHint?: string;
+}
+
+/**
+ * A file already on this process's disk, to be stored without reading it into
+ * memory (rentals, unit video tours). The caller streamed the upload to `path`
+ * under its own ceiling, read its first bytes and measured it; the adapter
+ * streams it on and never deletes `path`, which stays the caller's to clean up.
+ */
+export interface PutFileInput extends Omit<PutObjectInput, 'body'> {
+  readonly path: string;
+  readonly sizeBytes: number;
 }
 
 export interface PutObjectResult {
@@ -116,6 +131,8 @@ export interface PutObjectResult {
  */
 export interface StoragePort {
   put(input: PutObjectInput): Promise<PutObjectResult>;
+  /** `put` for a large file on disk: streamed, never buffered whole. */
+  putFile(input: PutFileInput): Promise<PutObjectResult>;
   /**
    * A read URL that expires. `ttlSeconds` is a ceiling the adapter may lower,
    * never raise: F-S09 §10 makes the short TTL a security property.
@@ -222,4 +239,8 @@ export const MIME_EXTENSION: Readonly<Record<string, string>> = {
   'image/heic': 'heic',
   // 058-payroll: the bank and MoMo files and the declarations Injishi builds.
   'text/csv': 'csv',
+  // Rentals: a unit's video tour.
+  'video/mp4': 'mp4',
+  'video/quicktime': 'mov',
+  'video/webm': 'webm',
 };

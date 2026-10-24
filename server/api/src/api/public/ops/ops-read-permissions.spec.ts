@@ -71,6 +71,9 @@ import { OpsPayoutAccountsController } from './rentals/payout-accounts.controlle
 import { OpsRentalsController } from './rentals/rentals.controller';
 import { OpsTenantsController } from './rentals/tenants.controller';
 import { OpsBlocksController, OpsUnitsController } from './rentals/units.controller';
+import { OpsRentalPropertiesController } from './rentals/properties.controller';
+import { OpsRentalsOverviewController } from './rentals/rentals-overview.controller';
+import { OpsUnitMediaController } from './rentals/unit-media.controller';
 import { OpsRevenueController } from './revenue.controller';
 import { OpsCertificatesController } from './certificates.controller';
 import { OpsOwnerDashboardController, OpsReportsController } from './owner-dashboard.controller';
@@ -184,6 +187,9 @@ const CONTROLLERS: Ctor[] = [
   OpsBlocksController,
   OpsTenantsController,
   OpsLeasesController,
+  OpsRentalsOverviewController,
+  OpsRentalPropertiesController,
+  OpsUnitMediaController,
 ];
 
 interface Read {
@@ -471,6 +477,12 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/leases/:id/events': ['owner', 'manager', 'finance'],
   '/ops/leases/:id/contract': ['owner', 'manager', 'finance'],
   '/ops/leases/:id/contract/pdf': ['owner', 'manager', 'finance'],
+  // The landlord's home (WP 2.2): the nav counts read under any rentals
+  // permission; the month's figures under the money reads.
+  '/ops/rentals/summary': ['owner', 'manager', 'finance'],
+  '/ops/rentals/overview': ['owner', 'manager', 'finance'],
+  '/ops/properties': ['owner', 'manager', 'finance'],
+  '/ops/units/:id/media': ['owner', 'manager', 'finance'],
 };
 
 describe('operator reads (audit H1)', () => {
@@ -586,6 +598,37 @@ describe('rentals writes (blueprint 2.1)', () => {
   };
 
   it('judges every rentals write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/**
+ * The landlord's buildings and unit media (WP 2.2, 2.3): where a building is
+ * is the listing's (`listing.manage`), because tenants, brokers and the local
+ * leaders are told it; a unit's photos and video are `unit.manage`'s.
+ */
+describe('rentals home, location and unit media writes (WP 2.2, 2.3)', () => {
+  const routes = handlers(
+    [OpsRentalsOverviewController, OpsRentalPropertiesController, OpsUnitMediaController],
+    [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE],
+  );
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'PUT /ops/properties/:id/location': { allOf: ['listing.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/units/:id/photos': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'PATCH /ops/units/:id/photos/order': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'DELETE /ops/units/:id/photos/:photoId': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'PUT /ops/units/:id/video': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'DELETE /ops/units/:id/video': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+  };
+
+  it('judges every write', () => {
     expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
   });
 

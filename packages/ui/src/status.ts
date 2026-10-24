@@ -41,8 +41,8 @@ export const STATUS_VALUES = {
   filing: ["pending", "overdue", "filed", "failed"],
   /** `payout_status`, with `failed` from the blueprint. */
   payout: ["scheduled", "queued", "paid", "held", "failed"],
-  /** A unit: occupancy worked out from leases (`occupied`, `vacant`), or contracts `RentalUnitState`. */
-  unit: ["occupied", "vacant", "off_market", "retired"],
+  /** A unit: occupancy worked out from leases (`occupied`, `reserved`, `vacant`), or contracts `RentalUnitState`. */
+  unit: ["occupied", "reserved", "vacant", "off_market", "retired"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type StatusKind = keyof typeof STATUS_VALUES;
@@ -78,7 +78,7 @@ export const STATUS_TONE: StatusMap<StatusTone> = {
   guest: { arriving: "info", staying: "success", left: "default", cancelled: "default", flagged: "danger" },
   filing: { pending: "warning", overdue: "danger", filed: "success", failed: "danger" },
   payout: { scheduled: "info", queued: "info", paid: "success", held: "warning", failed: "danger" },
-  unit: { occupied: "success", vacant: "warning", off_market: "default", retired: "default" },
+  unit: { occupied: "success", reserved: "info", vacant: "warning", off_market: "default", retired: "default" },
 };
 
 /**
@@ -112,7 +112,7 @@ export const STATUS_LABEL: StatusMap<string> = {
   guest: { arriving: "Arriving", staying: "Staying", left: "Left", cancelled: "Cancelled", flagged: "Flagged" },
   filing: { pending: "Due", overdue: "Overdue", filed: "Filed", failed: "Failed" },
   payout: { scheduled: "Scheduled", queued: "Sending", paid: "Paid out", held: "Held", failed: "Failed" },
-  unit: { occupied: "Occupied", vacant: "Vacant", off_market: "Off market", retired: "Retired" },
+  unit: { occupied: "Occupied", reserved: "Reserved", vacant: "Vacant", off_market: "Off market", retired: "Retired" },
 };
 
 /** Is `status` a known value of `kind`? */
