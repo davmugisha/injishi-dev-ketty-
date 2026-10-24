@@ -557,6 +557,9 @@ importers:
       '@injishi/data':
         specifier: workspace:*
         version: link:../data
+      '@internationalized/date':
+        specifier: 3.12.4
+        version: 3.12.4
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0

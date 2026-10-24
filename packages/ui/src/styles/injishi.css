@@ -250,7 +250,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Status and trend chips (status-chip.tsx, kpi.tsx): a soft tint of the tone with darker text (light)
+/* Trend chips (kpi.tsx): a soft tint of the tone with darker text (light)
    or lighter text (dark), never the raw tone, so the words keep 4.5:1. */
 .chip[data-tone="success"] {
   --chip-bg: var(--success-soft);

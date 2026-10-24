@@ -1,6 +1,16 @@
 "use client";
 
-import { Checkbox, type Key, SearchField, type Selection, type SortDescriptor, Table, Tabs } from "@heroui/react";
+import {
+  Card,
+  Checkbox,
+  Chip,
+  type Key,
+  SearchField,
+  type Selection,
+  type SortDescriptor,
+  Table,
+  Tabs,
+} from "@heroui/react";
 import { ActionBar, ListView, Segment } from "@heroui-pro/react";
 import { type ReactNode, useMemo, useState } from "react";
 import { IconAction } from "./buttons.tsx";
@@ -26,7 +36,7 @@ export interface DataColumn<T> {
 export interface DataTableSelection {
   selectedKeys: Selection;
   onSelectionChange: (keys: Selection) => void;
-  /** The bulk actions shown in the action bar while rows are selected (outlined `ActionButton`s). */
+  /** The bulk actions shown in the action bar while rows are selected (`ActionButton`s). */
   bulkActions: ReactNode;
   /** What a row is, for "3 leases selected". @default "rows" */
   noun?: string;
@@ -103,7 +113,7 @@ export function DataTable<T>({
   }, [rows, columns, sort]);
 
   if (rows.length === 0 && empty) {
-    return <div className={cx("rounded-2xl border border-dashed border-border", className)}>{empty}</div>;
+    return <Card className={cx("min-w-0", className)}>{empty}</Card>;
   }
 
   const rowHeader = columns.find((c) => c.isRowHeader) ?? columns[0];
@@ -269,20 +279,8 @@ export function FilterTabs({
   variant?: "tabs" | "segment";
   className?: string;
 }) {
-  const count = (t: FilterTab, selected: boolean) =>
-    t.count == null ? null : (
-      <span
-        className={cx(
-          "min-w-5 rounded-full px-1.5 text-center text-xs tabular",
-          selected ? "bg-accent-soft text-accent-soft-foreground" : "bg-default text-muted",
-        )}
-      >
-        {formatNumber(t.count)}
-        <span className="sr-only"> {t.count === 1 ? "item" : "items"}</span>
-      </span>
-    );
-
   if (variant === "segment") {
+    // As the feature screens write it: the count after the words ("Money 3").
     return (
       <Segment
         aria-label={label}
@@ -291,15 +289,17 @@ export function FilterTabs({
         className={cx("w-fit max-w-full self-start", className)}
       >
         {tabs.map((t) => (
-          <Segment.Item key={t.id} id={t.id} className="gap-1.5">
+          <Segment.Item key={t.id} id={t.id}>
             {t.label}
-            {count(t, t.id === selectedKey)}
+            {t.count == null ? null : <span className="tabular"> {formatNumber(t.count)}</span>}
           </Segment.Item>
         ))}
       </Segment>
     );
   }
 
+  // The tabs of the feature screens: secondary Tabs sized to their words, a Chip with the count, the
+  // indicator under the selected one. The row scrolls sideways on a phone rather than wrapping.
   return (
     <Tabs
       selectedKey={selectedKey}
@@ -308,11 +308,16 @@ export function FilterTabs({
       className={cx("min-w-0", className)}
     >
       <Tabs.ListContainer>
-        <Tabs.List aria-label={label}>
+        <Tabs.List aria-label={label} className="justify-start">
           {tabs.map((t) => (
-            <Tabs.Tab key={t.id} id={t.id} className="w-auto flex-none gap-1.5 whitespace-nowrap">
+            <Tabs.Tab key={t.id} id={t.id} className="w-auto gap-2 px-3 whitespace-nowrap">
               {t.label}
-              {count(t, t.id === selectedKey)}
+              {t.count == null ? null : (
+                <Chip size="sm" className="tabular">
+                  {formatNumber(t.count)}
+                  <span className="sr-only"> {t.count === 1 ? "item" : "items"}</span>
+                </Chip>
+              )}
               <Tabs.Indicator />
             </Tabs.Tab>
           ))}

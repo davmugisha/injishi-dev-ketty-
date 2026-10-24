@@ -19,6 +19,7 @@
     "@heroui-pro/react": "1.0.0-beta.10",
     "@heroui/react": "3.2.6",
     "@heroui/styles": "3.2.6",
+    "@internationalized/date": "3.12.4",
     "next": "16.4.3",
     "react": "19.3.1"
   },
@@ -28,6 +29,7 @@
     "@heroui/react": "3.2.6",
     "@heroui/styles": "3.2.6",
     "@injishi/data": "workspace:*",
+    "@internationalized/date": "3.12.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "next": "16.4.3",

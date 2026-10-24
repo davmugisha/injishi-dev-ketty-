@@ -62,7 +62,8 @@ export function SelectField({
     >
       <Label>{label}</Label>
       <Select.Trigger>
-        <Select.Value />
+        {/* Only the option's name, not its description line. */}
+        <Select.Value>{({ selectedText, isPlaceholder }) => (isPlaceholder ? placeholder : selectedText)}</Select.Value>
         <Select.Indicator />
       </Select.Trigger>
       {description ? <Description>{description}</Description> : null}

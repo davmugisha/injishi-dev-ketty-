@@ -15,7 +15,7 @@ const DESKTOP = "(min-width: 768px)";
 export interface PanelFormProps {
   /** The Save button's words ("Save", "Record payment"). Makes the content a form. */
   submitLabel: string;
-  /** @default "Check" */
+  /** An icon before the Save words, when it helps ("Wallet" for Record payment). Usually none. */
   submitIcon?: IconKey;
   /** A client handler. Call `event.preventDefault()` when you handle it yourself. */
   onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
@@ -51,7 +51,7 @@ function FormErrorAlert({ children }: { children: ReactNode }) {
 
 function FormFooterButtons({
   submitLabel,
-  submitIcon = "Check",
+  submitIcon,
   isPending,
   cancelLabel = "Cancel",
   isSubmitDisabled,
@@ -61,10 +61,16 @@ function FormFooterButtons({
 }) {
   return (
     <>
-      <ActionButton icon="Xmark" onPress={onCancel} isDisabled={isPending}>
+      <ActionButton onPress={onCancel} isDisabled={isPending}>
         {cancelLabel}
       </ActionButton>
-      <ActionButton type="submit" icon={submitIcon} intent="accent" isPending={isPending} isDisabled={isSubmitDisabled}>
+      <ActionButton
+        type="submit"
+        icon={submitIcon}
+        intent="primary"
+        isPending={isPending}
+        isDisabled={isSubmitDisabled}
+      >
         {submitLabel}
       </ActionButton>
     </>
@@ -86,7 +92,7 @@ export interface FormDialogProps extends PanelFormProps {
 }
 
 /**
- * A short form in a dialog: title, the fields, then Cancel and one outlined Save. Saving shows a spinner
+ * A short form in a dialog: title, the fields, then Cancel and one primary Save. Saving shows a spinner
  * on Save and keeps the dialog open; field errors show under their fields, a form error at the top.
  * A longer form belongs in a `SidePanel`.
  */
@@ -209,12 +215,12 @@ export function ConfirmDialog({
           </AlertDialog.Header>
           {children ? <AlertDialog.Body className="text-sm text-pretty text-muted">{children}</AlertDialog.Body> : null}
           <AlertDialog.Footer className="flex flex-wrap justify-end gap-2">
-            <ActionButton icon="Xmark" slot="close" isDisabled={isPending}>
+            <ActionButton slot="close" isDisabled={isPending}>
               {cancelLabel ?? (danger ? "Keep it" : "Cancel")}
             </ActionButton>
             <ActionButton
-              icon={confirmIcon ?? (danger ? "TrashBin" : "Check")}
-              intent={danger ? "danger" : "accent"}
+              icon={confirmIcon}
+              intent={danger ? "danger" : "primary"}
               isPending={isPending}
               onPress={onConfirm}
             >

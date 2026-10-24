@@ -1,10 +1,11 @@
 "use client";
 
-import { Calendar, DateField, DatePicker, FieldError, Input, Label, type Selection, TextField } from "@heroui/react";
+import { Card, FieldError, Input, Label, type Selection, TextField } from "@heroui/react";
 import {
   ActionButton,
   ActionLink,
   AgeingStackedBar,
+  BoundedDatePicker,
   CashFlowComposed,
   CategoryDonut,
   CollectedVsExpectedBar,
@@ -40,9 +41,9 @@ import {
   type StatusKind,
   UnitCell,
 } from "@injishi/ui";
-import { type CalendarDate, parseDate } from "@internationalized/date";
-import { type ReactNode, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { CalendarSection, DatesSection, MediaSection, PlacesSection, SigningSection } from "./KitInputs";
 import {
   addDays,
   ageingByMonth,
@@ -55,6 +56,7 @@ import {
   occupancyByMonth,
   rentByMonth,
 } from "./kit-data";
+import { Section, Specimen, SpecimenRow } from "./kit-parts";
 
 const SECTIONS = [
   { id: "buttons", label: "Buttons" },
@@ -67,6 +69,11 @@ const SECTIONS = [
   { id: "dialogs", label: "Dialogs and panels" },
   { id: "lists", label: "Lists" },
   { id: "records", label: "People, units, history" },
+  { id: "dates", label: "Dates and periods" },
+  { id: "media", label: "Photos and video" },
+  { id: "signing", label: "Signing and codes" },
+  { id: "places", label: "Places and contacts" },
+  { id: "calendar", label: "Rent calendar" },
 ] as const;
 
 const KIND_LABEL: Record<StatusKind, string> = {
@@ -81,43 +88,6 @@ const KIND_LABEL: Record<StatusKind, string> = {
   payout: "Payout",
   unit: "Unit",
 };
-
-function Section({
-  id,
-  title,
-  description,
-  children,
-}: {
-  id: string;
-  title: string;
-  description?: string;
-  children: ReactNode;
-}) {
-  return (
-    <section
-      id={id}
-      aria-labelledby={`${id}-h`}
-      className="flex scroll-mt-6 flex-col gap-5 border-t border-separator pt-10 first:border-t-0 first:pt-2"
-    >
-      <SectionHeader id={`${id}-h`} title={title} description={description} />
-      {children}
-    </section>
-  );
-}
-
-/** One state of a component, named. */
-function Specimen({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
-  return (
-    <div className={`flex min-w-0 flex-col gap-2 ${className ?? ""}`}>
-      <span className="text-xs font-medium text-muted">{label}</span>
-      {children}
-    </div>
-  );
-}
-
-function SpecimenRow({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-3">{children}</div>;
-}
 
 export function KitGallery({ today }: { today: string }) {
   return (
@@ -157,6 +127,11 @@ export function KitGallery({ today }: { today: string }) {
         <DialogsSection today={today} />
         <ListsSection today={today} />
         <RecordsSection today={today} />
+        <DatesSection today={today} />
+        <MediaSection />
+        <SigningSection />
+        <PlacesSection today={today} />
+        <CalendarSection today={today} />
       </PageContent>
     </div>
   );
@@ -168,20 +143,21 @@ function ButtonsSection() {
     <Section
       id="buttons"
       title="Buttons"
-      description="Outlined with an icon. Accent outline for the main action in a dialog or card; solid only for the page's one primary action."
+      description="As the feature screens use them: secondary (soft) by default, primary for the one main action, ghost for low emphasis, danger-soft beside other actions, danger only to confirm."
     >
       <div className="grid gap-6 lg:grid-cols-2">
         <Specimen label="ActionButton intents">
           <SpecimenRow>
-            <ActionButton icon="Plus">Add unit</ActionButton>
-            <ActionButton icon="Check" intent="accent">
-              Save
-            </ActionButton>
+            <ActionButton icon="ArrowDownToLine">Export</ActionButton>
             <ActionButton icon="FileText" intent="primary">
               New lease
             </ActionButton>
+            <ActionButton icon="Sliders" intent="ghost">
+              Approval limits
+            </ActionButton>
+            <ActionButton intent="danger-soft">Decline</ActionButton>
             <ActionButton icon="TrashBin" intent="danger">
-              Delete
+              Delete lease
             </ActionButton>
           </SpecimenRow>
         </Specimen>
@@ -416,18 +392,18 @@ function StatesSection() {
     >
       <div className="grid gap-4 lg:grid-cols-2">
         <Specimen label="EmptyBlock, page section">
-          <div className="rounded-2xl border border-dashed border-border">
+          <Card>
             <EmptyBlock
               icon="FileText"
               title="No leases yet"
               description="Add a lease to invite your tenant and start collecting rent."
               action={
-                <ActionButton icon="Plus" intent="accent">
+                <ActionButton icon="Plus" size="sm">
                   New lease
                 </ActionButton>
               }
             />
-          </div>
+          </Card>
         </Specimen>
         <Specimen label="EmptyBlock, small, in a card">
           <SectionCard title="Faults">
@@ -491,7 +467,7 @@ function DialogsSection({ today }: { today: string }) {
   const [recordOpen, setRecordOpen] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const [block, setBlock] = useState<string | null>(null);
-  const [available, setAvailable] = useState<CalendarDate | null>(parseDate(addDays(today, 7)));
+  const [available, setAvailable] = useState<string | null>(addDays(today, 7));
   const [askingRent, setAskingRent] = useState<number | null>(350_000);
 
   return (
@@ -504,7 +480,7 @@ function DialogsSection({ today }: { today: string }) {
         <ActionButton icon="Wallet" onPress={() => setPaymentOpen(true)}>
           Record a payment
         </ActionButton>
-        <ActionButton icon="Ban" intent="danger" onPress={() => setConfirmOpen(true)}>
+        <ActionButton icon="Ban" intent="danger-soft" onPress={() => setConfirmOpen(true)}>
           Cancel lease
         </ActionButton>
         <ActionButton icon="Pencil" onPress={() => setUnitOpen(true)}>
@@ -602,37 +578,14 @@ function DialogsSection({ today }: { today: string }) {
           <FieldError />
         </TextField>
         <SelectField label="Block" name="block" options={BLOCKS} value={block} onChange={setBlock} />
-        <DatePicker
+        <BoundedDatePicker
+          label="Available from"
           name="availableFrom"
           value={available}
           onChange={setAvailable}
-          minValue={parseDate(today)}
-          className="gap-1"
-        >
-          <Label>Available from</Label>
-          <DateField.Group fullWidth>
-            <DateField.Input>{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
-            <DateField.Suffix>
-              <DatePicker.Trigger>
-                <DatePicker.TriggerIndicator />
-              </DatePicker.Trigger>
-            </DateField.Suffix>
-          </DateField.Group>
-          <FieldError />
-          <DatePicker.Popover>
-            <Calendar aria-label="Available from" minValue={parseDate(today)}>
-              <Calendar.Header>
-                <Calendar.Heading />
-                <Calendar.NavButton slot="previous" />
-                <Calendar.NavButton slot="next" />
-              </Calendar.Header>
-              <Calendar.Grid>
-                <Calendar.GridHeader>{(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}</Calendar.GridHeader>
-                <Calendar.GridBody>{(date) => <Calendar.Cell date={date} />}</Calendar.GridBody>
-              </Calendar.Grid>
-            </Calendar>
-          </DatePicker.Popover>
-        </DatePicker>
+          minValue={today}
+          maxValue={addDays(today, 365)}
+        />
         <MoneyInput label="Asking rent" name="askingRent" value={askingRent} onChange={setAskingRent} minValue={1} />
         <MoneyInput label="Deposit" name="deposit" defaultValue={700_000} description="Usually two months of rent." />
       </SidePanel>
@@ -646,7 +599,7 @@ function DialogsSection({ today }: { today: string }) {
         footer={
           <>
             <ActionButton icon="PencilToSquare">Edit terms</ActionButton>
-            <ActionButton icon="PaperPlane" intent="accent">
+            <ActionButton icon="PaperPlane" intent="primary">
               Resend invitation
             </ActionButton>
           </>
@@ -895,7 +848,7 @@ function RecordsSection({ today }: { today: string }) {
             <ActionButton
               icon="ArrowRight"
               size="sm"
-              intent="accent"
+              intent="primary"
               iconPlacement="end"
               isDisabled={step >= NEW_LEASE_STEPS.length}
               onPress={() => setStep((s) => s + 1)}

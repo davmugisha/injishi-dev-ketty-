@@ -7,37 +7,28 @@ import { Icon, type IconKey } from "./icon.tsx";
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
 /**
- * The house rule for buttons: every button is OUTLINED (HeroUI v3 `variant="outline"`: transparent with a
- * 1px border) and carries an icon. The one page-level primary action may be solid (`intent="primary"`,
- * HeroUI `variant="primary"`); nothing else is.
+ * Buttons as the rest of apps/app uses them (owner, operations, stays, finance):
  *
- * - `default`: outlined, the everyday button.
- * - `accent`: outlined in the accent colour, the main action inside a dialog, side panel or card (Save).
- * - `primary`: solid accent, at most once per page (the page's main action).
- * - `danger`: outlined with danger text, for Delete, Cancel lease, Void.
+ * - `secondary` (soft fill): the everyday button, header actions, Cancel. The default.
+ * - `primary` (solid accent): the one main action of a page, a dialog or a panel (Save, Send, Approve).
+ * - `ghost`: low emphasis, links to other screens, toolbars, icon-only row actions.
+ * - `danger-soft`: Decline, Remove, Void beside other actions. `danger` (solid) only to confirm a
+ *   destructive step in a dialog.
+ *
+ * Header actions carry an icon, as the feature screens do; dialog footers usually don't.
  */
-export type ButtonIntent = "default" | "accent" | "primary" | "danger";
-
-function variantFor(intent: ButtonIntent) {
-  return intent === "primary" ? ("primary" as const) : ("outline" as const);
-}
-
-const INTENT_CLASS: Record<ButtonIntent, string | undefined> = {
-  default: undefined,
-  accent: "border-accent/50 text-accent",
-  primary: undefined,
-  danger: "border-danger/40 text-danger",
-};
+export type ButtonIntent = "secondary" | "primary" | "ghost" | "danger-soft" | "danger";
 
 type HeroButtonProps = ComponentProps<typeof Button>;
 
 export interface ActionButtonProps
   extends Omit<HeroButtonProps, "variant" | "children" | "isIconOnly" | "className" | "size"> {
-  /** A Gravity icon key (`icons` in icon.tsx). Required: buttons always carry an icon. */
-  icon: IconKey;
+  /** A Gravity icon key (`icons` in icon.tsx), shown before the words. */
+  icon?: IconKey;
   children: ReactNode;
+  /** @default "secondary" */
   intent?: ButtonIntent;
-  /** "sm" in cards, toolbars and dialogs' secondary rows; "md" in page headers and dialog footers. */
+  /** "sm" in cards, lists and toolbars; "md" in page headers and dialog footers. */
   size?: "sm" | "md";
   /** "end" for forward moves ("Next", "Continue"). @default "start" */
   iconPlacement?: "start" | "end";
@@ -45,18 +36,18 @@ export interface ActionButtonProps
 }
 
 /**
- * An outlined button with an icon and a label. `isPending` swaps the icon for a spinner and blocks
- * presses, keeping the button's width.
+ * A button with words and, usually, an icon. `isPending` swaps the icon for a spinner and blocks presses,
+ * keeping the button's width.
  *
  * ```tsx
- * <ActionButton icon="Plus" onPress={openAdd}>Add unit</ActionButton>
- * <ActionButton icon="FileText" intent="primary" onPress={openNew}>New lease</ActionButton>
+ * <ActionButton icon="ArrowDownToLine" onPress={exportCsv}>Export</ActionButton>
+ * <ActionButton icon="Bell" intent="primary" onPress={remind}>Remind residents in arrears</ActionButton>
  * ```
  */
 export function ActionButton({
   icon,
   children,
-  intent = "default",
+  intent = "secondary",
   size = "md",
   iconPlacement = "start",
   isPending,
@@ -65,17 +56,11 @@ export function ActionButton({
 }: ActionButtonProps) {
   const mark = isPending ? (
     <Spinner size="sm" color="current" aria-hidden="true" className="size-4" />
-  ) : (
+  ) : icon ? (
     <Icon name={icon} />
-  );
+  ) : null;
   return (
-    <Button
-      {...props}
-      isPending={isPending}
-      size={size}
-      variant={variantFor(intent)}
-      className={cx(INTENT_CLASS[intent], className)}
-    >
+    <Button {...props} isPending={isPending} size={size} variant={intent} className={className}>
       {iconPlacement === "start" ? mark : null}
       {children}
       {iconPlacement === "end" ? mark : null}
@@ -84,21 +69,26 @@ export function ActionButton({
 }
 
 export interface ActionLinkProps extends Omit<ComponentProps<typeof NextLink>, "className" | "children"> {
-  icon: IconKey;
+  icon?: IconKey;
   children: ReactNode;
+  /** @default "secondary" */
   intent?: ButtonIntent;
   size?: "sm" | "md";
   className?: string;
 }
 
 /** A link that looks like an `ActionButton` (it navigates instead of opening something). */
-export function ActionLink({ icon, children, intent = "default", size = "md", className, ...props }: ActionLinkProps) {
+export function ActionLink({
+  icon,
+  children,
+  intent = "secondary",
+  size = "md",
+  className,
+  ...props
+}: ActionLinkProps) {
   return (
-    <NextLink
-      {...props}
-      className={buttonVariants({ variant: variantFor(intent), size, className: cx(INTENT_CLASS[intent], className) })}
-    >
-      <Icon name={icon} />
+    <NextLink {...props} className={buttonVariants({ variant: intent, size, className })}>
+      {icon ? <Icon name={icon} /> : null}
       {children}
     </NextLink>
   );
@@ -114,14 +104,16 @@ export interface IconActionProps
    * focusable and hoverable, so the reason can be read: it shows in the tooltip and the accessible name.
    */
   disabledReason?: string | null;
-  intent?: Exclude<ButtonIntent, "primary">;
+  /** "danger" tints the icon (Delete, Remove). @default "default" */
+  intent?: "default" | "danger";
   size?: "sm" | "md";
   className?: string;
 }
 
 /**
- * An icon-only outlined button with a tooltip, for row actions (the "Actions" column: the next step
- * first, then Open, Edit, Delete) and tight toolbars.
+ * An icon-only ghost button, as the feature screens make them (`variant="ghost"`, `isIconOnly`), with a
+ * tooltip: row actions (the "Actions" column: the next step first, then Open, Edit, Delete) and tight
+ * toolbars.
  */
 export function IconAction({
   icon,
@@ -141,15 +133,15 @@ export function IconAction({
         {...props}
         isIconOnly
         size={size}
-        variant="outline"
+        variant="ghost"
         aria-label={blocked ? `${label} (${disabledReason})` : label}
         aria-disabled={blocked || undefined}
         isPending={isPending}
         onPress={blocked ? undefined : onPress}
         className={cx(
-          INTENT_CLASS[intent],
+          intent === "danger" && "text-danger",
           // The theme makes aria-disabled buttons ignore the pointer; keep hover so the reason shows.
-          blocked && "pointer-events-auto cursor-not-allowed",
+          blocked && "pointer-events-auto cursor-not-allowed opacity-50",
           className,
         )}
       >

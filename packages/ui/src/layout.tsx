@@ -6,7 +6,7 @@ const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).jo
 
 /**
  * The heading block of a page: an optional eyebrow, the title, one helper line, and the page's actions
- * (the one page-level primary action may be solid; everything else is outlined). On a phone the actions
+ * (`secondary` or `ghost` buttons, the one main action `primary`). On a phone the actions
  * wrap under the title.
  */
 export function PageHeader({
