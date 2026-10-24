@@ -19,8 +19,9 @@
  * Three things are refused:
  *
  *  1. A file at `src/components/ui/<name>.tsx` whose `<name>` matches something
- *     `@injishi/ui` exports. The export list is read from the package at rule
- *     load time rather than hardcoded, so the rule cannot drift from it.
+ *     `@injishi/ui` exports. The export list is read from the package the
+ *     linted app resolves `@injishi/ui` to rather than hardcoded, so the rule
+ *     cannot drift from it.
  *  2. A raw Tailwind palette class in a `.tsx` file (`bg-green-800`,
  *     `text-slate-500`). ADR-027 call 8 specified this for `apps/web`; ADR-036
  *     call 12 extends it to `apps/app`. These are not merely untidy: the
@@ -37,45 +38,58 @@
  * admin's own `components/ui/` copies is deleted (ADR-040 call 7).
  */
 
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync, realpathSync } from 'node:fs';
 import { dirname, join, basename, extname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 /**
- * The components `@injishi/ui` owns, read off disk so this list cannot go
- * stale. Resolved relative to this file: the plugin lives in `injishi/tools/`
- * and the package in `injishi/packages/ui/`.
+ * The components the linted app's `@injishi/ui` owns, read off disk so this
+ * list cannot go stale.
+ *
+ * Resolved from the linted FILE, the way the app resolves the import: the
+ * nearest `node_modules/@injishi/ui`, followed through pnpm's link to the
+ * package behind it. Two packages answer to that name. `apps/web` aliases it
+ * to `packages/web-ui`, the Radix and HeroUI kit, with its components in
+ * `src/components/`; everywhere else it is the new interface's `packages/ui`,
+ * flat modules in `src/`. One fixed directory checks one of them against the
+ * other's list: pointed at `packages/ui` after PR #38, it held `apps/web`, the
+ * only app that enables this rule, to six names its kit does not have and to
+ * none of the forty six it does.
  *
  * This used to read `injishi/vendor/ui/` and fall back to an EMPTY set when the
  * directory was missing, on the grounds that the mirror might not be synced
  * yet. ADR-034 renamed `vendor/` to `packages/` and the fallback swallowed it:
  * check 1 below matched nothing in any app from that day, silently, and the
  * "0" ADR-040 recorded for `apps/admin` was that, not a count. Found and fixed
- * during ADR-040 phase 2. The package is source now, not a mirror, so a missing
- * directory is a broken checkout and it fails loudly.
+ * during ADR-040 phase 2. So a file this rule inspects, in an app that cannot
+ * resolve `@injishi/ui`, is a broken checkout, and it fails loudly.
  *
- * PR #38 (the new interface) replaced the package's `src/components/` folder with flat
- * modules at `src/` (`icon.tsx`, `layout.tsx`, `photo.tsx`, ...), so the rule reads those.
- * Before that change it threw on load, which failed `pnpm lint` for every package that
- * loads this plugin, the API included, whether or not it used this rule.
+ * Nothing is read when the plugin loads, only when a `components/ui/` file is
+ * linted. Reading at load once threw for every package that loads this plugin,
+ * the API included, whether or not it used this rule.
  */
-function sharedComponentNames() {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const componentsDir = join(here, '..', '..', 'packages', 'ui', 'src');
-  let files;
-  try {
-    files = readdirSync(componentsDir);
-  } catch (cause) {
-    throw new Error(
-      `injishi/no-duplicate-shared-component: cannot read ${componentsDir}. ` +
-        'The rule needs the @injishi/ui source to know what the package owns.',
-      { cause },
-    );
-  }
-  return new Set(files.filter((f) => f.endsWith('.tsx')).map((f) => basename(f, '.tsx')));
-}
+const sharedByPackage = new Map();
 
-const SHARED = sharedComponentNames();
+function sharedComponentNames(filename) {
+  for (let dir = dirname(filename); ; dir = dirname(dir)) {
+    const link = join(dir, 'node_modules', '@injishi', 'ui');
+    if (existsSync(link)) {
+      const pkg = realpathSync(link);
+      if (!sharedByPackage.has(pkg)) {
+        const nested = join(pkg, 'src', 'components');
+        const files = readdirSync(existsSync(nested) ? nested : join(pkg, 'src'));
+        const names = files.filter((f) => f.endsWith('.tsx')).map((f) => basename(f, '.tsx'));
+        sharedByPackage.set(pkg, new Set(names));
+      }
+      return sharedByPackage.get(pkg);
+    }
+    if (dirname(dir) === dir) {
+      throw new Error(
+        `injishi/no-duplicate-shared-component: no node_modules/@injishi/ui above ${filename}. ` +
+          'The rule needs the @injishi/ui source to know what the package owns.',
+      );
+    }
+  }
+}
 
 /** Tailwind's stock colour ramps. `ink` and `green` are the project's own. */
 const STOCK_RAMPS =
@@ -131,7 +145,7 @@ const rule = {
 
     if (inComponentsUi && extname(filename) === '.tsx') {
       const name = basename(filename, '.tsx');
-      if (SHARED.has(name)) {
+      if (sharedComponentNames(filename).has(name)) {
         return {
           Program(node) {
             context.report({ node, messageId: 'duplicate', data: { name } });
