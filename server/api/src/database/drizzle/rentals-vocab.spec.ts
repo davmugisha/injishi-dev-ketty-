@@ -1,5 +1,7 @@
 import {
   DepositRefundMethod,
+  GuestHostKind,
+  GuestRegistrationStatus,
   IdKind,
   LeaseActorRole,
   LeaseChargeKind,
@@ -33,6 +35,8 @@ import { join } from 'node:path';
 import {
   depositRefundMethodEnum,
   filingStatusEnum,
+  guestHostKindEnum,
+  guestRegistrationStatusEnum,
   idKindEnum,
   invitationStatusEnum,
   leaseActorRoleEnum,
@@ -102,6 +106,9 @@ const PAIRS: ReadonlyArray<readonly [string, { enumName: string; enumValues: rea
   ['move_out_reason', moveOutReasonEnum, MoveOutReasonCode],
   ['lease_filing_kind', leaseFilingKindEnum, LeaseFilingKind],
   ['filing_status', filingStatusEnum, LeaseFilingStatus],
+  // Guests (P5).
+  ['guest_host_kind', guestHostKindEnum, GuestHostKind],
+  ['guest_registration_status', guestRegistrationStatusEnum, GuestRegistrationStatus],
 ];
 
 describe('rentals database enums match the contracts vocabulary', () => {

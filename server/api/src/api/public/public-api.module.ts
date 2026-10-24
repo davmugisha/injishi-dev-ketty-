@@ -22,6 +22,7 @@ import { DemoCrashController } from './demo/crash.controller';
 import { DemoPersonasController } from './demo/personas.controller';
 import { EbmOauthController } from './ebm/ebm-oauth.controller';
 import { GeographyController } from './geography/geography.controller';
+import { GuestsPublicModule } from './guests/guests-public.module';
 import { HealthController } from './health/health.controller';
 import { MeController } from './me/me.controller';
 // Rentals, the tenant's side (blueprint 2.4 and 2.5): their tenancies, accepting an invitation.
@@ -193,6 +194,9 @@ import { TrainingPublicModule } from './training/training.module';
     // `/api/v1/verify/:token` must answer a stranger holding a printed
     // certificate.
     TrainingPublicModule,
+    // P5: a tenant's and a landlord's guests, the local leader's console and
+    // reports, and the guest form's reference lists; its own folder.
+    GuestsPublicModule,
   ],
   controllers: [
     HealthController,
