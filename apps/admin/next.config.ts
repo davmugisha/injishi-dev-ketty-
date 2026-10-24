@@ -45,11 +45,6 @@ const nextConfig: NextConfig = {
    */
   transpilePackages: ["@injishi/ui", "@injishi/utils"],
   experimental: {
-    // Next 15.5.4's dev-only Segment Explorer devtool injects a client
-    // reference (segment-explorer-node.js#SegmentViewNode) that the RSC client
-    // manifest fails to resolve after a hot recompile, 500ing every route and
-    // killing the dev server. Off until the upstream regression is patched.
-    devtoolSegmentExplorer: false,
     // A barrel import of `@injishi/ui` would otherwise pull all 24 of its
     // client components into any route that imports one of them.
     optimizePackageImports: ["@injishi/ui", "lucide-react"],

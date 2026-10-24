@@ -72,7 +72,6 @@ const nextConfig: NextConfig = {
    */
   transpilePackages: ["@injishi/ui", "@injishi/utils"],
   experimental: {
-    devtoolSegmentExplorer: false,
     /**
      * A barrel import of `@injishi/ui` would otherwise pull all 24 of its
      * client components into any route that imports one of them.

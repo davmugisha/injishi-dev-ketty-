@@ -85,11 +85,6 @@ const nextConfig: NextConfig = {
     // document to render into; globalNotFound lets app/global-not-found.tsx
     // supply its own <html> and <body> (ADR-013 call 7).
     globalNotFound: true,
-    // Next 15.5.4's dev-only Segment Explorer devtool injects a client
-    // reference (segment-explorer-node.js#SegmentViewNode) that the RSC client
-    // manifest fails to resolve after a hot recompile, 500ing every route and
-    // killing the dev server. Off until the upstream regression is patched.
-    devtoolSegmentExplorer: false,
     // A barrel import of @injishi/ui would otherwise pull all 16 of its client
     // components into a server page that wanted one Button (ADR-008).
     optimizePackageImports: ["@injishi/ui", "lucide-react"],
