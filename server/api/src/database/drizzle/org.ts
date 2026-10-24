@@ -28,7 +28,7 @@ import {
 import { users } from './auth';
 import { timestamps } from './columns';
 import { adapterModeEnum, documentTypeEnum, domainKindEnum, genderEnum, globalRoleEnum, identityDocumentStatusEnum, invitationPurposeEnum, invitationStatusEnum, kycStatusEnum, oboClaimStatusEnum, orgCertificateKindEnum, orgCertificateStatusEnum, orgMembershipStatusEnum, orgRegistrationStatusEnum, orgRoleEnum, oversightRoleEnum, oversightScopeLevelEnum, rdbClassificationKindEnum, registrationRejectionReasonEnum, registrationReviewDecisionEnum, registrationTransitionTriggerEnum, tinVerificationResultEnum, workspaceKindEnum } from './enums';
-import { districts, provinces, sectors, villages } from './geography';
+import { cells, districts, provinces, sectors, villages } from './geography';
 import { storedObjects } from './hospitality';
 import { properties } from './inventory';
 
@@ -594,6 +594,12 @@ export const oversightAssignments = pgTable(
     scopeLevel: oversightScopeLevelEnum('scope_level').notNull(),
     provinceId: integer('province_id').references(() => provinces.id),
     districtId: integer('district_id').references(() => districts.id),
+    // P5: a local leader's sector, cell and village. Every level above the one
+    // the post covers is filled in too (a village leader's row names the cell,
+    // sector and district), so "who covers this district" is one column.
+    sectorId: integer('sector_id').references(() => sectors.id),
+    cellId: integer('cell_id').references(() => cells.id),
+    villageId: integer('village_id').references(() => villages.id),
     assignedByUserId: uuid('assigned_by_user_id').references(() => users.id),
     grantedAt: timestamp('granted_at', { withTimezone: true })
       .notNull()
@@ -604,17 +610,39 @@ export const oversightAssignments = pgTable(
     index('oversight_assignments_user_idx').on(t.userId),
     index('oversight_assignments_body_idx').on(t.governmentBodyCode),
     // One active grant per (user, role, exact scope). Scope is the
-    // (province, district) pair - both NULL == country.
+    // (province, district, sector, cell, village) path - all NULL == country.
     uniqueIndex('oversight_assignments_active_uk')
-      .on(t.userId, t.oversightRole, t.scopeLevel, t.provinceId, t.districtId)
+      .on(t.userId, t.oversightRole, t.scopeLevel, t.provinceId, t.districtId, t.sectorId, t.cellId, t.villageId)
       .where(sql`${t.revokedAt} IS NULL`),
-    // Scope shape: country -> neither id; province -> province only;
-    // district -> district (province optional as a denormalized parent).
+    // Who holds a post in an area: guest routing reads this on every filing.
+    index('oversight_assignments_area_idx')
+      .on(t.oversightRole, t.districtId, t.sectorId, t.cellId, t.villageId)
+      .where(sql`${t.revokedAt} IS NULL`),
+    // Scope shape: country -> no ids; province -> province only; district ->
+    // district (province optional as a denormalized parent) and nothing below;
+    // sector, cell and village -> their own id and every level above it down
+    // to the district. Compared as text: the three new levels are added in the
+    // same migration run that writes this check (blueprint 1.1).
     check(
       'oversight_assignments_scope_shape',
-      sql`(${t.scopeLevel} = 'country' AND ${t.provinceId} IS NULL AND ${t.districtId} IS NULL)
-          OR (${t.scopeLevel} = 'province' AND ${t.provinceId} IS NOT NULL AND ${t.districtId} IS NULL)
-          OR (${t.scopeLevel} = 'district' AND ${t.districtId} IS NOT NULL)`,
+      sql`(${t.scopeLevel}::text = 'country' AND ${t.provinceId} IS NULL AND ${t.districtId} IS NULL AND ${t.sectorId} IS NULL AND ${t.cellId} IS NULL AND ${t.villageId} IS NULL)
+          OR (${t.scopeLevel}::text = 'province' AND ${t.provinceId} IS NOT NULL AND ${t.districtId} IS NULL AND ${t.sectorId} IS NULL AND ${t.cellId} IS NULL AND ${t.villageId} IS NULL)
+          OR (${t.scopeLevel}::text = 'district' AND ${t.districtId} IS NOT NULL AND ${t.sectorId} IS NULL AND ${t.cellId} IS NULL AND ${t.villageId} IS NULL)
+          OR (${t.scopeLevel}::text = 'sector' AND ${t.districtId} IS NOT NULL AND ${t.sectorId} IS NOT NULL AND ${t.cellId} IS NULL AND ${t.villageId} IS NULL)
+          OR (${t.scopeLevel}::text = 'cell' AND ${t.districtId} IS NOT NULL AND ${t.sectorId} IS NOT NULL AND ${t.cellId} IS NOT NULL AND ${t.villageId} IS NULL)
+          OR (${t.scopeLevel}::text = 'village' AND ${t.districtId} IS NOT NULL AND ${t.sectorId} IS NOT NULL AND ${t.cellId} IS NOT NULL AND ${t.villageId} IS NOT NULL)`,
+    ),
+    // Which level each role is appointed at (P5): a local leader covers exactly
+    // one level, a business reviewer or tax officer the country, a province or
+    // a district. The same pairs as `OVERSIGHT_ROLE_SCOPES` in contracts.
+    check(
+      'oversight_assignments_role_scope',
+      sql`(${t.oversightRole}::text = 'village_leader' AND ${t.scopeLevel}::text = 'village')
+          OR (${t.oversightRole}::text = 'dasso' AND ${t.scopeLevel}::text = 'sector')
+          OR (${t.oversightRole}::text = 'cell_executive' AND ${t.scopeLevel}::text = 'cell')
+          OR (${t.oversightRole}::text IN ('district_officer', 'district_immigration') AND ${t.scopeLevel}::text = 'district')
+          OR (${t.oversightRole}::text IN ('business_field_verifier', 'business_approver', 'tax_compliance_officer', 'psf_membership_officer')
+              AND ${t.scopeLevel}::text IN ('country', 'province', 'district'))`,
     ),
     // NOTE: Separation of duties (same user must not be both
     // `business_field_verifier` and `business_approver` in one scope) is a

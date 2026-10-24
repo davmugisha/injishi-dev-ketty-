@@ -1434,6 +1434,13 @@ export class OrganizationRepository {
       );
     return rows
       .filter((r) => Boolean(r.email))
+      // A reviewer is appointed at the country, a province or a district (the
+      // table's role-scope check); the narrowing says so to the type.
+      .flatMap((r) =>
+        r.scopeLevel === 'country' || r.scopeLevel === 'province' || r.scopeLevel === 'district'
+          ? [{ ...r, scopeLevel: r.scopeLevel }]
+          : [],
+      )
       .map((r) => ({
         userId: r.userId,
         email: r.email,

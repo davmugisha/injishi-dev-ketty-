@@ -155,6 +155,11 @@ export const OVERSIGHT_ROLE_LABEL: Readonly<Record<OversightRole, string>> = {
     business_field_verifier: "Field verifier",
     tax_compliance_officer: "Tax compliance officer",
     psf_membership_officer: "PSF membership officer",
+    village_leader: "Village leader",
+    dasso: "Sector DASSO",
+    cell_executive: "Cell executive secretary",
+    district_officer: "District officer",
+    district_immigration: "District immigration officer",
 };
 
 /** The short words a platform staff role is read in. */

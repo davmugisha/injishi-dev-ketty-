@@ -96,6 +96,8 @@ exports.AdminAuditSubjectType = zod_1.z.enum([
     "rental_unit",
     "payout_account",
     "deposit",
+    // P5 (migration 0084): a guest registration filed, changed, cancelled or flagged.
+    "guest_registration",
 ]);
 /**
  * `record_data_class`. What class of another person's data a staff member read.
@@ -816,6 +818,18 @@ exports.CreateOversightGrantRequest = zod_1.z
     districtId: zod_1.z.number().int().positive().nullable().optional(),
 })
     .superRefine((value, ctx) => {
+    // A local leader (P5) is appointed by email and area through
+    // `AppointOfficerRequest` (`POST /admin/local-leaders`), which knows
+    // sectors, cells and villages. This older route keeps the three levels a
+    // business reviewer uses.
+    if (value.scopeLevel === "sector" || value.scopeLevel === "cell" || value.scopeLevel === "village") {
+        ctx.addIssue({
+            code: zod_1.z.ZodIssueCode.custom,
+            path: ["scopeLevel"],
+            message: "Appoint a local leader from Local leaders and officers.",
+        });
+        return;
+    }
     // Mirrors `oversight_assignments_scope_shape`. A country grant names no
     // region at all; the other two name exactly their own level.
     if (value.scopeLevel === "country") {

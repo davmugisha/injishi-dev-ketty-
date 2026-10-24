@@ -73,4 +73,5 @@ __exportStar(require("./staff-phone"), exports);
 // Rentals, rebuilt (blueprint WP 1.1): vocabulary, Kigali dates, the lease
 // state machine, the rent schedule, allocation, the contract, tax and payouts.
 __exportStar(require("./rentals"), exports);
+__exportStar(require("./guests"), exports);
 //# sourceMappingURL=index.js.map

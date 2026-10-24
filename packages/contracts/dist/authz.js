@@ -830,12 +830,18 @@ function workspaceAllows(access, permission) {
  * "no assignment" and "no console" are the same thing.
  */
 exports.OversightGrant = zod_1.z.object({
+    /** The assignment row: a local leader's seen marks and flags name it. */
+    assignmentId: primitives_1.Uuid,
     oversightRole: primitives_1.OversightRole,
     governmentBodyCode: zod_1.z.string(),
     governmentTitle: zod_1.z.string().nullable(),
     scopeLevel: primitives_1.OversightScopeLevel,
     provinceId: zod_1.z.number().int().nullable(),
     districtId: zod_1.z.number().int().nullable(),
+    /** A local leader's sector, cell and village (P5); null for a business reviewer. */
+    sectorId: zod_1.z.number().int().nullable(),
+    cellId: zod_1.z.number().int().nullable(),
+    villageId: zod_1.z.number().int().nullable(),
 });
 /**
  * A grant as the OFFICER'S OWN CONSOLE renders it (ADR-053, AC-G5).
@@ -860,7 +866,7 @@ exports.OversightGrant = zod_1.z.object({
 exports.OversightConsoleGrant = zod_1.z.object({
     /** The assignment row, so a console can name the seat it is rendering. */
     assignmentId: primitives_1.Uuid,
-    console: zod_1.z.enum(["verification", "approval", "tax", "membership"]),
+    console: zod_1.z.enum(["verification", "approval", "tax", "membership", "guests"]),
     oversightRole: primitives_1.OversightRole,
     bodyCode: zod_1.z.string(),
     bodyName: zod_1.z.string().nullable(),
@@ -868,6 +874,9 @@ exports.OversightConsoleGrant = zod_1.z.object({
     scopeLevel: primitives_1.OversightScopeLevel,
     provinceId: zod_1.z.number().int().nullable(),
     districtId: zod_1.z.number().int().nullable(),
+    sectorId: zod_1.z.number().int().nullable(),
+    cellId: zod_1.z.number().int().nullable(),
+    villageId: zod_1.z.number().int().nullable(),
     scopeLabel: zod_1.z.string(),
 });
 /** How a country-level scope reads on the officer's own console. */
@@ -885,6 +894,13 @@ exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = "Your appointment is recorded, and
 /** Which console a function opens. */
 function oversightConsoleFor(role) {
     switch (role) {
+        // The local leaders (P5) all read guests staying in their area.
+        case "village_leader":
+        case "dasso":
+        case "cell_executive":
+        case "district_officer":
+        case "district_immigration":
+            return "guests";
         case "business_field_verifier":
             return "verification";
         case "business_approver":
@@ -953,6 +969,14 @@ function oversightScopesOverlap(a, b) {
     // A country grant covers the whole map, so it meets everything.
     if (a.scopeLevel === "country" || b.scopeLevel === "country")
         return true;
+    // A local leader's sector, cell or village sits inside one district, which is
+    // all this business-gate question can tell about it (the leader roles gate
+    // nothing, so nothing should ask; this keeps a wrong caller conservative).
+    const local = (s) => s.scopeLevel === "sector" || s.scopeLevel === "cell" || s.scopeLevel === "village";
+    if (local(a) || local(b)) {
+        const fold = (s) => (local(s) ? { scopeLevel: "district", provinceId: s.provinceId, districtId: s.districtId } : s);
+        return oversightScopesOverlap(fold(a), fold(b));
+    }
     if (a.scopeLevel === "province" && b.scopeLevel === "province")
         return a.provinceId !== null && a.provinceId === b.provinceId;
     if (a.scopeLevel === "district" && b.scopeLevel === "district")
@@ -976,6 +1000,13 @@ function opposingGateRole(role) {
         // Membership is not a registration gate either (ADR-056), so a PSF
         // field verifier may also hold it: they decide different things.
         case "psf_membership_officer":
+            return null;
+        // A local leader reads guests; they gate no business at all.
+        case "village_leader":
+        case "dasso":
+        case "cell_executive":
+        case "district_officer":
+        case "district_immigration":
             return null;
     }
 }

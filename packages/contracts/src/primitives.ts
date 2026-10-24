@@ -97,10 +97,26 @@ export const OversightRole = z.enum([
     "business_approver",
     /** ADR-056: decides PSF membership applications. PSF, country scope only. */
     "psf_membership_officer",
+    /**
+     * The local leaders a guest staying in a rented home is reported to (P5): the
+     * Umudugudu leader of a village, the sector DASSO officer, the cell executive
+     * secretary, the district officer (Rwandan guests) and the district
+     * immigration officer (guests from abroad). Each covers exactly one level of
+     * the map (`LEADER_ROLE_SCOPE` in `guests.ts`).
+     */
+    "village_leader",
+    "dasso",
+    "cell_executive",
+    "district_officer",
+    "district_immigration",
 ]);
 export type OversightRole = z.infer<typeof OversightRole>;
-/** Region scope of an oversight assignment (Decision B). */
-export const OversightScopeLevel = z.enum(["country", "province", "district"]);
+/**
+ * Region scope of an oversight assignment (Decision B). Sector, cell and
+ * village are the local leaders' levels; business reviewers stay on country,
+ * province or district.
+ */
+export const OversightScopeLevel = z.enum(["country", "province", "district", "sector", "cell", "village"]);
 export type OversightScopeLevel = z.infer<typeof OversightScopeLevel>;
 /**
  * RWF money as an integer number of francs (never float). Mirrors the

@@ -201,7 +201,7 @@ describe('PsfMembershipService · applying (AC-6, AC-8, AC-9, AC-16)', () => {
 
 describe('PsfMembershipService · deciding (AC-11 to AC-14)', () => {
   const grants = [
-    { oversightRole: 'psf_membership_officer' as const, governmentBodyCode: 'PSF', governmentTitle: null, scopeLevel: 'country' as const, provinceId: null, districtId: null },
+    { assignmentId: '7a1f5b9e-2c4d-4e8f-9a1b-3c5d7e9f1a2b', oversightRole: 'psf_membership_officer' as const, governmentBodyCode: 'PSF', governmentTitle: null, scopeLevel: 'country' as const, provinceId: null, districtId: null, sectorId: null, cellId: null, villageId: null },
   ];
   const body = { tierCode: 'ordinary_300k', membershipNumber: 'PSF/1', annualFeeRwf: 300000, startsOn: '2026-09-27', expiresOn: '2027-09-26' };
 

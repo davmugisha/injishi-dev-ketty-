@@ -51,7 +51,7 @@ export type AdminAdapterStatus = z.infer<typeof AdminAdapterStatus>;
  * exists. The API's typecheck is what caught the gap: the query's row type
  * gained the two values and this contract had not.
  */
-export declare const AdminAuditSubjectType: z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit"]>;
+export declare const AdminAuditSubjectType: z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration"]>;
 export type AdminAuditSubjectType = z.infer<typeof AdminAuditSubjectType>;
 /**
  * `record_data_class`. What class of another person's data a staff member read.
@@ -800,15 +800,15 @@ export declare const AdminOrgReviewItem: z.ZodObject<{
         decision: z.ZodEnum<["passed", "rejected"]>;
         reasonCode: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
         decidedAt: z.ZodString;
-        oversightRole: z.ZodNullable<z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>>;
+        oversightRole: z.ZodNullable<z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>>;
     }, "strip", z.ZodTypeAny, {
         decision: "rejected" | "passed";
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | null;
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | null;
         reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
         decidedAt: string;
     }, {
         decision: "rejected" | "passed";
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | null;
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | null;
         reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
         decidedAt: string;
     }>>;
@@ -846,7 +846,7 @@ export declare const AdminOrgReviewItem: z.ZodObject<{
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     lastDecision: {
         decision: "rejected" | "passed";
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | null;
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | null;
         reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
         decidedAt: string;
     } | null;
@@ -863,7 +863,7 @@ export declare const AdminOrgReviewItem: z.ZodObject<{
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     lastDecision: {
         decision: "rejected" | "passed";
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | null;
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | null;
         reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
         decidedAt: string;
     } | null;
@@ -885,15 +885,15 @@ export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
             decision: z.ZodEnum<["passed", "rejected"]>;
             reasonCode: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
             decidedAt: z.ZodString;
-            oversightRole: z.ZodNullable<z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>>;
+            oversightRole: z.ZodNullable<z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>>;
         }, "strip", z.ZodTypeAny, {
             decision: "rejected" | "passed";
-            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | null;
+            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | null;
             reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
             decidedAt: string;
         }, {
             decision: "rejected" | "passed";
-            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | null;
+            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | null;
             reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
             decidedAt: string;
         }>>;
@@ -931,7 +931,7 @@ export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
         lastDecision: {
             decision: "rejected" | "passed";
-            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | null;
+            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | null;
             reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
             decidedAt: string;
         } | null;
@@ -948,7 +948,7 @@ export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
         lastDecision: {
             decision: "rejected" | "passed";
-            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | null;
+            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | null;
             reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
             decidedAt: string;
         } | null;
@@ -980,7 +980,7 @@ export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
         lastDecision: {
             decision: "rejected" | "passed";
-            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | null;
+            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | null;
             reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
             decidedAt: string;
         } | null;
@@ -1004,7 +1004,7 @@ export declare const AdminOrgReviewQueueResponse: z.ZodObject<{
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
         lastDecision: {
             decision: "rejected" | "passed";
-            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | null;
+            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | null;
             reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
             decidedAt: string;
         } | null;
@@ -2216,7 +2216,7 @@ export type AdminOrgMoney = z.infer<typeof AdminOrgMoney>;
 export declare const AdminTimelineEvent: z.ZodObject<{
     id: z.ZodString;
     eventType: z.ZodString;
-    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit"]>>;
+    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration"]>>;
     actorUserId: z.ZodNullable<z.ZodString>;
     actorName: z.ZodNullable<z.ZodString>;
     reason: z.ZodNullable<z.ZodString>;
@@ -2226,7 +2226,7 @@ export declare const AdminTimelineEvent: z.ZodObject<{
     reason: string | null;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
     actorUserId: string | null;
     actorName: string | null;
 }, {
@@ -2234,7 +2234,7 @@ export declare const AdminTimelineEvent: z.ZodObject<{
     reason: string | null;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
     actorUserId: string | null;
     actorName: string | null;
 }>;
@@ -2243,7 +2243,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         eventType: z.ZodString;
-        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit"]>>;
+        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration"]>>;
         actorUserId: z.ZodNullable<z.ZodString>;
         actorName: z.ZodNullable<z.ZodString>;
         reason: z.ZodNullable<z.ZodString>;
@@ -2253,7 +2253,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
         actorUserId: string | null;
         actorName: string | null;
     }, {
@@ -2261,7 +2261,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
         actorUserId: string | null;
         actorName: string | null;
     }>, "many">;
@@ -2284,7 +2284,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
         actorUserId: string | null;
         actorName: string | null;
     }[];
@@ -2299,7 +2299,7 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
         actorUserId: string | null;
         actorName: string | null;
     }[];
@@ -2322,7 +2322,7 @@ export declare const AdminAuditRow: z.ZodObject<{
      * the audit trail exists to record.
      */
     impersonatedUserId: z.ZodNullable<z.ZodString>;
-    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit"]>>;
+    subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration"]>>;
     subjectId: z.ZodNullable<z.ZodString>;
     eventType: z.ZodString;
     reason: z.ZodNullable<z.ZodString>;
@@ -2334,7 +2334,7 @@ export declare const AdminAuditRow: z.ZodObject<{
     reason: string | null;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
     actorUserId: string | null;
     actorName: string | null;
     impersonatedUserId: string | null;
@@ -2345,7 +2345,7 @@ export declare const AdminAuditRow: z.ZodObject<{
     reason: string | null;
     occurredAt: string;
     eventType: string;
-    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+    subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
     actorUserId: string | null;
     actorName: string | null;
     impersonatedUserId: string | null;
@@ -2358,19 +2358,19 @@ export declare const AdminAuditQuery: z.ZodObject<{
     pageSize: z.ZodOptional<z.ZodNumber>;
     /** Free text over the event type and the reason. */
     q: z.ZodOptional<z.ZodString>;
-    subjectType: z.ZodOptional<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit"]>>;
+    subjectType: z.ZodOptional<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration"]>>;
     actorUserId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     page?: number | undefined;
     pageSize?: number | undefined;
     q?: string | undefined;
-    subjectType?: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | undefined;
+    subjectType?: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | undefined;
     actorUserId?: string | undefined;
 }, {
     page?: number | undefined;
     pageSize?: number | undefined;
     q?: string | undefined;
-    subjectType?: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | undefined;
+    subjectType?: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | undefined;
     actorUserId?: string | undefined;
 }>;
 export type AdminAuditQuery = z.infer<typeof AdminAuditQuery>;
@@ -2386,7 +2386,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
          * the audit trail exists to record.
          */
         impersonatedUserId: z.ZodNullable<z.ZodString>;
-        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit"]>>;
+        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration"]>>;
         subjectId: z.ZodNullable<z.ZodString>;
         eventType: z.ZodString;
         reason: z.ZodNullable<z.ZodString>;
@@ -2398,7 +2398,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
         actorUserId: string | null;
         actorName: string | null;
         impersonatedUserId: string | null;
@@ -2409,7 +2409,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
         actorUserId: string | null;
         actorName: string | null;
         impersonatedUserId: string | null;
@@ -2435,7 +2435,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
         actorUserId: string | null;
         actorName: string | null;
         impersonatedUserId: string | null;
@@ -2453,7 +2453,7 @@ export declare const AdminAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
         actorUserId: string | null;
         actorName: string | null;
         impersonatedUserId: string | null;
@@ -2592,7 +2592,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
     events: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         eventType: z.ZodString;
-        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit"]>>;
+        subjectType: z.ZodNullable<z.ZodEnum<["user", "org", "lease", "booking", "payment", "config", "property", "broker", "guest_stay", "training_certificate", "employee", "pay_run", "tenant", "rental_unit", "payout_account", "deposit", "guest_registration"]>>;
         actorUserId: z.ZodNullable<z.ZodString>;
         actorName: z.ZodNullable<z.ZodString>;
         reason: z.ZodNullable<z.ZodString>;
@@ -2602,7 +2602,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
         actorUserId: string | null;
         actorName: string | null;
     }, {
@@ -2610,7 +2610,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
         actorUserId: string | null;
         actorName: string | null;
     }>, "many">;
@@ -2648,7 +2648,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
         actorUserId: string | null;
         actorName: string | null;
     }[];
@@ -2668,7 +2668,7 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         reason: string | null;
         occurredAt: string;
         eventType: string;
-        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | null;
+        subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | "tenant" | "rental_unit" | "payout_account" | "deposit" | "guest_registration" | null;
         actorUserId: string | null;
         actorName: string | null;
     }[];
@@ -2729,28 +2729,28 @@ export declare const AdminOversightGrant: z.ZodObject<{
      * which of two grants was meant.
      */
     id: z.ZodString;
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
     governmentBodyCode: z.ZodString;
     /** `government_bodies.name_en`, joined on the code. The words a citizen knows. */
     governmentBodyName: z.ZodNullable<z.ZodString>;
     governmentTitle: z.ZodNullable<z.ZodString>;
-    scopeLevel: z.ZodEnum<["country", "province", "district"]>;
+    scopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
     scopeLabel: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
     governmentBodyCode: string;
     governmentTitle: string | null;
     id: string;
     governmentBodyName: string | null;
-    scopeLevel: "country" | "province" | "district";
+    scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     scopeLabel: string | null;
 }, {
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
     governmentBodyCode: string;
     governmentTitle: string | null;
     id: string;
     governmentBodyName: string | null;
-    scopeLevel: "country" | "province" | "district";
+    scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     scopeLabel: string | null;
 }>;
 export type AdminOversightGrant = z.infer<typeof AdminOversightGrant>;
@@ -2768,38 +2768,38 @@ export type AdminOversightGrant = z.infer<typeof AdminOversightGrant>;
  * a mismatched pair is a 422 naming the field rather than a 500 from Postgres.
  */
 export declare const CreateOversightGrantRequest: z.ZodEffects<z.ZodObject<{
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
     governmentBodyCode: z.ZodString;
     governmentTitle: z.ZodString;
-    scopeLevel: z.ZodEnum<["country", "province", "district"]>;
+    scopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
     provinceId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     districtId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
     governmentBodyCode: string;
     governmentTitle: string;
-    scopeLevel: "country" | "province" | "district";
+    scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     provinceId?: number | null | undefined;
     districtId?: number | null | undefined;
 }, {
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
     governmentBodyCode: string;
     governmentTitle: string;
-    scopeLevel: "country" | "province" | "district";
+    scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     provinceId?: number | null | undefined;
     districtId?: number | null | undefined;
 }>, {
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
     governmentBodyCode: string;
     governmentTitle: string;
-    scopeLevel: "country" | "province" | "district";
+    scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     provinceId?: number | null | undefined;
     districtId?: number | null | undefined;
 }, {
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
     governmentBodyCode: string;
     governmentTitle: string;
-    scopeLevel: "country" | "province" | "district";
+    scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     provinceId?: number | null | undefined;
     districtId?: number | null | undefined;
 }>;
@@ -2860,28 +2860,28 @@ export declare const AdminUserRow: z.ZodObject<{
          * which of two grants was meant.
          */
         id: z.ZodString;
-        oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
+        oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
         governmentBodyCode: z.ZodString;
         /** `government_bodies.name_en`, joined on the code. The words a citizen knows. */
         governmentBodyName: z.ZodNullable<z.ZodString>;
         governmentTitle: z.ZodNullable<z.ZodString>;
-        scopeLevel: z.ZodEnum<["country", "province", "district"]>;
+        scopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
         scopeLabel: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
         governmentBodyCode: string;
         governmentTitle: string | null;
         id: string;
         governmentBodyName: string | null;
-        scopeLevel: "country" | "province" | "district";
+        scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
         scopeLabel: string | null;
     }, {
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
         governmentBodyCode: string;
         governmentTitle: string | null;
         id: string;
         governmentBodyName: string | null;
-        scopeLevel: "country" | "province" | "district";
+        scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
         scopeLabel: string | null;
     }>>;
     twoFactorEnrolled: z.ZodBoolean;
@@ -2905,12 +2905,12 @@ export declare const AdminUserRow: z.ZodObject<{
     }[];
     staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
     oversight: {
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
         governmentBodyCode: string;
         governmentTitle: string | null;
         id: string;
         governmentBodyName: string | null;
-        scopeLevel: "country" | "province" | "district";
+        scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
         scopeLabel: string | null;
     } | null;
     twoFactorEnrolled: boolean;
@@ -2933,12 +2933,12 @@ export declare const AdminUserRow: z.ZodObject<{
     }[];
     staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
     oversight: {
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
         governmentBodyCode: string;
         governmentTitle: string | null;
         id: string;
         governmentBodyName: string | null;
-        scopeLevel: "country" | "province" | "district";
+        scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
         scopeLabel: string | null;
     } | null;
     twoFactorEnrolled: boolean;
@@ -3009,28 +3009,28 @@ export declare const AdminUserListResponse: z.ZodObject<{
              * which of two grants was meant.
              */
             id: z.ZodString;
-            oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
+            oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
             governmentBodyCode: z.ZodString;
             /** `government_bodies.name_en`, joined on the code. The words a citizen knows. */
             governmentBodyName: z.ZodNullable<z.ZodString>;
             governmentTitle: z.ZodNullable<z.ZodString>;
-            scopeLevel: z.ZodEnum<["country", "province", "district"]>;
+            scopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
             scopeLabel: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
             governmentBodyCode: string;
             governmentTitle: string | null;
             id: string;
             governmentBodyName: string | null;
-            scopeLevel: "country" | "province" | "district";
+            scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
             scopeLabel: string | null;
         }, {
-            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
             governmentBodyCode: string;
             governmentTitle: string | null;
             id: string;
             governmentBodyName: string | null;
-            scopeLevel: "country" | "province" | "district";
+            scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
             scopeLabel: string | null;
         }>>;
         twoFactorEnrolled: z.ZodBoolean;
@@ -3054,12 +3054,12 @@ export declare const AdminUserListResponse: z.ZodObject<{
         }[];
         staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         oversight: {
-            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
             governmentBodyCode: string;
             governmentTitle: string | null;
             id: string;
             governmentBodyName: string | null;
-            scopeLevel: "country" | "province" | "district";
+            scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
             scopeLabel: string | null;
         } | null;
         twoFactorEnrolled: boolean;
@@ -3082,12 +3082,12 @@ export declare const AdminUserListResponse: z.ZodObject<{
         }[];
         staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         oversight: {
-            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
             governmentBodyCode: string;
             governmentTitle: string | null;
             id: string;
             governmentBodyName: string | null;
-            scopeLevel: "country" | "province" | "district";
+            scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
             scopeLabel: string | null;
         } | null;
         twoFactorEnrolled: boolean;
@@ -3125,12 +3125,12 @@ export declare const AdminUserListResponse: z.ZodObject<{
         }[];
         staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         oversight: {
-            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
             governmentBodyCode: string;
             governmentTitle: string | null;
             id: string;
             governmentBodyName: string | null;
-            scopeLevel: "country" | "province" | "district";
+            scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
             scopeLabel: string | null;
         } | null;
         twoFactorEnrolled: boolean;
@@ -3160,12 +3160,12 @@ export declare const AdminUserListResponse: z.ZodObject<{
         }[];
         staffRoles: ("finance" | "super_admin" | "ops" | "compliance" | "trainer")[];
         oversight: {
-            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+            oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
             governmentBodyCode: string;
             governmentTitle: string | null;
             id: string;
             governmentBodyName: string | null;
-            scopeLevel: "country" | "province" | "district";
+            scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
             scopeLabel: string | null;
         } | null;
         twoFactorEnrolled: boolean;

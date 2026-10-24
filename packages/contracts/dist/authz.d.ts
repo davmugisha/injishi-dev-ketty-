@@ -576,26 +576,40 @@ export declare function workspaceAllows(access: Pick<WorkspaceAccess, "permissio
  * "no assignment" and "no console" are the same thing.
  */
 export declare const OversightGrant: z.ZodObject<{
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
+    /** The assignment row: a local leader's seen marks and flags name it. */
+    assignmentId: z.ZodString;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
     governmentBodyCode: z.ZodString;
     governmentTitle: z.ZodNullable<z.ZodString>;
-    scopeLevel: z.ZodEnum<["country", "province", "district"]>;
+    scopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
     provinceId: z.ZodNullable<z.ZodNumber>;
     districtId: z.ZodNullable<z.ZodNumber>;
+    /** A local leader's sector, cell and village (P5); null for a business reviewer. */
+    sectorId: z.ZodNullable<z.ZodNumber>;
+    cellId: z.ZodNullable<z.ZodNumber>;
+    villageId: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     provinceId: number | null;
     districtId: number | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    sectorId: number | null;
+    cellId: number | null;
+    villageId: number | null;
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
     governmentBodyCode: string;
     governmentTitle: string | null;
-    scopeLevel: "country" | "province" | "district";
+    scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+    assignmentId: string;
 }, {
     provinceId: number | null;
     districtId: number | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    sectorId: number | null;
+    cellId: number | null;
+    villageId: number | null;
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
     governmentBodyCode: string;
     governmentTitle: string | null;
-    scopeLevel: "country" | "province" | "district";
+    scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
+    assignmentId: string;
 }>;
 export type OversightGrant = z.infer<typeof OversightGrant>;
 /**
@@ -621,35 +635,44 @@ export type OversightGrant = z.infer<typeof OversightGrant>;
 export declare const OversightConsoleGrant: z.ZodObject<{
     /** The assignment row, so a console can name the seat it is rendering. */
     assignmentId: z.ZodString;
-    console: z.ZodEnum<["verification", "approval", "tax", "membership"]>;
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
+    console: z.ZodEnum<["verification", "approval", "tax", "membership", "guests"]>;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
     bodyCode: z.ZodString;
     bodyName: z.ZodNullable<z.ZodString>;
     title: z.ZodNullable<z.ZodString>;
-    scopeLevel: z.ZodEnum<["country", "province", "district"]>;
+    scopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
     provinceId: z.ZodNullable<z.ZodNumber>;
     districtId: z.ZodNullable<z.ZodNumber>;
+    sectorId: z.ZodNullable<z.ZodNumber>;
+    cellId: z.ZodNullable<z.ZodNumber>;
+    villageId: z.ZodNullable<z.ZodNumber>;
     scopeLabel: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     provinceId: number | null;
     districtId: number | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    sectorId: number | null;
+    cellId: number | null;
+    villageId: number | null;
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
     title: string | null;
-    scopeLevel: "country" | "province" | "district";
+    scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     scopeLabel: string;
     assignmentId: string;
-    console: "membership" | "tax" | "verification" | "approval";
+    console: "membership" | "guests" | "tax" | "verification" | "approval";
     bodyCode: string;
     bodyName: string | null;
 }, {
     provinceId: number | null;
     districtId: number | null;
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    sectorId: number | null;
+    cellId: number | null;
+    villageId: number | null;
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
     title: string | null;
-    scopeLevel: "country" | "province" | "district";
+    scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     scopeLabel: string;
     assignmentId: string;
-    console: "membership" | "tax" | "verification" | "approval";
+    console: "membership" | "guests" | "tax" | "verification" | "approval";
     bodyCode: string;
     bodyName: string | null;
 }>;
@@ -666,7 +689,7 @@ export declare const OVERSIGHT_COUNTRY_SCOPE_LABEL = "Rwanda";
  */
 export declare const OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE: string;
 /** Which console a function opens. */
-export declare function oversightConsoleFor(role: OversightRole): "verification" | "approval" | "tax" | "membership";
+export declare function oversightConsoleFor(role: OversightRole): "verification" | "approval" | "tax" | "membership" | "guests";
 /**
  * Every district a province holds, as the caller read it from `districts`.
  *

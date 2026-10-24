@@ -90,9 +90,25 @@ exports.OversightRole = zod_1.z.enum([
     "business_approver",
     /** ADR-056: decides PSF membership applications. PSF, country scope only. */
     "psf_membership_officer",
+    /**
+     * The local leaders a guest staying in a rented home is reported to (P5): the
+     * Umudugudu leader of a village, the sector DASSO officer, the cell executive
+     * secretary, the district officer (Rwandan guests) and the district
+     * immigration officer (guests from abroad). Each covers exactly one level of
+     * the map (`LEADER_ROLE_SCOPE` in `guests.ts`).
+     */
+    "village_leader",
+    "dasso",
+    "cell_executive",
+    "district_officer",
+    "district_immigration",
 ]);
-/** Region scope of an oversight assignment (Decision B). */
-exports.OversightScopeLevel = zod_1.z.enum(["country", "province", "district"]);
+/**
+ * Region scope of an oversight assignment (Decision B). Sector, cell and
+ * village are the local leaders' levels; business reviewers stay on country,
+ * province or district.
+ */
+exports.OversightScopeLevel = zod_1.z.enum(["country", "province", "district", "sector", "cell", "village"]);
 /**
  * RWF money as an integer number of francs (never float). Mirrors the
  * `bigint … mode:'number'` money columns. Formatting (`RWF 45,000`) is a

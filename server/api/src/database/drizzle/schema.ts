@@ -82,3 +82,6 @@ export * from './rentals';
 // The new interface's staff phone (real-data 1.3.3): checklists and their results, minibar counts,
 // time on a work order.
 export * from './interface-staff';
+// Guests and local leaders (P5): the reference lists, guest registrations, their routes to the
+// leaders, and what the 12 month purge leaves as counts. A leaf over org, inventory and residence.
+export * from './guests';

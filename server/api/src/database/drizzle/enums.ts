@@ -286,12 +286,24 @@ export const oversightRoleEnum = pgEnum('oversight_role', [
   // ADR-056: decides PSF membership applications. Posted at the PSF body with
   // country scope only (OVERSIGHT_ROLE_POSTING in @injishi/contracts).
   'psf_membership_officer',
+  // P5 (the guests migration): the local leaders a guest staying in a rented
+  // home is reported to. Each covers one level of the map; the table's
+  // `oversight_assignments_role_scope` check holds the pairing.
+  'village_leader',
+  'dasso',
+  'cell_executive',
+  'district_officer',
+  'district_immigration',
 ]);
 
 export const oversightScopeLevelEnum = pgEnum('oversight_scope_level', [
   'country',
   'province',
   'district',
+  // P5: the local leaders' levels.
+  'sector',
+  'cell',
+  'village',
 ]);
 
 
@@ -872,6 +884,9 @@ export const domainEventTypeEnum = pgEnum('domain_event_type', [
   'notice.filed',
   'notice.acknowledged',
   'deposit.settled',
+  // P5: a guest registration filed, and a leader flagging one.
+  'guest.registered',
+  'guest.flagged',
 ]);
 
 export const notificationCategoryEnum = pgEnum('notification_category', [
@@ -954,6 +969,8 @@ export const auditSubjectTypeEnum = pgEnum('audit_subject_type', [
   'rental_unit',
   'payout_account',
   'deposit',
+  // P5: a guest registration (filed, changed, cancelled, flagged).
+  'guest_registration',
 ]);
 
 export const recordDataClassEnum = pgEnum('record_data_class', [

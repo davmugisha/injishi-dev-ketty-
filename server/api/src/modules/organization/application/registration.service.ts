@@ -78,6 +78,12 @@ const STAGE_FOR_ROLE: Readonly<
   business_field_verifier: 'tin_verified',
   business_approver: 'field_verified',
   tax_compliance_officer: null,
+  // The local leaders (P5) read guests; they decide no registration gate.
+  village_leader: null,
+  dasso: null,
+  cell_executive: null,
+  district_officer: null,
+  district_immigration: null,
   // Membership is not a registration gate (ADR-056); its queue is its own.
   psf_membership_officer: null,
 };

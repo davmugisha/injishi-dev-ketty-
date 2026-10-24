@@ -836,12 +836,18 @@ export function workspaceAllows(access: Pick<WorkspaceAccess, "permissions">, pe
  * "no assignment" and "no console" are the same thing.
  */
 export const OversightGrant = z.object({
+    /** The assignment row: a local leader's seen marks and flags name it. */
+    assignmentId: Uuid,
     oversightRole: OversightRole,
     governmentBodyCode: z.string(),
     governmentTitle: z.string().nullable(),
     scopeLevel: OversightScopeLevel,
     provinceId: z.number().int().nullable(),
     districtId: z.number().int().nullable(),
+    /** A local leader's sector, cell and village (P5); null for a business reviewer. */
+    sectorId: z.number().int().nullable(),
+    cellId: z.number().int().nullable(),
+    villageId: z.number().int().nullable(),
 });
 export type OversightGrant = z.infer<typeof OversightGrant>;
 /**
@@ -867,7 +873,7 @@ export type OversightGrant = z.infer<typeof OversightGrant>;
 export const OversightConsoleGrant = z.object({
     /** The assignment row, so a console can name the seat it is rendering. */
     assignmentId: Uuid,
-    console: z.enum(["verification", "approval", "tax", "membership"]),
+    console: z.enum(["verification", "approval", "tax", "membership", "guests"]),
     oversightRole: OversightRole,
     bodyCode: z.string(),
     bodyName: z.string().nullable(),
@@ -875,6 +881,9 @@ export const OversightConsoleGrant = z.object({
     scopeLevel: OversightScopeLevel,
     provinceId: z.number().int().nullable(),
     districtId: z.number().int().nullable(),
+    sectorId: z.number().int().nullable(),
+    cellId: z.number().int().nullable(),
+    villageId: z.number().int().nullable(),
     scopeLabel: z.string(),
 });
 export type OversightConsoleGrant = z.infer<typeof OversightConsoleGrant>;
@@ -891,8 +900,15 @@ export const OVERSIGHT_COUNTRY_SCOPE_LABEL = "Rwanda";
 export const OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE: string = "Your appointment is recorded, and the console for it is not built yet. " +
     "Tax compliance review is not available in this release.";
 /** Which console a function opens. */
-export function oversightConsoleFor(role: OversightRole): "verification" | "approval" | "tax" | "membership" {
+export function oversightConsoleFor(role: OversightRole): "verification" | "approval" | "tax" | "membership" | "guests" {
     switch (role) {
+        // The local leaders (P5) all read guests staying in their area.
+        case "village_leader":
+        case "dasso":
+        case "cell_executive":
+        case "district_officer":
+        case "district_immigration":
+            return "guests";
         case "business_field_verifier":
             return "verification";
         case "business_approver":
@@ -981,6 +997,14 @@ export interface OversightScope {
 export function oversightScopesOverlap(a: OversightScope, b: OversightScope): boolean {
     // A country grant covers the whole map, so it meets everything.
     if (a.scopeLevel === "country" || b.scopeLevel === "country") return true;
+    // A local leader's sector, cell or village sits inside one district, which is
+    // all this business-gate question can tell about it (the leader roles gate
+    // nothing, so nothing should ask; this keeps a wrong caller conservative).
+    const local = (s: OversightScope) => s.scopeLevel === "sector" || s.scopeLevel === "cell" || s.scopeLevel === "village";
+    if (local(a) || local(b)) {
+        const fold = (s: OversightScope): OversightScope => (local(s) ? { scopeLevel: "district", provinceId: s.provinceId, districtId: s.districtId } : s);
+        return oversightScopesOverlap(fold(a), fold(b));
+    }
     if (a.scopeLevel === "province" && b.scopeLevel === "province")
         return a.provinceId !== null && a.provinceId === b.provinceId;
     if (a.scopeLevel === "district" && b.scopeLevel === "district")
@@ -1004,6 +1028,13 @@ export function opposingGateRole(role: OversightRole): OversightRole | null {
         // Membership is not a registration gate either (ADR-056), so a PSF
         // field verifier may also hold it: they decide different things.
         case "psf_membership_officer":
+            return null;
+        // A local leader reads guests; they gate no business at all.
+        case "village_leader":
+        case "dasso":
+        case "cell_executive":
+        case "district_officer":
+        case "district_immigration":
             return null;
     }
 }
