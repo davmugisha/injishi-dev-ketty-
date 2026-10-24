@@ -29,9 +29,18 @@
 #
 # PUBLIC WHERE IT HAS TO BE. The API and the app are Dokploy domain rows and
 # answer anyone; a stranger still cannot sign in, because every code goes to
-# this stack's Mailpit. The storage host and the Mailpit inbox answer only to
-# STAGING_ALLOWED_IPS (loopback when unset). Every service carries a resource
+# this stack's Mailpit, whose inbox asks for MAILPIT_UI_PASSWORD. The storage
+# host passes only signed S3 requests. Every service carries a resource
 # ceiling so a test run cannot starve production on the same host.
+#
+# DEVELOPERS' LAPTOPS USE ITS BACKING SERVICES (2026-10-24, the owner's
+# request): a laptop runs the API from source against this stack's Postgres,
+# Redis, MinIO and Mailpit instead of a local Docker stack. Postgres, Redis and
+# Mailpit's SMTP are published on host ports, each behind a login of its own
+# for developers (injishi_dev, the Redis user `dev`, the Mailpit user `dev`)
+# that is never the stack's own; MinIO is reached through the storage host.
+# Postgres takes developers over TLS only, and never as its superuser.
+# DOKPLOY.md, Developer access to staging, owns the ports and the rules.
 #
 # Label router names start with `injishi-staging-` so they cannot collide with
 # production's. Images are tagged `:staging` for the same reason.
@@ -49,7 +58,9 @@ x-api-env: &api-env
   # the API through its public address, so they arrive through Traefik too.
   TRUST_PROXY: "1"
   DATABASE_URL: ${DATABASE_URL}
-  REDIS_URL: ${REDIS_URL}
+  # Redis asks every connection for a password now that a laptop can reach it.
+  # The stack's own processes sign in as `default`; developers have `dev`.
+  REDIS_URL: redis://default:${REDIS_PASSWORD:?set REDIS_PASSWORD, see dokploy-staging.env.example}@redis:6379
   COOKIE_SECRET: ${COOKIE_SECRET}
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
   # The kiosk PIN pepper (058-time AC-TM11). Staging runs the production
@@ -90,8 +101,9 @@ x-api-env: &api-env
   STORAGE_REQUIRE_ENCRYPTION: "true"
   # Every message is caught by this stack's Mailpit (by its own-network alias,
   # for the same reason as the storage endpoint). Nothing here can mail a
-  # real person, so there is no relay credential to leak or to spend.
-  SMTP_URL: smtp://injishi-mailpit:1025
+  # real person, so there is no relay credential to leak or to spend. Mailpit
+  # asks every sender to sign in, because developers reach its SMTP port too.
+  SMTP_URL: smtp://staging-api:${MAILPIT_SMTP_API_PASSWORD:?set MAILPIT_SMTP_API_PASSWORD, see dokploy-staging.env.example}@injishi-mailpit:1025
   MAIL_FROM: "Injishi Staging <no-reply@staging.injishi.com>"
   # Web's public origin, for a mail that links to a page on web (ADR-053). The
   # API refuses to boot without one. Staging has no web, so its mail names the
@@ -139,15 +151,26 @@ volumes:
   app-data:
 
 services:
+  # Published for developers' laptops (DOKPLOY.md, Developer access to staging).
+  # staging-entrypoint.sh turns TLS on from PG_TLS_*_B64 and swaps in
+  # staging-pg-hba.conf: from outside the compose networks only injishi_dev,
+  # only over TLS. Without the TLS pair nothing outside the stack gets in.
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "/usr/local/bin/staging-entrypoint.sh"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-injishi}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-injishi}
+      PG_TLS_CERT_B64: ${PG_TLS_CERT_B64:-}
+      PG_TLS_KEY_B64: ${PG_TLS_KEY_B64:-}
+    ports:
+      - "${STAGING_DB_PUBLIC_PORT:-5433}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+      - ./postgres/staging-entrypoint.sh:/usr/local/bin/staging-entrypoint.sh:ro
+      - ./postgres/staging-pg-hba.conf:/etc/postgresql/staging-pg-hba.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -157,10 +180,72 @@ services:
     networks:
       - default
 
+  # One shot, on every `up`: the developer login, idempotently
+  # (postgres/staging-dev-role.sh). Nothing waits on it; a failure here closes
+  # developer access and leaves the stack running.
+  db-dev-role:
+    image: postgres:17-alpine
+    restart: "no"
+    entrypoint: ["/bin/sh", "/staging-dev-role.sh"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-injishi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-injishi}
+      STAGING_DB_DEV_PASSWORD: ${STAGING_DB_DEV_PASSWORD:-}
+    volumes:
+      - ./postgres/staging-dev-role.sh:/staging-dev-role.sh:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy: *small
+    networks:
+      - default
+
+  # Published for developers' laptops, so every connection signs in. `default`
+  # (REDIS_PASSWORD) is the stack's own API and worker; `dev`
+  # (REDIS_DEV_PASSWORD) is a laptop, with a password of its own and none of the
+  # commands that wipe, reconfigure or stop the server.
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:?set REDIS_PASSWORD, see dokploy-staging.env.example}
+      - --user
+      - dev
+      - "on"
+      - ">${REDIS_DEV_PASSWORD:?set REDIS_DEV_PASSWORD, see dokploy-staging.env.example}"
+      - "~*"
+      - "&*"
+      - "+@all"
+      - "-flushall"
+      - "-flushdb"
+      - "-config"
+      - "-debug"
+      - "-shutdown"
+      - "-module"
+      - "-acl"
+      - "-replicaof"
+      - "-slaveof"
+      - "-swapdb"
+      - "-failover"
+      - "-monitor"
+      - "-save"
+      - "-bgsave"
+      - "-bgrewriteaof"
+      - "-sync"
+      - "-psync"
+      - "-migrate"
+      - "-restore"
+      - "-cluster"
+    environment:
+      # redis-cli reads it, which is how the health check signs in.
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    ports:
+      - "${STAGING_REDIS_PUBLIC_PORT:-6380}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -174,9 +259,10 @@ services:
 
   # Production's MinIO, pinned the same and encrypted the same, with its own
   # KMS key and credentials. Its S3 port answers on storage-staging.injishi.com
-  # behind the staging allowlist (testers' browsers fetch the signed URLs), for
-  # reads only and never MinIO's own /minio/ paths. The console is off, so
-  # there is no port 9001 to route.
+  # to SIGNED requests only, from anywhere: a browser's signed URL (as on
+  # production) and a developer's API calling S3 with the API's own access
+  # key. An unsigned request, and anything under MinIO's own /minio/ paths, is
+  # never routed. The console is off, so there is no port 9001 to route.
   minio:
     image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: unless-stopped
@@ -204,15 +290,15 @@ services:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
       - traefik.http.services.injishi-staging-storage.loadbalancer.server.port=9000
-      - traefik.http.middlewares.injishi-staging-storage-allow.ipallowlist.sourcerange=${STAGING_ALLOWED_IPS:-127.0.0.1/32}
       - traefik.http.routers.injishi-staging-storage-http.rule=Host(`${STORAGE_HOST:-storage-staging.injishi.com}`)
       - traefik.http.routers.injishi-staging-storage-http.entrypoints=web
       - traefik.http.routers.injishi-staging-storage-http.middlewares=redirect-to-https@file
       - traefik.http.routers.injishi-staging-storage-http.service=injishi-staging-storage
-      - traefik.http.routers.injishi-staging-storage.rule=Host(`${STORAGE_HOST:-storage-staging.injishi.com}`) && (Method(`GET`) || Method(`HEAD`) || Method(`OPTIONS`)) && !PathPrefix(`/minio/`)
+      # A SigV4 Authorization header (the SDK) or a signed query (a browser's
+      # signed URL); OPTIONS for the preflight. MinIO checks every signature.
+      - traefik.http.routers.injishi-staging-storage.rule=Host(`${STORAGE_HOST:-storage-staging.injishi.com}`) && !PathPrefix(`/minio/`) && (HeaderRegexp(`Authorization`, `^AWS4-HMAC-SHA256 `) || QueryRegexp(`X-Amz-Signature`, `.+`) || Method(`OPTIONS`))
       - traefik.http.routers.injishi-staging-storage.entrypoints=websecure
       - traefik.http.routers.injishi-staging-storage.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-staging-storage.middlewares=injishi-staging-storage-allow
       - traefik.http.routers.injishi-staging-storage.service=injishi-staging-storage
     networks:
       default:
@@ -252,10 +338,13 @@ services:
     networks:
       - default
 
-  # Every message staging sends lands here and goes no further. The inbox (web
-  # UI and API, port 8025) answers on mail-staging.injishi.com behind the staging
-  # allowlist, which is how a tester reads a sign-in code. SMTP (1025) is never
-  # routed. Never set OTP_DEBUG_LOG here: this inbox is the way to read a code.
+  # Every message staging sends lands here and goes no further: the stack's own
+  # API and developers' laptops alike. The inbox (web UI and API, port 8025)
+  # answers on mail-staging.injishi.com to MAILPIT_UI_PASSWORD, which is how a
+  # tester or a developer reads a sign-in code. SMTP is published for laptops
+  # and asks every sender to sign in (staging-api, dev), so nobody else can
+  # drop mail into the inbox. Never set OTP_DEBUG_LOG here: this inbox is the
+  # way to read a code.
   mailpit:
     image: axllent/mailpit:v1.31.1
     restart: unless-stopped
@@ -265,15 +354,21 @@ services:
       # API's 5s greeting timeout every demo sign-in code fails with a 500,
       # because NODE_ENV=production turns the log fallback off (demo-comms).
       MP_SMTP_DISABLE_RDNS: "true"
+      # Space separated user:password pairs. Mailpit offers AUTH only over TLS
+      # unless told otherwise, and this server has no TLS, so without
+      # ALLOW_INSECURE every send, the API's included, would be refused.
+      MP_SMTP_AUTH: "staging-api:${MAILPIT_SMTP_API_PASSWORD:?set MAILPIT_SMTP_API_PASSWORD} dev:${MAILPIT_SMTP_DEV_PASSWORD:?set MAILPIT_SMTP_DEV_PASSWORD, see dokploy-staging.env.example}"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+      MP_UI_AUTH: "${MAILPIT_UI_USER:-staging}:${MAILPIT_UI_PASSWORD:?set MAILPIT_UI_PASSWORD, see dokploy-staging.env.example}"
+    ports:
+      - "${STAGING_SMTP_PUBLIC_PORT:-1025}:1025"
     expose:
-      - "1025"
       - "8025"
     deploy: *small
     labels:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
       - traefik.http.services.injishi-staging-mail.loadbalancer.server.port=8025
-      - traefik.http.middlewares.injishi-staging-mail-allow.ipallowlist.sourcerange=${STAGING_ALLOWED_IPS:-127.0.0.1/32}
       - traefik.http.routers.injishi-staging-mail-http.rule=Host(`${MAIL_HOST:-mail-staging.injishi.com}`)
       - traefik.http.routers.injishi-staging-mail-http.entrypoints=web
       - traefik.http.routers.injishi-staging-mail-http.middlewares=redirect-to-https@file
@@ -281,7 +376,6 @@ services:
       - traefik.http.routers.injishi-staging-mail.rule=Host(`${MAIL_HOST:-mail-staging.injishi.com}`)
       - traefik.http.routers.injishi-staging-mail.entrypoints=websecure
       - traefik.http.routers.injishi-staging-mail.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-staging-mail.middlewares=injishi-staging-mail-allow
       - traefik.http.routers.injishi-staging-mail.service=injishi-staging-mail
     networks:
       default:

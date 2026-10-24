@@ -1,0 +1,5 @@
+# Both run inside the postgres container: the scripts under /bin/sh, the rules
+# file read by the server. A Windows checkout with core.autocrlf would otherwise
+# hand them CRLF endings, and sh reads the \r as part of every command.
+*.sh text eol=lf
+*.conf text eol=lf
