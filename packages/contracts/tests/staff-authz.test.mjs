@@ -247,6 +247,14 @@ const UNENFORCED = [
   "expense.manage",
   "tax.manage",
   "guest.register",
+  // The old landlord routes that declared these (ops/leases, ops/rent-roll,
+  // ops/deposits) went with the rentals rebuild's migrations 0073 to 0080. Each
+  // leaves this list again when the rentals module's first route declares it:
+  // `lease.manage` with lease drafts (WP 1.5a), `rent.record` with recorded
+  // payments (WP 1.6a), `deposit.return` with deposit settlement (WP 1.7).
+  "lease.manage",
+  "rent.record",
+  "deposit.return",
   // `payroll.draft` left this list when its draft routes declared it (ADR-069
   // D-e): `@RequireAnyPermission('payroll.draft', 'payroll.run')` on the pay
   // run's list, create, read, recompute and hold, the payroll dashboard and the

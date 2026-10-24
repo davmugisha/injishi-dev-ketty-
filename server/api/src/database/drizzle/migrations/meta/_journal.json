@@ -512,6 +512,62 @@
       "when": 1792397078710,
       "tag": "0072_register_artboard_document_kinds",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1792863562493,
+      "tag": "0073_rentals_core_enum_values",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1792863589888,
+      "tag": "0074_rentals_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1792863645184,
+      "tag": "0075_rental_units",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1792863775550,
+      "tag": "0076_tenants_and_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1792864101073,
+      "tag": "0077_lease_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1792864338305,
+      "tag": "0078_lease_charges",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1792864593678,
+      "tag": "0079_lease_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1792864632651,
+      "tag": "0080_lease_deposits",
+      "breakpoints": true
     }
   ]
 }

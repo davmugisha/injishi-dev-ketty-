@@ -99,9 +99,6 @@ import { OpsHousekeepingPhoneController, OpsWorkOrderTimeController } from './op
 import { MeWorkStaffController } from './me/work-staff.controller';
 import { OpsFoundItemsController } from './ops/lost-found.controller';
 import { OpsConditionSignalsController, OpsWorkOrdersController } from './ops/work-orders.controller';
-// The new interface's residence (real-data 1.3.1): the manager's screens and the tenant's phone.
-import { OpsResidenceController } from './ops/residence-interface.controller';
-import { MeResidentController } from './me/resident.controller';
 import { OpsOutletPartiesController } from './ops/outlet-parties.controller';
 import { OpsOutletsController } from './ops/outlets.controller';
 import {
@@ -119,13 +116,7 @@ import { OpsRefundRequestsController } from './ops/refunds.controller';
 import { OpsRevenueController } from './ops/revenue.controller';
 import { OpsOwnerDashboardController, OpsReportsController } from './ops/owner-dashboard.controller';
 import { OpsCertificatesController } from './ops/certificates.controller';
-import {
-  OpsDepositsController,
-  OpsFilingsController,
-  OpsLeasesController,
-  OpsRentRollController,
-  OpsTicketsController,
-} from './ops/residence.controller';
+import { OpsTicketsController } from './ops/residence.controller';
 import { OpsRoomsController } from './ops/rooms.controller';
 import { OpsThreadsController } from './ops/threads.controller';
 import { OpsStaysController } from './ops/stays.controller';
@@ -293,7 +284,6 @@ import { TrainingPublicModule } from './training/training.module';
     OpsWorkOrdersController,
     OpsConditionSignalsController,
     OpsFoundItemsController,
-    OpsResidenceController,
     OpsServiceCatalogController,
     OpsServiceOrdersController,
     OpsRraController,
@@ -301,11 +291,7 @@ import { TrainingPublicModule } from './training/training.module';
     OpsFrontDeskController,
     OpsMessageTemplatesController,
     OpsThreadsController,
-    OpsLeasesController,
-    OpsRentRollController,
-    OpsFilingsController,
     OpsTicketsController,
-    OpsDepositsController,
     // The broker workspace's directory, reveals, placements and earnings
     // (ADR-038 child 6).
     OpsBrokerController,
@@ -330,7 +316,6 @@ import { TrainingPublicModule } from './training/training.module';
     MeGuestContactController,
     MeTripFactsController,
     MeBusinessesController,
-    MeResidentController,
     MeWorkController,
     MeWorkLeaveController,
     MeWorkStaffController,

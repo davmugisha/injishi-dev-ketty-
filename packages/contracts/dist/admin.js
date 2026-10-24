@@ -90,6 +90,12 @@ exports.AdminAuditSubjectType = zod_1.z.enum([
     // names, and never an ID number, an RSSB number or a wage (AC-U5).
     "employee",
     "pay_run",
+    // Rentals (migration 0073): a tenant record, a unit, a payout account and a
+    // deposit settlement are audited against themselves.
+    "tenant",
+    "rental_unit",
+    "payout_account",
+    "deposit",
 ]);
 /**
  * `record_data_class`. What class of another person's data a staff member read.

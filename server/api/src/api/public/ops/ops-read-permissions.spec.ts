@@ -64,10 +64,6 @@ import { OpsOutletsController } from './outlets.controller';
 import { OpsRefundRequestsController } from './refunds.controller';
 import { OpsReservationsController, OpsRoomAssignmentsController } from './reservations.controller';
 import {
-  OpsDepositsController,
-  OpsFilingsController,
-  OpsLeasesController,
-  OpsRentRollController,
   OpsTicketsController,
 } from './residence.controller';
 import { OpsRevenueController } from './revenue.controller';
@@ -128,11 +124,7 @@ const CONTROLLERS: Ctor[] = [
   OpsOutletsController,
   OpsReservationsController,
   OpsRoomAssignmentsController,
-  OpsLeasesController,
-  OpsRentRollController,
-  OpsFilingsController,
   OpsTicketsController,
-  OpsDepositsController,
   OpsRevenueController,
   OpsOwnerDashboardController,
   OpsReportsController,
@@ -310,15 +302,7 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // plan.
   '/ops/reservations/:id/assignments': ['owner', 'manager', 'receptionist'],
   '/ops/room-assignments': ['owner', 'manager', 'receptionist'],
-  // Rentals blueprint 2.1: finance records rent, and `rent.record` already opened this read.
-  '/ops/leases': ['owner', 'manager', 'finance'],
-  '/ops/rent-roll': ['owner', 'manager', 'finance'],
-  // The Filings lens on Finance (F-R10). The same consumers as the leases it
-  // reports on: whether a contract was filed is the business's compliance
-  // record, not something the front desk needs.
-  '/ops/filings': ['owner', 'manager', 'finance'],
   '/ops/tickets': ['owner', 'manager', 'housekeeper'],
-  '/ops/deposits': ['owner', 'manager', 'finance'],
   '/ops/revenue': ['owner', 'manager', 'finance'],
   // The owner's figures: what the business earned and holds, read on money.view like the month above.
   '/ops/revenue/daily': ['owner', 'manager', 'finance'],

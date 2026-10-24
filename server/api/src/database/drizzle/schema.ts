@@ -75,9 +75,10 @@ export * from './interface-people';
 // The new interface's marketplace and guest account (real-data 1.3.2): marketplace cards for
 // properties and room types, and the append-only consent history.
 export * from './interface-market';
-// The new interface's residence (real-data 1.3.1): blocks, units, rent payments and reminders, gate
-// codes, lease clauses, applications.
-export * from './interface-residence';
+// Rentals (blueprint 1.1): the leaf over residence, inventory, money and org. Landlord settings,
+// lease payments and their allocations, deposits, reminders, the lease timeline, and the legacy
+// residence tables migration 0089 drops.
+export * from './rentals';
 // The new interface's staff phone (real-data 1.3.3): checklists and their results, minibar counts,
 // time on a work order.
 export * from './interface-staff';

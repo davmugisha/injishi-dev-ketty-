@@ -467,8 +467,8 @@ export const OperatorMessage = z.object({
     senderName: z.string().nullable(),
     /** True when this workspace sent it, so a screen can side the bubble. */
     fromUs: z.boolean(),
-    /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s). */
-    bodyType: z.enum(["text", "image", "voice", "system"]),
+    /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s); `file` a document sent in a lease thread (migration 0073). */
+    bodyType: z.enum(["text", "image", "voice", "system", "file"]),
     body: z.string().nullable(),
     /** The order a `system` line reports on, so a screen can draw its card. */
     serviceOrderId: Uuid.nullable(),

@@ -30,7 +30,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
-import { approvalPolicyEnum, bookingModeEnum, cancellationTierEnum, checkInMethodEnum, domainKindEnum, housekeepingStatusEnum, listingStatusEnum, rateDerivationKindEnum, ratePlanStatusEnum, roomStatusEnum, roomTypeStatusEnum } from './enums';
+import { approvalPolicyEnum, bookingModeEnum, cancellationTierEnum, checkInMethodEnum, domainKindEnum, housekeepingStatusEnum, listingStatusEnum, rateDerivationKindEnum, ratePlanStatusEnum, rentalUnitStateEnum, roomStatusEnum, roomTypeStatusEnum, unitKitchenEnum } from './enums';
 import { districts, sectors, villages } from './geography';
 import { storedObjects } from './hospitality';
 import { departments } from './operations';
@@ -381,6 +381,168 @@ export const rooms = pgTable(
   ],
 );
 
+
+/**
+ * A building, wing or block of a residence ("Block A"): nothing in `rooms` or `spaces` modelled one.
+ * A unit may stand in one (`rental_units.block_id`). The code is unique per property ignoring case.
+ */
+export const propertyBlocks = pgTable(
+  'property_blocks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id),
+    /** "A": what a unit label starts with. */
+    code: text('code').notNull(),
+    name: text('name').notNull(),
+    /** The kind of units in it: "1 bedroom", "3 bedrooms and penthouses". Optional. */
+    kind: text('kind'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('property_blocks_property_code_uk').on(t.propertyId, sql`lower(${t.code})`)],
+);
+
+// ---------------------------------------------------------------------------
+// RENTAL UNITS (blueprint 1.2, migration 0075)
+// ---------------------------------------------------------------------------
+
+/**
+ * The one record of a rented home: a flat, a house in a compound, a studio.
+ *
+ * It replaces the five places a residence unit used to live (`rooms`,
+ * `room_types` with domain residence, `rate_plans`, `residence_units`,
+ * `property_blocks` labels). Migration 0075 made one per residence room with
+ * the SAME id, so anything that still holds a room id finds its unit.
+ *
+ * What it asks before there is a lease: `asking_rent_rwf` and
+ * `asking_deposit_rwf` (null until the landlord sets them; required to list
+ * the unit). A lease keeps its own rent. Occupied or vacant is worked out from
+ * leases, never stored. `state` is whether it can be let at all.
+ */
+export const rentalUnits = pgTable(
+  'rental_units',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id),
+    blockId: uuid('block_id').references(() => propertyBlocks.id),
+    /** "B-07": what the tenant and the landlord call it. Unique per property, ignoring case. */
+    label: text('label').notNull(),
+    bedrooms: smallint('bedrooms'),
+    bathrooms: smallint('bathrooms'),
+    kitchen: unitKitchenEnum('kitchen'),
+    furnished: boolean('furnished').notNull().default(false),
+    floor: smallint('floor'),
+    sizeSqm: integer('size_sqm'),
+    askingRentRwf: amount('asking_rent_rwf'),
+    askingDepositRwf: amount('asking_deposit_rwf'),
+    state: rentalUnitStateEnum('state').notNull().default('active'),
+    /** Shown to people looking for a home (and to brokers in scope). */
+    listed: boolean('listed').notNull().default(false),
+    /** The day it can be moved into; null when it is let or not known. */
+    availableFrom: date('available_from'),
+    /** The landlord's own note ("repaint booked 14 Oct"). */
+    note: text('note'),
+    retiredAt: timestamp('retired_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('rental_units_property_label_uk').on(t.propertyId, sql`lower(${t.label})`),
+    index('rental_units_scope_idx').on(t.workspaceId, t.propertyId),
+    index('rental_units_block_idx').on(t.blockId),
+    check('rental_units_label_present', sql`length(btrim(${t.label})) > 0`),
+    check(
+      'rental_units_rooms_range',
+      sql`(${t.bedrooms} IS NULL OR ${t.bedrooms} BETWEEN 0 AND 50) AND (${t.bathrooms} IS NULL OR ${t.bathrooms} BETWEEN 0 AND 50)`,
+    ),
+    check('rental_units_size_positive', sql`${t.sizeSqm} IS NULL OR ${t.sizeSqm} > 0`),
+    check('rental_units_asking_rent_positive', sql`${t.askingRentRwf} IS NULL OR ${t.askingRentRwf} > 0`),
+    check('rental_units_asking_deposit_not_negative', sql`${t.askingDepositRwf} IS NULL OR ${t.askingDepositRwf} >= 0`),
+    check(
+      'rental_units_listed_shape',
+      sql`NOT ${t.listed} OR (${t.state} = 'active' AND ${t.askingRentRwf} IS NOT NULL)`,
+    ),
+    check('rental_units_retired_shape', sql`(${t.state} = 'retired') = (${t.retiredAt} IS NOT NULL)`),
+  ],
+);
+
+/** A unit's photographs, in the landlord's order (the first is the cover). At most 20. */
+export const unitPhotos = pgTable(
+  'unit_photos',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    unitId: uuid('unit_id')
+      .notNull()
+      .references(() => rentalUnits.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    storedObjectId: uuid('stored_object_id')
+      .notNull()
+      .references(() => storedObjects.id),
+    position: integer('position').notNull(),
+    caption: text('caption'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('unit_photos_unit_idx').on(t.unitId, t.position),
+    unique('unit_photos_unit_object_uk').on(t.unitId, t.storedObjectId),
+    check('unit_photos_position_range', sql`${t.position} BETWEEN 0 AND 19`),
+  ],
+);
+
+/**
+ * A unit's video tour: at most one per unit, 1 to 180 seconds. The poster is a
+ * still taken from it. Replacing the video rewrites this row.
+ */
+export const unitVideos = pgTable(
+  'unit_videos',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    unitId: uuid('unit_id')
+      .notNull()
+      .references(() => rentalUnits.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    storedObjectId: uuid('stored_object_id')
+      .notNull()
+      .references(() => storedObjects.id),
+    posterObjectId: uuid('poster_object_id').references(() => storedObjects.id),
+    durationS: integer('duration_s').notNull(),
+    width: integer('width'),
+    height: integer('height'),
+    uploadedByUserId: uuid('uploaded_by_user_id').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    unique('unit_videos_unit_uk').on(t.unitId),
+    check('unit_videos_duration_range', sql`${t.durationS} BETWEEN 1 AND 180`),
+  ],
+);
+
+/** What one unit has: a water tank, its own meter, parking. */
+export const unitAmenities = pgTable(
+  'unit_amenities',
+  {
+    unitId: uuid('unit_id')
+      .notNull()
+      .references(() => rentalUnits.id, { onDelete: 'cascade' }),
+    amenityCode: text('amenity_code')
+      .notNull()
+      .references(() => amenities.code),
+  },
+  (t) => [primaryKey({ columns: [t.unitId, t.amenityCode] })],
+);
 
 export const spaces = pgTable('spaces', {
   id: uuid('id').primaryKey().defaultRandom(),

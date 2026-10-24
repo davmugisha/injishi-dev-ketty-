@@ -17,6 +17,7 @@ import pg from 'pg';
 
 import { ensureTaxRates, upsertAmenities, upsertRdbClassifications } from './reference-data.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
+import { rentalsRebuilt, skipRentalsNote } from './rentals-rebuilt.mjs';
 import { apiEnvFile } from './env-file.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -568,6 +569,11 @@ async function main() {
           unitIds.push(made.rows[0].id);
         }
 
+        // Leases, rent and deposits: the old shape, written only before the
+        // rentals rebuild (scripts/rentals-rebuilt.mjs).
+        if (await rentalsRebuilt(client)) {
+          console.log(skipRentalsNote('seed-content.mjs', 'Lavender Hill leases, rent and deposits'));
+        } else {
         /*
          * `leases_active_room_uk` allows ONE active lease per unit, so each of
          * the three below sits on its own unit. Two active leases on A1 would
@@ -701,13 +707,15 @@ async function main() {
             ],
           );
         }
+        }
       }
     }
 
     await client.query('COMMIT');
 
     const counts = {};
-    for (const t of ['rdb_classifications', 'config_entries', 'registration_fees', 'orgs', 'workspaces', 'properties', 'room_types', 'rate_plans', 'rooms', 'listings', 'departments', 'service_categories', 'service_items', 'amenities', 'leases', 'rent_charges', 'caution_holds', 'caution_settlements']) {
+    const chargeTable = (await rentalsRebuilt(client)) ? 'lease_charges' : 'rent_charges';
+    for (const t of ['rdb_classifications', 'config_entries', 'registration_fees', 'orgs', 'workspaces', 'properties', 'room_types', 'rate_plans', 'rooms', 'listings', 'departments', 'service_categories', 'service_items', 'amenities', 'leases', chargeTable, 'caution_holds', 'caution_settlements']) {
       const q = await client.query(`select count(*)::int n from ${t}`);
       counts[t] = q.rows[0].n;
     }

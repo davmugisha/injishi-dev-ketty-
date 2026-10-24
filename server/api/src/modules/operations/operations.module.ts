@@ -16,9 +16,6 @@ import { WorkOrdersService } from './application/work-orders.service';
 import { HousekeepingBoardRepository } from './infrastructure/housekeeping-board.repository';
 import { LostFoundRepository } from './infrastructure/lost-found.repository';
 import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
-// The new interface's residence (real-data 1.3.1).
-import { ResidenceInterfaceService } from './application/residence-interface.service';
-import { ResidenceInterfaceRepository } from './infrastructure/residence-interface.repository';
 // The staff phone (real-data 1.3.3).
 import { StaffPhoneService } from './application/staff-phone.service';
 import { WorkOrderTimeService } from './application/work-order-time.service';
@@ -132,11 +129,9 @@ import { PaymentsModule } from '../payments/payments.module';
     HousekeepingBoardRepository,
     WorkOrdersRepository,
     LostFoundRepository,
-    ResidenceInterfaceRepository,
     HousekeepingBoardService,
     WorkOrdersService,
     LostFoundService,
-    ResidenceInterfaceService,
     StaffPhoneRepository,
     StaffPhoneService,
     WorkOrderTimeService,
@@ -192,7 +187,6 @@ import { PaymentsModule } from '../payments/payments.module';
     HousekeepingBoardService,
     WorkOrdersService,
     LostFoundService,
-    ResidenceInterfaceService,
     StaffPhoneService,
     WorkOrderTimeService,
   ],

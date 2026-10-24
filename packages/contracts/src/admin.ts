@@ -102,6 +102,12 @@ export const AdminAuditSubjectType = z.enum([
     // names, and never an ID number, an RSSB number or a wage (AC-U5).
     "employee",
     "pay_run",
+    // Rentals (migration 0073): a tenant record, a unit, a payout account and a
+    // deposit settlement are audited against themselves.
+    "tenant",
+    "rental_unit",
+    "payout_account",
+    "deposit",
 ]);
 export type AdminAuditSubjectType = z.infer<typeof AdminAuditSubjectType>;
 /**

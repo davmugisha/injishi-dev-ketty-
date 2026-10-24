@@ -84,7 +84,7 @@ export interface MessageRow {
   threadId: string;
   senderUserId: string | null;
   senderName: string | null;
-  bodyType: 'text' | 'image' | 'voice' | 'system';
+  bodyType: 'text' | 'image' | 'voice' | 'system' | 'file';
   body: string | null;
   serviceOrderId: string | null;
   voiceDurationS: number | null;
