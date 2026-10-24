@@ -1,7 +1,7 @@
 "use client";
 
 import { ChartColumn, ChevronRight } from "@gravity-ui/icons";
-import { Avatar, Card, Chip, ProgressBar, Table } from "@heroui/react";
+import { Alert, Avatar, Card, Chip, ProgressBar, Table } from "@heroui/react";
 import { ItemCard, ItemCardGroup, KPIGroup, Timeline, TrendChip, Widget } from "@heroui-pro/react";
 import { BarChart } from "@heroui-pro/react/bar-chart";
 import { KPI } from "@heroui-pro/react/kpi";
@@ -72,7 +72,23 @@ function greeting(now = new Date()): string {
 
 const COUNT_WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
 
-export function OwnerHomeView({ persona, data }: { persona: Persona; data: OwnerHomeData }) {
+/** A business of this owner's that is not on the marketplace yet, and where its real setup page is. */
+export interface SetupDue {
+  workspaceId: string;
+  businessName: string;
+  notApproved: boolean;
+  href: string;
+}
+
+export function OwnerHomeView({
+  persona,
+  data,
+  setupDue = [],
+}: {
+  persona: Persona;
+  data: OwnerHomeData;
+  setupDue?: SetupDue[];
+}) {
   const waiting = data.decisions.length;
   const unsettled = data.kpis.find((k) => k.id === "unsettled");
   const labelAt = (i: number) =>
@@ -100,6 +116,28 @@ export function OwnerHomeView({ persona, data }: { persona: Persona; data: Owner
           </LinkButton>
         }
       />
+
+      {setupDue.map((b) => (
+        // The setup page is the one path to the marketplace: rooms, prices, a photograph, publish. Nothing
+        // else in this shell linked to it, so an approved owner signing in here never found it.
+        <Alert key={b.workspaceId} status={b.notApproved ? "default" : "accent"} role="status">
+          <Alert.Content>
+            <Alert.Title>
+              {b.notApproved
+                ? `${b.businessName} is not approved yet`
+                : `${b.businessName} is not on the marketplace yet`}
+            </Alert.Title>
+            <Alert.Description>
+              {b.notApproved
+                ? "See where the registration stands and anything it still needs. Setup opens once it is approved."
+                : "Add a priced room type and a photograph, then publish. Guests see nothing until you do."}
+            </Alert.Description>
+          </Alert.Content>
+          <LinkButton href={b.href} variant="primary">
+            {b.notApproved ? "See where it stands" : "Set up your property"}
+          </LinkButton>
+        </Alert>
+      ))}
 
       <section aria-label="Key figures">
         <KPIGroup className="flex-wrap">
@@ -143,6 +181,7 @@ export function OwnerHomeView({ persona, data }: { persona: Persona; data: Owner
               All approvals
             </LinkButton>
           </ItemCardGroup.Header>
+          {data.decisions.length === 0 ? <p className="text-sm text-muted">Nothing is waiting for you.</p> : null}
           {data.decisions.map((d) => (
             <ItemCard key={d.id}>
               <ItemCard.Icon>
@@ -287,6 +326,7 @@ export function OwnerHomeView({ persona, data }: { persona: Persona; data: Owner
             <Card.Description>Patterns from this week, each with the records behind it</Card.Description>
           </Card.Header>
           <Card.Content className="flex flex-col gap-3">
+            {data.insights.length === 0 ? <p className="text-sm text-muted">Nothing stands out yet.</p> : null}
             {data.insights.map((ins) => (
               <NextLink key={ins.id} href={screenHref(ins.board)} className="block text-inherit no-underline">
                 <ItemCard variant="secondary">

@@ -11,6 +11,7 @@ import {
   createPropertyAction,
   placesAction,
   publishAction,
+  unpublishAction,
   updatePropertyAction,
 } from "./setup-actions";
 
@@ -466,8 +467,11 @@ function PublishStep({ data, webUrl }: { data: Open; webUrl: string }) {
   const step = useStep();
   const [slug, setSlug] = useState<string | null>(p?.slug ?? null);
   const live = data.published;
+  // The page re-reads after either press, so `live` already says where it stands; this only words the outcome.
+  const [last, setLast] = useState<"publish" | "unpublish">("publish");
   const publish = async () => {
     if (!p) return;
+    setLast("publish");
     let address: string | null = null;
     const ok = await step.run(async () => {
       const res = await publishAction(data.workspaceId, p.id);
@@ -475,6 +479,11 @@ function PublishStep({ data, webUrl }: { data: Open; webUrl: string }) {
       return res;
     });
     if (ok) setSlug(address);
+  };
+  const unpublish = async () => {
+    if (!p) return;
+    setLast("unpublish");
+    await step.run(() => unpublishAction(data.workspaceId, p.id));
   };
   return (
     <StepCard
@@ -516,8 +525,19 @@ function PublishStep({ data, webUrl }: { data: Open; webUrl: string }) {
             <ArrowUpRightFromSquare className="size-4" />
           </LinkButton>
         ) : null}
+        {live ? (
+          // Closing for a season, or a listing that is wrong: the owner withdraws it here, keeping its address.
+          <Button variant="ghost" onPress={() => void unpublish()} isDisabled={step.busy || !p}>
+            {step.busy ? "Taking it off…" : "Take it off the marketplace"}
+          </Button>
+        ) : null}
       </div>
-      <Outcome result={step.result} okText="Published." />
+      <Outcome
+        result={step.result}
+        okText={
+          last === "unpublish" ? "Taken off the marketplace. Publish again whenever you are ready." : "Published."
+        }
+      />
     </StepCard>
   );
 }

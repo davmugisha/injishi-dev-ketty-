@@ -593,7 +593,7 @@ async function mandateStates(ctx: SourceContext): Promise<O.MandateState[]> {
       tone: "success",
       chip: "Active",
       summary: desk.consoles.length
-        ? `${count(v, "business waits", "businesses wait")} on a field visit and ${count(a, "on approval", "on approval")} in ${scope}.`
+        ? `${count(v, "business waits", "businesses wait")} on a field visit and ${a === 0 ? "none" : a} on approval in ${scope}.`
         : "You hold no oversight assignment, so no queue is open to you.",
       alert: null,
       validUntil: "No end date recorded",

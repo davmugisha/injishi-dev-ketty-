@@ -302,3 +302,13 @@ export async function publish(
   workspaceOf(ctx, workspaceId);
   return ctx.api.post<ApiPropertySummary>(`/api/v1/inventory/properties/${propertyId}/publish`, {}, { workspaceId });
 }
+
+/** Take it off the marketplace (`POST /inventory/properties/:id/unpublish`). The address is kept for a republish. */
+export async function unpublish(
+  ctx: SourceContext,
+  workspaceId: string,
+  propertyId: string,
+): Promise<ApiPropertySummary> {
+  workspaceOf(ctx, workspaceId);
+  return ctx.api.post<ApiPropertySummary>(`/api/v1/inventory/properties/${propertyId}/unpublish`, {}, { workspaceId });
+}

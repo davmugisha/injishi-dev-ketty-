@@ -1,7 +1,7 @@
-import { screens } from "@injishi/data";
+import { screenHref, screens } from "@injishi/data";
 import type { CaseFile, RejectionReason } from "@injishi/data/fixtures/oversight";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { OfficerCaseView } from "@/features/oversight/OfficerCaseView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
@@ -16,6 +16,8 @@ export default async function OfficerCasePage({ params }: { params: Promise<{ id
     getDocument<CaseFile>("oversight.caseFiles", decodeURIComponent(id)),
     getCollection<RejectionReason>("oversight.rejectionReasons"),
   ]);
-  if (!file) notFound();
+  // Not in this officer's queue: decided already, outside their mandate, or the sidebar's "Cases" entry, which
+  // names the registry's sample case. Each is answered by the queue they can work from, not a 404.
+  if (!file) redirect(screenHref("OfficerHome"));
   return <OfficerCaseView key={file.id} file={file} reasons={reasons} />;
 }
