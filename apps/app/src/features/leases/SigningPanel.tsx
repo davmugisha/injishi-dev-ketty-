@@ -20,6 +20,7 @@ import {
   SignaturePad,
   useResendTimer,
 } from "@injishi/ui";
+import { useRouter } from "next/navigation";
 import { type ReactNode, useRef, useState } from "react";
 import type { ActionResult } from "@/server/rentals/action-kit";
 import { ContractDocument } from "./ContractDocument";
@@ -88,6 +89,7 @@ export function SigningPanel({
   onClose: () => void;
   onSigned?: () => void;
 }) {
+  const router = useRouter();
   const [contractView, setContractView] = useState(view);
   const contract = contractOf(contractView);
   const [step, setStep] = useState(0);
@@ -144,6 +146,8 @@ export function SigningPanel({
       return;
     }
     setContractView(result.value);
+    // The page behind the panel shows the lease as it stands now, too.
+    router.refresh();
     setChanged(false);
     setRead(false);
     setCode("");
