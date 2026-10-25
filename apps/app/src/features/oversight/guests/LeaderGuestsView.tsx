@@ -1,0 +1,351 @@
+"use client";
+
+import { Card } from "@heroui/react";
+import { Segment } from "@heroui-pro/react";
+import type { LeaderGuest, LeaderGuestPage } from "@injishi/contracts";
+import {
+  ActionButton,
+  ActionLink,
+  DataTable,
+  EmptyBlock,
+  FilterTabs,
+  formatDay,
+  formatNumber,
+  IconAction,
+  KpiStrip,
+  PageContent,
+  PageHeader,
+  PersonCell,
+  SearchBar,
+  SelectField,
+  StatusDot,
+} from "@injishi/ui";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { GuestPanel } from "./GuestPanel";
+import { chainWords, GuestStatusChip, phoneWords } from "./parts";
+
+/** The tabs of the console, Reports last (it is its own page). */
+const TAB_LABEL = { arriving: "Arriving", staying: "Staying now", left: "Left", flagged: "Flagged" } as const;
+
+const EMPTY: Record<string, { title: string; description: string }> = {
+  arriving: {
+    title: "Nobody arriving in the next 7 days",
+    description: "Guests registered in your area show here before they come.",
+  },
+  later: { title: "Nobody arriving later", description: "Guests registered more than a week ahead show here." },
+  staying: {
+    title: "Nobody staying now",
+    description: "A guest shows here from the day they arrive until the day they leave.",
+  },
+  left: { title: "No guests have left yet", description: "Guests who left in the last 12 months show here." },
+  flagged: { title: "No flagged guests", description: "A guest anyone in the chain flags shows here, with the note." },
+};
+
+/** The scope line under the title: each post in words. */
+export function scopeLine(page: Pick<LeaderGuestPage, "scopes">): string {
+  return page.scopes.map((s) => `${s.roleLabel}, ${s.area}`).join(" · ");
+}
+
+/**
+ * The local leader's guest list (P5): the guests in their area by tab (Arriving in the next 7 days,
+ * Staying now, Left, Flagged) with counts, narrowed by sector, cell or village when the post covers more
+ * than one, searchable, and exported as CSV. A row opens the guest in a side panel, which marks it seen;
+ * Flag asks for a note. The API decides the area: nothing here widens it.
+ */
+export function LeaderGuestsView({
+  page,
+  openGuest,
+  exportHref,
+}: {
+  page: LeaderGuestPage;
+  /** A guest named in the address (`?guest=`, from the email), opened on arrival. */
+  openGuest: LeaderGuest | null;
+  exportHref: string;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const [open, setOpen] = useState<LeaderGuest | null>(openGuest);
+
+  const go = (changes: Record<string, string | null>) => {
+    const next = new URLSearchParams(params.toString());
+    for (const [k, v] of Object.entries(changes)) {
+      if (v === null || v === "") next.delete(k);
+      else next.set(k, v);
+    }
+    next.delete("guest");
+    if (!("page" in changes)) next.delete("page");
+    const qs = next.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  const { counts, filters } = page;
+  const wide = filters.sectors.length > 0 || filters.cells.length > 0 || filters.villages.length > 0;
+  const sectorId = params.get("sectorId");
+  const cellId = params.get("cellId");
+  const villageId = params.get("villageId");
+  const pages = Math.max(1, Math.ceil(page.total / page.pageSize));
+  const emptyKey = page.tab === "arriving" && page.when === "later" ? "later" : page.tab;
+  const narrowed = Boolean(sectorId || cellId || villageId || params.get("q"));
+
+  return (
+    <PageContent>
+      <PageHeader
+        title="Guests in your area"
+        description={scopeLine(page)}
+        actions={
+          <ActionLink href={exportHref} icon="ArrowDownToLine" prefetch={false}>
+            Export CSV
+          </ActionLink>
+        }
+      />
+
+      <KpiStrip
+        label="Guests in your area"
+        items={[
+          { id: "arriving", label: "Arriving in 7 days", value: counts.arriving, format: "count", icon: "Calendar" },
+          { id: "staying", label: "Staying now", value: counts.staying, format: "count", icon: "House" },
+          {
+            id: "unseen",
+            label: "Not opened yet",
+            value: counts.unseen,
+            format: "count",
+            icon: "Eye",
+            status: counts.unseen > 0 ? "warning" : undefined,
+          },
+          {
+            id: "flagged",
+            label: "Flagged",
+            value: counts.flagged,
+            format: "count",
+            icon: "Flag",
+            status: counts.flagged > 0 ? "danger" : undefined,
+          },
+        ]}
+      />
+
+      <FilterTabs
+        label="Guests"
+        selectedKey={page.tab}
+        onSelectionChange={(key) => {
+          if (key === "reports") router.push("/officer/guests/reports");
+          else go({ tab: key, when: null });
+        }}
+        tabs={[
+          { id: "arriving", label: TAB_LABEL.arriving, count: counts.arriving },
+          { id: "staying", label: TAB_LABEL.staying, count: counts.staying },
+          { id: "left", label: TAB_LABEL.left, count: counts.left },
+          { id: "flagged", label: TAB_LABEL.flagged, count: counts.flagged },
+          { id: "reports", label: "Reports" },
+        ]}
+      />
+
+      <Card className="min-w-0 gap-4 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          {page.tab === "arriving" ? (
+            <Segment
+              aria-label="When they arrive"
+              selectedKey={page.when}
+              onSelectionChange={(k) => go({ when: String(k) === "later" ? "later" : null })}
+              className="w-fit"
+            >
+              <Segment.Item id="soon">Next 7 days</Segment.Item>
+              <Segment.Item id="later">
+                Later<span className="tabular"> {formatNumber(counts.later)}</span>
+              </Segment.Item>
+            </Segment>
+          ) : null}
+          {filters.sectors.length > 0 ? (
+            <SelectField
+              label="Sector"
+              className="w-full sm:w-48"
+              value={sectorId}
+              placeholder="All sectors"
+              options={[
+                { id: "", label: "All sectors" },
+                ...filters.sectors.map((s) => ({ id: String(s.id), label: s.name })),
+              ]}
+              onChange={(v) => go({ sectorId: v || null, cellId: null, villageId: null })}
+            />
+          ) : null}
+          {filters.cells.length > 0 ? (
+            <SelectField
+              label="Cell"
+              className="w-full sm:w-48"
+              value={cellId}
+              placeholder="All cells"
+              options={[
+                { id: "", label: "All cells" },
+                ...filters.cells.map((c) => ({ id: String(c.id), label: c.name })),
+              ]}
+              onChange={(v) => go({ cellId: v || null, villageId: null })}
+            />
+          ) : null}
+          {filters.villages.length > 0 ? (
+            <SelectField
+              label="Village"
+              className="w-full sm:w-48"
+              value={villageId}
+              placeholder="All villages"
+              options={[
+                { id: "", label: "All villages" },
+                ...filters.villages.map((v) => ({ id: String(v.id), label: v.name })),
+              ]}
+              onChange={(v) => go({ villageId: v || null })}
+            />
+          ) : null}
+          <SearchBar
+            label="Search guests"
+            placeholder="Name, phone or ID"
+            defaultValue={params.get("q") ?? ""}
+            onSubmit={(q) => go({ q: q.trim() || null })}
+            className="sm:ml-auto"
+          />
+        </div>
+
+        <DataTable<LeaderGuest>
+          label={TAB_LABEL[page.tab]}
+          rows={page.guests}
+          rowKey={(g) => g.id}
+          onRowAction={setOpen}
+          empty={
+            <EmptyBlock
+              icon={page.tab === "flagged" ? "Flag" : "PersonPlus"}
+              title={narrowed ? "No guests match" : EMPTY[emptyKey].title}
+              description={
+                narrowed ? "Clear the search or the place to see everyone in your area." : EMPTY[emptyKey].description
+              }
+              action={
+                narrowed ? (
+                  <ActionButton
+                    icon="Xmark"
+                    onPress={() => go({ q: null, sectorId: null, cellId: null, villageId: null })}
+                  >
+                    Clear filters
+                  </ActionButton>
+                ) : undefined
+              }
+            />
+          }
+          columns={[
+            {
+              id: "guest",
+              header: "Guest",
+              isRowHeader: true,
+              sortValue: (g) => g.fullName,
+              cell: (g) => (
+                <div className="flex min-w-0 items-center gap-2">
+                  {g.seenByMe ? null : <StatusDot tone="accent" className="shrink-0" />}
+                  <PersonCell name={g.fullName} secondary={`${g.nationalityName} · ${phoneWords(g.phone)}`} />
+                </div>
+              ),
+            },
+            {
+              id: "dates",
+              header: page.tab === "left" ? "Stayed" : "Dates",
+              sortValue: (g) => g.arrivalOn,
+              cell: (g) => (
+                <div className="flex flex-col text-sm">
+                  <span className="tabular">
+                    {formatDay(g.arrivalOn, "weekday")} to {formatDay(g.departureOn, "weekday")}
+                  </span>
+                  <span className="text-xs text-muted">
+                    {g.nights === 0 ? "Same day" : g.nights === 1 ? "1 night" : `${g.nights} nights`}
+                  </span>
+                </div>
+              ),
+            },
+            {
+              id: "host",
+              header: "Staying with",
+              sortValue: (g) => g.host.name,
+              cell: (g) => (
+                <div className="flex min-w-0 flex-col text-sm">
+                  <span className="truncate">{g.host.name}</span>
+                  <span className="truncate text-xs text-muted">
+                    {g.home.unitLabel ? `Unit ${g.home.unitLabel}, ${g.home.propertyName}` : g.home.propertyName}
+                  </span>
+                </div>
+              ),
+            },
+            ...(wide
+              ? [
+                  {
+                    id: "area",
+                    header: "Village",
+                    hideBelow: "lg" as const,
+                    sortValue: (g: LeaderGuest) => g.home.villageName ?? "",
+                    cell: (g: LeaderGuest) => (
+                      <div className="flex min-w-0 flex-col text-sm">
+                        <span className="truncate">{g.home.villageName ?? "No village on record"}</span>
+                        {g.home.cellName ? (
+                          <span className="truncate text-xs text-muted">{g.home.cellName} cell</span>
+                        ) : null}
+                      </div>
+                    ),
+                  },
+                ]
+              : []),
+            {
+              id: "chain",
+              header: "Chain",
+              hideBelow: "xl",
+              cell: (g) => {
+                const words = chainWords(g.chain);
+                return (
+                  <div className="flex flex-col text-sm">
+                    <span className="tabular">{words.opened}</span>
+                    {words.waiting > 0 ? (
+                      <span className="text-xs text-warning">
+                        {words.waiting === 1 ? "1 step waits for a leader" : `${words.waiting} steps wait for a leader`}
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              },
+            },
+            { id: "status", header: "Status", cell: (g) => <GuestStatusChip guest={g} /> },
+          ]}
+          rowActions={(g) => <IconAction icon="Eye" label={`Open ${g.fullName}`} onPress={() => setOpen(g)} />}
+          mobile={{
+            title: (g) => g.fullName,
+            description: (g) =>
+              `${formatDay(g.arrivalOn, "weekday")} to ${formatDay(g.departureOn, "weekday")} · ${g.host.name}`,
+            trailing: (g) => <GuestStatusChip guest={g} />,
+          }}
+        />
+
+        {pages > 1 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
+            <span className="tabular">
+              {formatNumber((page.page - 1) * page.pageSize + 1)} to{" "}
+              {formatNumber(Math.min(page.total, page.page * page.pageSize))} of {formatNumber(page.total)}
+            </span>
+            <div className="flex gap-2">
+              <ActionButton
+                size="sm"
+                icon="ChevronLeft"
+                isDisabled={page.page <= 1}
+                onPress={() => go({ page: String(page.page - 1) })}
+              >
+                Previous
+              </ActionButton>
+              <ActionButton
+                size="sm"
+                icon="ChevronRight"
+                iconPlacement="end"
+                isDisabled={page.page >= pages}
+                onPress={() => go({ page: String(page.page + 1) })}
+              >
+                Next
+              </ActionButton>
+            </div>
+          </div>
+        ) : null}
+      </Card>
+
+      {open ? <GuestPanel guest={open} onClose={() => setOpen(null)} /> : null}
+    </PageContent>
+  );
+}

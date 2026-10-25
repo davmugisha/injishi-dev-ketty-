@@ -11,9 +11,11 @@ import type {
   QueueKpi,
 } from "@injishi/data/fixtures/oversight";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { OfficerHomeView } from "@/features/oversight/OfficerHomeView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
+import { leaderOnly, officerConsoles } from "@/server/oversight/nav";
 import { readDesk } from "@/server/sources/oversight";
 
 export const metadata: Metadata = { title: screens.OfficerHome.pageTitle };
@@ -44,6 +46,8 @@ function longDay(now: Date): string {
  */
 export default async function OfficerHomePage({ searchParams }: { searchParams: Promise<{ mandate?: string }> }) {
   const persona = await requirePersona("OfficerHome");
+  // A local leader reviews no business: their home is the guests in their area (P5).
+  if (leaderOnly(await officerConsoles())) redirect("/officer/guests");
   const ctx = await requestContext();
   const [desk, states, facts, exclusions, kpis, cases, decisions, rules] = await Promise.all([
     readDesk(ctx),
