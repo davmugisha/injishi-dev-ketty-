@@ -6,8 +6,8 @@
 import type { RentalsSummary } from "@injishi/contracts";
 import type { NavGroup, NavItem } from "@injishi/data";
 import { ApiError } from "../api";
-import { can, type LandlordScope, landlordScope, rentalsSummary } from "./client";
 import { landlordUnread, quietUnread } from "../messages";
+import { can, type LandlordScope, landlordScope, rentalsSummary } from "./client";
 import { faultCounts } from "./faults";
 
 const RENTALS_READ = [
@@ -70,6 +70,9 @@ export function landlordNavGroups(
       board: "Faults",
       ...(openFaults && openFaults > 0 ? { chip: String(openFaults) } : {}),
     });
+  }
+  if (can(scope, "lease.manage", "message.send")) {
+    property.push({ id: "brokers", label: "Brokers", icon: "Persons", board: "LandlordBrokers" });
   }
   if (can(scope, "guest.register")) {
     property.push({ id: "guests", label: "My guests", icon: "PersonPlus", board: "LandlordGuests" });

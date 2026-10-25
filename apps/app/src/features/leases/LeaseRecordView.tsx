@@ -39,6 +39,7 @@ import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { settingsHref } from "../rentals/shared";
 import { reloadLeaseContract, requestLandlordSigningCode, signLeaseAsLandlord, startTenancy } from "./actions";
 import { ContractDocument } from "./ContractDocument";
+import { LeaseBrokerCard } from "./LeaseBrokerCard";
 import { CancelDialog, EditLeasePanel, ReminderDialog, ResendDialog } from "./LeaseDialogs";
 import { SigningPanel } from "./SigningPanel";
 import {
@@ -430,7 +431,6 @@ export function LeaseRecordView({
                 ...(t.otherTerms
                   ? [{ label: "Other terms", value: <span className="whitespace-pre-line">{t.otherTerms}</span> }]
                   : []),
-                ...(lease.broker ? [{ label: "Brought by", value: lease.broker.name ?? "A broker" }] : []),
               ]}
             />
           </SectionCard>
@@ -465,6 +465,7 @@ export function LeaseRecordView({
                 ]}
               />
             </SectionCard>
+            <LeaseBrokerCard lease={lease} canManage={can.manage} />
             {lease.invitation ? (
               <SectionCard
                 title="Invitation"
