@@ -129,8 +129,8 @@ export class ExpensesRepository {
       select e.id, e.org_id, e.workspace_id, e.property_id, p.name as property_name, e.unit_id, u.label as unit_label,
              e.ticket_id, t.title as ticket_title, e.category, e.amount_rwf, to_char(e.paid_on, 'YYYY-MM-DD') as paid_on,
              e.method, e.payee_name, e.payee_phone, e.note, e.receipt_object_id, so.object_key as receipt_object_key,
-             e.source, e.payout_id, e.loan_purpose, e.created_by_user_id, coalesce(cu.name, cu.email) as created_by_name,
-             e.voided_at, coalesce(vu.name, vu.email) as voided_by_name, e.void_reason, e.created_at
+             e.source, e.payout_id, e.loan_purpose, e.created_by_user_id, coalesce(nullif(cu.name, ''), cu.email) as created_by_name,
+             e.voided_at, coalesce(nullif(vu.name, ''), vu.email) as voided_by_name, e.void_reason, e.created_at
         from expenses e
         left join properties p on p.id = e.property_id
         left join rental_units u on u.id = e.unit_id
