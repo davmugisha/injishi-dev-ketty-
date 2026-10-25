@@ -176,7 +176,7 @@ export function LandlordHomeView({
           </>
         }
         title={firstName ? `Welcome back, ${firstName}` : "Welcome back"}
-        description={noUnits ? "Add your units to start." : "Here is how your homes are doing this month."}
+        description={noUnits ? "Add your units to start." : undefined}
         actions={
           <>
             {canAddUnits ? (

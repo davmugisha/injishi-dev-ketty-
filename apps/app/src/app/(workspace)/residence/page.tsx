@@ -3,7 +3,15 @@ import type { Metadata } from "next";
 import { LandlordHomeView } from "@/features/rentals/LandlordHomeView";
 import { NoRentalsBusiness } from "@/features/rentals/shared";
 import { currentAccount, requirePersona } from "@/lib/session";
-import { can, landlordScope, orNull, rentalsOverview, rentalsSetup, rentalsSummary } from "@/server/rentals/client";
+import {
+  can,
+  landlordScope,
+  orNull,
+  rentalsOverview,
+  rentalsProfile,
+  rentalsSetup,
+  rentalsSummary,
+} from "@/server/rentals/client";
 
 export const metadata: Metadata = { title: screens.ResidenceHome.pageTitle };
 
@@ -20,16 +28,23 @@ export default async function LandlordHomePage() {
   await requirePersona("ResidenceHome");
   const scope = await landlordScope();
   if (!scope) return <NoRentalsBusiness title="Home" />;
-  const [account, overview, summary, setup] = await Promise.all([
+  const [account, overview, summary, setup, profile] = await Promise.all([
     currentAccount(),
     orNull(rentalsOverview()),
     orNull(rentalsSummary()),
     orNull(rentalsSetup()),
+    orNull(rentalsProfile()),
   ]);
+  // The account's own name; else the signatory's, when the signatory is this person (same email).
+  const email = account?.user.email?.trim().toLowerCase();
+  const signatory = profile?.signatory;
+  const name =
+    account?.user.name?.trim() ||
+    (signatory?.name && email && signatory.contactEmail?.trim().toLowerCase() === email ? signatory.name : "");
   return (
     <LandlordHomeView
-      // The account's own name only: an address is no greeting.
-      firstName={account?.user.name?.trim().split(/\s+/)[0] ?? ""}
+      // A name only: an address is no greeting.
+      firstName={name.split(/\s+/)[0] ?? ""}
       businessName={scope.workspace.orgName ?? account?.persona.workspace?.name ?? "Your business"}
       today={overview?.today ?? today()}
       overview={overview}

@@ -122,7 +122,15 @@ export function UnitsView({
         id: "block",
         header: "Block",
         sortValue: (u) => u.blockCode ?? "",
-        cell: (u) => (u.blockCode ? (u.blockName ?? u.blockCode) : <span className="text-muted">None</span>),
+        cell: (u) =>
+          u.blockCode ? (
+            (u.blockName ?? u.blockCode)
+          ) : (
+            <span className="text-muted">
+              <span aria-hidden="true">-</span>
+              <span className="sr-only">No block</span>
+            </span>
+          ),
         hideBelow: "lg",
       },
       {
@@ -143,7 +151,13 @@ export function UnitsView({
         id: "tenant",
         header: "Tenant",
         sortValue: (u) => u.currentLease?.tenantName ?? "",
-        cell: (u) => u.currentLease?.tenantName ?? <span className="text-muted">None</span>,
+        cell: (u) =>
+          u.currentLease?.tenantName ?? (
+            <span className="text-muted">
+              <span aria-hidden="true">-</span>
+              <span className="sr-only">No tenant</span>
+            </span>
+          ),
       },
       {
         id: "status",
