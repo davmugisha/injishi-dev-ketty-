@@ -26,3 +26,5 @@ export * from "./tenancy";
 export * from "./rent";
 // Faults (WP 4.1): the ticket lifecycle a rented home shares with a hotel.
 export * from "./faults";
+// Expenses and paying a fault's fixer (WP 4.3).
+export * from "./expenses";

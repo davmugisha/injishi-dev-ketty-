@@ -17,8 +17,8 @@ import { RentalsFilesStorage } from '../../storage/application/rentals-files-sto
 import { FaultsRepository, type FaultRow } from '../infrastructure/faults.repository';
 import { RentalsAuditWriter } from '../infrastructure/rentals-writers';
 import { FaultNotices } from './fault-notices';
-import { FAULT_NOT_FOUND, FaultsService, type FaultUpload } from './faults.service';
-import { presentEvent, presentPhoto, presentTenantFaultItem } from './faults-presenters';
+import { FaultsService, type FaultUpload } from './faults.service';
+import { FAULT_NOT_FOUND, presentEvent, presentPhoto, presentTenantFaultItem } from './faults-presenters';
 import type { TenancyRef } from './tenancies.service';
 
 /** The lease states a tenant can report a fault in: signed (moving in), active and ending. */

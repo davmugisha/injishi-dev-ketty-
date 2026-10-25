@@ -29,15 +29,16 @@ import { assertBuildingInScope, assertResidence } from '../domain/residence';
 import { FaultsRepository, type FaultRow } from '../infrastructure/faults.repository';
 import { RentalsAuditWriter, type DbOrTx } from '../infrastructure/rentals-writers';
 import { FaultNotices } from './fault-notices';
-import { allowedMoves, assigneeOf, presentEvent, presentFaultItem, presentPhoto, reportedOn } from './faults-presenters';
+import { FaultPaymentsService } from './fault-payments.service';
+import { allowedMoves, assertFaultOwned, assigneeOf, presentEvent, presentFaultItem, presentPhoto, reportedOn } from './faults-presenters';
+
+export { FAULT_NOT_FOUND } from './faults-presenters';
 
 /** A photo received with a form, not stored yet. */
 export interface FaultUpload {
   filename: string;
   body: Buffer;
 }
-
-export const FAULT_NOT_FOUND = 'Fault not found.';
 
 /**
  * Faults on the landlord's side (blueprint 2.3 "Faults", WP 4.1): the list by
@@ -58,6 +59,7 @@ export class FaultsService {
     private readonly files: RentalsFilesStorage,
     private readonly notices: FaultNotices,
     private readonly audit: RentalsAuditWriter,
+    private readonly payments: FaultPaymentsService,
   ) {}
 
   /** The clock, as a method so a test can pin it. */
@@ -93,10 +95,11 @@ export class FaultsService {
     };
   }
 
-  /** One fault in full: the ticket, its photos and its whole timeline. */
+  /** One fault in full: the ticket, its photos, its whole timeline, and what was paid for it to a reader of money. */
   async detail(ws: ScopedWorkspace, id: string): Promise<FaultDetail> {
     const row = await this.owned(ws, id);
-    return this.present(row);
+    const seesMoney = ws.permissions.includes('money.view') || ws.permissions.includes('expense.manage');
+    return this.present(row, seesMoney);
   }
 
   /** The landlord writes down a fault on one of their units. A tenant living there sees it on their side. */
@@ -276,16 +279,17 @@ export class FaultsService {
 
   /** A fault of this residence business, in the caller's buildings, or 404. */
   async owned(ws: ScopedWorkspace, id: string): Promise<FaultRow> {
-    const r = assertResidence(ws);
-    const row = await this.faults.find(id);
-    if (!row || row.workspaceId !== r.workspaceId || (!row.unitId && !row.leaseId)) throw new NotFoundException(FAULT_NOT_FOUND);
-    if (row.propertyId) assertBuildingInScope(ws, row.propertyId, 'Fault');
-    return row;
+    return assertFaultOwned(ws, await this.faults.find(id));
   }
 
-  /** The fault as the side panel shows it. */
-  async present(row: FaultRow): Promise<FaultDetail> {
-    const [photos, events] = await Promise.all([this.faults.photos(row.id), this.faults.events(row.id, { tenantOnly: false })]);
+  /** The fault as the side panel shows it. Payments, and the `paid` rows of the timeline, only to a reader of money. */
+  async present(row: FaultRow, seesMoney: boolean): Promise<FaultDetail> {
+    const [photos, allEvents, paid] = await Promise.all([
+      this.faults.photos(row.id),
+      this.faults.events(row.id, { tenantOnly: false }),
+      seesMoney ? this.payments.forFault(row.id) : Promise.resolve(null),
+    ]);
+    const events = seesMoney ? allEvents : allEvents.filter((e) => e.kind !== 'paid');
     const urls = await Promise.all(photos.map((p) => this.files.signedUrl(p.objectKey)));
     return {
       ...presentFaultItem(row),
@@ -301,6 +305,8 @@ export class FaultsService {
       reportedOn: reportedOn(row),
       photos: photos.map((p, i) => presentPhoto(p, urls[i] as string, row.tenantUserId)),
       events: events.map((e) => presentEvent(e, 'landlord')),
+      payments: paid?.payments ?? null,
+      paidRwf: paid?.paidRwf ?? null,
     };
   }
 

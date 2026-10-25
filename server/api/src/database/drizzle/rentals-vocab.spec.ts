@@ -1,5 +1,8 @@
 import {
   DepositRefundMethod,
+  ExpenseCategory,
+  ExpenseMethod,
+  ExpenseSource,
   FaultAssigneeKind,
   FaultPhotoPhase,
   GuestHostKind,
@@ -21,6 +24,7 @@ import {
   LeaseSignerRole,
   LeaseSigningMethod,
   LeaseStatus,
+  LoanPurpose,
   MaintenanceStatus,
   MomoNetwork,
   MoveOutNoticeChannel,
@@ -38,6 +42,9 @@ import { join } from 'node:path';
 
 import {
   depositRefundMethodEnum,
+  expenseCategoryEnum,
+  expenseMethodEnum,
+  expenseSourceEnum,
   filingStatusEnum,
   guestHostKindEnum,
   guestRegistrationStatusEnum,
@@ -56,6 +63,7 @@ import {
   leaseReminderKindEnum,
   leaseSigningMethodEnum,
   leaseStatusEnum,
+  loanPurposeEnum,
   maintenanceAssigneeKindEnum,
   maintenanceEventKindEnum,
   maintenancePhotoPhaseEnum,
@@ -122,6 +130,11 @@ const PAIRS: ReadonlyArray<readonly [string, { enumName: string; enumValues: rea
   ['maintenance_event_kind', maintenanceEventKindEnum, WorkOrderEventKind],
   ['maintenance_assignee_kind', maintenanceAssigneeKindEnum, FaultAssigneeKind],
   ['maintenance_photo_phase', maintenancePhotoPhaseEnum, FaultPhotoPhase],
+  // Expenses (P4, migration 0088).
+  ['expense_category', expenseCategoryEnum, ExpenseCategory],
+  ['expense_method', expenseMethodEnum, ExpenseMethod],
+  ['expense_source', expenseSourceEnum, ExpenseSource],
+  ['loan_purpose', loanPurposeEnum, LoanPurpose],
 ];
 
 describe('rentals database enums match the contracts vocabulary', () => {

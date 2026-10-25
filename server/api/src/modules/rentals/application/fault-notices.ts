@@ -29,6 +29,11 @@ export class FaultNotices {
     private readonly mailer: RentalsMailer,
   ) {}
 
+  /** The app's origin, for the links in a mail. */
+  get appUrl(): string {
+    return this.mailer.appUrl;
+  }
+
   /** The business's contact address, else its owner's. */
   async landlordAddress(row: Pick<FaultRow, 'orgId' | 'workspaceId'>): Promise<string | null> {
     if (!row.orgId) return null;

@@ -19,6 +19,7 @@
  * Statuses and kinds are enums built from `@injishi/contracts` rentals vocab.
  * Money is whole francs; calendar facts are `date` in Kigali.
  */
+import { ExpenseCategory, ExpenseMethod, ExpenseSource, LoanPurpose } from '@injishi/contracts';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -27,6 +28,7 @@ import {
   index,
   integer,
   jsonb,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -53,10 +55,10 @@ import {
   taxpayerKindEnum,
 } from './enums';
 import { storedObjects } from './hospitality';
-import { properties, propertyBlocks, rooms } from './inventory';
+import { properties, propertyBlocks, rentalUnits, rooms } from './inventory';
 import { payouts } from './money';
 import { orgs, workspaces } from './org';
-import { brokers, leaseCharges, leases, tenants } from './residence';
+import { brokers, leaseCharges, leases, maintenanceTickets, tenants } from './residence';
 
 // ===========================================================================
 // Settings
@@ -470,6 +472,114 @@ export const leaseFilings = pgTable(
       .on(t.dueOn)
       .where(sql`${t.status} = 'pending'`),
     check('lease_filings_filed_shape', sql`(${t.status} = 'filed') = (${t.filedOn} IS NOT NULL)`),
+  ],
+);
+
+// ===========================================================================
+// Expenses and paying a fault's fixer (WP 4.3, migration 0088)
+// ===========================================================================
+
+/** What an expense was for, how it was paid, whether through Injishi. Lists in contracts `rentals/expenses.ts`. */
+export const expenseCategoryEnum = pgEnum('expense_category', ExpenseCategory.options);
+export const expenseMethodEnum = pgEnum('expense_method', ExpenseMethod.options);
+export const expenseSourceEnum = pgEnum('expense_source', ExpenseSource.options);
+/** What a bank loan was for: only interest on a loan to build or buy the rented property lowers the tax. */
+export const loanPurposeEnum = pgEnum('loan_purpose', LoanPurpose.options);
+
+/**
+ * Money a landlord spent (blueprint 1.2): one row per payment, by business,
+ * building and unit, by Kigali day. A fixer paid for a fault names the fault
+ * (category repairs). `gateway` rows were paid through Injishi and carry the
+ * payout that moved the money; `recorded` ones were paid outside. A row is
+ * never deleted: a recorded one is voided with a reason, a gateway one cannot
+ * be. Loan interest says what the loan was for, and only loan interest does.
+ */
+export const expenses = pgTable(
+  'expenses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    propertyId: uuid('property_id').references(() => properties.id),
+    unitId: uuid('unit_id').references(() => rentalUnits.id),
+    ticketId: uuid('ticket_id').references(() => maintenanceTickets.id),
+    category: expenseCategoryEnum('category').notNull(),
+    amountRwf: amount('amount_rwf').notNull(),
+    currency: currency(),
+    paidOn: date('paid_on').notNull(),
+    method: expenseMethodEnum('method').notNull(),
+    payeeName: text('payee_name'),
+    /** E.164: a fixer's MoMo number, never a bank account. */
+    payeePhone: text('payee_phone'),
+    note: text('note'),
+    receiptObjectId: uuid('receipt_object_id').references(() => storedObjects.id),
+    source: expenseSourceEnum('source').notNull(),
+    /** The transfer that paid it, for a payment through Injishi. */
+    payoutId: uuid('payout_id').references(() => payouts.id),
+    loanPurpose: loanPurposeEnum('loan_purpose'),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id),
+    voidedAt: timestamp('voided_at', { withTimezone: true }),
+    voidedByUserId: uuid('voided_by_user_id').references(() => users.id),
+    voidReason: text('void_reason'),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('expenses_payout_uk').on(t.payoutId).where(sql`${t.payoutId} IS NOT NULL`),
+    index('expenses_org_paid_on_idx').on(t.orgId, t.paidOn),
+    index('expenses_workspace_paid_on_idx').on(t.workspaceId, t.paidOn),
+    index('expenses_ticket_idx').on(t.ticketId).where(sql`${t.ticketId} IS NOT NULL`),
+    check('expenses_amount_positive', sql`${t.amountRwf} > 0 AND ${t.amountRwf} <= 10000000000`),
+    check('expenses_paid_on_floor', sql`${t.paidOn} >= DATE '2000-01-01'`),
+    check('expenses_gateway_payout', sql`(${t.source} = 'gateway') = (${t.payoutId} IS NOT NULL)`),
+    check('expenses_gateway_not_voided', sql`${t.source} <> 'gateway' OR ${t.voidedAt} IS NULL`),
+    check(
+      'expenses_void_shape',
+      sql`(${t.voidedAt} IS NULL AND ${t.voidedByUserId} IS NULL AND ${t.voidReason} IS NULL)
+        OR (${t.voidedAt} IS NOT NULL AND ${t.voidReason} IS NOT NULL AND length(btrim(${t.voidReason})) > 0)`,
+    ),
+    check('expenses_loan_purpose', sql`(${t.category} = 'loan_interest') = (${t.loanPurpose} IS NOT NULL)`),
+    check('expenses_payee_phone_shape', sql`${t.payeePhone} IS NULL OR ${t.payeePhone} ~ '^[+][1-9][0-9]{7,14}$'`),
+  ],
+);
+
+/**
+ * A payment to a fault's fixer through Injishi, while it is on its way
+ * (WP 4.3): which fault a repair payout is for. The payout row holds the
+ * money (status, amount, adapter reference, where it went, masked); this
+ * holds what the payout does not: the fault, the landlord's phone the prompt
+ * went to (masked), and the fixer's MoMo number for the expense it becomes.
+ * Rentals rows point at the payout, never the other way (blueprint 1.1).
+ */
+export const maintenancePayouts = pgTable(
+  'maintenance_payouts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    ticketId: uuid('ticket_id')
+      .notNull()
+      .references(() => maintenanceTickets.id),
+    payoutId: uuid('payout_id')
+      .notNull()
+      .references(() => payouts.id),
+    /** `078••••456`: the landlord's phone the prompt went to. */
+    payerMasked: text('payer_masked').notNull(),
+    /** The fixer's MoMo number (E.164), kept for the expense. Null for a bank transfer. */
+    payeePhone: text('payee_phone'),
+    createdByUserId: uuid('created_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('maintenance_payouts_payout_uk').on(t.payoutId),
+    index('maintenance_payouts_ticket_idx').on(t.ticketId),
+    check('maintenance_payouts_payee_phone_shape', sql`${t.payeePhone} IS NULL OR ${t.payeePhone} ~ '^[+][1-9][0-9]{7,14}$'`),
   ],
 );
 

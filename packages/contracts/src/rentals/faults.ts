@@ -3,6 +3,7 @@ import { MaintenanceCategory, MaintenancePriority, MaintenanceStatus } from "../
 import { RwPhoneNumber } from "../phone";
 import { Uuid } from "../primitives";
 import { addDays, kigaliDateOf, kigaliToday } from "./dates";
+import { FaultPaymentView } from "./expenses";
 
 // ===========================================================================
 // Faults: the one ticket lifecycle a rented home and a hotel share (WP 4.1)
@@ -415,6 +416,10 @@ export const FaultDetail = FaultListItem.extend({
   reportedOn: z.string(),
   photos: z.array(FaultPhotoView),
   events: z.array(FaultEventView),
+  /** What was paid for the fix (WP 4.3). Null for someone who may not see the money. */
+  payments: z.array(FaultPaymentView).nullable(),
+  /** The fix's cost so far: paid and recorded, not voided. Null with `payments`. */
+  paidRwf: z.number().int().nullable(),
 });
 export type FaultDetail = z.infer<typeof FaultDetail>;
 

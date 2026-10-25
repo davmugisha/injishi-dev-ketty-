@@ -65,6 +65,11 @@ import { FaultNotices } from './application/fault-notices';
 import { FaultsService } from './application/faults.service';
 import { TenantFaultsService } from './application/tenant-faults.service';
 import { FaultsRepository } from './infrastructure/faults.repository';
+// Expenses and paying the fixer (WP 4.3).
+import { ExpensesService } from './application/expenses.service';
+import { FaultPaymentsService } from './application/fault-payments.service';
+import { ExpensesRepository } from './infrastructure/expenses.repository';
+import { FaultPayoutsRepository } from './infrastructure/fault-payouts.repository';
 
 /**
  * Rentals: the residence side of Injishi, rebuilt (blueprint 2.2).
@@ -151,6 +156,10 @@ import { FaultsRepository } from './infrastructure/faults.repository';
     FaultNotices,
     FaultsService,
     TenantFaultsService,
+    ExpensesRepository,
+    FaultPayoutsRepository,
+    FaultPaymentsService,
+    ExpensesService,
     ...(isWorkerProcess() ? [LeaseDocumentsProcessor, RentCycleProcessor, RentRemindersProcessor, PaymentSettlementProcessor, PayoutsProcessor] : []),
   ],
   exports: [
@@ -181,6 +190,8 @@ import { FaultsRepository } from './infrastructure/faults.repository';
     TenantPaymentsService,
     FaultsService,
     TenantFaultsService,
+    FaultPaymentsService,
+    ExpensesService,
   ],
 })
 export class RentalsModule {}

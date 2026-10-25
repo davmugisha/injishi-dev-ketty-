@@ -11,6 +11,13 @@ export const SETTLEMENT_SWEEP = 'settlement-sweep';
 export const SETTLE_PAYMENT = 'settle-payment';
 export const WEBHOOK_EVENT = 'webhook-event';
 
+/** PaymentSettlement: one payment to a fault's fixer to settle (WP 4.3). */
+export const SETTLE_VENDOR_PAYOUT = 'settle-vendor-payout';
+
+export interface SettleVendorPayoutJob {
+  payoutId: string;
+}
+
 /** Payouts: the hourly pass over held and lost ones, and one payout to send. */
 export const PAYOUTS_SWEEP = 'payouts-sweep';
 export const SEND_PAYOUT = 'send-payout';
@@ -55,6 +62,21 @@ export class RentalsMoneyQueue {
       return true;
     } catch (cause) {
       this.log.warn(`Could not queue settlement of payment ${paymentId}: ${cause instanceof Error ? cause.message : 'queue unavailable'}. The sweep looks at it.`);
+      return false;
+    }
+  }
+
+  /** Look at one payment to a fault's fixer after `delayMs`: the landlord approves the prompt on their phone. */
+  async settleVendorPayoutLater(payoutId: string, delayMs: number): Promise<boolean> {
+    try {
+      await this.settlement.add(
+        SETTLE_VENDOR_PAYOUT,
+        { payoutId } satisfies SettleVendorPayoutJob,
+        { jobId: queueJobId(`vendor:${payoutId}:${Math.round(delayMs / 1000)}`), delay: delayMs, attempts: 3, backoff: { type: 'fixed', delay: 5_000 }, removeOnComplete: true, removeOnFail: 200 },
+      );
+      return true;
+    } catch (cause) {
+      this.log.warn(`Could not queue settlement of repair payout ${payoutId}: ${cause instanceof Error ? cause.message : 'queue unavailable'}. The sweep looks at it.`);
       return false;
     }
   }

@@ -4,8 +4,17 @@ import { Job, Queue } from 'bullmq';
 
 import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 import { QUEUES } from '../../../shared/queues/queues.module';
+import { FaultPaymentsService } from '../application/fault-payments.service';
 import { PaymentSettlementService } from '../application/payment-settlement.service';
-import { SETTLEMENT_SWEEP, SETTLE_PAYMENT, WEBHOOK_EVENT, type SettlePaymentJob, type WebhookJob } from './rentals-money.queue';
+import {
+  SETTLEMENT_SWEEP,
+  SETTLE_PAYMENT,
+  SETTLE_VENDOR_PAYOUT,
+  WEBHOOK_EVENT,
+  type SettlePaymentJob,
+  type SettleVendorPayoutJob,
+  type WebhookJob,
+} from './rentals-money.queue';
 
 /** Every minute: a prompt approved on a phone is noticed within a minute even when every other wake up is lost. */
 const SWEEP_EVERY_MS = 60_000;
@@ -15,7 +24,8 @@ const SWEEP_EVERY_MS = 60_000;
  * only: the minute sweep over pending payments, the delayed look at one
  * payment queued when the prompt went out, and a provider's callback. All
  * three end in the same guarded settle, so seeing one payment three times
- * writes it once.
+ * writes it once. Payments to a fault's fixer (WP 4.3) ride the same sweep,
+ * their own delayed look, and the callbacks rent does not claim.
  */
 @Processor(QUEUES.paymentSettlement, { concurrency: 4 })
 export class PaymentSettlementProcessor extends WorkerHost implements OnModuleInit {
@@ -24,6 +34,7 @@ export class PaymentSettlementProcessor extends WorkerHost implements OnModuleIn
   constructor(
     @InjectQueue(QUEUES.paymentSettlement) private readonly queue: Queue,
     private readonly settlement: PaymentSettlementService,
+    private readonly faultPayments: FaultPaymentsService,
   ) {
     super();
   }
@@ -36,6 +47,12 @@ export class PaymentSettlementProcessor extends WorkerHost implements OnModuleIn
   async process(job: Job): Promise<void> {
     if (job.name === SETTLEMENT_SWEEP) {
       await this.settlement.sweep();
+      // Payments to a fault's fixer that wait on the landlord's phone (WP 4.3).
+      await this.faultPayments.sweep();
+      return;
+    }
+    if (job.name === SETTLE_VENDOR_PAYOUT) {
+      await this.faultPayments.sweepOne((job.data as SettleVendorPayoutJob).payoutId);
       return;
     }
     if (job.name === SETTLE_PAYMENT) {
@@ -44,7 +61,9 @@ export class PaymentSettlementProcessor extends WorkerHost implements OnModuleIn
       return;
     }
     if (job.name === WEBHOOK_EVENT) {
-      await this.settlement.handleCallback((job.data as WebhookJob).event);
+      const { event } = job.data as WebhookJob;
+      // A rent payment's callback, else a fixer payment's; anything else is nobody's.
+      if ((await this.settlement.handleCallback(event)) === 'ignored') await this.faultPayments.handleCallback(event);
       return;
     }
     this.logger.warn(`Ignoring unknown job "${job.name}" on ${QUEUES.paymentSettlement}`);

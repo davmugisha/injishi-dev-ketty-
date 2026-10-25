@@ -42,4 +42,6 @@ __exportStar(require("./tenancy"), exports);
 __exportStar(require("./rent"), exports);
 // Faults (WP 4.1): the ticket lifecycle a rented home shares with a hotel.
 __exportStar(require("./faults"), exports);
+// Expenses and paying a fault's fixer (WP 4.3).
+__exportStar(require("./expenses"), exports);
 //# sourceMappingURL=index.js.map

@@ -1,5 +1,7 @@
+import { NotFoundException } from '@nestjs/common';
 import {
   FAULT_STATUS_TENANT,
+  formatRwf,
   TICKET_MOVES,
   faultMoveWords,
   faultReopenUntil,
@@ -14,7 +16,29 @@ import {
   type TenantFaultItem,
 } from '@injishi/contracts';
 
+import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { assertBuildingInScope, assertResidence } from '../domain/residence';
 import type { FaultEventRow, FaultPhotoRow, FaultRow } from '../infrastructure/faults.repository';
+
+export const FAULT_NOT_FOUND = 'Fault not found.';
+
+/** A fault of this residence business, in the caller's buildings, or 404 like one that does not exist. */
+export function assertFaultOwned(ws: ScopedWorkspace, row: FaultRow | null): FaultRow {
+  const r = assertResidence(ws);
+  if (!row || row.workspaceId !== r.workspaceId || (!row.unitId && !row.leaseId)) throw new NotFoundException(FAULT_NOT_FOUND);
+  if (row.propertyId) assertBuildingInScope(ws, row.propertyId, 'Fault');
+  return row;
+}
+
+/** `2026-10-20` as "20 Oct". */
+function shortDay(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+/** "Paid RWF 45,000 to Eric on 20 Oct": the line the timeline reads for a payment. */
+export function paidLine(amountRwf: number, payee: string | null, paidOn: string): string {
+  return `Paid ${formatRwf(amountRwf)}${payee ? ` to ${payee}` : ''} on ${shortDay(paidOn)}`;
+}
 
 /** Who is fixing it, as the landlord sees it. */
 export function assigneeOf(row: FaultRow): FaultAssigneeView | null {

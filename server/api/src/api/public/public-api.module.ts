@@ -141,6 +141,7 @@ import { PaymentWebhooksController } from './payments/webhooks.controller';
 // Faults, expenses and taxes (WP 4.1, 4.3, 4.4).
 import { MeTenancyFaultsController } from './me/tenancy-faults.controller';
 import { OpsFaultsController } from './ops/rentals/faults.controller';
+import { OpsExpensesController } from './ops/rentals/expenses.controller';
 import { OpsRoomsController } from './ops/rooms.controller';
 import { OpsThreadsController } from './ops/threads.controller';
 import { OpsStaysController } from './ops/stays.controller';
@@ -345,6 +346,8 @@ import { TrainingPublicModule } from './training/training.module';
     // Faults on both sides (WP 4.1): the landlord's board and the tenant's reports.
     OpsFaultsController,
     MeTenancyFaultsController,
+    // Expenses and paying the fixer (WP 4.3).
+    OpsExpensesController,
     // The broker workspace's directory, reveals, placements and earnings
     // (ADR-038 child 6).
     OpsBrokerController,

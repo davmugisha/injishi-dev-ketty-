@@ -11,6 +11,7 @@ const ops_1 = require("../ops");
 const phone_1 = require("../phone");
 const primitives_1 = require("../primitives");
 const dates_1 = require("./dates");
+const expenses_1 = require("./expenses");
 // ===========================================================================
 // Faults: the one ticket lifecycle a rented home and a hotel share (WP 4.1)
 // ===========================================================================
@@ -358,6 +359,10 @@ exports.FaultDetail = exports.FaultListItem.extend({
     reportedOn: zod_1.z.string(),
     photos: zod_1.z.array(exports.FaultPhotoView),
     events: zod_1.z.array(exports.FaultEventView),
+    /** What was paid for the fix (WP 4.3). Null for someone who may not see the money. */
+    payments: zod_1.z.array(expenses_1.FaultPaymentView).nullable(),
+    /** The fix's cost so far: paid and recorded, not voided. Null with `payments`. */
+    paidRwf: zod_1.z.number().int().nullable(),
 });
 /** One of the tenant's faults: no money, no team notes, no fixer's phone. */
 exports.TenantFaultItem = zod_1.z.object({

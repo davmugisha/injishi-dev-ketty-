@@ -1,7 +1,17 @@
 import { randomUUID } from 'node:crypto';
 
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { CreateLeaseRequest, MoveFaultRequest, ReportFaultRequest, addDays, addMonths, kigaliToday } from '@injishi/contracts';
+import {
+  CreateLeaseRequest,
+  MoveFaultRequest,
+  PayFixerRequest,
+  RecordExpenseRequest,
+  RecordFaultPaymentRequest,
+  ReportFaultRequest,
+  addDays,
+  addMonths,
+  kigaliToday,
+} from '@injishi/contracts';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
@@ -17,10 +27,13 @@ import { WorkOrdersService } from '../operations/application/work-orders.service
 import { ResidenceRepository } from '../operations/infrastructure/residence.repository';
 import { StaffPhoneRepository } from '../operations/infrastructure/staff-phone.repository';
 import { WorkOrdersRepository } from '../operations/infrastructure/work-orders.repository';
+import { MockPaymentAdapter } from '../payments/infrastructure/mock-payment.adapter';
 import { RentalsFilesStorage } from '../storage/application/rentals-files-storage';
 import type { StorageService } from '../storage/application/storage.service';
 import type { StoragePort } from '../storage/domain/storage-port';
+import { ExpensesService } from './application/expenses.service';
 import { FaultNotices } from './application/fault-notices';
+import { FaultPaymentsService } from './application/fault-payments.service';
 import { FaultsService } from './application/faults.service';
 import { LeaseContractService } from './application/lease-contract.service';
 import { LeaseDraftingService } from './application/lease-drafting.service';
@@ -30,10 +43,13 @@ import { TenantFaultsService } from './application/tenant-faults.service';
 import type { TenancyRef } from './application/tenancies.service';
 import { UnitsService } from './application/units.service';
 import type { RentalsMail } from './domain/rentals-mail';
+import { ExpensesRepository } from './infrastructure/expenses.repository';
+import { FaultPayoutsRepository } from './infrastructure/fault-payouts.repository';
 import { FaultsRepository } from './infrastructure/faults.repository';
 import { LeaseChargesRepository } from './infrastructure/lease-charges.repository';
 import { LeasesRepository } from './infrastructure/leases.repository';
 import { RentalsContextRepository } from './infrastructure/rentals-context.repository';
+import type { RentalsMoneyQueue } from './infrastructure/rentals-money.queue';
 import { LeaseEventsWriter, RentalsAuditWriter } from './infrastructure/rentals-writers';
 import type { RentalsMailer } from './infrastructure/rentals.mailer';
 import { SigningRepository } from './infrastructure/signing.repository';
@@ -64,6 +80,8 @@ maybe('faults and the ticket lifecycle against Postgres (RENTALS_IT_DATABASE_URL
   let unitId: string;
   const mails: { to: string; subject: string; text: string }[] = [];
   const stored: string[] = [];
+  const queued: string[] = [];
+  const adapter = new MockPaymentAdapter();
   let photo: Buffer;
 
   const port: StoragePort = {
@@ -109,7 +127,10 @@ maybe('faults and the ticket lifecycle against Postgres (RENTALS_IT_DATABASE_URL
     const faultsRepo = new FaultsRepository(db);
     const files = new RentalsFilesStorage(port, db);
     const notices = new FaultNotices(faultsRepo, context, mailer);
-    const faults = new FaultsService(db, faultsRepo, ticketLifecycle, files, notices, audit);
+    const queue = { settleVendorPayoutLater: async (id: string) => (queued.push(id), true) } as unknown as RentalsMoneyQueue;
+    const expensesRepo = new ExpensesRepository(db);
+    const payments = new FaultPaymentsService(db, faultsRepo, new FaultPayoutsRepository(db), expensesRepo, ticketLifecycle, files, notices, audit, queue, adapter);
+    const faults = new FaultsService(db, faultsRepo, ticketLifecycle, files, notices, audit, payments);
     const workOrdersRepo = new WorkOrdersRepository(db);
     const orders = new WorkOrdersService(workOrdersRepo, ticketLifecycle);
     return {
@@ -121,6 +142,8 @@ maybe('faults and the ticket lifecycle against Postgres (RENTALS_IT_DATABASE_URL
       orders,
       time: new WorkOrderTimeService(workOrdersRepo, new StaffPhoneRepository(db), orders, ticketLifecycle),
       board: new ResidenceService(new ResidenceRepository(db), ticketLifecycle, db),
+      payments,
+      expenses: new ExpensesService(db, expensesRepo, files, audit),
     };
   };
 
@@ -365,5 +388,132 @@ maybe('faults and the ticket lifecycle against Postgres (RENTALS_IT_DATABASE_URL
     // The hotel board lists its order, and no rented unit's fault.
     const board = await s.orders.list(hotel);
     expect(board.workOrders.map((o) => o.id)).toEqual([created.id]);
+  });
+
+  it('pays the fixer through the mock gateway: waiting, then settled into a repairs expense; a replay is the same payment', async () => {
+    const s = services();
+    process.env.MOCK_MOMO_APPROVAL_MS = '0';
+    const f = await s.tenant.report(tenancy, ReportFaultRequest.parse({ title: 'Shower head broken' }), []);
+    const key = randomUUID();
+    const body = PayFixerRequest.parse({ amountRwf: 25_000, payeeName: 'Eric', payee: { kind: 'momo', phone: '0788 000 111' }, payerPhone: '0788 301 122' });
+    const sent = await s.payments.pay(ws, userId, f.id, body, key);
+    expect(sent).toMatchObject({ status: 'queued', amountRwf: 25_000, payeeName: 'Eric', destinationMasked: 'MTN MoMo 078••••111' });
+    expect(queued).toContain(sent.payoutId);
+
+    // PaymentSettlement's sweep finds it approved: paid, an expense, a timeline row, an audit row.
+    mails.length = 0;
+    expect((await s.payments.sweep()).paid).toBeGreaterThanOrEqual(1);
+    // The same key answers the same payment; another amount on it is refused.
+    expect(await s.payments.pay(ws, userId, f.id, body, key)).toMatchObject({ payoutId: sent.payoutId, status: 'paid' });
+    await expect(s.payments.pay(ws, userId, f.id, { ...body, amountRwf: 30_000 }, key)).rejects.toBeInstanceOf(ConflictException);
+    const payout = (await pool.query(`select status, payee_type, source, settled_at from payouts where id = $1`, [sent.payoutId])).rows[0];
+    expect(payout).toMatchObject({ status: 'paid', payee_type: 'vendor', source: 'repair' });
+    expect(payout.settled_at).not.toBeNull();
+    const expense = (await pool.query(`select * from expenses where payout_id = $1`, [sent.payoutId])).rows[0];
+    expect(expense).toMatchObject({ category: 'repairs', source: 'gateway', ticket_id: f.id, unit_id: unitId, method: 'momo', payee_name: 'Eric', payee_phone: '+250788000111' });
+    expect(Number(expense.amount_rwf)).toBe(25_000);
+    expect((await eventRows(f.id)).at(-1)).toMatchObject({ kind: 'paid', visible_to_tenant: false });
+    // Settling twice writes it once.
+    expect(await s.payments.settle(sent.payoutId)).toBe(false);
+    expect((await pool.query(`select count(*)::int as n from expenses where payout_id = $1`, [sent.payoutId])).rows[0].n).toBe(1);
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(mails.some((m) => m.subject === 'You paid Eric RWF 25,000 for "Shower head broken"')).toBe(true);
+
+    // The landlord's panel shows it to a reader of money; a housekeeper sees no money at all.
+    const detail = await s.faults.detail(ws, f.id);
+    expect(detail.payments).toEqual([expect.objectContaining({ source: 'gateway', status: 'paid', amountRwf: 25_000, expenseId: expense.id })]);
+    expect(detail.paidRwf).toBe(25_000);
+    const housekeeper = await s.faults.detail({ ...ws, permissions: ['ticket.advance'] } as ScopedWorkspace, f.id);
+    expect(housekeeper.payments).toBeNull();
+    expect(housekeeper.events.some((e) => e.kind === 'paid')).toBe(false);
+    // The tenant never sees money.
+    expect(JSON.stringify(await s.tenant.detail(tenancy, f.id))).not.toContain('25,000');
+
+    // A paid expense cannot be voided.
+    await expect(s.expenses.void(ws, userId, expense.id, { reason: 'Wrong one' })).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('a declined transfer, a declined prompt and an expired prompt fail with nothing taken; one at a time per fault', async () => {
+    const s = services();
+    const f = await s.tenant.report(tenancy, ReportFaultRequest.parse({ title: 'Door lock stiff' }), []);
+    const pay = (over: Record<string, unknown>): PayFixerRequest =>
+      PayFixerRequest.parse({ amountRwf: 5_000, payeeName: 'Eric', payee: { kind: 'momo', phone: '0788 120 000' }, payerPhone: '0788 301 122', ...over });
+    const declinedFixer = await s.payments.pay(ws, userId, f.id, pay({}), randomUUID());
+    expect(declinedFixer).toMatchObject({ status: 'failed' });
+    expect(declinedFixer.failureReason).toMatch(/declined.*Nothing was taken/);
+    const declinedPayer = await s.payments.pay(ws, userId, f.id, pay({ payee: { kind: 'momo', phone: '0788 000 111' }, payerPhone: '0788 120 000' }), randomUUID());
+    expect(declinedPayer.status).toBe('failed');
+
+    process.env.MOCK_MOMO_APPROVAL_MS = '600000';
+    const slow = await s.payments.pay(ws, userId, f.id, pay({ payee: { kind: 'bank', bankName: 'Bank of Kigali', accountNumber: '000400123456' } }), randomUUID());
+    expect(slow).toMatchObject({ status: 'queued', destinationMasked: 'Bank of Kigali 000••••••456' });
+    await expect(s.payments.pay(ws, userId, f.id, pay({ payee: { kind: 'momo', phone: '0788 000 111' } }), randomUUID())).rejects.toBeInstanceOf(ConflictException);
+    // Ten minutes on, the prompt has expired.
+    expect(await s.payments.sweepOne(slow.payoutId, new Date(Date.now() + 11 * 60_000))).toBe('failed');
+    expect((await pool.query(`select count(*)::int as n from expenses where ticket_id = $1`, [f.id])).rows[0].n).toBe(0);
+    process.env.MOCK_MOMO_APPROVAL_MS = '0';
+  });
+
+  it('records a payment made outside Injishi, dated from the report day to today, with a receipt', async () => {
+    const s = services();
+    const f = await s.tenant.report(tenancy, ReportFaultRequest.parse({ title: 'Window latch broken' }), []);
+    const today = kigaliToday();
+    await expect(s.payments.record(ws, userId, f.id, RecordFaultPaymentRequest.parse({ amountRwf: 5_000, paidOn: addDays(today, -3), method: 'cash', payeeName: 'Eric' }), null)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    await expect(s.payments.record(ws, userId, f.id, { amountRwf: 5_000, paidOn: addDays(today, 1), method: 'cash', payeeName: 'Eric' }, null)).rejects.toBeInstanceOf(BadRequestException);
+    const pdf = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF');
+    const id = await s.payments.record(
+      ws,
+      userId,
+      f.id,
+      RecordFaultPaymentRequest.parse({ amountRwf: 5_000, paidOn: today, method: 'cash', payeeName: 'Eric', note: 'Cash at the gate' }),
+      { filename: 'receipt.pdf', mime: 'application/pdf', body: pdf },
+    );
+    const row = (await pool.query(`select e.*, so.kind as receipt_kind from expenses e join stored_objects so on so.id = e.receipt_object_id where e.id = $1`, [id])).rows[0];
+    expect(row).toMatchObject({ source: 'recorded', category: 'repairs', ticket_id: f.id, method: 'cash', receipt_kind: 'expense_receipt' });
+    const detail = await s.faults.detail(ws, f.id);
+    expect(detail.payments).toEqual([expect.objectContaining({ source: 'recorded', status: 'paid', amountRwf: 5_000, receiptUrl: expect.stringMatching(/^https:\/\/files\.test\//) })]);
+    expect(detail.events.at(-1)).toMatchObject({ kind: 'paid' });
+
+    // Voided with a reason: it stays listed and stops counting.
+    const before = await s.expenses.list(ws, { year: Number(today.slice(0, 4)) });
+    const voided = await s.expenses.void(ws, userId, id, { reason: 'Recorded twice' });
+    expect(voided).toMatchObject({ canVoid: false, voided: { reason: 'Recorded twice' } });
+    await expect(s.expenses.void(ws, userId, id, { reason: 'Again' })).rejects.toBeInstanceOf(ConflictException);
+    const after = await s.expenses.list(ws, { year: Number(today.slice(0, 4)) });
+    expect(after.totals.totalRwf).toBe(before.totals.totalRwf - 5_000);
+    expect(after.items.map((i) => i.id)).toContain(id);
+    expect((await s.faults.detail(ws, f.id)).paidRwf).toBe(0);
+  });
+
+  it('expenses: loan interest names its purpose; totals by category; dates and buildings are checked', async () => {
+    const s = services();
+    const today = kigaliToday();
+    expect(RecordExpenseRequest.safeParse({ category: 'loan_interest', amountRwf: 500_000, paidOn: today, method: 'bank', payeeName: 'Bank of Kigali' }).success).toBe(false);
+    expect(RecordExpenseRequest.safeParse({ category: 'security', amountRwf: 80_000, paidOn: today, method: 'cash', loanPurpose: 'build' }).success).toBe(false);
+    expect(RecordExpenseRequest.safeParse({ category: 'security', amountRwf: 80_000, paidOn: '1999-12-31', method: 'cash' }).success).toBe(false);
+    expect(RecordExpenseRequest.safeParse({ category: 'security', amountRwf: 80_000, paidOn: addDays(today, 1), method: 'cash' }).success).toBe(false);
+    const loan = await s.expenses.record(
+      ws,
+      userId,
+      RecordExpenseRequest.parse({ category: 'loan_interest', amountRwf: 500_000, paidOn: today, method: 'bank', payeeName: 'Bank of Kigali', loanPurpose: 'build' }),
+      null,
+    );
+    expect(loan).toMatchObject({ category: 'loan_interest', loanPurpose: 'build', source: 'recorded', hasReceipt: false, canVoid: true });
+    // The business has one building, so the expense is that building's.
+    expect(loan.propertyId).not.toBeNull();
+    const guard = await s.expenses.record(ws, userId, RecordExpenseRequest.parse({ category: 'security', amountRwf: 80_000, paidOn: today, method: 'cash', unitId }), null);
+    expect(guard).toMatchObject({ unitId, unitLabel: 'F-01' });
+    const list = await s.expenses.list(ws, { year: Number(today.slice(0, 4)) });
+    expect(list.totals.byCategory.find((c) => c.category === 'loan_interest')?.amountRwf).toBe(500_000);
+    expect(list.totals.byCategory.find((c) => c.category === 'security')?.amountRwf).toBe(80_000);
+    const onlyLoans = await s.expenses.list(ws, { year: Number(today.slice(0, 4)), category: 'loan_interest' });
+    expect(onlyLoans.items.every((i) => i.category === 'loan_interest')).toBe(true);
+    // A receipt added later (the bank's statement).
+    const withProof = await s.expenses.attachReceipt(ws, userId, loan.id, { filename: 'bk.pdf', mime: 'application/pdf', body: Buffer.from('%PDF-1.4\n%%EOF') });
+    expect(withProof.hasReceipt).toBe(true);
+    // Another business sees nothing.
+    await expect(s.expenses.view({ ...ws, orgId: randomUUID(), workspaceId: randomUUID() } as ScopedWorkspace, loan.id)).rejects.toBeInstanceOf(NotFoundException);
   });
 });

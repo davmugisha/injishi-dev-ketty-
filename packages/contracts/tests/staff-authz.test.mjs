@@ -238,12 +238,12 @@ const UNENFORCED = [
   // require.
   "ebm.refund",
   // Rentals blueprint 2.1 declared these ahead of their routes (WP 1.1). Each
-  // leaves this list when its first route declares it: `expense.manage` and
-  // `tax.manage` with expenses and taxes (P4). `lease.manage`, `lease.sign`,
-  // `payout.manage`, `rent.record` and `deposit.return` left it with the
-  // rentals module's first routes (WP 1.4 and 1.5a), and `guest.register`
-  // with the landlord's own guests (`/ops/guests`, P5).
-  "expense.manage",
+  // leaves this list when its first route declares it: `tax.manage` with the
+  // taxes (WP 4.4). `expense.manage` left it with expenses and paying a
+  // fault's fixer (WP 4.3); `lease.manage`, `lease.sign`, `payout.manage`,
+  // `rent.record` and `deposit.return` with the rentals module's first routes
+  // (WP 1.4 and 1.5a), and `guest.register` with the landlord's own guests
+  // (`/ops/guests`, P5).
   "tax.manage",
   // `payroll.draft` left this list when its draft routes declared it (ADR-069
   // D-e): `@RequireAnyPermission('payroll.draft', 'payroll.run')` on the pay

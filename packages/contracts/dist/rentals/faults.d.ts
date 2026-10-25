@@ -589,6 +589,49 @@ export declare const FaultDetail: z.ZodObject<{
         visibleToTenant: boolean;
         words: string;
     }>, "many">;
+    /** What was paid for the fix (WP 4.3). Null for someone who may not see the money. */
+    payments: z.ZodNullable<z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        source: z.ZodEnum<["gateway", "recorded"]>;
+        status: z.ZodEnum<["waiting", "paid", "failed", "voided"]>;
+        amountRwf: z.ZodNumber;
+        payeeName: z.ZodNullable<z.ZodString>;
+        destination: z.ZodNullable<z.ZodString>;
+        method: z.ZodNullable<z.ZodEnum<["cash", "momo", "bank", "other"]>>;
+        paidOn: z.ZodNullable<z.ZodEffects<z.ZodString, string, string>>;
+        failureReason: z.ZodNullable<z.ZodString>;
+        expenseId: z.ZodNullable<z.ZodString>;
+        receiptUrl: z.ZodNullable<z.ZodString>;
+        createdAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        status: "failed" | "paid" | "waiting" | "voided";
+        id: string;
+        amountRwf: number;
+        source: "gateway" | "recorded";
+        createdAt: string;
+        failureReason: string | null;
+        method: "other" | "cash" | "bank" | "momo" | null;
+        paidOn: string | null;
+        destination: string | null;
+        payeeName: string | null;
+        receiptUrl: string | null;
+        expenseId: string | null;
+    }, {
+        status: "failed" | "paid" | "waiting" | "voided";
+        id: string;
+        amountRwf: number;
+        source: "gateway" | "recorded";
+        createdAt: string;
+        failureReason: string | null;
+        method: "other" | "cash" | "bank" | "momo" | null;
+        paidOn: string | null;
+        destination: string | null;
+        payeeName: string | null;
+        receiptUrl: string | null;
+        expenseId: string | null;
+    }>, "many">>;
+    /** The fix's cost so far: paid and recorded, not voided. Null with `payments`. */
+    paidRwf: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
@@ -607,6 +650,21 @@ export declare const FaultDetail: z.ZodObject<{
     }[];
     reference: string | null;
     propertyName: string | null;
+    paidRwf: number | null;
+    payments: {
+        status: "failed" | "paid" | "waiting" | "voided";
+        id: string;
+        amountRwf: number;
+        source: "gateway" | "recorded";
+        createdAt: string;
+        failureReason: string | null;
+        method: "other" | "cash" | "bank" | "momo" | null;
+        paidOn: string | null;
+        destination: string | null;
+        payeeName: string | null;
+        receiptUrl: string | null;
+        expenseId: string | null;
+    }[] | null;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     resolvedAt: string | null;
     leaseId: string | null;
@@ -662,6 +720,21 @@ export declare const FaultDetail: z.ZodObject<{
     }[];
     reference: string | null;
     propertyName: string | null;
+    paidRwf: number | null;
+    payments: {
+        status: "failed" | "paid" | "waiting" | "voided";
+        id: string;
+        amountRwf: number;
+        source: "gateway" | "recorded";
+        createdAt: string;
+        failureReason: string | null;
+        method: "other" | "cash" | "bank" | "momo" | null;
+        paidOn: string | null;
+        destination: string | null;
+        payeeName: string | null;
+        receiptUrl: string | null;
+        expenseId: string | null;
+    }[] | null;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     resolvedAt: string | null;
     leaseId: string | null;

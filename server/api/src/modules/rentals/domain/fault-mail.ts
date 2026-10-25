@@ -2,6 +2,7 @@ import {
   FAULT_APP_PATHS,
   FAULT_REOPEN_DAYS,
   FAULT_STATUS_LABEL,
+  formatRwf,
   longDate,
   type MaintenanceStatus,
 } from '@injishi/contracts';
@@ -145,6 +146,51 @@ export function faultMessageLandlordMail(input: {
     subject: `${input.tenantName} wrote about "${input.title}"`,
     heading: 'A message about a fault',
     lines: [`${input.tenantName} wrote about "${input.title}" at ${homeWords(input.home)}:`, input.body],
+    action: { label: 'Open the fault', url: landlordFaultLink(input.appUrl, input.ticketId) },
+  };
+}
+
+// --- Paying the fixer (WP 4.3) ---------------------------------------------------------
+
+/** The landlord's phone approved, and the fixer has the money. */
+export function fixerPaidLandlordMail(input: {
+  appUrl: string;
+  ticketId: string;
+  title: string;
+  home: FaultMailHome;
+  amountRwf: number;
+  payeeName: string;
+  destination: string | null;
+  paidOn: string;
+}): RentalsMail {
+  return {
+    subject: `You paid ${input.payeeName} ${formatRwf(input.amountRwf)} for "${input.title}"`,
+    heading: 'The fixer was paid',
+    lines: [
+      `${formatRwf(input.amountRwf)} went to ${input.payeeName}${input.destination ? ` (${input.destination})` : ''} on ${longDate(input.paidOn)} for "${input.title}" at ${homeWords(input.home)}.`,
+      'It is written down as a repairs expense, so it shows in your expenses and on your tax page.',
+    ],
+    action: { label: 'Open the fault', url: landlordFaultLink(input.appUrl, input.ticketId) },
+  };
+}
+
+/** The payment to the fixer did not go through. */
+export function fixerPaymentFailedLandlordMail(input: {
+  appUrl: string;
+  ticketId: string;
+  title: string;
+  amountRwf: number;
+  payeeName: string;
+  reason: string;
+}): RentalsMail {
+  return {
+    subject: `Your payment to ${input.payeeName} did not go through`,
+    heading: 'The payment did not go through',
+    lines: [
+      `Your payment of ${formatRwf(input.amountRwf)} to ${input.payeeName} for "${input.title}" did not go through.`,
+      input.reason,
+      'You can pay again from the fault, or record a payment you made another way.',
+    ],
     action: { label: 'Open the fault', url: landlordFaultLink(input.appUrl, input.ticketId) },
   };
 }

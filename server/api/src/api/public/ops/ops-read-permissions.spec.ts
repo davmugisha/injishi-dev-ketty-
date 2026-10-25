@@ -77,6 +77,7 @@ import { OpsUnitMediaController } from './rentals/unit-media.controller';
 import { OpsPayoutsController } from './rentals/payouts.controller';
 import { OpsRentController } from './rentals/rent.controller';
 import { OpsFaultsController } from './rentals/faults.controller';
+import { OpsExpensesController } from './rentals/expenses.controller';
 import { OpsRevenueController } from './revenue.controller';
 import { OpsCertificatesController } from './certificates.controller';
 import { OpsOwnerDashboardController, OpsReportsController } from './owner-dashboard.controller';
@@ -196,6 +197,7 @@ const CONTROLLERS: Ctor[] = [
   OpsRentController,
   OpsPayoutsController,
   OpsFaultsController,
+  OpsExpensesController,
 ];
 
 interface Read {
@@ -502,6 +504,8 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // Faults (WP 4.1): whoever works the faults, `ticket.advance` (the housekeeper too).
   '/ops/faults': ['owner', 'manager', 'housekeeper'],
   '/ops/faults/:id': ['owner', 'manager', 'housekeeper'],
+  // Expenses (WP 4.3): `money.view` or `expense.manage`.
+  '/ops/expenses': ['owner', 'manager', 'finance'],
 };
 
 describe('operator reads (audit H1)', () => {
@@ -701,6 +705,30 @@ describe('fault writes (WP 4.1)', () => {
     'POST /ops/faults/:id/assign': { allOf: ['ticket.advance'], roles: ['owner', 'manager', 'housekeeper'] },
     'POST /ops/faults/:id/photos': { allOf: ['ticket.advance'], roles: ['owner', 'manager', 'housekeeper'] },
     'POST /ops/faults/:id/messages': { allOf: ['ticket.advance'], roles: ['owner', 'manager', 'housekeeper'] },
+    // Paying the fixer is money out (WP 4.3): `expense.manage`, which the housekeeper does not hold.
+    'POST /ops/faults/:id/pay': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
+    'POST /ops/faults/:id/payments/recorded': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/** Expenses (WP 4.3): writing one down, voiding one and its receipt are `expense.manage`. */
+describe('expense writes (WP 4.3)', () => {
+  const routes = handlers([OpsExpensesController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'POST /ops/expenses': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
+    'POST /ops/expenses/:id/void': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
+    'POST /ops/expenses/:id/receipt': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
   };
 
   it('judges every write', () => {
