@@ -21,6 +21,10 @@ export const SETUP_STEP_HREF: Record<RentalsSetupStep, string> = {
 export const ATTENTION_HREF: Partial<Record<RentalsAttentionKind, { href: string; label: string }>> = {
   setup_incomplete: { href: screenHref("RentalsSetup"), label: "Open setup" },
   no_payout_account: { href: settingsHref("getting-paid"), label: "Add an account" },
+  leases_to_sign: { href: `${screenHref("Leases")}?tab=to_sign`, label: "Open leases to sign" },
+  waiting_for_tenant: { href: `${screenHref("Leases")}?tab=waiting_for_tenant`, label: "Open leases out for signing" },
+  ready_to_start: { href: `${screenHref("Leases")}?tab=ready_to_start`, label: "Open leases ready to start" },
+  overdue_rent: { href: `${screenHref("Leases")}?tab=active`, label: "Open active leases" },
 };
 
 export const ATTENTION_ICON: Record<RentalsAttentionKind, string> = {

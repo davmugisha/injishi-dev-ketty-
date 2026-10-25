@@ -38,6 +38,16 @@ export function landlordNavGroups(
       ...(vacant > 0 ? { chip: String(vacant) } : {}),
     });
   }
+  if (can(scope, "lease.manage", "rent.record", "money.view", "deposit.return")) {
+    const waiting = (summary?.counts.leasesToSign ?? 0) + (summary?.counts.readyToStart ?? 0);
+    property.push({
+      id: "leases",
+      label: "Leases",
+      icon: "FileText",
+      board: "Leases",
+      ...(waiting > 0 ? { chip: String(waiting) } : {}),
+    });
+  }
   if (summary && !summary.setup.complete && can(scope, ...RENTALS_READ)) {
     const left = summary.setup.total - summary.setup.done;
     property.push({ id: "setup", label: "Setup", icon: "ListCheck", board: "RentalsSetup", chip: String(left) });
