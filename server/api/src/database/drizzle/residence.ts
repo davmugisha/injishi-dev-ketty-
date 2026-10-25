@@ -27,12 +27,13 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
+import { districts } from './geography';
 import { amount, currency, timestamps } from './columns';
 // Lazy only (inside `references`): interface-operations imports this module back.
 // Lazy only too: rentals.ts (the rentals leaf) imports this module back.
 import { WorkOrderEventKind } from '@injishi/contracts';
 
-import { adapterModeEnum, brokerStatusEnum, idKindEnum, moveOutNoticeChannelEnum, moveOutNoticeStatusEnum, moveOutReasonEnum, leaseChargeKindEnum, leaseChargeStatusEnum, leaseSigningMethodEnum, paymentAttemptPurposeEnum, paymentAttemptStateEnum, cautionStatusEnum, escrowSourceEnum, escrowStatusEnum, invitationStatusEnum, leaseStatusEnum, maintenanceAssigneeKindEnum, maintenanceCategoryEnum, maintenancePhotoPhaseEnum, maintenancePriorityEnum, maintenanceRaisedByRoleEnum, maintenanceStatusEnum, placementStatusEnum, renewalStatusEnum, signerRoleEnum } from './enums';
+import { adapterModeEnum, brokerFeeKindEnum, brokerStatusEnum, idKindEnum, moveOutNoticeChannelEnum, moveOutNoticeStatusEnum, moveOutReasonEnum, leaseChargeKindEnum, leaseChargeStatusEnum, leaseSigningMethodEnum, paymentAttemptPurposeEnum, paymentAttemptStateEnum, cautionStatusEnum, escrowSourceEnum, escrowStatusEnum, invitationStatusEnum, leaseStatusEnum, maintenanceAssigneeKindEnum, maintenanceCategoryEnum, maintenancePhotoPhaseEnum, maintenancePriorityEnum, maintenanceRaisedByRoleEnum, maintenanceStatusEnum, placementStatusEnum, renewalStatusEnum, signerRoleEnum } from './enums';
 import { bookings, guestStays, storedObjects } from './hospitality';
 import { listings, properties, rentalUnits, rooms, spaces } from './inventory';
 import { departments, serviceOrders } from './operations';
@@ -51,6 +52,10 @@ export const brokers = pgTable(
     email: text('email'),
     status: brokerStatusEnum('status').notNull().default('active'),
     licenseInfo: jsonb('license_info'),
+    /** The district the broker works in: the free District plan shows the homes there. */
+    homeDistrictId: integer('home_district_id').references(() => districts.id),
+    /** The last move of the home district; on the free plan it may move once per 30 days. */
+    homeDistrictChangedAt: timestamp('home_district_changed_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
@@ -1152,12 +1157,18 @@ export const contactReveals = pgTable('contact_reveals', {
     .references(() => brokers.id),
   listingId: uuid('listing_id').references(() => listings.id),
   landlordOrgId: uuid('landlord_org_id').references(() => orgs.id),
+  /** The opted-in unit the broker revealed the landlord from (2026-10-25). */
+  unitId: uuid('unit_id').references(() => rentalUnits.id),
+  revealedName: text('revealed_name'),
   revealedPhone: text('revealed_phone'),
   revealedEmail: text('revealed_email'),
   revealedAt: timestamp('revealed_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => [
+  // One reveal per broker and landlord: a landlord's contact is the same on every unit.
+  uniqueIndex('contact_reveals_broker_org_uk').on(t.brokerId, t.landlordOrgId).where(sql`${t.landlordOrgId} IS NOT NULL`),
+]);
 
 
 /**
@@ -1209,11 +1220,26 @@ export const tenantPlacements = pgTable('tenant_placements', {
   landlordOrgId: uuid('landlord_org_id').references(() => orgs.id),
   status: placementStatusEnum('status').notNull().default('initiated'),
   leaseId: uuid('lease_id').references(() => leases.id),
+  /** The unit the broker has a tenant for (2026-10-25), and the landlord's business it is in. */
+  unitId: uuid('unit_id').references(() => rentalUnits.id),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id),
+  /** Who the broker says they bring, and a word to the landlord. */
+  tenantName: text('tenant_name'),
+  note: text('note'),
+  /** The unit's broker fee when the placement started. */
+  feeKind: brokerFeeKindEnum('fee_kind'),
+  feePercent: integer('fee_percent'),
+  feeRwf: amount('fee_rwf'),
   initiatedAt: timestamp('initiated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
   ...timestamps,
-});
+}, (t) => [
+  index('tenant_placements_broker_idx').on(t.brokerId, t.initiatedAt),
+  index('tenant_placements_workspace_idx').on(t.workspaceId, t.initiatedAt),
+  // One open placement per broker and unit: a second press finds the first.
+  uniqueIndex('tenant_placements_open_unit_uk').on(t.brokerId, t.unitId).where(sql`${t.status} = 'initiated' AND ${t.unitId} IS NOT NULL`),
+]);
 
 
 // ===========================================================================

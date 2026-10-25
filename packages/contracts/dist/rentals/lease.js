@@ -18,6 +18,7 @@ const phone_1 = require("../phone");
 const primitives_1 = require("../primitives");
 const registration_1 = require("../registration");
 const dates_1 = require("./dates");
+const brokers_1 = require("./brokers");
 const identity_1 = require("./identity");
 const vocab_1 = require("./vocab");
 // ===========================================================================
@@ -281,10 +282,17 @@ exports.CreateLeaseRequest = zod_1.z
     terms: exports.LeaseTermsInput,
     /** The broker who brought this tenant, when one did. */
     brokerId: primitives_1.Uuid.optional(),
+    /** The broker's placement on this unit, when they started one. */
+    placementId: primitives_1.Uuid.optional(),
+    /** The fee agreed with the broker. Left out: the unit's broker fee, else the landlord's default. */
+    brokerFee: brokers_1.BrokerFeeTerms.optional(),
     /** The tenant's email is right as typed, though it looks like a typo. */
     confirmEmail: zod_1.z.boolean().optional(),
 })
     .superRefine((v, ctx) => {
+    if (!v.brokerId && (v.placementId || v.brokerFee)) {
+        ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, message: "Pick the broker first.", path: ["brokerId"] });
+    }
     if ((v.tenantId === undefined) === (v.tenant === undefined)) {
         ctx.addIssue({ code: zod_1.z.ZodIssueCode.custom, message: "Pick a tenant or add a new one.", path: ["tenant"] });
     }
@@ -307,10 +315,15 @@ exports.EditLeaseRequest = zod_1.z
     unitId: primitives_1.Uuid.optional(),
     tenant: zod_1.z.object(TenantShape).partial().optional(),
     terms: zod_1.z.object(TermsShape).partial().optional(),
+    /** The broker who brought the tenant; null takes the broker off the lease. */
+    brokerId: primitives_1.Uuid.nullable().optional(),
+    placementId: primitives_1.Uuid.nullable().optional(),
+    brokerFee: brokers_1.BrokerFeeTerms.optional(),
     confirmEmail: zod_1.z.boolean().optional(),
 })
     .superRefine((v, ctx) => {
     const changes = (v.unitId !== undefined ? 1 : 0) +
+        (v.brokerId !== undefined || v.placementId !== undefined || v.brokerFee !== undefined ? 1 : 0) +
         Object.values(v.tenant ?? {}).filter((x) => x !== undefined).length +
         Object.values(v.terms ?? {}).filter((x) => x !== undefined).length;
     if (changes === 0)

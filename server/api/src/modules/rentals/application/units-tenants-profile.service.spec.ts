@@ -95,6 +95,19 @@ describe('UnitsService: a unit stands alone', () => {
     const h = harness();
     await expect(h.service.list({ ...ws, domain: 'hospitality' } as ScopedWorkspace, {})).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('brokers may offer a unit only with an asking rent and a fee (2026-10-25)', async () => {
+    const h = harness();
+    await expect(h.service.create(ws, USER, CreateUnitRequest.parse({ label: 'A-02', brokerOffer: true }))).rejects.toThrow('before brokers can offer it');
+    await h.service.create(
+      ws,
+      USER,
+      CreateUnitRequest.parse({ label: 'A-02', askingRentRwf: 300_000, brokerOffer: true, brokerFee: { kind: 'percent', percent: 50 } }),
+    );
+    expect(h.inserted[0]).toMatchObject({ brokerOffer: true, brokerFeeKind: 'percent', brokerFeePercent: 50, brokerFeeRwf: null });
+    await h.service.create(ws, USER, CreateUnitRequest.parse({ label: 'A-03', askingRentRwf: 300_000, brokerOffer: true, brokerFee: { kind: 'fixed', amountRwf: 90_000 } }));
+    expect(h.inserted[1]).toMatchObject({ brokerFeeKind: 'fixed', brokerFeePercent: null, brokerFeeRwf: 90_000 });
+  });
 });
 
 describe('TenantsService: a record changes until a signed contract names the person', () => {

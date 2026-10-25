@@ -85,3 +85,6 @@ export * from './interface-staff';
 // Guests and local leaders (P5): the reference lists, guest registrations, their routes to the
 // leaders, and what the 12 month purge leaves as counts. A leaf over org, inventory and residence.
 export * from './guests';
+// Brokers (P5, 2026-10-25): plans and their payments, the registration fee, ratings. A leaf over
+// residence, geography and auth.
+export * from './brokers';

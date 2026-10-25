@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Uuid } from "../primitives";
+import { TenancyBrokerView } from "./brokers";
 import { CalendarDay } from "./dates";
 import { LeaseChargesSummary, LeaseTermsView, LeaseVersionSummary } from "./api";
 import { LeaseSignerRole, LeaseSigningMethod, LeaseStatus } from "./vocab";
@@ -106,6 +107,8 @@ export const TenancyDetail = z.object({
   /** Both sides signed and the signed copy is kept: the PDF is the signed one. */
   signedCopyReady: z.boolean(),
   charges: LeaseChargesSummary,
+  /** The broker who brought the tenant, rated once the tenancy starts. */
+  broker: TenancyBrokerView.nullable(),
   signedAt: IsoMoment.nullable(),
   activatedAt: IsoMoment.nullable(),
   endedOn: CalendarDay.nullable(),

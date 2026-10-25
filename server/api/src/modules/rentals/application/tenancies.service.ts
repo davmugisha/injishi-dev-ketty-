@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import {
   LeaseContract,
   kigaliToday,
@@ -15,6 +15,7 @@ import { LeasesRepository, type LeaseRecord, type VersionRow } from '../infrastr
 import { RentalsContextRepository } from '../infrastructure/rentals-context.repository';
 import { SigningRepository } from '../infrastructure/signing.repository';
 import { TenanciesRepository } from '../infrastructure/tenancies.repository';
+import { LeaseBrokersService } from './lease-brokers.service';
 import { LeaseContractService } from './lease-contract.service';
 import { presentVersion } from './rentals-presenters';
 
@@ -43,6 +44,8 @@ export class TenanciesService {
     private readonly signing: SigningRepository,
     private readonly context: RentalsContextRepository,
     private readonly contracts: LeaseContractService,
+    /** The broker on the lease (2026-10-25); absent in the older unit tests. */
+    @Optional() private readonly brokers?: LeaseBrokersService,
   ) {}
 
   /** The tenancy guard's check: the caller's own lease, and not a draft. */
@@ -100,12 +103,13 @@ export class TenanciesService {
   async detail(ref: TenancyRef): Promise<TenancyDetail> {
     const record = await this.record(ref);
     const { lease, tenant } = record;
-    const [versions, signatures, charges, profile, org] = await Promise.all([
+    const [versions, signatures, charges, profile, org, broker] = await Promise.all([
       this.leases.versions(lease.id),
       this.leases.signatures(lease.id),
       this.leases.chargesSummary(lease.id, lease.graceDays, kigaliToday()),
       this.context.ensureProfile({ orgId: lease.orgId, workspaceId: lease.workspaceId }),
       this.context.org(lease.orgId),
+      lease.brokerId && this.brokers ? this.brokers.tenantView(lease.id) : Promise.resolve(null),
     ]);
     const current = versions.find((v) => v.id === lease.currentVersionId) ?? null;
     const standing = current ? signatures.filter((s) => s.versionId === current.id && !s.voidedAt) : [];
@@ -154,6 +158,7 @@ export class TenanciesService {
         depositAgreedRwf: lease.depositRwf,
         depositStatus: charges.depositStatus,
       },
+      broker,
       signedAt: lease.signedAt?.toISOString() ?? null,
       activatedAt: lease.activatedAt?.toISOString() ?? null,
       endedOn: lease.endedOn,

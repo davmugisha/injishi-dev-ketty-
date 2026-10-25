@@ -1,4 +1,11 @@
 import {
+  BrokerFeeKind,
+  BrokerFeeMethod,
+  BrokerPayMethod,
+  BrokerPaymentKind,
+  BrokerPaymentStatus,
+  BrokerPlanCode,
+  BrokerPlanStatus,
   DepositRefundMethod,
   ExpenseCategory,
   ExpenseMethod,
@@ -78,6 +85,13 @@ import {
   rentalUnitStateEnum,
   signerRoleEnum,
   taxDeclarationStatusEnum,
+  brokerFeeKindEnum,
+  brokerFeeMethodEnum,
+  brokerPayMethodEnum,
+  brokerPaymentKindEnum,
+  brokerPaymentStatusEnum,
+  brokerPlanCodeEnum,
+  brokerSubscriptionStatusEnum,
   taxpayerKindEnum,
   unitKitchenEnum,
 } from './schema';
@@ -139,6 +153,14 @@ const PAIRS: ReadonlyArray<readonly [string, { enumName: string; enumValues: rea
   ['loan_purpose', loanPurposeEnum, LoanPurpose],
   // Rental income tax (P4, migration 0089).
   ['tax_declaration_status', taxDeclarationStatusEnum, TaxDeclarationStatus],
+  // Brokers (P5, migration 0091).
+  ['broker_fee_kind', brokerFeeKindEnum, BrokerFeeKind],
+  ['broker_plan_code', brokerPlanCodeEnum, BrokerPlanCode],
+  ['broker_subscription_status', brokerSubscriptionStatusEnum, BrokerPlanStatus],
+  ['broker_pay_method', brokerPayMethodEnum, BrokerPayMethod],
+  ['broker_payment_status', brokerPaymentStatusEnum, BrokerPaymentStatus],
+  ['broker_payment_kind', brokerPaymentKindEnum, BrokerPaymentKind],
+  ['broker_fee_method', brokerFeeMethodEnum, BrokerFeeMethod],
 ];
 
 describe('rentals database enums match the contracts vocabulary', () => {

@@ -4,6 +4,7 @@ exports.LeaseContractView = exports.LeaseEventList = exports.LeaseEventView = ex
 const zod_1 = require("zod");
 const phone_1 = require("../phone");
 const primitives_1 = require("../primitives");
+const brokers_1 = require("./brokers");
 const dates_1 = require("./dates");
 const contract_1 = require("./contract");
 const identity_1 = require("./identity");
@@ -48,6 +49,8 @@ exports.LandlordProfileView = zod_1.z.object({
     signatory: exports.LandlordSignatory,
     leaseDefaults: exports.LeaseDefaults,
     brokerFeePercent: zod_1.z.number().int().nullable(),
+    /** The fee a unit starts with when the landlord lets brokers offer it; null when not set. */
+    brokerFee: brokers_1.BrokerFeeTerms.nullable(),
     setupCompletedAt: IsoMoment.nullable(),
 });
 /** `PUT /ops/rentals/profile/lease-defaults`: the whole set, so the form and the row never half agree. */
@@ -167,6 +170,9 @@ exports.RentalUnitView = zod_1.z.object({
     askingDepositRwf: zod_1.z.number().int().nullable(),
     state: vocab_1.RentalUnitState,
     listed: zod_1.z.boolean(),
+    /** Brokers may offer this unit, for `brokerFee`. */
+    brokerOffer: zod_1.z.boolean(),
+    brokerFee: brokers_1.BrokerFeeTerms.nullable(),
     availableFrom: dates_1.CalendarDay.nullable(),
     note: zod_1.z.string().nullable(),
     occupancy: exports.UnitOccupancy,
@@ -216,6 +222,10 @@ const UnitFields = {
     note: zod_1.z.string().trim().max(500, "Keep the note under 500 characters.").nullable().optional(),
     /** `retired` is its own command (`POST /ops/units/:id/retire`). */
     state: zod_1.z.enum(["active", "off_market"]).optional(),
+    /** Brokers may offer it: needs an asking rent and a fee. */
+    brokerOffer: zod_1.z.boolean().optional(),
+    /** What the landlord pays a broker who brings the tenant. Kept when brokers are switched off. */
+    brokerFee: brokers_1.BrokerFeeTerms.nullable().optional(),
 };
 /** `POST /ops/units`. */
 exports.CreateUnitRequest = zod_1.z.object(UnitFields);
@@ -416,7 +426,7 @@ exports.LeaseDetail = zod_1.z.object({
     charges: exports.LeaseChargesSummary,
     /** What still has to be filled in before the landlord can sign, in words. Empty when ready. */
     contractProblems: zod_1.z.array(zod_1.z.string()),
-    broker: zod_1.z.object({ id: primitives_1.Uuid, name: zod_1.z.string().nullable() }).nullable(),
+    broker: brokers_1.LeaseBrokerView.nullable(),
     supersedesLeaseId: primitives_1.Uuid.nullable(),
     signedAt: IsoMoment.nullable(),
     activatedAt: IsoMoment.nullable(),

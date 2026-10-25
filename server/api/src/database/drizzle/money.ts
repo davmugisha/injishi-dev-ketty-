@@ -27,7 +27,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
-import { adapterModeEnum, ebmConnectionStatusEnum, momoNetworkEnum, payoutAccountKindEnum, payoutAccountStatusEnum, ebmReceiptTypeEnum, ebmSourceEnum, ebmStatusEnum, ebmTransactionTypeEnum, invoiceKindEnum, ledgerAccountTypeEnum, ledgerTxnKindEnum, moneyOverrideActionEnum, moneyOverrideStateEnum, payoutDestinationEnum, payoutPayeeTypeEnum, payoutSourceEnum, payoutStatusEnum, placementFeeStatusEnum, planBillingPeriodEnum, reconciliationStatusEnum, registrationBusinessTypeEnum, subscriptionInvoiceStatusEnum, subscriptionStatusEnum, taxCodeEnum, tinTypeEnum } from './enums';
+import { adapterModeEnum, brokerFeeKindEnum, ebmConnectionStatusEnum, momoNetworkEnum, payoutAccountKindEnum, payoutAccountStatusEnum, ebmReceiptTypeEnum, ebmSourceEnum, ebmStatusEnum, ebmTransactionTypeEnum, invoiceKindEnum, ledgerAccountTypeEnum, ledgerTxnKindEnum, moneyOverrideActionEnum, moneyOverrideStateEnum, payoutDestinationEnum, payoutPayeeTypeEnum, payoutSourceEnum, payoutStatusEnum, placementFeeStatusEnum, planBillingPeriodEnum, reconciliationStatusEnum, registrationBusinessTypeEnum, subscriptionInvoiceStatusEnum, subscriptionStatusEnum, taxCodeEnum, tinTypeEnum } from './enums';
 import { bookings } from './hospitality';
 import { folioCharges, folios, outlets, serviceOrderItems, serviceOrders } from './operations';
 import { orgs, workspaces } from './org';
@@ -336,9 +336,24 @@ export const placementFees = pgTable(
     currency: currency(),
     status: placementFeeStatusEnum('status').notNull().default('pending'),
     payoutId: uuid('payout_id').references(() => payouts.id),
+    /**
+     * What was agreed (2026-10-25): a percent of the first month or fixed francs. A RECORD only:
+     * the money moves outside Injishi, and `disbursed` is the landlord marking it paid.
+     */
+    feeKind: brokerFeeKindEnum('fee_kind'),
+    percent: integer('percent'),
+    disbursedAt: timestamp('disbursed_at', { withTimezone: true }),
+    disbursedByUserId: uuid('disbursed_by_user_id').references(() => users.id),
     ...timestamps,
   },
-  (t) => [unique('placement_fees_lease_uk').on(t.leaseId)],
+  (t) => [
+    unique('placement_fees_lease_uk').on(t.leaseId),
+    check('placement_fees_disbursed_shape', sql`(${t.status} = 'disbursed') = (${t.disbursedAt} IS NOT NULL)`),
+    check(
+      'placement_fees_terms_shape',
+      sql`${t.feeKind} IS NULL OR (${t.feeKind} = 'percent' AND ${t.percent} BETWEEN 1 AND 200) OR (${t.feeKind} = 'fixed' AND ${t.percent} IS NULL)`,
+    ),
+  ],
 );
 
 

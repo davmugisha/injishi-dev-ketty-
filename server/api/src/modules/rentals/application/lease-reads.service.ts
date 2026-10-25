@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import {
   LEASE_PAGE_SIZE,
   LeaseTab,
@@ -21,6 +21,7 @@ import { assertBuildingInScope, assertResidence, buildingFilter } from '../domai
 import { LeasesRepository, type LeaseRecord } from '../infrastructure/leases.repository';
 import { TenantsRepository } from '../infrastructure/tenants.repository';
 import { leases } from '../../../database/drizzle/schema';
+import { LeaseBrokersService } from './lease-brokers.service';
 import { LeaseContractService } from './lease-contract.service';
 import { presentLeaseListItem, presentTenantRecord, presentVersion } from './rentals-presenters';
 
@@ -36,6 +37,8 @@ export class LeaseReadsService {
     private readonly leases: LeasesRepository,
     private readonly tenants: TenantsRepository,
     private readonly contracts: LeaseContractService,
+    /** The broker on a lease (2026-10-25); absent in the older unit tests. */
+    @Optional() private readonly brokers?: LeaseBrokersService,
   ) {}
 
   async list(ws: ScopedWorkspace, query: LeaseListQuery): Promise<LeaseListPage> {
@@ -69,13 +72,14 @@ export class LeaseReadsService {
   async detail(ws: ScopedWorkspace, leaseId: string): Promise<LeaseDetail> {
     const record = await this.owned(ws, leaseId);
     const { lease } = record;
-    const [versions, signatures, invitation, charges, signed, built] = await Promise.all([
+    const [versions, signatures, invitation, charges, signed, built, broker] = await Promise.all([
       this.leases.versions(lease.id),
       this.leases.signatures(lease.id),
       this.leases.latestInvitation(lease.id),
       this.leases.chargesSummary(lease.id, lease.graceDays, kigaliToday()),
       this.tenants.signedTenantIds([lease.tenantId]),
       lease.status === 'draft' ? this.contracts.build(record) : Promise.resolve(null),
+      lease.brokerId && this.brokers ? this.brokers.landlordView(lease.id) : Promise.resolve(null),
     ]);
     const current = versions.find((v) => v.id === lease.currentVersionId) ?? null;
     return {
@@ -139,7 +143,11 @@ export class LeaseReadsService {
       },
       // Only a draft can still be signed by the landlord; its problems say what blocks that.
       contractProblems: built?.problems ?? [],
-      broker: lease.brokerId ? { id: lease.brokerId, name: record.brokerName } : null,
+      broker:
+        broker ??
+        (lease.brokerId
+          ? { id: lease.brokerId, name: record.brokerName, phone: null, placementId: lease.placementId, fee: null, rating: null, canRate: false }
+          : null),
       supersedesLeaseId: lease.supersedesLeaseId,
       signedAt: lease.signedAt?.toISOString() ?? null,
       activatedAt: lease.activatedAt?.toISOString() ?? null,

@@ -118,6 +118,10 @@ import {
   OpsRoomAssignmentsController,
 } from './ops/reservations.controller';
 import { OpsBrokerController } from './ops/broker.controller';
+import { BrokersModule } from '../../modules/brokers/brokers.module';
+import { MeTenancyBrokerController } from './me/tenancy-broker.controller';
+import { OpsLeaseBrokersController } from './ops/rentals/lease-brokers.controller';
+import { RegistrationBrokerFeeController } from './registrations/broker-fee.controller';
 import { OpsOffersController } from './ops/offers.controller';
 import { OpsRefundRequestsController } from './ops/refunds.controller';
 import { OpsRevenueController } from './ops/revenue.controller';
@@ -198,6 +202,8 @@ import { TrainingPublicModule } from './training/training.module';
     PeopleModule,
     // Rentals, rebuilt (blueprint 2.2): residence businesses only.
     RentalsModule,
+    // Brokers (P5): plans, opted-in homes, reveals, placements, the registration fee.
+    BrokersModule,
     // The list framework (ADR-058 slice 2): saved views and the export log.
     ListsModule,
     StorageModule,
@@ -358,9 +364,13 @@ import { TrainingPublicModule } from './training/training.module';
     // Rental income tax and lease filings with RRA (WP 4.4).
     OpsTaxesController,
     OpsFilingsController,
-    // The broker workspace's directory, reveals, placements and earnings
-    // (ADR-038 child 6).
+    // Brokers (P5, 2026-10-25): the broker's homes, reveals, placements,
+    // earnings, reviews and plan; the landlord's side of a lease's broker;
+    // the tenant's rating; the registration fee.
     OpsBrokerController,
+    OpsLeaseBrokersController,
+    MeTenancyBrokerController,
+    RegistrationBrokerFeeController,
     OpsAmenitiesController,
     // RRA EBM account (ADR-041): the operator's setup screen, and the
     // provider's consent redirect back to it.

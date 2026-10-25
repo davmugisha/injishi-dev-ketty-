@@ -40,6 +40,7 @@ import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
 import {
   adapterModeEnum,
+  brokerFeeKindEnum,
   depositRefundMethodEnum,
   filingStatusEnum,
   idKindEnum,
@@ -97,8 +98,11 @@ export const landlordProfiles = pgTable(
     defaultRentDueDay: integer('default_rent_due_day'),
     /** When the landlord last saved the lease defaults; null while they are the starting values. */
     leaseDefaultsSetAt: timestamp('lease_defaults_set_at', { withTimezone: true }),
+    /** The fee a unit starts with when brokers may offer it: a percent of the first month, or fixed. */
+    brokerFeeKind: brokerFeeKindEnum('broker_fee_kind'),
     /** A broker's placement fee, as a percent of one month's rent. Null: not set. */
     brokerFeePercent: integer('broker_fee_percent'),
+    brokerFeeRwf: amount('broker_fee_rwf'),
     /** Start a signed lease on its start date without the landlord pressing Start. */
     autoStartLeases: boolean('auto_start_leases').notNull().default(true),
     setupCompletedAt: timestamp('setup_completed_at', { withTimezone: true }),
@@ -115,6 +119,12 @@ export const landlordProfiles = pgTable(
     check(
       'landlord_profiles_broker_fee_range',
       sql`${t.brokerFeePercent} IS NULL OR ${t.brokerFeePercent} BETWEEN 0 AND 200`,
+    ),
+    check(
+      'landlord_profiles_broker_fee_shape',
+      sql`${t.brokerFeeKind} IS NULL
+          OR (${t.brokerFeeKind} = 'percent' AND ${t.brokerFeePercent} IS NOT NULL AND ${t.brokerFeeRwf} IS NULL)
+          OR (${t.brokerFeeKind} = 'fixed' AND ${t.brokerFeeRwf} > 0 AND ${t.brokerFeePercent} IS NULL)`,
     ),
     check(
       'landlord_profiles_signatory_id_shape',

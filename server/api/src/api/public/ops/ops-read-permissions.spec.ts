@@ -79,6 +79,7 @@ import { OpsRentController } from './rentals/rent.controller';
 import { OpsFaultsController } from './rentals/faults.controller';
 import { OpsExpensesController } from './rentals/expenses.controller';
 import { OpsFilingsController, OpsTaxesController } from './rentals/taxes.controller';
+import { OpsLeaseBrokersController } from './rentals/lease-brokers.controller';
 import { OpsLeaseMessagesController } from './rentals/messages.controller';
 import { OpsRevenueController } from './revenue.controller';
 import { OpsCertificatesController } from './certificates.controller';
@@ -202,6 +203,7 @@ const CONTROLLERS: Ctor[] = [
   OpsExpensesController,
   OpsTaxesController,
   OpsFilingsController,
+  OpsLeaseBrokersController,
   OpsLeaseMessagesController,
 ];
 
@@ -474,6 +476,9 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // The housekeeper (faults) and the desk (guests) work the property without them.
   '/ops/rentals/profile': ['owner', 'manager', 'finance'],
   '/ops/rentals/setup': ['owner', 'manager', 'finance'],
+  // Brokers (2026-10-25): who brought tenants, and the brokers a lease can name.
+  '/ops/rentals/placements': ['owner', 'manager', 'receptionist'],
+  '/ops/rentals/brokers': ['owner', 'manager'],
   // Where rent is paid out: whoever reads the money, or decides where it goes.
   '/ops/payout-accounts': ['owner', 'manager', 'finance'],
   // Units and blocks: whoever works units, leases or the money.
@@ -613,6 +618,7 @@ describe('rentals writes (blueprint 2.1)', () => {
   const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
     'PUT /ops/rentals/profile/lease-defaults': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
     'PUT /ops/rentals/profile/signatory': { allOf: ['lease.sign'], roles: ['owner'] },
+    'PUT /ops/rentals/profile/brokers': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
     'POST /ops/payout-accounts': { allOf: ['payout.manage'], roles: ['owner'] },
     'PATCH /ops/payout-accounts/:id': { allOf: ['payout.manage'], roles: ['owner'] },
     'POST /ops/payout-accounts/:id/primary': { allOf: ['payout.manage'], roles: ['owner'] },
@@ -761,6 +767,29 @@ describe('tax and filing writes (WP 4.4)', () => {
     'PUT /ops/taxes/taxpayer': { allOf: ['tax.manage'], roles: ['owner', 'manager', 'finance'] },
     'PUT /ops/taxes/:year/declaration': { allOf: ['tax.manage'], roles: ['owner', 'manager', 'finance'] },
     'POST /ops/filings/:id/filed': { allOf: ['tax.manage'], roles: ['owner', 'manager', 'finance'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/**
+ * The broker on a lease (2026-10-25): marking the recorded fee paid or owed,
+ * and rating the broker, are `lease.manage`'s, like drafting the lease.
+ */
+describe('lease broker writes (2026-10-25)', () => {
+  const routes = handlers([OpsLeaseBrokersController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'PUT /ops/leases/:id/broker-fee': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/leases/:id/broker-rating': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
   };
 
   it('judges every write', () => {

@@ -101,6 +101,15 @@ export class UnitsService {
     if (body.label !== undefined && comparableLabel(body.label) !== comparableLabel(row.label)) {
       await this.assertLabelsFree(row.propertyId, row.propertyName, [body.label], row.id);
     }
+    assertBrokerOffer(
+      {
+        brokerOffer: body.brokerOffer ?? (body.state === 'off_market' ? false : row.brokerOffer),
+        askingRentRwf: body.askingRentRwf !== undefined ? body.askingRentRwf : row.askingRentRwf,
+        brokerFeeKind: body.brokerFee !== undefined ? (body.brokerFee?.kind ?? null) : row.brokerFeeKind,
+        state: body.state ?? row.state,
+      },
+      row.label,
+    );
     if (body.askingRentRwf === null && row.listed) {
       throw new ConflictException({
         code: 'unit_listed',
@@ -121,7 +130,10 @@ export class UnitsService {
         ...(body.askingDepositRwf !== undefined ? { askingDepositRwf: body.askingDepositRwf } : {}),
         ...(body.availableFrom !== undefined ? { availableFrom: body.availableFrom } : {}),
         ...(body.note !== undefined ? { note: body.note?.trim() || null } : {}),
-        ...(body.state !== undefined ? { state: body.state, ...(body.state === 'off_market' ? { listed: false } : {}) } : {}),
+        ...(body.state !== undefined
+          ? { state: body.state, ...(body.state === 'off_market' ? { listed: false, brokerOffer: false } : {}) }
+          : {}),
+        ...brokerColumns(body),
       })
       .catch((cause: unknown) => {
         throw mapUnitConstraint(cause, row.label, row.propertyName);
@@ -152,7 +164,7 @@ export class UnitsService {
       });
     }
     await this.db.transaction(async (tx) => {
-      await this.units.update(tx, id, { state: 'retired', retiredAt: new Date(), listed: false });
+      await this.units.update(tx, id, { state: 'retired', retiredAt: new Date(), listed: false, brokerOffer: false });
       await this.audit.write(tx, {
         actorUserId: userId,
         subjectType: 'rental_unit',
@@ -244,7 +256,9 @@ export class UnitsService {
       availableFrom: body.availableFrom ?? null,
       note: body.note?.trim() || null,
       state: body.state ?? ('active' as const),
+      ...brokerColumns(body),
     }));
+    assertBrokerOffer(values[0] ?? {}, labels[0] ?? '');
     return this.db
       .transaction(async (tx) => {
         const ids = await this.units.insertMany(tx, values);
@@ -366,3 +380,38 @@ function mapBlockConstraint(cause: unknown, code: string, where: string): unknow
   return cause;
 }
 
+
+/** The broker opt-in and fee columns a unit form sends; nothing when it sends neither. */
+function brokerColumns(body: Pick<CreateUnitRequest, 'brokerOffer' | 'brokerFee'>): Partial<typeof rentalUnits.$inferInsert> {
+  return {
+    ...(body.brokerOffer !== undefined ? { brokerOffer: body.brokerOffer } : {}),
+    ...(body.brokerFee !== undefined
+      ? {
+          brokerFeeKind: body.brokerFee?.kind ?? null,
+          brokerFeePercent: body.brokerFee?.kind === 'percent' ? body.brokerFee.percent : null,
+          brokerFeeRwf: body.brokerFee?.kind === 'fixed' ? body.brokerFee.amountRwf : null,
+        }
+      : {}),
+  };
+}
+
+/**
+ * Brokers may offer a unit only when it can be let, has an asking rent and a
+ * fee (2026-10-25): what a broker sees is the rent and what they earn. Said in
+ * the form's words, on the field to fix.
+ */
+function assertBrokerOffer(
+  unit: { brokerOffer?: boolean; askingRentRwf?: number | null; brokerFeeKind?: string | null; state?: string },
+  label: string,
+): void {
+  if (!unit.brokerOffer) return;
+  const issues: { code: 'custom'; path: string[]; message: string }[] = [];
+  if (unit.state && unit.state !== 'active') issues.push({ code: 'custom', path: ['brokerOffer'], message: 'A unit off the market cannot be offered by brokers.' });
+  if (unit.askingRentRwf === null || unit.askingRentRwf === undefined) {
+    issues.push({ code: 'custom', path: ['askingRentRwf'], message: 'Set the asking rent so brokers can offer it.' });
+  }
+  if (!unit.brokerFeeKind) issues.push({ code: 'custom', path: ['brokerFee'], message: 'Set the broker fee.' });
+  if (issues.length > 0) {
+    throw new BadRequestException({ message: `Unit ${label || 'this unit'} needs a few things before brokers can offer it.`, issues });
+  }
+}

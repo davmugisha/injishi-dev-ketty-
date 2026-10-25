@@ -1,4 +1,5 @@
 import {
+  BrokerDefaultsRequest,
   LeaseDefaultsRequest,
   SignatoryRequest,
   type LandlordProfileView,
@@ -45,6 +46,16 @@ export class OpsRentalsController {
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<LandlordProfileView> {
     return this.profiles.setLeaseDefaults(workspace, body);
+  }
+
+  /** The broker fee a unit starts with when brokers may offer it (2026-10-25). */
+  @Put('profile/brokers')
+  @RequirePermission('lease.manage')
+  brokerDefaults(
+    @Body(new ZodValidationPipe(BrokerDefaultsRequest)) body: BrokerDefaultsRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<LandlordProfileView> {
+    return this.profiles.setBrokerDefaults(workspace, body);
   }
 
   @Put('profile/signatory')

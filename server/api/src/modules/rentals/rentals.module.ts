@@ -17,6 +17,9 @@ import { RentalsProfileService } from './application/rentals-profile.service';
 import { TenanciesService } from './application/tenancies.service';
 import { TenantsService } from './application/tenants.service';
 import { UnitsService } from './application/units.service';
+// The broker on a lease: placement, fee record, ratings (2026-10-25).
+import { LeaseBrokersService } from './application/lease-brokers.service';
+import { LeaseBrokersRepository } from './infrastructure/lease-brokers.repository';
 import { LeaseChargesRepository } from './infrastructure/lease-charges.repository';
 import { LeaseDocumentsProcessor } from './infrastructure/lease-documents.processor';
 import { LeaseDocumentsQueue } from './infrastructure/lease-documents.queue';
@@ -143,6 +146,8 @@ import { MessageDigestsProcessor } from './infrastructure/message-digests.proces
     PayoutAccountsService,
     UnitsService,
     TenantsService,
+    LeaseBrokersRepository,
+    LeaseBrokersService,
     RentalsOverviewRepository,
     PropertiesRepository,
     UnitMediaRepository,
@@ -198,6 +203,7 @@ import { MessageDigestsProcessor } from './infrastructure/message-digests.proces
     PayoutAccountsService,
     UnitsService,
     TenantsService,
+    LeaseBrokersService,
     RentalsOverviewService,
     PropertiesService,
     UnitMediaService,

@@ -10,6 +10,7 @@ import {
   kigaliToday,
   leaseDatesProblem,
 } from "./dates";
+import { BrokerFeeTerms } from "./brokers";
 import { PersonEmail, PersonName, checkEmailTypo, idNumberProblem, normaliseIdNumber } from "./identity";
 import { IdKind, LeaseStatus, PositiveRwf, Rwf } from "./vocab";
 
@@ -315,10 +316,17 @@ export const CreateLeaseRequest = z
     terms: LeaseTermsInput,
     /** The broker who brought this tenant, when one did. */
     brokerId: Uuid.optional(),
+    /** The broker's placement on this unit, when they started one. */
+    placementId: Uuid.optional(),
+    /** The fee agreed with the broker. Left out: the unit's broker fee, else the landlord's default. */
+    brokerFee: BrokerFeeTerms.optional(),
     /** The tenant's email is right as typed, though it looks like a typo. */
     confirmEmail: z.boolean().optional(),
   })
   .superRefine((v, ctx) => {
+    if (!v.brokerId && (v.placementId || v.brokerFee)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Pick the broker first.", path: ["brokerId"] });
+    }
     if ((v.tenantId === undefined) === (v.tenant === undefined)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Pick a tenant or add a new one.", path: ["tenant"] });
     }
@@ -342,11 +350,16 @@ export const EditLeaseRequest = z
     unitId: Uuid.optional(),
     tenant: z.object(TenantShape).partial().optional(),
     terms: z.object(TermsShape).partial().optional(),
+    /** The broker who brought the tenant; null takes the broker off the lease. */
+    brokerId: Uuid.nullable().optional(),
+    placementId: Uuid.nullable().optional(),
+    brokerFee: BrokerFeeTerms.optional(),
     confirmEmail: z.boolean().optional(),
   })
   .superRefine((v, ctx) => {
     const changes =
       (v.unitId !== undefined ? 1 : 0) +
+      (v.brokerId !== undefined || v.placementId !== undefined || v.brokerFee !== undefined ? 1 : 0) +
       Object.values(v.tenant ?? {}).filter((x) => x !== undefined).length +
       Object.values(v.terms ?? {}).filter((x) => x !== undefined).length;
     if (changes === 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Change at least one thing.", path: [] });

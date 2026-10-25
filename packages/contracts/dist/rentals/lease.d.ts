@@ -189,24 +189,24 @@ export declare const LeaseTermsInput: z.ZodObject<{
     monthlyRentRwf: number;
     startDate: string;
     endDate: string;
-    occupants: string[];
     depositRwf: number;
+    occupants: string[];
+    billingStartsOn?: string | null | undefined;
     noticeDays?: number | undefined;
     rentDueDay?: number | undefined;
     graceDays?: number | undefined;
     otherTerms?: string | null | undefined;
-    billingStartsOn?: string | null | undefined;
 }, {
     monthlyRentRwf: number;
     startDate: string;
     endDate: string;
     depositRwf: number;
+    billingStartsOn?: string | null | undefined;
     noticeDays?: number | undefined;
     rentDueDay?: number | undefined;
     graceDays?: number | undefined;
     occupants?: string[] | undefined;
     otherTerms?: string | null | undefined;
-    billingStartsOn?: string | null | undefined;
 }>;
 export type LeaseTermsInput = z.infer<typeof LeaseTermsInput>;
 /**
@@ -260,27 +260,49 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
-        occupants: string[];
         depositRwf: number;
+        occupants: string[];
+        billingStartsOn?: string | null | undefined;
         noticeDays?: number | undefined;
         rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         otherTerms?: string | null | undefined;
-        billingStartsOn?: string | null | undefined;
     }, {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
         depositRwf: number;
+        billingStartsOn?: string | null | undefined;
         noticeDays?: number | undefined;
         rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         occupants?: string[] | undefined;
         otherTerms?: string | null | undefined;
-        billingStartsOn?: string | null | undefined;
     }>;
     /** The broker who brought this tenant, when one did. */
     brokerId: z.ZodOptional<z.ZodString>;
+    /** The broker's placement on this unit, when they started one. */
+    placementId: z.ZodOptional<z.ZodString>;
+    /** The fee agreed with the broker. Left out: the unit's broker fee, else the landlord's default. */
+    brokerFee: z.ZodOptional<z.ZodDiscriminatedUnion<"kind", [z.ZodObject<{
+        kind: z.ZodLiteral<"percent">;
+        percent: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        kind: "percent";
+        percent: number;
+    }, {
+        kind: "percent";
+        percent: number;
+    }>, z.ZodObject<{
+        kind: z.ZodLiteral<"fixed">;
+        amountRwf: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        kind: "fixed";
+        amountRwf: number;
+    }, {
+        kind: "fixed";
+        amountRwf: number;
+    }>]>>;
     /** The tenant's email is right as typed, though it looks like a typo. */
     confirmEmail: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
@@ -288,13 +310,13 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
-        occupants: string[];
         depositRwf: number;
+        occupants: string[];
+        billingStartsOn?: string | null | undefined;
         noticeDays?: number | undefined;
         rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         otherTerms?: string | null | undefined;
-        billingStartsOn?: string | null | undefined;
     };
     unitId: string;
     brokerId?: string | undefined;
@@ -306,20 +328,28 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         idKind: "national_id" | "passport";
         nationality: string;
     } | undefined;
+    placementId?: string | undefined;
     confirmEmail?: boolean | undefined;
     tenantId?: string | undefined;
+    brokerFee?: {
+        kind: "percent";
+        percent: number;
+    } | {
+        kind: "fixed";
+        amountRwf: number;
+    } | undefined;
 }, {
     terms: {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
         depositRwf: number;
+        billingStartsOn?: string | null | undefined;
         noticeDays?: number | undefined;
         rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         occupants?: string[] | undefined;
         otherTerms?: string | null | undefined;
-        billingStartsOn?: string | null | undefined;
     };
     unitId: string;
     brokerId?: string | undefined;
@@ -331,20 +361,28 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         idKind: "national_id" | "passport";
         nationality: string;
     } | undefined;
+    placementId?: string | undefined;
     confirmEmail?: boolean | undefined;
     tenantId?: string | undefined;
+    brokerFee?: {
+        kind: "percent";
+        percent: number;
+    } | {
+        kind: "fixed";
+        amountRwf: number;
+    } | undefined;
 }>, {
     terms: {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
-        occupants: string[];
         depositRwf: number;
+        occupants: string[];
+        billingStartsOn?: string | null | undefined;
         noticeDays?: number | undefined;
         rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         otherTerms?: string | null | undefined;
-        billingStartsOn?: string | null | undefined;
     };
     unitId: string;
     brokerId?: string | undefined;
@@ -356,20 +394,28 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         idKind: "national_id" | "passport";
         nationality: string;
     } | undefined;
+    placementId?: string | undefined;
     confirmEmail?: boolean | undefined;
     tenantId?: string | undefined;
+    brokerFee?: {
+        kind: "percent";
+        percent: number;
+    } | {
+        kind: "fixed";
+        amountRwf: number;
+    } | undefined;
 }, {
     terms: {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
         depositRwf: number;
+        billingStartsOn?: string | null | undefined;
         noticeDays?: number | undefined;
         rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         occupants?: string[] | undefined;
         otherTerms?: string | null | undefined;
-        billingStartsOn?: string | null | undefined;
     };
     unitId: string;
     brokerId?: string | undefined;
@@ -381,8 +427,16 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         idKind: "national_id" | "passport";
         nationality: string;
     } | undefined;
+    placementId?: string | undefined;
     confirmEmail?: boolean | undefined;
     tenantId?: string | undefined;
+    brokerFee?: {
+        kind: "percent";
+        percent: number;
+    } | {
+        kind: "fixed";
+        amountRwf: number;
+    } | undefined;
 }>;
 export type CreateLeaseRequest = z.infer<typeof CreateLeaseRequest>;
 /**
@@ -430,27 +484,50 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         monthlyRentRwf?: number | undefined;
         startDate?: string | undefined;
         endDate?: string | undefined;
+        billingStartsOn?: string | null | undefined;
         noticeDays?: number | undefined;
+        depositRwf?: number | undefined;
         rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         occupants?: string[] | undefined;
         otherTerms?: string | null | undefined;
-        depositRwf?: number | undefined;
-        billingStartsOn?: string | null | undefined;
     }, {
         monthlyRentRwf?: number | undefined;
         startDate?: string | undefined;
         endDate?: string | undefined;
+        billingStartsOn?: string | null | undefined;
         noticeDays?: number | undefined;
+        depositRwf?: number | undefined;
         rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         occupants?: string[] | undefined;
         otherTerms?: string | null | undefined;
-        depositRwf?: number | undefined;
-        billingStartsOn?: string | null | undefined;
     }>>;
+    /** The broker who brought the tenant; null takes the broker off the lease. */
+    brokerId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    placementId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    brokerFee: z.ZodOptional<z.ZodDiscriminatedUnion<"kind", [z.ZodObject<{
+        kind: z.ZodLiteral<"percent">;
+        percent: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        kind: "percent";
+        percent: number;
+    }, {
+        kind: "percent";
+        percent: number;
+    }>, z.ZodObject<{
+        kind: z.ZodLiteral<"fixed">;
+        amountRwf: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        kind: "fixed";
+        amountRwf: number;
+    }, {
+        kind: "fixed";
+        amountRwf: number;
+    }>]>>;
     confirmEmail: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
+    brokerId?: string | null | undefined;
     tenant?: {
         fullName?: string | undefined;
         email?: string | undefined;
@@ -463,17 +540,26 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         monthlyRentRwf?: number | undefined;
         startDate?: string | undefined;
         endDate?: string | undefined;
+        billingStartsOn?: string | null | undefined;
         noticeDays?: number | undefined;
+        depositRwf?: number | undefined;
         rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         occupants?: string[] | undefined;
         otherTerms?: string | null | undefined;
-        depositRwf?: number | undefined;
-        billingStartsOn?: string | null | undefined;
     } | undefined;
-    confirmEmail?: boolean | undefined;
+    placementId?: string | null | undefined;
     unitId?: string | undefined;
+    confirmEmail?: boolean | undefined;
+    brokerFee?: {
+        kind: "percent";
+        percent: number;
+    } | {
+        kind: "fixed";
+        amountRwf: number;
+    } | undefined;
 }, {
+    brokerId?: string | null | undefined;
     tenant?: {
         fullName?: string | undefined;
         email?: string | undefined;
@@ -486,17 +572,26 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         monthlyRentRwf?: number | undefined;
         startDate?: string | undefined;
         endDate?: string | undefined;
+        billingStartsOn?: string | null | undefined;
         noticeDays?: number | undefined;
+        depositRwf?: number | undefined;
         rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         occupants?: string[] | undefined;
         otherTerms?: string | null | undefined;
-        depositRwf?: number | undefined;
-        billingStartsOn?: string | null | undefined;
     } | undefined;
-    confirmEmail?: boolean | undefined;
+    placementId?: string | null | undefined;
     unitId?: string | undefined;
+    confirmEmail?: boolean | undefined;
+    brokerFee?: {
+        kind: "percent";
+        percent: number;
+    } | {
+        kind: "fixed";
+        amountRwf: number;
+    } | undefined;
 }>, {
+    brokerId?: string | null | undefined;
     tenant?: {
         fullName?: string | undefined;
         email?: string | undefined;
@@ -509,17 +604,26 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         monthlyRentRwf?: number | undefined;
         startDate?: string | undefined;
         endDate?: string | undefined;
+        billingStartsOn?: string | null | undefined;
         noticeDays?: number | undefined;
+        depositRwf?: number | undefined;
         rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         occupants?: string[] | undefined;
         otherTerms?: string | null | undefined;
-        depositRwf?: number | undefined;
-        billingStartsOn?: string | null | undefined;
     } | undefined;
-    confirmEmail?: boolean | undefined;
+    placementId?: string | null | undefined;
     unitId?: string | undefined;
+    confirmEmail?: boolean | undefined;
+    brokerFee?: {
+        kind: "percent";
+        percent: number;
+    } | {
+        kind: "fixed";
+        amountRwf: number;
+    } | undefined;
 }, {
+    brokerId?: string | null | undefined;
     tenant?: {
         fullName?: string | undefined;
         email?: string | undefined;
@@ -532,16 +636,24 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         monthlyRentRwf?: number | undefined;
         startDate?: string | undefined;
         endDate?: string | undefined;
+        billingStartsOn?: string | null | undefined;
         noticeDays?: number | undefined;
+        depositRwf?: number | undefined;
         rentDueDay?: number | undefined;
         graceDays?: number | undefined;
         occupants?: string[] | undefined;
         otherTerms?: string | null | undefined;
-        depositRwf?: number | undefined;
-        billingStartsOn?: string | null | undefined;
     } | undefined;
-    confirmEmail?: boolean | undefined;
+    placementId?: string | null | undefined;
     unitId?: string | undefined;
+    confirmEmail?: boolean | undefined;
+    brokerFee?: {
+        kind: "percent";
+        percent: number;
+    } | {
+        kind: "fixed";
+        amountRwf: number;
+    } | undefined;
 }>;
 export type EditLeaseRequest = z.infer<typeof EditLeaseRequest>;
 /** Cancel a lease that has not started (`POST /ops/leases/:id/cancel`). */

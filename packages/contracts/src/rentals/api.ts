@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { RwPhoneNumber } from "../phone";
 import { Uuid } from "../primitives";
+import { BrokerFeeTerms, LeaseBrokerView } from "./brokers";
 import { CalendarDay } from "./dates";
 import { LeaseContract } from "./contract";
 import { PersonEmail, PersonName, checkEmailTypo, idNumberProblem, normaliseIdNumber } from "./identity";
@@ -70,6 +71,8 @@ export const LandlordProfileView = z.object({
   signatory: LandlordSignatory,
   leaseDefaults: LeaseDefaults,
   brokerFeePercent: z.number().int().nullable(),
+  /** The fee a unit starts with when the landlord lets brokers offer it; null when not set. */
+  brokerFee: BrokerFeeTerms.nullable(),
   setupCompletedAt: IsoMoment.nullable(),
 });
 export type LandlordProfileView = z.infer<typeof LandlordProfileView>;
@@ -212,6 +215,9 @@ export const RentalUnitView = z.object({
   askingDepositRwf: z.number().int().nullable(),
   state: RentalUnitState,
   listed: z.boolean(),
+  /** Brokers may offer this unit, for `brokerFee`. */
+  brokerOffer: z.boolean(),
+  brokerFee: BrokerFeeTerms.nullable(),
   availableFrom: CalendarDay.nullable(),
   note: z.string().nullable(),
   occupancy: UnitOccupancy,
@@ -270,6 +276,10 @@ const UnitFields = {
   note: z.string().trim().max(500, "Keep the note under 500 characters.").nullable().optional(),
   /** `retired` is its own command (`POST /ops/units/:id/retire`). */
   state: z.enum(["active", "off_market"]).optional(),
+  /** Brokers may offer it: needs an asking rent and a fee. */
+  brokerOffer: z.boolean().optional(),
+  /** What the landlord pays a broker who brings the tenant. Kept when brokers are switched off. */
+  brokerFee: BrokerFeeTerms.nullable().optional(),
 };
 
 /** `POST /ops/units`. */
@@ -515,7 +525,7 @@ export const LeaseDetail = z.object({
   charges: LeaseChargesSummary,
   /** What still has to be filled in before the landlord can sign, in words. Empty when ready. */
   contractProblems: z.array(z.string()),
-  broker: z.object({ id: Uuid, name: z.string().nullable() }).nullable(),
+  broker: LeaseBrokerView.nullable(),
   supersedesLeaseId: Uuid.nullable(),
   signedAt: IsoMoment.nullable(),
   activatedAt: IsoMoment.nullable(),

@@ -8,6 +8,7 @@
  * one schema at one path.
  */
 import {
+  BrokerFeeKind,
   DepositRefundMethod,
   FaultAssigneeKind,
   FaultPhotoPhase,
@@ -726,6 +727,9 @@ export const placementFeeStatusEnum = pgEnum('placement_fee_status', [
   'pending',
   'disbursed',
 ]);
+
+/** How a landlord sets a broker's fee (2026-10-25): a percent of the first month, or fixed francs. */
+export const brokerFeeKindEnum = pgEnum('broker_fee_kind', BrokerFeeKind.options);
 
 /**
  * Where a fiscal document comes from (ADR-050 D-a).

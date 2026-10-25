@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TenancyDetail = exports.TenancyList = exports.TenancyInvitationItem = exports.TenancyListItem = exports.TenancySignatureView = exports.TenancyPlace = exports.TenancyLandlord = void 0;
 const zod_1 = require("zod");
 const primitives_1 = require("../primitives");
+const brokers_1 = require("./brokers");
 const dates_1 = require("./dates");
 const api_1 = require("./api");
 const vocab_1 = require("./vocab");
@@ -94,6 +95,8 @@ exports.TenancyDetail = zod_1.z.object({
     /** Both sides signed and the signed copy is kept: the PDF is the signed one. */
     signedCopyReady: zod_1.z.boolean(),
     charges: api_1.LeaseChargesSummary,
+    /** The broker who brought the tenant, rated once the tenancy starts. */
+    broker: brokers_1.TenancyBrokerView.nullable(),
     signedAt: IsoMoment.nullable(),
     activatedAt: IsoMoment.nullable(),
     endedOn: dates_1.CalendarDay.nullable(),

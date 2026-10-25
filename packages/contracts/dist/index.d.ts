@@ -22,6 +22,7 @@ export * from "./offers";
 export * from "./inbox";
 export * from "./ops";
 export * from "./broker";
+export * from "./broker-plans";
 export * from "./ordering";
 export * from "./outlets";
 export * from "./property-detail";

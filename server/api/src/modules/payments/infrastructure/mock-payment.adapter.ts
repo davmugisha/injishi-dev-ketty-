@@ -107,7 +107,7 @@ export const DECLINING_SUFFIX = '0000';
  * tenant's rent, a landlord's phone paying a fixer, a broker's plan month by
  * mobile money, and the card checkout page a broker is sent to.
  */
-export type HandsetKind = 'escrow_capture' | 'rent_collect' | 'vendor_payout' | 'subscription_charge' | 'subscription_checkout';
+export type HandsetKind = 'escrow_capture' | 'rent_collect' | 'vendor_payout' | 'subscription_charge' | 'subscription_checkout' | 'one_time_fee';
 
 const CAPTURE_REF_PREFIX: Readonly<Record<HandsetKind, string>> = {
   escrow_capture: 'mock_escrow_capture_',
@@ -115,6 +115,7 @@ const CAPTURE_REF_PREFIX: Readonly<Record<HandsetKind, string>> = {
   vendor_payout: 'mock_vendor_payout_',
   subscription_charge: 'mock_subscription_charge_',
   subscription_checkout: 'mock_subscription_checkout_',
+  one_time_fee: 'mock_one_time_fee_',
 };
 
 /** The port operation a handset kind's receipt is remembered under. */
@@ -292,7 +293,10 @@ export class MockPaymentAdapter implements PaymentPort {
     return this.settle(command);
   }
 
+  /** A fee asked on a handset waits and declines a number ending `0000`, as rent does; one without a payer is recorded. */
   chargeOneTimeFee(command: OneTimeFeeCommand): Promise<PaymentReceipt> {
+    const { instrument } = command;
+    if (instrument) return this.fromHandset({ ...command, instrument });
     return this.settle(command);
   }
 
@@ -385,7 +389,9 @@ export class MockPaymentAdapter implements PaymentPort {
   }
 
   /** A collection that waits on a handset: pending until the imaginary customer approves, declined on the test number. */
-  private async fromHandset(command: CaptureEscrowCommand | RentCollectCommand | VendorPayoutCommand): Promise<PaymentReceipt> {
+  private async fromHandset(
+    command: CaptureEscrowCommand | RentCollectCommand | VendorPayoutCommand | (OneTimeFeeCommand & { instrument: NonNullable<OneTimeFeeCommand['instrument']> }),
+  ): Promise<PaymentReceipt> {
     const { instrument } = command;
 
     if (instrument.kind === 'mobile_money') {

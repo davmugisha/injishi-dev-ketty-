@@ -30,7 +30,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
-import { approvalPolicyEnum, bookingModeEnum, cancellationTierEnum, checkInMethodEnum, domainKindEnum, housekeepingStatusEnum, listingStatusEnum, rateDerivationKindEnum, ratePlanStatusEnum, rentalUnitStateEnum, roomStatusEnum, roomTypeStatusEnum, unitKitchenEnum } from './enums';
+import { approvalPolicyEnum, bookingModeEnum, brokerFeeKindEnum, cancellationTierEnum, checkInMethodEnum, domainKindEnum, housekeepingStatusEnum, listingStatusEnum, rateDerivationKindEnum, ratePlanStatusEnum, rentalUnitStateEnum, roomStatusEnum, roomTypeStatusEnum, unitKitchenEnum } from './enums';
 import { districts, sectors, villages } from './geography';
 import { storedObjects } from './hospitality';
 import { departments } from './operations';
@@ -446,8 +446,15 @@ export const rentalUnits = pgTable(
     askingRentRwf: amount('asking_rent_rwf'),
     askingDepositRwf: amount('asking_deposit_rwf'),
     state: rentalUnitStateEnum('state').notNull().default('active'),
-    /** Shown to people looking for a home (and to brokers in scope). */
+    /** Shown to people looking for a home. */
     listed: boolean('listed').notNull().default(false),
+    /** Brokers may offer it (2026-10-25), for the fee below. Brokers see no other unit. */
+    brokerOffer: boolean('broker_offer').notNull().default(false),
+    brokerFeeKind: brokerFeeKindEnum('broker_fee_kind'),
+    /** A percent of the first month's rent, when the fee is a percent. */
+    brokerFeePercent: integer('broker_fee_percent'),
+    /** Fixed francs, when the fee is fixed. */
+    brokerFeeRwf: amount('broker_fee_rwf'),
     /** The day it can be moved into; null when it is let or not known. */
     availableFrom: date('available_from'),
     /** The landlord's own note ("repaint booked 14 Oct"). */
@@ -472,6 +479,17 @@ export const rentalUnits = pgTable(
       sql`NOT ${t.listed} OR (${t.state} = 'active' AND ${t.askingRentRwf} IS NOT NULL)`,
     ),
     check('rental_units_retired_shape', sql`(${t.state} = 'retired') = (${t.retiredAt} IS NOT NULL)`),
+    check(
+      'rental_units_broker_fee_shape',
+      sql`(${t.brokerFeeKind} IS NULL AND ${t.brokerFeePercent} IS NULL AND ${t.brokerFeeRwf} IS NULL)
+          OR (${t.brokerFeeKind} = 'percent' AND ${t.brokerFeePercent} BETWEEN 1 AND 200 AND ${t.brokerFeeRwf} IS NULL)
+          OR (${t.brokerFeeKind} = 'fixed' AND ${t.brokerFeeRwf} > 0 AND ${t.brokerFeePercent} IS NULL)`,
+    ),
+    check(
+      'rental_units_broker_offer_shape',
+      sql`NOT ${t.brokerOffer} OR (${t.state} = 'active' AND ${t.askingRentRwf} IS NOT NULL AND ${t.brokerFeeKind} IS NOT NULL)`,
+    ),
+    index('rental_units_broker_offer_idx').on(t.workspaceId).where(sql`${t.brokerOffer}`),
   ],
 );
 

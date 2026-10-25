@@ -208,6 +208,11 @@ export interface RecurringChargeCommand extends MoneyCommand {
 export interface OneTimeFeeCommand extends MoneyCommand {
   kind: 'one_time_fee';
   feeCode: string;
+  /**
+   * Who pays and on which rail, when the payer is asked on their handset (a
+   * broker's registration fee, 2026-10-25). Without one the fee is recorded.
+   */
+  instrument?: PaymentInstrument;
 }
 
 export type PaymentCommand =
@@ -394,7 +399,7 @@ export function describeForLog(c: PaymentCommand): string {
   // An instrument is a payer. The rail is safe to log and identifies nobody;
   // the handset is masked by the same rule a payout destination is, and a card
   // token is never printed at all — it is a bearer credential for that charge.
-  if ('instrument' in c) {
+  if ('instrument' in c && c.instrument) {
     const i = c.instrument;
     return i.kind === 'mobile_money'
       ? `${base} via=${i.network} payer=${maskDestination(i.msisdn)}`

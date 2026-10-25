@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   RentalsSetupStep,
+  brokerFeeFrom,
+  type BrokerDefaultsRequest,
   type LandlordProfileView,
   type LeaseDefaultsRequest,
   type RentalsSetupView,
@@ -45,6 +47,22 @@ export class RentalsProfileService {
       defaultRentDueDay: body.rentDueDay,
       autoStartLeases: body.autoStartLeases,
       leaseDefaultsSetAt: new Date(),
+    });
+    return this.profile(ws);
+  }
+
+  /**
+   * The broker fee a unit starts with when the landlord lets brokers offer it
+   * (2026-10-25). A unit keeps its own fee once set; this is only the default.
+   */
+  async setBrokerDefaults(ws: ScopedWorkspace, body: BrokerDefaultsRequest): Promise<LandlordProfileView> {
+    const r = assertResidence(ws);
+    await this.context.ensureProfile(r);
+    const fee = body.fee;
+    await this.context.updateProfile(this.db, r.orgId, {
+      brokerFeeKind: fee?.kind ?? null,
+      brokerFeePercent: fee?.kind === 'percent' ? fee.percent : null,
+      brokerFeeRwf: fee?.kind === 'fixed' ? fee.amountRwf : null,
     });
     return this.profile(ws);
   }
@@ -142,6 +160,7 @@ function present(profile: LandlordProfileRow, legalName: string, tin: string | n
       setAt: profile.leaseDefaultsSetAt?.toISOString() ?? null,
     },
     brokerFeePercent: profile.brokerFeePercent,
+    brokerFee: brokerFeeFrom(profile.brokerFeeKind, profile.brokerFeePercent, profile.brokerFeeRwf),
     setupCompletedAt: profile.setupCompletedAt?.toISOString() ?? null,
   };
 }

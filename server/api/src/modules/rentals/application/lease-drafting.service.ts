@@ -4,9 +4,11 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import {
   addDays,
+  brokerFeeFrom,
   canEditLease,
   dueDayFromStart,
   editVoidsLandlordSignature,
@@ -32,6 +34,7 @@ import { RentalsContextRepository } from '../infrastructure/rentals-context.repo
 import { LeaseEventsWriter, RentalsAuditWriter, type Tx } from '../infrastructure/rentals-writers';
 import { TenantsRepository, type TenantRow } from '../infrastructure/tenants.repository';
 import { UnitsRepository, type UnitListRow } from '../infrastructure/units.repository';
+import { LeaseBrokersService } from './lease-brokers.service';
 import { LeaseContractService } from './lease-contract.service';
 import { LeaseReadsService } from './lease-reads.service';
 
@@ -75,6 +78,8 @@ export class LeaseDraftingService {
     private readonly events: LeaseEventsWriter,
     private readonly audit: RentalsAuditWriter,
     private readonly reads: LeaseReadsService,
+    /** The broker on a lease (2026-10-25); absent in the older unit tests, which name none. */
+    @Optional() private readonly brokers?: LeaseBrokersService,
   ) {}
 
   /** The clock, as a method so a test can pin it. */
@@ -97,6 +102,7 @@ export class LeaseDraftingService {
     const billingStartsOn = terms.billingStartsOn ?? terms.startDate;
     await this.assertNoOverlap(unit, terms.startDate, terms.endDate);
     if (body.brokerId) await this.assertActiveBroker(body.brokerId);
+    const defaultFee = brokerFeeFrom(profile.brokerFeeKind, profile.brokerFeePercent, profile.brokerFeeRwf);
 
     let created: { leaseId: string; tenantTouched: string | null } | null = null;
     for (let attempt = 1; created === null; attempt += 1) {
@@ -124,6 +130,21 @@ export class LeaseDraftingService {
             occupants: terms.occupants,
             otherTerms: terms.otherTerms?.trim() || null,
           });
+          if (body.brokerId && this.brokers) {
+            const { placementId } = await this.brokers.attach(
+              tx,
+              {
+                leaseId: id,
+                workspaceId: r.workspaceId,
+                unitId: unit.id,
+                monthlyRentRwf: terms.monthlyRentRwf,
+                unitFee: brokerFeeFrom(unit.brokerFeeKind, unit.brokerFeePercent, unit.brokerFeeRwf),
+                defaultFee,
+              },
+              { brokerId: body.brokerId, placementId: body.placementId, brokerFee: body.brokerFee },
+            );
+            if (placementId) await this.leases.update(tx, id, { placementId });
+          }
           const record = await this.leases.find(id, tx);
           if (!record) throw new Error(`lease ${id} vanished`);
           const frozen = await this.contracts.freeze(tx, record, userId);
@@ -222,8 +243,11 @@ export class LeaseDraftingService {
         // The tenant's record.
         const tenantChanges = await this.tenantEdits(tx, ws, row, body.tenant ?? {});
 
+        // The broker who brought the tenant: not in the contract, so no new version for it alone.
+        await this.editBroker(tx, r.workspaceId, row, unit, next.monthlyRentRwf, body);
+
         if (changedTerms.length === 0 && !unit && tenantChanges.fields.length === 0) {
-          return; // Nothing actually changed: no version, no event.
+          return; // Nothing in the contract changed: no version, no event.
         }
 
         const wasPending = editVoidsLandlordSignature(row.status);
@@ -329,6 +353,56 @@ export class LeaseDraftingService {
   ): Promise<void> {
     const clash = await this.leases.liveOverlap(unit.id, start, end, exceptLeaseId, db);
     if (clash) throw overlapConflict(unit.label, clash);
+  }
+
+  /**
+   * Name the broker on a draft, change the fee agreed, or take the broker off.
+   * A rent change moves a percent fee with it. True when anything was written.
+   */
+  private async editBroker(
+    tx: Tx,
+    workspaceId: string,
+    row: LeaseRow,
+    unit: UnitListRow | null,
+    monthlyRentRwf: number,
+    body: EditLeaseRequest,
+  ): Promise<boolean> {
+    if (!this.brokers) return false;
+    const asked = body.brokerId !== undefined || body.placementId !== undefined || body.brokerFee !== undefined;
+    if (!asked) {
+      if (row.brokerId && monthlyRentRwf !== row.monthlyRentRwf) {
+        await this.brokers.rentChanged(tx, row.id, row.brokerId, workspaceId, monthlyRentRwf);
+      }
+      return false;
+    }
+    const brokerId = body.brokerId === undefined ? row.brokerId : body.brokerId;
+    if (!brokerId) {
+      if (!row.brokerId) return false;
+      await this.brokers.detach(tx, row.id);
+      await this.leases.update(tx, row.id, { brokerId: null, placementId: null });
+      return true;
+    }
+    if (brokerId !== row.brokerId) await this.brokers.assertBroker(brokerId, tx);
+    const target = unit ?? (await this.units.find(row.unitId, tx));
+    const profile = await this.context.profileByWorkspace(workspaceId, tx);
+    const { placementId } = await this.brokers.attach(
+      tx,
+      {
+        leaseId: row.id,
+        workspaceId,
+        unitId: target?.id ?? row.unitId,
+        monthlyRentRwf,
+        unitFee: target ? brokerFeeFrom(target.brokerFeeKind, target.brokerFeePercent, target.brokerFeeRwf) : null,
+        defaultFee: profile ? brokerFeeFrom(profile.brokerFeeKind, profile.brokerFeePercent, profile.brokerFeeRwf) : null,
+      },
+      {
+        brokerId,
+        placementId: body.placementId === undefined ? (brokerId === row.brokerId ? row.placementId : null) : body.placementId,
+        brokerFee: body.brokerFee,
+      },
+    );
+    await this.leases.update(tx, row.id, { brokerId, placementId });
+    return true;
   }
 
   private async assertActiveBroker(brokerId: string): Promise<void> {

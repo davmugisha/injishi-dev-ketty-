@@ -407,22 +407,22 @@ export declare const TenancyDetail: z.ZodObject<{
         endDate: string;
         billingStartsOn: string;
         noticeDays: number;
+        depositRwf: number;
         rentDueDay: number;
         graceDays: number;
         occupants: string[];
         otherTerms: string | null;
-        depositRwf: number;
     }, {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
         billingStartsOn: string;
         noticeDays: number;
+        depositRwf: number;
         rentDueDay: number;
         graceDays: number;
         occupants: string[];
         otherTerms: string | null;
-        depositRwf: number;
     }>;
     currentVersion: z.ZodNullable<z.ZodObject<{
         id: z.ZodString;
@@ -506,6 +506,40 @@ export declare const TenancyDetail: z.ZodObject<{
         depositAgreedRwf: number;
         depositStatus: "held" | "settled" | "awaiting" | null;
     }>;
+    /** The broker who brought the tenant, rated once the tenancy starts. */
+    broker: z.ZodNullable<z.ZodObject<{
+        name: z.ZodNullable<z.ZodString>;
+        rating: z.ZodNullable<z.ZodObject<{
+            stars: z.ZodNumber;
+            comment: z.ZodNullable<z.ZodString>;
+            ratedAt: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            stars: number;
+            comment: string | null;
+            ratedAt: string;
+        }, {
+            stars: number;
+            comment: string | null;
+            ratedAt: string;
+        }>>;
+        canRate: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        name: string | null;
+        rating: {
+            stars: number;
+            comment: string | null;
+            ratedAt: string;
+        } | null;
+        canRate: boolean;
+    }, {
+        name: string | null;
+        rating: {
+            stars: number;
+            comment: string | null;
+            ratedAt: string;
+        } | null;
+        canRate: boolean;
+    }>>;
     signedAt: z.ZodNullable<z.ZodString>;
     activatedAt: z.ZodNullable<z.ZodString>;
     endedOn: z.ZodNullable<z.ZodEffects<z.ZodString, string, string>>;
@@ -515,6 +549,15 @@ export declare const TenancyDetail: z.ZodObject<{
     updatedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    broker: {
+        name: string | null;
+        rating: {
+            stars: number;
+            comment: string | null;
+            ratedAt: string;
+        } | null;
+        canRate: boolean;
+    } | null;
     landlord: {
         name: string;
         email: string | null;
@@ -553,20 +596,20 @@ export declare const TenancyDetail: z.ZodObject<{
         depositStatus: "held" | "settled" | "awaiting" | null;
     };
     signedAt: string | null;
-    updatedAt: string;
-    cancelledAt: string | null;
     terms: {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
         billingStartsOn: string;
         noticeDays: number;
+        depositRwf: number;
         rentDueDay: number;
         graceDays: number;
         occupants: string[];
         otherTerms: string | null;
-        depositRwf: number;
     };
+    cancelledAt: string | null;
+    updatedAt: string;
     cancelReason: string | null;
     currentVersion: {
         id: string;
@@ -588,6 +631,15 @@ export declare const TenancyDetail: z.ZodObject<{
     signedCopyReady: boolean;
 }, {
     status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    broker: {
+        name: string | null;
+        rating: {
+            stars: number;
+            comment: string | null;
+            ratedAt: string;
+        } | null;
+        canRate: boolean;
+    } | null;
     landlord: {
         name: string;
         email: string | null;
@@ -626,20 +678,20 @@ export declare const TenancyDetail: z.ZodObject<{
         depositStatus: "held" | "settled" | "awaiting" | null;
     };
     signedAt: string | null;
-    updatedAt: string;
-    cancelledAt: string | null;
     terms: {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
         billingStartsOn: string;
         noticeDays: number;
+        depositRwf: number;
         rentDueDay: number;
         graceDays: number;
         occupants: string[];
         otherTerms: string | null;
-        depositRwf: number;
     };
+    cancelledAt: string | null;
+    updatedAt: string;
     cancelReason: string | null;
     currentVersion: {
         id: string;

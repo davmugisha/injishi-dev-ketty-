@@ -1,4 +1,5 @@
 import {
+  brokerFeeFrom,
   kigaliToday,
   leaseTab,
   type LeaseListItem,
@@ -39,6 +40,8 @@ export function presentUnit(row: UnitListRow, leases: readonly UnitLeaseFacts[])
     askingDepositRwf: row.askingDepositRwf,
     state: row.state,
     listed: row.listed,
+    brokerOffer: row.brokerOffer,
+    brokerFee: brokerFeeFrom(row.brokerFeeKind, row.brokerFeePercent, row.brokerFeeRwf),
     availableFrom: row.availableFrom,
     note: row.note,
     occupancy: occ.occupancy,

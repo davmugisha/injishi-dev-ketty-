@@ -37,9 +37,9 @@ export default tseslint.config(
             // and there is no power to name. Demanding a permission would mean
             // inventing one that grants nothing.
             'MeController.setActiveWorkspace',
-            // Every route of `/api/v1/ops/broker` (ADR-038 child 6): the two
-            // commands `POST .../:listingId/reveal` and `.../placements`, and
-            // the four reads beside them.
+            // Every route of `/api/v1/ops/broker` (2026-10-25): the homes,
+            // reveals and placements, the plan and its checkout, and the reads
+            // beside them.
             //
             // `permissionsForWorkspace` returns an EMPTY array for any
             // workspace whose kind is not `business`, and a broker workspace is
@@ -51,12 +51,20 @@ export default tseslint.config(
             //
             // The reads are listed because audit H1 extended this rule from
             // mutations to every verb; before that they needed no entry.
+            'OpsBrokerController.summary',
+            'OpsBrokerController.list',
+            'OpsBrokerController.home',
             'OpsBrokerController.reveal',
             'OpsBrokerController.startPlacement',
-            'OpsBrokerController.directory',
-            'OpsBrokerController.credits',
             'OpsBrokerController.placements',
             'OpsBrokerController.earnings',
+            'OpsBrokerController.reviews',
+            'OpsBrokerController.plan',
+            'OpsBrokerController.checkout',
+            'OpsBrokerController.payment',
+            'OpsBrokerController.change',
+            'OpsBrokerController.cancel',
+            'OpsBrokerController.homeDistrict',
           ],
         },
       ],

@@ -59,6 +59,12 @@ export interface BuildingPlaceRow {
 export class RentalsContextRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
 
+  /** The profile of the business with this workspace, when it has one. */
+  async profileByWorkspace(workspaceId: string, db: DbOrTx = this.db): Promise<LandlordProfileRow | null> {
+    const [row] = await db.select().from(landlordProfiles).where(eq(landlordProfiles.workspaceId, workspaceId)).limit(1);
+    return row ?? null;
+  }
+
   /** The landlord's profile, made with the starting defaults if it is missing. Idempotent. */
   async ensureProfile(r: ResidenceWorkspace): Promise<LandlordProfileRow> {
     await this.db
