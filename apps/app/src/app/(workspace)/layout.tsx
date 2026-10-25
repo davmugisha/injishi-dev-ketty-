@@ -21,7 +21,9 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
       ? await landlordNav()
       : persona.id === "officer"
         ? await officerNav()
-        : navigationFor(persona.id);
+        : persona.id === "tenant"
+          ? await tenantNav()
+          : navigationFor(persona.id);
   if (nav.length === 0) {
     // Phone/tablet personas visiting a desktop screen they may open: home plus "what to try".
     nav = [

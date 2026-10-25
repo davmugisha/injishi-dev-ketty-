@@ -305,6 +305,9 @@ export function TenantOverviewView({
               ) : null}
             </div>
             <div className="flex flex-wrap gap-2">
+              <ActionLink href={`/home/${tenancy.id}/messages`} size="sm" icon="Comments">
+                Message
+              </ActionLink>
               {tenancy.landlord.phone ? (
                 <ActionLink href={`tel:${tenancy.landlord.phone}`} size="sm" icon="Handset">
                   <span className="tabular">{nationalPhone(tenancy.landlord.phone)}</span>
