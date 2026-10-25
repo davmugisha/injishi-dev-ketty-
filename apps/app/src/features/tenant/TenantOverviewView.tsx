@@ -27,7 +27,7 @@ import {
 } from "@injishi/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { dueDayWords, tenantGuestsHref, tenantLeaseHref, tenantRentHref } from "../leases/shared";
+import { dueDayWords, placeWords, tenantGuestsHref, tenantLeaseHref, tenantRentHref } from "../leases/shared";
 import { PayPanel } from "./PayPanel";
 
 /** What is owed now, in one sentence and a tone. */
@@ -41,9 +41,6 @@ export function owedWords(charges: TenantChargeList): { title: string; tone: "da
   }
   return { title: "You are up to date", tone: "success" };
 }
-
-/** The place, as a tenant's pages open with it. */
-export const placeWords = (t: TenancyDetail): string => `Unit ${t.place.unitLabel} · ${t.place.propertyName}`;
 
 /**
  * The tenant's home (P3.1): what is owed now with a Pay button, the lease waiting for their signature,

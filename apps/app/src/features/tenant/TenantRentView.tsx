@@ -27,9 +27,8 @@ import {
   StatusChip,
 } from "@injishi/ui";
 import { useState } from "react";
-import { days, receiptHref } from "../leases/shared";
+import { days, placeWords, receiptHref } from "../leases/shared";
 import { PayPanel } from "./PayPanel";
-import { placeWords } from "./TenantOverviewView";
 
 const chargeStatus = (c: LeaseChargeView): string => (c.overdue ? "overdue" : c.status);
 

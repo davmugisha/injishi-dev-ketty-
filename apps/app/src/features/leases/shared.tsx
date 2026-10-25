@@ -10,6 +10,7 @@ import {
   type LeaseStatus,
   LeaseTab,
   ordinal,
+  type TenancyDetail,
 } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import { formatDay, formatMoney, type StatusTone, type TimelineEvent } from "@injishi/ui";
@@ -27,8 +28,12 @@ export const tenantPdfHref = (leaseId: string): string => `/api/tenancies/${enco
 export const receiptHref = (leaseId: string, paymentId: string): string =>
   `/api/tenancies/${encodeURIComponent(leaseId)}/payments/${encodeURIComponent(paymentId)}/receipt`;
 
+/** The place, as a tenant's pages open with it. */
+export const placeWords = (t: Pick<TenancyDetail, "place">): string =>
+  `Unit ${t.place.unitLabel} · ${t.place.propertyName}`;
+
 /** The record's tabs, as `?tab=` names them. */
-export const RECORD_TABS = ["overview", "contract", "rent", "deposit", "timeline", "guests"] as const;
+export const RECORD_TABS = ["overview", "contract", "rent", "deposit", "timeline"] as const;
 export type RecordTab = (typeof RECORD_TABS)[number];
 export const RECORD_TAB_LABEL: Record<RecordTab, string> = {
   overview: "Overview",
@@ -36,7 +41,6 @@ export const RECORD_TAB_LABEL: Record<RecordTab, string> = {
   rent: "Rent",
   deposit: "Deposit",
   timeline: "Timeline",
-  guests: "Guests",
 };
 
 /** The frozen text as template 3, or null for a version carried over from before. */

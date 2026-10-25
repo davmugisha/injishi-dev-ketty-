@@ -20,9 +20,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ContractDocument } from "../leases/ContractDocument";
 import { SigningPanel } from "../leases/SigningPanel";
-import { contractOf, SIGNING_METHOD_WORDS, tenantPdfHref, timelineOf } from "../leases/shared";
+import { contractOf, placeWords, SIGNING_METHOD_WORDS, tenantPdfHref, timelineOf } from "../leases/shared";
 import { reloadTenancyContract, requestTenantSigningCode, signLeaseAsTenant } from "./actions";
-import { placeWords } from "./TenantOverviewView";
 
 /**
  * The tenant's lease (P3.2): the contract as it was frozen, the PDF (the signed copy once both signed),

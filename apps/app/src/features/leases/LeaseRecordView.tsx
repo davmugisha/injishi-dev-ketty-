@@ -49,6 +49,7 @@ import {
   editable,
   ID_WORDS,
   RECORD_TAB_LABEL,
+  RECORD_TABS,
   type RecordTab,
   SIGNING_METHOD_WORDS,
   timelineOf,
@@ -170,7 +171,6 @@ export function LeaseRecordView({
   today,
   autoStart,
   can,
-  guests,
 }: {
   lease: LeaseDetail;
   contract: LeaseContractView | null;
@@ -181,9 +181,7 @@ export function LeaseRecordView({
   open: RecordOpen | null;
   today: string;
   autoStart: boolean;
-  can: { manage: boolean; sign: boolean; record: boolean; guests: boolean };
-  /** The Guests tab's content, when the person registers guests. */
-  guests?: ReactNode;
+  can: { manage: boolean; sign: boolean; record: boolean };
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -272,16 +270,7 @@ export function LeaseRecordView({
           ? `Cancelled: ${lease.cancelReason}`
           : null;
 
-  const tabs: { id: RecordTab; label: string }[] = (
-    [
-      "overview",
-      "contract",
-      "rent",
-      "deposit",
-      "timeline",
-      ...(can.guests && guests ? (["guests"] as const) : []),
-    ] as RecordTab[]
-  ).map((id) => ({ id, label: RECORD_TAB_LABEL[id] }));
+  const tabs: { id: RecordTab; label: string }[] = RECORD_TABS.map((id) => ({ id, label: RECORD_TAB_LABEL[id] }));
   const shownTab = tabs.some((t) => t.id === tab) ? tab : "overview";
 
   const t = lease.terms;
@@ -672,8 +661,6 @@ export function LeaseRecordView({
           )}
         </SectionCard>
       ) : null}
-
-      {shownTab === "guests" && guests ? guests : null}
 
       {panel === "sign" && contract ? (
         <SigningPanel
