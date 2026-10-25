@@ -40,12 +40,15 @@ export function ResendDialog({ lease, onClose }: { lease: LeaseDetail; onClose: 
   const current = lease.invitation?.email ?? lease.tenant.email ?? "";
   const [email, setEmail] = useState(current);
   const [keep, setKeep] = useState(false);
+  const [typo, setTypo] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const changing = email.trim().toLowerCase() !== current.trim().toLowerCase();
   const submit = () =>
     start(async () => {
+      // A likely slip is settled first, with the check's own buttons under the field.
+      if (changing && typo && !keep) return;
       const result = await resendInvitation(
         lease.id,
         changing ? { email: email.trim(), ...(keep ? { confirmEmail: true } : {}) } : {},
@@ -82,8 +85,13 @@ export function ResendDialog({ lease, onClose }: { lease: LeaseDetail; onClose: 
         onChange={(v) => {
           setEmail(v);
           setKeep(false);
+          setErrors({});
+          setFormError(null);
         }}
-        onTypoChange={(t) => setKeep(t.kept)}
+        onTypoChange={(t) => {
+          setKeep(t.kept);
+          setTypo(t.suggestion !== null);
+        }}
         errorMessage={errors.email}
         isRequired
       />
@@ -130,6 +138,7 @@ export function CancelDialog({ lease, onClose }: { lease: LeaseDetail; onClose: 
       }
       size="sm"
       submitLabel="Cancel the lease"
+      submitIcon="Xmark"
       cancelLabel="Keep it"
       isPending={pending}
       validationErrors={error ? { reason: error } : undefined}

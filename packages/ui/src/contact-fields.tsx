@@ -275,7 +275,9 @@ export function EmailInput({
   const suggestion = left ? suggestEmailFix(current) : null;
   const showTypo = suggestion !== null && kept !== clean;
   const own = left && clean && !looksLikeEmail(clean) ? "Enter an email address, like aline@example.com." : null;
-  const problem = errorMessage || own;
+  // A refusal that only repeats the typo check (the API's own guard) shows as the check, with its two buttons.
+  const repeatsTypo = showTypo && errorMessage === emailTypoMessage(suggestion);
+  const problem = (repeatsTypo ? null : errorMessage) || own;
 
   const set = (next: string) => {
     if (value === undefined) setInner(next);
