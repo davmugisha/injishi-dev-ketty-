@@ -402,7 +402,8 @@ export function PhotoGrid({
                 top: drag.settle ? drag.settle.top : drag.y - drag.dy,
                 width: drag.width,
                 height: drag.height,
-                zIndex: 1000,
+                // Above every overlay (side panels sit at 100000).
+                zIndex: 2147483000,
                 transform: drag.settle ? "scale(1)" : "scale(1.05) rotate(-1.5deg)",
                 transition: drag.settle
                   ? `left ${SLIDE_MS}ms ${SLIDE_EASING}, top ${SLIDE_MS}ms ${SLIDE_EASING}, transform ${SLIDE_MS}ms ${SLIDE_EASING}, box-shadow ${SLIDE_MS}ms`
