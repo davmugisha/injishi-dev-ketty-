@@ -239,14 +239,12 @@ const UNENFORCED = [
   "ebm.refund",
   // Rentals blueprint 2.1 declared these ahead of their routes (WP 1.1). Each
   // leaves this list when its first route declares it: `expense.manage` and
-  // `tax.manage` with expenses and taxes (P4), and `guest.register` with the
-  // landlord's guests (P5). `lease.manage`, `lease.sign`, `payout.manage`,
-  // `rent.record` and `deposit.return` left it with the rentals module's first
-  // routes (WP 1.4 and 1.5a): lease drafting, the signatory, payout accounts,
-  // and the lease reads the money side makes.
+  // `tax.manage` with expenses and taxes (P4). `lease.manage`, `lease.sign`,
+  // `payout.manage`, `rent.record` and `deposit.return` left it with the
+  // rentals module's first routes (WP 1.4 and 1.5a), and `guest.register`
+  // with the landlord's own guests (`/ops/guests`, P5).
   "expense.manage",
   "tax.manage",
-  "guest.register",
   // `payroll.draft` left this list when its draft routes declared it (ADR-069
   // D-e): `@RequireAnyPermission('payroll.draft', 'payroll.run')` on the pay
   // run's list, create, read, recompute and hold, the payroll dashboard and the
