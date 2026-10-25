@@ -409,6 +409,8 @@ async function personaFor(
   if (demo) return demo;
   const landing = context?.landing;
   if (landing?.surface === "landlord") return personas.landlord;
+  // A broker's workspace has kind `broker`, never a business: their landing says so (`/me/context`).
+  if (landing?.surface === "broker") return personas.broker;
   if (landing?.surface === "business") {
     const chosen = workspaces.find((w) => w.workspaceId === landing.workspaceId);
     if (chosen?.orgRole && ROLE_PERSONA[chosen.orgRole]) return personas[ROLE_PERSONA[chosen.orgRole]];
@@ -417,7 +419,6 @@ async function personaFor(
   const order = ["owner", "manager", "finance", "hr", "receptionist", "housekeeper"];
   business.sort((a, b) => order.indexOf(a.orgRole ?? "") - order.indexOf(b.orgRole ?? ""));
   const top = business[0];
-  if (top?.domain === "broker") return personas.broker;
   if (top?.orgRole && ROLE_PERSONA[top.orgRole]) return personas[ROLE_PERSONA[top.orgRole]];
   if (landing?.surface === "tenant") return personas.tenant;
   if (context ? context.staff.isStaff : await holds(cookie, "/api/v1/me/staff")) return personas.ops;
@@ -442,6 +443,11 @@ async function holds(cookie: SessionCookie, path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** The broker workspace of this person (kind `broker`, one per person), or null. */
+export function brokerWorkspace(account: Pick<Account, "workspaces">): Workspace | null {
+  return account.workspaces.find((w) => w.kind === "broker") ?? null;
 }
 
 /**

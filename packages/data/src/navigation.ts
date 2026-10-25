@@ -733,34 +733,24 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       ],
     },
   ],
+  // The broker's sidebar (2026-10-25): the homes their plan shows, the tenants they placed, what
+  // landlords recorded as owed and paid, their ratings, and the plan.
   broker: [
     {
       label: null,
       items: [
-        {
-          id: "work",
-          label: "My work",
-          icon: "Briefcase",
-          board: "BrokerWork",
-        },
-        {
-          id: "directory",
-          label: "Directory & credits",
-          icon: "Magnifier",
-          board: "BrokerDirectory",
-        },
-        {
-          id: "explore",
-          label: "Marketplace",
-          icon: "Globe",
-          board: "MarketExplore",
-        },
-        {
-          id: "account",
-          label: "Account",
-          icon: "Person",
-          board: "Account",
-        },
+        { id: "home", label: "Home", icon: "House", board: "BrokerWork" },
+        { id: "homes", label: "Homes", icon: "Magnifier", board: "BrokerDirectory" },
+        { id: "placements", label: "Placements", icon: "Persons", board: "BrokerPlacements" },
+        { id: "earnings", label: "Earnings", icon: "Wallet", board: "BrokerEarnings" },
+        { id: "reviews", label: "Reviews", icon: "Star", board: "BrokerReviews" },
+      ],
+    },
+    {
+      label: "You",
+      items: [
+        { id: "plan", label: "Plan", icon: "CreditCard", board: "BrokerPlan" },
+        { id: "account", label: "Account", icon: "Person", board: "Account" },
       ],
     },
   ],
