@@ -76,6 +76,12 @@ import { RentalsHousekeepingService } from './application/rentals-housekeeping.s
 import { TaxesService } from './application/taxes.service';
 import { RentalsHousekeepingProcessor } from './infrastructure/rentals-housekeeping.processor';
 import { TaxesRepository } from './infrastructure/taxes.repository';
+// Messages between a landlord and a tenant (P3.4).
+import { LeaseMessagesService } from './application/lease-messages.service';
+import { MessageDigestsService } from './application/message-digests.service';
+import { MessageEvents } from './application/message-events';
+import { LeaseMessagesRepository } from './infrastructure/lease-messages.repository';
+import { MessageDigestsProcessor } from './infrastructure/message-digests.processor';
 
 /**
  * Rentals: the residence side of Injishi, rebuilt (blueprint 2.2).
@@ -170,6 +176,11 @@ import { TaxesRepository } from './infrastructure/taxes.repository';
     FilingsService,
     TaxesService,
     RentalsHousekeepingService,
+    LeaseMessagesRepository,
+    MessageEvents,
+    LeaseMessagesService,
+    MessageDigestsService,
+    ...(isWorkerProcess() ? [MessageDigestsProcessor] : []),
     ...(isWorkerProcess() ? [LeaseDocumentsProcessor, RentCycleProcessor, RentRemindersProcessor, PaymentSettlementProcessor, PayoutsProcessor, RentalsHousekeepingProcessor] : []),
   ],
   exports: [
@@ -205,6 +216,8 @@ import { TaxesRepository } from './infrastructure/taxes.repository';
     FilingsService,
     TaxesService,
     RentalsHousekeepingService,
+    MessageEvents,
+    LeaseMessagesService,
   ],
 })
 export class RentalsModule {}

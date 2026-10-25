@@ -30,3 +30,5 @@ export * from "./faults";
 export * from "./expenses";
 // Rental income tax and lease filings with RRA (WP 4.4).
 export * from "./taxes";
+// Messages between a landlord and a tenant (P3.4).
+export * from "./messages";

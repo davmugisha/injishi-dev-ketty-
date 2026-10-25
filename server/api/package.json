@@ -46,7 +46,9 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.0",
     "@nestjs/platform-fastify": "^11.1.0",
+    "@nestjs/platform-socket.io": "^11.2.8",
     "@nestjs/throttler": "^6.5.0",
+    "@nestjs/websockets": "^11.2.8",
     "@pdf-lib/fontkit": "^1.1.1",
     "@sentry/node": "^10.74.0",
     "better-auth": "1.6.11",
@@ -64,6 +66,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "sharp": "^0.35.3",
+    "socket.io": "^4.8.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {

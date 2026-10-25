@@ -253,4 +253,13 @@ export const MIME_EXTENSION: Readonly<Record<string, string>> = {
   'video/mp4': 'mp4',
   'video/quicktime': 'mov',
   'video/webm': 'webm',
+  // Rentals P3.4: a message's documents and voice notes.
+  'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'text/plain': 'txt',
+  'audio/ogg': 'ogg',
+  'audio/mp4': 'm4a',
+  'audio/webm': 'weba',
 };

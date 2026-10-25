@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import {
@@ -43,6 +44,7 @@ import { SigningRepository } from '../infrastructure/signing.repository';
 import { LeaseContractService } from './lease-contract.service';
 import { LeaseInvitationsService, type PendingMail } from './lease-invitations.service';
 import { LeaseReadsService } from './lease-reads.service';
+import { LeaseMessagesService } from './lease-messages.service';
 import { TenanciesService, type TenancyRef } from './tenancies.service';
 
 /** The person signing: the session's account. */
@@ -101,6 +103,8 @@ export class LeaseSigningService {
     private readonly passwords: SignerPasswordVerifier,
     private readonly mailer: RentalsMailer,
     private readonly documents: LeaseDocumentsQueue,
+    // P3.4: the lease's conversation is made at signing, so both sides find it waiting.
+    @Optional() private readonly messages?: LeaseMessagesService,
   ) {}
 
   /** The clock, as a method so a test can pin it. */
@@ -310,6 +314,7 @@ export class LeaseSigningService {
           signedAt: now,
         });
         await this.leases.update(tx, lease.id, { status: 'signed', signedAt: now });
+        await this.messages?.ensureForLease(tx, lease.id);
         await this.events.write(tx, {
           leaseId: lease.id,
           workspaceId: lease.workspaceId,

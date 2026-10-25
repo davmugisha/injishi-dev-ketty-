@@ -141,6 +141,10 @@ import { PaymentWebhooksController } from './payments/webhooks.controller';
 // Faults, expenses and taxes (WP 4.1, 4.3, 4.4).
 import { MeTenancyFaultsController } from './me/tenancy-faults.controller';
 import { OpsFaultsController } from './ops/rentals/faults.controller';
+// Messages between a landlord and a tenant, and the live line (P3.4).
+import { MeTenancyMessagesController } from './me/tenancy-messages.controller';
+import { OpsLeaseMessagesController } from './ops/rentals/messages.controller';
+import { RealtimeGateway } from './realtime/realtime.gateway';
 import { OpsExpensesController } from './ops/rentals/expenses.controller';
 import { OpsFilingsController, OpsTaxesController } from './ops/rentals/taxes.controller';
 import { OpsRoomsController } from './ops/rooms.controller';
@@ -347,6 +351,8 @@ import { TrainingPublicModule } from './training/training.module';
     // Faults on both sides (WP 4.1): the landlord's board and the tenant's reports.
     OpsFaultsController,
     MeTenancyFaultsController,
+    OpsLeaseMessagesController,
+    MeTenancyMessagesController,
     // Expenses and paying the fixer (WP 4.3).
     OpsExpensesController,
     // Rental income tax and lease filings with RRA (WP 4.4).
@@ -390,6 +396,6 @@ import { TrainingPublicModule } from './training/training.module';
   // WorkspaceService is the one resolver of "which workspaces does this user
   // hold" (Spec 0004). WorkspaceGuard depends on it; DatabaseModule is @Global
   // so DRIZZLE resolves without importing it here.
-  providers: [WorkspaceService, TwoFactorService],
+  providers: [WorkspaceService, TwoFactorService, RealtimeGateway],
 })
 export class PublicApiModule {}

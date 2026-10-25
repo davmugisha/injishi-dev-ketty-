@@ -9,13 +9,15 @@ import {
   type TenantFaultList,
   type TenantFaultMessageRequest,
 } from '@injishi/contracts';
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { TicketLifecycle } from '../../operations/application/ticket-lifecycle';
 import { RentalsFilesStorage } from '../../storage/application/rentals-files-storage';
 import { FaultsRepository, type FaultRow } from '../infrastructure/faults.repository';
 import { RentalsAuditWriter } from '../infrastructure/rentals-writers';
+import { LeaseMessagesService } from './lease-messages.service';
+import type { ThreadAudience } from './message-events';
 import { FaultNotices } from './fault-notices';
 import { FaultsService, type FaultUpload } from './faults.service';
 import { FAULT_NOT_FOUND, presentEvent, presentPhoto, presentTenantFaultItem } from './faults-presenters';
@@ -41,6 +43,8 @@ export class TenantFaultsService {
     private readonly notices: FaultNotices,
     private readonly audit: RentalsAuditWriter,
     private readonly landlord: FaultsService,
+    // P3.4: the report and the replies also show in the lease's conversation.
+    @Optional() private readonly messages?: LeaseMessagesService,
   ) {}
 
   /** The clock, as a method so a test can pin it. */
@@ -67,6 +71,7 @@ export class TenantFaultsService {
     }
     this.landlord.assertPhotoRoom(0, photos.length, 'report');
     const stored = await this.landlord.storePhotos(lease.workspaceId, ref.userId, photos);
+    let line: ThreadAudience | null = null;
     const id = await this.db.transaction(async (tx) => {
       const reference = await this.faults.nextReference(tx, lease.workspaceId);
       const ticketId = await this.faults.insert(tx, {
@@ -102,8 +107,15 @@ export class TenantFaultsService {
         eventType: 'fault.reported',
         diff: { by: 'tenant', leaseId: lease.id, unitId: lease.unitId, reference, photos: stored.length },
       });
+      line = (await this.messages?.faultLine(tx, {
+        leaseId: lease.id,
+        ticketId,
+        senderUserId: ref.userId,
+        body: body.description ? `Reported a fault: ${body.description}` : 'Reported a fault.',
+      })) ?? null;
       return ticketId;
     });
+    this.messages?.announce(line);
     const row = await this.faults.find(id);
     if (!row) throw new NotFoundException(FAULT_NOT_FOUND);
     void this.notices.landlordReported(row);
@@ -144,6 +156,7 @@ export class TenantFaultsService {
   async message(ref: TenancyRef, id: string, body: TenantFaultMessageRequest): Promise<TenantFaultDetail> {
     const row = await this.owned(ref, id);
     if (row.status === 'cancelled') throw new ConflictException('This fault was cancelled.');
+    let line: ThreadAudience | null = null;
     await this.db.transaction(async (tx) => {
       await this.lifecycle.lock(tx, row.id);
       await this.lifecycle.event(tx, {
@@ -155,7 +168,9 @@ export class TenantFaultsService {
         visibleToTenant: true,
       });
       await this.faults.touch(tx, row.id);
+      line = (await this.messages?.faultLine(tx, { leaseId: ref.leaseId, ticketId: row.id, senderUserId: ref.userId, body: body.body })) ?? null;
     });
+    this.messages?.announce(line);
     void this.notices.landlordMessage(row, body.body);
     return this.detail(ref, id);
   }

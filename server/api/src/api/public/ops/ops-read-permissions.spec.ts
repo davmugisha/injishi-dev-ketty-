@@ -79,6 +79,7 @@ import { OpsRentController } from './rentals/rent.controller';
 import { OpsFaultsController } from './rentals/faults.controller';
 import { OpsExpensesController } from './rentals/expenses.controller';
 import { OpsFilingsController, OpsTaxesController } from './rentals/taxes.controller';
+import { OpsLeaseMessagesController } from './rentals/messages.controller';
 import { OpsRevenueController } from './revenue.controller';
 import { OpsCertificatesController } from './certificates.controller';
 import { OpsOwnerDashboardController, OpsReportsController } from './owner-dashboard.controller';
@@ -201,6 +202,7 @@ const CONTROLLERS: Ctor[] = [
   OpsExpensesController,
   OpsTaxesController,
   OpsFilingsController,
+  OpsLeaseMessagesController,
 ];
 
 interface Read {
@@ -513,6 +515,11 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/taxes/taxpayer': ['owner', 'manager', 'finance'],
   '/ops/taxes/:year': ['owner', 'manager', 'finance'],
   '/ops/filings': ['owner', 'manager', 'finance'],
+  // Messages with tenants (P3.4): `message.send`, the owner and whoever they let answer messages.
+  '/ops/rentals/messages': ['owner', 'manager', 'receptionist'],
+  '/ops/rentals/messages/unread': ['owner', 'manager', 'receptionist'],
+  '/ops/rentals/messages/:leaseId': ['owner', 'manager', 'receptionist'],
+  '/ops/rentals/messages/:leaseId/files/:id': ['owner', 'manager', 'receptionist'],
 };
 
 describe('operator reads (audit H1)', () => {

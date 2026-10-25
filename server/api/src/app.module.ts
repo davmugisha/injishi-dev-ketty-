@@ -1,4 +1,5 @@
 import fastifyCookie from '@fastify/cookie';
+import { RealtimeAdapter } from './shared/realtime/realtime.adapter';
 import fastifyHelmet from '@fastify/helmet';
 import fastifyMultipart from '@fastify/multipart';
 import {
@@ -169,6 +170,8 @@ export class AppModule {
       credentials: true,
       methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
     });
+    // Live updates to open message screens (rentals P3.4), on this port, same origins.
+    app.useWebSocketAdapter(new RealtimeAdapter(app, allowedOrigins));
     app.enableShutdownHooks();
 
     const port = Number(config.get<string>('PORT') ?? 8000);

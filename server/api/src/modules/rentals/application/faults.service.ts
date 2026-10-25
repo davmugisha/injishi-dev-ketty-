@@ -17,7 +17,7 @@ import {
   type MoveFaultRequest,
   type RaiseFaultRequest,
 } from '@injishi/contracts';
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
@@ -28,6 +28,8 @@ import { buildingIdsOf } from '../domain/attention';
 import { assertBuildingInScope, assertResidence } from '../domain/residence';
 import { FaultsRepository, type FaultRow } from '../infrastructure/faults.repository';
 import { RentalsAuditWriter, type DbOrTx } from '../infrastructure/rentals-writers';
+import { LeaseMessagesService } from './lease-messages.service';
+import type { ThreadAudience } from './message-events';
 import { FaultNotices } from './fault-notices';
 import { FaultPaymentsService } from './fault-payments.service';
 import { allowedMoves, assertFaultOwned, assigneeOf, presentEvent, presentFaultItem, presentPhoto, reportedOn } from './faults-presenters';
@@ -60,6 +62,8 @@ export class FaultsService {
     private readonly notices: FaultNotices,
     private readonly audit: RentalsAuditWriter,
     private readonly payments: FaultPaymentsService,
+    // P3.4: a reply the tenant sees also shows in the lease's conversation.
+    @Optional() private readonly messages?: LeaseMessagesService,
   ) {}
 
   /** The clock, as a method so a test can pin it. */
@@ -259,6 +263,7 @@ export class FaultsService {
     if (toTenant && !ws.permissions.includes('message.send')) {
       throw new ForbiddenException('Replying to the tenant needs the permission to send messages. Write a team note instead.');
     }
+    let line: ThreadAudience | null = null;
     await this.db.transaction(async (tx) => {
       await this.lifecycle.lock(tx, row.id);
       await this.lifecycle.event(tx, {
@@ -270,7 +275,11 @@ export class FaultsService {
         visibleToTenant: toTenant,
       });
       await this.faults.touch(tx, row.id);
+      if (toTenant && row.leaseId) {
+        line = (await this.messages?.faultLine(tx, { leaseId: row.leaseId, ticketId: row.id, senderUserId: userId, body: body.body })) ?? null;
+      }
     });
+    this.messages?.announce(line);
     if (toTenant) void this.notices.tenantReply(row, body.body);
     return this.detail(ws, id);
   }

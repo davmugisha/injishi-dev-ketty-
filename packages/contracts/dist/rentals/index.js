@@ -46,4 +46,6 @@ __exportStar(require("./faults"), exports);
 __exportStar(require("./expenses"), exports);
 // Rental income tax and lease filings with RRA (WP 4.4).
 __exportStar(require("./taxes"), exports);
+// Messages between a landlord and a tenant (P3.4).
+__exportStar(require("./messages"), exports);
 //# sourceMappingURL=index.js.map

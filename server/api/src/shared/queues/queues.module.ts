@@ -18,6 +18,8 @@ export const RENTALS_QUEUES = {
   rentalsHousekeeping: 'RentalsHousekeeping',
   guestRouting: 'GuestRouting',
   brokerPlans: 'BrokerPlans',
+  /** Rentals P3.4: every two minutes, one email per reader for lease messages left unread. */
+  messageDigests: 'MessageDigests',
 } as const;
 
 /**
