@@ -1,27 +1,12 @@
 "use client";
 
 import { Alert, FieldError, Label, TextArea, TextField, toast } from "@heroui/react";
-import {
-  type IdKind,
-  LEASE_PAYMENT_METHOD_LABEL,
-  type LeaseDetail,
-  RecordedPaymentMethod,
-  RWANDA_CODE,
-} from "@injishi/contracts";
-import {
-  BoundedDatePicker,
-  EmailInput,
-  FormDialog,
-  formatMoney,
-  Icon,
-  MoneyInput,
-  SelectField,
-  SidePanel,
-} from "@injishi/ui";
+import { type IdKind, type LeaseChargeView, type LeaseDetail, RWANDA_CODE } from "@injishi/contracts";
+import { EmailInput, FormDialog, formatDay, formatMoney, Icon, SidePanel } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { fieldErrorsOnly, TextInput } from "../rentals/fields";
-import { cancelLease, editLease, recordLeasePayment, resendInvitation } from "./actions";
+import { cancelLease, editLease, resendInvitation, sendRentReminder } from "./actions";
 import {
   OccupantsFields,
   occupantProblems,
@@ -173,107 +158,80 @@ export function CancelDialog({ lease, onClose }: { lease: LeaseDetail; onClose: 
   );
 }
 
-const METHOD_OPTIONS = RecordedPaymentMethod.options.map((m) => ({ id: m, label: LEASE_PAYMENT_METHOD_LABEL[m] }));
-
-/** Rent the landlord already received outside Injishi: it pays the oldest open charges first. */
-export function RecordPaymentDialog({
+/** Remind the tenant, by email, of everything still open on the lease, with a line of the landlord's own. */
+export function ReminderDialog({
   lease,
-  today,
+  open,
   onClose,
 }: {
   lease: LeaseDetail;
-  today: string;
+  /** The charges still owed (rent and deposit). */
+  open: LeaseChargeView[];
   onClose: () => void;
 }) {
   const router = useRouter();
-  const owed = Math.max(0, lease.charges.balanceRwf);
-  const [method, setMethod] = useState<string>("cash");
-  const [amount, setAmount] = useState<number | null>(owed > 0 ? owed : null);
-  const [receivedOn, setReceivedOn] = useState<string | null>(today);
-  const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const total = open.reduce((s, c) => s + c.outstandingRwf, 0);
   const submit = () =>
     start(async () => {
-      const next: Record<string, string> = {};
-      if (!amount || amount <= 0) next.amountRwf = "Enter the amount received.";
-      if (!receivedOn) next.receivedOn = "Pick the day it was received.";
-      setErrors(next);
-      if (Object.keys(next).length > 0) return;
-      const result = await recordLeasePayment({
-        leaseId: lease.id,
-        method,
-        amountRwf: amount,
-        receivedOn,
-        ...(reference.trim() ? { reference: reference.trim() } : {}),
+      const result = await sendRentReminder({
+        chargeIds: open.map((c) => c.id),
         ...(note.trim() ? { note: note.trim() } : {}),
       });
       if (!result.ok) {
-        setErrors(fieldErrorsOnly(result.fieldErrors));
-        setFormError(result.fieldErrors ? null : result.error);
+        setFormError(result.error);
         return;
       }
-      toast.success(`${formatMoney(result.value.amountRwf)} recorded`);
+      const { sent, skipped } = result.value;
+      if (sent.length === 0) {
+        setFormError(skipped[0]?.reason ?? "Nothing was sent.");
+        return;
+      }
+      toast.success(`Reminder sent to ${sent[0]?.emailedTo ?? lease.tenant.fullName}`);
       onClose();
       router.refresh();
     });
   return (
     <FormDialog
       isOpen
-      onOpenChange={(open) => (open ? undefined : onClose())}
-      title="Record a payment"
-      description="Money you received yourself: cash, a transfer, MoMo to your own number."
-      submitLabel="Record payment"
-      submitIcon="Wallet"
+      onOpenChange={(o) => (o ? undefined : onClose())}
+      title="Send a reminder"
+      description={`${lease.tenant.fullName} gets an email with what is owed and a link to pay.`}
+      submitLabel="Send reminder"
+      submitIcon="Bell"
       isPending={pending}
-      validationErrors={errors}
       formError={formError}
-      footerHint={owed > 0 ? `${formatMoney(owed)} is owed now. It pays the oldest charges first.` : undefined}
+      footerHint="One reminder per charge a day."
       onSubmit={(event) => {
         event.preventDefault();
         submit();
       }}
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <MoneyInput
-          label="Amount"
-          name="amountRwf"
-          value={amount}
-          onChange={setAmount}
-          minValue={1}
-          errorMessage={errors.amountRwf}
-          isRequired
-        />
-        <BoundedDatePicker
-          label="Received on"
-          name="receivedOn"
-          value={receivedOn}
-          onChange={setReceivedOn}
-          minValue={lease.terms.startDate}
-          maxValue={today}
-          errorMessage={errors.receivedOn}
-          isRequired
-        />
-      </div>
-      <SelectField
-        label="How"
-        name="method"
-        options={METHOD_OPTIONS}
-        value={method}
-        onChange={setMethod}
-        errorMessage={errors.method}
-      />
+      <ul className="flex flex-col gap-1 text-sm">
+        {open.map((c) => (
+          <li key={c.id} className="flex justify-between gap-6">
+            <span>
+              {c.label}
+              <span className="text-muted"> · due {formatDay(c.dueOn)}</span>
+            </span>
+            <span className="tabular">{formatMoney(c.outstandingRwf)}</span>
+          </li>
+        ))}
+        <li className="flex justify-between gap-6 border-t border-separator pt-1 font-semibold">
+          <span>Owed</span>
+          <span className="tabular">{formatMoney(total)}</span>
+        </li>
+      </ul>
       <TextInput
-        label="Reference"
-        name="reference"
-        value={reference}
-        onChange={setReference}
-        description="The slip or MoMo reference, if there is one."
-        errorMessage={errors.reference}
+        label="A line of your own"
+        name="note"
+        value={note}
+        onChange={setNote}
+        multiline
+        description="Optional. Added under the reminder."
       />
-      <TextInput label="Note" name="note" value={note} onChange={setNote} multiline errorMessage={errors.note} />
     </FormDialog>
   );
 }

@@ -39,7 +39,7 @@ import { type ReactNode, useEffect, useState, useTransition } from "react";
 import { settingsHref } from "../rentals/shared";
 import { reloadLeaseContract, requestLandlordSigningCode, signLeaseAsLandlord, startTenancy } from "./actions";
 import { ContractDocument } from "./ContractDocument";
-import { CancelDialog, EditLeasePanel, RecordPaymentDialog, ResendDialog } from "./LeaseDialogs";
+import { CancelDialog, EditLeasePanel, ReminderDialog, ResendDialog } from "./LeaseDialogs";
 import { SigningPanel } from "./SigningPanel";
 import {
   cancellable,
@@ -55,7 +55,7 @@ import {
   timelineOf,
 } from "./shared";
 
-export type RecordOpen = "sign" | "resend" | "start" | "pay" | "edit" | "cancel";
+export type RecordOpen = "sign" | "resend" | "start" | "remind" | "edit" | "cancel";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -191,8 +191,9 @@ export function LeaseRecordView({
 
   const ready = lease.contractProblems.length === 0 && doc !== null;
   const canStartNow = lease.terms.startDate <= today;
-  const canRecordNow =
-    can.record && (lease.status === "active" || lease.status === "ending" || lease.status === "signed") && canStartNow;
+  // Rent is paid only through the payment integration; the landlord reminds, never records.
+  const openCharges = (charges ?? []).filter((c) => c.status === "open" && c.outstandingRwf > 0);
+  const canRemind = can.record && (lease.status === "active" || lease.status === "ending" || lease.status === "signed");
 
   // A step the list asked for (`?open=`) opens once, then leaves the URL.
   useEffect(() => {
@@ -201,7 +202,7 @@ export function LeaseRecordView({
       (open === "sign" && lease.status === "draft" && can.sign && ready) ||
       (open === "resend" && lease.status === "pending_signature" && can.manage) ||
       (open === "start" && lease.status === "signed" && can.manage && canStartNow) ||
-      (open === "pay" && canRecordNow) ||
+      (open === "remind" && canRemind && openCharges.length > 0) ||
       (open === "edit" && editable(lease.status) && can.manage) ||
       (open === "cancel" && cancellable(lease.status) && can.manage);
     if (allowed) setPanel(open);
@@ -209,7 +210,7 @@ export function LeaseRecordView({
     params.delete("open");
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [open, lease.status, can, ready, canStartNow, canRecordNow, pathname, router]);
+  }, [open, lease.status, can, ready, canStartNow, canRemind, openCharges.length, pathname, router]);
 
   const goTab = (key: string) => {
     const params = new URLSearchParams(window.location.search);
@@ -251,10 +252,15 @@ export function LeaseRecordView({
         Start the tenancy
       </ActionButton>
     );
-  } else if ((lease.status === "active" || lease.status === "ending") && canRecordNow) {
+  } else if ((lease.status === "active" || lease.status === "ending") && canRemind) {
     main = (
-      <ActionButton icon="Wallet" intent="primary" onPress={() => setPanel("pay")}>
-        Record a payment
+      <ActionButton
+        icon="Bell"
+        intent="primary"
+        isDisabled={openCharges.length === 0}
+        onPress={() => setPanel("remind")}
+      >
+        Send a reminder
       </ActionButton>
     );
   }
@@ -595,17 +601,7 @@ export function LeaseRecordView({
             >
               <ChargesTable charges={charges} />
             </SectionCard>
-            <SectionCard
-              title="Payments"
-              actions={
-                canRecordNow && lease.status === "signed" ? (
-                  <ActionButton size="sm" icon="Plus" onPress={() => setPanel("pay")}>
-                    Record a payment
-                  </ActionButton>
-                ) : null
-              }
-              contentClassName="gap-0"
-            >
+            <SectionCard title="Payments" contentClassName="gap-0">
               <PaymentsTable payments={payments} />
             </SectionCard>
           </div>
@@ -681,7 +677,7 @@ export function LeaseRecordView({
       ) : null}
       {panel === "resend" ? <ResendDialog lease={lease} onClose={() => setPanel(null)} /> : null}
       {panel === "cancel" ? <CancelDialog lease={lease} onClose={() => setPanel(null)} /> : null}
-      {panel === "pay" ? <RecordPaymentDialog lease={lease} today={today} onClose={() => setPanel(null)} /> : null}
+      {panel === "remind" ? <ReminderDialog lease={lease} open={openCharges} onClose={() => setPanel(null)} /> : null}
       {panel === "edit" ? (
         <EditLeasePanel lease={lease} today={today} autoStart={autoStart} onClose={() => setPanel(null)} />
       ) : null}

@@ -56,7 +56,7 @@ function nextStep(
         : { icon: "CirclePlay", label: "Start the tenancy", open: "start" };
     case "active":
     case "ending":
-      return can.record ? { icon: "Wallet", label: "Record a payment", open: "pay" } : null;
+      return can.record ? { icon: "Bell", label: "Send a reminder", open: "remind" } : null;
     default:
       return null;
   }

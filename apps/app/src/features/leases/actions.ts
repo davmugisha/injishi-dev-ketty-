@@ -2,7 +2,8 @@
 
 /**
  * The landlord's lease writes (WP 2.4, 2.5): drafting, editing and cancelling a lease, signing it, the
- * tenant's invitation, starting the tenancy, and recording rent received outside Injishi. Each checks its
+ * tenant's invitation, starting the tenancy, and reminding the tenant of rent owed (rent is paid only
+ * through the payment integration). Each checks its
  * input with the contracts schema the API checks with, runs in the business this request acts in, and
  * answers in words for a toast or under a field. Every rentals screen is refreshed after a change.
  */
@@ -12,8 +13,8 @@ import {
   EditLeaseRequest,
   type LeaseContractView,
   type LeaseDetail,
-  type LeasePaymentView,
-  RecordLeasePaymentRequest,
+  type RemindersSent,
+  RemindRentRequest,
   ResendInvitationRequest,
   type SigningCodeSent,
   SignLeaseRequest,
@@ -21,16 +22,7 @@ import {
   type TenantView,
 } from "@injishi/contracts";
 import { revalidatePath } from "next/cache";
-import {
-  type ActionResult,
-  idempotencyKey,
-  invalid,
-  parse,
-  runLandlord,
-  UUID,
-  visitor,
-  ws,
-} from "@/server/rentals/action-kit";
+import { type ActionResult, invalid, parse, runLandlord, UUID, visitor, ws } from "@/server/rentals/action-kit";
 
 const NO_LEASE = "That lease was not found.";
 
@@ -118,16 +110,9 @@ export async function searchTenants(q: string): Promise<ActionResult<TenantView[
   });
 }
 
-/** Rent the landlord received outside Injishi (cash, a transfer, MoMo to their own number). */
-export async function recordLeasePayment(input: unknown): Promise<ActionResult<LeasePaymentView>> {
-  const parsed = parse(RecordLeasePaymentRequest, input);
+/** Remind the tenant of these open charges now, by email (one manual reminder per charge a day). */
+export async function sendRentReminder(input: unknown): Promise<ActionResult<RemindersSent>> {
+  const parsed = parse(RemindRentRequest, input);
   if (!parsed.ok) return invalid(parsed.error);
-  return changed(
-    await runLandlord((s) =>
-      s.api.post<LeasePaymentView>("/api/v1/ops/rent/payments", parsed.data, {
-        ...ws(s),
-        idempotencyKey: idempotencyKey(),
-      }),
-    ),
-  );
+  return changed(await runLandlord((s) => s.api.post<RemindersSent>("/api/v1/ops/rent/reminders", parsed.data, ws(s))));
 }

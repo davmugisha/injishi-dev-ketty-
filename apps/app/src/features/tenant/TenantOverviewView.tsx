@@ -248,11 +248,11 @@ export function TenantOverviewView({
                 {payments.slice(0, 3).map((p) => (
                   <li key={p.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                     <span className="flex min-w-0 flex-col">
-                      <span className="text-sm font-medium">
-                        {LEASE_PAYMENT_METHOD_LABEL[p.method]}
+                      <span className="text-sm font-medium">{LEASE_PAYMENT_METHOD_LABEL[p.method]}</span>
+                      <span className="text-xs text-muted">
+                        {formatDay(p.paidOn ?? p.createdAt)}
                         {p.receiptNumber ? ` · ${p.receiptNumber}` : ""}
                       </span>
-                      <span className="text-xs text-muted">{formatDay(p.paidOn ?? p.createdAt)}</span>
                     </span>
                     <span className="flex items-center gap-3">
                       <Money value={p.amountRwf} />

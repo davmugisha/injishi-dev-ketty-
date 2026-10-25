@@ -12,9 +12,9 @@ import { leaseCharges, leaseContract, leaseDetail, leaseEvents, leasePayments } 
 export const metadata: Metadata = { title: screens.LeaseRecord.pageTitle };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const OPEN: readonly RecordOpen[] = ["sign", "resend", "start", "pay", "edit", "cancel"];
+const OPEN: readonly RecordOpen[] = ["sign", "resend", "start", "remind", "edit", "cancel"];
 
-/** One lease: `?tab=` picks the tab; `?open=` opens a step once (sign, resend, start, pay, edit, cancel). */
+/** One lease: `?tab=` picks the tab; `?open=` opens a step once (sign, resend, start, remind, edit, cancel). */
 export default async function LeaseRecordPage({
   params,
   searchParams,
