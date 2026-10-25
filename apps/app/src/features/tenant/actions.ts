@@ -7,9 +7,11 @@
  */
 import {
   AcceptLeaseInvitationRequest,
+  BrokerRatingRequest,
   type LeaseContractView,
   type SigningCodeSent,
   SignLeaseRequest,
+  type TenancyBrokerView,
   type TenancyDetail,
   type TenantPaymentView,
   TenantPayRequest,
@@ -99,4 +101,18 @@ export async function pollPayment(leaseId: string, paymentId: string): Promise<A
   );
   if (result.ok && result.value.status !== "pending") revalidatePath("/", "layout");
   return result;
+}
+
+/** Rate the broker who found the home, once the tenancy has started (2026-10-25). */
+export async function rateBrokerAsTenant(leaseId: string, input: unknown): Promise<ActionResult<TenancyBrokerView>> {
+  if (!UUID.test(leaseId)) return { ok: false, error: NO_LEASE };
+  const parsed = parse(BrokerRatingRequest, input);
+  if (!parsed.ok) return invalid(parsed.error);
+  const api = await currentApi();
+  return changed(
+    await runPerson(
+      () => api.post<TenancyBrokerView>(`/api/v1/me/tenancies/${leaseId}/broker-rating`, parsed.data),
+      NO_LEASE,
+    ),
+  );
 }

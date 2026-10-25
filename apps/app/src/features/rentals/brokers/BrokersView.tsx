@@ -23,12 +23,12 @@ import {
   PersonCell,
   RowActions,
   SearchBar,
+  Stars,
   StatusChip,
   TextLink,
 } from "@injishi/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Stars } from "../../leases/LeaseBrokerCard";
 import { leaseHref } from "../../leases/shared";
 
 export type BrokersShow = "open" | "leased" | "all";

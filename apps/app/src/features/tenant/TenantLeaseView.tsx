@@ -22,6 +22,7 @@ import { ContractDocument } from "../leases/ContractDocument";
 import { SigningPanel } from "../leases/SigningPanel";
 import { contractOf, placeWords, SIGNING_METHOD_WORDS, tenantPdfHref, timelineOf } from "../leases/shared";
 import { reloadTenancyContract, requestTenantSigningCode, signLeaseAsTenant } from "./actions";
+import { TenantBrokerCard } from "./TenantBrokerCard";
 
 /**
  * The tenant's lease (P3.2): the contract as it was frozen, the PDF (the signed copy once both signed),
@@ -137,6 +138,7 @@ export function TenantLeaseView({
               ]}
             />
           </SectionCard>
+          <TenantBrokerCard tenancy={tenancy} />
           <SectionCard title="Timeline">
             {events.length === 0 ? (
               <p className="text-sm text-muted">Nothing yet.</p>
