@@ -52,7 +52,10 @@ function currentSeedHash(): string {
 export async function seed(db: Db, client: Client): Promise<{ users: number; collections: number; documents: number }> {
   const now = new Date();
   const collections = allCollections();
-  const userRows = Object.values(personas).map((p) => ({
+  // Only demo people get a fixture user. The `landlord` and `tenant` personas
+  // are surfaces for real accounts and carry no email (2026-10-25); two empty
+  // emails would collide on `UNIQUE(email)` and stop every page from seeding.
+  const userRows = Object.values(personas).filter((p) => p.email.trim() !== "").map((p) => ({
     id: p.id,
     name: p.name,
     email: p.email,
