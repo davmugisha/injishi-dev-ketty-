@@ -363,33 +363,6 @@ export function paymentReceivedLandlordMail(input: PaymentReceivedLandlordMailIn
   };
 }
 
-/** To the tenant, when the landlord reversed a recorded payment. */
-export function paymentReversedMail(input: {
-  appUrl: string;
-  leaseId: string;
-  tenantName: string;
-  landlordName: string;
-  home: { unitLabel: string; propertyName: string };
-  amountRwf: number;
-  receiptNumber: string | null;
-  reason: string;
-  outstandingRwf: number;
-}): RentalsMail {
-  const where = homeWords(input.home);
-  return {
-    subject: `A payment on your lease for ${where} was reversed`,
-    heading: 'A payment was reversed',
-    lines: [
-      `Hello ${firstName(input.tenantName)},`,
-      `${input.landlordName} reversed a recorded payment of ${formatRwf(input.amountRwf)}${input.receiptNumber ? ` (receipt ${input.receiptNumber})` : ''} on your lease for ${where}.`,
-      `The reason they gave: ${input.reason}`,
-      input.outstandingRwf > 0 ? `You now owe ${formatRwf(input.outstandingRwf)}.` : 'Nothing is owed right now.',
-      'If this is wrong, reply to your landlord.',
-    ],
-    action: { label: 'Open my lease', url: tenantLeaseLink(input.appUrl, input.leaseId) },
-  };
-}
-
 // --- Rendering ------------------------------------------------------------------------
 
 /** `2026-11-01` as `November 2026`. */

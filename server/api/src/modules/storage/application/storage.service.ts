@@ -572,40 +572,6 @@ export class StorageService {
     return this.putRendered('payment_receipt', 'application/pdf', input);
   }
 
-  /**
-   * Store the photo or scan of a slip a landlord attaches to a recorded
-   * payment (WP 1.6a): an upload, so the bytes are sniffed and the mime kept
-   * to a PDF or an image, at most 10 MB.
-   */
-  async putPaymentSlip(input: {
-    body: Buffer;
-    mime: string;
-    filename: string;
-    workspaceId: string;
-    uploadedByUserId: string;
-  }): Promise<{ objectKey: string; id: string }> {
-    const mime = input.mime.split(';')[0].trim().toLowerCase();
-    if (!CERTIFICATE_MIME_TYPES.includes(mime)) throw new BadRequestException('A slip must be a PDF, JPEG, PNG or WebP.');
-    if (input.body.byteLength === 0) throw new BadRequestException('That file is empty.');
-    if (input.body.byteLength > MAX_CERTIFICATE_BYTES) throw new BadRequestException('A slip must be 10 MB or smaller.');
-    if (sniffMime(input.body) !== mime) throw new BadRequestException('That file is not what its type says it is.');
-    const kind = 'payment_receipt' as const;
-    const put = await this.storage.put({ body: input.body, mime, filename: input.filename, kind });
-    const [row] = await this.db
-      .insert(storedObjects)
-      .values({
-        objectKey: put.objectKey,
-        kind,
-        mime,
-        sizeBytes: put.sizeBytes,
-        uploadedByUserId: input.uploadedByUserId,
-        workspaceId: input.workspaceId,
-      })
-      .returning({ id: storedObjects.id });
-    if (!row) throw new Error('stored object insert returned nothing');
-    return { objectKey: put.objectKey, id: row.id };
-  }
-
   /** A file this process rendered: stored under a stable key and recorded once. */
   private async putRendered(
     kind: 'payment_receipt',

@@ -99,15 +99,12 @@ describe("receipt numbers", () => {
 });
 
 describe("the requests", () => {
-  test("a recorded payment names a lease, a method, francs and a day", () => {
-    const ok = c.RecordLeasePaymentRequest.safeParse({ leaseId: "c0057a6c-6b10-4e75-a353-8ade84226697", method: "cash", amountRwf: 50_000, receivedOn: "2026-10-24" });
-    assert.equal(ok.success, true);
-    assert.equal(c.RecordLeasePaymentRequest.safeParse({ leaseId: "x", method: "cash", amountRwf: 50_000, receivedOn: "2026-10-24" }).success, false);
-    assert.equal(c.RecordLeasePaymentRequest.safeParse({ leaseId: "c0057a6c-6b10-4e75-a353-8ade84226697", method: "card", amountRwf: 1, receivedOn: "2026-10-24" }).success, false);
-    assert.equal(c.RecordLeasePaymentRequest.safeParse({ leaseId: "c0057a6c-6b10-4e75-a353-8ade84226697", method: "cash", amountRwf: 0, receivedOn: "2026-10-24" }).success, false);
+  test("there is no request to record or reverse rent paid outside Injishi", () => {
+    assert.equal(c.RecordLeasePaymentRequest, undefined);
+    assert.equal(c.ReverseRentPaymentRequest, undefined);
   });
-  test("a reversal and a waiver say why", () => {
-    assert.equal(c.ReverseRentPaymentRequest.safeParse({ reason: "no" }).success, false);
+  test("a waiver says why", () => {
+    assert.equal(c.WaiveChargeRequest.safeParse({ reason: "no" }).success, false);
     assert.equal(c.WaiveChargeRequest.safeParse({ reason: "Roof repairs" }).success, true);
   });
   test("a manual reminder names charges once each", () => {

@@ -74,52 +74,6 @@ export declare function paymentStatusWords(status: LeasePaymentStatus, opts?: {
 export declare function receiptNumber(year: number, n: number): string;
 /** The number after the highest `R-<year>-<n>` in `taken`, for that year. */
 export declare function nextReceiptNumber(year: number, taken: readonly string[]): string;
-/** The ways a landlord records money they already hold. The gateway's own methods are recorded too, when paid to the landlord's own number. */
-export declare const RecordedPaymentMethod: z.ZodEnum<["cash", "bank_transfer", "mtn_momo", "airtel_money", "other"]>;
-export type RecordedPaymentMethod = z.infer<typeof RecordedPaymentMethod>;
-/**
- * `POST /ops/rent/payments` (Idempotency-Key): money the landlord received
- * outside Injishi. It pays the open charges oldest due first, or exactly the
- * charges named; whatever is left is the tenant's credit. The day received is
- * a Kigali day that has happened, on or after the lease started.
- */
-export declare const RecordLeasePaymentRequest: z.ZodObject<{
-    leaseId: z.ZodString;
-    method: z.ZodEnum<["cash", "bank_transfer", "mtn_momo", "airtel_money", "other"]>;
-    amountRwf: z.ZodNumber;
-    receivedOn: z.ZodEffects<z.ZodString, string, string>;
-    /** The bank slip, MoMo or Airtel reference, as written on it. */
-    reference: z.ZodOptional<z.ZodString>;
-    note: z.ZodOptional<z.ZodString>;
-    /** The charges this pays. Absent: the open ones, oldest due first. */
-    chargeIds: z.ZodOptional<z.ZodEffects<z.ZodArray<z.ZodString, "many">, string[], string[]>>;
-}, "strip", z.ZodTypeAny, {
-    amountRwf: number;
-    leaseId: string;
-    method: "other" | "mtn_momo" | "airtel_money" | "cash" | "bank_transfer";
-    receivedOn: string;
-    note?: string | undefined;
-    reference?: string | undefined;
-    chargeIds?: string[] | undefined;
-}, {
-    amountRwf: number;
-    leaseId: string;
-    method: "other" | "mtn_momo" | "airtel_money" | "cash" | "bank_transfer";
-    receivedOn: string;
-    note?: string | undefined;
-    reference?: string | undefined;
-    chargeIds?: string[] | undefined;
-}>;
-export type RecordLeasePaymentRequest = z.infer<typeof RecordLeasePaymentRequest>;
-/** `POST /ops/rent/payments/:id/reverse`: a recorded payment written by mistake. */
-export declare const ReverseRentPaymentRequest: z.ZodObject<{
-    reason: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    reason: string;
-}, {
-    reason: string;
-}>;
-export type ReverseRentPaymentRequest = z.infer<typeof ReverseRentPaymentRequest>;
 /** `POST /ops/rent/charges/:id/waive`: the landlord forgives an open charge. */
 export declare const WaiveChargeRequest: z.ZodObject<{
     reason: z.ZodString;

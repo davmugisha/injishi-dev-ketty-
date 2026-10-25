@@ -6,7 +6,6 @@ import { renderReceiptPdf } from '../domain/receipt-pdf';
 import {
   paymentReceiptMail,
   paymentReceivedLandlordMail,
-  paymentReversedMail,
   type PaymentMailInput,
 } from '../domain/rentals-mail';
 import { LeasePaymentsRepository, type PaymentRecord } from '../infrastructure/lease-payments.repository';
@@ -88,38 +87,6 @@ export class PaymentReceiptsService {
       return await this.mailer.send(`payment ${paymentId} landlord`, to, paymentReceivedLandlordMail({ ...input, leaseReference: lease.lease.reference, payoutWords }));
     } catch (cause) {
       this.log.error(`"rent received" email for payment ${paymentId} failed: ${String(cause)}`);
-      return false;
-    }
-  }
-
-  /** Tell the tenant a recorded payment was reversed. */
-  async mailTenantReversed(paymentId: string, reason: string): Promise<boolean> {
-    try {
-      const record = await this.payments.record(paymentId);
-      if (!record) return false;
-      const lease = await this.leases.find(record.payment.leaseId);
-      if (!lease) return false;
-      const to = await this.tenantAddress(lease);
-      if (!to) return false;
-      const org = await this.context.org(lease.lease.orgId);
-      const outstandingRwf = await this.outstanding(lease.lease.id);
-      return await this.mailer.send(
-        `payment ${paymentId} reversed`,
-        to,
-        paymentReversedMail({
-          appUrl: this.mailer.appUrl,
-          leaseId: lease.lease.id,
-          tenantName: lease.tenant.fullName,
-          landlordName: org.legalName,
-          home: { unitLabel: lease.unitLabel, propertyName: lease.propertyName },
-          amountRwf: record.payment.amountRwf,
-          receiptNumber: record.payment.receiptNumber,
-          reason,
-          outstandingRwf,
-        }),
-      );
-    } catch (cause) {
-      this.log.error(`"payment reversed" email for payment ${paymentId} failed: ${String(cause)}`);
       return false;
     }
   }

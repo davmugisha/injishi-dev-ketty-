@@ -1,10 +1,8 @@
 import {
-  RecordLeasePaymentRequest,
   RentChargesQuery,
   RentMonthQuery,
   RentPaymentsQuery,
   RentRemindersQuery,
-  ReverseRentPaymentRequest,
   RemindRentRequest,
   WaiveChargeRequest,
   type LeaseChargeList,
@@ -16,7 +14,7 @@ import {
   type RentRoll,
   type RentSummary,
 } from '@injishi/contracts';
-import { BadRequestException, Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 
 import { RentPaymentsService } from '../../../../modules/rentals/application/rent-payments.service';
 import { RentReadsService } from '../../../../modules/rentals/application/rent-reads.service';
@@ -29,27 +27,18 @@ import {
   RequirePermission,
   WorkspaceGuard,
 } from '../../../../shared/auth/workspace.guard';
-import { IdempotencyKey } from '../../../../shared/http/idempotency-key';
 import { ZodValidationPipe } from '../../../../shared/validation/zod-validation.pipe';
-import { UploadThrottlerGuard } from '../../uploads/upload-throttler.guard';
-
-/** The slice of the Fastify request the slip upload touches (see `uploads.controller.ts`). */
-interface MultipartRequest {
-  isMultipart?: () => boolean;
-  file?: (options?: { limits?: { fileSize?: number } }) => Promise<{ filename?: string; mimetype?: string; file?: { truncated?: boolean }; toBuffer: () => Promise<Buffer> } | undefined>;
-}
-
-const SLIP_MAX_BYTES = 10 * 1024 * 1024;
 
 /**
  * Rent → /api/v1/ops/rent (blueprint 2.3 "Rent"; WP 1.6a). Residence
  * businesses only.
  *
  * The reads (the roll, charges, payments, reminders, the month's figures)
- * admit whoever records rent or reads the money. Recording a payment, a slip
- * on it, reversing it and reminding tenants are `rent.record`; a payment
- * takes an `Idempotency-Key`, so a retried press records it once. Waiving a
- * charge forgives money and is `lease.manage`.
+ * admit whoever works rent or reads the money; reminding tenants is
+ * `rent.record`. Rent is paid only through the payment integration
+ * (2026-10-25): there is no route to record, reverse or slip a payment made
+ * outside Injishi, and those recorded before are read as "Recorded". Waiving
+ * a charge forgives money and is `lease.manage`.
  */
 @Controller({ path: 'ops/rent', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
@@ -96,56 +85,10 @@ export class OpsRentController {
     return this.reads.payments(workspace, query);
   }
 
-  /** Record money received outside Injishi. It pays the open charges oldest due first, or the charges named. */
-  @Post('payments')
-  @RequirePermission('rent.record')
-  record(
-    @Body(new ZodValidationPipe(RecordLeasePaymentRequest)) body: RecordLeasePaymentRequest,
-    @IdempotencyKey() key: string,
-    @CurrentWorkspace() workspace: ScopedWorkspace,
-    @CurrentUser() user: SessionUser,
-  ): Promise<LeasePaymentView> {
-    return this.payments.record(workspace, user.id, key, body);
-  }
-
   @Get('payments/:id')
   @RequireAnyPermission('rent.record', 'money.view')
   payment(@Param('id', ParseUUIDPipe) id: string, @CurrentWorkspace() workspace: ScopedWorkspace): Promise<LeasePaymentView> {
     return this.reads.payment(workspace, id);
-  }
-
-  /** Undo a recorded payment. Its charges reopen; the row stays, reversed, with the reason. */
-  @Post('payments/:id/reverse')
-  @HttpCode(200)
-  @RequirePermission('rent.record')
-  reverse(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(ReverseRentPaymentRequest)) body: ReverseRentPaymentRequest,
-    @CurrentWorkspace() workspace: ScopedWorkspace,
-    @CurrentUser() user: SessionUser,
-  ): Promise<LeasePaymentView> {
-    return this.payments.reverse(workspace, user.id, id, body);
-  }
-
-  /** Attach a photo or scan of the slip (one multipart file, `file`, at most 10 MB). */
-  @Post('payments/:id/receipt')
-  @HttpCode(200)
-  @RequirePermission('rent.record')
-  @UseGuards(UploadThrottlerGuard)
-  async slip(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() request: MultipartRequest,
-    @CurrentWorkspace() workspace: ScopedWorkspace,
-    @CurrentUser() user: SessionUser,
-  ): Promise<LeasePaymentView> {
-    if (typeof request.isMultipart !== 'function' || !request.isMultipart() || typeof request.file !== 'function') {
-      throw new BadRequestException('Send the slip as multipart/form-data.');
-    }
-    const part = await request.file({ limits: { fileSize: SLIP_MAX_BYTES } });
-    if (!part) throw new BadRequestException('Attach the slip as the file.');
-    const body = await part.toBuffer();
-    if (part.file?.truncated) throw new BadRequestException('A slip must be 10 MB or smaller.');
-    return this.payments.attachSlip(workspace, user.id, id, { body, mime: part.mimetype ?? 'application/octet-stream', filename: part.filename ?? 'slip' });
   }
 
   @Get('reminders')

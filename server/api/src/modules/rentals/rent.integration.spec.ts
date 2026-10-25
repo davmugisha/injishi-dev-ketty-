@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
-import { CreateLeaseRequest, addDays, addMonths, kigaliToday, raiseOn, rentSchedule } from '@injishi/contracts';
+import { CreateLeaseRequest, addDays, addMonths, kigaliToday } from '@injishi/contracts';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
@@ -112,11 +112,6 @@ maybe('the rent cycle against Postgres (RENTALS_IT_DATABASE_URL)', () => {
         const [row] = await db.select({ id: schema.storedObjects.id }).from(schema.storedObjects).where(eq(schema.storedObjects.objectKey, objectKey));
         return { id: row!.id, objectKey };
       },
-      putPaymentSlip: async () => {
-        const objectKey = `payment_receipt/slip-${randomUUID()}.png`;
-        const [row] = await db.insert(schema.storedObjects).values({ objectKey, kind: 'payment_receipt', mime: 'image/png' }).returning({ id: schema.storedObjects.id });
-        return { id: row!.id, objectKey };
-      },
     } as unknown as StorageService;
     const mailer = {
       appUrl: 'http://localhost:3002',
@@ -146,7 +141,7 @@ maybe('the rent cycle against Postgres (RENTALS_IT_DATABASE_URL)', () => {
       charges,
       cycle: new RentCycleService(db, new RentCycleRepository(db), leases, charges, paymentRows, lifecycle, events, audit),
       reminders: new RentRemindersService(db, reminderRows, leases, paymentRows, context, signingRepo, events, mailer),
-      recorded: new RentPaymentsService(db, paymentRows, leases, storage, receipts, events, audit),
+      recorded: new RentPaymentsService(db, paymentRows, leases, events, audit),
       reads: new RentReadsService(new RentRollRepository(db), paymentRows, reminderRows, leases, new RentalsOverviewRepository(db)),
       tenancies,
       paying: new TenantPaymentsService(db, tenancies, paymentRows, settlement, receipts, queue, adapter),
@@ -229,80 +224,13 @@ maybe('the rent cycle against Postgres (RENTALS_IT_DATABASE_URL)', () => {
     await pool?.end();
   });
 
-  it('records payments: exact, partial, overpaid as credit used on the next charge, chosen charges, and a reversal reopens', async () => {
+  it('waives an open charge with its reason, and nothing already paid (rent is paid on the gateway only)', async () => {
     const s = services();
-    const L = await activeLease(s, 'R-01', 300_000, 600_000);
-    const today = kigaliToday();
-    const key = (): string => randomUUID();
-
-    // Refusals: a day to come, a day before the lease, a charge not on the lease.
-    await expect(s.recorded.record(ws, userId, key(), { leaseId: L.leaseId, method: 'cash', amountRwf: 1000, receivedOn: addDays(today, 1) })).rejects.toThrow(BadRequestException);
-    await expect(s.recorded.record(ws, userId, key(), { leaseId: L.leaseId, method: 'cash', amountRwf: 1000, receivedOn: addDays(today, -1) })).rejects.toThrow(BadRequestException);
-    await expect(s.recorded.record(ws, userId, key(), { leaseId: L.leaseId, method: 'cash', amountRwf: 1000, receivedOn: today, chargeIds: [randomUUID()] })).rejects.toThrow(NotFoundException);
-
-    // Exact: the deposit (oldest due, deposit before rent on the same day).
-    const k1 = key();
-    const p1 = await s.recorded.record(ws, userId, k1, { leaseId: L.leaseId, method: 'bank_transfer', amountRwf: 600_000, receivedOn: today, reference: 'BK 1234' });
-    expect(p1).toMatchObject({ channel: 'recorded', status: 'succeeded', allocatedRwf: 600_000, creditRwf: 0, receiptNumber: `R-${today.slice(0, 4)}-0001` });
-    expect(p1.allocations.map((a) => [a.kind, a.amountRwf])).toEqual([['deposit', 600_000]]);
-    expect(await chargeRow(L.depositChargeId)).toEqual({ paid_rwf: 600_000, status: 'paid' });
-    const dep = await pool.query(`select status from lease_deposits where lease_id = $1`, [L.leaseId]);
-    expect(dep.rows[0].status).toBe('held');
-    // The same key answers the same payment and records nothing twice.
-    expect((await s.recorded.record(ws, userId, k1, { leaseId: L.leaseId, method: 'bank_transfer', amountRwf: 600_000, receivedOn: today })).id).toBe(p1.id);
-    expect((await pool.query(`select count(*)::int as n from lease_payments where lease_id = $1`, [L.leaseId])).rows[0].n).toBe(1);
-
-    // Partial on the rent, by the charge chosen.
-    const rentBefore = await chargeRow(L.rentChargeId);
-    const p2 = await s.recorded.record(ws, userId, key(), { leaseId: L.leaseId, method: 'cash', amountRwf: 50_000, receivedOn: today, chargeIds: [L.rentChargeId] });
-    expect(p2.allocations).toEqual([expect.objectContaining({ chargeId: L.rentChargeId, amountRwf: 50_000 })]);
-    expect(await chargeRow(L.rentChargeId)).toEqual({ paid_rwf: rentBefore.paid_rwf + 50_000, status: 'open' });
-    expect(p2.receiptNumber).toBe(`R-${today.slice(0, 4)}-0002`);
-
-    // Overpaid: the rest of the rent, and 100,000 kept as credit.
-    const owed = (await s.reads.charges(ws, { leaseId: L.leaseId })).charges.find((c) => c.id === L.rentChargeId)!.outstandingRwf;
-    const p3 = await s.recorded.record(ws, userId, key(), { leaseId: L.leaseId, method: 'mtn_momo', amountRwf: owed + 100_000, receivedOn: today });
-    expect(p3).toMatchObject({ allocatedRwf: owed, creditRwf: 100_000 });
-    expect((await chargeRow(L.rentChargeId)).status).toBe('paid');
-    const credits = await s.paymentRows.credits(L.leaseId);
-    expect(credits).toEqual([{ paymentId: p3.id, amountRwf: 100_000 }]);
-
-    // The next charge raised uses the credit first.
-    const schedule = rentSchedule({ startDate: today, endDate: addDays(addMonths(today, 12), -1), monthlyRentRwf: 300_000, rentDueDay: 5, billingStartsOn: today });
-    const next = schedule[1]!;
-    const run = await s.cycle.run(raiseOn(next));
-    const november = (await pool.query(`select id from lease_charges where lease_id = $1 and kind = 'rent' and period_start = $2`, [L.leaseId, next.periodStart])).rows[0]?.id as string;
-    expect(run.raised).toContain(november);
-    expect(run.creditAppliedRwf).toBeGreaterThanOrEqual(100_000);
-    expect(await chargeRow(november)).toEqual({ paid_rwf: 100_000, status: 'open' });
-    expect(await s.paymentRows.credits(L.leaseId)).toEqual([]);
-    // Running the same day again raises nothing.
-    const again = await s.cycle.run(raiseOn(next));
-    expect(again.raised).toEqual([]);
-
-    // Reverse the overpayment: the rent charge and the new one reopen, the credit is gone.
-    await expect(s.recorded.reverse(ws, userId, p3.id, { reason: 'Typed twice' })).resolves.toMatchObject({ status: 'reversed', reverseReason: 'Typed twice' });
-    expect(await chargeRow(L.rentChargeId)).toEqual({ paid_rwf: rentBefore.paid_rwf + 50_000, status: 'open' });
-    expect(await chargeRow(november)).toEqual({ paid_rwf: 0, status: 'open' });
-    await expect(s.recorded.reverse(ws, userId, p3.id, { reason: 'Again' })).rejects.toThrow(ConflictException);
-    const live = await pool.query(`select count(*)::int as n from lease_payment_allocations where payment_id = $1 and released_at is null`, [p3.id]);
-    expect(live.rows[0].n).toBe(0);
-
-    // The roll and the summary read what happened.
-    const roll = await s.reads.rentRoll(ws, { month: today.slice(0, 7) });
-    const row = roll.rows.find((r) => r.lease.id === L.leaseId)!;
-    expect(row.rollStatus).toBe('partly_paid');
-    expect(row.paidRwf).toBe(rentBefore.paid_rwf + 50_000);
-    const summary = await s.reads.summary(ws, { month: today.slice(0, 7) });
-    expect(summary.depositsCollectedRwf).toBeGreaterThanOrEqual(600_000);
-    const tenantMails = mails.filter((m) => m.subject.startsWith('Receipt '));
-    expect(tenantMails.length).toBeGreaterThanOrEqual(3);
-    expect(tenantMails[0]!.attachments).toBe(1);
-
-    // Waive what is left; a paid charge cannot be waived.
-    const waived = await s.recorded.waive(ws, userId, november, { reason: 'Roof repairs in that month' });
+    const L = await activeLease(s, 'R-01', 300_000, 0);
+    const waived = await s.recorded.waive(ws, userId, L.rentChargeId, { reason: 'Roof repairs in that month' });
     expect(waived).toMatchObject({ status: 'waived', outstandingRwf: 0 });
-    await expect(s.recorded.waive(ws, userId, L.depositChargeId, { reason: 'x' })).rejects.toThrow(ConflictException);
+    await expect(s.recorded.waive(ws, userId, L.rentChargeId, { reason: 'Again' })).rejects.toThrow(ConflictException);
+    await expect(s.recorded.waive(ws, userId, randomUUID(), { reason: 'x' })).rejects.toThrow(NotFoundException);
   });
 
   it('collects rent on the mock gateway: pending, settled, allocated, paid out once an account exists; declines and expires', async () => {

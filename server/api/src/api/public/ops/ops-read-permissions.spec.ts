@@ -664,17 +664,14 @@ describe('rentals home, location and unit media writes (WP 2.2, 2.3)', () => {
 });
 
 /**
- * The rent cycle's writes (WP 1.6a, 1.6b): recording a payment, a slip on it,
- * reversing it and reminding tenants are `rent.record` (owner, manager,
- * finance); forgiving a charge is `lease.manage`; sending a payout again is
+ * The rent cycle's writes (WP 1.6a, 1.6b): reminding tenants is
+ * `rent.record` (owner, manager, finance); rent is paid only through the
+ * payment integration, so no route records, reverses or slips a payment; forgiving a charge is `lease.manage`; sending a payout again is
  * `payout.manage`, the owner's by default.
  */
 describe('rent and payout writes (WP 1.6)', () => {
   const routes = handlers([OpsRentController, OpsPayoutsController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
   const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
-    'POST /ops/rent/payments': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
-    'POST /ops/rent/payments/:id/reverse': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
-    'POST /ops/rent/payments/:id/receipt': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
     'POST /ops/rent/reminders': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
     'POST /ops/rent/charges/:id/waive': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
     'POST /ops/payouts/:id/retry': { allOf: ['payout.manage'], roles: ['owner'] },

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TenantPaymentList = exports.TenantPaymentView = exports.TenantChargeList = exports.PayoutList = exports.PayoutView = exports.RemindersSent = exports.LeaseReminderList = exports.LeaseReminderView = exports.RentSummary = exports.RentRoll = exports.RentRollRow = exports.RENT_ROLL_STATUS_LABEL = exports.RentRollStatus = exports.LeaseChargeList = exports.LeasePaymentList = exports.LeasePaymentView = exports.PaymentPayoutView = exports.PaymentAllocationView = exports.LeaseChargeView = exports.TenantPayRequest = exports.TenantPaymentMethod = exports.PayoutsQuery = exports.PAYOUT_STATUS_LABEL = exports.PayoutStatus = exports.RentRemindersQuery = exports.RentPaymentsQuery = exports.RentChargesQuery = exports.ChargeFilterStatus = exports.RentMonthQuery = exports.RemindRentRequest = exports.WaiveChargeRequest = exports.ReverseRentPaymentRequest = exports.RecordLeasePaymentRequest = exports.RecordedPaymentMethod = exports.MAX_PAYMENT_CHARGE_IDS = exports.GATEWAY_PROMPT_MINUTES = exports.MANUAL_REMINDERS_PER_DAY = exports.REMINDER_HOURS = exports.OVERDUE_REMINDER_DAYS = exports.RENT_REMINDER_DAYS_BEFORE = void 0;
+exports.TenantPaymentList = exports.TenantPaymentView = exports.TenantChargeList = exports.PayoutList = exports.PayoutView = exports.RemindersSent = exports.LeaseReminderList = exports.LeaseReminderView = exports.RentSummary = exports.RentRoll = exports.RentRollRow = exports.RENT_ROLL_STATUS_LABEL = exports.RentRollStatus = exports.LeaseChargeList = exports.LeasePaymentList = exports.LeasePaymentView = exports.PaymentPayoutView = exports.PaymentAllocationView = exports.LeaseChargeView = exports.TenantPayRequest = exports.TenantPaymentMethod = exports.PayoutsQuery = exports.PAYOUT_STATUS_LABEL = exports.PayoutStatus = exports.RentRemindersQuery = exports.RentPaymentsQuery = exports.RentChargesQuery = exports.ChargeFilterStatus = exports.RentMonthQuery = exports.RemindRentRequest = exports.WaiveChargeRequest = exports.MAX_PAYMENT_CHARGE_IDS = exports.GATEWAY_PROMPT_MINUTES = exports.MANUAL_REMINDERS_PER_DAY = exports.REMINDER_HOURS = exports.OVERDUE_REMINDER_DAYS = exports.RENT_REMINDER_DAYS_BEFORE = void 0;
 exports.kigaliHour = kigaliHour;
 exports.withinReminderHours = withinReminderHours;
 exports.reminderStageFor = reminderStageFor;
@@ -163,27 +163,9 @@ const ChargeIds = zod_1.z
     .array(primitives_1.Uuid)
     .max(exports.MAX_PAYMENT_CHARGE_IDS, `Pick at most ${exports.MAX_PAYMENT_CHARGE_IDS} charges.`)
     .refine((ids) => new Set(ids).size === ids.length, "A charge is named twice.");
-/** The ways a landlord records money they already hold. The gateway's own methods are recorded too, when paid to the landlord's own number. */
-exports.RecordedPaymentMethod = zod_1.z.enum(["cash", "bank_transfer", "mtn_momo", "airtel_money", "other"]);
-/**
- * `POST /ops/rent/payments` (Idempotency-Key): money the landlord received
- * outside Injishi. It pays the open charges oldest due first, or exactly the
- * charges named; whatever is left is the tenant's credit. The day received is
- * a Kigali day that has happened, on or after the lease started.
- */
-exports.RecordLeasePaymentRequest = zod_1.z.object({
-    leaseId: primitives_1.Uuid,
-    method: exports.RecordedPaymentMethod,
-    amountRwf: vocab_1.PositiveRwf,
-    receivedOn: dates_1.CalendarDay,
-    /** The bank slip, MoMo or Airtel reference, as written on it. */
-    reference: zod_1.z.string().trim().max(120, "Keep the reference under 120 characters.").optional(),
-    note: zod_1.z.string().trim().max(500, "Keep the note under 500 characters.").optional(),
-    /** The charges this pays. Absent: the open ones, oldest due first. */
-    chargeIds: ChargeIds.optional(),
-});
-/** `POST /ops/rent/payments/:id/reverse`: a recorded payment written by mistake. */
-exports.ReverseRentPaymentRequest = zod_1.z.object({ reason: Reason });
+// Rent is paid only through the payment integration (2026-10-25): there is no
+// request to record, reverse or slip a payment made outside Injishi. Payments
+// recorded before (channel `recorded`) are still read and shown as "Recorded".
 /** `POST /ops/rent/charges/:id/waive`: the landlord forgives an open charge. */
 exports.WaiveChargeRequest = zod_1.z.object({ reason: Reason });
 /** `POST /ops/rent/reminders`: remind the tenants of these open charges now, by email. */

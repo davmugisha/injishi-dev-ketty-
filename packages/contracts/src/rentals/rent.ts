@@ -189,32 +189,9 @@ const ChargeIds = z
   .max(MAX_PAYMENT_CHARGE_IDS, `Pick at most ${MAX_PAYMENT_CHARGE_IDS} charges.`)
   .refine((ids) => new Set(ids).size === ids.length, "A charge is named twice.");
 
-/** The ways a landlord records money they already hold. The gateway's own methods are recorded too, when paid to the landlord's own number. */
-export const RecordedPaymentMethod = z.enum(["cash", "bank_transfer", "mtn_momo", "airtel_money", "other"]);
-export type RecordedPaymentMethod = z.infer<typeof RecordedPaymentMethod>;
-
-/**
- * `POST /ops/rent/payments` (Idempotency-Key): money the landlord received
- * outside Injishi. It pays the open charges oldest due first, or exactly the
- * charges named; whatever is left is the tenant's credit. The day received is
- * a Kigali day that has happened, on or after the lease started.
- */
-export const RecordLeasePaymentRequest = z.object({
-  leaseId: Uuid,
-  method: RecordedPaymentMethod,
-  amountRwf: PositiveRwf,
-  receivedOn: CalendarDay,
-  /** The bank slip, MoMo or Airtel reference, as written on it. */
-  reference: z.string().trim().max(120, "Keep the reference under 120 characters.").optional(),
-  note: z.string().trim().max(500, "Keep the note under 500 characters.").optional(),
-  /** The charges this pays. Absent: the open ones, oldest due first. */
-  chargeIds: ChargeIds.optional(),
-});
-export type RecordLeasePaymentRequest = z.infer<typeof RecordLeasePaymentRequest>;
-
-/** `POST /ops/rent/payments/:id/reverse`: a recorded payment written by mistake. */
-export const ReverseRentPaymentRequest = z.object({ reason: Reason });
-export type ReverseRentPaymentRequest = z.infer<typeof ReverseRentPaymentRequest>;
+// Rent is paid only through the payment integration (2026-10-25): there is no
+// request to record, reverse or slip a payment made outside Injishi. Payments
+// recorded before (channel `recorded`) are still read and shown as "Recorded".
 
 /** `POST /ops/rent/charges/:id/waive`: the landlord forgives an open charge. */
 export const WaiveChargeRequest = z.object({ reason: Reason });
