@@ -29,6 +29,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { bedroomsWords, settingsHref } from "../rentals/shared";
 import { createLease, searchTenants } from "./actions";
+import { type BrokerDraft, BrokerPicker, brokerBody, brokerProblems, noBroker } from "./BrokerPicker";
 import { ContractDocument } from "./ContractDocument";
 import {
   emptyTenant,
@@ -58,6 +59,7 @@ type StepId = (typeof STEPS)[number]["id"];
 /** Which step owns a field the API refused. */
 function stepOf(field: string): number {
   if (field === "unitId") return 0;
+  if (field.startsWith("broker") || field === "placementId") return 1;
   if (field.startsWith("tenant") || field === "confirmEmail") return 1;
   if (field.startsWith("terms.occupants") || field === "terms.otherTerms") return 3;
   if (field.startsWith("terms")) return 2;
@@ -114,6 +116,7 @@ export function NewLeaseView({
   const [lookFor, setLookFor] = useState("");
   const [tenant, setTenant] = useState<TenantDraft>(emptyTenant);
   const [terms, setTerms] = useState<TermsDraft>(() => newTerms(unit, profile.leaseDefaults));
+  const [broker, setBroker] = useState<BrokerDraft>(noBroker);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -205,9 +208,11 @@ export function NewLeaseView({
   const check = (index: number): Record<string, string> => {
     if (index === 0) return unit ? {} : { unitId: "Pick the unit." };
     if (index === 1) {
-      if (who === "existing") return chosen ? {} : { tenantId: "Pick the tenant, or add someone new." };
+      const fromBroker = brokerProblems(broker);
+      if (who === "existing")
+        return chosen ? fromBroker : { tenantId: "Pick the tenant, or add someone new.", ...fromBroker };
       const problems = tenantProblems(tenant);
-      return Object.fromEntries(Object.entries(problems).map(([k, v]) => [`tenant.${k}`, v]));
+      return { ...Object.fromEntries(Object.entries(problems).map(([k, v]) => [`tenant.${k}`, v])), ...fromBroker };
     }
     if (index === 2) return termsProblems(terms, today, { isNew: true });
     if (index === 3) return occupantProblems(terms);
@@ -245,6 +250,7 @@ export function NewLeaseView({
         ...(who === "existing" ? { tenantId } : { tenant: tenantBody(tenant) }),
         ...(who === "new" && tenant.keepEmail ? { confirmEmail: true } : {}),
         terms: termsBody(terms),
+        ...brokerBody(broker),
       });
       if (!result.ok) {
         const fields = result.fieldErrors ?? {};
@@ -467,6 +473,19 @@ export function NewLeaseView({
             </div>
           ) : null}
 
+          {id === "tenant" ? (
+            <section aria-label="Broker" className="flex flex-col gap-3 border-t border-separator pt-4">
+              <BrokerPicker
+                value={broker}
+                onChange={setBroker}
+                unitId={unitId}
+                unitFee={unit?.brokerFee ?? profile.brokerFee}
+                rentRwf={terms.monthlyRentRwf ?? unit?.askingRentRwf ?? null}
+                errors={errors}
+              />
+            </section>
+          ) : null}
+
           {id === "terms" ? (
             <TermsFields
               terms={terms}
@@ -546,6 +565,7 @@ export function NewLeaseView({
                 label: "Deposit",
                 value: terms.depositRwf !== null ? <Money value={terms.depositRwf} /> : <Muted>Not set</Muted>,
               },
+              ...(broker.on && broker.broker ? [{ label: "Broker", value: broker.broker.name ?? "A broker" }] : []),
               ...(terms.occupants.filter((o) => o.trim()).length > 0
                 ? [{ label: "Also living there", value: terms.occupants.filter((o) => o.trim()).join(", ") }]
                 : []),

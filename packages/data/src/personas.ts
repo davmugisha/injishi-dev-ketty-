@@ -365,6 +365,7 @@ export const personas: Record<PersonaId, Persona> = {
       "TenantRent",
       "TenantGuests",
       "TenantFaults",
+      "TenantMessages",
       "TeamRoles",
     ],
   },

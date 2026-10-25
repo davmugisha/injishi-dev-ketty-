@@ -7,6 +7,7 @@
  */
 import {
   type BlockView,
+  BrokerDefaultsRequest,
   BulkUnitsRequest,
   type BulkUnitsResult,
   CreateBlockRequest,
@@ -102,6 +103,13 @@ export async function saveLeaseDefaults(input: unknown): Promise<ActionResult<La
   const parsed = parse(LeaseDefaultsRequest, input);
   if (!parsed.ok) return invalid(parsed.error);
   return run((s) => s.api.put<LandlordProfileView>("/api/v1/ops/rentals/profile/lease-defaults", parsed.data, ws(s)));
+}
+
+/** The broker fee a unit starts with when brokers may offer it; null clears it. */
+export async function saveBrokerDefaults(input: unknown): Promise<ActionResult<LandlordProfileView>> {
+  const parsed = parse(BrokerDefaultsRequest, input);
+  if (!parsed.ok) return invalid(parsed.error);
+  return run((s) => s.api.put<LandlordProfileView>("/api/v1/ops/rentals/profile/brokers", parsed.data, ws(s)));
 }
 
 export async function saveSignatory(input: unknown): Promise<ActionResult<LandlordProfileView>> {

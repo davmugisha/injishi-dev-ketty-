@@ -7,6 +7,7 @@ import type { RentalsSummary } from "@injishi/contracts";
 import type { NavGroup, NavItem } from "@injishi/data";
 import { ApiError } from "../api";
 import { can, type LandlordScope, landlordScope, rentalsSummary } from "./client";
+import { landlordUnread, quietUnread } from "../messages";
 import { faultCounts } from "./faults";
 
 const RENTALS_READ = [
@@ -25,10 +26,20 @@ export function landlordNavGroups(
   summary: RentalsSummary | null,
   /** Faults still to be fixed (reported, seen or in hand), when the person works on faults. */
   openFaults: number | null = null,
+  /** Lines from tenants this person has not read, when they answer messages (P3.4). */
+  unreadMessages: number | null = null,
 ): NavGroup[] {
-  const groups: NavGroup[] = [
-    { label: null, items: [{ id: "home", label: "Home", icon: "House", board: "ResidenceHome" }] },
-  ];
+  const top: NavItem[] = [{ id: "home", label: "Home", icon: "House", board: "ResidenceHome" }];
+  if (can(scope, "message.send")) {
+    top.push({
+      id: "messages",
+      label: "Messages",
+      icon: "Comments",
+      board: "LandlordMessages",
+      ...(unreadMessages && unreadMessages > 0 ? { chip: String(unreadMessages) } : {}),
+    });
+  }
+  const groups: NavGroup[] = [{ label: null, items: top }];
 
   const property: NavItem[] = [];
   if (can(scope, "unit.manage", "lease.manage", "money.view")) {
@@ -69,8 +80,6 @@ export function landlordNavGroups(
   }
   if (property.length > 0) groups.push({ label: "Property", items: property });
 
-  // Messages come with the tenant's side (P3): the existing inbox is the hotel desk's.
-
   const money: NavItem[] = [];
   if (can(scope, "money.view", "expense.manage")) {
     money.push({ id: "expenses", label: "Expenses", icon: "Receipt", board: "Expenses" });
@@ -105,9 +114,15 @@ export async function landlordNav(): Promise<NavGroup[]> {
         throw error;
       return null;
     });
-  const [summary, faults] = await Promise.all([
+  const [summary, faults, unread] = await Promise.all([
     can(scope, ...RENTALS_READ) ? quiet(rentalsSummary()) : Promise.resolve(null),
     can(scope, "ticket.advance") ? quiet(faultCounts()) : Promise.resolve(null),
+    can(scope, "message.send") ? quietUnread(landlordUnread()) : Promise.resolve(null),
   ]);
-  return landlordNavGroups(scope, summary, faults ? (faults.open ?? 0) + (faults.in_hand ?? 0) : null);
+  return landlordNavGroups(
+    scope,
+    summary,
+    faults ? (faults.open ?? 0) + (faults.in_hand ?? 0) : null,
+    unread?.total ?? null,
+  );
 }

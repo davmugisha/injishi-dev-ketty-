@@ -181,7 +181,7 @@ export function LeaseRecordView({
   open: RecordOpen | null;
   today: string;
   autoStart: boolean;
-  can: { manage: boolean; sign: boolean; record: boolean };
+  can: { manage: boolean; sign: boolean; record: boolean; message?: boolean };
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -315,6 +315,11 @@ export function LeaseRecordView({
               <ActionButton icon="Xmark" intent="ghost" onPress={() => setPanel("cancel")}>
                 Cancel lease
               </ActionButton>
+            ) : null}
+            {can.message && lease.status !== "draft" ? (
+              <ActionLink href={`/messages?lease=${lease.id}`} icon="Comments" intent="ghost">
+                Messages
+              </ActionLink>
             ) : null}
             {main}
           </>

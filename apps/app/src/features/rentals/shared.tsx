@@ -3,7 +3,7 @@ import { screenHref } from "@injishi/data";
 import { ActionLink, EmptyBlock, PageContent, PageHeader } from "@injishi/ui";
 
 /** The settings page's sections, as `?tab=` names them. */
-export const SETTINGS_TABS = ["getting-paid", "location", "lease-defaults", "signatory"] as const;
+export const SETTINGS_TABS = ["getting-paid", "location", "lease-defaults", "signatory", "brokers"] as const;
 export type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 export const settingsHref = (tab: SettingsTab): string => `${screenHref("RentalsSettings")}?tab=${tab}`;

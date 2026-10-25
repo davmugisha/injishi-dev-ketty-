@@ -1,7 +1,14 @@
 "use client";
 
-import { Toast, toast } from "@heroui/react";
-import type { BlockView, RentalPropertyView, RentalUnitList, RentalUnitView, UnitTab } from "@injishi/contracts";
+import { Chip, Toast, toast } from "@heroui/react";
+import type {
+  BlockView,
+  BrokerFeeTerms,
+  RentalPropertyView,
+  RentalUnitList,
+  RentalUnitView,
+  UnitTab,
+} from "@injishi/contracts";
 import {
   ActionButton,
   ConfirmDialog,
@@ -58,6 +65,7 @@ export function UnitsView({
   query,
   canManage,
   open,
+  defaultBrokerFee = null,
 }: {
   list: RentalUnitList;
   all: RentalUnitView[];
@@ -66,6 +74,8 @@ export function UnitsView({
   query: UnitsQuery;
   canManage: boolean;
   open: "add" | "blocks" | null;
+  /** The landlord's default broker fee, for a unit switched on for brokers. */
+  defaultBrokerFee?: BrokerFeeTerms | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -163,7 +173,16 @@ export function UnitsView({
         id: "status",
         header: "Status",
         sortValue: (u) => unitStatus(u),
-        cell: (u) => <StatusChip kind="unit" status={unitStatus(u)} />,
+        cell: (u) => (
+          <span className="flex flex-wrap items-center gap-1.5">
+            <StatusChip kind="unit" status={unitStatus(u)} />
+            {u.brokerOffer ? (
+              <Chip size="sm" variant="soft">
+                Brokers
+              </Chip>
+            ) : null}
+          </span>
+        ),
       },
       {
         id: "vacant",
@@ -363,6 +382,7 @@ export function UnitsView({
           mode={form}
           blocks={blocks}
           properties={properties}
+          defaultBrokerFee={defaultBrokerFee}
           onClose={() => setForm(null)}
           onSaved={(unit) => {
             // A new or edited unit opens in its panel, with its photos and video.

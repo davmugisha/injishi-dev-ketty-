@@ -4,6 +4,7 @@ import { Description, Label, toast } from "@heroui/react";
 import { RadioButtonGroup, Segment } from "@heroui-pro/react";
 import {
   type BlockView,
+  type BrokerFeeTerms,
   MAX_BULK_UNITS,
   type RentalPropertyView,
   type RentalUnitView,
@@ -13,6 +14,7 @@ import { BoundedDatePicker, Icon, kigaliDay, MoneyInput, SectionHeader, SelectFi
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { bulkAddUnits, createUnit, updateUnit } from "../actions";
+import { type BrokerFeeDraft, BrokerFeeFields, feeDraftOf, feeTermsOf } from "../BrokerFeeFields";
 import { CountInput, fieldErrorsOnly, SwitchRow, TextInput } from "../fields";
 import { type MediaProgress, UnitMediaFields } from "./UnitMediaFields";
 
@@ -32,9 +34,11 @@ interface Facts {
   availableFrom: string | null;
   note: string;
   offMarket: boolean;
+  brokerOffer: boolean;
+  brokerFee: BrokerFeeDraft;
 }
 
-const factsOf = (u: RentalUnitView | null, propertyId: string | null): Facts => ({
+const factsOf = (u: RentalUnitView | null, propertyId: string | null, defaultFee: BrokerFeeTerms | null): Facts => ({
   propertyId: u?.propertyId ?? propertyId,
   blockId: u?.blockId ?? NO_BLOCK,
   bedrooms: u?.bedrooms ?? null,
@@ -48,6 +52,8 @@ const factsOf = (u: RentalUnitView | null, propertyId: string | null): Facts => 
   availableFrom: u?.availableFrom ?? null,
   note: u?.note ?? "",
   offMarket: u?.state === "off_market",
+  brokerOffer: u?.brokerOffer ?? false,
+  brokerFee: feeDraftOf(u?.brokerFee ?? defaultFee),
 });
 
 /** "A-01" … "A-12": names from a prefix and a number range, padded to the same width. */
@@ -74,12 +80,15 @@ export function UnitFormPanel({
   mode,
   blocks,
   properties,
+  defaultBrokerFee = null,
   onClose,
   onSaved,
 }: {
   mode: UnitFormMode;
   blocks: BlockView[];
   properties: RentalPropertyView[];
+  /** The landlord's default broker fee: a unit switched on for brokers starts with it. */
+  defaultBrokerFee?: BrokerFeeTerms | null;
   onClose: () => void;
   onSaved?: (unit: RentalUnitView | null) => void;
 }) {
@@ -94,7 +103,7 @@ export function UnitFormPanel({
   const [from, setFrom] = useState<number | null>(1);
   const [to, setTo] = useState<number | null>(6);
   const [facts, setFacts] = useState<Facts>(() =>
-    factsOf(editing, properties.length === 1 ? (properties[0]?.id ?? null) : null),
+    factsOf(editing, properties.length === 1 ? (properties[0]?.id ?? null) : null, defaultBrokerFee),
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -127,6 +136,9 @@ export function UnitFormPanel({
     availableFrom: facts.availableFrom,
     note: facts.note.trim() || null,
     state: facts.offMarket ? "off_market" : "active",
+    brokerOffer: facts.brokerOffer && !facts.offMarket,
+    // Switched off, the fee is kept for next time; switched on, it is what brokers see.
+    ...(facts.brokerOffer ? { brokerFee: feeTermsOf(facts.brokerFee) } : {}),
   });
 
   /** Saved, with every photo and the video up: say so, open the unit, close. */
@@ -166,6 +178,8 @@ export function UnitFormPanel({
           : await bulkAddUnits({ ...body(), labels });
       if (!result.ok) {
         const fields = fieldErrorsOnly(result.fieldErrors);
+        const feeError = Object.entries(fields).find(([k]) => k.startsWith("brokerFee"))?.[1];
+        if (feeError) fields.brokerFee = feeError;
         if (fields["labels.0"] || Object.keys(fields).some((k) => k.startsWith("labels."))) {
           fields.prefix = Object.entries(fields).find(([k]) => k.startsWith("labels."))?.[1] ?? "";
         }
@@ -403,6 +417,23 @@ export function UnitFormPanel({
           </RadioButtonGroup.Item>
         ))}
       </RadioButtonGroup>
+      <section aria-labelledby="unit-brokers" className="flex flex-col gap-3 border-t border-border pt-4">
+        <SectionHeader id="unit-brokers" title="Brokers" />
+        <SwitchRow
+          label="Brokers may offer this unit"
+          description={facts.offMarket ? "Not while it is off market." : "They see the rent and your fee."}
+          isSelected={facts.brokerOffer && !facts.offMarket}
+          onChange={(on) => set("brokerOffer", on)}
+        />
+        {facts.brokerOffer && !facts.offMarket ? (
+          <BrokerFeeFields
+            value={facts.brokerFee}
+            onChange={(v) => set("brokerFee", v)}
+            rentRwf={facts.askingRentRwf}
+            errorMessage={errors.brokerFee ?? errors.brokerOffer}
+          />
+        ) : null}
+      </section>
       <TextInput
         label="Note"
         name="note"

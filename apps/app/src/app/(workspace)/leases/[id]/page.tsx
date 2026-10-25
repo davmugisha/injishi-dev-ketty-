@@ -56,6 +56,7 @@ export default async function LeaseRecordPage({
         manage: can(scope, "lease.manage"),
         sign: can(scope, "lease.sign"),
         record: can(scope, "rent.record"),
+        message: can(scope, "message.send"),
       }}
     />
   );

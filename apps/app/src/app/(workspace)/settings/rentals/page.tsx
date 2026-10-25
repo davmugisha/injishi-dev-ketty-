@@ -42,6 +42,7 @@ export default async function RentalsSettingsPage({ searchParams }: { searchPara
         location: can(scope, "listing.manage"),
         leaseDefaults: can(scope, "lease.manage"),
         signatory: can(scope, "lease.sign"),
+        brokers: can(scope, "lease.manage"),
       }}
     />
   );

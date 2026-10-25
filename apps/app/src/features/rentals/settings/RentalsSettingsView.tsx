@@ -6,6 +6,7 @@ import { FilterTabs, KeyValueList, PageContent, PageHeader, SectionCard } from "
 import { usePathname, useRouter } from "next/navigation";
 import { SetupChecklist } from "../SetupChecklist";
 import { SETTINGS_TABS, type SettingsTab } from "../shared";
+import { BrokerDefaults } from "./BrokerDefaults";
 import { LeaseDefaults } from "./LeaseDefaults";
 import { Location } from "./Location";
 import { PayoutAccounts } from "./PayoutAccounts";
@@ -16,6 +17,7 @@ const LABEL: Record<SettingsTab, string> = {
   location: "Location",
   "lease-defaults": "Lease defaults",
   signatory: "Who signs",
+  brokers: "Brokers",
 };
 
 export interface SettingsPermissions {
@@ -23,6 +25,7 @@ export interface SettingsPermissions {
   location: boolean;
   leaseDefaults: boolean;
   signatory: boolean;
+  brokers: boolean;
 }
 
 /** The landlord's settings (WP 2.2): getting paid, where the buildings are, lease defaults, who signs. */
@@ -61,6 +64,7 @@ export function RentalsSettingsView({
             <LeaseDefaults defaults={profile.leaseDefaults} canEdit={can.leaseDefaults} />
           ) : null}
           {tab === "signatory" ? <Signatory signatory={profile.signatory} canEdit={can.signatory} /> : null}
+          {tab === "brokers" ? <BrokerDefaults fee={profile.brokerFee} canEdit={can.brokers} /> : null}
         </div>
         {setup && !setup.complete ? (
           <SetupChecklist setup={setup} title="Setup" headingLevel={2} />

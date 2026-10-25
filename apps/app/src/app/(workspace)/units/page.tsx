@@ -4,7 +4,15 @@ import type { Metadata } from "next";
 import { NoRentalsBusiness } from "@/features/rentals/shared";
 import { UnitsView } from "@/features/rentals/units/UnitsView";
 import { requirePersona } from "@/lib/session";
-import { can, landlordScope, rentalBlocks, rentalProperties, rentalUnits } from "@/server/rentals/client";
+import {
+  can,
+  landlordScope,
+  orNull,
+  rentalBlocks,
+  rentalProperties,
+  rentalsProfile,
+  rentalUnits,
+} from "@/server/rentals/client";
 
 export const metadata: Metadata = { title: screens.Units.pageTitle };
 
@@ -24,11 +32,12 @@ export default async function UnitsPage({
   const blockId = params.block && UUID.test(params.block) ? params.block : null;
   const q = (params.q ?? "").slice(0, 80);
   const filtered = tab !== "all" || blockId !== null || q !== "";
-  const [all, list, blocks, properties] = await Promise.all([
+  const [all, list, blocks, properties, profile] = await Promise.all([
     rentalUnits(),
     filtered ? rentalUnits(tab, blockId ?? undefined, q || undefined) : Promise.resolve(null),
     rentalBlocks(),
     rentalProperties(),
+    orNull(rentalsProfile()),
   ]);
   return (
     <UnitsView
@@ -39,6 +48,7 @@ export default async function UnitsPage({
       query={{ tab, blockId, q }}
       canManage={can(scope, "unit.manage")}
       open={params.add === "1" ? "add" : params.blocks === "1" ? "blocks" : null}
+      defaultBrokerFee={profile?.brokerFee ?? null}
     />
   );
 }

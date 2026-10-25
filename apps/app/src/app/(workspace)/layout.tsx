@@ -2,9 +2,12 @@ import { navigationFor } from "@injishi/data";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { WorkspaceShell } from "@/components/shell/WorkspaceShell";
+import { MessagesLive } from "@/features/messages/MessagesLive";
 import { currentAccount } from "@/lib/session";
 import { officerNav, officerPersona } from "@/server/oversight/nav";
+import { landlordScope } from "@/server/rentals/client";
 import { landlordNav } from "@/server/rentals/nav";
+import { tenantNav } from "@/server/tenant/nav";
 
 /** Desktop workspace: sidebar navigation of the signed-in persona around every operator screen. */
 export default async function WorkspaceLayout({ children }: { children: ReactNode }) {
@@ -34,13 +37,22 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
   // A landlord who also rents a home reads it under /home with the tenant's sidebar (the switcher's "My home").
   const altNav =
     persona.id === "landlord" && (account.context?.tenancies.length ?? 0) > 0
-      ? { prefix: "/home", nav: navigationFor("tenant") }
+      ? { prefix: "/home", nav: await tenantNav() }
       : null;
   // An officer's or leader's header names their own seat, not the persona's sample one.
   const shown = persona.id === "officer" ? await officerPersona(persona) : persona;
   return (
     <WorkspaceShell persona={shown} nav={nav} altNav={altNav}>
       {children}
+      {/* Message counts in the sidebar follow new lines live (P3.4). */}
+      {persona.id === "landlord" ? (
+        <MessagesLive
+          workspaceId={(await landlordScope())?.workspace.workspaceId ?? null}
+          unreadPath="/api/messages/ops/rentals/messages/unread"
+        />
+      ) : persona.id === "tenant" ? (
+        <MessagesLive workspaceId={null} unreadPath="/api/messages/me/tenancies/messages/unread" />
+      ) : null}
     </WorkspaceShell>
   );
 }
