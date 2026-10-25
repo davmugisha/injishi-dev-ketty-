@@ -98,6 +98,14 @@ export async function publishAction(workspaceId: string, propertyId: string): Pr
   return run(workspaceId, async () => (await setup.publish(await ctx(), workspaceId, propertyId)).slug);
 }
 
+/** "Take it off the marketplace" → `POST /inventory/properties/:id/unpublish`. */
+export async function unpublishAction(workspaceId: string, propertyId: string): Promise<ActionResult> {
+  return run(workspaceId, async () => {
+    await setup.unpublish(await ctx(), workspaceId, propertyId);
+    return undefined;
+  });
+}
+
 /** The next level of the address picker: a province's districts, or a district's sectors. */
 export async function placesAction(level: "districts" | "sectors", parentId: number): Promise<setup.Place[]> {
   const c = await ctx();

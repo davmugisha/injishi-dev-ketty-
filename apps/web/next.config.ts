@@ -122,7 +122,7 @@ const nextConfig: NextConfig = {
      * Roots this app has NO pages under. Forwarding them before the file system
      * is consulted costs nothing, because there is nothing here to consult.
      */
-    const roots = ["w", "oversight", "landlord", "broker"];
+    const roots = ["w", "oversight", "officer", "landlord", "broker"];
     return {
       beforeFiles: [
         { source: "/operator-static/:path*", destination: `${zone}/operator-static/:path*` },
