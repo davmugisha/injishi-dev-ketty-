@@ -379,7 +379,7 @@ export class LeaseMessagesService {
     return {
       id: m.id,
       side,
-      senderName: side === 'tenant' ? ctx.tenantName : side === 'landlord' ? (viewer.side === 'tenant' ? ctx.landlordName : (m.senderName ?? ctx.landlordName)) : null,
+      senderName: side === 'tenant' ? ctx.tenantName : side === 'landlord' ? (viewer.side === 'tenant' ? ctx.landlordName : (m.senderName || ctx.landlordName)) : null,
       fromMe: ours,
       bodyType: m.bodyType,
       body: m.body,
