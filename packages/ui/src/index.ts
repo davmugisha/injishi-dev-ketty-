@@ -10,6 +10,7 @@ export * from "./date-pickers.tsx";
 export * from "./device.tsx";
 export * from "./dialogs.tsx";
 export * from "./email-typo.ts";
+export * from "./file-field.tsx";
 export * from "./flow.tsx";
 export * from "./format.tsx";
 export * from "./forms.tsx";

@@ -7,6 +7,7 @@ import type { RentalsSummary } from "@injishi/contracts";
 import type { NavGroup, NavItem } from "@injishi/data";
 import { ApiError } from "../api";
 import { can, type LandlordScope, landlordScope, rentalsSummary } from "./client";
+import { faultCounts } from "./faults";
 
 const RENTALS_READ = [
   "lease.manage",
@@ -22,6 +23,8 @@ const RENTALS_READ = [
 export function landlordNavGroups(
   scope: Pick<LandlordScope, "permissions">,
   summary: RentalsSummary | null,
+  /** Faults still to be fixed (reported, seen or in hand), when the person works on faults. */
+  openFaults: number | null = null,
 ): NavGroup[] {
   const groups: NavGroup[] = [
     { label: null, items: [{ id: "home", label: "Home", icon: "House", board: "ResidenceHome" }] },
@@ -48,6 +51,15 @@ export function landlordNavGroups(
       ...(waiting > 0 ? { chip: String(waiting) } : {}),
     });
   }
+  if (can(scope, "ticket.advance")) {
+    property.push({
+      id: "faults",
+      label: "Faults",
+      icon: "Wrench",
+      board: "Faults",
+      ...(openFaults && openFaults > 0 ? { chip: String(openFaults) } : {}),
+    });
+  }
   if (can(scope, "guest.register")) {
     property.push({ id: "guests", label: "My guests", icon: "PersonPlus", board: "LandlordGuests" });
   }
@@ -58,6 +70,22 @@ export function landlordNavGroups(
   if (property.length > 0) groups.push({ label: "Property", items: property });
 
   // Messages come with the tenant's side (P3): the existing inbox is the hotel desk's.
+
+  const money: NavItem[] = [];
+  if (can(scope, "money.view", "expense.manage")) {
+    money.push({ id: "expenses", label: "Expenses", icon: "Receipt", board: "Expenses" });
+  }
+  if (can(scope, "money.view", "tax.manage")) {
+    const filings = summary?.counts.filingsDue ?? 0;
+    money.push({
+      id: "taxes",
+      label: "Taxes",
+      icon: "Calculator",
+      board: "Taxes",
+      ...(filings > 0 ? { chip: String(filings) } : {}),
+    });
+  }
+  if (money.length > 0) groups.push({ label: "Money", items: money });
 
   const business: NavItem[] = [];
   if (can(scope, "team.manage")) business.push({ id: "team", label: "Team", icon: "Persons", board: "TeamRoles" });
@@ -71,11 +99,15 @@ export function landlordNavGroups(
 export async function landlordNav(): Promise<NavGroup[]> {
   const scope = await landlordScope();
   if (!scope) return [{ label: null, items: [{ id: "home", label: "Home", icon: "House", board: "ResidenceHome" }] }];
-  let summary: RentalsSummary | null = null;
-  try {
-    summary = can(scope, ...RENTALS_READ) ? await rentalsSummary() : null;
-  } catch (error) {
-    if (!(error instanceof ApiError) && !(error instanceof Error && error.name === "ApiUnreachableError")) throw error;
-  }
-  return landlordNavGroups(scope, summary);
+  const quiet = <T>(read: Promise<T>): Promise<T | null> =>
+    read.catch((error) => {
+      if (!(error instanceof ApiError) && !(error instanceof Error && error.name === "ApiUnreachableError"))
+        throw error;
+      return null;
+    });
+  const [summary, faults] = await Promise.all([
+    can(scope, ...RENTALS_READ) ? quiet(rentalsSummary()) : Promise.resolve(null),
+    can(scope, "ticket.advance") ? quiet(faultCounts()) : Promise.resolve(null),
+  ]);
+  return landlordNavGroups(scope, summary, faults ? (faults.open ?? 0) + (faults.in_hand ?? 0) : null);
 }

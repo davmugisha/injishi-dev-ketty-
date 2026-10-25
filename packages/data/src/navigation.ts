@@ -670,6 +670,12 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
           board: "TenantLease",
         },
         {
+          id: "faults",
+          label: "Faults",
+          icon: "Wrench",
+          board: "TenantFaults",
+        },
+        {
           id: "guests",
           label: "Guests",
           icon: "PersonPlus",
