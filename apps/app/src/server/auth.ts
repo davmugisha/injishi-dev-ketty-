@@ -9,7 +9,7 @@
  * the person is signed in on web and here at once.
  */
 
-import { DEMO_OTP, type Persona, type PersonaId, personaByEmail, personas } from "@injishi/data";
+import { type BoardId, DEMO_OTP, type Persona, type PersonaId, personaByEmail, personas } from "@injishi/data";
 import { ApiError, apiBaseUrl, apiOrigin, apiRequest, clientIpHeaders, type SessionCookie } from "./api";
 import { authCookiesFrom, cookieHeaderFor, type ForwardedCookie } from "./session-cookies";
 
@@ -283,6 +283,24 @@ const ROLE_PERSONA: Record<string, PersonaId> = {
   finance: "finance",
   hr: "hr",
   housekeeper: "housekeeper",
+  // The bar and restaurant floor (POS spec, phase 1) wears the outlet staff's tablet shell.
+  cashier: "waiter",
+  waiter: "waiter",
+  bartender: "waiter",
+  kitchen: "waiter",
+  stock_controller: "store",
+};
+
+/**
+ * Where a floor role lands: the live floor, or for the kitchen its station board. The demo waiter keeps
+ * the story written for her; a real cashier, waiter, bartender or cook lands on the screens that read
+ * their outlet from the API.
+ */
+const ROLE_HOME: Partial<Record<string, BoardId>> = {
+  cashier: "PosFloor",
+  waiter: "PosFloor",
+  bartender: "PosFloor",
+  kitchen: "PosStations",
 };
 
 /**
@@ -294,12 +312,28 @@ async function personaFor(cookie: SessionCookie, user: ApiUser, workspaces: Work
   const demo = personaByEmail(user.email);
   if (demo) return demo;
   const business = workspaces.filter((w) => w.kind === "business" && w.orgRole);
-  const order = ["owner", "manager", "finance", "hr", "receptionist", "housekeeper"];
+  const order = [
+    "owner",
+    "manager",
+    "finance",
+    "hr",
+    "receptionist",
+    "cashier",
+    "bartender",
+    "waiter",
+    "stock_controller",
+    "kitchen",
+    "housekeeper",
+  ];
   business.sort((a, b) => order.indexOf(a.orgRole ?? "") - order.indexOf(b.orgRole ?? ""));
   const top = business[0];
   if (top?.domain === "broker") return personas.broker;
   if (top?.domain === "residence" && (top.orgRole === "owner" || top.orgRole === "manager")) return personas.residence;
-  if (top?.orgRole && ROLE_PERSONA[top.orgRole]) return personas[ROLE_PERSONA[top.orgRole]];
+  if (top?.orgRole && ROLE_PERSONA[top.orgRole]) {
+    const shell = personas[ROLE_PERSONA[top.orgRole]];
+    const home = ROLE_HOME[top.orgRole];
+    return home ? { ...shell, home } : shell;
+  }
   if (await holds(cookie, "/api/v1/me/staff")) return personas.ops;
   if (await holds(cookie, "/api/v1/me/oversight")) return personas.officer;
   return personas.guest;

@@ -3324,7 +3324,7 @@ export declare const OperatorTeamMember: z.ZodObject<{
     userId: z.ZodString;
     name: z.ZodNullable<z.ZodString>;
     email: z.ZodNullable<z.ZodString>;
-    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>;
     /** `active` or `removed`. A removed member keeps their history. */
     status: z.ZodString;
     joinedAt: z.ZodString;
@@ -3345,7 +3345,7 @@ export declare const OperatorTeamMember: z.ZodObject<{
     name: string | null;
     email: string | null;
     userId: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
     joinedAt: string;
     removedAt: string | null;
     branchIds: string[] | null;
@@ -3356,7 +3356,7 @@ export declare const OperatorTeamMember: z.ZodObject<{
     name: string | null;
     email: string | null;
     userId: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
     joinedAt: string;
     removedAt: string | null;
     branchIds: string[] | null;
@@ -3396,7 +3396,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         userId: z.ZodString;
         name: z.ZodNullable<z.ZodString>;
         email: z.ZodNullable<z.ZodString>;
-        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
+        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>;
         /** `active` or `removed`. A removed member keeps their history. */
         status: z.ZodString;
         joinedAt: z.ZodString;
@@ -3417,7 +3417,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         name: string | null;
         email: string | null;
         userId: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         joinedAt: string;
         removedAt: string | null;
         branchIds: string[] | null;
@@ -3428,7 +3428,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         name: string | null;
         email: string | null;
         userId: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         joinedAt: string;
         removedAt: string | null;
         branchIds: string[] | null;
@@ -3441,7 +3441,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         name: string | null;
         email: string | null;
         userId: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         joinedAt: string;
         removedAt: string | null;
         branchIds: string[] | null;
@@ -3454,7 +3454,7 @@ export declare const OperatorTeamList: z.ZodObject<{
         name: string | null;
         email: string | null;
         userId: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         joinedAt: string;
         removedAt: string | null;
         branchIds: string[] | null;
@@ -3470,7 +3470,7 @@ export type OperatorTeamList = z.infer<typeof OperatorTeamList>;
  * (FL02), which checks an identity document; an emailed link that could make
  * somebody an owner would be a way round that check.
  */
-export declare const InvitableOrgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper"]>;
+export declare const InvitableOrgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>;
 export type InvitableOrgRole = z.infer<typeof InvitableOrgRole>;
 /** What a role is called on screens and in the invitation mail. */
 export declare const ORG_ROLE_LABEL: Readonly<Record<OrgRole, string>>;
@@ -3478,17 +3478,17 @@ export declare const InviteStaffRequest: z.ZodObject<{
     /** The person's name as the inviter typed it, shown on the Team screen until they accept. */
     name: z.ZodOptional<z.ZodString>;
     email: z.ZodString;
-    orgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper"]>;
+    orgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>;
     /** The branches the invitee will cover; absent or null is every branch (ADR-054). */
     branchIds: z.ZodDefault<z.ZodNullable<z.ZodArray<z.ZodString, "many">>>;
 }, "strip", z.ZodTypeAny, {
     email: string;
-    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
     branchIds: string[] | null;
     name?: string | undefined;
 }, {
     email: string;
-    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
     name?: string | undefined;
     branchIds?: string[] | null | undefined;
 }>;
@@ -3501,11 +3501,11 @@ export type InviteStaffRequest = z.infer<typeof InviteStaffRequest>;
  * owner claim, which checks an identity document, never through this.
  */
 export declare const ChangeMemberRoleRequest: z.ZodObject<{
-    orgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper"]>;
+    orgRole: z.ZodEnum<["manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>;
 }, "strip", z.ZodTypeAny, {
-    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
 }, {
-    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    orgRole: "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
 }>;
 export type ChangeMemberRoleRequest = z.infer<typeof ChangeMemberRoleRequest>;
 /** The words a role change refusal carries, one per rule. */
@@ -3525,7 +3525,7 @@ export type StaffInvitationStatus = z.infer<typeof StaffInvitationStatus>;
 export declare const OperatorStaffInvitation: z.ZodObject<{
     id: z.ZodString;
     email: z.ZodString;
-    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>;
     /** `expired` is derived at read time from `expiresAt`, not stored. */
     status: z.ZodEnum<["sent", "accepted", "revoked", "expired"]>;
     expiresAt: z.ZodString;
@@ -3540,7 +3540,7 @@ export declare const OperatorStaffInvitation: z.ZodObject<{
     email: string;
     id: string;
     createdAt: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
     expiresAt: string;
     branchIds: string[] | null;
 }, {
@@ -3549,7 +3549,7 @@ export declare const OperatorStaffInvitation: z.ZodObject<{
     email: string;
     id: string;
     createdAt: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
     expiresAt: string;
     branchIds: string[] | null;
 }>;
@@ -3558,7 +3558,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
     invitations: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         email: z.ZodString;
-        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
+        orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>;
         /** `expired` is derived at read time from `expiresAt`, not stored. */
         status: z.ZodEnum<["sent", "accepted", "revoked", "expired"]>;
         expiresAt: z.ZodString;
@@ -3573,7 +3573,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         email: string;
         id: string;
         createdAt: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         expiresAt: string;
         branchIds: string[] | null;
     }, {
@@ -3582,7 +3582,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         email: string;
         id: string;
         createdAt: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         expiresAt: string;
         branchIds: string[] | null;
     }>, "many">;
@@ -3593,7 +3593,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         email: string;
         id: string;
         createdAt: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         expiresAt: string;
         branchIds: string[] | null;
     }[];
@@ -3604,7 +3604,7 @@ export declare const OperatorStaffInvitationList: z.ZodObject<{
         email: string;
         id: string;
         createdAt: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
         expiresAt: string;
         branchIds: string[] | null;
     }[];
@@ -3622,31 +3622,31 @@ export type StaffInvitationTokenRequest = z.infer<typeof StaffInvitationTokenReq
 /** What the join page shows before somebody accepts. */
 export declare const StaffInvitationPreview: z.ZodObject<{
     legalName: z.ZodString;
-    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>;
     /** The address it was sent to, so a person signed in as someone else sees why it refuses. */
     email: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     email: string;
     legalName: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
 }, {
     email: string;
     legalName: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
 }>;
 export type StaffInvitationPreview = z.infer<typeof StaffInvitationPreview>;
 export declare const AcceptedStaffInvitation: z.ZodObject<{
     orgId: z.ZodString;
     workspaceId: z.ZodString;
-    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
+    orgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>;
 }, "strip", z.ZodTypeAny, {
     orgId: string;
     workspaceId: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
 }, {
     orgId: string;
     workspaceId: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper";
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller";
 }>;
 export type AcceptedStaffInvitation = z.infer<typeof AcceptedStaffInvitation>;
 export declare const HousekeepingTaskType: z.ZodEnum<["checkout_clean", "stayover_clean", "inspection", "deep_clean", "turndown"]>;

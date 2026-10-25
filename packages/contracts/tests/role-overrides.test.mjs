@@ -48,13 +48,19 @@ const ACTIVE = {
 
 describe("which roles a business may customise", () => {
   test("every role except owner", () => {
-    // ADR-069 D-a: `finance` and `hr` are customisable like any other role.
+    // ADR-069 D-a: `finance` and `hr` are customisable like any other role,
+    // and so are the POS spec's floor roles.
     assert.deepEqual([...CustomisableOrgRole.options].sort(), [
+      "bartender",
+      "cashier",
       "finance",
       "housekeeper",
       "hr",
+      "kitchen",
       "manager",
       "receptionist",
+      "stock_controller",
+      "waiter",
     ]);
     assert.equal(isCustomisableOrgRole("owner"), false);
     for (const role of CustomisableOrgRole.options) {

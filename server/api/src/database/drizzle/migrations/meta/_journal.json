@@ -512,6 +512,13 @@
       "when": 1792397078710,
       "tag": "0072_register_artboard_document_kinds",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1792956663982,
+      "tag": "0073_pos_floor_orders_payments_shifts",
+      "breakpoints": true
     }
   ]
 }

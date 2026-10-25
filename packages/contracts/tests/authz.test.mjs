@@ -55,11 +55,23 @@ const NOT_ACTIVE = [
   "suspended",
 ];
 
-const ROLES = ["owner", "manager", "receptionist", "finance", "hr", "housekeeper"];
+const ROLES = [
+  "owner",
+  "manager",
+  "receptionist",
+  "finance",
+  "hr",
+  "housekeeper",
+  "cashier",
+  "waiter",
+  "bartender",
+  "kitchen",
+  "stock_controller",
+];
 
 // ---------------------------------------------------------------------------
 
-describe("the six org roles", () => {
+describe("the org roles", () => {
   /*
    * Pinned as exact sets rather than as counts. A count catches a permission
    * being dropped and misses one being SWAPPED for another, which is the
@@ -72,7 +84,8 @@ describe("the six org roles", () => {
     // 34: ADR-058 added the seven HR permissions (cross child contract 4).
     // 35: ADR-069 D-e added `payroll.draft`.
     // 36: real-data leaf 1.2.3 added `lostfound.manage`.
-    assert.equal(permissionsForRole("owner").length, 36);
+    // 45: the POS spec, phase 1, added the nine point of sale permissions.
+    assert.equal(permissionsForRole("owner").length, 45);
   });
 
   test("manager holds everything except team.manage and the three HR disclosures", () => {
@@ -84,7 +97,7 @@ describe("the six org roles", () => {
       permissionsForRole("manager"),
       Permission.options.filter((p) => !withheld.includes(p)),
     );
-    assert.equal(permissionsForRole("manager").length, 32);
+    assert.equal(permissionsForRole("manager").length, 41);
   });
 
   test("receptionist works the front desk and takes orders", () => {
@@ -201,6 +214,40 @@ describe("the six org roles", () => {
       "housekeeping.set",
       "ticket.advance",
     ]);
+  });
+
+  test("cashier sells, settles, discounts within the limit and runs a shift", () => {
+    assert.deepEqual(permissionsForRole("cashier"), [
+      "pos.sell",
+      "pos.checkout",
+      "pos.discount",
+      "table.manage",
+      "register.operate",
+    ]);
+  });
+
+  test("waiter takes orders at the table and nothing else", () => {
+    assert.deepEqual(permissionsForRole("waiter"), ["pos.sell", "table.manage"]);
+  });
+
+  test("bartender takes orders and works the bar's tickets", () => {
+    assert.deepEqual(permissionsForRole("bartender"), ["pos.sell", "table.manage", "kitchen.work"]);
+  });
+
+  test("kitchen works tickets only", () => {
+    assert.deepEqual(permissionsForRole("kitchen"), ["kitchen.work"]);
+  });
+
+  test("stock controller holds nothing until the inventory phase", () => {
+    assert.deepEqual(permissionsForRole("stock_controller"), []);
+  });
+
+  test("no floor role overrides, refunds or reviews a shift", () => {
+    for (const role of ["cashier", "waiter", "bartender", "kitchen", "stock_controller"]) {
+      for (const p of ["pos.override", "pos.refund", "shift.review", "money.view", "team.manage"]) {
+        assert.equal(can(role, p), false, `${role} must not hold ${p}`);
+      }
+    }
   });
 
   test("an unknown role holds nothing rather than throwing", () => {

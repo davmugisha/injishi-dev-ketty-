@@ -1,4 +1,4 @@
-import { canAccess, homeHref, type PersonaId, personaByEmail, screenByPath } from "@injishi/data";
+import { type BoardId, canAccess, homeHref, type PersonaId, personaByEmail, screenByPath, screens } from "@injishi/data";
 import { isSetupPath } from "./setup-path";
 
 /**
@@ -93,9 +93,10 @@ export const WEB_HOME = `${WEB_URL}/trips`;
  * signed in here landed on a stranger's booking and stayed there. Their side of the product is web's, so
  * they go to it. The demo's own guest, matched by her email, keeps the story written for her.
  */
-export function homeAfterSignIn(personaId: PersonaId, email: string | null | undefined): string {
+export function homeAfterSignIn(personaId: PersonaId, email: string | null | undefined, home?: BoardId): string {
   if (personaId === "guest" && !personaByEmail(email ?? "")) return WEB_HOME;
-  return homeHref(personaId);
+  // A shell borrowed by a role with a landing of its own (a real cashier lands on the live floor).
+  return home ? screens[home].href : homeHref(personaId);
 }
 
 /**
@@ -107,6 +108,7 @@ export function destinationAfterSignIn(
   personaId: PersonaId,
   raw: string | null | undefined,
   email: string | null | undefined,
+  home?: BoardId,
 ): string {
   const target = safeReturn(raw);
   if (target && !target.startsWith("/")) return target;
@@ -116,5 +118,5 @@ export function destinationAfterSignIn(
     const screen = screenByPath(path);
     if (screen && canAccess(personaId, screen.board)) return target;
   }
-  return homeAfterSignIn(personaId, email);
+  return homeAfterSignIn(personaId, email, home);
 }

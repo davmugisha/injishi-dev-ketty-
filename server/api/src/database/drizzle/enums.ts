@@ -38,6 +38,14 @@ export const orgRoleEnum = pgEnum('org_role', [
   // `mfp-demo.md` treats Housekeeper as a permission ROLE, separate from the
   // person's POSITION ("Room attendant"), which is why it belongs here.
   'housekeeper',
+  // The POS spec, phase 1: the bar and restaurant floor, in the order
+  // `@injishi/contracts` lists them. Appended, so the migration is five
+  // `ADD VALUE`s and touches no row.
+  'cashier',
+  'waiter',
+  'bartender',
+  'kitchen',
+  'stock_controller',
 ]);
 
 export const workspaceKindEnum = pgEnum('workspace_kind', [
