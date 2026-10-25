@@ -67,8 +67,12 @@ export async function seed(db: Db, client: Client): Promise<{ users: number; col
   await client.execute("PRAGMA foreign_keys = OFF");
   await db.transaction(async (tx) => {
     await tx.delete(documents);
+    // Users are fixture rows like the documents: replace them wholesale. An
+    // upsert keyed by id hit `UNIQUE(email)` whenever a persona's id changed
+    // between builds, and every page then failed to seed (2026-10-25).
+    await tx.delete(users);
     for (const u of userRows) {
-      await tx.insert(users).values(u).onConflictDoUpdate({ target: users.id, set: u });
+      await tx.insert(users).values(u);
     }
     for (let i = 0; i < docRows.length; i += 200) {
       await tx.insert(documents).values(docRows.slice(i, i + 200));
