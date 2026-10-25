@@ -24,7 +24,8 @@
  * (`brew install docker-buildx` with Colima).
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -149,8 +150,8 @@ function stackEnv(cfg, { token = false } = {}) {
 
 // --- Docker ------------------------------------------------------------------
 
-function compose(cfg, args, { token = false, capture = false } = {}) {
-  return spawnSync('docker', ['compose', '-f', COMPOSE_FILE, '--profile', PROFILE, ...args], {
+function compose(cfg, args, { token = false, capture = false, file = COMPOSE_FILE } = {}) {
+  return spawnSync('docker', ['compose', '-f', file, '--profile', PROFILE, ...args], {
     cwd: ROOT,
     env: stackEnv(cfg, { token }),
     encoding: 'utf8',
@@ -200,11 +201,34 @@ function isRunning(cfg, service) {
 }
 
 /** One image at a time, then drop the images the new tags left dangling. */
+/**
+ * Images are built from the COMMITTED code only (2026-10-25): `git archive HEAD`
+ * into a scratch folder, and compose builds from there. Twice an image built
+ * from the working tree carried another piece of work in progress and the API
+ * refused to boot, taking the whole local stack down. Commit first, then build.
+ */
+function exportHead() {
+  const sha = gitCommit();
+  const dir = path.join(os.tmpdir(), `injishi-build-${sha || 'head'}`);
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  const r = spawnSync('sh', ['-c', `git -C "${ROOT}" archive HEAD | tar -x -C "${dir}"`], { stdio: 'inherit' });
+  if (r.status !== 0) throw new StackError('Could not export the committed code (git archive HEAD).');
+  const dirty = spawnSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8' }).stdout?.trim();
+  console.log(
+    `\n→ Building from the committed code (${sha}).` +
+      (dirty ? ' Uncommitted changes in the working tree are NOT included; commit them first if they belong in the image.' : ''),
+  );
+  return dir;
+}
+
 function build(cfg, builders) {
+  const exported = exportHead();
+  const file = path.join(exported, COMPOSE_FILE);
   for (const service of builders) {
     const started = Date.now();
     console.log(`\n→ Building ${IMAGE[service]} (infra/docker/Dockerfile.${service})`);
-    const r = compose(cfg, ['build', service], { token: service !== 'api' });
+    const r = compose(cfg, ['build', service], { token: service !== 'api', file });
     if (r.status !== 0) {
       const daemonGone = spawnSync('docker', ['info'], { stdio: 'ignore' }).status !== 0;
       throw new StackError(
@@ -220,6 +244,7 @@ function build(cfg, builders) {
     console.log(`  ${IMAGE[service]} built in ${minutes} min, ${imageSize(IMAGE[service])}`);
   }
   spawnSync('docker', ['image', 'prune', '-f'], { stdio: 'ignore' });
+  rmSync(exported, { recursive: true, force: true });
 }
 
 /** A port held by something outside this stack, usually `pnpm dev` on the host. */
