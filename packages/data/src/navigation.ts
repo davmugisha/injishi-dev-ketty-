@@ -646,15 +646,39 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
   // The landlord's sidebar is built per person from their permissions and the business's counts
   // (apps/app `server/rentals/nav.ts`); nothing here is fixed.
   landlord: [],
+  // The tenant's sidebar: the lease in the address bar fills the `[leaseId]` of each item (`navHref`).
   tenant: [
     {
       label: null,
       items: [
         {
           id: "home",
-          label: "My home",
+          label: "Home",
           icon: "House",
-          board: "TenantHome",
+          board: "TenantLeaseHome",
+        },
+        {
+          id: "lease",
+          label: "Lease",
+          icon: "FileText",
+          board: "TenantLease",
+        },
+        {
+          id: "guests",
+          label: "Guests",
+          icon: "PersonPlus",
+          board: "TenantGuests",
+        },
+      ],
+    },
+    {
+      label: "You",
+      items: [
+        {
+          id: "account",
+          label: "Account",
+          icon: "Person",
+          board: "Account",
         },
       ],
     },

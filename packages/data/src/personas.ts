@@ -356,7 +356,15 @@ export const personas: Record<PersonaId, Persona> = {
     app: { kind: "workspace" },
     avatarTone: "accent",
     tryItems: [],
-    access: ["BusinessSwitcher", "Account", "TenantHome", "TeamRoles"],
+    access: [
+      "BusinessSwitcher",
+      "Account",
+      "TenantHome",
+      "TenantLeaseHome",
+      "TenantLease",
+      "TenantGuests",
+      "TeamRoles",
+    ],
   },
   housekeeper: {
     id: "housekeeper",

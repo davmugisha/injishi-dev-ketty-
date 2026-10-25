@@ -2,13 +2,14 @@ import { navigationFor } from "@injishi/data";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { WorkspaceShell } from "@/components/shell/WorkspaceShell";
-import { currentPersona } from "@/lib/session";
+import { currentAccount } from "@/lib/session";
 import { officerNav, officerPersona } from "@/server/oversight/nav";
 import { landlordNav } from "@/server/rentals/nav";
 
 /** Desktop workspace: sidebar navigation of the signed-in persona around every operator screen. */
 export default async function WorkspaceLayout({ children }: { children: ReactNode }) {
-  const persona = await currentPersona();
+  const account = await currentAccount();
+  const persona = account?.persona;
   if (!persona) redirect("/sign-in");
   // A landlord's sidebar follows their permissions and the business's counts (server/rentals/nav.ts).
   // An officer's or local leader's sidebar follows the seats they hold (server/oversight/nav.ts).
@@ -30,10 +31,15 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
       },
     ];
   }
+  // A landlord who also rents a home reads it under /home with the tenant's sidebar (the switcher's "My home").
+  const altNav =
+    persona.id === "landlord" && (account.context?.tenancies.length ?? 0) > 0
+      ? { prefix: "/home", nav: navigationFor("tenant") }
+      : null;
   // An officer's or leader's header names their own seat, not the persona's sample one.
   const shown = persona.id === "officer" ? await officerPersona(persona) : persona;
   return (
-    <WorkspaceShell persona={shown} nav={nav}>
+    <WorkspaceShell persona={shown} nav={nav} altNav={altNav}>
       {children}
     </WorkspaceShell>
   );

@@ -3,7 +3,7 @@
 import { Bars, BellDot, CircleQuestion, Comments, Magnifier } from "@gravity-ui/icons";
 import { Kbd } from "@heroui/react";
 import { AppLayout, Navbar, Sidebar } from "@heroui-pro/react";
-import { type NavGroup, type Persona, screenByPath, screenHref, type TopbarStatus } from "@injishi/data";
+import { type NavGroup, navHref, type Persona, screenByPath, screenHref, type TopbarStatus } from "@injishi/data";
 import { Icon, LinkButton } from "@injishi/ui";
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -17,10 +17,12 @@ import { UserMenu } from "./UserMenu";
 function NavMenu({
   groups,
   current,
+  pathname,
   idPrefix = "",
 }: {
   groups: NavGroup[];
   current: string | undefined;
+  pathname: string;
   idPrefix?: string;
 }) {
   return (
@@ -33,7 +35,7 @@ function NavMenu({
               <Sidebar.MenuItem
                 key={item.id}
                 id={`${idPrefix}${item.id}`}
-                href={screenHref(item.board)}
+                href={navHref(item.board, pathname)}
                 isCurrent={current === item.board}
                 textValue={item.label}
               >
@@ -59,8 +61,20 @@ function NavMenu({
 }
 
 /** Desktop app shell for operator, institution and Injishi staff workspaces (artifact: .ij-app). */
-export function WorkspaceShell({ persona, nav, children }: { persona: Persona; nav: NavGroup[]; children: ReactNode }) {
+export function WorkspaceShell({
+  persona,
+  nav,
+  altNav,
+  children,
+}: {
+  persona: Persona;
+  nav: NavGroup[];
+  /** Another sidebar for the pages under `prefix` (a landlord reading their own home as a tenant). */
+  altNav?: { prefix: string; nav: NavGroup[] } | null;
+  children: ReactNode;
+}) {
   const pathname = usePathname();
+  const groups = altNav && (pathname === altNav.prefix || pathname.startsWith(`${altNav.prefix}/`)) ? altNav.nav : nav;
   const router = useRouter();
   const screen = screenByPath(pathname);
   const topbar = screen?.topbar;
@@ -110,7 +124,7 @@ export function WorkspaceShell({ persona, nav, children }: { persona: Persona; n
       <Sidebar aria-label="Workspace navigation">
         {header}
         <Sidebar.Content>
-          <NavMenu groups={nav} current={current} />
+          <NavMenu groups={groups} current={current} pathname={pathname} />
         </Sidebar.Content>
         <Sidebar.Footer>
           <UserMenu persona={persona} />
@@ -119,7 +133,7 @@ export function WorkspaceShell({ persona, nav, children }: { persona: Persona; n
       <Sidebar.Mobile>
         {header}
         <Sidebar.Content>
-          <NavMenu groups={nav} current={current} idPrefix="m-" />
+          <NavMenu groups={groups} current={current} pathname={pathname} idPrefix="m-" />
         </Sidebar.Content>
         <Sidebar.Footer>
           <UserMenu persona={persona} />
