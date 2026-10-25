@@ -1436,6 +1436,9 @@ export declare const LeaderGuest: z.ZodObject<{
         unitLabel: z.ZodNullable<z.ZodString>;
         /** Street, then village up to district, each place once. */
         address: z.ZodString;
+        /** The village and cell by name, for a list that covers several. */
+        villageName: z.ZodNullable<z.ZodString>;
+        cellName: z.ZodNullable<z.ZodString>;
         villageId: z.ZodNullable<z.ZodNumber>;
         cellId: z.ZodNullable<z.ZodNumber>;
         sectorId: z.ZodNullable<z.ZodNumber>;
@@ -1448,6 +1451,8 @@ export declare const LeaderGuest: z.ZodObject<{
         address: string;
         propertyName: string;
         unitLabel: string | null;
+        villageName: string | null;
+        cellName: string | null;
     }, {
         districtId: number | null;
         sectorId: number | null;
@@ -1456,6 +1461,8 @@ export declare const LeaderGuest: z.ZodObject<{
         address: string;
         propertyName: string;
         unitLabel: string | null;
+        villageName: string | null;
+        cellName: string | null;
     }>;
     chain: z.ZodArray<z.ZodObject<{
         role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
@@ -1555,6 +1562,8 @@ export declare const LeaderGuest: z.ZodObject<{
         address: string;
         propertyName: string;
         unitLabel: string | null;
+        villageName: string | null;
+        cellName: string | null;
     };
     seenByMe: boolean;
     changedAt: string | null;
@@ -1602,6 +1611,8 @@ export declare const LeaderGuest: z.ZodObject<{
         address: string;
         propertyName: string;
         unitLabel: string | null;
+        villageName: string | null;
+        cellName: string | null;
     };
     seenByMe: boolean;
     changedAt: string | null;
@@ -2080,6 +2091,9 @@ export declare const LeaderGuestPage: z.ZodObject<{
             unitLabel: z.ZodNullable<z.ZodString>;
             /** Street, then village up to district, each place once. */
             address: z.ZodString;
+            /** The village and cell by name, for a list that covers several. */
+            villageName: z.ZodNullable<z.ZodString>;
+            cellName: z.ZodNullable<z.ZodString>;
             villageId: z.ZodNullable<z.ZodNumber>;
             cellId: z.ZodNullable<z.ZodNumber>;
             sectorId: z.ZodNullable<z.ZodNumber>;
@@ -2092,6 +2106,8 @@ export declare const LeaderGuestPage: z.ZodObject<{
             address: string;
             propertyName: string;
             unitLabel: string | null;
+            villageName: string | null;
+            cellName: string | null;
         }, {
             districtId: number | null;
             sectorId: number | null;
@@ -2100,6 +2116,8 @@ export declare const LeaderGuestPage: z.ZodObject<{
             address: string;
             propertyName: string;
             unitLabel: string | null;
+            villageName: string | null;
+            cellName: string | null;
         }>;
         chain: z.ZodArray<z.ZodObject<{
             role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
@@ -2199,6 +2217,8 @@ export declare const LeaderGuestPage: z.ZodObject<{
             address: string;
             propertyName: string;
             unitLabel: string | null;
+            villageName: string | null;
+            cellName: string | null;
         };
         seenByMe: boolean;
         changedAt: string | null;
@@ -2246,6 +2266,8 @@ export declare const LeaderGuestPage: z.ZodObject<{
             address: string;
             propertyName: string;
             unitLabel: string | null;
+            villageName: string | null;
+            cellName: string | null;
         };
         seenByMe: boolean;
         changedAt: string | null;
@@ -2301,6 +2323,8 @@ export declare const LeaderGuestPage: z.ZodObject<{
             address: string;
             propertyName: string;
             unitLabel: string | null;
+            villageName: string | null;
+            cellName: string | null;
         };
         seenByMe: boolean;
         changedAt: string | null;
@@ -2390,6 +2414,8 @@ export declare const LeaderGuestPage: z.ZodObject<{
             address: string;
             propertyName: string;
             unitLabel: string | null;
+            villageName: string | null;
+            cellName: string | null;
         };
         seenByMe: boolean;
         changedAt: string | null;
@@ -2871,6 +2897,27 @@ export declare const OversightAppointmentQuery: z.ZodObject<{
     q?: string | undefined;
 }>;
 export type OversightAppointmentQuery = z.infer<typeof OversightAppointmentQuery>;
+/** A place's names from the province down, as far as it is known: a form prefills the place picker with it. */
+export declare const PlaceNames: z.ZodObject<{
+    province: z.ZodNullable<z.ZodString>;
+    district: z.ZodNullable<z.ZodString>;
+    sector: z.ZodNullable<z.ZodString>;
+    cell: z.ZodNullable<z.ZodString>;
+    village: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    province: string | null;
+    district: string | null;
+    sector: string | null;
+    cell: string | null;
+    village: string | null;
+}, {
+    province: string | null;
+    district: string | null;
+    sector: string | null;
+    cell: string | null;
+    village: string | null;
+}>;
+export type PlaceNames = z.infer<typeof PlaceNames>;
 /** Guests waiting because nobody holds a post in an area. */
 export declare const WaitingArea: z.ZodObject<{
     role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
@@ -2884,6 +2931,25 @@ export declare const WaitingArea: z.ZodObject<{
     sectorId: z.ZodNullable<z.ZodNumber>;
     cellId: z.ZodNullable<z.ZodNumber>;
     villageId: z.ZodNullable<z.ZodNumber>;
+    names: z.ZodObject<{
+        province: z.ZodNullable<z.ZodString>;
+        district: z.ZodNullable<z.ZodString>;
+        sector: z.ZodNullable<z.ZodString>;
+        cell: z.ZodNullable<z.ZodString>;
+        village: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        province: string | null;
+        district: string | null;
+        sector: string | null;
+        cell: string | null;
+        village: string | null;
+    }, {
+        province: string | null;
+        district: string | null;
+        sector: string | null;
+        cell: string | null;
+        village: string | null;
+    }>;
     reports: z.ZodNumber;
     oldestArrival: z.ZodString;
 }, "strip", z.ZodTypeAny, {
@@ -2897,6 +2963,13 @@ export declare const WaitingArea: z.ZodObject<{
     area: string;
     roleLabel: string;
     located: boolean;
+    names: {
+        province: string | null;
+        district: string | null;
+        sector: string | null;
+        cell: string | null;
+        village: string | null;
+    };
     reports: number;
     oldestArrival: string;
 }, {
@@ -2910,6 +2983,13 @@ export declare const WaitingArea: z.ZodObject<{
     area: string;
     roleLabel: string;
     located: boolean;
+    names: {
+        province: string | null;
+        district: string | null;
+        sector: string | null;
+        cell: string | null;
+        village: string | null;
+    };
     reports: number;
     oldestArrival: string;
 }>;
@@ -3009,6 +3089,25 @@ export declare const OversightAppointmentList: z.ZodObject<{
         sectorId: z.ZodNullable<z.ZodNumber>;
         cellId: z.ZodNullable<z.ZodNumber>;
         villageId: z.ZodNullable<z.ZodNumber>;
+        names: z.ZodObject<{
+            province: z.ZodNullable<z.ZodString>;
+            district: z.ZodNullable<z.ZodString>;
+            sector: z.ZodNullable<z.ZodString>;
+            cell: z.ZodNullable<z.ZodString>;
+            village: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        }, {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        }>;
         reports: z.ZodNumber;
         oldestArrival: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -3022,6 +3121,13 @@ export declare const OversightAppointmentList: z.ZodObject<{
         area: string;
         roleLabel: string;
         located: boolean;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
         reports: number;
         oldestArrival: string;
     }, {
@@ -3035,6 +3141,13 @@ export declare const OversightAppointmentList: z.ZodObject<{
         area: string;
         roleLabel: string;
         located: boolean;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
         reports: number;
         oldestArrival: string;
     }>, "many">;
@@ -3051,6 +3164,13 @@ export declare const OversightAppointmentList: z.ZodObject<{
         area: string;
         roleLabel: string;
         located: boolean;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
         reports: number;
         oldestArrival: string;
     }[];
@@ -3095,6 +3215,13 @@ export declare const OversightAppointmentList: z.ZodObject<{
         area: string;
         roleLabel: string;
         located: boolean;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
         reports: number;
         oldestArrival: string;
     }[];
@@ -3277,6 +3404,25 @@ export declare const LeaderCoverage: z.ZodObject<{
         sectorId: z.ZodNullable<z.ZodNumber>;
         cellId: z.ZodNullable<z.ZodNumber>;
         villageId: z.ZodNullable<z.ZodNumber>;
+        names: z.ZodObject<{
+            province: z.ZodNullable<z.ZodString>;
+            district: z.ZodNullable<z.ZodString>;
+            sector: z.ZodNullable<z.ZodString>;
+            cell: z.ZodNullable<z.ZodString>;
+            village: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        }, {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        }>;
         homes: z.ZodNumber;
         waitingReports: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
@@ -3289,6 +3435,13 @@ export declare const LeaderCoverage: z.ZodObject<{
         level: "district" | "sector" | "cell" | "village";
         area: string;
         roleLabel: string;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
         waitingReports: number;
         homes: number;
     }, {
@@ -3301,6 +3454,13 @@ export declare const LeaderCoverage: z.ZodObject<{
         level: "district" | "sector" | "cell" | "village";
         area: string;
         roleLabel: string;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
         waitingReports: number;
         homes: number;
     }>, "many">;
@@ -3316,6 +3476,25 @@ export declare const LeaderCoverage: z.ZodObject<{
         sectorId: z.ZodNullable<z.ZodNumber>;
         cellId: z.ZodNullable<z.ZodNumber>;
         villageId: z.ZodNullable<z.ZodNumber>;
+        names: z.ZodObject<{
+            province: z.ZodNullable<z.ZodString>;
+            district: z.ZodNullable<z.ZodString>;
+            sector: z.ZodNullable<z.ZodString>;
+            cell: z.ZodNullable<z.ZodString>;
+            village: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        }, {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        }>;
         reports: z.ZodNumber;
         oldestArrival: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -3329,6 +3508,13 @@ export declare const LeaderCoverage: z.ZodObject<{
         area: string;
         roleLabel: string;
         located: boolean;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
         reports: number;
         oldestArrival: string;
     }, {
@@ -3342,6 +3528,13 @@ export declare const LeaderCoverage: z.ZodObject<{
         area: string;
         roleLabel: string;
         located: boolean;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
         reports: number;
         oldestArrival: string;
     }>, "many">;
@@ -3388,6 +3581,13 @@ export declare const LeaderCoverage: z.ZodObject<{
         level: "district" | "sector" | "cell" | "village";
         area: string;
         roleLabel: string;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
         waitingReports: number;
         homes: number;
     }[];
@@ -3416,6 +3616,13 @@ export declare const LeaderCoverage: z.ZodObject<{
         area: string;
         roleLabel: string;
         located: boolean;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
         reports: number;
         oldestArrival: string;
     }[];
@@ -3441,6 +3648,13 @@ export declare const LeaderCoverage: z.ZodObject<{
         level: "district" | "sector" | "cell" | "village";
         area: string;
         roleLabel: string;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
         waitingReports: number;
         homes: number;
     }[];
@@ -3469,6 +3683,13 @@ export declare const LeaderCoverage: z.ZodObject<{
         area: string;
         roleLabel: string;
         located: boolean;
+        names: {
+            province: string | null;
+            district: string | null;
+            sector: string | null;
+            cell: string | null;
+            village: string | null;
+        };
         reports: number;
         oldestArrival: string;
     }[];

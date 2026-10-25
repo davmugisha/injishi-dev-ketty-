@@ -1,4 +1,4 @@
-import { type GuestReport, longDate } from '@injishi/contracts';
+import { type GuestReport, kigaliDateOf, longDate } from '@injishi/contracts';
 import PDFDocument from 'pdfkit';
 
 const INK = '#111827';
@@ -55,7 +55,7 @@ export function renderGuestReportPdf(report: GuestReport): Promise<Buffer> {
     doc.fontSize(9).fillColor(MUTED).text(pdfText(`Prepared by ${by}`), { width });
     for (const s of report.scopes) doc.text(pdfText(`${s.roleLabel}: ${s.area}`), { width });
     if (report.narrowedTo) doc.text(pdfText(`Narrowed to ${report.narrowedTo}`), { width });
-    doc.text(pdfText(`Generated ${longDate(report.generatedAt.slice(0, 10))} on Injishi`), { width });
+    doc.text(pdfText(`Generated ${longDate(kigaliDateOf(report.generatedAt))} on Injishi`), { width });
     doc.moveDown(0.8);
 
     // --- The totals ---------------------------------------------------------------------
@@ -112,7 +112,7 @@ export function renderGuestReportPdf(report: GuestReport): Promise<Buffer> {
       report.byRelationship.slice(0, 8).map((r) => [r.label, String(r.count)]), left, secondTop, half);
     const leftEnd2 = doc.y;
     table(doc, 'Homes with the most guests', ['Address', 'Guests'],
-      report.topHomes.slice(0, 6).map((h) => [h.unitLabel ? `${h.address}, unit ${h.unitLabel}` : h.address, String(h.guests)]),
+      report.topHomes.slice(0, 6).map((h) => [h.unitLabel ? `Unit ${h.unitLabel}, ${h.address}` : h.address, String(h.guests)]),
       left + half + 24, secondTop, half);
     doc.y = Math.max(leftEnd2, doc.y) + 14;
 

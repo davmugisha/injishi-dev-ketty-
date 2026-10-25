@@ -104,6 +104,8 @@ export function presentLeaderGuest(
       propertyName: row.propertyName,
       unitLabel: row.unitLabel,
       address: addressWords(row.addressText, row),
+      villageName: row.villageName,
+      cellName: row.cellName,
       villageId: row.villageId,
       cellId: row.cellId,
       sectorId: row.sectorId,

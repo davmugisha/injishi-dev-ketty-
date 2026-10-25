@@ -52,6 +52,7 @@ export interface WaitingRow {
   sectorId: number | null;
   cellId: number | null;
   villageId: number | null;
+  provinceName: string | null;
   districtName: string | null;
   sectorName: string | null;
   cellName: string | null;
@@ -63,6 +64,7 @@ export interface WaitingRow {
 /** An area with rented homes and nobody in a post there. */
 export interface UncoveredRow extends ResolvedArea {
   role: LeaderRole;
+  provinceName: string | null;
   districtName: string | null;
   sectorName: string | null;
   cellName: string | null;
@@ -199,16 +201,17 @@ export class LocalLeadersRepository {
     const result = await this.db.execute(sql`
       select r.recipient_role::text as role, d.province_id as "provinceId", r.district_id as "districtId",
              r.sector_id as "sectorId", r.cell_id as "cellId", r.village_id as "villageId",
-             d.name as "districtName", s.name as "sectorName", c.name as "cellName", v.name as "villageName",
+             pr.name as "provinceName", d.name as "districtName", s.name as "sectorName", c.name as "cellName", v.name as "villageName",
              count(*)::int as reports, to_char(min(g.arrival_on), 'YYYY-MM-DD') as "oldestArrival"
         from guest_registration_routes r
         join guest_registrations g on g.id = r.registration_id
         left join districts d on d.id = r.district_id
+        left join provinces pr on pr.id = d.province_id
         left join sectors s on s.id = r.sector_id
         left join cells c on c.id = r.cell_id
         left join villages v on v.id = r.village_id
        where ${sql.join(where, sql` and `)}
-       group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+       group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
        order by reports desc, "oldestArrival"
        limit 500`);
     return rowsOf<WaitingRow>(result);
@@ -259,6 +262,7 @@ export class LocalLeadersRepository {
              ${placeColumns(level)}
         from areas ar
         ${placeJoins(level)}
+        left join provinces pr on pr.id = d.province_id
        order by "waitingReports" desc, ar.homes desc
        limit 2000`);
     return rowsOf<UncoveredRow & { covered: boolean; areaId: number }>(result);
@@ -292,16 +296,16 @@ function placeColumns(level: 'village' | 'cell' | 'sector' | 'district'): SQL {
   switch (level) {
     case 'village':
       return sql`d.province_id as "provinceId", s.district_id as "districtId", c.sector_id as "sectorId", v.cell_id as "cellId", v.id as "villageId",
-                 d.name as "districtName", s.name as "sectorName", c.name as "cellName", v.name as "villageName"`;
+                 pr.name as "provinceName", d.name as "districtName", s.name as "sectorName", c.name as "cellName", v.name as "villageName"`;
     case 'cell':
       return sql`d.province_id as "provinceId", s.district_id as "districtId", c.sector_id as "sectorId", c.id as "cellId", null::int as "villageId",
-                 d.name as "districtName", s.name as "sectorName", c.name as "cellName", null::text as "villageName"`;
+                 pr.name as "provinceName", d.name as "districtName", s.name as "sectorName", c.name as "cellName", null::text as "villageName"`;
     case 'sector':
       return sql`d.province_id as "provinceId", s.district_id as "districtId", s.id as "sectorId", null::int as "cellId", null::int as "villageId",
-                 d.name as "districtName", s.name as "sectorName", null::text as "cellName", null::text as "villageName"`;
+                 pr.name as "provinceName", d.name as "districtName", s.name as "sectorName", null::text as "cellName", null::text as "villageName"`;
     case 'district':
       return sql`d.province_id as "provinceId", d.id as "districtId", null::int as "sectorId", null::int as "cellId", null::int as "villageId",
-                 d.name as "districtName", null::text as "sectorName", null::text as "cellName", null::text as "villageName"`;
+                 pr.name as "provinceName", d.name as "districtName", null::text as "sectorName", null::text as "cellName", null::text as "villageName"`;
   }
 }
 

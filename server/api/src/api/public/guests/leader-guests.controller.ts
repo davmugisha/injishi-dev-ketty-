@@ -51,9 +51,14 @@ export class OversightGuestsController {
     return this.console.page(user.id, grants, query);
   }
 
+  /** The counts, posts and narrowing choices (a chosen sector offers its cells, a cell its villages). */
   @Get('summary')
-  summary(@CurrentUser() user: SessionUser, @CurrentOversight() grants: OversightGrant[]): Promise<LeaderSummary> {
-    return this.console.summary(user.id, grants);
+  summary(
+    @Query(new ZodValidationPipe(LeaderGuestQuery)) query: LeaderGuestQuery,
+    @CurrentUser() user: SessionUser,
+    @CurrentOversight() grants: OversightGrant[],
+  ): Promise<LeaderSummary> {
+    return this.console.summary(user.id, grants, query);
   }
 
   @Get('export.csv')

@@ -458,6 +458,9 @@ export const LeaderGuest = z.object({
     unitLabel: z.string().nullable(),
     /** Street, then village up to district, each place once. */
     address: z.string(),
+    /** The village and cell by name, for a list that covers several. */
+    villageName: z.string().nullable(),
+    cellName: z.string().nullable(),
     villageId: z.number().int().nullable(),
     cellId: z.number().int().nullable(),
     sectorId: z.number().int().nullable(),
@@ -631,6 +634,16 @@ export const OversightAppointmentQuery = z.object({
 });
 export type OversightAppointmentQuery = z.infer<typeof OversightAppointmentQuery>;
 
+/** A place's names from the province down, as far as it is known: a form prefills the place picker with it. */
+export const PlaceNames = z.object({
+  province: z.string().nullable(),
+  district: z.string().nullable(),
+  sector: z.string().nullable(),
+  cell: z.string().nullable(),
+  village: z.string().nullable(),
+});
+export type PlaceNames = z.infer<typeof PlaceNames>;
+
 /** Guests waiting because nobody holds a post in an area. */
 export const WaitingArea = z.object({
   role: LeaderRole,
@@ -644,6 +657,7 @@ export const WaitingArea = z.object({
   sectorId: z.number().int().nullable(),
   cellId: z.number().int().nullable(),
   villageId: z.number().int().nullable(),
+  names: PlaceNames,
   reports: z.number().int(),
   oldestArrival: z.string(),
 });
@@ -742,6 +756,7 @@ export const LeaderCoverage = z.object({
       sectorId: z.number().int().nullable(),
       cellId: z.number().int().nullable(),
       villageId: z.number().int().nullable(),
+      names: PlaceNames,
       homes: z.number().int(),
       waitingReports: z.number().int(),
     }),

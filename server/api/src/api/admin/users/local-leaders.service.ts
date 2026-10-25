@@ -99,6 +99,7 @@ function presentWaiting(w: WaitingRow): WaitingArea {
     sectorId: w.sectorId,
     cellId: w.cellId,
     villageId: w.villageId,
+    names: { province: w.provinceName, district: w.districtName, sector: w.sectorName, cell: w.cellName, village: w.villageName },
     reports: w.reports,
     oldestArrival: w.oldestArrival,
   };
@@ -413,6 +414,7 @@ export class LocalLeadersService {
             sectorId: a.sectorId,
             cellId: a.cellId,
             villageId: a.villageId,
+            names: { province: a.provinceName, district: a.districtName, sector: a.sectorName, cell: a.cellName, village: a.villageName },
             homes: a.homes,
             waitingReports: a.waitingReports,
           };

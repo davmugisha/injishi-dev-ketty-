@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OversightAppointment = exports.AppointmentKind = exports.GuestReport = exports.ReportBucket = exports.GuestReportQuery = exports.GUEST_REPORT_MAX_DAYS = exports.LeaderGuestPage = exports.LeaderSummary = exports.LeaderCounts = exports.LeaderFilters = exports.LeaderScope = exports.LeaderGuest = exports.LeaderChainStep = exports.FlagGuestRequest = exports.LeaderGuestQuery = exports.LeaderArrivingWhen = exports.LeaderGuestTab = exports.GuestRelationship = exports.GuestCountry = exports.LandlordGuestList = exports.TenantGuestList = exports.HostGuestList = exports.HostGuestQuery = exports.HostGuestTab = exports.GuestBuilding = exports.HostGuest = exports.HostChainStep = exports.LandlordGuestRequest = exports.TenantGuestRequest = exports.GuestOrigin = exports.GuestCountryCode = exports.GuestPhone = exports.OTHER_RELATIONSHIP = exports.GUEST_RELATIONSHIPS = exports.GuestRouteState = exports.GuestStay = exports.GuestRegistrationStatus = exports.GuestHostKind = exports.OVERSIGHT_ROLE_SCOPES = exports.LEADER_ROLE_BODY = exports.LEADER_ROLE_SCOPE = exports.LEADER_ROLE_STEP = exports.LEADER_ROLE_SHORT = exports.LEADER_ROLE_LABEL = exports.REVIEWER_ROLES = exports.LeaderRole = exports.LEADER_ROLES = exports.LEADER_ARRIVING_DAYS = exports.GUEST_RETENTION_MONTHS = exports.RWANDA_CODE = void 0;
-exports.LeaderCoverage = exports.EndAppointmentQuery = exports.AppointOfficerRequest = exports.OversightAppointmentList = exports.WaitingArea = exports.OversightAppointmentQuery = void 0;
+exports.LeaderCoverage = exports.EndAppointmentQuery = exports.AppointOfficerRequest = exports.OversightAppointmentList = exports.WaitingArea = exports.PlaceNames = exports.OversightAppointmentQuery = void 0;
 exports.isLeaderRole = isLeaderRole;
 exports.guestChainFor = guestChainFor;
 exports.isFromAbroad = isFromAbroad;
@@ -387,6 +387,9 @@ exports.LeaderGuest = zod_1.z.object({
         unitLabel: zod_1.z.string().nullable(),
         /** Street, then village up to district, each place once. */
         address: zod_1.z.string(),
+        /** The village and cell by name, for a list that covers several. */
+        villageName: zod_1.z.string().nullable(),
+        cellName: zod_1.z.string().nullable(),
         villageId: zod_1.z.number().int().nullable(),
         cellId: zod_1.z.number().int().nullable(),
         sectorId: zod_1.z.number().int().nullable(),
@@ -536,6 +539,14 @@ exports.OversightAppointmentQuery = zod_1.z.object({
     villageId: AreaId.optional(),
     q: zod_1.z.string().trim().max(120).optional(),
 });
+/** A place's names from the province down, as far as it is known: a form prefills the place picker with it. */
+exports.PlaceNames = zod_1.z.object({
+    province: zod_1.z.string().nullable(),
+    district: zod_1.z.string().nullable(),
+    sector: zod_1.z.string().nullable(),
+    cell: zod_1.z.string().nullable(),
+    village: zod_1.z.string().nullable(),
+});
 /** Guests waiting because nobody holds a post in an area. */
 exports.WaitingArea = zod_1.z.object({
     role: exports.LeaderRole,
@@ -549,6 +560,7 @@ exports.WaitingArea = zod_1.z.object({
     sectorId: zod_1.z.number().int().nullable(),
     cellId: zod_1.z.number().int().nullable(),
     villageId: zod_1.z.number().int().nullable(),
+    names: exports.PlaceNames,
     reports: zod_1.z.number().int(),
     oldestArrival: zod_1.z.string(),
 });
@@ -634,6 +646,7 @@ exports.LeaderCoverage = zod_1.z.object({
         sectorId: zod_1.z.number().int().nullable(),
         cellId: zod_1.z.number().int().nullable(),
         villageId: zod_1.z.number().int().nullable(),
+        names: exports.PlaceNames,
         homes: zod_1.z.number().int(),
         waitingReports: zod_1.z.number().int(),
     })),
