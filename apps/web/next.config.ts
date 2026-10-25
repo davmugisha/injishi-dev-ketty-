@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
-import { appHandoffRedirects } from "./src/lib/app-handoff";
+import { appHandoffRedirects, appHandoffRscRewrites } from "./src/lib/app-handoff";
 
 /**
  * The marketing `screens` list that used to sit here is gone with the captured
@@ -127,6 +127,9 @@ const nextConfig: NextConfig = {
       beforeFiles: [
         { source: "/operator-static/:path*", destination: `${zone}/operator-static/:path*` },
         ...roots.flatMap(forward),
+        // A soft navigation to a hand-off path cannot follow the redirect below
+        // across origins; `app-handoff.ts` says what answers it instead.
+        ...appHandoffRscRewrites(process.env.NEXT_PUBLIC_WEB_URL, process.env.NEXT_PUBLIC_PMS_URL),
       ],
       /**
        * `host` IS WEB'S, AND HAS TO BE CHECKED LAST (ADR-044, D-b).

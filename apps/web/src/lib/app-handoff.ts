@@ -26,6 +26,7 @@ export interface HandoffRedirect {
   source: string;
   destination: string;
   permanent: false;
+  missing: { type: "header"; key: string }[];
 }
 
 /**
@@ -38,6 +39,36 @@ export interface HandoffRedirect {
  * deployed stack serves could not be opened locally at all.
  */
 export const APP_HANDOFF_PATHS = ["/sign-in"];
+
+/**
+ * The header Next's client router sends with every RSC fetch, a soft navigation
+ * or a prefetch. A request for a page loaded in the browser never carries it.
+ *
+ * THE REDIRECT IS FOR PAGE LOADS ONLY. Every `<Link>` to `/sign-in`
+ * navigates by fetching the RSC payload, `fetch` follows the 307
+ * to the app's origin, and the app answers without CORS headers for web's, so
+ * the browser blocks it. Next then logs "Failed to fetch RSC payload ...
+ * Falling back to browser navigation", which the dev overlay shows as an
+ * issue, and loads the page anyway: the error flashes and is gone. So the
+ * redirects skip RSC fetches, and a rewrite answers those with an empty 204
+ * (`appHandoffRscRewrites`), which Next's router takes as "load this url in the
+ * browser". That page load meets the redirect, with nothing logged.
+ *
+ * A rewrite, not middleware: Next strips the RSC headers from the request it
+ * hands middleware, so middleware cannot tell the two kinds of request apart.
+ * And not left to fall through either: an RSC fetch would then render web's own
+ * `/sign-in` while a page load gets the app's, two screens for one link.
+ */
+export const RSC_HEADER = "rsc";
+
+/** The route that answers those RSC fetches: `src/app/app-handoff/route.ts`. */
+export const HANDOFF_RSC_ANSWER = "/app-handoff";
+
+export interface HandoffRscRewrite {
+  source: string;
+  has: { type: "header"; key: string }[];
+  destination: string;
+}
 
 /** The defaults `web-url.ts` and the old redirect used when a variable is unset. */
 const WEB_DEFAULT = "http://localhost:3000";
@@ -71,5 +102,23 @@ export function appHandoffRedirects(
     source,
     destination: `${app}${source}`,
     permanent: false,
+    missing: [{ type: "header", key: RSC_HEADER }],
+  }));
+}
+
+/**
+ * The `beforeFiles` rewrites for `next.config.ts` that answer an RSC fetch for a
+ * hand-off path (see `RSC_HEADER`). Built from the redirects, so the two lists
+ * always name the same paths, and empty wherever the redirects are: where the
+ * app shares web's origin, web's own screens answer and a soft navigation works.
+ */
+export function appHandoffRscRewrites(
+  webUrl: string | undefined,
+  appUrl: string | undefined,
+): HandoffRscRewrite[] {
+  return appHandoffRedirects(webUrl, appUrl).map(({ source }) => ({
+    source,
+    has: [{ type: "header", key: RSC_HEADER }],
+    destination: HANDOFF_RSC_ANSWER,
   }));
 }
