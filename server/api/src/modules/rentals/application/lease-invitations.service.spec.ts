@@ -219,9 +219,12 @@ describe('LeaseInvitationsService.preview', () => {
     expect(expired.state).toBe('expired');
     expect(expired.message).toMatch(/^This invitation expired on .+\. Ask Amani Residences to send it again\.$/);
     const revoked = await harness({ invitation: invitation({ status: 'revoked', revokedAt: new Date() }) }).service.preview(TOKEN);
-    expect(revoked).toMatchObject({ state: 'revoked', message: 'Amani Residences withdrew this invitation. If they send a new one, use the link in that email.' });
+    expect(revoked).toMatchObject({
+      state: 'revoked',
+      message: 'This link was replaced by a newer one. Use the link in the latest email from Amani Residences.',
+    });
     const cancelled = await harness({ lease: leaseRow({ status: 'cancelled' }) }).service.preview(TOKEN);
-    expect(cancelled.state).toBe('revoked');
+    expect(cancelled).toMatchObject({ state: 'revoked', message: 'Amani Residences cancelled this lease. Nothing is owed on it.' });
   });
 
   it('a replaced or unknown link is 404', async () => {

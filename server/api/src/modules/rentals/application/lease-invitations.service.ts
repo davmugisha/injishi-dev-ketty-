@@ -271,7 +271,7 @@ export class LeaseInvitationsService {
     const state = this.stateOf(inv, record);
     return {
       state,
-      message: this.stateWords(state, inv, org.legalName),
+      message: this.stateWords(state, inv, org.legalName, record),
       invitedEmail: maskEmail(inv.email),
       landlordName: org.legalName,
       propertyName: record.propertyName,
@@ -315,7 +315,7 @@ export class LeaseInvitationsService {
     }
     const state = this.stateOf(inv, record);
     if (state !== 'open') {
-      throw new ConflictException({ code: `invitation_${state}`, message: this.stateWords(state, inv, org.legalName) });
+      throw new ConflictException({ code: `invitation_${state}`, message: this.stateWords(state, inv, org.legalName, record) });
     }
 
     await this.db
@@ -379,7 +379,12 @@ export class LeaseInvitationsService {
     return 'open';
   }
 
-  private stateWords(state: LeaseInvitationState, inv: InvitationRow, landlordName: string): string | null {
+  private stateWords(
+    state: LeaseInvitationState,
+    inv: InvitationRow,
+    landlordName: string,
+    record: LeaseRecord,
+  ): string | null {
     switch (state) {
       case 'open':
         return null;
@@ -388,7 +393,10 @@ export class LeaseInvitationsService {
       case 'expired':
         return `This invitation expired on ${longDate(inv.expiresAt.toISOString().slice(0, 10))}. Ask ${landlordName} to send it again.`;
       case 'revoked':
-        return `${landlordName} withdrew this invitation. If they send a new one, use the link in that email.`;
+        // A cancelled lease took its invitation with it; otherwise a newer link replaced this one.
+        return record.lease.status === 'cancelled'
+          ? `${landlordName} cancelled this lease. Nothing is owed on it.`
+          : `This link was replaced by a newer one. Use the link in the latest email from ${landlordName}.`;
     }
   }
 

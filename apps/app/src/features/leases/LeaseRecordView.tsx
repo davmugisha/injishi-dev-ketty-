@@ -479,7 +479,9 @@ export function LeaseRecordView({
                         ? "Sent"
                         : lease.invitation.status === "expired"
                           ? "Expired"
-                          : "Replaced"}
+                          : lease.status === "cancelled"
+                            ? "Withdrawn"
+                            : "Replaced"}
                   </StatusChip>
                 }
               >
@@ -490,9 +492,13 @@ export function LeaseRecordView({
                       label: lease.invitation.sendCount > 1 ? "Last sent" : "Sent",
                       value: <DateText value={lease.invitation.lastSentAt} />,
                     },
-                    lease.invitation.acceptedAt
-                      ? { label: "Accepted", value: <DateText value={lease.invitation.acceptedAt} /> }
-                      : { label: "Link works until", value: <DateText value={lease.invitation.expiresAt} /> },
+                    ...(lease.invitation.acceptedAt
+                      ? [{ label: "Accepted", value: <DateText value={lease.invitation.acceptedAt} /> }]
+                      : lease.invitation.status === "sent"
+                        ? [{ label: "Link works until", value: <DateText value={lease.invitation.expiresAt} /> }]
+                        : lease.invitation.status === "expired"
+                          ? [{ label: "Expired on", value: <DateText value={lease.invitation.expiresAt} /> }]
+                          : []),
                   ]}
                 />
               </SectionCard>

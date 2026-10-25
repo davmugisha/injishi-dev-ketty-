@@ -6,6 +6,7 @@ import { ActionButton, ActionLink, DateText, Icon, KeyValueList, Money } from "@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { BrandMark } from "@/components/brand";
+import { signOut } from "@/lib/auth-actions";
 import { tenantLeaseHref } from "../leases/shared";
 import { acceptInvitation } from "./actions";
 
@@ -26,6 +27,9 @@ export function InvitationView({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  // Signed in with another address than the one invited: accepting again cannot work.
+  const [otherEmail, setOtherEmail] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const here = `/invite/lease/${encodeURIComponent(token)}`;
 
   const accept = async () => {
@@ -35,6 +39,7 @@ export function InvitationView({
     if (!r.ok) {
       setPending(false);
       setProblem(r.error);
+      setOtherEmail(r.code === "invitation_other_email");
       return;
     }
     router.push(`${tenantLeaseHref(r.value.id)}?sign=1`);
@@ -99,7 +104,22 @@ export function InvitationView({
             </Alert>
           ) : null}
           {preview.state === "open" ? (
-            signedInAs ? (
+            signedInAs && otherEmail ? (
+              <div className="flex flex-col gap-2">
+                <ActionButton
+                  icon="ArrowRightToSquare"
+                  intent="primary"
+                  isPending={switching}
+                  onPress={() => {
+                    setSwitching(true);
+                    void signOut(here);
+                  }}
+                >
+                  Sign in with {preview.invitedEmail}
+                </ActionButton>
+                <p className="text-xs text-muted">You are signed in as {signedInAs}.</p>
+              </div>
+            ) : signedInAs ? (
               <div className="flex flex-col gap-2">
                 <ActionButton icon="Check" intent="primary" isPending={pending} onPress={accept}>
                   Accept and read the lease
@@ -120,14 +140,14 @@ export function InvitationView({
                 </p>
               </div>
             )
-          ) : preview.state === "accepted" && signedInAs ? (
+          ) : signedInAs ? (
             <ActionLink href="/home" icon="House">
               Go to my home
             </ActionLink>
           ) : null}
         </Card>
       )}
-      {preview ? (
+      {preview?.state === "open" ? (
         <p className="text-center text-xs text-muted">
           The link works until <DateText value={preview.expiresAt} style="long" />.
         </p>
