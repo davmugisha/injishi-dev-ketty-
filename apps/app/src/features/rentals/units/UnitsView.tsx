@@ -351,7 +351,7 @@ export function UnitsView({
           properties={properties}
           onClose={() => setForm(null)}
           onSaved={(unit) => {
-            // A new or edited unit opens in its panel, where its photos and video are added.
+            // A new or edited unit opens in its panel, with its photos and video.
             if (unit) setSelectedId(unit.id);
           }}
         />

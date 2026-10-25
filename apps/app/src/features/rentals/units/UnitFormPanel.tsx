@@ -9,11 +9,12 @@ import {
   type RentalUnitView,
   type UnitKitchen,
 } from "@injishi/contracts";
-import { BoundedDatePicker, Icon, kigaliDay, MoneyInput, SelectField, SidePanel } from "@injishi/ui";
+import { BoundedDatePicker, Icon, kigaliDay, MoneyInput, SectionHeader, SelectField, SidePanel } from "@injishi/ui";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { bulkAddUnits, createUnit, updateUnit } from "../actions";
 import { CountInput, fieldErrorsOnly, SwitchRow, TextInput } from "../fields";
+import { type MediaProgress, UnitMediaFields } from "./UnitMediaFields";
 
 const NO_BLOCK = "none";
 
@@ -58,9 +59,16 @@ export function bulkLabels(prefix: string, from: number | null, to: number | nul
 
 export type UnitFormMode = { kind: "add" } | { kind: "bulk" } | { kind: "edit"; unit: RentalUnitView };
 
+const NO_MEDIA: MediaProgress = { busy: false, failed: 0, held: 0, photos: 0, video: false };
+
+const photoWords = (n: number) => (n === 1 ? "1 photo" : `${n} photos`);
+
 /**
  * Add a unit, add several at once (named from a pattern, the same facts for all), or edit one. One form
  * for all three; the API checks every rule again (a name used twice in a building, a listed unit's rent).
+ * Adding or editing one unit, its photos and video tour are in the same form: for a new unit they wait in
+ * the browser and go up, each with its progress, right after the unit is saved. A photo that fails
+ * leaves the unit saved and shows Try again.
  */
 export function UnitFormPanel({
   mode,
@@ -76,7 +84,11 @@ export function UnitFormPanel({
   onSaved?: (unit: RentalUnitView | null) => void;
 }) {
   const router = useRouter();
-  const editing = mode.kind === "edit" ? mode.unit : null;
+  // A new unit, once saved, is edited from then on (its photos are still going up).
+  const [created, setCreated] = useState<RentalUnitView | null>(null);
+  const editing = mode.kind === "edit" ? mode.unit : created;
+  const [media, setMedia] = useState<MediaProgress>(NO_MEDIA);
+  const onMedia = useCallback((next: MediaProgress) => setMedia(next), []);
   const [label, setLabel] = useState(editing?.label ?? "");
   const [prefix, setPrefix] = useState("A-");
   const [from, setFrom] = useState<number | null>(1);
@@ -117,18 +129,41 @@ export function UnitFormPanel({
     state: facts.offMarket ? "off_market" : "active",
   });
 
+  /** Saved, with every photo and the video up: say so, open the unit, close. */
+  const finish = useCallback(
+    (unit: RentalUnitView, added: boolean, m: MediaProgress) => {
+      const extra = [m.photos > 0 ? photoWords(m.photos) : null, m.video ? "a video" : null].filter(Boolean);
+      toast.success(
+        added
+          ? `Unit ${unit.label} added${extra.length > 0 ? ` with ${extra.join(" and ")}` : ""}`
+          : `Unit ${unit.label} saved`,
+      );
+      onSaved?.(unit);
+      onClose();
+      router.refresh();
+    },
+    [onSaved, onClose, router],
+  );
+
+  // A new unit's photos and video went up after it was saved: close once they are all done.
+  const announced = useRef(false);
+  useEffect(() => {
+    if (!created || media.busy || media.held > 0 || media.failed > 0 || announced.current) return;
+    announced.current = true;
+    finish(created, true, media);
+  }, [created, media, finish]);
+
   const submit = () =>
     start(async () => {
       if (mode.kind === "bulk" && labels.length === 0) {
         setErrors({ to: "Pick a range of up to 200 units." });
         return;
       }
-      const result =
-        mode.kind === "add"
+      const result = editing
+        ? await updateUnit(editing.id, { ...body(), label })
+        : mode.kind === "add"
           ? await createUnit({ ...body(), label })
-          : mode.kind === "bulk"
-            ? await bulkAddUnits({ ...body(), labels })
-            : await updateUnit(mode.unit.id, { ...body(), label });
+          : await bulkAddUnits({ ...body(), labels });
       if (!result.ok) {
         const fields = fieldErrorsOnly(result.fieldErrors);
         if (fields["labels.0"] || Object.keys(fields).some((k) => k.startsWith("labels."))) {
@@ -138,17 +173,26 @@ export function UnitFormPanel({
         setFormError(result.fieldErrors ? null : result.error);
         return;
       }
+      setFormError(null);
       if (mode.kind === "bulk") {
         const count = (result.value as { created: unknown[] }).created.length;
         toast.success(`${count} ${count === 1 ? "unit" : "units"} added`);
         onSaved?.(null);
-      } else {
-        const unit = result.value as RentalUnitView;
-        toast.success(mode.kind === "add" ? `Unit ${unit.label} added` : `Unit ${unit.label} saved`);
-        onSaved?.(unit);
+        onClose();
+        router.refresh();
+        return;
       }
-      onClose();
-      router.refresh();
+      const unit = result.value as RentalUnitView;
+      // A new unit with photos or a video waiting: they go up now, and the panel closes when they are done.
+      if (mode.kind === "add" && !created && media.held > 0) {
+        setCreated(unit);
+        return;
+      }
+      if (created) {
+        announced.current = true;
+        setCreated(unit);
+      }
+      finish(unit, mode.kind === "add", media);
     });
 
   const title =
@@ -162,21 +206,31 @@ export function UnitFormPanel({
         mode.kind === "bulk"
           ? "Named from a pattern, with the same facts. You can change each one after."
           : mode.kind === "add"
-            ? "Only the name is needed now. Add the rest when you have it."
-            : "Change what you need. A lease already signed keeps its own terms."
+            ? created
+              ? `Unit ${created.label} is saved. Its photos are uploading.`
+              : "Only the name is needed. Add the rest, photos and a video now or later."
+            : "Change what you need. Photos and the video save as you add them."
       }
       submitLabel={
         mode.kind === "bulk"
           ? labels.length > 0
             ? `Add ${labels.length} units`
             : "Add units"
-          : mode.kind === "add"
-            ? "Add unit"
-            : "Save"
+          : created
+            ? "Done"
+            : mode.kind === "add"
+              ? "Add unit"
+              : "Save"
       }
-      isPending={pending}
+      size={mode.kind === "bulk" ? "md" : "lg"}
+      isPending={pending || media.busy}
       validationErrors={errors}
-      formError={formError}
+      formError={
+        formError ??
+        (created && media.failed > 0 && !media.busy
+          ? `Unit ${created.label} is saved. ${media.failed === 1 ? "One file" : `${media.failed} files`} didn't upload: try again or remove ${media.failed === 1 ? "it" : "them"}.`
+          : null)
+      }
       onSubmit={(event) => {
         event.preventDefault();
         submit();
@@ -357,6 +411,18 @@ export function UnitFormPanel({
         multiline
         description="Only your team sees it."
       />
+
+      {mode.kind === "bulk" ? null : (
+        <section aria-labelledby="unit-media" className="flex flex-col gap-4 border-t border-border pt-4">
+          <SectionHeader id="unit-media" title="Photos and video" />
+          <UnitMediaFields
+            unitId={editing?.id ?? null}
+            load={mode.kind === "edit"}
+            isDisabled={editing?.state === "retired"}
+            onProgress={onMedia}
+          />
+        </section>
+      )}
     </SidePanel>
   );
 }

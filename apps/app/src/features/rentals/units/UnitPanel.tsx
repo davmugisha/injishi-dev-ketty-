@@ -1,49 +1,31 @@
 "use client";
 
-import { toast } from "@heroui/react";
-import {
-  LEASE_STATUS_LABEL,
-  type RentalUnitView,
-  UNIT_PHOTO_MAX,
-  UNIT_PHOTO_MAX_BYTES,
-  UNIT_VIDEO_MAX_BYTES,
-  type UnitMediaView,
-  type UnitPhotoView,
-  type UnitVideoView,
-} from "@injishi/contracts";
+import { LEASE_STATUS_LABEL, type RentalUnitView, type UnitMediaView } from "@injishi/contracts";
 import {
   ActionButton,
   DateText,
+  EmptyBlock,
   ErrorBlock,
   KeyValueList,
   LoadingBlock,
   Money,
-  type PhotoItem,
-  PhotoUploader,
+  PhotoGallery,
   SectionHeader,
   SidePanel,
   StatusChip,
-  VideoField,
-  type VideoItem,
+  VideoPlayer,
 } from "@injishi/ui";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { loadUnitMedia, removeUnitPhoto, removeUnitVideo, reorderUnitPhotos } from "../actions";
+import { loadUnitMedia } from "../actions";
 import { bedroomsWords, unitStatus } from "../shared";
-import { uploadWithProgress } from "../upload";
+import { asVideo } from "./UnitMediaFields";
 
 const KITCHEN: Record<string, string> = { own: "Its own", shared: "Shared", none: "None" };
 
-const asPhoto = (p: UnitPhotoView): PhotoItem => ({ id: p.id, url: p.url });
-const asVideo = (v: UnitVideoView | null): VideoItem | null =>
-  v ? { url: v.url, posterUrl: v.posterUrl, durationS: v.durationS } : null;
-
-function Media({ unit, canManage }: { unit: RentalUnitView; canManage: boolean }) {
-  const router = useRouter();
+/** The unit's photos as a shop shows a product (point or tap to zoom), and its video tour. */
+function Media({ unit, canManage, onEdit }: { unit: RentalUnitView; canManage: boolean; onEdit: () => void }) {
   const [media, setMedia] = useState<UnitMediaView | null>(null);
   const [failed, setFailed] = useState(false);
-  const [photos, setPhotos] = useState<PhotoItem[]>([]);
-  const [video, setVideo] = useState<VideoItem | null>(null);
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -53,8 +35,6 @@ function Media({ unit, canManage }: { unit: RentalUnitView; canManage: boolean }
       return;
     }
     setMedia(result.value);
-    setPhotos(result.value.photos.map(asPhoto));
-    setVideo(asVideo(result.value.video));
   }, [unit.id]);
 
   useEffect(() => {
@@ -62,104 +42,41 @@ function Media({ unit, canManage }: { unit: RentalUnitView; canManage: boolean }
   }, [load]);
 
   if (failed) return <ErrorBlock title="Couldn't load the photos" onRetry={() => void load()} />;
-  if (!media) return <LoadingBlock shape="cards" label="photos" count={2} />;
-  const locked = !canManage || unit.state === "retired";
+  if (!media) return <LoadingBlock shape="cards" label="photos" count={1} />;
+  const video = asVideo(media.video);
+  const canAdd = canManage && unit.state !== "retired";
   return (
     <>
-      <PhotoUploader
-        label="Photos"
-        photos={photos}
-        max={UNIT_PHOTO_MAX}
-        maxBytes={UNIT_PHOTO_MAX_BYTES}
-        isDisabled={locked}
-        upload={async (file, onProgress, signal) => {
-          const form = new FormData();
-          form.append("file", file, file.name);
-          const saved = await uploadWithProgress<UnitPhotoView>(
-            `/api/rentals/units/${unit.id}/photos`,
-            "POST",
-            form,
-            onProgress,
-            signal,
-          );
-          return asPhoto(saved);
-        }}
-        onUploaded={(photo) => {
-          setPhotos((list) => [...list, photo]);
-          router.refresh();
-        }}
-        onReorder={
-          locked
-            ? undefined
-            : async (next) => {
-                const before = photos;
-                setPhotos(next);
-                const result = await reorderUnitPhotos(
-                  unit.id,
-                  next.map((p) => p.id),
-                );
-                if (!result.ok) {
-                  setPhotos(before);
-                  toast.danger(result.error);
-                }
-              }
-        }
-        onRemove={
-          locked
-            ? undefined
-            : async (photo) => {
-                const result = await removeUnitPhoto(unit.id, photo.id);
-                if (!result.ok) {
-                  toast.danger(result.error);
-                  return;
-                }
-                setPhotos(result.value.photos.map(asPhoto));
-              }
+      <PhotoGallery
+        photos={media.photos.map((p) => ({ url: p.url }))}
+        label={`Unit ${unit.label}`}
+        empty={
+          <EmptyBlock
+            icon="Picture"
+            title="No photos yet"
+            description={canAdd ? "Add photos and a video tour in the unit's form." : undefined}
+            size="sm"
+            action={
+              canAdd ? (
+                <ActionButton icon="Plus" size="sm" onPress={onEdit}>
+                  Add photos
+                </ActionButton>
+              ) : undefined
+            }
+          />
         }
       />
-      <VideoField
-        label="Video tour"
-        video={video}
-        maxBytes={UNIT_VIDEO_MAX_BYTES}
-        isDisabled={locked}
-        upload={async (file, facts, onProgress, signal) => {
-          const form = new FormData();
-          form.append("durationS", String(facts.durationS));
-          if (facts.width) form.append("width", String(facts.width));
-          if (facts.height) form.append("height", String(facts.height));
-          if (facts.poster) form.append("poster", facts.poster, "poster.jpg");
-          form.append("file", file, file.name);
-          const saved = await uploadWithProgress<UnitVideoView>(
-            `/api/rentals/units/${unit.id}/video`,
-            "PUT",
-            form,
-            onProgress,
-            signal,
-          );
-          return asVideo(saved) as VideoItem;
-        }}
-        onUploaded={(v) => {
-          setVideo(v);
-          toast.success("Video saved");
-        }}
-        onRemove={
-          locked
-            ? undefined
-            : async () => {
-                const result = await removeUnitVideo(unit.id);
-                if (!result.ok) {
-                  toast.danger(result.error);
-                  return;
-                }
-                setVideo(null);
-              }
-        }
-      />
+      {video ? (
+        <section className="flex flex-col gap-2" aria-labelledby="unit-video">
+          <SectionHeader id="unit-video" title="Video tour" />
+          <VideoPlayer video={video} />
+        </section>
+      ) : null}
     </>
   );
 }
 
-/** One unit: its facts, the lease on it, its photos and video tour, and what can be done with it. */
+/** One unit: its photos and video tour, the lease on it, its facts, and what can be done with it. */
 export function UnitPanel({
   unit,
   canManage,
@@ -211,6 +128,7 @@ export function UnitPanel({
       }
     >
       <div className="flex min-h-0 flex-col gap-5 overflow-y-auto">
+        <Media unit={unit} canManage={canManage} onEdit={onEdit} />
         <section className="flex flex-col gap-2" aria-labelledby="unit-lease">
           <SectionHeader id="unit-lease" title="Tenancy" />
           {lease ? (
@@ -239,7 +157,6 @@ export function UnitPanel({
           <KeyValueList items={facts} />
           {unit.note ? <p className="text-sm whitespace-pre-line text-muted">{unit.note}</p> : null}
         </section>
-        <Media unit={unit} canManage={canManage} />
       </div>
     </SidePanel>
   );

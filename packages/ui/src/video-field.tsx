@@ -1,8 +1,7 @@
 "use client";
 
 import { Label, ProgressBar, Spinner } from "@heroui/react";
-import { DropZone } from "@heroui-pro/react";
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { type DragEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { ActionButton, IconAction } from "./buttons.tsx";
 import { ConfirmDialog } from "./dialogs.tsx";
 import { Icon } from "./icon.tsx";
@@ -20,6 +19,17 @@ import {
 import type { UploadProgress } from "./photos.tsx";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
+
+/** Send a video; resolve with the saved video or throw an Error whose message is the sentence to show. */
+export type VideoUpload = (
+  file: File,
+  facts: VideoFacts,
+  onProgress: UploadProgress,
+  signal: AbortSignal,
+) => Promise<VideoItem>;
+
+/** Where a picked video is: nothing picked or all saved, waiting to be sent, going, or failed. */
+export type VideoUploadState = "idle" | "queued" | "uploading" | "failed";
 
 /** A saved video. */
 export interface VideoItem {
@@ -145,6 +155,7 @@ function isBlank(ctx: CanvasRenderingContext2D, width: number, height: number): 
 type Phase =
   | { kind: "idle" }
   | { kind: "reading"; name: string }
+  | { kind: "queued"; file: File; facts: VideoFacts; posterUrl: string | null }
   | { kind: "uploading"; file: File; posterUrl: string | null; progress: number; controller: AbortController }
   | { kind: "failed"; file: File; facts: VideoFacts; posterUrl: string | null; error: string };
 
@@ -157,10 +168,15 @@ export interface VideoFieldProps {
    * Send the video (the caller's route handler, which streams to the API). `facts` carry the length and
    * a poster still to send with it. Report progress, stop when `signal` aborts, resolve with the saved
    * video or throw an Error whose message is the sentence to show. The kit never calls the API itself.
+   *
+   * Null while there is nowhere to send it yet (a unit not saved yet): a picked video is checked and held
+   * here, and sent as soon as `upload` is given.
    */
-  upload: (file: File, facts: VideoFacts, onProgress: UploadProgress, signal: AbortSignal) => Promise<VideoItem>;
+  upload: VideoUpload | null;
   /** A video was saved (a new one, or a replacement). */
   onUploaded: (video: VideoItem) => void;
+  /** Told when a picked video starts or stops waiting, uploading or failing ("idle" once it is saved). */
+  onStateChange?: (state: VideoUploadState) => void;
   /** Take the saved video off (asked first). A promise keeps the dialog spinning. */
   onRemove?: () => void | Promise<void>;
   /** @default 100 MB */
@@ -185,6 +201,7 @@ export function VideoField({
   video,
   upload,
   onUploaded,
+  onStateChange,
   onRemove,
   maxBytes = VIDEO_MAX_BYTES,
   minSeconds = VIDEO_MIN_SECONDS,
@@ -197,29 +214,38 @@ export function VideoField({
   const input = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [problem, setProblem] = useState<string | null>(null);
-  const [playing, setPlaying] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [dropping, setDropping] = useState(false);
   const live = useRef(phase);
   live.current = phase;
+  const uploadRef = useRef(upload);
+  uploadRef.current = upload;
+  const onStateRef = useRef(onStateChange);
+  onStateRef.current = onStateChange;
+  const state: VideoUploadState =
+    phase.kind === "queued" || phase.kind === "uploading" || phase.kind === "failed" ? phase.kind : "idle";
+  useEffect(() => {
+    onStateRef.current?.(state);
+  }, [state]);
 
-  // A new video starts on its poster again.
-  const [shownUrl, setShownUrl] = useState(video?.url);
-  if (shownUrl !== video?.url) {
-    setShownUrl(video?.url);
-    setPlaying(false);
-  }
   // Stop an upload and free a preview when the field goes away.
   useEffect(
     () => () => {
       const p = live.current;
       if (p.kind === "uploading") p.controller.abort();
-      if ((p.kind === "uploading" || p.kind === "failed") && p.posterUrl) URL.revokeObjectURL(p.posterUrl);
+      if ((p.kind === "uploading" || p.kind === "failed" || p.kind === "queued") && p.posterUrl)
+        URL.revokeObjectURL(p.posterUrl);
     },
     [],
   );
 
   const send = async (file: File, facts: VideoFacts, posterUrl: string | null) => {
+    const upload = uploadRef.current;
+    if (!upload) {
+      setPhase({ kind: "queued", file, facts, posterUrl });
+      return;
+    }
     const controller = new AbortController();
     setPhase({ kind: "uploading", file, posterUrl, progress: 0, controller });
     try {
@@ -264,10 +290,17 @@ export function VideoField({
     }
   };
 
+  // A video held while there was nowhere to send it goes as soon as there is.
+  useEffect(() => {
+    const p = live.current;
+    if (upload && p.kind === "queued") void send(p.file, p.facts, p.posterUrl);
+  });
+
   const cancel = () => {
     const p = live.current;
     if (p.kind === "uploading") p.controller.abort();
-    if ((p.kind === "uploading" || p.kind === "failed") && p.posterUrl) URL.revokeObjectURL(p.posterUrl);
+    if ((p.kind === "uploading" || p.kind === "failed" || p.kind === "queued") && p.posterUrl)
+      URL.revokeObjectURL(p.posterUrl);
     setPhase({ kind: "idle" });
   };
 
@@ -284,19 +317,43 @@ export function VideoField({
 
   const choose = () => input.current?.click();
   const busy = phase.kind === "reading" || phase.kind === "uploading";
+  const onFileDrag = (event: DragEvent<HTMLFieldSetElement>) => {
+    if (isDisabled || busy || !event.dataTransfer.types.includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    setDropping(true);
+  };
   const shownError = errorMessage || problem;
   const limits = `MP4, MOV or WebM, up to ${formatFileSize(maxBytes)}.`;
 
   return (
-    <fieldset aria-labelledby={`${id}-label`} className={cx("flex min-w-0 flex-col gap-2", className)}>
-      <div className="flex items-baseline justify-between gap-2">
+    <fieldset
+      aria-labelledby={`${id}-label`}
+      onDragOver={onFileDrag}
+      onDragEnter={onFileDrag}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropping(false);
+      }}
+      onDrop={(event) => {
+        if (!event.dataTransfer.types.includes("Files")) return;
+        event.preventDefault();
+        setDropping(false);
+        void picked(event.dataTransfer.files[0]);
+      }}
+      className={cx("relative flex min-w-0 flex-col gap-2 rounded-lg", className)}
+    >
+      <div className="flex min-h-8 items-center justify-between gap-2">
         <Label id={`${id}-label`} elementType="span" isInvalid={Boolean(shownError)}>
           {label}
         </Label>
-        <span className="text-xs text-muted">Up to {durationWords(maxSeconds)}</span>
+        {video || isDisabled || phase.kind !== "idle" ? null : (
+          <ActionButton icon="Plus" size="sm" onPress={choose}>
+            Add video
+          </ActionButton>
+        )}
       </div>
 
-      {phase.kind === "uploading" || phase.kind === "failed" ? (
+      {phase.kind === "uploading" || phase.kind === "failed" || phase.kind === "queued" ? (
         <div
           className={cx(
             "flex items-start gap-3 rounded-lg border p-3",
@@ -313,7 +370,11 @@ export function VideoField({
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="truncate text-sm font-medium text-foreground">{phase.file.name}</span>
-            {phase.kind === "uploading" ? (
+            {phase.kind === "queued" ? (
+              <span className="text-xs text-muted tabular">
+                {formatFileSize(phase.file.size)} · {videoLength(phase.facts.durationS)} · Uploads when you save
+              </span>
+            ) : phase.kind === "uploading" ? (
               <>
                 <span className="text-xs text-muted tabular">
                   {formatFileSize(phase.file.size)} · Uploading {Math.round(phase.progress * 100)}%
@@ -340,59 +401,14 @@ export function VideoField({
             ) : null}
             <IconAction
               icon="Xmark"
-              label={phase.kind === "uploading" ? "Cancel the upload" : "Remove"}
+              label={phase.kind === "uploading" ? "Cancel the upload" : "Remove the video"}
               onPress={cancel}
             />
           </div>
         </div>
       ) : video ? (
         <div className="flex flex-col gap-2">
-          <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-default">
-            {playing ? (
-              // biome-ignore lint/a11y/useMediaCaption: a silent walk-through of a home, with no speech to caption
-              <video
-                src={video.url}
-                poster={video.posterUrl ?? undefined}
-                controls
-                autoPlay
-                playsInline
-                preload="metadata"
-                className="size-full bg-black object-contain"
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setPlaying(true)}
-                aria-label={`Play the video, ${videoLength(video.durationS)}`}
-                className="group relative flex size-full items-center justify-center focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
-              >
-                {video.posterUrl ? (
-                  // biome-ignore lint/performance/noImgElement: a signed, short-lived URL
-                  <img src={video.posterUrl} alt="" className="absolute inset-0 size-full object-cover" />
-                ) : (
-                  <video
-                    src={video.url}
-                    preload="metadata"
-                    muted
-                    playsInline
-                    className="absolute inset-0 size-full object-cover"
-                  />
-                )}
-                <span
-                  aria-hidden="true"
-                  className="relative flex size-12 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-transform group-hover:scale-105 motion-reduce:transition-none"
-                >
-                  <Icon name="PlayFill" className="size-5" />
-                </span>
-                <span
-                  aria-hidden="true"
-                  className="absolute right-2 bottom-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-medium text-white tabular"
-                >
-                  {videoLength(video.durationS)}
-                </span>
-              </button>
-            )}
-          </div>
+          <VideoPlayer video={video} />
           {isDisabled ? null : (
             <div className="flex flex-wrap items-center justify-end gap-2">
               <span className="flex gap-1.5">
@@ -408,35 +424,28 @@ export function VideoField({
             </div>
           )}
         </div>
+      ) : phase.kind === "reading" ? (
+        <p className="flex items-center gap-2 px-1 text-xs text-muted">
+          <Spinner size="sm" color="current" />
+          Checking {phase.name}
+        </p>
       ) : (
-        <DropZone>
-          <DropZone.Area
-            isDisabled={isDisabled || busy}
-            getDropOperation={() => (isDisabled || busy ? "cancel" : "copy")}
-            onDrop={async (event) => {
-              const first = event.items.find((item) => item.kind === "file");
-              if (first?.kind === "file") await picked(await first.getFile());
-            }}
-            className={cx("py-6", shownError && "border-danger")}
-          >
-            <DropZone.Icon>{phase.kind === "reading" ? <Spinner size="sm" /> : <Icon name="Video" />}</DropZone.Icon>
-            <DropZone.Label>
-              {phase.kind === "reading" ? (
-                `Checking ${phase.name}`
-              ) : (
-                <>
-                  <span className="hidden sm:inline">Drop a video here</span>
-                  <span className="sm:hidden">Add a video of the home</span>
-                </>
-              )}
-            </DropZone.Label>
-            <DropZone.Description>{limits}</DropZone.Description>
-            <DropZone.Trigger isDisabled={isDisabled || busy} onPress={choose}>
-              Choose a video
-            </DropZone.Trigger>
-          </DropZone.Area>
-        </DropZone>
+        <p className="px-1 text-xs text-muted">
+          {isDisabled ? (
+            "No video yet."
+          ) : (
+            <>
+              {limits} Up to {durationWords(maxSeconds)}.
+              <span className="hidden sm:inline"> You can also drop it here.</span>
+            </>
+          )}
+        </p>
       )}
+      {dropping ? (
+        <div className="pointer-events-none absolute -inset-2 flex items-center justify-center rounded-lg border-2 border-dashed border-accent bg-accent/10 text-sm font-medium text-accent">
+          Drop to add
+        </div>
+      ) : null}
 
       {/* One picker for Choose and Replace. */}
       <input
@@ -472,5 +481,64 @@ export function VideoField({
         People looking at the home stop seeing it. You can add another at any time.
       </ConfirmDialog>
     </fieldset>
+  );
+}
+
+/** A saved video on its poster, with its length; pressed, it plays inline with the player's controls. */
+export function VideoPlayer({ video, className }: { video: VideoItem; className?: string }) {
+  const [playing, setPlaying] = useState(false);
+  // A new video starts on its poster again.
+  const [shownUrl, setShownUrl] = useState(video.url);
+  if (shownUrl !== video.url) {
+    setShownUrl(video.url);
+    setPlaying(false);
+  }
+  return (
+    <div className={cx("relative aspect-video w-full overflow-hidden rounded-lg bg-default", className)}>
+      {playing ? (
+        // biome-ignore lint/a11y/useMediaCaption: a silent walk-through of a home, with no speech to caption
+        <video
+          src={video.url}
+          poster={video.posterUrl ?? undefined}
+          controls
+          autoPlay
+          playsInline
+          preload="metadata"
+          className="size-full bg-black object-contain"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setPlaying(true)}
+          aria-label={`Play the video, ${videoLength(video.durationS)}`}
+          className="group relative flex size-full items-center justify-center focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+        >
+          {video.posterUrl ? (
+            // biome-ignore lint/performance/noImgElement: a signed, short-lived URL
+            <img src={video.posterUrl} alt="" className="absolute inset-0 size-full object-cover" />
+          ) : (
+            <video
+              src={video.url}
+              preload="metadata"
+              muted
+              playsInline
+              className="absolute inset-0 size-full object-cover"
+            />
+          )}
+          <span
+            aria-hidden="true"
+            className="relative flex size-12 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-transform group-hover:scale-105 motion-reduce:transition-none"
+          >
+            <Icon name="PlayFill" className="size-5" />
+          </span>
+          <span
+            aria-hidden="true"
+            className="absolute right-2 bottom-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-medium text-white tabular"
+          >
+            {videoLength(video.durationS)}
+          </span>
+        </button>
+      )}
+    </div>
   );
 }
