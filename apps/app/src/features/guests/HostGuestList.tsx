@@ -220,10 +220,13 @@ export function HostGuestList({
         }
       />
       {list.guests.length > 0 ? (
-        <p className="text-xs text-muted">
-          Each registration goes to the village leader, the sector DASSO, the cell executive and the district. Green
-          means they opened it; amber that the post has nobody in it yet.
-        </p>
+        <ul aria-label="What the leader chips mean" className="flex flex-wrap items-center gap-2 text-xs text-muted">
+          {(["seen", "delivered", "waiting"] as const).map((key) => (
+            <li key={key}>
+              <StatusChip tone={ROUTE_STATE[key].tone}>{ROUTE_STATE[key].words}</StatusChip>
+            </li>
+          ))}
+        </ul>
       ) : null}
 
       {registering || editing ? (
