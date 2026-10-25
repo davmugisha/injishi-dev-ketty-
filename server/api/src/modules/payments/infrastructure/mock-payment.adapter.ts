@@ -1,8 +1,11 @@
+import { createHash } from 'node:crypto';
+
 import { PAYMENT_PROMPT_TTL_SECONDS } from '@injishi/contracts';
 import { Injectable, Logger } from '@nestjs/common';
 
 import {
   type AdapterMode,
+  type CallbackEvent,
   type CaptureEscrowCommand,
   type OneTimeFeeCommand,
   type PaymentCommand,
@@ -13,6 +16,9 @@ import {
   type RecurringChargeCommand,
   type RefundCommand,
   type ReleaseEscrowCommand,
+  type RentCollectCommand,
+  type SubscriptionChargeCommand,
+  type VendorPayoutCommand,
   type VoidPendingCommand,
   describeForLog,
 } from '../domain/payment-port';
@@ -47,7 +53,8 @@ import {
  * **It models the handset (ADR-047 D-j).** A mobile money capture comes back
  * `pending`, the way MTN and Airtel both answer one, and settles a few seconds
  * later as though somebody approved it on `*182#`. A card settles inside the
- * call, because a card rail does.
+ * call, because a card rail does. Rent collected from a tenant (rentals
+ * blueprint 2.7) and a landlord's phone paying a fixer go the same way.
  *
  * This used to always report `settled`, and the comment here said why: a mock
  * has no handset, and anything else "would refuse every booking in
@@ -92,7 +99,44 @@ function approvalDelayMs(msisdn: string): number {
 /** A payer number ending in this approves after the prompt window has closed. */
 export const LATE_APPROVER_SUFFIX = '9999';
 
-const CAPTURE_REF_PREFIX = 'mock_escrow_capture_';
+/** A payer number ending in this declines the prompt. Real providers publish test numbers that work this way. */
+export const DECLINING_SUFFIX = '0000';
+
+/**
+ * The collections that wait on a handset: a booking's escrow capture, a
+ * tenant's rent, a landlord's phone paying a fixer, a broker's plan month by
+ * mobile money, and the card checkout page a broker is sent to.
+ */
+export type HandsetKind = 'escrow_capture' | 'rent_collect' | 'vendor_payout' | 'subscription_charge' | 'subscription_checkout';
+
+const CAPTURE_REF_PREFIX: Readonly<Record<HandsetKind, string>> = {
+  escrow_capture: 'mock_escrow_capture_',
+  rent_collect: 'mock_rent_collect_',
+  vendor_payout: 'mock_vendor_payout_',
+  subscription_charge: 'mock_subscription_charge_',
+  subscription_checkout: 'mock_subscription_checkout_',
+};
+
+/** The port operation a handset kind's receipt is remembered under. */
+function operationOf(kind: HandsetKind): PaymentCommand['kind'] {
+  return kind === 'subscription_checkout' ? 'subscription_charge' : kind;
+}
+
+/** The card the mock gateway "saves" when its card page is paid: one per payment, never a number. */
+export function mockCardToken(key: string): string {
+  return `mock_card_tok_${key}`;
+}
+
+/** The provider name the mock answers callbacks for. */
+export const MOCK_PROVIDER = 'mock';
+
+/** The header the mock's callback is signed with: the SHA-256 of the raw body, standing in for a provider's HMAC. */
+export const MOCK_SIGNATURE_HEADER = 'x-mock-signature';
+
+/** The signature of a callback body, as the mock gateway would send it. */
+export function mockCallbackSignature(rawBody: Buffer | string): string {
+  return createHash('sha256').update(rawBody).digest('hex');
+}
 
 /**
  * What a capture reference carries, so any process can read it back.
@@ -107,6 +151,8 @@ const CAPTURE_REF_PREFIX = 'mock_escrow_capture_';
  * `~` appears in none of them.
  */
 interface CaptureRef {
+  /** Which collection it was; `escrow_capture` when left out (references minted before rentals). */
+  kind?: HandsetKind;
   key: string;
   workspaceId: string;
   settlesAt: number;
@@ -114,18 +160,20 @@ interface CaptureRef {
 }
 
 export function encodeCaptureRef(ref: CaptureRef): string {
-  return `${CAPTURE_REF_PREFIX}${ref.key}~${ref.workspaceId}~${ref.settlesAt}~${ref.amountRwf}`;
+  const kind = ref.kind ?? 'escrow_capture';
+  return `${CAPTURE_REF_PREFIX[kind]}${ref.key}~${ref.workspaceId}~${ref.settlesAt}~${ref.amountRwf}`;
 }
 
-export function decodeCaptureRef(adapterRef: string): CaptureRef | null {
-  if (!adapterRef.startsWith(CAPTURE_REF_PREFIX)) return null;
-  const parts = adapterRef.slice(CAPTURE_REF_PREFIX.length).split('~');
+export function decodeCaptureRef(adapterRef: string): (CaptureRef & { kind: HandsetKind }) | null {
+  const kind = (Object.keys(CAPTURE_REF_PREFIX) as HandsetKind[]).find((k) => adapterRef.startsWith(CAPTURE_REF_PREFIX[k]));
+  if (!kind) return null;
+  const parts = adapterRef.slice(CAPTURE_REF_PREFIX[kind].length).split('~');
   if (parts.length !== 4) return null;
   const [key, workspaceId, settlesAt, amountRwf] = parts as [string, string, string, string];
   const at = Number(settlesAt);
   const amount = Number(amountRwf);
   if (!key || !workspaceId || !Number.isFinite(at) || !Number.isInteger(amount)) return null;
-  return { key, workspaceId, settlesAt: at, amountRwf: amount };
+  return { kind, key, workspaceId, settlesAt: at, amountRwf: amount };
 }
 
 @Injectable()
@@ -168,19 +216,63 @@ export class MockPaymentAdapter implements PaymentPort {
    * same answer from every process. A replay returns the original receipt and
    * so never restarts the customer's clock.
    */
-  async captureEscrow(command: CaptureEscrowCommand): Promise<PaymentReceipt> {
-    const { instrument } = command;
+  captureEscrow(command: CaptureEscrowCommand): Promise<PaymentReceipt> {
+    return this.fromHandset(command);
+  }
 
-    if (instrument.kind === 'mobile_money') {
-      if (instrument.msisdn.endsWith('0000')) {
-        throw new PaymentDeclinedError(
-          'the customer declined the request on their handset',
-          command.idempotencyKey,
-        );
-      }
-      return this.settle(command, 'pending', Date.now() + approvalDelayMs(instrument.msisdn));
+  /** Rent is collected from the tenant's handset exactly as a booking is (rentals blueprint 2.7). */
+  collectRent(command: RentCollectCommand): Promise<PaymentReceipt> {
+    return this.fromHandset(command);
+  }
+
+  /**
+   * The landlord approves on their own phone, then the fixer is paid. A
+   * fixer's number or account ending `0000` refuses the transfer, the way a
+   * payout destination does, so the failed payment can be walked too.
+   */
+  async payVendor(command: VendorPayoutCommand): Promise<PaymentReceipt> {
+    if (command.destinationRef.replace(/\D/g, '').endsWith(DECLINING_SUFFIX)) {
+      throw new PaymentDeclinedError('the receiving account refused the transfer', command.idempotencyKey);
     }
+    return this.fromHandset(command);
+  }
 
+  /**
+   * A broker plan month. On a handset it waits and declines a number ending
+   * `0000`, as rent does. A saved card settles inside the call, and one whose
+   * token ends `0000` is declined, so a failed card renewal can be walked. The
+   * card page answers `pending` with the page to send the payer to; the mock's
+   * page is the return address itself, and the payment reads settled from the
+   * moment they come back, with a saved card for next month.
+   */
+  async chargeSubscription(command: SubscriptionChargeCommand): Promise<PaymentReceipt> {
+    const { instrument } = command;
+    if (instrument.kind === 'mobile_money') {
+      if (instrument.msisdn.endsWith(DECLINING_SUFFIX)) {
+        throw new PaymentDeclinedError('the customer declined the request on their handset', command.idempotencyKey);
+      }
+      return this.settle(command, 'pending', Date.now() + approvalDelayMs(instrument.msisdn), 'subscription_charge');
+    }
+    if (instrument.kind === 'card' || instrument.kind === 'saved_card') {
+      if (instrument.token.endsWith(DECLINING_SUFFIX)) {
+        throw new PaymentDeclinedError('the card was declined', command.idempotencyKey);
+      }
+      return this.settle(command);
+    }
+    const receipt = await this.settle(command, 'pending', Date.now(), 'subscription_checkout');
+    const url = new URL(instrument.returnUrl);
+    url.searchParams.set('gateway', MOCK_PROVIDER);
+    return { ...receipt, checkoutUrl: url.toString() };
+  }
+
+  /**
+   * A payout refused by its destination: a number or account ending `0000`,
+   * so a failed payout and its retry can be walked (rentals WP 1.6b).
+   */
+  async payout(command: PayoutCommand): Promise<PaymentReceipt> {
+    if (command.destinationRef.replace(/\D/g, '').endsWith(DECLINING_SUFFIX)) {
+      throw new PaymentDeclinedError('the receiving account refused the transfer', command.idempotencyKey);
+    }
     return this.settle(command);
   }
 
@@ -196,16 +288,40 @@ export class MockPaymentAdapter implements PaymentPort {
     return this.settle(command);
   }
 
-  payout(command: PayoutCommand): Promise<PaymentReceipt> {
-    return this.settle(command);
-  }
-
   chargeRecurring(command: RecurringChargeCommand): Promise<PaymentReceipt> {
     return this.settle(command);
   }
 
   chargeOneTimeFee(command: OneTimeFeeCommand): Promise<PaymentReceipt> {
     return this.settle(command);
+  }
+
+  /**
+   * The mock gateway's callback: a JSON body `{ eventId, adapterRef, outcome,
+   * amountRwf?, reason? }` signed in `x-mock-signature` with the SHA-256 of
+   * the raw body (`mockCallbackSignature`). Anything else is null, and so is
+   * a body for another provider: a stranger posting to the route changes
+   * nothing, because the settlement job still reads the transaction back.
+   */
+  parseCallback(provider: string, headers: Record<string, string | string[] | undefined>, rawBody: Buffer): CallbackEvent | null {
+    if (provider !== MOCK_PROVIDER) return null;
+    const header = headers[MOCK_SIGNATURE_HEADER];
+    const signature = Array.isArray(header) ? header[0] : header;
+    if (!signature || signature !== mockCallbackSignature(rawBody)) return null;
+    let body: unknown;
+    try {
+      body = JSON.parse(rawBody.toString('utf8'));
+    } catch {
+      return null;
+    }
+    if (!body || typeof body !== 'object') return null;
+    const b = body as Record<string, unknown>;
+    if (typeof b.eventId !== 'string' || typeof b.adapterRef !== 'string') return null;
+    if (b.outcome !== 'settled' && b.outcome !== 'failed') return null;
+    const event: CallbackEvent = { provider: MOCK_PROVIDER, eventId: b.eventId, adapterRef: b.adapterRef, outcome: b.outcome };
+    if (typeof b.amountRwf === 'number' && Number.isInteger(b.amountRwf)) event.amountRwf = b.amountRwf;
+    if (typeof b.reason === 'string' && b.reason.trim()) event.reason = b.reason.trim().slice(0, 300);
+    return event;
   }
 
   /**
@@ -231,6 +347,7 @@ export class MockPaymentAdapter implements PaymentPort {
       // provider would have remembered, so it is read from the reference, still
       // workspace scoped. Anything else this process never issued is unknown.
       if (!decoded || decoded.workspaceId !== workspaceId) return null;
+      const settled = Date.now() >= decoded.settlesAt;
       return {
         adapterRef,
         mode: this.mode,
@@ -238,7 +355,8 @@ export class MockPaymentAdapter implements PaymentPort {
         amountRwf: decoded.amountRwf,
         currency: 'RWF',
         occurredAt: new Date(decoded.settlesAt),
-        settlement: Date.now() >= decoded.settlesAt ? 'settled' : 'pending',
+        settlement: settled ? 'settled' : 'pending',
+        ...(settled && decoded.kind === 'subscription_checkout' ? { savedCardToken: mockCardToken(decoded.key) } : {}),
       };
     }
     if (entry.workspaceId !== workspaceId) return null;
@@ -252,9 +370,13 @@ export class MockPaymentAdapter implements PaymentPort {
      * pending after it has completed.
      */
     if (entry.receipt.settlement === 'pending' && decoded && Date.now() >= decoded.settlesAt) {
-      const settled: PaymentReceipt = { ...entry.receipt, settlement: 'settled' };
+      const settled: PaymentReceipt = {
+        ...entry.receipt,
+        settlement: 'settled',
+        ...(decoded.kind === 'subscription_checkout' ? { savedCardToken: mockCardToken(decoded.key) } : {}),
+      };
       this.byRef.set(adapterRef, { ...entry, receipt: settled });
-      this.seen.set(`escrow_capture:${decoded.key}`, settled);
+      this.seen.set(`${operationOf(decoded.kind)}:${decoded.key}`, settled);
       this.log.debug(`mock handset approved ${adapterRef}`);
       return settled;
     }
@@ -262,8 +384,25 @@ export class MockPaymentAdapter implements PaymentPort {
     return entry.receipt;
   }
 
+  /** A collection that waits on a handset: pending until the imaginary customer approves, declined on the test number. */
+  private async fromHandset(command: CaptureEscrowCommand | RentCollectCommand | VendorPayoutCommand): Promise<PaymentReceipt> {
+    const { instrument } = command;
+
+    if (instrument.kind === 'mobile_money') {
+      if (instrument.msisdn.endsWith(DECLINING_SUFFIX)) {
+        throw new PaymentDeclinedError(
+          'the customer declined the request on their handset',
+          command.idempotencyKey,
+        );
+      }
+      return this.settle(command, 'pending', Date.now() + approvalDelayMs(instrument.msisdn), command.kind);
+    }
+
+    return this.settle(command);
+  }
+
   /**
-   * One body for all seven writes, because a mock provider's job is identical
+   * One body for every write, because a mock provider's job is identical
    * across them: check the key, check the amount, answer. The methods stay
    * separate on the interface anyway — that is what lets a real adapter give
    * each one a different endpoint without the seam changing shape.
@@ -278,6 +417,7 @@ export class MockPaymentAdapter implements PaymentPort {
     command: PaymentCommand,
     settlement: PaymentReceipt['settlement'] = 'settled',
     settlesAt: number = Date.now(),
+    handset: HandsetKind | null = null,
   ): Promise<PaymentReceipt> {
     const { idempotencyKey, amountRwf } = command;
 
@@ -317,10 +457,9 @@ export class MockPaymentAdapter implements PaymentPort {
     }
 
     const receipt: PaymentReceipt = {
-      adapterRef:
-        command.kind === 'escrow_capture'
-          ? encodeCaptureRef({ key: idempotencyKey, workspaceId: command.workspaceId, settlesAt, amountRwf })
-          : `mock_${command.kind}_${idempotencyKey}`,
+      adapterRef: handset
+        ? encodeCaptureRef({ kind: handset, key: idempotencyKey, workspaceId: command.workspaceId, settlesAt, amountRwf })
+        : `mock_${command.kind}_${idempotencyKey}`,
       mode: this.mode,
       replayed: false,
       amountRwf,

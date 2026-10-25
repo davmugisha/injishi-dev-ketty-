@@ -39,18 +39,26 @@ import { UnitMediaService } from './application/unit-media.service';
 import { PropertiesRepository } from './infrastructure/properties.repository';
 import { RentalsOverviewRepository } from './infrastructure/rentals-overview.repository';
 import { UnitMediaRepository } from './infrastructure/unit-media.repository';
-// The rent cycle, reminders and recorded payments (WP 1.6a).
+// The rent cycle, reminders, payments and payouts (WP 1.6a, 1.6b).
+import { PaymentsModule } from '../payments/payments.module';
 import { PaymentReceiptsService } from './application/payment-receipts.service';
+import { PaymentSettlementService } from './application/payment-settlement.service';
+import { PayoutsService } from './application/payouts.service';
 import { RentCycleService } from './application/rent-cycle.service';
 import { RentPaymentsService } from './application/rent-payments.service';
 import { RentReadsService } from './application/rent-reads.service';
 import { RentRemindersService } from './application/rent-reminders.service';
+import { TenantPaymentsService } from './application/tenant-payments.service';
 import { LeasePaymentsRepository } from './infrastructure/lease-payments.repository';
 import { LeaseRemindersRepository } from './infrastructure/lease-reminders.repository';
+import { PaymentSettlementProcessor } from './infrastructure/payment-settlement.processor';
+import { PayoutsProcessor } from './infrastructure/payouts.processor';
+import { PayoutsRepository } from './infrastructure/payouts.repository';
 import { RentCycleProcessor } from './infrastructure/rent-cycle.processor';
 import { RentCycleRepository } from './infrastructure/rent-cycle.repository';
 import { RentRemindersProcessor } from './infrastructure/rent-reminders.processor';
 import { RentRollRepository } from './infrastructure/rent-roll.repository';
+import { RentalsMoneyQueue } from './infrastructure/rentals-money.queue';
 
 /**
  * Rentals: the residence side of Injishi, rebuilt (blueprint 2.2).
@@ -74,7 +82,7 @@ import { RentRollRepository } from './infrastructure/rent-roll.repository';
  * `domain/rentals-queues.ts` for their packages.
  */
 @Module({
-  imports: [StorageModule, MailerModule],
+  imports: [StorageModule, MailerModule, PaymentsModule],
   providers: [
     {
       provide: PAYOUT_ACCOUNT_CIPHER,
@@ -120,14 +128,19 @@ import { RentRollRepository } from './infrastructure/rent-roll.repository';
     UnitMediaService,
     LeasePaymentsRepository,
     LeaseRemindersRepository,
+    PayoutsRepository,
     RentCycleRepository,
     RentRollRepository,
+    RentalsMoneyQueue,
     PaymentReceiptsService,
+    PayoutsService,
+    PaymentSettlementService,
     RentCycleService,
     RentRemindersService,
     RentPaymentsService,
     RentReadsService,
-    ...(isWorkerProcess() ? [LeaseDocumentsProcessor, RentCycleProcessor, RentRemindersProcessor] : []),
+    TenantPaymentsService,
+    ...(isWorkerProcess() ? [LeaseDocumentsProcessor, RentCycleProcessor, RentRemindersProcessor, PaymentSettlementProcessor, PayoutsProcessor] : []),
   ],
   exports: [
     LeaseEventsWriter,
@@ -147,10 +160,14 @@ import { RentRollRepository } from './infrastructure/rent-roll.repository';
     RentalsOverviewService,
     PropertiesService,
     UnitMediaService,
+    RentalsMoneyQueue,
+    PaymentSettlementService,
+    PayoutsService,
     RentCycleService,
     RentRemindersService,
     RentPaymentsService,
     RentReadsService,
+    TenantPaymentsService,
   ],
 })
 export class RentalsModule {}

@@ -94,7 +94,9 @@ export class AppModule {
       new FastifyAdapter({
         trustProxy: resolveTrustProxy(process.env.TRUST_PROXY),
       }),
-      { bufferLogs: true },
+      // `rawBody`: a payment provider's callback is checked against the bytes
+      // it signed (`/payments/webhooks/:provider`, rentals blueprint 2.5).
+      { bufferLogs: true, rawBody: true },
     );
     app.useLogger(app.get(Logger));
     const config = app.get(ConfigService);

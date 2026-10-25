@@ -36,6 +36,14 @@ export class OffPaymentAdapter implements PaymentPort {
   payout = refuse;
   chargeRecurring = refuse;
   chargeOneTimeFee = refuse;
+  collectRent = refuse;
+  payVendor = refuse;
+  chargeSubscription = refuse;
+
+  /** No provider, no callbacks: nothing posted here is ever a payment. */
+  parseCallback(): null {
+    return null;
+  }
 
   fetchTransaction(workspaceId: string, adapterRef: string): Promise<PaymentReceipt | null> {
     return Promise.reject(

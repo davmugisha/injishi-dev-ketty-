@@ -74,6 +74,7 @@ import { OpsBlocksController, OpsUnitsController } from './rentals/units.control
 import { OpsRentalPropertiesController } from './rentals/properties.controller';
 import { OpsRentalsOverviewController } from './rentals/rentals-overview.controller';
 import { OpsUnitMediaController } from './rentals/unit-media.controller';
+import { OpsPayoutsController } from './rentals/payouts.controller';
 import { OpsRentController } from './rentals/rent.controller';
 import { OpsRevenueController } from './revenue.controller';
 import { OpsCertificatesController } from './certificates.controller';
@@ -192,6 +193,7 @@ const CONTROLLERS: Ctor[] = [
   OpsRentalPropertiesController,
   OpsUnitMediaController,
   OpsRentController,
+  OpsPayoutsController,
 ];
 
 interface Read {
@@ -486,13 +488,15 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/properties': ['owner', 'manager', 'finance'],
   '/ops/units/:id/media': ['owner', 'manager', 'finance'],
   // Rent (WP 1.6a): the roll, charges, payments, reminders and the month's
-  // figures read under `rent.record` or `money.view`.
+  // figures read under `rent.record` or `money.view`; payouts (WP 1.6b)
+  // under `money.view` or `payout.manage`.
   '/ops/rent/roll': ['owner', 'manager', 'finance'],
   '/ops/rent/summary': ['owner', 'manager', 'finance'],
   '/ops/rent/charges': ['owner', 'manager', 'finance'],
   '/ops/rent/payments': ['owner', 'manager', 'finance'],
   '/ops/rent/payments/:id': ['owner', 'manager', 'finance'],
   '/ops/rent/reminders': ['owner', 'manager', 'finance'],
+  '/ops/payouts': ['owner', 'manager', 'finance'],
 };
 
 describe('operator reads (audit H1)', () => {
@@ -657,13 +661,14 @@ describe('rentals home, location and unit media writes (WP 2.2, 2.3)', () => {
  * `payout.manage`, the owner's by default.
  */
 describe('rent and payout writes (WP 1.6)', () => {
-  const routes = handlers([OpsRentController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const routes = handlers([OpsRentController, OpsPayoutsController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
   const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
     'POST /ops/rent/payments': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
     'POST /ops/rent/payments/:id/reverse': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
     'POST /ops/rent/payments/:id/receipt': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
     'POST /ops/rent/reminders': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
     'POST /ops/rent/charges/:id/waive': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/payouts/:id/retry': { allOf: ['payout.manage'], roles: ['owner'] },
   };
 
   it('judges every write', () => {
