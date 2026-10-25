@@ -175,7 +175,7 @@ describe('LocalLeadersService · before anything is written', () => {
     expect(appointmentArea({ scopeLevel: 'village', ...names })).toBe('Urugwiro village, Kamatamu cell, Kacyiru sector, Gasabo');
     expect(appointmentArea({ scopeLevel: 'sector', ...names })).toBe('Kacyiru sector, Gasabo');
     expect(appointmentArea({ scopeLevel: 'district', ...names })).toBe('Gasabo');
-    expect(appointmentArea({ scopeLevel: 'province', ...names })).toBe('Kigali');
+    expect(appointmentArea({ scopeLevel: 'province', ...names })).toBe('Kigali City');
     expect(appointmentArea({ scopeLevel: 'country', ...names })).toBe('Rwanda');
   });
 });

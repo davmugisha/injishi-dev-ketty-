@@ -9,6 +9,7 @@
  * even be sent, and (c) lets the page ask the question first, so an unapproved business is shown a plain
  * explanation instead of forms that would be refused.
  */
+import { tidyPlaceName } from "@injishi/contracts";
 import type { Workspace } from "../auth";
 import type { SourceContext } from "../sources/types";
 
@@ -162,16 +163,19 @@ export async function readSetup(ctx: SourceContext, workspaceId: string): Promis
 
 // ── Places (the address cascade: province → district → sector) ─────────────────────────────────────
 
+/** Names as people write them ("Eastern Province", not "EAST"). */
+const tidy = (rows: Place[]): Place[] => rows.map((p) => ({ ...p, name: tidyPlaceName(p.name) }));
+
 export async function provinces(ctx: SourceContext): Promise<Place[]> {
-  return ctx.api.get<Place[]>("/api/v1/geography/provinces");
+  return tidy(await ctx.api.get<Place[]>("/api/v1/geography/provinces"));
 }
 
 export async function districts(ctx: SourceContext, provinceId: number): Promise<Place[]> {
-  return ctx.api.get<Place[]>("/api/v1/geography/districts", { query: { provinceId } });
+  return tidy(await ctx.api.get<Place[]>("/api/v1/geography/districts", { query: { provinceId } }));
 }
 
 export async function sectors(ctx: SourceContext, districtId: number): Promise<Place[]> {
-  return ctx.api.get<Place[]>("/api/v1/geography/sectors", { query: { districtId } });
+  return tidy(await ctx.api.get<Place[]>("/api/v1/geography/sectors", { query: { districtId } }));
 }
 
 // ── Writing ────────────────────────────────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 /**
  * Places and files in words (P5). Pure.
  */
+import { tidyPlaceName } from '@injishi/contracts';
 
 /** Names of a place from the village up; any may be missing. */
 export interface PlaceNames {
@@ -13,10 +14,10 @@ export interface PlaceNames {
 /** `Urugwiro village, Kamatamu cell, Kacyiru sector, Gasabo`: the levels known, each once. */
 export function placeWords(p: PlaceNames): string {
   const parts = [
-    p.villageName ? `${p.villageName} village` : null,
-    p.cellName ? `${p.cellName} cell` : null,
-    p.sectorName ? `${p.sectorName} sector` : null,
-    p.districtName,
+    p.villageName ? `${tidyPlaceName(p.villageName)} village` : null,
+    p.cellName ? `${tidyPlaceName(p.cellName)} cell` : null,
+    p.sectorName ? `${tidyPlaceName(p.sectorName)} sector` : null,
+    p.districtName ? tidyPlaceName(p.districtName) : null,
   ].filter((x): x is string => Boolean(x));
   return parts.join(', ');
 }
@@ -27,7 +28,9 @@ export function placeWords(p: PlaceNames): string {
  * drops the repeat).
  */
 export function addressWords(street: string | null, p: PlaceNames): string {
-  const names = [p.villageName, p.cellName, p.sectorName, p.districtName].filter((x): x is string => Boolean(x));
+  const names = [p.villageName, p.cellName, p.sectorName, p.districtName]
+    .filter((x): x is string => Boolean(x))
+    .map(tidyPlaceName);
   const known = new Set(names.map((n) => n.toLowerCase()));
   const streetParts = (street ?? '')
     .split(',')

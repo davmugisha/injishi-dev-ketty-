@@ -17,6 +17,7 @@ import {
   parseRolePermissionOverride,
   permissionsForWorkspace,
   staffPermissionsForRoles,
+  tidyPlaceName,
 } from '@injishi/contracts';
 
 import { DRIZZLE, type Database } from '../database/database.module';
@@ -497,15 +498,17 @@ export class WorkspaceService {
         row.scopeLevel === 'country'
           ? OVERSIGHT_COUNTRY_SCOPE_LABEL
           : row.scopeLevel === 'province'
-            ? (row.provinceName ?? 'Province')
+            ? tidyPlaceName(row.provinceName ?? 'Province')
             : row.scopeLevel === 'district'
-              ? (row.districtName ?? 'District')
+              ? tidyPlaceName(row.districtName ?? 'District')
               : // A local leader's post (P5): its own place, then the district.
                 [
-                  row.scopeLevel === 'village' ? `${row.villageName ?? 'Village'} village` : null,
-                  row.scopeLevel === 'village' || row.scopeLevel === 'cell' ? `${row.cellName ?? 'Cell'} cell` : null,
-                  `${row.sectorName ?? 'Sector'} sector`,
-                  row.districtName,
+                  row.scopeLevel === 'village' ? `${tidyPlaceName(row.villageName ?? 'Village')} village` : null,
+                  row.scopeLevel === 'village' || row.scopeLevel === 'cell'
+                    ? `${tidyPlaceName(row.cellName ?? 'Cell')} cell`
+                    : null,
+                  `${tidyPlaceName(row.sectorName ?? 'Sector')} sector`,
+                  row.districtName ? tidyPlaceName(row.districtName) : null,
                 ]
                   .filter((part): part is string => Boolean(part))
                   .join(', '),

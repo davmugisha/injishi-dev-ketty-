@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VillageListQuery = exports.VillageListResponse = exports.CellListQuery = exports.CellListResponse = exports.SectorListQuery = exports.SectorListResponse = exports.DistrictListQuery = exports.DistrictListResponse = exports.ProvinceListResponse = exports.Village = exports.Cell = exports.Sector = exports.District = exports.Province = void 0;
 exports.provinceWords = provinceWords;
+exports.tidyPlaceName = tidyPlaceName;
 const zod_1 = require("zod");
 /**
  * Rwandan Province -> District -> Sector -> Cell -> Village hierarchy.
@@ -91,5 +92,19 @@ const PROVINCE_WORDS = {
 };
 function provinceWords(name) {
     return PROVINCE_WORDS[name.trim().toUpperCase()] ?? name;
+}
+const ROMAN = /^(?=[ivxlc]+$)c{0,3}(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})$/i;
+/**
+ * A place's name as people write it. The reference tables carry some names
+ * in capitals ("EAST", "GATUMBA") and roman numerals in the wrong case
+ * ("Nyakabanda Ii"): each word is capitalised, a numeral is kept in capitals,
+ * and a province is named as people say it ("Eastern Province").
+ */
+function tidyPlaceName(name) {
+    const trimmed = name.trim();
+    const province = PROVINCE_WORDS[trimmed.toUpperCase()];
+    if (province)
+        return province;
+    return trimmed.replace(/[\p{L}']+/gu, (word) => ROMAN.test(word) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
 }
 //# sourceMappingURL=geography.js.map

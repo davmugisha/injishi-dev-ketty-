@@ -2,12 +2,13 @@
 
 import { Card, Chip, Description, FieldError, Label, TextArea, TextField, toast } from "@heroui/react";
 import { ListView } from "@heroui-pro/react";
-import type {
-  GovernmentBody,
-  OversightAppointment,
-  OversightAppointmentList,
-  OversightRole,
-  WaitingArea,
+import {
+  type GovernmentBody,
+  type OversightAppointment,
+  type OversightAppointmentList,
+  type OversightRole,
+  tidyPlaceName,
+  type WaitingArea,
 } from "@injishi/contracts";
 import {
   ActionButton,
@@ -46,11 +47,14 @@ export function chainOf(
   w: Pick<WaitingArea, "provinceId" | "districtId" | "sectorId" | "cellId" | "villageId" | "names">,
 ): PlaceChain {
   const chain: PlaceChain = {};
-  if (w.provinceId && w.names.province) chain.province = { id: w.provinceId, name: w.names.province };
-  if (chain.province && w.districtId && w.names.district) chain.district = { id: w.districtId, name: w.names.district };
-  if (chain.district && w.sectorId && w.names.sector) chain.sector = { id: w.sectorId, name: w.names.sector };
-  if (chain.sector && w.cellId && w.names.cell) chain.cell = { id: w.cellId, name: w.names.cell };
-  if (chain.cell && w.villageId && w.names.village) chain.village = { id: w.villageId, name: w.names.village };
+  if (w.provinceId && w.names.province) chain.province = { id: w.provinceId, name: tidyPlaceName(w.names.province) };
+  if (chain.province && w.districtId && w.names.district)
+    chain.district = { id: w.districtId, name: tidyPlaceName(w.names.district) };
+  if (chain.district && w.sectorId && w.names.sector)
+    chain.sector = { id: w.sectorId, name: tidyPlaceName(w.names.sector) };
+  if (chain.sector && w.cellId && w.names.cell) chain.cell = { id: w.cellId, name: tidyPlaceName(w.names.cell) };
+  if (chain.cell && w.villageId && w.names.village)
+    chain.village = { id: w.villageId, name: tidyPlaceName(w.names.village) };
   return chain;
 }
 

@@ -37,6 +37,23 @@ describe('GeographyService', () => {
     ]);
   });
 
+  it('names places as people write them, not as the reference dump holds them', async () => {
+    repo.findProvinces.mockResolvedValue([{ id: 5, name: 'EAST' }]);
+    repo.findCells.mockResolvedValue([
+      { id: 1, name: 'Nyakabanda Ii', sectorId: 10201 },
+      { id: 2, name: 'GATUMBA', sectorId: 10201 },
+    ]);
+    const service = await build();
+
+    await expect(service.listProvinces()).resolves.toEqual([
+      { id: 5, name: 'Eastern Province' },
+    ]);
+    await expect(service.listCells({ sectorId: 10201 })).resolves.toEqual([
+      { id: 1, name: 'Nyakabanda II', sectorId: 10201 },
+      { id: 2, name: 'Gatumba', sectorId: 10201 },
+    ]);
+  });
+
   it('passes the optional provinceId filter through to the repository', async () => {
     repo.findDistricts.mockResolvedValue([
       { id: 11, name: 'Gasabo', provinceId: 1 },

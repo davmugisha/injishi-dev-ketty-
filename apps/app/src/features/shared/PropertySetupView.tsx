@@ -2,6 +2,7 @@
 
 import { ArrowUpRightFromSquare, CircleCheck, Clock, House, Picture, Tag } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Description, Input, Label, TextArea, TextField } from "@heroui/react";
+import { tidyPlaceName } from "@injishi/contracts";
 import { LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { type FormEvent, type ReactNode, useState } from "react";
 import type { Place, SetupRead, StepKey } from "@/server/mutations/setup";
@@ -234,7 +235,10 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
     );
   }
 
-  const place = [p.address.sectorName ? `${p.address.sectorName} sector` : null, p.address.districtName]
+  const place = [
+    p.address.sectorName ? `${tidyPlaceName(p.address.sectorName)} sector` : null,
+    p.address.districtName ? tidyPlaceName(p.address.districtName) : null,
+  ]
     .filter(Boolean)
     .join(", ");
   const submit = (e: FormEvent) => {

@@ -26,6 +26,7 @@ import {
   appointmentKindOf,
   isLeaderRole,
   kigaliToday,
+  tidyPlaceName,
 } from '@injishi/contracts';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 
@@ -39,9 +40,14 @@ import { type AppointmentRow, LocalLeadersRepository, type ResolvedArea, type Wa
 import { OversightGrantsService } from './oversight-grants.service';
 
 /** The area of an appointment in words: village up to district, or the province, or Rwanda. */
+/** Each level's name as people write it. */
+function tidyNames<T extends Record<string, string | null>>(names: T): T {
+  return Object.fromEntries(Object.entries(names).map(([k, v]) => [k, v ? tidyPlaceName(v) : v])) as T;
+}
+
 export function appointmentArea(row: Pick<AppointmentRow, 'scopeLevel' | 'provinceName' | 'districtName' | 'sectorName' | 'cellName' | 'villageName'>): string {
   if (row.scopeLevel === 'country') return OVERSIGHT_COUNTRY_SCOPE_LABEL;
-  if (row.scopeLevel === 'province') return row.provinceName ?? 'Province';
+  if (row.scopeLevel === 'province') return row.provinceName ? tidyPlaceName(row.provinceName) : 'Province';
   return (
     placeWords({
       villageName: row.scopeLevel === 'village' ? row.villageName : null,
@@ -99,7 +105,7 @@ function presentWaiting(w: WaitingRow): WaitingArea {
     sectorId: w.sectorId,
     cellId: w.cellId,
     villageId: w.villageId,
-    names: { province: w.provinceName, district: w.districtName, sector: w.sectorName, cell: w.cellName, village: w.villageName },
+    names: tidyNames({ province: w.provinceName, district: w.districtName, sector: w.sectorName, cell: w.cellName, village: w.villageName }),
     reports: w.reports,
     oldestArrival: w.oldestArrival,
   };
@@ -414,7 +420,7 @@ export class LocalLeadersService {
             sectorId: a.sectorId,
             cellId: a.cellId,
             villageId: a.villageId,
-            names: { province: a.provinceName, district: a.districtName, sector: a.sectorName, cell: a.cellName, village: a.villageName },
+            names: tidyNames({ province: a.provinceName, district: a.districtName, sector: a.sectorName, cell: a.cellName, village: a.villageName }),
             homes: a.homes,
             waitingReports: a.waitingReports,
           };

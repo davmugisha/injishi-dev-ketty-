@@ -2,7 +2,7 @@
 
 import { Card } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
-import type { LeaderGuest, LeaderGuestPage } from "@injishi/contracts";
+import { type LeaderGuest, type LeaderGuestPage, tidyPlaceName } from "@injishi/contracts";
 import {
   ActionButton,
   ActionLink,
@@ -278,9 +278,11 @@ export function LeaderGuestsView({
                     sortValue: (g: LeaderGuest) => g.home.villageName ?? "",
                     cell: (g: LeaderGuest) => (
                       <div className="flex min-w-0 flex-col text-sm">
-                        <span className="truncate">{g.home.villageName ?? "No village on record"}</span>
+                        <span className="truncate">
+                          {g.home.villageName ? tidyPlaceName(g.home.villageName) : "No village on record"}
+                        </span>
                         {g.home.cellName ? (
-                          <span className="truncate text-xs text-muted">{g.home.cellName} cell</span>
+                          <span className="truncate text-xs text-muted">{tidyPlaceName(g.home.cellName)} cell</span>
                         ) : null}
                       </div>
                     ),

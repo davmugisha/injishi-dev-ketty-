@@ -4,11 +4,12 @@
  * (staff, the emailed step-up, `admin.user.view`); a refusal comes back as the API's status so the page
  * can say which. Server side only.
  */
-import type {
-  GovernmentBody,
-  LeaderCoverage,
-  OversightAppointmentList,
-  OversightAppointmentQuery,
+import {
+  type GovernmentBody,
+  type LeaderCoverage,
+  type OversightAppointmentList,
+  type OversightAppointmentQuery,
+  tidyPlaceName,
 } from "@injishi/contracts";
 import { currentApi } from "@/lib/session";
 import { apiRequest } from "../api";
@@ -75,7 +76,7 @@ export async function placeChainOf(
     });
     const hit: { id: number; name: string } | undefined = rows.find((r: { id: number }) => r.id === id);
     if (!hit) break;
-    out[level] = { id: hit.id, name: hit.name };
+    out[level] = { id: hit.id, name: tidyPlaceName(hit.name) };
     parentId = hit.id;
   }
   return out;

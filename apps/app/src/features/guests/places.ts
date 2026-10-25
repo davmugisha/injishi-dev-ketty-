@@ -1,5 +1,6 @@
 "use server";
 
+import { tidyPlaceName } from "@injishi/contracts";
 import { geographyRequest, type PlaceLevel, type PlaceOption } from "@injishi/ui";
 import { apiRequest } from "@/server/api";
 
@@ -13,5 +14,5 @@ export async function loadGuestPlaces(level: PlaceLevel, parentId: number | stri
   if (!LEVELS.has(level)) return [];
   const { path, query } = geographyRequest(level, parentId);
   const rows = await apiRequest<{ id: number; name: string }[]>(null, path, { query });
-  return rows.map((r) => ({ id: r.id, name: r.name }));
+  return rows.map((r) => ({ id: r.id, name: tidyPlaceName(r.name) }));
 }
