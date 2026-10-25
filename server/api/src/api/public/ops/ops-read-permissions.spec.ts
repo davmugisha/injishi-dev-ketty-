@@ -78,6 +78,7 @@ import { OpsPayoutsController } from './rentals/payouts.controller';
 import { OpsRentController } from './rentals/rent.controller';
 import { OpsFaultsController } from './rentals/faults.controller';
 import { OpsExpensesController } from './rentals/expenses.controller';
+import { OpsFilingsController, OpsTaxesController } from './rentals/taxes.controller';
 import { OpsRevenueController } from './revenue.controller';
 import { OpsCertificatesController } from './certificates.controller';
 import { OpsOwnerDashboardController, OpsReportsController } from './owner-dashboard.controller';
@@ -198,6 +199,8 @@ const CONTROLLERS: Ctor[] = [
   OpsPayoutsController,
   OpsFaultsController,
   OpsExpensesController,
+  OpsTaxesController,
+  OpsFilingsController,
 ];
 
 interface Read {
@@ -506,6 +509,10 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/faults/:id': ['owner', 'manager', 'housekeeper'],
   // Expenses (WP 4.3): `money.view` or `expense.manage`.
   '/ops/expenses': ['owner', 'manager', 'finance'],
+  // Taxes and filings (WP 4.4): `money.view` or `tax.manage`; filings also `lease.manage`.
+  '/ops/taxes/taxpayer': ['owner', 'manager', 'finance'],
+  '/ops/taxes/:year': ['owner', 'manager', 'finance'],
+  '/ops/filings': ['owner', 'manager', 'finance'],
 };
 
 describe('operator reads (audit H1)', () => {
@@ -726,6 +733,27 @@ describe('expense writes (WP 4.3)', () => {
     'POST /ops/expenses': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
     'POST /ops/expenses/:id/void': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
     'POST /ops/expenses/:id/receipt': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/** Taxes and filings (WP 4.4): the taxpayer kind, a declaration and a filing are `tax.manage`. */
+describe('tax and filing writes (WP 4.4)', () => {
+  const routes = handlers([OpsTaxesController, OpsFilingsController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'PUT /ops/taxes/taxpayer': { allOf: ['tax.manage'], roles: ['owner', 'manager', 'finance'] },
+    'PUT /ops/taxes/:year/declaration': { allOf: ['tax.manage'], roles: ['owner', 'manager', 'finance'] },
+    'POST /ops/filings/:id/filed': { allOf: ['tax.manage'], roles: ['owner', 'manager', 'finance'] },
   };
 
   it('judges every write', () => {

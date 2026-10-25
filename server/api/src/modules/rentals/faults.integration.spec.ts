@@ -34,6 +34,9 @@ import type { StoragePort } from '../storage/domain/storage-port';
 import { ExpensesService } from './application/expenses.service';
 import { FaultNotices } from './application/fault-notices';
 import { FaultPaymentsService } from './application/fault-payments.service';
+import { FilingsService } from './application/filings.service';
+import { RentalsHousekeepingService } from './application/rentals-housekeeping.service';
+import { TaxesService } from './application/taxes.service';
 import { FaultsService } from './application/faults.service';
 import { LeaseContractService } from './application/lease-contract.service';
 import { LeaseDraftingService } from './application/lease-drafting.service';
@@ -53,6 +56,7 @@ import type { RentalsMoneyQueue } from './infrastructure/rentals-money.queue';
 import { LeaseEventsWriter, RentalsAuditWriter } from './infrastructure/rentals-writers';
 import type { RentalsMailer } from './infrastructure/rentals.mailer';
 import { SigningRepository } from './infrastructure/signing.repository';
+import { TaxesRepository } from './infrastructure/taxes.repository';
 import { TenantsRepository } from './infrastructure/tenants.repository';
 import { UnitsRepository } from './infrastructure/units.repository';
 
@@ -131,6 +135,7 @@ maybe('faults and the ticket lifecycle against Postgres (RENTALS_IT_DATABASE_URL
     const expensesRepo = new ExpensesRepository(db);
     const payments = new FaultPaymentsService(db, faultsRepo, new FaultPayoutsRepository(db), expensesRepo, ticketLifecycle, files, notices, audit, queue, adapter);
     const faults = new FaultsService(db, faultsRepo, ticketLifecycle, files, notices, audit, payments);
+    const filings = new FilingsService(db, new TaxesRepository(db), files, events, audit);
     const workOrdersRepo = new WorkOrdersRepository(db);
     const orders = new WorkOrdersService(workOrdersRepo, ticketLifecycle);
     return {
@@ -144,6 +149,10 @@ maybe('faults and the ticket lifecycle against Postgres (RENTALS_IT_DATABASE_URL
       board: new ResidenceService(new ResidenceRepository(db), ticketLifecycle, db),
       payments,
       expenses: new ExpensesService(db, expensesRepo, files, audit),
+      taxes: new TaxesService(db, new TaxesRepository(db), context, files, filings, audit),
+      filings,
+      housekeeping: new RentalsHousekeepingService(new TaxesRepository(db), context, mailer),
+      signing: new SigningRepository(db),
     };
   };
 
@@ -515,5 +524,125 @@ maybe('faults and the ticket lifecycle against Postgres (RENTALS_IT_DATABASE_URL
     expect(withProof.hasReceipt).toBe(true);
     // Another business sees nothing.
     await expect(s.expenses.view({ ...ws, orgId: randomUUID(), workspaceId: randomUUID() } as ScopedWorkspace, loan.id)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('rental income tax on real rows: the RRA example owes 434,000; deposits are not rent; late charges until declared', async () => {
+    const s = services();
+    const lease = (await pool.query(`select property_id, tenant_id from leases where id = $1`, [tenancy.leaseId])).rows[0];
+    // 2025: two rent payments recorded before rent went gateway only, and one that paid a deposit.
+    const pay = async (amount: number, day: string): Promise<string> =>
+      (
+        await pool.query(
+          `insert into lease_payments (workspace_id, property_id, lease_id, tenant_id, channel, method, amount_rwf, status, received_on, recorded_by_user_id, succeeded_at, idempotency_key)
+           values ($1, $2, $3, $4, 'recorded', 'bank_transfer', $5, 'succeeded', $6, $7, $6::date + time '10:00', $8) returning id`,
+          [ws.workspaceId, lease.property_id, tenancy.leaseId, lease.tenant_id, amount, day, userId, `${ws.workspaceId}:it-tax:${randomUUID()}`],
+        )
+      ).rows[0].id;
+    await pay(2_400_000, '2025-01-10');
+    await pay(2_400_000, '2025-07-10');
+    const depositPayment = await pay(300_000, '2025-03-01');
+    const charge = (
+      await pool.query(`insert into lease_charges (lease_id, kind, due_on, amount_rwf, paid_rwf, status, paid_at) values ($1, 'deposit', '2025-03-01', 300000, 300000, 'paid', now()) returning id`, [tenancy.leaseId])
+    ).rows[0].id;
+    await pool.query(`insert into lease_payment_allocations (payment_id, charge_id, amount_rwf) values ($1, $2, 300000)`, [depositPayment, charge]);
+    await s.expenses.record(ws, userId, RecordExpenseRequest.parse({ category: 'loan_interest', amountRwf: 500_000, paidOn: '2025-06-30', method: 'bank', payeeName: 'Bank of Kigali', loanPurpose: 'build' }), {
+      filename: 'bk.pdf',
+      mime: 'application/pdf',
+      body: Buffer.from('%PDF-1.4\n%%EOF'),
+    });
+    await s.expenses.record(ws, userId, RecordExpenseRequest.parse({ category: 'loan_interest', amountRwf: 40_000, paidOn: '2025-08-30', method: 'bank', payeeName: 'Bank of Kigali', loanPurpose: 'buy' }), null);
+    const voided = await s.expenses.record(ws, userId, RecordExpenseRequest.parse({ category: 'loan_interest', amountRwf: 999_000, paidOn: '2025-09-30', method: 'bank', payeeName: 'Bank of Kigali', loanPurpose: 'build' }), null);
+    await s.expenses.void(ws, userId, voided.id, { reason: 'Typed the wrong year' });
+    await s.expenses.record(ws, userId, RecordExpenseRequest.parse({ category: 'repairs', amountRwf: 90_000, paidOn: '2025-05-05', method: 'cash', payeeName: 'Fixer' }), null);
+
+    await s.taxes.setTaxpayer(ws, userId, 'individual');
+    const y = await s.taxes.year(ws, 2025);
+    expect(y.rent).toMatchObject({ totalRwf: 4_800_000, recordedRwf: 4_800_000, gatewayRwf: 0, paymentCount: 2, depositsExcludedRwf: 300_000 });
+    expect(y.rent.months[0]).toEqual({ month: '2025-01', amountRwf: 2_400_000 });
+    expect(y.rent.months[2]).toEqual({ month: '2025-03', amountRwf: 0 });
+    // Interest: 540,000 deductible (the voided one never counts); one entry has no bank proof.
+    expect(y.interest.deductibleRwf).toBe(540_000);
+    expect(y.interest.needsProofCount).toBe(1);
+    expect(y.otherExpenses).toMatchObject({ totalRwf: 90_000, byCategory: [{ category: 'repairs', amountRwf: 90_000 }] });
+    expect(y.rentalTax).toMatchObject({ grossRentRwf: 4_800_000, flatDeductionRwf: 2_400_000, interestDeductedRwf: 540_000, taxableIncomeRwf: 1_860_000, taxRwf: 422_000 });
+    expect(y).toMatchObject({ dueOn: '2026-01-31', running: false, canDeclare: true, profit: null });
+    expect(y.lateCharges).toMatchObject({ monthsLate: 9 });
+    expect(y.lateCharges!.totalRwf).toBeGreaterThan(0);
+
+    // The leaflet's example exactly: without the 40,000, 434,000.
+    const k = (await pool.query(`select id from expenses where org_id = $1 and amount_rwf = 40000 and category = 'loan_interest'`, [ws.orgId])).rows[0].id;
+    await s.expenses.void(ws, userId, k, { reason: 'Not for this building' });
+    expect((await s.taxes.year(ws, 2025)).rentalTax).toMatchObject({ taxableIncomeRwf: 1_900_000, taxRwf: 434_000 });
+
+    // January nudge for 2025 (sent once on the 15th), before it is declared.
+    mails.length = 0;
+    const jan15 = new Date('2026-01-15T10:00:00+02:00');
+    expect((await s.housekeeping.run(jan15)).taxNudges).toBeGreaterThanOrEqual(1);
+    expect(mails.some((m) => m.subject === 'Declare your 2025 rental income tax by 31 January 2026')).toBe(true);
+    const again = await s.housekeeping.run(jan15);
+    expect(mails.filter((m) => m.subject.startsWith('Declare your 2025')).length).toBe(1);
+    expect(again.taxNudges).toBe(0);
+    expect((await s.housekeeping.run(new Date('2026-01-15T20:00:00+02:00'))).taxNudges).toBe(0);
+
+    // Declaring: this year is not over; dates must be after the year and not to come; paid needs paid on after declared.
+    const { UpdateTaxDeclarationRequest } = await import('@injishi/contracts');
+    await expect(s.taxes.declare(ws, userId, 2026, UpdateTaxDeclarationRequest.parse({ status: 'declared', declaredOn: '2026-10-01' }), null)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(s.taxes.declare(ws, userId, 2025, UpdateTaxDeclarationRequest.parse({ status: 'declared', declaredOn: '2025-12-31' }), null)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(s.taxes.declare(ws, userId, 2025, UpdateTaxDeclarationRequest.parse({ status: 'declared', declaredOn: addDays(kigaliToday(), 1) }), null)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      s.taxes.declare(ws, userId, 2025, UpdateTaxDeclarationRequest.parse({ status: 'paid', declaredOn: '2026-01-20', paidOn: '2026-01-19', amountPaidRwf: 434_000 }), null),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    const declared = await s.taxes.declare(ws, userId, 2025, UpdateTaxDeclarationRequest.parse({ status: 'declared', declaredOn: '2026-01-20' }), null);
+    expect(declared).toMatchObject({ declaration: { status: 'declared', declaredOn: '2026-01-20' }, lateCharges: null });
+    const paid = await s.taxes.declare(
+      ws,
+      userId,
+      2025,
+      UpdateTaxDeclarationRequest.parse({ status: 'paid', declaredOn: '2026-01-20', paidOn: '2026-01-25', amountPaidRwf: 434_000, rraReference: 'RRA-25-1' }),
+      { filename: 'rra.pdf', mime: 'application/pdf', body: Buffer.from('%PDF-1.4\n%%EOF') },
+    );
+    expect(paid.declaration).toMatchObject({ status: 'paid', paidOn: '2026-01-25', amountPaidRwf: 434_000, rraReference: 'RRA-25-1', receiptUrl: expect.stringMatching(/tax_receipt/) });
+
+    // A company sees profit, no bands, and cannot mark a rental tax declaration.
+    await s.taxes.setTaxpayer(ws, userId, 'company');
+    const co = await s.taxes.year(ws, 2025);
+    expect(co.rentalTax).toBeNull();
+    expect(co.profit).toMatchObject({ rentRwf: 4_800_000, expensesRwf: 590_000, profitRwf: 4_210_000, corporateTaxRwf: 1_178_800 });
+    await expect(s.taxes.declare(ws, userId, 2025, UpdateTaxDeclarationRequest.parse({ status: 'not_started' }), null)).rejects.toBeInstanceOf(ConflictException);
+    await s.taxes.setTaxpayer(ws, userId, 'individual');
+    await expect(s.taxes.year(ws, 2019)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(s.taxes.year(ws, 2027)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('lease filings: opened once, reminded five days and one day before, marked filed from the signing day to today', async () => {
+    const s = services();
+    const today = kigaliToday();
+    const lease = (await pool.query(`select (signed_at at time zone 'Africa/Kigali')::date::text as signed_on from leases where id = $1`, [tenancy.leaseId])).rows[0];
+    const id = await s.signing.openNewLeaseFiling(db, { leaseId: tenancy.leaseId, dueOn: addDays(today, 5) });
+    expect(id).not.toBeNull();
+    expect(await s.signing.openNewLeaseFiling(db, { leaseId: tenancy.leaseId, dueOn: addDays(today, 5) })).toBeNull();
+    const listed = await s.filings.list(ws, {});
+    expect(listed.items.find((f) => f.id === id)).toMatchObject({ status: 'pending', late: false, daysLeft: 5, kind: 'new_lease' });
+
+    mails.length = 0;
+    const tenAm = new Date(`${today}T10:00:00+02:00`);
+    expect((await s.housekeeping.run(tenAm)).filingReminders).toBeGreaterThanOrEqual(1);
+    expect(mails.filter((m) => m.subject.startsWith('Give RRA a copy of lease')).length).toBe(1);
+    await s.housekeeping.run(tenAm);
+    expect(mails.filter((m) => m.subject.startsWith('Give RRA a copy of lease')).length).toBe(1);
+    // Four days on (the day before it is due): the second reminder, once.
+    await s.housekeeping.run(new Date(`${addDays(today, 4)}T10:00:00+02:00`));
+    expect(mails.filter((m) => m.subject.startsWith('Give RRA a copy of lease')).length).toBe(2);
+    expect(mails.at(-1)!.text).toContain('That is due tomorrow');
+
+    await expect(s.filings.markFiled(ws, userId, id!, { filedOn: addDays(lease.signed_on, -1) }, null)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(s.filings.markFiled(ws, userId, id!, { filedOn: addDays(today, 1) }, null)).rejects.toBeInstanceOf(BadRequestException);
+    const filed = await s.filings.markFiled(ws, userId, id!, { filedOn: today, reference: 'RRA-LEASE-77' }, { filename: 'proof.pdf', mime: 'application/pdf', body: Buffer.from('%PDF-1.4\n%%EOF') });
+    expect(filed).toMatchObject({ status: 'filed', filedOn: today, reference: 'RRA-LEASE-77', late: false, daysLeft: null, proofUrl: expect.stringMatching(/filing_proof/) });
+    const events = await pool.query(`select kind from lease_events where lease_id = $1 and kind = 'filed'`, [tenancy.leaseId]);
+    expect(events.rows).toHaveLength(1);
+    await expect(s.filings.markFiled({ ...ws, workspaceId: randomUUID() } as ScopedWorkspace, userId, id!, { filedOn: today }, null)).rejects.toBeInstanceOf(NotFoundException);
+    // Housekeeping expires invitations past their day.
+    expect(typeof (await s.housekeeping.run(tenAm)).invitationsExpired).toBe('number');
   });
 });

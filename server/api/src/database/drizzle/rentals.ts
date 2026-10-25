@@ -19,7 +19,7 @@
  * Statuses and kinds are enums built from `@injishi/contracts` rentals vocab.
  * Money is whole francs; calendar facts are `date` in Kigali.
  */
-import { ExpenseCategory, ExpenseMethod, ExpenseSource, LoanPurpose } from '@injishi/contracts';
+import { ExpenseCategory, ExpenseMethod, ExpenseSource, LoanPurpose, TaxDeclarationStatus } from '@injishi/contracts';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -461,9 +461,12 @@ export const leaseFilings = pgTable(
     reference: text('reference'),
     proofObjectId: uuid('proof_object_id').references(() => storedObjects.id),
     filedByUserId: uuid('filed_by_user_id').references(() => users.id),
+    /** How many reminders the landlord was sent while it was due: 1 five days before, 2 the day before (WP 4.4). */
+    remindersSent: integer('reminders_sent').notNull().default(0),
     ...timestamps,
   },
   (t) => [
+    check('lease_filings_reminders_range', sql`${t.remindersSent} BETWEEN 0 AND 2`),
     // One new-lease filing and one termination per lease; changes may repeat.
     uniqueIndex('lease_filings_lease_kind_uk')
       .on(t.leaseId, t.kind)
@@ -580,6 +583,57 @@ export const maintenancePayouts = pgTable(
     unique('maintenance_payouts_payout_uk').on(t.payoutId),
     index('maintenance_payouts_ticket_idx').on(t.ticketId),
     check('maintenance_payouts_payee_phone_shape', sql`${t.payeePhone} IS NULL OR ${t.payeePhone} ~ '^[+][1-9][0-9]{7,14}$'`),
+  ],
+);
+
+// ===========================================================================
+// Rental income tax (WP 4.4, migration 0089)
+// ===========================================================================
+
+/** Where a year's rental income tax declaration stands. The list is `TaxDeclarationStatus` in contracts. */
+export const taxDeclarationStatusEnum = pgEnum('tax_declaration_status', TaxDeclarationStatus.options);
+
+/**
+ * A year's rental income tax declaration, as the landlord tells it (they
+ * declare and pay on RRA's own portal): one row per business and year. The
+ * estimate is worked out on every read and never stored. `nudges_sent` counts
+ * the January reminders (1, 15 and 25 January) so none goes twice.
+ */
+export const taxDeclarations = pgTable(
+  'tax_declarations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    year: integer('year').notNull(),
+    status: taxDeclarationStatusEnum('status').notNull().default('not_started'),
+    declaredOn: date('declared_on'),
+    paidOn: date('paid_on'),
+    amountPaidRwf: amount('amount_paid_rwf'),
+    /** The reference RRA gave the declaration or the payment. */
+    rraReference: text('rra_reference'),
+    receiptObjectId: uuid('receipt_object_id').references(() => storedObjects.id),
+    nudgesSent: integer('nudges_sent').notNull().default(0),
+    updatedByUserId: uuid('updated_by_user_id').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    unique('tax_declarations_org_year_uk').on(t.orgId, t.year),
+    check('tax_declarations_year_range', sql`${t.year} BETWEEN 2020 AND 2100`),
+    check(
+      'tax_declarations_shape',
+      sql`(${t.status} = 'not_started' AND ${t.declaredOn} IS NULL AND ${t.paidOn} IS NULL AND ${t.amountPaidRwf} IS NULL)
+        OR (${t.status} = 'declared' AND ${t.declaredOn} IS NOT NULL AND ${t.paidOn} IS NULL AND ${t.amountPaidRwf} IS NULL)
+        OR (${t.status} = 'paid' AND ${t.declaredOn} IS NOT NULL AND ${t.paidOn} IS NOT NULL AND ${t.amountPaidRwf} IS NOT NULL)`,
+    ),
+    check('tax_declarations_declared_after_year', sql`${t.declaredOn} IS NULL OR ${t.declaredOn} >= make_date(${t.year} + 1, 1, 1)`),
+    check('tax_declarations_paid_after_declared', sql`${t.paidOn} IS NULL OR ${t.paidOn} >= ${t.declaredOn}`),
+    check('tax_declarations_amount_positive', sql`${t.amountPaidRwf} IS NULL OR (${t.amountPaidRwf} > 0 AND ${t.amountPaidRwf} <= 2000000000)`),
+    check('tax_declarations_nudges_range', sql`${t.nudgesSent} BETWEEN 0 AND 3`),
   ],
 );
 

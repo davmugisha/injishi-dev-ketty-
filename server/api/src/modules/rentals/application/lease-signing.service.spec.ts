@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-import { addDays, addMonths, buildLeaseContract, contractHash, kigaliToday, type LeaseStatus, type SignLeaseRequest } from '@injishi/contracts';
+import { addDays, addMonths, buildLeaseContract, contractHash, kigaliDateOf, kigaliToday, type LeaseStatus, type SignLeaseRequest } from '@injishi/contracts';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import type { StorageService } from '../../storage/application/storage.service';
@@ -184,6 +184,10 @@ function harness(opts: Opts = {}) {
       return 'sig-1';
     }),
     passwordHash: jest.fn(async () => null),
+    openNewLeaseFiling: jest.fn(async (_tx: unknown, values: unknown) => {
+      record('filing')(values);
+      return 'filing-1';
+    }),
   };
   const charges = {
     raiseDeposit: jest.fn(async (_tx: unknown, input: { dueOn: string; amountRwf: number }) => {
@@ -401,8 +405,16 @@ describe('LeaseSigningService.signAsTenant', () => {
     expect(h.calls.signature![0]![0]).toMatchObject({ signerRole: 'tenant', signerUserId: TENANT_USER, documentHash: HASH, typedName: 'Aimee Uwera' });
     expect(h.calls.updateLease![0]).toEqual([LEASE, { status: 'signed', signedAt: expect.any(Date) }]);
     expect(h.calls.deposit![0]![0]).toMatchObject({ dueOn: start, amountRwf: 800_000 });
-    expect(h.calls.event!.map((e) => (e[0] as { kind: string }).kind)).toEqual(['tenant_signed', 'charge_raised']);
+    expect(h.calls.event!.map((e) => (e[0] as { kind: string }).kind)).toEqual(['tenant_signed', 'charge_raised', 'filing_due']);
     expect(h.calls.queued).toEqual([[{ leaseId: LEASE, versionId: VERSION }]]);
+  });
+
+  it('opens the copy owed to RRA, due 15 days after the Kigali day it was signed (WP 4.4)', async () => {
+    const h = pending();
+    await h.service.signAsTenant(ref, tenantUser, sign({ typedName: 'Aimee Uwera' }), ctx);
+    expect(h.calls.filing).toEqual([[{ leaseId: LEASE, dueOn: addDays(kigaliDateOf(new Date()), 15) }]]);
+    const due = h.calls.event!.find((e) => (e[0] as { kind: string }).kind === 'filing_due')![0];
+    expect(due).toMatchObject({ actorRole: 'system', visibleToTenant: false, payload: { filingId: 'filing-1', kind: 'new_lease' } });
   });
 
   it('a lease with no deposit raises none', async () => {

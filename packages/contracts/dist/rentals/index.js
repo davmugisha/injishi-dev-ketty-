@@ -44,4 +44,6 @@ __exportStar(require("./rent"), exports);
 __exportStar(require("./faults"), exports);
 // Expenses and paying a fault's fixer (WP 4.3).
 __exportStar(require("./expenses"), exports);
+// Rental income tax and lease filings with RRA (WP 4.4).
+__exportStar(require("./taxes"), exports);
 //# sourceMappingURL=index.js.map

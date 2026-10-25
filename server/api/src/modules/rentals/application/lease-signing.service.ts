@@ -13,6 +13,8 @@ import {
   SIGNING_CODE_RESEND_SECONDS,
   SIGNING_CODE_TTL_SECONDS,
   depositCharge,
+  kigaliDateOf,
+  leaseFilingDueOn,
   emailTypoMessage,
   suggestEmailFix,
   typedNameProblem,
@@ -344,6 +346,20 @@ export class LeaseSigningService {
               payload: { chargeId: raised.id, kind: 'deposit', amountRwf: raised.amountRwf, dueOn: raised.dueOn },
             });
           }
+        }
+        // Signed by both: the landlord owes RRA a copy within 15 days of the Kigali day (Art. 41; WP 4.4).
+        const filingDueOn = leaseFilingDueOn('new_lease', kigaliDateOf(now));
+        const filingId = await this.signing.openNewLeaseFiling(tx, { leaseId: lease.id, dueOn: filingDueOn });
+        if (filingId) {
+          await this.events.write(tx, {
+            leaseId: lease.id,
+            workspaceId: lease.workspaceId,
+            kind: 'filing_due',
+            actorUserId: null,
+            actorRole: 'system',
+            visibleToTenant: false,
+            payload: { filingId, kind: 'new_lease', dueOn: filingDueOn },
+          });
         }
       })
       .catch((cause: unknown) => {

@@ -70,6 +70,12 @@ import { ExpensesService } from './application/expenses.service';
 import { FaultPaymentsService } from './application/fault-payments.service';
 import { ExpensesRepository } from './infrastructure/expenses.repository';
 import { FaultPayoutsRepository } from './infrastructure/fault-payouts.repository';
+// Rental income tax, lease filings and the housekeeping job (WP 4.4).
+import { FilingsService } from './application/filings.service';
+import { RentalsHousekeepingService } from './application/rentals-housekeeping.service';
+import { TaxesService } from './application/taxes.service';
+import { RentalsHousekeepingProcessor } from './infrastructure/rentals-housekeeping.processor';
+import { TaxesRepository } from './infrastructure/taxes.repository';
 
 /**
  * Rentals: the residence side of Injishi, rebuilt (blueprint 2.2).
@@ -160,7 +166,11 @@ import { FaultPayoutsRepository } from './infrastructure/fault-payouts.repositor
     FaultPayoutsRepository,
     FaultPaymentsService,
     ExpensesService,
-    ...(isWorkerProcess() ? [LeaseDocumentsProcessor, RentCycleProcessor, RentRemindersProcessor, PaymentSettlementProcessor, PayoutsProcessor] : []),
+    TaxesRepository,
+    FilingsService,
+    TaxesService,
+    RentalsHousekeepingService,
+    ...(isWorkerProcess() ? [LeaseDocumentsProcessor, RentCycleProcessor, RentRemindersProcessor, PaymentSettlementProcessor, PayoutsProcessor, RentalsHousekeepingProcessor] : []),
   ],
   exports: [
     LeaseEventsWriter,
@@ -192,6 +202,9 @@ import { FaultPayoutsRepository } from './infrastructure/fault-payouts.repositor
     TenantFaultsService,
     FaultPaymentsService,
     ExpensesService,
+    FilingsService,
+    TaxesService,
+    RentalsHousekeepingService,
   ],
 })
 export class RentalsModule {}

@@ -624,6 +624,13 @@
       "when": 1792942314493,
       "tag": "0088_expenses",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1792942788161,
+      "tag": "0089_taxes",
+      "breakpoints": true
     }
   ]
 }

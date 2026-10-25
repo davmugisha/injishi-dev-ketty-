@@ -33,6 +33,7 @@ import {
   PayoutAccountKind,
   PayoutAccountStatus,
   RentalUnitState,
+  TaxDeclarationStatus,
   TaxpayerKind,
   UnitKitchen,
   WorkOrderEventKind,
@@ -76,6 +77,7 @@ import {
   payoutAccountStatusEnum,
   rentalUnitStateEnum,
   signerRoleEnum,
+  taxDeclarationStatusEnum,
   taxpayerKindEnum,
   unitKitchenEnum,
 } from './schema';
@@ -135,6 +137,8 @@ const PAIRS: ReadonlyArray<readonly [string, { enumName: string; enumValues: rea
   ['expense_method', expenseMethodEnum, ExpenseMethod],
   ['expense_source', expenseSourceEnum, ExpenseSource],
   ['loan_purpose', loanPurposeEnum, LoanPurpose],
+  // Rental income tax (P4, migration 0089).
+  ['tax_declaration_status', taxDeclarationStatusEnum, TaxDeclarationStatus],
 ];
 
 describe('rentals database enums match the contracts vocabulary', () => {

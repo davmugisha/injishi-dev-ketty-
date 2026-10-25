@@ -142,6 +142,7 @@ import { PaymentWebhooksController } from './payments/webhooks.controller';
 import { MeTenancyFaultsController } from './me/tenancy-faults.controller';
 import { OpsFaultsController } from './ops/rentals/faults.controller';
 import { OpsExpensesController } from './ops/rentals/expenses.controller';
+import { OpsFilingsController, OpsTaxesController } from './ops/rentals/taxes.controller';
 import { OpsRoomsController } from './ops/rooms.controller';
 import { OpsThreadsController } from './ops/threads.controller';
 import { OpsStaysController } from './ops/stays.controller';
@@ -348,6 +349,9 @@ import { TrainingPublicModule } from './training/training.module';
     MeTenancyFaultsController,
     // Expenses and paying the fixer (WP 4.3).
     OpsExpensesController,
+    // Rental income tax and lease filings with RRA (WP 4.4).
+    OpsTaxesController,
+    OpsFilingsController,
     // The broker workspace's directory, reveals, placements and earnings
     // (ADR-038 child 6).
     OpsBrokerController,

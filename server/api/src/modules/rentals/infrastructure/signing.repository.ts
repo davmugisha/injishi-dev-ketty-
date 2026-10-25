@@ -139,6 +139,23 @@ export class SigningRepository {
     return row?.password ?? null;
   }
 
+  // --- The copy owed to RRA (WP 4.4) ------------------------------------------------------
+
+  /**
+   * Open the new-lease filing a lease owes RRA once both sides have signed,
+   * due `dueOn`. Once per lease: answers the new row's id, or null when it
+   * was opened already.
+   */
+  async openNewLeaseFiling(tx: DbOrTx, input: { leaseId: string; dueOn: string }): Promise<string | null> {
+    const inserted = await tx.execute<{ id: string }>(sql`
+      insert into lease_filings (lease_id, kind, due_on, status)
+      values (${input.leaseId}, 'new_lease', ${input.dueOn}::date, 'pending')
+      on conflict do nothing
+      returning id
+    `);
+    return inserted.rows[0]?.id ?? null;
+  }
+
   // --- Signatures --------------------------------------------------------------------
 
   async insertSignature(tx: DbOrTx, values: SignatureInsert): Promise<string> {

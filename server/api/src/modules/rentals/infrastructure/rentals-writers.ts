@@ -58,7 +58,9 @@ export type RentalsAuditSubject =
   // P4 (migration 0087): a fault's moves and payments, an expense, a tax declaration.
   | 'maintenance_ticket'
   | 'expense'
-  | 'tax_declaration';
+  | 'tax_declaration'
+  // The business itself: whether it lets as a person or a company (WP 4.4).
+  | 'org';
 
 export interface RentalsAuditInput {
   /** Null for an act of the system (a job starting a lease on its start date). */

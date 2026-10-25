@@ -8,6 +8,8 @@
 //                                                         (now when left out; only 08:00 to 18:00 Kigali)
 //   node scripts/run-rent-jobs.mjs settle                 look at every pending gateway payment
 //   node scripts/run-rent-jobs.mjs payouts                release held payouts, resend lost ones
+//   node scripts/run-rent-jobs.mjs housekeeping [moment]  expire invitations and codes; filing reminders and
+//                                                         January tax nudges due at that moment (08:00 to 18:00)
 //
 // The worker runs the same jobs on a schedule, and every step is idempotent,
 // so running one by hand changes nothing a scheduled run would not. The day
@@ -29,8 +31,8 @@ if (process.env.INJISHI_PROCESS === 'worker' || process.argv.includes('--worker'
 }
 
 const [, , job, when] = process.argv;
-if (!['cycle', 'reminders', 'settle', 'payouts'].includes(job ?? '')) {
-  console.error('Usage: node scripts/run-rent-jobs.mjs <cycle|reminders|settle|payouts> [day or moment]');
+if (!['cycle', 'reminders', 'settle', 'payouts', 'housekeeping'].includes(job ?? '')) {
+  console.error('Usage: node scripts/run-rent-jobs.mjs <cycle|reminders|settle|payouts|housekeeping> [day or moment]');
   process.exit(1);
 }
 
@@ -45,13 +47,16 @@ const { RentCycleService } = require(resolve(dist, 'modules/rentals/application/
 const { RentRemindersService } = require(resolve(dist, 'modules/rentals/application/rent-reminders.service.js'));
 const { PaymentSettlementService } = require(resolve(dist, 'modules/rentals/application/payment-settlement.service.js'));
 const { PayoutsService } = require(resolve(dist, 'modules/rentals/application/payouts.service.js'));
+const { FaultPaymentsService } = require(resolve(dist, 'modules/rentals/application/fault-payments.service.js'));
+const { RentalsHousekeepingService } = require(resolve(dist, 'modules/rentals/application/rentals-housekeeping.service.js'));
 
 const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
 try {
   let outcome;
   if (job === 'cycle') outcome = await app.get(RentCycleService).run(when);
   else if (job === 'reminders') outcome = await app.get(RentRemindersService).run(when ? new Date(when) : undefined);
-  else if (job === 'settle') outcome = await app.get(PaymentSettlementService).sweep();
+  else if (job === 'settle') outcome = { rent: await app.get(PaymentSettlementService).sweep(), fixers: await app.get(FaultPaymentsService).sweep() };
+  else if (job === 'housekeeping') outcome = await app.get(RentalsHousekeepingService).run(when ? new Date(when) : undefined);
   else outcome = await app.get(PayoutsService).sweep();
   console.log(JSON.stringify(outcome));
 } finally {

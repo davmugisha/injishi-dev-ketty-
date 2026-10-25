@@ -28,3 +28,5 @@ export * from "./rent";
 export * from "./faults";
 // Expenses and paying a fault's fixer (WP 4.3).
 export * from "./expenses";
+// Rental income tax and lease filings with RRA (WP 4.4).
+export * from "./taxes";
