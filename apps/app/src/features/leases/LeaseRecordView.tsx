@@ -266,8 +266,11 @@ export function LeaseRecordView({
       ? autoStart
         ? `Signed by both. Injishi starts it on ${formatDay(lease.terms.startDate, "long")}.`
         : `Signed by both. You can start it from ${formatDay(lease.terms.startDate, "long")}.`
-      : (lease.nextAction ??
-        (lease.status === "cancelled" && lease.cancelReason ? `Cancelled: ${lease.cancelReason}` : null));
+      : lease.status === "pending_signature"
+        ? lease.nextAction
+        : lease.status === "cancelled" && lease.cancelReason
+          ? `Cancelled: ${lease.cancelReason}`
+          : null;
 
   const tabs: { id: RecordTab; label: string }[] = (
     [

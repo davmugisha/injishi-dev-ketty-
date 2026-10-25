@@ -1,33 +1,24 @@
 import { screens } from "@injishi/data";
 import type { Metadata } from "next";
-import { type HomeInvitation, type HomeTenancy, TenantHomeView } from "@/features/rentals/TenantHomeView";
-import { currentAccount, currentApi, requirePersona } from "@/lib/session";
-import { ApiError } from "@/server/api";
+import { redirect } from "next/navigation";
+import { tenantHomeHref } from "@/features/leases/shared";
+import { TenantChooserView } from "@/features/tenant/TenantChooserView";
+import { currentAccount, requirePersona } from "@/lib/session";
+import { tenancyList } from "@/server/tenant/tenancies";
 
 export const metadata: Metadata = { title: screens.TenantHome.pageTitle };
 
-/** What `GET /me/tenancies` answers, as far as this page reads it. */
-interface Tenancies {
-  tenancies: HomeTenancy[];
-  invitations: HomeInvitation[];
-}
-
-/** My home: the person's tenancies (`/me/tenancies`, else the summary `/me/context` carries). */
+/** My home: one home and nothing waiting opens it; else the homes and the leases waiting to be accepted. */
 export default async function TenantHomePage() {
   await requirePersona("TenantHome");
-  const [account, api] = await Promise.all([currentAccount(), currentApi()]);
-  // An API without the tenant's routes yet (404) falls back to the summary `/me/context` carries.
-  const list = await api.get<Tenancies>("/api/v1/me/tenancies").catch((error: unknown) => {
-    if (error instanceof ApiError && error.notFound) return null;
-    throw error;
-  });
-  const tenancies: HomeTenancy[] =
-    list?.tenancies ?? (account?.context?.tenancies ?? []).map((t) => ({ ...t, id: t.leaseId }));
+  const [account, list] = await Promise.all([currentAccount(), tenancyList()]);
+  // The newest live tenancy first; a cancelled or ended one stays reachable from the list.
+  if (list.invitations.length === 0 && list.tenancies.length === 1) redirect(tenantHomeHref(list.tenancies[0].id));
   return (
-    <TenantHomeView
+    <TenantChooserView
       firstName={account?.user.name?.trim().split(/\s+/)[0] ?? ""}
-      tenancies={tenancies}
-      invitations={list?.invitations ?? []}
+      tenancies={list.tenancies}
+      invitations={list.invitations}
     />
   );
 }

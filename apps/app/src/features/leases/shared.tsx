@@ -21,6 +21,11 @@ export const leaseHref = (id: string): string => `${screenHref("Leases")}/${enco
 export const tenantHomeHref = (leaseId: string): string => `/home/${encodeURIComponent(leaseId)}`;
 export const tenantLeaseHref = (leaseId: string): string => `${tenantHomeHref(leaseId)}/lease`;
 export const tenantGuestsHref = (leaseId: string): string => `${tenantHomeHref(leaseId)}/guests`;
+export const tenantRentHref = (leaseId: string): string => `${tenantHomeHref(leaseId)}/rent`;
+/** The tenant's lease PDF and a payment's receipt, from the app's own origin. */
+export const tenantPdfHref = (leaseId: string): string => `/api/tenancies/${encodeURIComponent(leaseId)}/contract`;
+export const receiptHref = (leaseId: string, paymentId: string): string =>
+  `/api/tenancies/${encodeURIComponent(leaseId)}/payments/${encodeURIComponent(paymentId)}/receipt`;
 
 /** The record's tabs, as `?tab=` names them. */
 export const RECORD_TABS = ["overview", "contract", "rent", "deposit", "timeline", "guests"] as const;
