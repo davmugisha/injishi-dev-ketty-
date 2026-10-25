@@ -234,6 +234,11 @@ export const leasePayments = pgTable(
     receiptNumber: text('receipt_number'),
     /** `<workspace>:<op>:<client key>`: one press is one payment however often it is retried. */
     idempotencyKey: text('idempotency_key').notNull(),
+    /**
+     * The charges the tenant picked for a gateway payment (WP 1.6b, migration
+     * 0086), applied when it settles. Null: the open ones, oldest due first.
+     */
+    requestedChargeIds: uuid('requested_charge_ids').array(),
     legacy: boolean('legacy').notNull().default(false),
     // --- LEGACY, dropped by migration 0089 ---
     /** @deprecated what it pays is in `lease_payment_allocations`. */
@@ -403,6 +408,12 @@ export const leaseReminders = pgTable(
     /** The charge it is about; required for the automatic kinds. */
     chargeId: uuid('charge_id').references(() => leaseCharges.id),
     kind: leaseReminderKindEnum('kind').notNull().default('manual'),
+    /**
+     * Which of a kind's reminders this is (WP 1.6a, migration 0086): the
+     * overdue kind goes out on the first overdue day (0), then 7 (1) and 14
+     * (2) days later (`OVERDUE_REMINDER_DAYS` in contracts). 0 for the rest.
+     */
+    stage: integer('stage').notNull().default(0),
     channel: leaseReminderChannelEnum('channel').notNull(),
     /** The message as sent, or what was said on a call. */
     note: text('note').notNull(),
@@ -414,9 +425,10 @@ export const leaseReminders = pgTable(
     index('lease_reminders_scope_sent_idx').on(t.workspaceId, t.sentAt),
     index('lease_reminders_lease_idx').on(t.leaseId),
     uniqueIndex('lease_reminders_auto_uk')
-      .on(t.chargeId, t.kind)
+      .on(t.chargeId, t.kind, t.stage)
       .where(sql`${t.kind} <> 'manual'`),
     check('lease_reminders_charge_shape', sql`${t.kind} = 'manual' OR ${t.chargeId} IS NOT NULL`),
+    check('lease_reminders_stage_range', sql`${t.stage} BETWEEN 0 AND 9`),
   ],
 );
 

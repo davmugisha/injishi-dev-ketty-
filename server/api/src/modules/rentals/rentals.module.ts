@@ -39,6 +39,18 @@ import { UnitMediaService } from './application/unit-media.service';
 import { PropertiesRepository } from './infrastructure/properties.repository';
 import { RentalsOverviewRepository } from './infrastructure/rentals-overview.repository';
 import { UnitMediaRepository } from './infrastructure/unit-media.repository';
+// The rent cycle, reminders and recorded payments (WP 1.6a).
+import { PaymentReceiptsService } from './application/payment-receipts.service';
+import { RentCycleService } from './application/rent-cycle.service';
+import { RentPaymentsService } from './application/rent-payments.service';
+import { RentReadsService } from './application/rent-reads.service';
+import { RentRemindersService } from './application/rent-reminders.service';
+import { LeasePaymentsRepository } from './infrastructure/lease-payments.repository';
+import { LeaseRemindersRepository } from './infrastructure/lease-reminders.repository';
+import { RentCycleProcessor } from './infrastructure/rent-cycle.processor';
+import { RentCycleRepository } from './infrastructure/rent-cycle.repository';
+import { RentRemindersProcessor } from './infrastructure/rent-reminders.processor';
+import { RentRollRepository } from './infrastructure/rent-roll.repository';
 
 /**
  * Rentals: the residence side of Injishi, rebuilt (blueprint 2.2).
@@ -106,7 +118,16 @@ import { UnitMediaRepository } from './infrastructure/unit-media.repository';
     RentalsOverviewService,
     PropertiesService,
     UnitMediaService,
-    ...(isWorkerProcess() ? [LeaseDocumentsProcessor] : []),
+    LeasePaymentsRepository,
+    LeaseRemindersRepository,
+    RentCycleRepository,
+    RentRollRepository,
+    PaymentReceiptsService,
+    RentCycleService,
+    RentRemindersService,
+    RentPaymentsService,
+    RentReadsService,
+    ...(isWorkerProcess() ? [LeaseDocumentsProcessor, RentCycleProcessor, RentRemindersProcessor] : []),
   ],
   exports: [
     LeaseEventsWriter,
@@ -126,6 +147,10 @@ import { UnitMediaRepository } from './infrastructure/unit-media.repository';
     RentalsOverviewService,
     PropertiesService,
     UnitMediaService,
+    RentCycleService,
+    RentRemindersService,
+    RentPaymentsService,
+    RentReadsService,
   ],
 })
 export class RentalsModule {}

@@ -1,4 +1,14 @@
-import { LEASE_TAX_FILING_DAYS, RENTALS_APP_PATHS, formatRwf, longDate } from '@injishi/contracts';
+import {
+  LEASE_PAYMENT_METHOD_LABEL,
+  LEASE_TAX_FILING_DAYS,
+  RENTALS_APP_PATHS,
+  chargeWords,
+  formatRwf,
+  longDate,
+  reminderSentence,
+  type LeaseChargeKind,
+  type LeasePaymentMethod,
+} from '@injishi/contracts';
 
 /**
  * The rentals emails, as text (WP 1.5b): one fact each, short sentences in
@@ -235,6 +245,148 @@ export function leaseCancelledMail(input: {
       `The reason they gave: ${input.reason}`,
     ],
     action: { label: 'Open the lease', url: tenantLeaseLink(input.appUrl, input.leaseId) },
+  };
+}
+
+// --- Rent reminders (WP 1.6a) ---------------------------------------------------------
+
+export interface ReminderMailInput {
+  appUrl: string;
+  leaseId: string;
+  tenantName: string;
+  landlordName: string;
+  home: { unitLabel: string; propertyName: string };
+  stage: 'upcoming' | 'due' | 'overdue' | 'manual';
+  charge: { kind: LeaseChargeKind; periodStart: string | null; dueOn: string };
+  owedRwf: number;
+  graceDays: number;
+  /** The landlord's own line under a manual reminder. */
+  note?: string | null;
+}
+
+/**
+ * One reminder about one charge: the sentence for its stage, where the home
+ * is, what happens after the grace days, and the button to pay. The text the
+ * tenant gets is also what `lease_reminders.note` keeps.
+ */
+export function rentReminderMail(input: ReminderMailInput): RentalsMail {
+  const what = chargeWords(input.charge);
+  const where = homeWords(input.home);
+  const sentence = reminderSentence({ stage: input.stage, charge: input.charge, owedRwf: input.owedRwf, landlordName: input.landlordName });
+  const lines = [`Hello ${firstName(input.tenantName)},`, `${sentence} This is for ${where}.`];
+  if (input.stage === 'overdue') {
+    lines.push('Please pay it now, or reply to your landlord if something is wrong.');
+  } else if (input.graceDays > 0) {
+    lines.push(`Rent counts as late ${input.graceDays} ${input.graceDays === 1 ? 'day' : 'days'} after the due day.`);
+  }
+  if (input.note?.trim()) lines.push(`From ${input.landlordName}: ${input.note.trim()}`);
+  lines.push('You can pay by MTN MoMo or Airtel Money on Injishi, or as agreed with your landlord.');
+  const subject =
+    input.stage === 'overdue'
+      ? `${what} is overdue`
+      : input.stage === 'due'
+        ? `${what} is due today`
+        : input.stage === 'upcoming'
+          ? `${what} is due on ${longDate(input.charge.dueOn)}`
+          : `A reminder about your ${what.charAt(0).toLowerCase()}${what.slice(1)}`;
+  return {
+    subject,
+    heading: input.stage === 'overdue' ? 'Your rent is overdue' : 'Rent reminder',
+    lines,
+    action: { label: 'Pay on Injishi', url: tenantLeaseLink(input.appUrl, input.leaseId) },
+  };
+}
+
+// --- Payments (WP 1.6) ---------------------------------------------------------------------
+
+export interface PaymentMailInput {
+  appUrl: string;
+  leaseId: string;
+  tenantName: string;
+  landlordName: string;
+  home: { unitLabel: string; propertyName: string };
+  amountRwf: number;
+  method: LeasePaymentMethod;
+  channel: 'gateway' | 'recorded';
+  receiptNumber: string;
+  paidOn: string;
+  /** "Rent for November 2026: RWF 350,000", in order. */
+  lines: { label: string; amountRwf: number }[];
+  creditRwf: number;
+  /** What is still owed on the lease after this payment. */
+  outstandingRwf: number;
+}
+
+/** To the tenant, with the receipt PDF attached. */
+export function paymentReceiptMail(input: PaymentMailInput): RentalsMail {
+  const where = homeWords(input.home);
+  const lines = [
+    `Hello ${firstName(input.tenantName)},`,
+    input.channel === 'gateway'
+      ? `We received your payment of ${formatRwf(input.amountRwf)} by ${LEASE_PAYMENT_METHOD_LABEL[input.method]} for ${where}. Thank you.`
+      : `${input.landlordName} recorded a payment of ${formatRwf(input.amountRwf)} by ${LEASE_PAYMENT_METHOD_LABEL[input.method]} on ${longDate(input.paidOn)} for ${where}.`,
+    ...input.lines.map((l) => `${l.label}: ${formatRwf(l.amountRwf)}.`),
+  ];
+  if (input.creditRwf > 0) lines.push(`${formatRwf(input.creditRwf)} is kept as credit and goes on your next rent.`);
+  lines.push(
+    input.outstandingRwf > 0 ? `You still owe ${formatRwf(input.outstandingRwf)}.` : 'Nothing else is owed right now.',
+    `Your receipt ${input.receiptNumber} is attached.`,
+  );
+  return {
+    subject: `Receipt ${input.receiptNumber}: ${formatRwf(input.amountRwf)} for ${where}`,
+    heading: 'Payment received',
+    lines,
+    action: { label: 'Open my lease', url: tenantLeaseLink(input.appUrl, input.leaseId) },
+  };
+}
+
+export interface PaymentReceivedLandlordMailInput extends PaymentMailInput {
+  leaseReference: string;
+  /** Where the money goes on: a line in words, or why it waits. */
+  payoutWords: string;
+}
+
+/** To the landlord, when a tenant paid through Injishi. */
+export function paymentReceivedLandlordMail(input: PaymentReceivedLandlordMailInput): RentalsMail {
+  const where = homeWords(input.home);
+  const lines = [
+    `${input.tenantName} paid ${formatRwf(input.amountRwf)} by ${LEASE_PAYMENT_METHOD_LABEL[input.method]} on Injishi for ${where} (lease ${input.leaseReference}).`,
+    ...input.lines.map((l) => `${l.label}: ${formatRwf(l.amountRwf)}.`),
+  ];
+  if (input.creditRwf > 0) lines.push(`${formatRwf(input.creditRwf)} is kept as the tenant's credit for the next rent.`);
+  lines.push(input.payoutWords);
+  return {
+    subject: `${input.tenantName} paid ${formatRwf(input.amountRwf)} for ${where}`,
+    heading: 'Rent received',
+    lines,
+    action: { label: 'Open the lease', url: landlordLeaseLink(input.appUrl, input.leaseId) },
+  };
+}
+
+/** To the tenant, when the landlord reversed a recorded payment. */
+export function paymentReversedMail(input: {
+  appUrl: string;
+  leaseId: string;
+  tenantName: string;
+  landlordName: string;
+  home: { unitLabel: string; propertyName: string };
+  amountRwf: number;
+  receiptNumber: string | null;
+  reason: string;
+  outstandingRwf: number;
+}): RentalsMail {
+  const where = homeWords(input.home);
+  return {
+    subject: `A payment on your lease for ${where} was reversed`,
+    heading: 'A payment was reversed',
+    lines: [
+      `Hello ${firstName(input.tenantName)},`,
+      `${input.landlordName} reversed a recorded payment of ${formatRwf(input.amountRwf)}${input.receiptNumber ? ` (receipt ${input.receiptNumber})` : ''} on your lease for ${where}.`,
+      `The reason they gave: ${input.reason}`,
+      input.outstandingRwf > 0 ? `You now owe ${formatRwf(input.outstandingRwf)}.` : 'Nothing is owed right now.',
+      'If this is wrong, reply to your landlord.',
+    ],
+    action: { label: 'Open my lease', url: tenantLeaseLink(input.appUrl, input.leaseId) },
   };
 }
 

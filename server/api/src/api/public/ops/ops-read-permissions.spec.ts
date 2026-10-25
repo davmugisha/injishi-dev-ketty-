@@ -74,6 +74,7 @@ import { OpsBlocksController, OpsUnitsController } from './rentals/units.control
 import { OpsRentalPropertiesController } from './rentals/properties.controller';
 import { OpsRentalsOverviewController } from './rentals/rentals-overview.controller';
 import { OpsUnitMediaController } from './rentals/unit-media.controller';
+import { OpsRentController } from './rentals/rent.controller';
 import { OpsRevenueController } from './revenue.controller';
 import { OpsCertificatesController } from './certificates.controller';
 import { OpsOwnerDashboardController, OpsReportsController } from './owner-dashboard.controller';
@@ -190,6 +191,7 @@ const CONTROLLERS: Ctor[] = [
   OpsRentalsOverviewController,
   OpsRentalPropertiesController,
   OpsUnitMediaController,
+  OpsRentController,
 ];
 
 interface Read {
@@ -483,6 +485,14 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/rentals/overview': ['owner', 'manager', 'finance'],
   '/ops/properties': ['owner', 'manager', 'finance'],
   '/ops/units/:id/media': ['owner', 'manager', 'finance'],
+  // Rent (WP 1.6a): the roll, charges, payments, reminders and the month's
+  // figures read under `rent.record` or `money.view`.
+  '/ops/rent/roll': ['owner', 'manager', 'finance'],
+  '/ops/rent/summary': ['owner', 'manager', 'finance'],
+  '/ops/rent/charges': ['owner', 'manager', 'finance'],
+  '/ops/rent/payments': ['owner', 'manager', 'finance'],
+  '/ops/rent/payments/:id': ['owner', 'manager', 'finance'],
+  '/ops/rent/reminders': ['owner', 'manager', 'finance'],
 };
 
 describe('operator reads (audit H1)', () => {
@@ -626,6 +636,34 @@ describe('rentals home, location and unit media writes (WP 2.2, 2.3)', () => {
     'DELETE /ops/units/:id/photos/:photoId': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
     'PUT /ops/units/:id/video': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
     'DELETE /ops/units/:id/video': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/**
+ * The rent cycle's writes (WP 1.6a, 1.6b): recording a payment, a slip on it,
+ * reversing it and reminding tenants are `rent.record` (owner, manager,
+ * finance); forgiving a charge is `lease.manage`; sending a payout again is
+ * `payout.manage`, the owner's by default.
+ */
+describe('rent and payout writes (WP 1.6)', () => {
+  const routes = handlers([OpsRentController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'POST /ops/rent/payments': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
+    'POST /ops/rent/payments/:id/reverse': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
+    'POST /ops/rent/payments/:id/receipt': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
+    'POST /ops/rent/reminders': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
+    'POST /ops/rent/charges/:id/waive': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
   };
 
   it('judges every write', () => {

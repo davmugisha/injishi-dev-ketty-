@@ -38,4 +38,6 @@ __exportStar(require("./api"), exports);
 __exportStar(require("./overview"), exports);
 __exportStar(require("./signing"), exports);
 __exportStar(require("./tenancy"), exports);
+// The rent cycle (WP 1.6): reminders, recorded and gateway payments, payouts.
+__exportStar(require("./rent"), exports);
 //# sourceMappingURL=index.js.map

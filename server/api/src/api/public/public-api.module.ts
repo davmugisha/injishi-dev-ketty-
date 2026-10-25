@@ -134,6 +134,8 @@ import { OpsBlocksController, OpsUnitsController } from './ops/rentals/units.con
 import { OpsRentalPropertiesController } from './ops/rentals/properties.controller';
 import { OpsRentalsOverviewController } from './ops/rentals/rentals-overview.controller';
 import { OpsUnitMediaController } from './ops/rentals/unit-media.controller';
+// Rent: the roll, recorded payments and reminders (WP 1.6a).
+import { OpsRentController } from './ops/rentals/rent.controller';
 import { OpsRoomsController } from './ops/rooms.controller';
 import { OpsThreadsController } from './ops/threads.controller';
 import { OpsStaysController } from './ops/stays.controller';
@@ -325,6 +327,8 @@ import { TrainingPublicModule } from './training/training.module';
     OpsRentalsOverviewController,
     OpsRentalPropertiesController,
     OpsUnitMediaController,
+    // The rent cycle's routes (WP 1.6a): the roll, recorded payments and reminders.
+    OpsRentController,
     // The tenant's side (WP 1.5b): the public invitation preview, accepting it,
     // and the tenant's own tenancies behind TenancyGuard.
     LeaseInvitationsController,

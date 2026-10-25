@@ -48,7 +48,7 @@ export class LeaseEventsWriter {
 }
 
 /** What a rentals audit row is about. */
-export type RentalsAuditSubject = 'lease' | 'tenant' | 'rental_unit' | 'payout_account' | 'deposit';
+export type RentalsAuditSubject = 'lease' | 'tenant' | 'rental_unit' | 'payout_account' | 'deposit' | 'payment';
 
 export interface RentalsAuditInput {
   /** Null for an act of the system (a job starting a lease on its start date). */

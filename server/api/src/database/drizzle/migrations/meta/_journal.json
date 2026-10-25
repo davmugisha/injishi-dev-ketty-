@@ -603,6 +603,13 @@
       "when": 1792877553252,
       "tag": "0085_guest_registrations",
       "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1792880289051,
+      "tag": "0086_rent_reminder_stages_and_payment_charges",
+      "breakpoints": true
     }
   ]
 }

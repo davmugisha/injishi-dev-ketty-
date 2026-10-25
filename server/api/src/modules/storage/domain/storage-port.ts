@@ -55,7 +55,9 @@ export type StoredObjectKind =
   /** Rentals (migration 0073): a unit's photo, re-encoded as a JPEG on the way in. */
   | 'unit_photo'
   /** Rentals (migration 0073): a unit's video tour, or the still shown before it plays. */
-  | 'unit_video';
+  | 'unit_video'
+  /** Rentals (migration 0073): a payment's receipt PDF the platform rendered, or the slip a landlord attached to a recorded payment. */
+  | 'payment_receipt';
 
 export interface PutObjectInput {
   /** The raw bytes. Callers must size-check BEFORE reading a stream to here. */

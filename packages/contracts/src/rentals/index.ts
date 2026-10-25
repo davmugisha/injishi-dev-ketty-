@@ -22,3 +22,5 @@ export * from "./api";
 export * from "./overview";
 export * from "./signing";
 export * from "./tenancy";
+// The rent cycle (WP 1.6): reminders, recorded and gateway payments, payouts.
+export * from "./rent";
