@@ -1,6 +1,7 @@
 export * from "./buttons.tsx";
 export * from "./cells.tsx";
 export * from "./charts.tsx";
+export * from "./chat-thread.tsx";
 export * from "./code-input.tsx";
 export * from "./code-row.ts";
 export * from "./contact-fields.tsx";
@@ -20,6 +21,7 @@ export * from "./kpi.tsx";
 export * from "./layout.tsx";
 export * from "./links.tsx";
 export * from "./media.ts";
+export * from "./message-groups.ts";
 export * from "./money.tsx";
 export * from "./period.ts";
 export * from "./phone.ts";
