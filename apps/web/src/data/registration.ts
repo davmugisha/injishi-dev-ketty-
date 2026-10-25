@@ -1,4 +1,7 @@
 import {
+  BrokerFeePayment,
+  BrokerFeeQuote,
+  type BrokerFeeCheckoutRequest,
   BrokerRegistrationSummary,
   ClaimPreview,
   type CreateBrokerRegistrationRequest,
@@ -294,8 +297,8 @@ async function summaryCall(
  * registration status, so `RegistrationSummary` could only describe one by
  * nulling six fields and showing a status it can never hold.
  *
- * There is no pay companion. Broker registration is free and instant while
- * ADR-026 assumption 2 stands.
+ * It names the district the broker works in and the registration fee they
+ * paid first (`payBrokerFee`, then `fetchBrokerFeePayment` until it is paid).
  */
 export async function registerAsBroker(
   request: CreateBrokerRegistrationRequest,
@@ -306,6 +309,40 @@ export async function registerAsBroker(
   });
   if (res.status !== "ok") return res;
   const parsed = BrokerRegistrationSummary.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/** What registering as a broker costs, and a fee this person already paid. */
+export async function fetchBrokerFee(): Promise<ApiResult<BrokerFeeQuote>> {
+  const res = await apiFetch<unknown>("/api/v1/registrations/broker/fee");
+  if (res.status !== "ok") return res;
+  const parsed = BrokerFeeQuote.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/**
+ * Ask for the broker registration fee on the payer's phone. `idempotencyKey`
+ * is minted once per press, so a retried request is the same payment.
+ */
+export async function payBrokerFee(
+  request: BrokerFeeCheckoutRequest,
+  idempotencyKey: string,
+): Promise<ApiResult<BrokerFeePayment>> {
+  const res = await apiFetch<unknown>("/api/v1/registrations/broker/fee", {
+    method: "POST",
+    body: request,
+    idempotencyKey,
+  });
+  if (res.status !== "ok") return res;
+  const parsed = BrokerFeePayment.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/** Where a registration fee payment stands; polled while the prompt waits. */
+export async function fetchBrokerFeePayment(id: string): Promise<ApiResult<BrokerFeePayment>> {
+  const res = await apiFetch<unknown>(`/api/v1/registrations/broker/fee/${encodeURIComponent(id)}`);
+  if (res.status !== "ok") return res;
+  const parsed = BrokerFeePayment.safeParse(res.data);
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }
 
