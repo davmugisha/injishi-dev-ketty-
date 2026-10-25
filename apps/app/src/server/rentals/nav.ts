@@ -48,6 +48,9 @@ export function landlordNavGroups(
       ...(waiting > 0 ? { chip: String(waiting) } : {}),
     });
   }
+  if (can(scope, "guest.register")) {
+    property.push({ id: "guests", label: "My guests", icon: "PersonPlus", board: "LandlordGuests" });
+  }
   if (summary && !summary.setup.complete && can(scope, ...RENTALS_READ)) {
     const left = summary.setup.total - summary.setup.done;
     property.push({ id: "setup", label: "Setup", icon: "ListCheck", board: "RentalsSetup", chip: String(left) });

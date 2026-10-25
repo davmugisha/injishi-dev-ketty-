@@ -158,7 +158,11 @@ export function GuestFormPanel({
       isOpen
       onOpenChange={(open) => (open ? undefined : onClose())}
       title={initial ? `Change ${initial.fullName}` : "Register a guest"}
-      description="Shared with the local leaders of the area. The landlord does not see a tenant's guests."
+      description={
+        buildings
+          ? "Shared with the local leaders of the area."
+          : "Shared with the local leaders of the area. Your landlord does not see your guests."
+      }
       submitLabel={initial ? "Save changes" : "Register guest"}
       submitIcon="PersonPlus"
       isPending={pending}
