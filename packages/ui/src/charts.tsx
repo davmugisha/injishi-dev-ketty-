@@ -667,6 +667,103 @@ export function AgeingStackedBar({
   );
 }
 
+export interface MonthAmount {
+  /** `yyyy-mm`. */
+  month: string;
+  amount: number;
+}
+
+/** One amount a month as an area: what was spent, or what came in, month by month. */
+export function MonthlyAmountArea({
+  data,
+  title,
+  description,
+  actions,
+  seriesLabel = "Amount",
+  height = 220,
+  empty,
+  narrowMonths = 6,
+  className,
+}: {
+  data: MonthAmount[];
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  /** The series' name in the tooltip and the numbers view ("Spent"). @default "Amount" */
+  seriesLabel?: string;
+  height?: number;
+  /** The empty state's words and next step. */
+  empty?: { icon?: IconKey; title: string; description?: ReactNode; action?: ReactNode };
+  /** How many months a narrow card keeps. @default 6 */
+  narrowMonths?: number;
+  className?: string;
+}) {
+  const motion = !useReducedMotion();
+  const gradient = useId().replace(/:/g, "");
+  const { ref, points, trimmed } = useFitPoints(data, narrowMonths);
+  const total = data.reduce((s, d) => s + d.amount, 0);
+  const rows = points.map((d) => ({ ...d, label: monthLabel(d.month) }));
+  const top = data.reduce<MonthAmount | null>((best, d) => (!best || d.amount > best.amount ? d : best), null);
+  return (
+    <ChartCard
+      title={title}
+      description={description}
+      actions={actions}
+      className={className}
+      isEmpty={total === 0}
+      empty={empty ?? { icon: "ChartLine", title: "Nothing in this period" }}
+      summary={`${formatMoney(total)} over ${data.length} months.${top && top.amount > 0 ? ` Highest in ${monthLabel(top.month, true)}: ${formatMoney(top.amount)}.` : ""}`}
+      table={{
+        columns: ["Month", `${seriesLabel} (RWF)`],
+        rows: data.map((d) => [monthLabel(d.month, true), bare(d.amount)]),
+      }}
+      footer={trimmed ? <TrimNote shown={points.length} total={data.length} /> : undefined}
+    >
+      <div ref={ref}>
+        <AreaChart data={rows} height={height} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+          <defs>
+            <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={CHART_COLOR.cat(1)} stopOpacity={0.28} />
+              <stop offset="100%" stopColor={CHART_COLOR.cat(1)} stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <AreaChart.Grid vertical={false} />
+          <AreaChart.XAxis
+            dataKey="label"
+            {...axisProps}
+            interval={0}
+            tickMargin={8}
+            padding={{ left: 16, right: 16 }}
+          />
+          <AreaChart.YAxis {...axisProps} width={44} tickFormatter={(v: number) => formatMoneyAxis(v)} />
+          <AreaChart.Tooltip
+            cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+            content={
+              <AreaChart.TooltipContent
+                {...moneyTooltip((l) => {
+                  const hit = rows.find((r) => r.label === l);
+                  return hit ? monthLabel(hit.month, true) : l;
+                })}
+              />
+            }
+          />
+          <AreaChart.Area
+            dataKey="amount"
+            name={seriesLabel}
+            type="monotone"
+            stroke={CHART_COLOR.cat(1)}
+            strokeWidth={2}
+            fill={`url(#${gradient})`}
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
+            isAnimationActive={motion}
+          />
+        </AreaChart>
+      </div>
+    </ChartCard>
+  );
+}
+
 export interface CategoryAmount {
   category: string;
   amount: number;
@@ -748,7 +845,7 @@ export function CategoryDonut({
               <span className="size-2 shrink-0 rounded-full" style={{ background: s.color }} />
               <span className="min-w-0 flex-1 truncate">{s.name}</span>
               <span className="text-xs text-muted tabular">{pct(s.value)}%</span>
-              <span className="w-24 text-right font-medium tabular">{formatMoney(s.value, { bare: true })}</span>
+              <span className="shrink-0 text-right font-medium tabular">{formatMoney(s.value, { bare: true })}</span>
             </li>
           ))}
         </ul>

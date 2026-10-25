@@ -2,6 +2,7 @@
 
 import { KPIGroup, TrendChip } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
+import NextLink from "next/link";
 import { Fragment, type ReactNode } from "react";
 import { formatNumber } from "./format.tsx";
 import { Icon, type IconKey } from "./icon.tsx";
@@ -40,6 +41,10 @@ export interface KpiItem {
   spark?: number[];
   /** A progress bar from 0 to 100 under the value (collection rate, occupancy). */
   progress?: number;
+  /** Where the figure clicks through to: the list it counts, filtered. */
+  href?: string;
+  /** The figure is the filter shown now. */
+  isCurrent?: boolean;
 }
 
 function valueText(k: KpiItem, exact: boolean): string {
@@ -101,6 +106,8 @@ export function KpiStrip({ label, items, className }: { label: string; items: Kp
                 className={cx(
                   "min-w-0 rounded-none bg-surface lg:flex-1",
                   odd && i === items.length - 1 && "col-span-2 lg:col-span-1",
+                  k.href && "relative transition-colors hover:bg-default/50",
+                  k.isCurrent && "bg-default/60",
                 )}
               >
                 <KPI.Header>
@@ -144,6 +151,15 @@ export function KpiStrip({ label, items, className }: { label: string; items: Kp
                     {k.trend ? <Trend trend={k.trend} /> : null}
                     {k.footnote ? <p className="text-xs text-muted">{k.footnote}</p> : null}
                   </KPI.Footer>
+                ) : null}
+                {k.href ? (
+                  <NextLink
+                    href={k.href}
+                    scroll={false}
+                    aria-label={`${k.label}: ${exact}. Show them`}
+                    aria-current={k.isCurrent ? "true" : undefined}
+                    className="absolute inset-0 outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
+                  />
                 ) : null}
               </KPI>
             </Fragment>
