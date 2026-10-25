@@ -23,4 +23,5 @@ export * from "./overview";
 export * from "./signing";
 export * from "./tenancy";
 export * from "./rent";
+export * from "./faults";
 //# sourceMappingURL=index.d.ts.map

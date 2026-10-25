@@ -48,7 +48,17 @@ export class LeaseEventsWriter {
 }
 
 /** What a rentals audit row is about. */
-export type RentalsAuditSubject = 'lease' | 'tenant' | 'rental_unit' | 'payout_account' | 'deposit' | 'payment';
+export type RentalsAuditSubject =
+  | 'lease'
+  | 'tenant'
+  | 'rental_unit'
+  | 'payout_account'
+  | 'deposit'
+  | 'payment'
+  // P4 (migration 0087): a fault's moves and payments, an expense, a tax declaration.
+  | 'maintenance_ticket'
+  | 'expense'
+  | 'tax_declaration';
 
 export interface RentalsAuditInput {
   /** Null for an act of the system (a job starting a lease on its start date). */

@@ -59,6 +59,12 @@ import { RentCycleRepository } from './infrastructure/rent-cycle.repository';
 import { RentRemindersProcessor } from './infrastructure/rent-reminders.processor';
 import { RentRollRepository } from './infrastructure/rent-roll.repository';
 import { RentalsMoneyQueue } from './infrastructure/rentals-money.queue';
+// Faults (WP 4.1): the shared ticket lifecycle, the landlord's and the tenant's sides.
+import { TicketLifecycle } from '../operations/application/ticket-lifecycle';
+import { FaultNotices } from './application/fault-notices';
+import { FaultsService } from './application/faults.service';
+import { TenantFaultsService } from './application/tenant-faults.service';
+import { FaultsRepository } from './infrastructure/faults.repository';
 
 /**
  * Rentals: the residence side of Injishi, rebuilt (blueprint 2.2).
@@ -140,6 +146,11 @@ import { RentalsMoneyQueue } from './infrastructure/rentals-money.queue';
     RentPaymentsService,
     RentReadsService,
     TenantPaymentsService,
+    TicketLifecycle,
+    FaultsRepository,
+    FaultNotices,
+    FaultsService,
+    TenantFaultsService,
     ...(isWorkerProcess() ? [LeaseDocumentsProcessor, RentCycleProcessor, RentRemindersProcessor, PaymentSettlementProcessor, PayoutsProcessor] : []),
   ],
   exports: [
@@ -168,6 +179,8 @@ import { RentalsMoneyQueue } from './infrastructure/rentals-money.queue';
     RentPaymentsService,
     RentReadsService,
     TenantPaymentsService,
+    FaultsService,
+    TenantFaultsService,
   ],
 })
 export class RentalsModule {}

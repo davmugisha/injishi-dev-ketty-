@@ -9,6 +9,8 @@
  */
 import {
   DepositRefundMethod,
+  FaultAssigneeKind,
+  FaultPhotoPhase,
   IdKind,
   LeaseActorRole,
   LeaseChargeKind,
@@ -24,6 +26,7 @@ import {
   LeaseReminderKind,
   LeaseSigningMethod,
   LeaseStatus,
+  MaintenanceStatus,
   MomoNetwork,
   MoveOutNoticeChannel,
   MoveOutNoticeStatus,
@@ -485,6 +488,11 @@ export const storedObjectKindEnum = pgEnum('stored_object_kind', [
   'lease_contract',
   'payment_receipt',
   'filing_proof',
+  // Rentals P4 (migration 0087): a fault's photos, an expense's receipt, and
+  // the receipt RRA gives for rental income tax paid.
+  'fault_photo',
+  'expense_receipt',
+  'tax_receipt',
 ]);
 
 
@@ -510,17 +518,20 @@ export const renewalStatusEnum = pgEnum('renewal_status', [
 ]);
 
 /**
- * ADR-016 D16. Widened from , which could not express a ticket
+ * ADR-016 D16. Widened from `open | resolved`, which could not express a ticket
  * somebody had picked up, and had no way to say a ticket was raised in error.
+ * Rentals P4 (migration 0087, a type swap) added `acknowledged` (Seen) and
+ * `wont_fix`; the list is `MaintenanceStatus` in contracts, which the shared
+ * ticket lifecycle (`TICKET_MOVES`) moves between.
  */
-export const maintenanceStatusEnum = pgEnum('maintenance_status', [
-  'open',
-  'assigned',
-  'in_progress',
-  'resolved',
-  'closed',
-  'cancelled',
-]);
+export const maintenanceStatusEnum = pgEnum('maintenance_status', MaintenanceStatus.options);
+
+/**
+ * Rentals P4 (migration 0087): whom a ticket is handed to, someone on the
+ * team or an outside fixer, and when a fault photo was taken.
+ */
+export const maintenanceAssigneeKindEnum = pgEnum('maintenance_assignee_kind', FaultAssigneeKind.options);
+export const maintenancePhotoPhaseEnum = pgEnum('maintenance_photo_phase', FaultPhotoPhase.options);
 
 export const maintenanceCategoryEnum = pgEnum('maintenance_category', [
   'plumbing',
@@ -971,6 +982,11 @@ export const auditSubjectTypeEnum = pgEnum('audit_subject_type', [
   'deposit',
   // P5: a guest registration (filed, changed, cancelled, flagged).
   'guest_registration',
+  // Rentals P4 (migration 0087): a fault's moves and payments, an expense,
+  // and a year's rental income tax declaration.
+  'maintenance_ticket',
+  'expense',
+  'tax_declaration',
 ]);
 
 export const recordDataClassEnum = pgEnum('record_data_class', [

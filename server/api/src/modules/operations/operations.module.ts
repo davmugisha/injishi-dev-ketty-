@@ -13,6 +13,8 @@ import { HousekeepingService } from './application/housekeeping.service';
 import { HousekeepingBoardService } from './application/housekeeping-board.service';
 import { LostFoundService } from './application/lost-found.service';
 import { WorkOrdersService } from './application/work-orders.service';
+// The one ticket lifecycle hotel work orders, the tickets board and rentals faults share (WP 4.1).
+import { TicketLifecycle } from './application/ticket-lifecycle';
 import { HousekeepingBoardRepository } from './infrastructure/housekeeping-board.repository';
 import { LostFoundRepository } from './infrastructure/lost-found.repository';
 import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
@@ -131,6 +133,7 @@ import { PaymentsModule } from '../payments/payments.module';
     LostFoundRepository,
     HousekeepingBoardService,
     WorkOrdersService,
+    TicketLifecycle,
     LostFoundService,
     StaffPhoneRepository,
     StaffPhoneService,

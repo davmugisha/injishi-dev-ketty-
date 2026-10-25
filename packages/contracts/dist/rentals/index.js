@@ -40,4 +40,6 @@ __exportStar(require("./signing"), exports);
 __exportStar(require("./tenancy"), exports);
 // The rent cycle (WP 1.6): reminders, recorded and gateway payments, payouts.
 __exportStar(require("./rent"), exports);
+// Faults (WP 4.1): the ticket lifecycle a rented home shares with a hotel.
+__exportStar(require("./faults"), exports);
 //# sourceMappingURL=index.js.map

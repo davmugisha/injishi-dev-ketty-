@@ -30,7 +30,9 @@ import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
 // Lazy only (inside `references`): interface-operations imports this module back.
 // Lazy only too: rentals.ts (the rentals leaf) imports this module back.
-import { adapterModeEnum, brokerStatusEnum, idKindEnum, moveOutNoticeChannelEnum, moveOutNoticeStatusEnum, moveOutReasonEnum, leaseChargeKindEnum, leaseChargeStatusEnum, leaseSigningMethodEnum, paymentAttemptPurposeEnum, paymentAttemptStateEnum, cautionStatusEnum, escrowSourceEnum, escrowStatusEnum, invitationStatusEnum, leaseStatusEnum, maintenanceCategoryEnum, maintenancePriorityEnum, maintenanceRaisedByRoleEnum, maintenanceStatusEnum, placementStatusEnum, renewalStatusEnum, signerRoleEnum } from './enums';
+import { WorkOrderEventKind } from '@injishi/contracts';
+
+import { adapterModeEnum, brokerStatusEnum, idKindEnum, moveOutNoticeChannelEnum, moveOutNoticeStatusEnum, moveOutReasonEnum, leaseChargeKindEnum, leaseChargeStatusEnum, leaseSigningMethodEnum, paymentAttemptPurposeEnum, paymentAttemptStateEnum, cautionStatusEnum, escrowSourceEnum, escrowStatusEnum, invitationStatusEnum, leaseStatusEnum, maintenanceAssigneeKindEnum, maintenanceCategoryEnum, maintenancePhotoPhaseEnum, maintenancePriorityEnum, maintenanceRaisedByRoleEnum, maintenanceStatusEnum, placementStatusEnum, renewalStatusEnum, signerRoleEnum } from './enums';
 import { bookings, guestStays, storedObjects } from './hospitality';
 import { listings, properties, rentalUnits, rooms, spaces } from './inventory';
 import { departments, serviceOrders } from './operations';
@@ -898,6 +900,19 @@ export const maintenanceTickets = pgTable(
     /** Who pays: the landlord, the tenant (misuse), or not decided yet. */
     costBearer: text('cost_bearer'),
     costNote: text('cost_note'),
+    // --- The shared ticket lifecycle (rentals P4, migration 0087) ---
+    /** The rented unit a fault is in. A tenant's fault names its lease too. */
+    unitId: uuid('unit_id').references(() => rentalUnits.id),
+    /** Who it is handed to: `member` (assigned_to_user_id) or `contractor` (assigned_contractor). */
+    assigneeKind: maintenanceAssigneeKindEnum('assignee_kind'),
+    /** The outside fixer's phone, E.164, so the landlord can call or pay them. */
+    assignedContractorPhone: text('assigned_contractor_phone'),
+    /** When the landlord marked a tenant's report seen. */
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+    /** Why it will not be fixed, as the tenant is told. Set exactly while the status is `wont_fix`. */
+    wontFixReason: text('wont_fix_reason'),
+    /** How many times it went back to open after being settled. */
+    reopenedCount: integer('reopened_count').notNull().default(0),
     ...timestamps,
   },
   (t) => [
@@ -915,51 +930,95 @@ export const maintenanceTickets = pgTable(
     index('maintenance_tickets_property_idx').on(t.propertyId),
     index('maintenance_tickets_room_idx').on(t.roomId),
     index('maintenance_tickets_lease_idx').on(t.leaseId),
+    index('maintenance_tickets_unit_idx').on(t.unitId),
     /**
      * A ticket has to be ABOUT something. With `lease_id` now nullable, nothing
      * else would stop a row that names no subject at all, and a work order
-     * nobody can locate is worse than no work order.
+     * nobody can locate is worse than no work order. A rented unit counts
+     * (rentals P4): a landlord's fault on a vacant unit has no lease.
      */
     check(
       'maintenance_tickets_subject_at_least_one',
-      sql`${t.roomId} IS NOT NULL OR ${t.spaceId} IS NOT NULL OR ${t.leaseId} IS NOT NULL`,
+      sql`${t.roomId} IS NOT NULL OR ${t.spaceId} IS NOT NULL OR ${t.leaseId} IS NOT NULL OR ${t.unitId} IS NOT NULL`,
     ),
+    check(
+      'maintenance_tickets_assignee_shape',
+      sql`${t.assigneeKind} IS NULL
+        OR (${t.assigneeKind} = 'member' AND ${t.assignedToUserId} IS NOT NULL AND ${t.assignedContractor} IS NULL)
+        OR (${t.assigneeKind} = 'contractor' AND ${t.assignedContractor} IS NOT NULL AND ${t.assignedToUserId} IS NULL)`,
+    ),
+    check(
+      'maintenance_tickets_contractor_phone_shape',
+      sql`${t.assignedContractorPhone} IS NULL
+        OR (${t.assigneeKind} = 'contractor' AND ${t.assignedContractorPhone} ~ '^[+][1-9][0-9]{7,14}$')`,
+    ),
+    check('maintenance_tickets_wont_fix_reason', sql`(${t.status} = 'wont_fix') = (${t.wontFixReason} IS NOT NULL)`),
+    check('maintenance_tickets_acknowledged_shape', sql`${t.status} <> 'acknowledged' OR ${t.acknowledgedAt} IS NOT NULL`),
+    check('maintenance_tickets_reopened_count_range', sql`${t.reopenedCount} >= 0`),
   ],
 );
 
 
-/** What a step on a work order's timeline was (real-data 1.2.3). A plain note is `note`. */
-export const maintenanceEventKindEnum = pgEnum('maintenance_event_kind', [
-  'reported',
-  'assigned',
-  'block_requested',
-  'block_approved',
-  'block_declined',
-  'block_released',
-  'parts',
-  'scheduled',
-  'started',
-  'note',
-  'next_step',
-  'fixed',
-  'verified',
-  'from_signal',
-  'planned',
-]);
+/**
+ * What a step on a work order's timeline was (real-data 1.2.3). A plain note is `note`.
+ * The list is `WorkOrderEventKind` in contracts; rentals P4 (migration 0087)
+ * added the shared lifecycle's steps a hotel order never takes and `paid`.
+ */
+export const maintenanceEventKindEnum = pgEnum('maintenance_event_kind', WorkOrderEventKind.options);
 
-export const maintenanceEvents = pgTable('maintenance_events', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  ticketId: uuid('ticket_id')
-    .notNull()
-    .references(() => maintenanceTickets.id, { onDelete: 'cascade' }),
-  authorUserId: uuid('author_user_id').references(() => users.id),
-  kind: maintenanceEventKindEnum('kind').notNull().default('note'),
-  note: text('note'),
-  photoObjectId: uuid('photo_object_id').references(() => storedObjects.id),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const maintenanceEvents = pgTable(
+  'maintenance_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ticketId: uuid('ticket_id')
+      .notNull()
+      .references(() => maintenanceTickets.id, { onDelete: 'cascade' }),
+    authorUserId: uuid('author_user_id').references(() => users.id),
+    /** Who wrote it, which is not the same question as what role they hold (rentals P4). */
+    authorRole: maintenanceRaisedByRoleEnum('author_role'),
+    kind: maintenanceEventKindEnum('kind').notNull().default('note'),
+    note: text('note'),
+    photoObjectId: uuid('photo_object_id').references(() => storedObjects.id),
+    /** A move along the lifecycle says where it went from and to (rentals P4). */
+    fromStatus: maintenanceStatusEnum('from_status'),
+    toStatus: maintenanceStatusEnum('to_status'),
+    /** Whether the tenant's own timeline shows it. Team notes and payments never are. */
+    visibleToTenant: boolean('visible_to_tenant').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('maintenance_events_ticket_idx').on(t.ticketId, t.createdAt)],
+);
+
+/**
+ * A ticket's photos (rentals P4, migration 0087): what the tenant saw when
+ * they reported it, the work as it went, and the fix. At most four in each
+ * phase (the service checks, under the ticket's lock). Replaces the
+ * `photo_object_keys` jsonb, which 0087 copied in.
+ */
+export const maintenancePhotos = pgTable(
+  'maintenance_photos',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ticketId: uuid('ticket_id')
+      .notNull()
+      .references(() => maintenanceTickets.id, { onDelete: 'cascade' }),
+    storedObjectId: uuid('stored_object_id')
+      .notNull()
+      .references(() => storedObjects.id),
+    position: integer('position').notNull().default(0),
+    phase: maintenancePhotoPhaseEnum('phase').notNull().default('report'),
+    caption: text('caption'),
+    uploadedByUserId: uuid('uploaded_by_user_id').references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('maintenance_photos_object_uk').on(t.ticketId, t.storedObjectId),
+    index('maintenance_photos_ticket_idx').on(t.ticketId, t.phase, t.position),
+    check('maintenance_photos_position_range', sql`${t.position} BETWEEN 0 AND 99`),
+  ],
+);
 
 
 /**

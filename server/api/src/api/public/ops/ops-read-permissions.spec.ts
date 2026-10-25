@@ -76,6 +76,7 @@ import { OpsRentalsOverviewController } from './rentals/rentals-overview.control
 import { OpsUnitMediaController } from './rentals/unit-media.controller';
 import { OpsPayoutsController } from './rentals/payouts.controller';
 import { OpsRentController } from './rentals/rent.controller';
+import { OpsFaultsController } from './rentals/faults.controller';
 import { OpsRevenueController } from './revenue.controller';
 import { OpsCertificatesController } from './certificates.controller';
 import { OpsOwnerDashboardController, OpsReportsController } from './owner-dashboard.controller';
@@ -194,6 +195,7 @@ const CONTROLLERS: Ctor[] = [
   OpsUnitMediaController,
   OpsRentController,
   OpsPayoutsController,
+  OpsFaultsController,
 ];
 
 interface Read {
@@ -497,6 +499,9 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/rent/payments/:id': ['owner', 'manager', 'finance'],
   '/ops/rent/reminders': ['owner', 'manager', 'finance'],
   '/ops/payouts': ['owner', 'manager', 'finance'],
+  // Faults (WP 4.1): whoever works the faults, `ticket.advance` (the housekeeper too).
+  '/ops/faults': ['owner', 'manager', 'housekeeper'],
+  '/ops/faults/:id': ['owner', 'manager', 'housekeeper'],
 };
 
 describe('operator reads (audit H1)', () => {
@@ -669,6 +674,33 @@ describe('rent and payout writes (WP 1.6)', () => {
     'POST /ops/rent/reminders': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
     'POST /ops/rent/charges/:id/waive': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
     'POST /ops/payouts/:id/retry': { allOf: ['payout.manage'], roles: ['owner'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/**
+ * Faults (WP 4.1): raising, moving, handing over, photos and messages are
+ * `ticket.advance` (owner, manager, housekeeper); a reply the tenant sees also
+ * needs `message.send`, which the service checks.
+ */
+describe('fault writes (WP 4.1)', () => {
+  const routes = handlers([OpsFaultsController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'POST /ops/faults': { allOf: ['ticket.advance'], roles: ['owner', 'manager', 'housekeeper'] },
+    'POST /ops/faults/:id/move': { allOf: ['ticket.advance'], roles: ['owner', 'manager', 'housekeeper'] },
+    'POST /ops/faults/:id/assign': { allOf: ['ticket.advance'], roles: ['owner', 'manager', 'housekeeper'] },
+    'POST /ops/faults/:id/photos': { allOf: ['ticket.advance'], roles: ['owner', 'manager', 'housekeeper'] },
+    'POST /ops/faults/:id/messages': { allOf: ['ticket.advance'], roles: ['owner', 'manager', 'housekeeper'] },
   };
 
   it('judges every write', () => {

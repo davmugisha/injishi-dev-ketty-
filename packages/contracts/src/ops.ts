@@ -159,10 +159,14 @@ export type HousekeepingStatus = z.infer<typeof HousekeepingStatus>;
  */
 export const MaintenanceStatus = z.enum([
     "open",
+    // Rentals P4 (migration 0087 swapped the type): the landlord has seen a
+    // tenant's report, and a fault the landlord will not fix, with the reason.
+    "acknowledged",
     "assigned",
     "in_progress",
     "resolved",
     "closed",
+    "wont_fix",
     "cancelled",
 ]);
 export type MaintenanceStatus = z.infer<typeof MaintenanceStatus>;

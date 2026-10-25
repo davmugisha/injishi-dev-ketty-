@@ -157,10 +157,14 @@ exports.HousekeepingStatus = zod_1.z.enum([
  */
 exports.MaintenanceStatus = zod_1.z.enum([
     "open",
+    // Rentals P4 (migration 0087 swapped the type): the landlord has seen a
+    // tenant's report, and a fault the landlord will not fix, with the reason.
+    "acknowledged",
     "assigned",
     "in_progress",
     "resolved",
     "closed",
+    "wont_fix",
     "cancelled",
 ]);
 /**

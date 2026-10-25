@@ -57,7 +57,15 @@ export type StoredObjectKind =
   /** Rentals (migration 0073): a unit's video tour, or the still shown before it plays. */
   | 'unit_video'
   /** Rentals (migration 0073): a payment's receipt PDF the platform rendered, or the slip a landlord attached to a recorded payment. */
-  | 'payment_receipt';
+  | 'payment_receipt'
+  /** Rentals (migration 0073): the proof a lease copy was filed with RRA. */
+  | 'filing_proof'
+  /** Rentals P4 (migration 0087): a fault's photo, re-encoded as a JPEG on the way in. */
+  | 'fault_photo'
+  /** Rentals P4 (migration 0087): the receipt behind an expense (a fixer's, a bank's interest statement). */
+  | 'expense_receipt'
+  /** Rentals P4 (migration 0087): the receipt RRA gives for rental income tax paid. */
+  | 'tax_receipt';
 
 export interface PutObjectInput {
   /** The raw bytes. Callers must size-check BEFORE reading a stream to here. */

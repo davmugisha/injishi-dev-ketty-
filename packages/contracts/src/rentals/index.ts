@@ -24,3 +24,5 @@ export * from "./signing";
 export * from "./tenancy";
 // The rent cycle (WP 1.6): reminders, recorded and gateway payments, payouts.
 export * from "./rent";
+// Faults (WP 4.1): the ticket lifecycle a rented home shares with a hotel.
+export * from "./faults";

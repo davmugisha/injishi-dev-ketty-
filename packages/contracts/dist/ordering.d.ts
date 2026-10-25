@@ -1003,7 +1003,7 @@ export declare const GuestOrder: z.ZodObject<{
     cancellable: z.ZodBoolean;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     createdAt: string;
     propertyName: string;
@@ -1031,7 +1031,7 @@ export declare const GuestOrder: z.ZodObject<{
     }[];
     outletName: string;
 }, {
-    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     createdAt: string;
     propertyName: string;
@@ -1148,7 +1148,7 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
         cancellable: z.ZodBoolean;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         createdAt: string;
         propertyName: string;
@@ -1176,7 +1176,7 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
         }[];
         outletName: string;
     }, {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         createdAt: string;
         propertyName: string;
@@ -1214,7 +1214,7 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
     attemptToken: string;
     payerMasked: string | null;
     order: {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         createdAt: string;
         propertyName: string;
@@ -1251,7 +1251,7 @@ export declare const OrderPaymentAttemptStatus: z.ZodObject<{
     attemptToken: string;
     payerMasked: string | null;
     order: {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         createdAt: string;
         propertyName: string;
@@ -1446,7 +1446,7 @@ export declare const PlaceOrderResult: z.ZodObject<{
             cancellable: z.ZodBoolean;
             createdAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+            status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
             id: string;
             createdAt: string;
             propertyName: string;
@@ -1474,7 +1474,7 @@ export declare const PlaceOrderResult: z.ZodObject<{
             }[];
             outletName: string;
         }, {
-            status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+            status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
             id: string;
             createdAt: string;
             propertyName: string;
@@ -1521,7 +1521,7 @@ export declare const PlaceOrderResult: z.ZodObject<{
         payerMasked: string | null;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     createdAt: string;
     propertyName: string;
@@ -1558,7 +1558,7 @@ export declare const PlaceOrderResult: z.ZodObject<{
     }[];
     outletName: string;
 }, {
-    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     createdAt: string;
     propertyName: string;
@@ -1673,7 +1673,7 @@ export declare const GuestOrderList: z.ZodObject<{
         cancellable: z.ZodBoolean;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         createdAt: string;
         propertyName: string;
@@ -1701,7 +1701,7 @@ export declare const GuestOrderList: z.ZodObject<{
         }[];
         outletName: string;
     }, {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         createdAt: string;
         propertyName: string;
@@ -1731,7 +1731,7 @@ export declare const GuestOrderList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     orders: {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         createdAt: string;
         propertyName: string;
@@ -1761,7 +1761,7 @@ export declare const GuestOrderList: z.ZodObject<{
     }[];
 }, {
     orders: {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         createdAt: string;
         propertyName: string;
@@ -1795,10 +1795,10 @@ export declare const GuestOrderEvent: z.ZodObject<{
     status: z.ZodEnum<["submitted", "acknowledged", "in_progress", "ready", "delivered", "completed", "cancelled", "rejected", "pending_payment", "payment_failed"]>;
     occurredAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     occurredAt: string;
 }, {
-    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     occurredAt: string;
 }>;
 export type GuestOrderEvent = z.infer<typeof GuestOrderEvent>;
@@ -1883,18 +1883,18 @@ export declare const GuestOrderDetail: z.ZodObject<{
         status: z.ZodEnum<["submitted", "acknowledged", "in_progress", "ready", "delivered", "completed", "cancelled", "rejected", "pending_payment", "payment_failed"]>;
         occurredAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         occurredAt: string;
     }, {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         occurredAt: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     createdAt: string;
     events: {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         occurredAt: string;
     }[];
     propertyName: string;
@@ -1922,11 +1922,11 @@ export declare const GuestOrderDetail: z.ZodObject<{
     }[];
     outletName: string;
 }, {
-    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     createdAt: string;
     events: {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         occurredAt: string;
     }[];
     propertyName: string;

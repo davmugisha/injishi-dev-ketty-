@@ -110,6 +110,11 @@ export const AdminAuditSubjectType = z.enum([
     "deposit",
     // P5 (migration 0084): a guest registration filed, changed, cancelled or flagged.
     "guest_registration",
+    // Rentals P4 (migration 0087): a fault's moves and payments, an expense,
+    // and a year's rental income tax declaration.
+    "maintenance_ticket",
+    "expense",
+    "tax_declaration",
 ]);
 export type AdminAuditSubjectType = z.infer<typeof AdminAuditSubjectType>;
 /**

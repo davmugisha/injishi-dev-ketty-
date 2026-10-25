@@ -375,7 +375,7 @@ export type HousekeepingStatus = z.infer<typeof HousekeepingStatus>;
  * ADR-016 D16. Widened from `open | resolved`, which could not say that
  * somebody had picked a ticket up and had no way to record one raised in error.
  */
-export declare const MaintenanceStatus: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
+export declare const MaintenanceStatus: z.ZodEnum<["open", "acknowledged", "assigned", "in_progress", "resolved", "closed", "wont_fix", "cancelled"]>;
 export type MaintenanceStatus = z.infer<typeof MaintenanceStatus>;
 /**
  * The OLD lease statuses (no `signed`), read by the residence code the rentals
@@ -1218,12 +1218,12 @@ export declare const OperatorTicket: z.ZodObject<{
     description: z.ZodNullable<z.ZodString>;
     category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
     priority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
-    status: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
+    status: z.ZodEnum<["open", "acknowledged", "assigned", "in_progress", "resolved", "closed", "wont_fix", "cancelled"]>;
     resolvedAt: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
     noteCount: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
+    status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
     title: string;
     createdAt: string;
@@ -1237,7 +1237,7 @@ export declare const OperatorTicket: z.ZodObject<{
     priority: "low" | "normal" | "high" | "urgent";
     noteCount: number;
 }, {
-    status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
+    status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
     title: string;
     createdAt: string;
@@ -1264,12 +1264,12 @@ export declare const OperatorTicketList: z.ZodObject<{
         description: z.ZodNullable<z.ZodString>;
         category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
         priority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
-        status: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
+        status: z.ZodEnum<["open", "acknowledged", "assigned", "in_progress", "resolved", "closed", "wont_fix", "cancelled"]>;
         resolvedAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
         noteCount: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
+        status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         title: string;
         createdAt: string;
@@ -1283,7 +1283,7 @@ export declare const OperatorTicketList: z.ZodObject<{
         priority: "low" | "normal" | "high" | "urgent";
         noteCount: number;
     }, {
-        status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
+        status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         title: string;
         createdAt: string;
@@ -1299,7 +1299,7 @@ export declare const OperatorTicketList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     tickets: {
-        status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
+        status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         title: string;
         createdAt: string;
@@ -1315,7 +1315,7 @@ export declare const OperatorTicketList: z.ZodObject<{
     }[];
 }, {
     tickets: {
-        status: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress";
+        status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         title: string;
         createdAt: string;
@@ -1343,14 +1343,14 @@ export declare const AdvanceTicketRequest: z.ZodObject<{
      * Where the ticket goes next. Optional, and `resolved` when absent, which is
      * what every caller meant while the enum held only two values.
      */
-    to: z.ZodOptional<z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>>;
+    to: z.ZodOptional<z.ZodEnum<["open", "acknowledged", "assigned", "in_progress", "resolved", "closed", "wont_fix", "cancelled"]>>;
     note: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     note: string;
-    to?: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress" | undefined;
+    to?: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | undefined;
 }, {
     note: string;
-    to?: "open" | "resolved" | "closed" | "cancelled" | "assigned" | "in_progress" | undefined;
+    to?: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | undefined;
 }>;
 export type AdvanceTicketRequest = z.infer<typeof AdvanceTicketRequest>;
 export declare const OperatorLease: z.ZodObject<{
@@ -5085,7 +5085,7 @@ export declare const OperatorServiceOrder: z.ZodObject<{
         }[];
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     items: {
         id: string;
@@ -5122,7 +5122,7 @@ export declare const OperatorServiceOrder: z.ZodObject<{
     paymentMethod: string | null;
     guestNote: string | null;
 }, {
-    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     items: {
         id: string;
@@ -5251,7 +5251,7 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
             }[];
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         items: {
             id: string;
@@ -5288,7 +5288,7 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
         paymentMethod: string | null;
         guestNote: string | null;
     }, {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         items: {
             id: string;
@@ -5327,7 +5327,7 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     orders: {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         items: {
             id: string;
@@ -5366,7 +5366,7 @@ export declare const OperatorServiceOrderList: z.ZodObject<{
     }[];
 }, {
     orders: {
-        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+        status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
         id: string;
         items: {
             id: string;
@@ -5647,7 +5647,7 @@ export declare const MarkOrderPaidCashResult: z.ZodObject<{
     /** Null in the demo environment, where nothing is declared. */
     emissionId: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     items: {
         id: string;
@@ -5685,7 +5685,7 @@ export declare const MarkOrderPaidCashResult: z.ZodObject<{
     paymentMethod: string | null;
     guestNote: string | null;
 }, {
-    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    status: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     id: string;
     items: {
         id: string;
@@ -5734,10 +5734,10 @@ export declare const AdvanceServiceOrderRequest: z.ZodObject<{
     to: z.ZodEnum<["submitted", "acknowledged", "in_progress", "ready", "delivered", "completed", "cancelled", "rejected", "pending_payment", "payment_failed"]>;
     note: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    to: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    to: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     note?: string | undefined;
 }, {
-    to: "pending_payment" | "submitted" | "rejected" | "cancelled" | "in_progress" | "acknowledged" | "ready" | "delivered" | "completed" | "payment_failed";
+    to: "pending_payment" | "submitted" | "rejected" | "cancelled" | "acknowledged" | "in_progress" | "ready" | "delivered" | "completed" | "payment_failed";
     note?: string | undefined;
 }>;
 export type AdvanceServiceOrderRequest = z.infer<typeof AdvanceServiceOrderRequest>;

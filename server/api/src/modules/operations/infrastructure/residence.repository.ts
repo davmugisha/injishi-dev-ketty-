@@ -5,7 +5,7 @@ import type {
   RaiseTicketRequest,
 } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import {
@@ -100,49 +100,6 @@ export class ResidenceRepository {
   }
 
   /**
-   * Resolve a ticket and record WHY, in one transaction.
-   *
-   * The note is not optional decoration: `maintenance_events` is the only place
-   * that says what was done, and a ticket that closed for no stated reason is
-   * the one a tenant reopens next week.
-   */
-  async advanceTicket(input: {
-    ticketId: string;
-    from: MaintenanceStatus;
-    to: MaintenanceStatus;
-    note: string;
-    authorUserId: string;
-  }): Promise<boolean> {
-    return this.db.transaction(async (tx) => {
-      const [updated] = await tx
-        .update(maintenanceTickets)
-        .set({
-          status: input.to,
-          resolvedAt:
-            input.to === 'resolved' || input.to === 'closed' ? new Date() : null,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(maintenanceTickets.id, input.ticketId),
-            eq(maintenanceTickets.status, input.from),
-          ),
-        )
-        .returning({ id: maintenanceTickets.id });
-
-      if (!updated) return false;
-
-      await tx.insert(maintenanceEvents).values({
-        ticketId: input.ticketId,
-        authorUserId: input.authorUserId,
-        note: input.note,
-      });
-
-      return true;
-    });
-  }
-
-  /**
    * Raise a work order on either surface (AC-11).
    *
    * The property, the org and the Engineering department are all derived from
@@ -176,10 +133,10 @@ export class ResidenceRepository {
     const r = input.request;
     const roomId = r.roomId ?? null;
     const leaseId = r.leaseId ?? null;
+    // A lease names its building and unit itself since the rentals rebuild (0076).
     const propertyOf = sql`COALESCE(
       (SELECT rm."property_id" FROM "rooms" rm WHERE rm."id" = ${roomId}),
-      (SELECT rm."property_id" FROM "leases" l
-         JOIN "rooms" rm ON rm."id" = l."room_id" WHERE l."id" = ${leaseId})
+      (SELECT l."property_id" FROM "leases" l WHERE l."id" = ${leaseId})
     )`;
 
     const [row] = await this.db
@@ -188,6 +145,7 @@ export class ResidenceRepository {
         workspaceId: input.workspaceId,
         leaseId,
         roomId,
+        unitId: leaseId ? sql`(SELECT l."unit_id" FROM "leases" l WHERE l."id" = ${leaseId})` : null,
         raisedByUserId: input.raisedByUserId,
         raisedByRole: leaseId ? 'tenant' : 'staff',
         title: r.title,

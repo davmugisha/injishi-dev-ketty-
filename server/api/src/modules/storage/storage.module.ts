@@ -2,6 +2,7 @@ import { Logger, Module, type Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { StorageService } from './application/storage.service';
+import { RentalsFilesStorage } from './application/rentals-files-storage';
 import { UnitMediaStorage } from './application/unit-media-storage';
 import { STORAGE_BACKEND, type StorageBackend } from './domain/storage-backend';
 import { type AdapterMode, STORAGE_PORT, type StoragePort } from './domain/storage-port';
@@ -100,7 +101,7 @@ export function buildStorageProviders(): Provider[] {
 }
 
 @Module({
-  providers: [...buildStorageProviders(), StorageService, UnitMediaStorage],
-  exports: [STORAGE_PORT, StorageService, UnitMediaStorage],
+  providers: [...buildStorageProviders(), StorageService, UnitMediaStorage, RentalsFilesStorage],
+  exports: [STORAGE_PORT, StorageService, UnitMediaStorage, RentalsFilesStorage],
 })
 export class StorageModule {}

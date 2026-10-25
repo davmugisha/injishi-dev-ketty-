@@ -1,5 +1,7 @@
 import {
   DepositRefundMethod,
+  FaultAssigneeKind,
+  FaultPhotoPhase,
   GuestHostKind,
   GuestRegistrationStatus,
   IdKind,
@@ -19,6 +21,7 @@ import {
   LeaseSignerRole,
   LeaseSigningMethod,
   LeaseStatus,
+  MaintenanceStatus,
   MomoNetwork,
   MoveOutNoticeChannel,
   MoveOutNoticeStatus,
@@ -28,6 +31,7 @@ import {
   RentalUnitState,
   TaxpayerKind,
   UnitKitchen,
+  WorkOrderEventKind,
 } from '@injishi/contracts';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -52,6 +56,10 @@ import {
   leaseReminderKindEnum,
   leaseSigningMethodEnum,
   leaseStatusEnum,
+  maintenanceAssigneeKindEnum,
+  maintenanceEventKindEnum,
+  maintenancePhotoPhaseEnum,
+  maintenanceStatusEnum,
   momoNetworkEnum,
   moveOutNoticeChannelEnum,
   moveOutNoticeStatusEnum,
@@ -109,6 +117,11 @@ const PAIRS: ReadonlyArray<readonly [string, { enumName: string; enumValues: rea
   // Guests (P5).
   ['guest_host_kind', guestHostKindEnum, GuestHostKind],
   ['guest_registration_status', guestRegistrationStatusEnum, GuestRegistrationStatus],
+  // Faults (P4, migration 0087): the shared ticket lifecycle's states and timeline, assignees, photo phases.
+  ['maintenance_status', maintenanceStatusEnum, MaintenanceStatus],
+  ['maintenance_event_kind', maintenanceEventKindEnum, WorkOrderEventKind],
+  ['maintenance_assignee_kind', maintenanceAssigneeKindEnum, FaultAssigneeKind],
+  ['maintenance_photo_phase', maintenancePhotoPhaseEnum, FaultPhotoPhase],
 ];
 
 describe('rentals database enums match the contracts vocabulary', () => {

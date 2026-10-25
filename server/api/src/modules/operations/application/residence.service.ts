@@ -1,52 +1,39 @@
 import type {
   AdvanceTicketRequest,
-  MaintenanceStatus,
   RaiseTicketRequest,
   OperatorTicket,
   WorkspaceAccess,
 } from '@injishi/contracts';
 import {
   BadRequestException,
-  ConflictException,
+  Inject,
   Injectable,
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import {
   type TicketRow,
   ResidenceRepository,
 } from '../infrastructure/residence.repository';
+import { TicketLifecycle } from './ticket-lifecycle';
 
 /*
  * What is left of the first residence service: the tickets board, which hotel
  * work orders share (ADR-016 D16). Its lease, rent roll, filing and deposit
  * commands went with the rentals rebuild (migrations 0073 to 0080, blueprint
- * section 4); the rentals module replaces them, and the shared ticket rules
- * replace this file (blueprint WP 4.1).
+ * section 4); the rentals module replaces them. Its ticket rules moved to the
+ * shared `TicketLifecycle` (blueprint WP 4.1): this board, the hotel's work
+ * orders and the rentals faults all move a ticket the one way.
  */
-
-/**
- * `open -> assigned -> in_progress -> resolved -> closed`, and `cancelled` from
- * anywhere before `resolved` (ADR-016 D16).
- *
- * Written out rather than compared by position, because `cancelled` is
- * reachable from three states and `resolved` can reopen when the tenant says
- * the tap still drips.
- */
-const TICKET_TRANSITIONS: Readonly<
-  Record<MaintenanceStatus, MaintenanceStatus[]>
-> = {
-  open: ['assigned', 'in_progress', 'resolved', 'cancelled'],
-  assigned: ['in_progress', 'resolved', 'cancelled'],
-  in_progress: ['resolved', 'cancelled'],
-  resolved: ['closed', 'open'],
-  closed: [],
-  cancelled: [],
-};
 
 @Injectable()
 export class ResidenceService {
-  constructor(private readonly residence: ResidenceRepository) {}
+  constructor(
+    private readonly residence: ResidenceRepository,
+    private readonly lifecycle: TicketLifecycle,
+    @Inject(DRIZZLE) private readonly db: Database,
+  ) {}
 
   // --- Tickets -------------------------------------------------------------
 
@@ -60,12 +47,10 @@ export class ResidenceService {
   }
 
   /**
-   * Resolve a ticket, with the note that says what was done.
-   *
-   * `maintenance_status` holds only `open` and `resolved`, so "advance" has
-   * exactly one destination. The operator app shows four ticket states; the
-   * middle two are demo store fiction with no column behind them, and inventing
-   * them here would put a state in the database that nothing can read back.
+   * Move a ticket, with the note that says why, through the shared ticket
+   * lifecycle (`TICKET_MOVES`; 409 for a move the chain refuses). `to` is
+   * `resolved` when absent. Already there is not an error: a second tap, or
+   * an offline phone that retried, answers where the ticket stands.
    */
   async advanceTicket(
     ws: WorkspaceAccess,
@@ -75,30 +60,18 @@ export class ResidenceService {
   ): Promise<OperatorTicket> {
     const ticket = assertOwned(await this.residence.findTicket(ticketId), ws);
     const to = body.to ?? 'resolved';
-
-    // Already there. A second tap is not an error, and refusing it would make
-    // an offline phone that retried look broken.
-    if (ticket.status === to) return this.withNotes(ticket);
-
-    if (!TICKET_TRANSITIONS[ticket.status].includes(to)) {
-      throw new ConflictException(
-        `A ${ticket.status.replace('_', ' ')} ticket cannot go straight to ${to.replace('_', ' ')}.`,
-      );
-    }
-
-    const moved = await this.residence.advanceTicket({
-      ticketId: ticket.id,
-      from: ticket.status,
-      to,
-      note: body.note,
-      authorUserId,
-    });
-
+    await this.db.transaction((tx) =>
+      this.lifecycle.move(tx, {
+        ticketId: ticket.id,
+        to,
+        actorUserId: authorUserId,
+        actorRole: 'staff',
+        note: body.note,
+        visibleToTenant: ticket.leaseId !== null,
+      }),
+    );
     const updated = await this.residence.findTicket(ticketId);
     if (!updated) throw this.vanished();
-    // Somebody else moved it between our read and our write. Their move is as
-    // valid as ours would have been, so report where it landed.
-    if (!moved) return this.withNotes(updated);
     return this.withNotes(updated);
   }
 
