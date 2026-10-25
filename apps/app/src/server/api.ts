@@ -71,6 +71,8 @@ export interface RequestOptions {
   form?: FormData;
   /** The visitor's address, forwarded so the API's per-IP sign-in limits count them and not this server. */
   clientIp?: string | null;
+  /** The visitor's browser, forwarded where the API keeps it as evidence (a lease signature). */
+  userAgent?: string | null;
 }
 
 /**
@@ -116,6 +118,7 @@ export async function apiRequest<T>(
   if (options.workspaceId) headers["x-workspace-id"] = options.workspaceId;
   if (options.branchId) headers["x-branch-id"] = options.branchId;
   if (options.idempotencyKey) headers["idempotency-key"] = options.idempotencyKey;
+  if (options.userAgent) headers["user-agent"] = options.userAgent.slice(0, 500);
   let payload: string | FormData | undefined;
   if (options.form) {
     payload = options.form;

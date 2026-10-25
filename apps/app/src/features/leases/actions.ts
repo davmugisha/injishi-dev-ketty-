@@ -21,7 +21,16 @@ import {
   type TenantView,
 } from "@injishi/contracts";
 import { revalidatePath } from "next/cache";
-import { type ActionResult, idempotencyKey, invalid, parse, runLandlord, UUID, ws } from "@/server/rentals/action-kit";
+import {
+  type ActionResult,
+  idempotencyKey,
+  invalid,
+  parse,
+  runLandlord,
+  UUID,
+  visitor,
+  ws,
+} from "@/server/rentals/action-kit";
 
 const NO_LEASE = "That lease was not found.";
 
@@ -65,8 +74,12 @@ export async function signLeaseAsLandlord(id: string, input: unknown): Promise<A
   if (!UUID.test(id)) return { ok: false, error: NO_LEASE };
   const parsed = parse(SignLeaseRequest, input);
   if (!parsed.ok) return invalid(parsed.error);
+  const from = await visitor();
   return changed(
-    await runLandlord((s) => s.api.post<LeaseDetail>(`/api/v1/ops/leases/${id}/sign`, parsed.data, ws(s)), NO_LEASE),
+    await runLandlord(
+      (s) => s.api.post<LeaseDetail>(`/api/v1/ops/leases/${id}/sign`, parsed.data, { ...ws(s), ...from }),
+      NO_LEASE,
+    ),
   );
 }
 

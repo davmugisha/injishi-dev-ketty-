@@ -13,6 +13,8 @@ export async function forwardFile(
   request: Request & { cookies: { getAll(): { name: string; value: string }[] } },
   apiPath: string,
   query: URLSearchParams,
+  /** More headers for the API, such as the business a landlord's file is from (`x-workspace-id`). */
+  extra: Record<string, string> = {},
 ): Promise<Response> {
   const cookie = sessionCookieHeader(request.cookies.getAll());
   if (!cookie) return refuse(401, "Sign in again to download.");
@@ -21,7 +23,7 @@ export async function forwardFile(
   let response: Response;
   try {
     response = await fetch(url, {
-      headers: { accept: "*/*", origin: apiOrigin(), cookie },
+      headers: { accept: "*/*", origin: apiOrigin(), cookie, ...extra },
       cache: "no-store",
       signal: AbortSignal.timeout(60_000),
     });

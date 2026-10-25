@@ -4,6 +4,7 @@
  * refusals into words for a toast, a field, or a decision the screen makes (`code`). Server side only; not
  * a "use server" module itself, so it can export plain helpers.
  */
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ApiError, ApiUnreachableError } from "../api";
 import { type LandlordScope, landlordScope } from "./client";
@@ -114,4 +115,17 @@ export const ws = (scope: LandlordScope) => ({ workspaceId: scope.workspace.work
 /** One key per press for the money routes, minted when the action runs. */
 export function idempotencyKey(): string {
   return crypto.randomUUID();
+}
+
+/**
+ * Where a signature is given from: the visitor's address and browser, forwarded so the API keeps the
+ * signer's (not this server's) as evidence. Behind the load balancer the first `x-forwarded-for` entry
+ * is the visitor; locally there is none.
+ */
+export async function visitor(): Promise<{ clientIp: string | null; userAgent: string | null }> {
+  const h = await headers();
+  return {
+    clientIp: h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip")?.trim() || null,
+    userAgent: h.get("user-agent"),
+  };
 }
