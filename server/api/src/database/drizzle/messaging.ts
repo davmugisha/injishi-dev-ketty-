@@ -26,7 +26,7 @@ import { messageBodyTypeEnum, threadKindEnum, threadStatusEnum } from './enums';
 import { bookings, guestStays, storedObjects } from './hospitality';
 import { departments, serviceOrders } from './operations';
 import { workspaces } from './org';
-import { leases, maintenanceTickets } from './residence';
+import { leases, maintenanceTickets, tenantPlacements } from './residence';
 
 export const threads = pgTable(
   'threads',
@@ -38,6 +38,12 @@ export const threads = pgTable(
     bookingId: uuid('booking_id').references(() => bookings.id),
     guestStayId: uuid('guest_stay_id').references(() => guestStays.id),
     leaseId: uuid('lease_id').references(() => leases.id),
+    /**
+     * A broker and a landlord about one placement (2026-10-26): the broker's
+     * account on one side, the landlord business's team on the other. Made
+     * the first time either side opens it.
+     */
+    placementId: uuid('placement_id').references((): AnyPgColumn => tenantPlacements.id),
     /**
      * §14.8. The department this conversation is with, when it is with one.
      * Routing is to the department and not to a person (D14), so a shift change
@@ -66,7 +72,8 @@ export const threads = pgTable(
       'threads_scope_exactly_one',
       sql`(CASE WHEN ${t.bookingId} IS NOT NULL THEN 1 ELSE 0 END
            + CASE WHEN ${t.guestStayId} IS NOT NULL THEN 1 ELSE 0 END
-           + CASE WHEN ${t.leaseId} IS NOT NULL THEN 1 ELSE 0 END) = 1`,
+           + CASE WHEN ${t.leaseId} IS NOT NULL THEN 1 ELSE 0 END
+           + CASE WHEN ${t.placementId} IS NOT NULL THEN 1 ELSE 0 END) = 1`,
     ),
     /**
      * ONE conversation per stay per department, enforced where a race cannot
@@ -128,6 +135,10 @@ export const threads = pgTable(
     uniqueIndex('threads_lease_uk')
       .on(t.leaseId)
       .where(sql`${t.leaseId} IS NOT NULL`),
+    /** One conversation per placement, broker and landlord; the same race rule as a lease's. */
+    uniqueIndex('threads_placement_uk')
+      .on(t.placementId)
+      .where(sql`${t.placementId} IS NOT NULL`),
   ],
 );
 
@@ -251,7 +262,7 @@ export const threadDigests = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.threadId, t.side] }),
-    check('thread_digests_side', sql`${t.side} IN ('landlord', 'tenant')`),
+    check('thread_digests_side', sql`${t.side} IN ('landlord', 'tenant', 'broker')`),
   ],
 );
 

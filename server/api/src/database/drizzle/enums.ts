@@ -437,6 +437,8 @@ export const threadKindEnum = pgEnum('thread_kind', [
   'reservation',
   'department_request',
   'dispute',
+  // A broker and a landlord about a placement (migration 0093).
+  'placement',
 ]);
 
 
