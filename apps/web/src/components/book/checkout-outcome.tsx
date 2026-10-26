@@ -16,7 +16,7 @@ import { fromParamDate, propertyHref, type BookingSelection } from "@/lib/search
  * one `CheckoutCard` shell, so the card this screen lands on when a link is
  * broken is visually the same card it lands on when a booking succeeds.
  */
-export function CheckoutCard({ children }: { children: React.ReactNode }) {
+function CheckoutCard({ children }: { children: React.ReactNode }) {
   return (
     <section className="rounded-card bg-card p-6 shadow-sm lg:p-8">{children}</section>
   );
@@ -273,6 +273,6 @@ const LONG_DATE = new Intl.DateTimeFormat("en-GB", {
   year: "numeric",
 });
 
-export function formatLongDate(isoDate: string): string {
+function formatLongDate(isoDate: string): string {
   return LONG_DATE.format(new Date(`${isoDate}T00:00:00`));
 }

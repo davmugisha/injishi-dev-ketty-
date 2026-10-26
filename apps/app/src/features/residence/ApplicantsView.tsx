@@ -47,7 +47,7 @@ import { useState } from "react";
 import { convertToLeaseAction, declineApplicationAction, recordScreeningAction } from "./actions";
 import { FormDialog, firstKey, lineTab, money, plain, SelectField, SubHeading, TabCount, ToneChip } from "./shared";
 
-export interface ApplicantsData {
+interface ApplicantsData {
   applicants: Applicant[];
   checks: ScreeningCheck[];
   invitations: RegistrationInvitation[];
@@ -95,7 +95,7 @@ export function ApplicantsView({
   }));
   const defaultUnit = unitOptions.find((o) => o.id === "C-03")?.id ?? unitOptions[0]?.id ?? "";
   const [invite, setInvite] = useState({ name: "", email: "", unit: defaultUnit, note: inviteMessage(defaultUnit) });
-  const [sent, setSent] = useState<RegistrationInvitation[]>([]);
+  const [sent] = useState<RegistrationInvitation[]>([]);
 
   const invitations = [...sent, ...data.invitations];
   const total = data.checks.length;

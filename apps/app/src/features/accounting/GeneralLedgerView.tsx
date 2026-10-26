@@ -17,7 +17,7 @@ import { KpiStrip, LINE_LIST, LINE_PANEL, LINE_TAB } from "./shared";
 
 export type LedgerTab = "journal" | "coa" | "close" | "exports";
 
-export interface GeneralLedgerData {
+interface GeneralLedgerData {
   kpis: AccountingKpi[];
   entries: JournalEntry[];
   accounts: LedgerAccount[];

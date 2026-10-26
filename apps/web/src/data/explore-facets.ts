@@ -37,7 +37,7 @@ import {
 
 /* --------------------------------------------------------------- popular */
 
-export interface PopularFilter {
+interface PopularFilter {
   id: string;
   label: string;
   matches: (listing: Listing) => boolean;
@@ -155,7 +155,7 @@ export function matchesBedrooms(listing: Listing, count: number): boolean {
     : listing.bedrooms === count;
 }
 
-export function bedroomLabel(count: number): string {
+function bedroomLabel(count: number): string {
   if (count >= BEDROOM_CAP) return `${BEDROOM_CAP}+ bedrooms`;
   if (count === 1) return "Studio or 1 bedroom";
   return `${count} bedrooms`;

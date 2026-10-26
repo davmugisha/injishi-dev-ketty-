@@ -17,7 +17,7 @@ import { formatRwf, KeyValueList, LinkButton, PageContent, PageHeader, toneColor
 import { type CSSProperties, Fragment, useState } from "react";
 import { Pending } from "./shared";
 
-export interface BrokerWorkData {
+interface BrokerWorkData {
   registrations: BrokerRegistration[];
   kpis: BrokerKpi[];
   placements: Placement[];

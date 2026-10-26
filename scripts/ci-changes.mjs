@@ -126,10 +126,9 @@ function affected(name) {
 const hitsEverything = runEverything || files.some((file) => EVERYTHING.some((prefix) => file === prefix || file.startsWith(prefix)));
 
 const outputs = {
-  // The four build jobs, each true when its app or any package it consumes changed.
+  // The three build jobs, each true when its app or any package it consumes changed.
   build_web: hitsEverything || affected('@injishi/web'),
   build_app: hitsEverything || affected('@injishi/app'),
-  build_admin: hitsEverything || affected('@injishi/admin'),
   build_api: hitsEverything || affected('@injishi/api'),
 
   // Mobile: its own tree, plus the two packages it shares with the web surfaces.

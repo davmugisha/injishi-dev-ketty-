@@ -150,7 +150,7 @@ const HOTEL_CLASSES: readonly AccommodationClass[] = [
 ];
 const HOME_CLASSES: readonly AccommodationClass[] = ["apartment", "villa"];
 
-export function matchesStayType(kind: AccommodationClass, type: StayType): boolean {
+function matchesStayType(kind: AccommodationClass, type: StayType): boolean {
   if (type === "all") return true;
   if (type === "hotels") return HOTEL_CLASSES.includes(kind);
   return HOME_CLASSES.includes(kind);

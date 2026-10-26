@@ -18,7 +18,7 @@ import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
  * style drops simply stops matching.
  */
 
-export const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const LIBERTY_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 
 type Palette = {
   land: string;
@@ -156,7 +156,7 @@ function restyle(layer: LayerSpecification, p: Palette): LayerSpecification | nu
 export type MapTheme = "light" | "dark";
 
 /** Liberty, recoloured. Pure: the fetched style is not mutated. */
-export function brandedLiberty(style: StyleSpecification, theme: MapTheme): StyleSpecification {
+function brandedLiberty(style: StyleSpecification, theme: MapTheme): StyleSpecification {
   const palette = theme === "dark" ? DARK : LIGHT;
   return {
     ...style,

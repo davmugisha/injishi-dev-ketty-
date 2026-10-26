@@ -203,7 +203,7 @@ export interface ApiWorkOrderList {
   medianHoursToClose: number | null;
 }
 
-export interface ApiSignal {
+interface ApiSignal {
   id: string;
   ruleCode: string;
   ruleText: string;
@@ -322,9 +322,9 @@ export const readBoard = (ctx: SourceContext) =>
   once(ctx, "board", () => ctx.ops().get<ApiBoard>("/api/v1/ops/housekeeping/board"));
 export const readWorkOrders = (ctx: SourceContext) =>
   once(ctx, "work-orders", () => ctx.ops().get<ApiWorkOrderList>("/api/v1/ops/work-orders"));
-export const readSignals = (ctx: SourceContext) =>
+const readSignals = (ctx: SourceContext) =>
   once(ctx, "signals", () => ctx.ops().get<{ signals: ApiSignal[] }>("/api/v1/ops/condition-signals"));
-export const readFoundItems = (ctx: SourceContext) =>
+const readFoundItems = (ctx: SourceContext) =>
   once(ctx, "found-items", () => ctx.ops().get<ApiFoundItemList>("/api/v1/ops/found-items"));
 
 // ── Shared wording ─────────────────────────────────────────────────────────────────────────────────

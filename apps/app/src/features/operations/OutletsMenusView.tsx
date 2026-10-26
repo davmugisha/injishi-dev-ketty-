@@ -30,7 +30,7 @@ import { FieldLabel, firstKey } from "./shared";
 
 export type OutletTab = "outlets" | "menus" | "orders" | "offers";
 
-export interface OutletsData {
+interface OutletsData {
   outlets: Outlet[];
   departments: DepartmentGroup[];
   menus: OutletMenu[];

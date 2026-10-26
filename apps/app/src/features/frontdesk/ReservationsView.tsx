@@ -45,7 +45,7 @@ import { useMemo, useState, useTransition } from "react";
 import { approveBookingRequest, cancelBooking, declineBookingRequest, recordNoShow } from "./actions";
 import { ChoiceSelect, plural } from "./shared";
 
-export interface ReservationsData {
+interface ReservationsData {
   bookings: Reservation[];
   views: ReservationView[];
   summary: ReservationsSummary;

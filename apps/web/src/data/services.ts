@@ -10,7 +10,7 @@
  * built" where it is; never put a promise back here without the feature.
  */
 
-export interface ServicePillar {
+interface ServicePillar {
   id: string;
   lead: string;
   emphasis: string;
@@ -54,7 +54,7 @@ export const SERVICE_PILLARS: ServicePillar[] = [
   },
 ];
 
-export interface FaqEntry {
+interface FaqEntry {
   question: string;
   answer: string;
 }

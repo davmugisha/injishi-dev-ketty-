@@ -4,7 +4,7 @@ import { Button, Label, ListBox, Modal, Select } from "@heroui/react";
 import { useState } from "react";
 import { TeamRolesStepUp } from "./TeamRolesPanel";
 
-export interface TeamRolesTransferOption {
+interface TeamRolesTransferOption {
   id: string;
   label: string;
 }

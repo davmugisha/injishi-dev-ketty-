@@ -18,7 +18,7 @@ import { Icon, LinkButton, PageContent, PageHeader, SectionHeader, StatusDot, to
 import NextLink from "next/link";
 import { Fragment } from "react";
 
-export interface OwnerHomeData {
+interface OwnerHomeData {
   kpis: OwnerKpi[];
   decisions: OwnerDecision[];
   revenueDays: RevenueDay[];

@@ -64,7 +64,6 @@ jobs:
       test_unit: ${{ steps.filter.outputs.test_unit }}
       build_web: ${{ steps.filter.outputs.build_web }}
       build_app: ${{ steps.filter.outputs.build_app }}
-      build_admin: ${{ steps.filter.outputs.build_admin }}
       build_api: ${{ steps.filter.outputs.build_api }}
       mobile: ${{ steps.filter.outputs.mobile }}
       tokens: ${{ steps.filter.outputs.tokens }}
@@ -188,18 +187,6 @@ jobs:
       - run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
       - run: pnpm --filter @injishi/app build
 
-  build-admin:
-    name: build admin
-    needs: changes
-    if: needs.changes.outputs.build_admin == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/pnpm-setup
-      - run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
-      - run: pnpm --filter @injishi/admin build
-
   build-api:
     name: build api
     needs: changes
@@ -288,7 +275,6 @@ jobs:
       - test-unit
       - build-web
       - build-app
-      - build-admin
       - build-api
       - mobile
       - tokens

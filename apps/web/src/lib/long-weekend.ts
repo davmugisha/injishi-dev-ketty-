@@ -10,7 +10,7 @@
  */
 
 /** How many nights the suggestion covers: Friday to Monday. */
-export const LONG_WEEKEND_NIGHTS = 3;
+const LONG_WEEKEND_NIGHTS = 3;
 
 const iso = (date: Date) => date.toISOString().slice(0, 10);
 

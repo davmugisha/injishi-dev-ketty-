@@ -45,7 +45,7 @@ export type FolioPaymentState = "ready" | "pending" | "unknown" | "verified";
 
 const TITLES = { en: "Your bill", rw: "Fagitire yawe", fr: "Votre note" } as const;
 
-export interface GuestFolioData {
+interface GuestFolioData {
   folio: GuestFolioRecord;
   charges: FolioCharge[];
   payments: FolioPayment[];

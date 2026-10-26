@@ -54,7 +54,7 @@ import {
 } from "@injishi/ui";
 import { type ReactNode, useState } from "react";
 
-export interface ListingData {
+interface ListingData {
   draft: ListingDraft;
   photos: ListingPhoto[];
   modes: ListingModeOption[];

@@ -35,7 +35,7 @@ import { GateChip, Icon, LinkButton, SectionHeader, toneColor } from "@injishi/u
 import { useState } from "react";
 import { IconTile, PublicBar } from "./ui";
 
-export interface StatesData {
+interface StatesData {
   payments: PaymentStateCard[];
   fiscal: StateCopy[];
   steps: SubmissionStep[];

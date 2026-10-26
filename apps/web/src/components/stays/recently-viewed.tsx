@@ -99,7 +99,7 @@ function RemoveButton({ name, onRemove, className }: { name: string; onRemove: (
  * A horizontal row of small cards. On Explore it sits above the results below
  * `xl`; on the home page it is the `ContinueBrowsing` section's body. Arrow buttons appear only when the row overflows.
  */
-export function RecentlyViewedStrip({
+function RecentlyViewedStrip({
   stays,
   intent,
   limit = 8,

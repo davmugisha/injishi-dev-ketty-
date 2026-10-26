@@ -21,7 +21,7 @@ import { GateChip, Icon, PageContent, PageHeader, SectionHeader, StatusDot, tone
 import { useState } from "react";
 import { FigureGrid, lineTab, TabCount, ToneChip } from "./shared";
 
-export interface AdminHealthData {
+interface AdminHealthData {
   incidents: Incident[];
   adapters: Adapter[];
   deadLetters: DeadLetter[];

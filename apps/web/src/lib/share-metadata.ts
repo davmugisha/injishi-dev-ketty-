@@ -18,10 +18,10 @@ import { WEB_URL } from "@/lib/web-url";
  * `image` is an absolute URL or a path on this site. Without one the site card
  * stands in: `app/opengraph-image.tsx`, a 1200x630 card drawn at build.
  */
-export const SITE_NAME = "Injishi";
+const SITE_NAME = "Injishi";
 
 /** The site's own share card, `app/opengraph-image.tsx`. */
-export const DEFAULT_SHARE_IMAGE = `${WEB_URL}/opengraph-image`;
+const DEFAULT_SHARE_IMAGE = `${WEB_URL}/opengraph-image`;
 
 export function shareMetadata({
   title,

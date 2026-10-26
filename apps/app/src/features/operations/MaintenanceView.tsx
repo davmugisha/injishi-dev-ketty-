@@ -37,7 +37,7 @@ import {
   useKigaliNow,
 } from "./shared";
 
-export interface MaintenanceData {
+interface MaintenanceData {
   workOrders: WorkOrder[];
   signals: ConditionSignal[];
   reviews: SignalReview[];

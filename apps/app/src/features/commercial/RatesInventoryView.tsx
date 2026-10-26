@@ -17,7 +17,7 @@ import { RatesInventoryRatePlans } from "./RatesInventoryRatePlans";
 import { RatesInventoryRoomTypes } from "./RatesInventoryRoomTypes";
 import { RATES_INVENTORY_TABS, type RatesInventoryTab } from "./RatesInventoryTabs";
 
-export interface RatesInventoryData {
+interface RatesInventoryData {
   roomTypes: RatesInventoryRoomType[];
   ratePlans: RatesInventoryRatePlan[];
   spaces: RatesInventorySpace[];

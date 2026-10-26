@@ -49,7 +49,7 @@ import { formatNumber, KeyValueList, LinkButton, PageContent, PageHeader, toneCo
 import { Fragment, useState } from "react";
 import { downloadCsv, FieldLabel, FooterHint, FormDialog, firstKey, SelectField } from "./shared";
 
-export interface LoyaltyData {
+interface LoyaltyData {
   programme: LoyaltyProgramme;
   tiers: LoyaltyTier[];
   members: LoyaltyMember[];

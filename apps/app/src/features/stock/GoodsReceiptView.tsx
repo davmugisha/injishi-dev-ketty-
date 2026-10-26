@@ -33,7 +33,7 @@ import { formatNumber, GateChip, LinkButton, PageContent, PageHeader } from "@in
 import { useState } from "react";
 import { Muted, money, SectionTitle, signedMoney, ToneChip } from "./shared";
 
-export interface GoodsReceiptData {
+interface GoodsReceiptData {
   receipt: GoodsReceipt;
   lines: ReceiptLine[];
   reasons: ReasonOption[];

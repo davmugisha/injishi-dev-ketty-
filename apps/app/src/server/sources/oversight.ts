@@ -22,7 +22,7 @@ type OversightRole =
   | "psf_membership_officer";
 
 /** One grant from GET /api/v1/me/oversight (OversightConsoleGrant). */
-export interface ApiConsole {
+interface ApiConsole {
   assignmentId: string;
   console: string;
   oversightRole: OversightRole;
@@ -46,7 +46,7 @@ type RegistrationStatus =
   | "suspended";
 
 /** One business waiting on this officer (OversightQueueItem), the fields read here. */
-export interface ApiQueueItem {
+interface ApiQueueItem {
   orgId: string;
   legalName: string;
   domain: "hospitality" | "residence";
@@ -87,7 +87,7 @@ interface ApiDocument {
 }
 
 /** GET /api/v1/oversight/registrations/:orgId/documents (OversightDocumentList). */
-export interface ApiDocumentList {
+interface ApiDocumentList {
   orgId: string;
   legalName: string;
   status: RegistrationStatus;

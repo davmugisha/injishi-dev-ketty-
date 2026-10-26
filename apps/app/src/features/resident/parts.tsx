@@ -110,10 +110,3 @@ export function maskPhone(phone: string): string {
   return digits.length < 7 ? phone : `${digits.slice(0, 3)}• ••• ${digits.slice(-3)}`;
 }
 
-/** Documents sent from the app first (newest first), then the rest in fixture order. */
-export function sentFirst<T extends { id: string; sentAt?: string }>(docs: T[], local: T[] = []): T[] {
-  const sent = docs.filter((d) => d.sentAt).sort((a, b) => (b.sentAt ?? "").localeCompare(a.sentAt ?? ""));
-  const rest = docs.filter((d) => !d.sentAt);
-  const seen = new Set(local.map((d) => d.id));
-  return [...local, ...[...sent, ...rest].filter((d) => !seen.has(d.id))];
-}

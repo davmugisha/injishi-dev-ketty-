@@ -11,7 +11,7 @@ import { forgetDesk, isRejectionCode, type RejectionCode } from "../sources/over
 import type { SourceContext } from "../sources/types";
 
 /** What the API answers after a gate decision (RegistrationSummary), the fields read here. */
-export interface RegistrationAfterDecision {
+interface RegistrationAfterDecision {
   orgId: string;
   legalName: string;
   status: string;

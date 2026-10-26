@@ -14,7 +14,6 @@ import {
   Lock,
   PaperPlane,
   Route,
-  SealCheck,
   Smartphone,
   StarFill,
   Thunderbolt,

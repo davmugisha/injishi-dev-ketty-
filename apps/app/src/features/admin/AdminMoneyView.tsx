@@ -8,7 +8,7 @@ import { Icon, PageContent, PageHeader, SectionHeader, StatusDot } from "@injish
 import { useState } from "react";
 import { amount, compactRwf, firstKey, money, ToneChip } from "./shared";
 
-export interface AdminMoneyData {
+interface AdminMoneyData {
   accounts: LedgerAccount[];
   postings: LedgerPosting[];
   runs: ReconRun[];

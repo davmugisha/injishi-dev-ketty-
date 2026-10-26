@@ -31,7 +31,7 @@ import { useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { CardHeading, IconTile, InfoRow, readFrancs, ToneChip } from "./parts";
 
-export interface OfflineDeskData {
+interface OfflineDeskData {
   arrivals: OfflineArrival[];
   queue: OfflineAction[];
   rails: PaymentRail[];

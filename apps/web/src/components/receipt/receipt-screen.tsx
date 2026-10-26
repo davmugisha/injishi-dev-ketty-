@@ -37,7 +37,7 @@ type Screen =
   | { state: "refused"; message: string }
   | { state: "unreachable" };
 
-export interface ReceiptScreenProps {
+interface ReceiptScreenProps {
   /** The booking reference from the route, e.g. `BK-RBSV-XACM`. */
   reference: string;
 }

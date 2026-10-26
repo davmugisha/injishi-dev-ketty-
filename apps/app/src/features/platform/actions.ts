@@ -7,7 +7,7 @@ import { requestContext } from "@/server/data";
 import { advanceHousekeepingTask } from "@/server/mutations/platform";
 
 /** What the housekeeper's press answers: done, or the API's refusal in words the phone can show. */
-export type TaskStatusResult = { ok: true } | { ok: false; error: string };
+type TaskStatusResult = { ok: true } | { ok: false; error: string };
 
 /**
  * Housekeeper starts or finishes a room. The task moves on the API (`POST /ops/housekeeping-tasks/:id/advance`),

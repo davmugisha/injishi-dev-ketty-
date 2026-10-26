@@ -131,7 +131,7 @@ const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/hei
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 
 /** A photograph the API stored: the key a record names it by. */
-export interface UploadedPhoto {
+interface UploadedPhoto {
   objectKey: string;
 }
 
@@ -286,7 +286,7 @@ export async function resolveWorkOrder(
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** "Tue 15 Dec 2026" or "15 Dec 2026" (as the leave form shows a date) → "2026-12-15". */
-export function parseLeaveDate(text: string): string {
+function parseLeaveDate(text: string): string {
   const m = text.trim().match(/(\d{1,2}) ([A-Z][a-z]{2})[a-z]* (\d{4})$/);
   const month = m ? MONTHS.indexOf(m[2] as string) : -1;
   if (!m || month < 0) throw new StaffInputError(`Write the date as “15 Dec 2026”.`);

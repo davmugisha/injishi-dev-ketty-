@@ -34,7 +34,7 @@ import NextLink from "next/link";
 import { useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
 
-export interface PlanBillingData {
+interface PlanBillingData {
   activation: PlanBillingStep[];
   nextLines: PlanBillingInvoiceLine[];
   retries: PlanBillingStep[];

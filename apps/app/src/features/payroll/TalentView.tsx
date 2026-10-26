@@ -16,7 +16,7 @@ import type {
 import { Icon, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useState } from "react";
 
-export interface TalentData {
+interface TalentData {
   vacancies: Vacancy[];
   candidates: Candidate[];
   interviews: Interview[];

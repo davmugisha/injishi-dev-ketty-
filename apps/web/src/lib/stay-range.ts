@@ -67,7 +67,7 @@ export function lastBookableNight(today: Date, calendar: BookingCalendar | null)
   return calendar ? fromISO(calendar.lastBookableNight) : addDays(today, MAX_HORIZON_DAYS);
 }
 
-export interface CheckoutWindow {
+interface CheckoutWindow {
   /** The first day a guest may leave: check-in plus the minimum stay. */
   earliest: Date;
   /**
@@ -152,7 +152,7 @@ export function disabledDays(
 }
 
 /** The three modifiers the hover preview paints with, keyed as the picker names them. */
-export type PreviewModifiers = Partial<
+type PreviewModifiers = Partial<
   Record<"preview" | "preview_start" | "preview_end", Matcher>
 >;
 

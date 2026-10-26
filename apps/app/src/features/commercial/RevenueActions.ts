@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { requirePersona } from "@/lib/session";
 import { REVENUE_OVERRIDE_REASONS } from "./RevenueModel";
 
-export interface RevenueSendItem {
+interface RevenueSendItem {
   id: string;
   /** Present when the manager overrode the recommended rate. */
   override?: { rate: number; reason: string; note: string };

@@ -35,7 +35,7 @@ import { reported } from "../operations/shared";
 import { reportProblemAction } from "./actions";
 import { kigaliClock, PhoneActionBar, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "./parts";
 
-export interface StaffReportData {
+interface StaffReportData {
   places: ReportPlace[];
   categories: ProblemCategory[];
   urgencies: UrgencyLevel[];

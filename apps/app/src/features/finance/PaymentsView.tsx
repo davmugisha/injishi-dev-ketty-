@@ -31,7 +31,7 @@ import { GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader } fro
 import { type Key, useState } from "react";
 import { CheckIcon, EventTimeline, lineTab, money, SubHeading, selectableRow, TabCount, ToneChip } from "./shared";
 
-export interface PaymentsData {
+interface PaymentsData {
   payments: PaymentIntent[];
   refunds: RefundRequest[];
   deskMethods: DeskMethod[];

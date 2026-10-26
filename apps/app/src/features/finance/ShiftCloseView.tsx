@@ -34,7 +34,7 @@ import { type ReactNode, useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { CheckList, money, SubHeading, ToneChip } from "./shared";
 
-export interface ShiftCloseData {
+interface ShiftCloseData {
   shift: CashierShift;
   denominations: CashDenomination[];
   floatRows: FloatRow[];

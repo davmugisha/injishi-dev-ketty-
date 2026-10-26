@@ -53,7 +53,7 @@ import type { DemoLinks } from "./links";
 import { PublicFooter, PublicHeader, PublicMain, type PublicVisitor, SignInAction } from "./PublicChrome";
 import { linkTo } from "./shared";
 
-export interface PublicHelpData {
+interface PublicHelpData {
   guides: HelpGuide[];
   services: ServiceStatus[];
   incident: IncidentUpdate[];

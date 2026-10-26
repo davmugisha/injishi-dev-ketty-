@@ -9,7 +9,7 @@ import type { InboxFigure, InboxNotification, InboxTask, NotificationCategoryId 
 import { GateChip, Icon, LinkButton, PageContent, PageHeader, StatusDot, toneColor } from "@injishi/ui";
 import { Fragment, useState } from "react";
 
-export interface InboxData {
+interface InboxData {
   figures: InboxFigure[];
   tasks: InboxTask[];
   notes: InboxNotification[];

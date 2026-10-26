@@ -55,9 +55,9 @@ import {
 
 export type PaymentMethodId = MobileMoneyNetwork | "card";
 
-export type PaymentMethodKind = "mobile_money" | "card";
+type PaymentMethodKind = "mobile_money" | "card";
 
-export interface PaymentMethodMeta {
+interface PaymentMethodMeta {
   id: PaymentMethodId;
   /** The name on the row, as a guest would say it out loud. */
   label: string;
@@ -114,7 +114,7 @@ export const PAYMENT_METHODS: readonly PaymentMethodMeta[] = [
   },
 ] as const;
 
-export const DEFAULT_PAYMENT_METHOD: PaymentMethodId = PAYMENT_METHODS[0].id;
+const DEFAULT_PAYMENT_METHOD: PaymentMethodId = PAYMENT_METHODS[0].id;
 
 export function paymentMethod(id: PaymentMethodId): PaymentMethodMeta {
   const found = PAYMENT_METHODS.find((method) => method.id === id);
@@ -146,7 +146,7 @@ export const EMPTY_PAYMENT_DRAFT: PaymentDraft = {
 /* ------------------------------------------------------------- validation */
 
 /** One refusal, or nothing. `null` means the field is acceptable so far. */
-export type FieldProblem = string | null;
+type FieldProblem = string | null;
 
 /**
  * A Rwandan handset, reduced to its nine national digits.
@@ -166,7 +166,7 @@ export function normaliseMsisdn(input: string): string | null {
 }
 
 /** `078 812 3456`, the grouping the networks print on their own bills. */
-export function formatMsisdn(national: string): string {
+function formatMsisdn(national: string): string {
   return `0${national.slice(0, 2)} ${national.slice(2, 5)} ${national.slice(5)}`;
 }
 

@@ -50,7 +50,7 @@ import {
   useKigaliNow,
 } from "./shared";
 
-export interface HousekeepingData {
+interface HousekeepingData {
   rooms: HousekeepingRoom[];
   roomHistory: RoomHistory[];
   tasks: CleaningTask[];

@@ -43,7 +43,7 @@ import { setSavedAction } from "./actions";
 import { inBand, propertyHref, rwf, shortPrice } from "./format";
 import { MarketFooter, MarketHeader, MarketMain, type MarketVisitor } from "./MarketChrome";
 
-export interface MarketExploreData {
+interface MarketExploreData {
   searches: MarketSearch[];
   listings: MarketListing[];
 }

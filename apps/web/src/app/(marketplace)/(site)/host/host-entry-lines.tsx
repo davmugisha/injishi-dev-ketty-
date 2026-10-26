@@ -8,7 +8,7 @@ import { SectionHeading } from "@/components/shared/section-heading";
  */
 
 /** Where the chooser's heading sits, for the doors that send people to it. */
-export const CHOOSER_ANCHOR = "#host-chooser-title";
+const CHOOSER_ANCHOR = "#host-chooser-title";
 
 /**
  * The closing card. Its button used to open `/register` with no kind, so the

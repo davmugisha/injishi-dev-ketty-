@@ -50,7 +50,7 @@ import type { DemoLinks } from "./links";
 import { CaptionedPhoto, PublicFooter, PublicHeader, PublicMain, SignInAction } from "./PublicChrome";
 import { linkTo, Pending } from "./shared";
 
-export interface TrainingData {
+interface TrainingData {
   courses: Course[];
   sessions: CourseSession[];
   learners: Learner[];
@@ -59,7 +59,7 @@ export interface TrainingData {
 }
 
 /** The signed-in person reading the page (null: nobody is signed in). */
-export interface TrainingVisitor {
+interface TrainingVisitor {
   personaId: string;
   name: string;
   initials: string;

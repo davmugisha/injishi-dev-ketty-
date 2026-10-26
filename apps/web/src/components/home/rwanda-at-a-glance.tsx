@@ -40,7 +40,7 @@ import { ACCOMMODATION_CLASS_LABEL } from "@injishi/contracts";
 import { formatRateNumber, shortBasis } from "@/lib/price";
 import { LIST_HREF, OPENING_LINE, stayCount } from "@/lib/stay-count";
 
-export interface GlancePlace {
+interface GlancePlace {
   place: DistrictPlace;
   count: number;
   href: string;

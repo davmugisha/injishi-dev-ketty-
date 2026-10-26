@@ -622,7 +622,7 @@ function unitNote(b: Building, u: ApiResidenceView["units"][number], lease: ApiL
   return "Rent up to date.";
 }
 
-export function unitsOf(b: Building): R.ResidenceUnit[] {
+function unitsOf(b: Building): R.ResidenceUnit[] {
   return b.v.units.map((u) => {
     const lease = b.currentByRoom.get(u.roomId);
     return {
@@ -936,7 +936,7 @@ const BOARD_STATUS: Record<string, R.TicketStatus> = {
 };
 
 /** The board: every open repair, and those fixed in the last week ("Fulfilled this week"). */
-export function ticketsOf(b: Building): R.ServiceTicket[] {
+function ticketsOf(b: Building): R.ServiceTicket[] {
   const weekAgo = addDays(b.today, -7);
   return b.v.tickets
     .filter(
@@ -1315,7 +1315,7 @@ function rentKpis(b: Building): R.RentKpi[] {
   ];
 }
 
-export function rentRollOf(b: Building): R.RentRollRow[] {
+function rentRollOf(b: Building): R.RentRollRow[] {
   const months = [-3, -2, -1, 0].map((d) => shiftMonth(b.month, d));
   return b.current
     .filter((l) => b.charges(l.id).length > 0)

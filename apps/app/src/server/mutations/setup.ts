@@ -23,7 +23,7 @@ export class SetupRefusal extends Error {
 // ── API shapes (as server/api answers; the app does not depend on @injishi/contracts) ─────────────
 
 /** One entry of GET /api/v1/inventory/properties (OperatorPropertySummary), the fields read here. */
-export interface ApiPropertySummary {
+interface ApiPropertySummary {
   id: string;
   name: string;
   slug: string | null;

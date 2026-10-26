@@ -25,7 +25,7 @@ import { API_URL } from "@/lib/api";
  */
 export type PublicProperty = PropertyDetail;
 
-export type PublicPropertyRead =
+type PublicPropertyRead =
   | { status: "found"; property: PublicProperty }
   | { status: "absent" }
   | { status: "unreachable" };

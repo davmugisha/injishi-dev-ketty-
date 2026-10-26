@@ -74,12 +74,12 @@ export const nightLabel = (n: AvailabilityCalendarNight | undefined) => (n ? `${
 /** "1 night", "3 nights" */
 export const nightsText = (count: number) => `${count} ${count === 1 ? "night" : "nights"}`;
 
-export function nightValue(list: AvailabilityCalendarNightValue[], night: number): number | undefined {
+function nightValue(list: AvailabilityCalendarNightValue[], night: number): number | undefined {
   return list.find((v) => v.night === night)?.value;
 }
 
 /** The price a rate plan shows for a room type on a night, given that night's BAR. */
-export function planRate(
+function planRate(
   plan: AvailabilityCalendarRatePlan,
   roomType: AvailabilityCalendarRoomType,
   bar: number,

@@ -33,7 +33,7 @@ import {
 import { users } from './auth';
 import { timestamps } from './columns';
 import { bookings } from './hospitality';
-import { properties, rooms, spaces } from './inventory';
+import { properties, rooms } from './inventory';
 import { housekeepingTasks } from './operations';
 import { orgs, workspaces } from './org';
 import { assets, maintenanceTickets } from './residence';

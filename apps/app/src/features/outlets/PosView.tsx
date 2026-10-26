@@ -36,7 +36,7 @@ import { type OptionChoices, optionsSummary, optionsUnitPrice, PosOptionsDialog 
 import { PosRoomChargeDialog } from "./PosRoomChargeDialog";
 import { firstKey, money, RegionOverlays } from "./shared";
 
-export interface PosData {
+interface PosData {
   places: PosPlace[];
   menuItems: MenuItem[];
   /** Categories of the dinner menu, in menu order. */

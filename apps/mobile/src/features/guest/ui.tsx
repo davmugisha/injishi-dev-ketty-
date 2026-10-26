@@ -4,7 +4,7 @@ import type { StockKey } from "@injishi/data/media";
 import { stock } from "@injishi/data/media";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
-import { Alert, Avatar, BottomSheet, Button, Chip, Separator, Tabs } from "heroui-native";
+import { Alert, Avatar, BottomSheet, Button, Chip, Tabs } from "heroui-native";
 import { Fragment, type ReactNode, useCallback, useEffect, useSyncExternalStore } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/icon";
@@ -673,18 +673,3 @@ export function SoftChip({ label, tone = "default", icon }: { label: string; ton
   );
 }
 
-export function RowLink({ href, children, icon }: { href: string; children: string; icon?: string }) {
-  return (
-    <Link href={href as never} asChild>
-      <Button variant="tertiary" size="sm" className="self-start">
-        {icon ? <Icon name={icon} /> : null}
-        <Button.Label>{children}</Button.Label>
-      </Button>
-    </Link>
-  );
-}
-
-/** Hairline between stacked rows inside a card. */
-export function RowRule() {
-  return <Separator />;
-}

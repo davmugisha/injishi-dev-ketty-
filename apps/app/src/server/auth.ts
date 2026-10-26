@@ -71,7 +71,7 @@ export async function sendSignInCode(email: string, clientIp?: string | null): P
   }
 }
 
-export type VerifyResult =
+type VerifyResult =
   /** `cookie` is the session as a `Cookie` header; `setCookies` is what the browser must be given. */
   | { ok: true; cookie: SessionCookie; setCookies: ForwardedCookie[] }
   | { ok: false; reason: "wrong-code" | "expired" | "too-many" | "unavailable" };
@@ -192,7 +192,7 @@ interface ApiSession {
 }
 
 /** One of the person's active sessions, as the account screen may show it. */
-export interface SessionSummary {
+interface SessionSummary {
   id: string;
   userAgent: string | null;
   ipAddress: string | null;

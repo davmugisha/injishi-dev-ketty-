@@ -29,7 +29,7 @@ import {
 import { type CSSProperties, Fragment, useState } from "react";
 import { money, SourceChip } from "./shared";
 
-export interface OutletOrdersData {
+interface OutletOrdersData {
   kpis: ServiceKpi[];
   stages: OrderStage[];
   orders: LiveOrder[];

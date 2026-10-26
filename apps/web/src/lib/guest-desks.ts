@@ -47,7 +47,7 @@ export interface DeskPlace {
  * an empty list under it, and an empty state that claims the guest has no
  * booking when they have one at a property that simply opened no desk.
  */
-export type DeskOffer =
+type DeskOffer =
   /** No stay and no live booking anywhere. Render no desk section at all. */
   | { kind: "nowhere" }
   /** Places, but not one of them opened a desk to guests. Say so once. */

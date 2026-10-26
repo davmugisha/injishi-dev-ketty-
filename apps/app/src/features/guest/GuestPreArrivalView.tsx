@@ -68,7 +68,7 @@ const TITLES = {
   fr: "Enregistrement anticipé",
 } as const;
 
-export interface GuestPreArrivalData {
+interface GuestPreArrivalData {
   booking: GuestBooking;
   form: PreArrivalForm;
   documents: IdDocumentType[];

@@ -46,7 +46,7 @@ import styles from "./receipt.module.css";
  *   8. the closing commercial message
  */
 
-export interface ReceiptDocumentProps {
+interface ReceiptDocumentProps {
   receipt: EbmReceipt;
 }
 

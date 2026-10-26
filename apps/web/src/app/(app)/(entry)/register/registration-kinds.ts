@@ -44,7 +44,7 @@ export type RegistrationKind =
   | "broker"
   | "bar_restaurant";
 
-export interface RegistrationKindEntry {
+interface RegistrationKindEntry {
   value: RegistrationKind;
   label: string;
   blurb: string;
@@ -174,23 +174,3 @@ export function registrationForKind(kind: RegistrationKind): {
   };
 }
 
-/**
- * The one sentence that says what this kind of registration involves.
- *
- * Shown under the confirmed tile on step 1, so a person who carried an answer
- * in from `/host` still learns what they are about to be asked — the old
- * summary said only the label back, which reads as a receipt rather than as a
- * step.
- */
-export function whatWeAskFor(kind: RegistrationKind): string {
-  switch (kind) {
-    case "broker":
-      return "We need your National ID and your contact details. There is no fee and no waiting.";
-    case "residence":
-      return "We need the UPI of the property, your address, and any documents you hold.";
-    case "bar_restaurant":
-      return "We need your 9 digit RRA TIN, your address, and any licences you hold for serving food or drink.";
-    default:
-      return "We need your 9 digit RRA TIN, your address, and any certificates you hold.";
-  }
-}

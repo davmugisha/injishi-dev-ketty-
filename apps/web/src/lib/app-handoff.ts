@@ -22,7 +22,7 @@
  * and `tests/app-handoff.test.mjs` loads it bare.
  */
 
-export interface HandoffRedirect {
+interface HandoffRedirect {
   source: string;
   destination: string;
   permanent: false;
@@ -64,7 +64,7 @@ export const RSC_HEADER = "rsc";
 /** The route that answers those RSC fetches: `src/app/app-handoff/route.ts`. */
 export const HANDOFF_RSC_ANSWER = "/app-handoff";
 
-export interface HandoffRscRewrite {
+interface HandoffRscRewrite {
   source: string;
   has: { type: "header"; key: string }[];
   destination: string;

@@ -1,6 +1,6 @@
 import { AccommodationClass } from "@injishi/contracts";
 import { toISODate, withQuery } from "@injishi/utils";
-import { BUDGET_BANDS, type BudgetBandId } from "@/data/search-options";
+import { BUDGET_BANDS } from "@/data/search-options";
 
 /**
  * The one search-state contract.
@@ -89,7 +89,7 @@ import { BUDGET_BANDS, type BudgetBandId } from "@/data/search-options";
  */
 
 /** Anything with a `get`. Covers `URLSearchParams` and Next's readonly one alike. */
-export interface ParamsLike {
+interface ParamsLike {
   get(name: string): string | null;
 }
 
@@ -203,7 +203,7 @@ export function parseIntent(params: ParamsLike): StayIntent {
   };
 }
 
-export function serialiseIntent(intent: StayIntent): QueryValues {
+function serialiseIntent(intent: StayIntent): QueryValues {
   const { guests } = intent;
   return {
     q: intent.query.trim() || undefined,
@@ -216,16 +216,6 @@ export function serialiseIntent(intent: StayIntent): QueryValues {
     infants: guests.infants > 0 ? guests.infants : undefined,
     pets: guests.pets ? 1 : undefined,
   };
-}
-
-/** True once the guest has said anything at all. Drives the "clear" affordance. */
-export function hasIntent(intent: StayIntent): boolean {
-  return (
-    intent.query.trim() !== "" ||
-    intent.districts.length > 0 ||
-    intent.checkIn !== null ||
-    billableGuests(intent.guests) !== billableGuests(DEFAULT_GUESTS)
-  );
 }
 
 /* ------------------------------------------------------------- refinement */
@@ -426,7 +416,7 @@ export function parseRefinement(params: ParamsLike): ExploreRefinement {
   return refinement;
 }
 
-export function serialiseRefinement(refinement: ExploreRefinement): QueryValues {
+function serialiseRefinement(refinement: ExploreRefinement): QueryValues {
   const out: QueryValues = {
     min: refinement.minRwf ?? undefined,
     max: refinement.maxRwf ?? undefined,
@@ -449,17 +439,6 @@ export function serialiseRefinement(refinement: ExploreRefinement): QueryValues 
   }
 
   return out;
-}
-
-/** True once the guest has narrowed anything. Drives the "clear all" affordance. */
-export function hasRefinement(refinement: ExploreRefinement): boolean {
-  if (refinement.minRwf !== null || refinement.maxRwf !== null) return true;
-  if (refinement.classes.length > 0) return true;
-  if (refinement.rating !== null) return true;
-  if (refinement.bedrooms !== null) return true;
-  if (refinement.name.trim() !== "") return true;
-  if (refinement.stayType !== "all") return true;
-  return LIST_FIELDS.some(([field]) => (refinement[field] as string[]).length > 0);
 }
 
 /** How many facets are ticked, for the mobile sheet's badge. */
@@ -614,7 +593,7 @@ export function todayInKigali(): string {
   }).format(new Date());
 }
 
-export function nightsBetweenISO(checkIn: string, checkOut: string): number {
+function nightsBetweenISO(checkIn: string, checkOut: string): number {
   const from = Date.parse(`${checkIn}T00:00:00Z`);
   const to = Date.parse(`${checkOut}T00:00:00Z`);
   return Math.round((to - from) / 86_400_000);

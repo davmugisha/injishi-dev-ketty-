@@ -13,7 +13,7 @@ import { money } from "./shared";
 
 export type QrStep = "menu" | "item" | "basket" | "tracking";
 
-export interface QrOrderData {
+interface QrOrderData {
   items: MenuItem[];
   /** Room-service categories, in menu order. */
   categories: MenuCategory[];

@@ -41,7 +41,7 @@ import NextLink from "next/link";
 import { useState } from "react";
 import { BrandMark } from "@/components/brand";
 
-export interface AssistantData {
+interface AssistantData {
   conversations: AssistantConversation[];
 }
 

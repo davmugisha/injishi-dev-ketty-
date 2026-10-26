@@ -23,7 +23,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export type LabelledWorkspace = WorkspaceAccess & { label: string };
 
-export type WorkspacesOutcome =
+type WorkspacesOutcome =
   | { status: "ok"; workspaces: LabelledWorkspace[] }
   /** The session is missing or expired — the caller should re-gate on identity. */
   | { status: "unauthenticated" }

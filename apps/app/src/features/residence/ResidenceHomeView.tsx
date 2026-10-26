@@ -26,7 +26,7 @@ import { type CSSProperties, Fragment, useState } from "react";
 import type { LiveLease } from "@/server/sources/residence";
 import { Dot, HBar, kigaliCalendar, Legend, money, plain, ToneChip } from "./shared";
 
-export interface ResidenceHomeData {
+interface ResidenceHomeData {
   kpis: HomeKpi[];
   rent: RentBucket[];
   aging: ArrearsBucket[];

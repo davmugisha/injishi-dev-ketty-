@@ -19,7 +19,7 @@ export interface QueueRow extends FiscalQueueItem {
   history: LogEntry[];
 }
 
-export interface QueueActivity {
+interface QueueActivity {
   retried: Record<string, boolean>;
   asked: Record<string, boolean>;
   resubmitted: Record<string, boolean>;

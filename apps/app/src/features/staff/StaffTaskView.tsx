@@ -53,7 +53,7 @@ import { reported } from "../operations/shared";
 import { logRoomFoundItemAction, moveRoomTaskAction, sendMinibarCountAction, setRoomCheckAction } from "./actions";
 import { kigaliClock, PhoneActionBar, PhoneSheet, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "./parts";
 
-export interface StaffTaskData {
+interface StaffTaskData {
   rooms: CleaningRoom[];
   finished: FinishedRoom[];
   sections: ChecklistSection[];

@@ -12,7 +12,7 @@ export const STATUS: Record<EmployeeStatus, { label: string; tone: Tone }> = {
 };
 
 /** Login chip of an employee file: linked, being revoked (leaver) or none. */
-export function loginChip(e: Employee): { label: string; tone: Tone; linked: boolean } {
+function loginChip(e: Employee): { label: string; tone: Tone; linked: boolean } {
   if (!e.login) return { label: "None", tone: "default", linked: false };
   return e.status === "leaving"
     ? { label: "Linked · revoking", tone: "warning", linked: true }

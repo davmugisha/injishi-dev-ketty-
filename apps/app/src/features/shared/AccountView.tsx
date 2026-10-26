@@ -53,7 +53,7 @@ import { signOutOtherSessions, signOutSession } from "@/lib/auth-actions";
 import type { SessionRow } from "@/lib/sessions";
 import { CardHeading, LINE_LIST, LINE_TAB, ProcessTimeline } from "./ui";
 
-export interface AccountData {
+interface AccountData {
   identity: AccountIdentity;
   profile: ProfileField[];
   methods: SignInMethod[];

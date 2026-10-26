@@ -22,7 +22,7 @@ import { encodeQr } from "@injishi/qr";
 /** Modules of light border a QR symbol requires on every side (ISO/IEC 18004). */
 const QUIET_ZONE = 4;
 
-export interface QrCodeProps {
+interface QrCodeProps {
   /** The exact string to encode. Never re-derive it here; see `sdc.qrData`. */
   value: string;
   /** Rendered edge length in CSS pixels. The symbol scales to fill it. */

@@ -2,7 +2,6 @@ import {
   type FacilityOutlet,
   type OrderingAccess,
   type OutletKind,
-  type PropertyFacility,
 } from "@injishi/contracts";
 
 /**

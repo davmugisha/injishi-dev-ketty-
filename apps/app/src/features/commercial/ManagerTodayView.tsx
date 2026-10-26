@@ -31,7 +31,7 @@ import { Icon, LinkButton, PageContent, PageHeader, StatusDot, toneColor } from 
 import NextLink from "next/link";
 import { Fragment, type ReactNode, useState } from "react";
 
-export interface ManagerTodayData {
+interface ManagerTodayData {
   kpis: ManagerTodayKpi[];
   exceptions: ManagerTodayException[];
   roomStatus: ManagerTodayRoomStatus[];

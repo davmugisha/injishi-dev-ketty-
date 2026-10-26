@@ -77,7 +77,7 @@ function unitFromSeed(seed: string, salt: number): number {
   return ((h >>> 0) % 20000) / 10000 - 1;
 }
 
-export type ApproximateLocation = { latitude: number; longitude: number };
+type ApproximateLocation = { latitude: number; longitude: number };
 
 /**
  * A point for `slug` in the named neighbourhood, else its district. Returns

@@ -1,14 +1,9 @@
 import { useId, type SVGProps } from "react";
-import { Info, SquareArrowOutUpRight } from "lucide-react";
+import { SquareArrowOutUpRight } from "lucide-react";
 
 /** The boxed diagonal arrow that ends every "see all" link. */
 export function ArrowBoxIcon(props: SVGProps<SVGSVGElement>) {
   return <SquareArrowOutUpRight width={24} height={24} aria-hidden {...props} />;
-}
-
-/** The circled "i" that carries the "rates exclude extras" tooltip. */
-export function InfoMarkIcon(props: SVGProps<SVGSVGElement>) {
-  return <Info width={34} height={34} aria-hidden {...props} />;
 }
 
 /**
@@ -88,52 +83,6 @@ export function MtnMark(props: SVGProps<SVGSVGElement>) {
 /** Airtel's official logo. */
 export function AirtelMark(props: SVGProps<SVGSVGElement>) {
   return <NetworkLogo href="/assets/payments/airtel-money.png" {...props} />;
-}
-
-/**
- * Visa's wordmark, in Visa's own brand navy.
- *
- * `#1A1F71` is prescribed by the network — the same AC-7 exemption as the
- * marks above.
- */
-export function VisaMark(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 36 24" xmlns="http://www.w3.org/2000/svg" aria-hidden {...props}>
-      <rect width="36" height="24" rx="3" fill="#fff" stroke="#E5E5E5" />
-      <text
-        x="18"
-        y="16.5"
-        textAnchor="middle"
-        fontSize="10"
-        fontWeight="700"
-        fontStyle="italic"
-        fontFamily="Arial, sans-serif"
-        fill="#1A1F71"
-      >
-        VISA
-      </text>
-    </svg>
-  );
-}
-
-/**
- * Mastercard's interlocking circles, in the network's own two brand colours.
- *
- * `#EB001B` and `#F79E1B` are prescribed by the network — the same AC-7
- * exemption as the marks above.
- */
-export function MastercardMark(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 36 24" xmlns="http://www.w3.org/2000/svg" aria-hidden {...props}>
-      <rect width="36" height="24" rx="3" fill="#fff" stroke="#E5E5E5" />
-      <circle cx="15" cy="12" r="6.5" fill="#EB001B" />
-      <circle cx="23" cy="12" r="6.5" fill="#F79E1B" />
-      <path
-        d="M19 6.7a6.5 6.5 0 0 1 0 10.6 6.5 6.5 0 0 1 0-10.6z"
-        fill="#FF5F00"
-      />
-    </svg>
-  );
 }
 
 /**

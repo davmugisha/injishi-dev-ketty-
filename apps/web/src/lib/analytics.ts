@@ -32,7 +32,7 @@ export const ANALYTICS_SRC =
  * The custom events, named once so a dashboard goal and the code that fires it
  * cannot drift. Add a name here before firing it.
  */
-export type AnalyticsEvent =
+type AnalyticsEvent =
   /** A stay search submitted from the search bar. */
   | "Search"
   /** A booking request the API accepted (paid, awaiting payment, or awaiting the host). */

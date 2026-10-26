@@ -7,14 +7,14 @@ import { deleteDocument, getCollection, getDocument, saveDocument } from "@injis
 import { revalidatePath } from "next/cache";
 import { requirePersona } from "@/lib/session";
 
-export interface PackagesDraftInput {
+interface PackagesDraftInput {
   name: string;
   summary: string;
   price: number;
   per: string;
 }
 
-export type PackagesDraftResult = { ok: true; id: string } | { ok: false; error: string };
+type PackagesDraftResult = { ok: true; id: string } | { ok: false; error: string };
 
 /** "Sunset Kayak Escape" + 4 existing packages → "SKE-05" (same pattern as LKW-01 … HBL-04). */
 function packagesCode(name: string, position: number): string {

@@ -4,7 +4,6 @@ import {
   TrainingMeResponse,
   TrainingVerification,
   type TrainingPublicCourse,
-  type TrainingPublicSession,
   type TrainingRegistrationResult,
 } from "@injishi/contracts";
 import { apiFetch, type ApiResult } from "@/lib/api";
@@ -167,23 +166,6 @@ export async function fetchCertificatePdfUrl(
     return { status: "failed" };
   }
   return { status: "ok", data: url };
-}
-
-/**
- * The soonest session across every course, for a page that wants one date.
- *
- * Sorted by start time rather than by course, because a person deciding whether
- * to attend is asking "when is the next one", and the API already orders each
- * course's sessions but has no opinion about the order ACROSS courses.
- */
-export function nextSession(
-  courses: readonly TrainingPublicCourse[],
-): { course: TrainingPublicCourse; session: TrainingPublicSession } | null {
-  const all = courses.flatMap((course) =>
-    course.sessions.map((session) => ({ course, session })),
-  );
-  all.sort((a, b) => a.session.startsAt.localeCompare(b.session.startsAt));
-  return all[0] ?? null;
 }
 
 /** Does any published course have a date somebody can register for? */

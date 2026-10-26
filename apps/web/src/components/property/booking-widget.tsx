@@ -62,7 +62,7 @@ import { retryWhileFailed, type ApiResult } from "@/lib/api";
  * addresses the real rooms, and its guest ceiling is its largest room type.
  * Every rate it quotes is a room's, read from the API.
  */
-export interface BookingWidgetProperty {
+interface BookingWidgetProperty {
   slug: string;
   maxGuests: number;
 }

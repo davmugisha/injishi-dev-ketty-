@@ -30,7 +30,7 @@ import { Icon, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { useState } from "react";
 import { firstKey, initials, lineTab, OptionSelect, TabCount, ToneChip } from "./shared";
 
-export interface AdminSupportData {
+interface AdminSupportData {
   tickets: SupportTicket[];
   messages: TicketMessage[];
   transcripts: TranscriptMessage[];

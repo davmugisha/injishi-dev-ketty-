@@ -42,7 +42,7 @@ import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { CaptionedPhoto } from "./PublicChrome";
 import { Pending, PRICING_PENDING } from "./shared";
 
-export interface BrokerDirectoryData {
+interface BrokerDirectoryData {
   credits: BrokerCredits[];
   fees: BrokerFeeTerm[];
   listings: DirectoryListing[];

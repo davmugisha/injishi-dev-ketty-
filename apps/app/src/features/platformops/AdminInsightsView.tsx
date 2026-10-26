@@ -9,7 +9,7 @@ import { Icon, PageContent, PageHeader, SectionHeader } from "@injishi/ui";
 import { useState } from "react";
 import { HBar, KpiStrip, ToneChip } from "./shared";
 
-export interface AdminInsightsData {
+interface AdminInsightsData {
   areas: InsightArea[];
   steps: NorthStarStep[];
   funnel: FunnelStep[];

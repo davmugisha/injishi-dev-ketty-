@@ -9,7 +9,7 @@ import { Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/u
 import { useState } from "react";
 import { PressableItemCard } from "./parts";
 
-export interface StaffServicesData {
+interface StaffServicesData {
   tickets: HelpdeskTicket[];
   assets: StaffAsset[];
   reports: HrReport[];

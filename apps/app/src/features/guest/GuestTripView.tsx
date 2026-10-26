@@ -52,7 +52,7 @@ import {
   useGuestLang,
 } from "./parts";
 
-export interface GuestTripData {
+interface GuestTripData {
   trips: GuestTrip[];
   booking: GuestBooking;
   guide: ArrivalGuideEntry[];

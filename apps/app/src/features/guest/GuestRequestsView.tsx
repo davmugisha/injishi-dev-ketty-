@@ -64,7 +64,7 @@ interface AddedRequest {
   detail: string;
 }
 
-export interface GuestRequestsData {
+interface GuestRequestsData {
   stay: GuestStayRecord;
   types: RequestType[];
   requests: ServiceRequest[];

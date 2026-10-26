@@ -9,7 +9,7 @@ import { ArtDirectedImage } from "@/components/shared/art-directed-image";
 import type { Mood } from "@/data/journeys";
 import { LIST_HREF, OPENING_LINE, stayCount } from "@/lib/stay-count";
 
-export interface MoodCard {
+interface MoodCard {
   mood: Mood;
   /** Stays Explore will list for this mood's districts. */
   count: number;

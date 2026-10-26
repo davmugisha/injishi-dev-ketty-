@@ -7,7 +7,7 @@ import type { SourceContext } from "../sources/types";
 import { type RepairCategory, ResidenceInputError, type ResidenceWrite, readDay, readWindow } from "./residence";
 
 /** The resident form's categories (resident.repairCategories), in the API's codes. */
-export const RESIDENT_CATEGORY: Record<string, RepairCategory> = {
+const RESIDENT_CATEGORY: Record<string, RepairCategory> = {
   plumbing: "plumbing",
   electrical: "electrical",
   "doors-windows": "doors_windows",

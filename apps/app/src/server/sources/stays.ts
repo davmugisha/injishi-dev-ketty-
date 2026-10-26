@@ -349,7 +349,7 @@ const PAYMENT_TYPES = new Set<ApiCharge["chargeType"]>(["payment", "deposit"]);
  * guest pays the two together, and the tax line is never voided apart from its charge), payments
  * and deposits left to the payment list. Lines sum, with the payments, to the bill's balance.
  */
-export function presentLines(
+function presentLines(
   stayDoc: string,
   stay: ApiStay,
   folio: ApiFolioDetail,
@@ -428,7 +428,7 @@ const TENDER: Record<string, { label: string; icon: string }> = {
  * Only confirmed money is ever on a bill (the API records nothing in flight), so each one counts,
  * unless it was voided, when its reversal takes it out again.
  */
-export function presentPayments(
+function presentPayments(
   stayDoc: string,
   folio: ApiFolioDetail,
   me: { id: string; name: string } | null,

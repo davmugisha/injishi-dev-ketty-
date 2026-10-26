@@ -40,7 +40,7 @@ import {
  * Order matters: the first pattern that hits wins. "Well-stocked bar and
  * restaurant" is a bar first, so bar is tested before restaurant.
  */
-export interface AmenityMark {
+interface AmenityMark {
   Icon: LucideIcon;
   /** What the card prints. Not the label; see above. */
   short: string;

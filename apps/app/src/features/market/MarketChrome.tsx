@@ -17,7 +17,7 @@ export interface MarketVisitor {
   initials: string;
 }
 
-export type MarketNavId = "stays" | "homes" | "hosts" | "help" | "trips";
+type MarketNavId = "stays" | "homes" | "hosts" | "help" | "trips";
 
 const NAV: { id: MarketNavId; label: string; href: () => string }[] = [
   { id: "stays", label: "Stays", href: () => screenHref("MarketExplore") },
@@ -28,7 +28,7 @@ const NAV: { id: MarketNavId; label: string; href: () => string }[] = [
 ];
 
 /** Max content width of a marketplace page: explore is wider; checkout’s column is narrower than its header. */
-export type MarketWidth = "wide" | "regular" | "narrow";
+type MarketWidth = "wide" | "regular" | "narrow";
 
 const WIDTH: Record<MarketWidth, string> = {
   wide: "max-w-[1376px]",

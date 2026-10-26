@@ -48,7 +48,7 @@ import { reported } from "../operations/shared";
 import { askLeaveAction, cancelRequestAction } from "./actions";
 import { PhoneSheet, PhoneTitle, PhoneToasts, renderArticle, renderSection } from "./parts";
 
-export interface StaffScheduleData {
+interface StaffScheduleData {
   /** The caller's own profile; null when none is on file (never another person's). */
   profile: StaffProfile | null;
   shifts: Shift[];

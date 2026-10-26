@@ -119,7 +119,7 @@ export const SERVICE_KIND_ORDER: ServiceKind[] = [
   "parking",
 ];
 
-export const SERVICE_LISTINGS: ServiceListing[] = [
+const SERVICE_LISTINGS: ServiceListing[] = [
   // ---------------------------------------------------------------- pools
   {
     slug: "swimming-pool",

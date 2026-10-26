@@ -50,7 +50,7 @@ import { type ComponentPropsWithRef, Fragment, useState, useTransition } from "r
 import { signOut } from "@/lib/auth-actions";
 import { PhoneSheet, PhoneToasts, renderAsButton, renderSection, ToneTile } from "./parts";
 
-export interface StaffMeData {
+interface StaffMeData {
   /** The caller's own profile; null when none is on file (never another person's). */
   profile: StaffProfile | null;
   payslips: Payslip[];

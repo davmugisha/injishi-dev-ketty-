@@ -56,7 +56,7 @@ function SectionLabel({ id, children, extra }: { id: string; children: ReactNode
 }
 
 /** The switcher panel body (artifact: BusinessSwitcher.dc.html). */
-export function SwitcherPanel({
+function SwitcherPanel({
   persona,
   ctx,
   branch,
