@@ -119,37 +119,50 @@ export function KpiStrip({ label, items, className }: { label: string; items: Kp
             <KPI
               key={k.id}
               className={cx(
-                "group relative min-w-0 gap-0 rounded-xl border border-separator bg-surface p-4 shadow-none transition-[border-color,box-shadow]",
+                "group relative min-w-0 gap-0 rounded-xl border border-separator bg-surface p-4 shadow-none transition-[border-color,background-color]",
                 odd && i === items.length - 1 && "col-span-2 lg:col-span-1",
-                k.href && "hover:border-default-foreground/20 hover:shadow-sm",
-                k.isCurrent && "border-accent/50 ring-1 ring-accent/30",
+                k.href && "hover:border-accent/40 hover:bg-default/40",
+                k.isCurrent && "border-accent/60 bg-accent-soft/40",
               )}
             >
-              <KPI.Header className="flex items-start justify-between gap-2">
-                <KPI.Title className="min-w-0 truncate text-sm font-medium text-muted">{k.label}</KPI.Title>
+              <div className="flex min-w-0 items-center gap-3">
                 {k.icon ? (
                   <span
                     aria-hidden="true"
                     className={cx(
-                      "flex size-8 shrink-0 items-center justify-center rounded-lg",
-                      k.status ? TONE_TINT[k.status] : "bg-default text-muted",
+                      "flex size-10 shrink-0 items-center justify-center rounded-full",
+                      k.status ? TONE_TINT[k.status] : "bg-accent-soft text-accent",
                     )}
                   >
-                    <Icon name={k.icon} className="size-4" />
+                    <Icon name={k.icon} className="size-5" />
                   </span>
                 ) : null}
-              </KPI.Header>
-              <KPI.Content className="mt-1 flex-none">
-                <KPI.Value value={k.value} className="truncate text-2xl font-semibold tracking-tight tabular">
-                  {() => (
-                    <span title={shown === exact ? undefined : exact}>
-                      <span aria-hidden={shown === exact ? undefined : true}>{shown}</span>
-                      {shown === exact ? null : <span className="sr-only">{exact}</span>}
-                    </span>
-                  )}
-                </KPI.Value>
-              </KPI.Content>
-              {k.progress != null ? (
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <KPI.Title className="truncate text-xs font-medium text-muted">{k.label}</KPI.Title>
+                  <KPI.Value
+                    value={k.value}
+                    className="truncate text-2xl leading-tight font-semibold tracking-tight tabular"
+                  >
+                    {() => (
+                      <span title={shown === exact ? undefined : exact}>
+                        <span aria-hidden={shown === exact ? undefined : true}>{shown}</span>
+                        {shown === exact ? null : <span className="sr-only">{exact}</span>}
+                      </span>
+                    )}
+                  </KPI.Value>
+                </div>
+                {k.spark && k.spark.length > 1 && k.spark.some((v) => v > 0) && k.progress == null ? (
+                  <KPI.Chart
+                    aria-hidden="true"
+                    data={k.spark.map((value) => ({ value }))}
+                    height={36}
+                    color="var(--chart-cat-1)"
+                    strokeWidth={2}
+                    className="hidden w-20 shrink-0 sm:block"
+                  />
+                ) : null}
+              </div>
+              {k.progress != null && k.progress > 0 && k.progress < 100 ? (
                 <KPI.Progress
                   value={Math.max(0, Math.min(100, k.progress))}
                   status={k.status}
@@ -157,18 +170,8 @@ export function KpiStrip({ label, items, className }: { label: string; items: Kp
                   className="mt-3"
                 />
               ) : null}
-              {k.spark && k.spark.length > 1 && k.progress == null ? (
-                <KPI.Chart
-                  aria-hidden="true"
-                  data={k.spark.map((value) => ({ value }))}
-                  height={32}
-                  color="var(--chart-cat-1)"
-                  strokeWidth={2}
-                  className="mt-2"
-                />
-              ) : null}
               {k.trend || k.footnote ? (
-                <KPI.Footer className="mt-auto flex flex-col gap-1 pt-3">
+                <KPI.Footer className="mt-3 flex flex-col gap-1 border-t border-separator pt-2.5">
                   {k.trend ? <Trend trend={k.trend} /> : null}
                   {k.footnote ? <p className="truncate text-xs text-muted">{k.footnote}</p> : null}
                 </KPI.Footer>
