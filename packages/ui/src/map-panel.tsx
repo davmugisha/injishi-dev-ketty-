@@ -129,11 +129,11 @@ export function MapPanel({ points, label, selectedId, onSelect, height = "24rem"
           alt=""
           draggable={false}
           className={cx(
-            "pointer-events-none absolute size-64 max-w-none",
+            "pointer-events-none absolute max-w-none",
             // OpenStreetMap draws one light style; the dark theme turns it to night.
             dark && "brightness-90 contrast-90 hue-rotate-180 invert",
           )}
-          style={{ left: t.left, top: t.top }}
+          style={{ left: t.left, top: t.top, width: 256, height: 256 }}
         />
       ))}
 

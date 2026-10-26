@@ -37,11 +37,13 @@ export function BrokerHomeView({
   const newest = homes.homes.slice(0, 4);
   const recent = placements.placements.slice(0, 5);
   const current = plan.current;
+  // The name the broker registered with (their ID), else the account's.
+  const first = summary.name?.trim().split(/\s+/)[0] || firstName;
   return (
     <PageContent>
       <PageHeader
         size="hello"
-        title={firstName ? `Welcome back, ${firstName}` : "Welcome back"}
+        title={first ? `Welcome back, ${first}` : "Welcome back"}
         actions={
           <ActionLink href={screenHref("BrokerDirectory")} icon="Magnifier" intent="primary">
             Find homes
