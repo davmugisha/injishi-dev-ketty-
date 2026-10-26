@@ -25,6 +25,10 @@ import {
   users,
 } from '../../../database/drizzle/schema';
 import type { PaymentReceipt } from '../../payments/domain/payment-port';
+import type {
+  RefundOwedWrite,
+  Tx as PaymentsTx,
+} from '../../payments/infrastructure/payment-transactions.repository';
 import {
   DRIZZLE,
   type Database,
@@ -185,10 +189,38 @@ export interface ApprovalOutcome {
   id: string;
   reference: string;
   status: 'confirmed' | 'declined';
-  declineReason: 'host_declined' | null;
-  paymentStatus: 'captured' | 'refunded_full';
-  escrowStatus: 'held' | 'refunded_full';
+  declineReason: 'host_declined' | 'expired' | null;
+  paymentStatus: 'captured' | MoneyOutcome;
+  escrowStatus: 'held' | MoneyOutcome;
   confirmedAt: Date | null;
+}
+
+/** Where a booking's money stands after it is cancelled, declined or no-showed. */
+export type MoneyOutcome = 'refunded_full' | 'refunded_partial' | 'forfeited' | 'refund_pending';
+
+/** Writes the refund owed inside the booking's own transaction, shrunk to what remains. */
+export type OweTx = (tx: PaymentsTx, amountRwf: number) => Promise<RefundOwedWrite>;
+
+/**
+ * Inside a booking transaction: write the refund owed, and say where the money
+ * now stands (073-gtbank-payments AC-13). With nothing to owe (no refund, or
+ * a payment from before the bank record) the caller's outcome is final. A
+ * refund written reads `refund_pending` until the bank pays. With no room left
+ * on the payment (earlier refunds took it all), nothing is written and the
+ * money is final unless one of those earlier refunds is still moving.
+ */
+async function oweWithin(
+  tx: PaymentsTx,
+  owe: OweTx | undefined,
+  refundRwf: number,
+  outcome: MoneyOutcome,
+): Promise<{ outcome: MoneyOutcome; refundRwf: number }> {
+  if (!owe || refundRwf <= 0) return { outcome, refundRwf };
+  const written = await owe(tx, refundRwf);
+  if (written.row) {
+    return { outcome: written.row.status === 'successful' ? outcome : 'refund_pending', refundRwf: written.amountRwf };
+  }
+  return { outcome: written.openSiblings ? 'refund_pending' : 'refunded_full', refundRwf: 0 };
 }
 
 /** One booking as a cancellation reads it (F-B11, ADR-051). */
@@ -786,28 +818,55 @@ export class BookingRepository {
    * runs (ADR-020 D-h). This method records what the seam confirmed; it never
    * writes `refunded_full` on the strength of a database update alone.
    */
-  async decline(bookingId: string): Promise<ApprovalOutcome | null> {
+  async decline(
+    bookingId: string,
+    /** The refund owed, written in this transaction (073-gtbank-payments AC-13). */
+    refund?: { owe: OweTx; amountRwf: number },
+  ): Promise<ApprovalOutcome | null> {
+    return this.declineWithin(bookingId, 'host_declined', refund);
+  }
+
+  /**
+   * One expired request, declined with its refund owed in the same
+   * transaction (073-gtbank-payments AC-13). The batch `recordExpiredDeclines`
+   * stays for a payment from before the bank record, whose release the
+   * provider has already confirmed.
+   */
+  async recordExpiredDecline(
+    bookingId: string,
+    refund: { owe: OweTx; amountRwf: number },
+  ): Promise<ExpiredRequest | null> {
+    const outcome = await this.declineWithin(bookingId, 'expired', refund);
+    return outcome ? { id: outcome.id, reference: outcome.reference } : null;
+  }
+
+  private async declineWithin(
+    bookingId: string,
+    reason: 'host_declined' | 'expired',
+    refund?: { owe: OweTx; amountRwf: number },
+  ): Promise<ApprovalOutcome | null> {
     return this.db.transaction(async (tx) => {
+      const pending = and(eq(bookings.id, bookingId), eq(bookings.status, 'pending_approval'));
+      const [held] = await tx.select({ id: bookings.id }).from(bookings).where(pending).for('update');
+      if (!held) return null;
+
+      const money = await oweWithin(tx, refund?.owe, refund?.amountRwf ?? 0, 'refunded_full');
       const [updated] = await tx
         .update(bookings)
         .set({
           status: 'declined',
-          declineReason: 'host_declined',
-          paymentStatus: 'refunded_full',
+          declineReason: reason,
+          paymentStatus: money.outcome,
+          ...(refund ? { refundRwf: money.refundRwf } : {}),
         })
-        .where(
-          and(
-            eq(bookings.id, bookingId),
-            eq(bookings.status, 'pending_approval'),
-          ),
-        )
+        .where(pending)
         .returning({ id: bookings.id, reference: bookings.reference });
 
       if (!updated) return null;
 
       await tx
         .update(escrows)
-        .set({ status: 'refunded_full' })
+        .set({ status: money.outcome })
         .where(
           and(
             eq(escrows.source, 'booking'),
@@ -820,9 +879,9 @@ export class BookingRepository {
         id: updated.id,
         reference: updated.reference,
         status: 'declined' as const,
-        declineReason: 'host_declined' as const,
-        paymentStatus: 'refunded_full' as const,
-        escrowStatus: 'refunded_full' as const,
+        declineReason: reason,
+        paymentStatus: money.outcome,
+        escrowStatus: money.outcome,
         confirmedAt: null,
       };
     });
@@ -878,10 +937,17 @@ export class BookingRepository {
   }
 
   /**
-   * Record a cancellation the provider already carried out, in ONE transaction:
-   * the booking, and its escrow. Guarded on the two states a cancellation moves
-   * out of, so a second press, or a host and a guest at once, records nothing
-   * the second time and the caller answers 409.
+   * Record a cancellation, in ONE transaction: the booking, its escrow, and
+   * (with `owe`) the refund it owes (073-gtbank-payments AC-13). Guarded on the
+   * two states a cancellation moves out of, under a row lock, so a second
+   * press, or a host and a guest at once, records nothing the second time and
+   * the caller answers 409.
+   *
+   * With `owe` the money reads `refund_pending` until the bank pays, and
+   * `refundRwf` is what was actually owed: the rule's amount, shrunk to what
+   * remains of the payment. Without it (a payment from before the bank
+   * record), the provider has already carried the refund out and `outcome` is
+   * final, as before.
    */
   async recordCancellation(input: {
     bookingId: string;
@@ -890,16 +956,25 @@ export class BookingRepository {
     outcome: 'refunded_full' | 'refunded_partial' | 'forfeited';
     /** The desk's words, when it cancelled at the guest's request. */
     reason?: string | null;
-  }): Promise<{ id: string; reference: string } | null> {
+    owe?: OweTx;
+  }): Promise<{ id: string; reference: string; paymentStatus: MoneyOutcome; refundRwf: number } | null> {
     return this.db.transaction(async (tx) => {
+      const [held] = await tx
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(and(eq(bookings.id, input.bookingId), inArray(bookings.status, [...HOLDING_STATUSES])))
+        .for('update');
+      if (!held) return null;
+
+      const money = await oweWithin(tx, input.owe, input.refundRwf, input.outcome);
       const [updated] = await tx
         .update(bookings)
         .set({
           status: 'cancelled',
-          paymentStatus: input.outcome,
+          paymentStatus: money.outcome,
           cancelledAt: new Date(),
           cancelledBy: input.party,
-          refundRwf: input.refundRwf,
+          refundRwf: money.refundRwf,
           ...(input.reason ? { cancelReason: input.reason } : {}),
           updatedAt: new Date(),
         })
@@ -914,7 +989,7 @@ export class BookingRepository {
 
       await tx
         .update(escrows)
-        .set({ status: input.outcome, updatedAt: new Date() })
+        .set({ status: money.outcome, updatedAt: new Date() })
         .where(
           and(
             eq(escrows.bookingId, input.bookingId),
@@ -922,7 +997,7 @@ export class BookingRepository {
             eq(escrows.status, 'held'),
           ),
         );
-      return updated;
+      return { ...updated, paymentStatus: money.outcome, refundRwf: money.refundRwf };
     });
   }
 
@@ -941,33 +1016,40 @@ export class BookingRepository {
     refundRwf: number | null;
     reason: string | null;
     byUserId: string;
-  }): Promise<{ id: string; reference: string } | null> {
+    /** The refund owed, written in this transaction (073-gtbank-payments AC-13). */
+    owe?: OweTx;
+  }): Promise<{ id: string; reference: string; paymentStatus: MoneyOutcome | null; refundRwf: number | null } | null> {
     return this.db.transaction(async (tx) => {
       const now = new Date();
+      const stillNoShow = and(
+        eq(bookings.id, input.bookingId),
+        eq(bookings.status, 'confirmed'),
+        sql`NOT EXISTS (SELECT 1 FROM ${guestStays} gs WHERE gs.booking_id = ${bookings.id})`,
+      );
+      const [held] = await tx.select({ id: bookings.id }).from(bookings).where(stillNoShow).for('update');
+      if (!held) return null;
+
+      const money = input.outcome
+        ? await oweWithin(tx, input.owe, input.refundRwf ?? 0, input.outcome)
+        : null;
       const [updated] = await tx
         .update(bookings)
         .set({
           status: 'no_show',
-          ...(input.outcome ? { paymentStatus: input.outcome, refundRwf: input.refundRwf } : {}),
+          ...(money ? { paymentStatus: money.outcome, refundRwf: money.refundRwf } : {}),
           noShowAt: now,
           noShowByUserId: input.byUserId,
           noShowReason: input.reason,
           updatedAt: now,
         })
-        .where(
-          and(
-            eq(bookings.id, input.bookingId),
-            eq(bookings.status, 'confirmed'),
-            sql`NOT EXISTS (SELECT 1 FROM ${guestStays} gs WHERE gs.booking_id = ${bookings.id})`,
-          ),
-        )
+        .where(stillNoShow)
         .returning({ id: bookings.id, reference: bookings.reference });
       if (!updated) return null;
 
-      if (input.outcome) {
+      if (money) {
         await tx
           .update(escrows)
-          .set({ status: input.outcome, updatedAt: now })
+          .set({ status: money.outcome, updatedAt: now })
           .where(
             and(
               eq(escrows.bookingId, input.bookingId),
@@ -976,6 +1058,41 @@ export class BookingRepository {
             ),
           );
       }
+      return { ...updated, paymentStatus: money?.outcome ?? null, refundRwf: money?.refundRwf ?? null };
+    });
+  }
+
+  /**
+   * The bank reversed this booking's payment and two people chose not to carry
+   * it (073-gtbank-payments AC-20, `cancel_service`): cancelled with no refund,
+   * because the guest already has the money back through the reversal, so the
+   * money and the escrow read `refunded_full` with `refund_rwf` 0. Guarded on
+   * the states a cancellation moves out of, under a row lock.
+   */
+  async cancelForReversal(bookingId: string): Promise<{ id: string; reference: string } | null> {
+    return this.db.transaction(async (tx) => {
+      const holding = and(eq(bookings.id, bookingId), inArray(bookings.status, [...HOLDING_STATUSES]));
+      const [held] = await tx.select({ id: bookings.id }).from(bookings).where(holding).for('update');
+      if (!held) return null;
+      const now = new Date();
+      const [updated] = await tx
+        .update(bookings)
+        .set({
+          status: 'cancelled',
+          paymentStatus: 'refunded_full',
+          cancelledAt: now,
+          cancelledBy: 'host',
+          refundRwf: 0,
+          cancelReason: 'The payment for this booking was reversed by the bank.',
+          updatedAt: now,
+        })
+        .where(holding)
+        .returning({ id: bookings.id, reference: bookings.reference });
+      if (!updated) return null;
+      await tx
+        .update(escrows)
+        .set({ status: 'refunded_full', updatedAt: now })
+        .where(and(eq(escrows.bookingId, bookingId), eq(escrows.source, 'booking'), eq(escrows.status, 'held')));
       return updated;
     });
   }

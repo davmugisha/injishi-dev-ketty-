@@ -22,6 +22,7 @@ import { BookingService } from './booking.service';
 import { BookingNotificationsService } from './booking-notifications.service';
 import { PaymentAttemptService } from './payment-attempt.service';
 import type { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
+import { PaymentSeam, resolvePaymentSeam } from '../../payments/domain/payment-seam';
 
 /**
  * Unit scope: the money ORDERING (ADR-020 A1) around a mocked repository and a
@@ -202,6 +203,8 @@ describe('BookingService money ordering', () => {
       // money ORDERING and every one of them settles inside the request, so
       // this is never reached — it is here so the graph is complete.
       attempts as unknown as PaymentAttemptService,
+      // 073-gtbank-payments AC-23, AC-24: the bank's rules, on the mock with none set.
+      new PaymentSeam(resolvePaymentSeam({})),
     );
 
     return { service, ebm, repo, payments, listings, compensations, attempts, order };
@@ -245,6 +248,8 @@ describe('BookingService money ordering', () => {
     checkOut: CHECK_OUT,
     guests: 2,
     nonRefundable: false,
+    // Required on the wire since 073-gtbank-payments AC-25.
+    attemptToken: '6f1c2b9e-3d4a-4e5f-8a7b-9c0d1e2f3a4b',
     instrument: INSTRUMENT,
   };
 
@@ -262,6 +267,17 @@ describe('BookingService money ordering', () => {
       payments.captureEscrow.mock.calls[0][0].idempotencyKey,
     );
     expect(bookingOf(result).reference).toBe('BK-ABC123');
+  });
+
+  it('refuses a card while card payments are off, before any hold or prompt (073 AC-24)', async () => {
+    const { service, payments, attempts } = build();
+
+    await expect(
+      service.create({ ...input, instrument: { kind: 'card', token: 'tok_test' } }, GUEST_ID),
+    ).rejects.toThrow('Card payments are not taken yet');
+
+    expect(payments.captureEscrow).not.toHaveBeenCalled();
+    expect(attempts.claimHold).not.toHaveBeenCalled();
   });
 
   it('charges the amount the server computed, never one the client sent', async () => {
@@ -438,6 +454,9 @@ describe('BookingService money ordering', () => {
       // money ORDERING and every one of them settles inside the request, so
       // this is never reached — it is here so the graph is complete.
       holdDouble(false, []) as unknown as PaymentAttemptService,
+      // A seam that admits the card below: this test is about the refund after a
+      // failed write, not the rules that refuse a card while card is off (073 AC-24).
+      { ruleProblem: () => null } as unknown as PaymentSeam,
     );
 
     /*
@@ -586,16 +605,19 @@ describe('BookingService money ordering', () => {
    * one. A null under a unique index deduplicates nothing, which would disable
    * the whole protection in silence while every screen said it worked.
    */
-  it('mints its own token when the client sent none, and keys are still unique', async () => {
+  // The server no longer mints a token when none is sent: the contract refuses
+  // the body (073-gtbank-payments AC-25). The key is the client's press, so two
+  // presses are two keys and a retry of one press is the same key.
+  it('keys every capture on the token the client sent: two presses, two keys', async () => {
     const a = build();
     const b = build();
 
     await a.service.create(input, GUEST_ID);
-    await b.service.create(input, GUEST_ID);
+    await b.service.create({ ...input, attemptToken: '0d9e8f7a-6b5c-4d3e-8f1a-2b3c4d5e6f70' }, GUEST_ID);
 
     const keyA = a.payments.captureEscrow.mock.calls[0][0].idempotencyKey;
     const keyB = b.payments.captureEscrow.mock.calls[0][0].idempotencyKey;
-    expect(keyA).toEqual(expect.stringContaining(`${WORKSPACE_ID}:booking-capture:`));
+    expect(keyA).toBe(`${WORKSPACE_ID}:booking-capture:${input.attemptToken}`);
     expect(keyA).not.toBe(keyB);
   });
 

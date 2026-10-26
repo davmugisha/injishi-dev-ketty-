@@ -1,4 +1,4 @@
-import { DemoPersona, PlatformInfo } from "@injishi/contracts";
+import { DemoPersona, PlatformInfo, type IntegrationMode, type PaymentRules } from "@injishi/contracts";
 
 import { API_URL } from "@/lib/api";
 
@@ -42,6 +42,26 @@ export async function fetchPlatform(): Promise<PlatformInfo | null> {
   }
 }
 
+/**
+ * The bank's rules as `paymentRuleProblem` reads them (073-gtbank-payments
+ * AC-23, AC-24): the networks prompted, the collection limit, and whether card
+ * payments are taken. Null when the API could not say; a form then offers no
+ * card and leaves the rest to the server, which always decides.
+ */
+export interface PaymentTerms {
+  rules: PaymentRules | null;
+  cardPayments: IntegrationMode | null;
+}
+
+export function paymentTerms(platform: PlatformInfo | null): PaymentTerms | null {
+  if (!platform) return null;
+  const card = platform.integrations?.card_payments;
+  return {
+    rules: platform.paymentRules ?? null,
+    cardPayments: card === "off" || card === "mock" || card === "live" ? card : null,
+  };
+}
+
 /** True only on a positive answer that this is the demo. */
 export function isDemo(platform: PlatformInfo | null): boolean {
   return platform?.environment === "demo";
@@ -65,6 +85,28 @@ export function offersGoogle(platform: PlatformInfo | null): boolean {
  */
 export function servesSampleData(platform: PlatformInfo | null): boolean {
   return platform?.sampleData === true;
+}
+
+/**
+ * How the registration fee is taken on this stack (073-gtbank-payments AC-2,
+ * AC-17), read from the API's `integrations` and `paymentRules`:
+ * - `free`: payments are off for the fee, so it is recorded with no money
+ *   moving and no number is asked for;
+ * - `test`: the mock, a real prompt flow with imaginary money, labelled so;
+ * - `live`: real money by mobile money;
+ * - `unknown`: the API could not say. The number form is shown, and the
+ *   server, which always decides, ignores it if the fee is free.
+ */
+export type RegistrationFeeMode = "free" | "test" | "live" | "unknown";
+
+export function registrationFeeMode(platform: PlatformInfo | null): RegistrationFeeMode {
+  const mode = platform?.integrations?.payments;
+  if (mode === "off") return "free";
+  if (mode === "mock") return "test";
+  if (mode === "live") {
+    return platform?.paymentRules?.livePurposes.includes("registration_fee") ? "live" : "free";
+  }
+  return "unknown";
 }
 
 /**

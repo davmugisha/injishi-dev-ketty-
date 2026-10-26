@@ -3,6 +3,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 
 import { AuthModule } from '../../modules/auth/auth.module';
 import { BookingModule } from '../../modules/booking/booking.module';
+import { PaymentsModule } from '../../modules/payments/payments.module';
 import { GeographyModule } from '../../modules/geography/geography.module';
 import { ListingSetupModule } from '../../modules/listing-setup/listing-setup.module';
 import { ListingModule } from '../../modules/listing/listing.module';
@@ -179,6 +180,8 @@ import { TrainingPublicModule } from './training/training.module';
     MarketplaceModule,
     ListingSetupModule,
     BookingModule,
+    // `PaymentSeam` for `/platform` (073-gtbank-payments AC-2, AC-17).
+    PaymentsModule,
     OperationsModule,
     // The bar and restaurant point of sale (POS spec, phase 1). Payments are simulated.
     PosModule,

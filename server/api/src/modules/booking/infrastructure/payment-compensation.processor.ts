@@ -7,6 +7,7 @@ import {
   PaymentCompensationService,
   type CompensationJob,
 } from '../../payments/application/payment-compensation.service';
+import { DisbursementDispatcher } from '../../payments/application/disbursement-dispatcher.service';
 import { captureKeyOfVoid } from '../../payments/domain/keys';
 import {
   PAYMENT_PORT,
@@ -14,12 +15,20 @@ import {
   PaymentUnavailableError,
   type PaymentPort,
 } from '../../payments/domain/payment-port';
+import { PaymentSeam } from '../../payments/domain/payment-seam';
 import { QUEUES } from '../../../shared/queues/queues.module';
+import { BookingRefunds } from '../application/booking-refunds';
 import { BookingRepository } from './booking.repository';
+import { PayerNumberPurgeRepository } from './payer-number-purge.repository';
 import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 
 export const DRAIN_OUTBOX = 'drain-outbox';
 const DRAIN_EVERY_MS = 60_000;
+/** Blanks payers' whole numbers once no refund can need them (073 AC-10). */
+export const PURGE_PAYER_NUMBERS = 'purge-payer-numbers';
+/** Sends what the account covers and pulls what is out (073 AC-9a, AC-14a). */
+export const DISPATCH_DISBURSEMENTS = 'dispatch-disbursements';
+const DISPATCH_EVERY_MS = 60_000;
 
 /**
  * Chases money the request path could not settle (ADR-020 D-f, review 3.3).
@@ -41,6 +50,10 @@ export class PaymentCompensationProcessor
     @Inject(PAYMENT_PORT) private readonly payments: PaymentPort,
     private readonly bookings: BookingRepository,
     private readonly compensations: PaymentCompensationService,
+    private readonly payerNumbers: PayerNumberPurgeRepository,
+    private readonly seam: PaymentSeam,
+    private readonly dispatcher: DisbursementDispatcher,
+    private readonly refunds: BookingRefunds,
   ) {
     super();
   }
@@ -53,12 +66,39 @@ export class PaymentCompensationProcessor
       { every: DRAIN_EVERY_MS },
       { name: DRAIN_OUTBOX },
     );
+    await this.queue.upsertJobScheduler(
+      DISPATCH_DISBURSEMENTS,
+      { every: DISPATCH_EVERY_MS },
+      { name: DISPATCH_DISBURSEMENTS },
+    );
+    // Nightly, at 03:00 in Kigali, when nobody is paying.
+    await this.queue.upsertJobScheduler(
+      PURGE_PAYER_NUMBERS,
+      { pattern: '0 3 * * *', tz: 'Africa/Kigali' },
+      { name: PURGE_PAYER_NUMBERS },
+    );
   }
 
   async process(job: Job<CompensationJob>, token?: string): Promise<void> {
     if (job.name === DRAIN_OUTBOX) {
       const woken = await this.compensations.drain();
       if (woken > 0) this.log.log(`Drain re-queued ${woken} compensation(s)`);
+      return;
+    }
+    if (job.name === DISPATCH_DISBURSEMENTS) {
+      const tick = await this.dispatcher.tick();
+      if (tick.sent + tick.pulled + tick.overLimit > 0) {
+        this.log.log(
+          `Disbursements: ${tick.sent} sent, ${tick.pulled} pulled, ${tick.overLimit} over the limit${tick.short ? ', account short' : ''}`,
+        );
+      }
+      return;
+    }
+    if (job.name === PURGE_PAYER_NUMBERS) {
+      const { stamped, purged } = await this.payerNumbers.run(new Date(), this.seam.settings.refundWindowDays);
+      if (stamped + purged > 0) {
+        this.log.log(`Payer numbers: ${stamped} given a purge date, ${purged} blanked`);
+      }
       return;
     }
 
@@ -200,6 +240,30 @@ export class PaymentCompensationProcessor
   private async chaseRelease(
     data: Extract<CompensationJob, { kind: 'release-escrow' }>,
   ): Promise<void> {
+    // A payment the bank record holds: declined with its release owed, in one
+    // transaction (073-gtbank-payments AC-13), on the same key the sweep used.
+    const plan = await this.refunds.plan({
+      reference: data.bookingId,
+      bookingId: data.bookingId,
+      workspaceId: data.workspaceId,
+      adapterRef: data.originalRef,
+      idempotencyKey: data.idempotencyKey,
+      operation: 'escrow_release_guest',
+    });
+    if (plan) {
+      const declined = await this.bookings.recordExpiredDecline(data.bookingId, {
+        owe: plan.oweTx,
+        amountRwf: data.amountRwf,
+      });
+      if (declined) await plan.announce();
+      this.log.log(
+        declined
+          ? `Declined ${declined.reference} with its release owed on key ${data.idempotencyKey}`
+          : `Booking ${data.bookingId} was already resolved; nothing owed`,
+      );
+      return;
+    }
+
     await this.payments.releaseEscrow({
       kind: 'escrow_release',
       beneficiary: 'guest',

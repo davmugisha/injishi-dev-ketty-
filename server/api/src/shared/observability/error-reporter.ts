@@ -41,7 +41,15 @@ export type Alarm =
   /** The queue refused a compensation's wake-up; the drain will retry. */
   | 'QUEUE_WAKE_REFUSED'
   /** A payment hold never recorded a provider reference. */
-  | 'UNRESOLVED_HOLD';
+  | 'UNRESOLVED_HOLD'
+  /** The bank reversed a payment it had reported successful (073-gtbank-payments AC-18). */
+  | 'PAYMENT_REVERSED'
+  /** A disbursement waits because Hangaa's account cannot cover it (073 AC-14a). */
+  | 'TREASURY_SHORT'
+  /** A payment may have reached the bank and nothing knows its outcome (073 AC-7, AC-27). */
+  | 'PAYMENT_PARKED'
+  /** The daily comparison with the bank's report found a difference (073 AC-22). */
+  | 'RECONCILIATION_DISCREPANCY';
 
 /** Where an HTTP fault happened. `route` is the pattern, never the path. */
 export interface HttpFacts {

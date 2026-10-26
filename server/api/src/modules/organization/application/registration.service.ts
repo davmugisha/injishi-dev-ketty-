@@ -46,7 +46,7 @@ import { ClaimInvitationMailer } from '../infrastructure/claim-invitation.mailer
 import { RegistrationMailer } from '../infrastructure/registration.mailer';
 import { buildPsfApplicationRow } from './psf-application-row';
 import { PsfMembershipService } from './psf-membership.service';
-import { SYSTEM_MOVER } from '../infrastructure/registration-events';
+import { SYSTEM_MOVER, type RegistrationMover } from '../infrastructure/registration-events';
 import { tinRecheckDue, tinRecheckStalled } from '../domain/tin-recheck';
 import { RraTinAdapter, type TinRegistryBusiness } from '../infrastructure/rra-tin.adapter';
 import { IdentityService } from '../../user/application/identity.service';
@@ -598,13 +598,13 @@ export class RegistrationService {
    */
   async settleFeeAndVerify(
     orgId: string,
-    actorUserId: string,
+    mover: RegistrationMover,
   ): Promise<RegistrationSummary> {
     const before = await this.orgs.findById(orgId);
     if (!before) throw new NotFoundException('Registration not found.');
 
     if (awaitsRegistrationFee(before.status)) {
-      const settled = await this.orgs.settleRegistrationFee(orgId, actorUserId);
+      const settled = await this.orgs.settleRegistrationFee(orgId, mover);
       if (!settled) {
         // Two reasons a settle writes nothing, and they need opposite answers.
         // Still at `pending_payment` with no contract is the refusal (ADR-053,
@@ -632,6 +632,76 @@ export class RegistrationService {
     }
 
     return this.summary(orgId);
+  }
+
+  /**
+   * Settle the fee because a payment for it landed (073-gtbank-payments AC-16).
+   *
+   * Called by the payment attempt that took the money, after it has claimed
+   * itself as confirmed, so this runs once per attempt. The mover is `system`:
+   * the provider settling is what moved the org, not a person's click.
+   *
+   * - `settled`: this payment settled the fee; the RRA check follows.
+   * - `already_settled`: the fee was already paid (another attempt won), so
+   *   this payment paid for nothing and is refunded by the caller.
+   * - `not_payable`: the registration cannot take a fee (it vanished, or its
+   *   contract is somehow open), and the money goes back too.
+   */
+  /**
+   * Reopen a registration fee whose payment the bank reversed (073-gtbank-payments
+   * AC-20, `cancel_service`). Only the invoice moves: nothing in the pipeline
+   * reads it yet, so the business is not held where it stands (recorded in the
+   * child's build notes for the owner).
+   */
+  async reopenFeeAfterReversal(invoiceId: string): Promise<boolean> {
+    return this.orgs.reopenRegistrationInvoice(invoiceId);
+  }
+
+  async settleFeeFromPayment(
+    orgId: string,
+  ): Promise<'settled' | 'already_settled' | 'not_payable'> {
+    const before = await this.orgs.findById(orgId);
+    if (!before) return 'not_payable';
+    if (!awaitsRegistrationFee(before.status)) return 'already_settled';
+
+    if (await this.orgs.settleRegistrationFee(orgId, SYSTEM_MOVER)) {
+      await this.mail.submitted(orgId, false);
+      await this.runTinCheck(orgId);
+      return 'settled';
+    }
+    const after = await this.orgs.findById(orgId);
+    if (after && awaitsRegistrationFee(after.status)) return 'not_payable';
+    return 'already_settled';
+  }
+
+  /**
+   * What paying the fee needs to know (073-gtbank-payments AC-16): where the
+   * registration stands, whether its contract is accepted, and the pending
+   * invoice the fee pays. Null when there is no such registration.
+   */
+  async feeFacts(orgId: string): Promise<{
+    status: OrgRegistrationStatus;
+    contractVersion: string | null;
+    workspaceId: string | null;
+    invoiceId: string | null;
+    amountDueRwf: number | null;
+    legalName: string;
+  } | null> {
+    const org = await this.orgs.findById(orgId);
+    if (!org) return null;
+    return {
+      status: org.status,
+      contractVersion: org.contractVersion,
+      workspaceId: org.workspaceId,
+      invoiceId: org.invoiceId,
+      amountDueRwf: org.amountDueRwf,
+      legalName: org.legalName,
+    };
+  }
+
+  /** The org a registration invoice bills, for a payment attempt that names only the invoice. */
+  orgOfRegistrationInvoice(invoiceId: string): Promise<string | null> {
+    return this.orgs.orgOfRegistrationInvoice(invoiceId);
   }
 
   /**

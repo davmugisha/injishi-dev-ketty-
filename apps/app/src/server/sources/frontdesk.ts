@@ -75,7 +75,7 @@ export interface ApiBooking {
   totalRwf: number;
   lockedNightlyRateRwf: number;
   paidRwf: number;
-  paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
+  paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
   approvalExpiresAt: string | null;
   createdAt: string;
   confirmedAt: string | null;

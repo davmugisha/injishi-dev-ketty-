@@ -79,6 +79,68 @@ describe('PaymentCompensationService', () => {
     expect(jobId).not.toBe(job.idempotencyKey);
   });
 
+  /**
+   * BullMQ, as it behaves: an add under an id the queue still holds, in any
+   * state, is ignored. A job that spent its attempts is held in `failed`
+   * because we keep failures (`removeOnFail: false`).
+   */
+  function bullLikeQueue(initial: Record<string, string> = {}): {
+    queue: Record<string, jest.Mock>;
+    states: Map<string, string>;
+  } {
+    const states = new Map(Object.entries(initial));
+    const queue = {
+      add: jest.fn(async (_name: string, _data: unknown, opts: { jobId: string }) => {
+        if (!states.has(opts.jobId)) states.set(opts.jobId, 'waiting');
+      }),
+      getJob: jest.fn(async (id: string) =>
+        states.has(id)
+          ? { getState: async () => states.get(id), remove: async () => void states.delete(id) }
+          : undefined,
+      ),
+    };
+    return { queue, states };
+  }
+
+  function drainingService(queue: Record<string, jest.Mock>): PaymentCompensationService {
+    const due = [
+      {
+        kind: 'refund',
+        idempotencyKey: job.idempotencyKey,
+        workspaceId: job.workspaceId,
+        originalRef: job.originalRef,
+        amountRwf: job.amountRwf,
+        bookingId: null,
+        memo: job.memo,
+      },
+    ];
+    const db = {
+      select: jest.fn(() => ({
+        from: () => ({ where: () => ({ orderBy: () => ({ limit: async () => due }) }) }),
+      })),
+    };
+    return new PaymentCompensationService(queue as unknown as Queue, db as unknown as Database);
+  }
+
+  it('runs again a job that spent its attempts: the drain removes the spent job before it adds (073 AC-25)', async () => {
+    const id = queueJobId(job.idempotencyKey);
+    const { queue, states } = bullLikeQueue({ [id]: 'failed' });
+
+    const woken = await drainingService(queue).drain();
+
+    expect(woken).toBe(1);
+    expect(states.get(id)).toBe('waiting');
+  });
+
+  it('leaves a job that is still waiting or running alone: that is the deduplication working', async () => {
+    const id = queueJobId(job.idempotencyKey);
+    const { queue, states } = bullLikeQueue({ [id]: 'active' });
+
+    await drainingService(queue).drain();
+
+    expect(states.get(id)).toBe('active');
+  });
+
   it('withdraws a cancelled job by the id it was queued under', async () => {
     const { service, queue } = build();
 

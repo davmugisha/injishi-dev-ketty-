@@ -5787,6 +5787,16 @@
     "scope": "platform"
   },
   {
+    "collection": "admin.moneyDesk",
+    "area": "admin",
+    "class": "derived",
+    "target": "payment_transactions + money_overrides via GET /admin/finance/payments, GET /admin/finance/payments/balance and GET /admin/money-overrides (073-gtbank-payments AC-19)",
+    "missing": "reconciliation_runs has no writer until 073 build task 9, so the last run reads Never run",
+    "crud": "R, C (pull, resolve, override request, treasury adjustment), U (approve, reject)",
+    "seed": "demo",
+    "scope": "platform"
+  },
+  {
     "collection": "admin.incidents",
     "area": "admin",
     "class": "new",

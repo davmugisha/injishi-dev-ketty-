@@ -42,6 +42,7 @@ export class OffPaymentAdapter implements PaymentPort {
       new PaymentUnavailableError(
         `payments are switched off on this stack; cannot read ${adapterRef} for ${workspaceId}`,
         'none',
+        'no',
       ),
     );
   }
@@ -52,6 +53,8 @@ function refuse(command: PaymentCommand): Promise<PaymentReceipt> {
     new PaymentUnavailableError(
       'payments are switched off on this stack (PAYMENT_ADAPTER_MODE=off)',
       command.idempotencyKey,
+      // Nothing was sent anywhere (073 AC-7).
+      'no',
     ),
   );
 }

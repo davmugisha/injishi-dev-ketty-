@@ -7,6 +7,8 @@ import {
   accountName,
   bookings,
   orgMemberships,
+  paymentAttempts,
+  paymentTransactions,
   properties,
   roomTypes,
   users,
@@ -22,7 +24,13 @@ import {
   HOST_MAIL_EVENTS,
   type BookingMailJob,
 } from '../domain/booking-mail';
+import {
+  REFUND_MAIL_JOB,
+  refundMailStillTrue,
+  type RefundMailJob,
+} from '../domain/refund-mail';
 import { BookingMailer } from './booking-mailer';
+import { RefundMailer } from './refund-mailer';
 import { reportJobFailure } from '../../../shared/observability/report-job-failure';
 
 /**
@@ -58,11 +66,16 @@ export class BookingMailProcessor extends WorkerHost {
   constructor(
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly mailer: BookingMailer,
+    private readonly refundMailer: RefundMailer,
   ) {
     super();
   }
 
   async process(job: Job): Promise<void> {
+    if (job.name === REFUND_MAIL_JOB) {
+      await this.sendRefundMail(job.data as RefundMailJob);
+      return;
+    }
     // The Email queue is shared. Anything that is not ours is left alone
     // rather than failed — another processor may own it.
     if (job.name !== BOOKING_MAIL_JOB) return;
@@ -169,6 +182,64 @@ export class BookingMailProcessor extends WorkerHost {
     this.log.log(`Sent the "${event}" mail for ${row.reference}.`);
   }
 
+  /**
+   * A refund mail (073-gtbank-payments AC-12, AC-12a), to whoever paid the
+   * collection the refund pays back, read through the attempt that waited on
+   * it. Skipped when the refund has moved on since it was queued.
+   */
+  private async sendRefundMail({ transactionId, event }: RefundMailJob): Promise<void> {
+    const [refund] = await this.db
+      .select({
+        status: paymentTransactions.status,
+        queueReason: paymentTransactions.queueReason,
+        amountRwf: paymentTransactions.amountRwf,
+        bookingId: paymentTransactions.bookingId,
+        originalTransactionId: paymentTransactions.originalTransactionId,
+        reference: paymentTransactions.reference,
+      })
+      .from(paymentTransactions)
+      .where(eq(paymentTransactions.id, transactionId))
+      .limit(1);
+    if (!refund?.originalTransactionId) {
+      this.log.warn(`No refund ${transactionId}; dropping its "${event}" mail.`);
+      return;
+    }
+    if (!refundMailStillTrue(event, refund)) {
+      this.log.log(`Skipping the "${event}" mail for refund ${refund.reference}: it has moved on.`);
+      return;
+    }
+
+    const [payer] = await this.db
+      .select({ email: users.email, name: accountName })
+      .from(paymentTransactions)
+      .innerJoin(paymentAttempts, eq(paymentAttempts.idempotencyKey, paymentTransactions.idempotencyKey))
+      .innerJoin(users, eq(users.id, paymentAttempts.guestUserId))
+      .where(eq(paymentTransactions.id, refund.originalTransactionId))
+      .limit(1);
+    if (!payer?.email) {
+      this.log.warn(`Refund ${refund.reference} has no payer email address, so its "${event}" mail cannot be sent.`);
+      return;
+    }
+
+    let bookingReference: string | null = null;
+    if (refund.bookingId) {
+      const [booking] = await this.db
+        .select({ reference: bookings.reference })
+        .from(bookings)
+        .where(eq(bookings.id, refund.bookingId))
+        .limit(1);
+      bookingReference = booking?.reference ?? null;
+    }
+
+    await this.refundMailer.send(event, {
+      payerEmail: payer.email,
+      payerName: payer.name ?? null,
+      amountRwf: refund.amountRwf,
+      bookingReference,
+    });
+    this.log.log(`Sent the "${event}" mail for refund ${refund.reference}.`);
+  }
+
   /** A job failing its last attempt is reported (ADR-063 AC-12). Earlier attempts are retries. */
   @OnWorkerEvent('failed')
   onFailed(job: Job | undefined, error: Error): void {
@@ -198,6 +269,7 @@ function stillTrue(event: string, status: string): boolean {
       return status === 'pending_approval';
     case 'cancelled':
     case 'host_guest_cancelled':
+    case 'host_payment_reversed':
       return status === 'cancelled';
     case 'declined':
     case 'expired':
