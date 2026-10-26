@@ -128,12 +128,8 @@ export function TenantMoveOutView({ tenancy, view }: { tenancy: TenancyDetail; v
               size="sm"
               icon="ArrowRightFromSquare"
               title="No notice given"
+              // The header holds "Give notice": the page offers it once.
               description={`Give at least ${view.noticeDays} days of notice before you move out.`}
-              action={
-                <ActionButton icon="ArrowRightFromSquare" onPress={() => setDialog("notice")}>
-                  Give notice
-                </ActionButton>
-              }
             />
           ) : (
             <p className="text-sm text-muted">Notice can be given once your tenancy has started.</p>
