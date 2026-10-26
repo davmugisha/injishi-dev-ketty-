@@ -8,7 +8,6 @@ import {
   ActionLink,
   DataTable,
   EmptyBlock,
-  FilterSelect,
   FilterTabs,
   formatDay,
   formatNumber,
@@ -18,11 +17,11 @@ import {
   PageHeader,
   PersonCell,
   SearchBar,
-  SelectField,
   StatusDot,
 } from "@injishi/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { GuestFilters } from "./GuestFilters";
 import { GuestPanel } from "./GuestPanel";
 import { ChainDots, GuestStatusChip, phoneWords } from "./parts";
 
@@ -170,88 +169,36 @@ export function LeaderGuestsView({
       />
 
       <Card className="min-w-0 gap-4 rounded-2xl p-4">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {page.tab === "arriving" ? (
-            <Segment
-              aria-label="When they arrive"
-              selectedKey={page.when}
-              onSelectionChange={(k) => go({ when: String(k) === "later" ? "later" : null })}
-              className="w-fit"
-            >
-              <Segment.Item id="soon">Next 7 days</Segment.Item>
-              <Segment.Item id="later">
-                Later<span className="tabular"> {formatNumber(counts.later)}</span>
-              </Segment.Item>
-            </Segment>
-          ) : null}
-          <Segment
-            aria-label="Guests by nationality"
-            size="sm"
-            selectedKey={origin ?? "all"}
-            onSelectionChange={(k) => go({ origin: k === "all" ? null : String(k), nationality: null })}
-          >
-            <Segment.Item id="all">All</Segment.Item>
-            <Segment.Item id="nationals">Rwandan</Segment.Item>
-            <Segment.Item id="international">Foreign</Segment.Item>
-          </Segment>
-          {nationalities.length > 1 ? (
-            <FilterSelect
-              label="Nationality"
-              value={nationality ?? "all"}
-              options={[
-                { id: "all", label: "Any nationality" },
-                ...nationalities.map((n) => ({ id: n.code, label: `${n.name} (${formatNumber(n.count)})` })),
-              ]}
-              onChange={(v) => go({ nationality: v === "all" ? null : v, origin: null })}
+        <GuestFilters
+          params={params}
+          go={go}
+          scopes={page.scopes}
+          filters={filters}
+          nationalities={nationalities}
+          leading={
+            page.tab === "arriving" ? (
+              <Segment
+                aria-label="When they arrive"
+                size="sm"
+                selectedKey={page.when}
+                onSelectionChange={(k) => go({ when: String(k) === "later" ? "later" : null })}
+              >
+                <Segment.Item id="soon">Next 7 days</Segment.Item>
+                <Segment.Item id="later">
+                  Later<span className="tabular"> {formatNumber(counts.later)}</span>
+                </Segment.Item>
+              </Segment>
+            ) : null
+          }
+          trailing={
+            <SearchBar
+              label="Search guests"
+              placeholder="Name, phone or ID"
+              defaultValue={params.get("q") ?? ""}
+              onSubmit={(q) => go({ q: q.trim() || null })}
             />
-          ) : null}
-          {filters.sectors.length > 0 ? (
-            <SelectField
-              label="Sector"
-              className="w-full sm:w-48"
-              value={sectorId}
-              placeholder="All sectors"
-              options={[
-                { id: "", label: "All sectors" },
-                ...filters.sectors.map((s) => ({ id: String(s.id), label: s.name })),
-              ]}
-              onChange={(v) => go({ sectorId: v || null, cellId: null, villageId: null })}
-            />
-          ) : null}
-          {filters.cells.length > 0 ? (
-            <SelectField
-              label="Cell"
-              className="w-full sm:w-48"
-              value={cellId}
-              placeholder="All cells"
-              options={[
-                { id: "", label: "All cells" },
-                ...filters.cells.map((c) => ({ id: String(c.id), label: c.name })),
-              ]}
-              onChange={(v) => go({ cellId: v || null, villageId: null })}
-            />
-          ) : null}
-          {filters.villages.length > 0 ? (
-            <SelectField
-              label="Village"
-              className="w-full sm:w-48"
-              value={villageId}
-              placeholder="All villages"
-              options={[
-                { id: "", label: "All villages" },
-                ...filters.villages.map((v) => ({ id: String(v.id), label: v.name })),
-              ]}
-              onChange={(v) => go({ villageId: v || null })}
-            />
-          ) : null}
-          <SearchBar
-            label="Search guests"
-            placeholder="Name, phone or ID"
-            defaultValue={params.get("q") ?? ""}
-            onSubmit={(q) => go({ q: q.trim() || null })}
-            className="sm:ml-auto"
-          />
-        </div>
+          }
+        />
 
         <DataTable<LeaderGuest>
           label={TAB_LABEL[page.tab]}

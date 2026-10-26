@@ -1,7 +1,5 @@
 "use client";
 
-import { Card, Chip } from "@heroui/react";
-import { Segment } from "@heroui-pro/react";
 import { BarChart } from "@heroui-pro/react/bar-chart";
 import type { GuestReport, LeaderSummary } from "@injishi/contracts";
 import {
@@ -12,7 +10,6 @@ import {
   CountDonut,
   DataTable,
   EmptyBlock,
-  FilterSelect,
   FilterTabs,
   formatDay,
   formatNumber,
@@ -23,10 +20,10 @@ import {
   PeriodPicker,
   periodFromRange,
   SectionCard,
-  SelectField,
   StatusChip,
 } from "@injishi/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { GuestFilters } from "./GuestFilters";
 import { scopeLine } from "./LeaderGuestsView";
 
 type OriginFilter = "all" | "nationals" | "international";
@@ -230,15 +227,12 @@ export function LeaderReportsView({
   const period: Period = periodFromRange(report.period.from, report.period.to, today);
   const { filters, counts } = summary;
   const t = report.totals;
-  const sectorId = params.get("sectorId");
-  const cellId = params.get("cellId");
-  const villageId = params.get("villageId");
   const origin = (params.get("origin") as OriginFilter | null) ?? "all";
   const nationality = params.get("nationality");
   const relationship = params.get("relationship");
-  const flaggedOnly = params.get("flagged") === "only";
-  const filtered = GUEST_FILTERS.some((k) => params.get(k));
-  const clearFilters = () => go(Object.fromEntries(GUEST_FILTERS.map((k) => [k, null])));
+  const filtered = [...GUEST_FILTERS, "sectorId", "cellId", "villageId"].some((k) => params.get(k));
+  const clearFilters = () =>
+    go(Object.fromEntries([...GUEST_FILTERS, "sectorId", "cellId", "villageId"].map((k) => [k, null])));
   const clearAction = filtered ? (
     <ActionButton size="sm" icon="Xmark" onPress={clearFilters}>
       Clear filters
@@ -250,7 +244,6 @@ export function LeaderReportsView({
   const guestsHref = (tab: string) => `/officer/guests?tab=${tab}`;
   const foreignShare = t.registered > 0 ? Math.round((t.fromAbroad / t.registered) * 100) : 0;
   const choices = report.choices ?? { nationalities: [], relationships: [] };
-  const filteredBy = report.filteredBy ?? [];
 
   return (
     <PageContent>
@@ -282,8 +275,15 @@ export function LeaderReportsView({
         ]}
       />
 
-      <Card className="flex min-w-0 flex-col gap-3 p-4">
-        <div className="flex flex-wrap items-end gap-3">
+      <GuestFilters
+        params={params}
+        go={go}
+        scopes={summary.scopes}
+        filters={filters}
+        nationalities={choices.nationalities}
+        relationships={choices.relationships}
+        flagged
+        leading={
           <PeriodPicker
             value={period}
             today={today}
@@ -292,102 +292,8 @@ export function LeaderReportsView({
             onChange={(p) => go({ from: p.start, to: p.end })}
             label="Report period"
           />
-          {filters.sectors.length > 0 ? (
-            <SelectField
-              label="Sector"
-              className="w-full sm:w-44"
-              value={sectorId}
-              placeholder="All sectors"
-              options={[
-                { id: "", label: "All sectors" },
-                ...filters.sectors.map((s) => ({ id: String(s.id), label: s.name })),
-              ]}
-              onChange={(v) => go({ sectorId: v || null, cellId: null, villageId: null })}
-            />
-          ) : null}
-          {filters.cells.length > 0 ? (
-            <SelectField
-              label="Cell"
-              className="w-full sm:w-44"
-              value={cellId}
-              placeholder="All cells"
-              options={[
-                { id: "", label: "All cells" },
-                ...filters.cells.map((c) => ({ id: String(c.id), label: c.name })),
-              ]}
-              onChange={(v) => go({ cellId: v || null, villageId: null })}
-            />
-          ) : null}
-          {filters.villages.length > 0 ? (
-            <SelectField
-              label="Village"
-              className="w-full sm:w-44"
-              value={villageId}
-              placeholder="All villages"
-              options={[
-                { id: "", label: "All villages" },
-                ...filters.villages.map((v) => ({ id: String(v.id), label: v.name })),
-              ]}
-              onChange={(v) => go({ villageId: v || null })}
-            />
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-separator pt-3">
-          <Segment
-            aria-label="Guests by nationality"
-            size="sm"
-            selectedKey={origin}
-            onSelectionChange={(key) => go({ origin: key === "all" ? null : String(key), nationality: null })}
-          >
-            <Segment.Item id="all">All guests</Segment.Item>
-            <Segment.Item id="nationals">Rwandan</Segment.Item>
-            <Segment.Item id="international">Foreign</Segment.Item>
-          </Segment>
-          <FilterSelect
-            label="Nationality"
-            value={nationality ?? "all"}
-            options={[
-              { id: "all", label: "Any nationality" },
-              ...choices.nationalities.map((n) => ({ id: n.code, label: `${n.name} (${formatNumber(n.count)})` })),
-            ]}
-            onChange={(v) => go({ nationality: v === "all" ? null : v, origin: null })}
-          />
-          <FilterSelect
-            label="Relationship to the host"
-            value={relationship ?? "all"}
-            options={[
-              { id: "all", label: "Any relationship" },
-              ...choices.relationships.map((r) => ({ id: r.code, label: `${r.label} (${formatNumber(r.count)})` })),
-            ]}
-            onChange={(v) => go({ relationship: v === "all" ? null : v })}
-          />
-          <ActionButton
-            size="sm"
-            icon="Flag"
-            intent={flaggedOnly ? "primary" : "secondary"}
-            aria-pressed={flaggedOnly}
-            onPress={() => go({ flagged: flaggedOnly ? null : "only" })}
-          >
-            Flagged only
-          </ActionButton>
-          {filtered ? (
-            <ActionButton size="sm" intent="ghost" icon="Xmark" onPress={clearFilters} className="sm:ml-auto">
-              Clear filters
-            </ActionButton>
-          ) : null}
-        </div>
-        {filteredBy.length > 0 ? (
-          <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
-            Showing
-            {filteredBy.map((w) => (
-              <Chip key={w} size="sm" variant="soft">
-                {w}
-              </Chip>
-            ))}
-            · the downloads use the same filters
-          </p>
-        ) : null}
-      </Card>
+        }
+      />
 
       <KpiStrip
         label={`Guests, ${span}`}
