@@ -19,7 +19,11 @@ export default async function AdminCoveragePage() {
       return (
         <PageContent>
           <PageHeader title="Coverage" />
-          <EmptyBlock icon="ShieldKeyhole" title="Your staff role cannot see coverage" description="Ask a super admin for access to people and roles." />
+          <EmptyBlock
+            icon="ShieldKeyhole"
+            title="Your staff role cannot see coverage"
+            description="Ask a super admin for access to people and roles."
+          />
         </PageContent>
       );
     }
