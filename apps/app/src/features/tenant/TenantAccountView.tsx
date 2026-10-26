@@ -270,7 +270,7 @@ function SessionsCard({ sessions, others }: { sessions: SessionRow[]; others: nu
                 ) : null}
               </span>
               <span className="truncate text-xs text-muted">
-                {[s.place, `Last active ${s.last}`].filter(Boolean).join(" · ")}
+                {[s.place, s.current ? s.last : `Last active ${s.last}`].filter(Boolean).join(" · ")}
               </span>
             </div>
             {s.current ? null : (

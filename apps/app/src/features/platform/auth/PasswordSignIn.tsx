@@ -2,7 +2,7 @@
 
 import { Alert, Button, FieldError, Form, Input, Label, TextField } from "@heroui/react";
 import { CodeInput, Icon } from "@injishi/ui";
-import { useActionState, useState, useTransition } from "react";
+import { startTransition, useActionState, useState, useTransition } from "react";
 import { type PasswordSignInState, resetForgotPassword, sendForgotCode, signInPassword } from "@/lib/password-actions";
 import { PasswordField } from "./PasswordField";
 
@@ -39,7 +39,17 @@ export function PasswordSignInForm({
           </Alert.Content>
         </Alert>
       ) : null}
-      <Form action={formAction} className="flex w-full flex-col gap-3" validationBehavior="aria">
+      {/* Submitted by hand, not as the form's `action`: React resets an action form after each try,
+          which emptied the email field after a wrong password. */}
+      <Form
+        className="flex w-full flex-col gap-3"
+        validationBehavior="aria"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const data = new FormData(e.currentTarget);
+          startTransition(() => formAction(data));
+        }}
+      >
         <input type="hidden" name="next" value={next} />
         <TextField name="email" type="email" value={email} onChange={onEmailChange} fullWidth autoComplete="email">
           <Label className="sr-only">Email</Label>

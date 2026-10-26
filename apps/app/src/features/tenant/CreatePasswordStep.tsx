@@ -44,10 +44,10 @@ export function CreatePasswordStep({ email, onDone }: { email: string; onDone: (
         </p>
       ) : null}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button variant="ghost" isDisabled={pending} onPress={onDone}>
+        <Button variant="ghost" className="w-full sm:w-auto" isDisabled={pending} onPress={onDone}>
           Skip for now
         </Button>
-        <Button type="submit" variant="primary" isPending={pending}>
+        <Button type="submit" variant="primary" className="w-full sm:w-auto" isPending={pending}>
           Save and continue
         </Button>
       </div>
