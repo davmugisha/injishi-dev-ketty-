@@ -8,6 +8,7 @@ import {
   ActionLink,
   DataTable,
   EmptyBlock,
+  FilterSelect,
   FilterTabs,
   formatDay,
   formatNumber,
@@ -23,7 +24,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { GuestPanel } from "./GuestPanel";
-import { chainWords, GuestStatusChip, phoneWords } from "./parts";
+import { ChainDots, GuestStatusChip, phoneWords } from "./parts";
 
 /** The tabs of the console, Reports last (it is its own page). */
 const TAB_LABEL = { arriving: "Arriving", staying: "Staying now", left: "Left", flagged: "Flagged" } as const;
@@ -86,15 +87,12 @@ export function LeaderGuestsView({
   const cellId = params.get("cellId");
   const villageId = params.get("villageId");
   const origin = params.get("origin");
-  const guests =
-    origin === "nationals"
-      ? page.guests.filter((g) => !g.fromAbroad)
-      : origin === "international"
-        ? page.guests.filter((g) => g.fromAbroad)
-        : page.guests;
+  const nationality = params.get("nationality");
+  // The API filters the page, its counts and the CSV by the same choices.
+  const guests = page.guests;
   const pages = Math.max(1, Math.ceil(page.total / page.pageSize));
   const emptyKey = page.tab === "arriving" && page.when === "later" ? "later" : page.tab;
-  const narrowed = Boolean(sectorId || cellId || villageId || params.get("q") || origin);
+  const narrowed = Boolean(sectorId || cellId || villageId || params.get("q") || origin || nationality);
 
   return (
     <PageContent>
@@ -167,7 +165,7 @@ export function LeaderGuestsView({
       />
 
       <Card className="min-w-0 gap-4 rounded-2xl p-4">
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {page.tab === "arriving" ? (
             <Segment
               aria-label="When they arrive"
@@ -182,15 +180,26 @@ export function LeaderGuestsView({
             </Segment>
           ) : null}
           <Segment
-            aria-label="Guest origin"
-            selectedKey={params.get("origin") ?? "all"}
-            onSelectionChange={(k) => go({ origin: k === "all" ? null : String(k) })}
-            className="w-fit"
+            aria-label="Guests by nationality"
+            size="sm"
+            selectedKey={origin ?? "all"}
+            onSelectionChange={(k) => go({ origin: k === "all" ? null : String(k), nationality: null })}
           >
             <Segment.Item id="all">All</Segment.Item>
-            <Segment.Item id="nationals">Nationals</Segment.Item>
-            <Segment.Item id="international">International</Segment.Item>
+            <Segment.Item id="nationals">Rwandan</Segment.Item>
+            <Segment.Item id="international">Foreign</Segment.Item>
           </Segment>
+          {filters.nationalities.length > 1 ? (
+            <FilterSelect
+              label="Nationality"
+              value={nationality ?? "all"}
+              options={[
+                { id: "all", label: "Any nationality" },
+                ...filters.nationalities.map((n) => ({ id: n.code, label: `${n.name} (${formatNumber(n.count)})` })),
+              ]}
+              onChange={(v) => go({ nationality: v === "all" ? null : v, origin: null })}
+            />
+          ) : null}
           {filters.sectors.length > 0 ? (
             <SelectField
               label="Sector"
@@ -255,7 +264,9 @@ export function LeaderGuestsView({
                 narrowed ? (
                   <ActionButton
                     icon="Xmark"
-                    onPress={() => go({ q: null, sectorId: null, cellId: null, villageId: null })}
+                    onPress={() =>
+                      go({ q: null, sectorId: null, cellId: null, villageId: null, origin: null, nationality: null })
+                    }
                   >
                     Clear filters
                   </ActionButton>
@@ -328,19 +339,7 @@ export function LeaderGuestsView({
               id: "chain",
               header: "Chain",
               hideBelow: "xl",
-              cell: (g) => {
-                const words = chainWords(g.chain);
-                return (
-                  <div className="flex flex-col text-sm">
-                    <span className="tabular">{words.opened}</span>
-                    {words.waiting > 0 ? (
-                      <span className="text-xs text-warning">
-                        {words.waiting === 1 ? "1 step waits for a leader" : `${words.waiting} steps wait for a leader`}
-                      </span>
-                    ) : null}
-                  </div>
-                );
-              },
+              cell: (g) => <ChainDots chain={g.chain} />,
             },
             { id: "status", header: "Status", cell: (g) => <GuestStatusChip guest={g} /> },
           ]}

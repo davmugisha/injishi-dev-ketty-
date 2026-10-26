@@ -26,6 +26,8 @@ export default async function LeaderGuestsPage({ searchParams }: { searchParams:
     cellId: one(sp.cellId),
     villageId: one(sp.villageId),
     q: one(sp.q) || undefined,
+    origin: ["nationals", "international"].includes(one(sp.origin) ?? "") ? one(sp.origin) : undefined,
+    nationality: /^[A-Za-z]{2}$/.test(one(sp.nationality) ?? "") ? one(sp.nationality) : undefined,
     page: one(sp.page) ?? 1,
   });
   const guestId = one(sp.guest);
@@ -53,6 +55,8 @@ export default async function LeaderGuestsPage({ searchParams }: { searchParams:
       cellId: query.cellId,
       villageId: query.villageId,
       q: query.q,
+      origin: query.origin,
+      nationality: query.nationality,
     }).flatMap(([k, v]) => (v === undefined ? [] : [[k, String(v)]])),
   );
   return <LeaderGuestsView page={page} openGuest={openGuest} exportHref={`/api/oversight/guests.csv?${exportQuery}`} />;

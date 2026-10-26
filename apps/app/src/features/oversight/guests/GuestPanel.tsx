@@ -188,8 +188,8 @@ export function GuestPanel({ guest: initial, onClose }: { guest: LeaderGuest; on
             ]}
           />
         </Section>
-        <Section title="Who has it">
-          <ChainList chain={guest.chain} />
+        <Section title="Where it has been">
+          <ChainList guest={guest} />
         </Section>
       </SidePanel>
       <FlagDialog
