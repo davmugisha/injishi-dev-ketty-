@@ -1,8 +1,14 @@
 "use client";
 
-import { Alert } from "@heroui/react";
+import { Alert, Chip } from "@heroui/react";
 import { Timeline } from "@heroui-pro/react";
-import type { GuestRouteState, LeaderChainStep, LeaderGuest } from "@injishi/contracts";
+import {
+  type GuestRouteState,
+  LEADER_ROLE_SHORT,
+  type LeaderChainStep,
+  type LeaderGuest,
+  type LeaderScope,
+} from "@injishi/contracts";
 import { formatDay, formatLocalPhone, Icon, StatusChip, type StatusTone } from "@injishi/ui";
 
 /** Where one step of the chain stands, as a chip: nobody in the post, sent, opened. */
@@ -133,5 +139,28 @@ export function ChainList({ guest }: { guest: Pick<LeaderGuest, "chain" | "creat
         </Timeline.Item>
       ))}
     </Timeline>
+  );
+}
+
+/**
+ * Whose page this is, in one tidy line: the post as a small chip, the place it covers in full weight, and
+ * the levels above it muted ("Village leader · Urugwiro village, Kamatamu cell, Kacyiru sector, Gasabo").
+ */
+export function ScopeLine({ scopes }: { scopes: readonly LeaderScope[] }) {
+  return (
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      {scopes.map((s) => {
+        const [place, ...above] = s.area.split(", ");
+        return (
+          <span key={s.assignmentId} className="inline-flex min-w-0 items-center gap-2">
+            <Chip size="sm" variant="soft" color="accent">
+              {LEADER_ROLE_SHORT[s.role]}
+            </Chip>
+            <span className="font-medium text-foreground">{place}</span>
+            {above.length > 0 ? <span className="truncate text-muted">{above.join(", ")}</span> : null}
+          </span>
+        );
+      })}
+    </span>
   );
 }

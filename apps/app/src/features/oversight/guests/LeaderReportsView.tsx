@@ -23,7 +23,7 @@ import {
 } from "@injishi/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { GuestFilters } from "./GuestFilters";
-import { scopeLine } from "./LeaderGuestsView";
+import { ScopeLine } from "./parts";
 
 type OriginFilter = "all" | "nationals" | "international";
 
@@ -248,7 +248,7 @@ export function LeaderReportsView({
     <PageContent>
       <PageHeader
         title="Guest reports"
-        description={scopeLine(summary)}
+        description={<ScopeLine scopes={summary.scopes} />}
         actions={
           <>
             <ActionLink href={downloads.csv} icon="ArrowDownToLine" prefetch={false}>

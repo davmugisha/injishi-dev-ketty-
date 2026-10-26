@@ -23,7 +23,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { GuestFilters } from "./GuestFilters";
 import { GuestPanel } from "./GuestPanel";
-import { ChainDots, GuestStatusChip, phoneWords } from "./parts";
+import { ChainDots, GuestStatusChip, phoneWords, ScopeLine } from "./parts";
 
 /** The tabs of the console, Reports last (it is its own page). */
 const TAB_LABEL = { arriving: "Arriving", staying: "Staying now", left: "Left", flagged: "Flagged" } as const;
@@ -41,11 +41,6 @@ const EMPTY: Record<string, { title: string; description: string }> = {
   left: { title: "No guests have left yet", description: "Guests who left in the last 12 months show here." },
   flagged: { title: "No flagged guests", description: "Flagged guests show here with the note." },
 };
-
-/** The scope line under the title: each post in words. */
-export function scopeLine(page: Pick<LeaderGuestPage, "scopes">): string {
-  return page.scopes.map((s) => `${s.roleLabel}, ${s.area}`).join(" · ");
-}
 
 /**
  * The local leader's guest list (P5): the guests in their area by tab (Arriving in the next 7 days,
@@ -105,7 +100,7 @@ export function LeaderGuestsView({
     <PageContent>
       <PageHeader
         title="Guests in your area"
-        description={scopeLine(page)}
+        description={<ScopeLine scopes={page.scopes} />}
         actions={
           <ActionLink href={exportHref} icon="ArrowDownToLine" prefetch={false}>
             Export CSV
