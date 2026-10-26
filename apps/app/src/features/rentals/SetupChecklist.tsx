@@ -27,11 +27,7 @@ export function SetupChecklist({
   return (
     <SectionCard
       title={title}
-      description={
-        setup.complete
-          ? "Everything is in place."
-          : `${done} of ${total} done. Tenants can sign once these are in place.`
-      }
+      description={setup.complete ? undefined : `${done} of ${total} done`}
       headingLevel={headingLevel}
       className={className}
       actions={

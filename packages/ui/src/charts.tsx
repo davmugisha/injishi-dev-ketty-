@@ -525,7 +525,8 @@ export function CollectedVsExpectedArea({
     <ChartCard
       title={title}
       description={
-        description ?? (expected > 0 ? `${formatMoney(collected)} of ${formatMoney(expected)}, ${rate}%` : undefined)
+        description ??
+        (expected > 0 ? `${formatMoney(collected)} of ${formatMoney(expected)} over ${shown.length} months` : undefined)
       }
       actions={
         <>
@@ -634,7 +635,7 @@ export function CashFlowArea({
   return (
     <ChartCard
       title={title}
-      description={description ?? `Net ${formatMoney(net, { signed: true })}`}
+      description={description ?? `Net ${formatMoney(net, { signed: true })} over ${shown.length} months`}
       actions={
         <>
           {actions}
