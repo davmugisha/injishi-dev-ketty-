@@ -17,6 +17,7 @@ import {
   formatLocalPhone,
   IconAction,
   KpiStrip,
+  ListToolbar,
   Money,
   PageContent,
   PageHeader,
@@ -172,15 +173,18 @@ export function BrokersView({ list, show, q }: { list: LandlordPlacementList; sh
           { id: "open", label: "Open placements", value: open, format: "count", icon: "Persons" },
         ]}
       />
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <FilterTabs
-          label="Placements"
-          tabs={TABS.map((t) => ({ ...t, count: list.placements.filter((p) => inTab(p, t.id)).length }))}
-          selectedKey={show}
-          onSelectionChange={(key) => go({ show: key as BrokersShow })}
-        />
+      <ListToolbar
+        tabs={
+          <FilterTabs
+            label="Placements"
+            tabs={TABS.map((t) => ({ ...t, count: list.placements.filter((p) => inTab(p, t.id)).length }))}
+            selectedKey={show}
+            onSelectionChange={(key) => go({ show: key as BrokersShow })}
+          />
+        }
+      >
         <SearchBar label="Search placements" value={search} onChange={setSearch} placeholder="Broker, unit or tenant" />
-      </div>
+      </ListToolbar>
       <DataTable
         label="Placements"
         rows={rows}

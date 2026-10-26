@@ -18,6 +18,7 @@ import {
   FilterTabs,
   formatDay,
   IconAction,
+  ListToolbar,
   Money,
   PageContent,
   PageHeader,
@@ -213,7 +214,7 @@ export function MoveOutsView({
     <EmptyBlock
       icon="ArrowRightFromSquare"
       title={EMPTY[list.tab]}
-      description="A notice from a tenant shows here. One that came by letter is recorded on the lease."
+      description="Notices from tenants show here."
       action={
         <ActionButton icon="FileText" onPress={() => router.push("/leases?tab=active")}>
           Open active leases
@@ -227,13 +228,16 @@ export function MoveOutsView({
       <Toast.Provider placement="bottom" />
       <PageHeader title="Move-outs" />
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <FilterTabs
-          label="Move-outs by stage"
-          tabs={tabs}
-          selectedKey={list.tab}
-          onSelectionChange={(k) => go(k as MoveOutTab, search)}
-        />
+      <ListToolbar
+        tabs={
+          <FilterTabs
+            label="Move-outs by stage"
+            tabs={tabs}
+            selectedKey={list.tab}
+            onSelectionChange={(k) => go(k as MoveOutTab, search)}
+          />
+        }
+      >
         <SearchBar
           label="Search move-outs"
           value={search}
@@ -244,7 +248,7 @@ export function MoveOutsView({
           }}
           placeholder="Tenant, unit or reference"
         />
-      </div>
+      </ListToolbar>
 
       <div className={pending ? "opacity-60 transition-opacity" : "transition-opacity"} aria-busy={pending}>
         <DataTable

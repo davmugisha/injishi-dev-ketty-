@@ -107,7 +107,7 @@ export function MoveOutCard({
         <p className="text-sm text-muted">
           {lease.status === "ending"
             ? `The lease ends on ${formatDay(lease.terms.endDate, "long")}.`
-            : "No notice. A notice from the tenant on Injishi shows here."}
+            : "No notice yet."}
         </p>
       )}
 
