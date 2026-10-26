@@ -1309,6 +1309,7 @@ export default function RegisterWizard({
           onPrepareForOwner={() => undefined}
           onEditProfile={editStoredProfile}
           onNext={checkBrokerDetails}
+          hideNext={brokerDetailsOk}
         />
         {brokerDetailsOk ? (
           <BrokerSignup busy={busy} onRegister={(districtId, paymentId) => void submitBroker(districtId, paymentId)} />

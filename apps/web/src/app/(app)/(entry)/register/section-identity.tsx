@@ -57,6 +57,7 @@ export function SectionIdentity({
   onPrepareForOwner,
   onEditProfile,
   onNext,
+  hideNext = false,
 }: {
   path: RegisterPath;
   identity: IdentityStatus | null;
@@ -79,6 +80,8 @@ export function SectionIdentity({
   /** Open a complete profile to change what it holds. */
   onEditProfile: () => void;
   onNext: () => void;
+  /** The step after this one is already open below (the broker form): no Next to press again. */
+  hideNext?: boolean;
 }) {
   const verified = identity?.kycStatus === "verified";
   const person = verified ? (identity?.verified ?? null) : null;
@@ -181,9 +184,11 @@ export function SectionIdentity({
         ) : (
           <PersonalForm draft={draft} onChange={onDraftChange} errors={errors} verification={null} />
         )}
-        <div>
-          <Button onClick={onNext}>Next</Button>
-        </div>
+        {hideNext ? null : (
+          <div>
+            <Button onClick={onNext}>Next</Button>
+          </div>
+        )}
       </>
     );
   }
@@ -272,9 +277,11 @@ export function SectionIdentity({
                 </div>
               </div>
             ) : null}
-            <div>
-              <Button onClick={onNext}>Next</Button>
-            </div>
+            {hideNext ? null : (
+              <div>
+                <Button onClick={onNext}>Next</Button>
+              </div>
+            )}
           </>
         )}
       </>
