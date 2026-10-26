@@ -257,7 +257,12 @@ export function MoveOutsView({
           mobile={{
             title: (r) => r.tenantName,
             description: (r) => `Unit ${r.unitLabel} · ${when(r)}`,
-            trailing: (r) => actions(r),
+            trailing: (r) =>
+              r.notice && !r.endedOn ? (
+                <StatusChip kind="notice" status={r.notice.status} />
+              ) : r.deposit ? (
+                <StatusChip kind="deposit" status={r.deposit.tenantDisputedAt ? "disputed" : r.deposit.status} />
+              ) : null,
           }}
           empty={empty}
         />

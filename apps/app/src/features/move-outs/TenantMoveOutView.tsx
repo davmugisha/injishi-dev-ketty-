@@ -94,7 +94,13 @@ export function TenantMoveOutView({ tenancy, view }: { tenancy: TenancyDetail; v
         <SectionCard
           className="lg:col-span-2"
           title="Your notice"
-          actions={n ? <StatusChip kind="notice" status={n.status} /> : null}
+          actions={
+            n ? (
+              <StatusChip kind="notice" status={n.status}>
+                {n.status === "submitted" ? "Submitted" : undefined}
+              </StatusChip>
+            ) : null
+          }
         >
           {n ? (
             <KeyValueList
