@@ -54,7 +54,12 @@ interface MultipartRequest {
 export class MeWorkDocumentsController {
   constructor(private readonly documents: MyDocumentsService) {}
 
-  @Get(':employeeId/documents')
+  /**
+   * Everything the person has handed in, with where each stands. At
+   * `documents/handed-in` since the staff phone's own `GET documents`
+   * (work-staff.controller, merged from main 2026-10-26) took the bare path.
+   */
+  @Get(':employeeId/documents/handed-in')
   list(@Param('employeeId', ParseUUIDPipe) employeeId: string, @CurrentUser() user: SessionUser): Promise<EmployeeDocumentList> {
     return this.documents.list(user.id, employeeId);
   }
