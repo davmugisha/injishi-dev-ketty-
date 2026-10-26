@@ -390,7 +390,7 @@ export class LeaseInvitationsService {
       case 'open':
         return null;
       case 'accepted':
-        return `This invitation was accepted. Sign in with ${maskEmail(inv.email)} to see the lease.`;
+        return `This invitation is already accepted. The lease is on the Injishi home of ${maskEmail(inv.email)}.`;
       case 'expired':
         return `This invitation expired on ${longDate(inv.expiresAt.toISOString().slice(0, 10))}. Ask ${landlordName} to send it again.`;
       case 'revoked':
