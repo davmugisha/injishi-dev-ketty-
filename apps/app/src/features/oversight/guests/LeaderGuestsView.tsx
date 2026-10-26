@@ -136,7 +136,7 @@ export function LeaderGuestsView({
             format: "count",
             icon: "Eye",
             status: counts.unseen > 0 ? "warning" : undefined,
-            footnote: counts.unseen > 0 ? "Marked with a blue dot" : "You opened them all",
+            footnote: counts.unseen > 0 ? "Marked with a dot in the list" : "You opened them all",
           },
           {
             id: "flagged",
