@@ -1,4 +1,12 @@
-import { type BoardId, canAccess, homeHref, type PersonaId, personaByEmail, screenByPath, screens } from "@injishi/data";
+import {
+  type BoardId,
+  canAccess,
+  homeHref,
+  type PersonaId,
+  personaByEmail,
+  screenByPath,
+  screens,
+} from "@injishi/data";
 import { isSetupPath } from "./setup-path";
 
 /**

@@ -109,4 +109,3 @@ export function maskPhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   return digits.length < 7 ? phone : `${digits.slice(0, 3)}• ••• ${digits.slice(-3)}`;
 }
-

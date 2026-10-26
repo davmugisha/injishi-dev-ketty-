@@ -25,8 +25,18 @@ import {
   seatAction,
   tableStatusAction,
 } from "./actions";
-import { clock, money, ORDER_COLOR, PosDialog, PosHeader, StatusChip, TABLE_COLOR, usePosAction, usePressKey } from "./shared";
 import { PosNav } from "./PosNav";
+import {
+  clock,
+  money,
+  ORDER_COLOR,
+  PosDialog,
+  PosHeader,
+  StatusChip,
+  TABLE_COLOR,
+  usePosAction,
+  usePressKey,
+} from "./shared";
 
 /**
  * The floor (POS spec §5, tables and service): every table of the outlet by dining area, with who sits
@@ -134,7 +144,9 @@ export function PosFloorView({
             <EmptyState size="sm">
               <EmptyState.Header>
                 <EmptyState.Title>No tables yet</EmptyState.Title>
-                <EmptyState.Description>This outlet has no dining areas. Takeaway orders still work.</EmptyState.Description>
+                <EmptyState.Description>
+                  This outlet has no dining areas. Takeaway orders still work.
+                </EmptyState.Description>
               </EmptyState.Header>
             </EmptyState>
           ) : (
@@ -148,7 +160,9 @@ export function PosFloorView({
                     onClick={() => setSelected(t)}
                     aria-pressed={live?.id === t.id}
                     className={`flex min-h-[112px] flex-col gap-1 rounded-2xl border p-3 text-left transition focus-visible:outline-2 focus-visible:outline-accent ${
-                      live?.id === t.id ? "border-accent bg-accent/5" : "border-separator bg-surface hover:border-accent/50"
+                      live?.id === t.id
+                        ? "border-accent bg-accent/5"
+                        : "border-separator bg-surface hover:border-accent/50"
                     }`}
                   >
                     <span className="flex items-center justify-between gap-2">
@@ -189,7 +203,9 @@ export function PosFloorView({
 
         <aside className="flex w-[340px] shrink-0 flex-col gap-3 overflow-y-auto border-l border-separator bg-surface p-4">
           {!live ? (
-            <p className="text-[13px] text-muted">Choose a table to seat a party, open its bill or change its status.</p>
+            <p className="text-[13px] text-muted">
+              Choose a table to seat a party, open its bill or change its status.
+            </p>
           ) : (
             <>
               <div className="flex items-center justify-between">
@@ -236,7 +252,12 @@ export function PosFloorView({
                         variant="secondary"
                         className="col-span-2"
                         isDisabled={pending}
-                        onPress={() => run(() => releaseAction(live.sessionId as string), `Table ${live.label} released for cleaning`)}
+                        onPress={() =>
+                          run(
+                            () => releaseAction(live.sessionId as string),
+                            `Table ${live.label} released for cleaning`,
+                          )
+                        }
                       >
                         <Receipt className="size-4" />
                         Release table
@@ -255,7 +276,9 @@ export function PosFloorView({
                         size="sm"
                         variant="secondary"
                         isDisabled={pending}
-                        onPress={() => run(() => tableStatusAction(live.id, s), `${live.label}: ${TABLE_STATUS_LABEL[s]}`)}
+                        onPress={() =>
+                          run(() => tableStatusAction(live.id, s), `${live.label}: ${TABLE_STATUS_LABEL[s]}`)
+                        }
                       >
                         {s === "available" && live.status === "cleaning" ? <Bucket className="size-4" /> : null}
                         {TABLE_STATUS_LABEL[s]}
@@ -284,7 +307,11 @@ export function PosFloorView({
                 <Button
                   isDisabled={pending}
                   onPress={() =>
-                    run(() => seatAction(seatFor.id, guests), `${guests} seated at ${seatFor.label}`, () => setSeatFor(null))
+                    run(
+                      () => seatAction(seatFor.id, guests),
+                      `${guests} seated at ${seatFor.label}`,
+                      () => setSeatFor(null),
+                    )
                   }
                 >
                   Seat {guests}
@@ -294,7 +321,13 @@ export function PosFloorView({
           >
             <div className="flex items-center gap-3">
               <Label id="guests-l">Guests</Label>
-              <NumberStepper aria-labelledby="guests-l" value={guests} minValue={1} maxValue={seatFor.seats * 2} onChange={(v) => setGuests(Number.isNaN(v) ? 1 : v)}>
+              <NumberStepper
+                aria-labelledby="guests-l"
+                value={guests}
+                minValue={1}
+                maxValue={seatFor.seats * 2}
+                onChange={(v) => setGuests(Number.isNaN(v) ? 1 : v)}
+              >
                 <NumberStepper.Group>
                   <NumberStepper.DecrementButton aria-label="Fewer guests" />
                   <NumberStepper.Value className="min-w-8 tabular" />
@@ -340,7 +373,9 @@ export function PosFloorView({
                           moveFrom.mode === "move"
                             ? moveSessionAction(moveFrom.table.sessionId as string, t.id)
                             : mergeSessionsAction(moveFrom.table.sessionId as string, t.sessionId as string),
-                        moveFrom.mode === "move" ? `Moved to ${t.label}` : `${t.label} merged into ${moveFrom.table.label}`,
+                        moveFrom.mode === "move"
+                          ? `Moved to ${t.label}`
+                          : `${t.label} merged into ${moveFrom.table.label}`,
                         () => {
                           setMoveFrom(null);
                           setSelected(moveFrom.mode === "move" ? t : moveFrom.table);

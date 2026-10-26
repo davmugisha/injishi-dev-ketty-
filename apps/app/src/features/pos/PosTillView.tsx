@@ -13,7 +13,19 @@ import {
   TagDollar,
   TrashBin,
 } from "@gravity-ui/icons";
-import { Button, Card, Checkbox, Input, Label, SearchField, Tabs, TextArea, TextField, Toast, ToggleButton } from "@heroui/react";
+import {
+  Button,
+  Card,
+  Checkbox,
+  Input,
+  Label,
+  SearchField,
+  Tabs,
+  TextArea,
+  TextField,
+  Toast,
+  ToggleButton,
+} from "@heroui/react";
 import { EmptyState, Segment } from "@heroui-pro/react";
 import { LinkButton } from "@injishi/ui";
 import { useRouter } from "next/navigation";
@@ -111,7 +123,9 @@ export function PosTillView({
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return menu.items.filter((i) => (q ? i.name.toLowerCase().includes(q) || (i.sku ?? "").toLowerCase().includes(q) : i.categoryId === category));
+    return menu.items.filter((i) =>
+      q ? i.name.toLowerCase().includes(q) || (i.sku ?? "").toLowerCase().includes(q) : i.categoryId === category,
+    );
   }, [menu.items, category, query]);
 
   function addPlain(item: PosMenuItem) {
@@ -121,7 +135,10 @@ export function PosTillView({
 
   return (
     <div className="relative flex h-full flex-col bg-background">
-      <PosHeader title={`${order.orderNumber}${order.tableLabel ? ` · Table ${order.tableLabel}` : ""}`} outlet={outlet}>
+      <PosHeader
+        title={`${order.orderNumber}${order.tableLabel ? ` · Table ${order.tableLabel}` : ""}`}
+        outlet={outlet}
+      >
         <StatusChip color={ORDER_COLOR[order.status]}>{ORDER_STATUS_LABEL[order.status]}</StatusChip>
         <LinkButton href={`/pos/floor?outlet=${outlet.id}`} variant="secondary" size="sm">
           <ArrowLeft className="size-4" />
@@ -167,7 +184,13 @@ export function PosTillView({
                 <span className="flex items-end justify-between gap-1">
                   <span className="text-[13px] tabular">{money(item.priceRwf)}</span>
                   <span className="text-[11px] text-muted">
-                    {item.available ? (item.options.length ? "Options" : item.stationId ? "" : "No ticket") : item.unavailableReason}
+                    {item.available
+                      ? item.options.length
+                        ? "Options"
+                        : item.stationId
+                          ? ""
+                          : "No ticket"
+                      : item.unavailableReason}
                   </span>
                 </span>
               </button>
@@ -188,7 +211,10 @@ export function PosTillView({
               </EmptyState>
             ) : null}
             {order.lines.map((l) => (
-              <div key={l.id} className={`flex flex-col gap-1 rounded-xl border border-separator p-2.5 ${l.status === "voided" ? "opacity-60" : ""}`}>
+              <div
+                key={l.id}
+                className={`flex flex-col gap-1 rounded-xl border border-separator p-2.5 ${l.status === "voided" ? "opacity-60" : ""}`}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <span className={`text-[14px] font-medium ${l.status === "voided" ? "line-through" : ""}`}>
                     {l.quantity} × {l.name}
@@ -259,16 +285,31 @@ export function PosTillView({
                     </span>
                     {d.status === "pending_approval" && has("pos.override") && editable ? (
                       <span className="flex gap-1">
-                        <Button size="sm" isDisabled={pending} onPress={() => run(() => decideDiscountAction(order.id, d.id, true), "Discount approved")}>
+                        <Button
+                          size="sm"
+                          isDisabled={pending}
+                          onPress={() => run(() => decideDiscountAction(order.id, d.id, true), "Discount approved")}
+                        >
                           Approve
                         </Button>
-                        <Button size="sm" variant="secondary" isDisabled={pending} onPress={() => run(() => decideDiscountAction(order.id, d.id, false), "Discount rejected")}>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          isDisabled={pending}
+                          onPress={() => run(() => decideDiscountAction(order.id, d.id, false), "Discount rejected")}
+                        >
                           Reject
                         </Button>
                       </span>
                     ) : (
-                      <StatusChip color={d.status === "approved" ? "success" : d.status === "rejected" ? "danger" : "warning"}>
-                        {d.status === "pending_approval" ? "Waiting for a manager" : d.status === "approved" ? "Approved" : "Rejected"}
+                      <StatusChip
+                        color={d.status === "approved" ? "success" : d.status === "rejected" ? "danger" : "warning"}
+                      >
+                        {d.status === "pending_approval"
+                          ? "Waiting for a manager"
+                          : d.status === "approved"
+                            ? "Approved"
+                            : "Rejected"}
                       </StatusChip>
                     )}
                   </div>
@@ -287,7 +328,15 @@ export function PosTillView({
                     </div>
                     <div className="flex flex-wrap items-center gap-1 text-muted">
                       <StatusChip
-                        color={p.status === "successful" ? "success" : p.status === "pending" || p.status === "initiated" ? "warning" : p.status === "refunded" ? "default" : "danger"}
+                        color={
+                          p.status === "successful"
+                            ? "success"
+                            : p.status === "pending" || p.status === "initiated"
+                              ? "warning"
+                              : p.status === "refunded"
+                                ? "default"
+                                : "danger"
+                        }
                       >
                         {p.status}
                       </StatusChip>
@@ -300,23 +349,42 @@ export function PosTillView({
                     {(p.status === "pending" || p.status === "initiated") && has("pos.checkout") ? (
                       <div className="flex flex-wrap gap-1">
                         <span className="self-center text-muted">Simulate the provider:</span>
-                        <Button size="sm" isDisabled={pending} onPress={() => run(() => resolvePaymentAction(p.id, "success"), "Simulated: confirmed")}>
+                        <Button
+                          size="sm"
+                          isDisabled={pending}
+                          onPress={() => run(() => resolvePaymentAction(p.id, "success"), "Simulated: confirmed")}
+                        >
                           Confirm
                         </Button>
-                        <Button size="sm" variant="secondary" isDisabled={pending} onPress={() => run(() => resolvePaymentAction(p.id, "failure"), "Simulated: declined")}>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          isDisabled={pending}
+                          onPress={() => run(() => resolvePaymentAction(p.id, "failure"), "Simulated: declined")}
+                        >
                           Decline
                         </Button>
-                        <Button size="sm" variant="secondary" isDisabled={pending} onPress={() => run(() => resolvePaymentAction(p.id, "timeout"), "Simulated: timed out")}>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          isDisabled={pending}
+                          onPress={() => run(() => resolvePaymentAction(p.id, "timeout"), "Simulated: timed out")}
+                        >
                           Time out
                         </Button>
                       </div>
                     ) : null}
-                    {p.status === "successful" && has("pos.refund") && order.settlement.settled && p.amountRwf > p.refundedRwf ? (
+                    {p.status === "successful" &&
+                    has("pos.refund") &&
+                    order.settlement.settled &&
+                    p.amountRwf > p.refundedRwf ? (
                       <Button
                         size="sm"
                         variant="secondary"
                         className="self-start"
-                        onPress={() => setDialog({ kind: "refund", paymentId: p.id, left: p.amountRwf - p.refundedRwf })}
+                        onPress={() =>
+                          setDialog({ kind: "refund", paymentId: p.id, left: p.amountRwf - p.refundedRwf })
+                        }
                       >
                         Refund
                       </Button>
@@ -338,7 +406,9 @@ export function PosTillView({
                   <dd className="text-right text-success">−{money(order.discountRwf)}</dd>
                 </>
               ) : null}
-              <dt className="text-muted">VAT {order.taxMode === "inclusive" ? "(included, illustrative)" : "(added, illustrative)"}</dt>
+              <dt className="text-muted">
+                VAT {order.taxMode === "inclusive" ? "(included, illustrative)" : "(added, illustrative)"}
+              </dt>
               <dd className="text-right">{money(order.taxRwf)}</dd>
               <dt className="text-[15px] font-semibold">Total</dt>
               <dd className="text-right text-[15px] font-semibold">{money(order.totalRwf)}</dd>
@@ -360,24 +430,50 @@ export function PosTillView({
             {editable ? (
               <div className="grid grid-cols-3 gap-1.5">
                 {has("pos.sell") ? (
-                  <Button className="col-span-3" size="lg" isDisabled={pending || drafts.length === 0} onPress={() => run(() => sendAction(order.id), "Sent to the kitchen and bar")}>
+                  <Button
+                    className="col-span-3"
+                    size="lg"
+                    isDisabled={pending || drafts.length === 0}
+                    onPress={() => run(() => sendAction(order.id), "Sent to the kitchen and bar")}
+                  >
                     <PaperPlane className="size-4" />
                     Send {drafts.length ? `${drafts.length} new` : ""}
                   </Button>
                 ) : null}
                 {has("pos.checkout") ? (
-                  <Button className="col-span-3" size="lg" variant="secondary" isDisabled={pending || order.settlement.payableRwf === 0} onPress={() => setDialog({ kind: "pay" })}>
+                  <Button
+                    className="col-span-3"
+                    size="lg"
+                    variant="secondary"
+                    isDisabled={pending || order.settlement.payableRwf === 0}
+                    onPress={() => setDialog({ kind: "pay" })}
+                  >
                     <CreditCard className="size-4" />
                     Take payment · {money(order.settlement.payableRwf)}
                   </Button>
                 ) : null}
                 {has("pos.discount") || has("pos.override") ? (
-                  <Button size="sm" variant="secondary" isDisabled={live.length === 0} onPress={() => setDialog({ kind: "discount" })}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    isDisabled={live.length === 0}
+                    onPress={() => setDialog({ kind: "discount" })}
+                  >
                     <TagDollar className="size-4" />
                     Discount
                   </Button>
                 ) : null}
-                <Button size="sm" variant="secondary" isDisabled={live.length < 2 || order.payments.some((p) => p.status !== "failed" && p.status !== "expired" && p.status !== "cancelled")} onPress={() => setDialog({ kind: "split" })}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  isDisabled={
+                    live.length < 2 ||
+                    order.payments.some(
+                      (p) => p.status !== "failed" && p.status !== "expired" && p.status !== "cancelled",
+                    )
+                  }
+                  onPress={() => setDialog({ kind: "split" })}
+                >
                   <Scissors className="size-4" />
                   Split
                 </Button>
@@ -387,7 +483,18 @@ export function PosTillView({
                     Move
                   </Button>
                 ) : null}
-                <Button size="sm" variant="secondary" isDisabled={pending} onPress={() => run(() => printBillAction(order.id), null, (print) => setDialog({ kind: "bill", print }))}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  isDisabled={pending}
+                  onPress={() =>
+                    run(
+                      () => printBillAction(order.id),
+                      null,
+                      (print) => setDialog({ kind: "bill", print }),
+                    )
+                  }
+                >
                   <Printer className="size-4" />
                   Bill
                 </Button>
@@ -396,7 +503,17 @@ export function PosTillView({
                 </Button>
               </div>
             ) : (
-              <Button variant="secondary" isDisabled={pending} onPress={() => run(() => printBillAction(order.id), null, (print) => setDialog({ kind: "bill", print }))}>
+              <Button
+                variant="secondary"
+                isDisabled={pending}
+                onPress={() =>
+                  run(
+                    () => printBillAction(order.id),
+                    null,
+                    (print) => setDialog({ kind: "bill", print }),
+                  )
+                }
+              >
                 <Printer className="size-4" />
                 Print bill again
               </Button>
@@ -408,7 +525,18 @@ export function PosTillView({
 
       <RegionOverlays>
         {dialog?.kind === "options" ? (
-          <OptionsDialog item={dialog.item} onClose={() => setDialog(null)} onAdd={(line) => run(() => addLinesAction(order.id, [line]), `${dialog.item.name} added`, () => setDialog(null))} pending={pending} />
+          <OptionsDialog
+            item={dialog.item}
+            onClose={() => setDialog(null)}
+            onAdd={(line) =>
+              run(
+                () => addLinesAction(order.id, [line]),
+                `${dialog.item.name} added`,
+                () => setDialog(null),
+              )
+            }
+            pending={pending}
+          />
         ) : null}
         {dialog?.kind === "void" ? (
           <ReasonDialog
@@ -418,7 +546,13 @@ export function PosTillView({
             danger
             pending={pending}
             onClose={() => setDialog(null)}
-            onConfirm={(reason) => run(() => voidLineAction(order.id, dialog.line.id, reason), "Line voided", () => setDialog(null))}
+            onConfirm={(reason) =>
+              run(
+                () => voidLineAction(order.id, dialog.line.id, reason),
+                "Line voided",
+                () => setDialog(null),
+              )
+            }
           />
         ) : null}
         {dialog?.kind === "cancel" ? (
@@ -429,23 +563,88 @@ export function PosTillView({
             danger
             pending={pending}
             onClose={() => setDialog(null)}
-            onConfirm={(reason) => run(() => cancelAction(order.id, reason), "Order cancelled", () => setDialog(null))}
+            onConfirm={(reason) =>
+              run(
+                () => cancelAction(order.id, reason),
+                "Order cancelled",
+                () => setDialog(null),
+              )
+            }
           />
         ) : null}
         {dialog?.kind === "discount" ? (
-          <DiscountDialog order={order} limitBps={outlet.settings.discountLimitBps} override={has("pos.override")} pending={pending} onClose={() => setDialog(null)} onApply={(body) => run(() => discountAction(order.id, body), (o) => (o.discounts.at(-1)?.status === "pending_approval" ? "Over the limit: waiting for a manager" : "Discount applied"), () => setDialog(null))} />
+          <DiscountDialog
+            order={order}
+            limitBps={outlet.settings.discountLimitBps}
+            override={has("pos.override")}
+            pending={pending}
+            onClose={() => setDialog(null)}
+            onApply={(body) =>
+              run(
+                () => discountAction(order.id, body),
+                (o) =>
+                  o.discounts.at(-1)?.status === "pending_approval"
+                    ? "Over the limit: waiting for a manager"
+                    : "Discount applied",
+                () => setDialog(null),
+              )
+            }
+          />
         ) : null}
         {dialog?.kind === "split" ? (
-          <SplitDialog order={order} pending={pending} onClose={() => setDialog(null)} onSplit={(ids) => run(() => splitAction(order.id, ids), (o) => `Split into ${o.orderNumber}`, (o) => { setDialog(null); router.push(`/pos/till?order=${o.id}`); })} />
+          <SplitDialog
+            order={order}
+            pending={pending}
+            onClose={() => setDialog(null)}
+            onSplit={(ids) =>
+              run(
+                () => splitAction(order.id, ids),
+                (o) => `Split into ${o.orderNumber}`,
+                (o) => {
+                  setDialog(null);
+                  router.push(`/pos/till?order=${o.id}`);
+                },
+              )
+            }
+          />
         ) : null}
         {dialog?.kind === "transfer" ? (
-          <TransferDialog tables={tables.filter((t) => t.sessionId && t.sessionId !== order.tableSessionId)} pending={pending} onClose={() => setDialog(null)} onMove={(sessionId, reason) => run(() => transferAction(order.id, sessionId, reason), "Order moved", () => setDialog(null))} />
+          <TransferDialog
+            tables={tables.filter((t) => t.sessionId && t.sessionId !== order.tableSessionId)}
+            pending={pending}
+            onClose={() => setDialog(null)}
+            onMove={(sessionId, reason) =>
+              run(
+                () => transferAction(order.id, sessionId, reason),
+                "Order moved",
+                () => setDialog(null),
+              )
+            }
+          />
         ) : null}
         {dialog?.kind === "pay" ? (
-          <PayDialog order={order} outlet={outlet} shift={shift} pending={pending} onClose={() => setDialog(null)} run={run} />
+          <PayDialog
+            order={order}
+            outlet={outlet}
+            shift={shift}
+            pending={pending}
+            onClose={() => setDialog(null)}
+            run={run}
+          />
         ) : null}
         {dialog?.kind === "refund" ? (
-          <RefundDialog left={dialog.left} pending={pending} onClose={() => setDialog(null)} onRefund={(amount, reason, key) => run(() => refundAction(dialog.paymentId, amount, reason, key), "Refund recorded (simulated for non cash)", () => setDialog(null))} />
+          <RefundDialog
+            left={dialog.left}
+            pending={pending}
+            onClose={() => setDialog(null)}
+            onRefund={(amount, reason, key) =>
+              run(
+                () => refundAction(dialog.paymentId, amount, reason, key),
+                "Refund recorded (simulated for non cash)",
+                () => setDialog(null),
+              )
+            }
+          />
         ) : null}
         {dialog?.kind === "bill" ? <BillDialog print={dialog.print} onClose={() => setDialog(null)} /> : null}
         <Toast.Provider placement="bottom" />
@@ -464,7 +663,12 @@ function OptionsDialog({
 }: {
   item: PosMenuItem;
   onClose: () => void;
-  onAdd: (line: { serviceItemId: string; quantity: number; selectedOptions: { name: string; choices: string[] }[]; note?: string }) => void;
+  onAdd: (line: {
+    serviceItemId: string;
+    quantity: number;
+    selectedOptions: { name: string; choices: string[] }[];
+    note?: string;
+  }) => void;
   pending: boolean;
 }) {
   const [picked, setPicked] = useState<Record<string, string[]>>(() =>
@@ -473,10 +677,15 @@ function OptionsDialog({
   const [qty, setQty] = useState(1);
   const [note, setNote] = useState("");
   const delta = item.options.reduce(
-    (a, o) => a + (picked[o.name] ?? []).reduce((b, label) => b + (o.choices.find((c) => c.label === label)?.priceDeltaRwf ?? 0), 0),
+    (a, o) =>
+      a +
+      (picked[o.name] ?? []).reduce(
+        (b, label) => b + (o.choices.find((c) => c.label === label)?.priceDeltaRwf ?? 0),
+        0,
+      ),
     0,
   );
-  const missing = item.options.filter((o) => o.required && !(picked[o.name]?.length));
+  const missing = item.options.filter((o) => o.required && !picked[o.name]?.length);
   const toggle = (name: string, label: string, max: number) =>
     setPicked((p) => {
       const now = p[name] ?? [];
@@ -495,7 +704,14 @@ function OptionsDialog({
       footer={
         <>
           <div className="mr-auto flex items-center gap-1">
-            <Button size="sm" variant="secondary" isIconOnly aria-label="One fewer" isDisabled={qty <= 1} onPress={() => setQty(qty - 1)}>
+            <Button
+              size="sm"
+              variant="secondary"
+              isIconOnly
+              aria-label="One fewer"
+              isDisabled={qty <= 1}
+              onPress={() => setQty(qty - 1)}
+            >
               <Minus className="size-4" />
             </Button>
             <span className="min-w-8 text-center tabular">{qty}</span>
@@ -532,7 +748,11 @@ function OptionsDialog({
           </Label>
           <div className="flex flex-wrap gap-1.5">
             {o.choices.map((c) => (
-              <ToggleButton key={c.label} isSelected={(picked[o.name] ?? []).includes(c.label)} onChange={() => toggle(o.name, c.label, o.maxChoices)}>
+              <ToggleButton
+                key={c.label}
+                isSelected={(picked[o.name] ?? []).includes(c.label)}
+                onChange={() => toggle(o.name, c.label, o.maxChoices)}
+              >
                 {c.label}
                 {c.priceDeltaRwf ? ` +${money(c.priceDeltaRwf)}` : ""}
               </ToggleButton>
@@ -578,7 +798,11 @@ function ReasonDialog({
           <Button variant="secondary" onPress={onClose}>
             Keep it
           </Button>
-          <Button variant={danger ? "danger" : "primary"} isDisabled={!ok || pending} onPress={() => onConfirm(reason.trim())}>
+          <Button
+            variant={danger ? "danger" : "primary"}
+            isDisabled={!ok || pending}
+            onPress={() => onConfirm(reason.trim())}
+          >
             {confirm}
           </Button>
         </>
@@ -640,7 +864,11 @@ function DiscountDialog({
         </>
       }
     >
-      <Segment aria-label="Discount kind" selectedKey={kind} onSelectionChange={(k) => setKind(k === "amount" ? "amount" : "percent")}>
+      <Segment
+        aria-label="Discount kind"
+        selectedKey={kind}
+        onSelectionChange={(k) => setKind(k === "amount" ? "amount" : "percent")}
+      >
         <Segment.Item id="percent">Percent</Segment.Item>
         <Segment.Item id="amount">Amount (RWF)</Segment.Item>
       </Segment>
@@ -671,7 +899,17 @@ function DiscountDialog({
   );
 }
 
-function SplitDialog({ order, pending, onClose, onSplit }: { order: PosOrder; pending: boolean; onClose: () => void; onSplit: (ids: string[]) => void }) {
+function SplitDialog({
+  order,
+  pending,
+  onClose,
+  onSplit,
+}: {
+  order: PosOrder;
+  pending: boolean;
+  onClose: () => void;
+  onSplit: (ids: string[]) => void;
+}) {
   const lines = order.lines.filter((l) => l.status !== "voided");
   const [chosen, setChosen] = useState<string[]>([]);
   const total = lines.filter((l) => chosen.includes(l.id)).reduce((a, l) => a + l.totalRwf, 0);
@@ -686,14 +924,21 @@ function SplitDialog({ order, pending, onClose, onSplit }: { order: PosOrder; pe
           <Button variant="secondary" onPress={onClose}>
             Cancel
           </Button>
-          <Button isDisabled={pending || chosen.length === 0 || chosen.length === lines.length} onPress={() => onSplit(chosen)}>
+          <Button
+            isDisabled={pending || chosen.length === 0 || chosen.length === lines.length}
+            onPress={() => onSplit(chosen)}
+          >
             New bill · {money(total)}
           </Button>
         </>
       }
     >
       {lines.map((l) => (
-        <Checkbox key={l.id} isSelected={chosen.includes(l.id)} onChange={(on) => setChosen(on ? [...chosen, l.id] : chosen.filter((x) => x !== l.id))}>
+        <Checkbox
+          key={l.id}
+          isSelected={chosen.includes(l.id)}
+          onChange={(on) => setChosen(on ? [...chosen, l.id] : chosen.filter((x) => x !== l.id))}
+        >
           <Checkbox.Content className="gap-2">
             <Checkbox.Control>
               <Checkbox.Indicator />
@@ -706,7 +951,17 @@ function SplitDialog({ order, pending, onClose, onSplit }: { order: PosOrder; pe
   );
 }
 
-function TransferDialog({ tables, pending, onClose, onMove }: { tables: PosTable[]; pending: boolean; onClose: () => void; onMove: (sessionId: string, reason: string) => void }) {
+function TransferDialog({
+  tables,
+  pending,
+  onClose,
+  onMove,
+}: {
+  tables: PosTable[];
+  pending: boolean;
+  onClose: () => void;
+  onMove: (sessionId: string, reason: string) => void;
+}) {
   const [to, setTo] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   return (
@@ -720,7 +975,10 @@ function TransferDialog({ tables, pending, onClose, onMove }: { tables: PosTable
           <Button variant="secondary" onPress={onClose}>
             Cancel
           </Button>
-          <Button isDisabled={pending || !to || reason.trim().length < 3} onPress={() => to && onMove(to, reason.trim())}>
+          <Button
+            isDisabled={pending || !to || reason.trim().length < 3}
+            onPress={() => to && onMove(to, reason.trim())}
+          >
             Move order
           </Button>
         </>
@@ -810,7 +1068,11 @@ function PayDialog({
                   ),
                 (o) => {
                   const p = o.payments.at(-1);
-                  return p?.status === "successful" ? "Payment recorded" : p?.status === "pending" ? "Waiting for the simulated provider" : `Payment ${p?.status ?? "recorded"}`;
+                  return p?.status === "successful"
+                    ? "Payment recorded"
+                    : p?.status === "pending"
+                      ? "Waiting for the simulated provider"
+                      : `Payment ${p?.status ?? "recorded"}`;
                 },
                 (o) => {
                   nextKey();
@@ -826,7 +1088,9 @@ function PayDialog({
       }
     >
       <SimulationNotice>
-        {method === "cash" ? "Cash is recorded in your drawer." : "This method is simulated: no money moves and no provider is contacted."}
+        {method === "cash"
+          ? "Cash is recorded in your drawer."
+          : "This method is simulated: no money moves and no provider is contacted."}
       </SimulationNotice>
       <div className="flex flex-wrap gap-1.5">
         {methods.map((m) => (
@@ -872,7 +1136,11 @@ function PayDialog({
       {method !== "cash" && method !== "voucher" ? (
         <div className="flex flex-col gap-1.5">
           <Label>The simulated provider answers</Label>
-          <Segment aria-label="Simulated outcome" selectedKey={outcome} onSelectionChange={(k) => setOutcome(String(k) as typeof outcome)}>
+          <Segment
+            aria-label="Simulated outcome"
+            selectedKey={outcome}
+            onSelectionChange={(k) => setOutcome(String(k) as typeof outcome)}
+          >
             <Segment.Item id="success">{ASYNC.includes(method) ? "Approve (after waiting)" : "Approve"}</Segment.Item>
             <Segment.Item id="pending">Leave pending</Segment.Item>
             <Segment.Item id="failure">Decline</Segment.Item>
@@ -884,7 +1152,17 @@ function PayDialog({
   );
 }
 
-function RefundDialog({ left, pending, onClose, onRefund }: { left: number; pending: boolean; onClose: () => void; onRefund: (amount: number, reason: string, key: string) => void }) {
+function RefundDialog({
+  left,
+  pending,
+  onClose,
+  onRefund,
+}: {
+  left: number;
+  pending: boolean;
+  onClose: () => void;
+  onRefund: (amount: number, reason: string, key: string) => void;
+}) {
   const [amount, setAmount] = useState(String(left));
   const [reason, setReason] = useState("");
   const [key] = usePressKey();
@@ -907,7 +1185,9 @@ function RefundDialog({ left, pending, onClose, onRefund }: { left: number; pend
         </>
       }
     >
-      <SimulationNotice>A refund of a non cash payment is simulated. A cash refund comes out of your open shift.</SimulationNotice>
+      <SimulationNotice>
+        A refund of a non cash payment is simulated. A cash refund comes out of your open shift.
+      </SimulationNotice>
       <TextField value={amount} onChange={setAmount} fullWidth>
         <Label>Amount (RWF)</Label>
         <Input inputMode="numeric" className="tabular" />

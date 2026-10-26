@@ -13,7 +13,9 @@ export const money = (n: number) => formatRwf(Math.round(n));
 
 /** "19:48" in Kigali. */
 export const clock = (iso: string) =>
-  new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Kigali", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Kigali", hour: "2-digit", minute: "2-digit" }).format(
+    new Date(iso),
+  );
 
 type ChipColor = "default" | "accent" | "success" | "warning" | "danger";
 
@@ -136,7 +138,9 @@ export function PosDialog({
             </Button>
           </Modal.Header>
           <Modal.Body className="m-0 flex flex-col gap-[14px] p-0 text-[14px] text-foreground">{children}</Modal.Body>
-          <Modal.Footer className="mt-0 flex-wrap justify-end gap-[8px] border-t border-separator pt-[12px]">{footer}</Modal.Footer>
+          <Modal.Footer className="mt-0 flex-wrap justify-end gap-[8px] border-t border-separator pt-[12px]">
+            {footer}
+          </Modal.Footer>
         </Modal.Dialog>
       </Modal.Container>
     </Modal.Backdrop>

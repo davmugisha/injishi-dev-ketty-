@@ -14,12 +14,25 @@ export default async function PosShiftPage({ searchParams }: { searchParams: Pro
   if (!page.ok) return <PosBlocked title={page.title} message={page.message} />;
   const has = (p: string) => page.can.includes(p);
   if (!has("register.operate") && !has("shift.review")) {
-    return <PosBlocked title="Not open to you" message="Running a till or reviewing shifts is not part of your role." />;
+    return (
+      <PosBlocked title="Not open to you" message="Running a till or reviewing shifts is not part of your role." />
+    );
   }
   const [registers, mine, shifts] = await Promise.all([
     posRegisters(page.ctx, page.outlet.id),
     has("register.operate") ? posMyShift(page.ctx, page.outlet.id) : Promise.resolve(null),
-    has("shift.review") || has("money.view") ? posShifts(page.ctx, { outletId: page.outlet.id, limit: 20 }) : Promise.resolve([]),
+    has("shift.review") || has("money.view")
+      ? posShifts(page.ctx, { outletId: page.outlet.id, limit: 20 })
+      : Promise.resolve([]),
   ]);
-  return <PosShiftView outlet={page.outlet} registers={registers} mine={mine} shifts={shifts} can={page.can} userId={page.userId} />;
+  return (
+    <PosShiftView
+      outlet={page.outlet}
+      registers={registers}
+      mine={mine}
+      shifts={shifts}
+      can={page.can}
+      userId={page.userId}
+    />
+  );
 }

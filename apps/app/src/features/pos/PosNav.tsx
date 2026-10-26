@@ -5,9 +5,24 @@ import { LinkButton } from "@injishi/ui";
 type Board = "PosFloor" | "PosTill" | "PosStations" | "PosShift";
 
 const LINKS: { board: Board; label: string; href: (outletId: string) => string; any: string[] }[] = [
-  { board: "PosFloor", label: "Floor", href: (o) => `/pos/floor?outlet=${o}`, any: ["pos.sell", "table.manage", "pos.checkout"] },
-  { board: "PosStations", label: "Kitchen and bar", href: (o) => `/pos/stations?outlet=${o}`, any: ["kitchen.work", "pos.sell"] },
-  { board: "PosShift", label: "Shift", href: (o) => `/pos/shift?outlet=${o}`, any: ["register.operate", "shift.review"] },
+  {
+    board: "PosFloor",
+    label: "Floor",
+    href: (o) => `/pos/floor?outlet=${o}`,
+    any: ["pos.sell", "table.manage", "pos.checkout"],
+  },
+  {
+    board: "PosStations",
+    label: "Kitchen and bar",
+    href: (o) => `/pos/stations?outlet=${o}`,
+    any: ["kitchen.work", "pos.sell"],
+  },
+  {
+    board: "PosShift",
+    label: "Shift",
+    href: (o) => `/pos/shift?outlet=${o}`,
+    any: ["register.operate", "shift.review"],
+  },
 ];
 
 /** The live POS screens this person's permissions open, in the header of each. */
