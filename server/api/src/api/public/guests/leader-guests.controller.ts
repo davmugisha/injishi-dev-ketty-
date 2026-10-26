@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Res, UseGuards } from '@nestjs/common';
 import {
+  LEADER_ROLES,
   FlagGuestRequest,
   type GuestReport,
   GuestReportQuery,
@@ -25,7 +26,7 @@ function stamp(query: { from?: string; to?: string; tab?: string }): string {
 /**
  * The local leader's console → /api/v1/oversight/guests (P5, blueprint 2.5).
  *
- * `OversightGuard` with the five leader roles: a person holding none is
+ * `OversightGuard` with every leader role: a person holding none is
  * refused (403). Inside, scope is the leader's own posts on every read: a
  * village leader their village, a DASSO their sector, a cell executive their
  * cell, the district officer Rwandan guests of the district, the immigration
@@ -35,7 +36,8 @@ function stamp(query: { from?: string; to?: string; tab?: string }): string {
  */
 @Controller({ path: 'oversight/guests', version: '1' })
 @UseGuards(SessionGuard, OversightGuard)
-@RequireOversight('village_leader', 'dasso', 'cell_executive', 'district_officer', 'district_immigration')
+// Every leader post the database knows, retired ones included, so an older record still opens.
+@RequireOversight(...LEADER_ROLES)
 export class OversightGuestsController {
   constructor(
     private readonly console: LeaderConsoleService,
