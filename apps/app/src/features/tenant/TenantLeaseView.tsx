@@ -9,6 +9,7 @@ import {
   EmptyBlock,
   EventTimeline,
   formatDay,
+  Icon,
   KeyValueList,
   Money,
   PageContent,
@@ -20,9 +21,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ContractDocument } from "../leases/ContractDocument";
 import { SigningPanel } from "../leases/SigningPanel";
-import { contractOf, placeWords, SIGNING_METHOD_WORDS, tenantPdfHref, timelineOf } from "../leases/shared";
+import { contractOf, placeWords, tenantPdfHref, timelineOf } from "../leases/shared";
 import { reloadTenancyContract, requestTenantSigningCode, signLeaseAsTenant } from "./actions";
 import { TenantBrokerCard } from "./TenantBrokerCard";
+
+const SIGNED_WITH: Record<TenancyDetail["signatures"][number]["method"], string> = {
+  email_code: "emailed code",
+  password: "password",
+  legacy: "on paper",
+};
 
 /**
  * The tenant's lease (P3.2): the contract as it was frozen, the PDF (the signed copy once both signed),
@@ -43,6 +50,7 @@ export function TenantLeaseView({
   const router = useRouter();
   const pathname = usePathname();
   const [signing, setSigning] = useState(false);
+  const [allEvents, setAllEvents] = useState(false);
   const doc = contractOf(contract);
 
   useEffect(() => {
@@ -68,11 +76,9 @@ export function TenantLeaseView({
         description={
           tenancy.needsMySignature
             ? `${tenancy.landlord.name} signed it. Read it through, then sign.`
-            : tenancy.signedCopyReady
-              ? "Signed by both. The PDF is the signed copy."
-              : tenancy.status === "pending_signature"
-                ? "Waiting for your landlord."
-                : undefined
+            : tenancy.status === "pending_signature"
+              ? "Waiting for your landlord."
+              : undefined
         }
         actions={
           <>
@@ -109,13 +115,17 @@ export function TenantLeaseView({
             {tenancy.signatures.length === 0 ? (
               <p className="text-sm text-muted">Nobody has signed yet.</p>
             ) : (
-              <ul className="flex flex-col gap-3">
+              <ul className="flex flex-col divide-y divide-separator">
                 {tenancy.signatures.map((s) => (
-                  <li key={`${s.role}-${s.version}`} className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium">{s.role === "landlord" ? "Landlord" : "You"}</span>
-                    <span className="text-sm">{s.typedName ?? "No typed name"}</span>
-                    <span className="text-xs text-muted">
-                      {formatDay(s.signedAt, "long")} · {SIGNING_METHOD_WORDS[s.method]}
+                  <li key={`${s.role}-${s.version}`} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+                    <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
+                      <Icon name="Check" />
+                    </span>
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                      <span className="truncate text-sm font-medium">{s.typedName ?? "No typed name"}</span>
+                      <span className="text-xs text-muted">
+                        {s.role === "landlord" ? "Landlord" : "You"} · {formatDay(s.signedAt)} · {SIGNED_WITH[s.method]}
+                      </span>
                     </span>
                   </li>
                 ))}
@@ -143,7 +153,17 @@ export function TenantLeaseView({
             {events.length === 0 ? (
               <p className="text-sm text-muted">Nothing yet.</p>
             ) : (
-              <EventTimeline label={`Lease ${tenancy.reference} history`} events={timelineOf(events)} />
+              <>
+                <EventTimeline
+                  label={`Lease ${tenancy.reference} history`}
+                  events={allEvents ? timelineOf(events) : timelineOf(events).slice(-5)}
+                />
+                {events.length > 5 ? (
+                  <ActionButton size="sm" intent="ghost" className="self-start" onPress={() => setAllEvents((v) => !v)}>
+                    {allEvents ? "Show the latest" : `Show all ${events.length}`}
+                  </ActionButton>
+                ) : null}
+              </>
             )}
           </SectionCard>
         </div>

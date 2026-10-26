@@ -1,3 +1,4 @@
+import { kigaliToday } from "@injishi/contracts";
 import { screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -18,7 +19,9 @@ export default async function TenancyRentPage({ params }: { params: Promise<{ le
     mineOrNull(tenancyPayments(leaseId)),
   ]);
   if (!tenancy || !charges) notFound();
-  return <TenantRentView tenancy={tenancy} charges={charges} payments={payments?.payments ?? []} />;
+  return (
+    <TenantRentView tenancy={tenancy} charges={charges} payments={payments?.payments ?? []} today={kigaliToday()} />
+  );
 }
 
 export const dynamic = "force-dynamic";

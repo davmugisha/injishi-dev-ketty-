@@ -64,7 +64,7 @@ export function TenantGuestsView({
       <PageHeader
         eyebrow={place}
         title="Guests"
-        description="Anyone staying the night. It goes to the local leaders; your landlord does not see it."
+        description="Shared with the local leaders, never your landlord."
         actions={
           open ? (
             <ActionButton icon="PersonPlus" intent="primary" onPress={() => setRegistering(true)}>

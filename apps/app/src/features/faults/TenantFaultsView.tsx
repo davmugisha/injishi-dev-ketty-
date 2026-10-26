@@ -127,7 +127,7 @@ export function TenantFaultsView({
           <EmptyBlock
             icon="Wrench"
             title="Nothing reported"
-            description="A tap leaking, a broken lock, no power: report it with a photo and your landlord is told."
+            description="A leak, a broken lock, no power: report it with a photo."
             action={reportButton ?? undefined}
           />
         }
@@ -135,7 +135,7 @@ export function TenantFaultsView({
       {reporting ? (
         <ReportFaultDialog
           title="Report a fault"
-          description="Your landlord gets it at once and you can follow it here."
+          description="Your landlord is told at once."
           create={async (draft) => {
             const r = await reportFault(tenancy.id, draft);
             return r.ok ? { ok: true, value: { id: r.value.id, reference: r.value.reference } } : r;

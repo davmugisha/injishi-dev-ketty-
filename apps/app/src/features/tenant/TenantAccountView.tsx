@@ -210,10 +210,10 @@ function ChangePasswordDialog({ isOpen, onOpenChange }: { isOpen: boolean; onOpe
         <PasswordField label="New password" value={password} onChange={setPassword} isNew />
         <PasswordField label="Type it again" value={confirm} onChange={setConfirm} />
         <Checkbox isSelected={signOutOthers} onChange={setSignOutOthers}>
-          <Checkbox.Control>
-            <Checkbox.Indicator />
-          </Checkbox.Control>
-          <Checkbox.Content>
+          <Checkbox.Content className="flex items-center gap-2.5">
+            <Checkbox.Control>
+              <Checkbox.Indicator />
+            </Checkbox.Control>
             <Label>Sign out my other devices</Label>
           </Checkbox.Content>
         </Checkbox>

@@ -20,9 +20,11 @@ import {
   EmptyBlock,
   FilterTabs,
   IconAction,
+  ListToolbar,
   PersonCell,
   RowActions,
   StatusChip,
+  StatusDot,
 } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -157,14 +159,29 @@ export function HostGuestList({
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <FilterTabs
-        label="Guests by stay"
-        tabs={TABS.filter((t) => t.id !== "cancelled" || (list.counts.cancelled ?? 0) > 0 || tab === "cancelled").map(
-          (t) => ({ ...t, count: list.counts[t.id] ?? 0 }),
-        )}
-        selectedKey={tab}
-        onSelectionChange={(k) => onTab(k as HostGuestTab)}
-      />
+      <ListToolbar
+        tabs={
+          <FilterTabs
+            label="Guests by stay"
+            tabs={TABS.filter(
+              (t) => t.id !== "cancelled" || (list.counts.cancelled ?? 0) > 0 || tab === "cancelled",
+            ).map((t) => ({ ...t, count: list.counts[t.id] ?? 0 }))}
+            selectedKey={tab}
+            onSelectionChange={(k) => onTab(k as HostGuestTab)}
+          />
+        }
+      >
+        {list.guests.length > 0 ? (
+          <ul aria-label="What the leader chips mean" className="hidden items-center gap-3 text-xs text-muted md:flex">
+            {(["seen", "delivered", "waiting"] as const).map((key) => (
+              <li key={key} className="flex items-center gap-1.5">
+                <StatusDot tone={ROUTE_STATE[key].tone} />
+                {ROUTE_STATE[key].words}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </ListToolbar>
       <DataTable
         label="Guests"
         rows={list.guests}
@@ -219,15 +236,6 @@ export function HostGuestList({
           />
         }
       />
-      {list.guests.length > 0 ? (
-        <ul aria-label="What the leader chips mean" className="flex flex-wrap items-center gap-2 text-xs text-muted">
-          {(["seen", "delivered", "waiting"] as const).map((key) => (
-            <li key={key}>
-              <StatusChip tone={ROUTE_STATE[key].tone}>{ROUTE_STATE[key].words}</StatusChip>
-            </li>
-          ))}
-        </ul>
-      ) : null}
 
       {registering || editing ? (
         <GuestFormPanel

@@ -6,7 +6,6 @@ import {
   daysBetween,
   LEASE_PAYMENT_METHOD_LABEL,
   type LeaseChargeView,
-  nationalPhone,
   type TenancyDetail,
   type TenantChargeList,
   type TenantPaymentView,
@@ -22,13 +21,16 @@ import {
   Money,
   PageContent,
   PageHeader,
+  PersonCell,
   SectionCard,
   StatusChip,
 } from "@injishi/ui";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { dueDayWords, placeWords, tenantGuestsHref, tenantLeaseHref, tenantRentHref } from "../leases/shared";
+import { localPhone, nextRent } from "./format";
 import { PayPanel } from "./PayPanel";
+import { RateBrokerDialog } from "./TenantBrokerCard";
 
 /** What is owed now, in one sentence and a tone. */
 export function owedWords(charges: TenantChargeList): { title: string; tone: "danger" | "warning" | "success" } {
@@ -82,19 +84,21 @@ export function TenantOverviewView({
   }, [openPay, canPay, charges, pathname, router]);
 
   const owed = charges ? owedWords(charges) : null;
+  const upcoming = charges ? nextRent(t, charges.charges, today) : null;
+  const [rating, setRating] = useState(false);
   const todo: {
     id: string;
     title: string;
     detail: string;
     href?: string;
     press?: () => void;
-    icon: "FileText" | "Wallet" | "PersonPlus";
+    icon: "FileText" | "Wallet" | "PersonPlus" | "Star";
   }[] = [];
   if (tenancy.needsMySignature)
     todo.push({
       id: "sign",
       title: "Sign your lease",
-      detail: `${tenancy.landlord.name} signed it. Read it and sign.`,
+      detail: `${tenancy.landlord.name} signed it.`,
       href: `${tenantLeaseHref(tenancy.id)}?sign=1`,
       icon: "FileText",
     });
@@ -114,14 +118,25 @@ export function TenantOverviewView({
       press: () => pay(),
       icon: "Wallet",
     });
+  if (tenancy.broker?.canRate && !tenancy.broker.rating)
+    todo.push({
+      id: "rate",
+      title: "Rate your broker",
+      detail: tenancy.broker.name ?? "The broker who found you this home",
+      press: () => setRating(true),
+      icon: "Star",
+    });
   if (tenancy.status === "active" || tenancy.status === "signed")
     todo.push({
       id: "guests",
-      title: "Expecting a guest overnight?",
-      detail: "Register them. It goes to the local leaders.",
+      title: "Register an overnight guest",
+      detail: "Shared with the local leaders only",
       href: tenantGuestsHref(tenancy.id),
       icon: "PersonPlus",
     });
+
+  const owedNow = charges ? charges.outstandingRwf : tenancy.charges.balanceRwf;
+  const landlord = tenancy.landlord;
 
   return (
     <PageContent>
@@ -136,12 +151,12 @@ export function TenantOverviewView({
               ? "Your lease is waiting for your signature."
               : "Waiting for your landlord."
             : tenancy.status === "signed"
-              ? `Signed by both. Your tenancy starts ${formatDay(t.startDate, "long")}.`
+              ? `Your tenancy starts ${formatDay(t.startDate, "long")}.`
               : tenancy.status === "cancelled"
                 ? "This lease was cancelled."
                 : tenancy.status === "ended"
                   ? "This lease has ended."
-                  : `Your lease runs to ${formatDay(t.endDate, "long")}.`
+                  : null
         }
         actions={
           tenancy.needsMySignature ? (
@@ -152,175 +167,189 @@ export function TenantOverviewView({
         }
       />
 
-      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-3">
-        <div className="flex min-w-0 flex-col gap-5 lg:col-span-2">
-          <Card className="gap-4 p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex min-w-0 flex-col gap-1">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-3">
+        <Card className="min-w-0 gap-0 p-0 lg:col-span-2">
+          <div className="grid h-full min-w-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,15rem)]">
+            <div className="flex min-w-0 flex-col gap-4 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm text-muted">What you owe now</span>
-                <span className="text-3xl font-semibold tabular">
-                  {charges ? formatMoney(charges.outstandingRwf) : formatMoney(tenancy.charges.balanceRwf)}
-                </span>
-                {owed ? <span className="text-sm text-muted">{owed.title}</span> : null}
+                {owed && owed.tone !== "success" ? (
+                  <StatusChip tone={owed.tone}>{owed.tone === "danger" ? "Overdue" : "Due"}</StatusChip>
+                ) : null}
               </div>
-              {owed ? (
-                <StatusChip tone={owed.tone} size="md">
-                  {owed.tone === "danger" ? "Overdue" : owed.tone === "warning" ? "Due" : "Up to date"}
-                </StatusChip>
+              <div className="flex flex-col gap-1">
+                <span className="text-4xl font-semibold tracking-tight tabular">{formatMoney(owedNow)}</span>
+                {owed ? (
+                  <span className={owed.tone === "danger" ? "text-sm text-danger" : "text-sm text-muted"}>
+                    {owed.title}
+                  </span>
+                ) : null}
+                {charges && charges.creditRwf > 0 ? (
+                  <span className="text-sm text-muted">{formatMoney(charges.creditRwf)} credit on your next rent</span>
+                ) : null}
+              </div>
+              {charges?.pendingPaymentId ? (
+                <Alert status="accent">
+                  <Alert.Indicator>
+                    <Icon name="Smartphone" />
+                  </Alert.Indicator>
+                  <Alert.Content className="gap-2">
+                    <Alert.Title className="text-sm">A payment is waiting for you on your phone.</Alert.Title>
+                    <ActionButton size="sm" className="self-start" onPress={() => pay()}>
+                      See where it is
+                    </ActionButton>
+                  </Alert.Content>
+                </Alert>
               ) : null}
-            </div>
-            {charges?.pendingPaymentId ? (
-              <Alert status="accent">
-                <Alert.Indicator>
-                  <Icon name="Smartphone" />
-                </Alert.Indicator>
-                <Alert.Content className="gap-2">
-                  <Alert.Title className="text-sm">
-                    A payment is waiting for you to approve it on your phone.
-                  </Alert.Title>
-                  <ActionButton size="sm" className="self-start" onPress={() => pay()}>
-                    See where it is
+              <div className="mt-auto flex flex-wrap gap-2">
+                {canPay ? (
+                  <ActionButton icon="Wallet" intent="primary" onPress={() => pay()}>
+                    Pay now
                   </ActionButton>
-                </Alert.Content>
-              </Alert>
-            ) : null}
-            {charges && charges.creditRwf > 0 ? (
-              <p className="text-sm text-muted">{formatMoney(charges.creditRwf)} credit goes to your next rent.</p>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              {canPay ? (
-                <ActionButton icon="Wallet" intent="primary" onPress={() => pay()}>
-                  Pay with MoMo or Airtel
-                </ActionButton>
-              ) : null}
-              <ActionLink href={tenantRentHref(tenancy.id)} icon="Receipt" intent="ghost">
-                Rent and receipts
-              </ActionLink>
-            </div>
-          </Card>
-
-          {todo.length > 0 ? (
-            <SectionCard title="To do" contentClassName="gap-0">
-              <ListView
-                aria-label="To do"
-                variant="secondary"
-                items={todo}
-                onAction={(key) => {
-                  const item = todo.find((i) => i.id === String(key));
-                  if (item?.href) router.push(item.href);
-                  else item?.press?.();
-                }}
-              >
-                {(item) => (
-                  <ListView.Item id={item.id} textValue={item.title} className="cursor-pointer items-start">
-                    <ListView.ItemContent className="items-start gap-3">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-default text-muted">
-                        <Icon name={item.icon} />
-                      </span>
-                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <ListView.Title className="whitespace-normal">{item.title}</ListView.Title>
-                        <ListView.Description className="whitespace-normal">{item.detail}</ListView.Description>
-                      </span>
-                    </ListView.ItemContent>
-                    <ListView.ItemAction className="self-center text-muted">
-                      <Icon name="ChevronRight" />
-                    </ListView.ItemAction>
-                  </ListView.Item>
-                )}
-              </ListView>
-            </SectionCard>
-          ) : null}
-
-          <SectionCard
-            title="Latest payments"
-            actions={
-              payments.length > 0 ? (
-                <ActionLink href={tenantRentHref(tenancy.id)} size="sm" intent="ghost">
-                  All payments
+                ) : null}
+                <ActionLink href={tenantRentHref(tenancy.id)} icon="Receipt" intent="ghost">
+                  Payments and receipts
                 </ActionLink>
-              ) : null
-            }
-          >
-            {payments.length === 0 ? (
-              <p className="text-sm text-muted">No payments yet.</p>
-            ) : (
-              <ul className="flex flex-col divide-y divide-separator">
-                {payments.slice(0, 3).map((p) => (
-                  <li key={p.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-                    <span className="flex min-w-0 flex-col">
-                      <span className="text-sm font-medium">{LEASE_PAYMENT_METHOD_LABEL[p.method]}</span>
-                      <span className="text-xs text-muted">
-                        {formatDay(p.paidOn ?? p.createdAt)}
-                        {p.receiptNumber ? ` · ${p.receiptNumber}` : ""}
-                      </span>
+              </div>
+            </div>
+            <dl className="grid min-w-0 grid-cols-2 content-center gap-4 border-t border-separator p-5 sm:grid-cols-1 sm:border-t-0 sm:border-l">
+              <Fact
+                label="Next rent"
+                value={upcoming ? <Money value={upcoming.amountRwf} /> : "None left"}
+                hint={upcoming ? formatDay(upcoming.dueOn, "long") : undefined}
+              />
+              <Fact
+                label="Lease ends"
+                value={<DateText value={t.endDate} />}
+                hint={live && left >= 0 ? `${left} ${left === 1 ? "day" : "days"} left` : undefined}
+              />
+            </dl>
+          </div>
+        </Card>
+
+        <SectionCard title="Your landlord" className="h-full" contentClassName="flex-1">
+          <PersonCell
+            size="md"
+            name={landlord.name}
+            secondary={landlord.signatoryName ?? (landlord.phone ? localPhone(landlord.phone) : undefined)}
+          />
+          {landlord.phone && landlord.signatoryName ? (
+            <span className="text-sm text-muted tabular">{localPhone(landlord.phone)}</span>
+          ) : null}
+          <div className="mt-auto grid grid-cols-2 gap-2">
+            <ActionLink href={`/home/${tenancy.id}/messages`} icon="Comments" className="w-full">
+              Message
+            </ActionLink>
+            {landlord.phone ? (
+              <ActionLink href={`tel:${landlord.phone}`} icon="Handset" className="w-full">
+                Call
+              </ActionLink>
+            ) : landlord.email ? (
+              <ActionLink href={`mailto:${landlord.email}`} icon="Envelope" className="w-full">
+                Email
+              </ActionLink>
+            ) : null}
+          </div>
+        </SectionCard>
+
+        <SectionCard title="To do" className="h-full lg:col-span-2" contentClassName="gap-0">
+          {todo.length === 0 ? (
+            <p className="text-sm text-muted">Nothing to do.</p>
+          ) : (
+            <ListView
+              aria-label="To do"
+              variant="secondary"
+              items={todo}
+              onAction={(key) => {
+                const item = todo.find((i) => i.id === String(key));
+                if (item?.href) router.push(item.href);
+                else item?.press?.();
+              }}
+            >
+              {(item) => (
+                <ListView.Item id={item.id} textValue={item.title} className="cursor-pointer">
+                  <ListView.ItemContent className="items-center gap-3">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-default text-muted">
+                      <Icon name={item.icon} />
                     </span>
-                    <span className="flex items-center gap-3">
-                      <Money value={p.amountRwf} />
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <ListView.Title className="whitespace-normal">{item.title}</ListView.Title>
+                      <ListView.Description className="whitespace-normal">{item.detail}</ListView.Description>
+                    </span>
+                  </ListView.ItemContent>
+                  <ListView.ItemAction className="self-center text-muted">
+                    <Icon name="ChevronRight" />
+                  </ListView.ItemAction>
+                </ListView.Item>
+              )}
+            </ListView>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Your lease"
+          className="h-full"
+          actions={
+            <ActionLink href={tenantLeaseHref(tenancy.id)} size="sm" intent="ghost" icon="FileText">
+              Read
+            </ActionLink>
+          }
+        >
+          <KeyValueList
+            items={[
+              { label: "Rent", value: <Money value={t.monthlyRentRwf} /> },
+              { label: "Due", value: dueDayWords(t.rentDueDay) },
+              {
+                label: "Deposit",
+                value: (
+                  <span className="flex flex-wrap items-center gap-2">
+                    <Money value={t.depositRwf} />
+                    {tenancy.charges.depositStatus ? (
+                      <StatusChip kind="deposit" status={tenancy.charges.depositStatus} />
+                    ) : null}
+                  </span>
+                ),
+              },
+              { label: "Started", value: <DateText value={t.startDate} /> },
+            ]}
+          />
+        </SectionCard>
+
+        <SectionCard
+          title="Latest payments"
+          className="lg:col-span-3"
+          actions={
+            payments.length > 0 ? (
+              <ActionLink href={tenantRentHref(tenancy.id)} size="sm" intent="ghost" icon="ArrowRight">
+                All payments
+              </ActionLink>
+            ) : null
+          }
+        >
+          {payments.length === 0 ? (
+            <p className="text-sm text-muted">No payments yet.</p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-separator">
+              {payments.slice(0, 3).map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-medium">{LEASE_PAYMENT_METHOD_LABEL[p.method]}</span>
+                    <span className="truncate text-xs text-muted">
+                      {formatDay(p.paidOn ?? p.createdAt)}
+                      {p.receiptNumber ? ` · ${p.receiptNumber}` : ""}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-0">
+                    <Money value={p.amountRwf} className="font-medium sm:inline-block sm:w-36 sm:text-right" />
+                    <span className="flex sm:w-24 sm:justify-end">
                       <StatusChip kind="payment" status={p.status} />
                     </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </SectionCard>
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-5">
-          <SectionCard title="Your lease">
-            <KeyValueList
-              items={[
-                { label: "Rent", value: <Money value={t.monthlyRentRwf} /> },
-                { label: "Due", value: dueDayWords(t.rentDueDay) },
-                {
-                  label: "Deposit",
-                  value: (
-                    <span className="flex flex-wrap items-center gap-2">
-                      <Money value={t.depositRwf} />
-                      {tenancy.charges.depositStatus ? (
-                        <StatusChip kind="deposit" status={tenancy.charges.depositStatus} />
-                      ) : null}
-                    </span>
-                  ),
-                },
-                {
-                  label: "Ends",
-                  value: (
-                    <>
-                      <DateText value={t.endDate} />
-                      {live && left >= 0 ? <span className="font-normal text-muted"> · {left} days left</span> : null}
-                    </>
-                  ),
-                },
-              ]}
-            />
-            <ActionLink href={tenantLeaseHref(tenancy.id)} size="sm" icon="FileText" className="self-start">
-              Read the lease
-            </ActionLink>
-          </SectionCard>
-          <SectionCard title="Your landlord">
-            <div className="flex flex-col gap-0.5">
-              <span className="font-semibold">{tenancy.landlord.name}</span>
-              {tenancy.landlord.signatoryName ? (
-                <span className="text-sm text-muted">{tenancy.landlord.signatoryName}</span>
-              ) : null}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <ActionLink href={`/home/${tenancy.id}/messages`} size="sm" icon="Comments">
-                Message
-              </ActionLink>
-              {tenancy.landlord.phone ? (
-                <ActionLink href={`tel:${tenancy.landlord.phone}`} size="sm" icon="Handset">
-                  <span className="tabular">{nationalPhone(tenancy.landlord.phone)}</span>
-                </ActionLink>
-              ) : null}
-              {tenancy.landlord.email ? (
-                <ActionLink href={`mailto:${tenancy.landlord.email}`} size="sm" icon="Envelope" intent="ghost">
-                  Email
-                </ActionLink>
-              ) : null}
-            </div>
-          </SectionCard>
-        </div>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
       </div>
 
       {paying && charges ? (
@@ -333,6 +362,17 @@ export function TenantOverviewView({
           onClose={() => setPaying(false)}
         />
       ) : null}
+      {tenancy.broker ? <RateBrokerDialog tenancy={tenancy} isOpen={rating} onOpenChange={setRating} /> : null}
     </PageContent>
+  );
+}
+
+function Fact({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="truncate text-base font-semibold tabular">{value}</dd>
+      {hint ? <dd className="text-xs text-muted">{hint}</dd> : null}
+    </div>
   );
 }
