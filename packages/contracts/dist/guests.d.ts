@@ -1319,6 +1319,9 @@ export type LeaderGuestTab = z.infer<typeof LeaderGuestTab>;
 /** The Arriving tab's window: the next 7 days, or everyone arriving after that. */
 export declare const LeaderArrivingWhen: z.ZodEnum<["soon", "later"]>;
 export type LeaderArrivingWhen = z.infer<typeof LeaderArrivingWhen>;
+/** A guest filter by nationality, in the leader's words: everyone, Rwandans, or guests from other countries. */
+export declare const ReportOrigin: z.ZodEnum<["nationals", "international"]>;
+export type ReportOrigin = z.infer<typeof ReportOrigin>;
 export declare const LeaderGuestQuery: z.ZodObject<{
     tab: z.ZodDefault<z.ZodEnum<["arriving", "staying", "left", "flagged"]>>;
     when: z.ZodDefault<z.ZodEnum<["soon", "later"]>>;
@@ -1326,6 +1329,10 @@ export declare const LeaderGuestQuery: z.ZodObject<{
     cellId: z.ZodOptional<z.ZodNumber>;
     villageId: z.ZodOptional<z.ZodNumber>;
     q: z.ZodOptional<z.ZodString>;
+    /** Rwandan guests, or guests of another nationality. */
+    origin: z.ZodOptional<z.ZodEnum<["nationals", "international"]>>;
+    /** One nationality (ISO 3166-1 alpha-2). */
+    nationality: z.ZodOptional<z.ZodString>;
     page: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     page: number;
@@ -1335,12 +1342,16 @@ export declare const LeaderGuestQuery: z.ZodObject<{
     cellId?: number | undefined;
     villageId?: number | undefined;
     q?: string | undefined;
+    origin?: "nationals" | "international" | undefined;
+    nationality?: string | undefined;
 }, {
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
     page?: number | undefined;
     q?: string | undefined;
+    origin?: "nationals" | "international" | undefined;
+    nationality?: string | undefined;
     tab?: "arriving" | "staying" | "left" | "flagged" | undefined;
     when?: "soon" | "later" | undefined;
 }>;
@@ -1677,6 +1688,20 @@ export declare const LeaderFilters: z.ZodObject<{
         cellId: number;
         id: number;
     }>, "many">;
+    /** The nationalities among the guests in the leader's area (in the place chosen), most guests first. */
+    nationalities: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        code: z.ZodString;
+        name: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        code: string;
+        name: string;
+        count: number;
+    }, {
+        code: string;
+        name: string;
+        count: number;
+    }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     sectors: {
         name: string;
@@ -1691,6 +1716,11 @@ export declare const LeaderFilters: z.ZodObject<{
         name: string;
         cellId: number;
         id: number;
+    }[];
+    nationalities: {
+        code: string;
+        name: string;
+        count: number;
     }[];
 }, {
     sectors: {
@@ -1707,6 +1737,11 @@ export declare const LeaderFilters: z.ZodObject<{
         cellId: number;
         id: number;
     }[];
+    nationalities?: {
+        code: string;
+        name: string;
+        count: number;
+    }[] | undefined;
 }>;
 export type LeaderFilters = z.infer<typeof LeaderFilters>;
 export declare const LeaderCounts: z.ZodObject<{
@@ -1802,6 +1837,20 @@ export declare const LeaderSummary: z.ZodObject<{
             cellId: number;
             id: number;
         }>, "many">;
+        /** The nationalities among the guests in the leader's area (in the place chosen), most guests first. */
+        nationalities: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            code: z.ZodString;
+            name: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            code: string;
+            name: string;
+            count: number;
+        }, {
+            code: string;
+            name: string;
+            count: number;
+        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         sectors: {
             name: string;
@@ -1816,6 +1865,11 @@ export declare const LeaderSummary: z.ZodObject<{
             name: string;
             cellId: number;
             id: number;
+        }[];
+        nationalities: {
+            code: string;
+            name: string;
+            count: number;
         }[];
     }, {
         sectors: {
@@ -1832,6 +1886,11 @@ export declare const LeaderSummary: z.ZodObject<{
             cellId: number;
             id: number;
         }[];
+        nationalities?: {
+            code: string;
+            name: string;
+            count: number;
+        }[] | undefined;
     }>;
     counts: z.ZodObject<{
         /** Arriving in the next 7 days. */
@@ -1893,6 +1952,11 @@ export declare const LeaderSummary: z.ZodObject<{
             cellId: number;
             id: number;
         }[];
+        nationalities: {
+            code: string;
+            name: string;
+            count: number;
+        }[];
     };
 }, {
     scopes: {
@@ -1929,6 +1993,11 @@ export declare const LeaderSummary: z.ZodObject<{
             cellId: number;
             id: number;
         }[];
+        nationalities?: {
+            code: string;
+            name: string;
+            count: number;
+        }[] | undefined;
     };
 }>;
 export type LeaderSummary = z.infer<typeof LeaderSummary>;
@@ -1999,6 +2068,20 @@ export declare const LeaderGuestPage: z.ZodObject<{
             cellId: number;
             id: number;
         }>, "many">;
+        /** The nationalities among the guests in the leader's area (in the place chosen), most guests first. */
+        nationalities: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            code: z.ZodString;
+            name: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            code: string;
+            name: string;
+            count: number;
+        }, {
+            code: string;
+            name: string;
+            count: number;
+        }>, "many">>;
     }, "strip", z.ZodTypeAny, {
         sectors: {
             name: string;
@@ -2013,6 +2096,11 @@ export declare const LeaderGuestPage: z.ZodObject<{
             name: string;
             cellId: number;
             id: number;
+        }[];
+        nationalities: {
+            code: string;
+            name: string;
+            count: number;
         }[];
     }, {
         sectors: {
@@ -2029,6 +2117,11 @@ export declare const LeaderGuestPage: z.ZodObject<{
             cellId: number;
             id: number;
         }[];
+        nationalities?: {
+            code: string;
+            name: string;
+            count: number;
+        }[] | undefined;
     }>;
     counts: z.ZodObject<{
         /** Arriving in the next 7 days. */
@@ -2365,6 +2458,11 @@ export declare const LeaderGuestPage: z.ZodObject<{
             cellId: number;
             id: number;
         }[];
+        nationalities: {
+            code: string;
+            name: string;
+            count: number;
+        }[];
     };
 }, {
     total: number;
@@ -2456,14 +2554,16 @@ export declare const LeaderGuestPage: z.ZodObject<{
             cellId: number;
             id: number;
         }[];
+        nationalities?: {
+            code: string;
+            name: string;
+            count: number;
+        }[] | undefined;
     };
 }>;
 export type LeaderGuestPage = z.infer<typeof LeaderGuestPage>;
 /** The longest period one report covers. */
 export declare const GUEST_REPORT_MAX_DAYS = 731;
-/** The report's nationality filter, in the leader's words: everyone, Rwandans, or guests from other countries. */
-export declare const ReportOrigin: z.ZodEnum<["nationals", "international"]>;
-export type ReportOrigin = z.infer<typeof ReportOrigin>;
 export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     from: z.ZodEffects<z.ZodString, string, string>;
     to: z.ZodEffects<z.ZodString, string, string>;

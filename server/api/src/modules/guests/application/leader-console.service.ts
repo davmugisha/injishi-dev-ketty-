@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  RWANDA_CODE,
   type FlagGuestRequest,
   ID_KIND_LABEL,
   LEADER_ARRIVING_DAYS,
@@ -37,6 +38,27 @@ export function narrowSql(q: Pick<LeaderGuestQuery, 'sectorId' | 'cellId' | 'vil
   if (q.sectorId) parts.push(sql`${col('sector_id')} = ${q.sectorId}`);
   if (q.cellId) parts.push(sql`${col('cell_id')} = ${q.cellId}`);
   if (q.villageId) parts.push(sql`${col('village_id')} = ${q.villageId}`);
+  return parts.length ? sql`(${sql.join(parts, sql` and `)})` : sql`true`;
+}
+
+/**
+ * The guest filters over `guest_registrations g` (nationality, Rwandan or foreign, relationship, flagged),
+ * shared by the list, its counts and CSV, and the report's figures read in SQL.
+ */
+export function guestFilterSql(q: {
+  origin?: 'nationals' | 'international';
+  nationality?: string;
+  relationship?: string;
+  flagged?: 'only';
+}): SQL {
+  const parts: SQL[] = [];
+  if (q.origin === 'nationals') parts.push(sql`g.nationality = ${RWANDA_CODE}`);
+  if (q.origin === 'international') parts.push(sql`g.nationality <> ${RWANDA_CODE}`);
+  if (q.nationality) parts.push(sql`g.nationality = ${q.nationality}`);
+  if (q.relationship) parts.push(sql`g.relationship = ${q.relationship}`);
+  if (q.flagged) {
+    parts.push(sql`exists (select 1 from guest_registration_routes fr where fr.registration_id = g.id and fr.flagged_at is not null)`);
+  }
   return parts.length ? sql`(${sql.join(parts, sql` and `)})` : sql`true`;
 }
 
@@ -94,7 +116,7 @@ export class LeaderConsoleService {
     const posts = this.posts(grants);
     const today = this.today();
     const scope = scopeSql(posts);
-    const narrow = narrowSql(query);
+    const narrow = sql`${narrowSql(query)} and ${guestFilterSql(query)}`;
     const [leader, scopes, filters, counts] = await Promise.all([
       this.guests.leader(userId),
       this.scopes(posts),
@@ -108,7 +130,7 @@ export class LeaderConsoleService {
     const posts = this.posts(grants);
     const today = this.today();
     const scope = scopeSql(posts);
-    const narrow = narrowSql(query);
+    const narrow = sql`${narrowSql(query)} and ${guestFilterSql(query)}`;
     const tab = tabSql(query, today);
     const where = sql`${narrow} and ${tab.where}`;
     const [summary, rows, total] = await Promise.all([
@@ -180,7 +202,7 @@ export class LeaderConsoleService {
     const posts = this.posts(grants);
     const today = this.today();
     const tab = tabSql(query, today);
-    const rows = await this.guests.leaderList(scopeSql(posts), sql`${narrowSql(query)} and ${tab.where}`, tab.order, LEADER_EXPORT_MAX, 0);
+    const rows = await this.guests.leaderList(scopeSql(posts), sql`${narrowSql(query)} and ${guestFilterSql(query)} and ${tab.where}`, tab.order, LEADER_EXPORT_MAX, 0);
     const guests = await this.present(rows, posts, today);
     return toCsv(
       [
@@ -270,7 +292,10 @@ export class LeaderConsoleService {
     const ownCells = posts.filter((p) => grantLevel(p) === 'cell').map((p) => p.cellId).filter((x): x is number => x !== null);
     const cellOffered = (id: number): boolean => cells.some((c) => c.id === id) || ownCells.includes(id);
     const cellIds = query.cellId ? (cellOffered(query.cellId) ? [query.cellId] : []) : ownCells;
-    const villages = await this.guests.villagesIn([...new Set(cellIds)]);
-    return { sectors, cells, villages };
+    const [villages, nationalities] = await Promise.all([
+      this.guests.villagesIn([...new Set(cellIds)]),
+      this.guests.nationalitiesIn(scopeSql(posts), narrowSql(query)),
+    ]);
+    return { sectors, cells, villages, nationalities };
   }
 }

@@ -670,6 +670,17 @@ export class GuestRegistryRepository {
     );
   }
 
+  /** The nationalities of the filed guests in scope, most guests first: the list's nationality filter. */
+  async nationalitiesIn(scope: SQL, narrow: SQL): Promise<{ code: string; name: string; count: number }[]> {
+    return rowsOf(
+      await this.db.execute(sql`
+        select g.nationality as code, c.name, count(*)::int as count
+          from guest_registrations g join countries c on c.code = g.nationality
+         where g.status = 'submitted' and ${scope} and ${narrow}
+         group by g.nationality, c.name order by count(*) desc, c.name`),
+    );
+  }
+
   /** Is the place inside the leader's area? Used to refuse a narrowing outside it. */
   async placeIn(level: 'sector' | 'cell' | 'village', id: number): Promise<Area | null> {
     const result =

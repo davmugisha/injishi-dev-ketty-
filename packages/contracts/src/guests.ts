@@ -404,6 +404,10 @@ const AreaId = z.coerce.number().int().positive();
 export const LeaderArrivingWhen = z.enum(["soon", "later"]);
 export type LeaderArrivingWhen = z.infer<typeof LeaderArrivingWhen>;
 
+/** A guest filter by nationality, in the leader's words: everyone, Rwandans, or guests from other countries. */
+export const ReportOrigin = z.enum(["nationals", "international"]);
+export type ReportOrigin = z.infer<typeof ReportOrigin>;
+
 export const LeaderGuestQuery = z.object({
   tab: LeaderGuestTab.default("arriving"),
   when: LeaderArrivingWhen.default("soon"),
@@ -411,6 +415,10 @@ export const LeaderGuestQuery = z.object({
   cellId: AreaId.optional(),
   villageId: AreaId.optional(),
   q: z.string().trim().max(80).optional(),
+  /** Rwandan guests, or guests of another nationality. */
+  origin: ReportOrigin.optional(),
+  /** One nationality (ISO 3166-1 alpha-2). */
+  nationality: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Pick a country.").optional(),
   page: z.coerce.number().int().min(1).max(1000).default(1),
 });
 export type LeaderGuestQuery = z.infer<typeof LeaderGuestQuery>;
@@ -491,6 +499,8 @@ export const LeaderFilters = z.object({
   sectors: z.array(z.object({ id: z.number().int(), name: z.string() })),
   cells: z.array(z.object({ id: z.number().int(), name: z.string(), sectorId: z.number().int() })),
   villages: z.array(z.object({ id: z.number().int(), name: z.string(), cellId: z.number().int() })),
+  /** The nationalities among the guests in the leader's area (in the place chosen), most guests first. */
+  nationalities: z.array(z.object({ code: z.string(), name: z.string(), count: z.number().int() })).default([]),
 });
 export type LeaderFilters = z.infer<typeof LeaderFilters>;
 
@@ -529,10 +539,6 @@ export type LeaderGuestPage = z.infer<typeof LeaderGuestPage>;
 
 /** The longest period one report covers. */
 export const GUEST_REPORT_MAX_DAYS = 731;
-
-/** The report's nationality filter, in the leader's words: everyone, Rwandans, or guests from other countries. */
-export const ReportOrigin = z.enum(["nationals", "international"]);
-export type ReportOrigin = z.infer<typeof ReportOrigin>;
 
 export const GuestReportQuery = z
   .object({

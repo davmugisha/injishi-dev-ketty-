@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AppointmentKind = exports.GuestReport = exports.ReportBucket = exports.GuestReportQuery = exports.ReportOrigin = exports.GUEST_REPORT_MAX_DAYS = exports.LeaderGuestPage = exports.LeaderSummary = exports.LeaderCounts = exports.LeaderFilters = exports.LeaderScope = exports.LeaderGuest = exports.LeaderChainStep = exports.FlagGuestRequest = exports.LeaderGuestQuery = exports.LeaderArrivingWhen = exports.LeaderGuestTab = exports.GuestRelationship = exports.GuestCountry = exports.LandlordGuestList = exports.TenantGuestList = exports.HostGuestList = exports.HostGuestQuery = exports.HostGuestTab = exports.GuestBuilding = exports.HostGuest = exports.HostChainStep = exports.LandlordGuestRequest = exports.TenantGuestRequest = exports.GuestOrigin = exports.GuestCountryCode = exports.GuestPhone = exports.OTHER_RELATIONSHIP = exports.GUEST_RELATIONSHIPS = exports.GuestRouteState = exports.GuestStay = exports.GuestRegistrationStatus = exports.GuestHostKind = exports.OVERSIGHT_ROLE_SCOPES = exports.LEADER_ROLE_BODY = exports.LEADER_ROLE_SCOPE = exports.LEADER_ROLE_STEP = exports.LEADER_ROLE_SHORT = exports.LEADER_ROLE_LABEL = exports.REVIEWER_ROLES = exports.LeaderRole = exports.LEADER_ROLES = exports.LEADER_ARRIVING_DAYS = exports.GUEST_RETENTION_MONTHS = exports.RWANDA_CODE = void 0;
+exports.AppointmentKind = exports.GuestReport = exports.ReportBucket = exports.GuestReportQuery = exports.GUEST_REPORT_MAX_DAYS = exports.LeaderGuestPage = exports.LeaderSummary = exports.LeaderCounts = exports.LeaderFilters = exports.LeaderScope = exports.LeaderGuest = exports.LeaderChainStep = exports.FlagGuestRequest = exports.LeaderGuestQuery = exports.ReportOrigin = exports.LeaderArrivingWhen = exports.LeaderGuestTab = exports.GuestRelationship = exports.GuestCountry = exports.LandlordGuestList = exports.TenantGuestList = exports.HostGuestList = exports.HostGuestQuery = exports.HostGuestTab = exports.GuestBuilding = exports.HostGuest = exports.HostChainStep = exports.LandlordGuestRequest = exports.TenantGuestRequest = exports.GuestOrigin = exports.GuestCountryCode = exports.GuestPhone = exports.OTHER_RELATIONSHIP = exports.GUEST_RELATIONSHIPS = exports.GuestRouteState = exports.GuestStay = exports.GuestRegistrationStatus = exports.GuestHostKind = exports.OVERSIGHT_ROLE_SCOPES = exports.LEADER_ROLE_BODY = exports.LEADER_ROLE_SCOPE = exports.LEADER_ROLE_STEP = exports.LEADER_ROLE_SHORT = exports.LEADER_ROLE_LABEL = exports.REVIEWER_ROLES = exports.LeaderRole = exports.LEADER_ROLES = exports.LEADER_ARRIVING_DAYS = exports.GUEST_RETENTION_MONTHS = exports.RWANDA_CODE = void 0;
 exports.LeaderCoverage = exports.EndAppointmentQuery = exports.AppointOfficerRequest = exports.OversightAppointmentList = exports.WaitingArea = exports.PlaceNames = exports.OversightAppointmentQuery = exports.OversightAppointment = void 0;
 exports.isLeaderRole = isLeaderRole;
 exports.guestChainFor = guestChainFor;
@@ -339,6 +339,8 @@ exports.LeaderGuestTab = zod_1.z.enum(["arriving", "staying", "left", "flagged"]
 const AreaId = zod_1.z.coerce.number().int().positive();
 /** The Arriving tab's window: the next 7 days, or everyone arriving after that. */
 exports.LeaderArrivingWhen = zod_1.z.enum(["soon", "later"]);
+/** A guest filter by nationality, in the leader's words: everyone, Rwandans, or guests from other countries. */
+exports.ReportOrigin = zod_1.z.enum(["nationals", "international"]);
 exports.LeaderGuestQuery = zod_1.z.object({
     tab: exports.LeaderGuestTab.default("arriving"),
     when: exports.LeaderArrivingWhen.default("soon"),
@@ -346,6 +348,10 @@ exports.LeaderGuestQuery = zod_1.z.object({
     cellId: AreaId.optional(),
     villageId: AreaId.optional(),
     q: zod_1.z.string().trim().max(80).optional(),
+    /** Rwandan guests, or guests of another nationality. */
+    origin: exports.ReportOrigin.optional(),
+    /** One nationality (ISO 3166-1 alpha-2). */
+    nationality: zod_1.z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Pick a country.").optional(),
     page: zod_1.z.coerce.number().int().min(1).max(1000).default(1),
 });
 exports.FlagGuestRequest = zod_1.z.object({
@@ -416,6 +422,8 @@ exports.LeaderFilters = zod_1.z.object({
     sectors: zod_1.z.array(zod_1.z.object({ id: zod_1.z.number().int(), name: zod_1.z.string() })),
     cells: zod_1.z.array(zod_1.z.object({ id: zod_1.z.number().int(), name: zod_1.z.string(), sectorId: zod_1.z.number().int() })),
     villages: zod_1.z.array(zod_1.z.object({ id: zod_1.z.number().int(), name: zod_1.z.string(), cellId: zod_1.z.number().int() })),
+    /** The nationalities among the guests in the leader's area (in the place chosen), most guests first. */
+    nationalities: zod_1.z.array(zod_1.z.object({ code: zod_1.z.string(), name: zod_1.z.string(), count: zod_1.z.number().int() })).default([]),
 });
 exports.LeaderCounts = zod_1.z.object({
     /** Arriving in the next 7 days. */
@@ -445,8 +453,6 @@ exports.LeaderGuestPage = exports.LeaderSummary.extend({
 // --- The leader's reports ----------------------------------------------------------------
 /** The longest period one report covers. */
 exports.GUEST_REPORT_MAX_DAYS = 731;
-/** The report's nationality filter, in the leader's words: everyone, Rwandans, or guests from other countries. */
-exports.ReportOrigin = zod_1.z.enum(["nationals", "international"]);
 exports.GuestReportQuery = zod_1.z
     .object({
     from: dates_1.CalendarDay,

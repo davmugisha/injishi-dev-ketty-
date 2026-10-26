@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { type SQL, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import {
   GUEST_RETENTION_MONTHS,
   type GuestReport,
@@ -16,7 +16,7 @@ import { addressWords, placeWords, toCsv } from '../domain/guest-words';
 import { reportAreaLevel } from '../domain/guest-routing';
 import { GuestRegistryRepository } from '../infrastructure/guest-registry.repository';
 import { REGISTRATION_COLUMNS, TALLY_COLUMNS, scopeSql } from '../infrastructure/leader-scope';
-import { LeaderConsoleService, narrowSql } from './leader-console.service';
+import { LeaderConsoleService, guestFilterSql, narrowSql } from './leader-console.service';
 
 /**
  * The leader's reports (P5): for a period, inside the leader's own area (and
@@ -167,19 +167,6 @@ function keeps(q: GuestReportQuery, r: ReportRow): boolean {
   if (q.relationship && r.relationship !== q.relationship) return false;
   if (q.flagged && !r.flagged) return false;
   return true;
-}
-
-/** The same filters over `guest_registrations g`, for the counts read in SQL (staying now). */
-function guestFilterSql(q: GuestReportQuery): SQL {
-  const parts: SQL[] = [];
-  if (q.origin === 'nationals') parts.push(sql`g.nationality = ${RWANDA_CODE}`);
-  if (q.origin === 'international') parts.push(sql`g.nationality <> ${RWANDA_CODE}`);
-  if (q.nationality) parts.push(sql`g.nationality = ${q.nationality}`);
-  if (q.relationship) parts.push(sql`g.relationship = ${q.relationship}`);
-  if (q.flagged) {
-    parts.push(sql`exists (select 1 from guest_registration_routes fr where fr.registration_id = g.id and fr.flagged_at is not null)`);
-  }
-  return parts.length ? sql`(${sql.join(parts, sql` and `)})` : sql`true`;
 }
 
 /** The filters in words, for the screen's chips, the CSV and the PDF. */
