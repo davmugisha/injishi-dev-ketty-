@@ -13,7 +13,9 @@
     "*.css"
   ],
   "scripts": {
-    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "lint": "pnpm run --silent lint:biome && pnpm run --silent lint:eslint",
+    "lint:biome": "biome lint .",
+    "lint:eslint": "eslint \"src/**/*.{ts,tsx}\"",
     "test": "node ../../scripts/no-tests.mjs",
     "typecheck": "tsc --noEmit"
   },
