@@ -3,14 +3,8 @@
 import { BookOpen, Calculator, Comment, Eye, Lock, Pencil, Persons, ShieldKeyhole } from "@gravity-ui/icons";
 import { Alert, Avatar, Button, Card, Chip, Input, Label, Table, Tabs, TextField, toast } from "@heroui/react";
 import { EmptyState, ListView, NativeSelect } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
-import type {
-  CompensationChange,
-  Employee,
-  FamilyMember,
-  FileDocument,
-  PolicyAck,
-} from "@injishi/data/fixtures/people";
+import type { CompensationChange, Employee, FamilyMember, FileDocument, PolicyAck } from "@injishi/product-hr";
+import { useBoardHref } from "@injishi/product-hr/web";
 import { formatRwf, Icon, KeyValueList, LinkButton, toneColor } from "@injishi/ui";
 import { useState } from "react";
 import { addDays, dayMonthYear, monthLong } from "./days";
@@ -59,6 +53,7 @@ export function EmployeeFileCard({
   loginRequested: boolean;
   onRequestLogin: () => void;
 }) {
+  const screenHref = useBoardHref();
   const first = firstName(e.name);
   const [proposal, setProposal] = useState<"closed" | "open">("closed");
   // The proposal starts at today's base (no change) and its dates come from today, never a sample month.

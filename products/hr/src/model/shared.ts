@@ -16,3 +16,14 @@ export type StockKey = string;
 
 /** A status colour, by the theme's name for it. */
 export type Tone = "accent" | "success" | "warning" | "danger" | "default" | "info";
+
+/**
+ * The person a screen is for, as far as a view prints them. The app's persona carries more; a view needs
+ * only these, so any persona the app passes in fits.
+ */
+export interface Persona {
+  name: string;
+  firstName: string;
+  initials: string;
+  role: string;
+}

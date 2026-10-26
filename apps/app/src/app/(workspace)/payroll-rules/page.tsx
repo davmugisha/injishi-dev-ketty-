@@ -1,6 +1,7 @@
 import { screens } from "@injishi/data";
 import type { RuleGovernanceStep, RuleSet } from "@injishi/data/fixtures/payroll";
 import type { Metadata } from "next";
+import { HrMount } from "@/features/hr/hr-mount";
 import { PayrollRulesView } from "@/features/payroll/PayrollRulesView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
@@ -13,5 +14,9 @@ export default async function PayrollRulesPage() {
     getCollection<RuleSet>("payroll.ruleSets"),
     getCollection<RuleGovernanceStep>("payroll.ruleGovernance"),
   ]);
-  return <PayrollRulesView persona={persona} sets={sets} governance={governance} />;
+  return (
+    <HrMount>
+      <PayrollRulesView persona={persona} sets={sets} governance={governance} />
+    </HrMount>
+  );
 }

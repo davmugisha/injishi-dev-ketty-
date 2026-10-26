@@ -13,7 +13,6 @@ import {
 import { Alert, Button, Card, Chip, Label, Modal, Table, TextArea, TextField } from "@heroui/react";
 import { KPIGroup, ListView, Segment, Stepper } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import { screenHref } from "@injishi/data";
 import type {
   FinalSettlement,
   PayLine,
@@ -26,7 +25,8 @@ import type {
   PayRunStage,
   PayRunStep,
   PayRunTotal,
-} from "@injishi/data/fixtures/payroll";
+} from "@injishi/product-hr";
+import { useBoardHref } from "@injishi/product-hr/web";
 import { GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import NextLink from "next/link";
 import { Fragment, useMemo, useState } from "react";
@@ -70,6 +70,7 @@ function totalFoot(t: PayRunTotal) {
 }
 
 export function PayRunView({ data, initialStage }: { data: PayRunData; initialStage: PayRunStage }) {
+  const screenHref = useBoardHref();
   const { rates, lines, exceptions } = data;
   const [stage, setStage] = useState<PayRunStage>(initialStage);
   const [dialogOpen, setDialogOpen] = useState(false);

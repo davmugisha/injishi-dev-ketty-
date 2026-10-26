@@ -7,8 +7,9 @@ import type {
   StaffRequest,
   SwapColleague,
 } from "@injishi/data/fixtures/staff";
-import type { Metadata } from "next";
 import { NothingYet } from "@injishi/ui/phone";
+import type { Metadata } from "next";
+import { HrMount } from "@/features/hr/hr-mount";
 import { StaffScheduleView } from "@/features/staff/StaffScheduleView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument, requestContext } from "@/server/data";
@@ -39,9 +40,11 @@ export default async function StaffSchedulePage() {
   if (!balance || !leaveTypes.length)
     return <NothingYet title="Schedule" message="Leave is not set up for your business yet. Ask HR." />;
   return (
-    <StaffScheduleView
-      persona={persona}
-      data={{ profile: profile ?? null, shifts, colleagues, requests, leaveTypes, balance, approvers }}
-    />
+    <HrMount>
+      <StaffScheduleView
+        persona={persona}
+        data={{ profile: profile ?? null, shifts, colleagues, requests, leaveTypes, balance, approvers }}
+      />
+    </HrMount>
   );
 }

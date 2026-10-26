@@ -1,6 +1,7 @@
 import { screens } from "@injishi/data";
 import type { HelpdeskTicket, HrAutomation, HrReport, StaffAsset } from "@injishi/data/fixtures/payroll";
 import type { Metadata } from "next";
+import { HrMount } from "@/features/hr/hr-mount";
 import { StaffServicesView } from "@/features/payroll/StaffServicesView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
@@ -15,5 +16,9 @@ export default async function StaffServicesPage() {
     getCollection<HrReport>("payroll.hrReports"),
     getCollection<HrAutomation>("payroll.hrAutomations"),
   ]);
-  return <StaffServicesView persona={persona} data={{ tickets, assets, reports, automations }} />;
+  return (
+    <HrMount>
+      <StaffServicesView persona={persona} data={{ tickets, assets, reports, automations }} />
+    </HrMount>
+  );
 }

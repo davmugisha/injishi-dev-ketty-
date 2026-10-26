@@ -15,7 +15,6 @@ import {
   toast,
 } from "@heroui/react";
 import { EmptyState, ItemCard, NativeSelect, Segment } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
 import type {
   CompensationChange,
   Employee,
@@ -27,10 +26,10 @@ import type {
   PeopleProperty,
   PolicyAck,
   PropertyId,
-} from "@injishi/data/fixtures/people";
+} from "@injishi/product-hr";
+import { useBoardHref, useHrActions } from "@injishi/product-hr/web";
 import { LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useState, useTransition } from "react";
-import { setOffboardingStep } from "./actions";
 import { EmployeeFileCard } from "./EmployeeFileCard";
 import { LoginChip, STATUS } from "./employee-status";
 import { initials, PanelCard } from "./parts";
@@ -66,6 +65,8 @@ export function EmployeesView({
   /** Today in Kigali ("2026-10-20"), for the pay proposal's dates. */
   today: string;
 }) {
+  const screenHref = useBoardHref();
+  const { setOffboardingStep } = useHrActions();
   const [view, setView] = useState<"dir" | "org">(initial.view);
   const [query, setQuery] = useState("");
   const [property, setProperty] = useState<"all" | PropertyId>("all");

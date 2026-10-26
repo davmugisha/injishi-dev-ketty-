@@ -1,4 +1,4 @@
-import type { PayLine, PayRates } from "@injishi/data/fixtures/payroll";
+import type { PayLine, PayRates } from "@injishi/product-hr";
 import { formatNumber, formatRwf } from "@injishi/ui";
 
 /** Figures of one pay line, calculated from the configured rule snapshot (as the artifact's pay run does). */

@@ -24,6 +24,7 @@ export const definition = {
 } as const satisfies ProductDefinition<"hr">;
 
 // Three areas declare a name each other also uses for a different shape, so the second one is renamed here.
+export type * from "./model/commands.ts";
 export type * from "./model/people.ts";
 export type { Candidate, FinalSettlement, HrAutomation, HrReport, Interview, OnboardingTask, PayLine, PayRates, PayRunException, PayRunHistory, PayRunOutput, PayRunRule, PayRunStage, PayRunStep, PayRunTotal, PaymentFile, PipelineStage, ReviewCycleMetric, ReviewDepartment, RuleGovernanceStep, RuleSet, RuleSetStatus, StaffAsset, TicketMessage, Vacancy, HelpdeskTicket as PayrollHelpdeskTicket } from "./model/payroll.ts";
 export type * from "./model/shared.ts";

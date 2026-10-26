@@ -3,7 +3,6 @@
 import { Calendar, CircleCheck, LinkSlash, PersonPlus, ShieldCheck, Star } from "@gravity-ui/icons";
 import { Alert, Avatar, Button, Card, Checkbox, Chip, Description, Label, ProgressBar, Table } from "@heroui/react";
 import { Kanban, ListView, Segment, Timeline } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
 import type {
   Candidate,
   Interview,
@@ -12,7 +11,8 @@ import type {
   ReviewCycleMetric,
   ReviewDepartment,
   Vacancy,
-} from "@injishi/data/fixtures/payroll";
+} from "@injishi/product-hr";
+import { useBoardHref } from "@injishi/product-hr/web";
 import { Icon, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useState } from "react";
 
@@ -52,6 +52,7 @@ const initials = (name: string) =>
     .join("");
 
 export function TalentView({ data }: { data: TalentData }) {
+  const screenHref = useBoardHref();
   const { candidates } = data;
   const [vacancy, setVacancy] = useState("all");
   const [selectedId, setSelectedId] = useState(

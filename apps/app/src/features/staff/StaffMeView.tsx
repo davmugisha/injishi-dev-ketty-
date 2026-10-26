@@ -33,22 +33,22 @@ import {
   toast,
 } from "@heroui/react";
 import { ItemCard, ListView, Segment } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
   HelpTicket,
   HelpTopic,
-  LeaveBalance,
+  StaffLeaveBalance as LeaveBalance,
   LoanedAsset,
   Payslip,
+  Persona,
   StaffDocument,
   StaffProfile,
   StaffRequest,
-} from "@injishi/data/fixtures/staff";
+} from "@injishi/product-hr";
+import { useBoardHref, useHrActions } from "@injishi/product-hr/web";
 import { formatRwf, Icon, PhoneBody, PhoneTop, StatusDot, toneColor } from "@injishi/ui";
+import { PhoneSheet, PhoneToasts, renderAsButton, renderSection, ToneTile } from "@injishi/ui/phone";
 import NextLink from "next/link";
 import { type ComponentPropsWithRef, Fragment, useState, useTransition } from "react";
-import { signOut } from "@/lib/auth-actions";
-import { PhoneSheet, PhoneToasts, renderAsButton, renderSection, ToneTile } from "@injishi/ui/phone";
 
 interface StaffMeData {
   /** The caller's own profile; null when none is on file (never another person's). */
@@ -96,9 +96,10 @@ const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "bio", "0", "del"] as
 const PIN_UNAVAILABLE =
   "Checking a payslip PIN is not available yet, so payslips stay locked on the phone. Ask HR for your payslip.";
 
+/** Renders the leave card as a Next link. Its one caller passes the schedule's href, so there is no fallback. */
 function renderLeaveLink(props: ComponentPropsWithRef<"a">) {
-  const { href, ...rest } = props;
-  return <NextLink href={href ?? screenHref("StaffSchedule")} {...rest} />;
+  const { href = "", ...rest } = props;
+  return <NextLink href={href} {...rest} />;
 }
 
 function SectionTitle({ id, children }: { id: string; children: string }) {
@@ -119,6 +120,8 @@ export function StaffMeView({
   /** Ignored: the payslips open only behind a PIN this phone can check, and none can be checked yet. */
   initialPayslips?: "locked" | "unlocked";
 }) {
+  const screenHref = useBoardHref();
+  const { signOut } = useHrActions();
   const { profile, payslips, balance, requests, assets, topics } = data;
   const [unlocked, setUnlocked] = useState(false);
   const [sheet, setSheet] = useState<"" | "pin" | "help">("");

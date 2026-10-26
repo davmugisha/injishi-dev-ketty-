@@ -7,6 +7,7 @@ import type {
   DeskEmployee,
 } from "@injishi/data/fixtures/people";
 import type { Metadata } from "next";
+import { HrMount } from "@/features/hr/hr-mount";
 import { AttendanceView } from "@/features/people/AttendanceView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
@@ -30,15 +31,17 @@ export default async function AttendancePage({
   const { day, tab } = await searchParams;
   const { today } = await requestContext();
   return (
-    <AttendanceView
-      persona={persona}
-      data={{ records, corrections, exceptions, deskEmployees, summary: summaries[0] }}
-      initial={{
-        day: day === "yesterday" ? "yesterday" : "today",
-        tab: tab === "exceptions" ? "exceptions" : "records",
-      }}
-      today={today.iso}
-      now={clock(new Date())}
-    />
+    <HrMount>
+      <AttendanceView
+        persona={persona}
+        data={{ records, corrections, exceptions, deskEmployees, summary: summaries[0] }}
+        initial={{
+          day: day === "yesterday" ? "yesterday" : "today",
+          tab: tab === "exceptions" ? "exceptions" : "records",
+        }}
+        today={today.iso}
+        now={clock(new Date())}
+      />
+    </HrMount>
   );
 }

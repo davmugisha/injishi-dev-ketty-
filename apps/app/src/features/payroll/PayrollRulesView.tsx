@@ -3,8 +3,8 @@
 import { Check, ChevronRight, FileArrowUp, Hourglass, Paperclip, Plus, ShieldExclamation } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Drawer, Input, Label, Switch, Table, TextArea, TextField } from "@heroui/react";
 import { DropZone, ItemCard, ItemCardGroup, ListView, NativeSelect, Timeline } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
-import type { RuleGovernanceStep, RuleSet } from "@injishi/data/fixtures/payroll";
+import type { Persona, RuleGovernanceStep, RuleSet } from "@injishi/product-hr";
+import { useBoardHref } from "@injishi/product-hr/web";
 import { GateChip, Icon, KeyValueList, PageContent, PageHeader } from "@injishi/ui";
 import { useState } from "react";
 import { PressableItemCard } from "./parts";
@@ -79,6 +79,7 @@ export function PayrollRulesView({
   sets: RuleSet[];
   governance: RuleGovernanceStep[];
 }) {
+  const screenHref = useBoardHref();
   const [proposed, setProposed] = useState<RuleSet[]>([]);
   const sets = [...initialSets, ...proposed];
   const [selectedId, setSelectedId] = useState(() => initialSets.find((s) => s.status === "draft")?.id ?? "");

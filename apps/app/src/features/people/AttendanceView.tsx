@@ -29,7 +29,6 @@ import {
 } from "@heroui/react";
 import { ItemCard, ItemCardGroup, KPIGroup, NativeSelect, Segment } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
   AttendanceException,
   AttendanceSummary,
@@ -37,10 +36,11 @@ import type {
   ClockRecord,
   ClockSource,
   DeskEmployee,
-} from "@injishi/data/fixtures/people";
+  Persona,
+} from "@injishi/product-hr";
+import { useBoardHref, useHrActions } from "@injishi/product-hr/web";
 import { Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { Fragment, type ReactNode, useOptimistic, useState, useTransition } from "react";
-import { decideCorrection, saveDeskEntry } from "./actions";
 import { dayMonthYear, fullDay } from "./days";
 import { PanelCard } from "./parts";
 
@@ -79,6 +79,8 @@ export function AttendanceView({
   today: string;
   now: string;
 }) {
+  const screenHref = useBoardHref();
+  const { decideCorrection, saveDeskEntry } = useHrActions();
   const { summary } = data;
   const [day, setDay] = useState<Day>(initial.day);
   const [tab, setTab] = useState<View>(initial.tab);
