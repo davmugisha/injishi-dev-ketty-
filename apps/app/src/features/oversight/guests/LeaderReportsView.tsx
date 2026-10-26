@@ -217,7 +217,7 @@ export function LeaderReportsView({
             icon: "House",
             footnote: "Today",
           },
-          { id: "abroad", label: "From abroad", value: t.fromAbroad, format: "count", icon: "Globe" },
+          { id: "abroad", label: "Foreign guests", value: t.fromAbroad, format: "count", icon: "Globe" },
           {
             id: "flagged",
             label: "Flagged",
@@ -280,7 +280,7 @@ export function LeaderReportsView({
               },
               {
                 id: "abroad",
-                header: "From abroad",
+                header: "Foreign",
                 align: "end",
                 sortValue: (a) => a.fromAbroad,
                 cell: (a) => <span className="tabular">{formatNumber(a.fromAbroad)}</span>,

@@ -147,9 +147,11 @@ function WaitingList({
     <SectionCard
       title="Guests waiting for a leader"
       actions={
-        total > 0 ? (
+        // One guest waits on several posts at once (cell, sector, district): count the open posts, not
+        // the guests added up per post.
+        total > 0 && waiting.length > 0 ? (
           <Chip size="sm" variant="soft" color="warning">
-            {formatNumber(total)} {total === 1 ? "guest" : "guests"}
+            {formatNumber(waiting.length)} {waiting.length === 1 ? "post open" : "posts open"}
           </Chip>
         ) : null
       }
