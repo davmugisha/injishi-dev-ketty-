@@ -1,7 +1,65 @@
 /** Live sources for the admin area: API responses presented as the admin fixture document types. */
-import type { MoneyDesk, MoneyDeskOverride, MoneyDeskRow } from "@injishi/data/fixtures/admin";
 import { ApiError } from "../api";
 import { defineSources, type SourceContext } from "./types";
+
+// ── The money desk document (`admin.moneyDesk`, 073-gtbank-payments AC-19) ──
+//
+// Declared here, as market.ts declares CheckoutDocument, rather than imported from the fixture types, so
+// this file adds no import of the demo package (ADR-074, no-demo-data). The view (features/admin/money-desk.tsx)
+// takes these types, and AdminMoneyView hands it the demo document typed by @injishi/data's `MoneyDesk`, so
+// TypeScript checks the fixture against this shape there.
+
+export type MoneyBucket = "parked" | "reversals" | "owed" | "short" | "over_limit" | "waiting_on_payer";
+
+export interface MoneyDeskRow {
+  id: string;
+  bucket: MoneyBucket;
+  /** Ours (`INJ…`). */
+  reference: string;
+  providerReference: string | null;
+  direction: string;
+  operation: string;
+  amount: number;
+  status: string;
+  reason: string | null;
+  /** The wallet, masked. */
+  party: string | null;
+  bookingReference: string | null;
+  /** How long it has waited ("3 min", "2 h"). */
+  age: string;
+  pendingOverride: { id: string; action: string } | null;
+}
+
+export interface MoneyDeskOverride {
+  id: string;
+  action: string;
+  state: string;
+  reason: string;
+  subjectReference: string | null;
+  amount: number | null;
+  initiatedBy: string;
+  createdAt: string;
+  /** A super admin who did not request it. */
+  canDecide: boolean;
+}
+
+export interface MoneyDesk {
+  id: string;
+  /** "none" for a staff role that cannot read finance (ops, compliance). */
+  access: "full" | "none";
+  provider: string;
+  mode: string;
+  available: number;
+  inFlight: number;
+  queued: number;
+  parked: number;
+  lastRun: string | null;
+  counts: Record<MoneyBucket, number>;
+  rows: MoneyDeskRow[];
+  overrides: MoneyDeskOverride[];
+  canRequest: boolean;
+  canDecide: boolean;
+}
 
 // ── The API's shapes (MoneyQueue, MoneyBalance, MoneyOverrideList in @injishi/contracts) ──
 

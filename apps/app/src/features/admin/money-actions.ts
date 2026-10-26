@@ -1,6 +1,5 @@
 "use server";
 
-import { screenHref } from "@injishi/data";
 import { revalidatePath } from "next/cache";
 import { requirePersona } from "@/lib/session";
 import { ApiError, ApiUnreachableError } from "@/server/api";
@@ -15,11 +14,15 @@ import * as admin from "@/server/mutations/admin";
  */
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
+/** The AdminMoney board's href, written out rather than read through `screenHref` so this new file
+ * adds no import of the demo package (ADR-074, no-demo-data). */
+const MONEY_HREF = "/admin/money";
+
 async function run(act: () => Promise<unknown>): Promise<ActionResult> {
   await requirePersona("AdminMoney");
   try {
     await act();
-    revalidatePath(screenHref("AdminMoney"));
+    revalidatePath(MONEY_HREF);
     return { ok: true };
   } catch (error) {
     if (error instanceof ApiError) {

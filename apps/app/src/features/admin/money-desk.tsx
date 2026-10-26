@@ -1,8 +1,8 @@
 "use client";
 
 import { Alert, Button, Card, Table, TextArea, TextField, Label } from "@heroui/react";
-import type { MoneyDesk as MoneyDeskDoc, MoneyDeskRow } from "@injishi/data/fixtures/admin";
 import { SectionHeader } from "@injishi/ui";
+import type { MoneyDesk as MoneyDeskDoc, MoneyDeskRow } from "@/server/sources/admin";
 import { useState, useTransition } from "react";
 import {
   decideOverrideAction,
@@ -87,7 +87,7 @@ export function MoneyDesk({ desk }: { desk: MoneyDeskDoc }) {
         description={`${desk.provider} · ${desk.mode}. Pull and resolve never move money; moving it takes a second super admin.`}
       />
 
-      <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr))]" aria-label="Account">
+      <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr))]">
         <Fact label="Available to send" value={money(desk.available)} />
         <Fact label="Out at the bank" value={money(desk.inFlight)} />
         <Fact label="Queued" value={money(desk.queued)} />

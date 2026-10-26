@@ -6,7 +6,7 @@ import { ItemCard, ListView, Segment, Stepper } from "@heroui-pro/react";
 import type { AccountGroup, LedgerAccount, LedgerPosting, MoneyDesk as MoneyDeskDoc, MoneyOverride, ReconRun } from "@injishi/data/fixtures/admin";
 import { Icon, PageContent, PageHeader, SectionHeader, StatusDot } from "@injishi/ui";
 import { useState } from "react";
-import { MoneyDesk } from "./MoneyDesk";
+import { MoneyDesk } from "./money-desk";
 import { amount, compactRwf, firstKey, money, ToneChip } from "./shared";
 
 interface AdminMoneyData {
