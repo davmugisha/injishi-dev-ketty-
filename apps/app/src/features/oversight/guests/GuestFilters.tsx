@@ -1,10 +1,9 @@
 "use client";
 
 import { Button, Chip, Popover, Switch } from "@heroui/react";
-import { Segment } from "@heroui-pro/react";
 import type { LeaderFilters, LeaderScope } from "@injishi/contracts";
 import { tidyPlaceName } from "@injishi/contracts";
-import { formatNumber, Icon, SelectField } from "@injishi/ui";
+import { FilterMenu, formatNumber, Icon, SelectField } from "@injishi/ui";
 import { type ReactNode, useRef, useState } from "react";
 
 type Go = (changes: Record<string, string | null>) => void;
@@ -25,12 +24,15 @@ function widest(scopes: readonly LeaderScope[]): LeaderScope["level"] {
 
 function FilterPopover({
   label,
+  name,
   icon,
   count,
   title,
   children,
 }: {
   label: string;
+  /** The visible name before the choice ("Area"). */
+  name?: string;
   icon: "MapPin" | "Funnel";
   count: number;
   title: string;
@@ -40,10 +42,19 @@ function FilterPopover({
   const [open, setOpen] = useState(false);
   return (
     <Popover isOpen={open} onOpenChange={setOpen}>
-      <Button ref={anchor} variant={count > 0 ? "secondary" : "tertiary"} size="md" className="gap-2">
-        <Icon name={icon} className="size-4" />
-        <span className="max-w-48 truncate">{label}</span>
-        {count > 0 ? (
+      <Button
+        ref={anchor}
+        variant="ghost"
+        className={
+          count > 0
+            ? "h-9 gap-2 rounded-lg border border-accent/50 bg-accent-soft px-3 font-normal text-accent-soft-foreground"
+            : "h-9 gap-2 rounded-lg border border-separator bg-surface px-3 font-normal"
+        }
+      >
+        <Icon name={icon} className={count > 0 ? "size-4 text-accent" : "size-4 text-muted"} />
+        {name ? <span className={count > 0 ? "text-sm text-accent" : "text-sm text-muted"}>{name}</span> : null}
+        <span className="max-w-48 truncate text-sm font-medium">{label}</span>
+        {count > 0 && !name ? (
           <Chip size="sm" color="accent" variant="primary" className="min-w-5 justify-center tabular">
             {count}
           </Chip>
@@ -121,7 +132,7 @@ export function GuestFilters({
         : `All of ${ownArea.split(",")[0]}`;
   const canNarrow = level !== "village" && filters.sectors.length + filters.cells.length + filters.villages.length > 0;
 
-  const moreCount = [nationality, relationship, flaggedOnly ? "1" : null].filter(Boolean).length;
+  const moreCount = [relationship, flaggedOnly ? "1" : null].filter(Boolean).length;
   const nationalityName = nationalities.find((n) => n.code === nationality)?.name ?? nationality;
   const relationshipLabel = relationships?.find((r) => r.code === relationship)?.label ?? relationship;
 
@@ -164,6 +175,7 @@ export function GuestFilters({
         {canNarrow ? (
           <FilterPopover
             label={areaLabel}
+            name="Area"
             icon="MapPin"
             count={[sectorId, cellId, villageId].filter(Boolean).length}
             title="Area"
@@ -204,29 +216,32 @@ export function GuestFilters({
             ) : null}
           </FilterPopover>
         ) : null}
-        <Segment
-          aria-label="Guests by nationality"
-          size="sm"
-          selectedKey={origin}
-          onSelectionChange={(k) => go({ origin: k === "all" ? null : String(k), nationality: null })}
-        >
-          <Segment.Item id="all">All guests</Segment.Item>
-          <Segment.Item id="nationals">Rwandan</Segment.Item>
-          <Segment.Item id="international">Foreign</Segment.Item>
-        </Segment>
-        {nationalities.length > 1 || (relationships?.length ?? 0) > 1 || flagged ? (
-          <FilterPopover label="More filters" icon="Funnel" count={moreCount} title="More filters">
-            {nationalities.length > 0 ? (
-              <SelectField
-                label="Nationality"
-                value={nationality ?? ""}
-                options={[
-                  { id: "", label: "Any nationality" },
-                  ...nationalities.map((n) => ({ id: n.code, label: `${n.name} (${formatNumber(n.count)})` })),
-                ]}
-                onChange={(v) => go({ nationality: v || null, origin: null })}
-              />
-            ) : null}
+        <FilterMenu
+          label="Guests by nationality"
+          name="Guests"
+          icon="Globe"
+          value={nationality ? `nat:${nationality}` : origin}
+          options={[
+            { id: "all", label: "Everyone" },
+            { id: "nationals", label: "Rwandan" },
+            { id: "international", label: "Foreign" },
+            ...nationalities
+              .filter((n) => n.code !== "RW")
+              .map((n) => ({ id: `nat:${n.code}`, label: `From ${n.name}`, count: n.count })),
+          ]}
+          onChange={(k) =>
+            k.startsWith("nat:")
+              ? go({ nationality: k.slice(4), origin: null })
+              : go({ origin: k === "all" ? null : k, nationality: null })
+          }
+        />
+        {(relationships?.length ?? 0) > 1 || flagged ? (
+          <FilterPopover
+            label={moreCount > 0 ? `More · ${moreCount}` : "More filters"}
+            icon="Funnel"
+            count={moreCount}
+            title="More filters"
+          >
             {relationships && relationships.length > 0 ? (
               <SelectField
                 label="Who they are to the host"

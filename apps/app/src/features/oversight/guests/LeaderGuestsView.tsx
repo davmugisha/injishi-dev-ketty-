@@ -1,14 +1,13 @@
 "use client";
 
 import { Card } from "@heroui/react";
-import { Segment } from "@heroui-pro/react";
 import { type LeaderGuest, type LeaderGuestPage, tidyPlaceName } from "@injishi/contracts";
 import {
   ActionButton,
   ActionLink,
   DataTable,
   EmptyBlock,
-  FilterTabs,
+  FilterMenu,
   formatNumber,
   IconAction,
   KpiStrip,
@@ -165,17 +164,6 @@ export function LeaderGuestsView({
 
       <Card className="min-w-0 gap-4 p-4">
         {/* The lists, then their filters, in one card. Reports have their own page in the sidebar. */}
-        <FilterTabs
-          label="Guests"
-          selectedKey={page.tab}
-          onSelectionChange={(key) => go({ tab: key, when: null })}
-          tabs={[
-            { id: "arriving", label: TAB_LABEL.arriving, count: counts.arriving },
-            { id: "staying", label: TAB_LABEL.staying, count: counts.staying },
-            { id: "left", label: TAB_LABEL.left, count: counts.left },
-            { id: "flagged", label: TAB_LABEL.flagged, count: counts.flagged },
-          ]}
-        />
         <GuestFilters
           params={params}
           go={go}
@@ -183,19 +171,22 @@ export function LeaderGuestsView({
           filters={filters}
           nationalities={nationalities}
           leading={
-            page.tab === "arriving" ? (
-              <Segment
-                aria-label="When they arrive"
-                size="sm"
-                selectedKey={page.when}
-                onSelectionChange={(k) => go({ when: String(k) === "later" ? "later" : null })}
-              >
-                <Segment.Item id="soon">Next 7 days</Segment.Item>
-                <Segment.Item id="later">
-                  Later<span className="tabular"> {formatNumber(counts.later)}</span>
-                </Segment.Item>
-              </Segment>
-            ) : null
+            <FilterMenu
+              label="Which guests"
+              name="Show"
+              icon="ListUl"
+              value={page.tab === "arriving" && page.when === "later" ? "later" : page.tab}
+              options={[
+                { id: "arriving", label: "Arriving in 7 days", count: counts.arriving },
+                { id: "later", label: "Arriving later", count: counts.later },
+                { id: "staying", label: TAB_LABEL.staying, count: counts.staying },
+                { id: "left", label: TAB_LABEL.left, count: counts.left },
+                { id: "flagged", label: TAB_LABEL.flagged, count: counts.flagged },
+              ]}
+              onChange={(key) =>
+                key === "later" ? go({ tab: "arriving", when: "later" }) : go({ tab: key, when: null })
+              }
+            />
           }
           trailing={
             <SearchBar
