@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MESSAGE_APP_PATHS = exports.REALTIME_PATH = exports.MessageUnread = exports.LeaseThreadList = exports.LeaseThreadSummary = exports.LeaseThreadView = exports.LeaseMessage = exports.LeaseMessageFault = exports.LeaseMessageAttachment = exports.MessageSide = exports.SendLeaseMessageFields = exports.MESSAGE_ACCEPT = exports.MESSAGE_AUDIO_MIMES = exports.MESSAGE_DOCUMENT_MIMES = exports.MESSAGE_IMAGE_MIMES = exports.LEASE_MESSAGE_PAGE = exports.MESSAGE_DIGEST_COOLDOWN_MIN = exports.MESSAGE_DIGEST_DELAY_MIN = exports.VOICE_NOTE_MAX_BYTES = exports.VOICE_NOTE_MAX_S = exports.LEASE_MESSAGE_FILE_MAX_BYTES = exports.LEASE_MESSAGE_IMAGE_MAX_BYTES = exports.LEASE_MESSAGE_FILES_MAX = exports.LEASE_MESSAGE_MAX_CHARS = void 0;
+exports.PlacementThreadList = exports.PlacementThreadSummary = exports.PlacementThreadView = exports.PLACEMENT_THREAD_CLOSED = exports.MESSAGE_APP_PATHS = exports.REALTIME_PATH = exports.MessageUnread = exports.LeaseThreadList = exports.LeaseThreadSummary = exports.LeaseThreadView = exports.LeaseMessage = exports.LeaseMessageFault = exports.LeaseMessageAttachment = exports.MessageSide = exports.SendLeaseMessageFields = exports.MESSAGE_ACCEPT = exports.MESSAGE_AUDIO_MIMES = exports.MESSAGE_DOCUMENT_MIMES = exports.MESSAGE_IMAGE_MIMES = exports.LEASE_MESSAGE_PAGE = exports.MESSAGE_DIGEST_COOLDOWN_MIN = exports.MESSAGE_DIGEST_DELAY_MIN = exports.VOICE_NOTE_MAX_BYTES = exports.VOICE_NOTE_MAX_S = exports.LEASE_MESSAGE_FILE_MAX_BYTES = exports.LEASE_MESSAGE_IMAGE_MAX_BYTES = exports.LEASE_MESSAGE_FILES_MAX = exports.LEASE_MESSAGE_MAX_CHARS = void 0;
 exports.messageFileKind = messageFileKind;
 exports.messageFileMaxBytes = messageFileMaxBytes;
 exports.messageFilesProblem = messageFilesProblem;
 exports.messagePreview = messagePreview;
+exports.placementThreadWritable = placementThreadWritable;
 const zod_1 = require("zod");
 const primitives_1 = require("../primitives");
 // ===========================================================================
@@ -130,7 +131,7 @@ exports.SendLeaseMessageFields = zod_1.z
 })
     .strict();
 /** Who wrote a line, as the reader sees it. */
-exports.MessageSide = zod_1.z.enum(["landlord", "tenant", "system"]);
+exports.MessageSide = zod_1.z.enum(["landlord", "tenant", "broker", "system"]);
 /** One file on a message, behind a short-lived link. */
 exports.LeaseMessageAttachment = zod_1.z.object({
     id: primitives_1.Uuid,
@@ -207,6 +208,8 @@ exports.LeaseThreadList = zod_1.z.object({
 exports.MessageUnread = zod_1.z.object({
     total: zod_1.z.number().int(),
     byLease: zod_1.z.record(zod_1.z.string(), zod_1.z.number().int()),
+    /** Broker conversations (2026-10-26), by placement; in `total` too. */
+    byPlacement: zod_1.z.record(zod_1.z.string(), zod_1.z.number().int()).optional(),
 });
 /** The events the live line carries: only ids, the screen reads the rest over HTTP. */
 exports.REALTIME_PATH = "/api/realtime";
@@ -214,6 +217,8 @@ exports.REALTIME_PATH = "/api/realtime";
 exports.MESSAGE_APP_PATHS = {
     landlord: (leaseId) => `/messages?lease=${encodeURIComponent(leaseId)}`,
     tenant: (leaseId) => `/home/${encodeURIComponent(leaseId)}/messages`,
+    /** A broker conversation: the broker and the landlord both read it on /messages. */
+    placement: (placementId) => `/messages?placement=${encodeURIComponent(placementId)}`,
 };
 /** A one-line preview of a message for a list or a mail. */
 function messagePreview(m) {
@@ -232,4 +237,55 @@ function messagePreview(m) {
         return `${m.attachments.length} files`;
     return "";
 }
+// ===========================================================================
+// A broker and a landlord about a placement (2026-10-26)
+// ===========================================================================
+//
+// One conversation per placement (`threads.placement_id`, unique), made the
+// first time either side opens it. Two sides: the broker's own account, and
+// the landlord business's team (anyone with `lease.manage` or
+// `message.send`). The tenant never sees it. Lines are the same as a lease
+// conversation's (`LeaseMessage`): text, photos, documents, voice notes,
+// read receipts, the unread email.
+/** Writable while the placement is open or became a lease; read only once it was dropped. */
+function placementThreadWritable(status) {
+    return status === "initiated" || status === "converted";
+}
+/** What a closed broker conversation says. */
+exports.PLACEMENT_THREAD_CLOSED = "This placement was closed, so its conversation is read only.";
+/** A broker conversation as either side opens it: the placement, its people and a page of messages, oldest first. */
+exports.PlacementThreadView = zod_1.z.object({
+    placementId: primitives_1.Uuid,
+    threadId: primitives_1.Uuid.nullable(),
+    placementStatus: zod_1.z.string(),
+    unitLabel: zod_1.z.string().nullable(),
+    propertyName: zod_1.z.string().nullable(),
+    /** Who the broker said they bring. */
+    tenantName: zod_1.z.string().nullable(),
+    /** The other side: the landlord business for the broker, the broker for the landlord. */
+    counterpartName: zod_1.z.string(),
+    writable: zod_1.z.boolean(),
+    myLastReadAt: zod_1.z.string().nullable(),
+    otherLastReadAt: zod_1.z.string().nullable(),
+    messages: zod_1.z.array(exports.LeaseMessage),
+    olderCursor: zod_1.z.string().nullable(),
+});
+exports.PlacementThreadSummary = zod_1.z.object({
+    placementId: primitives_1.Uuid,
+    threadId: primitives_1.Uuid.nullable(),
+    placementStatus: zod_1.z.string(),
+    unitLabel: zod_1.z.string().nullable(),
+    propertyName: zod_1.z.string().nullable(),
+    tenantName: zod_1.z.string().nullable(),
+    counterpartName: zod_1.z.string(),
+    lastMessageAt: zod_1.z.string().nullable(),
+    lastMessagePreview: zod_1.z.string().nullable(),
+    lastMessageFromMe: zod_1.z.boolean(),
+    unreadCount: zod_1.z.number().int(),
+    writable: zod_1.z.boolean(),
+});
+exports.PlacementThreadList = zod_1.z.object({
+    threads: zod_1.z.array(exports.PlacementThreadSummary),
+    unreadTotal: zod_1.z.number().int(),
+});
 //# sourceMappingURL=messages.js.map

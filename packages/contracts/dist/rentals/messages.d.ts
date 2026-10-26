@@ -57,7 +57,7 @@ export declare const SendLeaseMessageFields: z.ZodObject<{
 }>;
 export type SendLeaseMessageFields = z.infer<typeof SendLeaseMessageFields>;
 /** Who wrote a line, as the reader sees it. */
-export declare const MessageSide: z.ZodEnum<["landlord", "tenant", "system"]>;
+export declare const MessageSide: z.ZodEnum<["landlord", "tenant", "broker", "system"]>;
 export type MessageSide = z.infer<typeof MessageSide>;
 /** One file on a message, behind a short-lived link. */
 export declare const LeaseMessageAttachment: z.ZodObject<{
@@ -103,7 +103,7 @@ export declare const LeaseMessageFault: z.ZodObject<{
 export type LeaseMessageFault = z.infer<typeof LeaseMessageFault>;
 export declare const LeaseMessage: z.ZodObject<{
     id: z.ZodString;
-    side: z.ZodEnum<["landlord", "tenant", "system"]>;
+    side: z.ZodEnum<["landlord", "tenant", "broker", "system"]>;
     senderName: z.ZodNullable<z.ZodString>;
     fromMe: z.ZodBoolean;
     bodyType: z.ZodEnum<["text", "image", "voice", "system", "file"]>;
@@ -160,7 +160,7 @@ export declare const LeaseMessage: z.ZodObject<{
     senderName: string | null;
     bodyType: "text" | "image" | "voice" | "system" | "file";
     voiceDurationS: number | null;
-    side: "landlord" | "tenant" | "system";
+    side: "broker" | "landlord" | "tenant" | "system";
     fromMe: boolean;
     attachments: {
         kind: "image" | "file" | "audio";
@@ -184,7 +184,7 @@ export declare const LeaseMessage: z.ZodObject<{
     senderName: string | null;
     bodyType: "text" | "image" | "voice" | "system" | "file";
     voiceDurationS: number | null;
-    side: "landlord" | "tenant" | "system";
+    side: "broker" | "landlord" | "tenant" | "system";
     fromMe: boolean;
     attachments: {
         kind: "image" | "file" | "audio";
@@ -221,7 +221,7 @@ export declare const LeaseThreadView: z.ZodObject<{
     otherLastReadAt: z.ZodNullable<z.ZodString>;
     messages: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        side: z.ZodEnum<["landlord", "tenant", "system"]>;
+        side: z.ZodEnum<["landlord", "tenant", "broker", "system"]>;
         senderName: z.ZodNullable<z.ZodString>;
         fromMe: z.ZodBoolean;
         bodyType: z.ZodEnum<["text", "image", "voice", "system", "file"]>;
@@ -278,7 +278,7 @@ export declare const LeaseThreadView: z.ZodObject<{
         senderName: string | null;
         bodyType: "text" | "image" | "voice" | "system" | "file";
         voiceDurationS: number | null;
-        side: "landlord" | "tenant" | "system";
+        side: "broker" | "landlord" | "tenant" | "system";
         fromMe: boolean;
         attachments: {
             kind: "image" | "file" | "audio";
@@ -302,7 +302,7 @@ export declare const LeaseThreadView: z.ZodObject<{
         senderName: string | null;
         bodyType: "text" | "image" | "voice" | "system" | "file";
         voiceDurationS: number | null;
-        side: "landlord" | "tenant" | "system";
+        side: "broker" | "landlord" | "tenant" | "system";
         fromMe: boolean;
         attachments: {
             kind: "image" | "file" | "audio";
@@ -332,7 +332,7 @@ export declare const LeaseThreadView: z.ZodObject<{
         senderName: string | null;
         bodyType: "text" | "image" | "voice" | "system" | "file";
         voiceDurationS: number | null;
-        side: "landlord" | "tenant" | "system";
+        side: "broker" | "landlord" | "tenant" | "system";
         fromMe: boolean;
         attachments: {
             kind: "image" | "file" | "audio";
@@ -369,7 +369,7 @@ export declare const LeaseThreadView: z.ZodObject<{
         senderName: string | null;
         bodyType: "text" | "image" | "voice" | "system" | "file";
         voiceDurationS: number | null;
-        side: "landlord" | "tenant" | "system";
+        side: "broker" | "landlord" | "tenant" | "system";
         fromMe: boolean;
         attachments: {
             kind: "image" | "file" | "audio";
@@ -520,24 +520,32 @@ export type LeaseThreadList = z.infer<typeof LeaseThreadList>;
 export declare const MessageUnread: z.ZodObject<{
     total: z.ZodNumber;
     byLease: z.ZodRecord<z.ZodString, z.ZodNumber>;
+    /** Broker conversations (2026-10-26), by placement; in `total` too. */
+    byPlacement: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     total: number;
     byLease: Record<string, number>;
+    byPlacement?: Record<string, number> | undefined;
 }, {
     total: number;
     byLease: Record<string, number>;
+    byPlacement?: Record<string, number> | undefined;
 }>;
 export type MessageUnread = z.infer<typeof MessageUnread>;
 /** The events the live line carries: only ids, the screen reads the rest over HTTP. */
 export declare const REALTIME_PATH = "/api/realtime";
 export interface MessageEvent {
-    leaseId: string;
+    /** A lease conversation's event carries its lease; a broker conversation's, its placement. */
+    leaseId?: string;
+    placementId?: string;
     threadId: string;
 }
 /** The app's pages a message mail opens. */
 export declare const MESSAGE_APP_PATHS: {
     readonly landlord: (leaseId: string) => string;
     readonly tenant: (leaseId: string) => string;
+    /** A broker conversation: the broker and the landlord both read it on /messages. */
+    readonly placement: (placementId: string) => string;
 };
 /** A one-line preview of a message for a list or a mail. */
 export declare function messagePreview(m: {
@@ -548,4 +556,317 @@ export declare function messagePreview(m: {
     }[];
     voiceDurationS?: number | null;
 }): string;
+/** Writable while the placement is open or became a lease; read only once it was dropped. */
+export declare function placementThreadWritable(status: string): boolean;
+/** What a closed broker conversation says. */
+export declare const PLACEMENT_THREAD_CLOSED = "This placement was closed, so its conversation is read only.";
+/** A broker conversation as either side opens it: the placement, its people and a page of messages, oldest first. */
+export declare const PlacementThreadView: z.ZodObject<{
+    placementId: z.ZodString;
+    threadId: z.ZodNullable<z.ZodString>;
+    placementStatus: z.ZodString;
+    unitLabel: z.ZodNullable<z.ZodString>;
+    propertyName: z.ZodNullable<z.ZodString>;
+    /** Who the broker said they bring. */
+    tenantName: z.ZodNullable<z.ZodString>;
+    /** The other side: the landlord business for the broker, the broker for the landlord. */
+    counterpartName: z.ZodString;
+    writable: z.ZodBoolean;
+    myLastReadAt: z.ZodNullable<z.ZodString>;
+    otherLastReadAt: z.ZodNullable<z.ZodString>;
+    messages: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        side: z.ZodEnum<["landlord", "tenant", "broker", "system"]>;
+        senderName: z.ZodNullable<z.ZodString>;
+        fromMe: z.ZodBoolean;
+        bodyType: z.ZodEnum<["text", "image", "voice", "system", "file"]>;
+        body: z.ZodNullable<z.ZodString>;
+        attachments: z.ZodArray<z.ZodObject<{
+            id: z.ZodString;
+            kind: z.ZodEnum<["image", "file", "audio"]>;
+            url: z.ZodString;
+            mime: z.ZodString;
+            sizeBytes: z.ZodNullable<z.ZodNumber>;
+            filename: z.ZodNullable<z.ZodString>;
+        }, "strip", z.ZodTypeAny, {
+            kind: "image" | "file" | "audio";
+            id: string;
+            mime: string;
+            sizeBytes: number | null;
+            url: string;
+            filename: string | null;
+        }, {
+            kind: "image" | "file" | "audio";
+            id: string;
+            mime: string;
+            sizeBytes: number | null;
+            url: string;
+            filename: string | null;
+        }>, "many">;
+        voiceDurationS: z.ZodNullable<z.ZodNumber>;
+        fault: z.ZodNullable<z.ZodObject<{
+            id: z.ZodString;
+            reference: z.ZodNullable<z.ZodString>;
+            title: z.ZodString;
+            status: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            status: string;
+            id: string;
+            title: string;
+            reference: string | null;
+        }, {
+            status: string;
+            id: string;
+            title: string;
+            reference: string | null;
+        }>>;
+        createdAt: z.ZodString;
+        /**
+         * For the reader's own lines: `read` once the other side has opened the
+         * conversation after it, else `delivered`. Null on the other side's lines.
+         */
+        receipt: z.ZodNullable<z.ZodEnum<["delivered", "read"]>>;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        createdAt: string;
+        body: string | null;
+        senderName: string | null;
+        bodyType: "text" | "image" | "voice" | "system" | "file";
+        voiceDurationS: number | null;
+        side: "broker" | "landlord" | "tenant" | "system";
+        fromMe: boolean;
+        attachments: {
+            kind: "image" | "file" | "audio";
+            id: string;
+            mime: string;
+            sizeBytes: number | null;
+            url: string;
+            filename: string | null;
+        }[];
+        fault: {
+            status: string;
+            id: string;
+            title: string;
+            reference: string | null;
+        } | null;
+        receipt: "delivered" | "read" | null;
+    }, {
+        id: string;
+        createdAt: string;
+        body: string | null;
+        senderName: string | null;
+        bodyType: "text" | "image" | "voice" | "system" | "file";
+        voiceDurationS: number | null;
+        side: "broker" | "landlord" | "tenant" | "system";
+        fromMe: boolean;
+        attachments: {
+            kind: "image" | "file" | "audio";
+            id: string;
+            mime: string;
+            sizeBytes: number | null;
+            url: string;
+            filename: string | null;
+        }[];
+        fault: {
+            status: string;
+            id: string;
+            title: string;
+            reference: string | null;
+        } | null;
+        receipt: "delivered" | "read" | null;
+    }>, "many">;
+    olderCursor: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    propertyName: string | null;
+    messages: {
+        id: string;
+        createdAt: string;
+        body: string | null;
+        senderName: string | null;
+        bodyType: "text" | "image" | "voice" | "system" | "file";
+        voiceDurationS: number | null;
+        side: "broker" | "landlord" | "tenant" | "system";
+        fromMe: boolean;
+        attachments: {
+            kind: "image" | "file" | "audio";
+            id: string;
+            mime: string;
+            sizeBytes: number | null;
+            url: string;
+            filename: string | null;
+        }[];
+        fault: {
+            status: string;
+            id: string;
+            title: string;
+            reference: string | null;
+        } | null;
+        receipt: "delivered" | "read" | null;
+    }[];
+    counterpartName: string;
+    threadId: string | null;
+    unitLabel: string | null;
+    tenantName: string | null;
+    placementId: string;
+    writable: boolean;
+    myLastReadAt: string | null;
+    otherLastReadAt: string | null;
+    olderCursor: string | null;
+    placementStatus: string;
+}, {
+    propertyName: string | null;
+    messages: {
+        id: string;
+        createdAt: string;
+        body: string | null;
+        senderName: string | null;
+        bodyType: "text" | "image" | "voice" | "system" | "file";
+        voiceDurationS: number | null;
+        side: "broker" | "landlord" | "tenant" | "system";
+        fromMe: boolean;
+        attachments: {
+            kind: "image" | "file" | "audio";
+            id: string;
+            mime: string;
+            sizeBytes: number | null;
+            url: string;
+            filename: string | null;
+        }[];
+        fault: {
+            status: string;
+            id: string;
+            title: string;
+            reference: string | null;
+        } | null;
+        receipt: "delivered" | "read" | null;
+    }[];
+    counterpartName: string;
+    threadId: string | null;
+    unitLabel: string | null;
+    tenantName: string | null;
+    placementId: string;
+    writable: boolean;
+    myLastReadAt: string | null;
+    otherLastReadAt: string | null;
+    olderCursor: string | null;
+    placementStatus: string;
+}>;
+export type PlacementThreadView = z.infer<typeof PlacementThreadView>;
+export declare const PlacementThreadSummary: z.ZodObject<{
+    placementId: z.ZodString;
+    threadId: z.ZodNullable<z.ZodString>;
+    placementStatus: z.ZodString;
+    unitLabel: z.ZodNullable<z.ZodString>;
+    propertyName: z.ZodNullable<z.ZodString>;
+    tenantName: z.ZodNullable<z.ZodString>;
+    counterpartName: z.ZodString;
+    lastMessageAt: z.ZodNullable<z.ZodString>;
+    lastMessagePreview: z.ZodNullable<z.ZodString>;
+    lastMessageFromMe: z.ZodBoolean;
+    unreadCount: z.ZodNumber;
+    writable: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    propertyName: string | null;
+    counterpartName: string;
+    lastMessageAt: string | null;
+    lastMessagePreview: string | null;
+    threadId: string | null;
+    unitLabel: string | null;
+    tenantName: string | null;
+    placementId: string;
+    unreadCount: number;
+    writable: boolean;
+    lastMessageFromMe: boolean;
+    placementStatus: string;
+}, {
+    propertyName: string | null;
+    counterpartName: string;
+    lastMessageAt: string | null;
+    lastMessagePreview: string | null;
+    threadId: string | null;
+    unitLabel: string | null;
+    tenantName: string | null;
+    placementId: string;
+    unreadCount: number;
+    writable: boolean;
+    lastMessageFromMe: boolean;
+    placementStatus: string;
+}>;
+export type PlacementThreadSummary = z.infer<typeof PlacementThreadSummary>;
+export declare const PlacementThreadList: z.ZodObject<{
+    threads: z.ZodArray<z.ZodObject<{
+        placementId: z.ZodString;
+        threadId: z.ZodNullable<z.ZodString>;
+        placementStatus: z.ZodString;
+        unitLabel: z.ZodNullable<z.ZodString>;
+        propertyName: z.ZodNullable<z.ZodString>;
+        tenantName: z.ZodNullable<z.ZodString>;
+        counterpartName: z.ZodString;
+        lastMessageAt: z.ZodNullable<z.ZodString>;
+        lastMessagePreview: z.ZodNullable<z.ZodString>;
+        lastMessageFromMe: z.ZodBoolean;
+        unreadCount: z.ZodNumber;
+        writable: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        propertyName: string | null;
+        counterpartName: string;
+        lastMessageAt: string | null;
+        lastMessagePreview: string | null;
+        threadId: string | null;
+        unitLabel: string | null;
+        tenantName: string | null;
+        placementId: string;
+        unreadCount: number;
+        writable: boolean;
+        lastMessageFromMe: boolean;
+        placementStatus: string;
+    }, {
+        propertyName: string | null;
+        counterpartName: string;
+        lastMessageAt: string | null;
+        lastMessagePreview: string | null;
+        threadId: string | null;
+        unitLabel: string | null;
+        tenantName: string | null;
+        placementId: string;
+        unreadCount: number;
+        writable: boolean;
+        lastMessageFromMe: boolean;
+        placementStatus: string;
+    }>, "many">;
+    unreadTotal: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    threads: {
+        propertyName: string | null;
+        counterpartName: string;
+        lastMessageAt: string | null;
+        lastMessagePreview: string | null;
+        threadId: string | null;
+        unitLabel: string | null;
+        tenantName: string | null;
+        placementId: string;
+        unreadCount: number;
+        writable: boolean;
+        lastMessageFromMe: boolean;
+        placementStatus: string;
+    }[];
+    unreadTotal: number;
+}, {
+    threads: {
+        propertyName: string | null;
+        counterpartName: string;
+        lastMessageAt: string | null;
+        lastMessagePreview: string | null;
+        threadId: string | null;
+        unitLabel: string | null;
+        tenantName: string | null;
+        placementId: string;
+        unreadCount: number;
+        writable: boolean;
+        lastMessageFromMe: boolean;
+        placementStatus: string;
+    }[];
+    unreadTotal: number;
+}>;
+export type PlacementThreadList = z.infer<typeof PlacementThreadList>;
 //# sourceMappingURL=messages.d.ts.map

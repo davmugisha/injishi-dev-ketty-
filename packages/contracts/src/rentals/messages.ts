@@ -127,7 +127,7 @@ export const SendLeaseMessageFields = z
 export type SendLeaseMessageFields = z.infer<typeof SendLeaseMessageFields>;
 
 /** Who wrote a line, as the reader sees it. */
-export const MessageSide = z.enum(["landlord", "tenant", "system"]);
+export const MessageSide = z.enum(["landlord", "tenant", "broker", "system"]);
 export type MessageSide = z.infer<typeof MessageSide>;
 
 /** One file on a message, behind a short-lived link. */
@@ -218,13 +218,17 @@ export type LeaseThreadList = z.infer<typeof LeaseThreadList>;
 export const MessageUnread = z.object({
   total: z.number().int(),
   byLease: z.record(z.string(), z.number().int()),
+  /** Broker conversations (2026-10-26), by placement; in `total` too. */
+  byPlacement: z.record(z.string(), z.number().int()).optional(),
 });
 export type MessageUnread = z.infer<typeof MessageUnread>;
 
 /** The events the live line carries: only ids, the screen reads the rest over HTTP. */
 export const REALTIME_PATH = "/api/realtime";
 export interface MessageEvent {
-  leaseId: string;
+  /** A lease conversation's event carries its lease; a broker conversation's, its placement. */
+  leaseId?: string;
+  placementId?: string;
   threadId: string;
 }
 
@@ -232,6 +236,8 @@ export interface MessageEvent {
 export const MESSAGE_APP_PATHS = {
   landlord: (leaseId: string): string => `/messages?lease=${encodeURIComponent(leaseId)}`,
   tenant: (leaseId: string): string => `/home/${encodeURIComponent(leaseId)}/messages`,
+  /** A broker conversation: the broker and the landlord both read it on /messages. */
+  placement: (placementId: string): string => `/messages?placement=${encodeURIComponent(placementId)}`,
 } as const;
 
 /** A one-line preview of a message for a list or a mail. */
@@ -251,3 +257,63 @@ export function messagePreview(m: {
   if (photos || files) return `${m.attachments.length} files`;
   return "";
 }
+
+// ===========================================================================
+// A broker and a landlord about a placement (2026-10-26)
+// ===========================================================================
+//
+// One conversation per placement (`threads.placement_id`, unique), made the
+// first time either side opens it. Two sides: the broker's own account, and
+// the landlord business's team (anyone with `lease.manage` or
+// `message.send`). The tenant never sees it. Lines are the same as a lease
+// conversation's (`LeaseMessage`): text, photos, documents, voice notes,
+// read receipts, the unread email.
+
+/** Writable while the placement is open or became a lease; read only once it was dropped. */
+export function placementThreadWritable(status: string): boolean {
+  return status === "initiated" || status === "converted";
+}
+
+/** What a closed broker conversation says. */
+export const PLACEMENT_THREAD_CLOSED = "This placement was closed, so its conversation is read only.";
+
+/** A broker conversation as either side opens it: the placement, its people and a page of messages, oldest first. */
+export const PlacementThreadView = z.object({
+  placementId: Uuid,
+  threadId: Uuid.nullable(),
+  placementStatus: z.string(),
+  unitLabel: z.string().nullable(),
+  propertyName: z.string().nullable(),
+  /** Who the broker said they bring. */
+  tenantName: z.string().nullable(),
+  /** The other side: the landlord business for the broker, the broker for the landlord. */
+  counterpartName: z.string(),
+  writable: z.boolean(),
+  myLastReadAt: z.string().nullable(),
+  otherLastReadAt: z.string().nullable(),
+  messages: z.array(LeaseMessage),
+  olderCursor: z.string().nullable(),
+});
+export type PlacementThreadView = z.infer<typeof PlacementThreadView>;
+
+export const PlacementThreadSummary = z.object({
+  placementId: Uuid,
+  threadId: Uuid.nullable(),
+  placementStatus: z.string(),
+  unitLabel: z.string().nullable(),
+  propertyName: z.string().nullable(),
+  tenantName: z.string().nullable(),
+  counterpartName: z.string(),
+  lastMessageAt: z.string().nullable(),
+  lastMessagePreview: z.string().nullable(),
+  lastMessageFromMe: z.boolean(),
+  unreadCount: z.number().int(),
+  writable: z.boolean(),
+});
+export type PlacementThreadSummary = z.infer<typeof PlacementThreadSummary>;
+
+export const PlacementThreadList = z.object({
+  threads: z.array(PlacementThreadSummary),
+  unreadTotal: z.number().int(),
+});
+export type PlacementThreadList = z.infer<typeof PlacementThreadList>;
