@@ -17,6 +17,8 @@ import {
   changePassword,
   createPassword,
   type PasswordResult,
+  type PasswordStatus,
+  passwordStatus,
   resetPasswordWithCode,
   sendPasswordCode,
   signInWithPassword,
@@ -76,6 +78,13 @@ async function signedIn(): Promise<string> {
   const cookie = await currentSessionCookie();
   if (!cookie) redirect("/sign-in");
   return cookie;
+}
+
+/** Whether the signed-in person is offered a password and has one; null when the API did not answer. */
+export async function myPasswordStatus(): Promise<PasswordStatus | null> {
+  const cookie = await currentSessionCookie();
+  if (!cookie) return null;
+  return passwordStatus(cookie).catch(() => null);
 }
 
 /** "Create a password" after accepting a lease invitation. The API checks this person is a tenant. */
