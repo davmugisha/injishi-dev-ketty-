@@ -1,9 +1,17 @@
+import { kigaliToday } from "@injishi/contracts";
 import { screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { BrokerHomeView } from "@/features/broker/BrokerHomeView";
 import { NotABroker } from "@/features/broker/shared";
 import { requirePersona } from "@/lib/session";
-import { brokerHomes, brokerPlacements, brokerPlan, brokerScope, brokerSummary } from "@/server/broker/client";
+import {
+  brokerEarnings,
+  brokerHomes,
+  brokerPlacements,
+  brokerPlan,
+  brokerScope,
+  brokerSummary,
+} from "@/server/broker/client";
 
 export const metadata: Metadata = { title: screens.BrokerWork.pageTitle };
 
@@ -11,14 +19,23 @@ export const metadata: Metadata = { title: screens.BrokerWork.pageTitle };
 export default async function BrokerHomePage() {
   const persona = await requirePersona("BrokerWork");
   if (!(await brokerScope())) return <NotABroker title="Home" />;
-  const [summary, homes, placements, plan] = await Promise.all([
+  const [summary, homes, placements, plan, earnings] = await Promise.all([
     brokerSummary(),
     brokerHomes({ sort: "newest" }),
     brokerPlacements(),
     brokerPlan(),
+    brokerEarnings(),
   ]);
   return (
-    <BrokerHomeView firstName={persona.firstName} summary={summary} homes={homes} placements={placements} plan={plan} />
+    <BrokerHomeView
+      firstName={persona.firstName}
+      summary={summary}
+      homes={homes}
+      placements={placements}
+      plan={plan}
+      earnings={earnings}
+      today={kigaliToday()}
+    />
   );
 }
 

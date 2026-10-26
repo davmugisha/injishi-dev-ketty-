@@ -11,11 +11,12 @@ import {
   formatDay,
   formatMoney,
   KpiStrip,
-  MonthlyAmountArea,
+  ListToolbar,
   PageContent,
   PageHeader,
 } from "@injishi/ui";
 import { useState } from "react";
+import { FeesChart } from "./FeesChart";
 import { FeeChip, feeTermsWords } from "./shared";
 
 type Tab = "all" | "owed" | "paid";
@@ -24,7 +25,7 @@ type Tab = "all" | "owed" | "paid";
  * What landlords recorded as owed to the broker and paid (2026-10-25). A record: the money moves between
  * the landlord and the broker, outside Injishi, and the landlord marks it paid.
  */
-export function EarningsView({ data }: { data: BrokerEarnings }) {
+export function EarningsView({ data, today }: { data: BrokerEarnings; today: string }) {
   const [tab, setTab] = useState<Tab>("all");
   const owed = data.fees.filter((f) => f.fee.status === "owed");
   const paid = data.fees.filter((f) => f.fee.status === "paid");
@@ -83,27 +84,25 @@ export function EarningsView({ data }: { data: BrokerEarnings }) {
           { id: "year", label: "Paid this year", value: data.paidThisYearRwf, icon: "Calendar" },
         ]}
       />
-      <MonthlyAmountArea
-        title="Paid by month"
-        seriesLabel="Paid"
-        narrowMonths={12}
-        data={data.byMonth.map((m) => ({ month: m.month, amount: m.paidRwf }))}
-        empty={{
-          icon: "Wallet",
-          title: "Nothing paid yet",
-          description: "Fees show here once a landlord marks them paid.",
-        }}
-      />
-      <FilterTabs
-        label="Fees by status"
-        tabs={[
-          { id: "all", label: "All", count: data.fees.length },
-          { id: "owed", label: "Owed", count: owed.length },
-          { id: "paid", label: "Paid", count: paid.length },
-        ]}
-        selectedKey={tab}
-        onSelectionChange={(k) => setTab(k as Tab)}
-      />
+      <FeesChart fees={data.fees} today={today} />
+      <ListToolbar
+        tabs={
+          <FilterTabs
+            label="Fees by status"
+            tabs={[
+              { id: "all", label: "All", count: data.fees.length },
+              { id: "owed", label: "Owed", count: owed.length },
+              { id: "paid", label: "Paid", count: paid.length },
+            ]}
+            selectedKey={tab}
+            onSelectionChange={(k) => setTab(k as Tab)}
+          />
+        }
+      >
+        <span className="hidden text-xs text-muted md:inline">
+          Landlords pay you directly; Injishi keeps the record.
+        </span>
+      </ListToolbar>
       <DataTable
         label="Fees"
         rows={rows}
@@ -133,7 +132,6 @@ export function EarningsView({ data }: { data: BrokerEarnings }) {
           />
         }
       />
-      <p className="text-xs text-muted">Landlords pay fees to you directly. Injishi records them.</p>
     </PageContent>
   );
 }

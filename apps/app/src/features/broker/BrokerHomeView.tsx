@@ -1,17 +1,26 @@
-import { Card } from "@heroui/react";
-import type { BrokerHomes, BrokerPlacementList, BrokerPlanOverview, BrokerSummary } from "@injishi/contracts";
+import { Alert } from "@heroui/react";
+import type {
+  BrokerEarnings,
+  BrokerHomes,
+  BrokerPlacementList,
+  BrokerPlanOverview,
+  BrokerSummary,
+} from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import {
   ActionLink,
   EmptyBlock,
   formatDay,
   formatMoney,
+  Icon,
+  KeyValueList,
   KpiStrip,
   PageContent,
   PageHeader,
   SectionCard,
 } from "@injishi/ui";
 import NextLink from "next/link";
+import { FeesChart } from "./FeesChart";
 import { HomeCard } from "./HomeCard";
 import { PlacementChip, starsWords } from "./shared";
 
@@ -27,14 +36,18 @@ export function BrokerHomeView({
   homes,
   placements,
   plan,
+  earnings,
+  today,
 }: {
   firstName: string;
   summary: BrokerSummary;
   homes: BrokerHomes;
   placements: BrokerPlacementList;
   plan: BrokerPlanOverview;
+  earnings: BrokerEarnings;
+  today: string;
 }) {
-  const newest = homes.homes.slice(0, 4);
+  const newest = homes.homes.slice(0, 2);
   const recent = placements.placements.slice(0, 5);
   const current = plan.current;
   // The name the broker registered with (their ID), else the account's.
@@ -50,6 +63,19 @@ export function BrokerHomeView({
           </ActionLink>
         }
       />
+      {summary.status === "suspended" ? (
+        <Alert status="danger">
+          <Alert.Content>
+            <Alert.Title>Your broker account is suspended</Alert.Title>
+            <Alert.Description>
+              You can read your work but not reveal landlords or start placements.{" "}
+              <NextLink href="/help" className="underline">
+                Contact Injishi
+              </NextLink>
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
       <KpiStrip
         label="Your work"
         items={[
@@ -78,15 +104,25 @@ export function BrokerHomeView({
             href: screenHref("BrokerEarnings"),
             footnote: `${formatMoney(summary.paidRwf)} paid`,
           },
-          {
-            id: "rating",
-            label: "Rating",
-            value: summary.ratingAverage ?? 0,
-            format: "count",
-            icon: "Star",
-            href: screenHref("BrokerReviews"),
-            footnote: starsWords(summary.ratingAverage, summary.ratingCount),
-          },
+          summary.ratingAverage === null || summary.ratingCount === 0
+            ? {
+                id: "rating",
+                label: "Ratings",
+                value: 0,
+                format: "count",
+                icon: "Star",
+                href: screenHref("BrokerReviews"),
+                footnote: "None yet",
+              }
+            : {
+                id: "rating",
+                label: "Rating",
+                value: summary.ratingAverage,
+                format: "count",
+                icon: "Star",
+                href: screenHref("BrokerReviews"),
+                footnote: starsWords(summary.ratingAverage, summary.ratingCount),
+              },
         ]}
       />
       <div className="grid items-stretch gap-4 lg:grid-cols-3">
@@ -129,79 +165,89 @@ export function BrokerHomeView({
             </ul>
           )}
         </SectionCard>
-        <div className="flex flex-col gap-4">
-          <SectionCard
-            title="Your plan"
-            actions={
-              <ActionLink href={screenHref("BrokerPlan")} size="sm" icon="CreditCard">
-                {current.plan === "country" ? "Manage" : "Upgrade"}
+        <SectionCard
+          title="Your plan"
+          className="h-full"
+          contentClassName="flex-1"
+          actions={
+            <ActionLink href={screenHref("BrokerPlan")} size="sm" icon="CreditCard">
+              {current.plan === "country" ? "Manage" : "Upgrade"}
+            </ActionLink>
+          }
+        >
+          <div className="flex flex-col gap-0.5">
+            <span className="text-lg font-semibold">{PLAN_NAME[current.plan]}</span>
+            <span className="text-sm text-muted">{current.area}</span>
+          </div>
+          <KeyValueList
+            items={[
+              { label: "Homes", value: `${summary.homesInScope} on offer` },
+              current.graceUntil
+                ? {
+                    label: "Pay by",
+                    value: <span className="text-warning">{formatDay(current.graceUntil, "long")}</span>,
+                  }
+                : current.nextPaymentOn && current.nextAmountRwf
+                  ? {
+                      label: "Renews",
+                      value: `${formatDay(current.nextPaymentOn)} · ${formatMoney(current.nextAmountRwf)}`,
+                    }
+                  : { label: "Price", value: "Free" },
+            ]}
+          />
+          {summary.scope.upgrade ? (
+            <NextLink
+              href={screenHref("BrokerPlan")}
+              className="mt-auto flex items-center justify-between gap-3 rounded-lg bg-default/60 px-3 py-2.5 text-sm transition-colors hover:bg-default"
+            >
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate font-medium">{summary.scope.upgrade.area}</span>
+                <span className="text-xs text-muted">{formatMoney(summary.scope.upgrade.priceRwf)} a month</span>
+              </span>
+              <Icon name="ArrowUpRight" className="shrink-0 text-muted" />
+            </NextLink>
+          ) : null}
+        </SectionCard>
+        <FeesChart fees={earnings.fees} today={today} className="lg:col-span-2" />
+        <SectionCard
+          title="Latest placements"
+          className="h-full"
+          actions={
+            recent.length > 0 ? (
+              <ActionLink href={screenHref("BrokerPlacements")} size="sm" icon="ArrowRight">
+                All
               </ActionLink>
-            }
-          >
-            <div className="flex flex-col gap-1">
-              <span className="text-lg font-semibold">{PLAN_NAME[current.plan]}</span>
-              <span className="text-sm text-muted">{current.area}</span>
-              {current.graceUntil ? (
-                <span className="text-sm text-warning">Pay by {formatDay(current.graceUntil, "long")} to keep it.</span>
-              ) : current.nextPaymentOn && current.nextAmountRwf ? (
-                <span className="text-xs text-muted">
-                  Renews {formatDay(current.nextPaymentOn, "long")} for {formatMoney(current.nextAmountRwf)}
-                </span>
-              ) : summary.scope.upgrade ? (
-                <span className="text-xs text-muted">
-                  {summary.scope.upgrade.area} for {formatMoney(summary.scope.upgrade.priceRwf)} a month
-                </span>
-              ) : null}
-            </div>
-          </SectionCard>
-          <SectionCard
-            title="Latest placements"
-            className="flex-1"
-            actions={
-              recent.length > 0 ? (
-                <ActionLink href={screenHref("BrokerPlacements")} size="sm" icon="ArrowRight">
-                  All
-                </ActionLink>
-              ) : null
-            }
-          >
-            {recent.length === 0 ? (
-              <EmptyBlock
-                size="sm"
-                icon="Persons"
-                title="No placements yet"
-                description="Open a home and say you have a tenant."
-              />
-            ) : (
-              <ul className="flex flex-col divide-y divide-border">
-                {recent.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-                    <span className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm font-medium">
-                        {p.unit ? `${p.unit.label} · ${p.unit.propertyName}` : (p.landlordName ?? "A home")}
-                      </span>
-                      <span className="truncate text-xs text-muted">
-                        {p.lease
-                          ? `${p.lease.tenantName}, lease ${p.lease.reference}`
-                          : (p.tenantName ?? formatDay(p.startedAt, "long"))}
-                      </span>
+            ) : null
+          }
+        >
+          {recent.length === 0 ? (
+            <EmptyBlock
+              size="sm"
+              icon="Persons"
+              title="No placements yet"
+              description="Open a home and say you have a tenant."
+            />
+          ) : (
+            <ul className="flex flex-col divide-y divide-border">
+              {recent.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-medium">
+                      {p.unit ? `${p.unit.label} · ${p.unit.propertyName}` : (p.landlordName ?? "A home")}
                     </span>
-                    <PlacementChip status={p.status} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </SectionCard>
-        </div>
+                    <span className="truncate text-xs text-muted">
+                      {p.lease
+                        ? `${p.lease.tenantName}, lease ${p.lease.reference}`
+                        : (p.tenantName ?? formatDay(p.startedAt, "long"))}
+                    </span>
+                  </span>
+                  <PlacementChip status={p.status} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
       </div>
-      {summary.status === "suspended" ? (
-        <Card className="p-4 text-sm text-danger">
-          Your broker account is suspended. You can read your work but not reveal landlords or start placements.{" "}
-          <NextLink href="/help" className="underline">
-            Contact Injishi
-          </NextLink>
-        </Card>
-      ) : null}
     </PageContent>
   );
 }

@@ -300,7 +300,8 @@ async function meContext(cookie: SessionCookie): Promise<MeContext | null> {
  */
 function asPerson(shell: Persona, user: ApiUser, workspaces: Workspace[], context: MeContext | null): Persona {
   if (shell.email && shell.email === user.email.toLowerCase()) return shell;
-  const name = user.name?.trim() || user.email.split("@")[0];
+  // A broker registers their full name on the broker record; it reads better than the email's first part.
+  const name = user.name?.trim() || context?.broker?.name?.trim() || user.email.split("@")[0];
   const parts = name.split(/\s+/).filter(Boolean);
   const person = { ...shell, name, firstName: parts[0] ?? name, initials: initialsOf(name), email: user.email };
   if (shell.id !== "landlord" || !context) return person;

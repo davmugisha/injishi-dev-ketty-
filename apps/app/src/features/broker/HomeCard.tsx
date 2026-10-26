@@ -36,7 +36,7 @@ export function HomeCard({ home, onOpen, href }: { home: BrokerHome; onOpen?: ()
   return (
     <Card className="w-full gap-0 overflow-hidden p-0">
       <Press href={href} onPress={onOpen}>
-        <div className="relative aspect-4/3 w-full overflow-hidden bg-default">
+        <div className="relative aspect-video w-full overflow-hidden bg-default">
           {cover ? (
             // biome-ignore lint/performance/noImgElement: signed, short-lived URLs
             <img
@@ -69,33 +69,31 @@ export function HomeCard({ home, onOpen, href }: { home: BrokerHome; onOpen?: ()
             ) : null}
           </span>
         </div>
-        <div className="flex flex-1 flex-col gap-2 p-4">
+        <div className="flex flex-1 flex-col gap-3 p-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate font-semibold">
-                {home.unitLabel} · {home.propertyName}
-              </span>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="truncate font-semibold">{home.propertyName}</span>
               <span className="truncate text-xs text-muted">
-                {[home.sector, home.district].filter(Boolean).join(", ") || "Rwanda"}
+                {[`Unit ${home.unitLabel}`, [home.sector, home.district].filter(Boolean).join(", ")]
+                  .filter(Boolean)
+                  .join(" · ")}
               </span>
+              {facts ? <span className="truncate text-xs text-muted">{facts}</span> : null}
             </div>
             <span className="shrink-0 text-right">
               <span className="block font-semibold tabular">{formatMoney(home.rentRwf)}</span>
               <span className="block text-xs text-muted">a month</span>
             </span>
           </div>
-          {facts ? <span className="text-xs text-muted">{facts}</span> : null}
-          <span className="mt-auto flex items-end justify-between gap-2 border-t border-border pt-2 text-sm">
-            <span className="flex items-center gap-1.5 whitespace-nowrap text-muted">
+          <span
+            className="mt-auto flex items-center justify-between gap-2 rounded-lg bg-default/60 px-3 py-2 text-sm"
+            title={home.fee.kind === "percent" ? feeTermsWords(home.fee) : undefined}
+          >
+            <span className="flex min-w-0 items-center gap-1.5 truncate text-muted">
               <Icon name="Wallet" />
-              Your fee
+              Your fee{home.fee.kind === "percent" ? ` (${home.fee.percent}%)` : ""}
             </span>
-            <span className="flex flex-col items-end">
-              <span className="font-semibold tabular">{formatMoney(home.feeRwf)}</span>
-              {home.fee.kind === "percent" ? (
-                <span className="text-xs text-muted">{feeTermsWords(home.fee)}</span>
-              ) : null}
-            </span>
+            <span className="shrink-0 font-semibold tabular">{formatMoney(home.feeRwf)}</span>
           </span>
         </div>
       </Press>
