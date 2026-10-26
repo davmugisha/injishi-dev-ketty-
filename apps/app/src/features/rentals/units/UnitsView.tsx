@@ -16,17 +16,19 @@ import {
   DataTable,
   DateText,
   EmptyBlock,
+  FilterSelect,
   FilterTabs,
   formatMoney,
   formatNumber,
+  Icon,
   IconAction,
   KpiStrip,
+  ListToolbar,
   Money,
   PageContent,
   PageHeader,
   RowActions,
   SearchBar,
-  SelectField,
   StatusChip,
   UnitCell,
 } from "@injishi/ui";
@@ -113,6 +115,9 @@ export function UnitsView({
   };
 
   const priced = all.filter((u) => u.askingRentRwf !== null);
+  const vacantRent = all.filter((u) => unitStatus(u) === "vacant").reduce((sum, u) => sum + (u.askingRentRwf ?? 0), 0);
+  const occupiedCount = list.counts.occupied ?? 0;
+  const unitCount = list.counts.all ?? 0;
   const average =
     priced.length > 0 ? Math.round(priced.reduce((s, u) => s + (u.askingRentRwf ?? 0), 0) / priced.length) : 0;
 
@@ -176,10 +181,11 @@ export function UnitsView({
         cell: (u) => (
           <span className="flex flex-wrap items-center gap-1.5">
             <StatusChip kind="unit" status={unitStatus(u)} />
-            {u.brokerOffer ? (
-              <Chip size="sm" variant="soft">
-                Brokers
-              </Chip>
+            {u.brokerOffer && unitStatus(u) === "vacant" ? (
+              <span className="inline-flex text-muted" title="Brokers may offer it">
+                <Icon name="Megaphone" className="size-3.5" />
+                <span className="sr-only">Brokers may offer it</span>
+              </span>
             ) : null}
           </span>
         ),
@@ -219,7 +225,6 @@ export function UnitsView({
       <Toast.Provider placement="bottom" />
       <PageHeader
         title="Units"
-        description="Every unit, who lives there and what it rents for."
         actions={
           <>
             <ActionButton icon="LayoutCells" intent="ghost" onPress={() => setShowBlocks(true)}>
@@ -242,49 +247,63 @@ export function UnitsView({
       <KpiStrip
         label="Units at a glance"
         items={[
-          { id: "units", label: "Units", value: list.counts.all ?? 0, format: "count", icon: "FolderHouse" },
-          { id: "occupied", label: "Occupied", value: list.counts.occupied ?? 0, format: "count", icon: "Persons" },
+          {
+            id: "occupancy",
+            label: "Occupancy",
+            value: unitCount > 0 ? Math.round((occupiedCount / unitCount) * 1000) / 10 : 0,
+            format: "percent",
+            icon: "ChartLine",
+            progress: unitCount > 0 ? (occupiedCount / unitCount) * 100 : 0,
+            footnote: `${formatNumber(occupiedCount)} of ${formatNumber(unitCount)} occupied`,
+            href: "?tab=occupied",
+            isCurrent: query.tab === "occupied",
+          },
           {
             id: "vacant",
             label: "Vacant",
             value: list.counts.vacant ?? 0,
             format: "count",
-            icon: "House",
+            icon: "FolderHouse",
             status: (list.counts.vacant ?? 0) > 0 ? "warning" : undefined,
+            footnote: vacantRent > 0 ? `${formatMoney(vacantRent)} a month unlet` : "All let",
+            href: "?tab=vacant",
+            isCurrent: query.tab === "vacant",
           },
           {
             id: "rent",
-            label: "Asking rent",
+            label: "Average asking rent",
             value: average,
             icon: "Wallet",
             footnote:
               priced.length === 0
                 ? "No asking rent set yet"
-                : `Average of ${formatNumber(priced.length)} of ${formatNumber(all.length)} units`,
+                : priced.length < all.length
+                  ? `${formatNumber(priced.length)} of ${formatNumber(all.length)} units priced`
+                  : undefined,
           },
         ]}
       />
 
-      <div className="flex flex-col gap-3">
-        <FilterTabs
-          label="Units by status"
-          tabs={TABS.map((t) => ({ ...t, count: list.counts[t.id] ?? 0 }))}
-          selectedKey={query.tab === "retired" ? "all" : query.tab}
-          onSelectionChange={(key) => go({ tab: key as UnitTab })}
-        />
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <SearchBar label="Search units" value={search} onChange={onSearch} placeholder="Unit, tenant or block" />
-          {blocks.length > 0 ? (
-            <SelectField
-              label={<span className="sr-only">Block</span>}
-              options={[{ id: ALL_BLOCKS, label: "All blocks" }, ...blocks.map((b) => ({ id: b.id, label: b.name }))]}
-              value={query.blockId ?? ALL_BLOCKS}
-              onChange={(v) => go({ blockId: v === ALL_BLOCKS ? null : v })}
-              className="sm:w-56"
-            />
-          ) : null}
-        </div>
-      </div>
+      <ListToolbar
+        tabs={
+          <FilterTabs
+            label="Units by status"
+            tabs={TABS.map((t) => ({ ...t, count: list.counts[t.id] ?? 0 }))}
+            selectedKey={query.tab === "retired" ? "all" : query.tab}
+            onSelectionChange={(key) => go({ tab: key as UnitTab })}
+          />
+        }
+      >
+        <SearchBar label="Search units" value={search} onChange={onSearch} placeholder="Unit, tenant or block" />
+        {blocks.length > 0 ? (
+          <FilterSelect
+            label="Block"
+            options={[{ id: ALL_BLOCKS, label: "All blocks" }, ...blocks.map((b) => ({ id: b.id, label: b.name }))]}
+            value={query.blockId ?? ALL_BLOCKS}
+            onChange={(v) => go({ blockId: v === ALL_BLOCKS ? null : v })}
+          />
+        ) : null}
+      </ListToolbar>
 
       <div className={pending ? "opacity-60 transition-opacity" : "transition-opacity"} aria-busy={pending}>
         <DataTable
