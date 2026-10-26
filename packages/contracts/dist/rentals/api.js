@@ -402,7 +402,7 @@ exports.LeaseChargesSummary = zod_1.z.object({
     rentPaidRwf: zod_1.z.number().int(),
     /** Open rent past its due day plus grace. */
     overdueRwf: zod_1.z.number().int(),
-    /** Everything still owed on charges raised (rent and deposit). */
+    /** What is owed now: open charges (rent and deposit) already due. One raised ahead is `nextDue`. */
     balanceRwf: zod_1.z.number().int(),
     nextDue: zod_1.z.object({ dueOn: dates_1.CalendarDay, amountRwf: zod_1.z.number().int() }).nullable(),
     depositAgreedRwf: zod_1.z.number().int(),

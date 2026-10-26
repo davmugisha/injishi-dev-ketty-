@@ -499,7 +499,7 @@ export const LeaseChargesSummary = z.object({
   rentPaidRwf: z.number().int(),
   /** Open rent past its due day plus grace. */
   overdueRwf: z.number().int(),
-  /** Everything still owed on charges raised (rent and deposit). */
+  /** What is owed now: open charges (rent and deposit) already due. One raised ahead is `nextDue`. */
   balanceRwf: z.number().int(),
   nextDue: z.object({ dueOn: CalendarDay, amountRwf: z.number().int() }).nullable(),
   depositAgreedRwf: z.number().int(),

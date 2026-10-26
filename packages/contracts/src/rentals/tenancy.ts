@@ -64,7 +64,7 @@ export const TenancyListItem = z.object({
   needsMySignature: z.boolean(),
   /** The oldest charge still open. */
   nextDue: z.object({ dueOn: CalendarDay, amountRwf: z.number().int() }).nullable(),
-  /** Everything still owed on charges raised. */
+  /** What is owed now: open charges already due. */
   balanceRwf: z.number().int(),
 });
 export type TenancyListItem = z.infer<typeof TenancyListItem>;

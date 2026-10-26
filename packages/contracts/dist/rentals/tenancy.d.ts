@@ -96,7 +96,7 @@ export declare const TenancyListItem: z.ZodObject<{
         amountRwf: number;
         dueOn: string;
     }>>;
-    /** Everything still owed on charges raised. */
+    /** What is owed now: open charges already due. */
     balanceRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
@@ -193,7 +193,7 @@ export declare const TenancyList: z.ZodObject<{
             amountRwf: number;
             dueOn: string;
         }>>;
-        /** Everything still owed on charges raised. */
+        /** What is owed now: open charges already due. */
         balanceRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
@@ -611,6 +611,7 @@ export declare const TenancyDetail: z.ZodObject<{
     cancelledAt: string | null;
     updatedAt: string;
     cancelReason: string | null;
+    endedOn: string | null;
     currentVersion: {
         id: string;
         createdAt: string;
@@ -626,7 +627,6 @@ export declare const TenancyDetail: z.ZodObject<{
         typedName: string | null;
     }[];
     activatedAt: string | null;
-    endedOn: string | null;
     needsMySignature: boolean;
     signedCopyReady: boolean;
 }, {
@@ -693,6 +693,7 @@ export declare const TenancyDetail: z.ZodObject<{
     cancelledAt: string | null;
     updatedAt: string;
     cancelReason: string | null;
+    endedOn: string | null;
     currentVersion: {
         id: string;
         createdAt: string;
@@ -708,7 +709,6 @@ export declare const TenancyDetail: z.ZodObject<{
         typedName: string | null;
     }[];
     activatedAt: string | null;
-    endedOn: string | null;
     needsMySignature: boolean;
     signedCopyReady: boolean;
 }>;

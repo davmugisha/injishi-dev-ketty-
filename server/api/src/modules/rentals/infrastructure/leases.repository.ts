@@ -322,7 +322,9 @@ export class LeasesRepository {
         rentCharged: sql<string>`coalesce(sum(${leaseCharges.amountRwf}) filter (where ${leaseCharges.kind} = 'rent' and ${leaseCharges.status} <> 'waived'), 0)`,
         rentPaid: sql<string>`coalesce(sum(${leaseCharges.paidRwf}) filter (where ${leaseCharges.kind} = 'rent'), 0)`,
         overdue: sql<string>`coalesce(sum(${leaseCharges.amountRwf} - ${leaseCharges.paidRwf}) filter (where ${leaseCharges.kind} = 'rent' and ${leaseCharges.status} = 'open' and ${leaseCharges.dueOn} + ${graceDays}::int < ${today}::date), 0)`,
-        balance: sql<string>`coalesce(sum(${leaseCharges.amountRwf} - ${leaseCharges.paidRwf}) filter (where ${leaseCharges.status} = 'open'), 0)`,
+        // Owed now: open charges already due. A charge raised ahead (next month's rent, a deposit due on the
+        // first day) is not owed yet; `nextDue` names it.
+        balance: sql<string>`coalesce(sum(${leaseCharges.amountRwf} - ${leaseCharges.paidRwf}) filter (where ${leaseCharges.status} = 'open' and ${leaseCharges.dueOn} <= ${today}::date), 0)`,
       })
       .from(leaseCharges)
       .where(eq(leaseCharges.leaseId, leaseId));

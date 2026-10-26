@@ -2199,7 +2199,7 @@ export declare const LeaseChargesSummary: z.ZodObject<{
     rentPaidRwf: z.ZodNumber;
     /** Open rent past its due day plus grace. */
     overdueRwf: z.ZodNumber;
-    /** Everything still owed on charges raised (rent and deposit). */
+    /** What is owed now: open charges (rent and deposit) already due. One raised ahead is `nextDue`. */
     balanceRwf: z.ZodNumber;
     nextDue: z.ZodNullable<z.ZodObject<{
         dueOn: z.ZodEffects<z.ZodString, string, string>;
@@ -2445,7 +2445,7 @@ export declare const LeaseDetail: z.ZodObject<{
         rentPaidRwf: z.ZodNumber;
         /** Open rent past its due day plus grace. */
         overdueRwf: z.ZodNumber;
-        /** Everything still owed on charges raised (rent and deposit). */
+        /** What is owed now: open charges (rent and deposit) already due. One raised ahead is `nextDue`. */
         balanceRwf: z.ZodNumber;
         nextDue: z.ZodNullable<z.ZodObject<{
             dueOn: z.ZodEffects<z.ZodString, string, string>;

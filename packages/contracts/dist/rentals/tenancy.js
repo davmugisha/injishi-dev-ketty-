@@ -58,7 +58,7 @@ exports.TenancyListItem = zod_1.z.object({
     needsMySignature: zod_1.z.boolean(),
     /** The oldest charge still open. */
     nextDue: zod_1.z.object({ dueOn: dates_1.CalendarDay, amountRwf: zod_1.z.number().int() }).nullable(),
-    /** Everything still owed on charges raised. */
+    /** What is owed now: open charges already due. */
     balanceRwf: zod_1.z.number().int(),
 });
 /** A lease sent to the signed in email and not accepted yet. */
