@@ -18,7 +18,7 @@ import NextLink from "next/link";
 import { Fragment, useState } from "react";
 import { Bar, Muted, money, qty, SectionTitle, signedMoney, signedQty, ToneChip } from "./shared";
 
-export interface StoreHomeData {
+interface StoreHomeData {
   kpis: StoreKpi[];
   reorder: ReorderAlert[];
   deliveries: Delivery[];

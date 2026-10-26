@@ -18,7 +18,7 @@ import { formatRwf, GateChip, LinkButton, PageContent, PageHeader, TextLink, ton
 import { useState } from "react";
 import { SettingsNav } from "./SettingsNav";
 
-export interface SettingsPoliciesData {
+interface SettingsPoliciesData {
   groups: SettingsPoliciesGroup[];
   properties: SettingsPoliciesProperty[];
   cards: SettingsPoliciesCard[];

@@ -105,11 +105,6 @@ export function TabCount({ count }: { count: number }) {
   );
 }
 
-/** Small stat tile (artifact: card--secondary with label, value and footnote). */
-export function StatLabel({ children }: { children: ReactNode }) {
-  return <span className="text-xs leading-4 text-muted">{children}</span>;
-}
-
 /** Sub-heading inside a card (artifact: 13px semibold h3). */
 export function SubHeading({ children, id }: { children: ReactNode; id?: string }) {
   return (

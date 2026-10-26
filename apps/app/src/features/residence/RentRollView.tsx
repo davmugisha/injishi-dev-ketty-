@@ -48,7 +48,7 @@ import {
   ToneChip,
 } from "./shared";
 
-export interface RentRollData {
+interface RentRollData {
   kpis: RentKpi[];
   rows: RentRollRow[];
   ledgers: RentLedger[];

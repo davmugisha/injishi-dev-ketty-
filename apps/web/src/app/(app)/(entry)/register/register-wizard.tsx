@@ -51,7 +51,6 @@ import { EMPTY_ADDRESS, addressFromDraft, useAddressLine } from "./address-picke
 import {
   EMPTY_BUSINESS,
   formatTin,
-  maskedPhone,
   newBranchDraft,
   normalizeTin,
   registryAddressDraft,
@@ -252,7 +251,6 @@ export default function RegisterWizard({
   const order = stepOrder(path, carried);
   const identityVerified = identity?.kycStatus === "verified";
   const canVerify = Boolean(identity && (identity.available.nationalId || identity.available.passport));
-  const storedProfile = profile?.complete === true && !editingProfile;
 
   const tin = normalizeTin(business.tin);
   const verdict = tinCheck?.tin === tin ? tinCheck.verdict : null;

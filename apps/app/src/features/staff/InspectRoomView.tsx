@@ -36,9 +36,9 @@ import { kigaliClock, NothingYet, PhoneTitle, PhoneToasts, renderSection, ToneTi
 import { attemptToken, shrinkPhoto } from "./photo";
 
 /** A room waiting for inspection; a live one also says which clean it follows (`task`, see sources/staff.ts). */
-export type InspectableRoom = InspectionRoom & { task?: string };
+type InspectableRoom = InspectionRoom & { task?: string };
 
-export interface InspectRoomData {
+interface InspectRoomData {
   /** The caller's own profile; null when none is on file (never another person's). */
   profile: StaffProfile | null;
   rooms: InspectableRoom[];

@@ -2,7 +2,7 @@ import type { PayLine, PayRates } from "@injishi/data/fixtures/payroll";
 import { formatNumber, formatRwf } from "@injishi/ui";
 
 /** Figures of one pay line, calculated from the configured rule snapshot (as the artifact's pay run does). */
-export interface PayLineFigures {
+interface PayLineFigures {
   gross: number;
   paye: number;
   pension: number;
@@ -15,7 +15,7 @@ export interface PayLineFigures {
 }
 
 /** PAYE on monthly taxable pay, band by band. */
-export function payeFor(gross: number, rates: PayRates): number {
+function payeFor(gross: number, rates: PayRates): number {
   let tax = 0;
   let lower = 0;
   for (const band of rates.payeBands) {

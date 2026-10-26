@@ -66,15 +66,6 @@ export type Access =
       isStaff: boolean;
     };
 
-/** Every root the operator zone serves under the web origin. */
-export const OPERATOR_ZONE_PREFIXES = ["/w", "/oversight", "/host", "/landlord", "/broker"];
-
-export function isOperatorZonePath(pathname: string): boolean {
-  return OPERATOR_ZONE_PREFIXES.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  );
-}
-
 export async function fetchAccess(): Promise<Access> {
   const [ws, ov, staff] = await Promise.all([
     apiFetch<WorkspacesResponse>("/api/v1/me/workspaces"),
@@ -195,7 +186,7 @@ function operatorOrigin(): string {
  * value is null here: a staffer then lands on the home screen rather than on a
  * localhost default.
  */
-export function adminConsoleUrl(): string | null {
+function adminConsoleUrl(): string | null {
   const raw = process.env.NEXT_PUBLIC_ADMIN_URL;
   if (!raw) return null;
   let url: string;
@@ -208,7 +199,7 @@ export function adminConsoleUrl(): string | null {
   return safe === url ? safe : null;
 }
 
-export function twoFactorUrl(returnTo: string): string {
+function twoFactorUrl(returnTo: string): string {
   const params = new URLSearchParams({ redirect: returnTo });
   return `/two-factor/verify?${params.toString()}`;
 }

@@ -49,7 +49,7 @@ import {
 } from "./PublicChrome";
 import { cx, linkTo, Pending, SectionHeading } from "./shared";
 
-export interface PublicHostData {
+interface PublicHostData {
   steps: HostStep[];
   features: HostFeature[];
   readiness: ReadinessItem[];

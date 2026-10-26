@@ -37,7 +37,7 @@ import {
  */
 export type HostKind = AccommodationClass | "residence" | "bar_restaurant";
 
-export interface HostPropertyKind {
+interface HostPropertyKind {
   value: HostKind;
   label: string;
   blurb: string;
@@ -208,7 +208,7 @@ export const HOST_STEPS: HostStep[] = [
   },
 ];
 
-export interface HostFaqGroup {
+interface HostFaqGroup {
   id: string;
   label: string;
   entries: { question: string; answer: string }[];

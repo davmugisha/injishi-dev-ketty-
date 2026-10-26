@@ -42,14 +42,6 @@ const decider = alias(users, 'decider');
 
 const personName = sql`coalesce(nullif(btrim(${employees.preferredName}), ''), ${employees.legalName})`;
 
-/** A person as a request shows them: the roster card's three fields. */
-export interface CardFields {
-  id: string;
-  preferredName: string | null;
-  legalName: string;
-  jobPositionTitle: string | null;
-}
-
 export interface ShiftRequestRow {
   id: string;
   orgId: string;

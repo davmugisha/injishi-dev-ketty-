@@ -35,7 +35,7 @@ import { defineSources, type KigaliDay, type SourceContext } from "./types";
 
 type BookingModeApi = "instant_book" | "request_to_book";
 
-export interface ListingCardApi {
+interface ListingCardApi {
   id: string;
   slug: string;
   name: string;
@@ -60,7 +60,7 @@ export interface ListingCardApi {
   hasPage: boolean;
 }
 
-export interface RoomCardApi {
+interface RoomCardApi {
   id: string;
   propertySlug: string;
   name: string;
@@ -104,7 +104,7 @@ interface PropertyPageApi {
   rooms: RoomCardApi[];
 }
 
-export interface QuoteApi {
+interface QuoteApi {
   roomTypeId: string;
   roomName: string;
   propertySlug: string | null;
@@ -220,7 +220,7 @@ export function addDays(day: KigaliDay, days: number): string {
 }
 
 /** "Fri 23 Oct" for an ISO date. */
-export function weekdayDay(iso: string): string {
+function weekdayDay(iso: string): string {
   return `${WEEKDAYS[new Date(`${iso}T12:00:00Z`).getUTCDay()]} ${dayMonth(iso)}`;
 }
 
@@ -238,12 +238,12 @@ const nightsBetween = (a: string, b: string) =>
   Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / DAY_MS);
 
 /** The stay a visitor looks at before they pick dates (see the file comment). */
-export function defaultStay(ctx: SourceContext) {
+function defaultStay(ctx: SourceContext) {
   return { checkIn: addDays(ctx.today, 11), checkOut: addDays(ctx.today, 13), adults: 2, children: 0 };
 }
 
 /** The stay a visitor chose on a property page: the room, the nights, the party and the rate plan. */
-export interface StayChoice {
+interface StayChoice {
   roomTypeId: string;
   checkIn: string;
   checkOut: string;
@@ -414,7 +414,7 @@ function homesAvailable(availableFrom: string | null, today: KigaliDay): string 
   return availableFrom && availableFrom > today.iso ? `From ${dayMonth(availableFrom)}` : "Available now";
 }
 
-export function toListing(
+function toListing(
   c: ListingCardApi,
   rank: number,
   saved: boolean,
@@ -960,7 +960,7 @@ export async function checkoutDrafts(
 }
 
 /** What the checkout books for a chosen stay: the draft the page shows, and exactly what `POST /bookings` takes. */
-export interface ChosenCheckout {
+interface ChosenCheckout {
   draft: CheckoutDocument;
   roomTypeId: string;
   quote: QuoteApi;

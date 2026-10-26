@@ -12,7 +12,7 @@ import type { DemoPersona, DemoSeat, DemoSurface } from "@injishi/contracts";
  * groups and orders them.
  */
 
-export type SectionKey = "oversight" | "business" | "staff" | "personal" | "broker";
+type SectionKey = "oversight" | "business" | "staff" | "personal" | "broker";
 
 /**
  * Presentation order, chosen for the room the demo is shown to: the people who
@@ -55,7 +55,7 @@ export const SECTIONS: readonly {
   },
 ];
 
-export const SECTION_OF: Readonly<Record<DemoSurface, SectionKey>> = {
+const SECTION_OF: Readonly<Record<DemoSurface, SectionKey>> = {
   oversight: "oversight",
   host: "business",
   work: "business",
@@ -150,11 +150,11 @@ export function sectionOf(seat: DemoSeat): SectionKey {
   return SECTION_OF[seat.surface] ?? "personal";
 }
 
-export function sectionIndex(seat: DemoSeat): number {
+function sectionIndex(seat: DemoSeat): number {
   return SECTIONS.findIndex((s) => s.key === sectionOf(seat));
 }
 
-export function roleIndex(seat: DemoSeat): number {
+function roleIndex(seat: DemoSeat): number {
   const exact = SEAT_ORDER.indexOf(`${seat.surface}:${seat.roleKey}`);
   if (exact !== -1) return exact;
   const bare = SEAT_ORDER.indexOf(seat.roleKey);
@@ -188,7 +188,7 @@ export function firstName(persona: Pick<DemoPersona, "name" | "email">): string 
   return persona.name.trim().split(/\s+/)[0] || persona.email.split("@")[0] || persona.email;
 }
 
-export interface PersonaSection {
+interface PersonaSection {
   key: SectionKey;
   title: string;
   about: string;

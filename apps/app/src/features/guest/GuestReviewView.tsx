@@ -20,7 +20,7 @@ const TITLES = {
 
 const WORDS = ["Not rated yet", "Poor", "Fair", "Good", "Very good", "Excellent"];
 
-export interface GuestReviewData {
+interface GuestReviewData {
   review: GuestReviewRecord;
   roll: ReviewPhoto[];
   rewards: GuestRewards;

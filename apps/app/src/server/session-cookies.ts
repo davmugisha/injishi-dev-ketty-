@@ -26,7 +26,7 @@ const AUTH_COOKIE_PREFIXES = [MARKETPLACE_COOKIE_PREFIX, DEMO_COOKIE_PREFIX].fla
 export const DEMO_BUILD = process.env.NEXT_PUBLIC_INJISHI_ENVIRONMENT === "demo";
 
 /** Whether a cookie is one of Better Auth's (the session token, its cache, its "don't remember" flag). */
-export function isAuthCookie(name: string): boolean {
+function isAuthCookie(name: string): boolean {
   return AUTH_COOKIE_PREFIXES.some((prefix) => name.startsWith(prefix));
 }
 
@@ -64,7 +64,7 @@ export interface ForwardedCookie {
  * is the shared parent (`.injishi.com`, AUTH_COOKIE_DOMAIN), which is what lets web and the API read the
  * cookie this app sets. Locally there is none, and a host-only `localhost` cookie reaches every port.
  */
-export function parseSetCookie(line: string): ForwardedCookie | null {
+function parseSetCookie(line: string): ForwardedCookie | null {
   const [pair, ...attrs] = line.split(";").map((part) => part.trim());
   const eq = pair.indexOf("=");
   if (eq < 1) return null;

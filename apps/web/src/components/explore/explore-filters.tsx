@@ -2,7 +2,6 @@
 
 import { Search } from "lucide-react";
 import { Input } from "@injishi/ui";
-import { cn } from "@injishi/utils";
 import { FacetBlock } from "@/components/explore/filter-primitives";
 import { PriceFilter } from "@/components/explore/price-filter";
 import {

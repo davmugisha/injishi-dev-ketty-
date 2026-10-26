@@ -21,7 +21,6 @@
     "seed:demo": "node scripts/seed-demo.mjs",
     "db:seed": "node scripts/seed-sample.mjs",
     "db:seed:ia-verify": "node scripts/seed-ia-verify.mjs",
-    "verify:role-nav": "node scripts/verify-role-nav.mjs",
     "verify:ops-reads": "node scripts/verify-ops-reads.mjs",
     "verify:walk-in": "node scripts/verify-walk-in.mjs",
     "verify:guest-stay": "node scripts/verify-guest-stay.mjs",

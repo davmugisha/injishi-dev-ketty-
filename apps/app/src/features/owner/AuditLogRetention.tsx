@@ -19,7 +19,7 @@ export function auditLogRetentionInitial(rules: AuditLogRetentionRule[]): AuditL
   return { values, hold: false, saved: { values, hold: false } };
 }
 
-export function auditLogRetentionDirty(rules: AuditLogRetentionRule[], s: AuditLogRetentionState): boolean {
+function auditLogRetentionDirty(rules: AuditLogRetentionRule[], s: AuditLogRetentionState): boolean {
   return s.hold !== s.saved.hold || rules.some((r) => s.values[r.id] !== s.saved.values[r.id]);
 }
 

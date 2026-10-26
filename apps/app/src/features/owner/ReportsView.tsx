@@ -29,7 +29,7 @@ import { saveReportsView } from "./ReportsActions";
 import { ReportsFinancialPanel, ReportsResidencePanel, ReportsSummary } from "./ReportsFinancial";
 import { ReportsPerformancePanel, type ReportsTrendMetric } from "./ReportsPerformance";
 
-export interface ReportsData {
+interface ReportsData {
   properties: ReportsProperty[];
   savedViews: ReportsSavedView[];
   kpis: ReportsKpi[];

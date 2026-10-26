@@ -41,7 +41,7 @@ export async function assignRoom(ctx: SourceContext, bookingRef: string, roomLab
   await command(ctx, () => ctx.ops().post(`/api/v1/ops/reservations/${booking.id}/assign`, { roomId: room.id }));
 }
 
-export interface CheckInInput {
+interface CheckInInput {
   bookingRef: string;
   roomLabel: string;
   /** Cash taken at the desk, posted to the bill once the stay is open. One key per press of "Record cash". */

@@ -133,7 +133,7 @@ export interface MobileMoney {
 }
 
 /** Nine national digits, the form the API takes (`NationalMsisdn`). */
-export function nationalMsisdn(number: string): string {
+function nationalMsisdn(number: string): string {
   const digits = number.replace(/\D/g, "");
   if (digits.startsWith("250") && digits.length === 12) return digits.slice(3);
   if (digits.startsWith("0") && digits.length === 10) return digits.slice(1);
@@ -141,7 +141,7 @@ export function nationalMsisdn(number: string): string {
 }
 
 /** One booking, exactly as `POST /bookings` takes it. The server prices it; nothing here sends a price. */
-export interface StayInput {
+interface StayInput {
   roomTypeId: string;
   checkIn: string;
   checkOut: string;
@@ -172,11 +172,11 @@ export interface AttemptApi {
   failureReason: string | null;
 }
 
-export type BookingOutcome =
+type BookingOutcome =
   | { status: "confirmed"; booking: BookingResultApi }
   | { status: "awaiting_payment"; attempt: AttemptApi };
 
-export async function bookStay(ctx: SourceContext, input: StayInput): Promise<BookingOutcome> {
+async function bookStay(ctx: SourceContext, input: StayInput): Promise<BookingOutcome> {
   const msisdn = nationalMsisdn(input.payment.number);
   if (!msisdn) throw new ApiError(400, null, "Enter the mobile money number to pay from.", null);
   return ctx.api.post<BookingOutcome>(

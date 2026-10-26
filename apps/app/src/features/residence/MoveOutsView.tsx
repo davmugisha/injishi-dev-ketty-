@@ -27,7 +27,7 @@ import type { LiveLease } from "@/server/sources/residence";
 import { recordNoticeAction } from "./actions";
 import { downloadCsv, FormDialog, kigaliCalendar, lineTab, money, SelectField, ToneChip } from "./shared";
 
-export interface MoveOutsData {
+interface MoveOutsData {
   kpis: DepositKpi[];
   cases: MoveOutCase[];
   units: ResidenceUnit[];

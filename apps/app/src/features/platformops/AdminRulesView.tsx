@@ -16,7 +16,7 @@ import { GateChip, Icon, LinkButton, PageContent, PageHeader } from "@injishi/ui
 import { useState } from "react";
 import { money, ToneChip } from "./shared";
 
-export interface AdminRulesData {
+interface AdminRulesData {
   catalogs: Catalog[];
   flags: FeatureFlag[];
   plans: PricePlan[];

@@ -20,7 +20,7 @@ import { Fragment, useState } from "react";
 import { CompliancePrivacy } from "./CompliancePrivacy";
 import { ComplianceSubmissionDetail, complianceStateOf, complianceToneOf } from "./ComplianceSubmissionDetail";
 
-export interface ComplianceData {
+interface ComplianceData {
   kpis: ComplianceKpi[];
   submissions: ComplianceSubmission[];
   licences: ComplianceLicence[];
@@ -30,7 +30,7 @@ export interface ComplianceData {
   requests: ComplianceDataRequest[];
 }
 
-export type ComplianceTab = "licences" | "privacy";
+type ComplianceTab = "licences" | "privacy";
 
 const kpiStatus = (tone: ComplianceKpi["status"]) =>
   tone === "success" || tone === "warning" || tone === "danger" ? tone : undefined;

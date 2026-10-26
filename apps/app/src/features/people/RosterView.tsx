@@ -44,7 +44,7 @@ import { decideShiftSwap, publishRosterWeek, setRosterLent, setRosterShift } fro
 import { addDays, longDay, shortDay, weekdayLong } from "./days";
 import { PanelCard } from "./parts";
 
-export interface RosterData {
+interface RosterData {
   groups: RosterGroup[];
   staff: RosterStaff[];
   weeks: RosterWeek[];

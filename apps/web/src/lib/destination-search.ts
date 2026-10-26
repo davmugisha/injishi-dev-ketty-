@@ -34,7 +34,7 @@ const KIND_RANK: Record<DestinationKind, number> = {
   stay: 3,
 };
 
-export interface RankedDestination {
+interface RankedDestination {
   destination: Destination;
   score: number;
   /** [start, end) of the matched span in the label, for emphasis on render. */

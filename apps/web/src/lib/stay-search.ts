@@ -1,5 +1,5 @@
 import type { DateRange } from "react-day-picker";
-import { formatDateRange, formatDayMonth, nightsBetween, pluralize } from "@injishi/utils";
+import { formatDateRange, formatDayMonth, pluralize } from "@injishi/utils";
 import type { Destination } from "@/data/destinations";
 import {
   DEFAULT_GUESTS,
@@ -208,13 +208,6 @@ export function intentDateSummary(intent: StayIntent): string | null {
     fromParamDate(intent.checkOut),
     intent.flex,
   );
-}
-
-/** "3 nights" - the sub-label under the date summary once a range is closed. */
-export function nightsSummary(checkIn: Date | null, checkOut: Date | null): string | null {
-  if (!checkIn || !checkOut) return null;
-  const nights = nightsBetween(checkIn, checkOut);
-  return nights > 0 ? pluralize(nights, "night") : null;
 }
 
 /** Midnight today, for disabling the past in the picker. */

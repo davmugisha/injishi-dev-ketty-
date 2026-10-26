@@ -75,7 +75,7 @@ export async function decideCorrection(
   return result;
 }
 
-export type DeskEntryInput = DeskEntry;
+type DeskEntryInput = DeskEntry;
 
 /** Desk entry for when the kiosk or phone could not record a clock. A justification is required. */
 export async function saveDeskEntry(input: DeskEntryInput): Promise<ActionResult & { name?: string }> {

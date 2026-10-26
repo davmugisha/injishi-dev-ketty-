@@ -2,7 +2,7 @@
 // network-only; only an explicit allowlist of static, non-user-specific,
 // same-origin asset paths is cacheable. This is the per-workspace isolation
 // guardrail — authenticated data and documents must never be cached.
-export type CacheDecision = "cache-first" | "network-only";
+type CacheDecision = "cache-first" | "network-only";
 
 // NOTE: any future DYNAMIC route added under one of these prefixes would become
 // cacheable — this allowlist's safety is coupled to those dirs staying static.

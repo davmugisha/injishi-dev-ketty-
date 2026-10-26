@@ -39,7 +39,7 @@ import {
 } from "./actions";
 import { downloadCsv, FormDialog, firstKey, lineTab, SelectField, SubHeading, TabCount, ToneChip } from "./shared";
 
-export interface ResidenceServiceData {
+interface ResidenceServiceData {
   tickets: ServiceTicket[];
   requests: AccessRequest[];
   visitors: PreregisteredVisitor[];

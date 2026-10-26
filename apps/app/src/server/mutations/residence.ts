@@ -57,7 +57,7 @@ export const REPAIR_CATEGORY: Record<string, RepairCategory> = {
   Other: "other",
   "Something else": "other",
 };
-export const NOTICE_CHANNEL: Record<string, "app" | "letter" | "email" | "in_person"> = {
+const NOTICE_CHANNEL: Record<string, "app" | "letter" | "email" | "in_person"> = {
   Letter: "letter",
   "Resident app": "app",
   Email: "email",

@@ -50,7 +50,7 @@ import { decideLeave } from "./actions";
 import { addDays, dayOfMonth, rangeLong, weekdayIndex } from "./days";
 import { firstName, initials } from "./parts";
 
-export interface LeaveData {
+interface LeaveData {
   requests: LeaveRequest[];
   balances: LeaveBalance[];
   types: LeaveType[];

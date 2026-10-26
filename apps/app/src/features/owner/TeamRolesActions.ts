@@ -16,7 +16,7 @@ import {
 } from "@/server/mutations/owner";
 
 /** What a Team and Roles action answers: done, or the refusal in words the person can act on. */
-export type TeamActionResult = { ok: true } | { ok: false; message: string };
+type TeamActionResult = { ok: true } | { ok: false; message: string };
 
 function refusal(error: unknown): { ok: false; message: string } {
   if (error instanceof OwnerRefusal || error instanceof ApiError) return { ok: false, message: error.message };

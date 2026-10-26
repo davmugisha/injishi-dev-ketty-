@@ -82,4 +82,3 @@ export function estimateCostMicroUsd(usage: ModelUsage, prices: ModelPrices): nu
 
 /** Who asked, as the usage report groups it. A label only: it grants nothing. */
 export type CallerRole = 'anonymous' | 'signed_in' | 'operator' | 'staff';
-export const CALLER_ROLES: readonly CallerRole[] = ['anonymous', 'signed_in', 'operator', 'staff'];

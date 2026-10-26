@@ -8,7 +8,7 @@ const CHANGE_EVENT = "injishi:recently-viewed-change";
 /** Kept, not shown: surfaces show fewer, but a removed stay lets the next surface. */
 const KEEP = 12;
 
-export type RecentView = { slug: string; at: number };
+type RecentView = { slug: string; at: number };
 
 function read(): RecentView[] {
   if (typeof window === "undefined") return [];

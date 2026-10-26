@@ -18,7 +18,6 @@ import {
   text,
   timestamp,
   unique,
-  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
@@ -26,7 +25,7 @@ import { amount, timestamps } from './columns';
 import { storedObjects } from './hospitality';
 import { properties, rooms } from './inventory';
 import { workspaces } from './org';
-import { brokers, leases, maintenanceTickets, rentCharges } from './residence';
+import { brokers, leases, rentCharges } from './residence';
 
 /** A building, wing or block of a residence ("Block A"): nothing in `rooms` or `spaces` modelled one. */
 export const propertyBlocks = pgTable(

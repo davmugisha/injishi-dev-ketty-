@@ -17,7 +17,7 @@ export interface SessionRow {
   current: boolean;
 }
 
-export interface SessionInput {
+interface SessionInput {
   id: string;
   userAgent: string | null;
   ipAddress: string | null;

@@ -7,7 +7,7 @@ import { GateChip, PageContent, PageHeader, SectionHeader, StatusDot } from "@in
 import { useState } from "react";
 import { firstKey, initials, selectableRow, ToneChip } from "./shared";
 
-export interface AdminPeopleData {
+interface AdminPeopleData {
   families: RoleFamily[];
   staff: StaffMember[];
   reviews: AccessReview[];

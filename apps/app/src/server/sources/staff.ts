@@ -42,7 +42,7 @@ import { defineSources, type SourceContext } from "./types";
 
 // ── API shapes (as server/api answers) ────────────────────────────────────────────────────────────
 
-export interface ApiPhone {
+interface ApiPhone {
   propertyId: string;
   checklist: {
     id: string;
@@ -86,7 +86,7 @@ interface ApiTimeLog {
   endedAt: string | null;
 }
 
-export interface ApiWorkFile {
+interface ApiWorkFile {
   employeeId: string;
   orgId: string;
   displayName: string;
@@ -210,7 +210,7 @@ const readTimeLogs = (ctx: SourceContext) =>
   once(ctx, "time-logs", () => ctx.ops().get<{ logs: ApiTimeLog[] }>("/api/v1/ops/maintenance-time-logs"));
 
 /** The caller holds no HR file at any business: their own pages say so instead of failing. */
-export class NoStaffFileError extends Error {
+class NoStaffFileError extends Error {
   constructor() {
     super("This account has no staff file at a business yet.");
     this.name = "NoStaffFileError";

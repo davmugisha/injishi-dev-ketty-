@@ -30,7 +30,7 @@ import type { LiveLease } from "@/server/sources/residence";
 import { remindAboutOfferAction, withdrawOfferAction } from "./actions";
 import { downloadCsv, firstKey, kigaliCalendar, lineTab, money, SubHeading, TabCount, ToneChip } from "./shared";
 
-export interface LeasesData {
+interface LeasesData {
   /** Live leases carry `record` (landlord, deposit, notice, term, signature dates); see LeaseRecord. */
   leases: LiveLease[];
   clauses: LeaseClause[];

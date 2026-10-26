@@ -52,7 +52,7 @@ import type { Selection } from "react-aria-components";
 import { checkOutGuest, postCharge, recordCash, resendClaimCode, voidCharge } from "./actions";
 import { CardHeading, IconTile, InfoRow, Note, readFrancs, rwf, SelectField, StatTile, ToneChip } from "./parts";
 
-export interface StayFolioData {
+interface StayFolioData {
   stay: Stay;
   records: StayRecord[];
   lines: FolioLine[];

@@ -33,7 +33,7 @@ import { Fragment, useMemo, useState } from "react";
 import { AmountList, type AmountRow } from "./parts";
 import { amount, payLineFigures, pct, rwf, signedRwf } from "./payCalc";
 
-export interface PayRunData {
+interface PayRunData {
   rates: PayRates;
   lines: PayLine[];
   steps: PayRunStep[];

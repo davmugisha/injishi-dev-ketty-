@@ -5,7 +5,7 @@
  * "20000,5") is refused with a reason, never folded into the digits: stripping every non-digit took
  * "20,000.50" as 2,000,050. Nothing typed is ever multiplied or rounded into another amount.
  */
-export interface TypedFrancs {
+interface TypedFrancs {
   /** The whole francs typed; 0 when the field is empty or refused. */
   amount: number;
   /** Why the text is not an amount, said to the person; null when it is one (or the field is empty). */

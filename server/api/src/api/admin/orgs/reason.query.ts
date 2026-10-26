@@ -11,6 +11,5 @@
  * names; they are aliases, not a second definition.
  */
 export {
-  AdminReasonQuery as ReasonQuery,
   AdminPagedReasonQuery as PagedReasonQuery,
 } from '@injishi/contracts';

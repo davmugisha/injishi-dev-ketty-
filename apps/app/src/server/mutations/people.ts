@@ -101,7 +101,7 @@ export interface DeskEntry {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** "15 Oct 2026", "15 October 2026" or "2026-10-15" → "2026-10-15"; null when it is not a date. */
-export function parseDay(text: string): string | null {
+function parseDay(text: string): string | null {
   const t = text.trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
   const m = t.match(/^(\d{1,2})\s+([A-Za-z]{3})[a-z]*\s+(\d{4})$/);

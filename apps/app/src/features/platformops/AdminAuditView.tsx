@@ -22,7 +22,7 @@ import { Icon, KeyValueList, PageContent, PageHeader } from "@injishi/ui";
 import { type Key, useState } from "react";
 import { firstKey, KpiStrip, selectableRow, ToneChip } from "./shared";
 
-export interface AdminAuditData {
+interface AdminAuditData {
   kpis: AuditKpi[];
   events: AuditEvent[];
 }

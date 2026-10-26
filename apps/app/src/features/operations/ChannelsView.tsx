@@ -52,7 +52,7 @@ import { Fragment, useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { FieldLabel, FooterHint, FormDialog, firstKey } from "./shared";
 
-export interface ChannelsData {
+interface ChannelsData {
   channels: Channel[];
   syncLog: ChannelSyncEntry[];
   sources: ChannelSource[];

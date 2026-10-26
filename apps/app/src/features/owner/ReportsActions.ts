@@ -8,7 +8,7 @@ import { ApiError, ApiUnreachableError } from "@/server/api";
 import { requestContext } from "@/server/data";
 import { OwnerRefusal, saveReportView } from "@/server/mutations/owner";
 
-export type SaveViewResult = { ok: true; name: string } | { ok: false; message: string };
+type SaveViewResult = { ok: true; name: string } | { ok: false; message: string };
 
 /**
  * "Save view" on Reports: the tab and branch on screen become one of the owner's saved views

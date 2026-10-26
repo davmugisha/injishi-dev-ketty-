@@ -13,7 +13,7 @@ import {
   type SupportTicketInput,
 } from "@/server/mutations/public";
 
-export type PublicActionResult<T> = { ok: true; value: T } | { ok: false; error: string };
+type PublicActionResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
 /** A public write: the screen is the visitor's to use, the API decides, and a refusal comes back as words. */
 async function run<T>(

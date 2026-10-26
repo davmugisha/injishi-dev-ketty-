@@ -1,30 +1,25 @@
 "use client";
 
 import {
-  Accessibility,
   Award,
   Banknote,
   BedDouble,
   Binoculars,
-  CalendarCheck,
   Check,
   ChevronDown,
   Compass,
   ConciergeBell,
-  CreditCard,
   House,
   type LucideIcon,
   MapPin,
   Minus,
   Mountain,
-  RotateCcw,
   SlidersHorizontal,
   Sparkles,
   Star,
   UtensilsCrossed,
 } from "lucide-react";
 import { useId, useState } from "react";
-import { Button } from "@injishi/ui";
 import { cn } from "@injishi/utils";
 import type { FacetGroup, FacetOption } from "@/data/explore-facets";
 import { formatRateNumber } from "@/lib/price";
@@ -185,7 +180,7 @@ function RowMeta({ option, showFrom }: { option: FacetOption; showFrom?: boolean
  * has to follow `peer-checked`. `@injishi/ui`'s `Checkbox` is HeroUI's field,
  * which is right for a form and heavier than a rail of sixty rows needs.
  */
-export function CheckboxRow({
+function CheckboxRow({
   label,
   option,
   checked,
@@ -243,7 +238,7 @@ export function CheckboxRow({
  * list except by reloading. So the group renders `role="radio"` buttons and
  * handles the toggle itself.
  */
-export function RadioRow({
+function RadioRow({
   label,
   option,
   checked,
@@ -292,7 +287,7 @@ export function RadioRow({
  * `hidden` on them, rather than not rendering them, keeps the expander's own
  * position stable and lets the browser find text in a collapsed block.
  */
-export function SeeMore({
+function SeeMore({
   count,
   expanded,
   onToggle,

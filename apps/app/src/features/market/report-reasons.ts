@@ -11,8 +11,6 @@ export const LISTING_REPORT_REASONS = [
   { id: "other", label: "Something else" },
 ] as const;
 
-export type ListingReportReason = (typeof LISTING_REPORT_REASONS)[number]["id"];
-
 export function listingReportLabel(id: string): string | null {
   return LISTING_REPORT_REASONS.find((r) => r.id === id)?.label ?? null;
 }

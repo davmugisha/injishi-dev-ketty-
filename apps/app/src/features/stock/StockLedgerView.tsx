@@ -31,7 +31,7 @@ import { type Key, useMemo, useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { KvRows, lineTab, Muted, money, SectionTitle, selectableRow, signedQty, TabCount, ToneChip } from "./shared";
 
-export interface StockLedgerData {
+interface StockLedgerData {
   movements: StockMovement[];
   locations: StockLocation[];
   countLines: CountLine[];

@@ -107,7 +107,7 @@ export async function resendCode(next?: string): Promise<{ error?: string }> {
   return { error: SEND_ERRORS[await beginChallenge(pending.email, safeReturn(next))] };
 }
 
-export type SessionsState = { error?: string };
+type SessionsState = { error?: string };
 
 const SESSIONS_UNREACHABLE = "We couldn’t reach Injishi to sign that out. Try again in a moment.";
 

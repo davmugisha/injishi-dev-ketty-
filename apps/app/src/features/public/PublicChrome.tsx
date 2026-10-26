@@ -13,7 +13,7 @@ import { SampleDataPill } from "@/components/shell/SampleData";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
-export type PublicNavId = "stays" | "homes" | "hosts" | "help" | "trips";
+type PublicNavId = "stays" | "homes" | "hosts" | "help" | "trips";
 
 const NAV: { id: PublicNavId; label: string; href: string }[] = [
   { id: "stays", label: "Stays", href: screenHref("MarketExplore") },

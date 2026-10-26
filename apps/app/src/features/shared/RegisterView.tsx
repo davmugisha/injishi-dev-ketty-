@@ -50,7 +50,7 @@ import { GateChip, Icon, KeyValueList, LinkButton, toneColor } from "@injishi/ui
 import { useState } from "react";
 import { CardHeading, ChoiceSelect, IconNote, IconTile, ProcessTimeline, PublicBar } from "./ui";
 
-export interface RegisterData {
+interface RegisterData {
   application: RegistrationApplication;
   types: BusinessType[];
   steps: RegistrationStep[];

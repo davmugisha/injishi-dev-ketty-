@@ -39,7 +39,7 @@ import { formatNumber, Icon, KeyValueList, LinkButton, PageContent, PageHeader }
 import { useState } from "react";
 import { ChoiceSelect, IconTile } from "./ui";
 
-export interface AccessDeniedData {
+interface AccessDeniedData {
   denial: AccessDenial;
   alternatives: AccessAlternatives;
   dataExport: DataExport;

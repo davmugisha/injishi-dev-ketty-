@@ -43,7 +43,7 @@ export const RECOVERY_MS = 300;
 export const ACKNOWLEDGE_MS = 500;
 
 /** When a wait stops being ordinary and needs a word about itself. */
-export const SLOW_MS = 6_000;
+const SLOW_MS = 6_000;
 
 /**
  * True once `active` has been true for `ms` without interruption.

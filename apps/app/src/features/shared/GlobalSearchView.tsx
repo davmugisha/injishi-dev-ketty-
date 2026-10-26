@@ -9,7 +9,7 @@ import type { DeskArrival, DeskFigure, RecentSearch, SearchEntry, SearchGroup } 
 import { formatRwf, Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { Fragment, useEffect, useState } from "react";
 
-export interface SearchData {
+interface SearchData {
   figures: DeskFigure[];
   arrivals: DeskArrival[];
   entries: SearchEntry[];
