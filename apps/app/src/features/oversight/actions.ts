@@ -1,7 +1,5 @@
 "use server";
 
-import { screenHref } from "@injishi/data";
-import { revalidatePath } from "next/cache";
 import { requirePersona } from "@/lib/session";
 import { ApiError, ApiUnreachableError } from "@/server/api";
 import { requestContext } from "@/server/data";
@@ -19,9 +17,9 @@ async function run<T>(act: () => Promise<T>): Promise<ActionResult<T>> {
   await requirePersona("OfficerCase");
   try {
     const value = await act();
-    // The queues only. The case page itself is left alone on purpose: once decided, a case leaves this
-    // officer's queue, so re-reading it would turn the confirmation they are looking at into "not found".
-    revalidatePath(screenHref("OfficerHome"));
+    // No revalidatePath here: in a server action it also re-renders the page the officer is on, and a
+    // decided case has left their queue, so the confirmation they are looking at turned into "not found".
+    // The queues are read fresh on every visit (dynamic pages are not kept in the router cache).
     return { ok: true, value };
   } catch (error) {
     if (error instanceof ApiError) {
