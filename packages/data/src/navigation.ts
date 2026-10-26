@@ -754,6 +754,7 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
         { id: "home", label: "Home", icon: "House", board: "BrokerWork" },
         { id: "homes", label: "Homes", icon: "Magnifier", board: "BrokerDirectory" },
         { id: "placements", label: "Placements", icon: "Persons", board: "BrokerPlacements" },
+        { id: "messages", label: "Messages", icon: "Comments", board: "BrokerMessages" },
         { id: "earnings", label: "Earnings", icon: "Wallet", board: "BrokerEarnings" },
         { id: "reviews", label: "Reviews", icon: "Star", board: "BrokerReviews" },
       ],

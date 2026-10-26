@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { WorkspaceShell } from "@/components/shell/WorkspaceShell";
 import { MessagesLive } from "@/features/messages/MessagesLive";
 import { currentAccount } from "@/lib/session";
+import { brokerNav } from "@/server/broker/nav";
 import { officerNav, officerPersona } from "@/server/oversight/nav";
 import { landlordScope } from "@/server/rentals/client";
 import { landlordNav } from "@/server/rentals/nav";
@@ -23,7 +24,9 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
         ? await officerNav()
         : persona.id === "tenant"
           ? await tenantNav()
-          : navigationFor(persona.id);
+          : persona.id === "broker"
+            ? await brokerNav()
+            : navigationFor(persona.id);
   if (nav.length === 0) {
     // Phone/tablet personas visiting a desktop screen they may open: home plus "what to try".
     nav = [
@@ -54,6 +57,8 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
         />
       ) : persona.id === "tenant" ? (
         <MessagesLive workspaceId={null} unreadPath="/api/messages/me/tenancies/messages/unread" />
+      ) : persona.id === "broker" ? (
+        <MessagesLive workspaceId={null} unreadPath="/api/messages/ops/broker/messages/unread" />
       ) : null}
     </WorkspaceShell>
   );
