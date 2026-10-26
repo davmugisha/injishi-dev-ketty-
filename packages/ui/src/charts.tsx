@@ -480,6 +480,29 @@ function usePeriod<T>(data: readonly T[], initial: number) {
   return { months, setMonths, shown };
 }
 
+/**
+ * A money series starts at its first real month: months before the first one with any amount are blanks
+ * (null), not zeros, so a line never climbs out of months that had no data and fakes growth. Returns the
+ * rows and how many months have data (one month alone is drawn as a dot).
+ */
+function fromFirstReal<T extends Record<K, number>, K extends keyof T>(
+  rows: T[],
+  keys: K[],
+): { rows: (Omit<T, K> & { [P in K]: number | null })[]; real: number } {
+  const first = rows.findIndex((r) => keys.some((k) => r[k] !== 0));
+  const start = first === -1 ? rows.length : first;
+  return {
+    rows: rows.map((r, i) => (i < start ? { ...r, ...Object.fromEntries(keys.map((k) => [k, null])) } : r)) as (Omit<
+      T,
+      K
+    > & { [P in K]: number | null })[],
+    real: rows.length - start,
+  };
+}
+
+/** A dot on every point only when a series is too short to draw a line. */
+const lonelyDot = (real: number, color: string) => (real <= 1 ? { r: 3.5, strokeWidth: 0, fill: color } : false);
+
 function Gradient({ id, color }: { id: string; color: string }) {
   return (
     <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
@@ -520,7 +543,10 @@ export function CollectedVsExpectedArea({
   const expected = shown.reduce((s, d) => s + d.expected, 0);
   const collected = shown.reduce((s, d) => s + d.collected, 0);
   const rate = expected > 0 ? Math.round((collected / expected) * 100) : 0;
-  const rows = shown.map((d) => ({ ...d, label: monthLabel(d.month) }));
+  const { rows, real } = fromFirstReal(
+    shown.map((d) => ({ ...d, label: monthLabel(d.month) })),
+    ["expected", "collected"],
+  );
   return (
     <ChartCard
       title={title}
@@ -561,7 +587,10 @@ export function CollectedVsExpectedArea({
               {...moneyTooltip((l) => {
                 const hit = rows.find((r) => r.label === l);
                 if (!hit) return l;
-                const pct = hit.expected > 0 ? ` · ${Math.round((hit.collected / hit.expected) * 100)}%` : "";
+                const pct =
+                  hit.expected && hit.expected > 0
+                    ? ` · ${Math.round(((hit.collected ?? 0) / hit.expected) * 100)}%`
+                    : "";
                 return `${monthLabel(hit.month, true)}${pct}`;
               })}
             />
@@ -575,7 +604,7 @@ export function CollectedVsExpectedArea({
           strokeWidth={1.5}
           strokeDasharray="4 4"
           fill="transparent"
-          dot={false}
+          dot={lonelyDot(real, "var(--chart-other)")}
           activeDot={{ r: 3, strokeWidth: 2, stroke: "var(--surface)" }}
           isAnimationActive={motion}
         />
@@ -586,7 +615,7 @@ export function CollectedVsExpectedArea({
           stroke={CHART_COLOR.cat(1)}
           strokeWidth={2}
           fill={`url(#${gradient})`}
-          dot={false}
+          dot={lonelyDot(real, CHART_COLOR.cat(1))}
           activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
           isAnimationActive={motion}
         />
@@ -626,12 +655,13 @@ export function CashFlowArea({
   const totalIn = shown.reduce((s, d) => s + d.moneyIn, 0);
   const totalOut = shown.reduce((s, d) => s + Math.abs(d.moneyOut), 0);
   const net = totalIn - totalOut;
-  const rows = shown.map((d) => ({
+  const flows = shown.map((d) => ({
     label: monthLabel(d.month),
     month: d.month,
     moneyIn: d.moneyIn,
     moneyOut: Math.abs(d.moneyOut),
   }));
+  const { rows, real } = fromFirstReal(flows, ["moneyIn", "moneyOut"]);
   return (
     <ChartCard
       title={title}
@@ -652,7 +682,7 @@ export function CashFlowArea({
       summary={`${formatMoney(totalIn)} in and ${formatMoney(totalOut)} out over the last ${shown.length} months, net ${formatMoney(net, { signed: true })}.`}
       table={{
         columns: ["Month", "In (RWF)", "Out (RWF)", "Net (RWF)"],
-        rows: rows.map((d) => [
+        rows: flows.map((d) => [
           monthLabel(d.month, true),
           bare(d.moneyIn),
           bare(d.moneyOut),
@@ -675,7 +705,7 @@ export function CashFlowArea({
               {...moneyTooltip((l) => {
                 const hit = rows.find((r) => r.label === l);
                 if (!hit) return l;
-                return `${monthLabel(hit.month, true)} · net ${formatMoney(hit.moneyIn - hit.moneyOut, { signed: true })}`;
+                return `${monthLabel(hit.month, true)} · net ${formatMoney((hit.moneyIn ?? 0) - (hit.moneyOut ?? 0), { signed: true })}`;
               })}
             />
           }
@@ -687,7 +717,7 @@ export function CashFlowArea({
           stroke={CHART_COLOR.cat(1)}
           strokeWidth={2}
           fill={`url(#${inId})`}
-          dot={false}
+          dot={lonelyDot(real, CHART_COLOR.cat(1))}
           activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
           isAnimationActive={motion}
         />
@@ -698,7 +728,7 @@ export function CashFlowArea({
           stroke={CHART_COLOR.cat(3)}
           strokeWidth={2}
           fill={`url(#${outId})`}
-          dot={false}
+          dot={lonelyDot(real, CHART_COLOR.cat(3))}
           activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
           isAnimationActive={motion}
         />
@@ -963,7 +993,10 @@ export function MonthlyAmountArea({
   const gradient = useId().replace(/:/g, "");
   const { ref, points, trimmed } = useFitPoints(data, narrowMonths);
   const total = data.reduce((s, d) => s + d.amount, 0);
-  const rows = points.map((d) => ({ ...d, label: monthLabel(d.month) }));
+  const { rows, real } = fromFirstReal(
+    points.map((d) => ({ ...d, label: monthLabel(d.month) })),
+    ["amount"],
+  );
   const top = data.reduce<MonthAmount | null>((best, d) => (!best || d.amount > best.amount ? d : best), null);
   return (
     <ChartCard
@@ -1015,7 +1048,7 @@ export function MonthlyAmountArea({
             stroke={CHART_COLOR.cat(1)}
             strokeWidth={2}
             fill={`url(#${gradient})`}
-            dot={false}
+            dot={lonelyDot(real, CHART_COLOR.cat(1))}
             activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
             isAnimationActive={motion}
           />
