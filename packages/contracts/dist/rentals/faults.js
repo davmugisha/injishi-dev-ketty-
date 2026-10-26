@@ -311,6 +311,8 @@ exports.FaultListItem = zod_1.z.object({
     updatedAt: IsoMoment,
     assigneeName: zod_1.z.string().nullable(),
     photoCount: zod_1.z.number().int(),
+    /** A short-lived read of the first photo (the report's first), for the list's thumbnail; null without photos. */
+    thumbUrl: zod_1.z.string().nullable(),
 });
 exports.FaultCounts = zod_1.z.record(exports.FaultTab, zod_1.z.number().int());
 exports.FaultListPage = zod_1.z.object({

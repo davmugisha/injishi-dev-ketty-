@@ -54,7 +54,7 @@ export function assigneeOf(row: FaultRow): FaultAssigneeView | null {
   return null;
 }
 
-export function presentFaultItem(row: FaultRow): FaultListItem {
+export function presentFaultItem(row: FaultRow, thumbUrl: string | null = null): FaultListItem {
   return {
     id: row.id,
     reference: row.reference,
@@ -75,6 +75,7 @@ export function presentFaultItem(row: FaultRow): FaultListItem {
     updatedAt: row.updatedAt.toISOString(),
     assigneeName: assigneeOf(row)?.name ?? null,
     photoCount: row.photoCount,
+    thumbUrl,
   };
 }
 

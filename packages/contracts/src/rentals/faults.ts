@@ -358,6 +358,8 @@ export const FaultListItem = z.object({
   updatedAt: IsoMoment,
   assigneeName: z.string().nullable(),
   photoCount: z.number().int(),
+  /** A short-lived read of the first photo (the report's first), for the list's thumbnail; null without photos. */
+  thumbUrl: z.string().nullable(),
 });
 export type FaultListItem = z.infer<typeof FaultListItem>;
 

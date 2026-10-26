@@ -247,6 +247,8 @@ maybe('faults and the ticket lifecycle against Postgres (RENTALS_IT_DATABASE_URL
     const list = await s.faults.list(ws, { tab: 'open', page: 1 });
     expect(list.items.map((i) => i.id)).toContain(id);
     expect(list.counts.open).toBeGreaterThanOrEqual(1);
+    // Each row carries a thumbnail read of its first photo.
+    expect(list.items.find((i) => i.id === id)?.thumbUrl).toMatch(/^https:\/\/files\.test\/fault_photo\//);
 
     // Seen, then an illegal move: Seen cannot go to Closed.
     await s.faults.move(ws, userId, id, MoveFaultRequest.parse({ to: 'acknowledged' }));

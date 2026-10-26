@@ -85,12 +85,16 @@ export class FaultsService {
       }),
       this.faults.statusCounts(filters),
     ]);
+    // Each row's thumbnail: a short-lived read of its first photo.
+    const thumbs = await Promise.all(
+      found.rows.map((row) => (row.thumbKey ? this.files.signedUrl(row.thumbKey) : Promise.resolve(null))),
+    );
     const counts = Object.fromEntries(FaultTab.options.map((tab) => [tab, 0])) as FaultCounts;
     for (const tab of FaultTab.options) {
       for (const status of FAULT_TAB_STATUSES[tab]) counts[tab] = (counts[tab] ?? 0) + (statuses.get(status) ?? 0);
     }
     return {
-      items: found.rows.map(presentFaultItem),
+      items: found.rows.map((row, i) => presentFaultItem(row, thumbs[i] ?? null)),
       total: found.total,
       page,
       pageSize: FAULT_PAGE_SIZE,
@@ -301,7 +305,7 @@ export class FaultsService {
     const events = seesMoney ? allEvents : allEvents.filter((e) => e.kind !== 'paid');
     const urls = await Promise.all(photos.map((p) => this.files.signedUrl(p.objectKey)));
     return {
-      ...presentFaultItem(row),
+      ...presentFaultItem(row, urls[0] ?? null),
       description: row.description,
       staffMayEnter: row.staffMayEnter,
       assignee: assigneeOf(row),

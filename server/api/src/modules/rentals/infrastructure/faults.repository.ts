@@ -42,6 +42,8 @@ export interface FaultRow {
   createdAt: Date;
   updatedAt: Date;
   photoCount: number;
+  /** The storage key of the first photo (report phase first), for the list's thumbnail. */
+  thumbKey: string | null;
 }
 
 export interface FaultPhotoRow {
@@ -126,6 +128,7 @@ type RawFault = {
   created_at: Date;
   updated_at: Date;
   photo_count: number;
+  thumb_key: string | null;
 };
 
 const date = (v: Date | string | null): Date | null => (v === null ? null : new Date(v));
@@ -167,6 +170,7 @@ function toRow(r: RawFault): FaultRow {
     createdAt: new Date(r.created_at),
     updatedAt: new Date(r.updated_at),
     photoCount: Number(r.photo_count ?? 0),
+    thumbKey: r.thumb_key ?? null,
   };
 }
 
@@ -199,7 +203,13 @@ export class FaultsRepository {
              t.assignee_kind, t.assigned_to_user_id, coalesce(nullif(au.name, ''), au.email) as assigned_to_name,
              t.assigned_contractor, t.assigned_contractor_phone, t.acknowledged_at, t.resolved_at,
              t.wont_fix_reason, t.reopened_count, t.created_at, t.updated_at,
-             (select count(*)::int from maintenance_photos mp where mp.ticket_id = t.id) as photo_count
+             (select count(*)::int from maintenance_photos mp where mp.ticket_id = t.id) as photo_count,
+             (select so.object_key
+                from maintenance_photos mp
+                join stored_objects so on so.id = mp.stored_object_id
+               where mp.ticket_id = t.id
+               order by case mp.phase when 'report' then 0 when 'progress' then 1 else 2 end, mp.position, mp.created_at
+               limit 1) as thumb_key
         from maintenance_tickets t
         left join leases l on l.id = t.lease_id
         left join rental_units u on u.id = coalesce(t.unit_id, l.unit_id)
