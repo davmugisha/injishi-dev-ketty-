@@ -36,6 +36,8 @@ import { MeWorkLeaveController } from './me/work-leave.controller';
 import { MeWorkPayController } from './me/work-pay.controller';
 import { KioskController } from './kiosk/kiosk.controller';
 import { TwoFactorController } from './me/two-factor.controller';
+// A tenant's password (2026-10-23): offered on a lease invitation, tenants only.
+import { PasswordController } from './me/password.controller';
 import { AvailabilityController } from './properties/availability.controller';
 import { MarketplaceController } from './properties/marketplace.controller';
 import {
@@ -405,6 +407,7 @@ import { TrainingPublicModule } from './training/training.module';
     MeWorkPayController,
     KioskController,
     TwoFactorController,
+    PasswordController,
     // Answers only in a demo process; 404 everywhere else (AC-S10, ADR-043).
     DemoPersonasController,
     DemoCrashController,
