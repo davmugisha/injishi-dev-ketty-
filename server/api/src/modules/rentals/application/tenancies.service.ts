@@ -11,6 +11,8 @@ import {
   type TenancyPlace,
 } from '@injishi/contracts';
 
+import { UnitMediaStorage } from '../../storage/application/unit-media-storage';
+import { UnitMediaRepository } from '../infrastructure/unit-media.repository';
 import { LeasesRepository, type LeaseRecord, type VersionRow } from '../infrastructure/leases.repository';
 import { RentalsContextRepository } from '../infrastructure/rentals-context.repository';
 import { SigningRepository } from '../infrastructure/signing.repository';
@@ -46,7 +48,21 @@ export class TenanciesService {
     private readonly contracts: LeaseContractService,
     /** The broker on the lease (2026-10-25); absent in the older unit tests. */
     @Optional() private readonly brokers?: LeaseBrokersService,
+    /** The unit's photos, for the tenant's cover; absent in the older unit tests. */
+    @Optional() private readonly media?: UnitMediaRepository,
+    @Optional() private readonly storage?: UnitMediaStorage,
   ) {}
+
+  /** The unit's first photo as a signed link, or null. A storage hiccup never fails the tenancy. */
+  private async coverPhoto(unitId: string): Promise<string | null> {
+    if (!this.media || !this.storage) return null;
+    try {
+      const [first] = await this.media.photos(unitId);
+      return first ? await this.storage.signedUrl(first.objectKey) : null;
+    } catch {
+      return null;
+    }
+  }
 
   /** The tenancy guard's check: the caller's own lease, and not a draft. */
   async resolve(userId: string, leaseId: string): Promise<TenancyRef> {
@@ -126,6 +142,7 @@ export class TenanciesService {
         email: profile.contactEmail,
       },
       place: await this.place(record, current),
+      coverPhotoUrl: await this.coverPhoto(lease.unitId),
       tenant: { fullName: tenant.fullName, email: tenant.email, phone: tenant.phone },
       terms: {
         startDate: lease.startDate,

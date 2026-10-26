@@ -86,6 +86,8 @@ exports.TenancyDetail = zod_1.z.object({
     status: vocab_1.LeaseStatus,
     landlord: exports.TenancyLandlord,
     place: exports.TenancyPlace,
+    /** The unit's cover photo (its first photo), a signed link; null when the landlord added none. */
+    coverPhotoUrl: zod_1.z.string().nullable().optional(),
     tenant: zod_1.z.object({ fullName: zod_1.z.string(), email: zod_1.z.string().nullable(), phone: zod_1.z.string().nullable() }),
     terms: api_1.LeaseTermsView,
     currentVersion: api_1.LeaseVersionSummary.nullable(),

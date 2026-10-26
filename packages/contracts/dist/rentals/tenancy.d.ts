@@ -377,6 +377,8 @@ export declare const TenancyDetail: z.ZodObject<{
         unitLabel: string;
         blockCode: string | null;
     }>;
+    /** The unit's cover photo (its first photo), a signed link; null when the landlord added none. */
+    coverPhotoUrl: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     tenant: z.ZodObject<{
         fullName: z.ZodString;
         email: z.ZodNullable<z.ZodString>;
@@ -629,6 +631,7 @@ export declare const TenancyDetail: z.ZodObject<{
     activatedAt: string | null;
     needsMySignature: boolean;
     signedCopyReady: boolean;
+    coverPhotoUrl?: string | null | undefined;
 }, {
     status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
     broker: {
@@ -711,6 +714,7 @@ export declare const TenancyDetail: z.ZodObject<{
     activatedAt: string | null;
     needsMySignature: boolean;
     signedCopyReady: boolean;
+    coverPhotoUrl?: string | null | undefined;
 }>;
 export type TenancyDetail = z.infer<typeof TenancyDetail>;
 //# sourceMappingURL=tenancy.d.ts.map

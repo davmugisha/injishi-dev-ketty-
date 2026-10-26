@@ -98,6 +98,8 @@ export const TenancyDetail = z.object({
   status: LeaseStatus,
   landlord: TenancyLandlord,
   place: TenancyPlace,
+  /** The unit's cover photo (its first photo), a signed link; null when the landlord added none. */
+  coverPhotoUrl: z.string().nullable().optional(),
   tenant: z.object({ fullName: z.string(), email: z.string().nullable(), phone: z.string().nullable() }),
   terms: LeaseTermsView,
   currentVersion: LeaseVersionSummary.nullable(),

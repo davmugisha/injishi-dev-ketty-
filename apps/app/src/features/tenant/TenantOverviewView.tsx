@@ -172,7 +172,11 @@ export function TenantOverviewView({
 
       <div className="grid min-w-0 gap-5 lg:grid-cols-3">
         <Card className="min-w-0 gap-0 overflow-hidden p-0 shadow-surface lg:col-span-2">
-          <HomeCoverImage seed={tenancy.id} className="aspect-[2.4/1] max-h-36 w-full sm:max-h-40" />
+          <HomeCoverImage
+            seed={tenancy.id}
+            photos={tenancy.coverPhotoUrl ? [tenancy.coverPhotoUrl] : []}
+            className="aspect-[2.4/1] max-h-36 w-full sm:max-h-40"
+          />
           <div className="grid h-full min-w-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,15rem)]">
             <div className="flex min-w-0 flex-col gap-4 p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
