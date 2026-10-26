@@ -300,12 +300,15 @@ async function meContext(cookie: SessionCookie): Promise<MeContext | null> {
  */
 function asPerson(shell: Persona, user: ApiUser, workspaces: Workspace[], context: MeContext | null): Persona {
   if (shell.email && shell.email === user.email.toLowerCase()) return shell;
-  // A broker registers their full name on the broker record; it reads better than the email's first part.
-  const name = user.name?.trim() || context?.broker?.name?.trim() || user.email.split("@")[0];
+  const business =
+    shell.id === "landlord" && context ? landlordBusiness(context.businesses, context.activeWorkspaceId) : null;
+  // An account with no name of its own: a broker's registered name, a landlord's business, and only then
+  // the email's first part.
+  const name =
+    user.name?.trim() || context?.broker?.name?.trim() || business?.orgName.trim() || user.email.split("@")[0];
   const parts = name.split(/\s+/).filter(Boolean);
   const person = { ...shell, name, firstName: parts[0] ?? name, initials: initialsOf(name), email: user.email };
   if (shell.id !== "landlord" || !context) return person;
-  const business = landlordBusiness(context.businesses, context.activeWorkspaceId);
   if (!business) return person;
   const role = ROLE_LABEL[business.role ?? ""] ?? "Member";
   return { ...person, role, workspace: landlordSwitcher(business, workspaces, context) };
