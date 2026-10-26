@@ -6,6 +6,10 @@
 import type {
   BlockList,
   LandlordProfileView,
+  OperatorStaffInvitation,
+  OperatorStaffInvitationList,
+  OperatorTeamList,
+  OperatorTeamMember,
   PayoutAccountList,
   RentalPropertyList,
   RentalsOverview,
@@ -80,3 +84,14 @@ export const rentalUnits = cache((tab?: UnitListQuery["tab"], blockId?: string, 
   get<RentalUnitList>("/api/v1/ops/units", { tab, blockId, q }),
 );
 export const unitMedia = cache((unitId: string) => get<UnitMediaView>(`/api/v1/ops/units/${unitId}/media`));
+
+/** The business's team and the invitations it sent (`team.manage` only). */
+export const rentalsTeam = cache(
+  async (): Promise<{ members: OperatorTeamMember[]; invitations: OperatorStaffInvitation[] }> => {
+    const [{ members }, { invitations }] = await Promise.all([
+      get<OperatorTeamList>("/api/v1/ops/team"),
+      get<OperatorStaffInvitationList>("/api/v1/ops/team/invitations"),
+    ]);
+    return { members, invitations };
+  },
+);

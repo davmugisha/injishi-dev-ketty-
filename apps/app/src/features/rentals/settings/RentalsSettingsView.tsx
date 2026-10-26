@@ -1,7 +1,14 @@
 "use client";
 
 import { Toast } from "@heroui/react";
-import type { LandlordProfileView, PayoutAccountView, RentalPropertyView, RentalsSetupView } from "@injishi/contracts";
+import type {
+  LandlordProfileView,
+  OperatorStaffInvitation,
+  OperatorTeamMember,
+  PayoutAccountView,
+  RentalPropertyView,
+  RentalsSetupView,
+} from "@injishi/contracts";
 import { FilterTabs, KeyValueList, PageContent, PageHeader, SectionCard } from "@injishi/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { SetupChecklist } from "../SetupChecklist";
@@ -11,6 +18,7 @@ import { LeaseDefaults } from "./LeaseDefaults";
 import { Location } from "./Location";
 import { PayoutAccounts } from "./PayoutAccounts";
 import { Signatory } from "./Signatory";
+import { Team } from "./Team";
 
 const LABEL: Record<SettingsTab, string> = {
   "getting-paid": "Getting paid",
@@ -18,6 +26,7 @@ const LABEL: Record<SettingsTab, string> = {
   "lease-defaults": "Lease defaults",
   signatory: "Who signs",
   brokers: "Brokers",
+  team: "Team",
 };
 
 export interface SettingsPermissions {
@@ -26,6 +35,7 @@ export interface SettingsPermissions {
   leaseDefaults: boolean;
   signatory: boolean;
   brokers: boolean;
+  team: boolean;
 }
 
 /** The landlord's settings (WP 2.2): getting paid, where the buildings are, lease defaults, who signs. */
@@ -35,6 +45,7 @@ export function RentalsSettingsView({
   accounts,
   properties,
   setup,
+  team,
   can,
 }: {
   tab: SettingsTab;
@@ -42,6 +53,8 @@ export function RentalsSettingsView({
   accounts: PayoutAccountView[] | null;
   properties: RentalPropertyView[];
   setup: RentalsSetupView | null;
+  /** The team, for a person who manages it. */
+  team: { members: OperatorTeamMember[]; invitations: OperatorStaffInvitation[] } | null;
   can: SettingsPermissions;
 }) {
   const router = useRouter();
@@ -52,7 +65,7 @@ export function RentalsSettingsView({
       <PageHeader title="Settings" description={profile.legalName} />
       <FilterTabs
         label="Settings"
-        tabs={SETTINGS_TABS.map((id) => ({ id, label: LABEL[id] }))}
+        tabs={SETTINGS_TABS.filter((id) => id !== "team" || can.team).map((id) => ({ id, label: LABEL[id] }))}
         selectedKey={tab}
         onSelectionChange={(key) => router.replace(`${pathname}?tab=${key}`, { scroll: false })}
       />
@@ -65,6 +78,7 @@ export function RentalsSettingsView({
           ) : null}
           {tab === "signatory" ? <Signatory signatory={profile.signatory} canEdit={can.signatory} /> : null}
           {tab === "brokers" ? <BrokerDefaults fee={profile.brokerFee} canEdit={can.brokers} /> : null}
+          {tab === "team" && team ? <Team members={team.members} invitations={team.invitations} /> : null}
         </div>
         {setup && !setup.complete ? (
           <SetupChecklist setup={setup} title="Setup" headingLevel={2} />

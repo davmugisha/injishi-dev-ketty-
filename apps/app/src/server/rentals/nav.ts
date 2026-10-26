@@ -109,9 +109,9 @@ export function landlordNavGroups(
   }
   if (money.length > 0) groups.push({ label: "Money", items: money });
 
+  // The team is a tab of Settings (`?tab=team`), not an item of its own.
   const business: NavItem[] = [];
-  if (can(scope, "team.manage")) business.push({ id: "team", label: "Team", icon: "Persons", board: "TeamRoles" });
-  if (can(scope, ...RENTALS_READ))
+  if (can(scope, ...RENTALS_READ, "team.manage"))
     business.push({ id: "settings", label: "Settings", icon: "Gear", board: "RentalsSettings" });
   if (business.length > 0) groups.push({ label: "Business", items: business });
   return groups;

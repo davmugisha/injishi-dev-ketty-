@@ -6,16 +6,19 @@ import type {
   TeamRolesRole,
 } from "@injishi/data/fixtures/owner";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { TeamRolesView } from "@/features/owner/TeamRolesView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
+import { landlordScope } from "@/server/rentals/client";
 import { businessNames, employeeFileEmails, teamScopes } from "@/server/sources/owner";
 
 export const metadata: Metadata = { title: screens.TeamRoles.pageTitle };
 
 export default async function TeamRolesPage() {
   await requirePersona("TeamRoles");
+  // A landlord's team lives under Settings, beside the rest of the business's settings.
+  if (await landlordScope()) redirect("/settings/rentals?tab=team");
   const ctx = await requestContext();
   // The scope picker lists the live branches a grant can name (not the prototype's tree, whose outlet rows
   // cannot be granted), and the member panel says whether People holds a file, read from People.

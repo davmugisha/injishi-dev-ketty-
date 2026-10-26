@@ -10,10 +10,14 @@ import {
   BrokerDefaultsRequest,
   BulkUnitsRequest,
   type BulkUnitsResult,
+  ChangeMemberRoleRequest,
   CreateBlockRequest,
   CreateUnitRequest,
+  InviteStaffRequest,
   type LandlordProfileView,
   LeaseDefaultsRequest,
+  type OperatorStaffInvitation,
+  type OperatorTeamMember,
   PayoutAccountInput,
   type PayoutAccountList,
   PropertyLocationRequest,
@@ -98,6 +102,30 @@ function parse<T>(schema: Schema<T>, input: unknown): { ok: true; data: T } | { 
 const ws = (scope: LandlordScope) => ({ workspaceId: scope.workspace.workspaceId });
 
 // --- Settings ---------------------------------------------------------------------------------
+
+/** Invite somebody into a role of the business; the API mails them the link. Every building (no limit). */
+export async function inviteTeamMember(input: unknown): Promise<ActionResult<OperatorStaffInvitation>> {
+  const parsed = parse(InviteStaffRequest, input);
+  if (!parsed.ok) return invalid(parsed.error);
+  return run((s) =>
+    s.api.post<OperatorStaffInvitation>("/api/v1/ops/team/invitations", { ...parsed.data, branchIds: null }, ws(s)),
+  );
+}
+
+export async function changeTeamRole(userId: string, input: unknown): Promise<ActionResult<OperatorTeamMember>> {
+  if (!UUID.test(userId)) return { ok: false, error: "That person was not found." };
+  const parsed = parse(ChangeMemberRoleRequest, input);
+  if (!parsed.ok) return invalid(parsed.error);
+  return run((s) => s.api.patch<OperatorTeamMember>(`/api/v1/ops/team/${userId}/role`, parsed.data, ws(s)));
+}
+
+export async function revokeTeamInvitation(id: string): Promise<ActionResult<null>> {
+  if (!UUID.test(id)) return { ok: false, error: "That invitation was not found." };
+  return run(async (s) => {
+    await s.api.post(`/api/v1/ops/team/invitations/${id}/revoke`, {}, ws(s));
+    return null;
+  });
+}
 
 export async function saveLeaseDefaults(input: unknown): Promise<ActionResult<LandlordProfileView>> {
   const parsed = parse(LeaseDefaultsRequest, input);
