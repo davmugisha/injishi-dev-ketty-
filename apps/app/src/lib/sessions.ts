@@ -86,13 +86,20 @@ export function lastActive(iso: string, now: Date, current: boolean): string {
   return stamp(iso);
 }
 
+/** An address worth showing: not empty, and not an unspecified one ("0000:0000:...", "::", "0.0.0.0"). */
+function placeOf(ip: string | null): string {
+  const value = ip?.trim() ?? "";
+  if (!value || /^[0:.]+$/.test(value)) return "Unknown network";
+  return value;
+}
+
 export function sessionRow(session: SessionInput, now: Date = new Date()): SessionRow {
   const { device, icon } = describeDevice(session.userAgent);
   return {
     id: session.id,
     icon,
     device,
-    place: session.ipAddress?.trim() || "Unknown network",
+    place: placeOf(session.ipAddress),
     since: stamp(session.createdAt),
     last: lastActive(session.updatedAt, now, session.current),
     current: session.current,
