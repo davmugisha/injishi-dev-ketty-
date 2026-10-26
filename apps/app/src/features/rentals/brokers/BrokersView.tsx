@@ -5,7 +5,6 @@ import {
   brokerFeeWords,
   type LandlordPlacementList,
   type LandlordPlacementView,
-  nationalPhone,
 } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import {
@@ -15,6 +14,7 @@ import {
   DateText,
   EmptyBlock,
   FilterTabs,
+  formatLocalPhone,
   IconAction,
   KpiStrip,
   Money,
@@ -102,7 +102,7 @@ export function BrokersView({ list, show, q }: { list: LandlordPlacementList; sh
                   <span className="tabular">{p.broker.ratingAverage.toFixed(1)}</span>
                 </span>
               ) : p.broker.phone ? (
-                nationalPhone(p.broker.phone)
+                formatLocalPhone(p.broker.phone)
               ) : undefined
             }
           />

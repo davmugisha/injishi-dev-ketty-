@@ -82,6 +82,12 @@ export function formatPhone(e164: string): string {
   return m ? `+250 ${m[1]} ${m[2]} ${m[3]}` : e164;
 }
 
+/** "0788 123 456": a Rwandan number as people write it at home; other numbers as stored. */
+export function formatLocalPhone(e164: string): string {
+  const m = /^\+250(\d{3})(\d{3})(\d{3})$/.exec(e164);
+  return m ? `0${m[1]} ${m[2]} ${m[3]}` : e164;
+}
+
 /** What the field shows for a stored number: "788 123 456" beside its +250, or the whole number. */
 export function phoneFieldText(e164: string): string {
   const m = /^\+250(\d{3})(\d{3})(\d{3})$/.exec(e164);

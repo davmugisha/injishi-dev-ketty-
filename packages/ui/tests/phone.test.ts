@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { test } from "node:test";
 import {
+  formatLocalPhone,
   formatPhone,
   INTL_PHONE_MESSAGE,
   isRwMobile,
@@ -83,4 +84,6 @@ test("display forms", () => {
   assert.equal(formatPhone("+250788123456"), "+250 788 123 456");
   assert.equal(formatPhone("+256772123456"), "+256772123456");
   assert.equal(phoneFieldText("+250788123456"), "788 123 456");
+  assert.equal(formatLocalPhone("+250788333444"), "0788 333 444");
+  assert.equal(formatLocalPhone("+256772123456"), "+256772123456");
 });

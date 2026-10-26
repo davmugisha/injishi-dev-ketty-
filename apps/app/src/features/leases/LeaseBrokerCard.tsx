@@ -1,12 +1,13 @@
 "use client";
 
 import { toast } from "@heroui/react";
-import { type BrokerFeeRecordStatus, brokerFeeWords, type LeaseDetail, nationalPhone } from "@injishi/contracts";
+import { type BrokerFeeRecordStatus, brokerFeeWords, type LeaseDetail } from "@injishi/contracts";
 import {
   ActionButton,
   ConfirmDialog,
   DateText,
   FormDialog,
+  formatLocalPhone,
   KeyValueList,
   Money,
   SectionCard,
@@ -216,7 +217,7 @@ export function LeaseBrokerCard({ lease, canManage }: { lease: LeaseDetail; canM
                     label: "Phone",
                     value: (
                       <a href={`tel:${broker.phone}`} className="tabular hover:underline">
-                        {nationalPhone(broker.phone)}
+                        {formatLocalPhone(broker.phone)}
                       </a>
                     ),
                   },

@@ -2,8 +2,17 @@
 
 import { Description, Label, toast } from "@heroui/react";
 import { RadioButtonGroup } from "@heroui-pro/react";
-import { ID_KIND_LABEL, type IdKind, type LandlordSignatory, nationalPhone } from "@injishi/contracts";
-import { ActionButton, EmailInput, Icon, KeyValueList, PhoneInput, SectionCard, SidePanel } from "@injishi/ui";
+import { ID_KIND_LABEL, type IdKind, type LandlordSignatory } from "@injishi/contracts";
+import {
+  ActionButton,
+  EmailInput,
+  formatLocalPhone,
+  Icon,
+  KeyValueList,
+  PhoneInput,
+  SectionCard,
+  SidePanel,
+} from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { saveSignatory } from "../actions";
@@ -153,7 +162,7 @@ export function Signatory({ signatory, canEdit }: { signatory: LandlordSignatory
             {
               label: "Phone",
               value: signatory.contactPhone ? (
-                <span className="tabular">{nationalPhone(signatory.contactPhone)}</span>
+                <span className="tabular">{formatLocalPhone(signatory.contactPhone)}</span>
               ) : (
                 "Not set"
               ),

@@ -9,7 +9,6 @@ import {
   type LeaseDetail,
   type LeaseEventView,
   type LeasePaymentView,
-  nationalPhone,
 } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import {
@@ -23,6 +22,7 @@ import {
   EventTimeline,
   FilterTabs,
   formatDay,
+  formatLocalPhone,
   formatMoney,
   Icon,
   KeyValueList,
@@ -451,7 +451,7 @@ export function LeaseRecordView({
                     label: "Phone",
                     value: lease.tenant.phone ? (
                       <a href={`tel:${lease.tenant.phone}`} className="tabular hover:underline">
-                        {nationalPhone(lease.tenant.phone)}
+                        {formatLocalPhone(lease.tenant.phone)}
                       </a>
                     ) : (
                       <Muted>Not given</Muted>
