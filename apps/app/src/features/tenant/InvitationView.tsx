@@ -7,8 +7,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { BrandMark } from "@/components/brand";
 import { signOut } from "@/lib/auth-actions";
+import { myPasswordStatus } from "@/lib/password-actions";
 import { tenantLeaseHref } from "../leases/shared";
 import { acceptInvitation } from "./actions";
+import { CreatePasswordStep } from "./CreatePasswordStep";
 
 /**
  * A lease invitation from its email link (P3.1, public): what was offered, then sign in with the address
@@ -30,6 +32,8 @@ export function InvitationView({
   // Signed in with another address than the one invited: accepting again cannot work.
   const [otherEmail, setOtherEmail] = useState(false);
   const [switching, setSwitching] = useState(false);
+  // Accepted: where the lease opens, once the tenant has made or skipped a password.
+  const [accepted, setAccepted] = useState<string | null>(null);
   const here = `/invite/lease/${encodeURIComponent(token)}`;
 
   const accept = async () => {
@@ -42,7 +46,15 @@ export function InvitationView({
       setOtherEmail(r.code === "invitation_other_email");
       return;
     }
-    router.push(`${tenantLeaseHref(r.value.id)}?sign=1`);
+    const leaseHref = `${tenantLeaseHref(r.value.id)}?sign=1`;
+    // A tenant is offered a password once, here (2026-10-23). Anyone who has one, or is not offered it, goes on.
+    const status = await myPasswordStatus();
+    if (status?.offered && !status.set) {
+      setPending(false);
+      setAccepted(leaseHref);
+      return;
+    }
+    router.push(leaseHref);
   };
 
   return (
@@ -51,7 +63,11 @@ export function InvitationView({
         <BrandMark size={24} />
         Injishi
       </div>
-      {preview === null ? (
+      {accepted && signedInAs ? (
+        <Card className="gap-5 p-6">
+          <CreatePasswordStep email={signedInAs} onDone={() => router.push(accepted)} />
+        </Card>
+      ) : preview === null ? (
         <Card className="gap-3 p-6">
           <h1 className="text-xl font-semibold">This link isn&apos;t valid</h1>
           <p className="text-sm text-muted">
@@ -147,7 +163,7 @@ export function InvitationView({
           ) : null}
         </Card>
       )}
-      {preview?.state === "open" ? (
+      {preview?.state === "open" && !accepted ? (
         <p className="text-center text-xs text-muted">
           The link works until <DateText value={preview.expiresAt} style="long" />.
         </p>

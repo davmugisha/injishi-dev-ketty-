@@ -13,10 +13,12 @@ import type {
 } from "@injishi/data/fixtures/shared";
 import type { Metadata } from "next";
 import { AccountView } from "@/features/shared/AccountView";
-import { currentSessionCookie, requirePersona } from "@/lib/session";
+import { TenantAccountView } from "@/features/tenant/TenantAccountView";
+import { currentAccount, currentSessionCookie, requirePersona } from "@/lib/session";
 import { sessionRow } from "@/lib/sessions";
 import { sessionsFor } from "@/server/auth";
 import { getCollection } from "@/server/data";
+import { passwordStatus } from "@/server/password";
 
 export const metadata: Metadata = { title: screens.Account.pageTitle };
 
@@ -53,6 +55,23 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const persona = await requirePersona("Account");
   const { tab } = await searchParams;
   const cookie = await currentSessionCookie();
+  // A tenant's account is their own records only, with the password tenants may hold (2026-10-23).
+  if (persona.id === "tenant" && cookie) {
+    const [account, sessions, password] = await Promise.all([
+      currentAccount(),
+      sessionsFor(cookie).then((list) => list.map((s) => sessionRow(s))),
+      passwordStatus(cookie).catch(() => null),
+    ]);
+    return (
+      <TenantAccountView
+        name={account?.user.name?.trim() || persona.name}
+        email={account?.user.email ?? persona.email}
+        initials={persona.initials}
+        password={password}
+        sessions={sessions}
+      />
+    );
+  }
   const [identities, profile, methods, sessions, checks, kycStates, workspaces, categories, rights, requests, files] =
     await Promise.all([
       getCollection<AccountIdentity>("shared.accountIdentities"),
