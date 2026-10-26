@@ -116,9 +116,7 @@ async function payFee(ctx: SourceContext, orgId: string): Promise<void> {
   if (pressed.kind === "settled") return;
   for (let i = 0; i < 60; i += 1) {
     await new Promise((resolve) => setTimeout(resolve, 1_000));
-    const polled = await ctx.api.get<{ state: string }>(
-      `/api/v1/registrations/${orgId}/pay/attempts/${attemptToken}`,
-    );
+    const polled = await ctx.api.get<{ state: string }>(`/api/v1/registrations/${orgId}/pay/attempts/${attemptToken}`);
     if (polled.state === "confirmed") return;
     check(polled.state === "prompting", `the fee payment for ${orgId} ended ${polled.state}`);
   }

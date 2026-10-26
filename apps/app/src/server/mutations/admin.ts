@@ -74,12 +74,20 @@ export async function requestTreasuryAdjustment(
   if (input.bankReference.trim().length < 3) throw new AdminMoneyRefusal("Give the reference on the bank statement.");
   await ctx.api.post(
     "/api/v1/admin/finance/treasury-adjustments",
-    { amountRwf: input.amountRwf, bankReference: input.bankReference.trim(), reason: words(input.reason, "what this is") },
+    {
+      amountRwf: input.amountRwf,
+      bankReference: input.bankReference.trim(),
+      reason: words(input.reason, "what this is"),
+    },
     { idempotencyKey: randomUUID() },
   );
 }
 
 /** The second signature: approve or reject a waiting request. */
-export async function decideOverride(ctx: SourceContext, overrideId: string, verdict: "approve" | "reject"): Promise<void> {
+export async function decideOverride(
+  ctx: SourceContext,
+  overrideId: string,
+  verdict: "approve" | "reject",
+): Promise<void> {
   await ctx.api.post(`/api/v1/admin/money-overrides/${id(overrideId, "request")}/${verdict}`, {});
 }

@@ -30,7 +30,8 @@ async function run(act: () => Promise<unknown>): Promise<ActionResult> {
       return { ok: false, error: error.message };
     }
     if (error instanceof admin.AdminMoneyRefusal) return { ok: false, error: error.message };
-    if (error instanceof ApiUnreachableError) return { ok: false, error: "The Injishi service did not answer. Try again." };
+    if (error instanceof ApiUnreachableError)
+      return { ok: false, error: "The Injishi service did not answer. Try again." };
     throw error;
   }
 }

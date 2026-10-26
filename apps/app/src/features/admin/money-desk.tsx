@@ -1,15 +1,15 @@
 "use client";
 
-import { Alert, Button, Card, Table, TextArea, TextField, Label } from "@heroui/react";
+import { Alert, Button, Card, Label, Table, TextArea, TextField } from "@heroui/react";
 import { SectionHeader } from "@injishi/ui";
-import type { MoneyDesk as MoneyDeskDoc, MoneyDeskRow } from "@/server/sources/admin";
 import { useState, useTransition } from "react";
+import type { MoneyDesk as MoneyDeskDoc, MoneyDeskRow } from "@/server/sources/admin";
 import {
+  type ActionResult,
   decideOverrideAction,
   pullPaymentAction,
   requestOverrideAction,
   resolvePaymentAction,
-  type ActionResult,
 } from "./money-actions";
 import { money, ToneChip } from "./shared";
 
@@ -42,7 +42,8 @@ const ACTION_LABEL: Record<string, string> = {
 /** Which two person acts a row in this bucket may ask for (AC-21). */
 function actionsFor(row: MoneyDeskRow): string[] {
   if (row.bucket === "owed") return ["resend_disbursement", "write_off"];
-  if (row.bucket === "parked" && row.direction === "collection" && row.status === "unknown") return ["confirm_received"];
+  if (row.bucket === "parked" && row.direction === "collection" && row.status === "unknown")
+    return ["confirm_received"];
   if (row.bucket === "reversals" && row.direction === "collection") return ["cancel_service"];
   return [];
 }
@@ -134,7 +135,9 @@ export function MoneyDesk({ desk }: { desk: MoneyDeskDoc }) {
                           <Table.Cell className="whitespace-nowrap">
                             <span className="flex flex-col">
                               <span className="text-[13px] font-medium tabular">{r.reference}</span>
-                              <span className="text-xs text-muted tabular">{r.providerReference ?? "no bank reference"}</span>
+                              <span className="text-xs text-muted tabular">
+                                {r.providerReference ?? "no bank reference"}
+                              </span>
                             </span>
                           </Table.Cell>
                           <Table.Cell>
@@ -156,12 +159,16 @@ export function MoneyDesk({ desk }: { desk: MoneyDeskDoc }) {
                                 size="sm"
                                 variant="secondary"
                                 isDisabled={pending}
-                                onPress={() => act(() => pullPaymentAction(r.id), `Asked the bank about ${r.reference}.`)}
+                                onPress={() =>
+                                  act(() => pullPaymentAction(r.id), `Asked the bank about ${r.reference}.`)
+                                }
                               >
                                 Pull
                               </Button>
                               {r.pendingOverride ? (
-                                <ToneChip tone="warning">{ACTION_LABEL[r.pendingOverride.action] ?? r.pendingOverride.action} waiting</ToneChip>
+                                <ToneChip tone="warning">
+                                  {ACTION_LABEL[r.pendingOverride.action] ?? r.pendingOverride.action} waiting
+                                </ToneChip>
                               ) : null}
                               {desk.canRequest && !r.pendingOverride
                                 ? [
@@ -212,7 +219,9 @@ export function MoneyDesk({ desk }: { desk: MoneyDeskDoc }) {
                 }}
               >
                 <TextField value={note} onChange={setNote} isRequired>
-                  <Label>{open.kind.startsWith("resolve") ? "What you checked, and why" : "Why this needs a second person"}</Label>
+                  <Label>
+                    {open.kind.startsWith("resolve") ? "What you checked, and why" : "Why this needs a second person"}
+                  </Label>
                   <TextArea rows={2} />
                 </TextField>
                 <div className="flex gap-2">
@@ -235,7 +244,10 @@ export function MoneyDesk({ desk }: { desk: MoneyDeskDoc }) {
             Waiting for a second signature · {desk.overrides.length}
           </h3>
           {desk.overrides.map((o) => (
-            <div key={o.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-separator pt-2">
+            <div
+              key={o.id}
+              className="flex flex-wrap items-center justify-between gap-2 border-t border-separator pt-2"
+            >
               <span className="flex min-w-0 flex-col">
                 <span className="font-medium">
                   {ACTION_LABEL[o.action] ?? o.action}

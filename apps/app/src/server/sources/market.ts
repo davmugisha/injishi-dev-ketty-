@@ -876,11 +876,11 @@ function pastTrip(
       : trip.paymentStatus === "refund_pending"
         ? // Owed back and not yet paid by the bank (073-gtbank-payments AC-13).
           { chip: `Refund of ${rwf(refund ?? 0)} on its way`, tone: "default", note: paidWith(facts, trip.grossRwf) }
-      : trip.paymentStatus === "forfeited"
-        ? { chip: "Not refunded", tone: "warning", note: paidWith(facts, trip.grossRwf) }
-        : trip.paymentStatus === null
-          ? { chip: "Nothing charged", tone: "default", note: "" }
-          : { chip: "Paid", tone: "success", note: paidWith(facts, trip.grossRwf) };
+        : trip.paymentStatus === "forfeited"
+          ? { chip: "Not refunded", tone: "warning", note: paidWith(facts, trip.grossRwf) }
+          : trip.paymentStatus === null
+            ? { chip: "Nothing charged", tone: "default", note: "" }
+            : { chip: "Paid", tone: "success", note: paidWith(facts, trip.grossRwf) };
   const left = REVIEW_DAYS - nightsBetween(trip.checkOut, today.iso);
   const reviewOpen = !cancelled && trip.status === "confirmed" && left > 0;
   return {
