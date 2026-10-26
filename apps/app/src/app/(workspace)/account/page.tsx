@@ -62,8 +62,10 @@ export default async function AccountPage({
   const persona = await requirePersona("Account");
   const { tab, plan: planOpen, payment } = await searchParams;
   const cookie = await currentSessionCookie();
-  // A tenant's account is their own records only, with the password tenants may hold (2026-10-23).
-  if (persona.id === "tenant" && cookie) {
+  // A tenant's account is their own records only, with the password tenants may hold (2026-10-23). A
+  // landlord, an officer or a leader, and Injishi staff read the same real account (an email code only):
+  // never the sample identity, workspaces and requests the demo account shows.
+  if (["tenant", "landlord", "officer", "ops"].includes(persona.id) && cookie) {
     const [account, sessions, password] = await Promise.all([
       currentAccount(),
       sessionsFor(cookie).then((list) => list.map((s) => sessionRow(s))),
