@@ -105,6 +105,8 @@ const STEPS = [
   // department passes below, so a property a ui2 file adds is covered by both.
   { script: 'seed-ui2.mjs', what: 'ui2: the finance and hr personas, and what the six role homes show (ADR-069)' },
   { script: 'seed-interface.mjs', what: 'the new interface: its world and screens, from the packages/data fixtures (ADR-072)' },
+  // Its own fictional restaurant group, so it reads only geography and tax rates from the steps above.
+  { script: 'seed-demo-pos.mjs', what: 'the point of sale: a restaurant group, its floor, menu, staff and two days of simulated trade' },
 ];
 
 function fail(message) {

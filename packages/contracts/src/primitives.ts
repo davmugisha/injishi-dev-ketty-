@@ -29,6 +29,12 @@ export const OrgRole = z.enum([
     "finance",
     "hr",
     "housekeeper",
+    // The bar and restaurant floor (POS spec, phase 1).
+    "cashier",
+    "waiter",
+    "bartender",
+    "kitchen",
+    "stock_controller",
 ]);
 export type OrgRole = z.infer<typeof OrgRole>;
 /**

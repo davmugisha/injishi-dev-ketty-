@@ -206,6 +206,41 @@ exports.Permission = zod_1.z.enum([
      * proposer, which the service refuses whatever permissions either holds.
      */
     "lostfound.manage",
+    /**
+     * The bar and restaurant point of sale (POS spec, phase 1). Nine permissions
+     * in the `services` area, each moveable per role under ADR-055.
+     *
+     * `pos.sell` takes an order: open a draft, add and change lines, send it to
+     * the kitchen and bar. The waiter's, the cashier's and the bartender's.
+     */
+    "pos.sell",
+    /** Take payment on an order and settle its bill. The cashier's. */
+    "pos.checkout",
+    /**
+     * Discount a line or an order UP TO the outlet's configured limit. Above
+     * the limit the discount waits for `pos.override`, so a cashier can never
+     * give a bill away alone.
+     */
+    "pos.discount",
+    /**
+     * The manager's override: approve a discount above the limit, void a line
+     * already sent to the kitchen, cancel an order. Every use is audited with a
+     * reason.
+     */
+    "pos.override",
+    /**
+     * Refund a settled POS payment. Owner and manager by default; finance keeps
+     * its ADR-069 D-b seven, and a business may grant it this (ADR-055).
+     */
+    "pos.refund",
+    /** Open, close, transfer and merge table sessions. Front of house. */
+    "table.manage",
+    /** Move kitchen and bar tickets through their stations. Kitchen and bar staff. */
+    "kitchen.work",
+    /** Open and close one's own cashier shift, record cash paid in and out. */
+    "register.operate",
+    /** Review a closed shift's cash variance and approve a paid out. Owner and manager. */
+    "shift.review",
 ]);
 const ALL = exports.Permission.options;
 /**
@@ -306,6 +341,19 @@ const ROLE_PERMISSIONS = {
         "payroll.draft",
     ]),
     housekeeper: new Set(["housekeeping.set", "ticket.advance"]),
+    cashier: new Set([
+        "pos.sell",
+        "pos.checkout",
+        "pos.discount",
+        "table.manage",
+        "register.operate",
+    ]),
+    waiter: new Set(["pos.sell", "table.manage"]),
+    bartender: new Set(["pos.sell", "table.manage", "kitchen.work"]),
+    kitchen: new Set(["kitchen.work"]),
+    // The stock permissions arrive with the inventory phase; until then the
+    // role signs in and holds nothing.
+    stock_controller: new Set([]),
 };
 /** Does this role hold this permission? The single predicate both sides use. */
 function can(role, permission) {
@@ -353,6 +401,15 @@ exports.PERMISSION_LABEL = {
     "payroll.draft": "draft the pay run",
     "payroll.run": "confirm the pay run",
     "lostfound.manage": "keep the lost and found register",
+    "pos.sell": "take orders at the point of sale",
+    "pos.checkout": "take payment and settle bills",
+    "pos.discount": "give discounts within the limit",
+    "pos.override": "approve discounts over the limit, voids and cancellations",
+    "pos.refund": "refund point of sale payments",
+    "table.manage": "open, transfer and close tables",
+    "kitchen.work": "work kitchen and bar tickets",
+    "register.operate": "run a cashier shift",
+    "shift.review": "review cashier shifts and paid outs",
 };
 // ---------------------------------------------------------------------------
 // A business's own role customisation
@@ -539,6 +596,15 @@ exports.PERMISSION_AREA_OF = {
     "payroll.draft": "people",
     "payroll.run": "people",
     "lostfound.manage": "front_desk",
+    "pos.sell": "services",
+    "pos.checkout": "services",
+    "pos.discount": "services",
+    "pos.override": "services",
+    "pos.refund": "money",
+    "table.manage": "services",
+    "kitchen.work": "services",
+    "register.operate": "money",
+    "shift.review": "money",
 };
 // ---------------------------------------------------------------------------
 // What each role may do, at THIS business

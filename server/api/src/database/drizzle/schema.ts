@@ -81,3 +81,6 @@ export * from './interface-residence';
 // The new interface's staff phone (real-data 1.3.3): checklists and their results, minibar counts,
 // time on a work order.
 export * from './interface-staff';
+// The bar and restaurant point of sale (POS spec, phase 1): tables, orders, kitchen tickets,
+// simulated payments, registers and cashier shifts. A leaf: nothing imports it back.
+export * from './pos';

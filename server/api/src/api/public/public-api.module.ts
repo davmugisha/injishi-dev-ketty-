@@ -105,6 +105,14 @@ import { MeResidentController } from './me/resident.controller';
 import { OpsOutletPartiesController } from './ops/outlet-parties.controller';
 import { OpsOutletsController } from './ops/outlets.controller';
 import {
+  OpsPosController,
+  OpsPosKitchenController,
+  OpsPosOrdersController,
+  OpsPosPaymentsController,
+  OpsPosShiftsController,
+} from './ops/pos.controller';
+import { PosModule } from '../../modules/pos/pos.module';
+import {
   OpsRraController,
   OpsServiceCatalogController,
   OpsServiceOrdersController,
@@ -172,6 +180,8 @@ import { TrainingPublicModule } from './training/training.module';
     ListingSetupModule,
     BookingModule,
     OperationsModule,
+    // The bar and restaurant point of sale (POS spec, phase 1). Payments are simulated.
+    PosModule,
     OrganizationModule,
     // The HR module (ADR-058): files, roster, attendance, leave and pay.
     PeopleModule,
@@ -231,6 +241,12 @@ import { TrainingPublicModule } from './training/training.module';
     // Outlets and who runs them (ADR-050 slice 4).
     OpsOutletsController,
     OpsOutletPartiesController,
+    // The point of sale: floor, orders, kitchen and bar, simulated payments, shifts (POS spec, phase 1).
+    OpsPosController,
+    OpsPosOrdersController,
+    OpsPosPaymentsController,
+    OpsPosKitchenController,
+    OpsPosShiftsController,
     OpsTeamController,
     OpsRolesController,
     // The HR module (ADR-058, first thread). Every route behind WorkspaceGuard
