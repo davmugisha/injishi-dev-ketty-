@@ -10,7 +10,7 @@ import type {
 } from "@injishi/data/fixtures/staff";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { NothingYet } from "@/features/staff/parts";
+import { NothingYet } from "@injishi/ui/phone";
 import { StaffMeView } from "@/features/staff/StaffMeView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument, requestContext } from "@/server/data";

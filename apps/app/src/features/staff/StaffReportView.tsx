@@ -33,7 +33,8 @@ import type { ReactNode } from "react";
 import { useState, useTransition } from "react";
 import { reported } from "../operations/shared";
 import { reportProblemAction } from "./actions";
-import { kigaliClock, PhoneActionBar, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "./parts";
+import { PhoneActionBar, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "@injishi/ui/phone";
+import { kigaliClock } from "./parts";
 
 interface StaffReportData {
   places: ReportPlace[];

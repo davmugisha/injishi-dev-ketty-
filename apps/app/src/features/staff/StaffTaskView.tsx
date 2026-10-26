@@ -51,7 +51,8 @@ import { Icon, LinkButton, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
 import { useState, useTransition } from "react";
 import { reported } from "../operations/shared";
 import { logRoomFoundItemAction, moveRoomTaskAction, sendMinibarCountAction, setRoomCheckAction } from "./actions";
-import { kigaliClock, PhoneActionBar, PhoneSheet, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "./parts";
+import { PhoneActionBar, PhoneSheet, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "@injishi/ui/phone";
+import { kigaliClock } from "./parts";
 
 interface StaffTaskData {
   rooms: CleaningRoom[];

@@ -48,7 +48,7 @@ import { formatRwf, Icon, PhoneBody, PhoneTop, StatusDot, toneColor } from "@inj
 import NextLink from "next/link";
 import { type ComponentPropsWithRef, Fragment, useState, useTransition } from "react";
 import { signOut } from "@/lib/auth-actions";
-import { PhoneSheet, PhoneToasts, renderAsButton, renderSection, ToneTile } from "./parts";
+import { PhoneSheet, PhoneToasts, renderAsButton, renderSection, ToneTile } from "@injishi/ui/phone";
 
 interface StaffMeData {
   /** The caller's own profile; null when none is on file (never another person's). */

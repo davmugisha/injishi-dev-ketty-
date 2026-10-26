@@ -32,7 +32,8 @@ import { PhoneBody, PhoneTop, StatusDot } from "@injishi/ui";
 import { type ChangeEvent, useEffect, useRef, useState, useTransition } from "react";
 import { reported } from "../operations/shared";
 import { inspectRoomAction, uploadInspectionPhotoAction } from "./actions";
-import { kigaliClock, NothingYet, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "./parts";
+import { NothingYet, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "@injishi/ui/phone";
+import { kigaliClock } from "./parts";
 import { attemptToken, shrinkPhoto } from "./photo";
 
 /** A room waiting for inspection; a live one also says which clean it follows (`task`, see sources/staff.ts). */

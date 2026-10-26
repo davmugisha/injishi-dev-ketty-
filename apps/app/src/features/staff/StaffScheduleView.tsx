@@ -46,7 +46,7 @@ import { GateChip, Icon, KeyValueList, PhoneBody, PhoneTop, toneColor } from "@i
 import { type ReactNode, useState, useTransition } from "react";
 import { reported } from "../operations/shared";
 import { askLeaveAction, cancelRequestAction } from "./actions";
-import { PhoneSheet, PhoneTitle, PhoneToasts, renderArticle, renderSection } from "./parts";
+import { PhoneSheet, PhoneTitle, PhoneToasts, renderArticle, renderSection } from "@injishi/ui/phone";
 
 interface StaffScheduleData {
   /** The caller's own profile; null when none is on file (never another person's). */

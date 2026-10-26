@@ -8,7 +8,7 @@ import type {
   SwapColleague,
 } from "@injishi/data/fixtures/staff";
 import type { Metadata } from "next";
-import { NothingYet } from "@/features/staff/parts";
+import { NothingYet } from "@injishi/ui/phone";
 import { StaffScheduleView } from "@/features/staff/StaffScheduleView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument, requestContext } from "@/server/data";
