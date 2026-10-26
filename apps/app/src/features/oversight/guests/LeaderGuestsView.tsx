@@ -88,6 +88,7 @@ export function LeaderGuestsView({
   const villageId = params.get("villageId");
   const origin = params.get("origin");
   const nationality = params.get("nationality");
+  const nationalities = filters.nationalities ?? [];
   // The API filters the page, its counts and the CSV by the same choices.
   const guests = page.guests;
   const pages = Math.max(1, Math.ceil(page.total / page.pageSize));
@@ -193,13 +194,13 @@ export function LeaderGuestsView({
             <Segment.Item id="nationals">Rwandan</Segment.Item>
             <Segment.Item id="international">Foreign</Segment.Item>
           </Segment>
-          {filters.nationalities.length > 1 ? (
+          {nationalities.length > 1 ? (
             <FilterSelect
               label="Nationality"
               value={nationality ?? "all"}
               options={[
                 { id: "all", label: "Any nationality" },
-                ...filters.nationalities.map((n) => ({ id: n.code, label: `${n.name} (${formatNumber(n.count)})` })),
+                ...nationalities.map((n) => ({ id: n.code, label: `${n.name} (${formatNumber(n.count)})` })),
               ]}
               onChange={(v) => go({ nationality: v === "all" ? null : v, origin: null })}
             />

@@ -130,7 +130,8 @@ function ArrivalsChart({ report, className }: { report: GuestReport; className?:
  * the district officer for Rwandans or the district immigration officer for foreign guests.
  */
 function ChainCard({ report, className }: { report: GuestReport; className?: string }) {
-  const rows = report.chain;
+  // An API a version behind sends no chain: show the card empty, never break the page.
+  const rows = report.chain ?? [];
   return (
     <SectionCard
       title="Along the chain"
@@ -248,7 +249,8 @@ export function LeaderReportsView({
   const span = `${formatDay(report.period.from)} to ${formatDay(report.period.to)}`;
   const guestsHref = (tab: string) => `/officer/guests?tab=${tab}`;
   const foreignShare = t.registered > 0 ? Math.round((t.fromAbroad / t.registered) * 100) : 0;
-  const { choices } = report;
+  const choices = report.choices ?? { nationalities: [], relationships: [] };
+  const filteredBy = report.filteredBy ?? [];
 
   return (
     <PageContent>
@@ -374,10 +376,10 @@ export function LeaderReportsView({
             </ActionButton>
           ) : null}
         </div>
-        {report.filteredBy.length > 0 ? (
+        {filteredBy.length > 0 ? (
           <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
             Showing
-            {report.filteredBy.map((w) => (
+            {filteredBy.map((w) => (
               <Chip key={w} size="sm" variant="soft">
                 {w}
               </Chip>
