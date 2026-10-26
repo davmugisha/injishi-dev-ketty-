@@ -34,6 +34,10 @@ const ROWS: ReportRowRaw[] = [
 function harness() {
   const guests = {
     reportRows: jest.fn(async () => ROWS),
+    reportChain: jest.fn(async () => [
+      { role: 'village_leader', step: 1, guests: 3, delivered: 3, opened: 2, flagged: 1, waiting: 0 },
+      { role: 'cell_executive', step: 3, guests: 3, delivered: 0, opened: 0, flagged: 0, waiting: 3 },
+    ]),
     stayingNow: jest.fn(async () => 0),
     purgedCounts: jest.fn(async () => ({ registered: 0, fromAbroad: 0, flagged: 0 })),
     leader: jest.fn(async () => ({ name: 'Jeanne', email: 'leader@injishi.test' })),
@@ -62,6 +66,10 @@ describe('GuestReportsService filters', () => {
       { code: 'RW', name: 'Rwanda', count: 1 },
     ]);
     expect(r.choices.relationships.map((x) => x.code)).toEqual(['friend', 'cousin']);
+    expect(r.chain.map((c) => [c.label, c.opened, c.waiting])).toEqual([
+      ['Village leader (Umudugudu)', 2, 0],
+      ['Cell executive secretary', 0, 3],
+    ]);
   });
 
   it('narrows every figure to foreign, one nationality, one relationship or the flagged, and names the filter', async () => {

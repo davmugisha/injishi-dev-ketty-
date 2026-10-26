@@ -4,6 +4,9 @@ import {
   GUEST_RETENTION_MONTHS,
   type GuestReport,
   type GuestReportQuery,
+  isLeaderRole,
+  LEADER_ROLE_LABEL,
+  type LeaderRole,
   type OversightGrant,
   RWANDA_CODE,
   addMonths,
@@ -48,8 +51,9 @@ export class GuestReportsService {
     // Purged months keep counts by "from abroad" only: a nationality, relationship or flag filter can't
     // reach them, so those leave the purged counts out.
     const purgeable = query.from < cutoff && !query.nationality && !query.relationship && !query.flagged;
-    const [raw, stayingNow, purged, leader, scopes, narrowedTo] = await Promise.all([
+    const [raw, chain, stayingNow, purged, leader, scopes, narrowedTo] = await Promise.all([
       this.guests.reportRows(scope, narrow, query.from, query.to),
+      this.guests.reportChain(scope, sql`${narrow} and ${guestFilterSql(query)}`, query.from, query.to),
       this.guests.stayingNow(scope, sql`${narrow} and ${guestFilterSql(query)}`, today),
       purgeable
         ? this.guests.purgedCounts(
@@ -97,6 +101,9 @@ export class GuestReportsService {
       narrowedTo,
       filteredBy: filterWords(query, all),
       choices: choicesOf(all),
+      chain: chain
+        .filter((c) => isLeaderRole(c.role))
+        .map((c) => ({ ...c, role: c.role as LeaderRole, label: LEADER_ROLE_LABEL[c.role as LeaderRole] })),
       ...reportFigures({
         rows,
         from: query.from,
@@ -137,6 +144,9 @@ export class GuestReportsService {
       blank,
       [`Arrivals per ${r.arrivals.bucket}`, 'Guests'],
       ...r.arrivals.points.map((p) => [p.start, p.count]),
+      blank,
+      ['Leader post', 'Received', 'Reached a leader', 'Opened', 'Flagged', 'Waiting for a leader'],
+      ...r.chain.map((c) => [c.label, c.guests, c.delivered, c.opened, c.flagged, c.waiting]),
       blank,
       ['Home', 'Unit', 'Guests'],
       ...r.topHomes.map((h) => [h.address, h.unitLabel, h.guests]),

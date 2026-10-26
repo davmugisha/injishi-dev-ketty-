@@ -116,6 +116,11 @@ export function renderGuestReportPdf(report: GuestReport): Promise<Buffer> {
       report.topHomes.slice(0, 6).map((h) => [h.unitLabel ? `Unit ${h.unitLabel}, ${h.address}` : h.address, String(h.guests)]),
       left + half + 24, secondTop, half);
     doc.y = Math.max(leftEnd2, doc.y) + 14;
+    if (report.chain.length > 0) {
+      table(doc, 'Along the chain', ['Leader post', 'Received', 'Opened', 'Flagged', 'No leader yet'],
+        report.chain.map((c) => [c.label, String(c.guests), String(c.opened), String(c.flagged), String(c.waiting)]), left, doc.y, width);
+      doc.y += 14;
+    }
 
     // --- Footnote --------------------------------------------------------------------------
     const notes = [

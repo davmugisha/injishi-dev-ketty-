@@ -603,6 +603,25 @@ export const GuestReport = z.object({
     bucket: ReportBucket,
     points: z.array(z.object({ start: z.string(), label: z.string(), count: z.number().int() })),
   }),
+  /**
+   * How the period's guests went along the chain, one row per leader post in its order: how many it
+   * received, how many reached a leader (delivered), were opened and flagged, and how many still wait
+   * because nobody holds that post yet.
+   */
+  chain: z
+    .array(
+      z.object({
+        role: LeaderRole,
+        label: z.string(),
+        step: z.number().int(),
+        guests: z.number().int(),
+        delivered: z.number().int(),
+        opened: z.number().int(),
+        flagged: z.number().int(),
+        waiting: z.number().int(),
+      }),
+    )
+    .default([]),
   /** Homes with the most guests, by address: never a person's name. */
   topHomes: z.array(z.object({ address: z.string(), unitLabel: z.string().nullable(), guests: z.number().int() })),
   /** Records older than the retention period are purged; their counts are folded into the totals. */

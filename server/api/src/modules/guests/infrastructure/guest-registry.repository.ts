@@ -154,6 +154,17 @@ export interface ReportRowRaw {
   flagged: boolean;
 }
 
+/** One post's figures for a report: see `reportChain`. */
+export interface ReportChainRow {
+  role: string;
+  step: number;
+  guests: number;
+  delivered: number;
+  opened: number;
+  flagged: number;
+  waiting: number;
+}
+
 /** A route on a current guest that no leader has yet, with where its home is now. */
 export interface WaitingRouteRow {
   routeId: string;
@@ -723,6 +734,21 @@ export class GuestRegistryRepository {
          and g.arrival_on between ${from}::date and ${to}::date
        limit ${MAX_REPORT_ROWS}`);
     return rowsOf<ReportRowRaw>(result);
+  }
+
+  /** The period's guests along the chain, per post: received, delivered, opened, flagged, waiting. */
+  async reportChain(scope: SQL, narrow: SQL, from: string, to: string): Promise<ReportChainRow[]> {
+    const result = await this.db.execute(sql`
+      select r.recipient_role::text as role, min(r.step)::int as step, count(*)::int as guests,
+             count(r.delivered_at)::int as delivered, count(r.seen_at)::int as opened,
+             count(r.flagged_at)::int as flagged, (count(*) filter (where r.assignment_id is null))::int as waiting
+        from guest_registration_routes r
+        join guest_registrations g on g.id = r.registration_id
+       where g.status = 'submitted' and ${scope} and ${narrow}
+         and g.arrival_on between ${from}::date and ${to}::date
+       group by r.recipient_role
+       order by min(r.step), r.recipient_role`);
+    return rowsOf<ReportChainRow>(result);
   }
 
   async stayingNow(scope: SQL, narrow: SQL, today: string): Promise<number> {

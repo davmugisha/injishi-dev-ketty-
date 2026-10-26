@@ -514,6 +514,23 @@ exports.GuestReport = zod_1.z.object({
         bucket: exports.ReportBucket,
         points: zod_1.z.array(zod_1.z.object({ start: zod_1.z.string(), label: zod_1.z.string(), count: zod_1.z.number().int() })),
     }),
+    /**
+     * How the period's guests went along the chain, one row per leader post in its order: how many it
+     * received, how many reached a leader (delivered), were opened and flagged, and how many still wait
+     * because nobody holds that post yet.
+     */
+    chain: zod_1.z
+        .array(zod_1.z.object({
+        role: exports.LeaderRole,
+        label: zod_1.z.string(),
+        step: zod_1.z.number().int(),
+        guests: zod_1.z.number().int(),
+        delivered: zod_1.z.number().int(),
+        opened: zod_1.z.number().int(),
+        flagged: zod_1.z.number().int(),
+        waiting: zod_1.z.number().int(),
+    }))
+        .default([]),
     /** Homes with the most guests, by address: never a person's name. */
     topHomes: zod_1.z.array(zod_1.z.object({ address: zod_1.z.string(), unitLabel: zod_1.z.string().nullable(), guests: zod_1.z.number().int() })),
     /** Records older than the retention period are purged; their counts are folded into the totals. */

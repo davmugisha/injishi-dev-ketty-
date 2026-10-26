@@ -2817,6 +2817,39 @@ export declare const GuestReport: z.ZodObject<{
         }[];
         bucket: "month" | "day" | "week";
     }>;
+    /**
+     * How the period's guests went along the chain, one row per leader post in its order: how many it
+     * received, how many reached a leader (delivered), were opened and flagged, and how many still wait
+     * because nobody holds that post yet.
+     */
+    chain: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+        label: z.ZodString;
+        step: z.ZodNumber;
+        guests: z.ZodNumber;
+        delivered: z.ZodNumber;
+        opened: z.ZodNumber;
+        flagged: z.ZodNumber;
+        waiting: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        label: string;
+        guests: number;
+        delivered: number;
+        waiting: number;
+        step: number;
+        flagged: number;
+        opened: number;
+    }, {
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        label: string;
+        guests: number;
+        delivered: number;
+        waiting: number;
+        step: number;
+        flagged: number;
+        opened: number;
+    }>, "many">>;
     /** Homes with the most guests, by address: never a person's name. */
     topHomes: z.ZodArray<z.ZodObject<{
         address: z.ZodString;
@@ -2876,6 +2909,16 @@ export declare const GuestReport: z.ZodObject<{
         roleLabel: string;
     }[];
     generatedAt: string;
+    chain: {
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        label: string;
+        guests: number;
+        delivered: number;
+        waiting: number;
+        step: number;
+        flagged: number;
+        opened: number;
+    }[];
     leader: {
         name: string | null;
         email: string;
@@ -2997,6 +3040,16 @@ export declare const GuestReport: z.ZodObject<{
             count: number;
         }[];
     } | undefined;
+    chain?: {
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        label: string;
+        guests: number;
+        delivered: number;
+        waiting: number;
+        step: number;
+        flagged: number;
+        opened: number;
+    }[] | undefined;
     filteredBy?: string[] | undefined;
 }>;
 export type GuestReport = z.infer<typeof GuestReport>;
