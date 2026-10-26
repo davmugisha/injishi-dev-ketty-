@@ -8,7 +8,7 @@ import { useEffect } from "react";
 import { RegionOverlays } from "@/features/outlets/shared";
 import type { PosOutlet, PosTicket, StationKind, TicketStatus } from "@/server/pos";
 import { advanceTicketAction, reprintTicketAction } from "./actions";
-import { PosNav } from "./PosNav";
+import { PosNav } from "./pos-nav";
 import { clock, PosHeader, StatusChip, TICKET_COLOR, usePosAction } from "./shared";
 
 const COLUMNS: { status: TicketStatus; label: string }[] = [

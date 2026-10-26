@@ -1,6 +1,5 @@
 "use server";
 
-import { screenHref } from "@injishi/data";
 import { revalidatePath } from "next/cache";
 import { requirePersona } from "@/lib/session";
 import { ApiError, ApiUnreachableError } from "@/server/api";
@@ -18,6 +17,7 @@ import {
   type TableStatus,
   type TicketStatus,
 } from "@/server/pos";
+import { POS_BOARDS } from "./pos-boards";
 
 /**
  * The point of sale's commands. Each checks the person may open the POS, calls the API through
@@ -27,13 +27,11 @@ import {
  */
 export type ActionResult<T = undefined> = { ok: true; value: T } | { ok: false; error: string };
 
-const POS_SCREENS = ["PosFloor", "PosTill", "PosStations", "PosShift"] as const;
-
 async function run<T>(act: () => Promise<T>): Promise<ActionResult<T>> {
   await requirePersona("PosFloor");
   try {
     const value = await act();
-    for (const board of POS_SCREENS) revalidatePath(screenHref(board));
+    for (const board of Object.values(POS_BOARDS)) revalidatePath(board.href);
     return { ok: true, value };
   } catch (error) {
     if (error instanceof ApiError) {

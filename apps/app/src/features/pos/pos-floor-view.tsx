@@ -25,7 +25,7 @@ import {
   seatAction,
   tableStatusAction,
 } from "./actions";
-import { PosNav } from "./PosNav";
+import { PosNav } from "./pos-nav";
 import {
   clock,
   money,

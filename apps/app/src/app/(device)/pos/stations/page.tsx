@@ -1,11 +1,11 @@
-import { screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { loadPosPage } from "@/features/pos/load";
-import { PosBlocked } from "@/features/pos/PosBlocked";
-import { PosStationsView } from "@/features/pos/PosStationsView";
+import { PosBlocked } from "@/features/pos/pos-blocked";
+import { POS_BOARDS } from "@/features/pos/pos-boards";
+import { PosStationsView } from "@/features/pos/pos-stations-view";
 import { posTickets } from "@/server/pos";
 
-export const metadata: Metadata = { title: screens.PosStations.pageTitle };
+export const metadata: Metadata = { title: POS_BOARDS.PosStations.pageTitle };
 
 /** The live kitchen or bar board of one outlet, from the API. */
 export default async function PosStationsPage({

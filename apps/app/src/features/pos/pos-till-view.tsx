@@ -60,7 +60,7 @@ import {
   updateLineAction,
   voidLineAction,
 } from "./actions";
-import { PosNav } from "./PosNav";
+import { PosNav } from "./pos-nav";
 import {
   money,
   ORDER_COLOR,
