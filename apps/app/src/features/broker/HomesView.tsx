@@ -1,17 +1,17 @@
 "use client";
 
 import { Button, Card } from "@heroui/react";
+import { Segment } from "@heroui-pro/react";
 import type { BrokerHome, BrokerHomes, BrokerHomesSort } from "@injishi/contracts";
 import {
   ActionLink,
   EmptyBlock,
-  formatMoney,
+  FilterSelect,
   formatNumber,
   Icon,
   PageContent,
   PageHeader,
   SearchBar,
-  SelectField,
 } from "@injishi/ui";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -51,13 +51,11 @@ const MIN_RENT = [
 const SORTS: { id: BrokerHomesSort; label: string }[] = [
   { id: "newest", label: "Newest" },
   { id: "fee_desc", label: "Highest fee" },
-  { id: "price_asc", label: "Rent ↑" },
-  { id: "price_desc", label: "Rent ↓" },
+  { id: "price_asc", label: "Rent, low to high" },
+  { id: "price_desc", label: "Rent, high to low" },
 ];
 
 type StatusTab = "all" | "now" | "soon";
-
-const hidden = (words: string) => <span className="sr-only">{words}</span>;
 
 /**
  * Find homes — Explore-style joined filter bar, availability tabs, and a sticky
@@ -123,7 +121,13 @@ export function HomesView({
   const selected = shown.find((h) => h.unitId === open) ?? data.homes.find((h) => h.unitId === open) ?? null;
   const total = data.districts.reduce((s, d) => s + d.count, 0);
   const filterActive =
-    Boolean(params.get("q") || params.get("district") || params.get("bedrooms") || params.get("minRent") || params.get("maxRent")) ||
+    Boolean(
+      params.get("q") ||
+        params.get("district") ||
+        params.get("bedrooms") ||
+        params.get("minRent") ||
+        params.get("maxRent"),
+    ) ||
     (params.get("sort") != null && params.get("sort") !== "newest");
 
   const chrome = desk ? (
@@ -187,158 +191,102 @@ export function HomesView({
           }
           aria-busy={pending}
         >
-          {/* Joined pill filter bar (feat/rentals directory) */}
-          <div className="-mx-1 flex items-center gap-3 overflow-x-auto px-1 pb-1 lg:overflow-visible lg:pb-0">
-            <div className="inline-flex h-11 shrink-0 items-stretch divide-x divide-border overflow-hidden rounded-full border border-border bg-surface shadow-sm">
-              <div className="flex min-w-[10rem] items-center px-1 sm:min-w-[14rem]">
-                <SearchBar
-                  label="Search homes"
-                  value={search}
-                  onChange={setSearch}
-                  placeholder="Building, area…"
-                  className="border-0 bg-transparent shadow-none"
-                />
-              </div>
-              <SelectField
-                label={hidden("District")}
+          {/* One toolbar over both columns: what to look for on the left, how to show it on the right. */}
+          <div className={showMap ? "flex min-w-0 flex-col gap-2.5 lg:col-span-2" : "flex min-w-0 flex-col gap-2.5"}>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <SearchBar
+                label="Search homes"
+                value={search}
+                onChange={setSearch}
+                placeholder="Building or area"
+                className="w-full sm:w-64"
+              />
+              <FilterSelect
+                label="District"
                 options={[
                   { id: ANY, label: scope.plan === "district" ? scope.area : "All districts" },
-                  ...data.districts.map((d) => ({
-                    id: String(d.id),
-                    label: `${d.name} (${formatNumber(d.count)})`,
-                  })),
+                  ...data.districts.map((d) => ({ id: String(d.id), label: `${d.name} (${formatNumber(d.count)})` })),
                 ]}
                 value={data.districtId ? String(data.districtId) : ANY}
                 onChange={(v) => go({ district: v })}
-                isDisabled={scope.plan === "district"}
-                className="w-40 border-0 bg-transparent shadow-none sm:w-48"
               />
-              <SelectField
-                label={hidden("Bedrooms")}
+              <FilterSelect
+                label="Bedrooms"
                 options={BEDROOMS}
                 value={params.get("bedrooms") ?? ANY}
                 onChange={(v) => go({ bedrooms: v })}
-                className="w-28 border-0 bg-transparent shadow-none sm:w-32"
               />
-              <SelectField
-                label={hidden("Min rent")}
+              <FilterSelect
+                label="Lowest rent"
                 options={MIN_RENT}
                 value={params.get("minRent") ?? ANY}
                 onChange={(v) => go({ minRent: v })}
-                className="hidden w-32 border-0 bg-transparent shadow-none sm:block"
               />
-              <SelectField
-                label={hidden("Max rent")}
+              <FilterSelect
+                label="Highest rent"
                 options={MAX_RENT}
                 value={params.get("maxRent") ?? ANY}
                 onChange={(v) => go({ maxRent: v })}
-                className="w-32 border-0 bg-transparent shadow-none sm:w-36"
               />
+              {filterActive ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => {
+                    setSearch("");
+                    start(() => router.replace(pathname, { scroll: false }));
+                  }}
+                >
+                  <Icon name="Xmark" />
+                  Clear
+                </Button>
+              ) : null}
             </div>
-            {filterActive ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  start(() => router.replace(pathname, { scroll: false }));
-                }}
-                className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1.5 text-sm font-medium text-muted hover:bg-default hover:text-foreground"
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-separator pt-2.5">
+              <Segment
+                aria-label="Availability"
+                size="sm"
+                selectedKey={status}
+                onSelectionChange={(k) => setStatus(k as StatusTab)}
               >
-                <Icon name="CircleXmark" />
-                Clear
-              </button>
-            ) : null}
-          </div>
-
-          {/* Status + sort + map toggle — sits over the map column on desktop */}
-          <div
-            className={
-              showMap
-                ? "flex flex-wrap items-center justify-between gap-2"
-                : "flex flex-wrap items-center justify-between gap-2 lg:justify-end"
-            }
-          >
-            <div
-              role="radiogroup"
-              aria-label="Availability"
-              className="inline-flex h-11 shrink-0 items-center rounded-full bg-default p-1"
-            >
-              {(
-                [
-                  ["all", "All", counts.all],
-                  ["now", "Available", counts.now],
-                  ["soon", "On notice", counts.soon],
-                ] as const
-              ).map(([key, label, n]) => (
-                <button
-                  key={key}
-                  type="button"
-                  role="radio"
-                  aria-checked={status === key}
-                  onClick={() => setStatus(key)}
-                  className={
-                    status === key
-                      ? "inline-flex h-9 items-center gap-1.5 rounded-full bg-surface px-3.5 text-sm font-medium text-foreground shadow-sm"
-                      : "inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium text-muted hover:text-foreground"
-                  }
+                <Segment.Item id="all">
+                  All <span className="ml-1 text-xs tabular text-muted">{formatNumber(counts.all)}</span>
+                </Segment.Item>
+                <Segment.Item id="now">
+                  Available <span className="ml-1 text-xs tabular text-muted">{formatNumber(counts.now)}</span>
+                </Segment.Item>
+                <Segment.Item id="soon">
+                  On notice <span className="ml-1 text-xs tabular text-muted">{formatNumber(counts.soon)}</span>
+                </Segment.Item>
+              </Segment>
+              <span className="flex items-center gap-2">
+                <FilterSelect
+                  label="Sort"
+                  options={SORTS}
+                  value={params.get("sort") ?? "newest"}
+                  onChange={(v) => go({ sort: v === "newest" ? null : v })}
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="hidden lg:inline-flex"
+                  onPress={() => setShowMap((v) => !v)}
                 >
-                  {label}
-                  <span className="text-xs tabular text-muted">{formatNumber(n)}</span>
-                </button>
-              ))}
+                  <Icon name={showMap ? "LayoutCells" : "MapPin"} />
+                  {showMap ? "Hide map" : "Show map"}
+                </Button>
+                <Segment
+                  aria-label="Show"
+                  size="sm"
+                  selectedKey={mobileView}
+                  onSelectionChange={(k) => setMobileView(k as "list" | "map")}
+                  className="lg:hidden"
+                >
+                  <Segment.Item id="list">List</Segment.Item>
+                  <Segment.Item id="map">Map</Segment.Item>
+                </Segment>
+              </span>
             </div>
-            <span className="flex items-center gap-2">
-              <SelectField
-                label={hidden("Sort")}
-                options={SORTS}
-                value={params.get("sort") ?? "newest"}
-                onChange={(v) => go({ sort: v === "newest" ? null : v })}
-                className="w-36"
-              />
-              <Button
-                isIconOnly
-                variant="outline"
-                className="hidden size-11 rounded-full lg:inline-flex"
-                aria-label={showMap ? "Hide the map" : "Show the map"}
-                onPress={() => setShowMap((v) => !v)}
-              >
-                <Icon name={showMap ? "LayoutCells" : "MapPin"} />
-              </Button>
-              <div
-                role="radiogroup"
-                aria-label="Show"
-                className="inline-flex h-11 items-center rounded-full bg-default p-1 lg:hidden"
-              >
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={mobileView === "list"}
-                  className={
-                    mobileView === "list"
-                      ? "inline-flex h-9 items-center gap-1 rounded-full bg-surface px-3 text-sm font-medium shadow-sm"
-                      : "inline-flex h-9 items-center gap-1 rounded-full px-3 text-sm text-muted"
-                  }
-                  onClick={() => setMobileView("list")}
-                >
-                  <Icon name="LayoutCells" />
-                  List
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={mobileView === "map"}
-                  className={
-                    mobileView === "map"
-                      ? "inline-flex h-9 items-center gap-1 rounded-full bg-surface px-3 text-sm font-medium shadow-sm"
-                      : "inline-flex h-9 items-center gap-1 rounded-full px-3 text-sm text-muted"
-                  }
-                  onClick={() => setMobileView("map")}
-                >
-                  <Icon name="MapPin" />
-                  Map
-                </button>
-              </div>
-            </span>
           </div>
 
           <section
@@ -355,7 +303,9 @@ export function HomesView({
               <Card className="border-dashed p-6 shadow-none">
                 <EmptyBlock
                   icon="FolderHouse"
-                  title={filterActive || status !== "all" ? "No homes match these filters" : "No homes on offer here yet"}
+                  title={
+                    filterActive || status !== "all" ? "No homes match these filters" : "No homes on offer here yet"
+                  }
                   description={
                     filterActive || status !== "all"
                       ? "Try fewer filters, or clear them."
@@ -365,10 +315,7 @@ export function HomesView({
                   }
                   action={
                     filterActive || status !== "all" ? (
-                      <ActionLink
-                        href={pathname}
-                        icon="ArrowRotateLeft"
-                      >
+                      <ActionLink href={pathname} icon="ArrowRotateLeft">
                         Clear filters
                       </ActionLink>
                     ) : scope.upgrade ? (
@@ -405,9 +352,10 @@ export function HomesView({
             <aside
               aria-label="Map"
               className={
+                // Fills the screen beside the list and stays put while the list scrolls; never scrolls itself.
                 mobileView === "list"
-                  ? "sticky top-20 hidden h-[calc(100dvh-6.5rem)] min-h-96 overflow-hidden rounded-2xl border border-border lg:block"
-                  : "h-[min(70dvh,32rem)] overflow-hidden rounded-2xl border border-border lg:sticky lg:top-20 lg:h-[calc(100dvh-6.5rem)] lg:min-h-96"
+                  ? "sticky top-4 hidden h-[calc(100dvh-2rem)] min-h-96 overflow-hidden rounded-xl border border-border lg:block"
+                  : "h-[calc(100dvh-12rem)] min-h-80 overflow-hidden rounded-xl border border-border lg:sticky lg:top-4 lg:h-[calc(100dvh-2rem)] lg:min-h-96"
               }
             >
               {mapHomes.length > 0 ? (
@@ -431,10 +379,12 @@ export function HomesView({
 
 /** Attach district-centre coordinates when a building has no pin of its own. */
 function homesForMap(homes: readonly BrokerHome[]): BrokerHome[] {
-  return homes.map((h) => {
-    if (h.latitude !== null && h.longitude !== null) return h;
-    const c = districtCentre(h.district);
-    if (!c) return h;
-    return { ...h, latitude: c.lat, longitude: c.lng };
-  }).filter((h) => h.latitude !== null && h.longitude !== null);
+  return homes
+    .map((h) => {
+      if (h.latitude !== null && h.longitude !== null) return h;
+      const c = districtCentre(h.district);
+      if (!c) return h;
+      return { ...h, latitude: c.lat, longitude: c.lng };
+    })
+    .filter((h) => h.latitude !== null && h.longitude !== null);
 }
