@@ -82,6 +82,7 @@ import { OpsMoveOutsController } from './rentals/move-outs.controller';
 import { OpsFilingsController, OpsTaxesController } from './rentals/taxes.controller';
 import { OpsLeaseBrokersController } from './rentals/lease-brokers.controller';
 import { OpsLeaseMessagesController } from './rentals/messages.controller';
+import { OpsPlacementMessagesController } from './rentals/placement-messages.controller';
 import { OpsRevenueController } from './revenue.controller';
 import { OpsCertificatesController } from './certificates.controller';
 import { OpsOwnerDashboardController, OpsReportsController } from './owner-dashboard.controller';
@@ -207,6 +208,7 @@ const CONTROLLERS: Ctor[] = [
   OpsFilingsController,
   OpsLeaseBrokersController,
   OpsLeaseMessagesController,
+  OpsPlacementMessagesController,
 ];
 
 interface Read {
@@ -531,6 +533,10 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/rentals/messages/unread': ['owner', 'manager', 'receptionist'],
   '/ops/rentals/messages/:leaseId': ['owner', 'manager', 'receptionist'],
   '/ops/rentals/messages/:leaseId/files/:id': ['owner', 'manager', 'receptionist'],
+  // Messages with brokers (2026-10-26): as the Brokers screen, `lease.manage` or `message.send`.
+  '/ops/rentals/placement-messages': ['owner', 'manager', 'receptionist'],
+  '/ops/rentals/placement-messages/:placementId': ['owner', 'manager', 'receptionist'],
+  '/ops/rentals/placement-messages/:placementId/files/:id': ['owner', 'manager', 'receptionist'],
 };
 
 describe('operator reads (audit H1)', () => {
@@ -831,6 +837,30 @@ describe('lease broker writes (2026-10-25)', () => {
     const expected = WRITES[key];
     expect(read.allOf).toEqual(expected?.allOf);
     expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/**
+ * Messages with brokers (2026-10-26): sending and reading are the Brokers
+ * screen's, `lease.manage` or `message.send`. A housekeeper or the finance
+ * desk never writes to a broker.
+ */
+describe('placement message writes (2026-10-26)', () => {
+  const routes = handlers([OpsPlacementMessagesController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { anyOf: Permission[]; roles: OrgRole[] }> = {
+    'POST /ops/rentals/placement-messages/:placementId': { anyOf: ['lease.manage', 'message.send'], roles: ['owner', 'manager', 'receptionist'] },
+    'POST /ops/rentals/placement-messages/:placementId/read': { anyOf: ['lease.manage', 'message.send'], roles: ['owner', 'manager', 'receptionist'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual([]);
+    expect(read.anyOf).toEqual(expected?.anyOf);
     expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
   });
 });

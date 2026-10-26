@@ -153,6 +153,9 @@ import { OpsMoveOutsController } from './ops/rentals/move-outs.controller';
 // Messages between a landlord and a tenant, and the live line (P3.4).
 import { MeTenancyMessagesController } from './me/tenancy-messages.controller';
 import { OpsLeaseMessagesController } from './ops/rentals/messages.controller';
+// A broker and a landlord about a placement (2026-10-26).
+import { OpsBrokerMessagesController } from './ops/broker-messages.controller';
+import { OpsPlacementMessagesController } from './ops/rentals/placement-messages.controller';
 import { RealtimeGateway } from './realtime/realtime.gateway';
 import { OpsExpensesController } from './ops/rentals/expenses.controller';
 import { OpsFilingsController, OpsTaxesController } from './ops/rentals/taxes.controller';
@@ -367,6 +370,8 @@ import { TrainingPublicModule } from './training/training.module';
     MeTenancyMoveOutController,
     OpsLeaseMessagesController,
     MeTenancyMessagesController,
+    OpsPlacementMessagesController,
+    OpsBrokerMessagesController,
     // Expenses and paying the fixer (WP 4.3).
     OpsExpensesController,
     // Rental income tax and lease filings with RRA (WP 4.4).

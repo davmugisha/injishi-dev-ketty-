@@ -65,6 +65,15 @@ export default tseslint.config(
             'OpsBrokerController.change',
             'OpsBrokerController.cancel',
             'OpsBrokerController.homeDistrict',
+            // `/api/v1/ops/broker/messages` (2026-10-26), for the same reason:
+            // `PlacementMessagesService` refuses a workspace that is not a
+            // broker's own (403) and a placement that is not theirs (404).
+            'OpsBrokerMessagesController.list',
+            'OpsBrokerMessagesController.unread',
+            'OpsBrokerMessagesController.thread',
+            'OpsBrokerMessagesController.send',
+            'OpsBrokerMessagesController.read',
+            'OpsBrokerMessagesController.file',
           ],
         },
       ],

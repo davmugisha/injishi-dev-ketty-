@@ -45,6 +45,39 @@ export interface MessageUpload {
   body: Buffer;
 }
 
+/**
+ * A message's text and files, checked and stored, ready to be written: the
+ * one path every rentals conversation (a lease's, a placement's) sends by.
+ */
+export async function storeMessageFiles(
+  files: MessageFilesStorage,
+  fields: SendLeaseMessageFields,
+  uploads: MessageUpload[],
+  owner: { userId: string; workspaceId: string },
+): Promise<{ body: string | null; stored: StoredMessageFile[]; bodyType: 'text' | 'image' | 'voice' | 'file'; voiceDurationS: number | null }> {
+  const body = fields.body?.trim() || null;
+  if (!body && uploads.length === 0) throw new BadRequestException('Write something or attach a file before you send it.');
+  const problem = messageFilesProblem(
+    uploads.map((u) => ({ mime: u.mime, sizeBytes: u.body.byteLength, name: cleanName(u.filename) })),
+    fields.voiceDurationS ?? null,
+  );
+  if (problem) throw new BadRequestException(problem);
+  if (fields.voiceDurationS && !uploads.some((u) => messageFileKind(u.mime) === 'audio')) {
+    throw new BadRequestException('A voice note needs its recording.');
+  }
+  const stored: StoredMessageFile[] = [];
+  for (const u of uploads) {
+    stored.push(await files.put({ ...u, uploadedByUserId: owner.userId, workspaceId: owner.workspaceId }));
+  }
+  const kinds = stored.map((f) => f.kind);
+  return {
+    body,
+    stored,
+    bodyType: bodyTypeFor(kinds),
+    voiceDurationS: kinds.includes('audio') ? (fields.voiceDurationS ?? null) : null,
+  };
+}
+
 /** Who is reading: the landlord's side in a business, or the tenant. */
 type Viewer = { side: 'landlord'; userId: string; ws: ScopedWorkspace } | { side: 'tenant'; userId: string; tenancy: TenancyRef };
 
@@ -298,30 +331,18 @@ export class LeaseMessagesService {
 
   private async send(ctx: LeaseThreadContext, viewer: Viewer, fields: SendLeaseMessageFields, uploads: MessageUpload[]): Promise<LeaseMessage> {
     if (!leaseThreadWritable(ctx.status)) throw new ConflictException(THREAD_CLOSED);
-    const body = fields.body?.trim() || null;
-    if (!body && uploads.length === 0) throw new BadRequestException('Write something or attach a file before you send it.');
-    const problem = messageFilesProblem(
-      uploads.map((u) => ({ mime: u.mime, sizeBytes: u.body.byteLength, name: cleanName(u.filename) })),
-      fields.voiceDurationS ?? null,
-    );
-    if (problem) throw new BadRequestException(problem);
-    if (fields.voiceDurationS && !uploads.some((u) => messageFileKind(u.mime) === 'audio')) {
-      throw new BadRequestException('A voice note needs its recording.');
-    }
-    const stored: StoredMessageFile[] = [];
-    for (const u of uploads) {
-      stored.push(await this.files.put({ ...u, uploadedByUserId: viewer.userId, workspaceId: ctx.workspaceId }));
-    }
-    const kinds = stored.map((f) => f.kind);
-    const isVoice = kinds.includes('audio');
+    const { body, stored, bodyType, voiceDurationS } = await storeMessageFiles(this.files, fields, uploads, {
+      userId: viewer.userId,
+      workspaceId: ctx.workspaceId,
+    });
     const written = await this.db.transaction(async (tx) => {
       const threadId = await this.repo.ensureThread(tx, ctx);
       const message = await this.repo.insertMessage(tx, {
         threadId,
         senderUserId: viewer.userId,
-        bodyType: bodyTypeFor(kinds),
+        bodyType,
         body,
-        voiceDurationS: isVoice ? (fields.voiceDurationS ?? null) : null,
+        voiceDurationS,
         files: stored.map((f) => ({ storedObjectId: f.id, filename: f.filename })),
       });
       return { threadId, message };

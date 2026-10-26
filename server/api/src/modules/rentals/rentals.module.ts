@@ -84,6 +84,9 @@ import { LeaseMessagesService } from './application/lease-messages.service';
 import { MessageDigestsService } from './application/message-digests.service';
 import { MessageEvents } from './application/message-events';
 import { LeaseMessagesRepository } from './infrastructure/lease-messages.repository';
+// A broker and a landlord about a placement (2026-10-26), on the same message store.
+import { PlacementMessagesService } from './application/placement-messages.service';
+import { PlacementMessagesRepository } from './infrastructure/placement-messages.repository';
 import { MessageDigestsProcessor } from './infrastructure/message-digests.processor';
 // Moving out: notices, the moved-out day, deposit settlement (WP 1.7).
 import { DepositsService } from './application/deposits.service';
@@ -188,6 +191,9 @@ import { MoveOutsRepository } from './infrastructure/move-outs.repository';
     LeaseMessagesRepository,
     MessageEvents,
     LeaseMessagesService,
+    PlacementMessagesService,
+    PlacementMessagesRepository,
+    PlacementMessagesService,
     MessageDigestsService,
     MoveOutsRepository,
     MoveOutsService,

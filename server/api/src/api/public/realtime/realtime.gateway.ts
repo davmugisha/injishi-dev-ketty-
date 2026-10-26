@@ -12,6 +12,7 @@ import type { Server, Socket } from 'socket.io';
 import { AUTH_REGISTRY, type AuthRegistry } from '../../../modules/auth/auth.module';
 import { LeaseMessagesService } from '../../../modules/rentals/application/lease-messages.service';
 import { MessageEvents, threadRoom, userRoom, workspaceRoom } from '../../../modules/rentals/application/message-events';
+import { PlacementMessagesService } from '../../../modules/rentals/application/placement-messages.service';
 import { TwoFactorService } from '../../../shared/auth/two-factor.service';
 import { WorkspaceService } from '../../../shared/auth/workspace.service';
 import { hostFromHeaders, resolveAuthSurface } from '../../../shared/config/auth-surface';
@@ -57,6 +58,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
     @Inject(AUTH_REGISTRY) private readonly registry: AuthRegistry,
     private readonly events: MessageEvents,
     private readonly messages: LeaseMessagesService,
+    private readonly placements: PlacementMessagesService,
     private readonly workspaces: WorkspaceService,
     private readonly twoFactor: TwoFactorService,
   ) {}
@@ -115,16 +117,22 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
   @SubscribeMessage('thread')
   async joinThread(
     @ConnectedSocket() client: Socket,
-    @MessageBody() body: { leaseId?: unknown; workspaceId?: unknown },
+    @MessageBody() body: { leaseId?: unknown; placementId?: unknown; workspaceId?: unknown },
   ): Promise<{ ok: boolean }> {
     const data = client.data as SocketData;
     await data.ready;
     const leaseId = typeof body?.leaseId === 'string' && UUID.test(body.leaseId) ? body.leaseId : null;
+    const placementId = typeof body?.placementId === 'string' && UUID.test(body.placementId) ? body.placementId : null;
     const workspaceId = typeof body?.workspaceId === 'string' && UUID.test(body.workspaceId) ? body.workspaceId : null;
-    if (!data.userId || !leaseId) return { ok: false };
+    if (!data.userId || (!leaseId && !placementId)) return { ok: false };
     try {
-      if (workspaceId && !(await this.answersMessages(data, workspaceId))) return { ok: false };
-      const audience = await this.messages.mayListen(data.userId, leaseId, workspaceId ? { workspaceId } : null);
+      // A broker conversation (2026-10-26): the landlord's team as for the Brokers screen, or the placement's own broker.
+      const permissions: readonly string[] = placementId ? ['lease.manage', 'message.send'] : ['message.send'];
+      if (workspaceId && !(await this.answersMessages(data, workspaceId, permissions))) return { ok: false };
+      const landlord = workspaceId ? { workspaceId } : null;
+      const audience = placementId
+        ? await this.placements.mayListen(data.userId, placementId, landlord)
+        : await this.messages.mayListen(data.userId, leaseId as string, landlord);
       if (!audience) return { ok: false };
       for (const room of client.rooms) {
         if (room.startsWith('thread:') && room !== threadRoom(audience.threadId)) await client.leave(room);
@@ -136,12 +144,12 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
     }
   }
 
-  private async answersMessages(data: SocketData, workspaceId: string): Promise<boolean> {
+  private async answersMessages(data: SocketData, workspaceId: string, permissions: readonly string[] = ['message.send']): Promise<boolean> {
     if (!data.userId) return false;
     try {
       if (data.sessionId) await this.twoFactor.assertSatisfied(data.userId, data.sessionId);
       const access = await this.workspaces.resolveForUser(data.userId, workspaceId);
-      return Boolean(access?.permissions.includes('message.send'));
+      return Boolean(access?.permissions.some((p) => permissions.includes(p)));
     } catch {
       return false;
     }

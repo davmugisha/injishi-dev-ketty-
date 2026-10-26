@@ -72,6 +72,10 @@ export interface DigestItem {
   leaseId: string;
   unitLabel: string;
   propertyName: string;
+  /** Where the button opens this conversation, when it is not a lease's (a broker conversation). */
+  href?: string;
+  /** The words for what it is about, when it is not a lease's home ("your placement for unit A-01 at ..."). */
+  about?: string;
   /** Who wrote: the tenant's name for the landlord, the business's for the tenant. */
   from: string;
   unread: number;
@@ -115,22 +119,23 @@ const count = (n: number): string => (n === 1 ? '1 new message' : `${n} new mess
  * the conversation (or the inbox when there are several); the tenant's opens
  * their home's messages.
  */
-export function messageDigestMail(input: { appUrl: string; side: 'landlord' | 'tenant'; greetName: string | null; items: readonly DigestItem[] }): RentalsMail {
+export function messageDigestMail(input: { appUrl: string; side: 'landlord' | 'tenant' | 'broker'; greetName: string | null; items: readonly DigestItem[] }): RentalsMail {
   const items = input.items;
   const total = items.reduce((n, i) => n + i.unread, 0);
   const one = items.length === 1 ? items[0] : undefined;
   const lines: string[] = [];
   for (const i of items) {
-    const where = homeWords({ unitLabel: i.unitLabel, propertyName: i.propertyName });
+    const where = i.about ?? homeWords({ unitLabel: i.unitLabel, propertyName: i.propertyName });
     const said = preview(i);
     lines.push(`${i.from} sent ${count(i.unread)} about ${where}${said ? `: "${said}"` : '.'}`);
   }
   const path =
-    input.side === 'tenant'
+    one?.href ??
+    (input.side === 'tenant'
       ? MESSAGE_APP_PATHS.tenant((one ?? items[0])?.leaseId ?? '')
-      : one
+      : one && input.side === 'landlord'
         ? MESSAGE_APP_PATHS.landlord(one.leaseId)
-        : '/messages';
+        : '/messages');
   const subject = one
     ? `${one.from} sent ${count(one.unread)}`
     : `${count(total)} in ${items.length} conversations`;

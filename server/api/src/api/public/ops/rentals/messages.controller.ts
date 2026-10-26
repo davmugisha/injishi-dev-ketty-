@@ -11,6 +11,7 @@ import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Req, Res,
 import { Throttle } from '@nestjs/throttler';
 
 import { LeaseMessagesService } from '../../../../modules/rentals/application/lease-messages.service';
+import { PlacementMessagesService } from '../../../../modules/rentals/application/placement-messages.service';
 import type { ScopedWorkspace } from '../../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../../shared/auth/session.guard';
 import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../../shared/auth/workspace.guard';
@@ -47,7 +48,10 @@ export function sendMessageFile(reply: FileReply, file: { body: Buffer; mime: st
 @Controller({ path: 'ops/rentals/messages', version: '1' })
 @UseGuards(SessionGuard, WorkspaceGuard)
 export class OpsLeaseMessagesController {
-  constructor(private readonly messages: LeaseMessagesService) {}
+  constructor(
+    private readonly messages: LeaseMessagesService,
+    private readonly placements: PlacementMessagesService,
+  ) {}
 
   @Get()
   @RequirePermission('message.send')
@@ -55,11 +59,12 @@ export class OpsLeaseMessagesController {
     return this.messages.landlordList(ws, user.id, typeof q === 'string' ? q.slice(0, 120) : undefined);
   }
 
-  /** Unread lines from tenants, for the sidebar. */
+  /** Unread lines from tenants and from brokers (2026-10-26), for the sidebar: one number. */
   @Get('unread')
   @RequirePermission('message.send')
-  unread(@CurrentWorkspace() ws: ScopedWorkspace, @CurrentUser() user: SessionUser): Promise<MessageUnread> {
-    return this.messages.landlordUnread(ws, user.id);
+  async unread(@CurrentWorkspace() ws: ScopedWorkspace, @CurrentUser() user: SessionUser): Promise<MessageUnread> {
+    const [leases, placements] = await Promise.all([this.messages.landlordUnread(ws, user.id), this.placements.landlordUnread(ws, user.id)]);
+    return { total: leases.total + placements.total, byLease: leases.byLease, byPlacement: placements.byPlacement };
   }
 
   @Get(':leaseId')

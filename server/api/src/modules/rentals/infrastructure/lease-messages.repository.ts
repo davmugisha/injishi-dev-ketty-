@@ -252,11 +252,13 @@ export class LeaseMessagesRepository {
    *
    * Unread is the OTHER side's lines (never a system line) after the reader's
    * last read: for a landlord's reader, the tenant's lines; for the tenant,
-   * every line but their own. No read row means everything is unread.
+   * every line but their own. No read row means everything is unread. A
+   * broker conversation passes the broker as `tenantUserId`: the one-person
+   * side, read the same way.
    */
   async summaries(
     items: readonly { threadId: string; tenantUserId: string | null }[],
-    viewer: { userId: string; side: 'landlord' | 'tenant' },
+    viewer: { userId: string; side: 'landlord' | 'tenant' | 'broker' },
   ): Promise<Map<string, ThreadSummaryRow>> {
     const out = new Map<string, ThreadSummaryRow>();
     if (items.length === 0) return out;
@@ -364,7 +366,7 @@ export class LeaseMessagesRepository {
   }
 
   /** The last email to a side of a conversation covered everything up to `through`. */
-  async recordDigest(threadId: string, side: 'landlord' | 'tenant', through: string, at: Date): Promise<void> {
+  async recordDigest(threadId: string, side: 'landlord' | 'tenant' | 'broker', through: string, at: Date): Promise<void> {
     await this.db.execute(sql`
       insert into thread_digests (thread_id, side, notified_through, sent_at)
       values (${threadId}, ${side}, ${through}::timestamptz, ${at.toISOString()}::timestamptz)

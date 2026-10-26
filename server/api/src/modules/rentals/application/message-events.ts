@@ -14,6 +14,14 @@ export interface ThreadAudience {
   tenantUserId: string | null;
 }
 
+/** Who a broker conversation's event is for: the open conversation, the landlord's team, the broker's devices. */
+export interface PlacementAudience {
+  placementId: string;
+  threadId: string;
+  workspaceId: string;
+  brokerUserId: string;
+}
+
 /**
  * Tells open screens a lease conversation moved (rentals P3.4, ported from
  * feat/rentals' MessagingEvents). An event carries ids and nothing else: a
@@ -47,5 +55,20 @@ export class MessageEvents {
   threadRead(to: ThreadAudience): void {
     if (!this.server) return;
     this.server.to(threadRoom(to.threadId)).emit('thread:read', { leaseId: to.leaseId, threadId: to.threadId });
+  }
+
+  /** The same two events for a broker conversation (2026-10-26), named by its placement. */
+  placementMessageNew(to: PlacementAudience): void {
+    if (!this.server) return;
+    this.server
+      .to(threadRoom(to.threadId))
+      .to(workspaceRoom(to.workspaceId))
+      .to(userRoom(to.brokerUserId))
+      .emit('message:new', { placementId: to.placementId, threadId: to.threadId });
+  }
+
+  placementThreadRead(to: PlacementAudience): void {
+    if (!this.server) return;
+    this.server.to(threadRoom(to.threadId)).emit('thread:read', { placementId: to.placementId, threadId: to.threadId });
   }
 }
