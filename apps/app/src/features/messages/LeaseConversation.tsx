@@ -159,8 +159,46 @@ export function LeaseConversation({
     return () => clearInterval(t);
   }, [live, refresh]);
 
+  // Drafts of lines that are sending or failed, to send again with Retry.
+  const drafts = useRef(new Map<string, ChatDraft>());
+
+  const deliver = async (key: string, draft: ChatDraft) => {
+    setPending((p) => p.map((l) => (l.id === key ? { ...l, receipt: "sending" } : l)));
+    try {
+      const form = new FormData();
+      if (draft.body) form.set("body", draft.body);
+      if (draft.voiceDurationS) form.set("voiceDurationS", String(draft.voiceDurationS));
+      for (const f of draft.files) form.append("files", f, f.name);
+      const response = await fetch(base, { method: "POST", body: form }).catch(() => null);
+      if (!response?.ok) {
+        // A refusal in words (too large, wrong type) is worth a toast-like line; a lost connection is a Retry.
+        if (response && response.status < 500) console.warn(await readError(response));
+        setPending((p) => p.map((l) => (l.id === key ? { ...l, receipt: "failed" } : l)));
+        return;
+      }
+      const hadThread = Boolean(view.threadId);
+      await refresh();
+      if (!hadThread) rejoinThread(leaseId, workspaceId);
+      drop(key);
+      activity.current?.();
+    } catch {
+      setPending((p) => p.map((l) => (l.id === key ? { ...l, receipt: "failed" } : l)));
+    }
+  };
+
+  const drop = (key: string) => {
+    setPending((p) => {
+      const line = p.find((l) => l.id === key);
+      for (const a of line?.attachments ?? []) URL.revokeObjectURL(a.url);
+      return p.filter((l) => l.id !== key);
+    });
+    drafts.current.delete(key);
+  };
+
+  /** The line shows at once as "sending"; it turns into the real one, or "Not sent" with Retry. */
   const send = async (draft: ChatDraft) => {
-    const key = `pending-${Date.now()}`;
+    const key = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    drafts.current.set(key, draft);
     const optimistic: ChatLine = {
       id: key,
       side: "me",
@@ -180,22 +218,12 @@ export function LeaseConversation({
       receipt: "sending",
     };
     setPending((p) => [...p, optimistic]);
-    try {
-      const form = new FormData();
-      if (draft.body) form.set("body", draft.body);
-      if (draft.voiceDurationS) form.set("voiceDurationS", String(draft.voiceDurationS));
-      for (const f of draft.files) form.append("files", f, f.name);
-      const response = await fetch(base, { method: "POST", body: form }).catch(() => null);
-      if (!response) throw new Error("That message was not sent. Check your connection and try again.");
-      if (!response.ok) throw new Error(await readError(response));
-      const hadThread = Boolean(view.threadId);
-      await refresh();
-      if (!hadThread) rejoinThread(leaseId, workspaceId);
-      activity.current?.();
-    } finally {
-      setPending((p) => p.filter((l) => l.id !== key));
-      for (const a of optimistic.attachments) URL.revokeObjectURL(a.url);
-    }
+    await deliver(key, draft);
+  };
+
+  const retry = (key: string) => {
+    const draft = drafts.current.get(key);
+    if (draft) void deliver(key, draft);
   };
 
   const loadOlder = async () => {
@@ -226,6 +254,8 @@ export function LeaseConversation({
       selfName={selfName}
       lastReadAt={initial.myLastReadAt}
       onSend={send}
+      onRetry={retry}
+      onDiscard={drop}
       hasOlder={Boolean(olderCursor)}
       onLoadOlder={loadOlder}
       closedReason={view.writable ? null : "This lease has ended, so the conversation is read only."}

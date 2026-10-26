@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar, Card, Chip } from "@heroui/react";
+import { Avatar, Card } from "@heroui/react";
 import type { LeaseThreadList, LeaseThreadSummary, LeaseThreadView } from "@injishi/contracts";
 import {
   ActionLink,
@@ -39,31 +39,32 @@ function ThreadRow({ t, selected, now }: { t: LeaseThreadSummary; selected: bool
       scroll={false}
       aria-current={selected ? "true" : undefined}
       className={cx(
-        "flex items-start gap-3 rounded-lg px-3 py-2.5 text-foreground no-underline transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus",
-        selected ? "bg-default" : "hover:bg-default/60",
+        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-foreground no-underline transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus",
+        selected ? "bg-accent-soft" : "hover:bg-default",
       )}
     >
-      <Avatar size="sm" color={unread ? "accent" : "default"} variant="soft" className="shrink-0">
+      <Avatar size="md" color={unread ? "accent" : "default"} variant="soft" className="shrink-0">
         <Avatar.Fallback>{initials(t.counterpartName)}</Avatar.Fallback>
       </Avatar>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex items-baseline justify-between gap-2">
-          <span className={cx("truncate text-sm", unread ? "font-semibold" : "font-medium")}>{t.counterpartName}</span>
-          <span className={cx("shrink-0 text-xs tabular", unread ? "font-medium text-accent" : "text-muted")}>
+        <span className="flex items-baseline gap-2">
+          <span className={cx("min-w-0 truncate text-sm", unread ? "font-semibold" : "font-medium")}>
+            {t.counterpartName}
+          </span>
+          <span className="shrink-0 text-xs text-muted">{t.unitLabel}</span>
+          <span className={cx("ml-auto shrink-0 text-xs tabular", unread ? "font-medium text-accent" : "text-muted")}>
             {when(t.lastMessageAt, now)}
           </span>
-        </span>
-        <span className="truncate text-xs text-muted">
-          Unit {t.unitLabel} · {t.reference}
         </span>
         <span className="flex items-center gap-2">
           <span className={cx("min-w-0 flex-1 truncate text-xs", unread ? "text-foreground" : "text-muted")}>
             {t.lastMessagePreview ? `${t.lastMessageFromMe ? "You: " : ""}${t.lastMessagePreview}` : "No messages yet"}
           </span>
           {unread ? (
-            <Chip size="sm" color="accent" variant="primary" aria-label={`${t.unreadCount} unread`}>
-              <Chip.Label>{t.unreadCount}</Chip.Label>
-            </Chip>
+            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-semibold text-accent-foreground tabular">
+              {t.unreadCount}
+              <span className="sr-only"> unread</span>
+            </span>
           ) : null}
         </span>
       </span>
@@ -126,7 +127,7 @@ export function LandlordMessagesView({
     return (
       <PageContent>
         <PageHeader title="Messages" />
-        <Card className="p-6">
+        <Card className="rounded-lg p-6">
           <EmptyBlock
             icon="Comments"
             title="No conversations yet"
@@ -145,7 +146,7 @@ export function LandlordMessagesView({
   return (
     <PageContent>
       <PageHeader title="Messages" />
-      <Card className="grid h-[min(780px,calc(100dvh-12rem))] min-h-[520px] grid-cols-1 gap-0 overflow-hidden p-0 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+      <Card className="grid rounded-lg h-[min(780px,calc(100dvh-12rem))] min-h-[520px] grid-cols-1 gap-0 overflow-hidden p-0 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
         <section
           aria-label="Conversations"
           className={cx("flex min-h-0 flex-col border-separator md:border-r", open ? "max-md:hidden" : "")}

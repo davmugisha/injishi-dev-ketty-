@@ -61,6 +61,9 @@ export interface ChatThreadProps {
   lastReadAt?: string | null;
   /** Send, or throw an Error whose message says what went wrong. */
   onSend: (draft: ChatDraft) => Promise<void>;
+  /** Send a line that failed again, or drop it (lines with `receipt: "failed"`). */
+  onRetry?: (lineId: string) => void;
+  onDiscard?: (lineId: string) => void;
   /** Older lines exist; `onLoadOlder` reads them. */
   hasOlder?: boolean;
   onLoadOlder?: () => Promise<void>;
@@ -113,9 +116,9 @@ function Ticks({ receipt }: { receipt: ChatLine["receipt"] }) {
     );
   if (receipt === "failed")
     return (
-      <span className="inline-flex items-center gap-1 text-danger">
+      <span className="inline-flex items-center gap-1 text-danger" title="Not sent">
         <Icon name="CircleExclamation" className="size-3.5" />
-        Not sent
+        <span className="sr-only">Not sent</span>
       </span>
     );
   return receipt === "read" ? (
@@ -124,20 +127,37 @@ function Ticks({ receipt }: { receipt: ChatLine["receipt"] }) {
       <span className="sr-only">Read</span>
     </span>
   ) : (
-    <span className="inline-flex text-muted" title="Delivered">
+    <span className="inline-flex text-muted" title="Sent">
       <Icon name="Check" className="size-3.5" />
-      <span className="sr-only">Delivered</span>
+      <span className="sr-only">Sent</span>
     </span>
   );
 }
 
-/** A voice note: play and pause, a bar to seek, and the time. The length comes with the note. */
+/** Bar heights for a voice note's waveform, steady for the same note (from its address), 0.25 to 1. */
+export function waveform(seed: string, bars = 32): number[] {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
+  const out: number[] = [];
+  for (let i = 0; i < bars; i++) {
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    const r = ((h >>> 0) % 1000) / 1000;
+    // Speech-like: louder in the middle, softer at both ends.
+    const shape = 0.55 + 0.45 * Math.sin((Math.PI * (i + 0.5)) / bars);
+    out.push(Math.max(0.25, Math.min(1, 0.3 + r * 0.7 * shape)));
+  }
+  return out;
+}
+
+/** A voice note: play and pause, a waveform that fills as it plays (press it to seek), and the time. */
 export function VoiceNote({ url, durationS, mine }: { url: string; durationS: number | null; mine?: boolean }) {
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [at, setAt] = useState(0);
   const [length, setLength] = useState(durationS ?? 0);
   const total = length > 0 ? length : (durationS ?? 0);
+  const bars = useMemo(() => waveform(url), [url]);
+  const progress = total > 0 ? Math.min(1, at / total) : 0;
 
   const toggle = () => {
     const a = audio.current;
@@ -145,14 +165,15 @@ export function VoiceNote({ url, durationS, mine }: { url: string; durationS: nu
     if (a.paused) void a.play().catch(() => setPlaying(false));
     else a.pause();
   };
+  const seek = (fraction: number) => {
+    const a = audio.current;
+    if (!a || total <= 0) return;
+    a.currentTime = Math.max(0, Math.min(total, fraction * total));
+    setAt(a.currentTime);
+  };
 
   return (
-    <div
-      className={cx(
-        "flex w-60 max-w-full items-center gap-2.5",
-        mine ? "text-accent-soft-foreground" : "text-foreground",
-      )}
-    >
+    <div className="flex w-56 max-w-full items-center gap-2.5">
       {/* biome-ignore lint/a11y/useMediaCaption: a voice note has no captions; its words are the sender's */}
       <audio
         ref={audio}
@@ -173,54 +194,73 @@ export function VoiceNote({ url, durationS, mine }: { url: string; durationS: nu
       <Button
         isIconOnly
         size="sm"
-        variant={mine ? "primary" : "secondary"}
+        variant="primary"
         aria-label={playing ? "Pause voice note" : "Play voice note"}
         onPress={toggle}
-        className="shrink-0 rounded-full"
+        className="size-9 shrink-0 rounded-full"
       >
         <Icon name={playing ? "PauseFill" : "PlayFill"} />
       </Button>
-      <input
-        type="range"
-        min={0}
-        max={Math.max(total, 0.1)}
-        step={0.1}
-        value={Math.min(at, total || at)}
+      <div
+        role="slider"
+        tabIndex={0}
         aria-label="Position in the voice note"
-        onChange={(e) => {
-          const a = audio.current;
-          if (!a) return;
-          a.currentTime = Number(e.currentTarget.value);
-          setAt(a.currentTime);
+        aria-valuemin={0}
+        aria-valuemax={Math.round(total)}
+        aria-valuenow={Math.round(at)}
+        aria-valuetext={`${voiceClock(at)} of ${voiceClock(total)}`}
+        onClick={(e) => {
+          const box = e.currentTarget.getBoundingClientRect();
+          seek((e.clientX - box.left) / box.width);
         }}
-        className="h-1 min-w-0 flex-1 cursor-pointer accent-(--accent)"
-      />
-      <span className="w-10 shrink-0 text-right text-xs tabular text-muted">
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight") seek(progress + 0.1);
+          else if (e.key === "ArrowLeft") seek(progress - 0.1);
+          else return;
+          e.preventDefault();
+        }}
+        className="flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-0.5 rounded-sm focus-visible:outline-2 focus-visible:outline-focus"
+      >
+        {bars.map((v, i) => (
+          <span
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed bars, never reordered
+            key={i}
+            className={cx(
+              "w-0.5 flex-1 rounded-full transition-colors",
+              (i + 0.5) / bars.length <= progress ? "bg-accent" : mine ? "bg-accent/35" : "bg-muted/40",
+            )}
+            style={{ height: `${Math.round(v * 100)}%` }}
+          />
+        ))}
+      </div>
+      <span className="w-9 shrink-0 text-right text-xs tabular text-muted">
         {voiceClock(playing || at > 0 ? at : total)}
       </span>
     </div>
   );
 }
 
-/** A document on a message: an icon, the name and size; opens or downloads from the app's own origin. */
-function FileCard({ file }: { file: ChatFile }) {
+/** A document on a message: an icon, the name and size, compact; opens or downloads from the app's own origin. */
+function FileCard({ file, mine }: { file: ChatFile; mine: boolean }) {
+  const kind = file.mime === "application/pdf" ? "PDF" : (file.filename?.split(".").pop()?.toUpperCase() ?? null);
   return (
     <a
       href={file.url}
       target="_blank"
       rel="noreferrer"
-      className="flex w-64 max-w-full items-center gap-2.5 rounded-lg border border-separator bg-surface px-3 py-2 text-foreground no-underline transition-colors hover:bg-default focus-visible:outline-2 focus-visible:outline-focus"
+      className={cx(
+        "flex w-60 max-w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-foreground no-underline transition-colors focus-visible:outline-2 focus-visible:outline-focus",
+        mine ? "bg-surface/70 hover:bg-surface" : "bg-surface hover:bg-surface/70",
+      )}
     >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-default text-muted">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent">
         <Icon name={file.mime === "application/pdf" ? "FileText" : "File"} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm font-medium">{file.filename ?? "Document"}</span>
-        <span className="text-xs text-muted">
-          {[file.mime === "application/pdf" ? "PDF" : null, fileSize(file.sizeBytes)].filter(Boolean).join(" · ")}
-        </span>
+        <span className="text-xs text-muted">{[kind, fileSize(file.sizeBytes)].filter(Boolean).join(" · ")}</span>
       </span>
-      <Icon name="ArrowDownToLine" className="text-muted" />
+      <Icon name="ArrowDownToLine" className="shrink-0 text-muted" />
     </a>
   );
 }
@@ -232,7 +272,7 @@ function Photos({ files, onOpen }: { files: readonly ChatFile[]; onOpen: (index:
   return (
     <div
       className={cx(
-        "grid w-64 max-w-full gap-1 overflow-hidden rounded-lg",
+        "grid w-64 max-w-full gap-0.5 overflow-hidden rounded-lg",
         shown.length > 1 ? "grid-cols-2" : "grid-cols-1",
       )}
     >
@@ -284,7 +324,6 @@ function Composer({
   const [text, setText] = useState("");
   const [files, setFiles] = useState<Pending[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
   const area = useRef<HTMLTextAreaElement>(null);
 
@@ -337,8 +376,9 @@ function Composer({
     else for (const p of next.slice(files.length)) if (p.preview) URL.revokeObjectURL(p.preview);
   };
 
+  // Sending never blocks typing: the line shows at once (the caller draws it as "sending", then sent
+  // or failed with Retry), and the box is free for the next one straight away.
   const send = async (draft: ChatDraft) => {
-    if (busy) return;
     if (!draft.body.trim() && draft.files.length === 0) return;
     const problem = checkFiles?.(
       draft.files.map((f) => ({ mime: f.type, sizeBytes: f.size, name: f.name })),
@@ -348,24 +388,16 @@ function Composer({
       setError(problem);
       return;
     }
-    setBusy(true);
     setError(null);
-    const keep = { text, files };
     if (!draft.voiceDurationS) {
       setText("");
       setFiles([]);
     }
+    area.current?.focus();
     try {
       await onSend(draft);
     } catch (cause) {
       setError(cause instanceof Error && cause.message ? cause.message : "That message was not sent. Try again.");
-      if (!draft.voiceDurationS) {
-        setText(keep.text);
-        setFiles(keep.files);
-      }
-    } finally {
-      setBusy(false);
-      area.current?.focus();
     }
   };
 
@@ -450,7 +482,7 @@ function Composer({
 
   const pressing = useRef(false);
   const onMicDown = async (e: PointerEvent<HTMLButtonElement>) => {
-    if (e.button !== 0 || rec !== "idle" || busy) return;
+    if (e.button !== 0 || rec !== "idle") return;
     pressedAt.current = Date.now();
     pressing.current = true;
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -467,7 +499,7 @@ function Composer({
   };
 
   const recording = rec !== "idle";
-  const canSend = (text.trim().length > 0 || files.length > 0) && !busy;
+  const canSend = text.trim().length > 0 || files.length > 0;
 
   return (
     <div className="flex flex-col gap-2 border-t border-separator bg-surface px-3 pt-2.5 pb-3 sm:px-4">
@@ -534,20 +566,13 @@ function Composer({
                 variant="ghost"
                 aria-label="Attach photos or files"
                 onPress={() => picker.current?.click()}
-                isDisabled={busy}
                 className="shrink-0"
               >
                 <Icon name="Paperclip" />
               </Button>
               <Tooltip.Content>Attach photos or files</Tooltip.Content>
             </Tooltip>
-            <TextField
-              aria-label="Message"
-              value={text}
-              onChange={setText}
-              className="min-w-0 flex-1"
-              isDisabled={busy && files.length > 0}
-            >
+            <TextField aria-label="Message" value={text} onChange={setText} className="min-w-0 flex-1">
               <TextArea
                 ref={area}
                 rows={1}
@@ -588,10 +613,9 @@ function Composer({
             aria-label="Send"
             onPress={sendTyped}
             isDisabled={!canSend}
-            isPending={busy}
             className="shrink-0"
           >
-            {busy ? <Spinner size="sm" color="current" /> : <Icon name="PaperPlane" />}
+            <Icon name="PaperPlane" />
           </Button>
         ) : (
           <Tooltip delay={400}>
@@ -607,11 +631,10 @@ function Composer({
                   void startRecording().then((ok) => ok && setRec("locked"));
                 }
               }}
-              isDisabled={busy}
               className="shrink-0 touch-none select-none"
               data-chat-mic=""
             >
-              {busy ? <Spinner size="sm" color="current" /> : <Icon name="Microphone" />}
+              <Icon name="Microphone" />
             </Button>
             <Tooltip.Content>Hold to record, or click to start</Tooltip.Content>
           </Tooltip>
@@ -637,6 +660,8 @@ export function ChatThread({
   selfName,
   lastReadAt,
   onSend,
+  onRetry,
+  onDiscard,
   hasOlder,
   onLoadOlder,
   closedReason,
@@ -712,7 +737,7 @@ export function ChatThread({
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the newest line changes
   useLayoutEffect(() => {
     if (!opened.current) return;
-    if (atBottom.current || lastMine) toBottom();
+    if (atBottom.current || lastMine) toBottom(true);
     else setShowJump(true);
   }, [lastId]);
 
@@ -781,11 +806,8 @@ export function ChatThread({
             const photos = line.attachments.filter((a) => a.kind === "image");
             const docs = line.attachments.filter((a) => a.kind === "file");
             const voice = line.attachments.find((a) => a.kind === "audio");
-            const showName =
-              place.first &&
-              line.side !== "system" &&
-              line.senderName &&
-              (!mine || (selfName && line.senderName !== selfName));
+            // One to one: the header names the other side, so only a teammate's own lines carry a name.
+            const showName = place.first && mine && line.senderName && selfName && line.senderName !== selfName;
             return (
               <div key={line.id} data-line={line.id} className="flex flex-col">
                 {place.newDay ? (
@@ -815,27 +837,25 @@ export function ChatThread({
                     ) : null}
                     <div
                       className={cx(
-                        "flex max-w-[85%] flex-col gap-1.5 sm:max-w-[70%]",
-                        mine ? "items-end" : "items-start",
+                        "flex max-w-[85%] flex-col gap-1 overflow-hidden rounded-xl sm:max-w-[68%]",
+                        mine ? "bg-accent-soft text-accent-soft-foreground" : "bg-default text-foreground",
+                        mine ? (place.last ? "rounded-br-sm" : "") : place.last ? "rounded-bl-sm" : "",
+                        photos.length > 0 || docs.length > 0 ? "p-1" : voice ? "px-2 py-1.5" : "px-3 py-2",
+                        line.receipt === "sending" ? "opacity-80" : "",
                       )}
                     >
                       {photos.length > 0 ? (
                         <Photos files={photos} onOpen={(start) => setGallery({ files: photos, start })} />
                       ) : null}
-                      {voice ? (
-                        <div className={cx("rounded-2xl px-3 py-2", mine ? "bg-accent-soft" : "bg-default")}>
-                          <VoiceNote url={voice.url} durationS={line.voiceDurationS} mine={mine} />
-                        </div>
-                      ) : null}
+                      {voice ? <VoiceNote url={voice.url} durationS={line.voiceDurationS} mine={mine} /> : null}
                       {docs.map((d) => (
-                        <FileCard key={d.id} file={d} />
+                        <FileCard key={d.id} file={d} mine={mine} />
                       ))}
                       {line.body || line.fault ? (
                         <div
                           className={cx(
-                            "flex flex-col gap-1 rounded-2xl px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words",
-                            mine ? "bg-accent-soft text-accent-soft-foreground" : "bg-default text-foreground",
-                            mine ? (place.last ? "rounded-br-md" : "") : place.last ? "rounded-bl-md" : "",
+                            "flex flex-col gap-1 text-sm leading-relaxed whitespace-pre-wrap break-words",
+                            photos.length > 0 || docs.length > 0 ? "px-2 pt-0.5 pb-1" : "",
                           )}
                         >
                           {line.fault ? (
@@ -851,14 +871,36 @@ export function ChatThread({
                         </div>
                       ) : null}
                     </div>
-                    {place.last ? (
+                    {line.receipt === "failed" ? (
+                      <span className="mt-1 flex items-center gap-2 px-1 text-xs text-danger">
+                        <Icon name="CircleExclamation" className="size-3.5" />
+                        Not sent
+                        {onRetry ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onPress={() => onRetry(line.id)}
+                            className="h-7 px-2 text-xs"
+                          >
+                            <Icon name="ArrowRotateRight" className="size-3.5" />
+                            Retry
+                          </Button>
+                        ) : null}
+                        {onDiscard ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onPress={() => onDiscard(line.id)}
+                            className="h-7 px-2 text-xs text-muted"
+                          >
+                            Remove
+                          </Button>
+                        ) : null}
+                      </span>
+                    ) : place.last || line.receipt === "sending" ? (
                       <span className="mt-1 flex items-center gap-1 px-1 text-xs tabular text-muted">
                         <time dateTime={line.createdAt}>{messageClock(line.createdAt)}</time>
                         {mine ? <Ticks receipt={line.receipt ?? null} /> : null}
-                      </span>
-                    ) : mine && (line.receipt === "sending" || line.receipt === "failed") ? (
-                      <span className="mt-0.5 px-1 text-xs">
-                        <Ticks receipt={line.receipt} />
                       </span>
                     ) : null}
                   </div>

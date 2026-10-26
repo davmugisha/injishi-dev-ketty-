@@ -24,7 +24,7 @@ export function TenantMessagesView({ thread, selfName }: { thread: LeaseThreadVi
   return (
     <PageContent>
       <PageHeader title="Messages" />
-      <Card className="flex h-[min(780px,calc(100dvh-12rem))] min-h-[480px] flex-col gap-0 overflow-hidden p-0">
+      <Card className="flex rounded-lg h-[min(780px,calc(100dvh-12rem))] min-h-[480px] flex-col gap-0 overflow-hidden p-0">
         <header className="flex items-center gap-3 border-b border-separator px-3 py-2.5 sm:px-4">
           <Avatar size="sm" variant="soft" className="shrink-0">
             <Avatar.Fallback>{initials(thread.counterpartName)}</Avatar.Fallback>
