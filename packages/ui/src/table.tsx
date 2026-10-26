@@ -215,11 +215,14 @@ export function DataTable<T>({
                 {view.description ? (
                   <ListView.Description className="whitespace-normal">{view.description(row)}</ListView.Description>
                 ) : null}
-                {rowActions ? <div className="pt-1.5 [&>*]:justify-start">{rowActions(row)}</div> : null}
               </div>
             </ListView.ItemContent>
-            {view.trailing ? (
-              <ListView.ItemAction className="self-start">{view.trailing(row)}</ListView.ItemAction>
+            {/* The figure or status, and the row's icon actions under it on the right: never a line of their own. */}
+            {view.trailing || rowActions ? (
+              <ListView.ItemAction className="flex shrink-0 flex-col items-end gap-1 self-start">
+                {view.trailing ? view.trailing(row) : null}
+                {rowActions ? <div className="-mr-1.5 [&>*]:gap-0.5">{rowActions(row)}</div> : null}
+              </ListView.ItemAction>
             ) : null}
           </ListView.Item>
         )}
