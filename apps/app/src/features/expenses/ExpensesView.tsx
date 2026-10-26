@@ -17,8 +17,10 @@ import {
   DateText,
   EmptyBlock,
   FilterTabs,
+  formatNumber,
   IconAction,
   KpiStrip,
+  ListToolbar,
   Money,
   MonthlyAmountArea,
   PageContent,
@@ -87,6 +89,8 @@ export function ExpensesView({
     const month = `${list.year}-${String(i + 1).padStart(2, "0")}`;
     return { month, amount: counted.filter((e) => e.paidOn.startsWith(month)).reduce((t, e) => t + e.amountRwf, 0) };
   });
+
+  const missingReceipts = counted.filter((e) => e.source === "recorded" && !e.hasReceipt);
 
   const q = search.trim().toLowerCase();
   const rows = list.items.filter(
@@ -222,37 +226,33 @@ export function ExpensesView({
             label: running ? "Spent so far" : "Spent",
             value: list.totals.totalRwf,
             icon: "Receipt",
-            href: href({ show: "all" }),
-            isCurrent: show === "all",
+            footnote: `${formatNumber(counted.length)} ${counted.length === 1 ? "payment" : "payments"} in ${list.year}`,
           },
           {
-            id: "repairs",
-            label: "Repairs",
-            value: sum("repairs"),
-            icon: "Wrench",
-            href: href({ show: "repairs" }),
-            isCurrent: show === "repairs",
+            id: "month",
+            label: running ? "This month" : "December",
+            value: months.at(-1)?.amount ?? 0,
+            icon: "Calendar",
           },
           {
-            id: "loan",
-            label: "Loan interest",
-            value: sum("loan_interest"),
-            icon: "Vault",
-            href: href({ show: "loan_interest" }),
-            isCurrent: show === "loan_interest",
+            id: "average",
+            label: "Monthly average",
+            value: months.length > 0 ? Math.round(list.totals.totalRwf / months.length) : 0,
+            icon: "ChartLine",
           },
           {
-            id: "other",
-            label: "Other",
-            value: sum("other"),
-            icon: "Tag",
-            href: href({ show: "other" }),
-            isCurrent: show === "other",
+            id: "receipts",
+            label: "Receipts missing",
+            value: missingReceipts.length,
+            format: "count",
+            icon: "Paperclip",
+            status: missingReceipts.length > 0 ? "warning" : undefined,
+            footnote: missingReceipts.length > 0 ? "Attach them from the list" : "All on file",
           },
         ]}
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2">
         <MonthlyAmountArea
           title="By month"
           seriesLabel="Spent"
@@ -270,15 +270,18 @@ export function ExpensesView({
         />
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <FilterTabs
-          label="Expenses by kind"
-          tabs={tabs.map((t) => ({ ...t, count: count(t.id) }))}
-          selectedKey={show}
-          onSelectionChange={(key) => go({ show: key as ExpenseShow })}
-        />
+      <ListToolbar
+        tabs={
+          <FilterTabs
+            label="Expenses by kind"
+            tabs={tabs.map((t) => ({ ...t, count: count(t.id) }))}
+            selectedKey={show}
+            onSelectionChange={(key) => go({ show: key as ExpenseShow })}
+          />
+        }
+      >
         <SearchBar label="Search expenses" value={search} onChange={setSearch} placeholder="Payee, unit or note" />
-      </div>
+      </ListToolbar>
 
       <div className={pending ? "opacity-60 transition-opacity" : "transition-opacity"} aria-busy={pending}>
         <DataTable
