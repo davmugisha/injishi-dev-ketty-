@@ -7,21 +7,17 @@ import type { ModelToolSpec } from '../domain/model-port';
  * What a tool needs before it may be offered or run (ADR-061 D-f):
  *
  * - `public`: anyone, signed in or not.
- * - `catalogue`: anyone, but only while the public catalogue is open, which
- *   it is not on the production pre launch host (D-j, ADR-048).
  * - `signed_in`: a session.
  * - `{ anyOf }`: a workspace resolved for this turn exactly as
  *   `WorkspaceGuard` resolves it, holding at least one of these permissions.
  *   The list is the one the matching route declares, so the assistant can
  *   never read what the screen would refuse.
  */
-export type ToolRequirement = 'public' | 'catalogue' | 'signed_in' | { anyOf: readonly Permission[] };
+export type ToolRequirement = 'public' | 'signed_in' | { anyOf: readonly Permission[] };
 
 /** Who is calling, as far as the tools are concerned. */
 export interface ToolCaller {
   userId: string | null;
-  /** False on the production pre launch host; fails closed when unknown. */
-  catalogueOpen: boolean;
   /**
    * The operator workspace in view, resolved through the step up, the
    * membership, and the branch scope, or null when there is none (a guest,

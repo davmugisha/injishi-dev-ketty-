@@ -373,7 +373,7 @@ const PROFORMA_SALE: EbmReceipt = {
 };
 
 /** One specimen, with the clause and page it is transcribed from. */
-export interface Specimen {
+interface Specimen {
   id: string;
   /** e.g. "Clause 13.1, page 6 — NORMAL SALE (NS)". */
   caption: string;

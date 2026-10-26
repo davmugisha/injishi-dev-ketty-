@@ -546,8 +546,7 @@ Or start what you need, each in its own terminal, from injishi/:
   pnpm api:dev                        API       http://localhost:${apiPort}  (health: /api/v1/health)
   pnpm web:dev                        web       http://localhost:3000
   pnpm app:dev                        operator  http://localhost:3002
-  pnpm --filter @injishi/admin dev    admin     http://localhost:3001
-  pnpm api:worker:dev                 BullMQ worker. Booking, training and waitlist mail
+  pnpm api:worker:dev                 BullMQ worker. Booking and training mail
                                       is QUEUED and waits in Redis until this runs.
                                       It builds into dist-worker/, so it runs beside api:dev.
 

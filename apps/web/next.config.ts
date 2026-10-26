@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
+import { appHandoffRedirects, appHandoffRscRewrites } from "./src/lib/app-handoff";
 
 /**
  * The marketing `screens` list that used to sit here is gone with the captured
@@ -116,11 +117,14 @@ const nextConfig: NextConfig = {
      * Roots this app has NO pages under. Forwarding them before the file system
      * is consulted costs nothing, because there is nothing here to consult.
      */
-    const roots = ["w", "oversight", "landlord", "broker"];
+    const roots = ["w", "oversight", "officer", "landlord", "broker"];
     return {
       beforeFiles: [
         { source: "/operator-static/:path*", destination: `${zone}/operator-static/:path*` },
         ...roots.flatMap(forward),
+        // A soft navigation to a hand-off path cannot follow the redirect below
+        // across origins; `app-handoff.ts` says what answers it instead.
+        ...appHandoffRscRewrites(process.env.NEXT_PUBLIC_WEB_URL, process.env.NEXT_PUBLIC_PMS_URL),
       ],
       /**
        * `host` IS WEB'S, AND HAS TO BE CHECKED LAST (ADR-044, D-b).
@@ -142,7 +146,18 @@ const nextConfig: NextConfig = {
     };
   },
   async redirects() {
+    /**
+     * Signing in and registering a business happen in the operator app
+     * (`apps/app`) when it runs on its OWN origin, as it does on a laptop
+     * (:3002). Redirects run before middleware, so the private-page gate's
+     * bounce to `/sign-in` lands there too.
+     *
+     * Only then. In a deployed stack the app is a zone under this origin, and
+     * the unconditional version of these two lines sent `/sign-in` to itself
+     * on www.injishi.com. `app-handoff.ts` says why and decides.
+     */
     return [
+      ...appHandoffRedirects(process.env.NEXT_PUBLIC_WEB_URL, process.env.NEXT_PUBLIC_PMS_URL),
       { source: "/home/index.html", destination: "/", permanent: false },
       { source: "/home", destination: "/", permanent: false },
       ...webAppScreens.map((s) => ({

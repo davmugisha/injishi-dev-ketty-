@@ -41,7 +41,9 @@ const PROMISES: Promise[] = [
   },
   {
     icon: "/assets/01KDKH0VE3BG5GZEH2JZG79825.svg",
-    lead: "Self ",
+    // Was "Self check-in", which no stay offers yet (F-B09). The section it
+    // links to says what arriving is today.
+    lead: "Easy ",
     rest: "check-in",
     href: "/how-it-works#self-check-in",
     image: {

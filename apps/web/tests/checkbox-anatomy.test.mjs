@@ -32,7 +32,9 @@ const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 
-const SOURCE = resolve(here, "../../../packages/ui/src/components/checkbox.tsx");
+// `@injishi/ui` in this app is `packages/web-ui` (package.json aliases it); the
+// old `packages/ui` copy was deleted with the old interface (c1e9a55).
+const SOURCE = resolve(here, "../../../packages/web-ui/src/components/checkbox.tsx");
 const COMPILED = resolve(here, `.checkbox-under-test-${process.pid}.mjs`);
 
 let Checkbox;

@@ -37,7 +37,7 @@ import {
  */
 export type HostKind = AccommodationClass | "residence" | "bar_restaurant" | "psf";
 
-export interface HostPropertyKind {
+interface HostPropertyKind {
   value: HostKind;
   label: string;
   blurb: string;
@@ -107,7 +107,7 @@ export const HOST_PROPERTY_KINDS: HostPropertyKind[] = CHOOSER.map(
  * one button, "Register your business". That button was the only way on, so
  * the page cost a screen and decided nothing. The wizard now takes the kind as
  * answered and opens on the first question it does not yet know
- * (`register/wizard-path.ts`), and `/host/start` redirects here for the links
+ * (`register/register-steps.ts`), and `/host/start` redirects here for the links
  * that still name it.
  *
  * A signed out visitor is sent to sign in by the register gate, and `/sign-in`
@@ -149,8 +149,11 @@ export interface HostBenefit {
 export const HOST_BENEFITS: HostBenefit[] = [
   {
     icon: "reach",
-    title: "Reach guests already searching",
-    body: "Your listing sits alongside verified stays across Kigali, Musanze, Rubavu and Huye, in front of guests who came to Injishi to book a real place, not to browse.",
+    // Was "Reach guests already searching ... alongside verified stays across
+    // Kigali, Musanze, Rubavu and Huye", written for a catalogue that opened
+    // empty. Being early is the true offer, so it says that.
+    title: "Be among the first listed",
+    body: "Injishi opens district by district, Kigali first. Hosts verified now are the stays guests meet first, on a site where every listing has passed the same checks.",
   },
   {
     icon: "payout",
@@ -159,8 +162,11 @@ export const HOST_BENEFITS: HostBenefit[] = [
   },
   {
     icon: "trust",
-    title: "Arrive already compliant",
-    body: "We handle RRA registration and keep your records straight, so the paperwork behind a listing is done before your first booking rather than after it.",
+    // Was "We handle RRA registration and keep your records straight". Injishi
+    // checks a TIN; it does not register anyone with the RRA, and EBM is not
+    // yet certified (AGENTS.md § EBM).
+    title: "Start with the paperwork checked",
+    body: "Your RRA TIN and documents are checked when you register, and Injishi is being connected to the RRA's electronic billing so each booking can be declared under your own TIN.",
   },
 ];
 
@@ -210,11 +216,11 @@ export const HOST_STEPS: HostStep[] = [
     n: 4,
     icon: "live",
     title: "You go live",
-    body: "Your listing opens to guests with escrow-backed payment and self check-in switched on. Your monthly plan starts here, not before.",
+    body: "Your listing opens to guests with escrow-backed payment switched on. Your monthly plan starts here, not before.",
   },
 ];
 
-export interface HostFaqGroup {
+interface HostFaqGroup {
   id: string;
   label: string;
   entries: { question: string; answer: string }[];
@@ -230,7 +236,7 @@ export const HOST_FAQ: HostFaqGroup[] = [
       {
         question: "I already list on another site. Can I list here too?",
         answer:
-          "Yes. Nothing about Injishi is exclusive. Most of our hosts list in more than one place, and you keep control of your own calendar and rates.",
+          "Yes. Nothing about Injishi is exclusive: list wherever else you like, and you keep control of your own calendar and rates.",
       },
       {
         question: "What kind of accommodation can I list?",
@@ -265,7 +271,9 @@ export const HOST_FAQ: HostFaqGroup[] = [
       {
         question: "When am I paid?",
         answer:
-          "The guest's payment is held in escrow and released to you after check-in. Funds reach your account within three working days of release.",
+          // "Within three working days of release" was a promise nothing backs:
+          // no payout runs yet, and no provider is contracted.
+          "The guest's payment is held in escrow and paid out to you after they check in. We confirm how and when payouts reach you, by mobile money or bank, before your listing goes live.",
       },
       {
         question: "What happens if a guest disputes a stay?",
@@ -281,7 +289,7 @@ export const HOST_FAQ: HostFaqGroup[] = [
       {
         question: "Do you handle RRA registration?",
         answer:
-          "Yes. We register the accommodation and keep the records a compliant let requires, so the paperwork is in place before your first guest arrives.",
+          "We check your TIN with the RRA when you register, and every booking comes with a receipt. Certified e-invoicing through the RRA's EBM is being connected; until it is live, keep declaring your sales the way you do today.",
       },
       {
         question: "What documents do you need from me?",

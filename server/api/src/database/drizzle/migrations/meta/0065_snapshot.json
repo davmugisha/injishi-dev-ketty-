@@ -1,6 +1,6 @@
 {
-  "id": "afd6e124-5ba7-4739-9e12-2da54d46bddb",
-  "prevId": "2ae3f8ba-1746-4927-aa5d-f17d0cf1b438",
+  "id": "29dad1f5-b7d8-465e-9dfd-e89d5f268f8f",
+  "prevId": "31ebcf04-47e8-4fd9-a078-c3868bca1331",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -986,257 +986,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.business_code_counters": {
-      "name": "business_code_counters",
-      "schema": "",
-      "columns": {
-        "district_id": {
-          "name": "district_id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "last_number": {
-          "name": "last_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "business_code_counters_district_id_districts_id_fk": {
-          "name": "business_code_counters_district_id_districts_id_fk",
-          "tableFrom": "business_code_counters",
-          "tableTo": "districts",
-          "columnsFrom": [
-            "district_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.psf_associations": {
-      "name": "psf_associations",
-      "schema": "",
-      "columns": {
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "cluster_code": {
-          "name": "cluster_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name_en": {
-          "name": "name_en",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "acronym": {
-          "name": "acronym",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "updated_by_user_id": {
-          "name": "updated_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "psf_associations_cluster_idx": {
-          "name": "psf_associations_cluster_idx",
-          "columns": [
-            {
-              "expression": "cluster_code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "psf_associations_cluster_code_psf_clusters_code_fk": {
-          "name": "psf_associations_cluster_code_psf_clusters_code_fk",
-          "tableFrom": "psf_associations",
-          "tableTo": "psf_clusters",
-          "columnsFrom": [
-            "cluster_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "psf_associations_updated_by_user_id_users_id_fk": {
-          "name": "psf_associations_updated_by_user_id_users_id_fk",
-          "tableFrom": "psf_associations",
-          "tableTo": "users",
-          "columnsFrom": [
-            "updated_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.psf_clusters": {
-      "name": "psf_clusters",
-      "schema": "",
-      "columns": {
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name_en": {
-          "name": "name_en",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name_rw": {
-          "name": "name_rw",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "updated_by_user_id": {
-          "name": "updated_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "psf_clusters_updated_by_user_id_users_id_fk": {
-          "name": "psf_clusters_updated_by_user_id_users_id_fk",
-          "tableFrom": "psf_clusters",
-          "tableTo": "users",
-          "columnsFrom": [
-            "updated_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.government_bodies": {
       "name": "government_bodies",
       "schema": "",
@@ -1735,6 +1484,26 @@
           "primaryKey": false,
           "notNull": false
         },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "org_certificate_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'on_file'"
+        },
+        "follow_up": {
+          "name": "follow_up",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1756,6 +1525,21 @@
           "columns": [
             {
               "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "org_certificates_property_idx": {
+          "name": "org_certificates_property_idx",
+          "columns": [
+            {
+              "expression": "property_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1821,6 +1605,19 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "org_certificates_property_id_properties_id_fk": {
+          "name": "org_certificates_property_id_properties_id_fk",
+          "tableFrom": "org_certificates",
+          "tableTo": "properties",
+          "columnsFrom": [
+            "property_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -1902,6 +1699,12 @@
         "branch_property_ids": {
           "name": "branch_property_ids",
           "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invitee_name": {
+          "name": "invitee_name",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -2681,39 +2484,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "business_code": {
-          "name": "business_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "psf_association_code": {
-          "name": "psf_association_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "owner_groups": {
-          "name": "owner_groups",
-          "type": "psf_owner_group[]",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::psf_owner_group[]"
-        },
-        "registration_kind": {
-          "name": "registration_kind",
-          "type": "enterprise_registration_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "registration_number": {
-          "name": "registration_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2730,21 +2500,6 @@
         }
       },
       "indexes": {
-        "orgs_psf_association_idx": {
-          "name": "orgs_psf_association_idx",
-          "columns": [
-            {
-              "expression": "psf_association_code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "orgs_district_idx": {
           "name": "orgs_district_idx",
           "columns": [
@@ -2867,19 +2622,6 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "orgs_psf_association_code_psf_associations_code_fk": {
-          "name": "orgs_psf_association_code_psf_associations_code_fk",
-          "tableFrom": "orgs",
-          "tableTo": "psf_associations",
-          "columnsFrom": [
-            "psf_association_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2890,28 +2632,17 @@
           "columns": [
             "tin"
           ]
-        },
-        "orgs_business_code_uk": {
-          "name": "orgs_business_code_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "business_code"
-          ]
         }
       },
       "policies": {},
       "checkConstraints": {
         "orgs_domain_shape": {
           "name": "orgs_domain_shape",
-          "value": "(\"orgs\".\"domain\" = 'hospitality' AND \"orgs\".\"accommodation_class\" IS NOT NULL)\n          OR (\"orgs\".\"domain\" = 'residence' AND \"orgs\".\"residence_class\" IS NOT NULL AND \"orgs\".\"tourism_license_number\" IS NULL AND NOT \"orgs\".\"psf_member\")\n          OR (\"orgs\".\"domain\" NOT IN ('hospitality', 'residence') AND \"orgs\".\"accommodation_class\" IS NULL AND \"orgs\".\"residence_class\" IS NULL\n              AND \"orgs\".\"tourism_license_number\" IS NULL AND \"orgs\".\"psf_association_code\" IS NOT NULL)"
+          "value": "(\"orgs\".\"domain\" = 'hospitality' AND \"orgs\".\"accommodation_class\" IS NOT NULL)\n          OR (\"orgs\".\"domain\" = 'residence' AND \"orgs\".\"residence_class\" IS NOT NULL AND \"orgs\".\"tourism_license_number\" IS NULL AND NOT \"orgs\".\"psf_member\")"
         },
         "orgs_identifier_shape": {
           "name": "orgs_identifier_shape",
-          "value": "(\"orgs\".\"domain\" = 'hospitality' AND \"orgs\".\"tin\" IS NOT NULL)\n          OR (\"orgs\".\"domain\" = 'residence' AND \"orgs\".\"upi\" IS NOT NULL)\n          OR (\"orgs\".\"domain\" NOT IN ('hospitality', 'residence'))"
-        },
-        "orgs_registration_shape": {
-          "name": "orgs_registration_shape",
-          "value": "(\"orgs\".\"domain\" IN ('hospitality', 'residence') AND \"orgs\".\"registration_kind\" IS NULL AND \"orgs\".\"registration_number\" IS NULL)\n          OR (\"orgs\".\"domain\" NOT IN ('hospitality', 'residence') AND \"orgs\".\"registration_kind\" IS NOT NULL\n              AND (\"orgs\".\"registration_kind\" = 'tin') = (\"orgs\".\"tin\" IS NOT NULL)\n              AND (\"orgs\".\"registration_kind\" IN ('rca', 'rgb', 'other')) = (\"orgs\".\"registration_number\" IS NOT NULL))"
+          "value": "(\"orgs\".\"domain\" = 'hospitality' AND \"orgs\".\"tin\" IS NOT NULL)\n          OR (\"orgs\".\"domain\" = 'residence' AND \"orgs\".\"upi\" IS NOT NULL)"
         },
         "orgs_accommodation_class_other_shape": {
           "name": "orgs_accommodation_class_other_shape",
@@ -4751,6 +4482,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "branch_code": {
+          "name": "branch_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "archived_at": {
           "name": "archived_at",
           "type": "timestamp with time zone",
@@ -4891,6 +4628,28 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "properties_org_branch_code_uk": {
+          "name": "properties_org_branch_code_uk",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "branch_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"properties\".\"branch_code\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -4980,6 +4739,10 @@
         "properties_rra_branch_id_ck": {
           "name": "properties_rra_branch_id_ck",
           "value": "\"properties\".\"rra_branch_id\" ~ '^[0-9]{2}$'"
+        },
+        "properties_branch_code_ck": {
+          "name": "properties_branch_code_ck",
+          "value": "\"properties\".\"branch_code\" ~ '^[A-Z]{2,4}$'"
         },
         "properties_head_office_not_archived_ck": {
           "name": "properties_head_office_not_archived_ck",
@@ -21285,12 +21048,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "declared_fee_rwf": {
-          "name": "declared_fee_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
         "company_name": {
           "name": "company_name",
           "type": "text",
@@ -21307,7 +21064,7 @@
           "name": "registration_number",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "website": {
           "name": "website",
@@ -21467,55 +21224,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "approved_membership_number": {
-          "name": "approved_membership_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "approved_fee_rwf": {
-          "name": "approved_fee_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "paid_at": {
-          "name": "paid_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "paid_amount_rwf": {
-          "name": "paid_amount_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "payment_ref": {
-          "name": "payment_ref",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "payment_mode": {
-          "name": "payment_mode",
-          "type": "adapter_mode",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "remitted_at": {
-          "name": "remitted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "remittance_ref": {
-          "name": "remittance_ref",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "withdrawn_at": {
           "name": "withdrawn_at",
           "type": "timestamp with time zone",
@@ -21555,7 +21263,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"psf_membership_applications\".\"status\" NOT IN ('member', 'declined', 'withdrawn')",
+          "where": "\"psf_membership_applications\".\"status\" = 'submitted'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -21682,15 +21390,7 @@
         },
         "psf_membership_applications_decision_shape": {
           "name": "psf_membership_applications_decision_shape",
-          "value": "(\"psf_membership_applications\".\"status\" NOT IN ('submitted', 'withdrawn')) = (\"psf_membership_applications\".\"decided_at\" IS NOT NULL AND \"psf_membership_applications\".\"decided_by_user_id\" IS NOT NULL AND \"psf_membership_applications\".\"decision_body_code\" IS NOT NULL)\n          AND (\"psf_membership_applications\".\"status\" = 'declined') = (\"psf_membership_applications\".\"decline_reason\" IS NOT NULL)\n          AND (\"psf_membership_applications\".\"decline_reason\" IS DISTINCT FROM 'other' OR \"psf_membership_applications\".\"decision_note\" IS NOT NULL)\n          AND (\"psf_membership_applications\".\"status\" = 'withdrawn') = (\"psf_membership_applications\".\"withdrawn_at\" IS NOT NULL AND \"psf_membership_applications\".\"withdrawn_by_user_id\" IS NOT NULL)"
-        },
-        "psf_membership_applications_payment_shape": {
-          "name": "psf_membership_applications_payment_shape",
-          "value": "(\"psf_membership_applications\".\"status\" IN ('submitted', 'member', 'declined', 'withdrawn') OR (\"psf_membership_applications\".\"approved_membership_number\" IS NOT NULL AND \"psf_membership_applications\".\"approved_fee_rwf\" IS NOT NULL))\n          AND ((\"psf_membership_applications\".\"paid_at\" IS NULL) = (\"psf_membership_applications\".\"paid_amount_rwf\" IS NULL)\n               AND (\"psf_membership_applications\".\"paid_at\" IS NULL) = (\"psf_membership_applications\".\"payment_ref\" IS NULL)\n               AND (\"psf_membership_applications\".\"paid_at\" IS NULL) = (\"psf_membership_applications\".\"payment_mode\" IS NULL))\n          AND (\"psf_membership_applications\".\"paid_at\" IS NULL OR \"psf_membership_applications\".\"status\" = 'member')\n          AND (\"psf_membership_applications\".\"remitted_at\" IS NULL OR \"psf_membership_applications\".\"paid_at\" IS NOT NULL)\n          AND ((\"psf_membership_applications\".\"remitted_at\" IS NULL) = (\"psf_membership_applications\".\"remittance_ref\" IS NULL))"
-        },
-        "psf_membership_applications_registration_shape": {
-          "name": "psf_membership_applications_registration_shape",
-          "value": "(\"psf_membership_applications\".\"registration_type\" = 'none') = (\"psf_membership_applications\".\"registration_number\" IS NULL)"
+          "value": "(\"psf_membership_applications\".\"status\" IN ('member', 'declined')) = (\"psf_membership_applications\".\"decided_at\" IS NOT NULL AND \"psf_membership_applications\".\"decided_by_user_id\" IS NOT NULL AND \"psf_membership_applications\".\"decision_body_code\" IS NOT NULL)\n          AND (\"psf_membership_applications\".\"status\" = 'declined') = (\"psf_membership_applications\".\"decline_reason\" IS NOT NULL)\n          AND (\"psf_membership_applications\".\"decline_reason\" IS DISTINCT FROM 'other' OR \"psf_membership_applications\".\"decision_note\" IS NOT NULL)\n          AND (\"psf_membership_applications\".\"status\" = 'withdrawn') = (\"psf_membership_applications\".\"withdrawn_at\" IS NOT NULL AND \"psf_membership_applications\".\"withdrawn_by_user_id\" IS NOT NULL)"
         }
       },
       "isRLSEnabled": false
@@ -21818,7 +21518,7 @@
       "checkConstraints": {
         "psf_membership_tiers_price_shape": {
           "name": "psf_membership_tiers_price_shape",
-          "value": "(\"psf_membership_tiers\".\"price_kind\" = 'fixed' AND \"psf_membership_tiers\".\"annual_fee_rwf\" IS NOT NULL AND \"psf_membership_tiers\".\"annual_fee_rwf\" > 0\n            AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" IS NULL AND \"psf_membership_tiers\".\"annual_fee_max_rwf\" IS NULL)\n          OR (\"psf_membership_tiers\".\"price_kind\" = 'range' AND \"psf_membership_tiers\".\"annual_fee_rwf\" IS NULL\n            AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" IS NOT NULL AND \"psf_membership_tiers\".\"annual_fee_max_rwf\" IS NOT NULL\n            AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" > 0 AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" < \"psf_membership_tiers\".\"annual_fee_max_rwf\")\n          OR (\"psf_membership_tiers\".\"price_kind\" NOT IN ('fixed', 'range', 'set_by_psf') AND \"psf_membership_tiers\".\"annual_fee_rwf\" IS NULL\n            AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" IS NOT NULL AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" > 0 AND \"psf_membership_tiers\".\"annual_fee_max_rwf\" IS NULL)\n          OR (\"psf_membership_tiers\".\"price_kind\" = 'set_by_psf' AND \"psf_membership_tiers\".\"annual_fee_rwf\" IS NULL\n            AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" IS NULL AND \"psf_membership_tiers\".\"annual_fee_max_rwf\" IS NULL)"
+          "value": "(\"psf_membership_tiers\".\"price_kind\" = 'fixed' AND \"psf_membership_tiers\".\"annual_fee_rwf\" IS NOT NULL AND \"psf_membership_tiers\".\"annual_fee_rwf\" > 0\n            AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" IS NULL AND \"psf_membership_tiers\".\"annual_fee_max_rwf\" IS NULL)\n          OR (\"psf_membership_tiers\".\"price_kind\" = 'range' AND \"psf_membership_tiers\".\"annual_fee_rwf\" IS NULL\n            AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" IS NOT NULL AND \"psf_membership_tiers\".\"annual_fee_max_rwf\" IS NOT NULL\n            AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" > 0 AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" < \"psf_membership_tiers\".\"annual_fee_max_rwf\")\n          OR (\"psf_membership_tiers\".\"price_kind\" = 'set_by_psf' AND \"psf_membership_tiers\".\"annual_fee_rwf\" IS NULL\n            AND \"psf_membership_tiers\".\"annual_fee_min_rwf\" IS NULL AND \"psf_membership_tiers\".\"annual_fee_max_rwf\" IS NULL)"
         }
       },
       "isRLSEnabled": false
@@ -31549,538 +31249,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.checklist_template_items": {
-      "name": "checklist_template_items",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "template_id": {
-          "name": "template_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "by_employee": {
-          "name": "by_employee",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "due_after_days": {
-          "name": "due_after_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "job_position_id": {
-          "name": "job_position_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "checklist_template_items_template_idx": {
-          "name": "checklist_template_items_template_idx",
-          "columns": [
-            {
-              "expression": "template_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "sort_order",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "checklist_template_items_template_id_checklist_templates_id_fk": {
-          "name": "checklist_template_items_template_id_checklist_templates_id_fk",
-          "tableFrom": "checklist_template_items",
-          "tableTo": "checklist_templates",
-          "columnsFrom": [
-            "template_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "checklist_template_items_job_position_id_job_positions_id_fk": {
-          "name": "checklist_template_items_job_position_id_job_positions_id_fk",
-          "tableFrom": "checklist_template_items",
-          "tableTo": "job_positions",
-          "columnsFrom": [
-            "job_position_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.checklist_templates": {
-      "name": "checklist_templates",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "hr_checklist_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "is_default": {
-          "name": "is_default",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "checklist_templates_org_idx": {
-          "name": "checklist_templates_org_idx",
-          "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "checklist_templates_one_default_uk": {
-          "name": "checklist_templates_one_default_uk",
-          "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"checklist_templates\".\"is_default\"",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "checklist_templates_name_uk": {
-          "name": "checklist_templates_name_uk",
-          "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "lower(\"name\")",
-              "asc": true,
-              "isExpression": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "checklist_templates_org_id_orgs_id_fk": {
-          "name": "checklist_templates_org_id_orgs_id_fk",
-          "tableFrom": "checklist_templates",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.employee_checklist_tasks": {
-      "name": "employee_checklist_tasks",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "checklist_id": {
-          "name": "checklist_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "by_employee": {
-          "name": "by_employee",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "due_on": {
-          "name": "due_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "done_at": {
-          "name": "done_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "done_by_user_id": {
-          "name": "done_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "employee_checklist_tasks_checklist_idx": {
-          "name": "employee_checklist_tasks_checklist_idx",
-          "columns": [
-            {
-              "expression": "checklist_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "sort_order",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "employee_checklist_tasks_org_id_orgs_id_fk": {
-          "name": "employee_checklist_tasks_org_id_orgs_id_fk",
-          "tableFrom": "employee_checklist_tasks",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "employee_checklist_tasks_checklist_id_employee_checklists_id_fk": {
-          "name": "employee_checklist_tasks_checklist_id_employee_checklists_id_fk",
-          "tableFrom": "employee_checklist_tasks",
-          "tableTo": "employee_checklists",
-          "columnsFrom": [
-            "checklist_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "employee_checklist_tasks_done_by_user_id_users_id_fk": {
-          "name": "employee_checklist_tasks_done_by_user_id_users_id_fk",
-          "tableFrom": "employee_checklist_tasks",
-          "tableTo": "users",
-          "columnsFrom": [
-            "done_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.employee_checklists": {
-      "name": "employee_checklists",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "employee_id": {
-          "name": "employee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "hr_checklist_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "template_name": {
-          "name": "template_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "anchor_on": {
-          "name": "anchor_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "started_by_user_id": {
-          "name": "started_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "employee_checklists_one_per_kind_uk": {
-          "name": "employee_checklists_one_per_kind_uk",
-          "columns": [
-            {
-              "expression": "employee_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "employee_checklists_org_idx": {
-          "name": "employee_checklists_org_idx",
-          "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "employee_checklists_org_id_orgs_id_fk": {
-          "name": "employee_checklists_org_id_orgs_id_fk",
-          "tableFrom": "employee_checklists",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "employee_checklists_employee_id_employees_id_fk": {
-          "name": "employee_checklists_employee_id_employees_id_fk",
-          "tableFrom": "employee_checklists",
-          "tableTo": "employees",
-          "columnsFrom": [
-            "employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "employee_checklists_started_by_user_id_users_id_fk": {
-          "name": "employee_checklists_started_by_user_id_users_id_fk",
-          "tableFrom": "employee_checklists",
-          "tableTo": "users",
-          "columnsFrom": [
-            "started_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.list_saved_views": {
       "name": "list_saved_views",
       "schema": "",
@@ -33532,8 +32700,7 @@
       "schema": "public",
       "values": [
         "hospitality",
-        "residence",
-        "enterprise"
+        "residence"
       ]
     },
     "public.dsr_request_type": {
@@ -33595,17 +32762,6 @@
       "values": [
         "sale",
         "refund"
-      ]
-    },
-    "public.enterprise_registration_kind": {
-      "name": "enterprise_registration_kind",
-      "schema": "public",
-      "values": [
-        "tin",
-        "rca",
-        "rgb",
-        "other",
-        "none"
       ]
     },
     "public.escalation_state": {
@@ -33964,6 +33120,14 @@
         "other"
       ]
     },
+    "public.org_certificate_status": {
+      "name": "org_certificate_status",
+      "schema": "public",
+      "values": [
+        "requested",
+        "on_file"
+      ]
+    },
     "public.org_membership_status": {
       "name": "org_membership_status",
       "schema": "public",
@@ -34138,7 +33302,6 @@
       "schema": "public",
       "values": [
         "submitted",
-        "approved",
         "member",
         "declined",
         "withdrawn"
@@ -34182,7 +33345,6 @@
       "values": [
         "golden_circle",
         "indashyikirwa",
-        "indatwa",
         "ordinary",
         "junior_giants"
       ]
@@ -34193,15 +33355,6 @@
       "values": [
         "psf_confirmed",
         "self_declared"
-      ]
-    },
-    "public.psf_owner_group": {
-      "name": "psf_owner_group",
-      "schema": "public",
-      "values": [
-        "women",
-        "youth",
-        "pwd"
       ]
     },
     "public.psf_ownership": {
@@ -34222,7 +33375,6 @@
       "values": [
         "fixed",
         "range",
-        "minimum",
         "set_by_psf"
       ]
     },
@@ -34294,8 +33446,7 @@
       "values": [
         "hospitality",
         "residence",
-        "broker",
-        "enterprise"
+        "broker"
       ]
     },
     "public.registration_rejection_reason": {
@@ -35364,14 +34515,6 @@
       "values": [
         "include",
         "exclude"
-      ]
-    },
-    "public.hr_checklist_kind": {
-      "name": "hr_checklist_kind",
-      "schema": "public",
-      "values": [
-        "onboarding",
-        "offboarding"
       ]
     },
     "public.report_run_kind": {

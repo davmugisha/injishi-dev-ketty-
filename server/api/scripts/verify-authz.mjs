@@ -196,9 +196,11 @@ async function main() {
       ['payroll.draft', 'payroll.run', 'people.manage', 'team.manage'],
     );
     // 9 until ADR-058, which gave the desk attendance.record: the desk is who is
-    // at the door when the night shift arrives.
-    check('receptionist holds 10', forRole('receptionist').length, 10);
+    // at the door when the night shift arrives. 11 since ADR-072, which gave it
+    // lostfound.manage: the desk takes the claim calls and does the hand-back.
+    check('receptionist holds 11', forRole('receptionist').length, 11);
     check('receptionist may clock staff in (ADR-058)', can('receptionist', 'attendance.record'), true);
+    check('receptionist keeps the lost and found register (ADR-072)', can('receptionist', 'lostfound.manage'), true);
     check('housekeeper holds 2', forRole('housekeeper').length, 2);
 
     console.log('\n=== finance and hr: a job each, and nothing beside it (ADR-069 D-b) ===');
@@ -250,7 +252,7 @@ async function main() {
     const EXPECTED = [
       ['host@injishi.com', 'owner', OWNER_ALL, 'hospitality'],
       ['manager@injishi.com', 'manager', MANAGER_ALL, 'hospitality'],
-      ['reception@injishi.com', 'receptionist', 10, 'hospitality'],
+      ['reception@injishi.com', 'receptionist', 11, 'hospitality'],
       ['housekeeper@injishi.com', 'housekeeper', 2, 'hospitality'],
       ['landlord@injishi.com', 'owner', OWNER_ALL, 'residence'],
       ['resident-manager@injishi.com', 'manager', MANAGER_ALL, 'residence'],

@@ -12,8 +12,10 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "Injishi",
     short_name: "Injishi",
+    // Said to whoever installs the site, which on this origin is a guest or an
+    // owner, not an operator: it used to describe the operator product.
     description:
-      "Run hospitality bookings and residential leases, take money-backed commitments, and stay RRA-compliant.",
+      "Book verified guesthouses, lodges and apartments across Rwanda, or list your own.",
     start_url: "/",
     scope: "/",
     display: "standalone",

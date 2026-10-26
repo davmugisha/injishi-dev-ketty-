@@ -1,5 +1,7 @@
 import {
+  type InvitableOrgRole,
   MEMBER_BRANCHES_REFUSAL,
+  MEMBER_ROLE_REFUSAL,
   type OperatorTeamList,
   type OperatorTeamMember,
   type WorkspaceAccess,
@@ -29,9 +31,12 @@ import { TeamRepository, type TeamMemberRow } from '../infrastructure/team.repos
  *
  * ADDING SOMEBODY IS STILL NOT HERE. Adding somebody to a business is an
  * invitation (`StaffInvitationService`), with its own decisions about delivery
- * and acceptance, and a bare "add member" would skip all of that. The one write
- * here narrows an EXISTING member to some branches (ADR-054 AC-T1): it changes
- * which rows they see, never whether they work here or what their role grants.
+ * and acceptance, and a bare "add member" would skip all of that. The two
+ * writes here act on an EXISTING member: narrowing them to some branches
+ * (ADR-054 AC-T1), which changes which rows they see, and moving them to
+ * another staff role, which changes what they may do. Neither decides whether
+ * they work here (removal is offboarding, in People), and neither can make or
+ * unmake an owner.
  */
 @Injectable()
 export class TeamService {
@@ -82,6 +87,44 @@ export class TeamService {
     if (!member) throw new NotFoundException('No such member.');
     return present(member);
   }
+
+  /**
+   * `PATCH /ops/team/:userId/role`. What a member may do follows from the role
+   * on their membership, resolved on their next request by
+   * `permissionsForWorkspace` (and this business's ADR-055 overrides), so the
+   * change needs no session work: it applies the moment it commits. Audited in
+   * the same transaction as `team.member_role_changed`.
+   */
+  async changeRole(
+    ws: WorkspaceAccess,
+    userId: string,
+    orgRole: InvitableOrgRole,
+    actorUserId: string,
+  ): Promise<OperatorTeamMember> {
+    if (!ws.orgId) {
+      throw new BadRequestException('Only a business workspace has staff.');
+    }
+    const result = await this.team.setMemberRole({
+      orgId: ws.orgId,
+      userId,
+      orgRole,
+      actorUserId,
+    });
+    switch (result.kind) {
+      case 'missing':
+        throw new NotFoundException('No such member.');
+      case 'owner':
+      case 'same':
+        throw new UnprocessableEntityException(MEMBER_ROLE_REFUSAL[result.kind]);
+      case 'done':
+        break;
+    }
+    const member = (await this.team.listForWorkspace(ws.workspaceId)).find(
+      (m) => m.userId === userId,
+    );
+    if (!member) throw new NotFoundException('No such member.');
+    return present(member);
+  }
 }
 
 /**
@@ -108,5 +151,8 @@ function present(row: TeamMemberRow): OperatorTeamMember {
     status: row.status,
     joinedAt: row.joinedAt.toISOString(),
     branchIds: row.branchIds,
+    lastActiveAt: row.lastActiveAt?.toISOString() ?? null,
+    removedAt: row.removedAt?.toISOString() ?? null,
+    identityVerified: row.identityVerified,
   };
 }

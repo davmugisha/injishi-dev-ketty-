@@ -21,6 +21,7 @@ import {
   sql,
 } from 'drizzle-orm';
 
+import { storedObjects } from '../../../database/drizzle/hospitality';
 import {
   auditEvents,
   businessCodeCounters,
@@ -128,7 +129,10 @@ export interface CreateOrgRow {
       | 'tax_clearance'
       | 'fire_safety'
       | 'health_inspection'
-      | 'other';
+      | 'other'
+      | 'rdb_certificate'
+      | 'psf_certificate'
+      | 'land_title';
     kindOther: string | null;
     objectKey: string;
     certificateNumber: string | null;
@@ -1193,6 +1197,112 @@ export class OrganizationRepository {
    * province grant matches through `districts.province_id`, and a district
    * grant matches the district itself.
    */
+  // -------------------------------------------------------------------------
+  // Registration documents (F-S03 §5)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Every document one registration carries, with the object behind it.
+   *
+   * A LEFT join to `stored_objects`, deliberately: a certificate row can name an
+   * object that is no longer there, and the officer has to be told that rather
+   * than shown a row that looks complete. `objectKey` comes back so the caller
+   * can mint a signed url; nothing else in the answer depends on storage.
+   */
+  async documentsForOrg(orgId: string): Promise<
+    {
+      id: string;
+      kind: string;
+      kindOther: string | null;
+      certificateNumber: string | null;
+      issuedBy: string | null;
+      issuedOn: string | null;
+      expiresOn: string | null;
+      objectKey: string | null;
+      mime: string | null;
+      sizeBytes: number | null;
+      objectPresent: boolean;
+      checkedAt: Date | null;
+      checkedByName: string | null;
+    }[]
+  > {
+    const rows = await this.db
+      .select({
+        id: orgCertificates.id,
+        kind: orgCertificates.kind,
+        kindOther: orgCertificates.kindOther,
+        certificateNumber: orgCertificates.certificateNumber,
+        issuedBy: orgCertificates.issuedBy,
+        issuedOn: orgCertificates.issuedOn,
+        expiresOn: orgCertificates.expiresOn,
+        objectKey: orgCertificates.objectKey,
+        mime: storedObjects.mime,
+        sizeBytes: storedObjects.sizeBytes,
+        objectId: storedObjects.id,
+        checkedAt: orgCertificates.verifiedAt,
+        checkedByName: users.name,
+      })
+      .from(orgCertificates)
+      .leftJoin(storedObjects, eq(storedObjects.objectKey, orgCertificates.objectKey))
+      .leftJoin(users, eq(users.id, orgCertificates.verifiedByUserId))
+      .where(eq(orgCertificates.orgId, orgId))
+      .orderBy(orgCertificates.createdAt, orgCertificates.id);
+
+    return rows.map((r) => ({
+      id: r.id,
+      kind: r.kind,
+      kindOther: r.kindOther,
+      certificateNumber: r.certificateNumber,
+      issuedBy: r.issuedBy,
+      issuedOn: r.issuedOn,
+      expiresOn: r.expiresOn,
+      objectKey: r.objectKey,
+      mime: r.mime,
+      sizeBytes: r.sizeBytes,
+      objectPresent: r.objectId !== null,
+      checkedAt: r.checkedAt,
+      checkedByName: r.checkedByName,
+    }));
+  }
+
+  /**
+   * Record that a field verifier read one document (F-S03 §5).
+   *
+   * Scoped by `orgId` as well as by id, so a certificate id from another
+   * registration cannot be stamped through a url the officer is allowed to
+   * call. Writing only where `verified_at` is null keeps the FIRST officer's
+   * name on it: a second press is not a correction, and a later officer reading
+   * the same file must not quietly replace who checked it.
+   */
+  async markCertificateChecked(input: {
+    certificateId: string;
+    orgId: string;
+    actorUserId: string;
+  }): Promise<boolean> {
+    const rows = await this.db
+      .update(orgCertificates)
+      .set({ verifiedAt: new Date(), verifiedByUserId: input.actorUserId })
+      .where(
+        and(
+          eq(orgCertificates.id, input.certificateId),
+          eq(orgCertificates.orgId, input.orgId),
+          isNull(orgCertificates.verifiedAt),
+        ),
+      )
+      .returning({ id: orgCertificates.id });
+    return rows.length > 0;
+  }
+
+  /** Does this certificate belong to this registration at all? */
+  async certificateBelongsTo(certificateId: string, orgId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: orgCertificates.id })
+      .from(orgCertificates)
+      .where(and(eq(orgCertificates.id, certificateId), eq(orgCertificates.orgId, orgId)))
+      .limit(1);
+    return Boolean(row);
+  }
+
   async findQueue(input: {
     stage: OrgRegistrationStatus;
     districtIds: number[] | null;
@@ -1211,6 +1321,8 @@ export class OrganizationRepository {
       tourismLicenseNumber: string | null;
       status: OrgRegistrationStatus;
       waitingSince: Date;
+      documentCount: number;
+      uncheckedDocumentCount: number;
     }[]
   > {
     // An empty allow-list is a real answer: a province grant covering no
@@ -1235,6 +1347,17 @@ export class OrganizationRepository {
         tourismLicenseNumber: orgs.tourismLicenseNumber,
         status: orgs.registrationStatus,
         waitingSince: orgs.updatedAt,
+        // Counted in the list query rather than by a read per row: the console
+        // flags a document gap on every row it draws.
+        documentCount: sql<number>`(
+          select count(*) from ${orgCertificates}
+           where ${orgCertificates.orgId} = ${orgs.id}
+        )::int`,
+        uncheckedDocumentCount: sql<number>`(
+          select count(*) from ${orgCertificates}
+           where ${orgCertificates.orgId} = ${orgs.id}
+             and ${orgCertificates.verifiedAt} is null
+        )::int`,
       })
       .from(orgs)
       .leftJoin(districts, eq(districts.id, orgs.districtId))

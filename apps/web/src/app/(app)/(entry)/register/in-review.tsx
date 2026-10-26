@@ -13,6 +13,7 @@ import { cn } from "@injishi/utils";
 import { Check, X } from "lucide-react";
 
 import { fetchRegistration } from "@/data/registration";
+import { setupLink, setupNote } from "@/lib/setup-link";
 
 import { StepCard } from "./register-shell";
 import { Notice } from "./wizard-ui";
@@ -27,7 +28,9 @@ import { Notice } from "./wizard-ui";
  * one stage the owner reads: registered and paid (the TIN checked when it was
  * entered), the field visit, the approval, then set up. A sent-back registration
  * names its reason, in the officer's own words when they left any, with a Fix
- * button; and while waiting, the listing can be prepared.
+ * button. Setting up the property opens once the business is approved: before
+ * that the API refuses every inventory write (D20), so the page says when it
+ * opens rather than linking to a setup nobody could use (lib/setup-link.ts).
  *
  * WHAT IT CANNOT SAY, AND DOES NOT INVENT. The board prints the payment method,
  * a receipt number, the verifier's district and the visit's date and time.
@@ -92,7 +95,7 @@ function stagesFor(summary: RegistrationSummary): Stage[] {
       sub:
         s === "active"
           ? "Open now. Publish when the required steps are done."
-          : "Prepare it now. Guests see nothing until you are approved and publish.",
+          : "Opens once you are approved. Guests see nothing until you publish.",
       state: s === "active" ? "current" : "todo",
     },
   ];
@@ -167,6 +170,7 @@ export function InReview({
         : null;
   const paid = onDay(summary.submittedAt);
   const reason = summary.rejectionReason;
+  const setupHref = setupLink(summary, process.env.NEXT_PUBLIC_WEB_URL, process.env.NEXT_PUBLIC_PMS_URL);
 
   return (
     <>
@@ -273,19 +277,15 @@ export function InReview({
         >
           <div className="flex min-w-0 flex-1 basis-72 flex-col gap-1.5">
             <h2 id="register-prepare" className="text-lg font-semibold">
-              {active ? "Set up your property" : "While you wait, prepare your listing"}
+              Set up your property
             </h2>
-            <p className="text-sm text-muted-foreground">
-              {active
-                ? "Rooms, prices and photos, then publish. Anything you prepared while waiting is already there."
-                : "Add rooms, prices and photos now. Nothing is shown to guests until you are approved and publish."}
-            </p>
+            <p className="text-sm text-muted-foreground">{setupNote(summary.status)}</p>
           </div>
-          <Button asChild>
-            <a href={`/w/${summary.workspaceId}/setup`}>
-              {active ? "Set up your property" : "Prepare your listing"}
-            </a>
-          </Button>
+          {setupHref ? (
+            <Button asChild>
+              <a href={setupHref}>Set up your property</a>
+            </Button>
+          ) : null}
         </section>
       )}
     </>

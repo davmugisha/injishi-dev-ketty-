@@ -9,7 +9,6 @@ import { cn } from "@injishi/utils";
 import { SearchIcon } from "@/components/icons";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { HostCta } from "@/components/layout/host-cta";
-import { LanguageMenu } from "@/components/layout/language-menu";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import { PRIMARY_NAV, headerVariantFor } from "@/data/navigation";
@@ -105,6 +104,10 @@ export function SiteHeader() {
    *  background, and white content on it is invisible. */
   const onPhoto = !isWhite && !scrolled && !menuOpen;
   const content = onPhoto ? "text-white" : "text-foreground";
+  /** `/host` is the listing page. Sign In and List Accommodation are one pair:
+   *  they show and hide together, and Sign In is a white pill while the bar
+   *  rests on the photograph. */
+  const onHost = pathname === "/host";
 
   return (
     <>
@@ -214,11 +217,14 @@ export function SiteHeader() {
                   ))}
                 </div>
 
-                {/* It is NOT a second theme control, and the paragraph above
-                    still holds: `ThemePill` in the footer owns the theme. Read
-                    `language-menu.tsx` before trusting this to do anything —
-                    no locale layer reads what it selects yet. */}
-                <LanguageMenu className={content} />
+                {/* `LanguageMenu` stood here: a globe offering English,
+                    Français and Kinyarwanda that changed nothing, because no
+                    locale layer reads the choice (its own file says so). A
+                    visitor who picked Kinyarwanda got English and a control
+                    that had lied to them, so it is unmounted until the site can
+                    speak the languages it offers (2026-10-21). The component is
+                    kept for that day; mount it here again with the locale
+                    layer. */}
 
                 <Button
                   variant="ghost"
@@ -239,12 +245,19 @@ export function SiteHeader() {
                     /sign-in, so the bar looked identical before and after a
                     successful sign-in — `account-menu.tsx` says why that is
                     worse than it sounds and what each session state renders. */}
-                <AccountMenu className={cn(content, "max-lg:hidden")} />
+                <AccountMenu
+                  onPhoto={onHost && onPhoto}
+                  className={cn(
+                    onHost && onPhoto ? undefined : content,
+                    onHost ? "max-md:hidden" : "max-lg:hidden",
+                  )}
+                />
 
                 {/* Below `md` the menu carries this same action at full width,
                     so a second, abbreviated copy in the bar is one control
                     named two ways. The bar keeps the wordmark, language, search
-                    and the menu trigger, and nothing else. */}
+                    and the menu trigger, and nothing else. On `/host` Sign In
+                    uses the same breakpoint, so the pair is never split. */}
                 <HostCta className="max-md:hidden" />
 
                 <MobileNav inkTrigger={!onPhoto} onOpenChange={setMenuOpen} />

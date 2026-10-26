@@ -578,9 +578,9 @@ export declare const AdminOrgRow: z.ZodObject<{
     psfMember: boolean;
     eacStarGrade: 3 | 1 | 2 | 4 | 5 | null;
     residenceClass: "residential_landlord" | "residential_property_manager" | null;
+    id: string;
     districtName: string | null;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    id: string;
     rdbEntityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | null;
     isObo: boolean;
     subscriptionStatus: "active" | "suspended" | "trialing" | "past_due" | "canceled" | null;
@@ -598,9 +598,9 @@ export declare const AdminOrgRow: z.ZodObject<{
     psfMember: boolean;
     eacStarGrade: 3 | 1 | 2 | 4 | 5 | null;
     residenceClass: "residential_landlord" | "residential_property_manager" | null;
+    id: string;
     districtName: string | null;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    id: string;
     rdbEntityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | null;
     isObo: boolean;
     subscriptionStatus: "active" | "suspended" | "trialing" | "past_due" | "canceled" | null;
@@ -666,9 +666,9 @@ export declare const AdminOrgListResponse: z.ZodObject<{
         psfMember: boolean;
         eacStarGrade: 3 | 1 | 2 | 4 | 5 | null;
         residenceClass: "residential_landlord" | "residential_property_manager" | null;
+        id: string;
         districtName: string | null;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-        id: string;
         rdbEntityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | null;
         isObo: boolean;
         subscriptionStatus: "active" | "suspended" | "trialing" | "past_due" | "canceled" | null;
@@ -686,9 +686,9 @@ export declare const AdminOrgListResponse: z.ZodObject<{
         psfMember: boolean;
         eacStarGrade: 3 | 1 | 2 | 4 | 5 | null;
         residenceClass: "residential_landlord" | "residential_property_manager" | null;
+        id: string;
         districtName: string | null;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-        id: string;
         rdbEntityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | null;
         isObo: boolean;
         subscriptionStatus: "active" | "suspended" | "trialing" | "past_due" | "canceled" | null;
@@ -721,9 +721,9 @@ export declare const AdminOrgListResponse: z.ZodObject<{
         psfMember: boolean;
         eacStarGrade: 3 | 1 | 2 | 4 | 5 | null;
         residenceClass: "residential_landlord" | "residential_property_manager" | null;
+        id: string;
         districtName: string | null;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-        id: string;
         rdbEntityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | null;
         isObo: boolean;
         subscriptionStatus: "active" | "suspended" | "trialing" | "past_due" | "canceled" | null;
@@ -748,9 +748,9 @@ export declare const AdminOrgListResponse: z.ZodObject<{
         psfMember: boolean;
         eacStarGrade: 3 | 1 | 2 | 4 | 5 | null;
         residenceClass: "residential_landlord" | "residential_property_manager" | null;
+        id: string;
         districtName: string | null;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-        id: string;
         rdbEntityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | null;
         isObo: boolean;
         subscriptionStatus: "active" | "suspended" | "trialing" | "past_due" | "canceled" | null;
@@ -1045,25 +1045,25 @@ export declare const AdminOboRow: z.ZodObject<{
     payoutLocked: z.ZodBoolean;
     claimedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    id: string;
     orgId: string;
     districtName: string | null;
     registrantName: string | null;
     intendedOwnerName: string;
     payoutLocked: boolean;
-    claimStatus: "registrant_held" | "owner_claimed" | "expired";
-    id: string;
+    claimStatus: "expired" | "registrant_held" | "owner_claimed";
     orgName: string;
     registrantUserId: string;
     intendedOwnerEmail: string | null;
     claimedAt: string | null;
 }, {
+    id: string;
     orgId: string;
     districtName: string | null;
     registrantName: string | null;
     intendedOwnerName: string;
     payoutLocked: boolean;
-    claimStatus: "registrant_held" | "owner_claimed" | "expired";
-    id: string;
+    claimStatus: "expired" | "registrant_held" | "owner_claimed";
     orgName: string;
     registrantUserId: string;
     intendedOwnerEmail: string | null;
@@ -1084,25 +1084,25 @@ export declare const AdminOboListResponse: z.ZodObject<{
         payoutLocked: z.ZodBoolean;
         claimedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        id: string;
         orgId: string;
         districtName: string | null;
         registrantName: string | null;
         intendedOwnerName: string;
         payoutLocked: boolean;
-        claimStatus: "registrant_held" | "owner_claimed" | "expired";
-        id: string;
+        claimStatus: "expired" | "registrant_held" | "owner_claimed";
         orgName: string;
         registrantUserId: string;
         intendedOwnerEmail: string | null;
         claimedAt: string | null;
     }, {
+        id: string;
         orgId: string;
         districtName: string | null;
         registrantName: string | null;
         intendedOwnerName: string;
         payoutLocked: boolean;
-        claimStatus: "registrant_held" | "owner_claimed" | "expired";
-        id: string;
+        claimStatus: "expired" | "registrant_held" | "owner_claimed";
         orgName: string;
         registrantUserId: string;
         intendedOwnerEmail: string | null;
@@ -1123,13 +1123,13 @@ export declare const AdminOboListResponse: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
+        id: string;
         orgId: string;
         districtName: string | null;
         registrantName: string | null;
         intendedOwnerName: string;
         payoutLocked: boolean;
-        claimStatus: "registrant_held" | "owner_claimed" | "expired";
-        id: string;
+        claimStatus: "expired" | "registrant_held" | "owner_claimed";
         orgName: string;
         registrantUserId: string;
         intendedOwnerEmail: string | null;
@@ -1142,13 +1142,13 @@ export declare const AdminOboListResponse: z.ZodObject<{
     };
 }, {
     items: {
+        id: string;
         orgId: string;
         districtName: string | null;
         registrantName: string | null;
         intendedOwnerName: string;
         payoutLocked: boolean;
-        claimStatus: "registrant_held" | "owner_claimed" | "expired";
-        id: string;
+        claimStatus: "expired" | "registrant_held" | "owner_claimed";
         orgName: string;
         registrantUserId: string;
         intendedOwnerEmail: string | null;
@@ -1216,8 +1216,8 @@ export declare const AdminOrgDetail: z.ZodObject<{
             endedAt: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
             expiresOn: string | null;
-            annualFeeRwf: number | null;
             id: string;
+            annualFeeRwf: number | null;
             source: "psf_confirmed" | "self_declared";
             tierCode: string | null;
             tierName: string | null;
@@ -1226,8 +1226,8 @@ export declare const AdminOrgDetail: z.ZodObject<{
             endedAt: string | null;
         }, {
             expiresOn: string | null;
-            annualFeeRwf: number | null;
             id: string;
+            annualFeeRwf: number | null;
             source: "psf_confirmed" | "self_declared";
             tierCode: string | null;
             tierName: string | null;
@@ -1343,8 +1343,8 @@ export declare const AdminOrgDetail: z.ZodObject<{
             requestedTierCode: string;
             declaredFeeRwf: number | null;
             decidedAt: string | null;
-            submittedAt: string;
             id: string;
+            submittedAt: string;
             requestedTierName: string;
             quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
             quotedFeeRwf: number | null;
@@ -1369,8 +1369,8 @@ export declare const AdminOrgDetail: z.ZodObject<{
             requestedTierCode: string;
             declaredFeeRwf: number | null;
             decidedAt: string | null;
-            submittedAt: string;
             id: string;
+            submittedAt: string;
             requestedTierName: string;
             quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
             quotedFeeRwf: number | null;
@@ -1394,8 +1394,8 @@ export declare const AdminOrgDetail: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         membership: {
             expiresOn: string | null;
-            annualFeeRwf: number | null;
             id: string;
+            annualFeeRwf: number | null;
             source: "psf_confirmed" | "self_declared";
             tierCode: string | null;
             tierName: string | null;
@@ -1408,8 +1408,8 @@ export declare const AdminOrgDetail: z.ZodObject<{
             requestedTierCode: string;
             declaredFeeRwf: number | null;
             decidedAt: string | null;
-            submittedAt: string;
             id: string;
+            submittedAt: string;
             requestedTierName: string;
             quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
             quotedFeeRwf: number | null;
@@ -1433,8 +1433,8 @@ export declare const AdminOrgDetail: z.ZodObject<{
     }, {
         membership: {
             expiresOn: string | null;
-            annualFeeRwf: number | null;
             id: string;
+            annualFeeRwf: number | null;
             source: "psf_confirmed" | "self_declared";
             tierCode: string | null;
             tierName: string | null;
@@ -1447,8 +1447,8 @@ export declare const AdminOrgDetail: z.ZodObject<{
             requestedTierCode: string;
             declaredFeeRwf: number | null;
             decidedAt: string | null;
-            submittedAt: string;
             id: string;
+            submittedAt: string;
             requestedTierName: string;
             quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
             quotedFeeRwf: number | null;
@@ -1485,9 +1485,9 @@ export declare const AdminOrgDetail: z.ZodObject<{
     psfMember: boolean;
     eacStarGrade: 3 | 1 | 2 | 4 | 5 | null;
     residenceClass: "residential_landlord" | "residential_property_manager" | null;
+    id: string;
     districtName: string | null;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    id: string;
     rdbEntityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | null;
     isObo: boolean;
     subscriptionStatus: "active" | "suspended" | "trialing" | "past_due" | "canceled" | null;
@@ -1500,8 +1500,8 @@ export declare const AdminOrgDetail: z.ZodObject<{
     psf: {
         membership: {
             expiresOn: string | null;
-            annualFeeRwf: number | null;
             id: string;
+            annualFeeRwf: number | null;
             source: "psf_confirmed" | "self_declared";
             tierCode: string | null;
             tierName: string | null;
@@ -1514,8 +1514,8 @@ export declare const AdminOrgDetail: z.ZodObject<{
             requestedTierCode: string;
             declaredFeeRwf: number | null;
             decidedAt: string | null;
-            submittedAt: string;
             id: string;
+            submittedAt: string;
             requestedTierName: string;
             quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
             quotedFeeRwf: number | null;
@@ -1552,9 +1552,9 @@ export declare const AdminOrgDetail: z.ZodObject<{
     psfMember: boolean;
     eacStarGrade: 3 | 1 | 2 | 4 | 5 | null;
     residenceClass: "residential_landlord" | "residential_property_manager" | null;
+    id: string;
     districtName: string | null;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    id: string;
     rdbEntityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | null;
     isObo: boolean;
     subscriptionStatus: "active" | "suspended" | "trialing" | "past_due" | "canceled" | null;
@@ -1567,8 +1567,8 @@ export declare const AdminOrgDetail: z.ZodObject<{
     psf?: {
         membership: {
             expiresOn: string | null;
-            annualFeeRwf: number | null;
             id: string;
+            annualFeeRwf: number | null;
             source: "psf_confirmed" | "self_declared";
             tierCode: string | null;
             tierName: string | null;
@@ -1581,8 +1581,8 @@ export declare const AdminOrgDetail: z.ZodObject<{
             requestedTierCode: string;
             declaredFeeRwf: number | null;
             decidedAt: string | null;
-            submittedAt: string;
             id: string;
+            submittedAt: string;
             requestedTierName: string;
             quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
             quotedFeeRwf: number | null;
@@ -1736,9 +1736,9 @@ export declare const AdminOrgProperty: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     domain: "hospitality" | "residence" | "enterprise";
+    id: string;
     districtName: string | null;
     isHeadOffice: boolean;
-    id: string;
     published: boolean;
     roomTypeCount: number;
     roomCount: number;
@@ -1748,9 +1748,9 @@ export declare const AdminOrgProperty: z.ZodObject<{
 }, {
     name: string;
     domain: "hospitality" | "residence" | "enterprise";
+    id: string;
     districtName: string | null;
     isHeadOffice: boolean;
-    id: string;
     published: boolean;
     roomTypeCount: number;
     roomCount: number;
@@ -1776,9 +1776,9 @@ export declare const AdminOrgPropertiesResponse: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string;
         domain: "hospitality" | "residence" | "enterprise";
+        id: string;
         districtName: string | null;
         isHeadOffice: boolean;
-        id: string;
         published: boolean;
         roomTypeCount: number;
         roomCount: number;
@@ -1788,9 +1788,9 @@ export declare const AdminOrgPropertiesResponse: z.ZodObject<{
     }, {
         name: string;
         domain: "hospitality" | "residence" | "enterprise";
+        id: string;
         districtName: string | null;
         isHeadOffice: boolean;
-        id: string;
         published: boolean;
         roomTypeCount: number;
         roomCount: number;
@@ -1815,9 +1815,9 @@ export declare const AdminOrgPropertiesResponse: z.ZodObject<{
     items: {
         name: string;
         domain: "hospitality" | "residence" | "enterprise";
+        id: string;
         districtName: string | null;
         isHeadOffice: boolean;
-        id: string;
         published: boolean;
         roomTypeCount: number;
         roomCount: number;
@@ -1834,9 +1834,9 @@ export declare const AdminOrgPropertiesResponse: z.ZodObject<{
     items: {
         name: string;
         domain: "hospitality" | "residence" | "enterprise";
+        id: string;
         districtName: string | null;
         isHeadOffice: boolean;
-        id: string;
         published: boolean;
         roomTypeCount: number;
         roomCount: number;
@@ -1869,18 +1869,18 @@ export declare const AdminInvoice: z.ZodObject<{
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     status: "pending" | "failed" | "paid";
+    id: string;
     amountRwf: number;
     currency: string;
-    id: string;
     createdAt: string;
     invoiceKind: "registration_fee" | "subscription";
     periodStart: string | null;
     periodEnd: string | null;
 }, {
     status: "pending" | "failed" | "paid";
+    id: string;
     amountRwf: number;
     currency: string;
-    id: string;
     createdAt: string;
     invoiceKind: "registration_fee" | "subscription";
     periodStart: string | null;
@@ -1929,18 +1929,18 @@ export declare const AdminOrgSubscription: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "failed" | "paid";
+        id: string;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         invoiceKind: "registration_fee" | "subscription";
         periodStart: string | null;
         periodEnd: string | null;
     }, {
         status: "pending" | "failed" | "paid";
+        id: string;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         invoiceKind: "registration_fee" | "subscription";
         periodStart: string | null;
@@ -1957,9 +1957,9 @@ export declare const AdminOrgSubscription: z.ZodObject<{
     } | null;
     invoices: {
         status: "pending" | "failed" | "paid";
+        id: string;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         invoiceKind: "registration_fee" | "subscription";
         periodStart: string | null;
@@ -1976,9 +1976,9 @@ export declare const AdminOrgSubscription: z.ZodObject<{
     } | null;
     invoices: {
         status: "pending" | "failed" | "paid";
+        id: string;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         invoiceKind: "registration_fee" | "subscription";
         periodStart: string | null;
@@ -2002,19 +2002,19 @@ export declare const AdminPayout: z.ZodObject<{
     settledAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: "paid" | "scheduled" | "queued" | "held";
+    id: string;
     workspaceId: string | null;
     amountRwf: number;
     currency: string;
-    id: string;
     createdAt: string;
     failureReason: string | null;
     settledAt: string | null;
 }, {
     status: "paid" | "scheduled" | "queued" | "held";
+    id: string;
     workspaceId: string | null;
     amountRwf: number;
     currency: string;
-    id: string;
     createdAt: string;
     failureReason: string | null;
     settledAt: string | null;
@@ -2042,10 +2042,10 @@ export declare const AdminLedgerRow: z.ZodObject<{
     occurredAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+    id: string;
     adapterMode: "mock" | "live";
     amountRwf: number;
     currency: string;
-    id: string;
     transactionId: string;
     memo: string | null;
     accountCode: string;
@@ -2053,10 +2053,10 @@ export declare const AdminLedgerRow: z.ZodObject<{
     occurredAt: string;
 }, {
     kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+    id: string;
     adapterMode: "mock" | "live";
     amountRwf: number;
     currency: string;
-    id: string;
     transactionId: string;
     memo: string | null;
     accountCode: string;
@@ -2083,18 +2083,18 @@ export declare const AdminOrgMoney: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "failed" | "paid";
+        id: string;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         invoiceKind: "registration_fee" | "subscription";
         periodStart: string | null;
         periodEnd: string | null;
     }, {
         status: "pending" | "failed" | "paid";
+        id: string;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         invoiceKind: "registration_fee" | "subscription";
         periodStart: string | null;
@@ -2111,18 +2111,18 @@ export declare const AdminOrgMoney: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "failed" | "paid";
+        id: string;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         invoiceKind: "registration_fee" | "subscription";
         periodStart: string | null;
         periodEnd: string | null;
     }, {
         status: "pending" | "failed" | "paid";
+        id: string;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         invoiceKind: "registration_fee" | "subscription";
         periodStart: string | null;
@@ -2139,19 +2139,19 @@ export declare const AdminOrgMoney: z.ZodObject<{
         settledAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         status: "paid" | "scheduled" | "queued" | "held";
+        id: string;
         workspaceId: string | null;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         failureReason: string | null;
         settledAt: string | null;
     }, {
         status: "paid" | "scheduled" | "queued" | "held";
+        id: string;
         workspaceId: string | null;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         failureReason: string | null;
         settledAt: string | null;
@@ -2169,10 +2169,10 @@ export declare const AdminOrgMoney: z.ZodObject<{
         occurredAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        id: string;
         adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
-        id: string;
         transactionId: string;
         memo: string | null;
         accountCode: string;
@@ -2180,10 +2180,10 @@ export declare const AdminOrgMoney: z.ZodObject<{
         occurredAt: string;
     }, {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        id: string;
         adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
-        id: string;
         transactionId: string;
         memo: string | null;
         accountCode: string;
@@ -2193,9 +2193,9 @@ export declare const AdminOrgMoney: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     invoices: {
         status: "pending" | "failed" | "paid";
+        id: string;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         invoiceKind: "registration_fee" | "subscription";
         periodStart: string | null;
@@ -2203,9 +2203,9 @@ export declare const AdminOrgMoney: z.ZodObject<{
     }[];
     registrationFee: {
         status: "pending" | "failed" | "paid";
+        id: string;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         invoiceKind: "registration_fee" | "subscription";
         periodStart: string | null;
@@ -2213,20 +2213,20 @@ export declare const AdminOrgMoney: z.ZodObject<{
     } | null;
     payouts: {
         status: "paid" | "scheduled" | "queued" | "held";
+        id: string;
         workspaceId: string | null;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         failureReason: string | null;
         settledAt: string | null;
     }[];
     ledger: {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        id: string;
         adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
-        id: string;
         transactionId: string;
         memo: string | null;
         accountCode: string;
@@ -2236,9 +2236,9 @@ export declare const AdminOrgMoney: z.ZodObject<{
 }, {
     invoices: {
         status: "pending" | "failed" | "paid";
+        id: string;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         invoiceKind: "registration_fee" | "subscription";
         periodStart: string | null;
@@ -2246,9 +2246,9 @@ export declare const AdminOrgMoney: z.ZodObject<{
     }[];
     registrationFee: {
         status: "pending" | "failed" | "paid";
+        id: string;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         invoiceKind: "registration_fee" | "subscription";
         periodStart: string | null;
@@ -2256,20 +2256,20 @@ export declare const AdminOrgMoney: z.ZodObject<{
     } | null;
     payouts: {
         status: "paid" | "scheduled" | "queued" | "held";
+        id: string;
         workspaceId: string | null;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         failureReason: string | null;
         settledAt: string | null;
     }[];
     ledger: {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        id: string;
         adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
-        id: string;
         transactionId: string;
         memo: string | null;
         accountCode: string;
@@ -2295,16 +2295,16 @@ export declare const AdminTimelineEvent: z.ZodObject<{
     reason: z.ZodNullable<z.ZodString>;
     occurredAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    reason: string | null;
     id: string;
+    reason: string | null;
     occurredAt: string;
     eventType: string;
     subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
     actorUserId: string | null;
     actorName: string | null;
 }, {
-    reason: string | null;
     id: string;
+    reason: string | null;
     occurredAt: string;
     eventType: string;
     subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
@@ -2322,16 +2322,16 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
         reason: z.ZodNullable<z.ZodString>;
         occurredAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        reason: string | null;
         id: string;
+        reason: string | null;
         occurredAt: string;
         eventType: string;
         subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
         actorUserId: string | null;
         actorName: string | null;
     }, {
-        reason: string | null;
         id: string;
+        reason: string | null;
         occurredAt: string;
         eventType: string;
         subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
@@ -2353,8 +2353,8 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        reason: string | null;
         id: string;
+        reason: string | null;
         occurredAt: string;
         eventType: string;
         subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
@@ -2368,8 +2368,8 @@ export declare const AdminOrgTimelineResponse: z.ZodObject<{
     };
 }, {
     items: {
-        reason: string | null;
         id: string;
+        reason: string | null;
         occurredAt: string;
         eventType: string;
         subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
@@ -2403,8 +2403,8 @@ export declare const AdminAuditRow: z.ZodObject<{
     occurredAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     districtId: number | null;
-    reason: string | null;
     id: string;
+    reason: string | null;
     occurredAt: string;
     eventType: string;
     subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
@@ -2414,8 +2414,8 @@ export declare const AdminAuditRow: z.ZodObject<{
     subjectId: string | null;
 }, {
     districtId: number | null;
-    reason: string | null;
     id: string;
+    reason: string | null;
     occurredAt: string;
     eventType: string;
     subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
@@ -2467,8 +2467,8 @@ export declare const AdminAuditResponse: z.ZodObject<{
         occurredAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         districtId: number | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         occurredAt: string;
         eventType: string;
         subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
@@ -2478,8 +2478,8 @@ export declare const AdminAuditResponse: z.ZodObject<{
         subjectId: string | null;
     }, {
         districtId: number | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         occurredAt: string;
         eventType: string;
         subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
@@ -2504,8 +2504,8 @@ export declare const AdminAuditResponse: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: {
         districtId: number | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         occurredAt: string;
         eventType: string;
         subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
@@ -2522,8 +2522,8 @@ export declare const AdminAuditResponse: z.ZodObject<{
 }, {
     items: {
         districtId: number | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         occurredAt: string;
         eventType: string;
         subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
@@ -2557,8 +2557,8 @@ export declare const AdminAccessLogRow: z.ZodObject<{
     reason: z.ZodString;
     occurredAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    reason: string;
     id: string;
+    reason: string;
     occurredAt: string;
     actorUserId: string;
     actorName: string | null;
@@ -2566,8 +2566,8 @@ export declare const AdminAccessLogRow: z.ZodObject<{
     subjectRef: string | null;
     dataClass: "national_id" | "id_photo" | "contract" | "stay_identity" | "contact";
 }, {
-    reason: string;
     id: string;
+    reason: string;
     occurredAt: string;
     actorUserId: string;
     actorName: string | null;
@@ -2587,8 +2587,8 @@ export declare const AdminAccessLogResponse: z.ZodObject<{
         reason: z.ZodString;
         occurredAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        reason: string;
         id: string;
+        reason: string;
         occurredAt: string;
         actorUserId: string;
         actorName: string | null;
@@ -2596,8 +2596,8 @@ export declare const AdminAccessLogResponse: z.ZodObject<{
         subjectRef: string | null;
         dataClass: "national_id" | "id_photo" | "contract" | "stay_identity" | "contact";
     }, {
-        reason: string;
         id: string;
+        reason: string;
         occurredAt: string;
         actorUserId: string;
         actorName: string | null;
@@ -2620,8 +2620,8 @@ export declare const AdminAccessLogResponse: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        reason: string;
         id: string;
+        reason: string;
         occurredAt: string;
         actorUserId: string;
         actorName: string | null;
@@ -2636,8 +2636,8 @@ export declare const AdminAccessLogResponse: z.ZodObject<{
     };
 }, {
     items: {
-        reason: string;
         id: string;
+        reason: string;
         occurredAt: string;
         actorUserId: string;
         actorName: string | null;
@@ -2671,16 +2671,16 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         reason: z.ZodNullable<z.ZodString>;
         occurredAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        reason: string | null;
         id: string;
+        reason: string | null;
         occurredAt: string;
         eventType: string;
         subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
         actorUserId: string | null;
         actorName: string | null;
     }, {
-        reason: string | null;
         id: string;
+        reason: string | null;
         occurredAt: string;
         eventType: string;
         subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
@@ -2697,8 +2697,8 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         reason: z.ZodString;
         occurredAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        reason: string;
         id: string;
+        reason: string;
         occurredAt: string;
         actorUserId: string;
         actorName: string | null;
@@ -2706,8 +2706,8 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         subjectRef: string | null;
         dataClass: "national_id" | "id_photo" | "contract" | "stay_identity" | "contact";
     }, {
-        reason: string;
         id: string;
+        reason: string;
         occurredAt: string;
         actorUserId: string;
         actorName: string | null;
@@ -2717,8 +2717,8 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     events: {
-        reason: string | null;
         id: string;
+        reason: string | null;
         occurredAt: string;
         eventType: string;
         subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
@@ -2726,8 +2726,8 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         actorName: string | null;
     }[];
     accessLogs: {
-        reason: string;
         id: string;
+        reason: string;
         occurredAt: string;
         actorUserId: string;
         actorName: string | null;
@@ -2737,8 +2737,8 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
     }[];
 }, {
     events: {
-        reason: string | null;
         id: string;
+        reason: string | null;
         occurredAt: string;
         eventType: string;
         subjectType: "broker" | "payment" | "user" | "org" | "lease" | "booking" | "config" | "property" | "guest_stay" | "training_certificate" | "employee" | "pay_run" | null;
@@ -2746,8 +2746,8 @@ export declare const AdminOboAuditResponse: z.ZodObject<{
         actorName: string | null;
     }[];
     accessLogs: {
-        reason: string;
         id: string;
+        reason: string;
         occurredAt: string;
         actorUserId: string;
         actorName: string | null;
@@ -3383,8 +3383,8 @@ export declare const AdminBrokerRow: z.ZodObject<{
     status: "active" | "suspended";
     name: string | null;
     email: string | null;
-    currency: string;
     id: string;
+    currency: string;
     createdAt: string;
     userId: string;
     phoneMasked: string | null;
@@ -3396,8 +3396,8 @@ export declare const AdminBrokerRow: z.ZodObject<{
     status: "active" | "suspended";
     name: string | null;
     email: string | null;
-    currency: string;
     id: string;
+    currency: string;
     createdAt: string;
     userId: string;
     phoneMasked: string | null;
@@ -3426,8 +3426,8 @@ export declare const AdminBrokerListResponse: z.ZodObject<{
         status: "active" | "suspended";
         name: string | null;
         email: string | null;
-        currency: string;
         id: string;
+        currency: string;
         createdAt: string;
         userId: string;
         phoneMasked: string | null;
@@ -3439,8 +3439,8 @@ export declare const AdminBrokerListResponse: z.ZodObject<{
         status: "active" | "suspended";
         name: string | null;
         email: string | null;
-        currency: string;
         id: string;
+        currency: string;
         createdAt: string;
         userId: string;
         phoneMasked: string | null;
@@ -3467,8 +3467,8 @@ export declare const AdminBrokerListResponse: z.ZodObject<{
         status: "active" | "suspended";
         name: string | null;
         email: string | null;
-        currency: string;
         id: string;
+        currency: string;
         createdAt: string;
         userId: string;
         phoneMasked: string | null;
@@ -3487,8 +3487,8 @@ export declare const AdminBrokerListResponse: z.ZodObject<{
         status: "active" | "suspended";
         name: string | null;
         email: string | null;
-        currency: string;
         id: string;
+        currency: string;
         createdAt: string;
         userId: string;
         phoneMasked: string | null;
@@ -3522,18 +3522,18 @@ export declare const AdminRevealEvent: z.ZodObject<{
     districtName: z.ZodNullable<z.ZodString>;
     revealedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    id: string;
     districtName: string | null;
     brokerId: string;
-    id: string;
     brokerName: string | null;
     listingId: string | null;
     landlordOrgId: string | null;
     landlordOrgName: string | null;
     revealedAt: string;
 }, {
+    id: string;
     districtName: string | null;
     brokerId: string;
-    id: string;
     brokerName: string | null;
     listingId: string | null;
     landlordOrgId: string | null;
@@ -3552,18 +3552,18 @@ export declare const AdminRevealListResponse: z.ZodObject<{
         districtName: z.ZodNullable<z.ZodString>;
         revealedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
+        id: string;
         districtName: string | null;
         brokerId: string;
-        id: string;
         brokerName: string | null;
         listingId: string | null;
         landlordOrgId: string | null;
         landlordOrgName: string | null;
         revealedAt: string;
     }, {
+        id: string;
         districtName: string | null;
         brokerId: string;
-        id: string;
         brokerName: string | null;
         listingId: string | null;
         landlordOrgId: string | null;
@@ -3585,9 +3585,9 @@ export declare const AdminRevealListResponse: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
+        id: string;
         districtName: string | null;
         brokerId: string;
-        id: string;
         brokerName: string | null;
         listingId: string | null;
         landlordOrgId: string | null;
@@ -3601,9 +3601,9 @@ export declare const AdminRevealListResponse: z.ZodObject<{
     };
 }, {
     items: {
+        id: string;
         districtName: string | null;
         brokerId: string;
-        id: string;
         brokerName: string | null;
         listingId: string | null;
         landlordOrgId: string | null;
@@ -3631,10 +3631,10 @@ export declare const AdminLedgerResponse: z.ZodObject<{
         occurredAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        id: string;
         adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
-        id: string;
         transactionId: string;
         memo: string | null;
         accountCode: string;
@@ -3642,10 +3642,10 @@ export declare const AdminLedgerResponse: z.ZodObject<{
         occurredAt: string;
     }, {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        id: string;
         adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
-        id: string;
         transactionId: string;
         memo: string | null;
         accountCode: string;
@@ -3668,10 +3668,10 @@ export declare const AdminLedgerResponse: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        id: string;
         adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
-        id: string;
         transactionId: string;
         memo: string | null;
         accountCode: string;
@@ -3686,10 +3686,10 @@ export declare const AdminLedgerResponse: z.ZodObject<{
 }, {
     items: {
         kind: "capture" | "refund" | "forfeiture" | "payout" | "rent_settle" | "caution_settle" | "placement_disburse" | "subscription_charge" | "override" | "chargeback" | "folio_post" | "folio_settle";
+        id: string;
         adapterMode: "mock" | "live";
         amountRwf: number;
         currency: string;
-        id: string;
         transactionId: string;
         memo: string | null;
         accountCode: string;
@@ -3730,19 +3730,19 @@ export declare const AdminPayoutResponse: z.ZodObject<{
         settledAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         status: "paid" | "scheduled" | "queued" | "held";
+        id: string;
         workspaceId: string | null;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         failureReason: string | null;
         settledAt: string | null;
     }, {
         status: "paid" | "scheduled" | "queued" | "held";
+        id: string;
         workspaceId: string | null;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         failureReason: string | null;
         settledAt: string | null;
@@ -3763,10 +3763,10 @@ export declare const AdminPayoutResponse: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: {
         status: "paid" | "scheduled" | "queued" | "held";
+        id: string;
         workspaceId: string | null;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         failureReason: string | null;
         settledAt: string | null;
@@ -3779,10 +3779,10 @@ export declare const AdminPayoutResponse: z.ZodObject<{
 }, {
     items: {
         status: "paid" | "scheduled" | "queued" | "held";
+        id: string;
         workspaceId: string | null;
         amountRwf: number;
         currency: string;
-        id: string;
         createdAt: string;
         failureReason: string | null;
         settledAt: string | null;
@@ -4070,8 +4070,8 @@ export declare const AdminFeatureFlag: z.ZodObject<{
     version: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     districtId: number | null;
-    districtName: string | null;
     id: string;
+    districtName: string | null;
     key: string;
     version: number;
     effectiveFrom: string;
@@ -4079,8 +4079,8 @@ export declare const AdminFeatureFlag: z.ZodObject<{
     value?: unknown;
 }, {
     districtId: number | null;
-    districtName: string | null;
     id: string;
+    districtName: string | null;
     key: string;
     version: number;
     effectiveFrom: string;
@@ -4131,8 +4131,8 @@ export declare const AdminConfiguration: z.ZodObject<{
         version: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         districtId: number | null;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         key: string;
         version: number;
         effectiveFrom: string;
@@ -4140,8 +4140,8 @@ export declare const AdminConfiguration: z.ZodObject<{
         value?: unknown;
     }, {
         districtId: number | null;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         key: string;
         version: number;
         effectiveFrom: string;
@@ -4162,8 +4162,8 @@ export declare const AdminConfiguration: z.ZodObject<{
     }[];
     flags: {
         districtId: number | null;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         key: string;
         version: number;
         effectiveFrom: string;
@@ -4184,8 +4184,8 @@ export declare const AdminConfiguration: z.ZodObject<{
     }[];
     flags: {
         districtId: number | null;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         key: string;
         version: number;
         effectiveFrom: string;
@@ -4211,17 +4211,17 @@ export declare const AdminRegistrationFee: z.ZodObject<{
     active: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     active: boolean;
+    id: string;
     businessType: "hospitality" | "residence" | "enterprise" | "broker";
     amountRwf: number;
     currency: string;
-    id: string;
     effectiveFrom: string;
 }, {
     active: boolean;
+    id: string;
     businessType: "hospitality" | "residence" | "enterprise" | "broker";
     amountRwf: number;
     currency: string;
-    id: string;
     effectiveFrom: string;
 }>;
 export type AdminRegistrationFee = z.infer<typeof AdminRegistrationFee>;
@@ -4246,8 +4246,8 @@ export declare const AdminSubscriptionPlan: z.ZodObject<{
     code: string;
     active: boolean;
     name: string;
-    currency: string;
     id: string;
+    currency: string;
     tier: number | null;
     effectiveFrom: string | null;
     priceRwf: number;
@@ -4257,8 +4257,8 @@ export declare const AdminSubscriptionPlan: z.ZodObject<{
     code: string;
     active: boolean;
     name: string;
-    currency: string;
     id: string;
+    currency: string;
     tier: number | null;
     effectiveFrom: string | null;
     priceRwf: number;
@@ -4285,17 +4285,17 @@ export declare const AdminFeeSchedule: z.ZodObject<{
         active: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         active: boolean;
+        id: string;
         businessType: "hospitality" | "residence" | "enterprise" | "broker";
         amountRwf: number;
         currency: string;
-        id: string;
         effectiveFrom: string;
     }, {
         active: boolean;
+        id: string;
         businessType: "hospitality" | "residence" | "enterprise" | "broker";
         amountRwf: number;
         currency: string;
-        id: string;
         effectiveFrom: string;
     }>, "many">;
     subscriptionPlans: z.ZodArray<z.ZodObject<{
@@ -4313,8 +4313,8 @@ export declare const AdminFeeSchedule: z.ZodObject<{
         code: string;
         active: boolean;
         name: string;
-        currency: string;
         id: string;
+        currency: string;
         tier: number | null;
         effectiveFrom: string | null;
         priceRwf: number;
@@ -4324,8 +4324,8 @@ export declare const AdminFeeSchedule: z.ZodObject<{
         code: string;
         active: boolean;
         name: string;
-        currency: string;
         id: string;
+        currency: string;
         tier: number | null;
         effectiveFrom: string | null;
         priceRwf: number;
@@ -4354,18 +4354,18 @@ export declare const AdminFeeSchedule: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     registrationFees: {
         active: boolean;
+        id: string;
         businessType: "hospitality" | "residence" | "enterprise" | "broker";
         amountRwf: number;
         currency: string;
-        id: string;
         effectiveFrom: string;
     }[];
     subscriptionPlans: {
         code: string;
         active: boolean;
         name: string;
-        currency: string;
         id: string;
+        currency: string;
         tier: number | null;
         effectiveFrom: string | null;
         priceRwf: number;
@@ -4382,18 +4382,18 @@ export declare const AdminFeeSchedule: z.ZodObject<{
 }, {
     registrationFees: {
         active: boolean;
+        id: string;
         businessType: "hospitality" | "residence" | "enterprise" | "broker";
         amountRwf: number;
         currency: string;
-        id: string;
         effectiveFrom: string;
     }[];
     subscriptionPlans: {
         code: string;
         active: boolean;
         name: string;
-        currency: string;
         id: string;
+        currency: string;
         tier: number | null;
         effectiveFrom: string | null;
         priceRwf: number;
@@ -5313,16 +5313,16 @@ export declare const AdminSavedScope: z.ZodObject<{
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     districtId: number | null;
-    districtName: string | null;
     id: string;
+    districtName: string | null;
     createdAt: string;
     ownerUserId: string | null;
     metricSet?: unknown;
     dateRange?: unknown;
 }, {
     districtId: number | null;
-    districtName: string | null;
     id: string;
+    districtName: string | null;
     createdAt: string;
     ownerUserId: string | null;
     metricSet?: unknown;
@@ -5387,16 +5387,16 @@ export declare const AdminAnalytics: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         districtId: number | null;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         createdAt: string;
         ownerUserId: string | null;
         metricSet?: unknown;
         dateRange?: unknown;
     }, {
         districtId: number | null;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         createdAt: string;
         ownerUserId: string | null;
         metricSet?: unknown;
@@ -5420,8 +5420,8 @@ export declare const AdminAnalytics: z.ZodObject<{
     }[];
     savedScopes: {
         districtId: number | null;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         createdAt: string;
         ownerUserId: string | null;
         metricSet?: unknown;
@@ -5445,8 +5445,8 @@ export declare const AdminAnalytics: z.ZodObject<{
     }[];
     savedScopes: {
         districtId: number | null;
-        districtName: string | null;
         id: string;
+        districtName: string | null;
         createdAt: string;
         ownerUserId: string | null;
         metricSet?: unknown;

@@ -1,15 +1,16 @@
 import type { OrgRole } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { users } from '../../../database/drizzle/auth';
+import { sessions, users } from '../../../database/drizzle/auth';
 import {
   auditEvents,
   orgMembershipBranches,
   orgMemberships,
   properties,
   userProfiles,
+  verifiedIdentities,
   workspaces,
 } from '../../../database/drizzle/schema';
 
@@ -23,7 +24,18 @@ export interface TeamMemberRow {
   joinedAt: Date;
   /** Null: every branch. An owner is always null (ADR-054 invariant 5). */
   branchIds: string[] | null;
+  /** The newest of their sessions' last use, or null when they never signed in. */
+  lastActiveAt: Date | null;
+  removedAt: Date | null;
+  identityVerified: boolean;
 }
+
+/** Why a member's role was not changed. Nothing is written for any of them. */
+export type MemberRoleResult =
+  | { kind: 'done'; from: OrgRole }
+  | { kind: 'missing' }
+  | { kind: 'owner' }
+  | { kind: 'same' };
 
 /** Why a member's branches were not changed. Nothing is written for any of them. */
 export type MemberBranchesResult =
@@ -69,11 +81,20 @@ export class TeamRepository {
         orgRole: orgMemberships.orgRole,
         status: orgMemberships.status,
         joinedAt: orgMemberships.createdAt,
+        removedAt: orgMemberships.removedAt,
+        kycStatus: verifiedIdentities.kycStatus,
+        // A session row is touched each time it is refreshed, so its newest
+        // `updated_at` is when the person last used the product, near enough.
+        lastActiveAt: sql<Date | null>`(
+          select max(${sessions.updatedAt}) from ${sessions}
+           where ${sessions.userId} = ${orgMemberships.userId}
+        )`.mapWith((v: string | Date | null) => (v ? new Date(v) : null)),
       })
       .from(orgMemberships)
       .innerJoin(workspaces, eq(workspaces.orgId, orgMemberships.orgId))
       .innerJoin(users, eq(users.id, orgMemberships.userId))
       .leftJoin(userProfiles, eq(userProfiles.userId, orgMemberships.userId))
+      .leftJoin(verifiedIdentities, eq(verifiedIdentities.userId, orgMemberships.userId))
       .where(eq(workspaces.id, workspaceId))
       .orderBy(asc(orgMemberships.orgRole), asc(users.email));
 
@@ -109,7 +130,69 @@ export class TeamRepository {
       joinedAt: row.joinedAt,
       branchIds:
         row.orgRole === 'owner' ? null : (limits.get(row.membershipId) ?? null),
+      lastActiveAt: row.lastActiveAt,
+      removedAt: row.removedAt,
+      identityVerified: row.kycStatus === 'verified',
     }));
+  }
+
+  /**
+   * Move one active member to another staff role, and audit it in the same
+   * transaction.
+   *
+   * The membership row is locked first, so two owners changing the same person
+   * at once apply one after the other and each audit row's `from` is what the
+   * other actually wrote. An owner is refused here as well as by the request
+   * schema: the schema stops a caller MAKING somebody owner, this stops a caller
+   * UNMAKING one. Ownership moves only through the owner claim.
+   */
+  async setMemberRole(input: {
+    orgId: string;
+    userId: string;
+    orgRole: Exclude<OrgRole, 'owner'>;
+    actorUserId: string;
+  }): Promise<MemberRoleResult> {
+    return this.db.transaction(async (tx) => {
+      const [membership] = await tx
+        .select({
+          id: orgMemberships.id,
+          orgRole: orgMemberships.orgRole,
+          status: orgMemberships.status,
+          removedAt: orgMemberships.removedAt,
+        })
+        .from(orgMemberships)
+        .where(
+          and(
+            eq(orgMemberships.orgId, input.orgId),
+            eq(orgMemberships.userId, input.userId),
+          ),
+        )
+        .for('update')
+        .limit(1);
+      if (!membership || membership.status !== 'active' || membership.removedAt) {
+        return { kind: 'missing' };
+      }
+      if (membership.orgRole === 'owner') return { kind: 'owner' };
+      if (membership.orgRole === input.orgRole) return { kind: 'same' };
+
+      await tx
+        .update(orgMemberships)
+        .set({ orgRole: input.orgRole, updatedAt: new Date() })
+        .where(eq(orgMemberships.id, membership.id));
+
+      await tx.insert(auditEvents).values({
+        actorUserId: input.actorUserId,
+        subjectType: 'user',
+        subjectId: input.userId,
+        eventType: 'team.member_role_changed',
+        payloadDiff: {
+          orgId: input.orgId,
+          orgRole: { from: membership.orgRole, to: input.orgRole },
+        } as never,
+        reason: null,
+      });
+      return { kind: 'done', from: membership.orgRole };
+    });
   }
 
   /**

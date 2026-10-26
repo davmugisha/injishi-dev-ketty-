@@ -6,6 +6,7 @@ import { BookingModule } from '../../modules/booking/booking.module';
 import { GeographyModule } from '../../modules/geography/geography.module';
 import { ListingSetupModule } from '../../modules/listing-setup/listing-setup.module';
 import { ListingModule } from '../../modules/listing/listing.module';
+import { MarketplaceModule } from '../../modules/marketplace/marketplace.module';
 import { OperationsModule } from '../../modules/operations/operations.module';
 import { OrganizationModule } from '../../modules/organization/organization.module';
 import { ListsModule } from '../../modules/lists/lists.module';
@@ -31,6 +32,15 @@ import { MeWorkPayController } from './me/work-pay.controller';
 import { KioskController } from './kiosk/kiosk.controller';
 import { TwoFactorController } from './me/two-factor.controller';
 import { AvailabilityController } from './properties/availability.controller';
+import { MarketplaceController } from './properties/marketplace.controller';
+import {
+  MeBusinessesController,
+  MeCollectionsController,
+  MeConsentsController,
+  MeGuestContactController,
+  MeSavedController,
+  MeTripFactsController,
+} from './me/saved.controller';
 import {
   BookableController,
   PropertiesController,
@@ -48,6 +58,7 @@ import { OpsDocumentRequestsController } from './ops/document-requests.controlle
 import { OpsDocumentsController } from './ops/documents.controller';
 import { OpsHrController } from './ops/hr.controller';
 import { OpsOrgChartController } from './ops/org-chart.controller';
+import { OpsHrWorkforceController, OpsRosterCoverController } from './ops/hr-workforce.controller';
 import { OpsPayAccountsController } from './ops/pay-accounts.controller';
 import { OpsChecklistsController } from './ops/checklists.controller';
 import { OpsPoliciesController } from './ops/policies.controller';
@@ -84,6 +95,16 @@ import {
 } from './ops/time.controller';
 import { OpsFoliosController } from './ops/folios.controller';
 import { OpsHousekeepingController } from './ops/housekeeping.controller';
+// The new interface's operations floor (real-data 1.2.3).
+import { OpsHousekeepingBoardController } from './ops/housekeeping-board.controller';
+// The staff phone (real-data 1.3.3).
+import { OpsHousekeepingPhoneController, OpsWorkOrderTimeController } from './ops/staff-phone.controller';
+import { MeWorkStaffController } from './me/work-staff.controller';
+import { OpsFoundItemsController } from './ops/lost-found.controller';
+import { OpsConditionSignalsController, OpsWorkOrdersController } from './ops/work-orders.controller';
+// The new interface's residence (real-data 1.3.1): the manager's screens and the tenant's phone.
+import { OpsResidenceController } from './ops/residence-interface.controller';
+import { MeResidentController } from './me/resident.controller';
 import { OpsOutletPartiesController } from './ops/outlet-parties.controller';
 import { OpsOutletsController } from './ops/outlets.controller';
 import {
@@ -99,6 +120,8 @@ import { OpsBrokerController } from './ops/broker.controller';
 import { OpsOffersController } from './ops/offers.controller';
 import { OpsRefundRequestsController } from './ops/refunds.controller';
 import { OpsRevenueController } from './ops/revenue.controller';
+import { OpsOwnerDashboardController, OpsReportsController } from './ops/owner-dashboard.controller';
+import { OpsCertificatesController } from './ops/certificates.controller';
 import {
   OpsDepositsController,
   OpsFilingsController,
@@ -109,6 +132,9 @@ import {
 import { OpsRoomsController } from './ops/rooms.controller';
 import { OpsThreadsController } from './ops/threads.controller';
 import { OpsStaysController } from './ops/stays.controller';
+// The front desk's day in one read (interface real-data, frontdesk leaf).
+import { OpsFrontDeskController } from './ops/front-desk.controller';
+import { OpsMessageTemplatesController } from './ops/message-templates.controller';
 import { OversightController } from './oversight/oversight.controller';
 import { PlatformController } from './platform/platform.controller';
 import {
@@ -128,7 +154,6 @@ import { UploadsController } from './uploads/uploads.controller';
 import { SupportModule } from './support/support.module';
 import { AssistantPublicModule } from './assistant/assistant.module';
 import { TrainingPublicModule } from './training/training.module';
-import { WaitlistModule } from './waitlist/waitlist.module';
 
 /**
  * Public API (/api/v1). Controllers here compose application services from the
@@ -147,6 +172,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     AuthModule,
     GeographyModule,
     ListingModule,
+    // The interface marketplace and guest account (real-data 1.3.2).
+    MarketplaceModule,
     ListingSetupModule,
     BookingModule,
     OperationsModule,
@@ -163,9 +190,6 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     // /assistant/*, the support assistant (ADR-061); its limits, cookie and
     // model seam are in its own folder and `modules/assistant`.
     AssistantPublicModule,
-    // POST /waitlist/signups and the unsubscribe route, the pre-launch
-    // waitlist (ADR-048). Deleted whole at launch.
-    WaitlistModule,
     // ADR-049. Its catalogue routes are the only unguarded READS this module
     // adds: `/training` must render with no cookie at all (AC-1), and
     // `/api/v1/verify/:token` must answer a stranger holding a printed
@@ -182,6 +206,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     BookableController,
     // What is left to sell, per night (ADR-047 wave E).
     AvailabilityController,
+    // The interface marketplace's cards, rooms and property pages (real-data 1.3.2).
+    MarketplaceController,
     BookingsController,
     // The host's approve and decline, behind WorkspaceGuard (ADR-053, AC-A5).
     BookingDecisionsController,
@@ -231,6 +257,9 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsStaffAnnouncementsController,
     OpsDisciplinaryActionsController,
     OpsOrgChartController,
+    // The new interface's HR screens (real-data, people): teams, cover, compensation, checklists, dependants.
+    OpsHrWorkforceController,
+    OpsRosterCoverController,
     // Saved list views for every list (058-list-framework).
     OpsListViewsController,
     OpsShiftTemplatesController,
@@ -264,11 +293,24 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     OpsRefundRequestsController,
     OpsOffersController,
     OpsRevenueController,
+    // The owner's figures and documents (interface real-data leaf, owner area).
+    OpsOwnerDashboardController,
+    OpsReportsController,
+    OpsCertificatesController,
     OpsHousekeepingController,
+    OpsHousekeepingBoardController,
+    OpsHousekeepingPhoneController,
+    OpsWorkOrderTimeController,
+    OpsWorkOrdersController,
+    OpsConditionSignalsController,
+    OpsFoundItemsController,
+    OpsResidenceController,
     OpsServiceCatalogController,
     OpsServiceOrdersController,
     OpsRraController,
     OpsStaysController,
+    OpsFrontDeskController,
+    OpsMessageTemplatesController,
     OpsThreadsController,
     OpsLeasesController,
     OpsRentRollController,
@@ -292,8 +334,17 @@ import { WaitlistModule } from './waitlist/waitlist.module';
      * authorizes, proved per route.
      */
     MeStaysController,
+    // The guest account (real-data 1.3.2): the heart, named lists, consent, contact, trip facts.
+    MeSavedController,
+    MeCollectionsController,
+    MeConsentsController,
+    MeGuestContactController,
+    MeTripFactsController,
+    MeBusinessesController,
+    MeResidentController,
     MeWorkController,
     MeWorkLeaveController,
+    MeWorkStaffController,
     MeWorkPayController,
     MeWorkChecklistsController,
     MeWorkDocumentsController,

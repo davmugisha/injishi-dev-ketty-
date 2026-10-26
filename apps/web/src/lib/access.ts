@@ -66,15 +66,6 @@ export type Access =
       isStaff: boolean;
     };
 
-/** Every root the operator zone serves under the web origin. */
-export const OPERATOR_ZONE_PREFIXES = ["/w", "/oversight", "/host", "/landlord", "/broker"];
-
-export function isOperatorZonePath(pathname: string): boolean {
-  return OPERATOR_ZONE_PREFIXES.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  );
-}
-
 export async function fetchAccess(): Promise<Access> {
   const [ws, ov, staff] = await Promise.all([
     apiFetch<WorkspacesResponse>("/api/v1/me/workspaces"),
@@ -127,8 +118,9 @@ export async function fetchAccess(): Promise<Access> {
  *     is carried through and honoured afterwards.
  *  2. An explicit, allowlisted `redirect` wins. It is where the person was
  *     bounced from, and a guard on that route still has the final say.
- *  3. Otherwise by role: an officer opens the oversight console; an operator
- *     opens the workspace they were last in, else the first they hold;
+ *  3. Otherwise by role: an officer opens the oversight console (`/officer`
+ *     on the operator app); an operator opens the workspace they were last
+ *     in, else the first they hold (`/w/<id>` there, which routes them on);
  *     platform staff open the admin console; a guest opens the marketplace
  *     home.
  */
@@ -145,7 +137,7 @@ export function resolveDestination(
 
   if (afterFactor) return afterFactor;
 
-  if (access.holdsConsole) return "/oversight";
+  if (access.holdsConsole) return `${operatorOrigin()}/officer`;
 
   if (access.operatorWorkspaceIds.length > 0) {
     const lastUsed =
@@ -153,7 +145,7 @@ export function resolveDestination(
       access.operatorWorkspaceIds.includes(access.activeWorkspaceId)
         ? access.activeWorkspaceId
         : access.operatorWorkspaceIds[0];
-    return `/w/${lastUsed}`;
+    return `${operatorOrigin()}/w/${lastUsed}`;
   }
 
   if (access.isStaff) {
@@ -165,6 +157,27 @@ export function resolveDestination(
 }
 
 /**
+ * Where the operator app answers: its own origin when it has one, else nothing (a path on this origin).
+ *
+ * Production serves the app on its own host (`NEXT_PUBLIC_PMS_URL`, `app.injishi.com`) with its screens at
+ * the root, so `/oversight` and `/w/<id>` on THIS origin answered 404: every officer and every operator who
+ * signed in on web, accepted a claim or passed the step-up here landed on a dead page. The same rule as
+ * `setup-link.ts`: a different origin is prefixed, the same origin stays a path.
+ */
+function operatorOrigin(): string {
+  const origin = (raw: string) => {
+    try {
+      return new URL(raw).origin;
+    } catch {
+      return null;
+    }
+  };
+  const app = origin(process.env.NEXT_PUBLIC_PMS_URL || "http://localhost:3002");
+  const web = origin(process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000");
+  return app && app !== web ? app : "";
+}
+
+/**
  * The admin console's front door, or null when this build names none.
  *
  * Read from `NEXT_PUBLIC_ADMIN_URL` and passed through `safeRedirect`, so it
@@ -173,7 +186,7 @@ export function resolveDestination(
  * value is null here: a staffer then lands on the home screen rather than on a
  * localhost default.
  */
-export function adminConsoleUrl(): string | null {
+function adminConsoleUrl(): string | null {
   const raw = process.env.NEXT_PUBLIC_ADMIN_URL;
   if (!raw) return null;
   let url: string;
@@ -186,7 +199,7 @@ export function adminConsoleUrl(): string | null {
   return safe === url ? safe : null;
 }
 
-export function twoFactorUrl(returnTo: string): string {
+function twoFactorUrl(returnTo: string): string {
   const params = new URLSearchParams({ redirect: returnTo });
   return `/two-factor/verify?${params.toString()}`;
 }

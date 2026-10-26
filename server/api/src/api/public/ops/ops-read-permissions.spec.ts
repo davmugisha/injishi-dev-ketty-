@@ -35,6 +35,7 @@ import {
 } from './leave.controller';
 import { OpsListViewsController } from './list-views.controller';
 import { OpsOrgChartController } from './org-chart.controller';
+import { OpsHrWorkforceController, OpsRosterCoverController } from './hr-workforce.controller';
 import { OpsPayAccountsController } from './pay-accounts.controller';
 import { OpsPayRunsController } from './pay-runs.controller';
 import {
@@ -52,7 +53,12 @@ import { OpsPoliciesController } from './policies.controller';
 import { OpsRosterController, OpsShiftTemplatesController } from './roster.controller';
 import { OpsEbmController } from './ebm.controller';
 import { OpsFoliosController } from './folios.controller';
+import { OpsFrontDeskController } from './front-desk.controller';
 import { OpsHousekeepingController } from './housekeeping.controller';
+import { OpsHousekeepingBoardController } from './housekeeping-board.controller';
+import { OpsFoundItemsController } from './lost-found.controller';
+import { OpsConditionSignalsController, OpsWorkOrdersController } from './work-orders.controller';
+import { OpsMessageTemplatesController } from './message-templates.controller';
 import { OpsOffersController } from './offers.controller';
 import { OpsOutletPartiesController } from './outlet-parties.controller';
 import { OpsOutletsController } from './outlets.controller';
@@ -66,6 +72,8 @@ import {
   OpsTicketsController,
 } from './residence.controller';
 import { OpsRevenueController } from './revenue.controller';
+import { OpsCertificatesController } from './certificates.controller';
+import { OpsOwnerDashboardController, OpsReportsController } from './owner-dashboard.controller';
 import { OpsRoomsController } from './rooms.controller';
 import {
   OpsRraController,
@@ -108,7 +116,13 @@ const CONTROLLERS: Ctor[] = [
   OpsDepartmentsController,
   OpsEbmController,
   OpsFoliosController,
+  OpsFrontDeskController,
   OpsHousekeepingController,
+  OpsHousekeepingBoardController,
+  OpsWorkOrdersController,
+  OpsConditionSignalsController,
+  OpsFoundItemsController,
+  OpsMessageTemplatesController,
   OpsOffersController,
   OpsRefundRequestsController,
   OpsOutletPartiesController,
@@ -121,6 +135,9 @@ const CONTROLLERS: Ctor[] = [
   OpsTicketsController,
   OpsDepositsController,
   OpsRevenueController,
+  OpsOwnerDashboardController,
+  OpsReportsController,
+  OpsCertificatesController,
   OpsRoomsController,
   OpsServiceCatalogController,
   OpsServiceOrdersController,
@@ -148,6 +165,8 @@ const CONTROLLERS: Ctor[] = [
   OpsStaffAnnouncementsController,
   OpsDisciplinaryActionsController,
   OpsOrgChartController,
+  OpsHrWorkforceController,
+  OpsRosterCoverController,
   OpsRotationPatternsController,
   OpsRotationAssignmentsController,
   OpsShiftRequestsController,
@@ -264,7 +283,23 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/ebm/customers': ['owner', 'manager', 'finance'],
   '/ops/folios': ['owner', 'manager', 'receptionist', 'finance'],
   '/ops/folios/:id': ['owner', 'manager', 'receptionist', 'finance'],
+  // The desk's day in one read (interface real-data): the reservations list's
+  // readers, because it summarises the same bookings; a bill balance in it is
+  // null unless the caller also reads bills.
+  '/ops/front-desk': ['owner', 'manager', 'receptionist', 'finance'],
   '/ops/housekeeping-tasks': ['owner', 'manager', 'housekeeper'],
+  // The housekeeping board (real-data 1.2.3): the same consumers as the queue it widens.
+  '/ops/housekeeping/board': ['owner', 'manager', 'housekeeper'],
+  // The hotel's work orders and condition signals: the Maintenance leaf's consumers (`ticket.advance`).
+  '/ops/work-orders': ['owner', 'manager', 'housekeeper'],
+  '/ops/work-orders/:id': ['owner', 'manager', 'housekeeper'],
+  '/ops/condition-signals': ['owner', 'manager', 'housekeeper'],
+  // The lost and found register (`lostfound.manage`): the desk takes claims and hands items back.
+  '/ops/found-items': ['owner', 'manager', 'receptionist'],
+  '/ops/found-items/:id': ['owner', 'manager', 'receptionist'],
+  // Reply templates are only ever put in a draft the desk then sends, so they
+  // read like the inbox they serve.
+  '/ops/message-templates': ['owner', 'manager', 'receptionist'],
   '/ops/outlet-parties': ['owner', 'manager'],
   '/ops/outlets': ['owner', 'manager', 'receptionist'],
   '/ops/reservations': ['owner', 'manager', 'receptionist', 'finance'],
@@ -286,6 +321,12 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/tickets': ['owner', 'manager', 'housekeeper'],
   '/ops/deposits': ['owner', 'manager', 'finance'],
   '/ops/revenue': ['owner', 'manager', 'finance'],
+  // The owner's figures: what the business earned and holds, read on money.view like the month above.
+  '/ops/revenue/daily': ['owner', 'manager', 'finance'],
+  '/ops/dashboard/owner': ['owner', 'manager', 'finance'],
+  '/ops/reports/performance': ['owner', 'manager', 'finance'],
+  // Licences on file: listing.manage (what a listing rests on) or money.view (fiscal standing).
+  '/ops/certificates': ['owner', 'manager', 'finance'],
   '/ops/rooms': ['owner', 'manager', 'receptionist', 'housekeeper'],
   '/ops/service-catalog': ['owner', 'manager', 'receptionist'],
   '/ops/service-orders': ['owner', 'manager', 'receptionist'],
@@ -323,7 +364,8 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // Saved views of every HR list, declared on the union of the lists' reads and
   // narrowed to the list's own in the service: the desk reads the views of the
   // roster and the attendance sheet it works, and nothing else.
-  '/ops/list-views': ['owner', 'manager', 'receptionist', 'hr'],
+  // The owner's Reports views (`owner.reports`, money.view) admit finance as well.
+  '/ops/list-views': ['owner', 'manager', 'receptionist', 'finance', 'hr'],
   // The people file (058-people-file AC-PF2). The photo is a work field, so it
   // reads like the file. Pay accounts are `people.manage` or `payroll.run`;
   // notes, documents and discipline are `people.manage` alone. All three are
@@ -344,13 +386,23 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/hr/settings': ['owner', 'manager', 'receptionist', 'hr'],
   // Checklists are read by whoever reads files; the desk reads neither.
   '/ops/hr/checklist-templates': ['owner', 'manager', 'hr'],
-  '/ops/hr/checklists': ['owner', 'manager', 'hr'],
+  '/ops/hr/checklist-board': ['owner', 'manager', 'hr'],
   '/ops/policies': ['owner', 'manager', 'receptionist', 'hr'],
   '/ops/policies/:id/files/:index': ['owner', 'manager', 'receptionist', 'hr'],
   '/ops/staff-announcements': ['owner', 'manager', 'receptionist', 'hr'],
   '/ops/staff-announcements/:id/files/:index': ['owner', 'manager', 'receptionist', 'hr'],
   // Roster card fields only, as the file list (AC-PF10).
   '/ops/org-chart': ['owner', 'manager', 'hr'],
+  // The new interface's HR screens (real-data, people). Teams and grades are work
+  // fields, read under any HR permission as a leave type's name is; cover reads
+  // like the roster; what a contract pays and where pay goes reads like the
+  // contracts list; papers, departures and family are `people.manage` alone.
+  '/ops/hr/teams': ['owner', 'manager', 'receptionist', 'hr'],
+  '/ops/roster/cover': ['owner', 'manager', 'receptionist', 'hr'],
+  '/ops/hr/compensation': ['owner', 'hr'],
+  '/ops/hr/expiring-documents': ['owner', 'hr'],
+  '/ops/hr/checklists': ['owner', 'hr'],
+  '/ops/hr/dependants': ['owner', 'hr'],
   // Time (058-time). The week grid reads like the roster; the desk reads the
   // rotations it clocks people onto, the policies it punches under, its
   // kiosks and whether a person has a PIN. Requests are decided by those who

@@ -16,6 +16,7 @@ import {
   inet,
   integer,
   jsonb,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -26,6 +27,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
+// Lazy only (inside `references`): interface-operations imports this module back.
+// Lazy only too: interface-residence imports this module back.
 import { adapterModeEnum, brokerStatusEnum, paymentAttemptPurposeEnum, paymentAttemptStateEnum, cautionStatusEnum, escrowSourceEnum, escrowStatusEnum, filingStatusEnum, invitationStatusEnum, leaseStatusEnum, maintenanceCategoryEnum, maintenancePriorityEnum, maintenanceRaisedByRoleEnum, maintenanceStatusEnum, placementStatusEnum, renewalStatusEnum, rentStatusEnum, signerRoleEnum } from './enums';
 import { bookings, guestStays, storedObjects } from './hospitality';
 import { listings, properties, rooms, spaces } from './inventory';
@@ -89,6 +92,17 @@ export const leases = pgTable(
     tenantEmail: text('tenant_email'),
     tenantPhone: text('tenant_phone'),
     version: integer('version').notNull().default(0),
+    // --- The lease register of the new interface (real-data 1.3.1) ---
+    /** "L-KC-014": the number on the contract and in every conversation about it. Unique per workspace. */
+    reference: text('reference'),
+    /** The day of the month rent falls due (1 to 28, so it exists in every month). */
+    rentDueDay: integer('rent_due_day'),
+    /** Days after the due day before rent counts as late. */
+    graceDays: integer('grace_days'),
+    /** Written notice either party owes before the tenancy ends. */
+    noticePeriodDays: integer('notice_period_days'),
+    /** Named occupants who are not signatories, comma separated ("Ines Habineza"). */
+    occupants: text('occupants'),
     ...timestamps,
   },
   (t) => [
@@ -98,6 +112,17 @@ export const leases = pgTable(
     index('leases_org_idx').on(t.orgId),
     index('leases_tenant_idx').on(t.tenantUserId),
     index('leases_workspace_status_idx').on(t.workspaceId, t.status),
+    uniqueIndex('leases_workspace_reference_uk')
+      .on(t.workspaceId, t.reference)
+      .where(sql`${t.reference} IS NOT NULL`),
+    check(
+      'leases_rent_due_day_in_month',
+      sql`${t.rentDueDay} IS NULL OR ${t.rentDueDay} BETWEEN 1 AND 28`,
+    ),
+    check(
+      'leases_terms_not_negative',
+      sql`(${t.graceDays} IS NULL OR ${t.graceDays} >= 0) AND (${t.noticePeriodDays} IS NULL OR ${t.noticePeriodDays} >= 0)`,
+    ),
   ],
 );
 
@@ -430,32 +455,84 @@ export const cautionSettlements = pgTable(
 );
 
 
-export const moveOutNotices = pgTable('move_out_notices', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  leaseId: uuid('lease_id')
-    .notNull()
-    .references(() => leases.id, { onDelete: 'cascade' }),
-  filedByUserId: uuid('filed_by_user_id').references(() => users.id),
-  moveOutDate: date('move_out_date').notNull(),
-  message: text('message'),
-  noticeGivenDays: integer('notice_given_days'),
-  isShortNotice: boolean('is_short_notice').notNull().default(false),
-  filedAt: timestamp('filed_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const moveOutNotices = pgTable(
+  'move_out_notices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    leaseId: uuid('lease_id')
+      .notNull()
+      .references(() => leases.id, { onDelete: 'cascade' }),
+    filedByUserId: uuid('filed_by_user_id').references(() => users.id),
+    moveOutDate: date('move_out_date').notNull(),
+    message: text('message'),
+    noticeGivenDays: integer('notice_given_days'),
+    isShortNotice: boolean('is_short_notice').notNull().default(false),
+    filedAt: timestamp('filed_at', { withTimezone: true }).notNull().defaultNow(),
+    // --- real-data 1.3.1 ---
+    /** Why the resident is leaving, as the notice form offers it. */
+    reasonCode: text('reason_code'),
+    /** How the notice arrived: in the app (written notice), by letter, by email, in person. */
+    filedVia: text('filed_via'),
+  },
+  (t) => [
+    check(
+      'move_out_notices_reason_known',
+      sql`${t.reasonCode} IS NULL OR ${t.reasonCode} IN ('kigali', 'leaving', 'own-home', 'terms', 'other')`,
+    ),
+    check(
+      'move_out_notices_channel_known',
+      sql`${t.filedVia} IS NULL OR ${t.filedVia} IN ('app', 'letter', 'email', 'in_person')`,
+    ),
+  ],
+);
 
 
-export const leaseRenewals = pgTable('lease_renewals', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  leaseId: uuid('lease_id')
-    .notNull()
-    .references(() => leases.id, { onDelete: 'cascade' }),
-  requestedByUserId: uuid('requested_by_user_id').references(() => users.id),
-  requestedEndDate: date('requested_end_date'),
-  status: renewalStatusEnum('status').notNull().default('pending'),
-  decidedByUserId: uuid('decided_by_user_id').references(() => users.id),
-  decidedAt: timestamp('decided_at', { withTimezone: true }),
-  ...timestamps,
-});
+/**
+ * A renewal: a tenant's request (`kind = 'tenant_request'`, the original use) or, since real-data
+ * 1.3.1, the landlord's OFFER of new terms, which the tenant accepts or declines and both sides then
+ * sign as an amendment. `status` keeps its old meaning for both kinds (pending, approved, rejected);
+ * an offer's finer state is `offer_status`.
+ */
+export const leaseRenewals = pgTable(
+  'lease_renewals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    leaseId: uuid('lease_id')
+      .notNull()
+      .references(() => leases.id, { onDelete: 'cascade' }),
+    requestedByUserId: uuid('requested_by_user_id').references(() => users.id),
+    requestedEndDate: date('requested_end_date'),
+    status: renewalStatusEnum('status').notNull().default('pending'),
+    decidedByUserId: uuid('decided_by_user_id').references(() => users.id),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    // --- The landlord's offer (real-data 1.3.1) ---
+    kind: text('kind').notNull().default('tenant_request'),
+    offerStatus: text('offer_status'),
+    offeredRentRwf: amount('offered_rent_rwf'),
+    termMonths: integer('term_months'),
+    startsOn: date('starts_on'),
+    answerBy: date('answer_by'),
+    depositTopupRwf: amount('deposit_topup_rwf'),
+    otherTerms: text('other_terms'),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    openedAt: timestamp('opened_at', { withTimezone: true }),
+    remindedAt: timestamp('reminded_at', { withTimezone: true }),
+    answeredAt: timestamp('answered_at', { withTimezone: true }),
+    /** When the amendment carried the last of both signatures. */
+    signedAt: timestamp('signed_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    index('lease_renewals_lease_idx').on(t.leaseId),
+    check('lease_renewals_kind_known', sql`${t.kind} IN ('tenant_request', 'landlord_offer')`),
+    check(
+      'lease_renewals_offer_shape',
+      sql`${t.kind} = 'tenant_request' OR (${t.offerStatus} IN ('open', 'accepted', 'declined', 'withdrawn', 'signed')
+            AND ${t.offeredRentRwf} > 0 AND ${t.termMonths} > 0 AND ${t.startsOn} IS NOT NULL
+            AND ${t.requestedEndDate} IS NOT NULL AND ${t.answerBy} IS NOT NULL)`,
+    ),
+  ],
+);
 
 
 export const maintenanceTickets = pgTable(
@@ -497,13 +574,46 @@ export const maintenanceTickets = pgTable(
     photoObjectKeys: jsonb('photo_object_keys'),
     status: maintenanceStatusEnum('status').notNull().default('open'),
     resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    // --- The hotel's work order (real-data 1.2.3) ---
+    /** "WO-318": what people say on the radio. Unique per workspace. */
+    reference: text('reference'),
+    assignedToUserId: uuid('assigned_to_user_id').references(() => users.id),
+    /** An outside firm doing the work, when no staff member is. */
+    assignedContractor: text('assigned_contractor'),
+    assetId: uuid('asset_id').references((): AnyPgColumn => assets.id, {
+      onDelete: 'set null',
+    }),
+    scheduledFor: date('scheduled_for'),
+    /** How it reached us: "staff app", "front desk · guest complaint", "planned schedule". */
+    raisedVia: text('raised_via'),
+    /** What the fault means for the operation while it is open. */
+    impactNote: text('impact_note'),
+    /** What must be true before the room goes back on sale. */
+    releaseNote: text('release_note'),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    verifiedByUserId: uuid('verified_by_user_id').references(() => users.id),
+    // --- A residence repair (real-data 1.3.1) ---
+    /** The tenant's answer to "may staff let themselves in if nobody is home". Null: not asked (a common area). */
+    staffMayEnter: boolean('staff_may_enter'),
+    /** The time on `scheduled_for`: "10:00", "after 17:00". */
+    visitWindow: text('visit_window'),
+    /** Who pays: the landlord, the tenant (misuse), or not decided yet. */
+    costBearer: text('cost_bearer'),
+    costNote: text('cost_note'),
     ...timestamps,
   },
   (t) => [
+    check(
+      'maintenance_tickets_cost_bearer_known',
+      sql`${t.costBearer} IS NULL OR ${t.costBearer} IN ('landlord', 'tenant', 'to_be_decided')`,
+    ),
     index('maintenance_tickets_workspace_status_idx').on(
       t.workspaceId,
       t.status,
     ),
+    uniqueIndex('maintenance_tickets_workspace_reference_uk')
+      .on(t.workspaceId, t.reference)
+      .where(sql`${t.reference} IS NOT NULL`),
     index('maintenance_tickets_property_idx').on(t.propertyId),
     index('maintenance_tickets_room_idx').on(t.roomId),
     index('maintenance_tickets_lease_idx').on(t.leaseId),
@@ -520,12 +630,32 @@ export const maintenanceTickets = pgTable(
 );
 
 
+/** What a step on a work order's timeline was (real-data 1.2.3). A plain note is `note`. */
+export const maintenanceEventKindEnum = pgEnum('maintenance_event_kind', [
+  'reported',
+  'assigned',
+  'block_requested',
+  'block_approved',
+  'block_declined',
+  'block_released',
+  'parts',
+  'scheduled',
+  'started',
+  'note',
+  'next_step',
+  'fixed',
+  'verified',
+  'from_signal',
+  'planned',
+]);
+
 export const maintenanceEvents = pgTable('maintenance_events', {
   id: uuid('id').primaryKey().defaultRandom(),
   ticketId: uuid('ticket_id')
     .notNull()
     .references(() => maintenanceTickets.id, { onDelete: 'cascade' }),
   authorUserId: uuid('author_user_id').references(() => users.id),
+  kind: maintenanceEventKindEnum('kind').notNull().default('note'),
   note: text('note'),
   photoObjectId: uuid('photo_object_id').references(() => storedObjects.id),
   createdAt: timestamp('created_at', { withTimezone: true })
@@ -534,31 +664,86 @@ export const maintenanceEvents = pgTable('maintenance_events', {
 });
 
 
-export const visitorLogEntries = pgTable('visitor_log_entries', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  leaseId: uuid('lease_id')
-    .notNull()
-    .references(() => leases.id, { onDelete: 'cascade' }),
-  visitorName: text('visitor_name'),
-  visitorPhone: text('visitor_phone'),
-  relation: text('relation'),
-  arrivalAt: timestamp('arrival_at', { withTimezone: true }),
-  departureAt: timestamp('departure_at', { withTimezone: true }),
-});
+/**
+ * The gate's book of who came in (real-data 1.3.1 widened it).
+ *
+ * `lease_id` was NOT NULL, so the log could only hold a visit to a tenancy. A gate also admits a
+ * surveyor to a vacant unit and a technician to the roof, and refusing to write those down is how a
+ * compound loses track of who is inside. It is nullable now; the row must still say WHERE: a lease,
+ * a unit or the property, and `workspace_id` scopes it for the business that runs the gate.
+ */
+export const visitorLogEntries = pgTable(
+  'visitor_log_entries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    leaseId: uuid('lease_id').references(() => leases.id, { onDelete: 'cascade' }),
+    visitorName: text('visitor_name'),
+    visitorPhone: text('visitor_phone'),
+    relation: text('relation'),
+    arrivalAt: timestamp('arrival_at', { withTimezone: true }),
+    departureAt: timestamp('departure_at', { withTimezone: true }),
+    // --- real-data 1.3.1 ---
+    workspaceId: uuid('workspace_id').references(() => workspaces.id),
+    propertyId: uuid('property_id').references(() => properties.id),
+    roomId: uuid('room_id').references(() => rooms.id),
+    /** The gate code the visitor showed, when they had one. Lazy: `visitor_passes` imports this module. */
+    visitorPassId: uuid('visitor_pass_id').references((): AnyPgColumn => visitorPasses.id, {
+      onDelete: 'set null',
+    }),
+    /** A place that is not a unit: "Block C · roof". */
+    place: text('place'),
+    /** "Code 3302 · pre-registered", "Approved by Solange", "Resident came to the gate". */
+    admittedHow: text('admitted_how'),
+    /** Who wrote it down at the gate (a guard on the gate tablet has no account). */
+    recordedBy: text('recorded_by'),
+  },
+  (t) => [
+    index('visitor_log_entries_scope_arrival_idx').on(t.workspaceId, t.arrivalAt),
+    check(
+      'visitor_log_entries_located',
+      sql`${t.leaseId} IS NOT NULL OR ${t.roomId} IS NOT NULL OR ${t.propertyId} IS NOT NULL`,
+    ),
+  ],
+);
 
 
-export const visitorAccessRequests = pgTable('visitor_access_requests', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  leaseId: uuid('lease_id')
-    .notNull()
-    .references(() => leases.id, { onDelete: 'cascade' }),
-  requestedByUserId: uuid('requested_by_user_id').references(() => users.id),
-  forDate: date('for_date'),
-  reason: text('reason'),
-  requestedAt: timestamp('requested_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+/**
+ * Something the gate or a resident asks management to decide: an overnight stay longer than the
+ * house rule allows, a delivery with nobody home, an entry without a code (real-data 1.3.1 gave it a
+ * decision; before, a request was written and nothing could answer it).
+ */
+export const visitorAccessRequests = pgTable(
+  'visitor_access_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    leaseId: uuid('lease_id')
+      .notNull()
+      .references(() => leases.id, { onDelete: 'cascade' }),
+    requestedByUserId: uuid('requested_by_user_id').references(() => users.id),
+    forDate: date('for_date'),
+    reason: text('reason'),
+    requestedAt: timestamp('requested_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    // --- real-data 1.3.1 ---
+    kind: text('kind').notNull().default('overnight'),
+    visitorName: text('visitor_name'),
+    /** The last night of an overnight stay. */
+    toDate: date('to_date'),
+    status: text('status').notNull().default('open'),
+    decidedByUserId: uuid('decided_by_user_id').references(() => users.id),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('visitor_access_requests_lease_idx').on(t.leaseId, t.status),
+    check('visitor_access_requests_kind_known', sql`${t.kind} IN ('overnight', 'delivery', 'gate_entry')`),
+    check('visitor_access_requests_status_known', sql`${t.status} IN ('open', 'approved', 'declined')`),
+    check(
+      'visitor_access_requests_decided_shape',
+      sql`(${t.status} = 'open') = (${t.decidedAt} IS NULL)`,
+    ),
+  ],
+);
 
 
 export const leaseInvitations = pgTable(
@@ -674,3 +859,81 @@ export const contractFilings = pgTable(
 // ===========================================================================
 // Shared: MESSAGING (§6.7)
 // ===========================================================================
+
+// Defined here rather than in its interface-* file because maintenance_tickets.asset_id references it: a base schema file never imports an
+// interface one, which is what made the import cycles the api-cycles ratchet refused.
+/** Equipment the property maintains (an ice machine, a projector, a generator), where it stands. */
+export const assets = pgTable(
+  'assets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id, { onDelete: 'cascade' }),
+    roomId: uuid('room_id').references(() => rooms.id, { onDelete: 'set null' }),
+    spaceId: uuid('space_id').references(() => spaces.id, { onDelete: 'set null' }),
+    name: text('name').notNull(),
+    kind: text('kind'),
+    model: text('model'),
+    installedOn: date('installed_on'),
+    ...timestamps,
+  },
+  (t) => [index('assets_property_idx').on(t.propertyId), index('assets_workspace_idx').on(t.workspaceId)],
+);
+
+// Defined here rather than in its interface-* file because a residence row's visitor_pass_id references it: a base schema file never imports an
+// interface one, which is what made the import cycles the api-cycles ratchet refused.
+/**
+ * A gate code: who may come in, to which unit, between when and when.
+ *
+ * A code is four digits and unique among the codes still in use at the building (`expected` or
+ * `approved`), which the partial index holds when two people ask at once. A used or expired code may
+ * come round again. A management pass for a vacant unit has no lease.
+ */
+export const visitorPasses = pgTable(
+  'visitor_passes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id),
+    roomId: uuid('room_id')
+      .notNull()
+      .references(() => rooms.id),
+    leaseId: uuid('lease_id').references(() => leases.id),
+    /** The repair a contractor's pass was arranged for. */
+    maintenanceTicketId: uuid('maintenance_ticket_id').references(() => maintenanceTickets.id, {
+      onDelete: 'set null',
+    }),
+    kind: text('kind').notNull().default('guest'),
+    visitorName: text('visitor_name').notNull(),
+    code: text('code').notNull(),
+    validFrom: timestamp('valid_from', { withTimezone: true }).notNull(),
+    validTo: timestamp('valid_to', { withTimezone: true }).notNull(),
+    overnight: boolean('overnight').notNull().default(false),
+    status: text('status').notNull().default('expected'),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id),
+    /** Registered by the tenant rather than by management. */
+    byTenant: boolean('by_tenant').notNull().default(false),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    leftAt: timestamp('left_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('visitor_passes_live_code_uk')
+      .on(t.propertyId, t.code)
+      .where(sql`${t.status} IN ('expected', 'approved')`),
+    index('visitor_passes_scope_status_idx').on(t.workspaceId, t.status, t.validFrom),
+    index('visitor_passes_lease_idx').on(t.leaseId),
+    check('visitor_passes_window', sql`${t.validTo} > ${t.validFrom}`),
+    check('visitor_passes_code_shape', sql`${t.code} ~ '^[0-9]{4}$'`),
+    check('visitor_passes_kind_known', sql`${t.kind} IN ('guest', 'contractor')`),
+    check('visitor_passes_status_known', sql`${t.status} IN ('expected', 'approved', 'used', 'expired', 'revoked')`),
+  ],
+);

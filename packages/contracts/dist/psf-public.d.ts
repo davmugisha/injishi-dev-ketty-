@@ -945,12 +945,12 @@ export declare const PsfTrackEvent: z.ZodObject<{
     title: z.ZodString;
     detail: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    kind: "submitted" | "approved" | "declined" | "withdrawn" | "expired" | "paid" | "fee_paid" | "code_issued" | "in_review";
+    kind: "submitted" | "approved" | "expired" | "declined" | "withdrawn" | "paid" | "fee_paid" | "code_issued" | "in_review";
     title: string;
     detail: string | null;
     at: string;
 }, {
-    kind: "submitted" | "approved" | "declined" | "withdrawn" | "expired" | "paid" | "fee_paid" | "code_issued" | "in_review";
+    kind: "submitted" | "approved" | "expired" | "declined" | "withdrawn" | "paid" | "fee_paid" | "code_issued" | "in_review";
     title: string;
     detail: string | null;
     at: string;
@@ -1149,12 +1149,12 @@ export declare const PsfTrackView: z.ZodObject<{
         title: z.ZodString;
         detail: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "submitted" | "approved" | "declined" | "withdrawn" | "expired" | "paid" | "fee_paid" | "code_issued" | "in_review";
+        kind: "submitted" | "approved" | "expired" | "declined" | "withdrawn" | "paid" | "fee_paid" | "code_issued" | "in_review";
         title: string;
         detail: string | null;
         at: string;
     }, {
-        kind: "submitted" | "approved" | "declined" | "withdrawn" | "expired" | "paid" | "fee_paid" | "code_issued" | "in_review";
+        kind: "submitted" | "approved" | "expired" | "declined" | "withdrawn" | "paid" | "fee_paid" | "code_issued" | "in_review";
         title: string;
         detail: string | null;
         at: string;
@@ -1227,7 +1227,7 @@ export declare const PsfTrackView: z.ZodObject<{
         emailMasked: string | null;
     };
     events: {
-        kind: "submitted" | "approved" | "declined" | "withdrawn" | "expired" | "paid" | "fee_paid" | "code_issued" | "in_review";
+        kind: "submitted" | "approved" | "expired" | "declined" | "withdrawn" | "paid" | "fee_paid" | "code_issued" | "in_review";
         title: string;
         detail: string | null;
         at: string;
@@ -1298,7 +1298,7 @@ export declare const PsfTrackView: z.ZodObject<{
         emailMasked: string | null;
     };
     events: {
-        kind: "submitted" | "approved" | "declined" | "withdrawn" | "expired" | "paid" | "fee_paid" | "code_issued" | "in_review";
+        kind: "submitted" | "approved" | "expired" | "declined" | "withdrawn" | "paid" | "fee_paid" | "code_issued" | "in_review";
         title: string;
         detail: string | null;
         at: string;
@@ -1504,12 +1504,12 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             title: z.ZodString;
             detail: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            kind: "submitted" | "approved" | "declined" | "withdrawn" | "expired" | "paid" | "fee_paid" | "code_issued" | "in_review";
+            kind: "submitted" | "approved" | "expired" | "declined" | "withdrawn" | "paid" | "fee_paid" | "code_issued" | "in_review";
             title: string;
             detail: string | null;
             at: string;
         }, {
-            kind: "submitted" | "approved" | "declined" | "withdrawn" | "expired" | "paid" | "fee_paid" | "code_issued" | "in_review";
+            kind: "submitted" | "approved" | "expired" | "declined" | "withdrawn" | "paid" | "fee_paid" | "code_issued" | "in_review";
             title: string;
             detail: string | null;
             at: string;
@@ -1582,7 +1582,7 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             emailMasked: string | null;
         };
         events: {
-            kind: "submitted" | "approved" | "declined" | "withdrawn" | "expired" | "paid" | "fee_paid" | "code_issued" | "in_review";
+            kind: "submitted" | "approved" | "expired" | "declined" | "withdrawn" | "paid" | "fee_paid" | "code_issued" | "in_review";
             title: string;
             detail: string | null;
             at: string;
@@ -1653,7 +1653,7 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             emailMasked: string | null;
         };
         events: {
-            kind: "submitted" | "approved" | "declined" | "withdrawn" | "expired" | "paid" | "fee_paid" | "code_issued" | "in_review";
+            kind: "submitted" | "approved" | "expired" | "declined" | "withdrawn" | "paid" | "fee_paid" | "code_issued" | "in_review";
             title: string;
             detail: string | null;
             at: string;
@@ -1728,7 +1728,7 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             emailMasked: string | null;
         };
         events: {
-            kind: "submitted" | "approved" | "declined" | "withdrawn" | "expired" | "paid" | "fee_paid" | "code_issued" | "in_review";
+            kind: "submitted" | "approved" | "expired" | "declined" | "withdrawn" | "paid" | "fee_paid" | "code_issued" | "in_review";
             title: string;
             detail: string | null;
             at: string;
@@ -1803,7 +1803,7 @@ export declare const PsfTrackPayResult: z.ZodObject<{
             emailMasked: string | null;
         };
         events: {
-            kind: "submitted" | "approved" | "declined" | "withdrawn" | "expired" | "paid" | "fee_paid" | "code_issued" | "in_review";
+            kind: "submitted" | "approved" | "expired" | "declined" | "withdrawn" | "paid" | "fee_paid" | "code_issued" | "in_review";
             title: string;
             detail: string | null;
             at: string;
@@ -2764,8 +2764,8 @@ export declare const PsfBusinessHistory: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: string;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         tierName: string;
         membershipNumber: string | null;
         docId: string | null;
@@ -2773,8 +2773,8 @@ export declare const PsfBusinessHistory: z.ZodObject<{
     }, {
         status: string;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         tierName: string;
         membershipNumber: string | null;
         docId: string | null;
@@ -2803,8 +2803,8 @@ export declare const PsfBusinessHistory: z.ZodObject<{
     applications: {
         status: string;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         tierName: string;
         membershipNumber: string | null;
         docId: string | null;
@@ -2830,8 +2830,8 @@ export declare const PsfBusinessHistory: z.ZodObject<{
     applications: {
         status: string;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         tierName: string;
         membershipNumber: string | null;
         docId: string | null;
@@ -2993,8 +2993,8 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             status: string;
             decidedAt: string | null;
-            submittedAt: string;
             id: string;
+            submittedAt: string;
             tierName: string;
             membershipNumber: string | null;
             docId: string | null;
@@ -3002,8 +3002,8 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         }, {
             status: string;
             decidedAt: string | null;
-            submittedAt: string;
             id: string;
+            submittedAt: string;
             tierName: string;
             membershipNumber: string | null;
             docId: string | null;
@@ -3032,8 +3032,8 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         applications: {
             status: string;
             decidedAt: string | null;
-            submittedAt: string;
             id: string;
+            submittedAt: string;
             tierName: string;
             membershipNumber: string | null;
             docId: string | null;
@@ -3059,8 +3059,8 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         applications: {
             status: string;
             decidedAt: string | null;
-            submittedAt: string;
             id: string;
+            submittedAt: string;
             tierName: string;
             membershipNumber: string | null;
             docId: string | null;
@@ -3098,9 +3098,9 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         status: "pending" | "declined" | "admitted";
         districtId: number;
         street: string;
+        id: string;
         districtName: string | null;
         sectorName: string | null;
-        id: string;
         note: string | null;
         provinceName: string | null;
         inScope: boolean;
@@ -3108,9 +3108,9 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         status: "pending" | "declined" | "admitted";
         districtId: number;
         street: string;
+        id: string;
         districtName: string | null;
         sectorName: string | null;
-        id: string;
         note: string | null;
         provinceName: string | null;
         inScope: boolean;
@@ -3147,9 +3147,9 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         status: "pending" | "declined" | "admitted";
         districtId: number;
         street: string;
+        id: string;
         districtName: string | null;
         sectorName: string | null;
-        id: string;
         note: string | null;
         provinceName: string | null;
         inScope: boolean;
@@ -3158,8 +3158,8 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         applications: {
             status: string;
             decidedAt: string | null;
-            submittedAt: string;
             id: string;
+            submittedAt: string;
             tierName: string;
             membershipNumber: string | null;
             docId: string | null;
@@ -3220,8 +3220,8 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         applications: {
             status: string;
             decidedAt: string | null;
-            submittedAt: string;
             id: string;
+            submittedAt: string;
             tierName: string;
             membershipNumber: string | null;
             docId: string | null;
@@ -3254,9 +3254,9 @@ export declare const PsfBusinessDetail: z.ZodObject<{
         status: "pending" | "declined" | "admitted";
         districtId: number;
         street: string;
+        id: string;
         districtName: string | null;
         sectorName: string | null;
-        id: string;
         note: string | null;
         provinceName: string | null;
         inScope: boolean;

@@ -333,15 +333,15 @@ export declare const BrokerCreditEntry: z.ZodObject<{
     propertyName: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    reason: string;
     id: string;
+    reason: string;
     note: string | null;
     createdAt: string;
     propertyName: string | null;
     delta: number;
 }, {
-    reason: string;
     id: string;
+    reason: string;
     note: string | null;
     createdAt: string;
     propertyName: string | null;
@@ -361,15 +361,15 @@ export declare const BrokerCredits: z.ZodObject<{
         propertyName: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        reason: string;
         id: string;
+        reason: string;
         note: string | null;
         createdAt: string;
         propertyName: string | null;
         delta: number;
     }, {
-        reason: string;
         id: string;
+        reason: string;
         note: string | null;
         createdAt: string;
         propertyName: string | null;
@@ -377,8 +377,8 @@ export declare const BrokerCredits: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     entries: {
-        reason: string;
         id: string;
+        reason: string;
         note: string | null;
         createdAt: string;
         propertyName: string | null;
@@ -387,8 +387,8 @@ export declare const BrokerCredits: z.ZodObject<{
     balance: number;
 }, {
     entries: {
-        reason: string;
         id: string;
+        reason: string;
         note: string | null;
         createdAt: string;
         propertyName: string | null;
@@ -605,8 +605,8 @@ export declare const BrokerFee: z.ZodObject<{
     updatedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     status: "pending" | "disbursed";
-    amountRwf: number | null;
     id: string;
+    amountRwf: number | null;
     leaseId: string;
     unitLabel: string | null;
     tenantName: string | null;
@@ -614,8 +614,8 @@ export declare const BrokerFee: z.ZodObject<{
     updatedAt: string;
 }, {
     status: "pending" | "disbursed";
-    amountRwf: number | null;
     id: string;
+    amountRwf: number | null;
     leaseId: string;
     unitLabel: string | null;
     tenantName: string | null;
@@ -640,8 +640,8 @@ export declare const BrokerEarnings: z.ZodObject<{
         updatedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "disbursed";
-        amountRwf: number | null;
         id: string;
+        amountRwf: number | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;
@@ -649,8 +649,8 @@ export declare const BrokerEarnings: z.ZodObject<{
         updatedAt: string;
     }, {
         status: "pending" | "disbursed";
-        amountRwf: number | null;
         id: string;
+        amountRwf: number | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;
@@ -663,8 +663,8 @@ export declare const BrokerEarnings: z.ZodObject<{
     disbursedThisYearRwf: number;
     fees: {
         status: "pending" | "disbursed";
-        amountRwf: number | null;
         id: string;
+        amountRwf: number | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;
@@ -677,8 +677,8 @@ export declare const BrokerEarnings: z.ZodObject<{
     disbursedThisYearRwf: number;
     fees: {
         status: "pending" | "disbursed";
-        amountRwf: number | null;
         id: string;
+        amountRwf: number | null;
         leaseId: string;
         unitLabel: string | null;
         tenantName: string | null;

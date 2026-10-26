@@ -4,7 +4,6 @@
   "//when": "Update this in the commit that FIXES warnings, never to make a failing run pass.",
   "//zero": "When a count reaches 0, flip that rule to `error` in the app config and drop the row.",
   "//taken": "Counted from the working tree on 2026-10-07. A count taken over uncommitted work is a count of something that was never committed, so regenerate on the commit that actually lands.",
-  "@injishi/admin": 0,
   "@injishi/app": 0,
   "@injishi/mobile": 0,
   "@injishi/web": 37,

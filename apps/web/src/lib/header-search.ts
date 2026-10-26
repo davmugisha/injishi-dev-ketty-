@@ -14,7 +14,7 @@ import { useSyncExternalStore } from "react";
  * A page that registers nothing gets no pill, so every other page's header is
  * untouched.
  */
-export interface HeaderSearch {
+interface HeaderSearch {
   place: string;
   dates: string;
   guests: string;

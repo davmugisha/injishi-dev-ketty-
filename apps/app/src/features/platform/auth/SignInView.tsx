@@ -1,0 +1,268 @@
+"use client";
+
+import { CircleInfo } from "@gravity-ui/icons";
+import { Button, Card, Chip, Disclosure, FieldError, Form, Input, Label, Separator, TextField } from "@heroui/react";
+import { OPEN_ENTRIES, PERSONA_GROUPS, type Persona, type PersonaGroup, screenHref } from "@injishi/data";
+import { LinkButton, TextLink } from "@injishi/ui";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { BrandPalm } from "@/components/brand";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { type SignInState, signInAs, startSignIn } from "@/lib/auth-actions";
+import { GoogleButton } from "./GoogleButton";
+import { HeroCarousel } from "./HeroCarousel";
+
+const GROUP_LABEL: Record<PersonaGroup, string> = {
+  operator: "Operator workspaces",
+  devices: "Staff devices",
+  guests: "Guests, residents and the public",
+  external: "Institutions and Injishi staff",
+};
+
+function PersonaCard({
+  persona,
+  next,
+  highlighted,
+  onUseEmail,
+}: {
+  persona: Persona;
+  next: string;
+  highlighted: boolean;
+  onUseEmail: (email: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(highlighted);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (highlighted) ref.current?.scrollIntoView({ block: "center" });
+  }, [highlighted]);
+  return (
+    <div ref={ref} data-persona={persona.id}>
+      <Card
+        variant={highlighted ? "default" : "transparent"}
+        className={`gap-2 p-3.5 ring-1 ring-border ${highlighted ? "ring-2 ring-accent" : ""}`}
+      >
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="font-semibold">{persona.name}</span>
+          <span className="truncate text-xs text-muted">{persona.email}</span>
+        </div>
+        <span className="text-[15px] font-medium">{persona.headline}</span>
+        <Disclosure isExpanded={expanded} onExpandedChange={setExpanded}>
+          {expanded ? null : <p className="line-clamp-2 text-[13px] leading-[18px] text-muted">{persona.lands}</p>}
+          <Disclosure.Content>
+            <Disclosure.Body className="flex flex-col gap-2 pt-0">
+              <p className="text-[13px] leading-[18px] text-muted">{persona.lands}</p>
+              <p className="text-xs font-semibold tracking-wider text-muted uppercase">What to try</p>
+              <ol className="flex list-decimal flex-col gap-1 pl-5 text-[13px] leading-[18px]">
+                {persona.tryItems.map((t) => (
+                  <li key={t.board}>
+                    <span className="font-medium">{t.label}</span> <span className="text-muted">— {t.note}</span>
+                  </li>
+                ))}
+              </ol>
+            </Disclosure.Body>
+          </Disclosure.Content>
+          <Disclosure.Heading>
+            <Button
+              slot="trigger"
+              variant="ghost"
+              size="sm"
+              className="h-auto px-0 text-[13px] font-medium underline underline-offset-2"
+            >
+              {expanded ? "Less about this role" : "More about this role"}
+            </Button>
+          </Disclosure.Heading>
+        </Disclosure>
+        <div className="flex flex-wrap items-center gap-2">
+          <Chip size="sm" variant="secondary">
+            {persona.role}
+          </Chip>
+          <span className="text-xs text-muted">{persona.org}</span>
+          {persona.status.tone === "warning" ? (
+            <Chip size="sm" color="warning" variant="soft">
+              {persona.status.label}
+            </Chip>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-3 pt-1">
+          <form action={signInAs.bind(null, persona.id, next)} className="flex-1">
+            <Button type="submit" fullWidth className="rounded-full">
+              Sign in as {persona.firstName}
+            </Button>
+          </form>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-[13px] underline underline-offset-2"
+            onPress={() => onUseEmail(persona.email)}
+          >
+            Use this email
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/**
+ * Sign-in page cloned from the legacy Injishi demo (www-demo.injishi.com/sign-in): photo hero on the
+ * left; email + one-time code on the right, with "Explore the demo" listing every artifact persona on the demo stack.
+ */
+
+/** "15 Oct, 03:00", in Kigali. */
+function resetLabel(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Kigali",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(iso));
+}
+
+export function SignInView({
+  personas,
+  next,
+  highlight,
+  demo,
+  google,
+  notice,
+}: {
+  personas: Persona[];
+  /** Where to go once signed in: a screen here, or a page on web (`return-to.ts`). */
+  next: string;
+  highlight: string | null;
+  /** The demo's fixed code and last reset; null outside the demo, where the persona list is not drawn. */
+  demo: { code: string; seededAt: string | null } | null;
+  /** The API has Google credentials, so the button works; otherwise it says it is coming. */
+  google: boolean;
+  /** Why the person is back here, from `?error=` (Google did not finish, a persona's code was refused). */
+  notice: string | null;
+}) {
+  const [state, formAction, pending] = useActionState<SignInState, FormData>(startSignIn, {});
+  const [email, setEmail] = useState(state.email ?? "");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const useEmail = (value: string) => {
+    setEmail(value);
+    inputRef.current?.focus();
+    inputRef.current?.scrollIntoView({ block: "center" });
+  };
+
+  return (
+    <div className="flex min-h-dvh bg-background">
+      <aside className="sticky top-0 hidden h-dvh w-1/2 shrink-0 p-2 lg:block" aria-label="About Injishi">
+        <HeroCarousel />
+      </aside>
+
+      <main className="relative flex min-w-0 flex-1 flex-col items-center px-5 pt-14 pb-12 sm:px-8">
+        <ThemeToggle className="absolute top-5 right-5" />
+        <div className="flex w-full max-w-[400px] flex-col items-center gap-5">
+          <BrandPalm size={44} className="h-11 w-auto" />
+          <h1 className="text-center text-[32px] leading-10 font-medium tracking-[-0.02em]">Welcome to Injishi</h1>
+
+          {notice ? (
+            <p role="alert" className="w-full text-center text-sm text-danger">
+              {notice}
+            </p>
+          ) : null}
+
+          <div className="flex w-full flex-col items-center gap-2">
+            <span className="text-[13px] text-muted">Continue with</span>
+            {google ? (
+              <GoogleButton next={next} />
+            ) : (
+              <>
+                <Button variant="secondary" fullWidth isDisabled className="rounded-full">
+                  <span aria-hidden="true" className="font-bold">
+                    G
+                  </span>
+                  Continue with Google
+                </Button>
+                <span className="text-xs text-muted">Sign in with Google is coming soon. Use your email for now.</span>
+              </>
+            )}
+          </div>
+
+          <div className="flex w-full items-center gap-3">
+            <Separator className="flex-1" />
+            <span className="text-xs text-muted">Or continue with email</span>
+            <Separator className="flex-1" />
+          </div>
+
+          <Form action={formAction} className="flex w-full flex-col gap-3" validationBehavior="aria">
+            <input type="hidden" name="next" value={next} />
+            <TextField
+              name="email"
+              type="email"
+              value={email}
+              onChange={setEmail}
+              isInvalid={!!state.error}
+              fullWidth
+              autoComplete="email"
+            >
+              <Label className="sr-only">Email</Label>
+              <Input ref={inputRef} placeholder="Enter your email" className="rounded-xl" />
+              {state.error ? <FieldError>{state.error}</FieldError> : null}
+            </TextField>
+            <Button type="submit" variant="secondary" fullWidth isPending={pending} className="rounded-full">
+              Continue
+            </Button>
+          </Form>
+
+          {demo ? (
+            <Card className="w-full gap-3 p-4" aria-labelledby="demo-h">
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="demo-h" className="text-[15px] font-semibold">
+                  Explore the demo
+                </h2>
+                <TextLink href={screenHref("Main")} className="text-[13px]">
+                  How this demo works
+                </TextLink>
+              </div>
+              <p className="flex gap-1.5 text-[13px] leading-[18px] text-muted">
+                <CircleInfo className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                  Choose someone and sign in as them in one step. Typing an email by hand works too: every code is{" "}
+                  <strong className="font-semibold text-foreground">{demo.code}</strong>.
+                </span>
+              </p>
+              {demo.seededAt ? (
+                <p className="text-xs text-muted">Demo data last reset {resetLabel(demo.seededAt)}</p>
+              ) : null}
+
+              {PERSONA_GROUPS.map((g) => {
+                const people = personas.filter((p) => p.group === g.id);
+                const open = OPEN_ENTRIES.filter((o) => o.group === g.id);
+                return (
+                  <section key={g.id} className="flex flex-col gap-2.5 pt-1" aria-label={g.title}>
+                    <h3 className="pt-1 text-xs font-semibold tracking-wider text-muted uppercase">
+                      {GROUP_LABEL[g.id]}
+                    </h3>
+                    {people.map((p) => (
+                      <PersonaCard
+                        key={p.id}
+                        persona={p}
+                        next={next}
+                        highlighted={highlight === p.id}
+                        onUseEmail={useEmail}
+                      />
+                    ))}
+                    {open.map((o) => (
+                      <Card key={o.id} variant="transparent" className="gap-2 p-3.5 ring-1 ring-border">
+                        <span className="font-semibold">{o.title}</span>
+                        <span className="text-[13px] font-medium">{o.tagline}</span>
+                        <p className="text-[13px] leading-[18px] text-muted">{o.lands}</p>
+                        <LinkButton href={screenHref(o.board)} variant="outline" fullWidth className="rounded-full">
+                          {o.action}
+                        </LinkButton>
+                      </Card>
+                    ))}
+                  </section>
+                );
+              })}
+            </Card>
+          ) : null}
+        </div>
+      </main>
+    </div>
+  );
+}

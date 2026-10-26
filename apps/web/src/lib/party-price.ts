@@ -21,7 +21,7 @@ import { billableGuests, fromParamDate, type StayIntent } from "@/lib/search-par
  * them is bookable) is not multiplied by guests; it gets the nights alone.
  */
 
-export type PartyPrice = {
+type PartyPrice = {
   /** "2 guests · 3 nights", "2 guests", "3 nights". */
   label: string;
   /** "1,470,000 RWF". */

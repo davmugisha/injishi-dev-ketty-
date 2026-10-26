@@ -16,8 +16,10 @@ import {
   integer,
   jsonb,
   numeric,
+  pgEnum,
   pgTable,
   primaryKey,
+  smallint,
   text,
   time,
   timestamp,
@@ -97,6 +99,14 @@ export const properties = pgTable(
      * retired id is never handed to a second location.
      */
     rraBranchId: text('rra_branch_id'),
+    /**
+     * The business's own short code for this branch ("ISG", "ISH"): the one its
+     * people say, and the one its reports and member scopes print. Two to four
+     * capitals, unique within the org where set. Unrelated to `rra_branch_id`,
+     * which RRA issues and which is two digits. Nullable: a branch that
+     * predates it has none until somebody chooses one.
+     */
+    branchCode: text('branch_code'),
     /** Set when the branch is archived. Its history stays readable. */
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     archivedByUserId: uuid('archived_by_user_id').references(() => users.id),
@@ -118,6 +128,10 @@ export const properties = pgTable(
       .on(t.orgId, t.rraBranchId)
       .where(sql`${t.rraBranchId} IS NOT NULL`),
     check('properties_rra_branch_id_ck', sql`${t.rraBranchId} ~ '^[0-9]{2}$'`),
+    uniqueIndex('properties_org_branch_code_uk')
+      .on(t.orgId, t.branchCode)
+      .where(sql`${t.branchCode} IS NOT NULL`),
+    check('properties_branch_code_ck', sql`${t.branchCode} ~ '^[A-Z]{2,4}$'`),
     check(
       'properties_head_office_not_archived_ck',
       sql`NOT (${t.isHeadOffice} AND ${t.archivedAt} IS NOT NULL)`,
@@ -304,6 +318,9 @@ export const roomTypes = pgTable(
 );
 
 
+/** A guest's sign on the door (real-data 1.2.3). Here rather than in enums.ts: only `rooms` uses it. */
+export const roomServiceFlagEnum = pgEnum('room_service_flag', ['dnd', 'make_up_room']);
+
 export const rooms = pgTable(
   'rooms',
   {
@@ -339,6 +356,11 @@ export const rooms = pgTable(
     housekeepingUpdatedByUserId: uuid('housekeeping_updated_by_user_id').references(
       () => users.id,
     ),
+    /** The floor it is on, as the housekeeping board groups rooms (real-data 1.2.3). */
+    floor: smallint('floor'),
+    /** A sign on the door: do not disturb, or please make up the room. Cleared with the stay. */
+    serviceFlag: roomServiceFlagEnum('service_flag'),
+    serviceFlagSetAt: timestamp('service_flag_set_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
@@ -367,6 +389,8 @@ export const spaces = pgTable('spaces', {
     .references(() => properties.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   description: text('description'),
+  /** The floor the space is on ("Corridor F2"), so a phone offers the places on the floors a person works. */
+  floor: smallint('floor'),
   sortOrder: integer('sort_order').notNull().default(0),
   ...timestamps,
 });

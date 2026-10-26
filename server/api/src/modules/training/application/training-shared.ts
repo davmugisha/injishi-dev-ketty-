@@ -10,10 +10,9 @@ import { trainingVenues } from '../../../database/drizzle/training';
 /**
  * The column lists and row mappers every training query shares.
  *
- * Held in one file for the reason `waitlist-admin.service.ts` gives for its own
- * `ROW_COLUMNS`: a count and a page built from two column lists eventually
- * disagree, and a venue rendered two ways eventually shows a district in the
- * wrong province on one of them.
+ * Held in one file because a count and a page built from two column lists
+ * eventually disagree, and a venue rendered two ways eventually shows a
+ * district in the wrong province on one of them.
  */
 
 /**
@@ -88,11 +87,6 @@ export function toAdminVenue(row: VenueRow): AdminTrainingVenue {
 /** Timestamps cross the wire as ISO strings, which is what the contracts say. */
 export function iso(value: Date | null | undefined): string | null {
   return value instanceof Date ? value.toISOString() : null;
-}
-
-/** A required timestamp. Same conversion, no null in the contract. */
-export function isoRequired(value: Date): string {
-  return value.toISOString();
 }
 
 /**

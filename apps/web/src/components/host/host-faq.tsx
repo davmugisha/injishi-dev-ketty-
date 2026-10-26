@@ -11,6 +11,8 @@ import {
 } from "@injishi/ui";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { HOST_FAQ } from "@/data/host";
+import { CONTACT } from "@/data/navigation";
+import { supportHref } from "@/lib/support-intent";
 
 /**
  * The host FAQ: a centred opener, a row of three tabs, and one accordion
@@ -101,10 +103,23 @@ export function HostFaq() {
       {/* The way out for someone not ready to register. It sat on
           `/host/start` ("Not ready? Talk to our team"), which is a redirect
           now, and it belongs after the questions rather than before them. */}
+      {/* Two ways in, because the owner this page is for runs their place on
+          WhatsApp and a phone, and a form is the third choice for them, not
+          the first. The call request opens the support form already on
+          "Listing my accommodation" (`lib/support-intent.ts`). */}
       <p className="mt-8 text-base text-page-fg-70">
         Still have a question?{" "}
-        <Link href="/support" className="font-medium text-page-fg underline underline-offset-2">
-          Talk to our team
+        <a
+          href={CONTACT.whatsappHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-page-fg underline underline-offset-2"
+        >
+          Message us on WhatsApp
+        </a>{" "}
+        or{" "}
+        <Link href={supportHref("hosting")} className="font-medium text-page-fg underline underline-offset-2">
+          ask us to call you
         </Link>
         .
       </p>

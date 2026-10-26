@@ -125,7 +125,7 @@ function collapse(value: string): string {
  * deployment can run, who they are once verified, and how the form learns of a
  * verification. Null when neither path can run here, which keeps the typed form.
  */
-export interface IdentityVerification {
+interface IdentityVerification {
   available: IdentityStatus["available"];
   verified: NonNullable<IdentityStatus["verified"]> | null;
   method: string | null;
@@ -457,6 +457,7 @@ export function PersonalForm({
       <Field
         label="Phone"
         required
+        composite
         hint="Pick your country, then the number as you would dial it at home. Leave off the leading 0."
         error={errors["phoneE164"]}
       >

@@ -2,6 +2,8 @@ import type {
   CreateRegistrationRequest,
   OrgRegistrationStatus,
   OversightDecisionPage,
+  OversightDocument,
+  OversightDocumentList,
   OversightGrant,
   OversightQueueItem,
   OversightRole,
@@ -51,6 +53,7 @@ import { RraTinAdapter, type TinRegistryBusiness } from '../infrastructure/rra-t
 import { IdentityService } from '../../user/application/identity.service';
 import { RegistrationDraftService } from './registration-draft.service';
 import { ProfileService } from '../../user/application/profile.service';
+import { StorageService } from '../../storage/application/storage.service';
 import { GeographyService } from '../../geography/application/geography.service';
 
 /**
@@ -80,6 +83,15 @@ const STAGE_FOR_ROLE: Readonly<
   psf_membership_officer: null,
 };
 
+/**
+ * How long an officer’s link to a document stays good.
+ *
+ * Five minutes: long enough to open a PDF, short enough that a link pasted into
+ * a chat is dead before anyone follows it. These bytes are evidence about a
+ * business, not a public file.
+ */
+const DOCUMENT_URL_TTL_SECONDS = 300;
+
 @Injectable()
 export class RegistrationService {
   private readonly log = new Logger(RegistrationService.name);
@@ -101,6 +113,11 @@ export class RegistrationService {
      * registration step.
      */
     private readonly mail: RegistrationMailer,
+    /**
+     * The storage seam (F-S09), for one job: minting the short lived link an
+     * officer opens a document through. This service never touches bytes.
+     */
+    private readonly storage: StorageService,
     /**
      * PSF membership (ADR-056): a PSF application waits for the TIN check, so
      * the TIN pass is what puts it in PSF's queue. It also files the
@@ -948,6 +965,8 @@ export class RegistrationService {
         sectorName: r.sectorName,
         addressText: r.addressText,
         status: r.status,
+        documentCount: r.documentCount,
+        uncheckedDocumentCount: r.uncheckedDocumentCount,
         waitingSince: r.waitingSince.toISOString(),
         blockedBySeparationOfDuties:
           role === 'business_approver'
@@ -982,6 +1001,28 @@ export class RegistrationService {
     notes: string | null,
   ): Promise<RegistrationSummary> {
     const grant = await this.grantCovering(orgId, grants, actorUserId);
+
+    /*
+     * F-S03 §5 gives this gate two jobs: the premises exist, AND the documents
+     * are legitimate. The second half was unenforceable while nothing served
+     * the documents, so the gate passed on the officer's word about a list they
+     * could not open. It refuses now while any document is unread, and names
+     * the count rather than only saying no.
+     *
+     * A registration carrying NO documents is not blocked. A residence landlord
+     * uploads none, and refusing there would be demanding evidence the wizard
+     * never asked for.
+     */
+    const unchecked = await this.orgs.documentsForOrg(orgId);
+    const unread = unchecked.filter((d) => d.checkedAt === null).length;
+    if (unread > 0) {
+      throw new ConflictException(
+        unread === 1
+          ? 'One document on this registration has not been checked yet. Open it and mark it checked before verifying the business.'
+          : `${unread} documents on this registration have not been checked yet. Open each one and mark it checked before verifying the business.`,
+      );
+    }
+
     await this.decide({
       orgId,
       stage: 'tin_verified',
@@ -1121,6 +1162,92 @@ export class RegistrationService {
    * Scope is a BOUNDARY — an out of region business is unreachable, not merely
    * unlisted — so a miss is a 403, never an empty result.
    */
+  // -------------------------------------------------------------------------
+  // The documents an officer decides on (F-S03 §5)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Every document on one registration, for an officer who may act on it.
+   *
+   * Region and conflict of interest are checked by the SAME helper the gates
+   * use, so a document cannot be read through a route that is laxer than the
+   * decision it informs. An approver reads it as well as a verifier: approving
+   * a business whose evidence you cannot see is the thing this fixes.
+   *
+   * Each link is minted per read and expires; nothing durable is handed out.
+   */
+  async documentsFor(
+    orgId: string,
+    grants: OversightGrant[],
+    actorUserId: string,
+  ): Promise<OversightDocumentList> {
+    await this.grantCovering(orgId, grants, actorUserId);
+    return this.documentList(orgId);
+  }
+
+  /**
+   * Record that this officer has read one document (F-S03 §5).
+   *
+   * The field verifier's act, never the approver's: the verifier is the officer
+   * who goes and looks, and the approver reads what they recorded. A second
+   * press is not an error and does not move the name already on it.
+   */
+  async checkDocument(
+    orgId: string,
+    certificateId: string,
+    grants: OversightGrant[],
+    actorUserId: string,
+  ): Promise<OversightDocumentList> {
+    await this.grantCovering(orgId, grants, actorUserId);
+    if (!(await this.orgs.certificateBelongsTo(certificateId, orgId))) {
+      throw new NotFoundException('No such document on this registration.');
+    }
+    await this.orgs.markCertificateChecked({ certificateId, orgId, actorUserId });
+    return this.documentList(orgId);
+  }
+
+  /** The shape both document routes answer with. */
+  private async documentList(orgId: string): Promise<OversightDocumentList> {
+    const org = await this.orgs.findById(orgId);
+    if (!org) throw new NotFoundException('Registration not found.');
+
+    const rows = await this.orgs.documentsForOrg(orgId);
+    const today = new Date().toISOString().slice(0, 10);
+
+    const documents = await Promise.all(
+      rows.map(async (r) => ({
+        id: r.id,
+        kind: r.kind as OversightDocument['kind'],
+        kindOther: r.kindOther,
+        certificateNumber: r.certificateNumber,
+        issuedBy: r.issuedBy,
+        issuedOn: r.issuedOn,
+        expiresOn: r.expiresOn,
+        // A date comparison on two `YYYY-MM-DD` strings, which sort correctly.
+        expired: r.expiresOn !== null && r.expiresOn < today,
+        mime: r.mime,
+        sizeBytes: r.sizeBytes,
+        // No object, or an object whose row has gone: no link, and the console
+        // says so. A link that 404s reads as a broken console, not as a
+        // missing document.
+        url:
+          r.objectKey && r.objectPresent
+            ? await this.storage.signedUrl(r.objectKey, DOCUMENT_URL_TTL_SECONDS)
+            : null,
+        checkedAt: r.checkedAt ? r.checkedAt.toISOString() : null,
+        checkedByName: r.checkedByName,
+      })),
+    );
+
+    return {
+      orgId,
+      legalName: org.legalName,
+      status: org.status,
+      documents,
+      uncheckedCount: documents.filter((d) => d.checkedAt === null).length,
+    };
+  }
+
   private async grantCovering(
     orgId: string,
     grants: OversightGrant[],

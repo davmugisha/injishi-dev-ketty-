@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.OPERATOR_CONTRACT_VERSION = exports.RegistrationSummary = exports.OversightDecisionQuery = exports.OversightDecisionPage = exports.OversightDecision = exports.OversightQueueItem = exports.RejectRegistrationRequest = exports.PassGateRequest = exports.RegistrationReview = exports.RegistrationReviewDecision = exports.RegistrationReviewStage = exports.REJECTION_REASON_LABEL = exports.RegistrationRejectionReason = exports.CreateRegistrationRequest = exports.IntendedOwner = exports.BusinessDetails = exports.EnterpriseBusiness = exports.ResidenceBusiness = exports.HospitalityBusiness = exports.PsfMembershipNumber = exports.NUMBERED_REGISTRATION_KINDS = exports.EnterpriseRegistrationKind = exports.PsfOwnerGroup = exports.PsfApplicationInput = exports.PsfIdDocument = exports.PSF_CONSENT_TEXT = exports.PSF_CONSENT_VERSION = exports.PsfGender = exports.PsfContactRole = exports.PsfTradeDirection = exports.PsfOwnership = exports.PsfCompanyType = exports.RegistrationBranch = exports.MAX_REGISTRATION_BRANCHES = exports.CertificateInput = exports.PersonalDetails = exports.Upi = exports.Tin = exports.Address = exports.InternationalAddress = exports.RwandanAddress = exports.IdentityDocumentInput = exports.PassportNumber = exports.RwandanNationalId = exports.CountryCode = exports.AccountDocumentType = exports.Gender = exports.RegistrantCapacity = exports.RegistrationBusinessType = exports.RegistrantRole = void 0;
-exports.CERTIFICATE_KIND_LABEL = exports.UploadedObject = exports.BrokerRegistrationSummary = exports.BrokerStatus = exports.CreateBrokerRegistrationRequest = exports.MyProfile = exports.MyProfileDocument = exports.RegistrationFeeQuote = exports.ClaimPreview = exports.ClaimOrgRequest = exports.TinCheckResult = exports.RegistryBusiness = exports.TinCheckRequest = exports.RegistrationConflictCode = exports.RegistrationDraft = exports.REGISTRATION_DRAFT_PHASES = exports.AcceptContractRequest = void 0;
+exports.OversightDecision = exports.OversightQueueItem = exports.OversightDocumentList = exports.OversightDocument = exports.RejectRegistrationRequest = exports.PassGateRequest = exports.RegistrationReview = exports.RegistrationReviewDecision = exports.RegistrationReviewStage = exports.REJECTION_REASON_LABEL = exports.RegistrationRejectionReason = exports.CreateRegistrationRequest = exports.IntendedOwner = exports.BusinessDetails = exports.EnterpriseBusiness = exports.ResidenceBusiness = exports.HospitalityBusiness = exports.PsfMembershipNumber = exports.NUMBERED_REGISTRATION_KINDS = exports.EnterpriseRegistrationKind = exports.PsfOwnerGroup = exports.PsfApplicationInput = exports.PsfIdDocument = exports.PSF_CONSENT_TEXT = exports.PSF_CONSENT_VERSION = exports.PsfGender = exports.PsfContactRole = exports.PsfTradeDirection = exports.PsfOwnership = exports.PsfCompanyType = exports.RegistrationBranch = exports.MAX_REGISTRATION_BRANCHES = exports.CertificateInput = exports.ORG_CERTIFICATE_KIND_LABEL = exports.OrgCertificateKind = exports.PersonalDetails = exports.Upi = exports.Tin = exports.Address = exports.InternationalAddress = exports.RwandanAddress = exports.IdentityDocumentInput = exports.PassportNumber = exports.RwandanNationalId = exports.CountryCode = exports.AccountDocumentType = exports.Gender = exports.RegistrantCapacity = exports.RegistrationBusinessType = exports.RegistrantRole = void 0;
+exports.CERTIFICATE_KIND_LABEL = exports.UploadedObject = exports.BrokerRegistrationSummary = exports.BrokerStatus = exports.CreateBrokerRegistrationRequest = exports.MyProfile = exports.MyProfileDocument = exports.RegistrationFeeQuote = exports.ClaimPreview = exports.ClaimOrgRequest = exports.TinCheckResult = exports.RegistryBusiness = exports.TinCheckRequest = exports.RegistrationConflictCode = exports.RegistrationDraft = exports.REGISTRATION_DRAFT_PHASES = exports.AcceptContractRequest = exports.OPERATOR_CONTRACT_VERSION = exports.RegistrationSummary = exports.OversightDecisionQuery = exports.OversightDecisionPage = void 0;
 exports.businessTypeFor = businessTypeFor;
 exports.domainForRole = domainForRole;
 exports.isRwandanAddress = isRwandanAddress;
@@ -247,15 +247,43 @@ exports.PersonalDetails = zod_1.z.object({
 // Step 2 — Your business
 // ---------------------------------------------------------------------------
 /** A certificate the registrant attaches (schema §4.3a). */
+/**
+ * The kinds of document a business uploads about itself (`org_certificate_kind`).
+ *
+ * One name for the set, because two readers need it: the registration wizard
+ * sending an upload, and the officer's console listing what was sent. Two
+ * copies of an enum is how a kind gets added in one place and not the other.
+ */
+exports.OrgCertificateKind = zod_1.z.enum([
+    "rdb_grade",
+    "tourism_license",
+    "tax_clearance",
+    "fire_safety",
+    "health_inspection",
+    "other",
+    // The registration artboard's own rows (Register.dc.html, 2026-10-19): the
+    // RDB certificate a hospitality business is asked for, its PSF certificate,
+    // and the land title a residence is asked for. Each used to arrive as
+    // `other` with the name typed by hand, which filed the one document an
+    // officer looks for first under a free-text label.
+    "rdb_certificate",
+    "psf_certificate",
+    "land_title",
+]);
+/** What each kind is called on screen, wherever a document is listed. */
+exports.ORG_CERTIFICATE_KIND_LABEL = {
+    rdb_grade: "RDB grade certificate",
+    tourism_license: "Tourism license",
+    tax_clearance: "Tax clearance",
+    fire_safety: "Fire safety certificate",
+    health_inspection: "Health inspection",
+    other: "Other document",
+    rdb_certificate: "RDB certificate",
+    psf_certificate: "PSF certificate",
+    land_title: "Land title",
+};
 exports.CertificateInput = zod_1.z.object({
-    kind: zod_1.z.enum([
-        "rdb_grade",
-        "tourism_license",
-        "tax_clearance",
-        "fire_safety",
-        "health_inspection",
-        "other",
-    ]),
+    kind: exports.OrgCertificateKind,
     /** Required when `kind` is `other`; the database carries the same rule. */
     kindOther: zod_1.z.string().trim().min(1).max(120).optional(),
     /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -796,6 +824,50 @@ exports.RejectRegistrationRequest = zod_1.z.object({
     notes: zod_1.z.string().trim().max(2000).optional(),
 });
 /**
+ * A document a business uploaded with its registration, as an officer sees it.
+ *
+ * F-S03 §5 gives the field verifier two jobs — confirm the premises exist, and
+ * confirm the documents are legitimate — and only the first was ever reachable:
+ * the queue carried no documents at all, so the console drew an empty list and
+ * flagged every business as missing them.
+ *
+ * The bytes are never inlined. `url` is a SHORT LIVED signed link minted per
+ * read, and it is null when the certificate carries no object or the object has
+ * gone, so a console can say "nothing was uploaded" rather than offer a link
+ * that fails.
+ */
+exports.OversightDocument = zod_1.z.object({
+    id: primitives_1.Uuid,
+    kind: exports.OrgCertificateKind,
+    /** Set only when `kind` is `other`; the database carries the same rule. */
+    kindOther: zod_1.z.string().nullable(),
+    certificateNumber: zod_1.z.string().nullable(),
+    issuedBy: zod_1.z.string().nullable(),
+    issuedOn: zod_1.z.string().nullable(),
+    expiresOn: zod_1.z.string().nullable(),
+    /** Computed against the server's clock, never in the browser. */
+    expired: zod_1.z.boolean(),
+    mime: zod_1.z.string().nullable(),
+    sizeBytes: zod_1.z.number().int().nullable(),
+    url: zod_1.z.string().nullable(),
+    /** When a field verifier recorded that they had read this document. */
+    checkedAt: zod_1.z.string().nullable(),
+    checkedByName: zod_1.z.string().nullable(),
+});
+/**
+ * Every document on one registration, for the officer deciding its gate.
+ *
+ * `uncheckedCount` is what the field verification gate refuses on, so a console
+ * can say how many are left instead of only reporting the refusal.
+ */
+exports.OversightDocumentList = zod_1.z.object({
+    orgId: primitives_1.Uuid,
+    legalName: zod_1.z.string(),
+    status: primitives_1.OrgRegistrationStatus,
+    documents: zod_1.z.array(exports.OversightDocument),
+    uncheckedCount: zod_1.z.number().int(),
+});
+/**
  * One business waiting on this officer.
  *
  * Carries the district so a console can group by it, and `waitingSince` so the
@@ -831,6 +903,17 @@ exports.OversightQueueItem = zod_1.z.object({
         districtName: zod_1.z.string().nullable(),
         isHeadOffice: zod_1.z.boolean(),
     })),
+    /**
+     * How many documents this registration carries, and how many no officer has
+     * read yet (F-S03 §5).
+     *
+     * On the ROW, not only in the file, because the console flags a document gap
+     * in the list. It used to flag one whenever fewer than two documents were
+     * present in a field the wire never filled, so every business was labelled
+     * "Missing documents" — a warning that is on every row is not a warning.
+     */
+    documentCount: zod_1.z.number().int(),
+    uncheckedDocumentCount: zod_1.z.number().int(),
     /**
      * What the registrant declared, sent so the queue stops flagging every
      * hotel "No tourism license" and every file "Missing documents" for want
@@ -1194,5 +1277,8 @@ exports.CERTIFICATE_KIND_LABEL = {
     fire_safety: "Fire safety certificate",
     health_inspection: "Health inspection certificate",
     other: "Another document",
+    rdb_certificate: "RDB certificate",
+    psf_certificate: "PSF certificate",
+    land_title: "Land title",
 };
 //# sourceMappingURL=registration.js.map

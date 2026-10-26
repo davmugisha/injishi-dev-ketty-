@@ -119,7 +119,7 @@ export const SERVICE_KIND_ORDER: ServiceKind[] = [
   "parking",
 ];
 
-export const SERVICE_LISTINGS: ServiceListing[] = [
+const SERVICE_LISTINGS: ServiceListing[] = [
   // ---------------------------------------------------------------- pools
   {
     slug: "swimming-pool",
@@ -537,9 +537,4 @@ export function servicesForProperty(propertySlug: string): ServiceListing[] {
 /** Every service of one kind, in declaration order. */
 export function servicesOfKind(kind: ServiceKind): ServiceListing[] {
   return SERVICE_LISTINGS.filter((service) => service.kind === kind);
-}
-
-/** Every slug, for `generateStaticParams` on the detail route. */
-export function serviceStaticParams(): { slug: string }[] {
-  return SERVICE_LISTINGS.map((service) => ({ slug: service.slug }));
 }

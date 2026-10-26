@@ -4,7 +4,7 @@
  * The prototype repeated these links as literal markup in the header, the
  * mobile drawer, and the footer of all eleven pages. They live here once.
  */
-export interface NavLink {
+interface NavLink {
   label: string;
   href: string;
 }
@@ -20,7 +20,7 @@ export interface NavGroup {
  * `/services` is the amenities index (pool passes, halls, marquees), not the
  * old marketing pillars: those live at `/how-it-works`, which is what every
  * "How it works" label below points at. `/services` replaced `/support`, which is not orphaned — it is in
- * `FOOTER_LINKS` and in `MOBILE_NAV_GROUPS` under "COMPANY". Help is a thing
+ * `FOOTER_COLUMNS` under "Company". Help is a thing
  * you go looking for; the bar's three slots name things you come here to do.
  *
  * **`/saved` IS GATED, and this is the one link here that is.** It is in
@@ -36,7 +36,11 @@ export interface NavGroup {
 export const PRIMARY_NAV: NavLink[] = [
   { label: "Explore", href: "/explore" },
   { label: "Saved", href: "/saved" },
-  { label: "Services", href: "/services" },
+  // Was "Services". `/services` is a fixture of fictional hotels with invented
+  // prices (`data/service-listings.ts`) and answers only on a sample database
+  // now, so production's header cannot point at it. How it works is the page a
+  // first visitor to an unfamiliar marketplace actually needs.
+  { label: "How it works", href: "/how-it-works" },
 ];
 
 /**
@@ -47,7 +51,7 @@ export const PRIMARY_NAV: NavLink[] = [
  * not exist, so the column now offers the kinds and lets Explore list whatever
  * the database holds.
  */
-export const BROWSE_STAYS: NavLink[] = [
+const BROWSE_STAYS: NavLink[] = [
   { label: "Hotels", href: "/explore?stay=hotels" },
   { label: "Homes and apartments", href: "/explore?stay=homes" },
   { label: "Lodges", href: "/explore?kind=lodge" },
@@ -55,37 +59,18 @@ export const BROWSE_STAYS: NavLink[] = [
   { label: "All stays", href: "/explore" },
 ];
 
-export const POPULAR_DISTRICTS: NavLink[] = [
-  { label: "Gasabo, Kigali", href: "/explore?district=kigali&sector=gasabo" },
-  { label: "Kicukiro, Kigali", href: "/explore?district=kigali&sector=kicukiro" },
-  { label: "Musanze", href: "/explore?district=musanze" },
-  { label: "Rubavu", href: "/explore?district=rubavu" },
-  { label: "Huye", href: "/explore?district=huye" },
-];
-
-export const PRODUCT_AND_COMPANY: NavLink[] = [
-  { label: "About", href: "/about" },
-  { label: "For hosts", href: "/host" },
-  { label: "How it works", href: "/how-it-works" },
-  { label: "Blog", href: "/guides" },
-];
-
-/** Footer columns, left to right. */
-export const FOOTER_GROUPS: NavGroup[] = [
-  { title: "BROWSE STAYS", links: BROWSE_STAYS },
-  { title: "POPULAR DISTRICTS", links: POPULAR_DISTRICTS },
-  { title: "PRODUCT & COMPANY", links: PRODUCT_AND_COMPANY },
-];
-
 /** The mobile drawer's two-column section grid. */
 export const MOBILE_NAV_GROUPS: NavGroup[] = [
   { title: "BROWSE STAYS", links: BROWSE_STAYS },
   {
     title: "EXPLORE DISTRICTS",
+    // The destination pages, not Explore filters: a page of its own says what
+    // the district is and still lists its stays (`/stays/<district>`).
     links: [
-      { label: "Kigali", href: "/explore?district=kigali" },
-      { label: "Musanze", href: "/explore?district=musanze" },
-      { label: "Rubavu", href: "/explore?district=rubavu" },
+      { label: "Kigali", href: "/stays/kigali" },
+      { label: "Musanze", href: "/stays/musanze" },
+      { label: "Rubavu", href: "/stays/rubavu" },
+      { label: "All districts", href: "/stays" },
     ],
   },
   {
@@ -99,15 +84,10 @@ export const MOBILE_NAV_GROUPS: NavGroup[] = [
     links: [
       { label: "For hosts", href: "/host" },
       { label: "About", href: "/about" },
-      { label: "FAQ", href: "/support" },
+      // `/support` has no questions on it; the FAQ is on How it works.
+      { label: "FAQ", href: "/how-it-works#faq" },
     ],
   },
-];
-
-export const LEGAL_LINKS: NavLink[] = [
-  { label: "Privacy Policy", href: "/legal/privacy" },
-  { label: "Terms of Service", href: "/legal/terms" },
-  { label: "Cookie Policy", href: "/legal/cookies" },
 ];
 
 export const SOCIAL_LINKS = [
@@ -131,40 +111,11 @@ export const SOCIAL_LINKS = [
     href: "https://linkedin.com/company/injishi",
     label: "Visit our linkedin page",
   },
-  {
-    network: "youtube",
-    href: "https://youtube.com/@injishi",
-    label: "Visit our youtube page",
-  },
+  // YouTube is gone: youtube.com/@injishi answered 404 on 2026-10-21, so the
+  // icon sent people to a page that does not exist. The four above answered
+  // 200, which proves only that the network serves something at that address,
+  // not that Injishi owns the account; the owner confirms each one.
 ] as const;
-
-/**
- * The footer's single link row, left to right.
- *
- * The footer used to carry three open columns, a help panel and two contact
- * rows. It is one centered row now, so the set is picked rather than derived:
- * the four pages a reader is most likely to want next, the three social
- * accounts, then the company and legal pages. The order is deliberate and
- * groups without printing group headings.
- *
- * Every href is a route that exists under `(marketplace)/(site)` or an
- * account in `SOCIAL_LINKS`. `FOOTER_GROUPS` above is what the old columns
- * read and is kept for the mobile drawer's sibling shape.
- */
-export const FOOTER_LINKS: NavLink[] = [
-  { label: "Explore", href: "/explore" },
-  { label: "Guides", href: "/guides" },
-  { label: "How it works", href: "/how-it-works" },
-  { label: "Hosting", href: "/host" },
-  { label: "Instagram", href: "https://instagram.com/injishi" },
-  { label: "X", href: "https://twitter.com/injishi" },
-  { label: "LinkedIn", href: "https://linkedin.com/company/injishi" },
-  { label: "About", href: "/about" },
-  { label: "Support", href: "/support" },
-  { label: "Terms", href: "/legal/terms" },
-  { label: "Privacy", href: "/legal/privacy" },
-  { label: "Cookies", href: "/legal/cookies" },
-];
 
 export const CONTACT = {
   phone: "+250 784 530 000",
@@ -229,9 +180,8 @@ export function headerVariantFor(pathname: string): "dark" | "white" {
 /**
  * The footer's three link columns, left to right.
  *
- * `FOOTER_LINKS` above is the flat row the previous footer rendered and is kept
- * because the mobile drawer reads the same shape. This is the grouped form the
- * banded footer needs: a heading plus its links, one column each.
+ * This is the grouped form the banded footer needs: a heading plus its links,
+ * one column each.
  *
  * The grouping is a build-time assumption, not a product decision — ADR-023
  * records it and owes ratification. Every href is a route that exists under
@@ -244,6 +194,7 @@ export const FOOTER_COLUMNS: NavGroup[] = [
     title: "Explore",
     links: [
       { label: "All stays", href: "/explore" },
+      { label: "Where to stay", href: "/stays" },
       { label: "Guides", href: "/guides" },
       { label: "How it works", href: "/how-it-works" },
     ],

@@ -163,7 +163,7 @@ export type OtpFailure =
   | "incomplete";
 
 /** The shape both transports see on a refusal, whatever made it. */
-export interface OtpError {
+interface OtpError {
   code?: unknown;
   status?: unknown;
 }

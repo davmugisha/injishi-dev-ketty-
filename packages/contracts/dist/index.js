@@ -46,7 +46,6 @@ __exportStar(require("./ebm-connection"), exports);
 __exportStar(require("./admin"), exports);
 __exportStar(require("./support"), exports);
 __exportStar(require("./assistant"), exports);
-__exportStar(require("./waitlist"), exports);
 __exportStar(require("./platform"), exports);
 __exportStar(require("./training"), exports);
 __exportStar(require("./psf"), exports);
@@ -62,6 +61,17 @@ __exportStar(require("./payroll"), exports);
 __exportStar(require("./checklists"), exports);
 __exportStar(require("./shift-templates"), exports);
 __exportStar(require("./list-query"), exports);
+__exportStar(require("./owner"), exports);
 __exportStar(require("./hr-lists"), exports);
+__exportStar(require("./hr-workforce"), exports);
 __exportStar(require("./redaction"), exports);
+__exportStar(require("./housekeeping-board"), exports);
+__exportStar(require("./maintenance"), exports);
+__exportStar(require("./lost-found"), exports);
+// The front desk's day in one read, and the no-show command (interface real-data, frontdesk leaf).
+__exportStar(require("./front-desk"), exports);
+__exportStar(require("./marketplace"), exports);
+// The residence screens of the new interface (real-data 1.3.1).
+__exportStar(require("./interface-residence"), exports);
+__exportStar(require("./staff-phone"), exports);
 //# sourceMappingURL=index.js.map

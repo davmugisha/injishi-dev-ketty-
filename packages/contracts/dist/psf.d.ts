@@ -393,20 +393,20 @@ export declare const PsfSubsector: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     active: boolean;
     districtId: number | null;
+    id: string;
     districtName: string | null;
     nameEn: string;
     sortOrder: number;
     clusterCode: string;
-    id: string;
     associationCodes: string[];
 }, {
     active: boolean;
     districtId: number | null;
+    id: string;
     districtName: string | null;
     nameEn: string;
     sortOrder: number;
     clusterCode: string;
-    id: string;
     associationCodes: string[];
 }>;
 export type PsfSubsector = z.infer<typeof PsfSubsector>;
@@ -453,20 +453,20 @@ export declare const PsfCluster: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         active: boolean;
         districtId: number | null;
+        id: string;
         districtName: string | null;
         nameEn: string;
         sortOrder: number;
         clusterCode: string;
-        id: string;
         associationCodes: string[];
     }, {
         active: boolean;
         districtId: number | null;
+        id: string;
         districtName: string | null;
         nameEn: string;
         sortOrder: number;
         clusterCode: string;
-        id: string;
         associationCodes: string[];
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
@@ -487,11 +487,11 @@ export declare const PsfCluster: z.ZodObject<{
     subsectors: {
         active: boolean;
         districtId: number | null;
+        id: string;
         districtName: string | null;
         nameEn: string;
         sortOrder: number;
         clusterCode: string;
-        id: string;
         associationCodes: string[];
     }[];
 }, {
@@ -512,11 +512,11 @@ export declare const PsfCluster: z.ZodObject<{
     subsectors?: {
         active: boolean;
         districtId: number | null;
+        id: string;
         districtName: string | null;
         nameEn: string;
         sortOrder: number;
         clusterCode: string;
-        id: string;
         associationCodes: string[];
     }[] | undefined;
 }>;
@@ -566,20 +566,20 @@ export declare const PsfCatalogue: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             active: boolean;
             districtId: number | null;
+            id: string;
             districtName: string | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
-            id: string;
             associationCodes: string[];
         }, {
             active: boolean;
             districtId: number | null;
+            id: string;
             districtName: string | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
-            id: string;
             associationCodes: string[];
         }>, "many">>;
     }, "strip", z.ZodTypeAny, {
@@ -600,11 +600,11 @@ export declare const PsfCatalogue: z.ZodObject<{
         subsectors: {
             active: boolean;
             districtId: number | null;
+            id: string;
             districtName: string | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
-            id: string;
             associationCodes: string[];
         }[];
     }, {
@@ -625,11 +625,11 @@ export declare const PsfCatalogue: z.ZodObject<{
         subsectors?: {
             active: boolean;
             districtId: number | null;
+            id: string;
             districtName: string | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
-            id: string;
             associationCodes: string[];
         }[] | undefined;
     }>, "many">;
@@ -652,11 +652,11 @@ export declare const PsfCatalogue: z.ZodObject<{
         subsectors: {
             active: boolean;
             districtId: number | null;
+            id: string;
             districtName: string | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
-            id: string;
             associationCodes: string[];
         }[];
     }[];
@@ -679,11 +679,11 @@ export declare const PsfCatalogue: z.ZodObject<{
         subsectors?: {
             active: boolean;
             districtId: number | null;
+            id: string;
             districtName: string | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
-            id: string;
             associationCodes: string[];
         }[] | undefined;
     }[];
@@ -801,8 +801,8 @@ export declare const PsfMembership: z.ZodObject<{
     endedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     expiresOn: string | null;
-    annualFeeRwf: number | null;
     id: string;
+    annualFeeRwf: number | null;
     source: "psf_confirmed" | "self_declared";
     tierCode: string | null;
     tierName: string | null;
@@ -811,8 +811,8 @@ export declare const PsfMembership: z.ZodObject<{
     endedAt: string | null;
 }, {
     expiresOn: string | null;
-    annualFeeRwf: number | null;
     id: string;
+    annualFeeRwf: number | null;
     source: "psf_confirmed" | "self_declared";
     tierCode: string | null;
     tierName: string | null;
@@ -1027,8 +1027,8 @@ export declare const PsfApplication: z.ZodObject<{
     requestedTierCode: string;
     declaredFeeRwf: number | null;
     decidedAt: string | null;
-    submittedAt: string;
     id: string;
+    submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
     quotedFeeRwf: number | null;
@@ -1076,8 +1076,8 @@ export declare const PsfApplication: z.ZodObject<{
     requestedTierCode: string;
     declaredFeeRwf: number | null;
     decidedAt: string | null;
-    submittedAt: string;
     id: string;
+    submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
     quotedFeeRwf: number | null;
@@ -1271,8 +1271,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         endedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -1281,8 +1281,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         endedAt: string | null;
     }, {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -1408,8 +1408,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         declaredFeeRwf: number | null;
         stage: "waiting_tin_check" | "with_psf" | "awaiting_payment";
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1458,8 +1458,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         declaredFeeRwf: number | null;
         stage: "waiting_tin_check" | "with_psf" | "awaiting_payment";
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1619,8 +1619,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1668,8 +1668,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1790,8 +1790,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
     };
     current: {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -1805,8 +1805,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         declaredFeeRwf: number | null;
         stage: "waiting_tin_check" | "with_psf" | "awaiting_payment";
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1855,8 +1855,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -1937,8 +1937,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
     };
     current: {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -1952,8 +1952,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         declaredFeeRwf: number | null;
         stage: "waiting_tin_check" | "with_psf" | "awaiting_payment";
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -2002,8 +2002,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -2191,8 +2191,8 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
     requestedTierCode: string;
     declaredFeeRwf: number | null;
     decidedAt: string | null;
-    submittedAt: string;
     id: string;
+    submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
     quotedFeeRwf: number | null;
@@ -2217,8 +2217,8 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
     requestedTierCode: string;
     declaredFeeRwf: number | null;
     decidedAt: string | null;
-    submittedAt: string;
     id: string;
+    submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
     quotedFeeRwf: number | null;
@@ -2254,8 +2254,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         endedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -2264,8 +2264,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         endedAt: string | null;
     }, {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -2388,8 +2388,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -2414,8 +2414,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -2439,8 +2439,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     membership: {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -2453,8 +2453,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -2478,8 +2478,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
 }, {
     membership: {
         expiresOn: string | null;
-        annualFeeRwf: number | null;
         id: string;
+        annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
         tierName: string | null;
@@ -2492,8 +2492,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        submittedAt: string;
         id: string;
+        submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
         quotedFeeRwf: number | null;
@@ -2715,9 +2715,9 @@ export declare const PsfApplicationBranch: z.ZodObject<{
     districtId: number;
     street: string;
     decidedAt: string | null;
+    id: string;
     districtName: string | null;
     sectorName: string | null;
-    id: string;
     note: string | null;
     canDecide: boolean;
 }, {
@@ -2725,9 +2725,9 @@ export declare const PsfApplicationBranch: z.ZodObject<{
     districtId: number;
     street: string;
     decidedAt: string | null;
+    id: string;
     districtName: string | null;
     sectorName: string | null;
-    id: string;
     note: string | null;
     canDecide: boolean;
 }>;
@@ -3169,9 +3169,9 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         districtId: number;
         street: string;
         decidedAt: string | null;
+        id: string;
         districtName: string | null;
         sectorName: string | null;
-        id: string;
         note: string | null;
         canDecide: boolean;
     }, {
@@ -3179,9 +3179,9 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         districtId: number;
         street: string;
         decidedAt: string | null;
+        id: string;
         districtName: string | null;
         sectorName: string | null;
-        id: string;
         note: string | null;
         canDecide: boolean;
     }>, "many">>;
@@ -3196,18 +3196,18 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         districtId: number;
         street: string;
         decidedAt: string | null;
+        id: string;
         districtName: string | null;
         sectorName: string | null;
-        id: string;
         note: string | null;
         canDecide: boolean;
     }[];
     decidedAt: string | null;
+    id: string;
     orgId: string;
     districtName: string | null;
     submittedAt: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    id: string;
     requestedTierName: string;
     quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
     quotedFeeRwf: number | null;
@@ -3273,11 +3273,11 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     requestedTierCode: string;
     declaredFeeRwf: number | null;
     decidedAt: string | null;
+    id: string;
     orgId: string;
     districtName: string | null;
     submittedAt: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    id: string;
     requestedTierName: string;
     quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
     quotedFeeRwf: number | null;
@@ -3340,9 +3340,9 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         districtId: number;
         street: string;
         decidedAt: string | null;
+        id: string;
         districtName: string | null;
         sectorName: string | null;
-        id: string;
         note: string | null;
         canDecide: boolean;
     }[] | undefined;
@@ -3555,9 +3555,9 @@ export declare const PsfBusinessBranch: z.ZodObject<{
     status: "pending" | "declined" | "admitted";
     districtId: number;
     street: string;
+    id: string;
     districtName: string | null;
     sectorName: string | null;
-    id: string;
     note: string | null;
     provinceName: string | null;
     inScope: boolean;
@@ -3565,9 +3565,9 @@ export declare const PsfBusinessBranch: z.ZodObject<{
     status: "pending" | "declined" | "admitted";
     districtId: number;
     street: string;
+    id: string;
     districtName: string | null;
     sectorName: string | null;
-    id: string;
     note: string | null;
     provinceName: string | null;
     inScope: boolean;
@@ -3907,21 +3907,21 @@ export declare const PsfSubsectorsView: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             active: boolean;
             districtId: number | null;
+            id: string;
             districtName: string | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
-            id: string;
             associationCodes: string[];
             canEdit: boolean;
         }, {
             active: boolean;
             districtId: number | null;
+            id: string;
             districtName: string | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
-            id: string;
             associationCodes: string[];
             canEdit: boolean;
         }>, "many">;
@@ -3931,11 +3931,11 @@ export declare const PsfSubsectorsView: z.ZodObject<{
         subsectors: {
             active: boolean;
             districtId: number | null;
+            id: string;
             districtName: string | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
-            id: string;
             associationCodes: string[];
             canEdit: boolean;
         }[];
@@ -3945,11 +3945,11 @@ export declare const PsfSubsectorsView: z.ZodObject<{
         subsectors: {
             active: boolean;
             districtId: number | null;
+            id: string;
             districtName: string | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
-            id: string;
             associationCodes: string[];
             canEdit: boolean;
         }[];
@@ -3990,11 +3990,11 @@ export declare const PsfSubsectorsView: z.ZodObject<{
         subsectors: {
             active: boolean;
             districtId: number | null;
+            id: string;
             districtName: string | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
-            id: string;
             associationCodes: string[];
             canEdit: boolean;
         }[];
@@ -4015,11 +4015,11 @@ export declare const PsfSubsectorsView: z.ZodObject<{
         subsectors: {
             active: boolean;
             districtId: number | null;
+            id: string;
             districtName: string | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
-            id: string;
             associationCodes: string[];
             canEdit: boolean;
         }[];

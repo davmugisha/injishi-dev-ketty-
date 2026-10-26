@@ -19,6 +19,7 @@ import {
   primaryKey,
   smallint,
   text,
+  time,
   timestamp,
   unique,
   uniqueIndex,
@@ -27,6 +28,7 @@ import {
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
 import { bookingModeEnum, bookingStatusEnum, cancellationTierEnum, checkInModeEnum, claimStatusEnum, collectionVisibilityEnum, declineReasonEnum, documentTypeEnum, paymentStatusEnum, reviewSideEnum, stayLifecycleEnum, storedObjectKindEnum } from './enums';
+import { bookingChannelEnum } from './interface-frontdesk';
 import { properties, ratePlans, roomTypes, rooms } from './inventory';
 import { workspaces } from './org';
 
@@ -103,10 +105,48 @@ export const bookings = pgTable(
     cancelledBy: text('cancelled_by'),
     /** What went back to the guest; the rest of `gross_rwf` stays with the host. */
     refundRwf: amount('refund_rwf'),
+    /**
+     * The front desk's working columns (interface real-data, frontdesk leaf).
+     * Each is one fact about this reservation that the desk reads on every
+     * queue and had nowhere to keep. All nullable: a booking made before them
+     * simply has not said.
+     *
+     * Where it came from. Null reads as the marketplace, which is how every
+     * earlier booking was made.
+     */
+    channel: bookingChannelEnum('channel'),
+    /** The split of `guest_count`, when the booking recorded it. */
+    adults: smallint('adults'),
+    children: smallint('children'),
+    /** When the guest expects to arrive, on the Kigali wall clock. */
+    eta: time('eta'),
+    /** What the desk wrote on the reservation: a request, a promise, a warning. */
+    deskNote: text('desk_note'),
+    /**
+     * A no-show, as the desk recorded it (`POST /ops/reservations/:id/no-show`).
+     * Written once, with the status, by the command that moves the money.
+     */
+    noShowAt: timestamp('no_show_at', { withTimezone: true }),
+    noShowByUserId: uuid('no_show_by_user_id').references(() => users.id),
+    noShowReason: text('no_show_reason'),
+    /**
+     * Why the desk cancelled, in the desk's words, when it cancelled at the
+     * guest's request (`POST /ops/reservations/:id/cancel`). The refund is not
+     * here: `refund_rwf` and `cancelled_by` already say what was decided.
+     */
+    cancelReason: text('cancel_reason'),
     ...timestamps,
   },
   (t) => [
     unique('bookings_reference_uk').on(t.reference),
+    // A recorded no-show is a no-show: the stamp never sits on a live booking.
+    check('bookings_no_show_shape', sql`${t.noShowAt} IS NULL OR ${t.status} = 'no_show'`),
+    // The split, when given, adds up to the party the booking was priced for.
+    check(
+      'bookings_party_split',
+      sql`(${t.adults} IS NULL OR (${t.adults} > 0 AND ${t.adults} + coalesce(${t.children}, 0) = ${t.guestCount}))
+          AND (${t.children} IS NULL OR ${t.children} >= 0)`,
+    ),
     // A recorded cancellation is whole: cancelled, by a party, with its refund.
     // One direction only, because rows cancelled before this column existed
     // (seeds, fixtures) carry no record and inventing one would be worse.
@@ -233,9 +273,25 @@ export const guestStays = pgTable(
     claimCode: text('claim_code'),
     claimStatus: claimStatusEnum('claim_status').notNull().default('unclaimed'),
     claimedByUserId: uuid('claimed_by_user_id').references(() => users.id),
+    /**
+     * The stay's human handle, `ST-` and six characters, minted when the stay
+     * opens (interface real-data, frontdesk leaf). The desk quotes it on the
+     * phone and in a handover the way it quotes a booking reference; a uuid is
+     * not something anybody reads aloud. Null on a stay opened before it existed.
+     */
+    reference: text('reference'),
+    /**
+     * The desk's running note on a guest in house ("extra bed in room", "pays at
+     * checkout"). Unlike `departure_note`, which the close writes once, this is
+     * the note the desk keeps while the guest is here.
+     */
+    deskNote: text('desk_note'),
     ...timestamps,
   },
   (t) => [
+    uniqueIndex('guest_stays_reference_uk')
+      .on(t.reference)
+      .where(sql`${t.reference} IS NOT NULL`),
     uniqueIndex('guest_stays_claim_code_uk')
       .on(t.claimCode)
       .where(sql`${t.claimCode} IS NOT NULL`),
@@ -417,12 +473,23 @@ export const collections = pgTable(
 export const collectionItems = pgTable(
   'collection_items',
   {
+    /**
+     * A row id beside the composite key, so a seed can name the rows it wrote
+     * (the interface seed converges every table on ids). The key is unchanged.
+     */
+    id: uuid('id').notNull().defaultRandom().unique(),
     collectionId: uuid('collection_id')
       .notNull()
       .references(() => collections.id, { onDelete: 'cascade' }),
     propertyId: uuid('property_id')
       .notNull()
       .references(() => properties.id, { onDelete: 'cascade' }),
+    /**
+     * The nightly rate (or monthly rent) when it was saved, whole francs, so the
+     * list can say the price moved. Null for a save made before the column, or a
+     * property that had no price.
+     */
+    savedPriceRwf: bigint('saved_price_rwf', { mode: 'number' }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

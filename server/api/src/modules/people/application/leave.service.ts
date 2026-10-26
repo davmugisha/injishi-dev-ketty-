@@ -961,6 +961,8 @@ export function presentType(row: LeaveTypeRow): LeaveType {
     seniorityEveryYears: row.seniorityEveryYears,
     seniorityExtraDays: row.seniorityExtraDays,
     seniorityCapDays: row.seniorityCapDays,
+    verifiedAt: row.verifiedAt ? row.verifiedAt.toISOString() : null,
+    verifiedByName: row.verifiedAt ? (row.verifiedByName ?? null) : null,
   };
 }
 

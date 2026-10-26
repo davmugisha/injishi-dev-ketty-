@@ -2,8 +2,9 @@
 // (ADR-035, D-f wave 1).
 //
 // The third verify script, and it asks the third question. `verify-authz.mjs`
-// checks the MODEL against rows. `verify-role-nav.mjs` checks that each role
-// gets its own set of DOORS. This one checks that what is behind those doors
+// checks the MODEL against rows. A role-nav script once checked that each role
+// got its own set of DOORS; it went with the old operator app it read. This one
+// checks that what is behind those doors
 // actually opens: every read a wave 1 screen makes, signed in as a real person,
 // against a real database.
 //

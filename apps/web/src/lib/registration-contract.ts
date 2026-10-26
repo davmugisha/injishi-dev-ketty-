@@ -71,7 +71,7 @@ export interface RegistrationContractInput {
   contractVersion: string;
 }
 
-export interface ContractClause {
+interface ContractClause {
   number: number;
   heading: string;
   body: string[];

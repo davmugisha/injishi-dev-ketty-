@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { eq, like } from 'drizzle-orm';
 
-import { storedObjects } from '../../../database/drizzle/schema';
+import { orgCertificates, storedObjects } from '../../../database/drizzle/schema';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import {
   ATTACHMENT_MIME_TYPES,
@@ -578,10 +578,36 @@ export class StorageService {
 
     if (!row || row.uploadedByUserId !== userId || row.legalHold) return false;
 
-    await this.storage.remove(objectKey);
+    /*
+     * ATTACHED means submitted, and submitted means evidence.
+     *
+     * This used to check the uploader and the legal hold flag and nothing else,
+     * so the registrant could delete a certificate that a field verifier was on
+     * their way to read. It was worse than it looks: the bytes went FIRST, and
+     * the row delete then hit `org_certificates.object_key`'s foreign key and
+     * failed, which left a certificate row pointing at bytes that no longer
+     * existed and answered the caller with a 500. Nothing sets `legal_hold`
+     * today, so it stopped nobody.
+     */
+    const [attached] = await this.db
+      .select({ id: orgCertificates.id })
+      .from(orgCertificates)
+      .where(eq(orgCertificates.objectKey, objectKey))
+      .limit(1);
+    if (attached) return false;
+
+    /*
+     * The row goes first, and the bytes after.
+     *
+     * The other order loses the file whenever the delete is refused, and a
+     * missing object with a row still pointing at it is unrecoverable. This
+     * order can leave bytes with no row — orphaned storage, sweepable, and not
+     * a document anybody was relying on.
+     */
     await this.db
       .delete(storedObjects)
       .where(eq(storedObjects.objectKey, objectKey));
+    await this.storage.remove(objectKey);
     return true;
   }
 }

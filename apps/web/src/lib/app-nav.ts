@@ -37,7 +37,7 @@ export interface NavItem {
   count?: number;
 }
 
-export interface NavSection {
+interface NavSection {
   label: string;
   items: NavItem[];
 }
@@ -75,11 +75,6 @@ export const NAV: NavSection[] = [
     ],
   },
 ];
-
-/** Every route the shell owns, for the gate and for the guard alike. */
-export const APP_PREFIXES: readonly string[] = NAV.flatMap((section) =>
-  section.items.map((item) => item.href),
-);
 
 /** The one action worth a dedicated button above the nav. */
 export const PRIMARY_CTA = {

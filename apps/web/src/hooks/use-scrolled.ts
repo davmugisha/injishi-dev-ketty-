@@ -13,10 +13,19 @@ export function useScrolled(threshold = 24): boolean {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > threshold);
+    const onScroll = () => {
+      const top = Math.max(
+        window.scrollY,
+        document.documentElement.scrollTop,
+        document.body.scrollTop,
+      );
+      setScrolled(top > threshold);
+    };
     onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    // Capture so a nested scroller (a page that clips overflow) still settles
+    // the bar. Scroll does not bubble.
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    return () => window.removeEventListener("scroll", onScroll, { capture: true });
   }, [threshold]);
 
   return scrolled;

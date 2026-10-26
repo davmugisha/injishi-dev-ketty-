@@ -14,7 +14,6 @@ function setup(): { tools: ToolSet; proposals: FakeProposals; roomTypes: FakeRoo
 
 const owner: ToolCaller = {
   userId: USER,
-  catalogueOpen: true,
   workspace: scoped(['listing.manage']),
   requestText: 'change the Double room price from 60,000 to 70,000',
 };

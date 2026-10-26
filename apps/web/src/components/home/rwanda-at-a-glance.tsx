@@ -38,8 +38,9 @@ import {
 import type { Listing } from "@/data/listings";
 import { ACCOMMODATION_CLASS_LABEL } from "@injishi/contracts";
 import { formatRateNumber, shortBasis } from "@/lib/price";
+import { LIST_HREF, OPENING_LINE, stayCount } from "@/lib/stay-count";
 
-export interface GlancePlace {
+interface GlancePlace {
   place: DistrictPlace;
   count: number;
   href: string;
@@ -82,6 +83,10 @@ const TAG_ICON: Readonly<Record<TagIcon, LucideIcon>> = {
  * beside it shows the place — photograph, province, what it is best for —
  * and its top stays, each a link. The travel facts (drive times, "best for")
  * are editorial (`data/journeys.ts`); the counts and stays are live.
+ *
+ * A district with nothing listed prints no "0" (`lib/stay-count.ts`): its
+ * card says hosts are joining and its button asks an owner there to list,
+ * which is the one useful thing an empty district can do on this page.
  */
 export function RwandaAtAGlance({ places }: { places: GlancePlace[] }) {
   const busiest = places.reduce<GlancePlace | undefined>(
@@ -107,7 +112,9 @@ export function RwandaAtAGlance({ places }: { places: GlancePlace[] }) {
               Rwanda <span className="font-bold">at a glance</span>
             </h2>
             <p className="text-sm text-muted-foreground">
-              Explore {total} stays across Rwanda · Drive times from Kigali
+              {total > 0
+                ? `Explore ${stayCount(total)} across Rwanda · Drive times from Kigali`
+                : "Drive times from Kigali · Stays opening district by district"}
             </p>
           </div>
         </div>
@@ -135,9 +142,11 @@ export function RwandaAtAGlance({ places }: { places: GlancePlace[] }) {
               >
                 {on ? <Check className="size-4" strokeWidth={2.6} aria-hidden /> : null}
                 {place.name}
-                <span className={cn("ml-1 text-xs font-medium", on ? "opacity-80" : "text-muted-foreground")}>
-                  {count}
-                </span>
+                {count > 0 ? (
+                  <span className={cn("ml-1 text-xs font-medium", on ? "opacity-80" : "text-muted-foreground")}>
+                    {count}
+                  </span>
+                ) : null}
               </button>
             );
           })}
@@ -191,7 +200,7 @@ export function RwandaAtAGlance({ places }: { places: GlancePlace[] }) {
             </span>
             <span className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 text-xs font-bold text-foreground shadow-control">
               <House className="size-3.5 text-accent-text" strokeWidth={2.4} aria-hidden />
-              {focused.count} {focused.count === 1 ? "stay" : "stays"}
+              {stayCount(focused.count) ?? OPENING_LINE}
             </span>
           </div>
 
@@ -235,11 +244,21 @@ export function RwandaAtAGlance({ places }: { places: GlancePlace[] }) {
               </span>
               <span className="flex items-center gap-1.5">
                 <House className="size-4" aria-hidden />
-                {focused.count} {focused.count === 1 ? "stay" : "stays"}
+                {stayCount(focused.count) ?? OPENING_LINE}
               </span>
             </div>
 
-            <h4 className="text-lg font-bold text-foreground">Top stays in {focused.place.name}</h4>
+            <h4 className="text-lg font-bold text-foreground">
+              {focused.stays.length > 0 ? "Top stays in " : "Stays in "}
+              {focused.place.name}
+            </h4>
+
+            {focused.stays.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nothing is listed in {focused.place.name} yet. Hosts here are being verified, and
+                the first stays open as soon as they pass.
+              </p>
+            ) : null}
 
             <ul className="flex flex-col gap-2">
               {focused.stays.map((stay, index) => {
@@ -283,10 +302,12 @@ export function RwandaAtAGlance({ places }: { places: GlancePlace[] }) {
             </ul>
 
             <Link
-              href={focused.href}
+              href={focused.count > 0 ? focused.href : LIST_HREF}
               className="mt-auto inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3.5 text-sm font-semibold text-accent-foreground transition-opacity duration-quick hover:opacity-90"
             >
-              Explore all {focused.count} {focused.count === 1 ? "stay" : "stays"}
+              {focused.count > 0
+                ? `Explore all ${stayCount(focused.count)}`
+                : `Own a place in ${focused.place.name}? List it`}
               <ArrowRight className="size-4" aria-hidden />
             </Link>
           </div>

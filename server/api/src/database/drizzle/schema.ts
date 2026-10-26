@@ -45,6 +45,10 @@ export * from './psf-catalogue';
 export * from './org';
 export * from './inventory';
 export * from './hospitality';
+// The front desk's booking channel enum (interface real-data, frontdesk leaf).
+export * from './interface-frontdesk';
+// Desk reply templates per business (interface real-data, frontdesk leaf, stays area).
+export * from './interface-stays';
 export * from './residence';
 export * from './messaging';
 export * from './money';
@@ -54,7 +58,6 @@ export * from './operations';
 // Last: it is a leaf over hospitality, inventory, operations and org.
 export * from './guest-relations';
 export * from './platform';
-export * from './waitlist';
 export * from './training';
 export * from './psf';
 // A leaf over operations, inventory and org: nothing imports it back.
@@ -67,3 +70,17 @@ export * from './people-checklists';
 // The list framework (ADR-058 slice 2): saved views and the export log.
 export * from './lists';
 export * from './assistant';
+// The new interface's operations floor (real-data 1.2.3): room blocks and history, housekeeping
+// rules, allocations and escalations, assets, parts, condition signals, lost and found.
+export * from './interface-operations';
+// The new interface's HR screens (real-data, people): teams, minimum cover, checklists, dependants.
+export * from './interface-people';
+// The new interface's marketplace and guest account (real-data 1.3.2): marketplace cards for
+// properties and room types, and the append-only consent history.
+export * from './interface-market';
+// The new interface's residence (real-data 1.3.1): blocks, units, rent payments and reminders, gate
+// codes, lease clauses, applications.
+export * from './interface-residence';
+// The new interface's staff phone (real-data 1.3.3): checklists and their results, minibar counts,
+// time on a work order.
+export * from './interface-staff';

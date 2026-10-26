@@ -110,7 +110,10 @@ function cardToProperty(card: PropertyCard): PropertyDetail {
     propertyType: `${card.name.match(/guest\s*house|lodge|hotel|apartment|villa/i)?.[0] ?? "Stay"} in ${district}`,
     starClass: null,
     rooms: null,
-    bedrooms: 1,
+    // Unknown: `PropertyCard` carries no bedroom count. This was a literal 1, so
+    // every card on the site said "1 bedroom", hotels included, and the
+    // Explore rail offered a bedrooms filter every stay matched.
+    bedrooms: null,
     maxGuests: guests,
     capacity: [
       `${card.roomTypeCount} room type${card.roomTypeCount === 1 ? "" : "s"}`,

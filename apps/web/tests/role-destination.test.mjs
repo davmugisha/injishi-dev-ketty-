@@ -41,7 +41,11 @@ const ts = require("typescript");
 
 const ADMIN_URL = "https://admin-demo.injishi.test";
 const ADMIN = new URL("/", ADMIN_URL).toString();
-const OVERSIGHT = "/oversight";
+// Production's shape: the operator app answers on its own host, with its screens at the root.
+const WEB_URL = "https://www.injishi.test";
+const APP = "https://app.injishi.test";
+const OVERSIGHT = `${APP}/officer`;
+const ws = (id) => `${APP}/w/${id}`;
 
 /** `HOME` as the app defines it, read rather than restated. */
 const HOME = (() => {
@@ -147,34 +151,34 @@ const broker = (id) => ({ id, kind: "broker" });
 const PERSONAS = [
   // seed-users.mjs — one login per shape of access.
   { email: "admin@injishi.com", personal: true, staff: true, to: ADMIN },
-  { email: "host@injishi.com", personal: true, operator: [biz("w-hotel")], to: "/w/w-hotel" },
-  { email: "landlord@injishi.com", personal: true, operator: [biz("w-residence")], to: "/w/w-residence" },
-  { email: "manager@injishi.com", personal: true, operator: [biz("w-hotel")], to: "/w/w-hotel" },
-  { email: "reception@injishi.com", personal: true, operator: [biz("w-hotel")], to: "/w/w-hotel" },
-  { email: "housekeeper@injishi.com", personal: true, operator: [biz("w-hotel")], to: "/w/w-hotel" },
-  { email: "resident-manager@injishi.com", personal: true, operator: [biz("w-residence")], to: "/w/w-residence" },
-  { email: "broker@injishi.com", personal: true, operator: [broker("w-broker")], to: "/w/w-broker" },
+  { email: "host@injishi.com", personal: true, operator: [biz("w-hotel")], to: ws("w-hotel") },
+  { email: "landlord@injishi.com", personal: true, operator: [biz("w-residence")], to: ws("w-residence") },
+  { email: "manager@injishi.com", personal: true, operator: [biz("w-hotel")], to: ws("w-hotel") },
+  { email: "reception@injishi.com", personal: true, operator: [biz("w-hotel")], to: ws("w-hotel") },
+  { email: "housekeeper@injishi.com", personal: true, operator: [biz("w-hotel")], to: ws("w-hotel") },
+  { email: "resident-manager@injishi.com", personal: true, operator: [biz("w-residence")], to: ws("w-residence") },
+  { email: "broker@injishi.com", personal: true, operator: [broker("w-broker")], to: ws("w-broker") },
   { email: "guest@injishi.com", personal: true, to: HOME },
   { email: "localgov@injishi.com", personal: true, consoles: 1, to: OVERSIGHT },
   { email: "approver@injishi.com", personal: true, consoles: 1, to: OVERSIGHT },
   // Still at `submitted`: the workspace is listed so the registrant can watch
   // the pipeline, and the operator app words the refusal inside it.
-  { email: "pending@injishi.com", personal: true, operator: [biz("w-pending")], to: "/w/w-pending" },
+  { email: "pending@injishi.com", personal: true, operator: [biz("w-pending")], to: ws("w-pending") },
   // Both hats. The console is checked before the workspace, as it always was.
   { email: "dualhat@injishi.com", personal: true, operator: [biz("w-hotel")], consoles: 1, to: OVERSIGHT },
 
   // seed-demo.mjs — the public demo roster.
-  { email: "yves@demo.injishi.com", operator: [biz("w-amahoro")], to: "/w/w-amahoro" },
-  { email: "solange@demo.injishi.com", operator: [biz("w-amahoro")], to: "/w/w-amahoro" },
-  { email: "denise@demo.injishi.com", operator: [biz("w-amahoro")], to: "/w/w-amahoro" },
-  { email: "beatha@demo.injishi.com", operator: [biz("w-amahoro")], to: "/w/w-amahoro" },
-  { email: "josephine@demo.injishi.com", operator: [biz("w-greenhills")], to: "/w/w-greenhills" },
+  { email: "yves@demo.injishi.com", operator: [biz("w-amahoro")], to: ws("w-amahoro") },
+  { email: "solange@demo.injishi.com", operator: [biz("w-amahoro")], to: ws("w-amahoro") },
+  { email: "denise@demo.injishi.com", operator: [biz("w-amahoro")], to: ws("w-amahoro") },
+  { email: "beatha@demo.injishi.com", operator: [biz("w-amahoro")], to: ws("w-amahoro") },
+  { email: "josephine@demo.injishi.com", operator: [biz("w-greenhills")], to: ws("w-greenhills") },
   // Five seats: broker, two businesses he owns, one he cleans in, personal.
   {
     email: "samuel@demo.injishi.com",
     personal: true,
     operator: [broker("w-sam-broker"), biz("w-kayitare"), biz("w-kivu"), biz("w-umurage")],
-    to: "/w/w-sam-broker",
+    to: ws("w-sam-broker"),
   },
   { email: "jeanbosco@demo.injishi.com", consoles: 1, to: OVERSIGHT },
   { email: "claudine@demo.injishi.com", consoles: 1, to: OVERSIGHT },
@@ -186,10 +190,10 @@ const PERSONAS = [
   // Revoked assignment: the role is still on the account, the console is not.
   { email: "fidele@demo.injishi.com", personal: true, consoles: 0, to: HOME },
   { email: "ops@demo.injishi.com", staff: true, to: ADMIN },
-  { email: "aimable@demo.injishi.com", operator: [biz("w-aimable")], to: "/w/w-aimable" },
+  { email: "aimable@demo.injishi.com", operator: [biz("w-aimable")], to: ws("w-aimable") },
   // Limited to one branch (ADR-054 AC-D2). A branch limit narrows what she
   // sees inside the workspace, never which door she opens: same seat as Denise.
-  { email: "clarisse@demo.injishi.com", operator: [biz("w-amahoro")], to: "/w/w-amahoro" },
+  { email: "clarisse@demo.injishi.com", operator: [biz("w-amahoro")], to: ws("w-amahoro") },
 ];
 
 const holdsSomethingGuarded = (p) =>
@@ -197,6 +201,8 @@ const holdsSomethingGuarded = (p) =>
 
 beforeEach(() => {
   process.env.NEXT_PUBLIC_ADMIN_URL = ADMIN_URL;
+  process.env.NEXT_PUBLIC_WEB_URL = WEB_URL;
+  process.env.NEXT_PUBLIC_PMS_URL = APP;
 });
 
 describe("each seeded persona opens the surface its grant holds", () => {
@@ -231,11 +237,26 @@ describe("staff routing never costs anyone their sign-in", () => {
 
   test("a staffer who also holds a workspace keeps opening the workspace", async () => {
     const both = { email: "x", staff: true, operator: [biz("w-own")] };
-    assert.equal(await destinationOf(both, { verified: true }), "/w/w-own");
+    assert.equal(await destinationOf(both, { verified: true }), ws("w-own"));
   });
 
   test("an explicit, allowed redirect still wins over the console", async () => {
     assert.equal(await destinationOf(staffer, { verified: true }, "/book?id=1"), "/book?id=1");
+  });
+});
+
+describe("the operator app's origin decides the address, never a dead path on web", () => {
+  const host = PERSONAS.find((p) => p.email === "host@injishi.com");
+  const officer = PERSONAS.find((p) => p.email === "approver@injishi.com");
+
+  test("on its own host, the officer opens /officer there, not web's /oversight", async () => {
+    assert.equal(await destinationOf(officer, { verified: true }), "https://app.injishi.test/officer");
+  });
+
+  test("served as a zone on web's own origin, both stay paths on that origin", async () => {
+    process.env.NEXT_PUBLIC_PMS_URL = WEB_URL;
+    assert.equal(await destinationOf(host, { verified: true }), "/w/w-hotel");
+    assert.equal(await destinationOf(officer, { verified: true }), "/officer");
   });
 });
 

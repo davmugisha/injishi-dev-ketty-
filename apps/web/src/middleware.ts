@@ -7,7 +7,6 @@ import {
   withoutForeignSessionCookies,
 } from "@injishi/auth/edge";
 import { NextResponse, type NextRequest } from "next/server";
-import { isGatedHost, isWaitlistOpen } from "@/lib/waitlist-gate";
 
 /**
  * The sign-in gate for the marketplace app (F-S01).
@@ -126,25 +125,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
  */
 const DEMO_BUILD = process.env.NEXT_PUBLIC_INJISHI_ENVIRONMENT === "demo";
 
-/**
- * Send a stranger to the waitlist.
- *
- * 307, never 301 or 302. A cached permanent redirect outlives launch day
- * inside people's browsers, and there is no way to reach in and clear it —
- * which would mean the people most interested in the product are the ones
- * still being shown the waitlist a week after it opened. `no-store` says the
- * same thing to every cache in between.
- *
- * The attempted path is deliberately not carried across. There is nothing on
- * the other side to return to yet, and a `?redirect=` parameter on a public
- * page is a phishing surface for no gain.
- */
-function toWaitlist(request: NextRequest) {
-  const response = NextResponse.redirect(new URL("/waitlist", request.url), 307);
-  response.headers.set("Cache-Control", "no-store");
-  return response;
-}
-
 export async function middleware(request: NextRequest) {
   // THE FIRST STATEMENT, ahead of every early return, the public bypass
   // included (AC-14). Production's session cookie reaches demo hosts through
@@ -158,60 +138,27 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Is this one of the two hosts the product is not launched on yet? Every
-  // line of waitlist mode hangs off this one test, and on every other host —
-  // a laptop, staging, the demo — the rest of this file behaves exactly as it
-  // did before ADR-048 (AC-5).
-  const gated = isGatedHost(request.headers.get("host"));
-
   // PUBLIC FIRST after the strip, and it must stay there. Everything below
-  // this line can cost a network round trip, and the marketplace must not pay
-  // it. On a gated host the waitlist allowlist IS the public set; on every
-  // other host the public set is what it has always been.
-  const openHere = gated
-    ? isWaitlistOpen(pathname) || isAuthPath(pathname)
-    : !isProtected(pathname);
-  const guarded = isProtected(pathname);
-
-  // Open and not private means nothing at all is needed: no cookie read, no
-  // round trip. `/waitlist` is the case that matters most, because it is where
-  // the gate sends people.
-  if (openHere && !guarded) return pass();
+  // this line costs a network round trip, and the marketplace must not pay it.
+  if (!isProtected(pathname)) return pass();
 
   // Better Auth's own routes are not app screens, and a gate in front of the
   // callback blocks the very exchange that would create the session.
   if (isAuthPath(pathname)) return pass();
 
-  // WHICH REFUSAL APPLIES, and why it is decided here rather than by whichever
-  // list was consulted first.
-  //
-  // `/start` and `/two-factor` are on BOTH lists on purpose. They are steps of
-  // signing in, so the waitlist must not swallow them (AC-2); and they are
-  // private, so a caller without a session belongs at `/sign-in` with their
-  // destination intact, not at the waitlist (AC-1b). A private screen already
-  // had a correct destination and the waitlist would throw the intended one
-  // away.
-  const refuse = (verdict: "anonymous" | "unreachable") =>
-    guarded ? bounce(request, verdict) : toWaitlist(request);
-
-  // No cookie is a settled answer. Skip the round trip (AC-6). Production and
-  // demo sessions carry different names, and this image serves one of them, so
-  // it looks for both and lets the API it was built against say which counts.
+  // No cookie is a settled answer. Skip the round trip. Production and demo
+  // sessions carry different names, and this image serves one of them, so it
+  // looks for both and lets the API it was built against say which one counts.
   const cookie = headers.get("cookie") ?? "";
   if (!hasSessionCookie(cookieReaderFor(cookie), PLATFORM_SESSION_COOKIE_NAMES)) {
-    return refuse("anonymous");
+    return bounce(request, "anonymous");
   }
 
-  // ONE verification per request, shared by both gates. Two calls would double
-  // the cost of the exact path this file was written to keep cheap.
   const verdict = await verifySessionCookie({ fetch, apiBase: API_URL, cookie });
 
   if (verdict === "valid") return pass();
-  // `unreachable` closes the site rather than opening it (AC-4). An API that
-  // blinked must never be the reason a stranger sees the unfinished product.
-  return refuse(verdict);
+  return bounce(request, verdict);
 }
-
 
 /**
  * Send them to sign in, and decide whether the cookie they carried survives.

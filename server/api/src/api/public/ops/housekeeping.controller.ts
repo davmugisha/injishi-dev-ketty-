@@ -16,7 +16,11 @@ import {
 } from '@nestjs/common';
 
 import { HousekeepingService } from '../../../modules/operations/application/housekeeping.service';
-import { SessionGuard } from '../../../shared/auth/session.guard';
+import {
+  CurrentUser,
+  SessionGuard,
+  type SessionUser,
+} from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
   RequireAnyPermission,
@@ -74,7 +78,8 @@ export class OpsHousekeepingController {
     @Body(new ZodValidationPipe(AdvanceHousekeepingTaskRequest))
     body: AdvanceHousekeepingTaskRequest,
     @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
   ): Promise<OperatorHousekeepingTask> {
-    return this.housekeeping.advance(workspace, id, body);
+    return this.housekeeping.advance(workspace, id, body, user.id);
   }
 }

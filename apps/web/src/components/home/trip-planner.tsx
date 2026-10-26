@@ -14,6 +14,7 @@ import { formatHours, type TripRoute } from "@/data/journeys";
 import type { DistrictSlug } from "@/data/search-options";
 import { formatRateNumber, NO_RATE, shortBasis } from "@/lib/price";
 import { EMPTY_INTENT, exploreHref } from "@/lib/search-params";
+import { LIST_HREF, OPENING_LINE } from "@/lib/stay-count";
 
 /**
  * "Plan by trip": a route, not a list of places.
@@ -333,7 +334,17 @@ function DriveLeg({ hours, label }: { hours: number; label: string }) {
 
 function StopStays({ stays }: { stays: Listing[] }) {
   if (stays.length === 0) {
-    return <p className="text-sm text-muted-foreground">No stays listed here yet.</p>;
+    // Not "No stays listed here yet." under every stop of every route, which is
+    // how an empty catalogue read on launch day: say what is happening, and
+    // offer the one person who could change it a way in.
+    return (
+      <p className="text-sm text-muted-foreground">
+        {OPENING_LINE}.{" "}
+        <Link href={LIST_HREF} className="font-semibold text-foreground underline underline-offset-4">
+          Own a place here?
+        </Link>
+      </p>
+    );
   }
 
   return (

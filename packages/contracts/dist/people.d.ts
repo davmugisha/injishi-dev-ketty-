@@ -2595,8 +2595,8 @@ export declare const RosterEntry: z.ZodObject<{
     fromRequest: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     status: "scheduled" | "cancelled";
-    generated: boolean;
     id: string;
+    generated: boolean;
     employee: {
         employeeId: string;
         displayName: string;
@@ -2614,8 +2614,8 @@ export declare const RosterEntry: z.ZodObject<{
     fromRequest: boolean;
 }, {
     status: "scheduled" | "cancelled";
-    generated: boolean;
     id: string;
+    generated: boolean;
     employee: {
         employeeId: string;
         displayName: string;
@@ -2842,12 +2842,16 @@ export declare const ClockInRequest: z.ZodObject<{
     /** At most 5 minutes ahead and 7 days behind the server clock. */
     at: z.ZodOptional<z.ZodString>;
     rosterEntryId: z.ZodOptional<z.ZodString>;
+    /** Why the desk wrote it and who confirmed the time: kept on the record. */
+    note: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     employeeId: string;
+    note?: string | undefined;
     at?: string | undefined;
     rosterEntryId?: string | undefined;
 }, {
     employeeId: string;
+    note?: string | undefined;
     at?: string | undefined;
     rosterEntryId?: string | undefined;
 }>;
@@ -2913,6 +2917,9 @@ export declare const LeaveType: z.ZodObject<{
     id: z.ZodString;
     code: z.ZodString;
     status: z.ZodEnum<["active", "archived"]>;
+    /** When the owner signed the type off as the business's policy; null while it is the configured value nobody verified. */
+    verifiedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    verifiedByName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     code: string;
     status: "active" | "archived";
@@ -2940,6 +2947,8 @@ export declare const LeaveType: z.ZodObject<{
     seniorityEveryYears: number | null;
     seniorityExtraDays: number | null;
     seniorityCapDays: number | null;
+    verifiedAt?: string | null | undefined;
+    verifiedByName?: string | null | undefined;
 }, {
     code: string;
     status: "active" | "archived";
@@ -2967,6 +2976,8 @@ export declare const LeaveType: z.ZodObject<{
     seniorityEveryYears: number | null;
     seniorityExtraDays: number | null;
     seniorityCapDays: number | null;
+    verifiedAt?: string | null | undefined;
+    verifiedByName?: string | null | undefined;
 }>;
 export type LeaveType = z.infer<typeof LeaveType>;
 export declare const LeaveTypeList: z.ZodObject<{
@@ -3006,6 +3017,9 @@ export declare const LeaveTypeList: z.ZodObject<{
         id: z.ZodString;
         code: z.ZodString;
         status: z.ZodEnum<["active", "archived"]>;
+        /** When the owner signed the type off as the business's policy; null while it is the configured value nobody verified. */
+        verifiedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        verifiedByName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         code: string;
         status: "active" | "archived";
@@ -3033,6 +3047,8 @@ export declare const LeaveTypeList: z.ZodObject<{
         seniorityEveryYears: number | null;
         seniorityExtraDays: number | null;
         seniorityCapDays: number | null;
+        verifiedAt?: string | null | undefined;
+        verifiedByName?: string | null | undefined;
     }, {
         code: string;
         status: "active" | "archived";
@@ -3060,6 +3076,8 @@ export declare const LeaveTypeList: z.ZodObject<{
         seniorityEveryYears: number | null;
         seniorityExtraDays: number | null;
         seniorityCapDays: number | null;
+        verifiedAt?: string | null | undefined;
+        verifiedByName?: string | null | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     types: {
@@ -3089,6 +3107,8 @@ export declare const LeaveTypeList: z.ZodObject<{
         seniorityEveryYears: number | null;
         seniorityExtraDays: number | null;
         seniorityCapDays: number | null;
+        verifiedAt?: string | null | undefined;
+        verifiedByName?: string | null | undefined;
     }[];
 }, {
     types: {
@@ -3118,6 +3138,8 @@ export declare const LeaveTypeList: z.ZodObject<{
         seniorityEveryYears: number | null;
         seniorityExtraDays: number | null;
         seniorityCapDays: number | null;
+        verifiedAt?: string | null | undefined;
+        verifiedByName?: string | null | undefined;
     }[];
 }>;
 export type LeaveTypeList = z.infer<typeof LeaveTypeList>;
@@ -3455,8 +3477,8 @@ export declare const LeaveLedgerEntry: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
     expiresOn: string | null;
-    reason: string | null;
     id: string;
+    reason: string | null;
     days: number;
     effectiveOn: string;
     periodKey: string | null;
@@ -3465,8 +3487,8 @@ export declare const LeaveLedgerEntry: z.ZodObject<{
 }, {
     kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
     expiresOn: string | null;
-    reason: string | null;
     id: string;
+    reason: string | null;
     days: number;
     effectiveOn: string;
     periodKey: string | null;
@@ -3537,6 +3559,9 @@ export declare const LeaveBalance: z.ZodObject<{
         id: z.ZodString;
         code: z.ZodString;
         status: z.ZodEnum<["active", "archived"]>;
+        /** When the owner signed the type off as the business's policy; null while it is the configured value nobody verified. */
+        verifiedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        verifiedByName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         code: string;
         status: "active" | "archived";
@@ -3564,6 +3589,8 @@ export declare const LeaveBalance: z.ZodObject<{
         seniorityEveryYears: number | null;
         seniorityExtraDays: number | null;
         seniorityCapDays: number | null;
+        verifiedAt?: string | null | undefined;
+        verifiedByName?: string | null | undefined;
     }, {
         code: string;
         status: "active" | "archived";
@@ -3591,6 +3618,8 @@ export declare const LeaveBalance: z.ZodObject<{
         seniorityEveryYears: number | null;
         seniorityExtraDays: number | null;
         seniorityCapDays: number | null;
+        verifiedAt?: string | null | undefined;
+        verifiedByName?: string | null | undefined;
     }>;
     /** Null for a type that keeps no balance. */
     balanceDays: z.ZodNullable<z.ZodNumber>;
@@ -3634,8 +3663,8 @@ export declare const LeaveBalance: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
         expiresOn: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         days: number;
         effectiveOn: string;
         periodKey: string | null;
@@ -3644,8 +3673,8 @@ export declare const LeaveBalance: z.ZodObject<{
     }, {
         kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
         expiresOn: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         days: number;
         effectiveOn: string;
         periodKey: string | null;
@@ -3656,8 +3685,8 @@ export declare const LeaveBalance: z.ZodObject<{
     entries: {
         kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
         expiresOn: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         days: number;
         effectiveOn: string;
         periodKey: string | null;
@@ -3691,6 +3720,8 @@ export declare const LeaveBalance: z.ZodObject<{
         seniorityEveryYears: number | null;
         seniorityExtraDays: number | null;
         seniorityCapDays: number | null;
+        verifiedAt?: string | null | undefined;
+        verifiedByName?: string | null | undefined;
     };
     balanceDays: number | null;
     lots: {
@@ -3705,8 +3736,8 @@ export declare const LeaveBalance: z.ZodObject<{
     entries: {
         kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
         expiresOn: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         days: number;
         effectiveOn: string;
         periodKey: string | null;
@@ -3740,6 +3771,8 @@ export declare const LeaveBalance: z.ZodObject<{
         seniorityEveryYears: number | null;
         seniorityExtraDays: number | null;
         seniorityCapDays: number | null;
+        verifiedAt?: string | null | undefined;
+        verifiedByName?: string | null | undefined;
     };
     balanceDays: number | null;
     lots: {
@@ -3791,6 +3824,9 @@ export declare const LeaveBalances: z.ZodObject<{
             id: z.ZodString;
             code: z.ZodString;
             status: z.ZodEnum<["active", "archived"]>;
+            /** When the owner signed the type off as the business's policy; null while it is the configured value nobody verified. */
+            verifiedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            verifiedByName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, "strip", z.ZodTypeAny, {
             code: string;
             status: "active" | "archived";
@@ -3818,6 +3854,8 @@ export declare const LeaveBalances: z.ZodObject<{
             seniorityEveryYears: number | null;
             seniorityExtraDays: number | null;
             seniorityCapDays: number | null;
+            verifiedAt?: string | null | undefined;
+            verifiedByName?: string | null | undefined;
         }, {
             code: string;
             status: "active" | "archived";
@@ -3845,6 +3883,8 @@ export declare const LeaveBalances: z.ZodObject<{
             seniorityEveryYears: number | null;
             seniorityExtraDays: number | null;
             seniorityCapDays: number | null;
+            verifiedAt?: string | null | undefined;
+            verifiedByName?: string | null | undefined;
         }>;
         /** Null for a type that keeps no balance. */
         balanceDays: z.ZodNullable<z.ZodNumber>;
@@ -3888,8 +3928,8 @@ export declare const LeaveBalances: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -3898,8 +3938,8 @@ export declare const LeaveBalances: z.ZodObject<{
         }, {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -3910,8 +3950,8 @@ export declare const LeaveBalances: z.ZodObject<{
         entries: {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -3945,6 +3985,8 @@ export declare const LeaveBalances: z.ZodObject<{
             seniorityEveryYears: number | null;
             seniorityExtraDays: number | null;
             seniorityCapDays: number | null;
+            verifiedAt?: string | null | undefined;
+            verifiedByName?: string | null | undefined;
         };
         balanceDays: number | null;
         lots: {
@@ -3959,8 +4001,8 @@ export declare const LeaveBalances: z.ZodObject<{
         entries: {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -3994,6 +4036,8 @@ export declare const LeaveBalances: z.ZodObject<{
             seniorityEveryYears: number | null;
             seniorityExtraDays: number | null;
             seniorityCapDays: number | null;
+            verifiedAt?: string | null | undefined;
+            verifiedByName?: string | null | undefined;
         };
         balanceDays: number | null;
         lots: {
@@ -4011,8 +4055,8 @@ export declare const LeaveBalances: z.ZodObject<{
         entries: {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -4046,6 +4090,8 @@ export declare const LeaveBalances: z.ZodObject<{
             seniorityEveryYears: number | null;
             seniorityExtraDays: number | null;
             seniorityCapDays: number | null;
+            verifiedAt?: string | null | undefined;
+            verifiedByName?: string | null | undefined;
         };
         balanceDays: number | null;
         lots: {
@@ -4063,8 +4109,8 @@ export declare const LeaveBalances: z.ZodObject<{
         entries: {
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            reason: string | null;
             id: string;
+            reason: string | null;
             days: number;
             effectiveOn: string;
             periodKey: string | null;
@@ -4098,6 +4144,8 @@ export declare const LeaveBalances: z.ZodObject<{
             seniorityEveryYears: number | null;
             seniorityExtraDays: number | null;
             seniorityCapDays: number | null;
+            verifiedAt?: string | null | undefined;
+            verifiedByName?: string | null | undefined;
         };
         balanceDays: number | null;
         lots: {
@@ -4189,8 +4237,8 @@ export declare const LeaveRequest: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "approved" | "rejected" | "cancelled" | "requested";
     decidedAt: string | null;
-    reason: string | null;
     id: string;
+    reason: string | null;
     startsOn: string;
     decisionNote: string | null;
     payment: "paid" | "unpaid" | "partial";
@@ -4227,8 +4275,8 @@ export declare const LeaveRequest: z.ZodObject<{
 }, {
     status: "approved" | "rejected" | "cancelled" | "requested";
     decidedAt: string | null;
-    reason: string | null;
     id: string;
+    reason: string | null;
     startsOn: string;
     decisionNote: string | null;
     payment: "paid" | "unpaid" | "partial";

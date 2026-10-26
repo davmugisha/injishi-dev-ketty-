@@ -443,6 +443,7 @@ export class InventoryService {
       sellableRoomCount: counts?.sellableRoomCount ?? 0,
       isHeadOffice: row.isHeadOffice,
       rraBranchId: row.rraBranchId,
+      branchCode: row.branchCode,
       archivedAt: row.archivedAt?.toISOString() ?? null,
     };
   }

@@ -54,6 +54,7 @@ function service(opts: {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
     identity,
     { clear: jest.fn(async () => undefined) } as never,
   );

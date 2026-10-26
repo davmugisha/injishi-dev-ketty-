@@ -117,11 +117,32 @@ export const DISTRICT_PLACES: DistrictPlace[] = [
     mark: "savannah",
     bestFor: [{ label: "Wildlife", icon: "wildlife" }, { label: "Nature", icon: "nature" }, { label: "Camping", icon: "camping" }],
   },
+  // Kayonza and Huye joined the facets on 2026-10-21 (`data/search-options.ts`).
+  {
+    slug: "kayonza",
+    name: "Kayonza",
+    known: "Akagera's southern gate and Lake Ihema",
+    latitude: -1.879,
+    longitude: 30.645,
+    hoursFromKigali: 2.5,
+    image: { stem: "akagera-np-03", alt: "Akagera National Park" },
+    province: "Eastern Province",
+    mark: "savannah",
+    bestFor: [{ label: "Wildlife", icon: "wildlife" }, { label: "Lakeside", icon: "lake" }, { label: "Camping", icon: "camping" }],
+  },
+  {
+    slug: "huye",
+    name: "Huye",
+    known: "Butare, the museums and the road to Nyungwe",
+    latitude: -2.5967,
+    longitude: 29.7394,
+    hoursFromKigali: 2.5,
+    image: { stem: "rwanda-tea-01", alt: "Tea plantations in southern Rwanda" },
+    province: "Southern Province",
+    mark: "forest",
+    bestFor: [{ label: "Culture", icon: "culture" }, { label: "Quiet", icon: "quiet" }, { label: "Rainforest", icon: "forest" }],
+  },
 ];
-
-export function placeFor(slug: DistrictSlug): DistrictPlace | undefined {
-  return DISTRICT_PLACES.find((place) => place.slug === slug);
-}
 
 /** "2h", "2½h", "5½h". The half is the only fraction the table uses. */
 export function formatHours(hours: number): string {
@@ -175,8 +196,9 @@ export const MOODS: Mood[] = [
   {
     id: "safari",
     label: "On safari",
-    districts: ["nyagatare"],
-    places: "Akagera · Nyagatare",
+    // Kayonza first: the park's southern gate, where most of its lodges are.
+    districts: ["kayonza", "nyagatare"],
+    places: "Akagera · Kayonza · Nyagatare",
     line: "Big game on the plains and lakes of Akagera.",
     image: { stem: "akagera-np-01", alt: "Savannah in Akagera National Park" },
   },
@@ -320,7 +342,9 @@ export const TRIP_ROUTES: TripRoute[] = [
         image: { stem: "kigali-skyline-01", alt: "The Kigali skyline" },
       },
       {
-        district: "nyagatare",
+        // Kayonza, not Nyagatare: the stop's own point (`at`) is the southern
+        // gate, which is in Kayonza district.
+        district: "kayonza",
         name: "Akagera",
         nights: 2,
         driveHours: 2.5,
@@ -336,7 +360,7 @@ export const TRIP_ROUTES: TripRoute[] = [
 
 export type Season = "dry" | "short-rains" | "long-rains";
 
-export interface MonthNote {
+interface MonthNote {
   /** 0 = January. */
   month: number;
   season: Season;

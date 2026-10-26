@@ -166,6 +166,7 @@ export declare const OrderableCategory: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     name: string;
+    id: string;
     items: {
         options: {
             name: string;
@@ -182,9 +183,9 @@ export declare const OrderableCategory: z.ZodObject<{
         priceRwf: number;
         prepTimeMinutes: number | null;
     }[];
-    id: string;
 }, {
     name: string;
+    id: string;
     items: {
         options: {
             name: string;
@@ -201,7 +202,6 @@ export declare const OrderableCategory: z.ZodObject<{
         priceRwf: number;
         prepTimeMinutes: number | null;
     }[];
-    id: string;
 }>;
 export type OrderableCategory = z.infer<typeof OrderableCategory>;
 /** Service windows as `outlets.hours` stores them, e.g. `{"mon": ["07:00", "22:00"]}`. Null means always open. */
@@ -301,6 +301,7 @@ export declare const OrderableOutlet: z.ZodObject<{
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         name: string;
+        id: string;
         items: {
             options: {
                 name: string;
@@ -317,9 +318,9 @@ export declare const OrderableOutlet: z.ZodObject<{
             priceRwf: number;
             prepTimeMinutes: number | null;
         }[];
-        id: string;
     }, {
         name: string;
+        id: string;
         items: {
             options: {
                 name: string;
@@ -336,7 +337,6 @@ export declare const OrderableOutlet: z.ZodObject<{
             priceRwf: number;
             prepTimeMinutes: number | null;
         }[];
-        id: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     name: string;
@@ -345,6 +345,7 @@ export declare const OrderableOutlet: z.ZodObject<{
     propertyId: string;
     categories: {
         name: string;
+        id: string;
         items: {
             options: {
                 name: string;
@@ -361,7 +362,6 @@ export declare const OrderableOutlet: z.ZodObject<{
             priceRwf: number;
             prepTimeMinutes: number | null;
         }[];
-        id: string;
     }[];
     outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
     orderingAccess: "both" | "in_house_only" | "walk_in_only";
@@ -377,6 +377,7 @@ export declare const OrderableOutlet: z.ZodObject<{
     propertyId: string;
     categories: {
         name: string;
+        id: string;
         items: {
             options: {
                 name: string;
@@ -393,7 +394,6 @@ export declare const OrderableOutlet: z.ZodObject<{
             priceRwf: number;
             prepTimeMinutes: number | null;
         }[];
-        id: string;
     }[];
     outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
     orderingAccess: "both" | "in_house_only" | "walk_in_only";
@@ -499,6 +499,7 @@ export declare const OrderableList: z.ZodObject<{
             }>, "many">;
         }, "strip", z.ZodTypeAny, {
             name: string;
+            id: string;
             items: {
                 options: {
                     name: string;
@@ -515,9 +516,9 @@ export declare const OrderableList: z.ZodObject<{
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
-            id: string;
         }, {
             name: string;
+            id: string;
             items: {
                 options: {
                     name: string;
@@ -534,7 +535,6 @@ export declare const OrderableList: z.ZodObject<{
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
-            id: string;
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         name: string;
@@ -543,6 +543,7 @@ export declare const OrderableList: z.ZodObject<{
         propertyId: string;
         categories: {
             name: string;
+            id: string;
             items: {
                 options: {
                     name: string;
@@ -559,7 +560,6 @@ export declare const OrderableList: z.ZodObject<{
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
-            id: string;
         }[];
         outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
@@ -575,6 +575,7 @@ export declare const OrderableList: z.ZodObject<{
         propertyId: string;
         categories: {
             name: string;
+            id: string;
             items: {
                 options: {
                     name: string;
@@ -591,7 +592,6 @@ export declare const OrderableList: z.ZodObject<{
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
-            id: string;
         }[];
         outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
@@ -609,6 +609,7 @@ export declare const OrderableList: z.ZodObject<{
         propertyId: string;
         categories: {
             name: string;
+            id: string;
             items: {
                 options: {
                     name: string;
@@ -625,7 +626,6 @@ export declare const OrderableList: z.ZodObject<{
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
-            id: string;
         }[];
         outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
@@ -643,6 +643,7 @@ export declare const OrderableList: z.ZodObject<{
         propertyId: string;
         categories: {
             name: string;
+            id: string;
             items: {
                 options: {
                     name: string;
@@ -659,7 +660,6 @@ export declare const OrderableList: z.ZodObject<{
                 priceRwf: number;
                 prepTimeMinutes: number | null;
             }[];
-            id: string;
         }[];
         outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";

@@ -10,7 +10,6 @@ import {
   Param,
   ParseUUIDPipe,
   Res,
-  UseGuards,
 } from '@nestjs/common';
 
 import { ListingService } from '../../../modules/listing/application/listing.service';
@@ -21,7 +20,6 @@ interface PhotoReply {
   header(key: string, value: string): PhotoReply;
   send(payload?: Buffer | string): PhotoReply;
 }
-import { PreLaunchGuard } from '../../../shared/pre-launch/pre-launch.guard';
 
 /**
  * Public API for property detail → /api/v1/properties/:id (F-B15).
@@ -32,11 +30,6 @@ import { PreLaunchGuard } from '../../../shared/pre-launch/pre-launch.guard';
  * `:id` deliberately: Nest matches routes in declaration order, and a literal
  * segment registered after a parameter segment is shadowed by it.
  */
-// PRE-LAUNCH (ADR-048): answers 404 on the production API host, and passes
-// everything through on every other host. The website puts a waitlist in front
-// of the marketplace, and leaving the catalogue readable as JSON here would be
-// a wall with a door beside it. Removed at launch, per apps/web/WAITLIST-REMOVAL.md.
-@UseGuards(PreLaunchGuard)
 @Controller({ path: 'properties', version: '1' })
 export class PropertiesController {
   constructor(private readonly listings: ListingService) {}
@@ -72,11 +65,17 @@ export class PropertiesController {
    * every photograph arrived and drew nothing. A public photograph of a public
    * property is exactly the thing any page may embed; the route still refuses
    * one that is not public.
+   *
+   * The handler sends the reply itself, so `@Res()` WITHOUT `passthrough`:
+   * with it, Nest sends the handler's `undefined` as a second reply after this
+   * one, which Fastify logs as FST_ERR_REP_ALREADY_SENT on every photograph
+   * (`properties.controller.spec.ts`). A thrown 404 still reaches the
+   * exception filter either way.
    */
   @Get('photos/:photoId')
   async photo(
     @Param('photoId') photoId: string,
-    @Res({ passthrough: true }) reply: PhotoReply,
+    @Res() reply: PhotoReply,
   ): Promise<void> {
     const url = await this.listings.publicPhotoUrl(photoId);
     reply
@@ -136,11 +135,6 @@ export class PropertiesController {
  * Unauthenticated, like the rest of browse: a guest prices a stay before they
  * sign in, and the gate fires when they press confirm.
  */
-// PRE-LAUNCH (ADR-048): answers 404 on the production API host, and passes
-// everything through on every other host. The website puts a waitlist in front
-// of the marketplace, and leaving the catalogue readable as JSON here would be
-// a wall with a door beside it. Removed at launch, per apps/web/WAITLIST-REMOVAL.md.
-@UseGuards(PreLaunchGuard)
 @Controller({ path: 'bookable', version: '1' })
 export class BookableController {
   constructor(private readonly listings: ListingService) {}

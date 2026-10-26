@@ -36,7 +36,7 @@ export async function fetchMyTrips(): Promise<ApiResult<GuestTrip[]>> {
  * that holds exactly one card for three days of the year is a heading that reads
  * as clutter the rest of the time. The card says which it is.
  */
-export type TripGroup = "current" | "past" | "cancelled";
+type TripGroup = "current" | "past" | "cancelled";
 
 export function groupOf(trip: GuestTrip): TripGroup {
   if (trip.stage === "cancelled") return "cancelled";

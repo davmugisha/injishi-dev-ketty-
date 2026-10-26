@@ -1,6 +1,6 @@
 // The session guard's import chain reaches Better Auth, which ships as ESM Jest
 // does not transform. The guard itself is overridden below, so the auth package
-// is stood in for the way `waitlist-admin.controller.spec.ts` does it.
+// is stood in the way `training-admin.controller.spec.ts` does it.
 jest.mock('@injishi/auth', () => ({
   DEMO_OTP_CODE: '123456',
   DEMO_COOKIE_PREFIX: 'injishi-demo',

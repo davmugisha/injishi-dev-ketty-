@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { fixed, ink, green } from "@injishi/design-tokens";
+import { WEB_URL } from "@/lib/web-url";
 
 /**
  * The 404 for a URL that matches no route group at all.
@@ -20,6 +21,8 @@ import { fixed, ink, green } from "@injishi/design-tokens";
  */
 export const metadata: Metadata = {
   title: "Page not found | Injishi",
+  // The root share card reaches this document too; its URL needs an origin.
+  metadataBase: new URL(WEB_URL),
   robots: { index: false, follow: false },
 };
 

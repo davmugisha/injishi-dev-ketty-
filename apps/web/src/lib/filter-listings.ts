@@ -150,7 +150,7 @@ const HOTEL_CLASSES: readonly AccommodationClass[] = [
 ];
 const HOME_CLASSES: readonly AccommodationClass[] = ["apartment", "villa"];
 
-export function matchesStayType(kind: AccommodationClass, type: StayType): boolean {
+function matchesStayType(kind: AccommodationClass, type: StayType): boolean {
   if (type === "all") return true;
   if (type === "hotels") return HOTEL_CLASSES.includes(kind);
   return HOME_CLASSES.includes(kind);
@@ -166,10 +166,11 @@ function sortListings(listings: Listing[], sort: ExploreSort): Listing[] {
       return sorted.sort(byPrice(-1));
     case "rating_desc":
       return sorted.sort(byRating);
+    // An unknown bedroom count sorts last either way, never as a zero.
     case "bedrooms_asc":
-      return sorted.sort((a, b) => a.bedrooms - b.bedrooms);
+      return sorted.sort((a, b) => (a.bedrooms ?? Infinity) - (b.bedrooms ?? Infinity));
     case "bedrooms_desc":
-      return sorted.sort((a, b) => b.bedrooms - a.bedrooms);
+      return sorted.sort((a, b) => (b.bedrooms ?? -Infinity) - (a.bedrooms ?? -Infinity));
     default:
       // Recommended, and it is exactly what `SORT_EXPLAINER` says it is:
       // score first, then rate.

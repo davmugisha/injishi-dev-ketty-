@@ -73,7 +73,7 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 /** What a type is called, falling back to its key rather than to an em dash. */
-export function accommodationTypeLabel(accommodationType: string): string {
+function accommodationTypeLabel(accommodationType: string): string {
   return TYPE_LABEL[accommodationType] ?? accommodationType;
 }
 
@@ -155,7 +155,7 @@ const ROWS: ReadonlyArray<Omit<RegistrationFee, "label">> = [
   },
 ];
 
-export const REGISTRATION_FEE_SCHEDULE: readonly RegistrationFee[] = ROWS.map(
+const REGISTRATION_FEE_SCHEDULE: readonly RegistrationFee[] = ROWS.map(
   (row) => ({ ...row, label: accommodationTypeLabel(row.accommodationType) }),
 );
 
@@ -168,30 +168,11 @@ export const REGISTRATION_FEE_SCHEDULE: readonly RegistrationFee[] = ROWS.map(
  * free, and quoting the cheapest would make forgetting to price a new type the
  * profitable mistake.
  */
-export const FALLBACK_FEE_TYPE = "other";
+const FALLBACK_FEE_TYPE = "other";
 
 /* -------------------------------------------------------------------------
  * The demo's admin control
  * ---------------------------------------------------------------------- */
-
-/**
- * Where an admin edit is kept, and why it is a COOKIE rather than
- * `localStorage`.
- *
- * The console and the marketplace are two different Next apps on two different
- * ports, and `localStorage` is keyed by ORIGIN — so a fee typed at
- * `localhost:3001` would be invisible to the wizard at `localhost:3000`, and
- * "admin sets the fee" would be a claim the demo could not show. A cookie is
- * keyed by HOST and ignores the port, so both apps on one demo machine read the
- * same value.
- *
- * That is a property of running both on `localhost`, and it is exactly why the
- * console says on screen that the setting lives in this browser: on real
- * deployments the two apps are different hosts and this mechanism does not
- * carry across them. It is a demonstration of the FEATURE, never of the
- * storage.
- */
-export const FEE_OVERRIDE_COOKIE = "injishi_demo_registration_fees";
 
 /** One overridden row: everything about a fee an admin edit can change. */
 export interface RegistrationFeeOverride {
@@ -203,44 +184,8 @@ export interface RegistrationFeeOverride {
 /** Overrides by accommodation type. Only edited types appear. */
 export type RegistrationFeeOverrides = Record<string, RegistrationFeeOverride>;
 
-/**
- * Read the console's edits, or nothing at all.
- *
- * SAFE ON THE SERVER and safe on garbage. There is no `document` during a
- * server render, and a cookie is the one piece of state on this page that
- * anybody can type by hand — so every field is checked before it is believed,
- * and a value that fails simply does not exist. A demo that throws a render
- * error because somebody pasted a bad cookie is worse than one that quietly
- * shows the published schedule.
- */
-export function readFeeOverrides(): RegistrationFeeOverrides {
-  if (typeof document === "undefined") return {};
-  const raw = document.cookie
-    .split("; ")
-    .find((pair) => pair.startsWith(`${FEE_OVERRIDE_COOKIE}=`));
-  if (raw === undefined) return {};
-  try {
-    const parsed: unknown = JSON.parse(
-      decodeURIComponent(raw.slice(FEE_OVERRIDE_COOKIE.length + 1)),
-    );
-    if (typeof parsed !== "object" || parsed === null) return {};
-    const clean: RegistrationFeeOverrides = {};
-    for (const [type, value] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof value !== "object" || value === null) continue;
-      const { amountRwf, setBy, effectiveFrom } = value as Record<string, unknown>;
-      if (typeof amountRwf !== "number" || !Number.isFinite(amountRwf)) continue;
-      if (amountRwf < 0) continue;
-      if (typeof setBy !== "string" || typeof effectiveFrom !== "string") continue;
-      clean[type] = { amountRwf: Math.round(amountRwf), setBy, effectiveFrom };
-    }
-    return clean;
-  } catch {
-    return {};
-  }
-}
-
 /** The schedule as it stands after the console's edits are laid over it. */
-export function feeScheduleWith(
+function feeScheduleWith(
   overrides: RegistrationFeeOverrides,
 ): RegistrationFee[] {
   return REGISTRATION_FEE_SCHEDULE.map((fee) => {

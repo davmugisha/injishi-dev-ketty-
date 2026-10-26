@@ -26,6 +26,7 @@
 //   pnpm --filter @injishi/api exec node scripts/seed-users.mjs
 import pg from 'pg';
 
+import { upsertGovernmentBodies } from './reference-data.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
 
 /** Stable ids, so a re-run updates the same rows instead of making new ones. */
@@ -43,8 +44,17 @@ const ORG_RESIDENCE = '0f9a1b00-0002-4000-8000-000000000001';
  */
 const ORG_PENDING = '0f9a1b00-0003-4000-8000-000000000001';
 
-/** The hospitality org seeded by the reference data, reused rather than forked. */
-const ORG_HOSPITALITY_TIN = '100000001';
+/**
+ * Umurage Hospitality Ltd, the hotel `seed-content.mjs` writes (its `IDS.org`),
+ * reused rather than forked.
+ *
+ * By id, never "the oldest hospitality org". That lookup held only on a
+ * database where this script ran before the later seeds: `seed-demo-portfolio.mjs`
+ * backdates its pipeline businesses, so on a fully seeded database the oldest
+ * is Umwezi Terrace Hotel, and a rerun handed host@, manager@ and the rest a
+ * second membership in a demo registrant's business (staging, 2026-10-26).
+ */
+const ORG_HOSPITALITY = '0f9a1b00-0000-4000-8000-000000000001';
 
 /**
  * The roster.
@@ -232,15 +242,94 @@ const USERS = [
       oversight: { role: 'business_approver', title: 'Approving Officer' },
     },
   },
+  /*
+   * Every remaining role, one account each (2026-10-26).
+   *
+   * Until these existed, this roster stopped at the roles of 2026-09-12. The
+   * two office roles (ADR-069 D-a) were held only by demo personas, three of
+   * the five staff roles and the tax console by nobody at all, so "a
+   * compliance staffer cannot see money" or "a trainer reaches Training and
+   * nothing else" was, again, an assertion no sign in could check.
+   *
+   * The office roles join the seeded hotel, like the desk and the
+   * housekeeper. The staff accounts hold one role each, so each one shows its
+   * own set and nothing borrowed from a second role. They also hold the
+   * `admin` global role, as `bootstrap-admin.mjs` gives every staff grant.
+   */
+  {
+    email: 'finance@injishi.com',
+    name: 'Janvier Hakizimana',
+    roles: ['guest'],
+    grants: { personal: true, org: 'hospitality', orgRole: 'finance' },
+  },
+  {
+    email: 'hr@injishi.com',
+    name: 'Pacifique Uwimbabazi',
+    roles: ['guest'],
+    grants: { personal: true, org: 'hospitality', orgRole: 'hr' },
+  },
+  {
+    email: 'admin-ops@injishi.com',
+    name: 'Thierry Nshimiyimana',
+    roles: ['admin', 'guest'],
+    grants: { personal: true, staffRoles: ['ops'] },
+  },
+  {
+    email: 'admin-compliance@injishi.com',
+    name: 'Clementine Mukandoli',
+    roles: ['admin', 'guest'],
+    grants: { personal: true, staffRoles: ['compliance'] },
+  },
+  {
+    // Injishi's own finance desk, not a business's: `finance@` is the hotel's.
+    email: 'admin-finance@injishi.com',
+    name: 'Fabrice Ndayisaba',
+    roles: ['admin', 'guest'],
+    grants: { personal: true, staffRoles: ['finance'] },
+  },
+  {
+    // ADR-049: holds the four training powers and no `admin.*` power at all.
+    email: 'admin-trainer@injishi.com',
+    name: 'Esperance Umutoni',
+    roles: ['admin', 'guest'],
+    grants: { personal: true, staffRoles: ['trainer'] },
+  },
+  {
+    // The tax console gates nothing in the registration pipeline, so it pairs
+    // with neither `localgov@` nor `approver@`; it shares their district.
+    email: 'taxofficer@injishi.com',
+    name: 'Nyarugenge District Tax Officer',
+    roles: ['gov_oversight', 'guest'],
+    districtId: 101,
+    grants: {
+      personal: true,
+      oversight: { role: 'tax_compliance_officer', title: 'Tax Compliance Officer' },
+    },
+  },
+  {
+    // ADR-056 AC-10: a PSF membership officer is posted at PSF, country wide,
+    // and nowhere else, so this one carries no district.
+    email: 'psf@injishi.com',
+    name: 'PSF Membership Office',
+    roles: ['gov_oversight', 'guest'],
+    grants: {
+      personal: true,
+      oversight: {
+        role: 'psf_membership_officer',
+        title: 'Membership Officer',
+        body: 'PSF',
+        scope: 'country',
+      },
+    },
+  },
 ];
 
-/** The one government body these assignments hang off. */
-const GOV_BODY = {
-  code: 'MINALOC',
-  nameEn: 'Ministry of Local Government',
-  nameRw: "Minisiteri y'Ubutegetsi bw'Igihugu",
-  abbreviation: 'MINALOC',
-};
+/**
+ * The government body an assignment hangs off unless it names its own (PSF
+ * does). Both come from the reference catalogue, `reference-data.mjs`, which
+ * `main` writes before any assignment, so there is one copy of each.
+ */
+const DEFAULT_GOV_BODY = 'MINALOC';
 
 /** The residence business, so the Landlord workspace has something to be. */
 const RESIDENCE_ORG = {
@@ -338,16 +427,6 @@ async function upsertRoles(client, userId, u) {
   }
 }
 
-/** The government body an oversight assignment references. */
-async function upsertGovernmentBody(client) {
-  await client.query(
-    `INSERT INTO government_bodies (code, name_en, name_rw, abbreviation, active)
-     VALUES ($1, $2, $3, $4, true)
-     ON CONFLICT (code) DO NOTHING`,
-    [GOV_BODY.code, GOV_BODY.nameEn, GOV_BODY.nameRw, GOV_BODY.abbreviation],
-  );
-}
-
 /**
  * The residence business, and the hospitality one's id.
  *
@@ -357,16 +436,11 @@ async function upsertGovernmentBody(client) {
  * skipping the grant.
  */
 async function resolveOrgs(client) {
-  // Excluding the pending org by id, not just by relying on `created_at`: this
-  // script now seeds a SECOND hospitality org, and "the oldest hospitality row"
-  // would quietly become the pending one on any database where the reference
-  // data had not run first. The Host workspace must never resolve to the
-  // business that exists to be refused.
+  // By id (see ORG_HOSPITALITY): the Host workspace must resolve to the seeded
+  // hotel and nothing else, never the pending org and never a demo business.
   const hospitality = await client.query(
-    `SELECT id FROM orgs
-      WHERE domain = 'hospitality' AND id <> $1
-      ORDER BY created_at LIMIT 1`,
-    [ORG_PENDING],
+    `SELECT id FROM orgs WHERE id = $1 AND domain = 'hospitality'`,
+    [ORG_HOSPITALITY],
   );
 
   await client.query(
@@ -462,9 +536,12 @@ async function upsertMembership(client, orgId, userId, orgRole) {
   );
 }
 
-/** A district-scoped government assignment. Revoked rows are revived, not duplicated. */
+/**
+ * A government assignment, district scoped unless it says otherwise. Revoked
+ * rows are revived, not duplicated.
+ */
 async function upsertOversight(client, userId, u) {
-  const { role, title } = u.grants.oversight;
+  const { role, title, body = DEFAULT_GOV_BODY, scope = 'district' } = u.grants.oversight;
   const existing = await client.query(
     `SELECT id FROM oversight_assignments
      WHERE user_id = $1 AND oversight_role = $2 LIMIT 1`,
@@ -481,8 +558,9 @@ async function upsertOversight(client, userId, u) {
     `INSERT INTO oversight_assignments
        (user_id, oversight_role, government_body_code, government_title,
         scope_level, district_id)
-     VALUES ($1, $2, $3, $4, 'district', $5)`,
-    [userId, role, GOV_BODY.code, title, u.districtId ?? null],
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    // `oversight_assignments_scope_shape`: a country grant names no district.
+    [userId, role, body, title, scope, scope === 'district' ? (u.districtId ?? null) : null],
   );
 }
 
@@ -547,7 +625,7 @@ async function main() {
   // ADR-043: sample data only ever goes into a database marked sample.
   await assertSampleDatabase(client, 'seed-users.mjs');
   try {
-    await upsertGovernmentBody(client);
+    await upsertGovernmentBodies(client);
     const orgs = await resolveOrgs(client);
     if (!orgs.hospitality) {
       console.warn(
@@ -569,8 +647,9 @@ async function main() {
     const { rows } = await client.query('SELECT count(*)::int AS n FROM users');
     console.log(`\nusers total = ${rows[0].n}`);
     console.log(
-      'Sign in at http://localhost:3000/sign-in with any address above.\n' +
-        'The code is printed to the API log when OTP_DEBUG_LOG=true.',
+      'Sign in with any address above. A demo process takes the fixed demo code;\n' +
+        'anywhere else the code is mailed: staging, and a laptop on staging, to the\n' +
+        'inbox at mail-staging.injishi.com, a local stack to http://localhost:8025.',
     );
   } finally {
     await client.end();

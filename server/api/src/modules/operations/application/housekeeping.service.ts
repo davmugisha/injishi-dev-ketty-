@@ -7,7 +7,9 @@ import type {
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
@@ -19,6 +21,7 @@ import {
   type HousekeepingTaskRow,
   HousekeepingRepository,
 } from '../infrastructure/housekeeping.repository';
+import { memberHoldsAt } from '../infrastructure/room-events';
 
 /**
  * `pending -> in_progress -> done -> inspected`, and any state to `blocked`
@@ -35,6 +38,8 @@ const ALLOWED: Readonly<Record<HousekeepingTaskStatus, HousekeepingTaskStatus[]>
     done: ['inspected', 'blocked'],
     inspected: [],
     blocked: ['pending'],
+    // Reached only by failing an inspection (the board's inspect command), never by a move.
+    failed: [],
   };
 
 /**
@@ -76,6 +81,23 @@ export class HousekeepingService {
 
     const room = assertOwned(await this.tasks.findRoom(body.roomId), ws);
     assertInBranchScope(ws, room.propertyId);
+    // A task given to someone who cannot mark it done sits on the board forever, and an id from
+    // another business must not land on that person's phone (real-data 1.2.3).
+    if (body.assignedToUserId) {
+      const holder = ws.orgId
+        ? await memberHoldsAt(this.tasks.database, {
+            orgId: ws.orgId,
+            userId: body.assignedToUserId,
+            propertyId: room.propertyId,
+            permission: 'housekeeping.set',
+          })
+        : null;
+      if (!holder) {
+        throw new UnprocessableEntityException(
+          'That person cannot take housekeeping work here: they are not on this property’s staff with room status rights.',
+        );
+      }
+    }
     const id = await this.tasks.create({
       roomId: room.id,
       propertyId: room.propertyId,
@@ -85,6 +107,8 @@ export class HousekeepingService {
       priority: body.priority ?? 0,
       note: body.note ?? null,
       idempotencyKey: key,
+      dueAt: body.dueAt ? new Date(body.dueAt) : null,
+      estimatedMinutes: body.estimatedMinutes ?? null,
     });
     if (!id) throw this.vanished();
 
@@ -104,6 +128,7 @@ export class HousekeepingService {
     ws: ScopedWorkspace,
     id: string,
     body: AdvanceHousekeepingTaskRequest,
+    actorUserId: string,
   ): Promise<OperatorHousekeepingTask> {
     const task = assertOwned(await this.tasks.find(id), ws);
     assertInBranchScope(ws, task.propertyId);
@@ -114,12 +139,17 @@ export class HousekeepingService {
         `A ${task.status.replace('_', ' ')} task cannot go straight to ${body.to.replace('_', ' ')}.`,
       );
     }
+    // The Inspection Gate: a room's readiness is somebody else's word than the cleaner's.
+    if (body.to === 'inspected' && task.assignedToUserId === actorUserId) {
+      throw new ForbiddenException('You cleaned this room, so someone else has to inspect it.');
+    }
 
     const moved = await this.tasks.advance({
       id: task.id,
       from: task.status,
       to: body.to,
       note: body.note ?? null,
+      actorUserId,
     });
 
     const now = await this.tasks.find(id);

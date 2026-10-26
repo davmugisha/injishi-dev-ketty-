@@ -252,7 +252,7 @@ export const ORDER_STATUS_LABEL: Record<ServiceOrderStatus, string> = {
   rejected: "Declined by the outlet",
 };
 
-export type OrderTone = "open" | "done" | "stopped";
+type OrderTone = "open" | "done" | "stopped";
 
 /** Still coming, arrived, or not happening. Three tones rather than ten colours. */
 export function orderTone(status: ServiceOrderStatus): OrderTone {

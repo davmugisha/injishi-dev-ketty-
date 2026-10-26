@@ -911,8 +911,8 @@ export declare const RosterPage: z.ZodObject<{
         fromRequest: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         status: "scheduled" | "cancelled";
-        generated: boolean;
         id: string;
+        generated: boolean;
         employee: {
             employeeId: string;
             displayName: string;
@@ -930,8 +930,8 @@ export declare const RosterPage: z.ZodObject<{
         fromRequest: boolean;
     }, {
         status: "scheduled" | "cancelled";
-        generated: boolean;
         id: string;
+        generated: boolean;
         employee: {
             employeeId: string;
             displayName: string;
@@ -987,8 +987,8 @@ export declare const RosterPage: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: {
         status: "scheduled" | "cancelled";
-        generated: boolean;
         id: string;
+        generated: boolean;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1024,8 +1024,8 @@ export declare const RosterPage: z.ZodObject<{
 }, {
     items: {
         status: "scheduled" | "cancelled";
-        generated: boolean;
         id: string;
+        generated: boolean;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1562,8 +1562,8 @@ export declare const ShiftRequestPage: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         kind: "change" | "swap";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -1595,8 +1595,8 @@ export declare const ShiftRequestPage: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         kind: "change" | "swap";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -1666,8 +1666,8 @@ export declare const ShiftRequestPage: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         kind: "change" | "swap";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -1717,8 +1717,8 @@ export declare const ShiftRequestPage: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
         kind: "change" | "swap";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -1863,11 +1863,16 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         decisionNote: z.ZodNullable<z.ZodString>;
         resultRecordId: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
+        evidence: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        managerConfirmedByName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        managerConfirmedAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        recordClockInAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        recordClockOutAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -1888,11 +1893,16 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -1913,6 +1923,11 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }>, "many">;
     total: z.ZodNumber;
     page: z.ZodNumber;
@@ -1954,8 +1969,8 @@ export declare const AttendanceRequestPage: z.ZodObject<{
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -1976,6 +1991,11 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }[];
     total: number;
     page: number;
@@ -1997,8 +2017,8 @@ export declare const AttendanceRequestPage: z.ZodObject<{
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -2019,6 +2039,11 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         } | null;
         recordId: string | null;
         resultRecordId: string | null;
+        evidence?: string | null | undefined;
+        managerConfirmedByName?: string | null | undefined;
+        managerConfirmedAt?: string | null | undefined;
+        recordClockInAt?: string | null | undefined;
+        recordClockOutAt?: string | null | undefined;
     }[];
     total: number;
     page: number;
@@ -2208,8 +2233,8 @@ export declare const LeaveRequestPage: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         startsOn: string;
         decisionNote: string | null;
         payment: "paid" | "unpaid" | "partial";
@@ -2246,8 +2271,8 @@ export declare const LeaveRequestPage: z.ZodObject<{
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         startsOn: string;
         decisionNote: string | null;
         payment: "paid" | "unpaid" | "partial";
@@ -2322,8 +2347,8 @@ export declare const LeaveRequestPage: z.ZodObject<{
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         startsOn: string;
         decisionNote: string | null;
         payment: "paid" | "unpaid" | "partial";
@@ -2378,8 +2403,8 @@ export declare const LeaveRequestPage: z.ZodObject<{
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested";
         decidedAt: string | null;
-        reason: string | null;
         id: string;
+        reason: string | null;
         startsOn: string;
         decisionNote: string | null;
         payment: "paid" | "unpaid" | "partial";
@@ -2588,8 +2613,8 @@ export declare const LeaveAllocationPage: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -2616,8 +2641,8 @@ export declare const LeaveAllocationPage: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -2682,8 +2707,8 @@ export declare const LeaveAllocationPage: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -2728,8 +2753,8 @@ export declare const LeaveAllocationPage: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        reason: string;
         id: string;
+        reason: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -3557,14 +3582,14 @@ export declare const LoanPage: z.ZodObject<{
             deferredFrom: z.ZodNullable<z.ZodString>;
             paid: z.ZodBoolean;
         }, "strip", z.ZodTypeAny, {
-            amountRwf: number;
             id: string;
+            amountRwf: number;
             paid: boolean;
             period: string;
             deferredFrom: string | null;
         }, {
-            amountRwf: number;
             id: string;
+            amountRwf: number;
             paid: boolean;
             period: string;
             deferredFrom: string | null;
@@ -3572,9 +3597,9 @@ export declare const LoanPage: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         kind: "loan" | "advance";
+        id: string;
         amountRwf: number;
         reason: string | null;
-        id: string;
         paidRwf: number;
         employee: {
             employeeId: string;
@@ -3590,17 +3615,17 @@ export declare const LoanPage: z.ZodObject<{
         paidOut: "payslip" | "outside";
         remainingRwf: number;
         schedule: {
-            amountRwf: number;
             id: string;
+            amountRwf: number;
             paid: boolean;
             period: string;
             deferredFrom: string | null;
         }[];
     }, {
         kind: "loan" | "advance";
+        id: string;
         amountRwf: number;
         reason: string | null;
-        id: string;
         paidRwf: number;
         employee: {
             employeeId: string;
@@ -3616,8 +3641,8 @@ export declare const LoanPage: z.ZodObject<{
         paidOut: "payslip" | "outside";
         remainingRwf: number;
         schedule: {
-            amountRwf: number;
             id: string;
+            amountRwf: number;
             paid: boolean;
             period: string;
             deferredFrom: string | null;
@@ -3662,9 +3687,9 @@ export declare const LoanPage: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: {
         kind: "loan" | "advance";
+        id: string;
         amountRwf: number;
         reason: string | null;
-        id: string;
         paidRwf: number;
         employee: {
             employeeId: string;
@@ -3680,8 +3705,8 @@ export declare const LoanPage: z.ZodObject<{
         paidOut: "payslip" | "outside";
         remainingRwf: number;
         schedule: {
-            amountRwf: number;
             id: string;
+            amountRwf: number;
             paid: boolean;
             period: string;
             deferredFrom: string | null;
@@ -3706,9 +3731,9 @@ export declare const LoanPage: z.ZodObject<{
 }, {
     items: {
         kind: "loan" | "advance";
+        id: string;
         amountRwf: number;
         reason: string | null;
-        id: string;
         paidRwf: number;
         employee: {
             employeeId: string;
@@ -3724,8 +3749,8 @@ export declare const LoanPage: z.ZodObject<{
         paidOut: "payslip" | "outside";
         remainingRwf: number;
         schedule: {
-            amountRwf: number;
             id: string;
+            amountRwf: number;
             paid: boolean;
             period: string;
             deferredFrom: string | null;
@@ -3849,9 +3874,9 @@ export declare const PayClaimPage: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "reimbursement" | "leave_encashment";
         decidedAt: string | null;
+        id: string;
         amountRwf: number | null;
         reason: string;
-        id: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -3873,9 +3898,9 @@ export declare const PayClaimPage: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "reimbursement" | "leave_encashment";
         decidedAt: string | null;
+        id: string;
         amountRwf: number | null;
         reason: string;
-        id: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -3935,9 +3960,9 @@ export declare const PayClaimPage: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "reimbursement" | "leave_encashment";
         decidedAt: string | null;
+        id: string;
         amountRwf: number | null;
         reason: string;
-        id: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -3977,9 +4002,9 @@ export declare const PayClaimPage: z.ZodObject<{
         status: "approved" | "rejected" | "cancelled" | "requested";
         kind: "reimbursement" | "leave_encashment";
         decidedAt: string | null;
+        id: string;
         amountRwf: number | null;
         reason: string;
-        id: string;
         decisionNote: string | null;
         employee: {
             employeeId: string;
@@ -4139,9 +4164,9 @@ export declare const PayAdjustmentPage: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "open" | "paid" | "waived";
+        id: string;
         amountRwf: number;
         reason: string;
-        id: string;
         source: "manual" | "leave" | "asset_fine" | "held_payslip" | "late_claim";
         employee: {
             employeeId: string;
@@ -4157,9 +4182,9 @@ export declare const PayAdjustmentPage: z.ZodObject<{
         paidInPeriod: string | null;
     }, {
         status: "open" | "paid" | "waived";
+        id: string;
         amountRwf: number;
         reason: string;
-        id: string;
         source: "manual" | "leave" | "asset_fine" | "held_payslip" | "late_claim";
         employee: {
             employeeId: string;
@@ -4213,9 +4238,9 @@ export declare const PayAdjustmentPage: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: {
         status: "open" | "paid" | "waived";
+        id: string;
         amountRwf: number;
         reason: string;
-        id: string;
         source: "manual" | "leave" | "asset_fine" | "held_payslip" | "late_claim";
         employee: {
             employeeId: string;
@@ -4249,9 +4274,9 @@ export declare const PayAdjustmentPage: z.ZodObject<{
 }, {
     items: {
         status: "open" | "paid" | "waived";
+        id: string;
         amountRwf: number;
         reason: string;
-        id: string;
         source: "manual" | "leave" | "asset_fine" | "held_payslip" | "late_claim";
         employee: {
             employeeId: string;

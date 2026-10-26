@@ -30,7 +30,6 @@ export * from "./ebm-connection";
 export * from "./admin";
 export * from "./support";
 export * from "./assistant";
-export * from "./waitlist";
 export * from "./platform";
 export * from "./training";
 export * from "./psf";
@@ -46,5 +45,16 @@ export * from "./payroll";
 export * from "./checklists";
 export * from "./shift-templates";
 export * from "./list-query";
+export * from "./owner";
 export * from "./hr-lists";
+export * from "./hr-workforce";
 export * from "./redaction";
+export * from "./housekeeping-board";
+export * from "./maintenance";
+export * from "./lost-found";
+// The front desk's day in one read, and the no-show command (interface real-data, frontdesk leaf).
+export * from "./front-desk";
+export * from "./marketplace";
+// The residence screens of the new interface (real-data 1.3.1).
+export * from "./interface-residence";
+export * from "./staff-phone";

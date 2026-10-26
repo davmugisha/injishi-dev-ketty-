@@ -1,9 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
 import {
-  Children,
-  Fragment,
   useId,
   useLayoutEffect,
   useRef,
@@ -19,9 +16,7 @@ import { caretAfterFormat } from "@/lib/payment-methods";
  * turns three separate fields into one question the card is asking. The card
  * form in capture 2 is the same idea run over more rows: card number above
  * expiry-and-CVV in one box, first-and-last name in a second, the billing
- * address in a third. `CheckoutFieldGroup` is that box; `CheckoutFieldRow`
- * splits one row into one or two cells with the same vertical hairline the
- * booking widget uses between check-in and check-out.
+ * address in a third. `CheckoutFieldGroup` is that box.
  *
  * Every field keeps a small always-visible label rather than the capture's
  * placeholder-only text. A placeholder is not a label — it disappears the
@@ -40,26 +35,6 @@ export function CheckoutFieldGroup({
   return (
     <div className={`overflow-hidden rounded border border-input ${className}`}>
       {children}
-    </div>
-  );
-}
-
-/** A hairline between two stacked rows of a `CheckoutFieldGroup`. */
-export function CheckoutFieldDivider() {
-  return <span aria-hidden className="block h-px w-full bg-input" />;
-}
-
-/** One or two `CheckoutField`s side by side, split by a vertical hairline. */
-export function CheckoutFieldRow({ children }: { children: ReactNode }) {
-  const cells = Children.toArray(children);
-  return (
-    <div className="flex">
-      {cells.map((cell, index) => (
-        <Fragment key={index}>
-          {index > 0 ? <span aria-hidden className="w-px self-stretch bg-input" /> : null}
-          {cell}
-        </Fragment>
-      ))}
     </div>
   );
 }
@@ -170,44 +145,3 @@ export function CheckoutField({
   );
 }
 
-/** A field whose value is chosen from a native `<select>`, same shell as `CheckoutField`. */
-export function CheckoutSelectField({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: readonly string[];
-}) {
-  const id = useId();
-
-  return (
-    <label className="relative flex min-w-0 flex-1 flex-col gap-0.5 px-4 py-2.5" htmlFor={id}>
-      <span className="text-2xs font-semibold uppercase tracking-[0.04em] text-page-fg">
-        {label}
-      </span>
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full min-w-0 appearance-none border-0 bg-transparent p-0 pr-6 text-sm text-page-fg outline-none"
-      >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        width={14}
-        height={14}
-        strokeWidth={1.6}
-        aria-hidden
-        className="pointer-events-none absolute bottom-3 right-4 text-page-fg"
-      />
-    </label>
-  );
-}

@@ -4,7 +4,7 @@
 // Idempotent: ON CONFLICT (id) DO NOTHING. Run with DATABASE_URL set:
 //   pnpm --filter @injishi/api exec node scripts/seed-geography.mjs
 import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import pg from 'pg';
 
@@ -98,11 +98,13 @@ async function insertBatch(client, table, cols, rows) {
   return inserted;
 }
 
-async function main() {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error('DATABASE_URL not set');
+/**
+ * Loads the five geography tables into an open client, idempotently, and returns rows per table.
+ * Geography is reference data (Rwanda's administrative divisions), so the production reference seed
+ * (`seed-reference.mjs`) calls this too; only running THIS file directly demands a sample database.
+ */
+export async function seedGeography(client, log = console.log) {
   const sql = readFileSync(SQL_PATH, 'utf8');
-
   const plan = [
     ['provinces', ['id', 'name'], extractRows(sql, 'provinces')],
     ['districts', ['id', 'name', 'province_id'], extractRows(sql, 'districts')],
@@ -110,27 +112,35 @@ async function main() {
     ['cells', ['id', 'name', 'sector_id'], extractRows(sql, 'cells')],
     ['villages', ['id', 'name', 'cell_id'], extractRows(sql, 'villages')],
   ];
+  const totals = {};
+  for (const [table, cols, rows] of plan) {
+    const inserted = await insertBatch(client, table, cols, rows);
+    const { rows: cnt } = await client.query(`SELECT count(*)::int AS n FROM "${table}"`);
+    totals[table] = cnt[0].n;
+    log(
+      `${table.padEnd(10)} parsed=${String(rows.length).padStart(6)}  inserted=${String(inserted).padStart(6)}  total=${cnt[0].n}`,
+    );
+  }
+  return totals;
+}
 
+async function main() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error('DATABASE_URL not set');
   const client = new pg.Client({ connectionString: url });
   await client.connect();
-  // ADR-043: sample data only ever goes into a database marked sample.
+  // ADR-043: run on its own, this is a step of the sample recipe, so it keeps the sample guard.
   await assertSampleDatabase(client, 'seed-geography.mjs');
   try {
-    for (const [table, cols, rows] of plan) {
-      const inserted = await insertBatch(client, table, cols, rows);
-      const { rows: cnt } = await client.query(
-        `SELECT count(*)::int AS n FROM "${table}"`,
-      );
-      console.log(
-        `${table.padEnd(10)} parsed=${String(rows.length).padStart(6)}  inserted=${String(inserted).padStart(6)}  total=${cnt[0].n}`,
-      );
-    }
+    await seedGeography(client);
   } finally {
     await client.end();
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

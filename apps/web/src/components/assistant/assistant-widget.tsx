@@ -62,6 +62,19 @@ import {
  * returned on the message, which it has already checked against the tool
  * results of that turn (D-i).
  */
+const OPEN_ASSISTANT_EVENT = "injishi:open-assistant";
+
+/**
+ * Open the assistant from anywhere on a page that mounts `AssistantWidget`.
+ * Returns false when nothing is listening (the widget is not on this page, or
+ * the API has the assistant off and it drew nothing), so a caller can fall back.
+ */
+export function openAssistant(): boolean {
+  if (typeof window === "undefined" || !document.querySelector('[aria-label="Ask the Injishi assistant"]')) return false;
+  window.dispatchEvent(new Event(OPEN_ASSISTANT_EVENT));
+  return true;
+}
+
 export function AssistantWidget() {
   const pathname = usePathname();
   const [enabled, setEnabled] = useState(false);
@@ -93,6 +106,14 @@ export function AssistantWidget() {
     return () => {
       live = false;
     };
+  }, []);
+
+  // A page's own "Ask Injishi" (registration's "This TIN is already registered")
+  // opens the same sheet rather than a second assistant.
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener(OPEN_ASSISTANT_EVENT, show);
+    return () => window.removeEventListener(OPEN_ASSISTANT_EVENT, show);
   }, []);
 
   useEffect(() => {

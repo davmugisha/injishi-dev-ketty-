@@ -5,10 +5,11 @@ import { GeographyModule } from '../geography/geography.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { SmsModule } from '../sms/sms.module';
-import { UserModule } from '../user/user.module';
 import { StorageModule } from '../storage/storage.module';
+import { UserModule } from '../user/user.module';
 
 import { BrokerRegistrationService } from './application/broker-registration.service';
+import { CertificatesService } from './application/certificates.service';
 import { OwnerClaimService } from './application/owner-claim.service';
 import { PsfMembershipService } from './application/psf-membership.service';
 import { PsfPublicService } from './application/psf-public.service';
@@ -19,6 +20,7 @@ import { RolePermissionsService } from './application/role-permissions.service';
 import { StaffInvitationService } from './application/staff-invitation.service';
 import { TeamService } from './application/team.service';
 import { BrokerRepository } from './infrastructure/broker.repository';
+import { CertificatesRepository } from './infrastructure/certificates.repository';
 import { ClaimInvitationMailer } from './infrastructure/claim-invitation.mailer';
 import { OrganizationRepository } from './infrastructure/organization.repository';
 import { OwnerClaimRepository } from './infrastructure/owner-claim.repository';
@@ -53,6 +55,9 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
   // itself, so the uniqueness rule on `identity_documents` has one owner.
   // MailerModule for the owner claim invitation (ADR-053), mailed through the
   // same seam as every sign-in code.
+  // `StorageModule` is a SEAM, like `MailerModule` beside it: it supplies
+  // `StorageService`, which mints the short lived link an officer opens a
+  // registration document through (F-S03 §5). No service here touches bytes.
   // GeographyModule for one question only: whether the village on a
   // registration's address sits under its sector (D24). `villages` is that
   // module's table, so the join lives there and this module composes it.
@@ -104,6 +109,10 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     PsfPublicService,
     PsfReportRepository,
     PsfReportService,
+    // Licences and registrations on file (Compliance → Licences): the
+    // documents a business keeps about itself, an ORG fact like the roster.
+    CertificatesRepository,
+    CertificatesService,
     // The RRA TIN retry sweep (ADR-053, AC-R5). Worker only, like the night
     // audit, so an HTTP replica never consumes a job.
     ...(isWorkerProcess() ? [RegistrationTinRecheckProcessor] : []),
@@ -121,6 +130,7 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     PsfMembershipService,
     PsfPublicService,
     PsfReportService,
+    CertificatesService,
   ],
 })
 export class OrganizationModule {}

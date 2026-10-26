@@ -33,20 +33,3 @@ export const PROMO_BAR: Promotion | null = {
   href: "/explore",
 };
 
-/** Slot 2 — the pair of tiles. Either entry may be null; the other widens. */
-export const PROMO_PAIR: (Promotion | null)[] = [
-  {
-    tag: "Long stay",
-    headline: "A week costs less than seven nights",
-    body: "Selected stays price seven nights or more below the nightly rate.",
-    ctaLabel: "See long stays",
-    href: "/explore",
-  },
-  {
-    tag: "Newly verified",
-    headline: "Just approved across Rwanda",
-    body: "Stays that cleared verification this month, ready to book.",
-    ctaLabel: "See what's new",
-    href: "/explore",
-  },
-];

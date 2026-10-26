@@ -6,7 +6,6 @@ import {
   RedeemOfferResult,
   StayDepartments,
   StayRefundQuote,
-  StayRefundRequestList,
   StayRefundRequestView,
   type GuestOffer,
   type MyStay,
@@ -158,18 +157,6 @@ export async function raiseRefundRequest(
   const parsed = StayRefundRequestView.safeParse(result.data);
   if (!parsed.success) return { status: "failed" };
   return { status: "ok", data: parsed.data };
-}
-
-/** Everything this person has ever asked for, and how each was answered. */
-export async function fetchMyRefundRequests(): Promise<
-  ApiResult<StayRefundRequestView[]>
-> {
-  const result = await apiFetch<unknown>("/api/v1/me/stays/refund-requests");
-  if (result.status !== "ok") return result;
-
-  const parsed = StayRefundRequestList.safeParse(result.data);
-  if (!parsed.success) return { status: "failed" };
-  return { status: "ok", data: parsed.data.requests };
 }
 
 /** Change your mind about one nobody has answered yet. */

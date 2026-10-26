@@ -77,6 +77,9 @@ export interface LeaveTypeRow extends LeaveTypeRules {
   orgId: string;
   code: string;
   status: LeaveTypeStatus;
+  /** The owner's sign off (real-data, people); absent where a row is built by hand. */
+  verifiedAt?: Date | null;
+  verifiedByName?: string | null;
 }
 
 export interface LedgerRow extends LedgerItem {
@@ -176,6 +179,8 @@ const typeColumns = {
   seniorityEveryYears: leaveTypes.seniorityEveryYears,
   seniorityExtraDays: leaveTypes.seniorityExtraDays,
   seniorityCapDays: leaveTypes.seniorityCapDays,
+  verifiedAt: leaveTypes.verifiedAt,
+  verifiedByName: sql<string | null>`(select ${users.name} from ${users} where ${users.id} = ${leaveTypes.verifiedByUserId})`,
 };
 
 /** A default type's rules as the table takes them. */

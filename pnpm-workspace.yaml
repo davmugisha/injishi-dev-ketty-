@@ -1,27 +1,59 @@
-# Standalone workspace for the injishi product repo.
+# The one pnpm workspace for the injishi product repo.
 #
-# `packages/*` holds the five shared packages, and globbing them here is what
-# lets apps keep `workspace:*`.
-#
-# It was called `vendor/` and was a build-output mirror of `injishi.managed`.
-# That repository is deleted, these are the only copies, and ADR-034 renamed the
-# directory to say so: a directory called `vendor` is a directory nobody edits,
-# which is the wrong instruction to leave on the only copy of a design system.
-#
-# `server/*` is globbed because the api lives in this repo. Dropping any of
-# the three breaks the standalone build: apps stop resolving `workspace:*`.
+# `apps/*` holds the new interface (apps/app on Next.js, apps/mobile on Expo)
+# and the marketplace (apps/web). `server/*` holds the API. `packages/*` holds
+# the shared packages, and globbing them here is what lets every member keep
+# `workspace:*`. Dropping any of the three breaks the build.
 packages:
   - apps/*
   - server/*
   - packages/*
 
+# Packages too new for pnpm's default minimum release age.
+minimumReleaseAgeExclude:
+  - react-resizable-panels@4.14.5
+  - zod@4.6.7
+  - '@gravity-ui/icons@2.22.1'
+  - '@expo/cli@57.0.29'
+  - '@expo/fingerprint@0.20.14'
+  - '@expo/inline-modules@0.1.8'
+  - '@expo/local-build-cache-provider@57.0.9'
+  - '@expo/prebuild-config@57.0.18'
+  - '@expo/ui@57.0.23'
+  - babel-preset-expo@57.0.15
+  - expo-modules-autolinking@57.0.15
+  - expo-modules-core@57.0.22
+  - expo-modules-jsi@57.1.2
+  - expo-router@57.0.26
+  - expo-splash-screen@57.0.10
+  - expo@57.0.28
+  - expo-network@57.0.3
+# Slow/flaky networks: be patient with large tarballs (next, swc, turbo).
+fetchRetries: 6
+fetchTimeout: 300000
+networkConcurrency: 8
+
+# Only these packages may run install scripts.
+# @heroui-pro/react downloads its licensed components in postinstall,
+# authenticated with HEROUI_AUTH_TOKEN (see .env.example). msgpackr-extract
+# (bullmq) and sharp are the API's native builds.
+allowBuilds:
+  '@heroui-pro/react': true
+  '@zowe/secrets-for-zowe-sdk': false
+  esbuild: true
+  heroui-native-pro: true
+  heroui-pro: true
+  msgpackr-extract: true
+  sharp: true
 # Run every allowed build script on every install, never reuse a cached result.
-# `@heroui-pro/react`'s postinstall downloads Pro's real code only when
-# HEROUI_AUTH_TOKEN (or a developer's login) is present, and pnpm's side effects
-# cache is keyed on the package, not on that variable: one install without the
-# token cached the empty stub, and every later install, token or not, reused it
-# without running the script. CI restores the store from the Actions cache and
-# the web and admin images keep one in a cache mount, so both fell into it
-# (PR #22's first run with the secret set built nothing). The cost is esbuild's
-# and sharp's install checks, and Pro's download, on every install.
+# pnpm's side effects cache is keyed on the package, not on HEROUI_AUTH_TOKEN:
+# one install without the token caches @heroui-pro/react's empty stub, and every
+# later install, token or not, reuses it without running the postinstall.
 sideEffectsCache: false
+
+# One set of React type definitions for the whole workspace. The Expo app runs React 19.2 (React Native's
+# renderer pins it) while the web app runs 19.3; their runtimes stay separate, but two @types/react copies
+# make HeroUI's declarations and the web code disagree, so every member type-checks against 19.3.0.
+overrides:
+  '@types/react': 19.3.0
+  '@types/react-dom': 19.3.0

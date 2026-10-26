@@ -83,6 +83,7 @@ export class StaffInvitationService {
       token,
       expiresAt,
       invitedByUserId: actorUserId,
+      name: body.name ?? null,
     });
 
     // After the commit, and never throwing: a slow relay must not turn an
@@ -166,5 +167,6 @@ function present(row: StaffInvitationRow): OperatorStaffInvitation {
     expiresAt: row.expiresAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
     branchIds: row.branchIds,
+    name: row.name,
   };
 }

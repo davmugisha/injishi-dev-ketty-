@@ -69,7 +69,7 @@ describe(`the live assistant (${model})`, () => {
       { kind: 'anon', tokenHash: null },
       { message: 'Explain to me, as someone new to this, why my property might not be publishable yet.', surface: 'web' },
       new Date(),
-      { catalogueOpen: true },
+      {},
     );
     const answer = result.conversation.messages.at(-1);
     console.log(`ANSWER: ${answer?.text}\nSOURCES: ${JSON.stringify(answer?.sources)}\nUSAGE: ${JSON.stringify(usage.turns[0]?.calls)}`);
@@ -90,7 +90,7 @@ describe(`the live assistant (${model})`, () => {
       { kind: 'anon', tokenHash: null },
       { message: 'Explain how I would change the Double room price to 70,000 RWF.', surface: 'web' },
       new Date(),
-      { catalogueOpen: true },
+      {},
     );
     const answer = result.conversation.messages.at(-1);
     console.log(`ANSWER: ${answer?.text}`);

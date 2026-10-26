@@ -27,9 +27,9 @@ import type { ApiResult } from "@/lib/api";
  */
 
 /** Everything a conversation needs from its thread to decide about ordering. */
-export type OrderableThread = Pick<GuestThread, "status" | "propertyId">;
+type OrderableThread = Pick<GuestThread, "status" | "propertyId">;
 
-export type ThreadOrdering =
+type ThreadOrdering =
   /**
    * Not worth asking, and the reason. An archived conversation would have its
    * order refused with a 409, and a thread with no resolvable property has no

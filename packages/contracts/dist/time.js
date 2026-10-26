@@ -205,6 +205,14 @@ exports.AttendanceRequest = zod_1.z.object({
     decisionNote: zod_1.z.string().nullable(),
     resultRecordId: Uuid.nullable(),
     createdAt: zod_1.z.string(),
+    /** What backs the times asked for: a work order closed, a handover note signed. */
+    evidence: zod_1.z.string().nullable().optional(),
+    /** The line manager who confirmed the times before the request reached the office. */
+    managerConfirmedByName: zod_1.z.string().nullable().optional(),
+    managerConfirmedAt: zod_1.z.string().nullable().optional(),
+    /** The record as it stands, so a reader sees what would change. */
+    recordClockInAt: zod_1.z.string().nullable().optional(),
+    recordClockOutAt: zod_1.z.string().nullable().optional(),
 });
 const AttendanceAsk = zod_1.z
     .object({

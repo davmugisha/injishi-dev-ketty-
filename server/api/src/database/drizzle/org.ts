@@ -27,10 +27,11 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { timestamps } from './columns';
-import { adapterModeEnum, documentTypeEnum, domainKindEnum, enterpriseRegistrationKindEnum, genderEnum, globalRoleEnum, identityDocumentStatusEnum, invitationPurposeEnum, invitationStatusEnum, kycStatusEnum, oboClaimStatusEnum, orgCertificateKindEnum, orgMembershipStatusEnum, orgRegistrationStatusEnum, orgRoleEnum, oversightRoleEnum, oversightScopeLevelEnum, psfOwnerGroupEnum, rdbClassificationKindEnum, registrationRejectionReasonEnum, registrationReviewDecisionEnum, registrationTransitionTriggerEnum, tinVerificationResultEnum, workspaceKindEnum } from './enums';
+import { adapterModeEnum, documentTypeEnum, domainKindEnum, enterpriseRegistrationKindEnum, genderEnum, globalRoleEnum, identityDocumentStatusEnum, invitationPurposeEnum, invitationStatusEnum, kycStatusEnum, oboClaimStatusEnum, orgCertificateKindEnum, orgCertificateStatusEnum, orgMembershipStatusEnum, orgRegistrationStatusEnum, orgRoleEnum, oversightRoleEnum, oversightScopeLevelEnum, psfOwnerGroupEnum, rdbClassificationKindEnum, registrationRejectionReasonEnum, registrationReviewDecisionEnum, registrationTransitionTriggerEnum, tinVerificationResultEnum, workspaceKindEnum } from './enums';
 import { districts, provinces, sectors, villages } from './geography';
 import { storedObjects } from './hospitality';
 import { psfAssociations, psfSubsectors } from './psf-catalogue';
+import { properties } from './inventory';
 
 export const rdbClassifications = pgTable('rdb_classifications', {
   code: text('code').primaryKey(),
@@ -238,6 +239,8 @@ export const userProfiles = pgTable(
       .primaryKey()
       .references(() => users.id, { onDelete: 'cascade' }),
     displayName: text('display_name'),
+    /** The language the person reads Injishi in (the guest account's choice). */
+    locale: text('locale').notNull().default('en'),
     avatarObjectKey: text('avatar_object_key'),
     phoneE164: text('phone_e164'),
     // Demoted (Decision A): uniqueness now lives in `identity_documents`. Kept as
@@ -260,6 +263,7 @@ export const userProfiles = pgTable(
     ...timestamps,
   },
   (t) => [
+    check('user_profiles_locale', sql`${t.locale} IN ('en', 'rw', 'fr')`),
     check(
       'user_profiles_address_country_shape',
       sql`${t.country} = 'RW'
@@ -505,6 +509,12 @@ export const orgInvitations = pgTable(
      * rather than rows because an invitation is a proposal, not a grant.
      */
     branchPropertyIds: uuid('branch_property_ids').array(),
+    /**
+     * The name the inviter typed for the person, so the Team screen can say
+     * who is invited before they have an account to read a name from. Nullable:
+     * invitations that predate it carry only the address.
+     */
+    inviteeName: text('invitee_name'),
     ...timestamps,
   },
   (t) => [
@@ -569,10 +579,27 @@ export const orgCertificates = pgTable(
     // tin_verified -> field_verified gate.
     verifiedAt: timestamp('verified_at', { withTimezone: true }),
     verifiedByUserId: uuid('verified_by_user_id').references(() => users.id),
+    /**
+     * The branch the document is about (a tourism licence, a fire certificate),
+     * or null when it is about the business itself (incorporation, tax
+     * clearance). Kept when the branch is archived, as the history it is.
+     */
+    propertyId: uuid('property_id').references((): AnyPgColumn => properties.id, {
+      onDelete: 'set null',
+    }),
+    /**
+     * `requested`: asked of the issuer and not yet granted, so there is no
+     * number or expiry yet. `on_file`: the document exists. Expired and expiring
+     * are read from `expires_on`, never stored, so they cannot go stale.
+     */
+    status: orgCertificateStatusEnum('status').notNull().default('on_file'),
+    /** What is still open about this document ("renewal in draft", "inspection follow-up open"), or null. */
+    followUp: text('follow_up'),
     ...timestamps,
   },
   (t) => [
     index('org_certificates_org_idx').on(t.orgId),
+    index('org_certificates_property_idx').on(t.propertyId),
     // Only the expiring ones are swept for renewal reminders.
     index('org_certificates_expiry_idx')
       .on(t.expiresOn)

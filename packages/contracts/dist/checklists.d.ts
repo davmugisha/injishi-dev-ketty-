@@ -94,6 +94,7 @@ export declare const ChecklistTemplate: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     kind: "onboarding" | "offboarding";
+    id: string;
     items: {
         id: string;
         label: string;
@@ -104,11 +105,11 @@ export declare const ChecklistTemplate: z.ZodObject<{
             title: string;
         } | null;
     }[];
-    id: string;
     isDefault: boolean;
 }, {
     name: string;
     kind: "onboarding" | "offboarding";
+    id: string;
     items: {
         id: string;
         label: string;
@@ -119,7 +120,6 @@ export declare const ChecklistTemplate: z.ZodObject<{
             title: string;
         } | null;
     }[];
-    id: string;
     isDefault: boolean;
 }>;
 export type ChecklistTemplate = z.infer<typeof ChecklistTemplate>;
@@ -174,6 +174,7 @@ export declare const ChecklistTemplateList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string;
         kind: "onboarding" | "offboarding";
+        id: string;
         items: {
             id: string;
             label: string;
@@ -184,11 +185,11 @@ export declare const ChecklistTemplateList: z.ZodObject<{
                 title: string;
             } | null;
         }[];
-        id: string;
         isDefault: boolean;
     }, {
         name: string;
         kind: "onboarding" | "offboarding";
+        id: string;
         items: {
             id: string;
             label: string;
@@ -199,13 +200,13 @@ export declare const ChecklistTemplateList: z.ZodObject<{
                 title: string;
             } | null;
         }[];
-        id: string;
         isDefault: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     templates: {
         name: string;
         kind: "onboarding" | "offboarding";
+        id: string;
         items: {
             id: string;
             label: string;
@@ -216,13 +217,13 @@ export declare const ChecklistTemplateList: z.ZodObject<{
                 title: string;
             } | null;
         }[];
-        id: string;
         isDefault: boolean;
     }[];
 }, {
     templates: {
         name: string;
         kind: "onboarding" | "offboarding";
+        id: string;
         items: {
             id: string;
             label: string;
@@ -233,7 +234,6 @@ export declare const ChecklistTemplateList: z.ZodObject<{
                 title: string;
             } | null;
         }[];
-        id: string;
         isDefault: boolean;
     }[];
 }>;

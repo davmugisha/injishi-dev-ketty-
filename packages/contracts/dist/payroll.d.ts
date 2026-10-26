@@ -34,10 +34,10 @@ export declare const PayslipLineRef: z.ZodObject<{
     kind: z.ZodEnum<["loan_installment", "loan", "claim", "adjustment", "leave_type"]>;
     id: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+    kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
     id: string;
 }, {
-    kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+    kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
     id: string;
 }>;
 export type PayslipLineRef = z.infer<typeof PayslipLineRef>;
@@ -69,10 +69,10 @@ export declare const PayslipLine: z.ZodObject<{
         kind: z.ZodEnum<["loan_installment", "loan", "claim", "adjustment", "leave_type"]>;
         id: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+        kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         id: string;
     }, {
-        kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+        kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         id: string;
     }>>;
 }, "strip", z.ZodTypeAny, {
@@ -83,7 +83,7 @@ export declare const PayslipLine: z.ZodObject<{
     basis: string;
     side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
     ref?: {
-        kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+        kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         id: string;
     } | undefined;
     taxable?: boolean | undefined;
@@ -98,7 +98,7 @@ export declare const PayslipLine: z.ZodObject<{
     basis: string;
     side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
     ref?: {
-        kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+        kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         id: string;
     } | undefined;
     taxable?: boolean | undefined;
@@ -151,10 +151,10 @@ export declare const Payslip: z.ZodObject<{
             kind: z.ZodEnum<["loan_installment", "loan", "claim", "adjustment", "leave_type"]>;
             id: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             id: string;
         }, {
-            kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             id: string;
         }>>;
     }, "strip", z.ZodTypeAny, {
@@ -165,7 +165,7 @@ export declare const Payslip: z.ZodObject<{
         basis: string;
         side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
         ref?: {
-            kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             id: string;
         } | undefined;
         taxable?: boolean | undefined;
@@ -180,7 +180,7 @@ export declare const Payslip: z.ZodObject<{
         basis: string;
         side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
         ref?: {
-            kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             id: string;
         } | undefined;
         taxable?: boolean | undefined;
@@ -218,7 +218,7 @@ export declare const Payslip: z.ZodObject<{
         basis: string;
         side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
         ref?: {
-            kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             id: string;
         } | undefined;
         taxable?: boolean | undefined;
@@ -253,7 +253,7 @@ export declare const Payslip: z.ZodObject<{
         basis: string;
         side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
         ref?: {
-            kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             id: string;
         } | undefined;
         taxable?: boolean | undefined;
@@ -487,10 +487,10 @@ export declare const PayRunDetail: z.ZodObject<{
                 kind: z.ZodEnum<["loan_installment", "loan", "claim", "adjustment", "leave_type"]>;
                 id: z.ZodString;
             }, "strip", z.ZodTypeAny, {
-                kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
             }, {
-                kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
             }>>;
         }, "strip", z.ZodTypeAny, {
@@ -501,7 +501,7 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
             ref?: {
-                kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
             } | undefined;
             taxable?: boolean | undefined;
@@ -516,7 +516,7 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
             ref?: {
-                kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
             } | undefined;
             taxable?: boolean | undefined;
@@ -554,7 +554,7 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
             ref?: {
-                kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
             } | undefined;
             taxable?: boolean | undefined;
@@ -589,7 +589,7 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
             ref?: {
-                kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
             } | undefined;
             taxable?: boolean | undefined;
@@ -666,7 +666,7 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
             ref?: {
-                kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
             } | undefined;
             taxable?: boolean | undefined;
@@ -730,7 +730,7 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
             ref?: {
-                kind: "adjustment" | "loan_installment" | "loan" | "claim" | "leave_type";
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
             } | undefined;
             taxable?: boolean | undefined;

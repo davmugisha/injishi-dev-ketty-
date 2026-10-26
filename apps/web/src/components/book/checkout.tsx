@@ -46,6 +46,7 @@ import {
   propertyHref,
   todayInKigali,
 } from "@/lib/search-params";
+import { track } from "@/lib/analytics";
 import { useSessionUser } from "@/lib/session";
 
 /**
@@ -275,6 +276,9 @@ export function Checkout() {
     });
 
     if (result.status === "ok") {
+      // Counted once per accepted request, whatever happens to the payment
+      // after it; no amount and nothing about the guest goes with it.
+      track("Booking Requested", { outcome: result.data.status });
       if (result.data.status === "awaiting_payment") {
         // The prompt is live on the guest’s handset. The token stays put:
         // it is how the waiting screen finds this attempt, and how a retry

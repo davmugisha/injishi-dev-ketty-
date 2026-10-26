@@ -144,7 +144,7 @@ export declare const AssistantProposal: z.ZodObject<{
     id: string;
     current: string;
     title: string;
-    state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+    state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
     proposed: string;
     expiresAt: string;
     error: string | null;
@@ -153,7 +153,7 @@ export declare const AssistantProposal: z.ZodObject<{
     id: string;
     current: string;
     title: string;
-    state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+    state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
     proposed: string;
     expiresAt: string;
     error: string | null;
@@ -179,7 +179,7 @@ export declare const AssistantProposalResult: z.ZodObject<{
         id: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
         expiresAt: string;
         error: string | null;
@@ -188,7 +188,7 @@ export declare const AssistantProposalResult: z.ZodObject<{
         id: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
         expiresAt: string;
         error: string | null;
@@ -199,7 +199,7 @@ export declare const AssistantProposalResult: z.ZodObject<{
         id: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
         expiresAt: string;
         error: string | null;
@@ -210,7 +210,7 @@ export declare const AssistantProposalResult: z.ZodObject<{
         id: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
         expiresAt: string;
         error: string | null;
@@ -299,7 +299,7 @@ export declare const AssistantMessage: z.ZodObject<{
         id: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
         expiresAt: string;
         error: string | null;
@@ -308,7 +308,7 @@ export declare const AssistantMessage: z.ZodObject<{
         id: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
         expiresAt: string;
         error: string | null;
@@ -351,7 +351,7 @@ export declare const AssistantMessage: z.ZodObject<{
         id: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
         expiresAt: string;
         error: string | null;
@@ -383,7 +383,7 @@ export declare const AssistantMessage: z.ZodObject<{
         id: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
         expiresAt: string;
         error: string | null;
@@ -479,7 +479,7 @@ export declare const AssistantConversation: z.ZodObject<{
             id: string;
             current: string;
             title: string;
-            state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
             proposed: string;
             expiresAt: string;
             error: string | null;
@@ -488,7 +488,7 @@ export declare const AssistantConversation: z.ZodObject<{
             id: string;
             current: string;
             title: string;
-            state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
             proposed: string;
             expiresAt: string;
             error: string | null;
@@ -531,7 +531,7 @@ export declare const AssistantConversation: z.ZodObject<{
             id: string;
             current: string;
             title: string;
-            state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
             proposed: string;
             expiresAt: string;
             error: string | null;
@@ -563,7 +563,7 @@ export declare const AssistantConversation: z.ZodObject<{
             id: string;
             current: string;
             title: string;
-            state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
             proposed: string;
             expiresAt: string;
             error: string | null;
@@ -616,7 +616,7 @@ export declare const AssistantConversation: z.ZodObject<{
             id: string;
             current: string;
             title: string;
-            state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
             proposed: string;
             expiresAt: string;
             error: string | null;
@@ -659,7 +659,7 @@ export declare const AssistantConversation: z.ZodObject<{
             id: string;
             current: string;
             title: string;
-            state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
             proposed: string;
             expiresAt: string;
             error: string | null;
@@ -763,7 +763,7 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -772,7 +772,7 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -815,7 +815,7 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -847,7 +847,7 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -900,7 +900,7 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -943,7 +943,7 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -995,7 +995,7 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1041,7 +1041,7 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1151,7 +1151,7 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1160,7 +1160,7 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1203,7 +1203,7 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1235,7 +1235,7 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1288,7 +1288,7 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1331,7 +1331,7 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1403,7 +1403,7 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1455,7 +1455,7 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1579,7 +1579,7 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1588,7 +1588,7 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1631,7 +1631,7 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1663,7 +1663,7 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1716,7 +1716,7 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1759,7 +1759,7 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1804,7 +1804,7 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;
@@ -1850,7 +1850,7 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 id: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "failed" | "expired" | "proposed" | "executed";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
                 expiresAt: string;
                 error: string | null;

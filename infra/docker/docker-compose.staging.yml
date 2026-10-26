@@ -1,41 +1,39 @@
-# Staging, on the Hangaa VPS beside production (Dokploy project Injishi).
+# Staging, on the Hangaa VPS beside production: Dokploy organisation Hangaa
+# Softwares, project Injishi, environment Staging, one compose service.
 #
 # DOKPLOY.md owns every deploy fact; this file is the contract it describes.
-# Run from a SEPARATE checkout of the injishi repo, at the commit being tested,
-# under its own project name and env file:
+# DOKPLOY DEPLOYS IT, exactly as it deploys production: it clones the
+# repository, writes the environment's variables to infra/docker/.env and runs
+# `docker compose -p <appName> -f infra/docker/docker-compose.staging.yml up -d
+# --build` with the repo root as the build context. Every image is built on the
+# host from the same Dockerfiles production builds.
 #
-#   INJISHI_COMMIT=$(git rev-parse --short HEAD) \
-#   docker compose -p injishi-staging -f infra/docker/docker-compose.staging.yml \
-#     --env-file /opt/injishi-staging/.env up -d --build
-#
-# A FULL, SEPARATE STACK. Its own Postgres, Redis, API, worker and frontends,
-# its own secrets, and its own volumes (the project name namespaces them).
-# Staging is where a release is tried before production, not a showroom.
+# THE API AND THE OPERATOR APP, NOTHING ELSE. Staging ships api, worker and app
+# with their own Postgres, Redis, MinIO and Mailpit, its own secrets and its own
+# volumes (the project name namespaces them). It ships no web and no admin.
 #
 # A PRODUCTION PROCESS ON A SAMPLE DATABASE (ADR-043), pinned below as literals:
 # it issues random codes like production, and its database carries the sample
 # marker and the same sample recipe the demo and a laptop run
 # (`seed-sample.mjs`), demo roster included. The API refuses to boot on an
 # unmarked database, so the FIRST bring up migrates, marks and seeds in a one
-# time container before `up -d` (DOKPLOY.md names the command).
+# time container (DOKPLOY.md names the command).
 #
-# ITS OWN DOMAIN, NOT injishi.com. Production sets its session cookie on
-# `.injishi.com`, so a browser hands a live production session to every host
-# under that domain. A staging host there would receive real production
-# sessions and run unreleased code against them. STAGING_DOMAIN must be a
-# domain production does not use; compose refuses to start without it.
+# UNDER injishi.com, BY THE OWNER'S CHOICE (2026-10-20): api-staging. and
+# app-staging.injishi.com. Production sets its session cookie on
+# `.injishi.com`, so a browser signed in to production hands that cookie to
+# these hosts too. Staging cannot verify it (its secret is its own) and its
+# logs redact cookies, but unreleased code does receive it. Staging's own API
+# cookie is host only (AUTH_COOKIE_DOMAIN is empty), so it never reaches
+# production.
 #
-# NOT PUBLIC. web, admin, the storage host and the Mailpit inbox sit behind
-# STAGING_ALLOWED_IPS (loopback only when unset). The API stays open like
-# production's, because the frontends call it server side through its public
-# address and the session guards are its boundary. Every service carries a
-# resource ceiling so a test run cannot starve production on the same host.
+# PUBLIC WHERE IT HAS TO BE. The API and the app are Dokploy domain rows and
+# answer anyone; a stranger still cannot sign in, because every code goes to
+# this stack's Mailpit. The storage host and the Mailpit inbox answer only to
+# STAGING_ALLOWED_IPS (loopback when unset). Every service carries a resource
+# ceiling so a test run cannot starve production on the same host.
 #
-# STORAGE AND MAIL, as production does them, with one difference: every
-# message goes to this stack's Mailpit, never to a real mailbox. Testers read
-# it at mail.<STAGING_DOMAIN>.
-#
-# Router names start with `injishi-staging-` so they cannot collide with
+# Label router names start with `injishi-staging-` so they cannot collide with
 # production's. Images are tagged `:staging` for the same reason.
 
 x-api-env: &api-env
@@ -56,10 +54,13 @@ x-api-env: &api-env
   BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
   # The kiosk PIN pepper (058-time AC-TM11). Staging runs the production
   # platform, so it refuses to boot without one. Never production's.
-  HR_PIN_PEPPER: ${HR_PIN_PEPPER:?set HR_PIN_PEPPER, the kiosk PIN pepper: openssl rand -base64 32}
-  BETTER_AUTH_URL: https://api.${STAGING_DOMAIN:?set STAGING_DOMAIN to a domain production does not use}
-  AUTH_COOKIE_DOMAIN: .${STAGING_DOMAIN}
-  CORS_ORIGINS: https://www.${STAGING_DOMAIN},https://admin.${STAGING_DOMAIN}
+  HR_PIN_PEPPER: "${HR_PIN_PEPPER:?set HR_PIN_PEPPER to a kiosk PIN pepper via openssl rand -base64 32}"
+  BETTER_AUTH_URL: https://${API_HOST:-api-staging.injishi.com}
+  # Empty: a host only cookie on the API's host. A cookie on `.injishi.com`
+  # would reach production. The app keeps its session in its own cookie.
+  AUTH_COOKIE_DOMAIN: ""
+  # The app's origin, which its server side calls send as their Origin.
+  CORS_ORIGINS: https://${APP_HOST:-app-staging.injishi.com}
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
   # The support assistant (ADR-061). Off unless the host env file turns it on. `live` needs ANTHROPIC_API_KEY from the host env file, never from this file, and the API refuses to boot on `live` without it.
@@ -81,7 +82,7 @@ x-api-env: &api-env
   # production's `minio` answers to the same name.
   STORAGE_ADAPTER_MODE: live
   STORAGE_S3_ENDPOINT: http://injishi-minio:9000
-  STORAGE_S3_PUBLIC_ENDPOINT: https://storage.${STAGING_DOMAIN}
+  STORAGE_S3_PUBLIC_ENDPOINT: https://${STORAGE_HOST:-storage-staging.injishi.com}
   STORAGE_S3_REGION: us-east-1
   STORAGE_S3_ACCESS_KEY: ${STORAGE_S3_ACCESS_KEY:?set STORAGE_S3_ACCESS_KEY, the API's own MinIO user}
   STORAGE_S3_SECRET_KEY: ${STORAGE_S3_SECRET_KEY:?set STORAGE_S3_SECRET_KEY, the API's own MinIO secret}
@@ -91,18 +92,19 @@ x-api-env: &api-env
   # for the same reason as the storage endpoint). Nothing here can mail a
   # real person, so there is no relay credential to leak or to spend.
   SMTP_URL: smtp://injishi-mailpit:1025
-  MAIL_FROM: "Injishi Staging <no-reply@${STAGING_DOMAIN}>"
+  MAIL_FROM: "Injishi Staging <no-reply@staging.injishi.com>"
   # Web's public origin, for a mail that links to a page on web (ADR-053). The
-  # same host NEXT_PUBLIC_WEB_URL uses, so staging mail links to staging web.
-  WEB_URL: https://www.${STAGING_DOMAIN}
+  # API refuses to boot without one. Staging has no web, so its mail names the
+  # app's origin, and a link to a page only web has answers 404 there.
+  WEB_URL: https://${APP_HOST:-app-staging.injishi.com}
   LOG_LEVEL: ${LOG_LEVEL:-debug}
 
 x-staging-public: &staging-public
-  NEXT_PUBLIC_API_URL: https://api.${STAGING_DOMAIN}
-  NEXT_PUBLIC_WEB_URL: https://www.${STAGING_DOMAIN}
-  NEXT_PUBLIC_SITE_URL: https://www.${STAGING_DOMAIN}
-  NEXT_PUBLIC_PMS_URL: https://www.${STAGING_DOMAIN}
-  NEXT_PUBLIC_ADMIN_URL: https://admin.${STAGING_DOMAIN}
+  NEXT_PUBLIC_API_URL: https://${API_HOST:-api-staging.injishi.com}
+  # The app sends `/` to web's front door. Staging has no web, so its front
+  # door is the app's own sign-in screen.
+  NEXT_PUBLIC_WEB_URL: https://${APP_HOST:-app-staging.injishi.com}/sign-in
+  NEXT_PUBLIC_PMS_URL: https://${APP_HOST:-app-staging.injishi.com}
   # Pinned (ADR-043, AC-14). Staging's builds are production builds: they never
   # strip session cookies, which only the demo's builds do.
   NEXT_PUBLIC_INJISHI_ENVIRONMENT: production
@@ -134,6 +136,7 @@ volumes:
   db-data:
   redis-data:
   minio-data:
+  app-data:
 
 services:
   db:
@@ -170,7 +173,7 @@ services:
       - default
 
   # Production's MinIO, pinned the same and encrypted the same, with its own
-  # KMS key and credentials. Its S3 port answers on storage.<STAGING_DOMAIN>
+  # KMS key and credentials. Its S3 port answers on storage-staging.injishi.com
   # behind the staging allowlist (testers' browsers fetch the signed URLs), for
   # reads only and never MinIO's own /minio/ paths. The console is off, so
   # there is no port 9001 to route.
@@ -202,11 +205,11 @@ services:
       - traefik.docker.network=dokploy-network
       - traefik.http.services.injishi-staging-storage.loadbalancer.server.port=9000
       - traefik.http.middlewares.injishi-staging-storage-allow.ipallowlist.sourcerange=${STAGING_ALLOWED_IPS:-127.0.0.1/32}
-      - traefik.http.routers.injishi-staging-storage-http.rule=Host(`storage.${STAGING_DOMAIN}`)
+      - traefik.http.routers.injishi-staging-storage-http.rule=Host(`${STORAGE_HOST:-storage-staging.injishi.com}`)
       - traefik.http.routers.injishi-staging-storage-http.entrypoints=web
       - traefik.http.routers.injishi-staging-storage-http.middlewares=redirect-to-https@file
       - traefik.http.routers.injishi-staging-storage-http.service=injishi-staging-storage
-      - traefik.http.routers.injishi-staging-storage.rule=Host(`storage.${STAGING_DOMAIN}`) && (Method(`GET`) || Method(`HEAD`) || Method(`OPTIONS`)) && !PathPrefix(`/minio/`)
+      - traefik.http.routers.injishi-staging-storage.rule=Host(`${STORAGE_HOST:-storage-staging.injishi.com}`) && (Method(`GET`) || Method(`HEAD`) || Method(`OPTIONS`)) && !PathPrefix(`/minio/`)
       - traefik.http.routers.injishi-staging-storage.entrypoints=websecure
       - traefik.http.routers.injishi-staging-storage.tls.certresolver=letsencrypt
       - traefik.http.routers.injishi-staging-storage.middlewares=injishi-staging-storage-allow
@@ -250,7 +253,7 @@ services:
       - default
 
   # Every message staging sends lands here and goes no further. The inbox (web
-  # UI and API, port 8025) answers on mail.<STAGING_DOMAIN> behind the staging
+  # UI and API, port 8025) answers on mail-staging.injishi.com behind the staging
   # allowlist, which is how a tester reads a sign-in code. SMTP (1025) is never
   # routed. Never set OTP_DEBUG_LOG here: this inbox is the way to read a code.
   mailpit:
@@ -271,11 +274,11 @@ services:
       - traefik.docker.network=dokploy-network
       - traefik.http.services.injishi-staging-mail.loadbalancer.server.port=8025
       - traefik.http.middlewares.injishi-staging-mail-allow.ipallowlist.sourcerange=${STAGING_ALLOWED_IPS:-127.0.0.1/32}
-      - traefik.http.routers.injishi-staging-mail-http.rule=Host(`mail.${STAGING_DOMAIN}`)
+      - traefik.http.routers.injishi-staging-mail-http.rule=Host(`${MAIL_HOST:-mail-staging.injishi.com}`)
       - traefik.http.routers.injishi-staging-mail-http.entrypoints=web
       - traefik.http.routers.injishi-staging-mail-http.middlewares=redirect-to-https@file
       - traefik.http.routers.injishi-staging-mail-http.service=injishi-staging-mail
-      - traefik.http.routers.injishi-staging-mail.rule=Host(`mail.${STAGING_DOMAIN}`)
+      - traefik.http.routers.injishi-staging-mail.rule=Host(`${MAIL_HOST:-mail-staging.injishi.com}`)
       - traefik.http.routers.injishi-staging-mail.entrypoints=websecure
       - traefik.http.routers.injishi-staging-mail.tls.certresolver=letsencrypt
       - traefik.http.routers.injishi-staging-mail.middlewares=injishi-staging-mail-allow
@@ -288,23 +291,19 @@ services:
       dokploy-network: {}
 
   api:
-    # ADR-052 AC-9. Built ONCE per green commit by .github/workflows/image.yml
-    # and PULLED here by short sha. It is never built on this host, so the
-    # artifact staging ran is byte for byte the artifact production runs, and
-    # "staging tested this commit" becomes a statement about a binary rather
-    # than about a rebuild that happened to start from the same source.
-    #
-    # INJISHI_API_TAG is set by infra/docker/deploy-stack.sh from the commit
-    # being deployed. It has no default on purpose: a stack must name the
-    # commit it runs, and a floating tag would quietly make that unanswerable.
-    #
-    # The three FRONTEND services below keep their build: blocks. They bake
-    # NEXT_PUBLIC_* and OPERATOR_APP_URL at image build time, so their images
-    # belong to exactly one stack and cannot be promoted (AC-10).
-    image: ghcr.io/hangaasoftwares/injishi-api:${INJISHI_API_TAG:?set by deploy-stack.sh to the commit being deployed}
+    # Built on this host by Dokploy's `up --build`, from the same Dockerfile
+    # production builds (docker-compose.dokploy.yml says why it is not pulled).
+    image: injishi-api:staging
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+      args:
+        INJISHI_COMMIT: ${INJISHI_COMMIT:-}
     restart: unless-stopped
     # Image WORKDIR is /app. Repo-root spelling: node server/api/scripts/migrate.mjs
-    command: ["sh", "-c", "node scripts/migrate.mjs && node dist/main.js"]
+    # Then the platform reference data (geography, RDB classes, amenities, government bodies, the VAT row):
+    # idempotent, never a user or a sample row, so it is safe on every start (seed-reference.mjs).
+    command: ["sh", "-c", "node scripts/migrate.mjs && node scripts/seed-reference.mjs && node dist/main.js"]
     environment:
       <<: *api-env
       INJISHI_PROCESS: http
@@ -332,30 +331,28 @@ services:
       mailpit:
         condition: service_started
     deploy: *large
+    # api-staging.injishi.com is a Dokploy domain row (port 8000). This label
+    # only tells Traefik which of the two networks reaches the container.
     labels:
-      - traefik.enable=true
       - traefik.docker.network=dokploy-network
-      - traefik.http.services.injishi-staging-api.loadbalancer.server.port=8000
-      - traefik.http.routers.injishi-staging-api-http.rule=Host(`api.${STAGING_DOMAIN}`)
-      - traefik.http.routers.injishi-staging-api-http.entrypoints=web
-      - traefik.http.routers.injishi-staging-api-http.middlewares=redirect-to-https@file
-      - traefik.http.routers.injishi-staging-api-http.service=injishi-staging-api
-      - traefik.http.routers.injishi-staging-api.rule=Host(`api.${STAGING_DOMAIN}`)
-      - traefik.http.routers.injishi-staging-api.entrypoints=websecure
-      - traefik.http.routers.injishi-staging-api.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-staging-api.service=injishi-staging-api
     networks:
       default:
-        # The name web's Server Actions use (INTERNAL_API_URL). Not `api`: web
-        # also joins dokploy-network, where another stack's `api` answers to it.
+        # The name the app's server side calls use (INJISHI_API_URL). Not
+        # `api`: app also joins dokploy-network, where production's `api`
+        # answers to it.
         aliases:
           - injishi-api
       dokploy-network: {}
 
   worker:
-    # The same image as api, by the same tag: one API image, two processes, so a
-    # queue can never run code the HTTP process did not ship.
-    image: ghcr.io/hangaasoftwares/injishi-api:${INJISHI_API_TAG:?set by deploy-stack.sh to the commit being deployed}
+    # The same image as api, from the same build: one API image, two processes,
+    # so a queue can never run code the HTTP process did not ship.
+    image: injishi-api:staging
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+      args:
+        INJISHI_COMMIT: ${INJISHI_COMMIT:-}
     restart: unless-stopped
     environment:
       <<: *api-env
@@ -375,65 +372,8 @@ services:
     networks:
       - default
 
-  web:
-    image: injishi-web:staging
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.web
-      secrets:
-        - heroui_token
-      args:
-        <<: *staging-public
-        OPERATOR_APP_URL: http://app:3002
-    restart: unless-stopped
-    environment:
-      <<: *staging-public
-      NODE_ENV: production
-      PORT: "3000"
-      OPERATOR_APP_URL: http://app:3002
-      # Server only, read at runtime. Sign-in sends reach the API over the compose
-      # network so the visitor's IP can be forwarded (apps/web/src/lib/otp.server.ts).
-      INTERNAL_API_URL: http://injishi-api:8000
-    expose:
-      - "3000"
-    depends_on:
-      api:
-        condition: service_healthy
-      app:
-        condition: service_started
-    deploy: *large
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=dokploy-network
-      - traefik.http.services.injishi-staging-web.loadbalancer.server.port=3000
-      - traefik.http.middlewares.injishi-staging-web-allow.ipallowlist.sourcerange=${STAGING_ALLOWED_IPS:-127.0.0.1/32}
-      - traefik.http.routers.injishi-staging-web-http.rule=Host(`www.${STAGING_DOMAIN}`) || Host(`app.${STAGING_DOMAIN}`)
-      - traefik.http.routers.injishi-staging-web-http.entrypoints=web
-      - traefik.http.routers.injishi-staging-web-http.middlewares=redirect-to-https@file
-      - traefik.http.routers.injishi-staging-web-http.service=injishi-staging-web
-      - traefik.http.routers.injishi-staging-web.rule=Host(`www.${STAGING_DOMAIN}`)
-      - traefik.http.routers.injishi-staging-web.entrypoints=websecure
-      - traefik.http.routers.injishi-staging-web.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-staging-web.middlewares=injishi-staging-web-allow
-      - traefik.http.routers.injishi-staging-web.service=injishi-staging-web
-      - traefik.http.routers.injishi-staging-app-root.rule=Host(`app.${STAGING_DOMAIN}`) && Path(`/`)
-      - traefik.http.routers.injishi-staging-app-root.entrypoints=websecure
-      - traefik.http.routers.injishi-staging-app-root.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-staging-app-root.middlewares=injishi-staging-web-allow,injishi-staging-app-root-to-zone
-      - traefik.http.routers.injishi-staging-app-root.service=injishi-staging-web
-      - traefik.http.middlewares.injishi-staging-app-root-to-zone.redirectregex.regex=^https?://[^/]+/?$$
-      - traefik.http.middlewares.injishi-staging-app-root-to-zone.redirectregex.replacement=https://www.${STAGING_DOMAIN}/w
-      - traefik.http.routers.injishi-staging-app.rule=Host(`app.${STAGING_DOMAIN}`)
-      - traefik.http.routers.injishi-staging-app.entrypoints=websecure
-      - traefik.http.routers.injishi-staging-app.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-staging-app.middlewares=injishi-staging-web-allow,injishi-staging-app-to-zone
-      - traefik.http.routers.injishi-staging-app.service=injishi-staging-web
-      - traefik.http.middlewares.injishi-staging-app-to-zone.redirectregex.regex=^https?://[^/]+/(.*)
-      - traefik.http.middlewares.injishi-staging-app-to-zone.redirectregex.replacement=https://www.${STAGING_DOMAIN}/$${1}
-    networks:
-      - default
-      - dokploy-network
-
+  # The operator app on app-staging.injishi.com, a Dokploy domain row (port
+  # 3002), as production's app is on app.injishi.com. Staging ships no web.
   app:
     image: injishi-app:staging
     build:
@@ -450,55 +390,34 @@ services:
       NODE_ENV: production
       PORT: "3002"
       OPERATOR_ASSET_PREFIX: /operator-static
+      INJISHI_API_URL: http://injishi-api:8000
+      # The Origin its calls carry, listed in the API's CORS_ORIGINS.
+      INJISHI_API_ORIGIN: https://${APP_HOST:-app-staging.injishi.com}
+      INJISHI_DB_URL: file:/data/injishi.db
+    volumes:
+      - app-data:/data
     expose:
       - "3002"
+    # The image's own check fetches `/`, which redirects to a public origin,
+    # so it would measure Traefik and the internet rather than this process.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/sign-in',{redirect:'manual'}).then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
     depends_on:
       api:
         condition: service_healthy
     deploy: *large
-    networks:
-      - default
-
-  admin:
-    image: injishi-admin:staging
-    build:
-      context: ../..
-      dockerfile: infra/docker/Dockerfile.admin
-      secrets:
-        - heroui_token
-      args:
-        <<: *staging-public
-    restart: unless-stopped
-    environment:
-      <<: *staging-public
-      NODE_ENV: production
-      PORT: "3001"
-    expose:
-      - "3001"
-    depends_on:
-      api:
-        condition: service_healthy
-    deploy: *medium
     labels:
-      - traefik.enable=true
       - traefik.docker.network=dokploy-network
-      - traefik.http.services.injishi-staging-admin.loadbalancer.server.port=3001
-      - traefik.http.middlewares.injishi-staging-admin-allow.ipallowlist.sourcerange=${STAGING_ALLOWED_IPS:-127.0.0.1/32}
-      - traefik.http.routers.injishi-staging-admin-http.rule=Host(`admin.${STAGING_DOMAIN}`)
-      - traefik.http.routers.injishi-staging-admin-http.entrypoints=web
-      - traefik.http.routers.injishi-staging-admin-http.middlewares=redirect-to-https@file
-      - traefik.http.routers.injishi-staging-admin-http.service=injishi-staging-admin
-      - traefik.http.routers.injishi-staging-admin.rule=Host(`admin.${STAGING_DOMAIN}`)
-      - traefik.http.routers.injishi-staging-admin.entrypoints=websecure
-      - traefik.http.routers.injishi-staging-admin.tls.certresolver=letsencrypt
-      - traefik.http.routers.injishi-staging-admin.middlewares=injishi-staging-admin-allow
-      - traefik.http.routers.injishi-staging-admin.service=injishi-staging-admin
     networks:
       - default
       - dokploy-network
 
-# HeroUI Pro's CI/CD token for the three frontend builds, read from this
-# stack's .env (stack settings live on the host, never in GitHub). See the
+# HeroUI Pro's CI/CD token for the app build, read from the Dokploy
+# environment's variables (stack settings live on the host, never in GitHub). See the
 # note in Dockerfile.web.
 secrets:
   heroui_token:

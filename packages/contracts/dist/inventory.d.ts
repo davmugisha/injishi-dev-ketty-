@@ -264,6 +264,8 @@ export declare const OperatorPropertySummary: z.ZodObject<{
     isHeadOffice: z.ZodBoolean;
     /** The two digit branch id RRA issued for this location, or null. */
     rraBranchId: z.ZodNullable<z.ZodString>;
+    /** The business's own short code for the branch ("ISG"), or null until one is chosen. */
+    branchCode: z.ZodNullable<z.ZodString>;
     /** Set when the branch is archived; its history stays readable. */
     archivedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
@@ -277,8 +279,8 @@ export declare const OperatorPropertySummary: z.ZodObject<{
         sectorName: string | null;
         provinceName: string | null;
     };
-    isHeadOffice: boolean;
     id: string;
+    isHeadOffice: boolean;
     roomTypeCount: number;
     rraBranchId: string | null;
     archivedAt: string | null;
@@ -286,6 +288,7 @@ export declare const OperatorPropertySummary: z.ZodObject<{
     publishedAt: string | null;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
+    branchCode: string | null;
 }, {
     name: string;
     address: {
@@ -297,8 +300,8 @@ export declare const OperatorPropertySummary: z.ZodObject<{
         sectorName: string | null;
         provinceName: string | null;
     };
-    isHeadOffice: boolean;
     id: string;
+    isHeadOffice: boolean;
     roomTypeCount: number;
     rraBranchId: string | null;
     archivedAt: string | null;
@@ -306,6 +309,7 @@ export declare const OperatorPropertySummary: z.ZodObject<{
     publishedAt: string | null;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
+    branchCode: string | null;
 }>;
 export type OperatorPropertySummary = z.infer<typeof OperatorPropertySummary>;
 /**
@@ -331,15 +335,15 @@ export declare const PropertyPhoto: z.ZodObject<{
     url: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     objectKey: string;
-    url: string;
     id: string;
+    url: string;
     position: number;
     isCover: boolean;
     caption: string | null;
 }, {
     objectKey: string;
-    url: string;
     id: string;
+    url: string;
     position: number;
     isCover: boolean;
     caption: string | null;
@@ -398,6 +402,8 @@ export declare const OperatorProperty: z.ZodObject<{
     isHeadOffice: z.ZodBoolean;
     /** The two digit branch id RRA issued for this location, or null. */
     rraBranchId: z.ZodNullable<z.ZodString>;
+    /** The business's own short code for the branch ("ISG"), or null until one is chosen. */
+    branchCode: z.ZodNullable<z.ZodString>;
     /** Set when the branch is archived; its history stays readable. */
     archivedAt: z.ZodNullable<z.ZodString>;
 } & {
@@ -420,15 +426,15 @@ export declare const OperatorProperty: z.ZodObject<{
         url: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         objectKey: string;
-        url: string;
         id: string;
+        url: string;
         position: number;
         isCover: boolean;
         caption: string | null;
     }, {
         objectKey: string;
-        url: string;
         id: string;
+        url: string;
         position: number;
         isCover: boolean;
         caption: string | null;
@@ -471,8 +477,8 @@ export declare const OperatorProperty: z.ZodObject<{
         sectorName: string | null;
         provinceName: string | null;
     };
-    isHeadOffice: boolean;
     id: string;
+    isHeadOffice: boolean;
     description: string | null;
     roomTypeCount: number;
     rraBranchId: string | null;
@@ -495,11 +501,12 @@ export declare const OperatorProperty: z.ZodObject<{
     locationPrivacy: boolean;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
+    branchCode: string | null;
     timezone: string;
     photos: {
         objectKey: string;
-        url: string;
         id: string;
+        url: string;
         position: number;
         isCover: boolean;
         caption: string | null;
@@ -515,8 +522,8 @@ export declare const OperatorProperty: z.ZodObject<{
         sectorName: string | null;
         provinceName: string | null;
     };
-    isHeadOffice: boolean;
     id: string;
+    isHeadOffice: boolean;
     description: string | null;
     roomTypeCount: number;
     rraBranchId: string | null;
@@ -539,11 +546,12 @@ export declare const OperatorProperty: z.ZodObject<{
     locationPrivacy: boolean;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
+    branchCode: string | null;
     timezone: string;
     photos: {
         objectKey: string;
-        url: string;
         id: string;
+        url: string;
         position: number;
         isCover: boolean;
         caption: string | null;
@@ -793,6 +801,8 @@ export declare const OperatorPropertyList: z.ZodObject<{
         isHeadOffice: z.ZodBoolean;
         /** The two digit branch id RRA issued for this location, or null. */
         rraBranchId: z.ZodNullable<z.ZodString>;
+        /** The business's own short code for the branch ("ISG"), or null until one is chosen. */
+        branchCode: z.ZodNullable<z.ZodString>;
         /** Set when the branch is archived; its history stays readable. */
         archivedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
@@ -806,8 +816,8 @@ export declare const OperatorPropertyList: z.ZodObject<{
             sectorName: string | null;
             provinceName: string | null;
         };
-        isHeadOffice: boolean;
         id: string;
+        isHeadOffice: boolean;
         roomTypeCount: number;
         rraBranchId: string | null;
         archivedAt: string | null;
@@ -815,6 +825,7 @@ export declare const OperatorPropertyList: z.ZodObject<{
         publishedAt: string | null;
         listingStatus: "draft" | "published";
         sellableRoomCount: number;
+        branchCode: string | null;
     }, {
         name: string;
         address: {
@@ -826,8 +837,8 @@ export declare const OperatorPropertyList: z.ZodObject<{
             sectorName: string | null;
             provinceName: string | null;
         };
-        isHeadOffice: boolean;
         id: string;
+        isHeadOffice: boolean;
         roomTypeCount: number;
         rraBranchId: string | null;
         archivedAt: string | null;
@@ -835,6 +846,7 @@ export declare const OperatorPropertyList: z.ZodObject<{
         publishedAt: string | null;
         listingStatus: "draft" | "published";
         sellableRoomCount: number;
+        branchCode: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     properties: {
@@ -848,8 +860,8 @@ export declare const OperatorPropertyList: z.ZodObject<{
             sectorName: string | null;
             provinceName: string | null;
         };
-        isHeadOffice: boolean;
         id: string;
+        isHeadOffice: boolean;
         roomTypeCount: number;
         rraBranchId: string | null;
         archivedAt: string | null;
@@ -857,6 +869,7 @@ export declare const OperatorPropertyList: z.ZodObject<{
         publishedAt: string | null;
         listingStatus: "draft" | "published";
         sellableRoomCount: number;
+        branchCode: string | null;
     }[];
 }, {
     properties: {
@@ -870,8 +883,8 @@ export declare const OperatorPropertyList: z.ZodObject<{
             sectorName: string | null;
             provinceName: string | null;
         };
-        isHeadOffice: boolean;
         id: string;
+        isHeadOffice: boolean;
         roomTypeCount: number;
         rraBranchId: string | null;
         archivedAt: string | null;
@@ -879,6 +892,7 @@ export declare const OperatorPropertyList: z.ZodObject<{
         publishedAt: string | null;
         listingStatus: "draft" | "published";
         sellableRoomCount: number;
+        branchCode: string | null;
     }[];
 }>;
 export type OperatorPropertyList = z.infer<typeof OperatorPropertyList>;
@@ -1252,15 +1266,15 @@ export declare const PropertyPhotoList: z.ZodObject<{
         url: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         objectKey: string;
-        url: string;
         id: string;
+        url: string;
         position: number;
         isCover: boolean;
         caption: string | null;
     }, {
         objectKey: string;
-        url: string;
         id: string;
+        url: string;
         position: number;
         isCover: boolean;
         caption: string | null;
@@ -1268,8 +1282,8 @@ export declare const PropertyPhotoList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     photos: {
         objectKey: string;
-        url: string;
         id: string;
+        url: string;
         position: number;
         isCover: boolean;
         caption: string | null;
@@ -1277,8 +1291,8 @@ export declare const PropertyPhotoList: z.ZodObject<{
 }, {
     photos: {
         objectKey: string;
-        url: string;
         id: string;
+        url: string;
         position: number;
         isCover: boolean;
         caption: string | null;
@@ -1304,16 +1318,16 @@ export declare const UploadedPropertyPhoto: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     kind: "property_photo";
     objectKey: string;
-    url: string;
     mime: string;
     sizeBytes: number;
+    url: string;
     filename: string;
 }, {
     kind: "property_photo";
     objectKey: string;
-    url: string;
     mime: string;
     sizeBytes: number;
+    url: string;
     filename: string;
 }>;
 export type UploadedPropertyPhoto = z.infer<typeof UploadedPropertyPhoto>;

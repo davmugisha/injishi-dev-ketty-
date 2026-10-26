@@ -24,7 +24,6 @@ FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json ./apps/web/
 COPY apps/app/package.json ./apps/app/
-COPY apps/admin/package.json ./apps/admin/
 COPY apps/mobile/package.json ./apps/mobile/
 COPY server/api/package.json ./server/api/
 COPY packages/auth/package.json ./packages/auth/
@@ -32,7 +31,13 @@ COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/qr/package.json ./packages/qr/
 COPY packages/design-tokens/package.json ./packages/design-tokens/
 COPY packages/ui/package.json ./packages/ui/
+# apps/web aliases @injishi/ui to @injishi/web-ui (PR #40); without these two
+# manifests the install never pulls HeroUI Pro for the package that owns pro.css,
+# and `next build` fails resolving `@heroui-pro/react/css` from packages/web-ui.
+COPY packages/web-ui/package.json ./packages/web-ui/
 COPY packages/ui-contract/package.json ./packages/ui-contract/
+COPY packages/data/package.json ./packages/data/
+COPY packages/db/package.json ./packages/db/
 COPY packages/utils/package.json ./packages/utils/
 # HeroUI Pro (a paid licence) ships a stub on npm; its postinstall downloads
 # the real code with HEROUI_AUTH_TOKEN, the team's CI/CD token (never a
@@ -71,7 +76,15 @@ ARG NEXT_PUBLIC_ADMIN_URL
 # on the middleware's strip of production's session cookies and decides nothing
 # on any screen. Empty means production, which never strips.
 ARG NEXT_PUBLIC_INJISHI_ENVIRONMENT=
+# The cookie-free visit counter (apps/web/src/lib/analytics.ts). OPTIONAL, and
+# empty means off: unlike the origins above, a build without them is correct,
+# it just counts nothing. Only production's compose passes them, so staging and
+# the demo never pollute the real numbers.
+ARG NEXT_PUBLIC_PLAUSIBLE_DOMAIN=
+ARG NEXT_PUBLIC_PLAUSIBLE_SRC=
 ENV NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_PUBLIC_PLAUSIBLE_DOMAIN=$NEXT_PUBLIC_PLAUSIBLE_DOMAIN \
+    NEXT_PUBLIC_PLAUSIBLE_SRC=$NEXT_PUBLIC_PLAUSIBLE_SRC \
     BUILD_STANDALONE=1 \
     NEXT_PUBLIC_INJISHI_ENVIRONMENT=$NEXT_PUBLIC_INJISHI_ENVIRONMENT \
     OPERATOR_APP_URL=$OPERATOR_APP_URL \

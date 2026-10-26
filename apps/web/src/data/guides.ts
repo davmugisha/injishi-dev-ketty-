@@ -18,7 +18,6 @@ export interface Guide {
   excerpt: string;
   category: string;
   publishedAt: string;
-  readingMinutes: number;
   image: { stem: string; alt: string };
   sections: GuideSection[];
 }
@@ -31,7 +30,6 @@ export const GUIDES: Guide[] = [
       "Where to stay within reach of Volcanoes National Park, and how early you actually need to leave.",
     category: "Destinations",
     publishedAt: "2026-02-01",
-    readingMinutes: 7,
     image: {
       stem: "rwanda-district-musanze",
       alt: "Mist over the Virunga volcanoes above the green valleys of Musanze",
@@ -65,7 +63,6 @@ export const GUIDES: Guide[] = [
     excerpt: "Rubavu, Karongi and Rusizi compared: beaches, boats and quiet bays.",
     category: "Destinations",
     publishedAt: "2026-02-01",
-    readingMinutes: 8,
     image: {
       stem: "rwanda-lake-kivu",
       alt: "Boats moored in a calm turquoise bay with a tree-covered rocky shore",
@@ -92,7 +89,6 @@ export const GUIDES: Guide[] = [
       "Where to stay in Gasabo, Kicukiro and Nyarugenge, and what each hill is good for.",
     category: "Destinations",
     publishedAt: "2026-02-01",
-    readingMinutes: 6,
     image: { stem: "rwanda-kigali-hero", alt: "Kigali skyline at sunset" },
     sections: [
       {
@@ -111,7 +107,6 @@ export const GUIDES: Guide[] = [
     excerpt: "Two nights on the shore, from Friday arrival to Sunday lunch.",
     category: "Destinations",
     publishedAt: "2026-02-01",
-    readingMinutes: 5,
     image: { stem: "rwanda-lake-kivu", alt: "Lake Kivu landscape in Rwanda" },
     sections: [
       {
@@ -126,7 +121,6 @@ export const GUIDES: Guide[] = [
     excerpt: "The National Museum, the university town, and the road on to Nyungwe.",
     category: "Destinations",
     publishedAt: "2026-02-01",
-    readingMinutes: 5,
     image: { stem: "rwanda-lake-kivu", alt: "Lake Kivu and surrounding Rwandan hills" },
     sections: [
       {
@@ -141,7 +135,6 @@ export const GUIDES: Guide[] = [
     excerpt: "Every district we list, what it is for, and how long you need there.",
     category: "Destinations",
     publishedAt: "2026-02-01",
-    readingMinutes: 9,
     image: { stem: "rwanda-lake-kivu", alt: "Lake Kivu with Rwanda hills beyond" },
     sections: [
       {
@@ -165,4 +158,22 @@ export function formatPublishedAt(isoDate: string): string {
 
 export function findGuide(slug: string): Guide | undefined {
   return GUIDES.find((guide) => guide.slug === slug);
+}
+
+/** Words an adult reads in a minute, the usual figure for a read-time label. */
+const WORDS_PER_MINUTE = 200;
+
+/**
+ * How long the guide takes to read, counted from its own words.
+ *
+ * Each guide used to carry a hand-typed `readingMinutes` (5 to 9) over 80 to
+ * 200 words of text, so "6 min read" sat above a page read in under one. A
+ * figure computed from the text cannot overstate it.
+ */
+export function readingMinutes(guide: Guide): number {
+  const words = [guide.title, guide.excerpt, ...guide.sections.flatMap((s) => [s.heading, s.body])]
+    .join(" ")
+    .split(/\s+/)
+    .filter(Boolean).length;
+  return Math.max(1, Math.round(words / WORDS_PER_MINUTE));
 }

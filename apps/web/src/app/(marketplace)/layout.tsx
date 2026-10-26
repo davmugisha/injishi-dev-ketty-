@@ -3,6 +3,8 @@ import { fixed } from "@injishi/design-tokens";
 import { cn } from "@injishi/utils";
 import { pwaMetadata } from "@/lib/pwa-metadata";
 import { AssistantWidget } from "@/components/assistant/assistant-widget";
+import { AnalyticsScript } from "@/components/shared/analytics-script";
+import { shareMetadata } from "@/lib/share-metadata";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { HeroRouter } from "@/components/heroui/router";
 import { inter } from "@/lib/fonts";
@@ -49,6 +51,9 @@ import "../_injishi-public.css";
  * and is the price ADR-006 accepted for not rewriting working layouts. There is
  * exactly one such crossing left now, this root and the other one.
  */
+const SITE_DESCRIPTION =
+  "Book verified guesthouses, lodges and serviced apartments across Rwanda. Pay by mobile money, held in escrow, with support from search to arrival.";
+
 export const metadata: Metadata = {
   // The public site is the surface the manifest's `start_url` points at, so it
   // carries the same PWA head as the one app root. It used to carry none,
@@ -69,8 +74,14 @@ export const metadata: Metadata = {
     default: "Stay Anywhere in Rwanda: Guesthouses, Lodges & Apartments | Injishi",
     template: "%s | Injishi",
   },
-  description:
-    "Book verified guesthouses, lodges and serviced apartments across Rwanda. Escrow-backed payment, self check-in, and support from search to arrival.",
+  // It promised self check-in, which no stay offers yet (F-B09).
+  description: SITE_DESCRIPTION,
+  // The card a shared link shows. Every page that sets its own goes through
+  // the same builder, because Next replaces `openGraph` whole, never merges it.
+  ...shareMetadata({
+    title: "Stay anywhere in Rwanda | Injishi",
+    description: SITE_DESCRIPTION,
+  }),
 };
 
 /**
@@ -103,6 +114,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <AssistantWidget />
           </HeroRouter>
         </ThemeProvider>
+        <AnalyticsScript />
       </body>
     </html>
   );

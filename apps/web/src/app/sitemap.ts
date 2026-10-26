@@ -1,29 +1,89 @@
+import { SitemapProperty } from "@injishi/contracts";
 import type { MetadataRoute } from "next";
 
+import { DESTINATIONS, destinationPath } from "@/data/destination-pages";
+import { GUIDES } from "@/data/guides";
+import { LEGAL_DOCUMENTS } from "@/data/legal/documents";
+import { API_URL } from "@/lib/api";
+import { WEB_URL, propertyUrl } from "@/lib/web-url";
+
 /**
- * The sitemap while the gate is up (ADR-048 AC-16).
+ * `/sitemap.xml` (ADR-053, AC-I9).
  *
- * ONE URL, because one URL is all a stranger can reach. Listing `/explore` or a
- * property page here while the middleware redirects both to `/waitlist` would
- * be asking search engines to crawl a wall.
+ * Publishing is the one moment a page becomes indexable, so the sitemap lists
+ * exactly what the API says is publicly sellable: a `published` listing whose
+ * business is `active`, read through `GET /api/v1/properties/sitemap`, which is
+ * the same predicate a property page answers with. An unpublished or suspended
+ * property is in neither.
  *
- * THIS FILE IS NET NEW, like `robots.ts`, and like it, launch day REPLACES its
- * contents rather than deleting the file.
+ * THE SITE'S OWN PAGES ARE LISTED TOO (2026-10-21). It used to name the root
+ * and the properties alone, so on a launch with no property published it was
+ * one URL long, and the guides, the destination pages, How it works and the
+ * host page, everything a crawler could actually rank, were reachable only by
+ * following links. `SITE_PAGES` is the list of public pages worth indexing;
+ * a page that is `noindex` (checkout, the demo, `/services`) never goes in it.
  *
- * `lastModified` is deliberately absent. Every other value on this surface
- * refuses to be a date for the same reason (ADR-048: "No value this feature
- * produces is a date"), and a build timestamp here would tell crawlers the page
- * changed every time the image was rebuilt, which is not true and is the kind
- * of signal that gets a site trusted less rather than more.
+ * RENDERED ON EVERY REQUEST, NOT CACHED. Contract rule 1 is that both halves are
+ * checked on every public read with no cached third answer, and a sitemap
+ * revalidated hourly would keep advertising a suspended business for up to an
+ * hour. A crawler fetches this rarely, so exactness costs almost nothing.
+ *
+ * An API that cannot be reached yields the site's own pages alone rather than
+ * an error: a sitemap that 500s teaches a crawler to stop asking, and one that
+ * is briefly short is corrected on the next fetch.
  */
-export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+export const dynamic = "force-dynamic";
+
+/**
+ * The public pages worth a crawler's time, after the root. Not exported: Next
+ * treats a metadata route's exports as its configuration.
+ */
+const SITE_PAGES = [
+  "/explore",
+  "/stays",
+  "/host",
+  "/how-it-works",
+  "/guides",
+  "/training",
+  "/about",
+  "/support",
+] as const;
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const own: MetadataRoute.Sitemap = [
+    { url: `${WEB_URL}/` },
+    ...SITE_PAGES.map((path) => ({ url: `${WEB_URL}${path}` })),
+    ...DESTINATIONS.map((place) => ({ url: `${WEB_URL}${destinationPath(place.slug)}` })),
+    // A legal page joins once it is final; a draft is `noindex` (`legalRobots`).
+    ...LEGAL_DOCUMENTS.filter((doc) => doc.content.status === "final").map((doc) => ({
+      url: `${WEB_URL}${doc.path}`,
+      lastModified: doc.content.lastUpdated,
+    })),
+    ...GUIDES.map((guide) => ({
+      url: `${WEB_URL}/guides/${guide.slug}`,
+      lastModified: guide.publishedAt,
+    })),
+  ];
+
+  let entries: SitemapProperty[] = [];
+  try {
+    const res = await fetch(`${API_URL}/api/v1/properties/sitemap`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.ok) {
+      const parsed = SitemapProperty.array().safeParse(await res.json());
+      if (parsed.success) entries = parsed.data;
+    }
+  } catch {
+    // Unreachable or timed out: the site's own pages alone, as above.
+  }
 
   return [
-    {
-      url: `${base}/waitlist`,
-      changeFrequency: "weekly",
-      priority: 1,
-    },
+    ...own,
+    ...entries.map((p) => ({
+      url: propertyUrl(p.slug),
+      ...(p.publishedAt ? { lastModified: p.publishedAt } : {}),
+    })),
   ];
 }

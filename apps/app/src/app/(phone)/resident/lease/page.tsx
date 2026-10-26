@@ -1,0 +1,25 @@
+import { screens } from "@injishi/data";
+import type { LeaseDocument, MoveOutStep, NoticeReason, RenewalOffer, Tenancy } from "@injishi/data/fixtures/resident";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { TenantLeaseView } from "@/features/resident/TenantLeaseView";
+import { requirePersona } from "@/lib/session";
+import { getCollection } from "@/server/data";
+
+export const metadata: Metadata = { title: screens.TenantLease.pageTitle };
+
+export default async function TenantLeasePage() {
+  const persona = await requirePersona("TenantLease");
+  const [tenancies, offers, documents, steps, reasons] = await Promise.all([
+    getCollection<Tenancy>("resident.tenancies"),
+    getCollection<RenewalOffer>("resident.renewalOffers"),
+    getCollection<LeaseDocument>("resident.leaseDocuments"),
+    getCollection<MoveOutStep>("resident.moveOutSteps"),
+    getCollection<NoticeReason>("resident.noticeReasons"),
+  ]);
+  const tenancy = tenancies.find((t) => t.persona === persona.id) ?? tenancies[0];
+  // A lease with no renewal offer still has a lease screen; the view leaves the offer out.
+  const offer = tenancy ? (offers.find((o) => o.lease === tenancy.id) ?? null) : null;
+  if (!tenancy || !documents.length || !steps.length || !reasons.length) notFound();
+  return <TenantLeaseView tenancy={tenancy} offer={offer} documents={documents} steps={steps} reasons={reasons} />;
+}

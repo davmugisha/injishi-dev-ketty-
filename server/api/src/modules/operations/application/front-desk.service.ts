@@ -19,6 +19,7 @@ import {
   assertInBranchScope,
   type ScopedWorkspace,
 } from '../../../shared/auth/branch-scope';
+import { plannedExitFor } from '../domain/stay-reference';
 import { FolioRepository } from '../infrastructure/folio.repository';
 import { FolioService } from './folio.service';
 import {
@@ -186,9 +187,10 @@ export class FrontDeskService {
       guestName: null,
       roomId: room.id,
       // The planned exit is the booking's own checkout date at the property's
-      // checkout hour. Read from the booking rather than asked for, so the desk
-      // cannot shorten a stay the guest already paid for by mistyping.
-      plannedExitAt: new Date(`${booking.checkOut}T11:00:00Z`),
+      // checkout hour, on the Kigali clock. Read from the booking rather than
+      // asked for, so the desk cannot shorten a stay the guest already paid for
+      // by mistyping. (It was `T11:00:00Z`, which is 13:00 in Kigali.)
+      plannedExitAt: plannedExitFor(booking.checkOut, booking.checkOutTime),
       priceRwf: body.nightlyRateRwf ?? booking.lockedNightlyRateRwf,
     });
 
@@ -597,7 +599,7 @@ function assertRoomTypeOnSale(room: Pick<RoomRow, 'label' | 'roomTypeName' | 'ro
   }
 }
 
-/** The account an online prepayment is held in until payout (migration 0053). */
+/** The account an online prepayment is held in until payout (migration 0064). */
 export const ESCROW_RECEIVABLE = 'ESCROW_RECEIVABLE';
 
 /** Payment states in which the guest's money is held or already paid out. */

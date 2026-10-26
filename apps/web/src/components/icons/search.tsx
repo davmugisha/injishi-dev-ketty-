@@ -8,7 +8,6 @@ import {
   Hotel,
   House,
   KeyRound,
-  MapPin,
   Handshake,
   Tent,
   TreePalm,
@@ -34,38 +33,34 @@ import type { HostKind } from "@/data/host";
 type IconProps = SVGProps<SVGSVGElement>;
 type MarkProps = IconProps & { size?: number };
 
-export function HouseIcon({ size = 24, ...props }: MarkProps) {
+function HouseIcon({ size = 24, ...props }: MarkProps) {
   return <House width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
 }
 
-export function ApartmentIcon({ size = 24, ...props }: MarkProps) {
+function ApartmentIcon({ size = 24, ...props }: MarkProps) {
   return <Building2 width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
 }
 
 /** A lodge is a stay set in the landscape, not a block on a street. */
-export function LodgeIcon({ size = 24, ...props }: MarkProps) {
+function LodgeIcon({ size = 24, ...props }: MarkProps) {
   return <TreePalm width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
 }
 
-export function HotelIcon({ size = 24, ...props }: MarkProps) {
+function HotelIcon({ size = 24, ...props }: MarkProps) {
   return <Hotel width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
 }
 
 /** A villa is a grand standalone residence, so it reads heavier than a house. */
-export function VillaIcon({ size = 24, ...props }: MarkProps) {
+function VillaIcon({ size = 24, ...props }: MarkProps) {
   return <Castle width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
 }
 
-export function MapPinIcon({ size = 22, ...props }: MarkProps) {
-  return <MapPin width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
-}
-
 /** A motel sells the room rather than the building, so the bed carries it. */
-export function MotelIcon({ size = 24, ...props }: MarkProps) {
+function MotelIcon({ size = 24, ...props }: MarkProps) {
   return <BedDouble width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
 }
 
-export function TentedCampIcon({ size = 24, ...props }: MarkProps) {
+function TentedCampIcon({ size = 24, ...props }: MarkProps) {
   return <Tent width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
 }
 
@@ -94,11 +89,11 @@ export function OtherPropertyIcon({ size = 24, ...props }: MarkProps) {
  * let", and a key is that answer. Drawing it as another house would put it in
  * the row it is deliberately not in — and would collide with `HouseIcon`.
  */
-export function ResidenceIcon({ size = 24, ...props }: MarkProps) {
+function ResidenceIcon({ size = 24, ...props }: MarkProps) {
   return <KeyRound width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
 }
 
-export const PropertyKindIcons: Record<
+const PropertyKindIcons: Record<
   AccommodationClass,
   (props: MarkProps) => React.JSX.Element
 > = {
@@ -135,7 +130,7 @@ export function BrokerIcon({ size = 24, ...props }: MarkProps) {
  * cutlery rather than with a building or a key — the mark has to carry that
  * difference on its own, because the tile sits beside eight buildings.
  */
-export function BarRestaurantIcon({ size = 24, ...props }: MarkProps) {
+function BarRestaurantIcon({ size = 24, ...props }: MarkProps) {
   return (
     <UtensilsCrossed
       width={size}

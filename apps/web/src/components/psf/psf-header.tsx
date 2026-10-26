@@ -53,7 +53,7 @@ export function PsfHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <ThemePill tone="page" />
+          <ThemePill />
           <Button asChild size="sm" variant="primary">
             <Link href="/psf/register">
               Register <ArrowRight size={16} aria-hidden />

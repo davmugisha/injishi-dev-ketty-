@@ -1,7 +1,9 @@
 import { Controller, Get, Header, Inject } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PlatformInfo } from '@injishi/contracts';
 
 import { databaseIdentity } from '../../../database/drizzle/schema';
+import { googleCredentials } from '../../../modules/auth/auth.module';
 import { PLATFORM, type Platform } from '../../../shared/config/platform';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 
@@ -16,13 +18,15 @@ import { DRIZZLE, type Database } from '../../../shared/database/database.module
  * `environment` and `sampleData` are the boot values from `PLATFORM`.
  * `seededAt` is read per request (one primary key lookup), so a reseed run by
  * hand shows without a restart; a real database has no marker row, so there is
- * nothing to read and it is null.
+ * nothing to read and it is null. `googleSignIn` says whether the Google
+ * provider is mounted, from the same rule the auth instance uses.
  */
 @Controller('platform')
 export class PlatformController {
   constructor(
     @Inject(PLATFORM) private readonly platform: Platform,
     @Inject(DRIZZLE) private readonly db: Database,
+    private readonly config: ConfigService,
   ) {}
 
   @Get()
@@ -37,6 +41,7 @@ export class PlatformController {
       // old to say" and a null as "a process that was never stamped", and those
       // are different answers to "which commit am I talking to?".
       commit: this.platform.commit,
+      googleSignIn: googleCredentials(this.config) !== undefined,
     });
   }
 

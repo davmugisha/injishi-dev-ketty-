@@ -328,8 +328,19 @@ export declare const PersonalDetails: z.ZodObject<{
 }>;
 export type PersonalDetails = z.infer<typeof PersonalDetails>;
 /** A certificate the registrant attaches (schema §4.3a). */
+/**
+ * The kinds of document a business uploads about itself (`org_certificate_kind`).
+ *
+ * One name for the set, because two readers need it: the registration wizard
+ * sending an upload, and the officer's console listing what was sent. Two
+ * copies of an enum is how a kind gets added in one place and not the other.
+ */
+export declare const OrgCertificateKind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+export type OrgCertificateKind = z.infer<typeof OrgCertificateKind>;
+/** What each kind is called on screen, wherever a document is listed. */
+export declare const ORG_CERTIFICATE_KIND_LABEL: Readonly<Record<OrgCertificateKind, string>>;
 export declare const CertificateInput: z.ZodObject<{
-    kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other"]>;
+    kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
     /** Required when `kind` is `other`; the database carries the same rule. */
     kindOther: z.ZodOptional<z.ZodString>;
     /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -339,7 +350,7 @@ export declare const CertificateInput: z.ZodObject<{
     issuedOn: z.ZodOptional<z.ZodString>;
     expiresOn: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
     objectKey: string;
     kindOther?: string | undefined;
     certificateNumber?: string | undefined;
@@ -347,7 +358,7 @@ export declare const CertificateInput: z.ZodObject<{
     issuedOn?: string | undefined;
     expiresOn?: string | undefined;
 }, {
-    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
     objectKey: string;
     kindOther?: string | undefined;
     certificateNumber?: string | undefined;
@@ -709,7 +720,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other"]>;
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
         /** Required when `kind` is `other`; the database carries the same rule. */
         kindOther: z.ZodOptional<z.ZodString>;
         /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -719,7 +730,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         issuedOn: z.ZodOptional<z.ZodString>;
         expiresOn: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -727,7 +738,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -996,7 +1007,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
     tin: string;
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1071,7 +1082,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
     domain: "hospitality";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1162,7 +1173,7 @@ export declare const ResidenceBusiness: z.ZodObject<{
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other"]>;
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
         /** Required when `kind` is `other`; the database carries the same rule. */
         kindOther: z.ZodOptional<z.ZodString>;
         /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -1172,7 +1183,7 @@ export declare const ResidenceBusiness: z.ZodObject<{
         issuedOn: z.ZodOptional<z.ZodString>;
         expiresOn: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1180,7 +1191,7 @@ export declare const ResidenceBusiness: z.ZodObject<{
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1217,7 +1228,7 @@ export declare const ResidenceBusiness: z.ZodObject<{
     };
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1246,7 +1257,7 @@ export declare const ResidenceBusiness: z.ZodObject<{
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1297,7 +1308,7 @@ export declare const EnterpriseBusiness: z.ZodObject<{
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other"]>;
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
         /** Required when `kind` is `other`; the database carries the same rule. */
         kindOther: z.ZodOptional<z.ZodString>;
         /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -1307,7 +1318,7 @@ export declare const EnterpriseBusiness: z.ZodObject<{
         issuedOn: z.ZodOptional<z.ZodString>;
         expiresOn: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1315,7 +1326,7 @@ export declare const EnterpriseBusiness: z.ZodObject<{
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1349,7 +1360,7 @@ export declare const EnterpriseBusiness: z.ZodObject<{
     };
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1382,7 +1393,7 @@ export declare const EnterpriseBusiness: z.ZodObject<{
     associationCode: string;
     tin?: string | undefined;
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1427,7 +1438,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other"]>;
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
         /** Required when `kind` is `other`; the database carries the same rule. */
         kindOther: z.ZodOptional<z.ZodString>;
         /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -1437,7 +1448,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn: z.ZodOptional<z.ZodString>;
         expiresOn: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1445,7 +1456,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1714,7 +1725,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     tin: string;
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1789,7 +1800,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     domain: "hospitality";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1878,7 +1889,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other"]>;
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
         /** Required when `kind` is `other`; the database carries the same rule. */
         kindOther: z.ZodOptional<z.ZodString>;
         /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -1888,7 +1899,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn: z.ZodOptional<z.ZodString>;
         expiresOn: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1896,7 +1907,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1933,7 +1944,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     };
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1962,7 +1973,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -2004,7 +2015,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other"]>;
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
         /** Required when `kind` is `other`; the database carries the same rule. */
         kindOther: z.ZodOptional<z.ZodString>;
         /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -2014,7 +2025,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn: z.ZodOptional<z.ZodString>;
         expiresOn: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -2022,7 +2033,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -2056,7 +2067,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     };
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -2089,7 +2100,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     associationCode: string;
     tin?: string | undefined;
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -2115,7 +2126,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     tin: string;
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -2187,7 +2198,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     };
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -2213,7 +2224,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     };
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -2245,7 +2256,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     domain: "hospitality";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -2318,7 +2329,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -2345,7 +2356,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     associationCode: string;
     tin?: string | undefined;
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -2553,7 +2564,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         }>;
         certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-            kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other"]>;
+            kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
             /** Required when `kind` is `other`; the database carries the same rule. */
             kindOther: z.ZodOptional<z.ZodString>;
             /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -2563,7 +2574,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn: z.ZodOptional<z.ZodString>;
             expiresOn: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2571,7 +2582,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }, {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2840,7 +2851,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         tin: string;
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2915,7 +2926,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         domain: "hospitality";
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3004,7 +3015,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         }>;
         certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-            kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other"]>;
+            kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
             /** Required when `kind` is `other`; the database carries the same rule. */
             kindOther: z.ZodOptional<z.ZodString>;
             /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -3014,7 +3025,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn: z.ZodOptional<z.ZodString>;
             expiresOn: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3022,7 +3033,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }, {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3059,7 +3070,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3088,7 +3099,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3130,7 +3141,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         }>;
         certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-            kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other"]>;
+            kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
             /** Required when `kind` is `other`; the database carries the same rule. */
             kindOther: z.ZodOptional<z.ZodString>;
             /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -3140,7 +3151,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn: z.ZodOptional<z.ZodString>;
             expiresOn: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3148,7 +3159,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }, {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3182,7 +3193,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3215,7 +3226,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         associationCode: string;
         tin?: string | undefined;
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3241,7 +3252,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         tin: string;
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3313,7 +3324,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3339,7 +3350,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3371,7 +3382,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         domain: "hospitality";
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3444,7 +3455,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3471,7 +3482,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         associationCode: string;
         tin?: string | undefined;
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3513,7 +3524,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         tin: string;
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3585,7 +3596,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3611,7 +3622,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3679,7 +3690,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         domain: "hospitality";
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3752,7 +3763,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3779,7 +3790,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         associationCode: string;
         tin?: string | undefined;
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3841,7 +3852,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         tin: string;
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3913,7 +3924,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3939,7 +3950,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -4007,7 +4018,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         domain: "hospitality";
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -4080,7 +4091,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -4107,7 +4118,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         associationCode: string;
         tin?: string | undefined;
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -4233,6 +4244,165 @@ export declare const RejectRegistrationRequest: z.ZodObject<{
 }>;
 export type RejectRegistrationRequest = z.infer<typeof RejectRegistrationRequest>;
 /**
+ * A document a business uploaded with its registration, as an officer sees it.
+ *
+ * F-S03 §5 gives the field verifier two jobs — confirm the premises exist, and
+ * confirm the documents are legitimate — and only the first was ever reachable:
+ * the queue carried no documents at all, so the console drew an empty list and
+ * flagged every business as missing them.
+ *
+ * The bytes are never inlined. `url` is a SHORT LIVED signed link minted per
+ * read, and it is null when the certificate carries no object or the object has
+ * gone, so a console can say "nothing was uploaded" rather than offer a link
+ * that fails.
+ */
+export declare const OversightDocument: z.ZodObject<{
+    id: z.ZodString;
+    kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+    /** Set only when `kind` is `other`; the database carries the same rule. */
+    kindOther: z.ZodNullable<z.ZodString>;
+    certificateNumber: z.ZodNullable<z.ZodString>;
+    issuedBy: z.ZodNullable<z.ZodString>;
+    issuedOn: z.ZodNullable<z.ZodString>;
+    expiresOn: z.ZodNullable<z.ZodString>;
+    /** Computed against the server's clock, never in the browser. */
+    expired: z.ZodBoolean;
+    mime: z.ZodNullable<z.ZodString>;
+    sizeBytes: z.ZodNullable<z.ZodNumber>;
+    url: z.ZodNullable<z.ZodString>;
+    /** When a field verifier recorded that they had read this document. */
+    checkedAt: z.ZodNullable<z.ZodString>;
+    checkedByName: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+    kindOther: string | null;
+    certificateNumber: string | null;
+    issuedBy: string | null;
+    issuedOn: string | null;
+    expiresOn: string | null;
+    id: string;
+    expired: boolean;
+    mime: string | null;
+    sizeBytes: number | null;
+    url: string | null;
+    checkedAt: string | null;
+    checkedByName: string | null;
+}, {
+    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+    kindOther: string | null;
+    certificateNumber: string | null;
+    issuedBy: string | null;
+    issuedOn: string | null;
+    expiresOn: string | null;
+    id: string;
+    expired: boolean;
+    mime: string | null;
+    sizeBytes: number | null;
+    url: string | null;
+    checkedAt: string | null;
+    checkedByName: string | null;
+}>;
+export type OversightDocument = z.infer<typeof OversightDocument>;
+/**
+ * Every document on one registration, for the officer deciding its gate.
+ *
+ * `uncheckedCount` is what the field verification gate refuses on, so a console
+ * can say how many are left instead of only reporting the refusal.
+ */
+export declare const OversightDocumentList: z.ZodObject<{
+    orgId: z.ZodString;
+    legalName: z.ZodString;
+    status: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
+    documents: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+        /** Set only when `kind` is `other`; the database carries the same rule. */
+        kindOther: z.ZodNullable<z.ZodString>;
+        certificateNumber: z.ZodNullable<z.ZodString>;
+        issuedBy: z.ZodNullable<z.ZodString>;
+        issuedOn: z.ZodNullable<z.ZodString>;
+        expiresOn: z.ZodNullable<z.ZodString>;
+        /** Computed against the server's clock, never in the browser. */
+        expired: z.ZodBoolean;
+        mime: z.ZodNullable<z.ZodString>;
+        sizeBytes: z.ZodNullable<z.ZodNumber>;
+        url: z.ZodNullable<z.ZodString>;
+        /** When a field verifier recorded that they had read this document. */
+        checkedAt: z.ZodNullable<z.ZodString>;
+        checkedByName: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kindOther: string | null;
+        certificateNumber: string | null;
+        issuedBy: string | null;
+        issuedOn: string | null;
+        expiresOn: string | null;
+        id: string;
+        expired: boolean;
+        mime: string | null;
+        sizeBytes: number | null;
+        url: string | null;
+        checkedAt: string | null;
+        checkedByName: string | null;
+    }, {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kindOther: string | null;
+        certificateNumber: string | null;
+        issuedBy: string | null;
+        issuedOn: string | null;
+        expiresOn: string | null;
+        id: string;
+        expired: boolean;
+        mime: string | null;
+        sizeBytes: number | null;
+        url: string | null;
+        checkedAt: string | null;
+        checkedByName: string | null;
+    }>, "many">;
+    uncheckedCount: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+    legalName: string;
+    documents: {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kindOther: string | null;
+        certificateNumber: string | null;
+        issuedBy: string | null;
+        issuedOn: string | null;
+        expiresOn: string | null;
+        id: string;
+        expired: boolean;
+        mime: string | null;
+        sizeBytes: number | null;
+        url: string | null;
+        checkedAt: string | null;
+        checkedByName: string | null;
+    }[];
+    orgId: string;
+    uncheckedCount: number;
+}, {
+    status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+    legalName: string;
+    documents: {
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kindOther: string | null;
+        certificateNumber: string | null;
+        issuedBy: string | null;
+        issuedOn: string | null;
+        expiresOn: string | null;
+        id: string;
+        expired: boolean;
+        mime: string | null;
+        sizeBytes: number | null;
+        url: string | null;
+        checkedAt: string | null;
+        checkedByName: string | null;
+    }[];
+    orgId: string;
+    uncheckedCount: number;
+}>;
+export type OversightDocumentList = z.infer<typeof OversightDocumentList>;
+/**
  * One business waiting on this officer.
  *
  * Carries the district so a console can group by it, and `waitingSince` so the
@@ -4277,6 +4447,17 @@ export declare const OversightQueueItem: z.ZodObject<{
         isHeadOffice: boolean;
     }>, "many">;
     /**
+     * How many documents this registration carries, and how many no officer has
+     * read yet (F-S03 §5).
+     *
+     * On the ROW, not only in the file, because the console flags a document gap
+     * in the list. It used to flag one whenever fewer than two documents were
+     * present in a field the wire never filled, so every business was labelled
+     * "Missing documents" — a warning that is on every row is not a warning.
+     */
+    documentCount: z.ZodNumber;
+    uncheckedDocumentCount: z.ZodNumber;
+    /**
      * What the registrant declared, sent so the queue stops flagging every
      * hotel "No tourism license" and every file "Missing documents" for want
      * of fields it was never given (registration Phase 0).
@@ -4310,13 +4491,13 @@ export declare const OversightQueueItem: z.ZodObject<{
         adapterMode: z.ZodEnum<["mock", "live"]>;
         checkedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
+        checkedAt: string;
         result: "pending" | "verified" | "failed";
         adapterMode: "mock" | "live";
-        checkedAt: string;
     }, {
+        checkedAt: string;
         result: "pending" | "verified" | "failed";
         adapterMode: "mock" | "live";
-        checkedAt: string;
     }>>;
     /** Who registered it, by their verified name where there is one. */
     registrantName: z.ZodNullable<z.ZodString>;
@@ -4347,11 +4528,13 @@ export declare const OversightQueueItem: z.ZodObject<{
     sectorName: string | null;
     waitingSince: string;
     blockedBySeparationOfDuties: boolean;
+    documentCount: number;
+    uncheckedDocumentCount: number;
     onBehalfOf: boolean;
     tinCheck: {
+        checkedAt: string;
         result: "pending" | "verified" | "failed";
         adapterMode: "mock" | "live";
-        checkedAt: string;
     } | null;
     registrantName: string | null;
     intendedOwnerName: string | null;
@@ -4380,11 +4563,13 @@ export declare const OversightQueueItem: z.ZodObject<{
     sectorName: string | null;
     waitingSince: string;
     blockedBySeparationOfDuties: boolean;
+    documentCount: number;
+    uncheckedDocumentCount: number;
     onBehalfOf: boolean;
     tinCheck: {
+        checkedAt: string;
         result: "pending" | "verified" | "failed";
         adapterMode: "mock" | "live";
-        checkedAt: string;
     } | null;
     registrantName: string | null;
     intendedOwnerName: string | null;

@@ -109,7 +109,7 @@ export function ReservationSummary({
         </h3>
         <p className="mt-1 text-sm text-page-fg-70">
           {cancellationCopy(cancellationTier, nonRefundable)}{" "}
-          <Link href="/legal/terms" className="underline underline-offset-4">
+          <Link href="/legal/terms#cancellation" className="underline underline-offset-4">
             Full policy
           </Link>
         </p>

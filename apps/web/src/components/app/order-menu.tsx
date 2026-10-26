@@ -67,7 +67,7 @@ export function OutletHeader({ outlet }: { outlet: OrderableOutlet }) {
  * size moves it — because a menu that shows the base price beside chosen
  * options is a menu that surprises somebody at the till.
  */
-export function MenuRow({
+function MenuRow({
   item,
   draft,
 }: {

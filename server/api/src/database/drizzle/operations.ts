@@ -19,6 +19,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  smallint,
   text,
   timestamp,
   unique,
@@ -30,6 +31,7 @@ import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
 import { taxCodeEnum } from './enums';
 import { bookings, guestStays } from './hospitality';
+// Lazy only (inside `references`): interface-operations imports this module back.
 import { amenities, properties, rooms } from './inventory';
 import { ebmInvoices } from './money';
 import { orgs, workspaces } from './org';
@@ -818,6 +820,8 @@ export const housekeepingTaskStatusEnum = pgEnum('housekeeping_task_status', [
   'done',
   'inspected',
   'blocked',
+  // The clean did not pass inspection; a re-clean task names this one (real-data 1.2.3).
+  'failed',
 ]);
 
 
@@ -862,7 +866,23 @@ export const housekeepingTasks = pgTable(
      */
     idempotencyKey: text('idempotency_key'),
     startedAt: timestamp('started_at', { withTimezone: true }),
+    /** When the clean was finished (`done`). Inspection keeps it and stamps its own time below. */
     completedAt: timestamp('completed_at', { withTimezone: true }),
+    // --- The housekeeping board (real-data 1.2.3) ---
+    /** When the room has to be ready. */
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    estimatedMinutes: smallint('estimated_minutes'),
+    /** The rule that created it; null when a person added it by hand. */
+    ruleId: uuid('rule_id').references((): AnyPgColumn => housekeepingRules.id, {
+      onDelete: 'set null',
+    }),
+    /** A re-clean names the task whose inspection failed. */
+    reopenedFromTaskId: uuid('reopened_from_task_id').references(
+      (): AnyPgColumn => housekeepingTasks.id,
+    ),
+    inspectedAt: timestamp('inspected_at', { withTimezone: true }),
+    inspectedByUserId: uuid('inspected_by_user_id').references(() => users.id),
+    inspectionNote: text('inspection_note'),
     ...timestamps,
   },
   (t) => [
@@ -1253,4 +1273,44 @@ export const serviceOrderEvents = pgTable(
       .defaultNow(),
   },
   (t) => [index('service_order_events_order_idx').on(t.serviceOrderId)],
+);
+
+// Defined here rather than in its interface-* file because housekeeping_tasks.rule_id references it: a base schema file never imports an
+// interface one, which is what made the import cycles the api-cycles ratchet refused.
+export const housekeepingRuleCodeEnum = pgEnum('housekeeping_rule_code', [
+  'checkout',
+  'stayover',
+  'inspection',
+  'turndown',
+  'deep_clean',
+]);
+
+/**
+ * The rules that put tasks on the board without anyone typing them: a checkout clean when the desk
+ * checks a guest out, the daily stayover, the inspection after a checkout clean. The code decides
+ * the task type; `trigger` is the machine-readable condition and `description` says it in words.
+ */
+export const housekeepingRules = pgTable(
+  'housekeeping_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id, { onDelete: 'cascade' }),
+    code: housekeepingRuleCodeEnum('code').notNull(),
+    name: text('name').notNull(),
+    description: text('description').notNull(),
+    trigger: jsonb('trigger').notNull(),
+    estimatedMinutes: smallint('estimated_minutes'),
+    active: boolean('active').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [
+    index('housekeeping_rules_property_idx').on(t.propertyId, t.active),
+    uniqueIndex('housekeeping_rules_property_code_uk').on(t.propertyId, t.code),
+  ],
 );

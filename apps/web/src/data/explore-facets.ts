@@ -37,7 +37,7 @@ import {
 
 /* --------------------------------------------------------------- popular */
 
-export interface PopularFilter {
+interface PopularFilter {
   id: string;
   label: string;
   matches: (listing: Listing) => boolean;
@@ -147,12 +147,15 @@ const BEDROOM_CAP = 4;
  * to promise "3 bedrooms (7)" and then return nine.
  */
 export function matchesBedrooms(listing: Listing, count: number): boolean {
+  // An unknown count matches no bucket, so the group shows only when some
+  // stay actually says how many bedrooms it has.
+  if (listing.bedrooms === null) return false;
   return count >= BEDROOM_CAP
     ? listing.bedrooms >= BEDROOM_CAP
     : listing.bedrooms === count;
 }
 
-export function bedroomLabel(count: number): string {
+function bedroomLabel(count: number): string {
   if (count >= BEDROOM_CAP) return `${BEDROOM_CAP}+ bedrooms`;
   if (count === 1) return "Studio or 1 bedroom";
   return `${count} bedrooms`;
