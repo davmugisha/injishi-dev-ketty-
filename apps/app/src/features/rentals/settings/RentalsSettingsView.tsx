@@ -6,6 +6,7 @@ import type {
   OperatorStaffInvitation,
   OperatorTeamMember,
   PayoutAccountView,
+  PayoutList,
   RentalPropertyView,
   RentalsSetupView,
 } from "@injishi/contracts";
@@ -17,6 +18,7 @@ import { BrokerDefaults } from "./BrokerDefaults";
 import { LeaseDefaults } from "./LeaseDefaults";
 import { Location } from "./Location";
 import { PayoutAccounts } from "./PayoutAccounts";
+import { Payouts } from "./Payouts";
 import { Signatory } from "./Signatory";
 import { Team } from "./Team";
 
@@ -43,6 +45,7 @@ export function RentalsSettingsView({
   tab,
   profile,
   accounts,
+  payouts,
   properties,
   setup,
   team,
@@ -51,6 +54,8 @@ export function RentalsSettingsView({
   tab: SettingsTab;
   profile: LandlordProfileView;
   accounts: PayoutAccountView[] | null;
+  /** The payouts sent, for people who read the money; null otherwise. */
+  payouts: PayoutList | null;
   properties: RentalPropertyView[];
   setup: RentalsSetupView | null;
   /** The team, for a person who manages it. */
@@ -72,6 +77,7 @@ export function RentalsSettingsView({
       <div className="grid min-w-0 gap-5 lg:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-5 *:last:flex-1 lg:col-span-2">
           {tab === "getting-paid" ? <PayoutAccounts accounts={accounts} canManage={can.payouts} /> : null}
+          {tab === "getting-paid" ? <Payouts list={payouts} canRetry={can.payouts} /> : null}
           {tab === "location" ? <Location properties={properties} canEdit={can.location} /> : null}
           {tab === "lease-defaults" ? (
             <LeaseDefaults defaults={profile.leaseDefaults} canEdit={can.leaseDefaults} />

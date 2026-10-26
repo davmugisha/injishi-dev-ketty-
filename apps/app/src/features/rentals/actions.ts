@@ -20,6 +20,7 @@ import {
   type OperatorTeamMember,
   PayoutAccountInput,
   type PayoutAccountList,
+  type PayoutView,
   PropertyLocationRequest,
   type RentalPropertyView,
   type RentalUnitView,
@@ -160,6 +161,11 @@ export async function makePrimaryPayoutAccount(id: string): Promise<ActionResult
 export async function retirePayoutAccount(id: string): Promise<ActionResult<PayoutAccountList>> {
   if (!UUID.test(id)) return { ok: false, error: "That account was not found." };
   return run((s) => s.api.post<PayoutAccountList>(`/api/v1/ops/payout-accounts/${id}/retire`, {}, ws(s)));
+}
+
+export async function retryPayout(id: string): Promise<ActionResult<PayoutView>> {
+  if (!UUID.test(id)) return { ok: false, error: "That payout was not found." };
+  return run((s) => s.api.post<PayoutView>(`/api/v1/ops/payouts/${id}/retry`, {}, ws(s)));
 }
 
 export async function saveLocation(propertyId: string, input: unknown): Promise<ActionResult<RentalPropertyView>> {

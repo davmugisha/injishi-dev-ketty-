@@ -11,6 +11,7 @@ import type {
   OperatorTeamList,
   OperatorTeamMember,
   PayoutAccountList,
+  PayoutList,
   RentalPropertyList,
   RentalsOverview,
   RentalsSetupView,
@@ -78,6 +79,7 @@ export const rentalsOverview = cache(() => get<RentalsOverview>("/api/v1/ops/ren
 export const rentalsSetup = cache(() => get<RentalsSetupView>("/api/v1/ops/rentals/setup"));
 export const rentalsProfile = cache(() => get<LandlordProfileView>("/api/v1/ops/rentals/profile"));
 export const payoutAccounts = cache(() => get<PayoutAccountList>("/api/v1/ops/payout-accounts"));
+export const rentPayouts = cache(() => get<PayoutList>("/api/v1/ops/payouts"));
 export const rentalProperties = cache(() => get<RentalPropertyList>("/api/v1/ops/properties"));
 export const rentalBlocks = cache(() => get<BlockList>("/api/v1/ops/blocks"));
 export const rentalUnits = cache((tab?: UnitListQuery["tab"], blockId?: string, q?: string) =>
