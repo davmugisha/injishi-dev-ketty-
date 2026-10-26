@@ -132,7 +132,6 @@ export function LandlordGuestsView({
       <Toast.Provider placement="bottom" />
       <PageHeader
         title="My guests"
-        description="Your own guests staying at your buildings, shared with the local leaders. Tenants register theirs."
         actions={
           list.buildings.length > 0 ? (
             <ActionButton icon="PersonPlus" intent="primary" onPress={() => setRegistering(true)}>

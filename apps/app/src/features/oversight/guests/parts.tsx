@@ -2,7 +2,7 @@
 
 import { Alert } from "@heroui/react";
 import type { GuestRouteState, LeaderChainStep, LeaderGuest } from "@injishi/contracts";
-import { formatDay, Icon, StatusChip, type StatusTone } from "@injishi/ui";
+import { formatDay, formatLocalPhone, Icon, StatusChip, type StatusTone } from "@injishi/ui";
 
 /** Where one step of the chain stands, as a chip: nobody in the post, sent, opened. */
 export const ROUTE_STATE: Record<GuestRouteState, { tone: StatusTone; words: string }> = {
@@ -14,6 +14,8 @@ export const ROUTE_STATE: Record<GuestRouteState, { tone: StatusTone; words: str
 /** "+250 788 123 456": an E.164 number in groups of three after the country code. */
 export function phoneWords(e164: string | null | undefined): string {
   if (!e164) return "";
+  // A Rwandan number as people write it here: 0788 555 666.
+  if (/^\+250\d{9}$/.test(e164)) return formatLocalPhone(e164);
   // Most numbers in the region have nine national digits: the code is what comes before them.
   const m = /^\+(\d{1,4})(\d{3})(\d{3})(\d{3})$/.exec(e164);
   if (m) return `+${m[1]} ${m[2]} ${m[3]} ${m[4]}`;

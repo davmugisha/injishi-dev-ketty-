@@ -1,11 +1,5 @@
 import { type LeaseChargeView, type LeaseTermsView, rentSchedule } from "@injishi/contracts";
 
-/** "+250788301122" as "0788 301 122"; other numbers as stored. */
-export function localPhone(e164: string): string {
-  const m = /^\+250(\d{3})(\d{3})(\d{3})$/.exec(e164);
-  return m ? `0${m[1]} ${m[2]} ${m[3]}` : e164;
-}
-
 /**
  * The next rent not raised yet: the first month in the schedule due after today and after the last rent
  * charge already raised. Null once the lease has no month left.

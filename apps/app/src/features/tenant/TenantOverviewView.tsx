@@ -15,6 +15,7 @@ import {
   ActionLink,
   DateText,
   formatDay,
+  formatLocalPhone,
   formatMoney,
   Icon,
   KeyValueList,
@@ -28,7 +29,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 import { dueDayWords, placeWords, tenantGuestsHref, tenantLeaseHref, tenantRentHref } from "../leases/shared";
-import { localPhone, nextRent } from "./format";
+import { nextRent } from "./format";
 import { PayPanel } from "./PayPanel";
 import { RateBrokerDialog } from "./TenantBrokerCard";
 
@@ -231,10 +232,10 @@ export function TenantOverviewView({
           <PersonCell
             size="md"
             name={landlord.name}
-            secondary={landlord.signatoryName ?? (landlord.phone ? localPhone(landlord.phone) : undefined)}
+            secondary={landlord.signatoryName ?? (landlord.phone ? formatLocalPhone(landlord.phone) : undefined)}
           />
           {landlord.phone && landlord.signatoryName ? (
-            <span className="text-sm text-muted tabular">{localPhone(landlord.phone)}</span>
+            <span className="text-sm text-muted tabular">{formatLocalPhone(landlord.phone)}</span>
           ) : null}
           <div className="mt-auto grid grid-cols-2 gap-2">
             <ActionLink href={`/home/${tenancy.id}/messages`} icon="Comments" className="w-full">
