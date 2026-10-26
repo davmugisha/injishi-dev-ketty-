@@ -20,7 +20,12 @@
 [data-theme="mouve-dark"] {
   /* Border radius */
   --radius: 0.5rem;
-  --field-radius: 0.25rem;
+  --field-radius: 0.5rem;
+  /* One corner for every card-like surface (cards, widgets, tables, lists, figure strips), one for what
+     sits inside them, one for buttons. See "Surfaces and controls" below. */
+  --surface-radius: 0.75rem;
+  --inner-radius: 0.5rem;
+  --control-radius: 0.625rem;
 
   /* Border width */
   --border-width-field: 0.8488516842015111px;
@@ -235,6 +240,106 @@
     max-height: none;
     border-radius: 0;
     box-shadow: none;
+  }
+}
+
+/*
+ * Surfaces and controls (polish, 2026-10-26): tighter, product-like corners, one value per role, and
+ * buttons with a comfortable hit area (36 px from md up, 40 px on phones) and more room either side of
+ * their words. In the components layer after HeroUI's own rules, so they win over HeroUI while a
+ * screen's utility classes (h-*, rounded-*) still win over them.
+ */
+@layer components {
+  .card,
+  .widget,
+  .table-root,
+  .list-view--primary,
+  .kpi-group,
+  .empty-state,
+  .item-card {
+    border-radius: var(--surface-radius);
+  }
+  .widget__content,
+  .sidebar__menu-item-content,
+  .sidebar__menu-button {
+    border-radius: var(--inner-radius);
+  }
+  /* A table rounds its header and its corner cells with --radius-2xl; a list its first and last rows. */
+  .table-root {
+    --radius-2xl: var(--surface-radius);
+  }
+  .list-view--primary:not([data-virtualized]) .list-view__item:first-child {
+    border-top-left-radius: var(--surface-radius);
+    border-top-right-radius: var(--surface-radius);
+  }
+  .list-view--primary:not([data-virtualized]) .list-view__item:last-child {
+    border-bottom-left-radius: var(--surface-radius);
+    border-bottom-right-radius: var(--surface-radius);
+  }
+  .button {
+    border-radius: var(--control-radius);
+    height: 2.5rem;
+    padding-inline: 1.125rem;
+  }
+  .button--sm {
+    height: 2.25rem;
+    padding-inline: 0.875rem;
+  }
+  .button--lg {
+    height: 2.75rem;
+    padding-inline: 1.375rem;
+  }
+  .button--icon-only {
+    padding-inline: 0;
+    width: 2.5rem;
+  }
+  .button--icon-only.button--sm {
+    width: 2.25rem;
+  }
+  /* Fields as tall as a button beside them. */
+  .search-field__group,
+  .date-input-group {
+    height: 2.5rem;
+  }
+  .select__trigger,
+  .input-group,
+  input.input {
+    min-height: 2.5rem;
+  }
+  @media (min-width: 768px) {
+    .search-field__group,
+    .date-input-group {
+      height: 2.25rem;
+    }
+    .select__trigger,
+    .input-group,
+    input.input {
+      min-height: 2.25rem;
+    }
+    .button {
+      height: 2.25rem;
+    }
+    .button--sm {
+      height: 2rem;
+    }
+    .button--lg {
+      height: 2.5rem;
+    }
+    .button--icon-only {
+      width: 2.25rem;
+    }
+    .button--icon-only.button--sm {
+      width: 2rem;
+    }
+  }
+
+  /* The list toolbar (ListToolbar in table.tsx): the tabs' own underline gives way to the row's, and
+     the tabs are as tall as the search beside them. */
+  .ij-toolbar .tabs--secondary > .tabs__list-container {
+    border-bottom-width: 0;
+  }
+  .ij-toolbar .tabs__tab {
+    height: 2.5rem;
   }
 }
 

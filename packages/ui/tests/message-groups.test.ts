@@ -42,7 +42,10 @@ test("groups a run from one sender within five minutes, and breaks on a gap, a s
 });
 
 test("a system line stands alone", () => {
-  const places = placeMessages([line("2026-10-25T08:00:00Z", false), line("2026-10-25T08:01:00Z", false, "Grace", "system")]);
+  const places = placeMessages([
+    line("2026-10-25T08:00:00Z", false),
+    line("2026-10-25T08:01:00Z", false, "Grace", "system"),
+  ]);
   assert.equal(places[0]?.last, true);
   assert.equal(places[1]?.first, true);
 });

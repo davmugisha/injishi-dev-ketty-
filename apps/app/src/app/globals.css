@@ -17,12 +17,12 @@
   .workspace-shell .app-layout__body {
     margin: 8px 8px 8px 0;
     min-height: calc(100dvh - 16px);
-    border-radius: 20px;
+    border-radius: var(--surface-radius);
     background: var(--surface);
     box-shadow: var(--surface-shadow);
   }
   .workspace-shell .app-layout__header {
-    border-radius: 20px 20px 0 0;
+    border-radius: var(--surface-radius) var(--surface-radius) 0 0;
     background: var(--surface);
   }
   .workspace-shell .sidebar__menu-item[data-current="true"] .sidebar__menu-item-content {
