@@ -85,15 +85,15 @@ export function HomeCard({ home, onOpen, href }: { home: BrokerHome; onOpen?: ()
             </span>
           </div>
           {facts ? <span className="text-xs text-muted">{facts}</span> : null}
-          <span className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-2 text-sm">
-            <span className="flex items-center gap-1.5 text-muted">
+          <span className="mt-auto flex items-end justify-between gap-2 border-t border-border pt-2 text-sm">
+            <span className="flex items-center gap-1.5 whitespace-nowrap text-muted">
               <Icon name="Wallet" />
               Your fee
             </span>
-            <span className="text-right">
+            <span className="flex flex-col items-end">
               <span className="font-semibold tabular">{formatMoney(home.feeRwf)}</span>
               {home.fee.kind === "percent" ? (
-                <span className="text-xs text-muted"> · {feeTermsWords(home.fee)}</span>
+                <span className="text-xs text-muted">{feeTermsWords(home.fee)}</span>
               ) : null}
             </span>
           </span>

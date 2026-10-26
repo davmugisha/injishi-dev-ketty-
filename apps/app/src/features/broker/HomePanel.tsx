@@ -78,7 +78,7 @@ export function HomePanel({ home: initial, onClose }: { home: BrokerHome; onClos
         isOpen
         onOpenChange={(open) => (open ? undefined : onClose())}
         title={`${home.unitLabel} · ${home.propertyName}`}
-        description={home.landlordName}
+        description={[home.sector, home.district].filter(Boolean).join(", ") || home.landlordName}
         headerExtra={home.placement ? <PlacementChip status={home.placement.status} /> : null}
         size="lg"
         footer={
@@ -100,8 +100,9 @@ export function HomePanel({ home: initial, onClose }: { home: BrokerHome; onClos
           photos={home.photos.map((url, i) => ({ url, alt: i === 0 ? `Unit ${home.unitLabel}` : undefined }))}
           label={`Unit ${home.unitLabel}`}
           empty={
-            <div className="flex aspect-4/3 w-full items-center justify-center rounded-lg bg-default text-muted">
-              <Icon name="FolderHouse" className="size-8" />
+            <div className="flex h-32 w-full flex-col items-center justify-center gap-1 rounded-lg bg-default text-sm text-muted">
+              <Icon name="Picture" className="size-6" />
+              No photos yet
             </div>
           }
         />

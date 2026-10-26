@@ -32,7 +32,6 @@ export interface MapPanelProps {
 
 const MIN_ZOOM = 6;
 const MAX_ZOOM = 17;
-const SUBDOMAINS = ["a", "b", "c", "d"] as const;
 
 /** Whether the app is in its dark theme (`data-theme="…-dark"` on the html element), following changes. */
 function useDarkTheme(): boolean {
@@ -49,8 +48,8 @@ function useDarkTheme(): boolean {
 }
 
 /**
- * A map of places, drawn from map tiles with no map library: OpenStreetMap data in CARTO's light or dark
- * style (it follows the theme). It opens fitted to the points (all of Rwanda when there are none); drag to
+ * A map of places, drawn from OpenStreetMap's tiles with no map library (turned to night in the dark
+ * theme). It opens fitted to the points (all of Rwanda when there are none); drag to
  * move, the buttons zoom and fit again. A point is a button named by its label (shown on hover); one standing for
  * an area (a district centre) is drawn hollow. The tiles are pictures: everything a person needs is also
  * in the list beside the map.
@@ -76,7 +75,7 @@ export function MapPanel({ points, label, selectedId, onSelect, height = "24rem"
 
   const fit = useCallback(() => {
     if (size.width === 0 || size.height === 0) return;
-    setView(fitView(points.length > 0 ? points : RWANDA_BOUNDS, size, { min: MIN_ZOOM, max: 14, padding: 48 }));
+    setView(fitView(points.length > 0 ? points : RWANDA_BOUNDS, size, { min: MIN_ZOOM, max: 12, padding: 48 }));
   }, [points, size]);
 
   // Fitted to the points whenever they change (a new filter), and once the box has a size.
@@ -106,7 +105,6 @@ export function MapPanel({ points, label, selectedId, onSelect, height = "24rem"
 
   const tiles = view && size.width > 0 ? tilesFor(view.center, view.zoom, size) : [];
   const centerPx = view ? project(view.center, view.zoom) : { x: 0, y: 0 };
-  const style = dark ? "dark_all" : "light_all";
 
   return (
     <section
@@ -126,11 +124,15 @@ export function MapPanel({ points, label, selectedId, onSelect, height = "24rem"
       {tiles.map((t) => (
         // biome-ignore lint/performance/noImgElement: map tiles are plain pictures from the tile server
         <img
-          key={`${style}/${t.z}/${t.x}/${t.y}`}
-          src={`https://${SUBDOMAINS[(t.x + t.y) % SUBDOMAINS.length]}.basemaps.cartocdn.com/${style}/${t.z}/${t.wrappedX}/${t.y}@2x.png`}
+          key={`${t.z}/${t.x}/${t.y}`}
+          src={`https://tile.openstreetmap.org/${t.z}/${t.wrappedX}/${t.y}.png`}
           alt=""
           draggable={false}
-          className="pointer-events-none absolute size-64 max-w-none"
+          className={cx(
+            "pointer-events-none absolute size-64 max-w-none",
+            // OpenStreetMap draws one light style; the dark theme turns it to night.
+            dark && "brightness-90 contrast-90 hue-rotate-180 invert",
+          )}
           style={{ left: t.left, top: t.top }}
         />
       ))}
@@ -198,7 +200,7 @@ export function MapPanel({ points, label, selectedId, onSelect, height = "24rem"
         </button>
       </div>
       <span className="pointer-events-none absolute right-1.5 bottom-1 rounded bg-background/80 px-1.5 text-xs text-muted">
-        © OpenStreetMap © CARTO
+        © OpenStreetMap contributors
       </span>
     </section>
   );
