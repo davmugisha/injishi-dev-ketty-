@@ -107,6 +107,8 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-error.log*
 coverage/
+# A route folder, not a test coverage report.
+!apps/app/src/app/(workspace)/admin/leaders/coverage/
 .nyc_output/
 test-results/
 playwright-report/
