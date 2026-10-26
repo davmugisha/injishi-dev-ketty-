@@ -389,7 +389,9 @@ export function LeaseRecordView({
               lease.charges.overdueRwf > 0
                 ? `${formatMoney(lease.charges.overdueRwf)} overdue`
                 : lease.charges.nextDue
-                  ? `Next ${formatMoney(lease.charges.nextDue.amountRwf)} on ${formatDay(lease.charges.nextDue.dueOn)}`
+                  ? lease.charges.nextDue.dueOn <= today
+                    ? `Due since ${formatDay(lease.charges.nextDue.dueOn)}`
+                    : `Next ${formatMoney(lease.charges.nextDue.amountRwf)} on ${formatDay(lease.charges.nextDue.dueOn)}`
                   : "Nothing due",
           },
           {

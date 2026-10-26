@@ -269,7 +269,7 @@ export function PayoutAccounts({ accounts, canManage }: { accounts: PayoutAccoun
   return (
     <SectionCard
       title="Payout accounts"
-      description="Where rent paid through Injishi goes. The primary account gets every payout."
+      description="The primary account gets every payout."
       actions={
         canManage && live.length > 0 ? (
           <ActionButton icon="Plus" size="sm" onPress={() => setAdding(true)}>

@@ -49,7 +49,7 @@ function DefaultsPanel({ defaults, onClose }: { defaults: Defaults; onClose: () 
       isOpen
       onOpenChange={(open) => (open ? undefined : onClose())}
       title="Lease defaults"
-      description="New leases start from these. Leases already drafted keep theirs."
+      description="New leases start from these."
       submitLabel="Save"
       isPending={pending}
       validationErrors={errors}

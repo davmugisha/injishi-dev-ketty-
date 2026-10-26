@@ -38,7 +38,7 @@ function FeePanel({ fee, onClose }: { fee: BrokerFeeTerms | null; onClose: () =>
       isOpen
       onOpenChange={(open) => (open ? undefined : onClose())}
       title="Broker fee"
-      description="A unit you open to brokers starts with this fee. You can change it per unit."
+      description="Units open to brokers start with this fee."
       submitLabel="Save"
       isPending={pending}
       formError={formError}
