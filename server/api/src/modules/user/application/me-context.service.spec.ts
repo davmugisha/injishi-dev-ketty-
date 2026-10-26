@@ -42,6 +42,7 @@ function harness(opts: { tenancies?: (typeof tenancy)[]; broker?: { id: string; 
   const reads = {
     tenancies: jest.fn(async () => opts.tenancies ?? []),
     broker: jest.fn(async () => opts.broker ?? null),
+    signatories: jest.fn(async () => new Map<string, string>()),
   };
   return new MeContextService(reads as unknown as MeContextRepository);
 }

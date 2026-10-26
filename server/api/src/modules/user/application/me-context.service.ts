@@ -31,13 +31,13 @@ export class MeContextService {
   constructor(private readonly reads: MeContextRepository) {}
 
   async build(grants: MeContextGrants): Promise<MeContext> {
-    const [tenancies, broker] = await Promise.all([
+    const owned = grants.workspaces.filter((w) => w.kind === 'business' && w.orgId && w.domain);
+    const [tenancies, broker, signatories] = await Promise.all([
       this.reads.tenancies(grants.user.id),
       this.reads.broker(grants.user.id),
+      this.reads.signatories(owned.filter((w) => w.domain === 'residence').map((w) => w.orgId as string)),
     ]);
-    const businesses: MeContextBusiness[] = grants.workspaces
-      .filter((w) => w.kind === 'business' && w.orgId && w.domain)
-      .map((w) => ({
+    const businesses: MeContextBusiness[] = owned.map((w) => ({
         workspaceId: w.workspaceId,
         orgId: w.orgId as string,
         orgName: w.orgName ?? '',
@@ -46,6 +46,7 @@ export class MeContextService {
         registrationStatus: w.registrationStatus,
         operational: isOperational(w.registrationStatus),
         permissions: w.permissions,
+        signatoryName: signatories.get(w.orgId as string) ?? null,
       }));
     const facts = {
       businesses,

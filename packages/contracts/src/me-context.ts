@@ -28,6 +28,8 @@ export const MeContextBusiness = z.object({
   /** Approved and running: only then does it grant any permission. */
   operational: z.boolean(),
   permissions: z.array(Permission),
+  /** A landlord business's lease signatory, as their ID names them; null until set or for other businesses. */
+  signatoryName: z.string().nullable(),
 });
 export type MeContextBusiness = z.infer<typeof MeContextBusiness>;
 

@@ -29,6 +29,8 @@ exports.MeContextBusiness = zod_1.z.object({
     /** Approved and running: only then does it grant any permission. */
     operational: zod_1.z.boolean(),
     permissions: zod_1.z.array(authz_1.Permission),
+    /** A landlord business's lease signatory, as their ID names them; null until set or for other businesses. */
+    signatoryName: zod_1.z.string().nullable(),
 });
 /** A home the person rents: a lease naming them (through `tenants.user_id`) that is not a draft. */
 exports.MeContextTenancy = zod_1.z.object({

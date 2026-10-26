@@ -60,4 +60,18 @@ export class MeContextRepository {
     `);
     return rows[0] ?? null;
   }
+
+  /** The lease signatory's name of each business that has a landlord profile with one. */
+  async signatories(orgIds: readonly string[]): Promise<Map<string, string>> {
+    if (orgIds.length === 0) return new Map();
+    const ids = sql.join(
+      orgIds.map((id) => sql`${id}::uuid`),
+      sql`, `,
+    );
+    const { rows } = await this.db.execute<{ org_id: string; signatory_name: string }>(sql`
+      select org_id, signatory_name from landlord_profiles
+       where org_id in (${ids}) and signatory_name is not null and btrim(signatory_name) <> ''
+    `);
+    return new Map(rows.map((r) => [r.org_id, r.signatory_name.trim()]));
+  }
 }

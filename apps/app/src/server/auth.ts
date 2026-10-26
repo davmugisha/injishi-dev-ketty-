@@ -302,10 +302,15 @@ function asPerson(shell: Persona, user: ApiUser, workspaces: Workspace[], contex
   if (shell.email && shell.email === user.email.toLowerCase()) return shell;
   const business =
     shell.id === "landlord" && context ? landlordBusiness(context.businesses, context.activeWorkspaceId) : null;
-  // An account with no name of its own: a broker's registered name, a landlord's business, and only then
-  // the email's first part.
+  // An account with no name of its own: the owner's lease signatory name (the owner signs for the
+  // business), a broker's registered name, the landlord's business, and only then the email's first part.
+  const signatory = business?.role === "owner" ? business.signatoryName?.trim() : "";
   const name =
-    user.name?.trim() || context?.broker?.name?.trim() || business?.orgName.trim() || user.email.split("@")[0];
+    user.name?.trim() ||
+    signatory ||
+    context?.broker?.name?.trim() ||
+    business?.orgName.trim() ||
+    user.email.split("@")[0];
   const parts = name.split(/\s+/).filter(Boolean);
   const person = { ...shell, name, firstName: parts[0] ?? name, initials: initialsOf(name), email: user.email };
   if (shell.id !== "landlord" || !context) return person;
