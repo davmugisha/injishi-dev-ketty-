@@ -1210,7 +1210,7 @@ export function CountDonut({
         rows: positive.map((d) => [d.label, `${pct(d.count)}%`, formatNumber(d.count)]),
       }}
     >
-      <div className="grid items-center gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+      <div className="grid items-center gap-4 sm:grid-cols-2 lg:grid-cols-1">
         <div className="relative mx-auto aspect-square w-full max-w-48">
           <PieChart height={192}>
             <PieChart.Tooltip

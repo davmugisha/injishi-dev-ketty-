@@ -45,8 +45,15 @@ export function GuestStatusChip({ guest }: { guest: Pick<LeaderGuest, "flagged" 
 export function ChainDots({ chain }: { chain: readonly LeaderChainStep[] }) {
   if (chain.length === 0) return <span className="text-xs text-muted">Not routed</span>;
   const { opened, waiting } = chainWords(chain);
+  // Filled green: opened. Ring: received, not opened yet. Amber: nobody holds the post. Red: flagged.
   const color = (c: LeaderChainStep) =>
-    c.flag ? "bg-danger" : c.state === "seen" ? "bg-success" : c.state === "delivered" ? "bg-accent" : "bg-warning";
+    c.flag
+      ? "bg-danger"
+      : c.state === "seen"
+        ? "bg-success"
+        : c.state === "delivered"
+          ? "border-2 border-success bg-transparent"
+          : "bg-warning";
   return (
     <div className="flex flex-col gap-1">
       <div
