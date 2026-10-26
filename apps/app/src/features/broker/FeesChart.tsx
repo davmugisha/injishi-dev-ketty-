@@ -52,6 +52,12 @@ export function FeesChart({
     return { month, label: monthLabel(month), earned, paid };
   });
   const last = rows.at(-1);
+  // The lines start at the first month with a fee, not on a run of zeros that reads as growth; a single
+  // month is drawn as a dot.
+  const start = rows.findIndex((r) => r.earned > 0 || r.paid > 0);
+  const real = start === -1 ? 0 : rows.length - start;
+  const drawn = rows.map((r, i) => (start === -1 || i < start ? { ...r, earned: null, paid: null } : r));
+  const dot = (color: string) => (real <= 1 ? { r: 3.5, strokeWidth: 0, fill: color } : false);
   return (
     <ChartCard
       title="Fees over the year"
@@ -79,7 +85,7 @@ export function FeesChart({
         ]),
       }}
     >
-      <AreaChart data={rows} height={220} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+      <AreaChart data={drawn} height={220} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
         <defs>
           <linearGradient id={`${id}-paid`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={CHART_COLOR.cat(1)} stopOpacity={0.3} />
@@ -123,7 +129,7 @@ export function FeesChart({
           stroke={CHART_COLOR.cat(2)}
           strokeWidth={2}
           fill={`url(#${id}-earned)`}
-          dot={false}
+          dot={dot(CHART_COLOR.cat(2))}
           activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
         />
         <AreaChart.Area
@@ -133,7 +139,7 @@ export function FeesChart({
           stroke={CHART_COLOR.cat(1)}
           strokeWidth={2}
           fill={`url(#${id}-paid)`}
-          dot={false}
+          dot={dot(CHART_COLOR.cat(1))}
           activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
         />
       </AreaChart>
