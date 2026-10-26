@@ -435,6 +435,14 @@ exports.LeaderCounts = zod_1.z.object({
     flagged: zod_1.z.number().int(),
     /** Guests in scope this leader has not opened yet. */
     unseen: zod_1.z.number().int(),
+    /** Of those staying now, how many are foreign (by nationality). */
+    stayingForeign: zod_1.z.number().int().default(0),
+    /** Current guests (staying or still to come) in scope, the base the unopened count is part of. */
+    current: zod_1.z.number().int().default(0),
+    /** Guests arriving on each of the next 7 days, tomorrow first. */
+    arrivingByDay: zod_1.z.array(zod_1.z.number().int()).default([]),
+    /** Guests staying on each of the last 14 days, today last. */
+    stayingByDay: zod_1.z.array(zod_1.z.number().int()).default([]),
 });
 exports.LeaderSummary = zod_1.z.object({
     leader: zod_1.z.object({ name: zod_1.z.string().nullable(), email: zod_1.z.string() }),

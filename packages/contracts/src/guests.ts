@@ -514,6 +514,14 @@ export const LeaderCounts = z.object({
   flagged: z.number().int(),
   /** Guests in scope this leader has not opened yet. */
   unseen: z.number().int(),
+  /** Of those staying now, how many are foreign (by nationality). */
+  stayingForeign: z.number().int().default(0),
+  /** Current guests (staying or still to come) in scope, the base the unopened count is part of. */
+  current: z.number().int().default(0),
+  /** Guests arriving on each of the next 7 days, tomorrow first. */
+  arrivingByDay: z.array(z.number().int()).default([]),
+  /** Guests staying on each of the last 14 days, today last. */
+  stayingByDay: z.array(z.number().int()).default([]),
 });
 export type LeaderCounts = z.infer<typeof LeaderCounts>;
 

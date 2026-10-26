@@ -1754,13 +1754,25 @@ export declare const LeaderCounts: z.ZodObject<{
     flagged: z.ZodNumber;
     /** Guests in scope this leader has not opened yet. */
     unseen: z.ZodNumber;
+    /** Of those staying now, how many are foreign (by nationality). */
+    stayingForeign: z.ZodDefault<z.ZodNumber>;
+    /** Current guests (staying or still to come) in scope, the base the unopened count is part of. */
+    current: z.ZodDefault<z.ZodNumber>;
+    /** Guests arriving on each of the next 7 days, tomorrow first. */
+    arrivingByDay: z.ZodDefault<z.ZodArray<z.ZodNumber, "many">>;
+    /** Guests staying on each of the last 14 days, today last. */
+    stayingByDay: z.ZodDefault<z.ZodArray<z.ZodNumber, "many">>;
 }, "strip", z.ZodTypeAny, {
+    current: number;
     arriving: number;
     staying: number;
     left: number;
     flagged: number;
     later: number;
     unseen: number;
+    stayingForeign: number;
+    arrivingByDay: number[];
+    stayingByDay: number[];
 }, {
     arriving: number;
     staying: number;
@@ -1768,6 +1780,10 @@ export declare const LeaderCounts: z.ZodObject<{
     flagged: number;
     later: number;
     unseen: number;
+    current?: number | undefined;
+    stayingForeign?: number | undefined;
+    arrivingByDay?: number[] | undefined;
+    stayingByDay?: number[] | undefined;
 }>;
 export type LeaderCounts = z.infer<typeof LeaderCounts>;
 export declare const LeaderSummary: z.ZodObject<{
@@ -1902,13 +1918,25 @@ export declare const LeaderSummary: z.ZodObject<{
         flagged: z.ZodNumber;
         /** Guests in scope this leader has not opened yet. */
         unseen: z.ZodNumber;
+        /** Of those staying now, how many are foreign (by nationality). */
+        stayingForeign: z.ZodDefault<z.ZodNumber>;
+        /** Current guests (staying or still to come) in scope, the base the unopened count is part of. */
+        current: z.ZodDefault<z.ZodNumber>;
+        /** Guests arriving on each of the next 7 days, tomorrow first. */
+        arrivingByDay: z.ZodDefault<z.ZodArray<z.ZodNumber, "many">>;
+        /** Guests staying on each of the last 14 days, today last. */
+        stayingByDay: z.ZodDefault<z.ZodArray<z.ZodNumber, "many">>;
     }, "strip", z.ZodTypeAny, {
+        current: number;
         arriving: number;
         staying: number;
         left: number;
         flagged: number;
         later: number;
         unseen: number;
+        stayingForeign: number;
+        arrivingByDay: number[];
+        stayingByDay: number[];
     }, {
         arriving: number;
         staying: number;
@@ -1916,6 +1944,10 @@ export declare const LeaderSummary: z.ZodObject<{
         flagged: number;
         later: number;
         unseen: number;
+        current?: number | undefined;
+        stayingForeign?: number | undefined;
+        arrivingByDay?: number[] | undefined;
+        stayingByDay?: number[] | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
     scopes: {
@@ -1926,12 +1958,16 @@ export declare const LeaderSummary: z.ZodObject<{
         roleLabel: string;
     }[];
     counts: {
+        current: number;
         arriving: number;
         staying: number;
         left: number;
         flagged: number;
         later: number;
         unseen: number;
+        stayingForeign: number;
+        arrivingByDay: number[];
+        stayingByDay: number[];
     };
     leader: {
         name: string | null;
@@ -1973,6 +2009,10 @@ export declare const LeaderSummary: z.ZodObject<{
         flagged: number;
         later: number;
         unseen: number;
+        current?: number | undefined;
+        stayingForeign?: number | undefined;
+        arrivingByDay?: number[] | undefined;
+        stayingByDay?: number[] | undefined;
     };
     leader: {
         name: string | null;
@@ -2133,13 +2173,25 @@ export declare const LeaderGuestPage: z.ZodObject<{
         flagged: z.ZodNumber;
         /** Guests in scope this leader has not opened yet. */
         unseen: z.ZodNumber;
+        /** Of those staying now, how many are foreign (by nationality). */
+        stayingForeign: z.ZodDefault<z.ZodNumber>;
+        /** Current guests (staying or still to come) in scope, the base the unopened count is part of. */
+        current: z.ZodDefault<z.ZodNumber>;
+        /** Guests arriving on each of the next 7 days, tomorrow first. */
+        arrivingByDay: z.ZodDefault<z.ZodArray<z.ZodNumber, "many">>;
+        /** Guests staying on each of the last 14 days, today last. */
+        stayingByDay: z.ZodDefault<z.ZodArray<z.ZodNumber, "many">>;
     }, "strip", z.ZodTypeAny, {
+        current: number;
         arriving: number;
         staying: number;
         left: number;
         flagged: number;
         later: number;
         unseen: number;
+        stayingForeign: number;
+        arrivingByDay: number[];
+        stayingByDay: number[];
     }, {
         arriving: number;
         staying: number;
@@ -2147,6 +2199,10 @@ export declare const LeaderGuestPage: z.ZodObject<{
         flagged: number;
         later: number;
         unseen: number;
+        current?: number | undefined;
+        stayingForeign?: number | undefined;
+        arrivingByDay?: number[] | undefined;
+        stayingByDay?: number[] | undefined;
     }>;
 } & {
     tab: z.ZodEnum<["arriving", "staying", "left", "flagged"]>;
@@ -2431,12 +2487,16 @@ export declare const LeaderGuestPage: z.ZodObject<{
     }[];
     tab: "arriving" | "staying" | "left" | "flagged";
     counts: {
+        current: number;
         arriving: number;
         staying: number;
         left: number;
         flagged: number;
         later: number;
         unseen: number;
+        stayingForeign: number;
+        arrivingByDay: number[];
+        stayingByDay: number[];
     };
     when: "soon" | "later";
     leader: {
@@ -2533,6 +2593,10 @@ export declare const LeaderGuestPage: z.ZodObject<{
         flagged: number;
         later: number;
         unseen: number;
+        current?: number | undefined;
+        stayingForeign?: number | undefined;
+        arrivingByDay?: number[] | undefined;
+        stayingByDay?: number[] | undefined;
     };
     when: "soon" | "later";
     leader: {

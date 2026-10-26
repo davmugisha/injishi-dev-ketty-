@@ -600,6 +600,10 @@ export class GuestRegistryRepository {
     left: number;
     flagged: number;
     unseen: number;
+    stayingForeign: number;
+    current: number;
+    arrivingByDay: number[];
+    stayingByDay: number[];
   }> {
     const result = await this.db.execute(sql`
       select
@@ -608,10 +612,23 @@ export class GuestRegistryRepository {
         count(*) filter (where g.arrival_on <= ${today}::date and g.departure_on >= ${today}::date)::int as staying,
         count(*) filter (where g.departure_on < ${today}::date)::int as "left",
         count(*) filter (where exists (select 1 from guest_registration_routes fr where fr.registration_id = g.id and fr.flagged_at is not null))::int as flagged,
-        count(*) filter (where g.departure_on >= ${today}::date and ${unseen})::int as unseen
+        count(*) filter (where g.departure_on >= ${today}::date and ${unseen})::int as unseen,
+        count(*) filter (where g.arrival_on <= ${today}::date and g.departure_on >= ${today}::date and g.nationality <> 'RW')::int as "stayingForeign",
+        count(*) filter (where g.departure_on >= ${today}::date)::int as current
         from guest_registrations g
        where g.status = 'submitted' and ${scope} and ${narrow}`);
     const row = rowsOf<Record<string, number>>(result)[0] ?? {};
+    // Day by day, for the cards' small charts: arrivals over the next 7 days, guests staying over the last 14.
+    const days = await this.db.execute(sql`
+      select d::date as day,
+             count(g.id) filter (where g.arrival_on = d::date)::int as arriving,
+             count(g.id) filter (where g.arrival_on <= d::date and g.departure_on >= d::date)::int as staying
+        from generate_series(${today}::date - 13, ${soonUntil}::date, interval '1 day') d
+        left join guest_registrations g
+          on g.status = 'submitted' and ${scope} and ${narrow}
+         and g.arrival_on <= d::date and g.departure_on >= d::date
+       group by d order by d`);
+    const byDay = rowsOf<{ day: string; arriving: number; staying: number }>(days);
     return {
       arriving: row.arriving ?? 0,
       later: row.later ?? 0,
@@ -619,6 +636,10 @@ export class GuestRegistryRepository {
       left: row.left ?? 0,
       flagged: row.flagged ?? 0,
       unseen: row.unseen ?? 0,
+      stayingForeign: row.stayingForeign ?? 0,
+      current: row.current ?? 0,
+      arrivingByDay: byDay.slice(14).map((d) => d.arriving),
+      stayingByDay: byDay.slice(0, 14).map((d) => d.staying),
     };
   }
 
