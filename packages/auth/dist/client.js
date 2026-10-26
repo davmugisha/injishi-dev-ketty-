@@ -21,7 +21,9 @@ import { AUTH_BASE_PATH } from "./options.js";
  * the mount point a second owner, and the two would drift the first time it
  * moved.
  */
-export { AUTH_BASE_PATH, DEMO_OTP_CODE, OTP_EXPIRY_SECONDS, OTP_LENGTH, OTP_MAX_ATTEMPTS, } from "./options.js";
+export { AUTH_BASE_PATH, DEMO_OTP_CODE, OTP_EXPIRY_SECONDS, OTP_LENGTH, OTP_MAX_ATTEMPTS, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, } from "./options.js";
+// The password forms' one rule and one voice (tenants only, 2026-10-23).
+export { PASSWORD_MESSAGES, PASSWORD_STRENGTH_LABEL, newPasswordProblem, passwordFailure, passwordStrength, } from "./password.js";
 /**
  * Build a Better Auth react client pointed at the Injishi auth server.
  *

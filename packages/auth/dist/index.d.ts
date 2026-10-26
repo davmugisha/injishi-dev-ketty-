@@ -15,4 +15,5 @@ export * from "./phone.js";
 export * from "./server.js";
 export type { AuthResult, InjishiAuthClient } from "./client.js";
 export { OVERSIGHT_COOKIE_PREFIX, dropForeignSessionCookies, isProductionSessionCookie, } from "./edge.js";
+export * from "./password.js";
 //# sourceMappingURL=index.d.ts.map

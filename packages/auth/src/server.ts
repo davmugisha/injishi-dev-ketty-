@@ -3,7 +3,16 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { bearer, emailOTP } from "better-auth/plugins";
 import { isAPIError } from "better-auth/api";
-import { AUTH_BASE_PATH, OTP_EXPIRY_SECONDS, OTP_LENGTH, OTP_MAX_ATTEMPTS, } from "./options.js";
+import {
+    AUTH_BASE_PATH,
+    OTP_EXPIRY_SECONDS,
+    OTP_LENGTH,
+    OTP_MAX_ATTEMPTS,
+    PASSWORD_MAX_LENGTH,
+    PASSWORD_MIN_LENGTH,
+    SESSION_EXPIRES_IN_SECONDS,
+    SESSION_UPDATE_AGE_SECONDS,
+} from "./options.js";
 import { type OtpType } from "./options.js";
 import {
     injishiPhone,
@@ -11,6 +20,13 @@ import {
     type SendPhoneRemovedNotice,
     type SendSms,
 } from "./phone.js";
+import { credentialGuard, passwordGate, type MayHoldPassword } from "./password-gate.js";
+export {
+    PASSWORD_CODE_RESET_PATH,
+    PASSWORD_CODE_SEND_PATHS,
+    PASSWORD_NOT_OFFERED,
+    type MayHoldPassword,
+} from "./password-gate.js";
 /** Delivers an OTP to the user. The backend plugs in its mailer seam's sender (SMTP through nodemailer). */
 export type SendOtp = (args: {
     email: string;
@@ -143,6 +159,16 @@ export interface CreateAuthConfig {
      * still written first, exactly as it would have been without the hook.
      */
     onServerError?: (error: unknown) => void;
+    /**
+     * Whether this user may hold a password: a tenant (a `tenants.user_id`
+     * link, or an open or accepted lease invitation to their address).
+     * Passwords are for tenants only (2026-10-23); everybody else signs in
+     * with an emailed code.
+     *
+     * Omit it and nobody can set a first password. A person who already has
+     * one can still sign in with it, change it and reset it.
+     */
+    mayHoldPassword?: MayHoldPassword;
 }
 /** The part of Better Auth's context logger the error hook writes to. */
 interface ErrorLogger {
@@ -195,12 +221,38 @@ function logAsBetterAuthWould(error: unknown, logger: ErrorLogger | undefined): 
     logger?.error(typeof name === "string" ? name : "", error);
 }
 /**
+ * The routes whose new session is marked stepped up (F-S02) as it is made.
+ *
+ * Each one proved a secret only the person holds, on this request:
+ *
+ * - `/sign-in/email-otp`: a code read out of the mailbox.
+ * - `/sign-in/email`: the password. Only a tenant can hold one
+ *   (`password-gate.ts`), and only on an account whose mailbox was proved
+ *   first: accounts are made by an email code (`disableSignUp`). So a
+ *   password session is no weaker than a code session. Landlords, brokers,
+ *   admins and leaders never have a password, so for them nothing changes.
+ * - `/change-password`: the current password again. With "sign out of other
+ *   devices" Better Auth replaces this session with a new one, and without
+ *   the mark the person who just proved their password would be asked for a
+ *   code on their next screen.
+ *
+ * Google and phone sign-in are deliberately absent: Google never proved the
+ * mailbox with a code, and ADR-039 AC-11 forbids a phone session from skipping
+ * the emailed step-up.
+ */
+export const STEPPED_UP_PATHS: ReadonlySet<string> = new Set([
+    "/sign-in/email-otp",
+    "/sign-in/email",
+    "/change-password",
+]);
+/**
  * The single Injishi Better Auth instance (F-S01, D7).
  *
- * Passwordless by default: email-OTP (primary) + Google OAuth, both issuing a
- * session that resolves to one User by verified email. Passwords are never
- * prompted. Apple is intentionally NOT configured here — the UI shows it as a
- * disabled placeholder until Sign in with Apple is provisioned.
+ * Email OTP (primary) + Google OAuth, both issuing a session that resolves to
+ * one User by verified email. A tenant may add a password when they accept a
+ * lease invitation (2026-10-23); nobody else is offered one. Apple is
+ * intentionally NOT configured here: the UI shows it as a disabled
+ * placeholder until Sign in with Apple is provisioned.
  *
  * IDs are left to the database (`generateId: false`) so Postgres'
  * `gen_random_uuid()` default fills the uuid PKs the schema already declares.
@@ -264,6 +316,9 @@ export function createAuth(config: CreateAuthConfig): AuthInstance {
          * API's `TwoFactorService` also writes it through drizzle directly.
          */
         session: {
+            // 30 days, pushed forward once a day while in use. See the constants.
+            expiresIn: SESSION_EXPIRES_IN_SECONDS,
+            updateAge: SESSION_UPDATE_AGE_SECONDS,
             additionalFields: {
                 twoFactorVerifiedAt: {
                     type: "date",
@@ -276,11 +331,8 @@ export function createAuth(config: CreateAuthConfig): AuthInstance {
          * Email OTP already proved control of the mailbox. Asking for a second
          * emailed code on the same session is the same factor twice, which is
          * what made sign-in feel like "OTP verification coming twice". Mark the
-         * session stepped up at create time ONLY on `/sign-in/email-otp`.
-         *
-         * Google and phone sign-in deliberately omit this mark: Google never
-         * proved the mailbox with a code, and ADR-039 AC-11 forbids a phone
-         * session from skipping the emailed step-up.
+         * session stepped up at create time ONLY on `STEPPED_UP_PATHS`, which
+         * says why a password counts and Google and phone do not.
          */
         databaseHooks: {
             session: {
@@ -300,7 +352,7 @@ export function createAuth(config: CreateAuthConfig): AuthInstance {
                     ) => {
                         const path =
                             ctx && typeof ctx.path === "string" ? ctx.path : "";
-                        if (path !== "/sign-in/email-otp") {
+                        if (!STEPPED_UP_PATHS.has(path)) {
                             return { data: session };
                         }
                         return {
@@ -310,6 +362,12 @@ export function createAuth(config: CreateAuthConfig): AuthInstance {
                             },
                         };
                     },
+                },
+            },
+            // A password row only for a tenant (`password-gate.ts`).
+            account: {
+                create: {
+                    before: credentialGuard(config.mayHoldPassword),
                 },
             },
         },
@@ -347,9 +405,37 @@ export function createAuth(config: CreateAuthConfig): AuthInstance {
         ...(config.onServerError
             ? { onAPIError: { onError: serverErrorHook(config.onServerError) } }
             : {}),
-        // Passwordless by default (F-S01 §6): password is an optional add-on,
-        // never prompted at signup, so email+password sign-in stays off.
-        emailAndPassword: { enabled: false },
+        /*
+         * A password, for tenants only (2026-10-23), never a replacement for
+         * the code.
+         *
+         * `disableSignUp`: an account is still made only by the first email
+         * code, so every address that can hold a password was proved first.
+         * A first password is created right after that code, from the lease
+         * invitation (the API's `POST /me/password`, through Better Auth's
+         * server-only `setPassword`), or from the tenant's account with a
+         * `forget-password` code. Both end in a `credential` row, which
+         * `credentialGuard` refuses unless `mayHoldPassword` says yes, and
+         * `passwordGate` keeps the code routes quiet for everybody else.
+         *
+         * A wrong password and an address with no password, or no account,
+         * answer the same `INVALID_EMAIL_OR_PASSWORD`, and Better Auth hashes
+         * a dummy password on the miss, so the sign-in form says nothing about
+         * whether an address is registered. Its own per-IP limit on
+         * `/sign-in/*` stays.
+         *
+         * `revokeSessionsOnPasswordReset` stays off: the account screen can set
+         * a first password through the same reset route, and signing the
+         * person out for doing that would be a punishment. Changing a password
+         * offers "sign out of other devices" instead.
+         */
+        emailAndPassword: {
+            enabled: true,
+            disableSignUp: true,
+            minPasswordLength: PASSWORD_MIN_LENGTH,
+            maxPasswordLength: PASSWORD_MAX_LENGTH,
+            autoSignIn: true,
+        },
         socialProviders,
         plugins: [
             emailOTP({
@@ -382,6 +468,9 @@ export function createAuth(config: CreateAuthConfig): AuthInstance {
             // Counted everywhere but the demo, whose fixed code and shared
             // personas make a per-address budget a lockout with nothing behind it.
             otpSendCap({ enforce: !config.demoOtpCode }),
+            // After the send cap, so a quiet "sent" costs the same budget a
+            // real one does and the two cannot be told apart.
+            passwordGate(config.mayHoldPassword),
             // The native app's session (ADR-038). A phone keeps no cookie jar, so
             // it reads the signed session token from the `set-auth-token` response
             // header this plugin adds, and sends it back as `Authorization:
