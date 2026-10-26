@@ -36,6 +36,7 @@ import {
 } from "@injishi/ui";
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { MoveOutCard } from "../move-outs/MoveOutCard";
 import { settingsHref } from "../rentals/shared";
 import { reloadLeaseContract, requestLandlordSigningCode, signLeaseAsLandlord, startTenancy } from "./actions";
 import { ContractDocument } from "./ContractDocument";
@@ -182,7 +183,7 @@ export function LeaseRecordView({
   open: RecordOpen | null;
   today: string;
   autoStart: boolean;
-  can: { manage: boolean; sign: boolean; record: boolean; message?: boolean };
+  can: { manage: boolean; sign: boolean; record: boolean; message?: boolean; settle?: boolean };
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -400,6 +401,8 @@ export function LeaseRecordView({
           },
         ]}
       />
+
+      <MoveOutCard lease={lease} today={today} can={{ manage: can.manage, settle: can.settle ?? false }} />
 
       <FilterTabs label="Lease record" tabs={tabs} selectedKey={shownTab} onSelectionChange={goTab} />
 

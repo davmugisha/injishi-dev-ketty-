@@ -71,6 +71,16 @@ export function landlordNavGroups(
       ...(openFaults && openFaults > 0 ? { chip: String(openFaults) } : {}),
     });
   }
+  if (can(scope, "lease.manage", "deposit.return")) {
+    const notices = summary?.counts.noticesToAcknowledge ?? 0;
+    property.push({
+      id: "move-outs",
+      label: "Move-outs",
+      icon: "ArrowRightFromSquare",
+      board: "MoveOuts",
+      ...(notices > 0 ? { chip: String(notices) } : {}),
+    });
+  }
   if (can(scope, "lease.manage", "message.send")) {
     property.push({ id: "brokers", label: "Brokers", icon: "Persons", board: "LandlordBrokers" });
   }
