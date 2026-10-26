@@ -393,7 +393,8 @@ export function FilterMenu({
       >
         <Icon name={icon} className={cx("size-4 shrink-0", isSet ? "text-accent" : "text-muted")} />
         <span className={cx("shrink-0 text-sm", isSet ? "text-accent" : "text-muted")}>{name}</span>
-        <Select.Value className="truncate text-sm font-medium" />
+        {/* Only the words: the count is for the list. */}
+        <Select.Value className="truncate text-sm font-medium">{({ selectedText }) => selectedText}</Select.Value>
         <Select.Indicator />
       </Select.Trigger>
       <Select.Popover className="min-w-56">
