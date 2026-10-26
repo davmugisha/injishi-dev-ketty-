@@ -57,9 +57,9 @@ export declare const RentalsSummary: z.ZodObject<{
         filingsDue: z.ZodNumber;
         filingsLate: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        vacantUnits: number;
         units: number;
         overdueRwf: number;
+        vacantUnits: number;
         leasesToSign: number;
         waitingForTenant: number;
         readyToStart: number;
@@ -69,9 +69,9 @@ export declare const RentalsSummary: z.ZodObject<{
         filingsDue: number;
         filingsLate: number;
     }, {
-        vacantUnits: number;
         units: number;
         overdueRwf: number;
+        vacantUnits: number;
         leasesToSign: number;
         waitingForTenant: number;
         readyToStart: number;
@@ -126,9 +126,9 @@ export declare const RentalsSummary: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     counts: {
-        vacantUnits: number;
         units: number;
         overdueRwf: number;
+        vacantUnits: number;
         leasesToSign: number;
         waitingForTenant: number;
         readyToStart: number;
@@ -155,9 +155,9 @@ export declare const RentalsSummary: z.ZodObject<{
     }[];
 }, {
     counts: {
-        vacantUnits: number;
         units: number;
         overdueRwf: number;
+        vacantUnits: number;
         leasesToSign: number;
         waitingForTenant: number;
         readyToStart: number;
@@ -191,14 +191,18 @@ export declare const RentalsMonthFigure: z.ZodObject<{
     expectedRwf: z.ZodNumber;
     /** Rent paid in the month: allocations of payments that succeeded (or were received) then. */
     collectedRwf: z.ZodNumber;
+    /** What the landlord spent in the month: expenses paid then, not voided (the cash flow's money out). */
+    spentRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     month: string;
     expectedRwf: number;
     collectedRwf: number;
+    spentRwf: number;
 }, {
     month: string;
     expectedRwf: number;
     collectedRwf: number;
+    spentRwf: number;
 }>;
 export type RentalsMonthFigure = z.infer<typeof RentalsMonthFigure>;
 /** How many months the rent trend covers, this month included. */
@@ -264,14 +268,18 @@ export declare const RentalsOverview: z.ZodObject<{
         expectedRwf: z.ZodNumber;
         /** Rent paid in the month: allocations of payments that succeeded (or were received) then. */
         collectedRwf: z.ZodNumber;
+        /** What the landlord spent in the month: expenses paid then, not voided (the cash flow's money out). */
+        spentRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         month: string;
         expectedRwf: number;
         collectedRwf: number;
+        spentRwf: number;
     }, {
         month: string;
         expectedRwf: number;
         collectedRwf: number;
+        spentRwf: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     month: string;
@@ -280,9 +288,6 @@ export declare const RentalsOverview: z.ZodObject<{
         leases: number;
         charges: number;
     };
-    vacantUnits: number;
-    units: number;
-    today: string;
     rent: {
         expectedThisMonthRwf: number;
         collectedThisMonthRwf: number;
@@ -290,13 +295,17 @@ export declare const RentalsOverview: z.ZodObject<{
         collectedLastMonthRwf: number;
         collectedChangePercent: number | null;
     };
+    today: string;
+    units: number;
     months: {
         month: string;
         expectedRwf: number;
         collectedRwf: number;
+        spentRwf: number;
     }[];
     properties: number;
     tenants: number;
+    vacantUnits: number;
     occupiedUnits: number;
     reservedUnits: number;
     offMarketUnits: number;
@@ -308,9 +317,6 @@ export declare const RentalsOverview: z.ZodObject<{
         leases: number;
         charges: number;
     };
-    vacantUnits: number;
-    units: number;
-    today: string;
     rent: {
         expectedThisMonthRwf: number;
         collectedThisMonthRwf: number;
@@ -318,13 +324,17 @@ export declare const RentalsOverview: z.ZodObject<{
         collectedLastMonthRwf: number;
         collectedChangePercent: number | null;
     };
+    today: string;
+    units: number;
     months: {
         month: string;
         expectedRwf: number;
         collectedRwf: number;
+        spentRwf: number;
     }[];
     properties: number;
     tenants: number;
+    vacantUnits: number;
     occupiedUnits: number;
     reservedUnits: number;
     offMarketUnits: number;
@@ -477,8 +487,8 @@ export declare const RentalPropertyView: z.ZodObject<{
             id: number;
         } | null;
     };
-    units: number;
     located: boolean;
+    units: number;
 }, {
     name: string;
     street: string | null;
@@ -505,8 +515,8 @@ export declare const RentalPropertyView: z.ZodObject<{
             id: number;
         } | null;
     };
-    units: number;
     located: boolean;
+    units: number;
 }>;
 export type RentalPropertyView = z.infer<typeof RentalPropertyView>;
 /** `GET /ops/properties`: the business's buildings, the first made from the registration when there is none. */
@@ -640,8 +650,8 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
-        units: number;
         located: boolean;
+        units: number;
     }, {
         name: string;
         street: string | null;
@@ -668,8 +678,8 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
-        units: number;
         located: boolean;
+        units: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     properties: {
@@ -698,8 +708,8 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
-        units: number;
         located: boolean;
+        units: number;
     }[];
 }, {
     properties: {
@@ -728,8 +738,8 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
-        units: number;
         located: boolean;
+        units: number;
     }[];
 }>;
 export type RentalPropertyList = z.infer<typeof RentalPropertyList>;
@@ -800,17 +810,17 @@ export declare const UnitVideoView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     id: string;
     url: string;
-    updatedAt: string;
     posterUrl: string | null;
     durationS: number;
+    updatedAt: string;
     width: number | null;
     height: number | null;
 }, {
     id: string;
     url: string;
-    updatedAt: string;
     posterUrl: string | null;
     durationS: number;
+    updatedAt: string;
     width: number | null;
     height: number | null;
 }>;
@@ -847,17 +857,17 @@ export declare const UnitMediaView: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         url: string;
-        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
+        updatedAt: string;
         width: number | null;
         height: number | null;
     }, {
         id: string;
         url: string;
-        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
+        updatedAt: string;
         width: number | null;
         height: number | null;
     }>>;
@@ -872,9 +882,9 @@ export declare const UnitMediaView: z.ZodObject<{
     video: {
         id: string;
         url: string;
-        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
+        updatedAt: string;
         width: number | null;
         height: number | null;
     } | null;
@@ -889,9 +899,9 @@ export declare const UnitMediaView: z.ZodObject<{
     video: {
         id: string;
         url: string;
-        updatedAt: string;
         posterUrl: string | null;
         durationS: number;
+        updatedAt: string;
         width: number | null;
         height: number | null;
     } | null;

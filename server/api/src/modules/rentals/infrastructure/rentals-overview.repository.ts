@@ -37,6 +37,7 @@ export interface MonthAmount {
  *   collected  live allocations to rent charges of payments that succeeded,
  *              counted on the day the money arrived (`received_on` for a
  *              recorded payment, else `succeeded_at` in Kigali)
+ *   spent      expenses paid in a month (`paid_on`), not voided
  */
 @Injectable()
 export class RentalsOverviewRepository {
@@ -150,6 +151,23 @@ export class RentalsOverviewRepository {
       select to_char(paid_on, 'YYYY-MM') as month, sum(amount_rwf)::bigint as amount
         from paid
        where paid_on between ${from}::date and ${to}::date
+       group by 1
+    `);
+    return rows.map((r) => ({ month: r.month, amountRwf: Number(r.amount) }));
+  }
+
+  /**
+   * What the business spent in each month from `from` to `to` (days): expenses not voided, by the day
+   * they were paid. A limited branch scope counts only the expenses of its buildings.
+   */
+  async spentByMonth(workspaceId: string, buildings: BuildingIds, from: string, to: string): Promise<MonthAmount[]> {
+    const { rows } = await this.db.execute<{ month: string; amount: string | number }>(sql`
+      select to_char(e.paid_on, 'YYYY-MM') as month, sum(e.amount_rwf)::bigint as amount
+        from expenses e
+       where e.workspace_id = ${workspaceId}
+         and e.voided_at is null
+         and e.paid_on between ${from}::date and ${to}::date
+         ${within(sql`e.property_id`, buildings)}
        group by 1
     `);
     return rows.map((r) => ({ month: r.month, amountRwf: Number(r.amount) }));

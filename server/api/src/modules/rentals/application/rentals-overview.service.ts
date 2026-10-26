@@ -74,20 +74,23 @@ export class RentalsOverviewService {
     const months = overviewMonths(today);
     const from = `${months[0]}-01`;
     const to = endOfMonth(today);
-    const [units, properties, tenants, overdue, expected, collected] = await Promise.all([
+    const [units, properties, tenants, overdue, expected, collected, spent] = await Promise.all([
       this.reads.unitCounts(r.workspaceId, buildings),
       this.reads.buildingCount(r.workspaceId, buildings),
       this.reads.liveTenants(r.workspaceId, buildings),
       this.reads.overdue(r.workspaceId, buildings, today),
       this.reads.expectedByMonth(r.workspaceId, buildings, from, to),
       this.reads.collectedByMonth(r.workspaceId, buildings, from, to),
+      this.reads.spentByMonth(r.workspaceId, buildings, from, to),
     ]);
+    const spentBy = new Map(spent.map((m) => [m.month, m.amountRwf]));
     const expectedBy = new Map(expected.map((m) => [m.month, m.amountRwf]));
     const collectedBy = new Map(collected.map((m) => [m.month, m.amountRwf]));
     const figures = months.map((month) => ({
       month,
       expectedRwf: expectedBy.get(month) ?? 0,
       collectedRwf: collectedBy.get(month) ?? 0,
+      spentRwf: spentBy.get(month) ?? 0,
     }));
     const thisMonth = figures[figures.length - 1] as (typeof figures)[number];
     const lastMonth = figures[figures.length - 2] ?? { expectedRwf: 0, collectedRwf: 0 };

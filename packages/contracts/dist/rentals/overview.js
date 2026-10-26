@@ -85,6 +85,8 @@ exports.RentalsMonthFigure = zod_1.z.object({
     expectedRwf: zod_1.z.number().int().min(0),
     /** Rent paid in the month: allocations of payments that succeeded (or were received) then. */
     collectedRwf: zod_1.z.number().int().min(0),
+    /** What the landlord spent in the month: expenses paid then, not voided (the cash flow's money out). */
+    spentRwf: zod_1.z.number().int().min(0),
 });
 /** How many months the rent trend covers, this month included. */
 exports.OVERVIEW_MONTHS = 12;

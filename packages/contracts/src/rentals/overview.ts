@@ -92,6 +92,8 @@ export const RentalsMonthFigure = z.object({
   expectedRwf: z.number().int().min(0),
   /** Rent paid in the month: allocations of payments that succeeded (or were received) then. */
   collectedRwf: z.number().int().min(0),
+  /** What the landlord spent in the month: expenses paid then, not voided (the cash flow's money out). */
+  spentRwf: z.number().int().min(0),
 });
 export type RentalsMonthFigure = z.infer<typeof RentalsMonthFigure>;
 

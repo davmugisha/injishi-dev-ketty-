@@ -53,6 +53,7 @@ function harness(opts: { setup?: Record<string, boolean> } = {}) {
       { month: '2026-09', amountRwf: 800_000 },
       { month: '2026-10', amountRwf: 1_000_000 },
     ]),
+    spentByMonth: jest.fn(async () => [{ month: '2026-10', amountRwf: 150_000 }]),
     noticesToAcknowledge: jest.fn(async () => 1),
     filingsDue: jest.fn(async () => ({ due: 2, late: 1 })),
   };
@@ -109,8 +110,13 @@ describe('RentalsOverviewService: the landlord home', () => {
     const o = await h.service.overview(residence(), NOW);
     expect(o.month).toBe('2026-10');
     expect(o.months).toHaveLength(12);
-    expect(o.months[0]).toEqual({ month: '2025-11', expectedRwf: 0, collectedRwf: 0 });
-    expect(o.months[11]).toEqual({ month: '2026-10', expectedRwf: 1_200_000, collectedRwf: 1_000_000 });
+    expect(o.months[0]).toEqual({ month: '2025-11', expectedRwf: 0, collectedRwf: 0, spentRwf: 0 });
+    expect(o.months[11]).toEqual({
+      month: '2026-10',
+      expectedRwf: 1_200_000,
+      collectedRwf: 1_000_000,
+      spentRwf: 150_000,
+    });
     expect(o.rent).toEqual({
       expectedThisMonthRwf: 1_200_000,
       collectedThisMonthRwf: 1_000_000,
