@@ -8,7 +8,7 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import type { GalleryImage } from "@/data/properties";
 

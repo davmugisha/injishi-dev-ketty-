@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, CircleCheck, Landmark } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
 import { Callout } from "./register-shell";

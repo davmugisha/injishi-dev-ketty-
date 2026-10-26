@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { AirtelMark, CardMark, MtnMark } from "@/components/icons/marks";
 import {
   CheckoutChoice,

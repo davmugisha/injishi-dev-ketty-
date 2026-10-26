@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { AirtelMark, CardMark, MtnMark } from "@/components/icons/marks";
 import { type PaymentDraft } from "@/lib/payment-methods";
 

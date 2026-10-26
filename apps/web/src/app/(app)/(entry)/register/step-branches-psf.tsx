@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { MAX_REGISTRATION_BRANCHES, type PsfTier } from "@injishi/contracts";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { GitBranch, Plus, Trash2 } from "lucide-react";
 
 import { AddressPicker, useAddressLine, type AddressDraft } from "./address-picker";

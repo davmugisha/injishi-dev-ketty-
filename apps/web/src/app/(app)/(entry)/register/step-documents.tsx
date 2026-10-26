@@ -2,7 +2,7 @@
 
 import { useRef, useState, type DragEvent } from "react";
 import type { OrgCertificateKind } from "@injishi/contracts";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { File, FileCheck, FileText, FileUp, Flame, HeartPulse, Medal, ShieldCheck, Stamp, X } from "lucide-react";
 

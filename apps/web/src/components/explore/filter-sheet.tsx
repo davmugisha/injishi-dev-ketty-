@@ -1,7 +1,7 @@
 "use client";
 
 import { ScrollShadow } from "@heroui/react";
-import { Button, Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@injishi/ui";
+import { Button, Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@injishi/web-ui";
 import { FilterRailBody } from "@/components/explore/explore-filters";
 import type { Listing } from "@/data/listings";
 import { useMediaQuery } from "@/hooks/use-media-query";

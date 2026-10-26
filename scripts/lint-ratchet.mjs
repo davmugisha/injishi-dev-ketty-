@@ -29,6 +29,10 @@
  * its summary, so the same three rules hold for both: an error fails, a missing
  * row fails, a count above its row fails.
  *
+ * ADR-074 stage 1 put the `injishi` ESLint rules on those members too, beside
+ * Biome. A member on both linters declares `lint:biome` and `lint:eslint`, and
+ * its row is the SUM of the two counts (see `lintParts`).
+ *
  * Usage:
  *   node scripts/lint-ratchet.mjs            check against the baseline
  *   node scripts/lint-ratchet.mjs --update   rewrite the baseline to current
@@ -60,16 +64,52 @@ function readBaseline() {
 /** A member whose `lint` script runs Biome rather than ESLint. */
 const runsBiome = (member) => /^\s*biome\s/.test(member.scripts.lint);
 
+/** The two scripts a member on BOTH linters splits its `lint` into. */
+const SPLIT_PARTS = ['lint:biome', 'lint:eslint'];
+
 /**
- * Lint one member and return its error and warning counts.
+ * The scripts that make up one member's lint, each with the linter it runs.
  *
- * Returns null when the member produced no report at all, which is a failure
- * and not a zero: a lint script that dies before eslint runs (mobile's palette
- * check is chained ahead of eslint, for example) must never be read as clean.
+ * Since ADR-074 stage 1 the interface members run both: Biome for general
+ * lint, ESLint for the `injishi` rules. A reporter flag appended to a `lint`
+ * that chains two linters reaches only the last one, so such a member declares
+ * `lint:biome` and `lint:eslint`, its `lint` runs the two, and each part is
+ * asked for its own JSON report here.
+ */
+function lintParts(member) {
+  const split = SPLIT_PARTS.filter((script) => typeof member.scripts[script] === 'string');
+  if (split.length === 0) return [{ script: 'lint', biome: runsBiome(member) }];
+  return split.map((script) => ({ script, biome: script === 'lint:biome' }));
+}
+
+/**
+ * Lint one member and return its error and warning counts, summed over its
+ * parts.
+ *
+ * A part that produced no report at all is a failure and not a zero: a lint
+ * script that dies before the linter runs (mobile's palette check was once
+ * chained ahead of eslint, for example) must never be read as clean. So is a
+ * split part the member's `lint` does not run, because counting it would
+ * count something CI's lint job never sees.
  */
 function countFor(member, workDir) {
-  const reportFile = join(workDir, `${member.name.replace(/[^a-z0-9]+/gi, '-')}.json`);
-  const biome = runsBiome(member);
+  const totals = { failed: false, errorCount: 0, warningCount: 0, errorMessages: [] };
+  for (const part of lintParts(member)) {
+    if (part.script !== 'lint' && !member.scripts.lint.includes(part.script)) {
+      return { failed: true, reason: `\`${part.script}\` is declared but its \`lint\` script does not run it.` };
+    }
+    const count = countPart(member, part, workDir);
+    if (count.failed) return { failed: true, reason: `${part.script}: ${count.reason}` };
+    totals.errorCount += count.errorCount;
+    totals.warningCount += count.warningCount;
+    totals.errorMessages.push(...count.errorMessages);
+  }
+  totals.errorMessages = totals.errorMessages.slice(0, 10);
+  return totals;
+}
+
+function countPart(member, { script, biome }, workDir) {
+  const reportFile = join(workDir, `${`${member.name}-${script}`.replace(/[^a-z0-9]+/gi, '-')}.json`);
   const reportArgs = biome
     ? ['--reporter=json', `--reporter-file=${reportFile}`]
     : ['--format', 'json', '--output-file', reportFile];
@@ -86,7 +126,7 @@ function countFor(member, workDir) {
     // No `--` separator: pnpm 10 forwards trailing arguments to the script as
     // they are, and passing `--` makes eslint read the flags after it as FILE
     // PATTERNS ("No files matching the pattern --format were found").
-    ['--filter', member.name, '--silent', 'run', 'lint', ...reportArgs].map(quote),
+    ['--filter', member.name, '--silent', 'run', script, ...reportArgs].map(quote),
     { cwd: REPO_ROOT, encoding: 'utf8', shell: useShell },
   );
 

@@ -30,7 +30,7 @@ import {
 } from "@injishi/contracts";
 import { useEffect, useRef, useState } from "react";
 import { Button, Checkbox } from "@heroui/react";
-import { Badge, Button as UiButton } from "@injishi/ui";
+import { Badge, Button as UiButton } from "@injishi/web-ui";
 
 import BrandLogo from "@/components/app/brand-logo";
 import ThemeToggleButton from "@/components/app/theme-toggle-button";

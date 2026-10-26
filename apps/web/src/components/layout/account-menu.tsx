@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
 import { takeSignedOutFlag, useSignOutAndLeave } from "@/components/auth/sign-out";

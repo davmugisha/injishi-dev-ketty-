@@ -25,7 +25,7 @@
 const dwellFor = (msg: string) =>
   Math.min(10_000, Math.max(3_000, 1500 + msg.trim().split(/\s+/).filter(Boolean).length * 250));
 
-/** Matches `animate-leave` in `@injishi/ui/styles.css`. */
+/** Matches `animate-leave` in `@injishi/web-ui/styles.css`. */
 const LEAVE_MS = 180;
 
 export const toast = (msg: string) => {

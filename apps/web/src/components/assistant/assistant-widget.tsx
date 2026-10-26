@@ -18,7 +18,7 @@ import {
   SheetHeader,
   SheetTitle,
   Textarea,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import {
   ArrowUp,

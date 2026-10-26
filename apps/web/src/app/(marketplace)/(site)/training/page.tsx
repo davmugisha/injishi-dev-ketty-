@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Badge, Button } from "@injishi/ui";
+import { Badge, Button } from "@injishi/web-ui";
 import {
   TRAINING_CREDENTIAL_WORDING,
   type TrainingPublicCourse,

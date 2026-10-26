@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { TrainingSessionDetail } from "@injishi/contracts";
 import { apiFetch } from "@/lib/api";
 import { RegisterForm } from "./register-form";

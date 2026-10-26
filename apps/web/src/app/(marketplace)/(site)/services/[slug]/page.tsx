@@ -2,7 +2,7 @@ import { Check } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Separator } from "@injishi/ui";
+import { Separator } from "@injishi/web-ui";
 import { ServiceBookingPanel } from "@/components/services/service-booking-panel";
 import { ServiceCard } from "@/components/services/service-card";
 import { ServiceGallery } from "@/components/services/service-gallery";

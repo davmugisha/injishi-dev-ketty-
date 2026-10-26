@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { GuestTrip } from "@injishi/contracts";
-import { Badge, Button, Skeleton } from "@injishi/ui";
+import { Badge, Button, Skeleton } from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
 import { CancelBooking } from "@/components/app/cancel-booking";
 import { EmptyPanel } from "@/components/app/empty-panel";

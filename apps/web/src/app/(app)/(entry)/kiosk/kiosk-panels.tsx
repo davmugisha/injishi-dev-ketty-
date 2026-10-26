@@ -11,7 +11,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Check, ConciergeBell, Info, Lock, LogIn, RefreshCw, SquareX, WifiOff } from "lucide-react";
 import type { KioskPunchResult } from "@injishi/contracts";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
 import { clockTime, longDate } from "./kiosk-clock";

@@ -13,7 +13,7 @@
  * So this runs the real Tailwind compiler over the two stylesheets a consuming
  * app imports — the emitted token sheet (`injishi-heroui.css`, which carries the
  * `@theme` block from `packages/design-tokens/src/motion.ts`) and the package's
- * own `@injishi/ui/styles.css`, which carries the four named animations and
+ * own `@injishi/web-ui/styles.css`, which carries the four named animations and
  * their keyframes — and asserts each utility emits a rule with the value
  * `ui-tokens.md` tabulates.
  *
@@ -36,7 +36,7 @@ const appRoot = resolve(here, "..");
  */
 const ENTRY = [
   '@import "tailwindcss" source(none);',
-  '@import "@injishi/ui/styles.css";',
+  '@import "@injishi/web-ui/styles.css";',
   '@import "@injishi/design-tokens/heroui.css";',
   "",
 ].join("\n");
@@ -45,7 +45,7 @@ const ENTRY = [
  * Resolve a stylesheet import the way a CSS toolchain does, not the way Node
  * does.
  *
- * `tw-animate-css` — which `@injishi/ui/styles.css` imports for the `animate-in`
+ * `tw-animate-css` — which `@injishi/web-ui/styles.css` imports for the `animate-in`
  * utilities every Radix overlay is written against — publishes ONLY a `style`
  * condition in its export map. `require.resolve` cannot see it and throws
  * `ERR_PACKAGE_PATH_NOT_EXPORTED`, which is not a missing dependency: it is Node
@@ -116,7 +116,7 @@ const EASINGS = [
   ["ease-spring", "cubic-bezier(0.34, 1.4, 0.64, 1)"],
 ];
 
-/** The four named moments, from `@injishi/ui/styles.css`. */
+/** The four named moments, from `@injishi/web-ui/styles.css`. */
 const ANIMATIONS = ["animate-arrive", "animate-settle-in", "animate-leave", "animate-acknowledge"];
 
 const ALL = [...DURATIONS.map((r) => r[0]), ...EASINGS.map((r) => r[0]), ...ANIMATIONS];

@@ -21,6 +21,10 @@ export default [
     plugins: { injishi },
     rules: {
       'injishi/kebab-case-filenames': 'error',
+      // ADR-074 D-f. A technical package never imports a product, and
+      // production code never imports the demo.
+      'injishi/product-boundaries': 'error',
+      'injishi/no-demo-data': 'error',
     },
   },
 ];

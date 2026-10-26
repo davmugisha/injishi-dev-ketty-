@@ -4,8 +4,15 @@
 # and the marketplace (apps/web). `server/*` holds the API. `packages/*` holds
 # the shared packages, and globbing them here is what lets every member keep
 # `workspace:*`. Dropping any of the three breaks the build.
+#
+# `products/*` holds the eleven products (ADR-074 D-c): screens, flows and
+# product metadata, each `@injishi/product-<id>`, with no authority, no secrets
+# and no database. It is globbed before the first product exists, so the
+# manifest check, the lint ratchet and CI's change detection see a product the
+# day its folder lands. `injishi/product-boundaries` keeps its edges.
 packages:
   - apps/*
+  - products/*
   - server/*
   - packages/*
 

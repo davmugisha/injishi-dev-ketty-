@@ -91,7 +91,7 @@ const sources = [
   // names. This is the silent-compile failure the note above describes.
   '@source "../components/shared";',
   // `../components/ui` is gone (ADR-036 call 1). The classes that folder used
-  // to contribute now come from `@injishi/ui/styles.css`, imported below, whose
+  // to contribute now come from `@injishi/web-ui/styles.css`, imported below, whose
   // own `@source "./"` resolves relative to the package rather than to the
   // emitted file, so the package's components are scanned wherever it is
   // installed. Emitting the dead glob would be harmless today and a trap the
@@ -109,11 +109,16 @@ const shellBlock =
   `   Served at build time so the server-rendered sidebar is styled on first paint. --- */\n` +
   `${shellCss}`;
 
-// @injishi/ui ships its own stylesheet (@source for its component folder, the
+// @injishi/web-ui ships its own stylesheet (@source for its component folder, the
 // tw-animate-css import and the two accordion keyframes) so a consumer inherits
 // all three from one line instead of rediscovering them (ADR-008). It sits
 // directly after the Tailwind entry and before the app's own @source globs.
-const packageStyles = '@import "@injishi/ui/styles.css";';
+const packageStyles = '@import "@injishi/web-ui/styles.css";';
+
+// @injishi/ui is the one web library products import (ADR-074 D-l), beside
+// web-ui until stage 9. Its stylesheet is only its `@source "./"`, so a class
+// used only inside it is generated here too; it carries no theme of its own.
+const uiStyles = '@import "@injishi/ui/styles.css";';
 
 // HeroUI 3 ships its component CSS plus a full set of role DEFAULTS. It is an
 // @import and therefore has to sit at the top with the others; its defaults are
@@ -127,7 +132,7 @@ const herouiStyles = '@import "@heroui/styles";';
 // marketplace one click away drew the Pro "mouve" layer the Injishi design
 // system is built on (ADR-068): one product, two button looks. The palette
 // still comes from the inlined token block below, which outranks Pro's theme.
-const proStyles = '@import "@injishi/ui/pro.css";';
+const proStyles = '@import "@injishi/web-ui/pro.css";';
 
 // The HeroUI palette, INLINED rather than imported.
 //
@@ -163,7 +168,7 @@ const herouiTokens = [
 ].join(String.fromCharCode(10));
 
 const out =
-  `${header}\n@import "tailwindcss" source(none);\n${packageStyles}\n${herouiStyles}\n${proStyles}\n\n${sources}\n\n${tokenCss}\n\n${herouiTokens}\n\n${shellBlock}\n`;
+  `${header}\n@import "tailwindcss" source(none);\n${packageStyles}\n${uiStyles}\n${herouiStyles}\n${proStyles}\n\n${sources}\n\n${tokenCss}\n\n${herouiTokens}\n\n${shellBlock}\n`;
 fs.writeFileSync(outFile, out, "utf8");
 console.log(
   `gen-app-css -> ${path.relative(appRoot, outFile).replace(/\\/g, "/")} ` +

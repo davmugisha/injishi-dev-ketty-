@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useId, useState } from "react";
 import type { DemoPersona, DemoStory } from "@injishi/contracts";
-import { Badge } from "@injishi/ui";
+import { Badge } from "@injishi/web-ui";
 import { formatMarketDateTime } from "@injishi/utils";
 
 import { Icon } from "@/components/app/icon";

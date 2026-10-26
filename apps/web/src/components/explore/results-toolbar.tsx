@@ -10,7 +10,7 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import { ChevronDown, Info, List, Map as MapIcon } from "lucide-react";
 import { SORT_EXPLAINER, SORT_OPTIONS, STAY_TYPES, type ExploreSort, type StayType } from "@/lib/search-params";
 import { stayCount } from "@/lib/stay-count";

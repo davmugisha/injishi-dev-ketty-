@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 // Registers /sw.js in production only. When a new SW is waiting, surfaces a
 // minimal reload prompt instead of silently swapping assets mid-session.

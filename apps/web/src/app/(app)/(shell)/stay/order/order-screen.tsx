@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { OrderableList, PlaceOrderResult } from "@injishi/contracts";
-import { Button, Skeleton } from "@injishi/ui";
+import { Button, Skeleton } from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
 import { EmptyPanel } from "@/components/app/empty-panel";
 import { Icon } from "@/components/app/icon";

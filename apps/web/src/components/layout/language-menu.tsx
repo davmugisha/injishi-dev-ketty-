@@ -9,7 +9,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
 /**

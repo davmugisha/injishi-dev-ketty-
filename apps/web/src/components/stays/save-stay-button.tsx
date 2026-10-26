@@ -1,7 +1,7 @@
 "use client";
 
 import { Heart } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { useSavedStays } from "@/hooks/use-saved-stays";
 

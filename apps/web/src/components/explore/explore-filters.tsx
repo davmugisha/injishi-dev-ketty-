@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { Input } from "@injishi/ui";
+import { Input } from "@injishi/web-ui";
 import { FacetBlock } from "@/components/explore/filter-primitives";
 import { PriceFilter } from "@/components/explore/price-filter";
 import {

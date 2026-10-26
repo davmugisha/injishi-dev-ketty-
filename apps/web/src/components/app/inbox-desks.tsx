@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GUEST_MESSAGE_MAX, type GuestDeskPlace, type StayDepartment } from "@injishi/contracts";
-import { Button, Skeleton, Textarea } from "@injishi/ui";
+import { Button, Skeleton, Textarea } from "@injishi/web-ui";
 import { Icon } from "@/components/app/icon";
 import { toast } from "@/components/app/toast";
 import { openThread } from "@/data/inbox";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { ChevronDown, FileText } from "lucide-react";
 import { cn } from "@injishi/utils";
 

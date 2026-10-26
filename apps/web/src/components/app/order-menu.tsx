@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { OrderableItem, OrderableOutlet, OrderPaymentAttemptStatus, PlaceOrderResult } from "@injishi/contracts";
-import { Badge, Button, Input, Textarea } from "@injishi/ui";
+import { Badge, Button, Input, Textarea } from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
 import { Icon } from "@/components/app/icon";
 import type { OrderDraft } from "@/components/app/order-draft";

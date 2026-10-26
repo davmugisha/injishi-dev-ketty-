@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { useEffect, useRef, type ReactNode } from "react";
 import type { CheckoutStepMeta, CheckoutStepState } from "@/lib/checkout-steps";
 

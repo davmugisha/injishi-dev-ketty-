@@ -1,4 +1,4 @@
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { Icon } from "@/components/app/icon";
 
 /**

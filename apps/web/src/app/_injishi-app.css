@@ -5,9 +5,10 @@
  * time by @tailwindcss/postcss and imported in the one (app) root layout,
  * replacing the runtime shared/vendor/tailwind-browser.js path. */
 @import "tailwindcss" source(none);
+@import "@injishi/web-ui/styles.css";
 @import "@injishi/ui/styles.css";
 @import "@heroui/styles";
-@import "@injishi/ui/pro.css";
+@import "@injishi/web-ui/pro.css";
 
 @source "./(app)";
 @source "../components/app";

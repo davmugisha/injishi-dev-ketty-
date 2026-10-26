@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Skeleton } from "@injishi/ui";
+import { Skeleton } from "@injishi/web-ui";
 import { Checkout } from "@/components/book/checkout";
 
 export const metadata: Metadata = {
