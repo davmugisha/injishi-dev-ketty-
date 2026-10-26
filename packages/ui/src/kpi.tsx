@@ -87,17 +87,24 @@ function Trend({ trend }: { trend: KpiTrend }) {
   );
 }
 
-const TONE_TINT: Record<NonNullable<KpiItem["status"]>, string> = {
-  success: "bg-success-soft text-success",
-  warning: "bg-warning-soft text-warning",
-  danger: "bg-danger-soft text-danger",
+const TONE_TEXT: Record<NonNullable<KpiItem["status"]>, string> = {
+  success: "text-success",
+  warning: "text-warning",
+  danger: "text-danger",
+};
+const TONE_DOT: Record<NonNullable<KpiItem["status"]>, string> = {
+  success: "bg-success",
+  warning: "bg-warning",
+  danger: "bg-danger",
 };
 
 /**
- * The figures at the top of a page: three to seven separate cards in one grid (two to a row on a phone,
- * all in one row from lg up), each with its label and icon, the number large, then a progress bar or a
- * small trend line and one muted line. A card that counts a list opens it; the one shown now is outlined.
- * Every figure carries its exact value for screen readers; trends say which way is good.
+ * The figures at the top of a page, as one panel split into cells (two to a row on a phone, all in one
+ * row from lg up). Each cell reads top down: a small icon and the label, the number large, then one
+ * muted line, with a thin progress bar or a small trend line when the figure has one. No coloured
+ * blocks: a figure that needs attention gets a coloured dot and number, and a cell that opens a list
+ * shows an arrow on hover; the one shown now is underlined in the accent. Every figure carries its
+ * exact value for screen readers; trends say which way is good.
  */
 export function KpiStrip({ label, items, className }: { label: string; items: KpiItem[]; className?: string }) {
   const odd = items.length % 2 === 1;
@@ -111,37 +118,60 @@ export function KpiStrip({ label, items, className }: { label: string; items: Kp
           : "lg:grid-cols-2";
   return (
     <section aria-label={label} className={cx("min-w-0", className)}>
-      <div className={cx("grid grid-cols-2 gap-3", cols)}>
+      <div
+        className={cx("grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-separator bg-separator", cols)}
+      >
         {items.map((k, i) => {
           const shown = valueText(k, false);
           const exact = valueText(k, true);
+          const showSpark = k.spark && k.spark.length > 1 && k.spark.some((v) => v > 0) && k.progress == null;
+          const showProgress = k.progress != null && k.progress > 0 && k.progress < 100;
           return (
             <KPI
               key={k.id}
               className={cx(
-                "group relative min-w-0 gap-0 rounded-xl border border-separator bg-surface p-4 shadow-none transition-[border-color,background-color]",
+                "group relative min-w-0 gap-0 rounded-none border-0 bg-surface px-5 py-4 shadow-none transition-colors",
                 odd && i === items.length - 1 && "col-span-2 lg:col-span-1",
-                k.href && "hover:border-accent/40 hover:bg-default/40",
-                k.isCurrent && "border-accent/60 bg-accent-soft/40",
+                k.href && "hover:bg-default/50",
+                k.isCurrent && "bg-accent-soft/30",
               )}
             >
-              <div className="flex min-w-0 items-center gap-3">
+              {k.isCurrent ? <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-0.5 bg-accent" /> : null}
+              <div className="flex min-w-0 items-center gap-1.5">
                 {k.icon ? (
-                  <span
+                  <Icon
+                    name={k.icon}
                     aria-hidden="true"
-                    className={cx(
-                      "flex size-10 shrink-0 items-center justify-center rounded-full",
-                      k.status ? TONE_TINT[k.status] : "bg-accent-soft text-accent",
-                    )}
-                  >
-                    <Icon name={k.icon} className="size-5" />
-                  </span>
+                    className={cx("size-4 shrink-0", k.isCurrent ? "text-accent" : "text-muted")}
+                  />
                 ) : null}
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <KPI.Title className="truncate text-xs font-medium text-muted">{k.label}</KPI.Title>
+                <KPI.Title
+                  className={cx(
+                    "min-w-0 flex-1 truncate text-[13px] font-medium",
+                    k.isCurrent ? "text-accent" : "text-muted",
+                  )}
+                >
+                  {k.label}
+                </KPI.Title>
+                {k.href ? (
+                  <Icon
+                    name="ArrowRight"
+                    aria-hidden="true"
+                    className="size-3.5 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100"
+                  />
+                ) : null}
+              </div>
+              <div className="mt-2 flex min-w-0 items-end justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-2">
+                  {k.status && k.status !== "success" ? (
+                    <span aria-hidden="true" className={cx("size-2 shrink-0 rounded-full", TONE_DOT[k.status])} />
+                  ) : null}
                   <KPI.Value
                     value={k.value}
-                    className="truncate text-2xl leading-tight font-semibold tracking-tight tabular"
+                    className={cx(
+                      "truncate text-[28px] leading-none font-semibold tracking-tight tabular",
+                      k.status && k.status !== "success" ? TONE_TEXT[k.status] : "text-foreground",
+                    )}
                   >
                     {() => (
                       <span title={shown === exact ? undefined : exact}>
@@ -150,28 +180,28 @@ export function KpiStrip({ label, items, className }: { label: string; items: Kp
                       </span>
                     )}
                   </KPI.Value>
-                </div>
-                {k.spark && k.spark.length > 1 && k.spark.some((v) => v > 0) && k.progress == null ? (
+                </span>
+                {showSpark ? (
                   <KPI.Chart
                     aria-hidden="true"
-                    data={k.spark.map((value) => ({ value }))}
-                    height={36}
+                    data={(k.spark ?? []).map((value) => ({ value }))}
+                    height={28}
                     color="var(--chart-cat-1)"
-                    strokeWidth={2}
-                    className="hidden w-20 shrink-0 sm:block"
+                    strokeWidth={1.75}
+                    className="hidden w-16 shrink-0 sm:block"
                   />
                 ) : null}
               </div>
-              {k.progress != null && k.progress > 0 && k.progress < 100 ? (
+              {showProgress ? (
                 <KPI.Progress
-                  value={Math.max(0, Math.min(100, k.progress))}
+                  value={Math.max(0, Math.min(100, k.progress ?? 0))}
                   status={k.status}
                   aria-hidden="true"
-                  className="mt-3"
+                  className="mt-3 h-1"
                 />
               ) : null}
               {k.trend || k.footnote ? (
-                <KPI.Footer className="mt-3 flex flex-col gap-1 border-t border-separator pt-2.5">
+                <KPI.Footer className="mt-2.5 flex flex-col gap-1">
                   {k.trend ? <Trend trend={k.trend} /> : null}
                   {k.footnote ? <p className="truncate text-xs text-muted">{k.footnote}</p> : null}
                 </KPI.Footer>
@@ -182,7 +212,7 @@ export function KpiStrip({ label, items, className }: { label: string; items: Kp
                   scroll={false}
                   aria-label={`${k.label}: ${exact}. Show them`}
                   aria-current={k.isCurrent ? "true" : undefined}
-                  className="absolute inset-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                  className="absolute inset-0 outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
                 />
               ) : null}
             </KPI>
