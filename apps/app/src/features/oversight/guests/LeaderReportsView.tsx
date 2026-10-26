@@ -1,15 +1,17 @@
 "use client";
 
-import { Card } from "@heroui/react";
+import { Card, Chip } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
 import { BarChart } from "@heroui-pro/react/bar-chart";
 import type { GuestReport, LeaderSummary } from "@injishi/contracts";
 import {
+  ActionButton,
   ActionLink,
   CHART_COLOR,
   ChartCard,
   DataTable,
   EmptyBlock,
+  FilterSelect,
   FilterTabs,
   formatDay,
   formatNumber,
@@ -23,34 +25,70 @@ import {
   SelectField,
 } from "@injishi/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
 import { scopeLine } from "./LeaderGuestsView";
 
 type OriginFilter = "all" | "nationals" | "international";
 
+/** The guest filters the address carries; the period and the area are kept apart. */
+const GUEST_FILTERS = ["origin", "nationality", "relationship", "flagged"] as const;
 
 const AREA_WORD = { sector: "Sector", cell: "Cell", village: "Village" } as const;
 
 /** A ranked list with a bar per row: nationalities, relationships. */
-function RankedBars({ rows, total }: { rows: { key: string; label: string; count: number }[]; total: number }) {
+function RankedBars({
+  rows,
+  total,
+  selected,
+  onPick,
+  what,
+}: {
+  rows: { key: string; label: string; count: number }[];
+  total: number;
+  /** The row the report is filtered to, if any. */
+  selected?: string | null;
+  /** Pressing a row filters the whole report to it; pressing the chosen row clears it. */
+  onPick?: (key: string | null) => void;
+  /** "nationality", for the rows' accessible names. */
+  what: string;
+}) {
   const max = Math.max(1, ...rows.map((r) => r.count));
   return (
-    <ul className="flex flex-col gap-2.5">
-      {rows.map((r) => (
-        <li key={r.key} className="flex flex-col gap-1">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="min-w-0 flex-1 truncate">{r.label}</span>
-            <span className="text-xs text-muted tabular">{total > 0 ? Math.round((r.count / total) * 100) : 0}%</span>
-            <span className="w-10 text-right font-medium tabular">{formatNumber(r.count)}</span>
-          </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-default">
-            <div
-              className="h-full rounded-full"
-              style={{ width: `${(r.count / max) * 100}%`, background: CHART_COLOR.cat(1) }}
-            />
-          </div>
-        </li>
-      ))}
+    <ul className="-mx-2 flex flex-col gap-0.5">
+      {rows.map((r) => {
+        const on = selected === r.key;
+        const body = (
+          <>
+            <div className="flex items-center gap-2 text-sm">
+              <span className={`min-w-0 flex-1 truncate ${on ? "font-semibold" : ""}`}>{r.label}</span>
+              <span className="text-xs text-muted tabular">{total > 0 ? Math.round((r.count / total) * 100) : 0}%</span>
+              <span className="w-10 text-right font-medium tabular">{formatNumber(r.count)}</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-default">
+              <div
+                className="h-full rounded-full"
+                style={{ width: `${(r.count / max) * 100}%`, background: CHART_COLOR.cat(1) }}
+              />
+            </div>
+          </>
+        );
+        return (
+          <li key={r.key}>
+            {onPick ? (
+              <button
+                type="button"
+                aria-pressed={on}
+                aria-label={on ? `Show every ${what}` : `Show only ${r.label}`}
+                onClick={() => onPick(on ? null : r.key)}
+                className={`flex w-full flex-col gap-1 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-default/60 ${on ? "bg-accent-soft" : ""}`}
+              >
+                {body}
+              </button>
+            ) : (
+              <div className="flex flex-col gap-1 px-2 py-1.5">{body}</div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -120,26 +158,18 @@ export function LeaderReportsView({
   const cellId = params.get("cellId");
   const villageId = params.get("villageId");
   const origin = (params.get("origin") as OriginFilter | null) ?? "all";
-  const nationalityRows = useMemo(() => {
-    if (origin === "nationals") return report.byNationality.filter((n) => n.code.toUpperCase() === "RW");
-    if (origin === "international") return report.byNationality.filter((n) => n.code.toUpperCase() !== "RW");
-    return report.byNationality;
-  }, [origin, report.byNationality]);
-  const totalNationality = nationalityRows.reduce((n, r) => n + r.count, 0);
-  const nationalsCount = report.byNationality
-    .filter((n) => n.code.toUpperCase() === "RW")
-    .reduce((n, r) => n + r.count, 0);
-  const internationalCount = Math.max(0, t.registered - nationalsCount);
+  const nationality = params.get("nationality");
+  const relationship = params.get("relationship");
+  const flaggedOnly = params.get("flagged") === "only";
+  const filtered = GUEST_FILTERS.some((k) => params.get(k));
+  const clearFilters = () => go(Object.fromEntries(GUEST_FILTERS.map((k) => [k, null])));
+  // The report comes back filtered from the API, so every figure, chart and table below is the same view.
+  const totalNationality = report.byNationality.reduce((n, r) => n + r.count, 0);
   const totalRelationship = report.byRelationship.reduce((n, r) => n + r.count, 0);
   const span = `${formatDay(report.period.from)} to ${formatDay(report.period.to)}`;
-  const areaRows =
-    origin === "all"
-      ? report.byArea
-      : report.byArea.map((a) => ({
-          ...a,
-          registered: origin === "international" ? a.fromAbroad : Math.max(0, a.registered - a.fromAbroad),
-          fromAbroad: origin === "international" ? a.fromAbroad : 0,
-        }));
+  const guestsHref = (tab: string) => `/officer/guests?tab=${tab}`;
+  const foreignShare = t.registered > 0 ? Math.round((t.fromAbroad / t.registered) * 100) : 0;
+  const { choices } = report;
 
   return (
     <PageContent>
@@ -171,7 +201,7 @@ export function LeaderReportsView({
         ]}
       />
 
-      <Card className="min-w-0 flex flex-col gap-4 rounded-2xl p-4">
+      <Card className="flex min-w-0 flex-col gap-3 p-4">
         <div className="flex flex-wrap items-end gap-3">
           <PeriodPicker
             value={period}
@@ -221,18 +251,61 @@ export function LeaderReportsView({
             />
           ) : null}
         </div>
-        <Segment
-          aria-label="Guest origin"
-          selectedKey={origin}
-          onSelectionChange={(key) =>
-            go({ origin: key === "all" ? null : String(key) })
-          }
-          className="w-fit"
-        >
-          <Segment.Item id="all">All guests</Segment.Item>
-          <Segment.Item id="nationals">Nationals</Segment.Item>
-          <Segment.Item id="international">International</Segment.Item>
-        </Segment>
+        <div className="flex flex-wrap items-center gap-2 border-t border-separator pt-3">
+          <Segment
+            aria-label="Guests by nationality"
+            size="sm"
+            selectedKey={origin}
+            onSelectionChange={(key) => go({ origin: key === "all" ? null : String(key), nationality: null })}
+          >
+            <Segment.Item id="all">All guests</Segment.Item>
+            <Segment.Item id="nationals">Rwandan</Segment.Item>
+            <Segment.Item id="international">Foreign</Segment.Item>
+          </Segment>
+          <FilterSelect
+            label="Nationality"
+            value={nationality ?? "all"}
+            options={[
+              { id: "all", label: "Any nationality" },
+              ...choices.nationalities.map((n) => ({ id: n.code, label: `${n.name} (${formatNumber(n.count)})` })),
+            ]}
+            onChange={(v) => go({ nationality: v === "all" ? null : v, origin: null })}
+          />
+          <FilterSelect
+            label="Relationship to the host"
+            value={relationship ?? "all"}
+            options={[
+              { id: "all", label: "Any relationship" },
+              ...choices.relationships.map((r) => ({ id: r.code, label: `${r.label} (${formatNumber(r.count)})` })),
+            ]}
+            onChange={(v) => go({ relationship: v === "all" ? null : v })}
+          />
+          <ActionButton
+            size="sm"
+            icon="Flag"
+            intent={flaggedOnly ? "primary" : "secondary"}
+            aria-pressed={flaggedOnly}
+            onPress={() => go({ flagged: flaggedOnly ? null : "only" })}
+          >
+            Flagged only
+          </ActionButton>
+          {filtered ? (
+            <ActionButton size="sm" intent="ghost" icon="Xmark" onPress={clearFilters} className="sm:ml-auto">
+              Clear filters
+            </ActionButton>
+          ) : null}
+        </div>
+        {report.filteredBy.length > 0 ? (
+          <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
+            Showing
+            {report.filteredBy.map((w) => (
+              <Chip key={w} size="sm" variant="soft">
+                {w}
+              </Chip>
+            ))}
+            · the downloads use the same filters
+          </p>
+        ) : null}
       </Card>
 
       <KpiStrip
@@ -240,9 +313,8 @@ export function LeaderReportsView({
         items={[
           {
             id: "registered",
-            label: origin === "nationals" ? "Nationals" : origin === "international" ? "International" : "Registered",
-            value:
-              origin === "nationals" ? nationalsCount : origin === "international" ? internationalCount : t.registered,
+            label: "Registered",
+            value: t.registered,
             format: "count",
             icon: "PersonPlus",
             footnote: "Arriving in the period",
@@ -254,8 +326,16 @@ export function LeaderReportsView({
             format: "count",
             icon: "House",
             footnote: "Today",
+            href: guestsHref("staying"),
           },
-          { id: "abroad", label: "Foreign guests", value: t.fromAbroad, format: "count", icon: "Globe" },
+          {
+            id: "abroad",
+            label: "Foreign guests",
+            value: t.fromAbroad,
+            format: "count",
+            icon: "Globe",
+            footnote: t.registered > 0 ? `${foreignShare}% of guests` : "None in the period",
+          },
           {
             id: "flagged",
             label: "Flagged",
@@ -263,6 +343,8 @@ export function LeaderReportsView({
             format: "count",
             icon: "Flag",
             status: t.flagged > 0 ? "danger" : undefined,
+            footnote: t.flagged > 0 ? "Open the flagged list" : "None flagged",
+            href: guestsHref("flagged"),
           },
           {
             id: "nights",
@@ -277,19 +359,33 @@ export function LeaderReportsView({
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <ArrivalsChart report={report} className="lg:col-span-2" />
-        <SectionCard title="Nationalities" description={span} className="lg:col-span-1">
-          {nationalityRows.length === 0 ? (
-            <EmptyBlock size="sm" icon="Globe" title="No guests in this view" />
+        <SectionCard title="Nationalities" description="Press one to see only them" className="lg:col-span-1">
+          {report.byNationality.length === 0 ? (
+            <EmptyBlock
+              size="sm"
+              icon="Globe"
+              title="No guests in this view"
+              action={
+                filtered ? (
+                  <ActionButton size="sm" icon="Xmark" onPress={clearFilters}>
+                    Clear filters
+                  </ActionButton>
+                ) : undefined
+              }
+            />
           ) : (
             <RankedBars
+              what="nationality"
               total={totalNationality}
-              rows={nationalityRows.map((n) => ({ key: n.code, label: n.name, count: n.count }))}
+              selected={nationality}
+              onPick={(code) => go({ nationality: code, origin: null })}
+              rows={report.byNationality.map((n) => ({ key: n.code, label: n.name, count: n.count }))}
             />
           )}
         </SectionCard>
       </div>
 
-      <div className="grid min-w-0 items-start gap-4 lg:grid-cols-3">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <SectionCard
           title={`By ${AREA_WORD[report.areaLevel].toLowerCase()}`}
           className="lg:col-span-2"
@@ -297,7 +393,7 @@ export function LeaderReportsView({
         >
           <DataTable
             label={`Guests by ${AREA_WORD[report.areaLevel].toLowerCase()}`}
-            rows={areaRows}
+            rows={report.byArea}
             rowKey={(a) => String(a.id)}
             defaultSort={{ column: "registered", direction: "descending" }}
             empty={<EmptyBlock size="sm" icon="MapPin" title="No guests in this period" />}
@@ -333,17 +429,20 @@ export function LeaderReportsView({
             ]}
             mobile={{
               title: (a) => a.name,
-              description: (a) => `${formatNumber(a.fromAbroad)} from abroad · ${formatNumber(a.flagged)} flagged`,
+              description: (a) => `${formatNumber(a.fromAbroad)} foreign · ${formatNumber(a.flagged)} flagged`,
               trailing: (a) => <span className="font-medium tabular">{formatNumber(a.registered)}</span>,
             }}
           />
         </SectionCard>
-        <SectionCard title="Who they are to their hosts">
+        <SectionCard title="Who they are to their hosts" className="h-full">
           {report.byRelationship.length === 0 ? (
             <EmptyBlock size="sm" icon="Persons" title="No guests in this period" />
           ) : (
             <RankedBars
+              what="relationship"
               total={totalRelationship}
+              selected={relationship}
+              onPick={(code) => go({ relationship: code })}
               rows={report.byRelationship.map((r) => ({ key: r.code, label: r.label, count: r.count }))}
             />
           )}

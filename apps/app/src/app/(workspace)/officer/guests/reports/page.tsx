@@ -40,6 +40,10 @@ export default async function LeaderReportsPage({ searchParams }: { searchParams
     sectorId: one(sp.sectorId),
     cellId: one(sp.cellId),
     villageId: one(sp.villageId),
+    origin: one(sp.origin),
+    nationality: one(sp.nationality),
+    relationship: one(sp.relationship),
+    flagged: one(sp.flagged),
   });
   const query = parsed.success ? parsed.data : { from: month.start, to: month.end };
   const narrow = { sectorId: one(sp.sectorId), cellId: one(sp.cellId) };
