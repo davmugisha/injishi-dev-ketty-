@@ -1,9 +1,9 @@
 "use client";
 
-import { KPIGroup, TrendChip } from "@heroui-pro/react";
+import { TrendChip } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
 import NextLink from "next/link";
-import { Fragment, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { formatNumber } from "./format.tsx";
 import { Icon, type IconKey } from "./icon.tsx";
 import { formatMoney } from "./money.tsx";
@@ -87,85 +87,105 @@ function Trend({ trend }: { trend: KpiTrend }) {
   );
 }
 
+const TONE_TINT: Record<NonNullable<KpiItem["status"]>, string> = {
+  success: "bg-success-soft text-success",
+  warning: "bg-warning-soft text-warning",
+  danger: "bg-danger-soft text-danger",
+};
+
 /**
- * The figure strip at the top of a page: three to seven headline numbers. Two to a row on a phone, one
- * row from lg up. Every figure carries its exact value for screen readers; trends say which way is good.
+ * The figures at the top of a page: three to seven separate cards in one grid (two to a row on a phone,
+ * all in one row from lg up), each with its label and icon, the number large, then a progress bar or a
+ * small trend line and one muted line. A card that counts a list opens it; the one shown now is outlined.
+ * Every figure carries its exact value for screen readers; trends say which way is good.
  */
 export function KpiStrip({ label, items, className }: { label: string; items: KpiItem[]; className?: string }) {
   const odd = items.length % 2 === 1;
+  const cols =
+    items.length >= 5
+      ? "lg:grid-cols-5"
+      : items.length === 4
+        ? "lg:grid-cols-4"
+        : items.length === 3
+          ? "lg:grid-cols-3"
+          : "lg:grid-cols-2";
   return (
     <section aria-label={label} className={cx("min-w-0", className)}>
-      <KPIGroup className="grid grid-cols-2 gap-px bg-separator lg:flex lg:gap-0 lg:bg-surface">
+      <div className={cx("grid grid-cols-2 gap-3", cols)}>
         {items.map((k, i) => {
           const shown = valueText(k, false);
           const exact = valueText(k, true);
           return (
-            <Fragment key={k.id}>
-              {i > 0 ? <KPIGroup.Separator className="hidden lg:block" /> : null}
-              <KPI
-                className={cx(
-                  "min-w-0 rounded-none bg-surface lg:flex-1",
-                  odd && i === items.length - 1 && "col-span-2 lg:col-span-1",
-                  k.href && "relative transition-colors hover:bg-default/50",
-                  k.isCurrent && "bg-default/60",
-                )}
-              >
-                <KPI.Header>
-                  {k.icon ? (
-                    <KPI.Icon status={k.status} className={cx(!k.status && "bg-default text-muted")}>
-                      <Icon name={k.icon} />
-                    </KPI.Icon>
-                  ) : null}
-                  <KPI.Title className="truncate">{k.label}</KPI.Title>
-                </KPI.Header>
-                <KPI.Content className="flex-none">
-                  <KPI.Value value={k.value} className="truncate tabular">
-                    {() => (
-                      <span title={shown === exact ? undefined : exact}>
-                        <span aria-hidden={shown === exact ? undefined : true}>{shown}</span>
-                        {shown === exact ? null : <span className="sr-only">{exact}</span>}
-                      </span>
+            <KPI
+              key={k.id}
+              className={cx(
+                "group relative min-w-0 gap-0 rounded-xl border border-separator bg-surface p-4 shadow-none transition-[border-color,box-shadow]",
+                odd && i === items.length - 1 && "col-span-2 lg:col-span-1",
+                k.href && "hover:border-default-foreground/20 hover:shadow-sm",
+                k.isCurrent && "border-accent/50 ring-1 ring-accent/30",
+              )}
+            >
+              <KPI.Header className="flex items-start justify-between gap-2">
+                <KPI.Title className="min-w-0 truncate text-sm font-medium text-muted">{k.label}</KPI.Title>
+                {k.icon ? (
+                  <span
+                    aria-hidden="true"
+                    className={cx(
+                      "flex size-8 shrink-0 items-center justify-center rounded-lg",
+                      k.status ? TONE_TINT[k.status] : "bg-default text-muted",
                     )}
-                  </KPI.Value>
-                </KPI.Content>
-                {k.progress != null ? (
-                  <KPI.Progress
-                    value={Math.max(0, Math.min(100, k.progress))}
-                    status={k.status}
-                    aria-hidden="true"
-                    className="mt-2"
-                  />
+                  >
+                    <Icon name={k.icon} className="size-4" />
+                  </span>
                 ) : null}
-                {k.spark && k.spark.length > 1 ? (
-                  <KPI.Chart
-                    aria-hidden="true"
-                    data={k.spark.map((value) => ({ value }))}
-                    height={36}
-                    color="var(--chart-cat-1)"
-                    strokeWidth={2}
-                    className="mt-2"
-                  />
-                ) : null}
-                {k.trend || k.footnote ? (
-                  <KPI.Footer className="mt-auto flex flex-col gap-1 pt-2">
-                    {k.trend ? <Trend trend={k.trend} /> : null}
-                    {k.footnote ? <p className="text-xs text-muted">{k.footnote}</p> : null}
-                  </KPI.Footer>
-                ) : null}
-                {k.href ? (
-                  <NextLink
-                    href={k.href}
-                    scroll={false}
-                    aria-label={`${k.label}: ${exact}. Show them`}
-                    aria-current={k.isCurrent ? "true" : undefined}
-                    className="absolute inset-0 outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
-                  />
-                ) : null}
-              </KPI>
-            </Fragment>
+              </KPI.Header>
+              <KPI.Content className="mt-1 flex-none">
+                <KPI.Value value={k.value} className="truncate text-2xl font-semibold tracking-tight tabular">
+                  {() => (
+                    <span title={shown === exact ? undefined : exact}>
+                      <span aria-hidden={shown === exact ? undefined : true}>{shown}</span>
+                      {shown === exact ? null : <span className="sr-only">{exact}</span>}
+                    </span>
+                  )}
+                </KPI.Value>
+              </KPI.Content>
+              {k.progress != null ? (
+                <KPI.Progress
+                  value={Math.max(0, Math.min(100, k.progress))}
+                  status={k.status}
+                  aria-hidden="true"
+                  className="mt-3"
+                />
+              ) : null}
+              {k.spark && k.spark.length > 1 && k.progress == null ? (
+                <KPI.Chart
+                  aria-hidden="true"
+                  data={k.spark.map((value) => ({ value }))}
+                  height={32}
+                  color="var(--chart-cat-1)"
+                  strokeWidth={2}
+                  className="mt-2"
+                />
+              ) : null}
+              {k.trend || k.footnote ? (
+                <KPI.Footer className="mt-auto flex flex-col gap-1 pt-3">
+                  {k.trend ? <Trend trend={k.trend} /> : null}
+                  {k.footnote ? <p className="truncate text-xs text-muted">{k.footnote}</p> : null}
+                </KPI.Footer>
+              ) : null}
+              {k.href ? (
+                <NextLink
+                  href={k.href}
+                  scroll={false}
+                  aria-label={`${k.label}: ${exact}. Show them`}
+                  aria-current={k.isCurrent ? "true" : undefined}
+                  className="absolute inset-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                />
+              ) : null}
+            </KPI>
           );
         })}
-      </KPIGroup>
+      </div>
     </section>
   );
 }

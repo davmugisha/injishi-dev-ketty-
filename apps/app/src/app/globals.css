@@ -25,9 +25,15 @@
     border-radius: var(--surface-radius) var(--surface-radius) 0 0;
     background: var(--surface);
   }
+  /* The current page: a light accent tint and accent text, not a raised white pill. */
   .workspace-shell .sidebar__menu-item[data-current="true"] .sidebar__menu-item-content {
-    background-color: var(--surface);
-    box-shadow: var(--surface-shadow);
+    background-color: color-mix(in oklab, var(--accent) 10%, transparent);
+    color: var(--accent);
+    box-shadow: none;
+    font-weight: 600;
+  }
+  .workspace-shell .sidebar__menu-item[data-current="true"] .sidebar__menu-icon {
+    color: var(--accent);
   }
   /* Collapsed rail: keep icons comfortable (Pro default 48px is too tight). */
   /* The rail's width lives on .sidebar itself in Pro, so it is set there. */
@@ -49,22 +55,13 @@
   .workspace-shell .sidebar[data-state="collapsed"] .sidebar__menu-icon {
     margin-inline: 0;
   }
-  /* Collapse / expand: a full row in the footer with its word, a 40px square on the rail. */
+  /* Collapse / expand: one icon button at the top of the sidebar, beside the logo or alone on the rail. */
   .workspace-shell .sidebar__collapse-btn {
-    border-radius: var(--radius-xl, 0.75rem);
     color: var(--muted);
-    min-height: 2.5rem;
   }
   .workspace-shell .sidebar__collapse-btn:hover {
     color: var(--foreground);
     background: var(--default);
-  }
-  .workspace-shell .sidebar[data-state="collapsed"] .sidebar__collapse-btn {
-    width: 2.5rem;
-    height: 2.5rem;
-    padding: 0;
-    justify-content: center;
-    margin-inline: auto;
   }
   @media (max-width: 768px) {
     .workspace-shell .app-layout__body {

@@ -1,7 +1,7 @@
 "use client";
 
 import { Bars, BellDot, CircleQuestion, Comments, Magnifier } from "@gravity-ui/icons";
-import { Button, Kbd } from "@heroui/react";
+import { Kbd } from "@heroui/react";
 import { AppLayout, Navbar, Sidebar, useSidebar } from "@heroui-pro/react";
 import {
   homeHref,
@@ -103,9 +103,9 @@ function useRememberedSidebar(): [boolean, (open: boolean) => void] {
 }
 
 /**
- * Collapse to an icon rail, or expand again: a full-width row at the foot of the sidebar with its word
- * ("Collapse"), a square icon button on the rail, and ⌘B / Ctrl+B from anywhere. Not on a phone, where the
- * sidebar is a sheet.
+ * Collapse to an icon rail, or expand again: one icon button that always sits at the top of the sidebar
+ * (beside the logo, or alone at the top of the rail), with ⌘B / Ctrl+B from anywhere. Not on a phone,
+ * where the sidebar is a sheet.
  */
 function CollapseToggle() {
   const { isOpen, toggleSidebar, isMobile } = useSidebar();
@@ -120,22 +120,14 @@ function CollapseToggle() {
     return () => window.removeEventListener("keydown", onKey);
   }, [toggleSidebar]);
   if (isMobile) return null;
-  const label = isOpen ? "Collapse sidebar" : "Expand sidebar";
   return (
-    <Button
-      variant="ghost"
+    <IconAction
+      icon="LayoutSideContentLeft"
+      label={isOpen ? "Collapse sidebar (⌘B)" : "Expand sidebar (⌘B)"}
       onPress={toggleSidebar}
-      aria-label={label}
-      className="sidebar__collapse-btn w-full justify-start gap-2.5 px-2.5 text-sm font-normal"
-    >
-      <Icon name="LayoutSideContentLeft" className="size-4 shrink-0" />
-      <span data-sidebar="label" className="flex-1 text-left">
-        Collapse
-      </span>
-      <Kbd className="hidden xl:inline-flex" data-sidebar="label">
-        ⌘B
-      </Kbd>
-    </Button>
+      size="md"
+      className="sidebar__collapse-btn size-9 shrink-0"
+    />
   );
 }
 
@@ -191,11 +183,11 @@ export function WorkspaceShell({
 
   const header = (
     <Sidebar.Header className="gap-2">
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 in-[.sidebar[data-state=collapsed]]:flex-col-reverse in-[.sidebar[data-state=collapsed]]:gap-2">
         <NextLink
           // The person's own home: `/` is the marketplace on another host.
           href={homeHref(persona.id)}
-          className="flex items-center gap-2.5 px-1.5 py-1 text-foreground no-underline"
+          className="flex min-w-0 flex-1 items-center gap-2.5 px-1.5 py-1 text-foreground no-underline in-[.sidebar[data-state=collapsed]]:flex-none"
           aria-label="Injishi home"
         >
           <BrandMark size={28} />
@@ -203,6 +195,7 @@ export function WorkspaceShell({
             Injishi
           </span>
         </NextLink>
+        <CollapseToggle />
       </div>
       <BusinessSwitcher persona={persona} />
     </Sidebar.Header>
@@ -221,13 +214,12 @@ export function WorkspaceShell({
               href={screenHref("PublicHelp")}
               variant="ghost"
               aria-label="Help"
-              className="sidebar__collapse-btn w-full justify-start gap-2.5 px-2.5 text-sm font-normal"
+              className="w-full justify-start gap-2.5 px-2.5 text-sm font-normal text-muted"
             >
               <Icon name="LifeRing" className="size-4 shrink-0" />
               <span data-sidebar="label">Help</span>
             </LinkButton>
           ) : null}
-          <CollapseToggle />
           <UserMenu persona={persona} />
         </Sidebar.Footer>
       </Sidebar>
