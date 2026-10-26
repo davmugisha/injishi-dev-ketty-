@@ -387,7 +387,7 @@ export function FilterMenu({
     >
       <Select.Trigger
         className={cx(
-          "h-9 gap-2 rounded-lg border px-3 shadow-none",
+          "h-9 gap-2 rounded-lg border pr-9 pl-3 shadow-none",
           isSet ? "border-accent/50 bg-accent-soft text-accent-soft-foreground" : "border-separator bg-surface",
         )}
       >
@@ -499,8 +499,8 @@ export function FilterSelect({
       onChange={(k) => (k != null ? onChange(String(k)) : undefined)}
       className={cx("w-auto min-w-0 shrink-0", className)}
     >
-      <Select.Trigger className="gap-2">
-        <Select.Value className="truncate" />
+      <Select.Trigger className="h-9 gap-2 rounded-lg border border-separator bg-surface pr-9 pl-3 shadow-none">
+        <Select.Value className="truncate text-sm font-medium" />
         <Select.Indicator />
       </Select.Trigger>
       <Select.Popover className="min-w-48">

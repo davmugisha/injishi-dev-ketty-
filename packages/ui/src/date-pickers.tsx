@@ -324,7 +324,7 @@ export function PeriodPicker({
         onChange={(k) => (k != null ? choose(String(k)) : undefined)}
         className="w-auto min-w-0 shrink-0"
       >
-        <Select.Trigger className="h-9 gap-2 rounded-lg border border-separator bg-surface px-3 shadow-none">
+        <Select.Trigger className="h-9 gap-2 rounded-lg border border-separator bg-surface pr-9 pl-3 shadow-none">
           <Icon name="Calendar" className="size-4 shrink-0 text-muted" />
           <span className="shrink-0 text-sm text-muted">Period</span>
           <Select.Value className="truncate text-sm font-medium">{({ selectedText }) => selectedText}</Select.Value>
