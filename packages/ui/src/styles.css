@@ -1,0 +1,13 @@
+/*
+ * The one stylesheet a consumer of @injishi/ui imports (ADR-074, A product
+ * package; the same contract ADR-008 decision 5 set for web-ui).
+ *
+ * `@source "./"` resolves relative to THIS file, so it makes the consuming
+ * app's Tailwind scan this package's source wherever it is installed. Without
+ * it a class used only inside a shared component is never generated, and the
+ * component ships without it: the silent failure ADR-008 records for apps/app.
+ *
+ * It carries no theme. The Injishi overrides are `./styles/injishi.css`, which
+ * only an app on the mouve theme imports.
+ */
+@source "./";

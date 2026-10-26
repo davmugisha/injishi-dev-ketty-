@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 /**
  * What a screen says when it threw.

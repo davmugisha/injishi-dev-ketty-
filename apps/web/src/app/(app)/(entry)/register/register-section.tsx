@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Check, CircleCheck, Lock } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
 import type { SectionState } from "./register-steps";

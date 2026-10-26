@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { Input, ScrollShadow } from "@heroui/react";
-import { Button, Dialog, DialogContent, DialogDescription, DialogTitle } from "@injishi/ui";
+import { Button, Dialog, DialogContent, DialogDescription, DialogTitle } from "@injishi/web-ui";
 import { pluralize } from "@injishi/utils";
 import { SearchIcon } from "@/components/icons";
 import { exploreHref, parseIntent } from "@/lib/search-params";

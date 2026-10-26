@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Badge } from "@injishi/ui";
+import { Badge } from "@injishi/web-ui";
 import { GuideCard } from "@/components/guides/guide-card";
 import { Breadcrumbs } from "@/components/shared/breadcrumbs";
 import { SectionHeading } from "@/components/shared/section-heading";

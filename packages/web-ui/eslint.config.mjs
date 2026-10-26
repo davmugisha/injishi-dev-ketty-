@@ -46,6 +46,11 @@ export default [
       // ADR-012 AC-4. Never `can` or `permissionsForRole` in a browser.
       'injishi/no-client-authz': 'error',
 
+      // ADR-074 D-f. A technical package never imports a product, and
+      // production code never imports the demo.
+      'injishi/product-boundaries': 'error',
+      'injishi/no-demo-data': 'error',
+
       // ADR-027 section 8 and ADR-028 section 6. Colour comes from a role, a
       // size from a named step, a width from a named token, and a ground
       // agrees with its foreground.

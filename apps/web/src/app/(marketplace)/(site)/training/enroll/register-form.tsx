@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Badge, Button, Input, Label } from "@injishi/ui";
+import { Badge, Button, Input, Label } from "@injishi/web-ui";
 import type {
   TrainingRegistrationResult,
   TrainingSessionDetail,

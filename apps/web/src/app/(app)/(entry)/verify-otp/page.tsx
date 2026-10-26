@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import VerifyOtpPanel from "@/components/auth/verify-otp-panel";
 import BrandLogo from "@/components/app/brand-logo";
 import ThemeToggleButton from "@/components/app/theme-toggle-button";
-import { Badge } from "@injishi/ui";
+import { Badge } from "@injishi/web-ui";
 import { fetchPlatform, isDemo } from "@/data/platform";
 import { safeRedirect } from "@/lib/redirect";
 import type { OtpMode } from "@/lib/otp-core";

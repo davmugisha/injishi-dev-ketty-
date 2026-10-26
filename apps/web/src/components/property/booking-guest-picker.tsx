@@ -1,7 +1,7 @@
 "use client";
 
 import { MAX_INFANTS } from "@injishi/contracts";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { StepButton } from "@/components/shared/step-button";
 import {

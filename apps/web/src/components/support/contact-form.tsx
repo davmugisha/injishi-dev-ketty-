@@ -19,7 +19,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 
 import { CONTACT } from "@/data/navigation";
 import { submitSupportTicket } from "@/data/support";

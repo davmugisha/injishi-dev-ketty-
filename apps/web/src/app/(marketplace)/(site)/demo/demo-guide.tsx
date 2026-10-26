@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { DemoPersona, DemoStoryStep } from "@injishi/contracts";
-import { Badge, Button } from "@injishi/ui";
+import { Badge, Button } from "@injishi/web-ui";
 import { formatMarketDateTime } from "@injishi/utils";
 
 import { ArtDirectedImage } from "@/components/shared/art-directed-image";

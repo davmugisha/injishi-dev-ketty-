@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowLeft, Check, Send } from "lucide-react";
-import { Button, Skeleton } from "@injishi/ui";
+import { Button, Skeleton } from "@injishi/web-ui";
 import { formatDateRange, formatPrice } from "@injishi/utils";
 import type { BookingResult } from "@injishi/contracts";
 import { fromParamDate, propertyHref, type BookingSelection } from "@/lib/search-params";

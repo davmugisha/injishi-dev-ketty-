@@ -14,7 +14,7 @@ import {
   countryName,
   type PsfTier,
 } from "@injishi/contracts";
-import { Button, Checkbox } from "@injishi/ui";
+import { Button, Checkbox } from "@injishi/web-ui";
 import { X } from "lucide-react";
 
 import { formatRwf } from "@/lib/money";

@@ -8,7 +8,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogTitle,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import { ScrollShadow } from "@heroui/react";
 import { cn } from "@injishi/utils";
 import { StayDatePicker } from "@/components/search/stay-date-picker";

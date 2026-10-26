@@ -30,7 +30,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Check, Clock, Link2, Wifi, WifiOff } from "lucide-react";
 import type { KioskPunchResult, KioskSession } from "@injishi/contracts";
-import { Badge, Button, Card, Input, Label, Toaster, toastDwellMs, type Toast } from "@injishi/ui";
+import { Badge, Button, Card, Input, Label, Toaster, toastDwellMs, type Toast } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
 import { forgetKiosk, pairKiosk, punch, readSession } from "./kiosk-api";

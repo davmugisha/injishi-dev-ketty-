@@ -1,0 +1,21 @@
+{
+  // Ships TypeScript source (ADR-008, extended to products by ADR-074 D-d):
+  // the consumer compiles it, so nothing here emits. Imports carry their `.ts`
+  // extension because the tests run it under Node's own type stripping, which
+  // resolves no extension it is not given.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}

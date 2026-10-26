@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { GuestOrder, GuestTrip, OrderableOutlet } from "@injishi/contracts";
-import { Badge, Button, Skeleton } from "@injishi/ui";
+import { Badge, Button, Skeleton } from "@injishi/web-ui";
 import { EmptyPanel } from "@/components/app/empty-panel";
 import { Icon } from "@/components/app/icon";
 import { fetchMyOrders, fetchOrderable, orderTone } from "@/data/ordering";

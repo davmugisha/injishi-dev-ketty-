@@ -5,7 +5,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import { JsonLd } from "@/components/shared/json-ld";
 import { PageHero } from "@/components/shared/page-hero";
 import { SectionHeading } from "@/components/shared/section-heading";

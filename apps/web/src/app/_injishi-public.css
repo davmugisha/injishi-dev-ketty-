@@ -14,13 +14,16 @@
  * keyframes. ADR-013 call 4 owns everything below it: the @layer components
  * and @utility rules the public pages are written against. */
 @import "tailwindcss" source(none);
+@import "@injishi/web-ui/styles.css";
+/* The one web library products import (ADR-074 D-l), beside web-ui until
+ * stage 9. Only its `@source "./"`: it carries no theme of its own. */
 @import "@injishi/ui/styles.css";
 /* HeroUI 3 ships its component CSS and a full set of role DEFAULTS. It must be
  * imported BEFORE the token sheet: both define the same variable names at the
  * same specificity, so the later one wins and the earlier import would leave
  * every surface on HeroUI's stock blue. */
 @import "@heroui/styles";
-@import "@injishi/ui/pro.css"; /* HeroUI Pro, after HeroUI OSS, as Pro requires */
+@import "@injishi/web-ui/pro.css"; /* HeroUI Pro, after HeroUI OSS, as Pro requires */
 @import "@injishi/design-tokens/heroui.css";
 
 /* source(none) turns off automatic detection, so this list is the complete
@@ -90,7 +93,7 @@
   --color-accent-ink: oklch(46.00% 0.1800 177.90);
 
   /* Page motion. Component motion (the accordion frames, tw-animate-css) is
-   * @injishi/ui's, imported above — ADR-010 supporting call 5b. */
+   * @injishi/web-ui's, imported above — ADR-010 supporting call 5b. */
   --animate-fade-up: fade-up 0.5s ease-out forwards;
   --animate-slide-up: slide-up 0.3s ease-out forwards;
   --animate-slide-down: slide-down 0.3s ease-out forwards;

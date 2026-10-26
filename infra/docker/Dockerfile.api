@@ -23,7 +23,7 @@ WORKDIR /repo
 
 # ── deps ─────────────────────────────────────────────────────────────────────
 # Manifests only, so a source edit does not re-run the install.
-# pnpm-workspace.yaml globs apps/*, server/*, packages/*. pnpm reads every
+# pnpm-workspace.yaml globs apps/*, products/*, server/*, packages/*. pnpm reads every
 # member's manifest before it resolves anything, so all of them are copied even
 # though this image only builds @injishi/api.
 FROM base AS deps
@@ -40,6 +40,15 @@ COPY packages/ui/package.json ./packages/ui/
 COPY packages/data/package.json ./packages/data/
 COPY packages/db/package.json ./packages/db/
 COPY packages/utils/package.json ./packages/utils/
+COPY packages/web-ui/package.json ./packages/web-ui/
+COPY packages/ui-contract/package.json ./packages/ui-contract/
+# ADR-074 stage 1. products/* is globbed too; each product adds its own line
+# here, in all three Dockerfiles, in the change that creates it; the first one
+# also adds `COPY products ./products` to the build stage, which would fail on
+# a folder that does not exist yet.
+COPY packages/product-contract/package.json ./packages/product-contract/
+COPY packages/api-client/package.json ./packages/api-client/
+COPY packages/i18n/package.json ./packages/i18n/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @injishi/api...
 

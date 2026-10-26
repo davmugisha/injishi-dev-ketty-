@@ -11,7 +11,9 @@
     "export:android": "expo export --platform android --output-dir dist-android",
     "export:web": "expo export --platform web --output-dir dist-web",
     "typecheck": "tsc --noEmit",
-    "lint": "biome lint .",
+    "lint": "pnpm run --silent lint:biome && pnpm run --silent lint:eslint",
+    "lint:biome": "biome lint .",
+    "lint:eslint": "eslint \"src/**/*.{ts,tsx}\"",
     "test": "node ../../scripts/no-tests.mjs"
   },
   "dependencies": {
@@ -53,6 +55,8 @@
   },
   "devDependencies": {
     "@types/react": "19.3.0",
+    "@typescript-eslint/parser": "^8.68.0",
+    "eslint": "^10.9.1",
     "typescript": "5.9.3"
   }
 }

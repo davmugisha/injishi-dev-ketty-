@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Checkbox, Separator } from "@injishi/ui";
+import { Button, Checkbox, Separator } from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
 import {
   CheckoutChoice,
