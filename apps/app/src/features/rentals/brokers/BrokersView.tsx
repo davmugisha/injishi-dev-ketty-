@@ -8,6 +8,7 @@ import {
 } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import {
+  ActionButton,
   ActionLink,
   type DataColumn,
   DataTable,
@@ -31,6 +32,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { leaseHref } from "../../leases/shared";
+import { canMessagePlacement, placementMessageHref } from "../../messages/links";
 
 export type BrokersShow = "open" | "leased" | "all";
 
@@ -193,13 +195,25 @@ export function BrokersView({ list, show, q }: { list: LandlordPlacementList; sh
         defaultSort={{ column: "started", direction: "descending" }}
         onRowAction={(p) => (p.lease ? router.push(leaseHref(p.lease.id)) : undefined)}
         rowActions={(p) =>
-          p.lease ? (
+          p.lease || canMessagePlacement(p.status) ? (
             <RowActions>
-              <IconAction
-                icon="FileText"
-                label="Open the lease"
-                onPress={() => router.push(leaseHref((p.lease as { id: string }).id))}
-              />
+              {canMessagePlacement(p.status) ? (
+                <ActionButton
+                  size="sm"
+                  icon="Comments"
+                  aria-label={`Message ${p.broker.name ?? "the broker"}`}
+                  onPress={() => router.push(placementMessageHref(p.id))}
+                >
+                  Message
+                </ActionButton>
+              ) : null}
+              {p.lease ? (
+                <IconAction
+                  icon="FileText"
+                  label="Open the lease"
+                  onPress={() => router.push(leaseHref((p.lease as { id: string }).id))}
+                />
+              ) : null}
             </RowActions>
           ) : null
         }

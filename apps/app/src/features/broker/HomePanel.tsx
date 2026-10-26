@@ -17,6 +17,7 @@ import {
 } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { canMessagePlacement, placementMessageHref } from "../messages/links";
 import { fieldErrorsOnly, TextInput } from "../rentals/fields";
 import { loadHome, revealLandlord, startPlacement } from "./actions";
 import { feeTermsWords, PlacementChip, roomsWords } from "./shared";
@@ -83,9 +84,16 @@ export function HomePanel({ home: initial, onClose }: { home: BrokerHome; onClos
         size="lg"
         footer={
           home.placement ? (
-            <ActionLink href={screenHref("BrokerPlacements")} icon="Persons">
-              See placements
-            </ActionLink>
+            <>
+              <ActionLink href={screenHref("BrokerPlacements")} icon="Persons">
+                See placements
+              </ActionLink>
+              {canMessagePlacement(home.placement.status) ? (
+                <ActionLink href={placementMessageHref(home.placement.id)} icon="Comments">
+                  Message landlord
+                </ActionLink>
+              ) : null}
+            </>
           ) : (
             <>
               <ActionButton onPress={onClose}>Close</ActionButton>

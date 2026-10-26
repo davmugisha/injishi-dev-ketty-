@@ -20,6 +20,7 @@ import {
   SectionCard,
 } from "@injishi/ui";
 import NextLink from "next/link";
+import { canMessagePlacement, placementMessageHref } from "../messages/links";
 import { FeesChart } from "./FeesChart";
 import { HomeCard } from "./HomeCard";
 import { PlacementChip, starsWords } from "./shared";
@@ -241,7 +242,19 @@ export function BrokerHomeView({
                         : (p.tenantName ?? formatDay(p.startedAt, "long"))}
                     </span>
                   </span>
-                  <PlacementChip status={p.status} />
+                  <span className="flex shrink-0 items-center gap-2">
+                    <PlacementChip status={p.status} />
+                    {canMessagePlacement(p.status) ? (
+                      <ActionLink
+                        href={placementMessageHref(p.id)}
+                        size="sm"
+                        icon="Comments"
+                        aria-label={`Message the landlord of ${p.unit?.label ?? "this home"}`}
+                      >
+                        <span className="max-sm:sr-only">Message</span>
+                      </ActionLink>
+                    ) : null}
+                  </span>
                 </li>
               ))}
             </ul>

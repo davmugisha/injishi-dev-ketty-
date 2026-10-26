@@ -3,6 +3,7 @@
 import type { BrokerPlacement, BrokerPlacementList } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import {
+  ActionButton,
   ActionLink,
   type DataColumn,
   DataTable,
@@ -15,7 +16,9 @@ import {
   PageHeader,
   SearchBar,
 } from "@injishi/ui";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { canMessagePlacement, placementMessageHref } from "../messages/links";
 import { FeeChip, feeTermsWords, PlacementChip } from "./shared";
 
 type Tab = "open" | "leased" | "all";
@@ -25,6 +28,7 @@ type Tab = "open" | "leased" | "all";
  * broker on a lease; leased ones show the lease and the fee it records.
  */
 export function PlacementsView({ data }: { data: BrokerPlacementList }) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("open");
   const [search, setSearch] = useState("");
   const all = data.placements;
@@ -152,6 +156,13 @@ export function PlacementsView({ data }: { data: BrokerPlacementList }) {
         rowKey={(p) => p.id}
         columns={columns}
         defaultSort={{ column: "started", direction: "descending" }}
+        rowActions={(p) =>
+          canMessagePlacement(p.status) ? (
+            <ActionButton size="sm" icon="Comments" onPress={() => router.push(placementMessageHref(p.id))}>
+              Message
+            </ActionButton>
+          ) : null
+        }
         mobile={{
           title: (p) => (p.unit ? `${p.unit.label} · ${p.unit.propertyName}` : "A home"),
           description: (p) => p.lease?.tenantName ?? p.tenantName ?? formatDay(p.startedAt, "short"),

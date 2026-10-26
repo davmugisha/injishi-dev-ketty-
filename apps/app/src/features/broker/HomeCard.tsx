@@ -2,13 +2,14 @@
 
 import { Card, Chip } from "@heroui/react";
 import type { BrokerHome } from "@injishi/contracts";
-import { formatMoney, Icon } from "@injishi/ui";
+import { ActionLink, formatMoney, Icon } from "@injishi/ui";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
+import { canMessagePlacement, placementMessageHref } from "../messages/links";
 import { feeTermsWords, roomsWords } from "./shared";
 
 const PRESS =
-  "group flex h-full w-full flex-col text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus";
+  "group flex min-h-0 w-full flex-1 flex-col text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus";
 
 /** The card opens the home: in place (a panel) or by its address. */
 function Press({ href, onPress, children }: { href?: string; onPress?: () => void; children: ReactNode }) {
@@ -97,6 +98,13 @@ export function HomeCard({ home, onOpen, href }: { home: BrokerHome; onOpen?: ()
           </span>
         </div>
       </Press>
+      {home.placement && canMessagePlacement(home.placement.status) ? (
+        <div className="flex justify-end border-t border-separator px-4 py-3">
+          <ActionLink href={placementMessageHref(home.placement.id)} size="sm" icon="Comments">
+            Message landlord
+          </ActionLink>
+        </div>
+      ) : null}
     </Card>
   );
 }
