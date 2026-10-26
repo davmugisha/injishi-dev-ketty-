@@ -7,6 +7,7 @@ import type {
   RentalsOverview,
   RentalsSetupView,
   RentalsSummary,
+  RentalUnitView,
 } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import {
@@ -49,7 +50,18 @@ const ATTENTION_VERB: Record<RentalsAttentionKind, string> = {
   waiting_for_tenant: "View",
 };
 
-function kpis(o: RentalsOverview): KpiItem[] {
+/** The Tenants tile's line: who is moving in or out, else how many homes they live in. */
+function tenantsLine(o: RentalsOverview, s: RentalsSummary | null): string {
+  if (o.tenants === 0) return o.reservedUnits > 0 ? `${formatNumber(o.reservedUnits)} moving in` : "No tenants yet";
+  const parts = [
+    s && s.counts.readyToStart > 0 ? `${formatNumber(s.counts.readyToStart)} moving in` : null,
+    s && s.counts.noticesToAcknowledge > 0 ? `${formatNumber(s.counts.noticesToAcknowledge)} moving out` : null,
+  ].filter(Boolean);
+  if (parts.length > 0) return parts.join(", ");
+  return `In ${formatNumber(o.occupiedUnits)} ${o.occupiedUnits === 1 ? "unit" : "units"}`;
+}
+
+function kpis(o: RentalsOverview, s: RentalsSummary | null): KpiItem[] {
   const last = o.months.at(-2);
   const now = o.months.at(-1);
   const change = o.rent.collectedChangePercent;
@@ -107,6 +119,7 @@ function kpis(o: RentalsOverview): KpiItem[] {
       format: "count",
       icon: "Persons",
       href: `${LEASES}?tab=active`,
+      footnote: tenantsLine(o, s),
     },
   ];
 }
@@ -153,7 +166,7 @@ function NeedsAttention({ items }: { items: RentalsAttentionItem[] }) {
 }
 
 /** Where the units stand: one bar split by state, and each state's count as a link to that list. */
-function UnitsCard({ o }: { o: RentalsOverview }) {
+function UnitsCard({ o, vacant, canLease }: { o: RentalsOverview; vacant: RentalUnitView[]; canLease: boolean }) {
   const parts = [
     {
       id: "occupied",
@@ -182,6 +195,7 @@ function UnitsCard({ o }: { o: RentalsOverview }) {
   return (
     <SectionCard
       title="Units"
+      contentClassName="flex-1"
       actions={
         <ActionLink href={UNITS} size="sm" intent="ghost" icon="ArrowRight">
           All units
@@ -223,6 +237,28 @@ function UnitsCard({ o }: { o: RentalsOverview }) {
               </li>
             ))}
           </ul>
+          {vacant.length > 0 ? (
+            <div className="mt-auto flex flex-col gap-1 border-t border-separator pt-3">
+              <span className="text-xs font-medium text-muted">Ready to let</span>
+              <ul className="flex flex-col">
+                {vacant.map((u) => (
+                  <li key={u.id}>
+                    <NextLink
+                      href={canLease ? `${LEASES}/new?unit=${u.id}` : `${UNITS}?tab=vacant`}
+                      className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-foreground no-underline hover:bg-default/60"
+                    >
+                      <Icon name="FolderHouse" className="size-4 shrink-0 text-muted" />
+                      <span className="min-w-0 flex-1 truncate">{u.label}</span>
+                      {u.askingRentRwf !== null ? (
+                        <span className="text-xs text-muted tabular">{formatMoney(u.askingRentRwf)}</span>
+                      ) : null}
+                      {canLease ? <Icon name="Plus" className="size-3.5 shrink-0 text-muted" /> : null}
+                    </NextLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </>
       )}
     </SectionCard>
@@ -241,6 +277,8 @@ export function LandlordHomeView({
   overview,
   summary,
   setup,
+  vacantUnits,
+  canLease,
   canAddUnits,
 }: {
   firstName: string;
@@ -249,6 +287,8 @@ export function LandlordHomeView({
   overview: RentalsOverview | null;
   summary: RentalsSummary | null;
   setup: RentalsSetupView | null;
+  vacantUnits: RentalUnitView[];
+  canLease: boolean;
   canAddUnits: boolean;
 }) {
   const noUnits = overview ? overview.units === 0 : false;
@@ -287,7 +327,7 @@ export function LandlordHomeView({
       />
 
       {overview ? (
-        <KpiStrip label={`Your homes in ${monthName(overview.month)}`} items={kpis(overview)} />
+        <KpiStrip label={`Your homes in ${monthName(overview.month)}`} items={kpis(overview, summary)} />
       ) : (
         <Card className="p-4">
           <p className="text-sm text-muted">The money figures are for people who look after the money here.</p>
@@ -321,7 +361,7 @@ export function LandlordHomeView({
             data={overview.months.map((m) => ({ month: m.month, moneyIn: m.collectedRwf, moneyOut: m.spentRwf }))}
             emptyAction={noUnits ? addUnit : undefined}
           />
-          <UnitsCard o={overview} />
+          <UnitsCard o={overview} vacant={vacantUnits} canLease={canLease} />
         </div>
       ) : null}
     </PageContent>
