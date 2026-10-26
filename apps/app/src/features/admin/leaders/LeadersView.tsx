@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Chip, Description, FieldError, Label, TextArea, TextField, toast } from "@heroui/react";
+import { Chip, Description, FieldError, Label, TextArea, TextField, toast } from "@heroui/react";
 import { ListView } from "@heroui-pro/react";
 import {
   type GovernmentBody,
@@ -15,11 +15,13 @@ import {
   ActionLink,
   DataTable,
   EmptyBlock,
+  FilterSelect,
   FilterTabs,
   FormDialog,
   formatDay,
   formatNumber,
   IconAction,
+  ListToolbar,
   PageContent,
   PageHeader,
   PersonCell,
@@ -27,7 +29,6 @@ import {
   PlacePicker,
   placeLine,
   SectionCard,
-  SelectField,
 } from "@injishi/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -145,20 +146,17 @@ function WaitingList({
   return (
     <SectionCard
       title="Guests waiting for a leader"
-      description={
-        total === 0
-          ? "Every guest reached a leader."
-          : `${formatNumber(total)} ${total === 1 ? "guest is" : "guests are"} registered where nobody holds the post.`
+      actions={
+        total > 0 ? (
+          <Chip size="sm" variant="soft" color="warning">
+            {formatNumber(total)} {total === 1 ? "guest" : "guests"}
+          </Chip>
+        ) : null
       }
       contentClassName="gap-0"
     >
       {waiting.length === 0 ? (
-        <EmptyBlock
-          size="sm"
-          icon="CircleCheck"
-          title="Nobody is waiting"
-          description="Guests in areas with no leader show here."
-        />
+        <EmptyBlock size="sm" icon="CircleCheck" title="Nobody is waiting" />
       ) : (
         <ListView
           aria-label="Areas waiting for a leader"
@@ -247,7 +245,6 @@ export function LeadersView({
     <PageContent>
       <PageHeader
         title="Local leaders and officers"
-        description="Who guests are reported to, and who reviews businesses."
         actions={
           <>
             <ActionLink href="/admin/leaders/coverage" icon="MapPin">
@@ -262,150 +259,143 @@ export function LeadersView({
         }
       />
 
-      <FilterTabs
-        label="Appointments"
-        selectedKey={kind}
-        onSelectionChange={(k) => go({ kind: k === "all" ? null : k, role: null })}
-        tabs={KIND_TABS.map((t) => ({
-          id: t.id,
-          label: t.label,
-          count: t.id === "all" ? total : list.counts[t.id],
-        }))}
-      />
-
-      <div className="grid min-w-0 items-start gap-4 2xl:grid-cols-3">
-        <Card className="min-w-0 gap-4 p-4 2xl:col-span-2">
-          <div className="flex flex-wrap items-end gap-3">
-            <SelectField
-              label="Role"
-              className="w-full sm:w-64"
-              value={role}
-              placeholder="Every role"
-              options={[{ id: "", label: "Every role" }, ...ROLE_CHOICES.map((r) => ({ id: r.id, label: r.label }))]}
-              onChange={(v) => go({ role: v || null })}
-            />
-            <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium">Area</span>
-              <div className="flex flex-wrap items-center gap-2">
-                <ActionButton icon="MapPin" onPress={() => setAreaOpen(true)}>
-                  {areaWords || "Everywhere"}
-                </ActionButton>
-                {areaWords ? (
-                  <IconAction
-                    icon="Xmark"
-                    label="Show every area"
-                    onPress={() =>
-                      go({ provinceId: null, districtId: null, sectorId: null, cellId: null, villageId: null })
-                    }
-                  />
-                ) : null}
-              </div>
-            </div>
-          </div>
-          <DataTable<OversightAppointment>
+      <ListToolbar
+        tabs={
+          <FilterTabs
             label="Appointments"
-            rows={list.appointments}
-            rowKey={(a) => a.id}
-            empty={
-              <EmptyBlock
-                icon="Persons"
-                title={filtered ? "Nobody matches" : "Nobody appointed yet"}
-                description={
-                  filtered
-                    ? "Try every role or every area."
-                    : "Appoint village leaders, DASSOs, cell executive secretaries and district officers so guests reach them."
-                }
-                action={
-                  filtered ? (
-                    <ActionButton
-                      icon="Xmark"
-                      onPress={() =>
-                        go({
-                          role: null,
-                          provinceId: null,
-                          districtId: null,
-                          sectorId: null,
-                          cellId: null,
-                          villageId: null,
-                          q: null,
-                        })
-                      }
-                    >
-                      Clear filters
-                    </ActionButton>
-                  ) : canAppoint ? (
-                    <ActionButton icon="PersonPlus" onPress={() => setAppoint(null)}>
-                      Appoint
-                    </ActionButton>
-                  ) : undefined
-                }
-              />
-            }
-            columns={[
-              {
-                id: "person",
-                header: "Person",
-                isRowHeader: true,
-                sortValue: (a) => a.name ?? a.email,
-                cell: (a) => <PersonCell name={a.name ?? a.email} secondary={a.name ? a.email : "No name yet"} />,
-              },
-              {
-                id: "role",
-                header: "Role",
-                sortValue: (a) => a.roleLabel,
-                cell: (a) => (
-                  <div className="flex min-w-0 flex-col text-sm">
-                    <span className="truncate">{a.roleLabel}</span>
-                    <span className="truncate text-xs text-muted">{a.title ?? a.bodyName ?? a.bodyCode}</span>
-                  </div>
-                ),
-              },
-              {
-                id: "area",
-                header: "Area",
-                sortValue: (a) => a.area,
-                cell: (a) => <span className="text-sm whitespace-normal">{a.area}</span>,
-              },
-              {
-                id: "guests",
-                header: "Guests",
-                align: "end",
-                hideBelow: "lg",
-                sortValue: (a) => a.delivered,
-                cell: (a) =>
-                  a.kind === "leader" ? (
-                    <span className="text-sm whitespace-nowrap tabular">
-                      {formatNumber(a.seen)} of {formatNumber(a.delivered)} opened
-                    </span>
-                  ) : (
-                    <span className="text-xs whitespace-nowrap text-muted">Not a leader</span>
-                  ),
-              },
-              {
-                id: "since",
-                header: "Since",
-                hideBelow: "xl",
-                sortValue: (a) => a.grantedAt,
-                cell: (a) => <span className="text-sm whitespace-nowrap">{formatDay(a.grantedAt)}</span>,
-              },
-            ]}
-            rowActions={
-              canAppoint
-                ? (a) => (
-                    <IconAction
-                      icon="PersonXmark"
-                      label={`End ${a.name ?? a.email}'s appointment`}
-                      onPress={() => setEnding(a)}
-                    />
-                  )
-                : undefined
-            }
-            mobile={{
-              title: (a) => a.name ?? a.email,
-              description: (a) => `${a.roleLabel} · ${a.area}`,
-            }}
+            selectedKey={kind}
+            onSelectionChange={(k) => go({ kind: k === "all" ? null : k, role: null })}
+            tabs={KIND_TABS.map((t) => ({
+              id: t.id,
+              label: t.label,
+              count: t.id === "all" ? total : list.counts[t.id],
+            }))}
           />
-        </Card>
+        }
+      >
+        <FilterSelect
+          label="Role"
+          className="w-full md:w-52"
+          value={role ?? "all"}
+          options={[{ id: "all", label: "Every role" }, ...ROLE_CHOICES.map((r) => ({ id: r.id, label: r.label }))]}
+          onChange={(v) => go({ role: v === "all" ? null : v })}
+        />
+        <ActionButton icon="MapPin" onPress={() => setAreaOpen(true)} className="max-w-56">
+          <span className="truncate">{areaWords || "Everywhere"}</span>
+        </ActionButton>
+        {areaWords ? (
+          <IconAction
+            icon="Xmark"
+            label="Show every area"
+            onPress={() => go({ provinceId: null, districtId: null, sectorId: null, cellId: null, villageId: null })}
+          />
+        ) : null}
+      </ListToolbar>
+
+      <div className="flex min-w-0 flex-col gap-5">
+        <DataTable<OversightAppointment>
+          label="Appointments"
+          rows={list.appointments}
+          rowKey={(a) => a.id}
+          empty={
+            <EmptyBlock
+              icon="Persons"
+              title={filtered ? "Nobody matches" : "Nobody appointed yet"}
+              description={
+                filtered
+                  ? "Try every role or every area."
+                  : "Appoint village leaders, DASSOs, cell executive secretaries and district officers so guests reach them."
+              }
+              action={
+                filtered ? (
+                  <ActionButton
+                    icon="Xmark"
+                    onPress={() =>
+                      go({
+                        role: null,
+                        provinceId: null,
+                        districtId: null,
+                        sectorId: null,
+                        cellId: null,
+                        villageId: null,
+                        q: null,
+                      })
+                    }
+                  >
+                    Clear filters
+                  </ActionButton>
+                ) : canAppoint ? (
+                  <ActionButton icon="PersonPlus" onPress={() => setAppoint(null)}>
+                    Appoint
+                  </ActionButton>
+                ) : undefined
+              }
+            />
+          }
+          columns={[
+            {
+              id: "person",
+              header: "Person",
+              isRowHeader: true,
+              sortValue: (a) => a.name ?? a.email,
+              cell: (a) => <PersonCell name={a.name ?? a.email} secondary={a.name ? a.email : "No name yet"} />,
+            },
+            {
+              id: "role",
+              header: "Role",
+              sortValue: (a) => a.roleLabel,
+              cell: (a) => (
+                <div className="flex min-w-0 flex-col text-sm">
+                  <span className="truncate">{a.roleLabel}</span>
+                  <span className="truncate text-xs text-muted">{a.title ?? a.bodyName ?? a.bodyCode}</span>
+                </div>
+              ),
+            },
+            {
+              id: "area",
+              header: "Area",
+              sortValue: (a) => a.area,
+              cell: (a) => <span className="text-sm whitespace-normal">{a.area}</span>,
+            },
+            {
+              id: "guests",
+              header: "Guests",
+              align: "end",
+              hideBelow: "lg",
+              sortValue: (a) => a.delivered,
+              cell: (a) =>
+                a.kind === "leader" ? (
+                  <span className="text-sm whitespace-nowrap tabular">
+                    {formatNumber(a.seen)} of {formatNumber(a.delivered)} opened
+                  </span>
+                ) : (
+                  <span className="text-xs whitespace-nowrap text-muted">Not a leader</span>
+                ),
+            },
+            {
+              id: "since",
+              header: "Since",
+              hideBelow: "xl",
+              sortValue: (a) => a.grantedAt,
+              cell: (a) => <span className="text-sm whitespace-nowrap">{formatDay(a.grantedAt)}</span>,
+            },
+          ]}
+          rowActions={
+            canAppoint
+              ? (a) => (
+                  <IconAction
+                    icon="PersonXmark"
+                    label={`End ${a.name ?? a.email}'s appointment`}
+                    onPress={() => setEnding(a)}
+                  />
+                )
+              : undefined
+          }
+          mobile={{
+            title: (a) => a.name ?? a.email,
+            description: (a) => `${a.roleLabel} · ${a.area}`,
+          }}
+        />
         <WaitingList
           waiting={list.waiting}
           total={list.waitingReports}
