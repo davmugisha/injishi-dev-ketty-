@@ -99,9 +99,7 @@ export function OfficerHomeView({
               </h2>
               <ToneChip tone={state.tone}>{state.chip}</ToneChip>
             </div>
-            <p className="text-[13px] leading-[18px] text-muted">
-              Every record you open is logged
-            </p>
+            <p className="text-[13px] leading-[18px] text-muted">Every record you open is logged</p>
           </div>
           <LinkButton href={screenHref("DistrictAdmin")} size="sm" variant="ghost">
             Bodies and officers
