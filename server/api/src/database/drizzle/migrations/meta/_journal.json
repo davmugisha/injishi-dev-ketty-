@@ -666,6 +666,13 @@
       "when": 1793029655651,
       "tag": "0094_leader_chains",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1793045993909,
+      "tag": "0095_chains_village_cell_district",
+      "breakpoints": true
     }
   ]
 }

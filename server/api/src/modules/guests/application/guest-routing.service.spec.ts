@@ -95,14 +95,12 @@ describe('GuestRoutingService', () => {
   it('delivers each step to the longest serving holder, and leaves a step with nobody waiting', async () => {
     const { service } = setup({
       village_leader: [holder('village_leader', 'mudugudu@x.rw'), holder('village_leader', 'second@x.rw')],
-      dasso: [holder('dasso', 'dasso@x.rw')],
+      cell_executive: [holder('cell_executive', 'cell@x.rw')],
     });
     const steps = await service.plan({ villageId: 1101, cellId: 110, sectorId: 11, districtId: 1 }, 'RW');
     expect(steps.map((s) => [s.role, s.assignmentId])).toEqual([
       ['village_leader', 'as-village_leader-mudugudu@x.rw'],
-      ['dasso', 'as-dasso-dasso@x.rw'],
-      ['cell_executive', null],
-      ['sector_executive', null],
+      ['cell_executive', 'as-cell_executive-cell@x.rw'],
       ['district_officer', null],
     ]);
   });
@@ -113,7 +111,7 @@ describe('GuestRoutingService', () => {
     // Local government reads every guest; DGIE's chain follows for a guest from abroad.
     expect(steps.find((s) => s.role === 'district_immigration')).toMatchObject({ assignmentId: 'as-district_immigration-dgie@x.rw' });
     expect(steps.find((s) => s.role === 'district_officer')).toMatchObject({ assignmentId: 'as-district_officer-do@x.rw' });
-    expect(steps.map((s) => s.role).slice(-3)).toEqual(['district_immigration', 'dgie_province', 'dgie_national']);
+    expect(steps.map((s) => s.role).slice(-3)).toEqual(['dgie_village', 'dgie_cell', 'district_immigration']);
   });
 
   it('emails each leader of a delivered step once per registration, never for a waiting step', async () => {

@@ -4,7 +4,7 @@ import {
   GUEST_RETENTION_MONTHS,
   type GuestReport,
   type GuestReportQuery,
-  isLeaderRole,
+  isChainRole,
   LEADER_ROLE_LABEL,
   type LeaderRole,
   type OversightGrant,
@@ -102,7 +102,7 @@ export class GuestReportsService {
       filteredBy: filterWords(query, all),
       choices: choicesOf(all),
       chain: chain
-        .filter((c) => isLeaderRole(c.role))
+        .filter((c) => isChainRole(c.role))
         .map((c) => ({ ...c, role: c.role as LeaderRole, label: LEADER_ROLE_LABEL[c.role as LeaderRole] })),
       ...reportFigures({
         rows,

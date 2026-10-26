@@ -39,17 +39,20 @@ export const LEADER_ARRIVING_DAYS = 7;
 // --- The leader roles -----------------------------------------------------------
 
 /**
- * The posts a guest is reported to, in two chains. Local government (MINALOC) reads every guest, Rwandan
- * or foreign: village leader, sector DASSO, cell then sector executive secretary, district officer. The
- * immigration directorate (DGIE) reads guests from abroad only: district, province, headquarters.
+ * Every leader post the database knows. Two chains are in use, each village, cell, district
+ * (`CHAIN_ROLES`): local government reads every guest, Rwandan or foreign; the immigration directorate
+ * (DGIE) reads guests from abroad only. The DASSO, sector executive and DGIE province and headquarters
+ * posts are retired: kept so older records still read, never routed to or appointed again.
  */
 export const LEADER_ROLES = [
   "village_leader",
-  "dasso",
   "cell_executive",
-  "sector_executive",
   "district_officer",
+  "dgie_village",
+  "dgie_cell",
   "district_immigration",
+  "dasso",
+  "sector_executive",
   "dgie_province",
   "dgie_national",
 ] as const;
@@ -59,6 +62,22 @@ export type LeaderRole = z.infer<typeof LeaderRole>;
 /** Is this oversight role one of the local leaders? */
 export function isLeaderRole(role: OversightRole | string): role is LeaderRole {
   return (LEADER_ROLES as readonly string[]).includes(role);
+}
+
+/** The posts guests are routed to and admins appoint, in the order of the chains. */
+export const CHAIN_ROLES = [
+  "village_leader",
+  "cell_executive",
+  "district_officer",
+  "dgie_village",
+  "dgie_cell",
+  "district_immigration",
+] as const satisfies readonly LeaderRole[];
+export type ChainRole = (typeof CHAIN_ROLES)[number];
+
+/** Is this post one guests go to now (not a retired one)? */
+export function isChainRole(role: string): role is ChainRole {
+  return (CHAIN_ROLES as readonly string[]).includes(role);
 }
 
 /** The roles that review businesses (field verification and approval). */
@@ -74,6 +93,8 @@ export const LEADER_ROLE_LABEL: Readonly<Record<LeaderRole, string>> = {
   district_immigration: "DGIE district officer",
   dgie_province: "DGIE province officer",
   dgie_national: "DGIE headquarters",
+  dgie_village: "DGIE village officer",
+  dgie_cell: "DGIE cell officer",
 };
 
 /** The short words a chip or a column uses. */
@@ -86,17 +107,22 @@ export const LEADER_ROLE_SHORT: Readonly<Record<LeaderRole, string>> = {
   district_immigration: "DGIE district",
   dgie_province: "DGIE province",
   dgie_national: "DGIE headquarters",
+  dgie_village: "DGIE village",
+  dgie_cell: "DGIE cell",
 };
 
-/** Where each post sits in a registration's chain, from 1: local government first, then DGIE. */
+/** Where each post sits in a registration's chain, from 1: local government 1 to 3, DGIE 4 to 6. */
 export const LEADER_ROLE_STEP: Readonly<Record<LeaderRole, number>> = {
   village_leader: 1,
-  dasso: 2,
-  cell_executive: 3,
-  sector_executive: 4,
-  district_officer: 5,
+  cell_executive: 2,
+  district_officer: 3,
+  dgie_village: 4,
+  dgie_cell: 5,
   district_immigration: 6,
-  dgie_province: 7,
+  // Retired posts keep a place for older records.
+  dasso: 7,
+  sector_executive: 7,
+  dgie_province: 8,
   dgie_national: 8,
 };
 
@@ -110,6 +136,8 @@ export const LEADER_ROLE_CHAIN: Readonly<Record<LeaderRole, "local" | "dgie">> =
   district_immigration: "dgie",
   dgie_province: "dgie",
   dgie_national: "dgie",
+  dgie_village: "dgie",
+  dgie_cell: "dgie",
 };
 
 /** The level of the map each leader covers: the one scope level their appointment may name. */
@@ -123,6 +151,8 @@ export const LEADER_ROLE_SCOPE: Readonly<Record<LeaderRole, LeaderLevel>> = {
   district_immigration: "district",
   dgie_province: "province",
   dgie_national: "country",
+  dgie_village: "village",
+  dgie_cell: "cell",
 };
 
 /** The government body a leader is appointed under unless the admin picks another. */
@@ -135,6 +165,8 @@ export const LEADER_ROLE_BODY: Readonly<Record<LeaderRole, string>> = {
   district_immigration: "DGIE",
   dgie_province: "DGIE",
   dgie_national: "DGIE",
+  dgie_village: "DGIE",
+  dgie_cell: "DGIE",
 };
 
 /**
@@ -151,6 +183,8 @@ export const OVERSIGHT_ROLE_SCOPES: Readonly<Record<OversightRole, readonly Over
   district_immigration: ["district"],
   dgie_province: ["province"],
   dgie_national: ["country"],
+  dgie_village: ["village"],
+  dgie_cell: ["cell"],
   business_field_verifier: ["country", "province", "district"],
   business_approver: ["country", "province", "district"],
   tax_compliance_officer: ["country", "province", "district"],
@@ -158,13 +192,13 @@ export const OVERSIGHT_ROLE_SCOPES: Readonly<Record<OversightRole, readonly Over
 };
 
 /**
- * The chain a registration goes along, in order. Every guest goes up the local government chain: village
- * leader, sector DASSO, cell and sector executive secretaries, district officer. A guest from abroad also
- * goes up the DGIE chain: district, province, headquarters.
+ * The chain a registration goes along, in order: local government's village leader, cell executive
+ * secretary and district officer for every guest; DGIE's village, cell and district officers too for a
+ * guest from abroad.
  */
 export function guestChainFor(fromAbroad: boolean): LeaderRole[] {
-  const local: LeaderRole[] = ["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer"];
-  return fromAbroad ? [...local, "district_immigration", "dgie_province", "dgie_national"] : local;
+  const local: LeaderRole[] = ["village_leader", "cell_executive", "district_officer"];
+  return fromAbroad ? [...local, "dgie_village", "dgie_cell", "district_immigration"] : local;
 }
 
 /** A guest is "from abroad" when their nationality is not Rwandan. */

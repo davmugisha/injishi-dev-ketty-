@@ -637,9 +637,9 @@ export const oversightAssignments = pgTable(
     // a district. The same pairs as `OVERSIGHT_ROLE_SCOPES` in contracts.
     check(
       'oversight_assignments_role_scope',
-      sql`(${t.oversightRole}::text = 'village_leader' AND ${t.scopeLevel}::text = 'village')
+      sql`(${t.oversightRole}::text IN ('village_leader', 'dgie_village') AND ${t.scopeLevel}::text = 'village')
           OR (${t.oversightRole}::text = 'dasso' AND ${t.scopeLevel}::text = 'sector')
-          OR (${t.oversightRole}::text = 'cell_executive' AND ${t.scopeLevel}::text = 'cell')
+          OR (${t.oversightRole}::text IN ('cell_executive', 'dgie_cell') AND ${t.scopeLevel}::text = 'cell')
           OR (${t.oversightRole}::text = 'sector_executive' AND ${t.scopeLevel}::text = 'sector')
           OR (${t.oversightRole}::text IN ('district_officer', 'district_immigration') AND ${t.scopeLevel}::text = 'district')
           OR (${t.oversightRole}::text = 'dgie_province' AND ${t.scopeLevel}::text = 'province')

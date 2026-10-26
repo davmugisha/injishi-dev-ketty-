@@ -149,6 +149,8 @@ exports.OVERSIGHT_ROLE_LABEL = {
     sector_executive: "Sector executive secretary",
     dgie_province: "DGIE province officer",
     dgie_national: "DGIE headquarters",
+    dgie_village: "DGIE village officer",
+    dgie_cell: "DGIE cell officer",
 };
 /** The short words a platform staff role is read in. */
 exports.STAFF_ROLE_LABEL = {

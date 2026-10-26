@@ -38,6 +38,10 @@ export function grantClause(g: LeaderGrant, c: ScopeColumns): SQL | null {
   switch (g.oversightRole) {
     case 'village_leader':
       return g.villageId ? sql`${c.village} = ${g.villageId}` : null;
+    case 'dgie_village':
+      return g.villageId ? sql`(${c.village} = ${g.villageId} and ${c.abroad})` : null;
+    case 'dgie_cell':
+      return g.cellId ? sql`(${c.cell} = ${g.cellId} and ${c.abroad})` : null;
     case 'dasso':
     case 'sector_executive':
       return g.sectorId ? sql`${c.sector} = ${g.sectorId}` : null;

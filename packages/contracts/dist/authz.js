@@ -903,6 +903,8 @@ function oversightConsoleFor(role) {
         case "sector_executive":
         case "dgie_province":
         case "dgie_national":
+        case "dgie_village":
+        case "dgie_cell":
             return "guests";
         case "business_field_verifier":
             return "verification";
@@ -1013,6 +1015,8 @@ function opposingGateRole(role) {
         case "sector_executive":
         case "dgie_province":
         case "dgie_national":
+        case "dgie_village":
+        case "dgie_cell":
             return null;
     }
 }

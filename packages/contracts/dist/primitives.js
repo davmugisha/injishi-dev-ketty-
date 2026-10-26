@@ -108,6 +108,10 @@ exports.OversightRole = zod_1.z.enum([
     "sector_executive",
     "dgie_province",
     "dgie_national",
+    // The chains settled (2026-10-26): village, cell, district, for local government (every guest)
+    // and for DGIE (guests from abroad). DGIE's village and cell officers.
+    "dgie_village",
+    "dgie_cell",
 ]);
 /**
  * Region scope of an oversight assignment (Decision B). Sector, cell and

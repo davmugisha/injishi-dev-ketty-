@@ -244,11 +244,13 @@ export class LocalLeadersRepository {
         ${covered('district_officer', 'district_id')} as district_officer,
         ${covered('district_immigration', 'district_id')} as district_immigration,
         ${covered('dgie_province', 'province_id')} as dgie_province,
+        ${covered('dgie_village', 'village_id')} as dgie_village,
+        ${covered('dgie_cell', 'cell_id')} as dgie_cell,
         (select least(count(*), 1)::int from oversight_assignments where revoked_at is null and oversight_role::text = 'dgie_national') as dgie_national`);
     const r = rowsOf<Record<string, number>>(result)[0] ?? {};
     return {
-      village: { areas: r.villages ?? 0, covered: { village_leader: r.village_leader ?? 0 } },
-      cell: { areas: r.cells ?? 0, covered: { cell_executive: r.cell_executive ?? 0 } },
+      village: { areas: r.villages ?? 0, covered: { village_leader: r.village_leader ?? 0, dgie_village: r.dgie_village ?? 0 } },
+      cell: { areas: r.cells ?? 0, covered: { cell_executive: r.cell_executive ?? 0, dgie_cell: r.dgie_cell ?? 0 } },
       sector: { areas: r.sectors ?? 0, covered: { dasso: r.dasso ?? 0, sector_executive: r.sector_executive ?? 0 } },
       district: {
         areas: r.districts ?? 0,

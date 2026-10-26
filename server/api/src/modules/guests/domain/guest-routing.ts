@@ -114,6 +114,10 @@ export function grantCovers(grant: LeaderGrant, guest: GuestPlace): boolean {
   switch (grant.oversightRole) {
     case 'village_leader':
       return grant.villageId !== null && grant.villageId === guest.villageId;
+    case 'dgie_village':
+      return abroad && grant.villageId !== null && grant.villageId === guest.villageId;
+    case 'dgie_cell':
+      return abroad && grant.cellId !== null && grant.cellId === guest.cellId;
     case 'dasso':
     case 'sector_executive':
       return grant.sectorId !== null && grant.sectorId === guest.sectorId;

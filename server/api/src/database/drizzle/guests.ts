@@ -182,7 +182,7 @@ export const guestRegistrationRoutes = pgTable(
     registrationId: uuid('registration_id')
       .notNull()
       .references(() => guestRegistrations.id, { onDelete: 'cascade' }),
-    /** The post's place in the chain: 1 village leader to 5 district officer, then DGIE 6 to 8. */
+    /** The post's place in the chain: local government 1 to 3, DGIE 4 to 6 (7 and 8 retired posts). */
     step: smallint('step').notNull(),
     recipientRole: oversightRoleEnum('recipient_role').notNull(),
     /** The area at the role's level, with the levels above it; null while not known. */
@@ -214,7 +214,7 @@ export const guestRegistrationRoutes = pgTable(
     // same migration run that writes this check (blueprint 1.1).
     check(
       'guest_registration_routes_role',
-      sql`${t.recipientRole}::text IN ('village_leader', 'dasso', 'cell_executive', 'sector_executive', 'district_officer', 'district_immigration', 'dgie_province', 'dgie_national')`,
+      sql`${t.recipientRole}::text IN ('village_leader', 'dasso', 'cell_executive', 'sector_executive', 'district_officer', 'district_immigration', 'dgie_province', 'dgie_national', 'dgie_village', 'dgie_cell')`,
     ),
     check('guest_registration_routes_step', sql`${t.step} BETWEEN 1 AND 8`),
     check(

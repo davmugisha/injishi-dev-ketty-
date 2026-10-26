@@ -17,46 +17,40 @@ function post(role: LeaderGrant['oversightRole'], area: Partial<LeaderGrant> = {
 }
 
 describe('guest routing: the chain', () => {
-  it('sends every guest up the local government chain, Rwandan guests no further', () => {
+  it('sends every guest up local government: village leader, cell executive, district officer', () => {
     const routes = planRoutes(HOME, 'RW');
     expect(routes.map((r) => [r.role, r.step])).toEqual([
       ['village_leader', 1],
-      ['dasso', 2],
-      ['cell_executive', 3],
-      ['sector_executive', 4],
-      ['district_officer', 5],
+      ['cell_executive', 2],
+      ['district_officer', 3],
     ]);
   });
 
-  it('sends a guest from abroad up the local chain too, then up DGIE: district, province, headquarters', () => {
+  it('sends a guest from abroad up local government, then up DGIE: village, cell, district', () => {
     const routes = planRoutes(HOME, 'KE');
     expect(routes.map((r) => [r.role, r.step])).toEqual([
       ['village_leader', 1],
-      ['dasso', 2],
-      ['cell_executive', 3],
-      ['sector_executive', 4],
-      ['district_officer', 5],
+      ['cell_executive', 2],
+      ['district_officer', 3],
+      ['dgie_village', 4],
+      ['dgie_cell', 5],
       ['district_immigration', 6],
-      ['dgie_province', 7],
-      ['dgie_national', 8],
     ]);
   });
 
   it('names each step at its own level, with the levels above it', () => {
     expect(routeArea('village_leader', HOME)).toEqual(HOME);
     expect(routeArea('cell_executive', HOME)).toEqual({ villageId: null, cellId: 110, sectorId: 11, districtId: 1, provinceId: 5 });
-    expect(routeArea('sector_executive', HOME)).toEqual({ villageId: null, cellId: null, sectorId: 11, districtId: 1, provinceId: 5 });
+    expect(routeArea('dgie_cell', HOME)).toEqual({ villageId: null, cellId: 110, sectorId: 11, districtId: 1, provinceId: 5 });
     expect(routeArea('district_officer', HOME)).toEqual({ villageId: null, cellId: null, sectorId: null, districtId: 1, provinceId: 5 });
-    expect(postKey('dgie_province', routeArea('dgie_province', HOME))).toBe(5);
-    expect(postKey('dgie_national', routeArea('dgie_national', HOME))).toBe(0);
+    expect(postKey('dgie_village', routeArea('dgie_village', HOME))).toBe(1101);
   });
 
   it('a home with no village on record: the village and cell steps have no post to go to (they wait)', () => {
     const noVillage = { villageId: null, cellId: null, sectorId: 11, districtId: 1 };
-    const [village, dasso, cell, , district] = planRoutes(noVillage, 'RW');
+    const [village, cell, district] = planRoutes(noVillage, 'RW');
     expect(postKey(village!.role, village!.area)).toBeNull();
     expect(postKey(cell!.role, cell!.area)).toBeNull();
-    expect(postKey(dasso!.role, dasso!.area)).toBe(11);
     expect(postKey(district!.role, district!.area)).toBe(1);
     // The village step keeps what is known, so admin can say where it waits.
     expect(village!.area).toEqual({ villageId: null, cellId: null, sectorId: 11, districtId: 1, provinceId: null });
@@ -92,6 +86,10 @@ describe('guest routing: who covers a guest', () => {
     expect(grantCovers(post('dgie_province', { districtId: null, provinceId: 5 }), rwandan)).toBe(false);
     expect(grantCovers(post('dgie_national', { districtId: null }), kenyan)).toBe(true);
     expect(grantCovers(post('dgie_national', { districtId: null }), rwandan)).toBe(false);
+    expect(grantCovers(post('dgie_village', { villageId: 1101, cellId: 110, sectorId: 11 }), kenyan)).toBe(true);
+    expect(grantCovers(post('dgie_village', { villageId: 1101, cellId: 110, sectorId: 11 }), rwandan)).toBe(false);
+    expect(grantCovers(post('dgie_cell', { cellId: 110, sectorId: 11 }), kenyan)).toBe(true);
+    expect(grantCovers(post('dgie_cell', { cellId: 111, sectorId: 11 }), kenyan)).toBe(false);
   });
 
   it('a guest with no village on record is outside every village leader', () => {

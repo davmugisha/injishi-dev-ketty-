@@ -11,7 +11,7 @@ import {
   type AppointOfficerRequest,
   LEADER_ROLE_LABEL,
   LEADER_ROLE_SCOPE,
-  LEADER_ROLES,
+  CHAIN_ROLES,
   type LeaderCoverage,
   type LeaderRole,
   OVERSIGHT_COUNTRY_SCOPE_LABEL,
@@ -387,9 +387,9 @@ export class LocalLeadersService {
       this.repo.nationwide(),
       this.repo.waiting(today),
       this.repo.neverOpened(),
-      ...LEADER_ROLES.map((role) => this.repo.withHomes(role, today)),
+      ...CHAIN_ROLES.map((role) => this.repo.withHomes(role, today)),
     ]);
-    const roles = LEADER_ROLES.map((role, i) => {
+    const roles = CHAIN_ROLES.map((role, i) => {
       const level = LEADER_ROLE_SCOPE[role];
       const areas = perRole[i] ?? [];
       return {
@@ -400,7 +400,7 @@ export class LocalLeadersService {
         withHomes: { areas: areas.length, covered: areas.filter((a) => a.covered).length },
       };
     });
-    const uncovered = LEADER_ROLES.flatMap((role, i) =>
+    const uncovered = CHAIN_ROLES.flatMap((role, i) =>
       (perRole[i] ?? [])
         .filter((a) => !a.covered)
         .map((a) => {

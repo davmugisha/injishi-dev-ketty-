@@ -265,6 +265,8 @@ const POST_COLUMN: Readonly<Record<LeaderRole, string | null>> = {
   district_immigration: 'district_id',
   dgie_province: 'province_id',
   dgie_national: null,
+  dgie_village: 'village_id',
+  dgie_cell: 'cell_id',
 };
 
 /** A post's own place as a predicate on `alias` (assignments `a` or routes `r`). */

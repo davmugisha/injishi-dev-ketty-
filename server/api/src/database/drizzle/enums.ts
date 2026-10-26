@@ -303,6 +303,9 @@ export const oversightRoleEnum = pgEnum('oversight_role', [
   'sector_executive',
   'dgie_province',
   'dgie_national',
+  // The chains settled as village, cell, district for both bodies: DGIE's village and cell officers.
+  'dgie_village',
+  'dgie_cell',
 ]);
 
 export const oversightScopeLevelEnum = pgEnum('oversight_scope_level', [
