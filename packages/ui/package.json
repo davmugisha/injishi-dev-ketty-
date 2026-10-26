@@ -10,7 +10,9 @@
     "./*": "./src/*.tsx"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "test": "node ../../scripts/no-tests.mjs"
   },
   "peerDependencies": {
     "@gravity-ui/icons": "2.22.1",

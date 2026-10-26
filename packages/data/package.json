@@ -10,7 +10,9 @@
     "./fixtures/*": "./src/fixtures/*.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "test": "node ../../scripts/no-tests.mjs"
   },
   "devDependencies": {
     "typescript": "5.9.3"

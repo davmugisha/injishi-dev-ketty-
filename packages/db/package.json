@@ -11,7 +11,9 @@
   "scripts": {
     "seed": "tsx src/cli.ts seed",
     "reset": "tsx src/cli.ts reset",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "test": "node ../../scripts/no-tests.mjs"
   },
   "dependencies": {
     "@injishi/data": "workspace:*",

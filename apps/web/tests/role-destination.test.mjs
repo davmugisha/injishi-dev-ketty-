@@ -166,6 +166,17 @@ const PERSONAS = [
   { email: "pending@injishi.com", personal: true, operator: [biz("w-pending")], to: ws("w-pending") },
   // Both hats. The console is checked before the workspace, as it always was.
   { email: "dualhat@injishi.com", personal: true, operator: [biz("w-hotel")], consoles: 1, to: OVERSIGHT },
+  { email: "finance@injishi.com", personal: true, operator: [biz("w-hotel")], to: ws("w-hotel") },
+  { email: "hr@injishi.com", personal: true, operator: [biz("w-hotel")], to: ws("w-hotel") },
+  // Every staff role opens the console: `/me/staff` asks whether a live
+  // `admin_users` row exists, never which role it carries.
+  { email: "admin-ops@injishi.com", personal: true, staff: true, to: ADMIN },
+  { email: "admin-compliance@injishi.com", personal: true, staff: true, to: ADMIN },
+  { email: "admin-finance@injishi.com", personal: true, staff: true, to: ADMIN },
+  { email: "admin-trainer@injishi.com", personal: true, staff: true, to: ADMIN },
+  { email: "taxofficer@injishi.com", personal: true, consoles: 1, to: OVERSIGHT },
+  // Country scoped, not district: a seat all the same, so the same door.
+  { email: "psf@injishi.com", personal: true, consoles: 1, to: OVERSIGHT },
 
   // seed-demo.mjs — the public demo roster.
   { email: "yves@demo.injishi.com", operator: [biz("w-amahoro")], to: ws("w-amahoro") },

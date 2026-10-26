@@ -10,7 +10,9 @@
     "web": "expo start --web",
     "export:android": "expo export --platform android --output-dir dist-android",
     "export:web": "expo export --platform web --output-dir dist-web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "test": "node ../../scripts/no-tests.mjs"
   },
   "dependencies": {
     "@better-auth/expo": "1.6.11",
