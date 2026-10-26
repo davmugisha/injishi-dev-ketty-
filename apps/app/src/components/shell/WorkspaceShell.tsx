@@ -1,7 +1,7 @@
 "use client";
 
 import { Bars, BellDot, CircleQuestion, Comments, Magnifier } from "@gravity-ui/icons";
-import { Kbd } from "@heroui/react";
+import { Button, Kbd } from "@heroui/react";
 import { AppLayout, Navbar, Sidebar, useSidebar } from "@heroui-pro/react";
 import {
   homeHref,
@@ -102,24 +102,40 @@ function useRememberedSidebar(): [boolean, (open: boolean) => void] {
   return [open, change];
 }
 
-/** Collapse to an icon rail, or expand again. On a phone the sidebar is a sheet and this is not shown. */
-function CollapseToggle({ where }: { where: "header" | "rail" }) {
+/**
+ * Collapse to an icon rail, or expand again: a full-width row at the foot of the sidebar with its word
+ * ("Collapse"), a square icon button on the rail, and ⌘B / Ctrl+B from anywhere. Not on a phone, where the
+ * sidebar is a sheet.
+ */
+function CollapseToggle() {
   const { isOpen, toggleSidebar, isMobile } = useSidebar();
-  if (isMobile) return null;
-  if (where === "header" && !isOpen) return null;
-  if (where === "rail" && isOpen) return null;
-  return (
-    <IconAction
-      icon={isOpen ? "ChevronLeft" : "ChevronRight"}
-      label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
-      onPress={toggleSidebar}
-      size="md"
-      className={
-        where === "header"
-          ? "sidebar__collapse-btn ml-auto"
-          : "sidebar__collapse-btn mx-auto size-10"
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleSidebar();
       }
-    />
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleSidebar]);
+  if (isMobile) return null;
+  const label = isOpen ? "Collapse sidebar" : "Expand sidebar";
+  return (
+    <Button
+      variant="ghost"
+      onPress={toggleSidebar}
+      aria-label={label}
+      className="sidebar__collapse-btn w-full justify-start gap-2.5 px-2.5 text-sm font-normal"
+    >
+      <Icon name="LayoutSideContentLeft" className="size-4 shrink-0" />
+      <span data-sidebar="label" className="flex-1 text-left">
+        Collapse
+      </span>
+      <Kbd className="hidden xl:inline-flex" data-sidebar="label">
+        ⌘B
+      </Kbd>
+    </Button>
   );
 }
 
@@ -187,7 +203,6 @@ export function WorkspaceShell({
             Injishi
           </span>
         </NextLink>
-        <CollapseToggle where="header" />
       </div>
       <BusinessSwitcher persona={persona} />
     </Sidebar.Header>
@@ -201,7 +216,18 @@ export function WorkspaceShell({
           <NavMenu groups={groups} current={current} pathname={pathname} />
         </Sidebar.Content>
         <Sidebar.Footer className="gap-1">
-          <CollapseToggle where="rail" />
+          {live && !searchable ? (
+            <LinkButton
+              href={screenHref("PublicHelp")}
+              variant="ghost"
+              aria-label="Help"
+              className="sidebar__collapse-btn w-full justify-start gap-2.5 px-2.5 text-sm font-normal"
+            >
+              <Icon name="LifeRing" className="size-4 shrink-0" />
+              <span data-sidebar="label">Help</span>
+            </LinkButton>
+          ) : null}
+          <CollapseToggle />
           <UserMenu persona={persona} />
         </Sidebar.Footer>
       </Sidebar>
@@ -218,7 +244,12 @@ export function WorkspaceShell({
   );
 
   const navbar = (
-    <Navbar maxWidth="full" className="border-b border-separator">
+    // A live workspace with nothing to search has nothing for a top bar on a wide screen: the page starts
+    // at the top and Help sits in the sidebar. Phones keep it for the menu button.
+    <Navbar
+      maxWidth="full"
+      className={live && !searchable ? "border-b border-separator lg:hidden" : "border-b border-separator"}
+    >
       <Navbar.Header className="gap-2 px-3 sm:px-5">
         <AppLayout.MenuToggle aria-label="Open navigation">
           <Bars className="size-4" />

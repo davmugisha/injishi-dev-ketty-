@@ -120,7 +120,7 @@ export function PageContent({ children, className }: { children: ReactNode; clas
   return (
     <div
       className={cx(
-        "mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-5 px-4 pt-5 pb-10 sm:px-8 sm:pt-8 sm:pb-12",
+        "mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-5 px-4 pt-4 pb-10 sm:px-8 sm:pt-6 sm:pb-12",
         className,
       )}
     >

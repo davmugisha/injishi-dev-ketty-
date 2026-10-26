@@ -30,8 +30,13 @@
     box-shadow: var(--surface-shadow);
   }
   /* Collapsed rail: keep icons comfortable (Pro default 48px is too tight). */
-  .workspace-shell {
-    --sidebar-width-collapsed: 4.25rem;
+  /* The rail's width lives on .sidebar itself in Pro, so it is set there. */
+  .workspace-shell .sidebar {
+    --sidebar-width-collapsed: 4.5rem;
+  }
+  /* A slimmer top bar: the page starts close under it. */
+  .workspace-shell .navbar {
+    --navbar-height: 3.5rem;
   }
   .workspace-shell .sidebar[data-state="collapsed"]:not([data-collapsible="offcanvas"]) {
     width: var(--sidebar-width-collapsed);
@@ -44,20 +49,22 @@
   .workspace-shell .sidebar[data-state="collapsed"] .sidebar__menu-icon {
     margin-inline: 0;
   }
+  /* Collapse / expand: a full row in the footer with its word, a 40px square on the rail. */
   .workspace-shell .sidebar__collapse-btn {
-    border-radius: 9999px;
+    border-radius: var(--radius-xl, 0.75rem);
     color: var(--muted);
-    border: 1px solid transparent;
+    min-height: 2.5rem;
   }
   .workspace-shell .sidebar__collapse-btn:hover {
     color: var(--foreground);
     background: var(--default);
-    border-color: var(--border);
   }
   .workspace-shell .sidebar[data-state="collapsed"] .sidebar__collapse-btn {
-    width: 2.25rem;
-    height: 2.25rem;
-    margin-block: 0.25rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    justify-content: center;
+    margin-inline: auto;
   }
   @media (max-width: 768px) {
     .workspace-shell .app-layout__body {
