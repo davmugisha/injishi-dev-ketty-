@@ -1148,6 +1148,135 @@ export function CategoryDonut({
   );
 }
 
+export interface CountSlice {
+  /** The filter value it stands for ("KE", "nationals"). */
+  key: string;
+  label: string;
+  count: number;
+}
+
+/**
+ * Counts as a ring (people, not money): nationalities, Rwandan or foreign. The five largest and Other,
+ * the total in the middle, and a legend whose rows (and slices) filter the page when `onPick` is given;
+ * pressing the chosen one again clears it.
+ */
+export function CountDonut({
+  data,
+  title,
+  description,
+  actions,
+  totalLabel = "Total",
+  noun = "guests",
+  selected,
+  onPick,
+  empty,
+  className,
+}: {
+  data: CountSlice[];
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  totalLabel?: string;
+  /** What is counted, for the summary: "guests". */
+  noun?: string;
+  /** The key the page is filtered to, if any. */
+  selected?: string | null;
+  onPick?: (key: string | null) => void;
+  empty?: { icon?: IconKey; title: string; action?: ReactNode };
+  className?: string;
+}) {
+  const motion = !useReducedMotion();
+  const positive = data.filter((d) => d.count > 0).sort((a, b) => b.count - a.count);
+  const top = positive.slice(0, 5);
+  const rest = positive.slice(5).reduce((n, d) => n + d.count, 0);
+  const slices = [
+    ...top.map((d, i) => ({ key: d.key, name: d.label, value: d.count, color: CHART_COLOR.cat(i + 1) })),
+    ...(rest > 0 ? [{ key: "", name: "Other", value: rest, color: "var(--chart-other)" }] : []),
+  ];
+  const total = slices.reduce((n, d) => n + d.value, 0);
+  const pct = (v: number) => (total > 0 ? Math.round((v / total) * 100) : 0);
+  const pick = (key: string) => (onPick && key ? onPick(selected === key ? null : key) : undefined);
+  return (
+    <ChartCard
+      title={title}
+      description={description}
+      actions={actions}
+      className={className}
+      isEmpty={total === 0}
+      empty={empty ?? { icon: "ChartPie", title: `No ${noun} in this view` }}
+      summary={`${formatNumber(total)} ${noun}. ${slices.map((s) => `${s.name} ${formatNumber(s.value)} (${pct(s.value)}%)`).join(", ")}.`}
+      table={{
+        columns: ["", "Share", noun.charAt(0).toUpperCase() + noun.slice(1)],
+        rows: positive.map((d) => [d.label, `${pct(d.count)}%`, formatNumber(d.count)]),
+      }}
+    >
+      <div className="grid items-center gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+        <div className="relative mx-auto aspect-square w-full max-w-48">
+          <PieChart height={192}>
+            <PieChart.Tooltip
+              content={<PieChart.TooltipContent hideHeader valueFormatter={(v) => formatNumber(Number(v))} />}
+            />
+            <PieChart.Pie
+              data={slices}
+              dataKey="value"
+              nameKey="name"
+              innerRadius="62%"
+              outerRadius="96%"
+              paddingAngle={slices.length > 1 ? 1.5 : 0}
+              cornerRadius={4}
+              stroke="var(--surface)"
+              strokeWidth={2}
+              isAnimationActive={motion}
+              onClick={(entry: unknown) => pick(String((entry as { payload?: { key?: string } })?.payload?.key ?? ""))}
+              className={onPick ? "cursor-pointer" : undefined}
+            >
+              {slices.map((s) => (
+                <PieChart.Cell key={s.name} fill={s.color} opacity={selected && s.key !== selected ? 0.35 : 1} />
+              ))}
+            </PieChart.Pie>
+          </PieChart>
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+            <span className="text-xs text-muted">{totalLabel}</span>
+            <span className="text-lg font-semibold tabular">{formatNumber(total)}</span>
+          </div>
+        </div>
+        <ul className="-mx-2 flex min-w-0 flex-col gap-0.5">
+          {slices.map((s) => {
+            const on = selected === s.key && s.key !== "";
+            const row = (
+              <>
+                <span className="size-2 shrink-0 rounded-full" style={{ background: s.color }} />
+                <span className={cx("min-w-0 flex-1 truncate", on && "font-semibold")}>{s.name}</span>
+                <span className="text-xs text-muted tabular">{pct(s.value)}%</span>
+                <span className="w-8 shrink-0 text-right font-medium tabular">{formatNumber(s.value)}</span>
+              </>
+            );
+            return (
+              <li key={s.name}>
+                {onPick && s.key ? (
+                  <button
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => pick(s.key)}
+                    className={cx(
+                      "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-default/60",
+                      on && "bg-default",
+                    )}
+                  >
+                    {row}
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 px-2 py-1.5 text-sm">{row}</div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </ChartCard>
+  );
+}
+
 /** One rate as a ring with the percentage in the middle: collection rate, occupancy, setup done. */
 export function ProgressRadial({
   value,
