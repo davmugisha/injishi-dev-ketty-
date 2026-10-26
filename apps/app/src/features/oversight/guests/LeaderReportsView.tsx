@@ -9,6 +9,7 @@ import {
   ActionLink,
   CHART_COLOR,
   ChartCard,
+  CountDonut,
   DataTable,
   EmptyBlock,
   FilterSelect,
@@ -23,6 +24,7 @@ import {
   periodFromRange,
   SectionCard,
   SelectField,
+  StatusChip,
 } from "@injishi/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { scopeLine } from "./LeaderGuestsView";
@@ -123,6 +125,79 @@ function ArrivalsChart({ report, className }: { report: GuestReport; className?:
 }
 
 /**
+ * Who received the period's guests and what they did, post by post in the chain's order: the village
+ * leader and the sector DASSO get every guest when it is filed, then the cell executive secretary, then
+ * the district officer for Rwandans or the district immigration officer for foreign guests.
+ */
+function ChainCard({ report, className }: { report: GuestReport; className?: string }) {
+  const rows = report.chain;
+  return (
+    <SectionCard
+      title="Along the chain"
+      description="Who received the guests and opened them"
+      className={className}
+      contentClassName="gap-0"
+    >
+      {rows.length === 0 ? (
+        <EmptyBlock size="sm" icon="Persons" title="No guests in this view" />
+      ) : (
+        <ol className="flex flex-col">
+          {rows.map((c, i) => {
+            const opened = c.guests > 0 ? Math.round((c.opened / c.guests) * 100) : 0;
+            const last = i === rows.length - 1;
+            const tone = c.waiting === c.guests ? "warning" : c.opened === c.guests ? "success" : "accent";
+            return (
+              <li key={c.role} className="flex gap-3">
+                <div className="flex flex-col items-center">
+                  <span
+                    className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular ${
+                      tone === "success"
+                        ? "bg-success-soft text-success"
+                        : tone === "warning"
+                          ? "bg-warning-soft text-warning"
+                          : "bg-accent-soft text-accent"
+                    }`}
+                  >
+                    {c.step}
+                  </span>
+                  {last ? null : <span aria-hidden className="w-px flex-1 bg-separator" />}
+                </div>
+                <div className={`flex min-w-0 flex-1 flex-col gap-1.5 ${last ? "" : "pb-4"}`}>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="min-w-0 flex-1 text-sm font-medium">{c.label}</span>
+                    {c.flagged > 0 ? (
+                      <StatusChip tone="danger">{`${formatNumber(c.flagged)} flagged`}</StatusChip>
+                    ) : null}
+                    {c.waiting > 0 ? (
+                      <StatusChip tone="warning">
+                        {c.waiting === c.guests
+                          ? "No leader appointed"
+                          : `${formatNumber(c.waiting)} wait for a leader`}
+                      </StatusChip>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-default">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${opened}%`, background: CHART_COLOR.cat(1) }}
+                      />
+                    </div>
+                    <span className="shrink-0 text-xs text-muted tabular">
+                      {formatNumber(c.opened)} of {formatNumber(c.guests)} opened
+                    </span>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </SectionCard>
+  );
+}
+
+/**
  * The local leader's reports (P5): for a period and, when the post covers more than one place, a sector,
  * cell or village in it: how many guests arrived, are staying now, came from abroad and were flagged, the
  * average stay, arrivals over time, where in the area, nationalities, relationships, and the homes with
@@ -163,8 +238,12 @@ export function LeaderReportsView({
   const flaggedOnly = params.get("flagged") === "only";
   const filtered = GUEST_FILTERS.some((k) => params.get(k));
   const clearFilters = () => go(Object.fromEntries(GUEST_FILTERS.map((k) => [k, null])));
+  const clearAction = filtered ? (
+    <ActionButton size="sm" icon="Xmark" onPress={clearFilters}>
+      Clear filters
+    </ActionButton>
+  ) : undefined;
   // The report comes back filtered from the API, so every figure, chart and table below is the same view.
-  const totalNationality = report.byNationality.reduce((n, r) => n + r.count, 0);
   const totalRelationship = report.byRelationship.reduce((n, r) => n + r.count, 0);
   const span = `${formatDay(report.period.from)} to ${formatDay(report.period.to)}`;
   const guestsHref = (tab: string) => `/officer/guests?tab=${tab}`;
@@ -359,30 +438,31 @@ export function LeaderReportsView({
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <ArrivalsChart report={report} className="lg:col-span-2" />
-        <SectionCard title="Nationalities" description="Press one to see only them" className="lg:col-span-1">
-          {report.byNationality.length === 0 ? (
-            <EmptyBlock
-              size="sm"
-              icon="Globe"
-              title="No guests in this view"
-              action={
-                filtered ? (
-                  <ActionButton size="sm" icon="Xmark" onPress={clearFilters}>
-                    Clear filters
-                  </ActionButton>
-                ) : undefined
-              }
-            />
-          ) : (
-            <RankedBars
-              what="nationality"
-              total={totalNationality}
-              selected={nationality}
-              onPick={(code) => go({ nationality: code, origin: null })}
-              rows={report.byNationality.map((n) => ({ key: n.code, label: n.name, count: n.count }))}
-            />
-          )}
-        </SectionCard>
+        <CountDonut
+          title="Rwandan or foreign"
+          description="By nationality. Press one to see only them."
+          totalLabel="Guests"
+          selected={origin === "all" ? null : origin}
+          onPick={(key) => go({ origin: key, nationality: null })}
+          data={[
+            { key: "nationals", label: "Rwandan", count: Math.max(0, t.registered - t.fromAbroad) },
+            { key: "international", label: "Foreign", count: t.fromAbroad },
+          ]}
+          empty={{ icon: "Globe", title: "No guests in this view", action: clearAction }}
+        />
+      </div>
+
+      <div className="grid min-w-0 gap-4 lg:grid-cols-3">
+        <ChainCard report={report} className="lg:col-span-2" />
+        <CountDonut
+          title="Nationalities"
+          description="Press one to see only them"
+          totalLabel="Guests"
+          selected={nationality}
+          onPick={(code) => go({ nationality: code, origin: null })}
+          data={report.byNationality.map((n) => ({ key: n.code, label: n.name, count: n.count }))}
+          empty={{ icon: "Globe", title: "No guests in this view", action: clearAction }}
+        />
       </div>
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
