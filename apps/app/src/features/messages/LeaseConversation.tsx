@@ -5,11 +5,14 @@ import {
   type LeaseThreadView,
   MESSAGE_ACCEPT,
   messageFilesProblem,
+  type PlacementThreadView,
   VOICE_NOTE_MAX_S,
 } from "@injishi/contracts";
 import { type ChatDraft, type ChatLine, ChatThread, EmptyBlock } from "@injishi/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  type ConversationRef,
+  isAbout,
   isConnected,
   joinThread,
   joinWorkspace,
@@ -19,13 +22,26 @@ import {
   rejoinThread,
 } from "./realtime";
 
-export type ConversationSide = "landlord" | "tenant";
+/** Who reads: the landlord's team, the tenant (lease conversations), or the broker (placement ones). */
+export type ConversationSide = "landlord" | "tenant" | "broker";
+
+/** A conversation as either side opens it: a lease's, or a placement's (2026-10-26). */
+export type ConversationView = LeaseThreadView | PlacementThreadView;
+
+export function refOf(view: ConversationView): ConversationRef {
+  return "leaseId" in view ? { kind: "lease", id: view.leaseId } : { kind: "placement", id: view.placementId };
+}
 
 /** Where the browser reads and writes this conversation, on the app's own origin. */
-export function conversationBase(side: ConversationSide, leaseId: string): string {
+export function conversationBase(side: ConversationSide, ref: ConversationRef): string {
+  if (ref.kind === "placement") {
+    return side === "broker"
+      ? `/api/messages/ops/broker/messages/${ref.id}`
+      : `/api/messages/ops/rentals/placement-messages/${ref.id}`;
+  }
   return side === "landlord"
-    ? `/api/messages/ops/rentals/messages/${leaseId}`
-    : `/api/messages/me/tenancies/${leaseId}/messages`;
+    ? `/api/messages/ops/rentals/messages/${ref.id}`
+    : `/api/messages/me/tenancies/${ref.id}/messages`;
 }
 
 /** The API names a file by its own path; the browser opens it through the app. */
@@ -41,7 +57,7 @@ function faultHref(side: ConversationSide, leaseId: string, faultId: string): st
   return side === "landlord" ? `/faults?fault=${faultId}` : `/home/${leaseId}/faults?fault=${faultId}`;
 }
 
-function toLine(m: LeaseMessage, side: ConversationSide, leaseId: string): ChatLine {
+function toLine(m: LeaseMessage, side: ConversationSide, ref: ConversationRef): ChatLine {
   return {
     id: m.id,
     side: m.side === "system" ? "system" : m.fromMe ? "me" : "them",
@@ -52,12 +68,13 @@ function toLine(m: LeaseMessage, side: ConversationSide, leaseId: string): ChatL
     voiceDurationS: m.voiceDurationS,
     createdAt: m.createdAt,
     receipt: m.receipt,
-    fault: m.fault
-      ? {
-          label: `${m.fault.reference ? `Fault ${m.fault.reference}` : "Fault"}: ${m.fault.title}`,
-          href: faultHref(side, leaseId, m.fault.id),
-        }
-      : null,
+    fault:
+      m.fault && ref.kind === "lease"
+        ? {
+            label: `${m.fault.reference ? `Fault ${m.fault.reference}` : "Fault"}: ${m.fault.title}`,
+            href: faultHref(side, ref.id, m.fault.id),
+          }
+        : null,
   };
 }
 
@@ -75,7 +92,7 @@ async function readError(response: Response): Promise<string> {
 }
 
 /**
- * One lease conversation, live (P3.4): the first page comes from the server; after that it reads and
+ * One conversation, live (P3.4; a broker's about a placement since 2026-10-26): the first page comes from the server; after that it reads and
  * sends through `/api/messages/*`, hears new lines and reads on the socket (thread room), polls every
  * few seconds when the socket is down, and marks the conversation read while it is on screen.
  */
@@ -87,15 +104,16 @@ export function LeaseConversation({
   onActivity,
 }: {
   side: ConversationSide;
-  initial: LeaseThreadView;
-  /** The landlord's business (for the socket's rooms); null on the tenant's side. */
+  initial: ConversationView;
+  /** The landlord's business (for the socket's rooms); null on the tenant's and the broker's side. */
   workspaceId: string | null;
   selfName?: string | null;
   /** Told after a send or a read, so a list beside it can refresh its counts. */
   onActivity?: () => void;
 }) {
-  const leaseId = initial.leaseId;
-  const base = conversationBase(side, leaseId);
+  const ref = useMemo(() => refOf(initial), [initial]);
+  const key = `${ref.kind}:${ref.id}`;
+  const base = conversationBase(side, ref);
   const [view, setView] = useState(initial);
   const [older, setOlder] = useState<LeaseMessage[]>([]);
   const [olderCursor, setOlderCursor] = useState(initial.olderCursor);
@@ -108,7 +126,7 @@ export function LeaseConversation({
   const refresh = useCallback(async () => {
     const response = await fetch(base, { cache: "no-store" }).catch(() => null);
     if (!response?.ok) return;
-    const next = (await response.json()) as LeaseThreadView;
+    const next = (await response.json()) as ConversationView;
     setView((prev) => ({ ...next, myLastReadAt: prev.myLastReadAt }));
   }, [base]);
 
@@ -131,15 +149,15 @@ export function LeaseConversation({
     return () => document.removeEventListener("visibilitychange", mark);
   }, [base, view.threadId, newestTheirs]);
 
-  // The live line: this lease's room, and the business's for the landlord.
+  // The live line: this conversation's room, and the business's for the landlord.
   useEffect(() => {
     if (workspaceId) joinWorkspace(workspaceId);
-    const leave = joinThread(leaseId, workspaceId);
+    const leave = joinThread(ref, workspaceId);
     const offNew = onMessage((e) => {
-      if (e.leaseId === leaseId) void refresh();
+      if (isAbout(e, ref)) void refresh();
     });
     const offRead = onThreadRead((e) => {
-      if (e.leaseId === leaseId) void refresh();
+      if (isAbout(e, ref)) void refresh();
     });
     const offStatus = onConnection(setLive);
     return () => {
@@ -148,7 +166,7 @@ export function LeaseConversation({
       offRead();
       offStatus();
     };
-  }, [leaseId, workspaceId, refresh]);
+  }, [ref, workspaceId, refresh]);
 
   // The fallback: read every few seconds while the socket is down, rarely while it is up.
   useEffect(() => {
@@ -178,7 +196,7 @@ export function LeaseConversation({
       }
       const hadThread = Boolean(view.threadId);
       await refresh();
-      if (!hadThread) rejoinThread(leaseId, workspaceId);
+      if (!hadThread) rejoinThread(ref, workspaceId);
       drop(key);
       activity.current?.();
     } catch {
@@ -232,7 +250,7 @@ export function LeaseConversation({
       () => null,
     );
     if (!response?.ok) return;
-    const page = (await response.json()) as LeaseThreadView;
+    const page = (await response.json()) as ConversationView;
     setOlder((o) => [...page.messages, ...o]);
     setOlderCursor(page.olderCursor);
   };
@@ -244,12 +262,12 @@ export function LeaseConversation({
       seen.add(m.id);
       return true;
     });
-    return [...all.map((m) => toLine(m, side, leaseId)), ...pending];
-  }, [older, view.messages, pending, side, leaseId]);
+    return [...all.map((m) => toLine(m, side, ref)), ...pending];
+  }, [older, view.messages, pending, side, ref]);
 
   return (
     <ChatThread
-      key={leaseId}
+      key={key}
       lines={lines}
       selfName={selfName}
       lastReadAt={initial.myLastReadAt}
@@ -258,8 +276,14 @@ export function LeaseConversation({
       onDiscard={drop}
       hasOlder={Boolean(olderCursor)}
       onLoadOlder={loadOlder}
-      closedReason={view.writable ? null : "This lease has ended, so the conversation is read only."}
-      placeholder={side === "landlord" ? `Message ${view.counterpartName}` : "Message your landlord"}
+      closedReason={
+        view.writable
+          ? null
+          : ref.kind === "lease"
+            ? "This lease has ended, so the conversation is read only."
+            : "This placement was closed, so the conversation is read only."
+      }
+      placeholder={side === "tenant" ? "Message your landlord" : `Message ${view.counterpartName}`}
       accept={MESSAGE_ACCEPT}
       checkFiles={(files, voice) => messageFilesProblem(files, voice)}
       maxVoiceSeconds={VOICE_NOTE_MAX_S}
@@ -268,9 +292,9 @@ export function LeaseConversation({
           icon="Comments"
           title="No messages yet"
           description={
-            side === "landlord"
-              ? `Write to ${view.counterpartName}. Photos, documents and voice notes work too.`
-              : "Write to your landlord. Photos, documents and voice notes work too."
+            side === "tenant"
+              ? "Write to your landlord. Photos, documents and voice notes work too."
+              : `Write to ${view.counterpartName}. Photos, documents and voice notes work too.`
           }
         />
       }

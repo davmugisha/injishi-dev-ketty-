@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, apiBaseUrl, apiOrigin } from "@/server/api";
-import { accountFor, workspaceFor } from "@/server/auth";
+import { accountFor, brokerWorkspace, workspaceFor } from "@/server/auth";
 import { sessionCookieHeader } from "@/server/session-cookies";
 
 /**
@@ -12,17 +12,22 @@ import { sessionCookieHeader } from "@/server/session-cookies";
  *   /api/messages/ops/rentals/messages[/<lease>[/read|/files/<id>]|/unread]   the landlord's side
  *   /api/messages/me/tenancies/<lease>/messages[/read|/files/<id>]           the tenant's side
  *   /api/messages/me/tenancies/messages[/unread]
+ *   /api/messages/ops/rentals/placement-messages[/<placement>[/read|/files/<id>]]   the landlord with brokers
+ *   /api/messages/ops/broker/messages[/unread|/<placement>[/read|/files/<id>]]        the broker
  */
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const LANDLORD = new RegExp(`^ops/rentals/messages(/unread|/${UUID}(/read|/files/${UUID})?)?$`, "i");
 const TENANT = new RegExp(`^me/tenancies/(messages(/unread)?|${UUID}/messages(/read|/files/${UUID})?)$`, "i");
+const LANDLORD_BROKERS = new RegExp(`^ops/rentals/placement-messages(/${UUID}(/read|/files/${UUID})?)?$`, "i");
+const BROKER = new RegExp(`^ops/broker/messages(/unread|/${UUID}(/read|/files/${UUID})?)?$`, "i");
 
 const refuse = (status: number, message: string) => NextResponse.json({ message }, { status });
 
 async function forward(request: NextRequest, params: Promise<{ path: string[] }>, method: "GET" | "POST") {
   const path = (await params).path.join("/");
-  const landlord = LANDLORD.test(path);
-  if (!landlord && !TENANT.test(path)) return refuse(404, "That was not found.");
+  const landlord = LANDLORD.test(path) || LANDLORD_BROKERS.test(path);
+  const broker = BROKER.test(path);
+  if (!landlord && !broker && !TENANT.test(path)) return refuse(404, "That was not found.");
   const cookie = sessionCookieHeader(request.cookies.getAll());
   if (!cookie) return refuse(401, "Sign in again to read your messages.");
   const headers: Record<string, string> = {
@@ -30,13 +35,19 @@ async function forward(request: NextRequest, params: Promise<{ path: string[] }>
     origin: apiOrigin(),
     cookie,
   };
-  if (landlord) {
+  if (landlord || broker) {
     try {
       const account = await accountFor(cookie);
       if (!account) return refuse(401, "Sign in again to read your messages.");
-      const workspace = workspaceFor(account, "residence");
-      if (workspace?.domain !== "residence") return refuse(404, "There is no rentals business here.");
-      headers["x-workspace-id"] = workspace.workspaceId;
+      if (broker) {
+        const workspace = brokerWorkspace(account);
+        if (!workspace) return refuse(404, "There is no broker registration here.");
+        headers["x-workspace-id"] = workspace.workspaceId;
+      } else {
+        const workspace = workspaceFor(account, "residence");
+        if (workspace?.domain !== "residence") return refuse(404, "There is no rentals business here.");
+        headers["x-workspace-id"] = workspace.workspaceId;
+      }
     } catch (error) {
       if (error instanceof ApiError && error.unauthenticated)
         return refuse(401, "Sign in again to read your messages.");

@@ -13,8 +13,20 @@ const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").rep
 const PATH = "/api/realtime";
 
 export interface MessageEvent {
-  leaseId: string;
+  /** A lease conversation's event names its lease; a broker conversation's (2026-10-26), its placement. */
+  leaseId?: string;
+  placementId?: string;
   threadId: string;
+}
+
+/** Which conversation: a lease's (landlord and tenant) or a placement's (broker and landlord). */
+export type ConversationRef = { kind: "lease"; id: string } | { kind: "placement"; id: string };
+
+const refKey = (ref: ConversationRef) => `${ref.kind}:${ref.id}`;
+
+/** Whether an event is about this conversation. */
+export function isAbout(e: MessageEvent, ref: ConversationRef): boolean {
+  return ref.kind === "lease" ? e.leaseId === ref.id : e.placementId === ref.id;
 }
 
 type Listener = (event: MessageEvent) => void;
@@ -24,11 +36,17 @@ let workspaceId: string | null = null;
 const onNew = new Set<Listener>();
 const onRead = new Set<Listener>();
 const onStatus = new Set<(connected: boolean) => void>();
-const threads = new Map<string, { workspaceId: string | null; count: number }>();
+const threads = new Map<string, { ref: ConversationRef; workspaceId: string | null; count: number }>();
+
+function joinPayload(ref: ConversationRef, ws: string | null) {
+  return ref.kind === "lease"
+    ? { leaseId: ref.id, workspaceId: ws ?? undefined }
+    : { placementId: ref.id, workspaceId: ws ?? undefined };
+}
 
 function rejoin(s: Socket) {
   if (workspaceId) s.emit("workspace", { workspaceId });
-  for (const [leaseId, t] of threads) s.emit("thread", { leaseId, workspaceId: t.workspaceId ?? undefined });
+  for (const t of threads.values()) s.emit("thread", joinPayload(t.ref, t.workspaceId));
 }
 
 function ensure(): Socket | null {
@@ -71,24 +89,28 @@ export function joinWorkspace(id: string | null): void {
   if (s?.connected && id) s.emit("workspace", { workspaceId: id });
 }
 
-/** An open conversation hears its own events; call again after the first message made the thread. */
-export function joinThread(leaseId: string, ws: string | null): () => void {
-  const t = threads.get(leaseId) ?? { workspaceId: ws, count: 0 };
+/**
+ * An open conversation hears its own events; call again after the first message made the thread.
+ * `ws` is the landlord's business; the tenant and the broker pass null (their own rooms).
+ */
+export function joinThread(ref: ConversationRef, ws: string | null): () => void {
+  const key = refKey(ref);
+  const t = threads.get(key) ?? { ref, workspaceId: ws, count: 0 };
   t.count += 1;
-  threads.set(leaseId, t);
+  threads.set(key, t);
   const s = ensure();
-  if (s?.connected) s.emit("thread", { leaseId, workspaceId: ws ?? undefined });
+  if (s?.connected) s.emit("thread", joinPayload(ref, ws));
   return () => {
-    const cur = threads.get(leaseId);
+    const cur = threads.get(key);
     if (!cur) return;
     cur.count -= 1;
-    if (cur.count <= 0) threads.delete(leaseId);
+    if (cur.count <= 0) threads.delete(key);
   };
 }
 
-export function rejoinThread(leaseId: string, ws: string | null): void {
+export function rejoinThread(ref: ConversationRef, ws: string | null): void {
   const s = ensure();
-  if (s?.connected) s.emit("thread", { leaseId, workspaceId: ws ?? undefined });
+  if (s?.connected) s.emit("thread", joinPayload(ref, ws));
 }
 
 export function onMessage(f: Listener): () => void {
