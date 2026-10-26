@@ -500,6 +500,12 @@ function fromFirstReal<T extends Record<K, number>, K extends keyof T>(
   };
 }
 
+/** How many months, from the first one with any amount, a money series covers. */
+const monthsWithData = (rows: readonly object[]): number => {
+  const first = rows.findIndex((r) => Object.values(r).some((v) => typeof v === "number" && v !== 0));
+  return first === -1 ? 0 : rows.length - first;
+};
+
 /** A dot on every point only when a series is too short to draw a line. */
 const lonelyDot = (real: number, color: string) => (real <= 1 ? { r: 3.5, strokeWidth: 0, fill: color } : false);
 
@@ -601,14 +607,20 @@ export function CollectedVsExpectedArea({
       actions={
         <>
           {actions}
-          {data.length > 3 ? <ChartPeriodSwitch value={months} onChange={setMonths} /> : null}
+          {data.length > 3 && monthsWithData(data) > 1 ? (
+            <ChartPeriodSwitch value={months} onChange={setMonths} />
+          ) : null}
         </>
       }
       className={className}
-      legend={[
-        { label: "Collected", color: CHART_COLOR.cat(1) },
-        { label: "Expected", color: "var(--chart-other)", line: true },
-      ]}
+      legend={
+        real <= 1
+          ? undefined
+          : [
+              { label: "Collected", color: CHART_COLOR.cat(1) },
+              { label: "Expected", color: "var(--chart-other)", line: true },
+            ]
+      }
       isEmpty={data.length === 0 || data.every((d) => d.expected === 0 && d.collected === 0)}
       empty={{ icon: "Wallet", title: "No rent due yet", action: emptyAction }}
       summary={`${formatMoney(collected)} collected of ${formatMoney(expected)} expected over the last ${shown.length} months, ${rate}%.`}
@@ -729,14 +741,20 @@ export function CashFlowArea({
       actions={
         <>
           {actions}
-          {data.length > 3 ? <ChartPeriodSwitch value={months} onChange={setMonths} /> : null}
+          {data.length > 3 && monthsWithData(data) > 1 ? (
+            <ChartPeriodSwitch value={months} onChange={setMonths} />
+          ) : null}
         </>
       }
       className={className}
-      legend={[
-        { label: "Money in", color: CHART_COLOR.cat(1) },
-        { label: "Money out", color: CHART_COLOR.cat(3) },
-      ]}
+      legend={
+        real <= 1
+          ? undefined
+          : [
+              { label: "Money in", color: CHART_COLOR.cat(1) },
+              { label: "Money out", color: CHART_COLOR.cat(3) },
+            ]
+      }
       isEmpty={data.length === 0 || data.every((d) => d.moneyIn === 0 && d.moneyOut === 0)}
       empty={{ icon: "ChartLine", title: "No money in or out yet", action: emptyAction }}
       summary={`${formatMoney(totalIn)} in and ${formatMoney(totalOut)} out over the last ${shown.length} months, net ${formatMoney(net, { signed: true })}.`}
