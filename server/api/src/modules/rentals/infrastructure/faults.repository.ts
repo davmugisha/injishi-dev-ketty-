@@ -199,8 +199,8 @@ export class FaultsRepository {
              tn.id as tenant_id, tn.full_name as tenant_name, tn.user_id as tenant_user_id,
              coalesce(tu.email, tn.email) as tenant_email,
              t.reference, t.title, t.description, t.category, t.priority, t.status, t.raised_by_role,
-             t.raised_by_user_id, coalesce(nullif(ru.name, ''), case when ru.id = tn.user_id then tn.full_name end, ru.email) as raised_by_name, t.staff_may_enter,
-             t.assignee_kind, t.assigned_to_user_id, coalesce(nullif(au.name, ''), au.email) as assigned_to_name,
+             t.raised_by_user_id, coalesce(nullif(ru.name, ''), case when ru.id = tn.user_id then tn.full_name end, (select nullif(lp.signatory_name, '') from landlord_profiles lp where lp.org_id = t.org_id and lower(lp.contact_email) = lower(ru.email)), ru.email) as raised_by_name, t.staff_may_enter,
+             t.assignee_kind, t.assigned_to_user_id, coalesce(nullif(au.name, ''), (select nullif(lp.signatory_name, '') from landlord_profiles lp where lp.org_id = t.org_id and lower(lp.contact_email) = lower(au.email)), au.email) as assigned_to_name,
              t.assigned_contractor, t.assigned_contractor_phone, t.acknowledged_at, t.resolved_at,
              t.wont_fix_reason, t.reopened_count, t.created_at, t.updated_at,
              (select count(*)::int from maintenance_photos mp where mp.ticket_id = t.id) as photo_count,
@@ -349,7 +349,7 @@ export class FaultsRepository {
       created_at: Date;
     }>(sql`
       select e.id, e.ticket_id, e.kind, e.from_status, e.to_status, e.note, e.author_user_id, e.author_role,
-             coalesce(nullif(u.name, ''), tn.full_name, u.email) as author_name, e.visible_to_tenant, e.created_at
+             coalesce(nullif(u.name, ''), tn.full_name, (select nullif(lp.signatory_name, '') from landlord_profiles lp where lp.org_id = t.org_id and lower(lp.contact_email) = lower(u.email)), u.email) as author_name, e.visible_to_tenant, e.created_at
         from maintenance_events e
         join maintenance_tickets t on t.id = e.ticket_id
         left join leases l on l.id = t.lease_id

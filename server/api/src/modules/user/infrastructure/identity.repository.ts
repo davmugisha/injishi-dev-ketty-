@@ -5,6 +5,7 @@ import {
   identityChallenges,
   identityDocuments,
   userProfiles,
+  users,
   verifiedIdentities,
 } from '../../../database/drizzle/schema';
 import {
@@ -227,6 +228,12 @@ export class IdentityRepository {
           target: verifiedIdentities.userId,
           set: { ...identity, verifiedByUserId: null, updatedAt: now },
         });
+
+      // A nameless account takes the verified legal name, so it is greeted and shown by name, not by email.
+      await tx
+        .update(users)
+        .set({ name: input.fullName, updatedAt: now })
+        .where(and(eq(users.id, userId), sql`coalesce(btrim(${users.name}), '') = ''`));
 
       await tx
         .update(identityDocuments)
