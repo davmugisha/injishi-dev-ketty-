@@ -17,9 +17,11 @@ import {
   type DataColumn,
   DataTable,
   EmptyBlock,
+  FilterSelect,
   FilterTabs,
   formatNumber,
   Icon,
+  ListToolbar,
   PageContent,
   PageHeader,
   SearchBar,
@@ -46,26 +48,28 @@ export interface FaultsQuery {
 
 const ALL_UNITS = "all";
 
-function PhotoMark({ count }: { count: number }) {
-  if (count === 0) {
+/** The fault's first photo as a small thumbnail (with how many there are), or a wrench without photos. */
+function PhotoMark({ url, count }: { url: string | null; count: number }) {
+  if (count === 0 || !url) {
     return (
       <span
         className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-default text-muted"
         aria-hidden="true"
       >
-        <Icon name="Wrench" />
+        <Icon name={count > 0 ? "Camera" : "Wrench"} />
       </span>
     );
   }
   return (
-    <span
-      className="relative flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"
-      title={count === 1 ? "1 photo" : `${count} photos`}
-    >
-      <Icon name="Camera" />
-      <span className="absolute -right-1 -bottom-1 rounded-full bg-surface px-1 text-xs font-medium text-foreground tabular shadow-sm">
-        {count}
-      </span>
+    <span className="relative flex size-10 shrink-0" title={count === 1 ? "1 photo" : `${count} photos`}>
+      {/* A short-lived read of the stored photo: not an optimisable static image. */}
+      {/* biome-ignore lint/performance/noImgElement: signed storage URL */}
+      <img src={url} alt="" loading="lazy" className="size-10 rounded-lg bg-default object-cover" />
+      {count > 1 ? (
+        <span className="absolute -right-1 -bottom-1 rounded-full bg-surface px-1 text-xs font-medium text-foreground tabular shadow-sm">
+          {count}
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -136,7 +140,7 @@ export function FaultsView({
         sortValue: (f) => f.title,
         cell: (f) => (
           <div className="flex min-w-0 items-center gap-3">
-            <PhotoMark count={f.photoCount} />
+            <PhotoMark url={f.thumbUrl} count={f.photoCount} />
             <div className="flex min-w-0 flex-col">
               <span className="truncate font-medium">{f.title}</span>
               <span className="truncate text-xs text-muted">
@@ -222,49 +226,41 @@ export function FaultsView({
       <Toast.Provider placement="bottom" />
       <PageHeader title="Faults" actions={raiseButton} />
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        {query.view === "list" ? (
-          <FilterTabs
-            label="Faults by stage"
-            tabs={tabs}
-            selectedKey={query.tab}
-            onSelectionChange={(key) => go({ tab: key as FaultListTab })}
-          />
-        ) : (
-          <span className="text-sm font-medium">Open faults by stage</span>
-        )}
-        <div className="flex flex-wrap items-center gap-2">
-          <SearchBar
-            label="Search faults"
-            value={search}
-            onChange={onSearch}
-            placeholder="Fault, unit or tenant"
-            className="min-w-0 basis-full sm:basis-auto"
-          />
-          {units.length > 1 ? (
-            <SelectField
-              label={<span className="sr-only">Unit</span>}
-              options={[{ id: ALL_UNITS, label: "All units" }, ...units]}
-              value={query.unitId ?? ALL_UNITS}
-              onChange={(v) => go({ unitId: v === ALL_UNITS ? null : v })}
-              className="w-36"
+      <ListToolbar
+        tabs={
+          query.view === "list" ? (
+            <FilterTabs
+              label="Faults by stage"
+              tabs={tabs}
+              selectedKey={query.tab}
+              onSelectionChange={(key) => go({ tab: key as FaultListTab })}
             />
-          ) : null}
-          <Segment
-            aria-label="Show as"
-            selectedKey={query.view}
-            onSelectionChange={(k) => go({ view: k === "board" ? "board" : "list", tab: "all" })}
-            size="sm"
-          >
-            <Segment.Item id="list" aria-label="List">
-              <Icon name="LayoutList" />
-            </Segment.Item>
-            <Segment.Item id="board" aria-label="Board">
-              <Icon name="LayoutColumns" />
-            </Segment.Item>
-          </Segment>
-        </div>
-      </div>
+          ) : undefined
+        }
+      >
+        <SearchBar label="Search faults" value={search} onChange={onSearch} placeholder="Fault, unit or tenant" />
+        {units.length > 1 ? (
+          <FilterSelect
+            label="Unit"
+            options={[{ id: ALL_UNITS, label: "All units" }, ...units]}
+            value={query.unitId ?? ALL_UNITS}
+            onChange={(v) => go({ unitId: v === ALL_UNITS ? null : v })}
+          />
+        ) : null}
+        <Segment
+          aria-label="Show as"
+          selectedKey={query.view}
+          onSelectionChange={(k) => go({ view: k === "board" ? "board" : "list", tab: "all" })}
+          className="shrink-0"
+        >
+          <Segment.Item id="list" aria-label="List">
+            <Icon name="LayoutList" />
+          </Segment.Item>
+          <Segment.Item id="board" aria-label="Board">
+            <Icon name="LayoutColumns" />
+          </Segment.Item>
+        </Segment>
+      </ListToolbar>
 
       <div className={pending ? "opacity-60 transition-opacity" : "transition-opacity"} aria-busy={pending}>
         {query.view === "board" ? (
@@ -277,7 +273,7 @@ export function FaultsView({
             columns={columns}
             onRowAction={(f) => setSelected(f.id)}
             mobile={{
-              leading: (f) => <PhotoMark count={f.photoCount} />,
+              leading: (f) => <PhotoMark url={f.thumbUrl} count={f.photoCount} />,
               title: (f) => f.title,
               description: (f) =>
                 [f.unitLabel ? `Unit ${f.unitLabel}` : null, f.tenantName, ageWords(f.reportedAt, today)]
