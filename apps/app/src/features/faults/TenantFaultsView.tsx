@@ -106,7 +106,8 @@ export function TenantFaultsView({
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader eyebrow={placeWords(tenancy)} title="Faults" actions={reportButton} />
+      {/* With nothing reported, the empty state carries the one Report button. */}
+      <PageHeader eyebrow={placeWords(tenancy)} title="Faults" actions={items.length > 0 ? reportButton : null} />
       <DataTable
         label="Your faults"
         rows={items}
