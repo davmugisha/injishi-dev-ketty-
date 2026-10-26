@@ -107,7 +107,6 @@ function kpis(o: RentalsOverview): KpiItem[] {
       format: "count",
       icon: "Persons",
       href: `${LEASES}?tab=active`,
-      footnote: `${formatNumber(o.occupiedUnits)} ${o.occupiedUnits === 1 ? "home" : "homes"} lived in`,
     },
   ];
 }
@@ -304,7 +303,12 @@ export function LandlordHomeView({
           />
         ) : null}
         {/* On a phone, setup and what needs attention come before the charts. */}
-        <div className={cx("order-first flex min-w-0 flex-col gap-5 lg:order-none", !overview && "lg:col-span-3")}>
+        <div
+          className={cx(
+            "order-first flex min-w-0 flex-col gap-5 *:last:flex-1 lg:order-none",
+            !overview && "lg:col-span-3",
+          )}
+        >
           {setupOpen ? <SetupChecklist setup={setup} /> : null}
           {summary ? <NeedsAttention items={attention} /> : null}
         </div>

@@ -90,7 +90,7 @@ export function ChartCard({
   const canTable = Boolean(table) && !isEmpty;
   return (
     <Widget
-      className={cx("h-full min-w-0", className)}
+      className={cx("min-w-0", className)}
       render={(props) => <figure {...props} aria-labelledby={titleId} aria-describedby={summaryId} />}
     >
       <Widget.Header className="flex-wrap gap-y-1 pt-3 pb-1">

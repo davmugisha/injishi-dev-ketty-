@@ -407,7 +407,7 @@ export function LeaseRecordView({
       <FilterTabs label="Lease record" tabs={tabs} selectedKey={shownTab} onSelectionChange={goTab} />
 
       {shownTab === "overview" ? (
-        <div className="grid min-w-0 items-start gap-5 lg:grid-cols-3">
+        <div className="grid min-w-0 gap-5 lg:grid-cols-3">
           <SectionCard title="Terms" className="lg:col-span-2">
             <KeyValueList
               items={[
@@ -437,7 +437,7 @@ export function LeaseRecordView({
               ]}
             />
           </SectionCard>
-          <div className="flex min-w-0 flex-col gap-5">
+          <div className="flex min-w-0 flex-col gap-5 *:last:flex-1">
             <SectionCard title="Tenant">
               <PersonCell
                 name={lease.tenant.fullName}
@@ -517,7 +517,7 @@ export function LeaseRecordView({
       ) : null}
 
       {shownTab === "contract" ? (
-        <div className="grid min-w-0 items-start gap-5 lg:grid-cols-3">
+        <div className="grid min-w-0 gap-5 lg:grid-cols-3">
           <SectionCard
             className="lg:col-span-2"
             title="The contract"
@@ -549,7 +549,7 @@ export function LeaseRecordView({
               />
             )}
           </SectionCard>
-          <div className="flex min-w-0 flex-col gap-5">
+          <div className="flex min-w-0 flex-col gap-5 *:last:flex-1">
             <SectionCard title="Signatures">
               {signatures.length === 0 ? (
                 <p className="text-sm text-muted">Nobody has signed this version yet.</p>
@@ -608,12 +608,8 @@ export function LeaseRecordView({
             <p className="text-sm text-muted">The rent on a lease is for people who look after the money here.</p>
           </SectionCard>
         ) : (
-          <div className="flex min-w-0 flex-col gap-5">
-            <SectionCard
-              title="Charges"
-              description="What the lease has asked for, newest first."
-              contentClassName="gap-0"
-            >
+          <div className="flex min-w-0 flex-col gap-5 *:last:flex-1">
+            <SectionCard title="Charges" contentClassName="gap-0">
               <ChargesTable charges={charges} />
             </SectionCard>
             <SectionCard title="Payments" contentClassName="gap-0">

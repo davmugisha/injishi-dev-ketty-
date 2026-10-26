@@ -62,15 +62,15 @@ export function RentalsSettingsView({
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
-      <PageHeader title="Settings" description={profile.legalName} />
+      <PageHeader title="Settings" />
       <FilterTabs
         label="Settings"
         tabs={SETTINGS_TABS.filter((id) => id !== "team" || can.team).map((id) => ({ id, label: LABEL[id] }))}
         selectedKey={tab}
         onSelectionChange={(key) => router.replace(`${pathname}?tab=${key}`, { scroll: false })}
       />
-      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-3">
-        <div className="flex min-w-0 flex-col gap-5 lg:col-span-2">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-3">
+        <div className="flex min-w-0 flex-col gap-5 *:last:flex-1 lg:col-span-2">
           {tab === "getting-paid" ? <PayoutAccounts accounts={accounts} canManage={can.payouts} /> : null}
           {tab === "location" ? <Location properties={properties} canEdit={can.location} /> : null}
           {tab === "lease-defaults" ? (

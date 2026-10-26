@@ -34,7 +34,7 @@ export function SectionCard({
   const hasHeader = Boolean(title || actions);
   return (
     <Card
-      className={cx("h-full min-w-0 gap-4", className)}
+      className={cx("min-w-0 gap-4", className)}
       render={(props) => <section {...props} aria-labelledby={title ? titleId : undefined} />}
     >
       {hasHeader ? (

@@ -16,13 +16,8 @@ const WHY: Record<RentalsSetupStep, string> = {
 export function SetupView({ setup }: { setup: RentalsSetupView }) {
   return (
     <PageContent>
-      <PageHeader
-        title="Setup"
-        description={
-          setup.complete ? "Your business is ready for tenants." : "A few steps before your first tenant signs."
-        }
-      />
-      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-3">
+      <PageHeader title="Setup" />
+      <div className="grid min-w-0 gap-5 lg:grid-cols-3">
         <SetupChecklist setup={setup} title="Steps" className="lg:col-span-2" />
         <SectionCard title="Why each step">
           <ul className="flex flex-col gap-3">
