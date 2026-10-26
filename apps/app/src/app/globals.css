@@ -29,6 +29,36 @@
     background-color: var(--surface);
     box-shadow: var(--surface-shadow);
   }
+  /* Collapsed rail: keep icons comfortable (Pro default 48px is too tight). */
+  .workspace-shell {
+    --sidebar-width-collapsed: 4.25rem;
+  }
+  .workspace-shell .sidebar[data-state="collapsed"]:not([data-collapsible="offcanvas"]) {
+    width: var(--sidebar-width-collapsed);
+  }
+  .workspace-shell .sidebar[data-state="collapsed"] .sidebar__menu-item-content {
+    justify-content: center;
+    padding-inline: 0.5rem;
+    min-height: 2.5rem;
+  }
+  .workspace-shell .sidebar[data-state="collapsed"] .sidebar__menu-icon {
+    margin-inline: 0;
+  }
+  .workspace-shell .sidebar__collapse-btn {
+    border-radius: 9999px;
+    color: var(--muted);
+    border: 1px solid transparent;
+  }
+  .workspace-shell .sidebar__collapse-btn:hover {
+    color: var(--foreground);
+    background: var(--default);
+    border-color: var(--border);
+  }
+  .workspace-shell .sidebar[data-state="collapsed"] .sidebar__collapse-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    margin-block: 0.25rem;
+  }
   @media (max-width: 768px) {
     .workspace-shell .app-layout__body {
       margin: 0;

@@ -25,7 +25,8 @@
      sits inside them, one for buttons. See "Surfaces and controls" below. */
   --surface-radius: 0.75rem;
   --inner-radius: 0.5rem;
-  --control-radius: 0.625rem;
+  /* Pill controls — match the rest of the product's round buttons. */
+  --control-radius: 9999px;
 
   /* Border width */
   --border-width-field: 0.8488516842015111px;

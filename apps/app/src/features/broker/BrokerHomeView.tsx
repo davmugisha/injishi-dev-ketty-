@@ -1,4 +1,4 @@
-import { Alert } from "@heroui/react";
+import { Alert, Avatar } from "@heroui/react";
 import type {
   BrokerEarnings,
   BrokerHomes,
@@ -18,6 +18,7 @@ import {
   PageContent,
   PageHeader,
   SectionCard,
+  toneColor,
 } from "@injishi/ui";
 import NextLink from "next/link";
 import { canMessagePlacement, placementMessageHref } from "../messages/links";
@@ -39,6 +40,7 @@ export function BrokerHomeView({
   plan,
   earnings,
   today,
+  desk = false,
 }: {
   firstName: string;
   summary: BrokerSummary;
@@ -47,23 +49,41 @@ export function BrokerHomeView({
   plan: BrokerPlanOverview;
   earnings: BrokerEarnings;
   today: string;
+  /** When true, Overview sits under Homes desk tabs — no second page chrome. */
+  desk?: boolean;
 }) {
   const newest = homes.homes.slice(0, 2);
   const recent = placements.placements.slice(0, 5);
   const current = plan.current;
   // The name the broker registered with (their ID), else the account's.
   const first = summary.name?.trim().split(/\s+/)[0] || firstName;
-  return (
-    <PageContent>
+  const findHomes = "/broker?tab=homes";
+  const body = (
+    <>
+      {desk ? null : (
       <PageHeader
         size="hello"
         title={first ? `Welcome back, ${first}` : "Welcome back"}
         actions={
-          <ActionLink href={screenHref("BrokerDirectory")} icon="Magnifier" intent="primary">
+          <ActionLink href={findHomes} icon="Magnifier" intent="primary">
             Find homes
           </ActionLink>
         }
       />
+      )}
+      {desk ? (
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <h1 className="font-heading text-2xl font-semibold tracking-tight">
+              {first ? `Welcome back, ${first}` : "Welcome back"}
+            </h1>
+            <p className="text-sm text-muted">{summary.scope.area}</p>
+          </div>
+          <ActionLink href={findHomes} icon="Magnifier" intent="primary">
+            Find homes
+          </ActionLink>
+        </div>
+      ) : null}
       {summary.status === "suspended" ? (
         <Alert status="danger">
           <Alert.Content>
@@ -86,7 +106,7 @@ export function BrokerHomeView({
             value: summary.homesInScope,
             format: "count",
             icon: "FolderHouse",
-            href: screenHref("BrokerDirectory"),
+            href: findHomes,
             footnote: summary.scope.area,
           },
           {
@@ -131,7 +151,7 @@ export function BrokerHomeView({
           title="Newest homes"
           className="lg:col-span-2"
           actions={
-            <ActionLink href={screenHref("BrokerDirectory")} size="sm" icon="ArrowRight">
+            <ActionLink href={findHomes} size="sm" icon="ArrowRight">
               All homes
             </ActionLink>
           }
@@ -148,7 +168,7 @@ export function BrokerHomeView({
               action={
                 summary.scope.needsDistrict || summary.scope.upgrade ? (
                   <ActionLink
-                    href={screenHref("BrokerPlan")}
+                    href="/account?plan=1"
                     icon={summary.scope.needsDistrict ? "MapPin" : "ArrowUpRight"}
                   >
                     {summary.scope.needsDistrict ? "Choose a district" : "See more of Rwanda"}
@@ -160,7 +180,7 @@ export function BrokerHomeView({
             <ul className="grid gap-4 sm:grid-cols-2">
               {newest.map((h) => (
                 <li key={h.unitId} className="flex">
-                  <HomeCard home={h} href={`${screenHref("BrokerDirectory")}?home=${h.unitId}`} />
+                  <HomeCard home={h} href={`${findHomes}&home=${h.unitId}`} />
                 </li>
               ))}
             </ul>
@@ -171,7 +191,7 @@ export function BrokerHomeView({
           className="h-full"
           contentClassName="flex-1"
           actions={
-            <ActionLink href={screenHref("BrokerPlan")} size="sm" icon="CreditCard">
+            <ActionLink href="/account?plan=1" size="sm" icon="CreditCard">
               {current.plan === "country" ? "Manage" : "Upgrade"}
             </ActionLink>
           }
@@ -198,8 +218,8 @@ export function BrokerHomeView({
           />
           {summary.scope.upgrade ? (
             <NextLink
-              href={screenHref("BrokerPlan")}
-              className="mt-auto flex items-center justify-between gap-3 rounded-lg bg-default/60 px-3 py-2.5 text-sm transition-colors hover:bg-default"
+              href="/account?plan=1"
+              className="mt-auto flex items-center justify-between gap-3 rounded-2xl bg-default/60 px-3 py-2.5 text-sm transition-colors hover:bg-default"
             >
               <span className="flex min-w-0 flex-col">
                 <span className="truncate font-medium">{summary.scope.upgrade.area}</span>
@@ -229,10 +249,15 @@ export function BrokerHomeView({
               description="Open a home and say you have a tenant."
             />
           ) : (
-            <ul className="flex flex-col divide-y divide-border">
+            <ul className="flex flex-col divide-y divide-separator">
               {recent.map((p) => (
                 <li key={p.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-                  <span className="flex min-w-0 flex-col">
+                  <Avatar size="sm" variant="soft" color={toneColor("default")} className="hidden shrink-0 sm:flex">
+                    <Avatar.Fallback>
+                      <Icon name="FolderHouse" />
+                    </Avatar.Fallback>
+                  </Avatar>
+                  <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-sm font-medium">
                       {p.unit ? `${p.unit.label} · ${p.unit.propertyName}` : (p.landlordName ?? "A home")}
                     </span>
@@ -261,6 +286,7 @@ export function BrokerHomeView({
           )}
         </SectionCard>
       </div>
-    </PageContent>
+    </>
   );
+  return desk ? <div className="flex flex-col gap-6">{body}</div> : <PageContent>{body}</PageContent>;
 }

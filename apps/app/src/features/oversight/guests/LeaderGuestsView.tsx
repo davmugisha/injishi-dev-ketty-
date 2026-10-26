@@ -85,9 +85,16 @@ export function LeaderGuestsView({
   const sectorId = params.get("sectorId");
   const cellId = params.get("cellId");
   const villageId = params.get("villageId");
+  const origin = params.get("origin");
+  const guests =
+    origin === "nationals"
+      ? page.guests.filter((g) => !g.fromAbroad)
+      : origin === "international"
+        ? page.guests.filter((g) => g.fromAbroad)
+        : page.guests;
   const pages = Math.max(1, Math.ceil(page.total / page.pageSize));
   const emptyKey = page.tab === "arriving" && page.when === "later" ? "later" : page.tab;
-  const narrowed = Boolean(sectorId || cellId || villageId || params.get("q"));
+  const narrowed = Boolean(sectorId || cellId || villageId || params.get("q") || origin);
 
   return (
     <PageContent>
@@ -159,7 +166,7 @@ export function LeaderGuestsView({
         ]}
       />
 
-      <Card className="min-w-0 gap-4 p-4">
+      <Card className="min-w-0 gap-4 rounded-2xl p-4">
         <div className="flex flex-wrap items-end gap-3">
           {page.tab === "arriving" ? (
             <Segment
@@ -174,6 +181,16 @@ export function LeaderGuestsView({
               </Segment.Item>
             </Segment>
           ) : null}
+          <Segment
+            aria-label="Guest origin"
+            selectedKey={params.get("origin") ?? "all"}
+            onSelectionChange={(k) => go({ origin: k === "all" ? null : String(k) })}
+            className="w-fit"
+          >
+            <Segment.Item id="all">All</Segment.Item>
+            <Segment.Item id="nationals">Nationals</Segment.Item>
+            <Segment.Item id="international">International</Segment.Item>
+          </Segment>
           {filters.sectors.length > 0 ? (
             <SelectField
               label="Sector"
@@ -224,7 +241,7 @@ export function LeaderGuestsView({
 
         <DataTable<LeaderGuest>
           label={TAB_LABEL[page.tab]}
-          rows={page.guests}
+          rows={guests}
           rowKey={(g) => g.id}
           onRowAction={setOpen}
           empty={

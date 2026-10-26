@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar, Card, Chip } from "@heroui/react";
+import { Avatar, Chip } from "@heroui/react";
 import type {
   RentalsAttentionItem,
   RentalsAttentionKind,
@@ -15,6 +15,7 @@ import {
   CashFlowArea,
   CHART_COLOR,
   CollectedVsExpectedArea,
+  EmptyBlock,
   formatDay,
   formatMoney,
   formatNumber,
@@ -132,10 +133,7 @@ function NeedsAttention({ items }: { items: RentalsAttentionItem[] }) {
       contentClassName="gap-0"
     >
       {items.length === 0 ? (
-        <p className="flex items-center gap-2 py-2 text-sm text-muted">
-          <Icon name="CircleCheck" className="size-4 text-success" />
-          Nothing needs you right now.
-        </p>
+        <EmptyBlock size="sm" icon="CircleCheck" title="Nothing needs you right now" />
       ) : (
         <ul className="flex flex-col divide-y divide-separator">
           {items.map((item) => {
@@ -166,7 +164,17 @@ function NeedsAttention({ items }: { items: RentalsAttentionItem[] }) {
 }
 
 /** Where the units stand: one bar split by state, and each state's count as a link to that list. */
-function UnitsCard({ o, vacant, canLease }: { o: RentalsOverview; vacant: RentalUnitView[]; canLease: boolean }) {
+function UnitsCard({
+  o,
+  vacant,
+  canLease,
+  canAddUnits,
+}: {
+  o: RentalsOverview;
+  vacant: RentalUnitView[];
+  canLease: boolean;
+  canAddUnits: boolean;
+}) {
   const parts = [
     {
       id: "occupied",
@@ -203,7 +211,19 @@ function UnitsCard({ o, vacant, canLease }: { o: RentalsOverview; vacant: Rental
       }
     >
       {total === 0 ? (
-        <p className="text-sm text-muted">No units yet.</p>
+        <EmptyBlock
+          size="sm"
+          icon="FolderHouse"
+          title="No units yet"
+          description="Add a building and its units to see occupancy here."
+          action={
+            canAddUnits ? (
+              <ActionLink href={`${UNITS}?add=1`} size="sm" icon="Plus">
+                Add unit
+              </ActionLink>
+            ) : undefined
+          }
+        />
       ) : (
         <>
           <div className="flex items-baseline gap-2">
@@ -329,9 +349,11 @@ export function LandlordHomeView({
       {overview ? (
         <KpiStrip label={`Your homes in ${monthName(overview.month)}`} items={kpis(overview, summary)} />
       ) : (
-        <Card className="p-4">
-          <p className="text-sm text-muted">The money figures are for people who look after the money here.</p>
-        </Card>
+        <EmptyBlock
+          icon="Wallet"
+          title="Money figures are restricted"
+          description="Your role can manage homes and leases; someone with finance access sees rent collected here."
+        />
       )}
 
       <div className="grid min-w-0 gap-5 lg:grid-cols-3">
@@ -361,7 +383,7 @@ export function LandlordHomeView({
             data={overview.months.map((m) => ({ month: m.month, moneyIn: m.collectedRwf, moneyOut: m.spentRwf }))}
             emptyAction={noUnits ? addUnit : undefined}
           />
-          <UnitsCard o={overview} vacant={vacantUnits} canLease={canLease} />
+          <UnitsCard o={overview} vacant={vacantUnits} canLease={canLease} canAddUnits={canAddUnits} />
         </div>
       ) : null}
     </PageContent>

@@ -254,7 +254,8 @@ export function UnitsView({
             format: "percent",
             icon: "ChartLine",
             progress: unitCount > 0 ? (occupiedCount / unitCount) * 100 : 0,
-            footnote: `${formatNumber(occupiedCount)} of ${formatNumber(unitCount)} occupied`,
+            footnote:
+              unitCount === 0 ? "No units yet" : `${formatNumber(occupiedCount)} of ${formatNumber(unitCount)} occupied`,
             href: "?tab=occupied",
             isCurrent: query.tab === "occupied",
           },
@@ -265,7 +266,14 @@ export function UnitsView({
             format: "count",
             icon: "FolderHouse",
             status: (list.counts.vacant ?? 0) > 0 ? "warning" : undefined,
-            footnote: vacantRent > 0 ? `${formatMoney(vacantRent)} a month unlet` : "All let",
+            footnote:
+              unitCount === 0
+                ? "No units yet"
+                : vacantRent > 0
+                  ? `${formatMoney(vacantRent)} a month unlet`
+                  : (list.counts.vacant ?? 0) > 0
+                    ? "Free to let"
+                    : "All let",
             href: "?tab=vacant",
             isCurrent: query.tab === "vacant",
           },
@@ -279,7 +287,7 @@ export function UnitsView({
                 ? "No asking rent set yet"
                 : priced.length < all.length
                   ? `${formatNumber(priced.length)} of ${formatNumber(all.length)} units priced`
-                  : undefined,
+                  : `Across ${formatNumber(priced.length)} ${priced.length === 1 ? "unit" : "units"}`,
           },
         ]}
       />

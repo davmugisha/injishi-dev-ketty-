@@ -110,10 +110,15 @@ function CollapseToggle({ where }: { where: "header" | "rail" }) {
   if (where === "rail" && isOpen) return null;
   return (
     <IconAction
-      icon="LayoutSideContentLeft"
+      icon={isOpen ? "ChevronLeft" : "ChevronRight"}
       label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
       onPress={toggleSidebar}
-      className={where === "header" ? "ml-auto text-muted" : "mx-auto text-muted"}
+      size="md"
+      className={
+        where === "header"
+          ? "sidebar__collapse-btn ml-auto"
+          : "sidebar__collapse-btn mx-auto size-10"
+      }
     />
   );
 }

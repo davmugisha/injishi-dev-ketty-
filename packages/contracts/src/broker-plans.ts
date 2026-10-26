@@ -45,7 +45,10 @@ export function provinceLabel(name: string): string {
     WEST: "Western Province",
   };
   if (known[key]) return known[key];
-  return name.trim().charAt(0).toUpperCase() + name.trim().slice(1).toLowerCase();
+  const trimmed = name.trim();
+  // Already written in mixed case ("Kigali City"): keep it. Only an all-caps name is title-cased.
+  if (trimmed !== trimmed.toUpperCase()) return trimmed;
+  return trimmed.toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
 }
 
 /** What a plan covers, in words: "Gasabo", "All of Kigali City", "All of Rwanda". */

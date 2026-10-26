@@ -1,6 +1,7 @@
 "use client";
 
 import { Card } from "@heroui/react";
+import { Segment } from "@heroui-pro/react";
 import { BarChart } from "@heroui-pro/react/bar-chart";
 import type { GuestReport, LeaderSummary } from "@injishi/contracts";
 import {
@@ -22,7 +23,11 @@ import {
   SelectField,
 } from "@injishi/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useMemo } from "react";
 import { scopeLine } from "./LeaderGuestsView";
+
+type OriginFilter = "all" | "nationals" | "international";
+
 
 const AREA_WORD = { sector: "Sector", cell: "Cell", village: "Village" } as const;
 
@@ -114,9 +119,27 @@ export function LeaderReportsView({
   const sectorId = params.get("sectorId");
   const cellId = params.get("cellId");
   const villageId = params.get("villageId");
-  const totalNationality = report.byNationality.reduce((n, r) => n + r.count, 0);
+  const origin = (params.get("origin") as OriginFilter | null) ?? "all";
+  const nationalityRows = useMemo(() => {
+    if (origin === "nationals") return report.byNationality.filter((n) => n.code.toUpperCase() === "RW");
+    if (origin === "international") return report.byNationality.filter((n) => n.code.toUpperCase() !== "RW");
+    return report.byNationality;
+  }, [origin, report.byNationality]);
+  const totalNationality = nationalityRows.reduce((n, r) => n + r.count, 0);
+  const nationalsCount = report.byNationality
+    .filter((n) => n.code.toUpperCase() === "RW")
+    .reduce((n, r) => n + r.count, 0);
+  const internationalCount = Math.max(0, t.registered - nationalsCount);
   const totalRelationship = report.byRelationship.reduce((n, r) => n + r.count, 0);
   const span = `${formatDay(report.period.from)} to ${formatDay(report.period.to)}`;
+  const areaRows =
+    origin === "all"
+      ? report.byArea
+      : report.byArea.map((a) => ({
+          ...a,
+          registered: origin === "international" ? a.fromAbroad : Math.max(0, a.registered - a.fromAbroad),
+          fromAbroad: origin === "international" ? a.fromAbroad : 0,
+        }));
 
   return (
     <PageContent>
@@ -148,54 +171,68 @@ export function LeaderReportsView({
         ]}
       />
 
-      <Card className="min-w-0 flex-row flex-wrap items-end gap-3 p-4">
-        <PeriodPicker
-          value={period}
-          today={today}
-          allowFuture
-          maxDays={731}
-          onChange={(p) => go({ from: p.start, to: p.end })}
-          label="Report period"
-        />
-        {filters.sectors.length > 0 ? (
-          <SelectField
-            label="Sector"
-            className="w-full sm:w-44"
-            value={sectorId}
-            placeholder="All sectors"
-            options={[
-              { id: "", label: "All sectors" },
-              ...filters.sectors.map((s) => ({ id: String(s.id), label: s.name })),
-            ]}
-            onChange={(v) => go({ sectorId: v || null, cellId: null, villageId: null })}
+      <Card className="min-w-0 flex flex-col gap-4 rounded-2xl p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <PeriodPicker
+            value={period}
+            today={today}
+            allowFuture
+            maxDays={731}
+            onChange={(p) => go({ from: p.start, to: p.end })}
+            label="Report period"
           />
-        ) : null}
-        {filters.cells.length > 0 ? (
-          <SelectField
-            label="Cell"
-            className="w-full sm:w-44"
-            value={cellId}
-            placeholder="All cells"
-            options={[
-              { id: "", label: "All cells" },
-              ...filters.cells.map((c) => ({ id: String(c.id), label: c.name })),
-            ]}
-            onChange={(v) => go({ cellId: v || null, villageId: null })}
-          />
-        ) : null}
-        {filters.villages.length > 0 ? (
-          <SelectField
-            label="Village"
-            className="w-full sm:w-44"
-            value={villageId}
-            placeholder="All villages"
-            options={[
-              { id: "", label: "All villages" },
-              ...filters.villages.map((v) => ({ id: String(v.id), label: v.name })),
-            ]}
-            onChange={(v) => go({ villageId: v || null })}
-          />
-        ) : null}
+          {filters.sectors.length > 0 ? (
+            <SelectField
+              label="Sector"
+              className="w-full sm:w-44"
+              value={sectorId}
+              placeholder="All sectors"
+              options={[
+                { id: "", label: "All sectors" },
+                ...filters.sectors.map((s) => ({ id: String(s.id), label: s.name })),
+              ]}
+              onChange={(v) => go({ sectorId: v || null, cellId: null, villageId: null })}
+            />
+          ) : null}
+          {filters.cells.length > 0 ? (
+            <SelectField
+              label="Cell"
+              className="w-full sm:w-44"
+              value={cellId}
+              placeholder="All cells"
+              options={[
+                { id: "", label: "All cells" },
+                ...filters.cells.map((c) => ({ id: String(c.id), label: c.name })),
+              ]}
+              onChange={(v) => go({ cellId: v || null, villageId: null })}
+            />
+          ) : null}
+          {filters.villages.length > 0 ? (
+            <SelectField
+              label="Village"
+              className="w-full sm:w-44"
+              value={villageId}
+              placeholder="All villages"
+              options={[
+                { id: "", label: "All villages" },
+                ...filters.villages.map((v) => ({ id: String(v.id), label: v.name })),
+              ]}
+              onChange={(v) => go({ villageId: v || null })}
+            />
+          ) : null}
+        </div>
+        <Segment
+          aria-label="Guest origin"
+          selectedKey={origin}
+          onSelectionChange={(key) =>
+            go({ origin: key === "all" ? null : String(key) })
+          }
+          className="w-fit"
+        >
+          <Segment.Item id="all">All guests</Segment.Item>
+          <Segment.Item id="nationals">Nationals</Segment.Item>
+          <Segment.Item id="international">International</Segment.Item>
+        </Segment>
       </Card>
 
       <KpiStrip
@@ -203,8 +240,9 @@ export function LeaderReportsView({
         items={[
           {
             id: "registered",
-            label: "Registered",
-            value: t.registered,
+            label: origin === "nationals" ? "Nationals" : origin === "international" ? "International" : "Registered",
+            value:
+              origin === "nationals" ? nationalsCount : origin === "international" ? internationalCount : t.registered,
             format: "count",
             icon: "PersonPlus",
             footnote: "Arriving in the period",
@@ -240,12 +278,12 @@ export function LeaderReportsView({
       <div className="grid min-w-0 gap-4 lg:grid-cols-3">
         <ArrivalsChart report={report} className="lg:col-span-2" />
         <SectionCard title="Nationalities" description={span} className="lg:col-span-1">
-          {report.byNationality.length === 0 ? (
-            <EmptyBlock size="sm" icon="Globe" title="No guests in this period" />
+          {nationalityRows.length === 0 ? (
+            <EmptyBlock size="sm" icon="Globe" title="No guests in this view" />
           ) : (
             <RankedBars
               total={totalNationality}
-              rows={report.byNationality.map((n) => ({ key: n.code, label: n.name, count: n.count }))}
+              rows={nationalityRows.map((n) => ({ key: n.code, label: n.name, count: n.count }))}
             />
           )}
         </SectionCard>
@@ -259,7 +297,7 @@ export function LeaderReportsView({
         >
           <DataTable
             label={`Guests by ${AREA_WORD[report.areaLevel].toLowerCase()}`}
-            rows={report.byArea}
+            rows={areaRows}
             rowKey={(a) => String(a.id)}
             defaultSort={{ column: "registered", direction: "descending" }}
             empty={<EmptyBlock size="sm" icon="MapPin" title="No guests in this period" />}

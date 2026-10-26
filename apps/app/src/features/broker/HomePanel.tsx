@@ -3,6 +3,7 @@
 import { toast } from "@heroui/react";
 import type { BrokerHome } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
+import { homeCoverPhoto } from "@injishi/data/home-stock";
 import {
   ActionButton,
   ActionLink,
@@ -105,14 +106,15 @@ export function HomePanel({ home: initial, onClose }: { home: BrokerHome; onClos
         }
       >
         <PhotoGallery
-          photos={home.photos.map((url, i) => ({ url, alt: i === 0 ? `Unit ${home.unitLabel}` : undefined }))}
-          label={`Unit ${home.unitLabel}`}
-          empty={
-            <div className="flex h-32 w-full flex-col items-center justify-center gap-1 rounded-lg bg-default text-sm text-muted">
-              <Icon name="Picture" className="size-6" />
-              No photos yet
-            </div>
+          photos={
+            home.photos.length > 0
+              ? home.photos.map((url, i) => ({ url, alt: i === 0 ? `Unit ${home.unitLabel}` : undefined }))
+              : (() => {
+                  const cover = homeCoverPhoto(home.unitId, home.photos);
+                  return [{ url: cover.src, alt: cover.alt }];
+                })()
           }
+          label={`Unit ${home.unitLabel}`}
         />
         {home.video ? (
           // biome-ignore lint/a11y/useMediaCaption: a walk through a home has no speech to caption

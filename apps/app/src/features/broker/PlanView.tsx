@@ -54,7 +54,21 @@ const PAYMENT: Record<BrokerPlanPayment["status"], { tone: StatusTone; label: st
  * follows the phone); a cheaper plan or ending the plan takes effect when the month ends. The home
  * district changes once per 30 days on the free plan.
  */
-export function PlanView({ data, openPaymentId }: { data: BrokerPlanOverview; openPaymentId: string | null }) {
+export type PlanSection = "plan" | "payments" | "district";
+
+export function PlanView({
+  data,
+  openPaymentId,
+  embedded = false,
+  section = "plan",
+}: {
+  data: BrokerPlanOverview;
+  openPaymentId: string | null;
+  /** Inside the Account plan dialog — no outer page chrome. */
+  embedded?: boolean;
+  /** Which left-rail tab is active when embedded (Cursor-style settings). */
+  section?: PlanSection;
+}) {
   const router = useRouter();
   const [buying, setBuying] = useState<"province" | "country" | null>(null);
   const [watching, setWatching] = useState<string | null>(openPaymentId ?? null);
@@ -112,20 +126,40 @@ export function PlanView({ data, openPaymentId }: { data: BrokerPlanOverview; op
     },
   ];
 
-  return (
-    <PageContent>
-      <PageHeader
-        title="Plan"
-        actions={
-          paid && !current.endsInto && current.status !== "past_due" ? (
-            <ActionButton icon="CircleXmark" onPress={() => setCancelling(true)}>
-              End at month end
-            </ActionButton>
-          ) : null
-        }
-      />
+  const header = embedded ? (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 className="font-heading text-xl font-semibold tracking-tight">Your plan</h2>
+        <p className="text-sm text-muted">{current.area}</p>
+      </div>
+      {paid && !current.endsInto && current.status !== "past_due" ? (
+        <ActionButton icon="CircleXmark" onPress={() => setCancelling(true)}>
+          End at month end
+        </ActionButton>
+      ) : null}
+    </div>
+  ) : (
+    <PageHeader
+      title="Plan"
+      actions={
+        paid && !current.endsInto && current.status !== "past_due" ? (
+          <ActionButton icon="CircleXmark" onPress={() => setCancelling(true)}>
+            End at month end
+          </ActionButton>
+        ) : null
+      }
+    />
+  );
 
-      {current.status === "past_due" && current.graceUntil ? (
+  const showPlan = !embedded || section === "plan";
+  const showPayments = !embedded || section === "payments";
+  const showDistrict = !embedded || section === "district";
+
+  const body = (
+    <>
+      {showPlan ? header : null}
+
+      {showPlan && current.status === "past_due" && current.graceUntil ? (
         <Card className="flex flex-row flex-wrap items-center justify-between gap-3 border border-warning p-4">
           <span className="flex items-center gap-2 text-sm">
             <Icon name="TriangleExclamation" className="text-warning" />
@@ -140,7 +174,7 @@ export function PlanView({ data, openPaymentId }: { data: BrokerPlanOverview; op
           </ActionButton>
         </Card>
       ) : null}
-      {data.pending && !watching ? (
+      {showPlan && data.pending && !watching ? (
         <Card className="flex flex-row flex-wrap items-center justify-between gap-3 p-4">
           <span className="flex items-center gap-2 text-sm">
             <Spinner size="sm" />A payment of {formatMoney(data.pending.amountRwf)} is waiting.
@@ -149,92 +183,94 @@ export function PlanView({ data, openPaymentId }: { data: BrokerPlanOverview; op
         </Card>
       ) : null}
 
-      <ul className="grid items-stretch gap-4 md:grid-cols-3" aria-label="Plans">
-        {data.plans.map((p) => {
-          const isCurrent = p.code === current.plan;
-          const higher = RANK[p.code] > RANK[current.plan];
-          const scheduled = current.endsInto === p.code;
-          const today = higher ? quote(p.code) : null;
-          return (
-            <li key={p.code} className="flex">
-              <Card
-                className={
-                  isCurrent ? "flex w-full flex-col gap-4 p-5 ring-2 ring-accent" : "flex w-full flex-col gap-4 p-5"
-                }
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="flex flex-col gap-0.5">
-                    <span className="text-lg font-semibold">{p.name}</span>
-                    <span className="text-sm text-muted">{area(p.code)}</span>
-                  </span>
+      {showPlan ? (
+        <ul className="grid items-stretch gap-4 md:grid-cols-3" aria-label="Plans">
+          {data.plans.map((p) => {
+            const isCurrent = p.code === current.plan;
+            const higher = RANK[p.code] > RANK[current.plan];
+            const scheduled = current.endsInto === p.code;
+            const today = higher ? quote(p.code) : null;
+            return (
+              <li key={p.code} className="flex">
+                <Card
+                  className={
+                    isCurrent ? "flex w-full flex-col gap-4 p-5 ring-2 ring-accent" : "flex w-full flex-col gap-4 p-5"
+                  }
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="flex flex-col gap-0.5">
+                      <span className="text-lg font-semibold">{p.name}</span>
+                      <span className="text-sm text-muted">{area(p.code)}</span>
+                    </span>
+                    {isCurrent ? (
+                      <Chip size="sm" variant="soft" color="accent">
+                        Your plan
+                      </Chip>
+                    ) : scheduled ? (
+                      <Chip size="sm" variant="soft" color="warning">
+                        From {current.periodEnd ? formatDay(current.periodEnd, "short") : "next month"}
+                      </Chip>
+                    ) : null}
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-semibold tabular">
+                      {p.priceRwf === 0 ? "Free" : formatMoney(p.priceRwf)}
+                    </span>
+                    {p.priceRwf > 0 ? <span className="text-sm text-muted">a month</span> : null}
+                  </div>
+                  <ul className="flex flex-1 flex-col gap-1.5 text-sm">
+                    <li className="flex items-start gap-2">
+                      <Icon name="CircleCheck" className="mt-0.5 text-success" />
+                      {p.code === "district"
+                        ? "Homes in your district"
+                        : p.code === "province"
+                          ? "Homes in one province"
+                          : "Homes anywhere in Rwanda"}
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Icon name="CircleCheck" className="mt-0.5 text-success" />
+                      Free landlord contacts
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Icon name="CircleCheck" className="mt-0.5 text-success" />
+                      {p.code === "district" ? "Change district once a month" : "Renews by itself, 3 days' grace"}
+                    </li>
+                  </ul>
                   {isCurrent ? (
-                    <Chip size="sm" variant="soft" color="accent">
-                      Your plan
-                    </Chip>
-                  ) : scheduled ? (
-                    <Chip size="sm" variant="soft" color="warning">
-                      From {current.periodEnd ? formatDay(current.periodEnd, "short") : "next month"}
-                    </Chip>
-                  ) : null}
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-semibold tabular">
-                    {p.priceRwf === 0 ? "Free" : formatMoney(p.priceRwf)}
-                  </span>
-                  {p.priceRwf > 0 ? <span className="text-sm text-muted">a month</span> : null}
-                </div>
-                <ul className="flex flex-1 flex-col gap-1.5 text-sm">
-                  <li className="flex items-start gap-2">
-                    <Icon name="CircleCheck" className="mt-0.5 text-success" />
-                    {p.code === "district"
-                      ? "Homes in your district"
-                      : p.code === "province"
-                        ? "Homes in one province"
-                        : "Homes anywhere in Rwanda"}
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Icon name="CircleCheck" className="mt-0.5 text-success" />
-                    Free landlord contacts
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Icon name="CircleCheck" className="mt-0.5 text-success" />
-                    {p.code === "district" ? "Change district once a month" : "Renews by itself, 3 days' grace"}
-                  </li>
-                </ul>
-                {isCurrent ? (
-                  current.nextPaymentOn && current.nextAmountRwf ? (
-                    <p className="text-xs text-muted">
-                      Renews {formatDay(current.nextPaymentOn, "long")} for {formatMoney(current.nextAmountRwf)}
-                    </p>
-                  ) : current.endsInto ? (
-                    <ActionButton icon="ArrowRotateLeft" onPress={() => downgrade(current.plan)} isPending={pending}>
-                      Keep {p.name}
+                    current.nextPaymentOn && current.nextAmountRwf ? (
+                      <p className="text-xs text-muted">
+                        Renews {formatDay(current.nextPaymentOn, "long")} for {formatMoney(current.nextAmountRwf)}
+                      </p>
+                    ) : current.endsInto ? (
+                      <ActionButton icon="ArrowRotateLeft" onPress={() => downgrade(current.plan)} isPending={pending}>
+                        Keep {p.name}
+                      </ActionButton>
+                    ) : null
+                  ) : higher ? (
+                    <ActionButton
+                      intent="primary"
+                      icon="ArrowUpRight"
+                      onPress={() => setBuying(p.code as "province" | "country")}
+                    >
+                      {today !== null && today !== p.priceRwf
+                        ? `Upgrade for ${formatMoney(today)}`
+                        : `Upgrade to ${p.name}`}
                     </ActionButton>
-                  ) : null
-                ) : higher ? (
-                  <ActionButton
-                    intent="primary"
-                    icon="ArrowUpRight"
-                    onPress={() => setBuying(p.code as "province" | "country")}
-                  >
-                    {today !== null && today !== p.priceRwf
-                      ? `Upgrade for ${formatMoney(today)}`
-                      : `Upgrade to ${p.name}`}
-                  </ActionButton>
-                ) : scheduled ? null : (
-                  <ActionButton icon="ArrowDown" onPress={() => downgrade(p.code)} isPending={pending}>
-                    Switch when the month ends
-                  </ActionButton>
-                )}
-              </Card>
-            </li>
-          );
-        })}
-      </ul>
+                  ) : scheduled ? null : (
+                    <ActionButton icon="ArrowDown" onPress={() => downgrade(p.code)} isPending={pending}>
+                      Switch when the month ends
+                    </ActionButton>
+                  )}
+                </Card>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
 
-      <div className="grid items-stretch gap-4 lg:grid-cols-3">
-        <HomeDistrict data={data} />
-        <SectionCard title="Payments" className="lg:col-span-2">
+      {showDistrict && !showPayments ? <HomeDistrict data={data} /> : null}
+      {showPayments && !showDistrict ? (
+        <SectionCard title="Payments">
           <DataTable
             label="Plan payments"
             rows={data.payments}
@@ -254,7 +290,32 @@ export function PlanView({ data, openPaymentId }: { data: BrokerPlanOverview; op
             empty={<EmptyBlock size="sm" icon="Wallet" title="No payments yet" description="District is free." />}
           />
         </SectionCard>
-      </div>
+      ) : null}
+      {!embedded ? (
+        <div className="grid items-stretch gap-4 lg:grid-cols-3">
+          <HomeDistrict data={data} />
+          <SectionCard title="Payments" className="lg:col-span-2">
+            <DataTable
+              label="Plan payments"
+              rows={data.payments}
+              rowKey={(p) => p.id}
+              columns={columns}
+              defaultSort={{ column: "on", direction: "descending" }}
+              mobile={{
+                title: (p) => NAME[p.planCode],
+                description: (p) => `${formatDay(p.createdAt, "short")} · ${p.methodWords}`,
+                trailing: (p) => (
+                  <span className="flex flex-col items-end gap-1">
+                    <span className="tabular">{formatMoney(p.amountRwf)}</span>
+                    <StatusChip tone={PAYMENT[p.status].tone}>{PAYMENT[p.status].label}</StatusChip>
+                  </span>
+                ),
+              }}
+              empty={<EmptyBlock size="sm" icon="Wallet" title="No payments yet" description="District is free." />}
+            />
+          </SectionCard>
+        </div>
+      ) : null}
 
       {buying ? (
         <CheckoutPanel
@@ -288,8 +349,9 @@ export function PlanView({ data, openPaymentId }: { data: BrokerPlanOverview; op
           ? `You keep ${current.area} until ${formatDay(current.periodEnd, "long")}, then see your district only.`
           : null}
       </ConfirmDialog>
-    </PageContent>
+    </>
   );
+  return embedded ? <div className="flex flex-col gap-4">{body}</div> : <PageContent>{body}</PageContent>;
 }
 
 function HomeDistrict({ data }: { data: BrokerPlanOverview }) {

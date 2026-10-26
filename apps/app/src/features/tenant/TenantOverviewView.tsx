@@ -14,6 +14,7 @@ import {
   ActionButton,
   ActionLink,
   DateText,
+  EmptyBlock,
   formatDay,
   formatLocalPhone,
   formatMoney,
@@ -29,6 +30,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 import { dueDayWords, placeWords, tenantGuestsHref, tenantLeaseHref, tenantRentHref } from "../leases/shared";
+import { HomeCoverImage } from "../rentals/home-cover";
 import { nextRent } from "./format";
 import { PayPanel } from "./PayPanel";
 import { RateBrokerDialog } from "./TenantBrokerCard";
@@ -169,7 +171,8 @@ export function TenantOverviewView({
       />
 
       <div className="grid min-w-0 gap-5 lg:grid-cols-3">
-        <Card className="min-w-0 gap-0 p-0 lg:col-span-2">
+        <Card className="min-w-0 gap-0 overflow-hidden p-0 shadow-surface lg:col-span-2">
+          <HomeCoverImage seed={tenancy.id} className="aspect-[2.4/1] max-h-36 w-full sm:max-h-40" />
           <div className="grid h-full min-w-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,15rem)]">
             <div className="flex min-w-0 flex-col gap-4 p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -255,7 +258,7 @@ export function TenantOverviewView({
 
         <SectionCard title="To do" className="h-full lg:col-span-2" contentClassName="gap-0">
           {todo.length === 0 ? (
-            <p className="text-sm text-muted">Nothing to do.</p>
+            <EmptyBlock size="sm" icon="CircleCheck" title="You are all caught up" />
           ) : (
             <ListView
               aria-label="To do"
@@ -270,7 +273,7 @@ export function TenantOverviewView({
               {(item) => (
                 <ListView.Item id={item.id} textValue={item.title} className="cursor-pointer">
                   <ListView.ItemContent className="items-center gap-3">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-default text-muted">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
                       <Icon name={item.icon} />
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -328,7 +331,12 @@ export function TenantOverviewView({
           }
         >
           {payments.length === 0 ? (
-            <p className="text-sm text-muted">No payments yet.</p>
+            <EmptyBlock
+              size="sm"
+              icon="Receipt"
+              title="No payments yet"
+              description={canPay ? "When you pay rent or a deposit, it will show here." : undefined}
+            />
           ) : (
             <ul className="flex flex-col divide-y divide-separator">
               {payments.slice(0, 3).map((p) => (

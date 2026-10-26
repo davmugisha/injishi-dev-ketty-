@@ -6,6 +6,7 @@ import { ActionLink, formatMoney, Icon } from "@injishi/ui";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
 import { canMessagePlacement, placementMessageHref } from "../messages/links";
+import { HomeCoverImage } from "../rentals/home-cover";
 import { feeTermsWords, roomsWords } from "./shared";
 
 const PRESS =
@@ -33,37 +34,25 @@ export function HomeCard({ home, onOpen, href }: { home: BrokerHome; onOpen?: ()
   ]
     .filter(Boolean)
     .join(" · ");
-  const cover = home.photos[0];
   return (
-    <Card className="w-full gap-0 overflow-hidden p-0">
+    <Card className="w-full gap-0 overflow-hidden p-0 shadow-surface">
       <Press href={href} onPress={onOpen}>
-        <div className="relative aspect-video w-full overflow-hidden bg-default">
-          {cover ? (
-            // biome-ignore lint/performance/noImgElement: signed, short-lived URLs
-            <img
-              src={cover}
-              alt={`Unit ${home.unitLabel}`}
-              className="size-full object-cover transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none"
-            />
-          ) : (
-            <span className="flex size-full items-center justify-center text-muted">
-              <Icon name="FolderHouse" className="size-8" />
-            </span>
-          )}
+        <div className="relative">
+          <HomeCoverImage seed={home.unitId} photos={home.photos} className="aspect-video w-full" />
           <span className="absolute top-3 left-3 flex flex-wrap gap-1.5">
             {home.photos.length > 1 ? (
-              <Chip size="sm" className="bg-black/60 text-white">
+              <Chip size="sm" className="border-0 bg-black/55 text-white backdrop-blur-sm">
                 <Icon name="Picture" className="size-3.5" />
                 {home.photos.length}
               </Chip>
             ) : null}
             {home.placement ? (
-              <Chip size="sm" className="bg-black/60 text-white">
+              <Chip size="sm" className="border-0 bg-black/55 text-white backdrop-blur-sm">
                 <Icon name="Persons" className="size-3.5" />
                 {home.placement.status === "initiated" ? "Placement open" : "Placed"}
               </Chip>
             ) : home.contact ? (
-              <Chip size="sm" className="bg-black/60 text-white">
+              <Chip size="sm" className="border-0 bg-black/55 text-white backdrop-blur-sm">
                 <Icon name="Handset" className="size-3.5" />
                 Contact revealed
               </Chip>
@@ -87,7 +76,7 @@ export function HomeCard({ home, onOpen, href }: { home: BrokerHome; onOpen?: ()
             </span>
           </div>
           <span
-            className="mt-auto flex items-center justify-between gap-2 rounded-lg bg-default/60 px-3 py-2 text-sm"
+            className="mt-auto flex items-center justify-between gap-2 rounded-lg bg-surface-secondary px-3 py-2 text-sm"
             title={home.fee.kind === "percent" ? feeTermsWords(home.fee) : undefined}
           >
             <span className="flex min-w-0 items-center gap-1.5 truncate text-muted">

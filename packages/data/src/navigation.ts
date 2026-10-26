@@ -751,19 +751,12 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
     {
       label: null,
       items: [
-        { id: "home", label: "Home", icon: "House", board: "BrokerWork" },
-        { id: "homes", label: "Homes", icon: "Magnifier", board: "BrokerDirectory" },
+        { id: "account", label: "Account", icon: "Person", board: "Account" },
+        { id: "homes", label: "Homes", icon: "House", board: "BrokerWork" },
         { id: "placements", label: "Placements", icon: "Persons", board: "BrokerPlacements" },
         { id: "messages", label: "Messages", icon: "Comments", board: "BrokerMessages" },
         { id: "earnings", label: "Earnings", icon: "Wallet", board: "BrokerEarnings" },
         { id: "reviews", label: "Reviews", icon: "Star", board: "BrokerReviews" },
-      ],
-    },
-    {
-      label: "You",
-      items: [
-        { id: "plan", label: "Plan", icon: "CreditCard", board: "BrokerPlan" },
-        { id: "account", label: "Account", icon: "Person", board: "Account" },
       ],
     },
   ],
