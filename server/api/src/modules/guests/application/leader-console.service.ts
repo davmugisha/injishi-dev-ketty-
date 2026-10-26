@@ -206,7 +206,7 @@ export class LeaderConsoleService {
     const guests = await this.present(rows, posts, today);
     return toCsv(
       [
-        'Guest', 'Nationality', 'From abroad', 'ID type', 'ID number', 'Phone', 'Relationship', 'Coming from',
+        'Guest', 'Nationality', 'Foreign', 'ID type', 'ID number', 'Phone', 'Relationship', 'Coming from',
         'Arrives', 'Leaves', 'Nights', 'Host', 'Host phone', 'Building', 'Unit', 'Address', 'Opened by you', 'Flag notes',
       ],
       guests.map((g) => [

@@ -64,7 +64,7 @@ export function renderGuestReportPdf(report: GuestReport): Promise<Buffer> {
     const figures: [string, string][] = [
       ['Registered', String(t.registered)],
       ['Staying now', String(t.stayingNow)],
-      ['From abroad', String(t.fromAbroad)],
+      ['Foreign guests', String(t.fromAbroad)],
       ['Flagged', String(t.flagged)],
       ['Average stay', t.averageNights === null ? '-' : `${t.averageNights} ${t.averageNights === 1 ? 'night' : 'nights'}`],
     ];
@@ -103,7 +103,7 @@ export function renderGuestReportPdf(report: GuestReport): Promise<Buffer> {
     // --- The breakdowns, two columns -------------------------------------------------------
     const half = (width - 24) / 2;
     const rowsTop = doc.y;
-    table(doc, AREA_HEADING[report.areaLevel], ['Area', 'Guests', 'Abroad', 'Flagged'],
+    table(doc, AREA_HEADING[report.areaLevel], ['Area', 'Guests', 'Foreign', 'Flagged'],
       report.byArea.slice(0, 10).map((a) => [a.name, String(a.registered), String(a.fromAbroad), String(a.flagged)]), left, rowsTop, half);
     const leftEnd = doc.y;
     table(doc, 'By nationality', ['Nationality', 'Guests'],
@@ -117,7 +117,7 @@ export function renderGuestReportPdf(report: GuestReport): Promise<Buffer> {
       left + half + 24, secondTop, half);
     doc.y = Math.max(leftEnd2, doc.y) + 14;
     if (report.chain.length > 0) {
-      table(doc, 'Along the chain', ['Leader post', 'Received', 'Opened', 'Flagged', 'No leader yet'],
+      table(doc, 'Along the chain', ['Leader post', 'Received', 'Opened', 'Flagged', 'Unassigned'],
         report.chain.map((c) => [c.label, String(c.guests), String(c.opened), String(c.flagged), String(c.waiting)]), left, doc.y, width);
       doc.y += 14;
     }
