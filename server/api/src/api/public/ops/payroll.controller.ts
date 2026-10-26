@@ -49,13 +49,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { LoansService } from '../../../modules/people/application/loans.service';
-import { PayAdjustmentsService } from '../../../modules/people/application/pay-adjustments.service';
-import { PayClaimsService } from '../../../modules/people/application/pay-claims.service';
-import { PayComponentsService } from '../../../modules/people/application/pay-components.service';
-import { PayFilesService } from '../../../modules/people/application/pay-files.service';
-import { PayrollViewsService } from '../../../modules/people/application/payroll-views.service';
-import { PayslipsService } from '../../../modules/people/application/payslips.service';
+import { LoansService } from '../../../modules/hr/application/loans.service';
+import { PayAdjustmentsService } from '../../../modules/hr/application/pay-adjustments.service';
+import { PayClaimsService } from '../../../modules/hr/application/pay-claims.service';
+import { PayComponentsService } from '../../../modules/hr/application/pay-components.service';
+import { PayFilesService } from '../../../modules/hr/application/pay-files.service';
+import { PayrollViewsService } from '../../../modules/hr/application/payroll-views.service';
+import { PayslipsService } from '../../../modules/hr/application/payslips.service';
 import {
   CurrentUser,
   SessionGuard,

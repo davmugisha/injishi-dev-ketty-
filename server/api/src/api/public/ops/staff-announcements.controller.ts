@@ -18,7 +18,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { HrContentService } from '../../../modules/people/application/hr-content.service';
+import { HrContentService } from '../../../modules/hr/application/hr-content.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import {
   CurrentUser,

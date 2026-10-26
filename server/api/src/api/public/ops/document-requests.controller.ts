@@ -1,7 +1,7 @@
 import { CreateDocumentRequestRequest, type DocumentRequestList } from '@injishi/contracts';
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 
-import { PeopleFileService } from '../../../modules/people/application/people-file.service';
+import { PeopleFileService } from '../../../modules/hr/application/people-file.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import {
   CurrentUser,

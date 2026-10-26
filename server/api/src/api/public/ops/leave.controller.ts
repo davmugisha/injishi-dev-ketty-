@@ -39,10 +39,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { LeaveAllocationsService } from '../../../modules/people/application/leave-allocations.service';
-import { LeaveTypesService } from '../../../modules/people/application/leave-types.service';
-import { LeaveService } from '../../../modules/people/application/leave.service';
-import { RestrictedPeriodsService } from '../../../modules/people/application/restricted-periods.service';
+import { LeaveAllocationsService } from '../../../modules/hr/application/leave-allocations.service';
+import { LeaveTypesService } from '../../../modules/hr/application/leave-types.service';
+import { LeaveService } from '../../../modules/hr/application/leave.service';
+import { RestrictedPeriodsService } from '../../../modules/hr/application/restricted-periods.service';
 import {
   CurrentUser,
   SessionGuard,

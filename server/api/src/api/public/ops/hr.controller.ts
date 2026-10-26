@@ -25,8 +25,8 @@ import {
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 
-import { HrContentService } from '../../../modules/people/application/hr-content.service';
-import { HrFilesService } from '../../../modules/people/application/hr-files.service';
+import { HrContentService } from '../../../modules/hr/application/hr-content.service';
+import { HrFilesService } from '../../../modules/hr/application/hr-files.service';
 import { MAX_HR_FILE_BYTES } from '../../../modules/storage/application/storage.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import {

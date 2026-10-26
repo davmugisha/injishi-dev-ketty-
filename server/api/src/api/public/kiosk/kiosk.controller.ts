@@ -8,7 +8,7 @@ import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { SkipThrottle } from '@nestjs/throttler';
 
-import { KioskService, type KioskContext } from '../../../modules/people/application/kiosk.service';
+import { KioskService, type KioskContext } from '../../../modules/hr/application/kiosk.service';
 import { isProduction } from '../../../shared/config/security.config';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { KioskThrottlerGuard } from './kiosk-throttler.guard';
