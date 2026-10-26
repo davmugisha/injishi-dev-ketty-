@@ -88,6 +88,13 @@ export function LeaderGuestsView({
   const origin = params.get("origin");
   const nationality = params.get("nationality");
   const nationalities = filters.nationalities ?? [];
+  // The area the figures cover: the place chosen under Area, else the leader's own post.
+  const chosen =
+    filters.villages.find((v) => String(v.id) === villageId)?.name ??
+    filters.cells.find((c) => String(c.id) === cellId)?.name ??
+    filters.sectors.find((x) => String(x.id) === sectorId)?.name;
+  const areaWords = chosen ? tidyPlaceName(chosen) : (page.scopes[0]?.area ?? "your area");
+  const areaShort = areaWords.split(",")[0];
   // The API filters the page, its counts and the CSV by the same choices.
   const guests = page.guests;
   const pages = Math.max(1, Math.ceil(page.total / page.pageSize));
@@ -107,7 +114,7 @@ export function LeaderGuestsView({
       />
 
       <KpiStrip
-        label="Guests in your area"
+        label={`Guests in ${areaWords}`}
         items={[
           {
             id: "arriving",
@@ -115,7 +122,8 @@ export function LeaderGuestsView({
             value: counts.arriving,
             format: "count",
             icon: "Calendar",
-            footnote: counts.later > 0 ? `${formatNumber(counts.later)} later` : "None later",
+            spark: counts.arrivingByDay?.length ? counts.arrivingByDay : undefined,
+            footnote: counts.later > 0 ? `${formatNumber(counts.later)} more later` : `None later in ${areaShort}`,
             href: "/officer/guests?tab=arriving",
             isCurrent: page.tab === "arriving",
           },
@@ -125,7 +133,11 @@ export function LeaderGuestsView({
             value: counts.staying,
             format: "count",
             icon: "House",
-            footnote: "In your area today",
+            spark: counts.stayingByDay?.length ? counts.stayingByDay : undefined,
+            footnote:
+              counts.staying > 0
+                ? `${formatNumber(counts.staying - (counts.stayingForeign ?? 0))} Rwandan · ${formatNumber(counts.stayingForeign ?? 0)} foreign`
+                : `Nobody in ${areaShort} today`,
             href: "/officer/guests?tab=staying",
             isCurrent: page.tab === "staying",
           },
@@ -136,7 +148,12 @@ export function LeaderGuestsView({
             format: "count",
             icon: "Eye",
             status: counts.unseen > 0 ? "warning" : undefined,
-            footnote: counts.unseen > 0 ? "Marked with a dot in the list" : "You opened them all",
+            progress:
+              (counts.current ?? 0) > 0 ? (((counts.current ?? 0) - counts.unseen) / (counts.current ?? 1)) * 100 : 100,
+            footnote:
+              (counts.current ?? 0) > 0
+                ? `${formatNumber((counts.current ?? 0) - counts.unseen)} of ${formatNumber(counts.current ?? 0)} opened`
+                : "Nothing to open",
           },
           {
             id: "flagged",
@@ -152,23 +169,19 @@ export function LeaderGuestsView({
         ]}
       />
 
-      <FilterTabs
-        label="Guests"
-        selectedKey={page.tab}
-        onSelectionChange={(key) => {
-          if (key === "reports") router.push("/officer/guests/reports");
-          else go({ tab: key, when: null });
-        }}
-        tabs={[
-          { id: "arriving", label: TAB_LABEL.arriving, count: counts.arriving },
-          { id: "staying", label: TAB_LABEL.staying, count: counts.staying },
-          { id: "left", label: TAB_LABEL.left, count: counts.left },
-          { id: "flagged", label: TAB_LABEL.flagged, count: counts.flagged },
-          { id: "reports", label: "Reports" },
-        ]}
-      />
-
-      <Card className="min-w-0 gap-4 rounded-2xl p-4">
+      <Card className="min-w-0 gap-4 p-4">
+        {/* The lists, then their filters, in one card. Reports have their own page in the sidebar. */}
+        <FilterTabs
+          label="Guests"
+          selectedKey={page.tab}
+          onSelectionChange={(key) => go({ tab: key, when: null })}
+          tabs={[
+            { id: "arriving", label: TAB_LABEL.arriving, count: counts.arriving },
+            { id: "staying", label: TAB_LABEL.staying, count: counts.staying },
+            { id: "left", label: TAB_LABEL.left, count: counts.left },
+            { id: "flagged", label: TAB_LABEL.flagged, count: counts.flagged },
+          ]}
+        />
         <GuestFilters
           params={params}
           go={go}

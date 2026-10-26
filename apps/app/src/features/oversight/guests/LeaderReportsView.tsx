@@ -10,7 +10,6 @@ import {
   CountDonut,
   DataTable,
   EmptyBlock,
-  FilterTabs,
   formatDay,
   formatNumber,
   KpiStrip,
@@ -225,7 +224,7 @@ export function LeaderReportsView({
     router.push(`${pathname}?${next.toString()}`, { scroll: false });
   };
   const period: Period = periodFromRange(report.period.from, report.period.to, today);
-  const { filters, counts } = summary;
+  const { filters } = summary;
   const t = report.totals;
   const origin = (params.get("origin") as OriginFilter | null) ?? "all";
   const nationality = params.get("nationality");
@@ -260,19 +259,6 @@ export function LeaderReportsView({
             </ActionLink>
           </>
         }
-      />
-
-      <FilterTabs
-        label="Guests"
-        selectedKey="reports"
-        onSelectionChange={(key) => (key === "reports" ? undefined : router.push(`/officer/guests?tab=${key}`))}
-        tabs={[
-          { id: "arriving", label: "Arriving", count: counts.arriving },
-          { id: "staying", label: "Staying now", count: counts.staying },
-          { id: "left", label: "Left", count: counts.left },
-          { id: "flagged", label: "Flagged", count: counts.flagged },
-          { id: "reports", label: "Reports" },
-        ]}
       />
 
       <GuestFilters
