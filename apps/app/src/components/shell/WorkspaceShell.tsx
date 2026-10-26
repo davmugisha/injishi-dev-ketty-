@@ -13,10 +13,11 @@ import {
   screenHref,
   type TopbarStatus,
 } from "@injishi/data";
-import { Icon, IconAction, LinkButton } from "@injishi/ui";
+import { ActionLink, EmptyBlock, Icon, IconAction, LinkButton, PageContent } from "@injishi/ui";
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
 import { BrandMark } from "../brand";
 import { BusinessSwitcher } from "./BusinessSwitcher";
 import { QuickSearch } from "./QuickSearch";
@@ -76,7 +77,9 @@ function NavMenu({
  * leaders and officers). Their top bar shows only what is real for them: no sample pills, no hotel search,
  * no assistant or notification counts drawn from the prototype's fixtures.
  */
-const LIVE_PERSONAS = new Set<string>(["landlord", "tenant", "broker", "officer"]);
+const LIVE_PERSONAS = new Set<string>(["landlord", "tenant", "broker", "officer", "ops"]);
+/** Personas whose screens must never draw sample data: a fixture-backed screen says it is not ready. */
+const REAL_DATA_ONLY = new Set<string>(["officer", "ops"]);
 const LIVE_SECTIONS = new Set<string>(["rentals", "tenant"]);
 
 const SIDEBAR_KEY = "injishi.sidebar";
@@ -308,7 +311,24 @@ export function WorkspaceShell({
       className="workspace-shell"
     >
       <div className="min-w-0">
-        <TopbarStatusProvider value={setOverride}>{children}</TopbarStatusProvider>
+        <TopbarStatusProvider value={setOverride}>
+          {REAL_DATA_ONLY.has(persona.id) && current && (sampleCollectionsByBoard[current] ?? 0) > 0 ? (
+            <PageContent>
+              <EmptyBlock
+                icon="Database"
+                title="This screen is not connected to Injishi's records yet"
+                description="It would show sample figures, so it is closed until it reads real data."
+                action={
+                  <ActionLink href={homeHref(persona.id)} icon="ArrowLeft">
+                    Back
+                  </ActionLink>
+                }
+              />
+            </PageContent>
+          ) : (
+            children
+          )}
+        </TopbarStatusProvider>
       </div>
     </AppLayout>
   );

@@ -7,6 +7,7 @@
 import { isLeaderRole, LEADER_ROLE_SHORT, OVERSIGHT_ROLE_LABEL, type OversightConsoleGrant } from "@injishi/contracts";
 import { type NavGroup, navigationFor, type Persona } from "@injishi/data";
 import { cache } from "react";
+import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
 import { currentApi } from "@/lib/session";
 import { ApiError } from "../api";
 import { leaderSummary } from "./guests";
@@ -49,9 +50,14 @@ export async function officerNav(): Promise<NavGroup[]> {
     });
   }
   if (!leaderOnly(consoles)) {
-    // The review queues as the officer persona lists them, without the sample counts.
+    // The review queues as the officer persona lists them, without the sample counts. Only screens that
+    // read real records: sample-data screens (delegated datasets, bodies and officers) and the bare case
+    // route (a case opens from its queue) are left out.
     for (const g of navigationFor("officer")) {
-      groups.push({ ...g, items: g.items.map(({ chip: _chip, alert: _alert, ...item }) => item) });
+      const items = g.items
+        .filter((i) => i.board !== "OfficerCase" && (sampleCollectionsByBoard[i.board] ?? 0) === 0)
+        .map(({ chip: _chip, alert: _alert, ...item }) => item);
+      if (items.length > 0) groups.push({ ...g, items });
     }
   }
   return groups;
