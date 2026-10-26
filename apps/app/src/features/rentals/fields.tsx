@@ -132,9 +132,12 @@ export function SwitchRow({
         {description ? <span className="text-xs text-muted">{description}</span> : null}
       </span>
       <Switch isSelected={isSelected} onChange={onChange} name={name} aria-labelledby={id} className="mt-0.5 shrink-0">
-        <Switch.Control>
-          <Switch.Thumb />
-        </Switch.Control>
+        {/* The clickable part: without Switch.Content the control is drawn but takes no press. */}
+        <Switch.Content>
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+        </Switch.Content>
       </Switch>
     </div>
   );
