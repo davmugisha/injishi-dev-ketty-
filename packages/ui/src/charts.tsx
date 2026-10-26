@@ -1,12 +1,12 @@
 "use client";
 
-import { Widget } from "@heroui-pro/react";
+import { Segment, Widget } from "@heroui-pro/react";
 import { AreaChart } from "@heroui-pro/react/area-chart";
 import { BarChart } from "@heroui-pro/react/bar-chart";
 import { ComposedChart } from "@heroui-pro/react/composed-chart";
 import { PieChart } from "@heroui-pro/react/pie-chart";
 import { RadialChart } from "@heroui-pro/react/radial-chart";
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useId, useMemo, useState } from "react";
 import { IconAction } from "./buttons.tsx";
 import { formatNumber } from "./format.tsx";
 import { useElementWidth, useNoFocusInside, useReducedMotion } from "./hooks.ts";
@@ -90,7 +90,7 @@ export function ChartCard({
   const canTable = Boolean(table) && !isEmpty;
   return (
     <Widget
-      className={cx("min-w-0", className)}
+      className={cx("h-full min-w-0", className)}
       render={(props) => <figure {...props} aria-labelledby={titleId} aria-describedby={summaryId} />}
     >
       <Widget.Header className="flex-wrap gap-y-1 pt-3 pb-1">
@@ -442,6 +442,266 @@ export function CashFlowComposed({
           />
         </ComposedChart>
       </div>
+    </ChartCard>
+  );
+}
+
+/** How many months a money chart shows; the switch in its header offers these. */
+export const CHART_PERIODS = [3, 6, 12] as const;
+export type ChartPeriod = (typeof CHART_PERIODS)[number];
+
+/** The period switch of a chart header: "3M 6M 12M", the months shown. */
+export function ChartPeriodSwitch({
+  value,
+  onChange,
+  periods = CHART_PERIODS,
+  label = "Months shown",
+}: {
+  value: number;
+  onChange: (months: number) => void;
+  periods?: readonly number[];
+  label?: string;
+}) {
+  return (
+    <Segment aria-label={label} size="sm" selectedKey={String(value)} onSelectionChange={(k) => onChange(Number(k))}>
+      {periods.map((p) => (
+        <Segment.Item key={p} id={String(p)} aria-label={`Last ${p} months`}>
+          {p}M
+        </Segment.Item>
+      ))}
+    </Segment>
+  );
+}
+
+/** The last `months` of a series, with the switch's state: what a money chart's period switch drives. */
+function usePeriod<T>(data: readonly T[], initial: number) {
+  const [months, setMonths] = useState(initial);
+  const shown = useMemo(() => data.slice(-months), [data, months]);
+  return { months, setMonths, shown };
+}
+
+function Gradient({ id, color }: { id: string; color: string }) {
+  return (
+    <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stopColor={color} stopOpacity={0.26} />
+      <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+    </linearGradient>
+  );
+}
+
+/**
+ * Rent collected against rent expected, month by month: collected as a filled area, expected as a dashed
+ * line above it, so the gap between them is the rent still owed. Hover a month for both amounts and the
+ * rate; the header switches between the last 3, 6 and 12 months.
+ */
+export function CollectedVsExpectedArea({
+  data,
+  title = "Rent collected",
+  description,
+  actions,
+  height = 240,
+  initialMonths = 6,
+  emptyAction,
+  className,
+}: {
+  data: MonthAmounts[];
+  title?: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  height?: number;
+  /** The period shown first. @default 6 */
+  initialMonths?: number;
+  emptyAction?: ReactNode;
+  className?: string;
+}) {
+  const motion = !useReducedMotion();
+  const gradient = useId().replace(/:/g, "");
+  const { months, setMonths, shown } = usePeriod(data, initialMonths);
+  const expected = shown.reduce((s, d) => s + d.expected, 0);
+  const collected = shown.reduce((s, d) => s + d.collected, 0);
+  const rate = expected > 0 ? Math.round((collected / expected) * 100) : 0;
+  const rows = shown.map((d) => ({ ...d, label: monthLabel(d.month) }));
+  return (
+    <ChartCard
+      title={title}
+      description={
+        description ?? (expected > 0 ? `${formatMoney(collected)} of ${formatMoney(expected)}, ${rate}%` : undefined)
+      }
+      actions={
+        <>
+          {actions}
+          {data.length > 3 ? <ChartPeriodSwitch value={months} onChange={setMonths} /> : null}
+        </>
+      }
+      className={className}
+      legend={[
+        { label: "Collected", color: CHART_COLOR.cat(1) },
+        { label: "Expected", color: "var(--chart-other)", line: true },
+      ]}
+      isEmpty={data.length === 0 || data.every((d) => d.expected === 0 && d.collected === 0)}
+      empty={{ icon: "Wallet", title: "No rent due yet", action: emptyAction }}
+      summary={`${formatMoney(collected)} collected of ${formatMoney(expected)} expected over the last ${shown.length} months, ${rate}%.`}
+      table={{
+        columns: ["Month", "Expected (RWF)", "Collected (RWF)"],
+        rows: shown.map((d) => [monthLabel(d.month, true), bare(d.expected), bare(d.collected)]),
+      }}
+    >
+      <AreaChart data={rows} height={height} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <defs>
+          <Gradient id={gradient} color={CHART_COLOR.cat(1)} />
+        </defs>
+        <AreaChart.Grid vertical={false} />
+        <AreaChart.XAxis dataKey="label" {...axisProps} tickMargin={8} padding={{ left: 12, right: 12 }} />
+        <AreaChart.YAxis {...axisProps} width={44} tickFormatter={(v: number) => formatMoneyAxis(v)} />
+        <AreaChart.Tooltip
+          cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+          content={
+            <AreaChart.TooltipContent
+              {...moneyTooltip((l) => {
+                const hit = rows.find((r) => r.label === l);
+                if (!hit) return l;
+                const pct = hit.expected > 0 ? ` · ${Math.round((hit.collected / hit.expected) * 100)}%` : "";
+                return `${monthLabel(hit.month, true)}${pct}`;
+              })}
+            />
+          }
+        />
+        <AreaChart.Area
+          dataKey="expected"
+          name="Expected"
+          type="monotone"
+          stroke="var(--chart-other)"
+          strokeWidth={1.5}
+          strokeDasharray="4 4"
+          fill="transparent"
+          dot={false}
+          activeDot={{ r: 3, strokeWidth: 2, stroke: "var(--surface)" }}
+          isAnimationActive={motion}
+        />
+        <AreaChart.Area
+          dataKey="collected"
+          name="Collected"
+          type="monotone"
+          stroke={CHART_COLOR.cat(1)}
+          strokeWidth={2}
+          fill={`url(#${gradient})`}
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
+          isAnimationActive={motion}
+        />
+      </AreaChart>
+    </ChartCard>
+  );
+}
+
+/**
+ * Money in and money out, month by month, as two areas on one franc axis; hover a month for both and
+ * the net. The header switches between the last 3, 6 and 12 months.
+ */
+export function CashFlowArea({
+  data,
+  title = "Cash flow",
+  description,
+  actions,
+  height = 240,
+  initialMonths = 6,
+  emptyAction,
+  className,
+}: {
+  data: MonthFlow[];
+  title?: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  height?: number;
+  /** @default 6 */
+  initialMonths?: number;
+  emptyAction?: ReactNode;
+  className?: string;
+}) {
+  const motion = !useReducedMotion();
+  const inId = useId().replace(/:/g, "");
+  const outId = `${inId}o`;
+  const { months, setMonths, shown } = usePeriod(data, initialMonths);
+  const totalIn = shown.reduce((s, d) => s + d.moneyIn, 0);
+  const totalOut = shown.reduce((s, d) => s + Math.abs(d.moneyOut), 0);
+  const net = totalIn - totalOut;
+  const rows = shown.map((d) => ({
+    label: monthLabel(d.month),
+    month: d.month,
+    moneyIn: d.moneyIn,
+    moneyOut: Math.abs(d.moneyOut),
+  }));
+  return (
+    <ChartCard
+      title={title}
+      description={description ?? `Net ${formatMoney(net, { signed: true })}`}
+      actions={
+        <>
+          {actions}
+          {data.length > 3 ? <ChartPeriodSwitch value={months} onChange={setMonths} /> : null}
+        </>
+      }
+      className={className}
+      legend={[
+        { label: "Money in", color: CHART_COLOR.cat(1) },
+        { label: "Money out", color: CHART_COLOR.cat(3) },
+      ]}
+      isEmpty={data.length === 0 || data.every((d) => d.moneyIn === 0 && d.moneyOut === 0)}
+      empty={{ icon: "ChartLine", title: "No money in or out yet", action: emptyAction }}
+      summary={`${formatMoney(totalIn)} in and ${formatMoney(totalOut)} out over the last ${shown.length} months, net ${formatMoney(net, { signed: true })}.`}
+      table={{
+        columns: ["Month", "In (RWF)", "Out (RWF)", "Net (RWF)"],
+        rows: rows.map((d) => [
+          monthLabel(d.month, true),
+          bare(d.moneyIn),
+          bare(d.moneyOut),
+          formatMoney(d.moneyIn - d.moneyOut, { signed: true, bare: true }),
+        ]),
+      }}
+    >
+      <AreaChart data={rows} height={height} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <defs>
+          <Gradient id={inId} color={CHART_COLOR.cat(1)} />
+          <Gradient id={outId} color={CHART_COLOR.cat(3)} />
+        </defs>
+        <AreaChart.Grid vertical={false} />
+        <AreaChart.XAxis dataKey="label" {...axisProps} tickMargin={8} padding={{ left: 12, right: 12 }} />
+        <AreaChart.YAxis {...axisProps} width={44} tickFormatter={(v: number) => formatMoneyAxis(v)} />
+        <AreaChart.Tooltip
+          cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+          content={
+            <AreaChart.TooltipContent
+              {...moneyTooltip((l) => {
+                const hit = rows.find((r) => r.label === l);
+                if (!hit) return l;
+                return `${monthLabel(hit.month, true)} · net ${formatMoney(hit.moneyIn - hit.moneyOut, { signed: true })}`;
+              })}
+            />
+          }
+        />
+        <AreaChart.Area
+          dataKey="moneyIn"
+          name="Money in"
+          type="monotone"
+          stroke={CHART_COLOR.cat(1)}
+          strokeWidth={2}
+          fill={`url(#${inId})`}
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
+          isAnimationActive={motion}
+        />
+        <AreaChart.Area
+          dataKey="moneyOut"
+          name="Money out"
+          type="monotone"
+          stroke={CHART_COLOR.cat(3)}
+          strokeWidth={2}
+          fill={`url(#${outId})`}
+          dot={false}
+          activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
+          isAnimationActive={motion}
+        />
+      </AreaChart>
     </ChartCard>
   );
 }

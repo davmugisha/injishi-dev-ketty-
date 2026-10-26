@@ -5,7 +5,9 @@ import {
   Checkbox,
   Chip,
   type Key,
+  ListBox,
   SearchField,
+  Select,
   type Selection,
   type SortDescriptor,
   Table,
@@ -354,7 +356,7 @@ export function SearchBar({
       defaultValue={defaultValue}
       onChange={onChange}
       onSubmit={onSubmit}
-      className={cx("w-full sm:w-72", className)}
+      className={cx("w-full min-w-0 md:w-64", className)}
     >
       <SearchField.Group>
         <SearchField.SearchIcon />
@@ -362,5 +364,79 @@ export function SearchBar({
         <SearchField.ClearButton aria-label="Clear search" />
       </SearchField.Group>
     </SearchField>
+  );
+}
+
+/**
+ * The one row above a list: filter tabs on the left, the search and compact filters on the right, one
+ * line under both. On a phone the search and filters come first, the tabs (scrolling sideways) under
+ * them, so the selected tab's underline always sits on the line.
+ */
+export function ListToolbar({
+  tabs,
+  children,
+  className,
+}: {
+  /** A `FilterTabs` (variant "tabs"). */
+  tabs?: ReactNode;
+  /** `SearchBar`, `FilterSelect`s, a view switch: in reading order. */
+  children?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cx(
+        "ij-toolbar flex min-w-0 flex-col-reverse gap-2 md:flex-row md:items-end md:justify-between md:gap-4",
+        tabs ? "md:border-b md:border-separator" : "md:justify-end",
+        className,
+      )}
+    >
+      {tabs ? <div className="min-w-0 max-w-full border-b border-separator md:border-b-0">{tabs}</div> : null}
+      {children ? (
+        <div className="flex min-w-0 items-center gap-2 md:shrink-0 md:pb-1.5 [&>.search-field]:flex-1 md:[&>.search-field]:flex-none">
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** A compact filter for a toolbar: the chosen option is the label ("All units"); the name is for screen readers. */
+export function FilterSelect({
+  label,
+  options,
+  value,
+  onChange,
+  className,
+}: {
+  /** What it filters, for screen readers ("Unit"). */
+  label: string;
+  options: readonly { id: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  return (
+    <Select
+      aria-label={label}
+      value={value}
+      onChange={(k) => (k != null ? onChange(String(k)) : undefined)}
+      className={cx("w-auto min-w-0 shrink-0", className)}
+    >
+      <Select.Trigger className="gap-2">
+        <Select.Value className="truncate" />
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover className="min-w-48">
+        <ListBox>
+          {options.map((o) => (
+            <ListBox.Item key={o.id} id={o.id} textValue={o.label}>
+              {o.label}
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </Select.Popover>
+    </Select>
   );
 }
