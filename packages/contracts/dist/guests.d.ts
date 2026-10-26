@@ -266,9 +266,9 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
     nationality: string;
     relationship: string;
     idNumber?: string | null | undefined;
+    unitId?: string | null | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
-    unitId?: string | null | undefined;
 }, {
     fullName: string;
     phone: string;
@@ -284,10 +284,10 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
     };
     relationship: string;
     idNumber?: string | null | undefined;
+    unitId?: string | null | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
     nationality?: string | undefined;
-    unitId?: string | null | undefined;
 }>, {
     fullName: string;
     phone: string;
@@ -304,9 +304,9 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
     nationality: string;
     relationship: string;
     idNumber?: string | null | undefined;
+    unitId?: string | null | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
-    unitId?: string | null | undefined;
 }, {
     fullName: string;
     phone: string;
@@ -322,10 +322,10 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
     };
     relationship: string;
     idNumber?: string | null | undefined;
+    unitId?: string | null | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
     nationality?: string | undefined;
-    unitId?: string | null | undefined;
 }>;
 export type LandlordGuestRequest = z.infer<typeof LandlordGuestRequest>;
 /** One step of the chain as the host reads it: who it went to and where it stands. Never a flag. */
@@ -423,6 +423,7 @@ export declare const HostGuest: z.ZodObject<{
     propertyId: string;
     arrivalOn: string;
     departureOn: string;
+    unitId: string | null;
     idKind: "national_id" | "passport" | null;
     relationshipOther: string | null;
     origin: {
@@ -434,7 +435,6 @@ export declare const HostGuest: z.ZodObject<{
     };
     nationality: string;
     relationship: string;
-    unitId: string | null;
     hostKind: "landlord" | "tenant";
     nationalityName: string;
     fromAbroad: boolean;
@@ -461,6 +461,7 @@ export declare const HostGuest: z.ZodObject<{
     propertyId: string;
     arrivalOn: string;
     departureOn: string;
+    unitId: string | null;
     idKind: "national_id" | "passport" | null;
     relationshipOther: string | null;
     origin: {
@@ -472,7 +473,6 @@ export declare const HostGuest: z.ZodObject<{
     };
     nationality: string;
     relationship: string;
-    unitId: string | null;
     hostKind: "landlord" | "tenant";
     nationalityName: string;
     fromAbroad: boolean;
@@ -508,20 +508,20 @@ export declare const GuestBuilding: z.ZodObject<{
     name: string;
     address: string | null;
     id: string;
+    located: boolean;
     units: {
         id: string;
         label: string;
     }[];
-    located: boolean;
 }, {
     name: string;
     address: string | null;
     id: string;
+    located: boolean;
     units: {
         id: string;
         label: string;
     }[];
-    located: boolean;
 }>;
 export type GuestBuilding = z.infer<typeof GuestBuilding>;
 export declare const HostGuestTab: z.ZodEnum<["arriving", "staying", "left", "cancelled"]>;
@@ -612,6 +612,7 @@ export declare const HostGuestList: z.ZodObject<{
         propertyId: string;
         arrivalOn: string;
         departureOn: string;
+        unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
         origin: {
@@ -623,7 +624,6 @@ export declare const HostGuestList: z.ZodObject<{
         };
         nationality: string;
         relationship: string;
-        unitId: string | null;
         hostKind: "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
@@ -650,6 +650,7 @@ export declare const HostGuestList: z.ZodObject<{
         propertyId: string;
         arrivalOn: string;
         departureOn: string;
+        unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
         origin: {
@@ -661,7 +662,6 @@ export declare const HostGuestList: z.ZodObject<{
         };
         nationality: string;
         relationship: string;
-        unitId: string | null;
         hostKind: "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
@@ -691,6 +691,7 @@ export declare const HostGuestList: z.ZodObject<{
         propertyId: string;
         arrivalOn: string;
         departureOn: string;
+        unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
         origin: {
@@ -702,7 +703,6 @@ export declare const HostGuestList: z.ZodObject<{
         };
         nationality: string;
         relationship: string;
-        unitId: string | null;
         hostKind: "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
@@ -732,6 +732,7 @@ export declare const HostGuestList: z.ZodObject<{
         propertyId: string;
         arrivalOn: string;
         departureOn: string;
+        unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
         origin: {
@@ -743,7 +744,6 @@ export declare const HostGuestList: z.ZodObject<{
         };
         nationality: string;
         relationship: string;
-        unitId: string | null;
         hostKind: "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
@@ -839,6 +839,7 @@ export declare const TenantGuestList: z.ZodObject<{
         propertyId: string;
         arrivalOn: string;
         departureOn: string;
+        unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
         origin: {
@@ -850,7 +851,6 @@ export declare const TenantGuestList: z.ZodObject<{
         };
         nationality: string;
         relationship: string;
-        unitId: string | null;
         hostKind: "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
@@ -877,6 +877,7 @@ export declare const TenantGuestList: z.ZodObject<{
         propertyId: string;
         arrivalOn: string;
         departureOn: string;
+        unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
         origin: {
@@ -888,7 +889,6 @@ export declare const TenantGuestList: z.ZodObject<{
         };
         nationality: string;
         relationship: string;
-        unitId: string | null;
         hostKind: "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
@@ -929,6 +929,7 @@ export declare const TenantGuestList: z.ZodObject<{
         propertyId: string;
         arrivalOn: string;
         departureOn: string;
+        unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
         origin: {
@@ -940,7 +941,6 @@ export declare const TenantGuestList: z.ZodObject<{
         };
         nationality: string;
         relationship: string;
-        unitId: string | null;
         hostKind: "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
@@ -974,6 +974,7 @@ export declare const TenantGuestList: z.ZodObject<{
         propertyId: string;
         arrivalOn: string;
         departureOn: string;
+        unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
         origin: {
@@ -985,7 +986,6 @@ export declare const TenantGuestList: z.ZodObject<{
         };
         nationality: string;
         relationship: string;
-        unitId: string | null;
         hostKind: "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
@@ -1085,6 +1085,7 @@ export declare const LandlordGuestList: z.ZodObject<{
         propertyId: string;
         arrivalOn: string;
         departureOn: string;
+        unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
         origin: {
@@ -1096,7 +1097,6 @@ export declare const LandlordGuestList: z.ZodObject<{
         };
         nationality: string;
         relationship: string;
-        unitId: string | null;
         hostKind: "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
@@ -1123,6 +1123,7 @@ export declare const LandlordGuestList: z.ZodObject<{
         propertyId: string;
         arrivalOn: string;
         departureOn: string;
+        unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
         origin: {
@@ -1134,7 +1135,6 @@ export declare const LandlordGuestList: z.ZodObject<{
         };
         nationality: string;
         relationship: string;
-        unitId: string | null;
         hostKind: "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
@@ -1170,20 +1170,20 @@ export declare const LandlordGuestList: z.ZodObject<{
         name: string;
         address: string | null;
         id: string;
+        located: boolean;
         units: {
             id: string;
             label: string;
         }[];
-        located: boolean;
     }, {
         name: string;
         address: string | null;
         id: string;
+        located: boolean;
         units: {
             id: string;
             label: string;
         }[];
-        located: boolean;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     guests: {
@@ -1200,6 +1200,7 @@ export declare const LandlordGuestList: z.ZodObject<{
         propertyId: string;
         arrivalOn: string;
         departureOn: string;
+        unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
         origin: {
@@ -1211,7 +1212,6 @@ export declare const LandlordGuestList: z.ZodObject<{
         };
         nationality: string;
         relationship: string;
-        unitId: string | null;
         hostKind: "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
@@ -1230,11 +1230,11 @@ export declare const LandlordGuestList: z.ZodObject<{
         name: string;
         address: string | null;
         id: string;
+        located: boolean;
         units: {
             id: string;
             label: string;
         }[];
-        located: boolean;
     }[];
 }, {
     guests: {
@@ -1251,6 +1251,7 @@ export declare const LandlordGuestList: z.ZodObject<{
         propertyId: string;
         arrivalOn: string;
         departureOn: string;
+        unitId: string | null;
         idKind: "national_id" | "passport" | null;
         relationshipOther: string | null;
         origin: {
@@ -1262,7 +1263,6 @@ export declare const LandlordGuestList: z.ZodObject<{
         };
         nationality: string;
         relationship: string;
-        unitId: string | null;
         hostKind: "landlord" | "tenant";
         nationalityName: string;
         fromAbroad: boolean;
@@ -1281,11 +1281,11 @@ export declare const LandlordGuestList: z.ZodObject<{
         name: string;
         address: string | null;
         id: string;
+        located: boolean;
         units: {
             id: string;
             label: string;
         }[];
-        located: boolean;
     }[];
 }>;
 export type LandlordGuestList = z.infer<typeof LandlordGuestList>;
@@ -1533,6 +1533,17 @@ export declare const LeaderGuest: z.ZodObject<{
     stay: "arriving" | "staying" | "left";
     arrivalOn: string;
     departureOn: string;
+    home: {
+        districtId: number | null;
+        sectorId: number | null;
+        cellId: number | null;
+        villageId: number | null;
+        address: string;
+        propertyName: string;
+        unitLabel: string | null;
+        villageName: string | null;
+        cellName: string | null;
+    };
     idKind: "national_id" | "passport" | null;
     nationality: string;
     nationalityName: string;
@@ -1554,17 +1565,6 @@ export declare const LeaderGuest: z.ZodObject<{
         } | null;
     }[];
     flagged: boolean;
-    home: {
-        districtId: number | null;
-        sectorId: number | null;
-        cellId: number | null;
-        villageId: number | null;
-        address: string;
-        propertyName: string;
-        unitLabel: string | null;
-        villageName: string | null;
-        cellName: string | null;
-    };
     seenByMe: boolean;
     changedAt: string | null;
 }, {
@@ -1582,6 +1582,17 @@ export declare const LeaderGuest: z.ZodObject<{
     stay: "arriving" | "staying" | "left";
     arrivalOn: string;
     departureOn: string;
+    home: {
+        districtId: number | null;
+        sectorId: number | null;
+        cellId: number | null;
+        villageId: number | null;
+        address: string;
+        propertyName: string;
+        unitLabel: string | null;
+        villageName: string | null;
+        cellName: string | null;
+    };
     idKind: "national_id" | "passport" | null;
     nationality: string;
     nationalityName: string;
@@ -1603,17 +1614,6 @@ export declare const LeaderGuest: z.ZodObject<{
         } | null;
     }[];
     flagged: boolean;
-    home: {
-        districtId: number | null;
-        sectorId: number | null;
-        cellId: number | null;
-        villageId: number | null;
-        address: string;
-        propertyName: string;
-        unitLabel: string | null;
-        villageName: string | null;
-        cellName: string | null;
-    };
     seenByMe: boolean;
     changedAt: string | null;
 }>;
@@ -2188,6 +2188,17 @@ export declare const LeaderGuestPage: z.ZodObject<{
         stay: "arriving" | "staying" | "left";
         arrivalOn: string;
         departureOn: string;
+        home: {
+            districtId: number | null;
+            sectorId: number | null;
+            cellId: number | null;
+            villageId: number | null;
+            address: string;
+            propertyName: string;
+            unitLabel: string | null;
+            villageName: string | null;
+            cellName: string | null;
+        };
         idKind: "national_id" | "passport" | null;
         nationality: string;
         nationalityName: string;
@@ -2209,17 +2220,6 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
-        home: {
-            districtId: number | null;
-            sectorId: number | null;
-            cellId: number | null;
-            villageId: number | null;
-            address: string;
-            propertyName: string;
-            unitLabel: string | null;
-            villageName: string | null;
-            cellName: string | null;
-        };
         seenByMe: boolean;
         changedAt: string | null;
     }, {
@@ -2237,6 +2237,17 @@ export declare const LeaderGuestPage: z.ZodObject<{
         stay: "arriving" | "staying" | "left";
         arrivalOn: string;
         departureOn: string;
+        home: {
+            districtId: number | null;
+            sectorId: number | null;
+            cellId: number | null;
+            villageId: number | null;
+            address: string;
+            propertyName: string;
+            unitLabel: string | null;
+            villageName: string | null;
+            cellName: string | null;
+        };
         idKind: "national_id" | "passport" | null;
         nationality: string;
         nationalityName: string;
@@ -2258,17 +2269,6 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
-        home: {
-            districtId: number | null;
-            sectorId: number | null;
-            cellId: number | null;
-            villageId: number | null;
-            address: string;
-            propertyName: string;
-            unitLabel: string | null;
-            villageName: string | null;
-            cellName: string | null;
-        };
         seenByMe: boolean;
         changedAt: string | null;
     }>, "many">;
@@ -2294,6 +2294,17 @@ export declare const LeaderGuestPage: z.ZodObject<{
         stay: "arriving" | "staying" | "left";
         arrivalOn: string;
         departureOn: string;
+        home: {
+            districtId: number | null;
+            sectorId: number | null;
+            cellId: number | null;
+            villageId: number | null;
+            address: string;
+            propertyName: string;
+            unitLabel: string | null;
+            villageName: string | null;
+            cellName: string | null;
+        };
         idKind: "national_id" | "passport" | null;
         nationality: string;
         nationalityName: string;
@@ -2315,17 +2326,6 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
-        home: {
-            districtId: number | null;
-            sectorId: number | null;
-            cellId: number | null;
-            villageId: number | null;
-            address: string;
-            propertyName: string;
-            unitLabel: string | null;
-            villageName: string | null;
-            cellName: string | null;
-        };
         seenByMe: boolean;
         changedAt: string | null;
     }[];
@@ -2385,6 +2385,17 @@ export declare const LeaderGuestPage: z.ZodObject<{
         stay: "arriving" | "staying" | "left";
         arrivalOn: string;
         departureOn: string;
+        home: {
+            districtId: number | null;
+            sectorId: number | null;
+            cellId: number | null;
+            villageId: number | null;
+            address: string;
+            propertyName: string;
+            unitLabel: string | null;
+            villageName: string | null;
+            cellName: string | null;
+        };
         idKind: "national_id" | "passport" | null;
         nationality: string;
         nationalityName: string;
@@ -2406,17 +2417,6 @@ export declare const LeaderGuestPage: z.ZodObject<{
             } | null;
         }[];
         flagged: boolean;
-        home: {
-            districtId: number | null;
-            sectorId: number | null;
-            cellId: number | null;
-            villageId: number | null;
-            address: string;
-            propertyName: string;
-            unitLabel: string | null;
-            villageName: string | null;
-            cellName: string | null;
-        };
         seenByMe: boolean;
         changedAt: string | null;
     }[];
@@ -2461,36 +2461,63 @@ export declare const LeaderGuestPage: z.ZodObject<{
 export type LeaderGuestPage = z.infer<typeof LeaderGuestPage>;
 /** The longest period one report covers. */
 export declare const GUEST_REPORT_MAX_DAYS = 731;
+/** The report's nationality filter, in the leader's words: everyone, Rwandans, or guests from other countries. */
+export declare const ReportOrigin: z.ZodEnum<["nationals", "international"]>;
+export type ReportOrigin = z.infer<typeof ReportOrigin>;
 export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     from: z.ZodEffects<z.ZodString, string, string>;
     to: z.ZodEffects<z.ZodString, string, string>;
     sectorId: z.ZodOptional<z.ZodNumber>;
     cellId: z.ZodOptional<z.ZodNumber>;
     villageId: z.ZodOptional<z.ZodNumber>;
+    /** By nationality: Rwandan guests, or guests of any other nationality. */
+    origin: z.ZodOptional<z.ZodEnum<["nationals", "international"]>>;
+    /** One nationality (ISO 3166-1 alpha-2). */
+    nationality: z.ZodOptional<z.ZodString>;
+    /** One relationship code (`guest_relationships`). */
+    relationship: z.ZodOptional<z.ZodString>;
+    /** Only guests a leader flagged. */
+    flagged: z.ZodOptional<z.ZodEnum<["only"]>>;
 }, "strip", z.ZodTypeAny, {
     from: string;
     to: string;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
+    origin?: "nationals" | "international" | undefined;
+    nationality?: string | undefined;
+    relationship?: string | undefined;
+    flagged?: "only" | undefined;
 }, {
     from: string;
     to: string;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
+    origin?: "nationals" | "international" | undefined;
+    nationality?: string | undefined;
+    relationship?: string | undefined;
+    flagged?: "only" | undefined;
 }>, {
     from: string;
     to: string;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
+    origin?: "nationals" | "international" | undefined;
+    nationality?: string | undefined;
+    relationship?: string | undefined;
+    flagged?: "only" | undefined;
 }, {
     from: string;
     to: string;
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
+    origin?: "nationals" | "international" | undefined;
+    nationality?: string | undefined;
+    relationship?: string | undefined;
+    flagged?: "only" | undefined;
 }>;
 export type GuestReportQuery = z.infer<typeof GuestReportQuery>;
 export declare const ReportBucket: z.ZodEnum<["day", "week", "month"]>;
@@ -2538,6 +2565,59 @@ export declare const GuestReport: z.ZodObject<{
     }>, "many">;
     /** The narrowing applied inside the leader's area, in words, or null. */
     narrowedTo: z.ZodNullable<z.ZodString>;
+    /** The guest filters applied (nationality, relationship, flagged), in words; empty with none. */
+    filteredBy: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+    /** Every nationality and relationship in the period with no guest filter applied: the filters' choices. */
+    choices: z.ZodDefault<z.ZodObject<{
+        nationalities: z.ZodArray<z.ZodObject<{
+            code: z.ZodString;
+            name: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            code: string;
+            name: string;
+            count: number;
+        }, {
+            code: string;
+            name: string;
+            count: number;
+        }>, "many">;
+        relationships: z.ZodArray<z.ZodObject<{
+            code: z.ZodString;
+            label: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            code: string;
+            label: string;
+            count: number;
+        }, {
+            code: string;
+            label: string;
+            count: number;
+        }>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        nationalities: {
+            code: string;
+            name: string;
+            count: number;
+        }[];
+        relationships: {
+            code: string;
+            label: string;
+            count: number;
+        }[];
+    }, {
+        nationalities: {
+            code: string;
+            name: string;
+            count: number;
+        }[];
+        relationships: {
+            code: string;
+            label: string;
+            count: number;
+        }[];
+    }>>;
     totals: z.ZodObject<{
         /** Guests whose arrival falls in the period. */
         registered: z.ZodNumber;
@@ -2676,6 +2756,18 @@ export declare const GuestReport: z.ZodObject<{
         stayingNow: number;
         averageNights: number | null;
     };
+    choices: {
+        nationalities: {
+            code: string;
+            name: string;
+            count: number;
+        }[];
+        relationships: {
+            code: string;
+            label: string;
+            count: number;
+        }[];
+    };
     scopes: {
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
         level: "district" | "sector" | "cell" | "village";
@@ -2693,6 +2785,7 @@ export declare const GuestReport: z.ZodObject<{
         to: string;
     };
     narrowedTo: string | null;
+    filteredBy: string[];
     areaLevel: "sector" | "cell" | "village";
     byArea: {
         name: string;
@@ -2792,6 +2885,19 @@ export declare const GuestReport: z.ZodObject<{
         registered: number;
         before: string;
     } | null;
+    choices?: {
+        nationalities: {
+            code: string;
+            name: string;
+            count: number;
+        }[];
+        relationships: {
+            code: string;
+            label: string;
+            count: number;
+        }[];
+    } | undefined;
+    filteredBy?: string[] | undefined;
 }>;
 export type GuestReport = z.infer<typeof GuestReport>;
 /** How an appointment is grouped on the admin screen. */
@@ -3434,6 +3540,7 @@ export declare const LeaderCoverage: z.ZodObject<{
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
         level: "district" | "sector" | "cell" | "village";
         area: string;
+        homes: number;
         roleLabel: string;
         names: {
             province: string | null;
@@ -3443,7 +3550,6 @@ export declare const LeaderCoverage: z.ZodObject<{
             village: string | null;
         };
         waitingReports: number;
-        homes: number;
     }, {
         provinceId: number | null;
         districtId: number | null;
@@ -3453,6 +3559,7 @@ export declare const LeaderCoverage: z.ZodObject<{
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
         level: "district" | "sector" | "cell" | "village";
         area: string;
+        homes: number;
         roleLabel: string;
         names: {
             province: string | null;
@@ -3462,7 +3569,6 @@ export declare const LeaderCoverage: z.ZodObject<{
             village: string | null;
         };
         waitingReports: number;
-        homes: number;
     }>, "many">;
     waiting: z.ZodArray<z.ZodObject<{
         role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
@@ -3580,6 +3686,7 @@ export declare const LeaderCoverage: z.ZodObject<{
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
         level: "district" | "sector" | "cell" | "village";
         area: string;
+        homes: number;
         roleLabel: string;
         names: {
             province: string | null;
@@ -3589,7 +3696,6 @@ export declare const LeaderCoverage: z.ZodObject<{
             village: string | null;
         };
         waitingReports: number;
-        homes: number;
     }[];
     roles: {
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
@@ -3647,6 +3753,7 @@ export declare const LeaderCoverage: z.ZodObject<{
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
         level: "district" | "sector" | "cell" | "village";
         area: string;
+        homes: number;
         roleLabel: string;
         names: {
             province: string | null;
@@ -3656,7 +3763,6 @@ export declare const LeaderCoverage: z.ZodObject<{
             village: string | null;
         };
         waitingReports: number;
-        homes: number;
     }[];
     roles: {
         role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";

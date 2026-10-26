@@ -530,6 +530,10 @@ export type LeaderGuestPage = z.infer<typeof LeaderGuestPage>;
 /** The longest period one report covers. */
 export const GUEST_REPORT_MAX_DAYS = 731;
 
+/** The report's nationality filter, in the leader's words: everyone, Rwandans, or guests from other countries. */
+export const ReportOrigin = z.enum(["nationals", "international"]);
+export type ReportOrigin = z.infer<typeof ReportOrigin>;
+
 export const GuestReportQuery = z
   .object({
     from: CalendarDay,
@@ -537,6 +541,14 @@ export const GuestReportQuery = z
     sectorId: AreaId.optional(),
     cellId: AreaId.optional(),
     villageId: AreaId.optional(),
+    /** By nationality: Rwandan guests, or guests of any other nationality. */
+    origin: ReportOrigin.optional(),
+    /** One nationality (ISO 3166-1 alpha-2). */
+    nationality: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Pick a country.").optional(),
+    /** One relationship code (`guest_relationships`). */
+    relationship: z.string().trim().min(1).max(40).optional(),
+    /** Only guests a leader flagged. */
+    flagged: z.enum(["only"]).optional(),
   })
   .superRefine((v, ctx) => {
     if (!isIsoDate(v.from) || !isIsoDate(v.to)) return;
@@ -557,6 +569,15 @@ export const GuestReport = z.object({
   scopes: z.array(LeaderScope),
   /** The narrowing applied inside the leader's area, in words, or null. */
   narrowedTo: z.string().nullable(),
+  /** The guest filters applied (nationality, relationship, flagged), in words; empty with none. */
+  filteredBy: z.array(z.string()).default([]),
+  /** Every nationality and relationship in the period with no guest filter applied: the filters' choices. */
+  choices: z
+    .object({
+      nationalities: z.array(z.object({ code: z.string(), name: z.string(), count: z.number().int() })),
+      relationships: z.array(z.object({ code: z.string(), label: z.string(), count: z.number().int() })),
+    })
+    .default({ nationalities: [], relationships: [] }),
   totals: z.object({
     /** Guests whose arrival falls in the period. */
     registered: z.number().int(),

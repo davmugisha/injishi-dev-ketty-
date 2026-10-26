@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.OversightAppointment = exports.AppointmentKind = exports.GuestReport = exports.ReportBucket = exports.GuestReportQuery = exports.GUEST_REPORT_MAX_DAYS = exports.LeaderGuestPage = exports.LeaderSummary = exports.LeaderCounts = exports.LeaderFilters = exports.LeaderScope = exports.LeaderGuest = exports.LeaderChainStep = exports.FlagGuestRequest = exports.LeaderGuestQuery = exports.LeaderArrivingWhen = exports.LeaderGuestTab = exports.GuestRelationship = exports.GuestCountry = exports.LandlordGuestList = exports.TenantGuestList = exports.HostGuestList = exports.HostGuestQuery = exports.HostGuestTab = exports.GuestBuilding = exports.HostGuest = exports.HostChainStep = exports.LandlordGuestRequest = exports.TenantGuestRequest = exports.GuestOrigin = exports.GuestCountryCode = exports.GuestPhone = exports.OTHER_RELATIONSHIP = exports.GUEST_RELATIONSHIPS = exports.GuestRouteState = exports.GuestStay = exports.GuestRegistrationStatus = exports.GuestHostKind = exports.OVERSIGHT_ROLE_SCOPES = exports.LEADER_ROLE_BODY = exports.LEADER_ROLE_SCOPE = exports.LEADER_ROLE_STEP = exports.LEADER_ROLE_SHORT = exports.LEADER_ROLE_LABEL = exports.REVIEWER_ROLES = exports.LeaderRole = exports.LEADER_ROLES = exports.LEADER_ARRIVING_DAYS = exports.GUEST_RETENTION_MONTHS = exports.RWANDA_CODE = void 0;
-exports.LeaderCoverage = exports.EndAppointmentQuery = exports.AppointOfficerRequest = exports.OversightAppointmentList = exports.WaitingArea = exports.PlaceNames = exports.OversightAppointmentQuery = void 0;
+exports.AppointmentKind = exports.GuestReport = exports.ReportBucket = exports.GuestReportQuery = exports.ReportOrigin = exports.GUEST_REPORT_MAX_DAYS = exports.LeaderGuestPage = exports.LeaderSummary = exports.LeaderCounts = exports.LeaderFilters = exports.LeaderScope = exports.LeaderGuest = exports.LeaderChainStep = exports.FlagGuestRequest = exports.LeaderGuestQuery = exports.LeaderArrivingWhen = exports.LeaderGuestTab = exports.GuestRelationship = exports.GuestCountry = exports.LandlordGuestList = exports.TenantGuestList = exports.HostGuestList = exports.HostGuestQuery = exports.HostGuestTab = exports.GuestBuilding = exports.HostGuest = exports.HostChainStep = exports.LandlordGuestRequest = exports.TenantGuestRequest = exports.GuestOrigin = exports.GuestCountryCode = exports.GuestPhone = exports.OTHER_RELATIONSHIP = exports.GUEST_RELATIONSHIPS = exports.GuestRouteState = exports.GuestStay = exports.GuestRegistrationStatus = exports.GuestHostKind = exports.OVERSIGHT_ROLE_SCOPES = exports.LEADER_ROLE_BODY = exports.LEADER_ROLE_SCOPE = exports.LEADER_ROLE_STEP = exports.LEADER_ROLE_SHORT = exports.LEADER_ROLE_LABEL = exports.REVIEWER_ROLES = exports.LeaderRole = exports.LEADER_ROLES = exports.LEADER_ARRIVING_DAYS = exports.GUEST_RETENTION_MONTHS = exports.RWANDA_CODE = void 0;
+exports.LeaderCoverage = exports.EndAppointmentQuery = exports.AppointOfficerRequest = exports.OversightAppointmentList = exports.WaitingArea = exports.PlaceNames = exports.OversightAppointmentQuery = exports.OversightAppointment = void 0;
 exports.isLeaderRole = isLeaderRole;
 exports.guestChainFor = guestChainFor;
 exports.isFromAbroad = isFromAbroad;
@@ -445,6 +445,8 @@ exports.LeaderGuestPage = exports.LeaderSummary.extend({
 // --- The leader's reports ----------------------------------------------------------------
 /** The longest period one report covers. */
 exports.GUEST_REPORT_MAX_DAYS = 731;
+/** The report's nationality filter, in the leader's words: everyone, Rwandans, or guests from other countries. */
+exports.ReportOrigin = zod_1.z.enum(["nationals", "international"]);
 exports.GuestReportQuery = zod_1.z
     .object({
     from: dates_1.CalendarDay,
@@ -452,6 +454,14 @@ exports.GuestReportQuery = zod_1.z
     sectorId: AreaId.optional(),
     cellId: AreaId.optional(),
     villageId: AreaId.optional(),
+    /** By nationality: Rwandan guests, or guests of any other nationality. */
+    origin: exports.ReportOrigin.optional(),
+    /** One nationality (ISO 3166-1 alpha-2). */
+    nationality: zod_1.z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Pick a country.").optional(),
+    /** One relationship code (`guest_relationships`). */
+    relationship: zod_1.z.string().trim().min(1).max(40).optional(),
+    /** Only guests a leader flagged. */
+    flagged: zod_1.z.enum(["only"]).optional(),
 })
     .superRefine((v, ctx) => {
     if (!(0, dates_1.isIsoDate)(v.from) || !(0, dates_1.isIsoDate)(v.to))
@@ -470,6 +480,15 @@ exports.GuestReport = zod_1.z.object({
     scopes: zod_1.z.array(exports.LeaderScope),
     /** The narrowing applied inside the leader's area, in words, or null. */
     narrowedTo: zod_1.z.string().nullable(),
+    /** The guest filters applied (nationality, relationship, flagged), in words; empty with none. */
+    filteredBy: zod_1.z.array(zod_1.z.string()).default([]),
+    /** Every nationality and relationship in the period with no guest filter applied: the filters' choices. */
+    choices: zod_1.z
+        .object({
+        nationalities: zod_1.z.array(zod_1.z.object({ code: zod_1.z.string(), name: zod_1.z.string(), count: zod_1.z.number().int() })),
+        relationships: zod_1.z.array(zod_1.z.object({ code: zod_1.z.string(), label: zod_1.z.string(), count: zod_1.z.number().int() })),
+    })
+        .default({ nationalities: [], relationships: [] }),
     totals: zod_1.z.object({
         /** Guests whose arrival falls in the period. */
         registered: zod_1.z.number().int(),

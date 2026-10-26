@@ -55,6 +55,7 @@ export function renderGuestReportPdf(report: GuestReport): Promise<Buffer> {
     doc.fontSize(9).fillColor(MUTED).text(pdfText(`Prepared by ${by}`), { width });
     for (const s of report.scopes) doc.text(pdfText(`${s.roleLabel}: ${s.area}`), { width });
     if (report.narrowedTo) doc.text(pdfText(`Narrowed to ${report.narrowedTo}`), { width });
+    if (report.filteredBy.length) doc.text(pdfText(`Guests: ${report.filteredBy.join(', ')}`), { width });
     doc.text(pdfText(`Generated ${longDate(kigaliDateOf(report.generatedAt))} on Injishi`), { width });
     doc.moveDown(0.8);
 
