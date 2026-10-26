@@ -3,7 +3,15 @@
 import { Bars, BellDot, CircleQuestion, Comments, Magnifier } from "@gravity-ui/icons";
 import { Kbd } from "@heroui/react";
 import { AppLayout, Navbar, Sidebar, useSidebar } from "@heroui-pro/react";
-import { type NavGroup, navHref, type Persona, screenByPath, screenHref, type TopbarStatus } from "@injishi/data";
+import {
+  type NavGroup,
+  navHref,
+  type Persona,
+  RENTALS_SEARCH,
+  screenByPath,
+  screenHref,
+  type TopbarStatus,
+} from "@injishi/data";
 import { Icon, IconAction, LinkButton } from "@injishi/ui";
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -209,7 +217,7 @@ export function WorkspaceShell({
           <Bars className="size-4" />
         </AppLayout.MenuToggle>
         {searchable ? (
-          <QuickSearch groups={groups} placeholder={(topbar?.search ?? "Search").replace(/…$/, "")} />
+          <QuickSearch groups={groups} placeholder={RENTALS_SEARCH.replace(/…$/, "")} />
         ) : live ? null : (
           <LinkButton
             href={screenHref("GlobalSearch")}

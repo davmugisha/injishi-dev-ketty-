@@ -152,6 +152,13 @@ export const BOARDS = [
   "AssistantUsage",
 ] as const;
 
+/**
+ * The quick search placeholder of a live rentals workspace, on every one of its screens: what the search
+ * looks through (units, their tenants, leases). Shared routes such as /messages or /settings/team also
+ * belong to the hotel demo, whose registry words ("bookings, folios") must not show to a landlord.
+ */
+export const RENTALS_SEARCH = "Search units, tenants, leases…";
+
 /** One id per artifact board (design/artifact/project/<BoardId>.dc.html). */
 export type BoardId = (typeof BOARDS)[number];
 
@@ -2368,7 +2375,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
@@ -2389,7 +2396,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
@@ -2410,7 +2417,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
@@ -2431,7 +2438,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
@@ -2452,7 +2459,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
@@ -2473,7 +2480,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
@@ -2494,7 +2501,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
@@ -2515,7 +2522,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
@@ -2536,7 +2543,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
@@ -2557,7 +2564,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
@@ -2578,7 +2585,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
@@ -2599,7 +2606,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
@@ -2620,7 +2627,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
@@ -2641,7 +2648,7 @@ export const screens: Record<BoardId, ScreenEntry> = {
     area: "rentals",
     persona: "landlord",
     topbar: {
-      search: "Search units, tenants, leases…",
+      search: RENTALS_SEARCH,
       pills: [],
       notifications: 0,
       assistant: true,
