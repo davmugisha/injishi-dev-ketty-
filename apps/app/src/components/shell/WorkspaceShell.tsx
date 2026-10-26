@@ -4,6 +4,7 @@ import { Bars, BellDot, CircleQuestion, Comments, Magnifier } from "@gravity-ui/
 import { Kbd } from "@heroui/react";
 import { AppLayout, Navbar, Sidebar, useSidebar } from "@heroui-pro/react";
 import {
+  homeHref,
   type NavGroup,
   navHref,
   type Persona,
@@ -171,7 +172,8 @@ export function WorkspaceShell({
     <Sidebar.Header className="gap-2">
       <div className="flex items-center gap-1">
         <NextLink
-          href="/"
+          // The person's own home: `/` is the marketplace on another host.
+          href={homeHref(persona.id)}
           className="flex items-center gap-2.5 px-1.5 py-1 text-foreground no-underline"
           aria-label="Injishi home"
         >
