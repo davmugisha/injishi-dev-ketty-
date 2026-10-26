@@ -147,6 +147,7 @@ export const BOARDS = [
   "AdminInsights",
   "AdminLeaders",
   "AdminCoverage",
+  "AdminBrokerPlans",
   "Assistant",
   "AssistantUsage",
 ] as const;
@@ -3668,6 +3669,27 @@ export const screens: Record<BoardId, ScreenEntry> = {
     persona: "ops",
     topbar: {
       search: "Search leaders and officers…",
+      pills: [],
+      notifications: 0,
+      assistant: false,
+    },
+  },
+  AdminBrokerPlans: {
+    board: "AdminBrokerPlans",
+    title: "Admin · broker plans",
+    pageTitle: "Admin · Broker plans",
+    route: "/admin/brokers/plans",
+    href: "/admin/brokers/plans",
+    surface: "workspace",
+    frame: {
+      width: 1440,
+      height: 1200,
+    },
+    section: "admin",
+    area: "admin",
+    persona: "ops",
+    topbar: {
+      search: "Search brokers…",
       pills: [],
       notifications: 0,
       assistant: false,

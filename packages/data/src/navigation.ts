@@ -882,6 +882,12 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
           icon: "PersonsLock",
           board: "AdminPeople",
         },
+        {
+          id: "broker-plans",
+          label: "Broker plans",
+          icon: "CreditCard",
+          board: "AdminBrokerPlans",
+        },
       ],
     },
     {
