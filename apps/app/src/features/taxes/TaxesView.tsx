@@ -188,7 +188,7 @@ export function TaxesView({
   const filingsCard = (
     <SectionCard
       title="Lease copies for RRA"
-      description={due.length > 0 ? `${due.length} to file. A copy goes to RRA within 15 days of signing.` : undefined}
+      description={due.length > 0 ? `${due.length} to file, each within 15 days of signing` : undefined}
       contentClassName="gap-0"
     >
       <DataTable
@@ -379,7 +379,7 @@ export function TaxesView({
 
       <div
         className={
-          pending ? "flex flex-col gap-6 opacity-60 transition-opacity" : "flex flex-col gap-6 transition-opacity"
+          pending ? "flex flex-col gap-5 opacity-60 transition-opacity" : "flex flex-col gap-5 transition-opacity"
         }
       >
         <KpiStrip
@@ -440,8 +440,8 @@ export function TaxesView({
           }
         />
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
+        <div className="grid gap-5 lg:grid-cols-3">
+          <div className="flex min-w-0 flex-col gap-5 lg:col-span-2">
             {t ? (
               <SectionCard
                 title={view.running ? `How the tax works out so far` : "How the tax works out"}
@@ -546,11 +546,16 @@ export function TaxesView({
                 </Alert>
               </SectionCard>
             ) : null}
+          </div>
 
+          <div className="flex min-w-0 flex-col gap-5 *:last:flex-1">
+            {declaration}
+            {/* The days left and the date are in the figures; the card adds the late charges, once late. */}
+            {view.taxpayer === "individual" && late ? deadline : null}
             {t && view.otherExpenses.totalRwf > 0 ? (
               <SectionCard
-                title="Other costs, for your records"
-                description="The 50% already covers these."
+                title="Other costs"
+                description="Covered by the 50% deduction"
                 actions={
                   <ActionLink href={`/expenses?year=${view.year}`} icon="ArrowRight" size="sm" intent="ghost">
                     Expenses
@@ -571,11 +576,6 @@ export function TaxesView({
                 </ul>
               </SectionCard>
             ) : null}
-          </div>
-
-          <div className="flex min-w-0 flex-col gap-4">
-            {declaration}
-            {view.taxpayer === "individual" ? deadline : null}
           </div>
         </div>
 
