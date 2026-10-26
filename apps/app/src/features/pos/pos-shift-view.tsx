@@ -12,7 +12,7 @@ import {
   openShiftAction,
   reviewShiftAction,
 } from "./actions";
-import { PosNav } from "./PosNav";
+import { PosNav } from "./pos-nav";
 import { clock, money, PosDialog, PosHeader, parseRwf, SimulationNotice, StatusChip, usePosAction } from "./shared";
 
 /**

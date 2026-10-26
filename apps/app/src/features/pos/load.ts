@@ -1,10 +1,10 @@
-import type { BoardId } from "@injishi/data";
 import { requirePersona } from "@/lib/session";
 import { ApiError } from "@/server/api";
 import { requestContext } from "@/server/data";
 import { type PosOutlet, posOutlets, posPermissions } from "@/server/pos";
 import type { SourceContext } from "@/server/sources/types";
 import { NoWorkspaceError } from "@/server/sources/types";
+import type { PosBoard } from "./pos-boards";
 
 export type PosPage =
   | { ok: true; ctx: SourceContext; outlets: PosOutlet[]; outlet: PosOutlet; can: string[]; userId: string | null }
@@ -15,7 +15,7 @@ export type PosPage =
  * scope covers, the one they asked for (or the first), and what they may do there. A person with no POS
  * outlet gets a sentence, not an error page.
  */
-export async function loadPosPage(board: BoardId, outletParam: string | undefined): Promise<PosPage> {
+export async function loadPosPage(board: PosBoard, outletParam: string | undefined): Promise<PosPage> {
   await requirePersona(board);
   const ctx = await requestContext();
   let outlets: PosOutlet[];

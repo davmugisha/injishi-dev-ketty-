@@ -1,13 +1,13 @@
-import { screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { loadPosPage } from "@/features/pos/load";
-import { PosBlocked } from "@/features/pos/PosBlocked";
-import { PosTillView } from "@/features/pos/PosTillView";
+import { PosBlocked } from "@/features/pos/pos-blocked";
+import { POS_BOARDS } from "@/features/pos/pos-boards";
+import { PosTillView } from "@/features/pos/pos-till-view";
 import { ApiError } from "@/server/api";
 import { posFloor, posMenu, posMyShift, posOrder } from "@/server/pos";
 
-export const metadata: Metadata = { title: screens.PosTill.pageTitle };
+export const metadata: Metadata = { title: POS_BOARDS.PosTill.pageTitle };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

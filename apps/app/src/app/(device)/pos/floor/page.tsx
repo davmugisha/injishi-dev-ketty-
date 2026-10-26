@@ -1,11 +1,11 @@
-import { screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { loadPosPage } from "@/features/pos/load";
-import { PosBlocked } from "@/features/pos/PosBlocked";
-import { PosFloorView } from "@/features/pos/PosFloorView";
+import { PosBlocked } from "@/features/pos/pos-blocked";
+import { POS_BOARDS } from "@/features/pos/pos-boards";
+import { PosFloorView } from "@/features/pos/pos-floor-view";
 import { posFloor, posOrders } from "@/server/pos";
 
-export const metadata: Metadata = { title: screens.PosFloor.pageTitle };
+export const metadata: Metadata = { title: POS_BOARDS.PosFloor.pageTitle };
 
 /** The live floor: tables, sessions and open orders of one outlet, from the API. */
 export default async function PosFloorPage({ searchParams }: { searchParams: Promise<{ outlet?: string }> }) {

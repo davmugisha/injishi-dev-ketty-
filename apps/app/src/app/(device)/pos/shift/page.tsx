@@ -1,11 +1,11 @@
-import { screens } from "@injishi/data";
 import type { Metadata } from "next";
 import { loadPosPage } from "@/features/pos/load";
-import { PosBlocked } from "@/features/pos/PosBlocked";
-import { PosShiftView } from "@/features/pos/PosShiftView";
+import { PosBlocked } from "@/features/pos/pos-blocked";
+import { POS_BOARDS } from "@/features/pos/pos-boards";
+import { PosShiftView } from "@/features/pos/pos-shift-view";
 import { posMyShift, posRegisters, posShifts } from "@/server/pos";
 
-export const metadata: Metadata = { title: screens.PosShift.pageTitle };
+export const metadata: Metadata = { title: POS_BOARDS.PosShift.pageTitle };
 
 /** The cashier's shift at one outlet, and the shifts a reviewer checks, from the API. */
 export default async function PosShiftPage({ searchParams }: { searchParams: Promise<{ outlet?: string }> }) {
