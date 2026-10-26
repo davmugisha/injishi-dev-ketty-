@@ -65,7 +65,7 @@ export function OfficerHomeView({
             {data.today} · {data.scope}
           </>
         }
-        title={`Good morning, ${persona.firstName}`}
+        title={`Hello, ${persona.firstName}`}
         description={state.summary}
         actions={
           <>
@@ -95,13 +95,12 @@ export function OfficerHomeView({
           <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 id="mandate-h" className="text-[15px] leading-[22px] font-semibold">
-                Your Mandate
+                Your mandate
               </h2>
               <ToneChip tone={state.tone}>{state.chip}</ToneChip>
             </div>
             <p className="text-[13px] leading-[18px] text-muted">
-              You act for {data.institution}, not for Injishi. You only see businesses registered in {data.scope}, and
-              every record you open is written to your access log.
+              Every record you open is logged
             </p>
           </div>
           <LinkButton href={screenHref("DistrictAdmin")} size="sm" variant="ghost">
@@ -212,13 +211,10 @@ export function OfficerHomeView({
 
           <OfficerQueues cases={data.cases} held={data.held} />
 
-          <div className="grid items-start gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr))]">
+          <div className="grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr))]">
             <Card render={(p) => <section {...p} />} aria-labelledby="act-h" className="gap-3 p-[18px]">
               <Card.Header>
-                <CardHeading id="act-h">Recent Decisions</CardHeading>
-                <Card.Description>
-                  Yours and the ones waiting on you · each sent to the business as an event
-                </Card.Description>
+                <CardHeading id="act-h">Recent decisions</CardHeading>
               </Card.Header>
               <Timeline size="sm" density="compact">
                 {data.decisions.map((e) => (
@@ -240,8 +236,7 @@ export function OfficerHomeView({
 
             <Card render={(p) => <section {...p} />} aria-labelledby="rules-h" className="gap-3 p-[18px]">
               <Card.Header>
-                <CardHeading id="rules-h">How This Mandate Works</CardHeading>
-                <Card.Description>Set by {data.institution}, the body that assigned you</Card.Description>
+                <CardHeading id="rules-h">How this mandate works</CardHeading>
               </Card.Header>
               <ListView aria-labelledby="rules-h" variant="secondary" items={data.rules}>
                 {(ru) => (

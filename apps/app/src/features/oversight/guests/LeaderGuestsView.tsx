@@ -31,15 +31,15 @@ const TAB_LABEL = { arriving: "Arriving", staying: "Staying now", left: "Left", 
 const EMPTY: Record<string, { title: string; description: string }> = {
   arriving: {
     title: "Nobody arriving in the next 7 days",
-    description: "Guests registered in your area show here before they come.",
+    description: "Guests show here before they come.",
   },
-  later: { title: "Nobody arriving later", description: "Guests registered more than a week ahead show here." },
+  later: { title: "Nobody arriving later", description: "Guests due more than a week ahead show here." },
   staying: {
     title: "Nobody staying now",
-    description: "A guest shows here from the day they arrive until the day they leave.",
+    description: "From the day a guest arrives to the day they leave.",
   },
   left: { title: "No guests have left yet", description: "Guests who left in the last 12 months show here." },
-  flagged: { title: "No flagged guests", description: "A guest anyone in the chain flags shows here, with the note." },
+  flagged: { title: "No flagged guests", description: "Flagged guests show here with the note." },
 };
 
 /** The scope line under the title: each post in words. */
@@ -104,8 +104,24 @@ export function LeaderGuestsView({
       <KpiStrip
         label="Guests in your area"
         items={[
-          { id: "arriving", label: "Arriving in 7 days", value: counts.arriving, format: "count", icon: "Calendar" },
-          { id: "staying", label: "Staying now", value: counts.staying, format: "count", icon: "House" },
+          {
+            id: "arriving",
+            label: "Arriving in 7 days",
+            value: counts.arriving,
+            format: "count",
+            icon: "Calendar",
+            href: "/officer/guests?tab=arriving",
+            isCurrent: page.tab === "arriving",
+          },
+          {
+            id: "staying",
+            label: "Staying now",
+            value: counts.staying,
+            format: "count",
+            icon: "House",
+            href: "/officer/guests?tab=staying",
+            isCurrent: page.tab === "staying",
+          },
           {
             id: "unseen",
             label: "Not opened yet",
@@ -121,6 +137,8 @@ export function LeaderGuestsView({
             format: "count",
             icon: "Flag",
             status: counts.flagged > 0 ? "danger" : undefined,
+            href: "/officer/guests?tab=flagged",
+            isCurrent: page.tab === "flagged",
           },
         ]}
       />
