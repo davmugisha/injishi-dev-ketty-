@@ -1,10 +1,11 @@
-import { computeRentalIncomeTax, daysBetween, deductibleLoanInterestRwf, kigaliToday, rentalTaxDueOn, withinReminderHours } from '@injishi/contracts';
-import { Injectable, Logger } from '@nestjs/common';
+import { NOTICE_NUDGE_AFTER_DAYS, computeRentalIncomeTax, daysBetween, deductibleLoanInterestRwf, kigaliToday, rentalTaxDueOn, withinReminderHours } from '@injishi/contracts';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 
 import { filingReminderMail, taxNudgeMail } from '../domain/taxes-mail';
 import { RentalsContextRepository } from '../infrastructure/rentals-context.repository';
 import { RentalsMailer } from '../infrastructure/rentals.mailer';
 import { TaxesRepository } from '../infrastructure/taxes.repository';
+import { MoveOutsService } from './move-outs.service';
 
 /** Filing reminders: five days before the day (day 10 after signing) and the day before (day 14). */
 export const FILING_REMINDER_DAYS_LEFT: readonly number[] = [5, 1];
@@ -17,6 +18,8 @@ export interface HousekeepingOutcome {
   signingCodesRemoved: number;
   filingReminders: number;
   taxNudges: number;
+  /** Landlords nudged about a move out notice still to acknowledge after 3 days (WP 1.7). */
+  noticeNudges: number;
 }
 
 /**
@@ -27,7 +30,8 @@ export interface HousekeepingOutcome {
  * signing), and of last year's rental income tax on 1, 15 and 25 January
  * until it is declared. Each reminder is claimed in the database before it is
  * sent, so a job that runs twice sends it once; a missed day sends the stage
- * the landlord is at, never the ones missed.
+ * the landlord is at, never the ones missed. A move out notice left
+ * unacknowledged for 3 days nudges the landlord once (WP 1.7).
  */
 @Injectable()
 export class RentalsHousekeepingService {
@@ -37,6 +41,8 @@ export class RentalsHousekeepingService {
     private readonly taxes: TaxesRepository,
     private readonly context: RentalsContextRepository,
     private readonly mailer: RentalsMailer,
+    /** Moving out (WP 1.7); absent in the older tests. */
+    @Optional() private readonly moveOuts?: MoveOutsService,
   ) {}
 
   async run(now: Date = new Date()): Promise<HousekeepingOutcome> {
@@ -44,12 +50,14 @@ export class RentalsHousekeepingService {
     const signingCodesRemoved = await this.taxes.removeLapsedSigningCodes(now);
     let filingReminders = 0;
     let taxNudges = 0;
+    let noticeNudges = 0;
     if (withinReminderHours(now)) {
       filingReminders = await this.filingReminders(now);
       taxNudges = await this.taxNudges(now);
+      if (this.moveOuts) noticeNudges = await this.moveOuts.nudgeStaleNotices(kigaliToday(now), NOTICE_NUDGE_AFTER_DAYS);
     }
-    const outcome = { invitationsExpired, signingCodesRemoved, filingReminders, taxNudges };
-    if (invitationsExpired || signingCodesRemoved || filingReminders || taxNudges) this.log.log(`Rentals housekeeping: ${JSON.stringify(outcome)}`);
+    const outcome = { invitationsExpired, signingCodesRemoved, filingReminders, taxNudges, noticeNudges };
+    if (invitationsExpired || signingCodesRemoved || filingReminders || taxNudges || noticeNudges) this.log.log(`Rentals housekeeping: ${JSON.stringify(outcome)}`);
     return outcome;
   }
 
@@ -90,6 +98,7 @@ export class RentalsHousekeepingService {
           propertyName: f.propertyName,
           dueOn: f.dueOn,
           daysLeft: daysBetween(today, f.dueOn),
+          kind: f.kind,
         }),
       );
       if (ok) sent += 1;

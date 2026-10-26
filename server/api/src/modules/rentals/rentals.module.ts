@@ -85,6 +85,10 @@ import { MessageDigestsService } from './application/message-digests.service';
 import { MessageEvents } from './application/message-events';
 import { LeaseMessagesRepository } from './infrastructure/lease-messages.repository';
 import { MessageDigestsProcessor } from './infrastructure/message-digests.processor';
+// Moving out: notices, the moved-out day, deposit settlement (WP 1.7).
+import { DepositsService } from './application/deposits.service';
+import { MoveOutsService } from './application/move-outs.service';
+import { MoveOutsRepository } from './infrastructure/move-outs.repository';
 
 /**
  * Rentals: the residence side of Injishi, rebuilt (blueprint 2.2).
@@ -185,6 +189,9 @@ import { MessageDigestsProcessor } from './infrastructure/message-digests.proces
     MessageEvents,
     LeaseMessagesService,
     MessageDigestsService,
+    MoveOutsRepository,
+    MoveOutsService,
+    DepositsService,
     ...(isWorkerProcess() ? [MessageDigestsProcessor] : []),
     ...(isWorkerProcess() ? [LeaseDocumentsProcessor, RentCycleProcessor, RentRemindersProcessor, PaymentSettlementProcessor, PayoutsProcessor, RentalsHousekeepingProcessor] : []),
   ],
@@ -224,6 +231,8 @@ import { MessageDigestsProcessor } from './infrastructure/message-digests.proces
     RentalsHousekeepingService,
     MessageEvents,
     LeaseMessagesService,
+    MoveOutsService,
+    DepositsService,
   ],
 })
 export class RentalsModule {}

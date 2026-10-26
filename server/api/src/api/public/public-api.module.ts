@@ -145,6 +145,9 @@ import { PaymentWebhooksController } from './payments/webhooks.controller';
 // Faults, expenses and taxes (WP 4.1, 4.3, 4.4).
 import { MeTenancyFaultsController } from './me/tenancy-faults.controller';
 import { OpsFaultsController } from './ops/rentals/faults.controller';
+// Moving out: notices, the moved-out day, deposit settlement (WP 1.7).
+import { MeTenancyMoveOutController } from './me/tenancy-move-out.controller';
+import { OpsMoveOutsController } from './ops/rentals/move-outs.controller';
 // Messages between a landlord and a tenant, and the live line (P3.4).
 import { MeTenancyMessagesController } from './me/tenancy-messages.controller';
 import { OpsLeaseMessagesController } from './ops/rentals/messages.controller';
@@ -357,6 +360,9 @@ import { TrainingPublicModule } from './training/training.module';
     // Faults on both sides (WP 4.1): the landlord's board and the tenant's reports.
     OpsFaultsController,
     MeTenancyFaultsController,
+    // Moving out on both sides (WP 1.7).
+    OpsMoveOutsController,
+    MeTenancyMoveOutController,
     OpsLeaseMessagesController,
     MeTenancyMessagesController,
     // Expenses and paying the fixer (WP 4.3).

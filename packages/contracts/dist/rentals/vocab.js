@@ -212,7 +212,7 @@ exports.LeaseFilingKind = zod_1.z.enum(["new_lease", "change", "termination"]);
 exports.LEASE_FILING_KIND_LABEL = {
     new_lease: "New lease",
     change: "Change to a lease",
-    termination: "Lease ended early",
+    termination: "Lease ended, tell the district",
 };
 /**
  * Where a filing stands: `pending` is due (by `due_on`), `filed` once the

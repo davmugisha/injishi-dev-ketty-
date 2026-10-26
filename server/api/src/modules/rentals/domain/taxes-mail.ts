@@ -18,8 +18,23 @@ export function filingReminderMail(input: {
   propertyName: string;
   dueOn: string;
   daysLeft: number;
+  /** A lease that ended tells the district within 30 days (WP 1.7); the rest give RRA a copy. */
+  kind?: 'new_lease' | 'change' | 'termination';
 }): RentalsMail {
   const left = input.daysLeft <= 1 ? 'tomorrow' : `in ${input.daysLeft} days`;
+  const url = new URL(TAX_APP_PATHS.filing(input.leaseId), input.appUrl).toString();
+  if (input.kind === 'termination') {
+    return {
+      subject: `Tell the district lease ${input.leaseReference} ended, by ${longDate(input.dueOn)}`,
+      heading: 'Tell the district a lease ended',
+      lines: [
+        `The lease ${input.leaseReference} with ${input.tenantName} for unit ${input.unitLabel} at ${input.propertyName} has ended.`,
+        `RRA asks you to tell the district within 30 days. That is due ${left}, on ${longDate(input.dueOn)}.`,
+        'Tell them, then mark it done on Injishi with the reference you get.',
+      ],
+      action: { label: 'Mark it done', url },
+    };
+  }
   return {
     subject: `Give RRA a copy of lease ${input.leaseReference} by ${longDate(input.dueOn)}`,
     heading: 'A lease copy is due at RRA',
@@ -28,7 +43,7 @@ export function filingReminderMail(input: {
       `The law asks you to give RRA a copy within 15 days of signing. That is due ${left}, on ${longDate(input.dueOn)}.`,
       'File it on the RRA portal, then mark it filed on Injishi with the reference RRA gives you.',
     ],
-    action: { label: 'Mark it filed', url: new URL(TAX_APP_PATHS.filing(input.leaseId), input.appUrl).toString() },
+    action: { label: 'Mark it filed', url },
   };
 }
 

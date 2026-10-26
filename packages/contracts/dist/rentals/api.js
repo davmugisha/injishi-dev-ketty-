@@ -9,6 +9,7 @@ const dates_1 = require("./dates");
 const contract_1 = require("./contract");
 const identity_1 = require("./identity");
 const lease_1 = require("./lease");
+const move_outs_1 = require("./move-outs");
 const vocab_1 = require("./vocab");
 // ===========================================================================
 // The landlord's rentals API: what each route takes and answers
@@ -427,6 +428,10 @@ exports.LeaseDetail = zod_1.z.object({
     /** What still has to be filled in before the landlord can sign, in words. Empty when ready. */
     contractProblems: zod_1.z.array(zod_1.z.string()),
     broker: brokers_1.LeaseBrokerView.nullable(),
+    /** The live move out notice (submitted or acknowledged), if any (WP 1.7). */
+    notice: move_outs_1.MoveOutNoticeView.nullable(),
+    /** The deposit record, once the tenant signed (WP 1.7). */
+    deposit: move_outs_1.DepositView.nullable(),
     supersedesLeaseId: primitives_1.Uuid.nullable(),
     signedAt: IsoMoment.nullable(),
     activatedAt: IsoMoment.nullable(),

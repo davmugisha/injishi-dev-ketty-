@@ -257,7 +257,7 @@ export type LeaseFilingKind = z.infer<typeof LeaseFilingKind>;
 export const LEASE_FILING_KIND_LABEL: Readonly<Record<LeaseFilingKind, string>> = {
   new_lease: "New lease",
   change: "Change to a lease",
-  termination: "Lease ended early",
+  termination: "Lease ended, tell the district",
 };
 
 /**

@@ -33,3 +33,5 @@ export * from "./taxes";
 export * from "./brokers";
 // Messages between a landlord and a tenant (P3.4).
 export * from "./messages";
+// Moving out (WP 1.7): notices, the moved-out day, settling the deposit.
+export * from "./move-outs";

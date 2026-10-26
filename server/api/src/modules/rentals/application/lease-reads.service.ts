@@ -19,10 +19,12 @@ import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { leaseNextAction } from '../domain/lease-words';
 import { assertBuildingInScope, assertResidence, buildingFilter } from '../domain/residence';
 import { LeasesRepository, type LeaseRecord } from '../infrastructure/leases.repository';
+import { MoveOutsRepository } from '../infrastructure/move-outs.repository';
 import { TenantsRepository } from '../infrastructure/tenants.repository';
 import { leases } from '../../../database/drizzle/schema';
 import { LeaseBrokersService } from './lease-brokers.service';
 import { LeaseContractService } from './lease-contract.service';
+import { presentDeposit, presentNotice } from './move-outs-presenters';
 import { presentLeaseListItem, presentTenantRecord, presentVersion } from './rentals-presenters';
 
 /**
@@ -39,6 +41,8 @@ export class LeaseReadsService {
     private readonly contracts: LeaseContractService,
     /** The broker on a lease (2026-10-25); absent in the older unit tests. */
     @Optional() private readonly brokers?: LeaseBrokersService,
+    /** The notice and the deposit (WP 1.7); absent in the older unit tests. */
+    @Optional() private readonly moveOuts?: MoveOutsRepository,
   ) {}
 
   async list(ws: ScopedWorkspace, query: LeaseListQuery): Promise<LeaseListPage> {
@@ -72,7 +76,7 @@ export class LeaseReadsService {
   async detail(ws: ScopedWorkspace, leaseId: string): Promise<LeaseDetail> {
     const record = await this.owned(ws, leaseId);
     const { lease } = record;
-    const [versions, signatures, invitation, charges, signed, built, broker] = await Promise.all([
+    const [versions, signatures, invitation, charges, signed, built, broker, notice, deposit] = await Promise.all([
       this.leases.versions(lease.id),
       this.leases.signatures(lease.id),
       this.leases.latestInvitation(lease.id),
@@ -80,6 +84,8 @@ export class LeaseReadsService {
       this.tenants.signedTenantIds([lease.tenantId]),
       lease.status === 'draft' ? this.contracts.build(record) : Promise.resolve(null),
       lease.brokerId && this.brokers ? this.brokers.landlordView(lease.id) : Promise.resolve(null),
+      this.moveOuts ? this.moveOuts.liveNotice(lease.id) : Promise.resolve(null),
+      this.moveOuts ? this.moveOuts.depositOfLease(lease.id) : Promise.resolve(null),
     ]);
     const current = versions.find((v) => v.id === lease.currentVersionId) ?? null;
     return {
@@ -148,6 +154,8 @@ export class LeaseReadsService {
         (lease.brokerId
           ? { id: lease.brokerId, name: record.brokerName, phone: null, placementId: lease.placementId, fee: null, rating: null, canRate: false }
           : null),
+      notice: notice ? presentNotice(notice) : null,
+      deposit: deposit ? presentDeposit(deposit) : null,
       supersedesLeaseId: lease.supersedesLeaseId,
       signedAt: lease.signedAt?.toISOString() ?? null,
       activatedAt: lease.activatedAt?.toISOString() ?? null,

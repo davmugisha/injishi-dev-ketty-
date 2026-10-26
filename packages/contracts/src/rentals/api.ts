@@ -6,6 +6,7 @@ import { CalendarDay } from "./dates";
 import { LeaseContract } from "./contract";
 import { PersonEmail, PersonName, checkEmailTypo, idNumberProblem, normaliseIdNumber } from "./identity";
 import { GraceDays, LeaseAction, LeaseTab, NoticeDays, RentDueDay } from "./lease";
+import { DepositView, MoveOutNoticeView } from "./move-outs";
 import {
   IdKind,
   LeaseActorRole,
@@ -526,6 +527,10 @@ export const LeaseDetail = z.object({
   /** What still has to be filled in before the landlord can sign, in words. Empty when ready. */
   contractProblems: z.array(z.string()),
   broker: LeaseBrokerView.nullable(),
+  /** The live move out notice (submitted or acknowledged), if any (WP 1.7). */
+  notice: MoveOutNoticeView.nullable(),
+  /** The deposit record, once the tenant signed (WP 1.7). */
+  deposit: DepositView.nullable(),
   supersedesLeaseId: Uuid.nullable(),
   signedAt: IsoMoment.nullable(),
   activatedAt: IsoMoment.nullable(),

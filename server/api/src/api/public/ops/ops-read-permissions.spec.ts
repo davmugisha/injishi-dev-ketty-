@@ -78,6 +78,7 @@ import { OpsPayoutsController } from './rentals/payouts.controller';
 import { OpsRentController } from './rentals/rent.controller';
 import { OpsFaultsController } from './rentals/faults.controller';
 import { OpsExpensesController } from './rentals/expenses.controller';
+import { OpsMoveOutsController } from './rentals/move-outs.controller';
 import { OpsFilingsController, OpsTaxesController } from './rentals/taxes.controller';
 import { OpsLeaseBrokersController } from './rentals/lease-brokers.controller';
 import { OpsLeaseMessagesController } from './rentals/messages.controller';
@@ -201,6 +202,7 @@ const CONTROLLERS: Ctor[] = [
   OpsPayoutsController,
   OpsFaultsController,
   OpsExpensesController,
+  OpsMoveOutsController,
   OpsTaxesController,
   OpsFilingsController,
   OpsLeaseBrokersController,
@@ -516,6 +518,10 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/faults/:id': ['owner', 'manager', 'housekeeper'],
   // Expenses (WP 4.3): `money.view` or `expense.manage`.
   '/ops/expenses': ['owner', 'manager', 'finance'],
+  // Moving out (WP 1.7): the page is the lease side's or the deposit side's; deposits read with the money too.
+  '/ops/move-outs': ['owner', 'manager'],
+  '/ops/deposits': ['owner', 'manager', 'finance'],
+  '/ops/deposits/:id': ['owner', 'manager', 'finance'],
   // Taxes and filings (WP 4.4): `money.view` or `tax.manage`; filings also `lease.manage`.
   '/ops/taxes/taxpayer': ['owner', 'manager', 'finance'],
   '/ops/taxes/:year': ['owner', 'manager', 'finance'],
@@ -725,6 +731,31 @@ describe('fault writes (WP 4.1)', () => {
     // Paying the fixer is money out (WP 4.3): `expense.manage`, which the housekeeper does not hold.
     'POST /ops/faults/:id/pay': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
     'POST /ops/faults/:id/payments/recorded': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/**
+ * Moving out (WP 1.7): a recorded notice, acknowledging it and the move out are
+ * `lease.manage`; settling a deposit sends the landlord's money back, `deposit.return`.
+ */
+describe('move-out writes (WP 1.7)', () => {
+  const routes = handlers([OpsMoveOutsController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'POST /ops/leases/:id/notice': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/leases/:id/notice/acknowledge': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/leases/:id/move-out': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/deposits/:id/settle': { allOf: ['deposit.return'], roles: ['owner', 'manager'] },
   };
 
   it('judges every write', () => {

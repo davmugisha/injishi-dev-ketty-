@@ -2596,6 +2596,118 @@ export declare const LeaseDetail: z.ZodObject<{
         placementId: string | null;
         canRate: boolean;
     }>>;
+    /** The live move out notice (submitted or acknowledged), if any (WP 1.7). */
+    notice: z.ZodNullable<z.ZodObject<{
+        id: z.ZodString;
+        givenBy: z.ZodEnum<["landlord", "tenant"]>;
+        channel: z.ZodEnum<["app", "letter", "email", "in_person"]>;
+        filedOn: z.ZodEffects<z.ZodString, string, string>;
+        moveOutOn: z.ZodEffects<z.ZodString, string, string>;
+        reasonCode: z.ZodEnum<["moving_in_kigali", "leaving_kigali", "own_home", "cost", "terms", "landlord_use", "tenant_breach", "other"]>;
+        message: z.ZodNullable<z.ZodString>;
+        noticeDays: z.ZodNumber;
+        isShortNotice: z.ZodBoolean;
+        status: z.ZodEnum<["submitted", "acknowledged", "withdrawn"]>;
+        acknowledgedAt: z.ZodNullable<z.ZodString>;
+        withdrawnAt: z.ZodNullable<z.ZodString>;
+        filedAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        message: string | null;
+        status: "submitted" | "withdrawn" | "acknowledged";
+        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
+        id: string;
+        withdrawnAt: string | null;
+        channel: "email" | "app" | "letter" | "in_person";
+        noticeDays: number;
+        filedAt: string;
+        isShortNotice: boolean;
+        moveOutOn: string;
+        givenBy: "landlord" | "tenant";
+        filedOn: string;
+        acknowledgedAt: string | null;
+    }, {
+        message: string | null;
+        status: "submitted" | "withdrawn" | "acknowledged";
+        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
+        id: string;
+        withdrawnAt: string | null;
+        channel: "email" | "app" | "letter" | "in_person";
+        noticeDays: number;
+        filedAt: string;
+        isShortNotice: boolean;
+        moveOutOn: string;
+        givenBy: "landlord" | "tenant";
+        filedOn: string;
+        acknowledgedAt: string | null;
+    }>>;
+    /** The deposit record, once the tenant signed (WP 1.7). */
+    deposit: z.ZodNullable<z.ZodObject<{
+        id: z.ZodString;
+        leaseId: z.ZodString;
+        agreedRwf: z.ZodNumber;
+        paidRwf: z.ZodNumber;
+        status: z.ZodEnum<["awaiting", "held", "settled"]>;
+        keptRwf: z.ZodNullable<z.ZodNumber>;
+        refundedRwf: z.ZodNullable<z.ZodNumber>;
+        deductions: z.ZodArray<z.ZodObject<{
+            label: z.ZodString;
+            amountRwf: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            amountRwf: number;
+            label: string;
+        }, {
+            amountRwf: number;
+            label: string;
+        }>, "many">;
+        refundMethod: z.ZodNullable<z.ZodEnum<["gateway", "recorded", "none"]>>;
+        refundStatus: z.ZodNullable<z.ZodEnum<["waiting", "paid", "failed"]>>;
+        refundDestination: z.ZodNullable<z.ZodString>;
+        refundFailureReason: z.ZodNullable<z.ZodString>;
+        refundReference: z.ZodNullable<z.ZodString>;
+        settledAt: z.ZodNullable<z.ZodString>;
+        tenantDisputedAt: z.ZodNullable<z.ZodString>;
+        disputeNote: z.ZodNullable<z.ZodString>;
+    }, "strip", z.ZodTypeAny, {
+        status: "held" | "settled" | "awaiting";
+        id: string;
+        settledAt: string | null;
+        paidRwf: number;
+        leaseId: string;
+        refundedRwf: number | null;
+        keptRwf: number | null;
+        deductions: {
+            amountRwf: number;
+            label: string;
+        }[];
+        agreedRwf: number;
+        refundMethod: "none" | "gateway" | "recorded" | null;
+        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundDestination: string | null;
+        refundFailureReason: string | null;
+        refundReference: string | null;
+        tenantDisputedAt: string | null;
+        disputeNote: string | null;
+    }, {
+        status: "held" | "settled" | "awaiting";
+        id: string;
+        settledAt: string | null;
+        paidRwf: number;
+        leaseId: string;
+        refundedRwf: number | null;
+        keptRwf: number | null;
+        deductions: {
+            amountRwf: number;
+            label: string;
+        }[];
+        agreedRwf: number;
+        refundMethod: "none" | "gateway" | "recorded" | null;
+        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundDestination: string | null;
+        refundFailureReason: string | null;
+        refundReference: string | null;
+        tenantDisputedAt: string | null;
+        disputeNote: string | null;
+    }>>;
     supersedesLeaseId: z.ZodNullable<z.ZodString>;
     signedAt: z.ZodNullable<z.ZodString>;
     activatedAt: z.ZodNullable<z.ZodString>;
@@ -2650,6 +2762,27 @@ export declare const LeaseDetail: z.ZodObject<{
         hasAccount: boolean;
         editable: boolean;
     };
+    deposit: {
+        status: "held" | "settled" | "awaiting";
+        id: string;
+        settledAt: string | null;
+        paidRwf: number;
+        leaseId: string;
+        refundedRwf: number | null;
+        keptRwf: number | null;
+        deductions: {
+            amountRwf: number;
+            label: string;
+        }[];
+        agreedRwf: number;
+        refundMethod: "none" | "gateway" | "recorded" | null;
+        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundDestination: string | null;
+        refundFailureReason: string | null;
+        refundReference: string | null;
+        tenantDisputedAt: string | null;
+        disputeNote: string | null;
+    } | null;
     unit: {
         id: string;
         label: string;
@@ -2689,6 +2822,22 @@ export declare const LeaseDetail: z.ZodObject<{
     endReason: string | null;
     cancelReason: string | null;
     actions: ("start" | "landlord_sign" | "edit_terms" | "tenant_sign" | "cancel" | "acknowledge_notice" | "near_end" | "withdraw_notice" | "record_move_out")[];
+    notice: {
+        message: string | null;
+        status: "submitted" | "withdrawn" | "acknowledged";
+        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
+        id: string;
+        withdrawnAt: string | null;
+        channel: "email" | "app" | "letter" | "in_person";
+        noticeDays: number;
+        filedAt: string;
+        isShortNotice: boolean;
+        moveOutOn: string;
+        givenBy: "landlord" | "tenant";
+        filedOn: string;
+        acknowledgedAt: string | null;
+    } | null;
+    endedOn: string | null;
     nextAction: string | null;
     currentVersion: {
         id: string;
@@ -2720,7 +2869,6 @@ export declare const LeaseDetail: z.ZodObject<{
     supersedesLeaseId: string | null;
     activatedAt: string | null;
     endingSince: string | null;
-    endedOn: string | null;
 }, {
     status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
     broker: {
@@ -2765,6 +2913,27 @@ export declare const LeaseDetail: z.ZodObject<{
         hasAccount: boolean;
         editable: boolean;
     };
+    deposit: {
+        status: "held" | "settled" | "awaiting";
+        id: string;
+        settledAt: string | null;
+        paidRwf: number;
+        leaseId: string;
+        refundedRwf: number | null;
+        keptRwf: number | null;
+        deductions: {
+            amountRwf: number;
+            label: string;
+        }[];
+        agreedRwf: number;
+        refundMethod: "none" | "gateway" | "recorded" | null;
+        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundDestination: string | null;
+        refundFailureReason: string | null;
+        refundReference: string | null;
+        tenantDisputedAt: string | null;
+        disputeNote: string | null;
+    } | null;
     unit: {
         id: string;
         label: string;
@@ -2804,6 +2973,22 @@ export declare const LeaseDetail: z.ZodObject<{
     endReason: string | null;
     cancelReason: string | null;
     actions: ("start" | "landlord_sign" | "edit_terms" | "tenant_sign" | "cancel" | "acknowledge_notice" | "near_end" | "withdraw_notice" | "record_move_out")[];
+    notice: {
+        message: string | null;
+        status: "submitted" | "withdrawn" | "acknowledged";
+        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
+        id: string;
+        withdrawnAt: string | null;
+        channel: "email" | "app" | "letter" | "in_person";
+        noticeDays: number;
+        filedAt: string;
+        isShortNotice: boolean;
+        moveOutOn: string;
+        givenBy: "landlord" | "tenant";
+        filedOn: string;
+        acknowledgedAt: string | null;
+    } | null;
+    endedOn: string | null;
     nextAction: string | null;
     currentVersion: {
         id: string;
@@ -2835,7 +3020,6 @@ export declare const LeaseDetail: z.ZodObject<{
     supersedesLeaseId: string | null;
     activatedAt: string | null;
     endingSince: string | null;
-    endedOn: string | null;
 }>;
 export type LeaseDetail = z.infer<typeof LeaseDetail>;
 /** One row of a lease's timeline. */

@@ -776,6 +776,8 @@ export const moveOutNotices = pgTable(
     acknowledgedByUserId: uuid('acknowledged_by_user_id').references(() => users.id),
     withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
     filedAt: timestamp('filed_at', { withTimezone: true }).notNull().defaultNow(),
+    /** When the landlord was nudged about a notice still to acknowledge (WP 1.7, migration 0092): once. */
+    nudgedAt: timestamp('nudged_at', { withTimezone: true }),
   },
   (t) => [
     uniqueIndex('move_out_notices_live_uk')

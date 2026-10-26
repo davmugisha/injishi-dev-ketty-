@@ -49,4 +49,6 @@ __exportStar(require("./taxes"), exports);
 __exportStar(require("./brokers"), exports);
 // Messages between a landlord and a tenant (P3.4).
 __exportStar(require("./messages"), exports);
+// Moving out (WP 1.7): notices, the moved-out day, settling the deposit.
+__exportStar(require("./move-outs"), exports);
 //# sourceMappingURL=index.js.map
