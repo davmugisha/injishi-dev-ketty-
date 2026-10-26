@@ -152,7 +152,13 @@ export function LandlordMessagesView({
           className={cx("flex min-h-0 flex-col border-separator md:border-r", open ? "max-md:hidden" : "")}
         >
           <div className="flex flex-col gap-2 border-b border-separator p-3">
-            <SearchBar label="Search conversations" value={q} onChange={setQ} placeholder="Tenant, unit or lease" />
+            <SearchBar
+              label="Search conversations"
+              value={q}
+              onChange={setQ}
+              placeholder="Tenant, unit or lease"
+              className="md:w-full"
+            />
             <FilterTabs
               label="Show"
               variant="segment"
