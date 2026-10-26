@@ -1,5 +1,9 @@
 /*
- * Injishi design system for HeroUI Native (from the saved design system's native export).
+ * Injishi design system for HeroUI Native (from the saved design system's native export:
+ * heroui.pro/ds/de231dfa-8a53-40c9-ba3b-cd9d5a93685b, updatedAt 1792979018879, re-read
+ * 2026-10-26; every colour, radius and border value below equals it, and the four font names are
+ * the export's Figtree weights as useFonts registers them). The export's heroui-native-pro import and its two
+ * @source lines are left out: Pro Native is not installed, and heroui-native sources itself.
  * Mirrors packages/ui/src/styles/injishi.css on the web; the native export has no heading-font
  * token, so headings stay Figtree here (Instrument Sans is web-only).
  */

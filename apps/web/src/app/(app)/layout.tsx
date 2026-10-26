@@ -8,7 +8,7 @@ import { AnalyticsScript } from "@/components/shared/analytics-script";
 // Build-time Tailwind for this whole layer. One import, one group (ADR-021).
 import "../_injishi-app.css";
 import { pwaMetadata, pwaViewport } from "@/lib/pwa-metadata";
-import { inter } from "@/lib/fonts";
+import { figtree, instrumentSans } from "@/lib/fonts";
 import { WEB_URL } from "@/lib/web-url";
 
 /**
@@ -68,7 +68,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={cn(inter.variable)}
+      className={cn(figtree.variable, instrumentSans.variable)}
       suppressHydrationWarning
     >
       <body className="antialiased">

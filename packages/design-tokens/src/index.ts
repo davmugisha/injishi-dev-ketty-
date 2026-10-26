@@ -43,7 +43,10 @@ export {
   herouiMixes,
   herouiRadius,
   herouiFieldRadius,
+  herouiFieldBorderWidth,
   herouiSpacing,
+  herouiTracking,
+  herouiTypeScale,
   herouiFixedGrounds,
 } from "./heroui";
 export type { HeroUIPalette } from "./heroui";

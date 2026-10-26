@@ -1,40 +1,50 @@
 import localFont from "next/font/local";
 
 /**
- * The brand face, self-hosted, for the public layer.
+ * The brand faces, self-hosted.
  *
- * Inter carries everything: body, UI text and display headings. The saved
- * HeroUI Pro design system "Injishi" sets Inter for both its heading and body
- * font, and ADR-068 makes that design system the source, so Inter replaced
- * Figtree. The theme block names `--font-inter`, so that is the variable this
- * file emits and the one every `--font-sans` reads.
+ * Two families, as the saved HeroUI Pro design system "Injishi" sets them
+ * (ADR-068, re-synced 2026-10-26 at `updatedAt` 1792979018879): Figtree for
+ * body and UI text, Instrument Sans for headings. They replace Inter, which the
+ * 2026-10-07 save set for both. The variable names are the ones the design
+ * system's export reads (`--font-figtree`, `--font-instrument-sans`) and the
+ * ones `apps/app` mounts, so a theme block written for either app reads both.
  *
- * `Inter-Variable.woff2` is cut from the upstream `InterVariable.woff2` of
- * rsms/inter v4.1 (SIL OFL 1.1), not taken from a Google Fonts subset URL. That
- * is deliberate: the css2 endpoint splits the face into a `latin` and a
- * `latin-ext` file joined by `unicode-range`, and `next/font/local` has no way
- * to express a per-src unicode-range — its `src` array items carry `path`,
- * `weight` and `style` only. Two subsets would therefore have had to become two
- * `localFont()` calls and two families. So the one file is subset instead:
- * Basic Latin through Latin Extended-B with the combining marks, punctuation,
- * currency, arrows and number forms; the `opsz` axis pinned at text size 14;
- * `wght` kept at 300-900; stylistic sets and character variants dropped, every
- * feature the product reads (`tnum`, `case`, `frac`, `zero`, kerning) kept.
- * That is 110 KB against the upstream file's 352 KB. Figtree was 27 KB; the
- * difference is the cost of the face the design system chose.
+ * Each face is ONE file, and that is deliberate: Google's css2 endpoint splits
+ * a face into a `latin` and a `latin-ext` file joined by `unicode-range`, and
+ * `next/font/local` has no way to express a per-src unicode-range — its `src`
+ * array items carry `path`, `weight` and `style` only. Two subsets would have
+ * had to become two `localFont()` calls and two families.
  *
- * No binary is duplicated into `src/`: these point at the .woff2 files
- * already sitting in `public/shared/fonts/`, which the four app route groups
- * reach through `public/shared/css/injishi-fonts.css` (ADR-010 call 6a).
+ *  - `Figtree-Variable.woff2` is the upstream single-axis (wght 300-900)
+ *    variable face, the same 27 KB file this app shipped before ADR-068
+ *    (restored byte for byte from git).
+ *  - `InstrumentSans-Variable.woff2` is the upstream
+ *    `InstrumentSans[wdth,wght].ttf` from google/fonts (repository commit
+ *    7fa22308 of Instrument/instrument-sans), compressed to WOFF2 unsubset:
+ *    88 KB, wght 400-700, and a width axis nothing here moves off 100.
+ *
+ * Both are SIL OFL 1.1; the licence texts sit beside the files. No binary is
+ * duplicated into `src/`: these point at the .woff2 files in
+ * `public/shared/fonts/`.
  */
 
-export const inter = localFont({
-  src: "../../public/shared/fonts/Inter-Variable.woff2",
+export const figtree = localFont({
+  src: "../../public/shared/fonts/Figtree-Variable.woff2",
   weight: "300 900",
   style: "normal",
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-figtree",
   fallback: ["Arial", "sans-serif"],
   adjustFontFallback: false,
 });
 
+export const instrumentSans = localFont({
+  src: "../../public/shared/fonts/InstrumentSans-Variable.woff2",
+  weight: "400 700",
+  style: "normal",
+  display: "swap",
+  variable: "--font-instrument-sans",
+  fallback: ["Arial", "sans-serif"],
+  adjustFontFallback: false,
+});
