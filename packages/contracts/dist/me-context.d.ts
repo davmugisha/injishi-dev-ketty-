@@ -153,7 +153,7 @@ export declare const MeContext: z.ZodObject<{
     /** Seats as a local leader or a government officer. */
     oversight: z.ZodArray<z.ZodObject<{
         assignmentId: z.ZodString;
-        oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national"]>;
+        oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
         governmentBodyCode: z.ZodString;
         governmentTitle: z.ZodNullable<z.ZodString>;
         scopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
@@ -168,7 +168,7 @@ export declare const MeContext: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         governmentBodyCode: string;
         governmentTitle: string | null;
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
@@ -179,7 +179,7 @@ export declare const MeContext: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         governmentBodyCode: string;
         governmentTitle: string | null;
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
@@ -236,7 +236,7 @@ export declare const MeContext: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         governmentBodyCode: string;
         governmentTitle: string | null;
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
@@ -290,7 +290,7 @@ export declare const MeContext: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
         governmentBodyCode: string;
         governmentTitle: string | null;
         scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
