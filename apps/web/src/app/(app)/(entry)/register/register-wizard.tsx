@@ -354,8 +354,10 @@ export default function RegisterWizard({
         setScreen(savedKind === "broker" ? "broker" : "steps");
         setStep(resumeStep(pathFor(savedRole, saved.capacity), savedKind !== null));
         if (savedKind !== null && savedKind !== "broker") {
+          // A residence has no TIN: its first check is the property's.
+          const recheck = savedRole === "landlord" ? "confirm the property again" : "validate the TIN with RRA again";
           setFormError(
-            "We kept your answers from before. Checks are never kept in a draft, so validate the TIN with RRA again" +
+            `We kept your answers from before. Checks are never kept in a draft, so ${recheck}` +
               (verifiedOnFile ? "." : ", and check your ID."),
           );
         }
