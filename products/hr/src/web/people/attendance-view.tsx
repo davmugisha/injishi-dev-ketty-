@@ -29,6 +29,8 @@ import {
 } from "@heroui/react";
 import { ItemCard, ItemCardGroup, KPIGroup, NativeSelect, Segment } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
+import { Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
+import { Fragment, type ReactNode, useOptimistic, useState, useTransition } from "react";
 import type {
   AttendanceException,
   AttendanceSummary,
@@ -36,13 +38,11 @@ import type {
   ClockRecord,
   ClockSource,
   DeskEmployee,
-  Persona,
-} from "@injishi/product-hr";
-import { useBoardHref, useHrActions } from "@injishi/product-hr/web";
-import { Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
-import { Fragment, type ReactNode, useOptimistic, useState, useTransition } from "react";
-import { dayMonthYear, fullDay } from "./days";
-import { PanelCard } from "./parts";
+} from "../../model/people.ts";
+import type { Persona } from "../../model/shared.ts";
+import { useBoardHref, useHrActions } from "../mount.tsx";
+import { dayMonthYear, fullDay } from "./days.ts";
+import { PanelCard } from "./parts.tsx";
 
 interface AttendanceData {
   records: ClockRecord[];

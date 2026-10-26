@@ -31,21 +31,22 @@ import {
   toast,
 } from "@heroui/react";
 import { EmptyState, ListView, RadioButtonGroup, Segment } from "@heroui-pro/react";
+import { GateChip, Icon, KeyValueList, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
+import { PhoneSheet, PhoneTitle, PhoneToasts, renderArticle, renderSection } from "@injishi/ui/phone";
+import { type ReactNode, useState, useTransition } from "react";
+import type { Persona } from "../../model/shared.ts";
 import type {
   LeaveApprover,
-  StaffLeaveBalance as LeaveBalance,
-  StaffLeaveType as LeaveType,
-  Persona,
+  LeaveBalance,
+  LeaveType,
   RequestStatus,
   Shift,
   StaffProfile,
   StaffRequest,
   SwapColleague,
-} from "@injishi/product-hr";
-import { reported, useHrActions } from "@injishi/product-hr/web";
-import { GateChip, Icon, KeyValueList, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
-import { PhoneSheet, PhoneTitle, PhoneToasts, renderArticle, renderSection } from "@injishi/ui/phone";
-import { type ReactNode, useState, useTransition } from "react";
+} from "../../model/staff.ts";
+import { useHrActions } from "../mount.tsx";
+import { reported } from "../reported.ts";
 
 interface StaffScheduleData {
   /** The caller's own profile; null when none is on file (never another person's). */

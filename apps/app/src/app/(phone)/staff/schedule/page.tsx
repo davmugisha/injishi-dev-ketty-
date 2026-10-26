@@ -7,10 +7,10 @@ import type {
   StaffRequest,
   SwapColleague,
 } from "@injishi/data/fixtures/staff";
+import { StaffScheduleView } from "@injishi/product-hr/web";
 import { NothingYet } from "@injishi/ui/phone";
 import type { Metadata } from "next";
 import { HrMount } from "@/features/hr/hr-mount";
-import { StaffScheduleView } from "@/features/staff/StaffScheduleView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument, requestContext } from "@/server/data";
 import { myProfile, staffReadRefusal } from "@/server/sources/staff";

@@ -25,7 +25,50 @@ export const definition = {
 
 // Three areas declare a name each other also uses for a different shape, so the second one is renamed here.
 export type * from "./model/commands.ts";
+export type {
+  Candidate,
+  FinalSettlement,
+  HelpdeskTicket as PayrollHelpdeskTicket,
+  HrAutomation,
+  HrReport,
+  Interview,
+  OnboardingTask,
+  PayLine,
+  PaymentFile,
+  PayRates,
+  PayRunException,
+  PayRunHistory,
+  PayRunOutput,
+  PayRunRule,
+  PayRunStage,
+  PayRunStep,
+  PayRunTotal,
+  PipelineStage,
+  ReviewCycleMetric,
+  ReviewDepartment,
+  RuleGovernanceStep,
+  RuleSet,
+  RuleSetStatus,
+  StaffAsset,
+  TicketMessage,
+  Vacancy,
+} from "./model/payroll.ts";
 export type * from "./model/people.ts";
-export type { Candidate, FinalSettlement, HrAutomation, HrReport, Interview, OnboardingTask, PayLine, PayRates, PayRunException, PayRunHistory, PayRunOutput, PayRunRule, PayRunStage, PayRunStep, PayRunTotal, PaymentFile, PipelineStage, ReviewCycleMetric, ReviewDepartment, RuleGovernanceStep, RuleSet, RuleSetStatus, StaffAsset, TicketMessage, Vacancy, HelpdeskTicket as PayrollHelpdeskTicket } from "./model/payroll.ts";
 export type * from "./model/shared.ts";
-export type { HelpTicket, HelpTopic, LeaveApprover, LoanedAsset, Payslip, PayslipLine, RequestStatus, Shift, StaffDocument, StaffProfile, StaffRequest, StaffTone, SwapColleague, LeaveBalance as StaffLeaveBalance, LeaveType as StaffLeaveType } from "./model/staff.ts";
+export type {
+  HelpTicket,
+  HelpTopic,
+  LeaveApprover,
+  LeaveBalance as StaffLeaveBalance,
+  LeaveType as StaffLeaveType,
+  LoanedAsset,
+  Payslip,
+  PayslipLine,
+  RequestStatus,
+  Shift,
+  StaffDocument,
+  StaffProfile,
+  StaffRequest,
+  StaffTone,
+  SwapColleague,
+} from "./model/staff.ts";

@@ -3,18 +3,12 @@
 import { CircleCheck, EyeSlash, Lock, PaperPlane, TriangleExclamation } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Label, Switch, Table, Tag, TagGroup, TextArea, TextField } from "@heroui/react";
 import { ChatMessage, ItemCard, ItemCardGroup, ListView } from "@heroui-pro/react";
-import type {
-  PayrollHelpdeskTicket as HelpdeskTicket,
-  HrAutomation,
-  HrReport,
-  Persona,
-  StaffAsset,
-  TicketMessage,
-} from "@injishi/product-hr";
-import { useBoardHref } from "@injishi/product-hr/web";
 import { Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useState } from "react";
-import { PressableItemCard } from "./parts";
+import type { HelpdeskTicket, HrAutomation, HrReport, StaffAsset, TicketMessage } from "../../model/payroll.ts";
+import type { Persona } from "../../model/shared.ts";
+import { useBoardHref } from "../mount.tsx";
+import { PressableItemCard } from "./parts.tsx";
 
 interface StaffServicesData {
   tickets: HelpdeskTicket[];

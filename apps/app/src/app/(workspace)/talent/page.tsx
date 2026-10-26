@@ -7,9 +7,9 @@ import type {
   ReviewDepartment,
   Vacancy,
 } from "@injishi/data/fixtures/payroll";
+import { TalentView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
 import { HrMount } from "@/features/hr/hr-mount";
-import { TalentView } from "@/features/payroll/TalentView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 

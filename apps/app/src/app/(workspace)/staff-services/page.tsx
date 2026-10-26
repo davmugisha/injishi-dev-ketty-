@@ -1,8 +1,8 @@
 import { screens } from "@injishi/data";
 import type { HelpdeskTicket, HrAutomation, HrReport, StaffAsset } from "@injishi/data/fixtures/payroll";
+import { StaffServicesView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
 import { HrMount } from "@/features/hr/hr-mount";
-import { StaffServicesView } from "@/features/payroll/StaffServicesView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 

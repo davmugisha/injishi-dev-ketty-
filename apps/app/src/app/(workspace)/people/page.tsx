@@ -8,9 +8,9 @@ import type {
   PeopleProperty,
   RosterGap,
 } from "@injishi/data/fixtures/people";
+import { PeopleHomeView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
 import { HrMount } from "@/features/hr/hr-mount";
-import { PeopleHomeView } from "@/features/people/PeopleHomeView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { clock } from "@/server/format";

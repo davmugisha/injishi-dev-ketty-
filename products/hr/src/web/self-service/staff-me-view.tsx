@@ -33,22 +33,22 @@ import {
   toast,
 } from "@heroui/react";
 import { ItemCard, ListView, Segment } from "@heroui-pro/react";
-import type {
-  HelpTicket,
-  HelpTopic,
-  StaffLeaveBalance as LeaveBalance,
-  LoanedAsset,
-  Payslip,
-  Persona,
-  StaffDocument,
-  StaffProfile,
-  StaffRequest,
-} from "@injishi/product-hr";
-import { useBoardHref, useHrActions } from "@injishi/product-hr/web";
 import { formatRwf, Icon, PhoneBody, PhoneTop, StatusDot, toneColor } from "@injishi/ui";
 import { PhoneSheet, PhoneToasts, renderAsButton, renderSection, ToneTile } from "@injishi/ui/phone";
 import NextLink from "next/link";
 import { type ComponentPropsWithRef, Fragment, useState, useTransition } from "react";
+import type { Persona } from "../../model/shared.ts";
+import type {
+  HelpTicket,
+  HelpTopic,
+  LeaveBalance,
+  LoanedAsset,
+  Payslip,
+  StaffDocument,
+  StaffProfile,
+  StaffRequest,
+} from "../../model/staff.ts";
+import { useBoardHref, useHrActions } from "../mount.tsx";
 
 interface StaffMeData {
   /** The caller's own profile; null when none is on file (never another person's). */

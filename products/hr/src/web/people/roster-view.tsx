@@ -26,6 +26,8 @@ import {
   toast,
 } from "@heroui/react";
 import { ListView, NativeSelect, Segment } from "@heroui-pro/react";
+import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
+import { Fragment, useState, useTransition } from "react";
 import type {
   PublicHoliday,
   RosterGroup,
@@ -35,12 +37,10 @@ import type {
   ShiftCode,
   ShiftSwap,
   WeekId,
-} from "@injishi/product-hr";
-import { useBoardHref, useHrActions, useHrShell } from "@injishi/product-hr/web";
-import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
-import { Fragment, useState, useTransition } from "react";
-import { addDays, longDay, shortDay, weekdayLong } from "./days";
-import { PanelCard } from "./parts";
+} from "../../model/people.ts";
+import { useBoardHref, useHrActions, useHrShell } from "../mount.tsx";
+import { addDays, longDay, shortDay, weekdayLong } from "./days.ts";
+import { PanelCard } from "./parts.tsx";
 
 interface RosterData {
   groups: RosterGroup[];

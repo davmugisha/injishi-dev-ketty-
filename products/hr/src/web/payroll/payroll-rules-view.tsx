@@ -3,11 +3,12 @@
 import { Check, ChevronRight, FileArrowUp, Hourglass, Paperclip, Plus, ShieldExclamation } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Drawer, Input, Label, Switch, Table, TextArea, TextField } from "@heroui/react";
 import { DropZone, ItemCard, ItemCardGroup, ListView, NativeSelect, Timeline } from "@heroui-pro/react";
-import type { Persona, RuleGovernanceStep, RuleSet } from "@injishi/product-hr";
-import { useBoardHref } from "@injishi/product-hr/web";
 import { GateChip, Icon, KeyValueList, PageContent, PageHeader } from "@injishi/ui";
 import { useState } from "react";
-import { PressableItemCard } from "./parts";
+import type { RuleGovernanceStep, RuleSet } from "../../model/payroll.ts";
+import type { Persona } from "../../model/shared.ts";
+import { useBoardHref } from "../mount.tsx";
+import { PressableItemCard } from "./parts.tsx";
 
 const MONTHS: Record<string, string> = {
   Jan: "January",

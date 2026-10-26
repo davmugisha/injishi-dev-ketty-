@@ -13,19 +13,6 @@ import {
 import { Avatar, AvatarGroup, Button, Chip, Toast, toast } from "@heroui/react";
 import { EmptyState, ItemCard, ItemCardGroup, KPIGroup, ListView, Segment, Stepper, Timeline } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import type {
-  BoardId,
-  DeptPresence,
-  ExpiringItem,
-  HelpdeskTicket,
-  LeaveRequest,
-  PayRunSummary,
-  PeopleProperty,
-  Persona,
-  PropertyId,
-  RosterGap,
-} from "@injishi/product-hr";
-import { useBoardHref, useHrActions } from "@injishi/product-hr/web";
 import {
   formatRwf,
   GateChip,
@@ -39,8 +26,20 @@ import {
 } from "@injishi/ui";
 import NextLink from "next/link";
 import { Fragment, useOptimistic, useState, useTransition } from "react";
-import { addDays, fullDay, rangeShort } from "./days";
-import { firstName, initials, PanelCard } from "./parts";
+import type {
+  DeptPresence,
+  ExpiringItem,
+  HelpdeskTicket,
+  LeaveRequest,
+  PayRunSummary,
+  PeopleProperty,
+  PropertyId,
+  RosterGap,
+} from "../../model/people.ts";
+import type { BoardId, Persona } from "../../model/shared.ts";
+import { useBoardHref, useHrActions } from "../mount.tsx";
+import { addDays, fullDay, rangeShort } from "./days.ts";
+import { firstName, initials, PanelCard } from "./parts.tsx";
 
 interface PeopleHomeData {
   properties: PeopleProperty[];

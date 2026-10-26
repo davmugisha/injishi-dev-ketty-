@@ -7,9 +7,9 @@ import type {
   Rotation,
   ShiftSwap,
 } from "@injishi/data/fixtures/people";
+import { RosterView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
 import { HrMount } from "@/features/hr/hr-mount";
-import { RosterView } from "@/features/people/RosterView";
 import { requirePersona } from "@/lib/session";
 import { workspaceFor } from "@/server/auth";
 import { getCollection, requestContext } from "@/server/data";

@@ -13,6 +13,9 @@ import {
 import { Alert, Button, Card, Chip, Label, Modal, Table, TextArea, TextField } from "@heroui/react";
 import { KPIGroup, ListView, Segment, Stepper } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
+import { GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
+import NextLink from "next/link";
+import { Fragment, useMemo, useState } from "react";
 import type {
   FinalSettlement,
   PayLine,
@@ -25,13 +28,10 @@ import type {
   PayRunStage,
   PayRunStep,
   PayRunTotal,
-} from "@injishi/product-hr";
-import { useBoardHref } from "@injishi/product-hr/web";
-import { GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
-import NextLink from "next/link";
-import { Fragment, useMemo, useState } from "react";
-import { AmountList, type AmountRow } from "./parts";
-import { amount, payLineFigures, pct, rwf, signedRwf } from "./payCalc";
+} from "../../model/payroll.ts";
+import { useBoardHref } from "../mount.tsx";
+import { AmountList, type AmountRow } from "./parts.tsx";
+import { amount, payLineFigures, pct, rwf, signedRwf } from "./pay-calc.ts";
 
 interface PayRunData {
   rates: PayRates;

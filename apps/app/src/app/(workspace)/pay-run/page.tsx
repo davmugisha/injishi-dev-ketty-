@@ -12,10 +12,10 @@ import type {
   PayRunStep,
   PayRunTotal,
 } from "@injishi/data/fixtures/payroll";
+import { PayRunView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { HrMount } from "@/features/hr/hr-mount";
-import { PayRunView } from "@/features/payroll/PayRunView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 

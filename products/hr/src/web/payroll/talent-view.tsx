@@ -3,6 +3,8 @@
 import { Calendar, CircleCheck, LinkSlash, PersonPlus, ShieldCheck, Star } from "@gravity-ui/icons";
 import { Alert, Avatar, Button, Card, Checkbox, Chip, Description, Label, ProgressBar, Table } from "@heroui/react";
 import { Kanban, ListView, Segment, Timeline } from "@heroui-pro/react";
+import { Icon, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
+import { useState } from "react";
 import type {
   Candidate,
   Interview,
@@ -11,10 +13,8 @@ import type {
   ReviewCycleMetric,
   ReviewDepartment,
   Vacancy,
-} from "@injishi/product-hr";
-import { useBoardHref } from "@injishi/product-hr/web";
-import { Icon, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
-import { useState } from "react";
+} from "../../model/payroll.ts";
+import { useBoardHref } from "../mount.tsx";
 
 interface TalentData {
   vacancies: Vacancy[];

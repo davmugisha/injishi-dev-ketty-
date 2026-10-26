@@ -1,8 +1,8 @@
 import { screens } from "@injishi/data";
 import type { RuleGovernanceStep, RuleSet } from "@injishi/data/fixtures/payroll";
+import { PayrollRulesView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
 import { HrMount } from "@/features/hr/hr-mount";
-import { PayrollRulesView } from "@/features/payroll/PayrollRulesView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 

@@ -6,6 +6,7 @@ import { type HrLinks, HrProvider, type HrShell } from "@injishi/product-hr/web"
 import type { ReactNode } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { signOut } from "@/lib/auth-actions";
+import { askLeaveAction, cancelRequestAction } from "../staff/actions";
 import {
   decideCorrection,
   decideLeave,
@@ -15,8 +16,7 @@ import {
   setOffboardingStep,
   setRosterLent,
   setRosterShift,
-} from "../people/actions";
-import { askLeaveAction, cancelRequestAction } from "../staff/actions";
+} from "./actions";
 
 /*
  * What HR's views may not import, handed to them by the app (ADR-074 stage 3). The views live in

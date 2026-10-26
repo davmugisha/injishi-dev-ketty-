@@ -1,8 +1,8 @@
 import { screens } from "@injishi/data";
 import type { LeaveBalance, LeaveCalendarEntry, LeaveRequest, LeaveType } from "@injishi/data/fixtures/people";
+import { LeaveView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
 import { HrMount } from "@/features/hr/hr-mount";
-import { LeaveView } from "@/features/people/LeaveView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 

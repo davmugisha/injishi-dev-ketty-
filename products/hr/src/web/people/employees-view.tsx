@@ -15,6 +15,8 @@ import {
   toast,
 } from "@heroui/react";
 import { EmptyState, ItemCard, NativeSelect, Segment } from "@heroui-pro/react";
+import { LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
+import { useState, useTransition } from "react";
 import type {
   CompensationChange,
   Employee,
@@ -26,13 +28,11 @@ import type {
   PeopleProperty,
   PolicyAck,
   PropertyId,
-} from "@injishi/product-hr";
-import { useBoardHref, useHrActions } from "@injishi/product-hr/web";
-import { LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
-import { useState, useTransition } from "react";
-import { EmployeeFileCard } from "./EmployeeFileCard";
-import { LoginChip, STATUS } from "./employee-status";
-import { initials, PanelCard } from "./parts";
+} from "../../model/people.ts";
+import { useBoardHref, useHrActions } from "../mount.tsx";
+import { EmployeeFileCard } from "./employee-file-card.tsx";
+import { LoginChip, STATUS } from "./employee-status.tsx";
+import { initials, PanelCard } from "./parts.tsx";
 
 interface EmployeesData {
   properties: PeopleProperty[];

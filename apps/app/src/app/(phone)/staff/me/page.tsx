@@ -8,11 +8,11 @@ import type {
   StaffDocument,
   StaffRequest,
 } from "@injishi/data/fixtures/staff";
+import { StaffMeView } from "@injishi/product-hr/web";
 import { NothingYet } from "@injishi/ui/phone";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { HrMount } from "@/features/hr/hr-mount";
-import { StaffMeView } from "@/features/staff/StaffMeView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument, requestContext } from "@/server/data";
 import { myClockIn, myProfile, staffReadRefusal } from "@/server/sources/staff";

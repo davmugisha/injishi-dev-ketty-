@@ -3,13 +3,13 @@
 import { BookOpen, Calculator, Comment, Eye, Lock, Pencil, Persons, ShieldKeyhole } from "@gravity-ui/icons";
 import { Alert, Avatar, Button, Card, Chip, Input, Label, Table, Tabs, TextField, toast } from "@heroui/react";
 import { EmptyState, ListView, NativeSelect } from "@heroui-pro/react";
-import type { CompensationChange, Employee, FamilyMember, FileDocument, PolicyAck } from "@injishi/product-hr";
-import { useBoardHref } from "@injishi/product-hr/web";
 import { formatRwf, Icon, KeyValueList, LinkButton, toneColor } from "@injishi/ui";
 import { useState } from "react";
-import { addDays, dayMonthYear, monthLong } from "./days";
-import { LoginChip, STATUS } from "./employee-status";
-import { firstName, initials } from "./parts";
+import type { CompensationChange, Employee, FamilyMember, FileDocument, PolicyAck } from "../../model/people.ts";
+import { useBoardHref } from "../mount.tsx";
+import { addDays, dayMonthYear, monthLong } from "./days.ts";
+import { LoginChip, STATUS } from "./employee-status.tsx";
+import { firstName, initials } from "./parts.tsx";
 
 const TABS = [
   { id: "overview", label: "Overview" },

@@ -1,7 +1,7 @@
 import { Link as LinkIcon, LinkSlash } from "@gravity-ui/icons";
 import { Chip } from "@heroui/react";
-import type { Employee, EmployeeStatus } from "@injishi/product-hr";
 import { type Tone, toneColor } from "@injishi/ui";
+import type { Employee, EmployeeStatus } from "../../model/people.ts";
 
 export const STATUS: Record<EmployeeStatus, { label: string; tone: Tone }> = {
   active: { label: "Active", tone: "success" },
