@@ -62,7 +62,7 @@ export const sampleCollectionsByBoard: Record<string, number> = {
   InviteAccept: 2,
   KitchenDisplay: 2,
   LandlordBrokers: 0,
-  LandlordGuests: 1,
+  LandlordGuests: 0,
   LeaderGuests: 0,
   LeaderReports: 0,
   LeaseNew: 0,

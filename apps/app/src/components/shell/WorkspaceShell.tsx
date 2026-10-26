@@ -2,14 +2,15 @@
 
 import { Bars, BellDot, CircleQuestion, Comments, Magnifier } from "@gravity-ui/icons";
 import { Kbd } from "@heroui/react";
-import { AppLayout, Navbar, Sidebar } from "@heroui-pro/react";
+import { AppLayout, Navbar, Sidebar, useSidebar } from "@heroui-pro/react";
 import { type NavGroup, navHref, type Persona, screenByPath, screenHref, type TopbarStatus } from "@injishi/data";
-import { Icon, LinkButton } from "@injishi/ui";
+import { Icon, IconAction, LinkButton } from "@injishi/ui";
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { BrandMark } from "../brand";
 import { BusinessSwitcher } from "./BusinessSwitcher";
+import { QuickSearch } from "./QuickSearch";
 import { SampleDataPill } from "./SampleData";
 import { TopbarStatusPill, TopbarStatusProvider } from "./TopbarStatus";
 import { UserMenu } from "./UserMenu";
@@ -38,6 +39,7 @@ function NavMenu({
                 href={navHref(item.board, pathname)}
                 isCurrent={current === item.board}
                 textValue={item.label}
+                tooltip={item.chip ? `${item.label} · ${item.chip}` : item.label}
               >
                 <Sidebar.MenuIcon>
                   <Icon name={item.icon} />
@@ -57,6 +59,53 @@ function NavMenu({
         </Sidebar.Group>
       ))}
     </>
+  );
+}
+
+/**
+ * People whose every screen reads their own records from the API (landlords, tenants, brokers, local
+ * leaders and officers). Their top bar shows only what is real for them: no sample pills, no hotel search,
+ * no assistant or notification counts drawn from the prototype's fixtures.
+ */
+const LIVE_PERSONAS = new Set<string>(["landlord", "tenant", "broker", "officer"]);
+const LIVE_SECTIONS = new Set<string>(["rentals", "tenant"]);
+
+const SIDEBAR_KEY = "injishi.sidebar";
+
+/** The sidebar's open state, remembered in this browser. */
+function useRememberedSidebar(): [boolean, (open: boolean) => void] {
+  const [open, setOpen] = useState(true);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(SIDEBAR_KEY) === "collapsed") setOpen(false);
+    } catch {
+      // Storage can be blocked; the sidebar then starts open.
+    }
+  }, []);
+  const change = useCallback((next: boolean) => {
+    setOpen(next);
+    try {
+      window.localStorage.setItem(SIDEBAR_KEY, next ? "open" : "collapsed");
+    } catch {
+      // Not remembered, still toggled.
+    }
+  }, []);
+  return [open, change];
+}
+
+/** Collapse to an icon rail, or expand again. On a phone the sidebar is a sheet and this is not shown. */
+function CollapseToggle({ where }: { where: "header" | "rail" }) {
+  const { isOpen, toggleSidebar, isMobile } = useSidebar();
+  if (isMobile) return null;
+  if (where === "header" && !isOpen) return null;
+  if (where === "rail" && isOpen) return null;
+  return (
+    <IconAction
+      icon="LayoutSideContentLeft"
+      label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
+      onPress={toggleSidebar}
+      className={where === "header" ? "ml-auto text-muted" : "mx-auto text-muted"}
+    />
   );
 }
 
@@ -89,10 +138,17 @@ export function WorkspaceShell({
       return next;
     });
   }, []);
-  const pills = (topbar?.pills ?? []).map((p, i) => overrides[i] ?? p);
+  const live = LIVE_PERSONAS.has(persona.id) || LIVE_SECTIONS.has(screen?.section ?? "");
+  // A live screen shows only the pills it sets itself (<TopbarStatus>), never the registry's samples.
+  const pills = live ? Object.values(overrides) : (topbar?.pills ?? []).map((p, i) => overrides[i] ?? p);
+  // The lists a live workspace can search: only its own, through its own sidebar.
+  const searchable = live && groups.some((g) => g.items.some((i) => ["Leases", "Units", "Faults"].includes(i.board)));
+  const [sidebarOpen, setSidebarOpen] = useRememberedSidebar();
 
-  // ⌘K / Ctrl+K opens global search, as the artifact's search field advertises.
+  // ⌘K / Ctrl+K opens global search, as the artifact's search field advertises. A live workspace's
+  // quick search listens for it itself.
   useEffect(() => {
+    if (live) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -101,20 +157,23 @@ export function WorkspaceShell({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router]);
+  }, [router, live]);
 
   const header = (
     <Sidebar.Header className="gap-2">
-      <NextLink
-        href="/"
-        className="flex items-center gap-2.5 px-1.5 py-1 text-foreground no-underline"
-        aria-label="Injishi home"
-      >
-        <BrandMark size={28} />
-        <span className="text-[15px] font-semibold" data-sidebar="label">
-          Injishi
-        </span>
-      </NextLink>
+      <div className="flex items-center gap-1">
+        <NextLink
+          href="/"
+          className="flex items-center gap-2.5 px-1.5 py-1 text-foreground no-underline"
+          aria-label="Injishi home"
+        >
+          <BrandMark size={28} />
+          <span className="text-base font-semibold" data-sidebar="label">
+            Injishi
+          </span>
+        </NextLink>
+        <CollapseToggle where="header" />
+      </div>
       <BusinessSwitcher persona={persona} />
     </Sidebar.Header>
   );
@@ -126,7 +185,8 @@ export function WorkspaceShell({
         <Sidebar.Content>
           <NavMenu groups={groups} current={current} pathname={pathname} />
         </Sidebar.Content>
-        <Sidebar.Footer>
+        <Sidebar.Footer className="gap-1">
+          <CollapseToggle where="rail" />
           <UserMenu persona={persona} />
         </Sidebar.Footer>
       </Sidebar>
@@ -148,24 +208,28 @@ export function WorkspaceShell({
         <AppLayout.MenuToggle aria-label="Open navigation">
           <Bars className="size-4" />
         </AppLayout.MenuToggle>
-        <LinkButton
-          href={screenHref("GlobalSearch")}
-          variant="tertiary"
-          className="h-9 min-w-0 max-w-[420px] flex-[1_1_260px] justify-start gap-2 rounded-xl px-3 text-[13px] font-normal text-muted"
-          aria-label={topbar?.search ?? "Search"}
-        >
-          <Magnifier className="size-4 shrink-0" aria-hidden="true" />
-          <span className="truncate">{topbar?.search ?? "Search…"}</span>
-          <Kbd className="ml-auto hidden sm:inline-flex">⌘K</Kbd>
-        </LinkButton>
+        {searchable ? (
+          <QuickSearch groups={groups} placeholder={(topbar?.search ?? "Search").replace(/…$/, "")} />
+        ) : live ? null : (
+          <LinkButton
+            href={screenHref("GlobalSearch")}
+            variant="tertiary"
+            className="h-9 min-w-0 max-w-md flex-[1_1_260px] justify-start gap-2 rounded-xl px-3 text-sm font-normal text-muted"
+            aria-label={topbar?.search ?? "Search"}
+          >
+            <Magnifier className="size-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">{topbar?.search ?? "Search…"}</span>
+            <Kbd className="ml-auto hidden sm:inline-flex">⌘K</Kbd>
+          </LinkButton>
+        )}
         <Navbar.Spacer />
-        <SampleDataPill board={current} />
+        {live ? null : <SampleDataPill board={current} />}
         <div className="hidden items-center gap-2 lg:flex" data-topbar-status="">
           {pills.map((p, i) => (
             <TopbarStatusPill key={`${i}-${p.label}`} status={p} />
           ))}
         </div>
-        {topbar?.assistant !== false ? (
+        {!live && topbar?.assistant !== false ? (
           <LinkButton
             href={screenHref("Assistant")}
             variant="ghost"
@@ -176,15 +240,17 @@ export function WorkspaceShell({
             <Comments className="size-4" />
           </LinkButton>
         ) : null}
-        <LinkButton
-          href={screenHref("Notifications")}
-          variant="ghost"
-          isIconOnly
-          aria-label={`Notifications, ${topbar?.notifications ?? 0} unread`}
-          title={`Notifications, ${topbar?.notifications ?? 0} unread`}
-        >
-          <BellDot className="size-4" />
-        </LinkButton>
+        {live ? null : (
+          <LinkButton
+            href={screenHref("Notifications")}
+            variant="ghost"
+            isIconOnly
+            aria-label={`Notifications, ${topbar?.notifications ?? 0} unread`}
+            title={`Notifications, ${topbar?.notifications ?? 0} unread`}
+          >
+            <BellDot className="size-4" />
+          </LinkButton>
+        )}
         <LinkButton href={screenHref("PublicHelp")} variant="ghost" isIconOnly aria-label="Help" title="Help">
           <CircleQuestion className="size-4" />
         </LinkButton>
@@ -197,7 +263,9 @@ export function WorkspaceShell({
       sidebar={sidebar}
       navbar={navbar}
       sidebarVariant="inset"
-      sidebarCollapsible="offcanvas"
+      sidebarCollapsible="icon"
+      sidebarOpen={sidebarOpen}
+      onSidebarOpenChange={setSidebarOpen}
       scrollMode="page"
       className="workspace-shell"
     >
