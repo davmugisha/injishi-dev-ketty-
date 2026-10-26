@@ -9,7 +9,6 @@ import {
   DataTable,
   EmptyBlock,
   FilterTabs,
-  formatDay,
   formatNumber,
   IconAction,
   KpiStrip,
@@ -23,7 +22,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { GuestFilters } from "./GuestFilters";
 import { GuestPanel } from "./GuestPanel";
-import { ChainDots, GuestStatusChip, phoneWords, ScopeLine } from "./parts";
+import { ChainDots, GuestStatusChip, phoneWords, ScopeLine, stayRange } from "./parts";
 
 /** The tabs of the console, Reports last (it is its own page). */
 const TAB_LABEL = { arriving: "Arriving", staying: "Staying now", left: "Left", flagged: "Flagged" } as const;
@@ -253,9 +252,7 @@ export function LeaderGuestsView({
               sortValue: (g) => g.arrivalOn,
               cell: (g) => (
                 <div className="flex flex-col text-sm">
-                  <span className="tabular">
-                    {formatDay(g.arrivalOn, "weekday")} to {formatDay(g.departureOn, "weekday")}
-                  </span>
+                  <span className="whitespace-nowrap tabular">{stayRange(g.arrivalOn, g.departureOn)}</span>
                   <span className="text-xs text-muted">
                     {g.nights === 0 ? "Same day" : g.nights === 1 ? "1 night" : `${g.nights} nights`}
                   </span>
@@ -306,8 +303,7 @@ export function LeaderGuestsView({
           rowActions={(g) => <IconAction icon="Eye" label={`Open ${g.fullName}`} onPress={() => setOpen(g)} />}
           mobile={{
             title: (g) => g.fullName,
-            description: (g) =>
-              `${formatDay(g.arrivalOn, "weekday")} to ${formatDay(g.departureOn, "weekday")} · ${g.host.name}`,
+            description: (g) => `${stayRange(g.arrivalOn, g.departureOn)} · ${g.host.name}`,
             trailing: (g) => <GuestStatusChip guest={g} />,
           }}
         />

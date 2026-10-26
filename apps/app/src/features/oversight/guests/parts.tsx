@@ -164,3 +164,21 @@ export function ScopeLine({ scopes }: { scopes: readonly LeaderScope[] }) {
     </span>
   );
 }
+
+const DAY_MONTH = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const DAY_MONTH_YEAR = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+/** A stay's days in few words: "25 to 28 Oct", "30 Oct to 2 Nov", with years only across a new year. */
+export function stayRange(arrivalOn: string, departureOn: string): string {
+  const a = new Date(`${arrivalOn}T12:00:00Z`);
+  const b = new Date(`${departureOn}T12:00:00Z`);
+  if (arrivalOn.slice(0, 4) !== departureOn.slice(0, 4))
+    return `${DAY_MONTH_YEAR.format(a)} to ${DAY_MONTH_YEAR.format(b)}`;
+  if (arrivalOn.slice(0, 7) === departureOn.slice(0, 7)) return `${a.getUTCDate()} to ${DAY_MONTH.format(b)}`;
+  return `${DAY_MONTH.format(a)} to ${DAY_MONTH.format(b)}`;
+}
