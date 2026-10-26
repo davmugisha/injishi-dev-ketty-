@@ -34,9 +34,10 @@ const base = {
   departureOn: addDays(today, 4),
 };
 
-test("the chain: Rwandan guests go to the district officer, guests from abroad to immigration", () => {
-  assert.deepEqual(guestChainFor(false), ["village_leader", "dasso", "cell_executive", "district_officer"]);
-  assert.deepEqual(guestChainFor(true), ["village_leader", "dasso", "cell_executive", "district_immigration"]);
+test("the chain: every guest goes up local government; a guest from abroad also up DGIE", () => {
+  const local = ["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer"];
+  assert.deepEqual(guestChainFor(false), local);
+  assert.deepEqual(guestChainFor(true), [...local, "district_immigration", "dgie_province", "dgie_national"]);
   for (const role of LEADER_ROLES) {
     assert.ok(isLeaderRole(role));
     assert.deepEqual(OVERSIGHT_ROLE_SCOPES[role], [LEADER_ROLE_SCOPE[role]]);

@@ -40,6 +40,8 @@ const PER_LEVEL: Record<Gap["level"], [string, string]> = {
   cell: ["cell", "cells"],
   sector: ["sector", "sectors"],
   district: ["district", "districts"],
+  province: ["province", "provinces"],
+  country: ["country", "countries"],
 };
 
 /**

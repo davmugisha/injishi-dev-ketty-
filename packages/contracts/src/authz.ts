@@ -908,6 +908,9 @@ export function oversightConsoleFor(role: OversightRole): "verification" | "appr
         case "cell_executive":
         case "district_officer":
         case "district_immigration":
+        case "sector_executive":
+        case "dgie_province":
+        case "dgie_national":
             return "guests";
         case "business_field_verifier":
             return "verification";
@@ -1035,6 +1038,9 @@ export function opposingGateRole(role: OversightRole): OversightRole | null {
         case "cell_executive":
         case "district_officer":
         case "district_immigration":
+        case "sector_executive":
+        case "dgie_province":
+        case "dgie_national":
             return null;
     }
 }

@@ -7,8 +7,13 @@ export declare const RWANDA_CODE = "RW";
 export declare const GUEST_RETENTION_MONTHS = 12;
 /** How far ahead the leader's Arriving tab looks. */
 export declare const LEADER_ARRIVING_DAYS = 7;
-export declare const LEADER_ROLES: readonly ["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"];
-export declare const LeaderRole: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+/**
+ * The posts a guest is reported to, in two chains. Local government (MINALOC) reads every guest, Rwandan
+ * or foreign: village leader, sector DASSO, cell then sector executive secretary, district officer. The
+ * immigration directorate (DGIE) reads guests from abroad only: district, province, headquarters.
+ */
+export declare const LEADER_ROLES: readonly ["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"];
+export declare const LeaderRole: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
 export type LeaderRole = z.infer<typeof LeaderRole>;
 /** Is this oversight role one of the local leaders? */
 export declare function isLeaderRole(role: OversightRole | string): role is LeaderRole;
@@ -18,10 +23,13 @@ export declare const REVIEWER_ROLES: readonly ["business_field_verifier", "busin
 export declare const LEADER_ROLE_LABEL: Readonly<Record<LeaderRole, string>>;
 /** The short words a chip or a column uses. */
 export declare const LEADER_ROLE_SHORT: Readonly<Record<LeaderRole, string>>;
-/** Where each leader sits in a registration's chain, from 1. The two district roles share step 4. */
+/** Where each post sits in a registration's chain, from 1: local government first, then DGIE. */
 export declare const LEADER_ROLE_STEP: Readonly<Record<LeaderRole, number>>;
+/** Which body's chain a post is in: local government sees every guest, DGIE guests from abroad. */
+export declare const LEADER_ROLE_CHAIN: Readonly<Record<LeaderRole, "local" | "dgie">>;
 /** The level of the map each leader covers: the one scope level their appointment may name. */
-export declare const LEADER_ROLE_SCOPE: Readonly<Record<LeaderRole, "village" | "cell" | "sector" | "district">>;
+export type LeaderLevel = "village" | "cell" | "sector" | "district" | "province" | "country";
+export declare const LEADER_ROLE_SCOPE: Readonly<Record<LeaderRole, LeaderLevel>>;
 /** The government body a leader is appointed under unless the admin picks another. */
 export declare const LEADER_ROLE_BODY: Readonly<Record<LeaderRole, string>>;
 /**
@@ -31,9 +39,9 @@ export declare const LEADER_ROLE_BODY: Readonly<Record<LeaderRole, string>>;
  */
 export declare const OVERSIGHT_ROLE_SCOPES: Readonly<Record<OversightRole, readonly OversightScopeLevel[]>>;
 /**
- * The chain a registration goes along, in order: village leader, DASSO, cell
- * executive, then the district officer for a Rwandan guest or the district
- * immigration officer instead for a guest from abroad.
+ * The chain a registration goes along, in order. Every guest goes up the local government chain: village
+ * leader, sector DASSO, cell and sector executive secretaries, district officer. A guest from abroad also
+ * goes up the DGIE chain: district, province, headquarters.
  */
 export declare function guestChainFor(fromAbroad: boolean): LeaderRole[];
 /** A guest is "from abroad" when their nationality is not Rwandan. */
@@ -330,17 +338,17 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
 export type LandlordGuestRequest = z.infer<typeof LandlordGuestRequest>;
 /** One step of the chain as the host reads it: who it went to and where it stands. Never a flag. */
 export declare const HostChainStep: z.ZodObject<{
-    role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+    role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
     roleLabel: z.ZodString;
     step: z.ZodNumber;
     state: z.ZodEnum<["waiting", "delivered", "seen"]>;
 }, "strip", z.ZodTypeAny, {
-    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
     state: "delivered" | "waiting" | "seen";
     roleLabel: string;
     step: number;
 }, {
-    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
     state: "delivered" | "waiting" | "seen";
     roleLabel: string;
     step: number;
@@ -393,17 +401,17 @@ export declare const HostGuest: z.ZodObject<{
     unitId: z.ZodNullable<z.ZodString>;
     unitLabel: z.ZodNullable<z.ZodString>;
     chain: z.ZodArray<z.ZodObject<{
-        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
         roleLabel: z.ZodString;
         step: z.ZodNumber;
         state: z.ZodEnum<["waiting", "delivered", "seen"]>;
     }, "strip", z.ZodTypeAny, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         state: "delivered" | "waiting" | "seen";
         roleLabel: string;
         step: number;
     }, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         state: "delivered" | "waiting" | "seen";
         roleLabel: string;
         step: number;
@@ -442,7 +450,7 @@ export declare const HostGuest: z.ZodObject<{
     originWords: string;
     canChange: boolean;
     chain: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         state: "delivered" | "waiting" | "seen";
         roleLabel: string;
         step: number;
@@ -480,7 +488,7 @@ export declare const HostGuest: z.ZodObject<{
     originWords: string;
     canChange: boolean;
     chain: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         state: "delivered" | "waiting" | "seen";
         roleLabel: string;
         step: number;
@@ -582,17 +590,17 @@ export declare const HostGuestList: z.ZodObject<{
         unitId: z.ZodNullable<z.ZodString>;
         unitLabel: z.ZodNullable<z.ZodString>;
         chain: z.ZodArray<z.ZodObject<{
-            role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+            role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
             roleLabel: z.ZodString;
             step: z.ZodNumber;
             state: z.ZodEnum<["waiting", "delivered", "seen"]>;
         }, "strip", z.ZodTypeAny, {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
         }, {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -631,7 +639,7 @@ export declare const HostGuestList: z.ZodObject<{
         originWords: string;
         canChange: boolean;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -669,7 +677,7 @@ export declare const HostGuestList: z.ZodObject<{
         originWords: string;
         canChange: boolean;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -710,7 +718,7 @@ export declare const HostGuestList: z.ZodObject<{
         originWords: string;
         canChange: boolean;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -751,7 +759,7 @@ export declare const HostGuestList: z.ZodObject<{
         originWords: string;
         canChange: boolean;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -809,17 +817,17 @@ export declare const TenantGuestList: z.ZodObject<{
         unitId: z.ZodNullable<z.ZodString>;
         unitLabel: z.ZodNullable<z.ZodString>;
         chain: z.ZodArray<z.ZodObject<{
-            role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+            role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
             roleLabel: z.ZodString;
             step: z.ZodNumber;
             state: z.ZodEnum<["waiting", "delivered", "seen"]>;
         }, "strip", z.ZodTypeAny, {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
         }, {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -858,7 +866,7 @@ export declare const TenantGuestList: z.ZodObject<{
         originWords: string;
         canChange: boolean;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -896,7 +904,7 @@ export declare const TenantGuestList: z.ZodObject<{
         originWords: string;
         canChange: boolean;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -948,7 +956,7 @@ export declare const TenantGuestList: z.ZodObject<{
         originWords: string;
         canChange: boolean;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -993,7 +1001,7 @@ export declare const TenantGuestList: z.ZodObject<{
         originWords: string;
         canChange: boolean;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -1055,17 +1063,17 @@ export declare const LandlordGuestList: z.ZodObject<{
         unitId: z.ZodNullable<z.ZodString>;
         unitLabel: z.ZodNullable<z.ZodString>;
         chain: z.ZodArray<z.ZodObject<{
-            role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+            role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
             roleLabel: z.ZodString;
             step: z.ZodNumber;
             state: z.ZodEnum<["waiting", "delivered", "seen"]>;
         }, "strip", z.ZodTypeAny, {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
         }, {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -1104,7 +1112,7 @@ export declare const LandlordGuestList: z.ZodObject<{
         originWords: string;
         canChange: boolean;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -1142,7 +1150,7 @@ export declare const LandlordGuestList: z.ZodObject<{
         originWords: string;
         canChange: boolean;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -1219,7 +1227,7 @@ export declare const LandlordGuestList: z.ZodObject<{
         originWords: string;
         canChange: boolean;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -1270,7 +1278,7 @@ export declare const LandlordGuestList: z.ZodObject<{
         originWords: string;
         canChange: boolean;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -1366,7 +1374,7 @@ export declare const FlagGuestRequest: z.ZodObject<{
 export type FlagGuestRequest = z.infer<typeof FlagGuestRequest>;
 /** One step of the chain as a leader reads it: who holds it, who opened it, any flag. */
 export declare const LeaderChainStep: z.ZodObject<{
-    role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+    role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
     roleLabel: z.ZodString;
     step: z.ZodNumber;
     state: z.ZodEnum<["waiting", "delivered", "seen"]>;
@@ -1387,7 +1395,7 @@ export declare const LeaderChainStep: z.ZodObject<{
         by: string | null;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
     state: "delivered" | "waiting" | "seen";
     roleLabel: string;
     step: number;
@@ -1400,7 +1408,7 @@ export declare const LeaderChainStep: z.ZodObject<{
         by: string | null;
     } | null;
 }, {
-    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
     state: "delivered" | "waiting" | "seen";
     roleLabel: string;
     step: number;
@@ -1476,7 +1484,7 @@ export declare const LeaderGuest: z.ZodObject<{
         cellName: string | null;
     }>;
     chain: z.ZodArray<z.ZodObject<{
-        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
         roleLabel: z.ZodString;
         step: z.ZodNumber;
         state: z.ZodEnum<["waiting", "delivered", "seen"]>;
@@ -1497,7 +1505,7 @@ export declare const LeaderGuest: z.ZodObject<{
             by: string | null;
         }>>;
     }, "strip", z.ZodTypeAny, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         state: "delivered" | "waiting" | "seen";
         roleLabel: string;
         step: number;
@@ -1510,7 +1518,7 @@ export declare const LeaderGuest: z.ZodObject<{
             by: string | null;
         } | null;
     }, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         state: "delivered" | "waiting" | "seen";
         roleLabel: string;
         step: number;
@@ -1562,7 +1570,7 @@ export declare const LeaderGuest: z.ZodObject<{
     relationshipLabel: string;
     originWords: string;
     chain: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         state: "delivered" | "waiting" | "seen";
         roleLabel: string;
         step: number;
@@ -1611,7 +1619,7 @@ export declare const LeaderGuest: z.ZodObject<{
     relationshipLabel: string;
     originWords: string;
     chain: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         state: "delivered" | "waiting" | "seen";
         roleLabel: string;
         step: number;
@@ -1632,19 +1640,19 @@ export type LeaderGuest = z.infer<typeof LeaderGuest>;
 /** One post a leader holds, in words. */
 export declare const LeaderScope: z.ZodObject<{
     assignmentId: z.ZodString;
-    role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+    role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
     roleLabel: z.ZodString;
-    level: z.ZodEnum<["village", "cell", "sector", "district"]>;
+    level: z.ZodEnum<["village", "cell", "sector", "district", "province", "country"]>;
     area: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-    level: "district" | "sector" | "cell" | "village";
+    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+    level: "country" | "province" | "district" | "sector" | "cell" | "village";
     area: string;
     assignmentId: string;
     roleLabel: string;
 }, {
-    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-    level: "district" | "sector" | "cell" | "village";
+    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+    level: "country" | "province" | "district" | "sector" | "cell" | "village";
     area: string;
     assignmentId: string;
     roleLabel: string;
@@ -1799,19 +1807,19 @@ export declare const LeaderSummary: z.ZodObject<{
     }>;
     scopes: z.ZodArray<z.ZodObject<{
         assignmentId: z.ZodString;
-        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
         roleLabel: z.ZodString;
-        level: z.ZodEnum<["village", "cell", "sector", "district"]>;
+        level: z.ZodEnum<["village", "cell", "sector", "district", "province", "country"]>;
         area: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         assignmentId: string;
         roleLabel: string;
     }, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         assignmentId: string;
         roleLabel: string;
@@ -1951,8 +1959,8 @@ export declare const LeaderSummary: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     scopes: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         assignmentId: string;
         roleLabel: string;
@@ -1996,8 +2004,8 @@ export declare const LeaderSummary: z.ZodObject<{
     };
 }, {
     scopes: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         assignmentId: string;
         roleLabel: string;
@@ -2054,19 +2062,19 @@ export declare const LeaderGuestPage: z.ZodObject<{
     }>;
     scopes: z.ZodArray<z.ZodObject<{
         assignmentId: z.ZodString;
-        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
         roleLabel: z.ZodString;
-        level: z.ZodEnum<["village", "cell", "sector", "district"]>;
+        level: z.ZodEnum<["village", "cell", "sector", "district", "province", "country"]>;
         area: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         assignmentId: string;
         roleLabel: string;
     }, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         assignmentId: string;
         roleLabel: string;
@@ -2269,7 +2277,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
             cellName: string | null;
         }>;
         chain: z.ZodArray<z.ZodObject<{
-            role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+            role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
             roleLabel: z.ZodString;
             step: z.ZodNumber;
             state: z.ZodEnum<["waiting", "delivered", "seen"]>;
@@ -2290,7 +2298,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
                 by: string | null;
             }>>;
         }, "strip", z.ZodTypeAny, {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -2303,7 +2311,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
                 by: string | null;
             } | null;
         }, {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -2355,7 +2363,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
         relationshipLabel: string;
         originWords: string;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -2404,7 +2412,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
         relationshipLabel: string;
         originWords: string;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -2461,7 +2469,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
         relationshipLabel: string;
         originWords: string;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -2479,8 +2487,8 @@ export declare const LeaderGuestPage: z.ZodObject<{
         changedAt: string | null;
     }[];
     scopes: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         assignmentId: string;
         roleLabel: string;
@@ -2561,7 +2569,7 @@ export declare const LeaderGuestPage: z.ZodObject<{
         relationshipLabel: string;
         originWords: string;
         chain: {
-            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+            role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
             state: "delivered" | "waiting" | "seen";
             roleLabel: string;
             step: number;
@@ -2579,8 +2587,8 @@ export declare const LeaderGuestPage: z.ZodObject<{
         changedAt: string | null;
     }[];
     scopes: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         assignmentId: string;
         roleLabel: string;
@@ -2710,19 +2718,19 @@ export declare const GuestReport: z.ZodObject<{
     }>;
     scopes: z.ZodArray<z.ZodObject<{
         assignmentId: z.ZodString;
-        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
         roleLabel: z.ZodString;
-        level: z.ZodEnum<["village", "cell", "sector", "district"]>;
+        level: z.ZodEnum<["village", "cell", "sector", "district", "province", "country"]>;
         area: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         assignmentId: string;
         roleLabel: string;
     }, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         assignmentId: string;
         roleLabel: string;
@@ -2887,7 +2895,7 @@ export declare const GuestReport: z.ZodObject<{
      * because nobody holds that post yet.
      */
     chain: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
         label: z.ZodString;
         step: z.ZodNumber;
         guests: z.ZodNumber;
@@ -2896,7 +2904,7 @@ export declare const GuestReport: z.ZodObject<{
         flagged: z.ZodNumber;
         waiting: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         label: string;
         guests: number;
         delivered: number;
@@ -2905,7 +2913,7 @@ export declare const GuestReport: z.ZodObject<{
         flagged: number;
         opened: number;
     }, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         label: string;
         guests: number;
         delivered: number;
@@ -2966,15 +2974,15 @@ export declare const GuestReport: z.ZodObject<{
         }[];
     };
     scopes: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         assignmentId: string;
         roleLabel: string;
     }[];
     generatedAt: string;
     chain: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         label: string;
         guests: number;
         delivered: number;
@@ -3039,8 +3047,8 @@ export declare const GuestReport: z.ZodObject<{
         averageNights: number | null;
     };
     scopes: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         assignmentId: string;
         roleLabel: string;
@@ -3105,7 +3113,7 @@ export declare const GuestReport: z.ZodObject<{
         }[];
     } | undefined;
     chain?: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         label: string;
         guests: number;
         delivered: number;
@@ -3126,7 +3134,7 @@ export declare const OversightAppointment: z.ZodObject<{
     userId: z.ZodString;
     name: z.ZodNullable<z.ZodString>;
     email: z.ZodString;
-    role: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+    role: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national"]>;
     roleLabel: z.ZodString;
     kind: z.ZodEnum<["leader", "reviewer", "officer"]>;
     bodyCode: z.ZodString;
@@ -3154,7 +3162,7 @@ export declare const OversightAppointment: z.ZodObject<{
     villageId: number | null;
     kind: "leader" | "reviewer" | "officer";
     email: string;
-    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
     id: string;
     title: string | null;
     userId: string;
@@ -3176,7 +3184,7 @@ export declare const OversightAppointment: z.ZodObject<{
     villageId: number | null;
     kind: "leader" | "reviewer" | "officer";
     email: string;
-    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
     id: string;
     title: string | null;
     userId: string;
@@ -3192,7 +3200,7 @@ export declare const OversightAppointment: z.ZodObject<{
 }>;
 export type OversightAppointment = z.infer<typeof OversightAppointment>;
 export declare const OversightAppointmentQuery: z.ZodObject<{
-    role: z.ZodOptional<z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>>;
+    role: z.ZodOptional<z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national"]>>;
     kind: z.ZodOptional<z.ZodEnum<["leader", "reviewer", "officer"]>>;
     provinceId: z.ZodOptional<z.ZodNumber>;
     districtId: z.ZodOptional<z.ZodNumber>;
@@ -3207,7 +3215,7 @@ export declare const OversightAppointmentQuery: z.ZodObject<{
     cellId?: number | undefined;
     villageId?: number | undefined;
     kind?: "leader" | "reviewer" | "officer" | undefined;
-    role?: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | undefined;
+    role?: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | undefined;
     q?: string | undefined;
 }, {
     provinceId?: number | undefined;
@@ -3216,7 +3224,7 @@ export declare const OversightAppointmentQuery: z.ZodObject<{
     cellId?: number | undefined;
     villageId?: number | undefined;
     kind?: "leader" | "reviewer" | "officer" | undefined;
-    role?: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | undefined;
+    role?: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | undefined;
     q?: string | undefined;
 }>;
 export type OversightAppointmentQuery = z.infer<typeof OversightAppointmentQuery>;
@@ -3243,9 +3251,9 @@ export declare const PlaceNames: z.ZodObject<{
 export type PlaceNames = z.infer<typeof PlaceNames>;
 /** Guests waiting because nobody holds a post in an area. */
 export declare const WaitingArea: z.ZodObject<{
-    role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+    role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
     roleLabel: z.ZodString;
-    level: z.ZodEnum<["village", "cell", "sector", "district"]>;
+    level: z.ZodEnum<["village", "cell", "sector", "district", "province", "country"]>;
     /** In words; "No village on record" when the home has none yet. */
     area: z.ZodString;
     located: z.ZodBoolean;
@@ -3281,8 +3289,8 @@ export declare const WaitingArea: z.ZodObject<{
     sectorId: number | null;
     cellId: number | null;
     villageId: number | null;
-    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-    level: "district" | "sector" | "cell" | "village";
+    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+    level: "country" | "province" | "district" | "sector" | "cell" | "village";
     area: string;
     roleLabel: string;
     located: boolean;
@@ -3301,8 +3309,8 @@ export declare const WaitingArea: z.ZodObject<{
     sectorId: number | null;
     cellId: number | null;
     villageId: number | null;
-    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-    level: "district" | "sector" | "cell" | "village";
+    role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+    level: "country" | "province" | "district" | "sector" | "cell" | "village";
     area: string;
     roleLabel: string;
     located: boolean;
@@ -3323,7 +3331,7 @@ export declare const OversightAppointmentList: z.ZodObject<{
         userId: z.ZodString;
         name: z.ZodNullable<z.ZodString>;
         email: z.ZodString;
-        role: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+        role: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national"]>;
         roleLabel: z.ZodString;
         kind: z.ZodEnum<["leader", "reviewer", "officer"]>;
         bodyCode: z.ZodString;
@@ -3351,7 +3359,7 @@ export declare const OversightAppointmentList: z.ZodObject<{
         villageId: number | null;
         kind: "leader" | "reviewer" | "officer";
         email: string;
-        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         id: string;
         title: string | null;
         userId: string;
@@ -3373,7 +3381,7 @@ export declare const OversightAppointmentList: z.ZodObject<{
         villageId: number | null;
         kind: "leader" | "reviewer" | "officer";
         email: string;
-        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         id: string;
         title: string | null;
         userId: string;
@@ -3401,9 +3409,9 @@ export declare const OversightAppointmentList: z.ZodObject<{
         officer: number;
     }>;
     waiting: z.ZodArray<z.ZodObject<{
-        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
         roleLabel: z.ZodString;
-        level: z.ZodEnum<["village", "cell", "sector", "district"]>;
+        level: z.ZodEnum<["village", "cell", "sector", "district", "province", "country"]>;
         /** In words; "No village on record" when the home has none yet. */
         area: z.ZodString;
         located: z.ZodBoolean;
@@ -3439,8 +3447,8 @@ export declare const OversightAppointmentList: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         roleLabel: string;
         located: boolean;
@@ -3459,8 +3467,8 @@ export declare const OversightAppointmentList: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         roleLabel: string;
         located: boolean;
@@ -3482,8 +3490,8 @@ export declare const OversightAppointmentList: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         roleLabel: string;
         located: boolean;
@@ -3511,7 +3519,7 @@ export declare const OversightAppointmentList: z.ZodObject<{
         villageId: number | null;
         kind: "leader" | "reviewer" | "officer";
         email: string;
-        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         id: string;
         title: string | null;
         userId: string;
@@ -3533,8 +3541,8 @@ export declare const OversightAppointmentList: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         roleLabel: string;
         located: boolean;
@@ -3562,7 +3570,7 @@ export declare const OversightAppointmentList: z.ZodObject<{
         villageId: number | null;
         kind: "leader" | "reviewer" | "officer";
         email: string;
-        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         id: string;
         title: string | null;
         userId: string;
@@ -3590,7 +3598,7 @@ export type OversightAppointmentList = z.infer<typeof OversightAppointmentList>;
 export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
     email: z.ZodString;
     name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    role: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+    role: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national"]>;
     governmentBodyCode: z.ZodString;
     governmentTitle: z.ZodString;
     scopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
@@ -3602,7 +3610,7 @@ export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
     reason: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     email: string;
-    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
     governmentBodyCode: string;
     governmentTitle: string;
     reason: string;
@@ -3615,7 +3623,7 @@ export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
     villageId?: number | null | undefined;
 }, {
     email: string;
-    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
     governmentBodyCode: string;
     governmentTitle: string;
     reason: string;
@@ -3628,7 +3636,7 @@ export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
     villageId?: number | null | undefined;
 }>, {
     email: string;
-    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
     governmentBodyCode: string;
     governmentTitle: string;
     reason: string;
@@ -3641,7 +3649,7 @@ export declare const AppointOfficerRequest: z.ZodEffects<z.ZodObject<{
     villageId?: number | null | undefined;
 }, {
     email: string;
-    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+    role: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
     governmentBodyCode: string;
     governmentTitle: string;
     reason: string;
@@ -3666,9 +3674,9 @@ export type EndAppointmentQuery = z.infer<typeof EndAppointmentQuery>;
 export declare const LeaderCoverage: z.ZodObject<{
     generatedAt: z.ZodString;
     roles: z.ZodArray<z.ZodObject<{
-        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
         roleLabel: z.ZodString;
-        level: z.ZodEnum<["village", "cell", "sector", "district"]>;
+        level: z.ZodEnum<["village", "cell", "sector", "district", "province", "country"]>;
         /** Every area of this level in Rwanda, and how many have someone in the post. */
         nationwide: z.ZodObject<{
             areas: z.ZodNumber;
@@ -3692,8 +3700,8 @@ export declare const LeaderCoverage: z.ZodObject<{
             areas: number;
         }>;
     }, "strip", z.ZodTypeAny, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         roleLabel: string;
         nationwide: {
             covered: number;
@@ -3704,8 +3712,8 @@ export declare const LeaderCoverage: z.ZodObject<{
             areas: number;
         };
     }, {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         roleLabel: string;
         nationwide: {
             covered: number;
@@ -3718,9 +3726,9 @@ export declare const LeaderCoverage: z.ZodObject<{
     }>, "many">;
     /** Areas with rented homes and nobody in the post, most waiting guests first. */
     uncovered: z.ZodArray<z.ZodObject<{
-        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
         roleLabel: z.ZodString;
-        level: z.ZodEnum<["village", "cell", "sector", "district"]>;
+        level: z.ZodEnum<["village", "cell", "sector", "district", "province", "country"]>;
         area: z.ZodString;
         provinceId: z.ZodNullable<z.ZodNumber>;
         districtId: z.ZodNullable<z.ZodNumber>;
@@ -3754,8 +3762,8 @@ export declare const LeaderCoverage: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         homes: number;
         roleLabel: string;
@@ -3773,8 +3781,8 @@ export declare const LeaderCoverage: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         homes: number;
         roleLabel: string;
@@ -3788,9 +3796,9 @@ export declare const LeaderCoverage: z.ZodObject<{
         waitingReports: number;
     }>, "many">;
     waiting: z.ZodArray<z.ZodObject<{
-        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
         roleLabel: z.ZodString;
-        level: z.ZodEnum<["village", "cell", "sector", "district"]>;
+        level: z.ZodEnum<["village", "cell", "sector", "district", "province", "country"]>;
         /** In words; "No village on record" when the home has none yet. */
         area: z.ZodString;
         located: z.ZodBoolean;
@@ -3826,8 +3834,8 @@ export declare const LeaderCoverage: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         roleLabel: string;
         located: boolean;
@@ -3846,8 +3854,8 @@ export declare const LeaderCoverage: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         roleLabel: string;
         located: boolean;
@@ -3866,7 +3874,7 @@ export declare const LeaderCoverage: z.ZodObject<{
         assignmentId: z.ZodString;
         name: z.ZodNullable<z.ZodString>;
         email: z.ZodString;
-        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"]>;
+        role: z.ZodEnum<["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer", "district_immigration", "dgie_province", "dgie_national"]>;
         roleLabel: z.ZodString;
         area: z.ZodString;
         delivered: z.ZodNumber;
@@ -3875,7 +3883,7 @@ export declare const LeaderCoverage: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string | null;
         email: string;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         delivered: number;
         area: string;
         assignmentId: string;
@@ -3885,7 +3893,7 @@ export declare const LeaderCoverage: z.ZodObject<{
     }, {
         name: string | null;
         email: string;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         delivered: number;
         area: string;
         assignmentId: string;
@@ -3900,8 +3908,8 @@ export declare const LeaderCoverage: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         homes: number;
         roleLabel: string;
@@ -3915,8 +3923,8 @@ export declare const LeaderCoverage: z.ZodObject<{
         waitingReports: number;
     }[];
     roles: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         roleLabel: string;
         nationwide: {
             covered: number;
@@ -3934,8 +3942,8 @@ export declare const LeaderCoverage: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         roleLabel: string;
         located: boolean;
@@ -3952,7 +3960,7 @@ export declare const LeaderCoverage: z.ZodObject<{
     neverOpened: {
         name: string | null;
         email: string;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         delivered: number;
         area: string;
         assignmentId: string;
@@ -3967,8 +3975,8 @@ export declare const LeaderCoverage: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         homes: number;
         roleLabel: string;
@@ -3982,8 +3990,8 @@ export declare const LeaderCoverage: z.ZodObject<{
         waitingReports: number;
     }[];
     roles: {
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         roleLabel: string;
         nationwide: {
             covered: number;
@@ -4001,8 +4009,8 @@ export declare const LeaderCoverage: z.ZodObject<{
         sectorId: number | null;
         cellId: number | null;
         villageId: number | null;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
-        level: "district" | "sector" | "cell" | "village";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
+        level: "country" | "province" | "district" | "sector" | "cell" | "village";
         area: string;
         roleLabel: string;
         located: boolean;
@@ -4019,7 +4027,7 @@ export declare const LeaderCoverage: z.ZodObject<{
     neverOpened: {
         name: string | null;
         email: string;
-        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration";
+        role: "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national";
         delivered: number;
         area: string;
         assignmentId: string;

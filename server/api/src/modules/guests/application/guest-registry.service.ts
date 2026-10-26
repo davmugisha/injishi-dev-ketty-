@@ -299,7 +299,7 @@ export class GuestRegistryService {
   /** File a registration and its routes, with the audit and outbox rows, then email the leaders. */
   private async file(home: HomeRow, values: GuestValues, host: { hostKind: GuestHostKind; leaseId: string | null; userId: string }): Promise<string> {
     const now = this.now();
-    const area = { villageId: home.villageId, cellId: home.cellId, sectorId: home.sectorId, districtId: home.districtId };
+    const area = { villageId: home.villageId, cellId: home.cellId, sectorId: home.sectorId, districtId: home.districtId, provinceId: home.provinceId ?? null };
     const id = await this.guests.transaction(async (tx) => {
       const routes = await this.routing.plan(area, values.nationality, tx);
       const registrationId = await this.guests.insertRegistration(tx, {
@@ -344,7 +344,7 @@ export class GuestRegistryService {
 
   private async change(row: RegistrationRow, home: HomeRow, values: GuestValues, userId: string): Promise<void> {
     const now = this.now();
-    const area = { villageId: home.villageId, cellId: home.cellId, sectorId: home.sectorId, districtId: home.districtId };
+    const area = { villageId: home.villageId, cellId: home.cellId, sectorId: home.sectorId, districtId: home.districtId, provinceId: home.provinceId ?? null };
     await this.guests.transaction(async (tx) => {
       const routes = await this.routing.plan(area, values.nationality, tx);
       await this.guests.updateRegistration(tx, row.id, { ...values, propertyId: home.propertyId, unitId: home.unitId, area }, routes, now);

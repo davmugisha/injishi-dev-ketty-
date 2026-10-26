@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AppointmentKind = exports.GuestReport = exports.ReportBucket = exports.GuestReportQuery = exports.GUEST_REPORT_MAX_DAYS = exports.LeaderGuestPage = exports.LeaderSummary = exports.LeaderCounts = exports.LeaderFilters = exports.LeaderScope = exports.LeaderGuest = exports.LeaderChainStep = exports.FlagGuestRequest = exports.LeaderGuestQuery = exports.ReportOrigin = exports.LeaderArrivingWhen = exports.LeaderGuestTab = exports.GuestRelationship = exports.GuestCountry = exports.LandlordGuestList = exports.TenantGuestList = exports.HostGuestList = exports.HostGuestQuery = exports.HostGuestTab = exports.GuestBuilding = exports.HostGuest = exports.HostChainStep = exports.LandlordGuestRequest = exports.TenantGuestRequest = exports.GuestOrigin = exports.GuestCountryCode = exports.GuestPhone = exports.OTHER_RELATIONSHIP = exports.GUEST_RELATIONSHIPS = exports.GuestRouteState = exports.GuestStay = exports.GuestRegistrationStatus = exports.GuestHostKind = exports.OVERSIGHT_ROLE_SCOPES = exports.LEADER_ROLE_BODY = exports.LEADER_ROLE_SCOPE = exports.LEADER_ROLE_STEP = exports.LEADER_ROLE_SHORT = exports.LEADER_ROLE_LABEL = exports.REVIEWER_ROLES = exports.LeaderRole = exports.LEADER_ROLES = exports.LEADER_ARRIVING_DAYS = exports.GUEST_RETENTION_MONTHS = exports.RWANDA_CODE = void 0;
-exports.LeaderCoverage = exports.EndAppointmentQuery = exports.AppointOfficerRequest = exports.OversightAppointmentList = exports.WaitingArea = exports.PlaceNames = exports.OversightAppointmentQuery = exports.OversightAppointment = void 0;
+exports.GuestReport = exports.ReportBucket = exports.GuestReportQuery = exports.GUEST_REPORT_MAX_DAYS = exports.LeaderGuestPage = exports.LeaderSummary = exports.LeaderCounts = exports.LeaderFilters = exports.LeaderScope = exports.LeaderGuest = exports.LeaderChainStep = exports.FlagGuestRequest = exports.LeaderGuestQuery = exports.ReportOrigin = exports.LeaderArrivingWhen = exports.LeaderGuestTab = exports.GuestRelationship = exports.GuestCountry = exports.LandlordGuestList = exports.TenantGuestList = exports.HostGuestList = exports.HostGuestQuery = exports.HostGuestTab = exports.GuestBuilding = exports.HostGuest = exports.HostChainStep = exports.LandlordGuestRequest = exports.TenantGuestRequest = exports.GuestOrigin = exports.GuestCountryCode = exports.GuestPhone = exports.OTHER_RELATIONSHIP = exports.GUEST_RELATIONSHIPS = exports.GuestRouteState = exports.GuestStay = exports.GuestRegistrationStatus = exports.GuestHostKind = exports.OVERSIGHT_ROLE_SCOPES = exports.LEADER_ROLE_BODY = exports.LEADER_ROLE_SCOPE = exports.LEADER_ROLE_CHAIN = exports.LEADER_ROLE_STEP = exports.LEADER_ROLE_SHORT = exports.LEADER_ROLE_LABEL = exports.REVIEWER_ROLES = exports.LeaderRole = exports.LEADER_ROLES = exports.LEADER_ARRIVING_DAYS = exports.GUEST_RETENTION_MONTHS = exports.RWANDA_CODE = void 0;
+exports.LeaderCoverage = exports.EndAppointmentQuery = exports.AppointOfficerRequest = exports.OversightAppointmentList = exports.WaitingArea = exports.PlaceNames = exports.OversightAppointmentQuery = exports.OversightAppointment = exports.AppointmentKind = void 0;
 exports.isLeaderRole = isLeaderRole;
 exports.guestChainFor = guestChainFor;
 exports.isFromAbroad = isFromAbroad;
@@ -44,7 +44,21 @@ exports.GUEST_RETENTION_MONTHS = 12;
 /** How far ahead the leader's Arriving tab looks. */
 exports.LEADER_ARRIVING_DAYS = 7;
 // --- The leader roles -----------------------------------------------------------
-exports.LEADER_ROLES = ["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"];
+/**
+ * The posts a guest is reported to, in two chains. Local government (MINALOC) reads every guest, Rwandan
+ * or foreign: village leader, sector DASSO, cell then sector executive secretary, district officer. The
+ * immigration directorate (DGIE) reads guests from abroad only: district, province, headquarters.
+ */
+exports.LEADER_ROLES = [
+    "village_leader",
+    "dasso",
+    "cell_executive",
+    "sector_executive",
+    "district_officer",
+    "district_immigration",
+    "dgie_province",
+    "dgie_national",
+];
 exports.LeaderRole = zod_1.z.enum(exports.LEADER_ROLES);
 /** Is this oversight role one of the local leaders? */
 function isLeaderRole(role) {
@@ -57,40 +71,65 @@ exports.LEADER_ROLE_LABEL = {
     village_leader: "Village leader (Umudugudu)",
     dasso: "Sector DASSO",
     cell_executive: "Cell executive secretary",
+    sector_executive: "Sector executive secretary",
     district_officer: "District officer",
-    district_immigration: "District immigration officer",
+    district_immigration: "DGIE district officer",
+    dgie_province: "DGIE province officer",
+    dgie_national: "DGIE headquarters",
 };
 /** The short words a chip or a column uses. */
 exports.LEADER_ROLE_SHORT = {
     village_leader: "Village leader",
     dasso: "DASSO",
     cell_executive: "Cell executive",
+    sector_executive: "Sector executive",
     district_officer: "District officer",
-    district_immigration: "Immigration",
+    district_immigration: "DGIE district",
+    dgie_province: "DGIE province",
+    dgie_national: "DGIE headquarters",
 };
-/** Where each leader sits in a registration's chain, from 1. The two district roles share step 4. */
+/** Where each post sits in a registration's chain, from 1: local government first, then DGIE. */
 exports.LEADER_ROLE_STEP = {
     village_leader: 1,
     dasso: 2,
     cell_executive: 3,
-    district_officer: 4,
-    district_immigration: 4,
+    sector_executive: 4,
+    district_officer: 5,
+    district_immigration: 6,
+    dgie_province: 7,
+    dgie_national: 8,
 };
-/** The level of the map each leader covers: the one scope level their appointment may name. */
+/** Which body's chain a post is in: local government sees every guest, DGIE guests from abroad. */
+exports.LEADER_ROLE_CHAIN = {
+    village_leader: "local",
+    dasso: "local",
+    cell_executive: "local",
+    sector_executive: "local",
+    district_officer: "local",
+    district_immigration: "dgie",
+    dgie_province: "dgie",
+    dgie_national: "dgie",
+};
 exports.LEADER_ROLE_SCOPE = {
     village_leader: "village",
     dasso: "sector",
     cell_executive: "cell",
+    sector_executive: "sector",
     district_officer: "district",
     district_immigration: "district",
+    dgie_province: "province",
+    dgie_national: "country",
 };
 /** The government body a leader is appointed under unless the admin picks another. */
 exports.LEADER_ROLE_BODY = {
     village_leader: "MINALOC",
     dasso: "MINALOC",
     cell_executive: "MINALOC",
+    sector_executive: "MINALOC",
     district_officer: "MINALOC",
     district_immigration: "DGIE",
+    dgie_province: "DGIE",
+    dgie_national: "DGIE",
 };
 /**
  * The scope levels each oversight role may be appointed at. A leader covers one
@@ -101,20 +140,24 @@ exports.OVERSIGHT_ROLE_SCOPES = {
     village_leader: ["village"],
     dasso: ["sector"],
     cell_executive: ["cell"],
+    sector_executive: ["sector"],
     district_officer: ["district"],
     district_immigration: ["district"],
+    dgie_province: ["province"],
+    dgie_national: ["country"],
     business_field_verifier: ["country", "province", "district"],
     business_approver: ["country", "province", "district"],
     tax_compliance_officer: ["country", "province", "district"],
     psf_membership_officer: ["country"],
 };
 /**
- * The chain a registration goes along, in order: village leader, DASSO, cell
- * executive, then the district officer for a Rwandan guest or the district
- * immigration officer instead for a guest from abroad.
+ * The chain a registration goes along, in order. Every guest goes up the local government chain: village
+ * leader, sector DASSO, cell and sector executive secretaries, district officer. A guest from abroad also
+ * goes up the DGIE chain: district, province, headquarters.
  */
 function guestChainFor(fromAbroad) {
-    return ["village_leader", "dasso", "cell_executive", fromAbroad ? "district_immigration" : "district_officer"];
+    const local = ["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer"];
+    return fromAbroad ? [...local, "district_immigration", "dgie_province", "dgie_national"] : local;
 }
 /** A guest is "from abroad" when their nationality is not Rwandan. */
 function isFromAbroad(nationality) {
@@ -414,7 +457,7 @@ exports.LeaderScope = zod_1.z.object({
     assignmentId: primitives_1.Uuid,
     role: exports.LeaderRole,
     roleLabel: zod_1.z.string(),
-    level: zod_1.z.enum(["village", "cell", "sector", "district"]),
+    level: zod_1.z.enum(["village", "cell", "sector", "district", "province", "country"]),
     area: zod_1.z.string(),
 });
 /** The places a wider post can narrow to: only those inside it. */
@@ -601,7 +644,7 @@ exports.PlaceNames = zod_1.z.object({
 exports.WaitingArea = zod_1.z.object({
     role: exports.LeaderRole,
     roleLabel: zod_1.z.string(),
-    level: zod_1.z.enum(["village", "cell", "sector", "district"]),
+    level: zod_1.z.enum(["village", "cell", "sector", "district", "province", "country"]),
     /** In words; "No village on record" when the home has none yet. */
     area: zod_1.z.string(),
     located: zod_1.z.boolean(),
@@ -679,7 +722,7 @@ exports.LeaderCoverage = zod_1.z.object({
     roles: zod_1.z.array(zod_1.z.object({
         role: exports.LeaderRole,
         roleLabel: zod_1.z.string(),
-        level: zod_1.z.enum(["village", "cell", "sector", "district"]),
+        level: zod_1.z.enum(["village", "cell", "sector", "district", "province", "country"]),
         /** Every area of this level in Rwanda, and how many have someone in the post. */
         nationwide: zod_1.z.object({ areas: zod_1.z.number().int(), covered: zod_1.z.number().int() }),
         /** Areas with rented homes on Injishi, and how many have someone in the post. */
@@ -689,7 +732,7 @@ exports.LeaderCoverage = zod_1.z.object({
     uncovered: zod_1.z.array(zod_1.z.object({
         role: exports.LeaderRole,
         roleLabel: zod_1.z.string(),
-        level: zod_1.z.enum(["village", "cell", "sector", "district"]),
+        level: zod_1.z.enum(["village", "cell", "sector", "district", "province", "country"]),
         area: zod_1.z.string(),
         provinceId: zod_1.z.number().int().nullable(),
         districtId: zod_1.z.number().int().nullable(),

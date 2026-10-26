@@ -271,6 +271,10 @@ export declare const WorkOrder: z.ZodObject<{
     propertyId: string | null;
     assignedToUserId: string | null;
     assignedToName: string | null;
+    photos: {
+        key: string;
+        caption: string;
+    }[];
     spaceId: string | null;
     floor: number | null;
     block: {
@@ -290,10 +294,6 @@ export declare const WorkOrder: z.ZodObject<{
     } | null;
     raisedAt: string;
     verifiedAt: string | null;
-    photos: {
-        key: string;
-        caption: string;
-    }[];
     parts: {
         name: string;
         id: string;
@@ -333,6 +333,10 @@ export declare const WorkOrder: z.ZodObject<{
     propertyId: string | null;
     assignedToUserId: string | null;
     assignedToName: string | null;
+    photos: {
+        key: string;
+        caption: string;
+    }[];
     spaceId: string | null;
     floor: number | null;
     block: {
@@ -352,10 +356,6 @@ export declare const WorkOrder: z.ZodObject<{
     } | null;
     raisedAt: string;
     verifiedAt: string | null;
-    photos: {
-        key: string;
-        caption: string;
-    }[];
     parts: {
         name: string;
         id: string;
@@ -541,6 +541,10 @@ export declare const WorkOrderList: z.ZodObject<{
         propertyId: string | null;
         assignedToUserId: string | null;
         assignedToName: string | null;
+        photos: {
+            key: string;
+            caption: string;
+        }[];
         spaceId: string | null;
         floor: number | null;
         block: {
@@ -560,10 +564,6 @@ export declare const WorkOrderList: z.ZodObject<{
         } | null;
         raisedAt: string;
         verifiedAt: string | null;
-        photos: {
-            key: string;
-            caption: string;
-        }[];
         parts: {
             name: string;
             id: string;
@@ -603,6 +603,10 @@ export declare const WorkOrderList: z.ZodObject<{
         propertyId: string | null;
         assignedToUserId: string | null;
         assignedToName: string | null;
+        photos: {
+            key: string;
+            caption: string;
+        }[];
         spaceId: string | null;
         floor: number | null;
         block: {
@@ -622,10 +626,6 @@ export declare const WorkOrderList: z.ZodObject<{
         } | null;
         raisedAt: string;
         verifiedAt: string | null;
-        photos: {
-            key: string;
-            caption: string;
-        }[];
         parts: {
             name: string;
             id: string;
@@ -691,6 +691,10 @@ export declare const WorkOrderList: z.ZodObject<{
         propertyId: string | null;
         assignedToUserId: string | null;
         assignedToName: string | null;
+        photos: {
+            key: string;
+            caption: string;
+        }[];
         spaceId: string | null;
         floor: number | null;
         block: {
@@ -710,10 +714,6 @@ export declare const WorkOrderList: z.ZodObject<{
         } | null;
         raisedAt: string;
         verifiedAt: string | null;
-        photos: {
-            key: string;
-            caption: string;
-        }[];
         parts: {
             name: string;
             id: string;
@@ -764,6 +764,10 @@ export declare const WorkOrderList: z.ZodObject<{
         propertyId: string | null;
         assignedToUserId: string | null;
         assignedToName: string | null;
+        photos: {
+            key: string;
+            caption: string;
+        }[];
         spaceId: string | null;
         floor: number | null;
         block: {
@@ -783,10 +787,6 @@ export declare const WorkOrderList: z.ZodObject<{
         } | null;
         raisedAt: string;
         verifiedAt: string | null;
-        photos: {
-            key: string;
-            caption: string;
-        }[];
         parts: {
             name: string;
             id: string;

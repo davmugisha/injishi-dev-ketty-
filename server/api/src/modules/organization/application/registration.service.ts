@@ -84,6 +84,9 @@ const STAGE_FOR_ROLE: Readonly<
   cell_executive: null,
   district_officer: null,
   district_immigration: null,
+  sector_executive: null,
+  dgie_province: null,
+  dgie_national: null,
   // Membership is not a registration gate (ADR-056); its queue is its own.
   psf_membership_officer: null,
 };

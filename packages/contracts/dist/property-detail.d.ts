@@ -195,11 +195,11 @@ export declare const PropertyDetail: z.ZodObject<{
     checkInTime: string | null;
     checkOutTime: string | null;
     description: string | null;
-    houseRules: string | null;
-    locationPrivacy: boolean;
     photos: string[];
     latitude: number | null;
     longitude: number | null;
+    houseRules: string | null;
+    locationPrivacy: boolean;
     facilities: {
         key: string;
         amenity: {
@@ -237,11 +237,11 @@ export declare const PropertyDetail: z.ZodObject<{
     checkInTime: string | null;
     checkOutTime: string | null;
     description: string | null;
-    houseRules: string | null;
-    locationPrivacy: boolean;
     photos: string[];
     latitude: number | null;
     longitude: number | null;
+    houseRules: string | null;
+    locationPrivacy: boolean;
     facilities: {
         key: string;
         amenity: {

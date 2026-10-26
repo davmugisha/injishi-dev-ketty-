@@ -39,13 +39,22 @@ export function grantClause(g: LeaderGrant, c: ScopeColumns): SQL | null {
     case 'village_leader':
       return g.villageId ? sql`${c.village} = ${g.villageId}` : null;
     case 'dasso':
+    case 'sector_executive':
       return g.sectorId ? sql`${c.sector} = ${g.sectorId}` : null;
     case 'cell_executive':
       return g.cellId ? sql`${c.cell} = ${g.cellId}` : null;
+    // Local government reads every guest in its area, Rwandan or foreign.
     case 'district_officer':
-      return g.districtId ? sql`(${c.district} = ${g.districtId} and not ${c.abroad})` : null;
+      return g.districtId ? sql`${c.district} = ${g.districtId}` : null;
+    // DGIE reads guests from abroad only, at each of its levels.
     case 'district_immigration':
       return g.districtId ? sql`(${c.district} = ${g.districtId} and ${c.abroad})` : null;
+    case 'dgie_province':
+      return g.provinceId
+        ? sql`(${c.district} in (select pd.id from districts pd where pd.province_id = ${g.provinceId}) and ${c.abroad})`
+        : null;
+    case 'dgie_national':
+      return sql`${c.abroad}`;
   }
 }
 

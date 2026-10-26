@@ -640,7 +640,10 @@ export const oversightAssignments = pgTable(
       sql`(${t.oversightRole}::text = 'village_leader' AND ${t.scopeLevel}::text = 'village')
           OR (${t.oversightRole}::text = 'dasso' AND ${t.scopeLevel}::text = 'sector')
           OR (${t.oversightRole}::text = 'cell_executive' AND ${t.scopeLevel}::text = 'cell')
+          OR (${t.oversightRole}::text = 'sector_executive' AND ${t.scopeLevel}::text = 'sector')
           OR (${t.oversightRole}::text IN ('district_officer', 'district_immigration') AND ${t.scopeLevel}::text = 'district')
+          OR (${t.oversightRole}::text = 'dgie_province' AND ${t.scopeLevel}::text = 'province')
+          OR (${t.oversightRole}::text = 'dgie_national' AND ${t.scopeLevel}::text = 'country')
           OR (${t.oversightRole}::text IN ('business_field_verifier', 'business_approver', 'tax_compliance_officer', 'psf_membership_officer')
               AND ${t.scopeLevel}::text IN ('country', 'province', 'district'))`,
     ),

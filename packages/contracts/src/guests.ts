@@ -38,7 +38,21 @@ export const LEADER_ARRIVING_DAYS = 7;
 
 // --- The leader roles -----------------------------------------------------------
 
-export const LEADER_ROLES = ["village_leader", "dasso", "cell_executive", "district_officer", "district_immigration"] as const;
+/**
+ * The posts a guest is reported to, in two chains. Local government (MINALOC) reads every guest, Rwandan
+ * or foreign: village leader, sector DASSO, cell then sector executive secretary, district officer. The
+ * immigration directorate (DGIE) reads guests from abroad only: district, province, headquarters.
+ */
+export const LEADER_ROLES = [
+  "village_leader",
+  "dasso",
+  "cell_executive",
+  "sector_executive",
+  "district_officer",
+  "district_immigration",
+  "dgie_province",
+  "dgie_national",
+] as const;
 export const LeaderRole = z.enum(LEADER_ROLES);
 export type LeaderRole = z.infer<typeof LeaderRole>;
 
@@ -55,8 +69,11 @@ export const LEADER_ROLE_LABEL: Readonly<Record<LeaderRole, string>> = {
   village_leader: "Village leader (Umudugudu)",
   dasso: "Sector DASSO",
   cell_executive: "Cell executive secretary",
+  sector_executive: "Sector executive secretary",
   district_officer: "District officer",
-  district_immigration: "District immigration officer",
+  district_immigration: "DGIE district officer",
+  dgie_province: "DGIE province officer",
+  dgie_national: "DGIE headquarters",
 };
 
 /** The short words a chip or a column uses. */
@@ -64,26 +81,48 @@ export const LEADER_ROLE_SHORT: Readonly<Record<LeaderRole, string>> = {
   village_leader: "Village leader",
   dasso: "DASSO",
   cell_executive: "Cell executive",
+  sector_executive: "Sector executive",
   district_officer: "District officer",
-  district_immigration: "Immigration",
+  district_immigration: "DGIE district",
+  dgie_province: "DGIE province",
+  dgie_national: "DGIE headquarters",
 };
 
-/** Where each leader sits in a registration's chain, from 1. The two district roles share step 4. */
+/** Where each post sits in a registration's chain, from 1: local government first, then DGIE. */
 export const LEADER_ROLE_STEP: Readonly<Record<LeaderRole, number>> = {
   village_leader: 1,
   dasso: 2,
   cell_executive: 3,
-  district_officer: 4,
-  district_immigration: 4,
+  sector_executive: 4,
+  district_officer: 5,
+  district_immigration: 6,
+  dgie_province: 7,
+  dgie_national: 8,
+};
+
+/** Which body's chain a post is in: local government sees every guest, DGIE guests from abroad. */
+export const LEADER_ROLE_CHAIN: Readonly<Record<LeaderRole, "local" | "dgie">> = {
+  village_leader: "local",
+  dasso: "local",
+  cell_executive: "local",
+  sector_executive: "local",
+  district_officer: "local",
+  district_immigration: "dgie",
+  dgie_province: "dgie",
+  dgie_national: "dgie",
 };
 
 /** The level of the map each leader covers: the one scope level their appointment may name. */
-export const LEADER_ROLE_SCOPE: Readonly<Record<LeaderRole, "village" | "cell" | "sector" | "district">> = {
+export type LeaderLevel = "village" | "cell" | "sector" | "district" | "province" | "country";
+export const LEADER_ROLE_SCOPE: Readonly<Record<LeaderRole, LeaderLevel>> = {
   village_leader: "village",
   dasso: "sector",
   cell_executive: "cell",
+  sector_executive: "sector",
   district_officer: "district",
   district_immigration: "district",
+  dgie_province: "province",
+  dgie_national: "country",
 };
 
 /** The government body a leader is appointed under unless the admin picks another. */
@@ -91,8 +130,11 @@ export const LEADER_ROLE_BODY: Readonly<Record<LeaderRole, string>> = {
   village_leader: "MINALOC",
   dasso: "MINALOC",
   cell_executive: "MINALOC",
+  sector_executive: "MINALOC",
   district_officer: "MINALOC",
   district_immigration: "DGIE",
+  dgie_province: "DGIE",
+  dgie_national: "DGIE",
 };
 
 /**
@@ -104,8 +146,11 @@ export const OVERSIGHT_ROLE_SCOPES: Readonly<Record<OversightRole, readonly Over
   village_leader: ["village"],
   dasso: ["sector"],
   cell_executive: ["cell"],
+  sector_executive: ["sector"],
   district_officer: ["district"],
   district_immigration: ["district"],
+  dgie_province: ["province"],
+  dgie_national: ["country"],
   business_field_verifier: ["country", "province", "district"],
   business_approver: ["country", "province", "district"],
   tax_compliance_officer: ["country", "province", "district"],
@@ -113,12 +158,13 @@ export const OVERSIGHT_ROLE_SCOPES: Readonly<Record<OversightRole, readonly Over
 };
 
 /**
- * The chain a registration goes along, in order: village leader, DASSO, cell
- * executive, then the district officer for a Rwandan guest or the district
- * immigration officer instead for a guest from abroad.
+ * The chain a registration goes along, in order. Every guest goes up the local government chain: village
+ * leader, sector DASSO, cell and sector executive secretaries, district officer. A guest from abroad also
+ * goes up the DGIE chain: district, province, headquarters.
  */
 export function guestChainFor(fromAbroad: boolean): LeaderRole[] {
-  return ["village_leader", "dasso", "cell_executive", fromAbroad ? "district_immigration" : "district_officer"];
+  const local: LeaderRole[] = ["village_leader", "dasso", "cell_executive", "sector_executive", "district_officer"];
+  return fromAbroad ? [...local, "district_immigration", "dgie_province", "dgie_national"] : local;
 }
 
 /** A guest is "from abroad" when their nationality is not Rwandan. */
@@ -489,7 +535,7 @@ export const LeaderScope = z.object({
   assignmentId: Uuid,
   role: LeaderRole,
   roleLabel: z.string(),
-  level: z.enum(["village", "cell", "sector", "district"]),
+  level: z.enum(["village", "cell", "sector", "district", "province", "country"]),
   area: z.string(),
 });
 export type LeaderScope = z.infer<typeof LeaderScope>;
@@ -702,7 +748,7 @@ export type PlaceNames = z.infer<typeof PlaceNames>;
 export const WaitingArea = z.object({
   role: LeaderRole,
   roleLabel: z.string(),
-  level: z.enum(["village", "cell", "sector", "district"]),
+  level: z.enum(["village", "cell", "sector", "district", "province", "country"]),
   /** In words; "No village on record" when the home has none yet. */
   area: z.string(),
   located: z.boolean(),
@@ -791,7 +837,7 @@ export const LeaderCoverage = z.object({
     z.object({
       role: LeaderRole,
       roleLabel: z.string(),
-      level: z.enum(["village", "cell", "sector", "district"]),
+      level: z.enum(["village", "cell", "sector", "district", "province", "country"]),
       /** Every area of this level in Rwanda, and how many have someone in the post. */
       nationwide: z.object({ areas: z.number().int(), covered: z.number().int() }),
       /** Areas with rented homes on Injishi, and how many have someone in the post. */
@@ -803,7 +849,7 @@ export const LeaderCoverage = z.object({
     z.object({
       role: LeaderRole,
       roleLabel: z.string(),
-      level: z.enum(["village", "cell", "sector", "district"]),
+      level: z.enum(["village", "cell", "sector", "district", "province", "country"]),
       area: z.string(),
       provinceId: z.number().int().nullable(),
       districtId: z.number().int().nullable(),

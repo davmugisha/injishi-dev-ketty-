@@ -1,5 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { LEADER_ROLES, type LeaderRole, type OversightAppointmentQuery, type OversightRole } from '@injishi/contracts';
+import {
+  LEADER_ROLE_SCOPE,
+  LEADER_ROLES,
+  type LeaderLevel,
+  type LeaderRole,
+  type OversightAppointmentQuery,
+  type OversightRole,
+} from '@injishi/contracts';
 import { sql, type SQL } from 'drizzle-orm';
 
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
@@ -116,7 +123,9 @@ const HOME_PLACE = sql`
   select p.id as property_id,
          p.village_id, hv.cell_id,
          coalesce(hc.sector_id, p.sector_id) as sector_id,
-         coalesce(hs.district_id, p.district_id) as district_id
+         coalesce(hs.district_id, p.district_id) as district_id,
+         (select hd.province_id from districts hd where hd.id = coalesce(hs.district_id, p.district_id)) as province_id,
+         0 as country_id
     from properties p
     join orgs o on o.id = p.org_id and o.domain = 'residence'
     left join villages hv on hv.id = p.village_id
@@ -218,27 +227,35 @@ export class LocalLeadersRepository {
   }
 
   /** Areas at each leader level: how many in Rwanda, and how many have someone in the post. */
-  async nationwide(): Promise<Record<'village' | 'cell' | 'sector' | 'district', { areas: number; covered: Record<string, number> }>> {
+  async nationwide(): Promise<Record<LeaderLevel, { areas: number; covered: Record<string, number> }>> {
+    const covered = (role: LeaderRole, column: string): SQL =>
+      sql`(select count(distinct ${sql.raw(column)})::int from oversight_assignments where revoked_at is null and oversight_role::text = ${role})`;
     const result = await this.db.execute(sql`
       select
         (select count(*)::int from villages) as villages,
         (select count(*)::int from cells) as cells,
         (select count(*)::int from sectors) as sectors,
         (select count(*)::int from districts) as districts,
-        (select count(distinct village_id)::int from oversight_assignments where revoked_at is null and oversight_role::text = 'village_leader') as village_leader,
-        (select count(distinct cell_id)::int from oversight_assignments where revoked_at is null and oversight_role::text = 'cell_executive') as cell_executive,
-        (select count(distinct sector_id)::int from oversight_assignments where revoked_at is null and oversight_role::text = 'dasso') as dasso,
-        (select count(distinct district_id)::int from oversight_assignments where revoked_at is null and oversight_role::text = 'district_officer') as district_officer,
-        (select count(distinct district_id)::int from oversight_assignments where revoked_at is null and oversight_role::text = 'district_immigration') as district_immigration`);
+        (select count(*)::int from provinces) as provinces,
+        ${covered('village_leader', 'village_id')} as village_leader,
+        ${covered('cell_executive', 'cell_id')} as cell_executive,
+        ${covered('dasso', 'sector_id')} as dasso,
+        ${covered('sector_executive', 'sector_id')} as sector_executive,
+        ${covered('district_officer', 'district_id')} as district_officer,
+        ${covered('district_immigration', 'district_id')} as district_immigration,
+        ${covered('dgie_province', 'province_id')} as dgie_province,
+        (select least(count(*), 1)::int from oversight_assignments where revoked_at is null and oversight_role::text = 'dgie_national') as dgie_national`);
     const r = rowsOf<Record<string, number>>(result)[0] ?? {};
     return {
       village: { areas: r.villages ?? 0, covered: { village_leader: r.village_leader ?? 0 } },
       cell: { areas: r.cells ?? 0, covered: { cell_executive: r.cell_executive ?? 0 } },
-      sector: { areas: r.sectors ?? 0, covered: { dasso: r.dasso ?? 0 } },
+      sector: { areas: r.sectors ?? 0, covered: { dasso: r.dasso ?? 0, sector_executive: r.sector_executive ?? 0 } },
       district: {
         areas: r.districts ?? 0,
         covered: { district_officer: r.district_officer ?? 0, district_immigration: r.district_immigration ?? 0 },
       },
+      province: { areas: r.provinces ?? 0, covered: { dgie_province: r.dgie_province ?? 0 } },
+      country: { areas: 1, covered: { dgie_national: r.dgie_national ?? 0 } },
     };
   }
 
@@ -247,7 +264,7 @@ export class LocalLeadersRepository {
    * homes, whether someone holds the post, and how many guests wait there.
    */
   async withHomes(role: LeaderRole, today: string): Promise<(UncoveredRow & { covered: boolean })[]> {
-    const level = role === 'village_leader' ? 'village' : role === 'cell_executive' ? 'cell' : role === 'dasso' ? 'sector' : 'district';
+    const level = LEADER_ROLE_SCOPE[role];
     const key = sql.raw(`${level}_id`);
     const result = await this.db.execute(sql`
       with homes as (${HOME_PLACE}),
@@ -255,9 +272,11 @@ export class LocalLeadersRepository {
         select h.${key} as id, count(*)::int as homes from homes h where h.${key} is not null group by 1
       )
       select ${role}::text as role, ar.id as "areaId", ar.homes,
-             exists (select 1 from oversight_assignments a where a.revoked_at is null and a.oversight_role::text = ${role} and a.${key} = ar.id) as covered,
+             exists (select 1 from oversight_assignments a where a.revoked_at is null and a.oversight_role::text = ${role}
+                       and ${level === 'country' ? sql`true` : sql`a.${key} = ar.id`}) as covered,
              (select count(*)::int from guest_registration_routes r join guest_registrations g on g.id = r.registration_id
-               where r.assignment_id is null and r.recipient_role::text = ${role} and r.${key} = ar.id
+               where r.assignment_id is null and r.recipient_role::text = ${role}
+                 and ${level === 'country' ? sql`true` : sql`r.${key} = ar.id`}
                  and g.status = 'submitted' and g.departure_on >= ${today}::date) as "waitingReports",
              ${placeColumns(level)}
         from areas ar
@@ -292,7 +311,7 @@ export class LocalLeadersRepository {
 }
 
 /** The ids and names of a place and every level above it, for an area at `level`. */
-function placeColumns(level: 'village' | 'cell' | 'sector' | 'district'): SQL {
+function placeColumns(level: LeaderLevel): SQL {
   switch (level) {
     case 'village':
       return sql`d.province_id as "provinceId", s.district_id as "districtId", c.sector_id as "sectorId", v.cell_id as "cellId", v.id as "villageId",
@@ -306,10 +325,16 @@ function placeColumns(level: 'village' | 'cell' | 'sector' | 'district'): SQL {
     case 'district':
       return sql`d.province_id as "provinceId", d.id as "districtId", null::int as "sectorId", null::int as "cellId", null::int as "villageId",
                  pr.name as "provinceName", d.name as "districtName", null::text as "sectorName", null::text as "cellName", null::text as "villageName"`;
+    case 'province':
+      return sql`pp.id as "provinceId", null::int as "districtId", null::int as "sectorId", null::int as "cellId", null::int as "villageId",
+                 pp.name as "provinceName", null::text as "districtName", null::text as "sectorName", null::text as "cellName", null::text as "villageName"`;
+    case 'country':
+      return sql`null::int as "provinceId", null::int as "districtId", null::int as "sectorId", null::int as "cellId", null::int as "villageId",
+                 'Rwanda'::text as "provinceName", null::text as "districtName", null::text as "sectorName", null::text as "cellName", null::text as "villageName"`;
   }
 }
 
-function placeJoins(level: 'village' | 'cell' | 'sector' | 'district'): SQL {
+function placeJoins(level: LeaderLevel): SQL {
   switch (level) {
     case 'village':
       return sql`join villages v on v.id = ar.id join cells c on c.id = v.cell_id join sectors s on s.id = c.sector_id join districts d on d.id = s.district_id`;
@@ -319,5 +344,10 @@ function placeJoins(level: 'village' | 'cell' | 'sector' | 'district'): SQL {
       return sql`join sectors s on s.id = ar.id join districts d on d.id = s.district_id`;
     case 'district':
       return sql`join districts d on d.id = ar.id`;
+    // No district here: the province row stands alone (aliased so the shared province join stays empty).
+    case 'province':
+      return sql`join provinces pp on pp.id = ar.id left join districts d on false`;
+    case 'country':
+      return sql`left join districts d on false`;
   }
 }

@@ -476,6 +476,7 @@ export declare const PayFixerRequest: z.ZodObject<{
     note: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, string | undefined>;
 }, "strip", z.ZodTypeAny, {
     amountRwf: number;
+    payerPhone: string;
     payeeName: string;
     payee: {
         kind: "momo";
@@ -485,10 +486,10 @@ export declare const PayFixerRequest: z.ZodObject<{
         bankName: "Other" | "Bank of Kigali" | "BPR Bank Rwanda" | "I&M Bank Rwanda" | "Equity Bank Rwanda" | "Access Bank Rwanda" | "Ecobank Rwanda" | "NCBA Bank Rwanda" | "Guaranty Trust Bank Rwanda" | "Cogebanque" | "Urwego Bank" | "Development Bank of Rwanda" | "Zigama CSS";
         accountNumber: string;
     };
-    payerPhone: string;
     note?: string | undefined;
 }, {
     amountRwf: number;
+    payerPhone: string;
     payeeName: string;
     payee: {
         kind: "momo";
@@ -498,7 +499,6 @@ export declare const PayFixerRequest: z.ZodObject<{
         bankName: "Other" | "Bank of Kigali" | "BPR Bank Rwanda" | "I&M Bank Rwanda" | "Equity Bank Rwanda" | "Access Bank Rwanda" | "Ecobank Rwanda" | "NCBA Bank Rwanda" | "Guaranty Trust Bank Rwanda" | "Cogebanque" | "Urwego Bank" | "Development Bank of Rwanda" | "Zigama CSS";
         accountNumber: string;
     };
-    payerPhone: string;
     note?: string | undefined;
 }>;
 export type PayFixerRequest = z.infer<typeof PayFixerRequest>;

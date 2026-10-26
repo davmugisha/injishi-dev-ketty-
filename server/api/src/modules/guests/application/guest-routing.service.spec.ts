@@ -41,7 +41,7 @@ function route(role: LeaderRole, over: Partial<RouteRow> = {}): RouteRow {
 }
 
 type RepoMocks = Record<
-  | 'holders' | 'find' | 'routesFor' | 'markNotified' | 'waitingRoutes' | 'transaction' | 'relocate' | 'deliverWaiting'
+  | 'holders' | 'find' | 'routesFor' | 'markNotified' | 'waitingRoutes' | 'currentWithRoles' | 'transaction' | 'relocate' | 'deliverWaiting'
   | 'handOverWaiting' | 'areaNames' | 'releaseEnded',
   jest.Mock
 >;
@@ -72,6 +72,7 @@ function setup(posts: Partial<Record<LeaderRole, Holder[]>>): {
     routesFor: jest.fn(async () => [] as RouteRow[]),
     markNotified: jest.fn(async () => undefined),
     waitingRoutes: jest.fn(async () => [] as WaitingRouteRow[]),
+    currentWithRoles: jest.fn(async () => []),
     transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn({})),
     relocate: jest.fn(async () => undefined),
     deliverWaiting: jest.fn(async (_tx: unknown, _id: string, _area: unknown, assignmentId: string | null) => assignmentId !== null),
@@ -101,15 +102,18 @@ describe('GuestRoutingService', () => {
       ['village_leader', 'as-village_leader-mudugudu@x.rw'],
       ['dasso', 'as-dasso-dasso@x.rw'],
       ['cell_executive', null],
+      ['sector_executive', null],
       ['district_officer', null],
     ]);
   });
 
-  it('routes a guest from abroad to immigration, not the district officer', async () => {
+  it('routes a guest from abroad to the district officer and up DGIE', async () => {
     const { service } = setup({ district_officer: [holder('district_officer', 'do@x.rw')], district_immigration: [holder('district_immigration', 'dgie@x.rw')] });
     const steps = await service.plan({ villageId: 1101, cellId: 110, sectorId: 11, districtId: 1 }, 'UG');
-    expect(steps.at(-1)).toMatchObject({ role: 'district_immigration', assignmentId: 'as-district_immigration-dgie@x.rw' });
-    expect(steps.some((s) => s.role === 'district_officer')).toBe(false);
+    // Local government reads every guest; DGIE's chain follows for a guest from abroad.
+    expect(steps.find((s) => s.role === 'district_immigration')).toMatchObject({ assignmentId: 'as-district_immigration-dgie@x.rw' });
+    expect(steps.find((s) => s.role === 'district_officer')).toMatchObject({ assignmentId: 'as-district_officer-do@x.rw' });
+    expect(steps.map((s) => s.role).slice(-3)).toEqual(['district_immigration', 'dgie_province', 'dgie_national']);
   });
 
   it('emails each leader of a delivered step once per registration, never for a waiting step', async () => {
@@ -156,9 +160,9 @@ describe('GuestRoutingService', () => {
     expect(outcome).toEqual({ relocated: 1, delivered: 1 });
     expect(repo.relocate).toHaveBeenCalledTimes(1);
     expect(repo.relocate).toHaveBeenCalledWith({}, REG, placed, NOW);
-    expect(repo.deliverWaiting).toHaveBeenCalledWith({}, 'rv', placed, 'as-village_leader-mudugudu@x.rw', NOW);
+    expect(repo.deliverWaiting).toHaveBeenCalledWith({}, 'rv', { ...placed, provinceId: null }, 'as-village_leader-mudugudu@x.rw', NOW);
     // The cell step gets its area and still waits: nobody holds that post.
-    expect(repo.deliverWaiting).toHaveBeenCalledWith({}, 'rc', { villageId: null, cellId: 110, sectorId: 11, districtId: 1 }, null, NOW);
+    expect(repo.deliverWaiting).toHaveBeenCalledWith({}, 'rc', { villageId: null, cellId: 110, sectorId: 11, districtId: 1, provinceId: null }, null, NOW);
     expect(sent.map((s) => s.to)).toEqual(['mudugudu@x.rw']);
   });
 

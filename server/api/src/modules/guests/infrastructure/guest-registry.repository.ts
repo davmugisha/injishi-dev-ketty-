@@ -199,6 +199,7 @@ const REGISTRATION_SELECT = sql`
          g.lease_id as "leaseId", g.property_id as "propertyId", p.name as "propertyName",
          g.unit_id as "unitId", u.label as "unitLabel", p.address_text as "addressText",
          g.village_id as "villageId", g.cell_id as "cellId", g.sector_id as "sectorId", g.district_id as "districtId",
+         d.province_id as "provinceId",
          v.name as "villageName", ce.name as "cellName", s.name as "sectorName", d.name as "districtName",
          g.registered_by_user_id as "registeredByUserId",
          g.full_name as "fullName", g.phone, g.nationality, c.name as "nationalityName",
@@ -245,7 +246,7 @@ const HOME_SELECT = sql`
   p.address_text as "addressText",
   p.village_id as "villageId", hv.cell_id as "cellId",
   coalesce(hc.sector_id, p.sector_id) as "sectorId",
-  coalesce(hs.district_id, p.district_id) as "districtId",
+  coalesce(hs.district_id, p.district_id) as "districtId", hd.province_id as "provinceId",
   hv.name as "villageName", hc.name as "cellName", hs.name as "sectorName", hd.name as "districtName"`;
 
 const HOME_JOINS = sql`
@@ -254,14 +255,23 @@ const HOME_JOINS = sql`
   left join sectors hs on hs.id = coalesce(hc.sector_id, p.sector_id)
   left join districts hd on hd.id = coalesce(hs.district_id, p.district_id)`;
 
-/** The column a role's post is keyed on. Fixed strings only. */
-const POST_COLUMN: Readonly<Record<LeaderRole, string>> = {
+/** The column a role's post is keyed on; null for DGIE headquarters, which holds every guest. Fixed strings only. */
+const POST_COLUMN: Readonly<Record<LeaderRole, string | null>> = {
   village_leader: 'village_id',
   dasso: 'sector_id',
   cell_executive: 'cell_id',
+  sector_executive: 'sector_id',
   district_officer: 'district_id',
   district_immigration: 'district_id',
+  dgie_province: 'province_id',
+  dgie_national: null,
 };
+
+/** A post's own place as a predicate on `alias` (assignments `a` or routes `r`). */
+function postMatch(alias: 'a' | 'r', role: LeaderRole, key: number): SQL {
+  const column = POST_COLUMN[role];
+  return column ? sql`${sql.raw(`${alias}.${column}`)} = ${key}` : sql`true`;
+}
 
 /**
  * The guest registry's reads and writes (P5): registrations, the routes to
@@ -333,7 +343,9 @@ export class GuestRegistryRepository {
     const result = await this.db.execute(sql`
       select ${HOME_SELECT} from properties p ${HOME_JOINS} where p.id = ${propertyId} limit 1`);
     const row = rowsOf<HomeRow>(result)[0];
-    return row ? { villageId: row.villageId, cellId: row.cellId, sectorId: row.sectorId, districtId: row.districtId } : null;
+    return row
+      ? { villageId: row.villageId, cellId: row.cellId, sectorId: row.sectorId, districtId: row.districtId, provinceId: row.provinceId ?? null }
+      : null;
   }
 
   /** The place names of an area, for a mail or a waiting list. */
@@ -392,7 +404,7 @@ export class GuestRegistryRepository {
         from oversight_assignments a
         join users u on u.id = a.user_id
        where a.revoked_at is null and a.oversight_role::text = ${role}
-         and a.${sql.raw(POST_COLUMN[role])} = ${key}
+         and ${postMatch('a', role, key)}
        order by a.granted_at, a.id`);
     return rowsOf<Holder>(result);
   }
@@ -444,9 +456,9 @@ export class GuestRegistryRepository {
   }
 
   /** Write a registration's routes; each with a holder is delivered now. */
-  async insertRoutes(tx: Tx, registrationId: string, routes: (PlannedRoute & { assignmentId: string | null })[], now: Date): Promise<void> {
-    if (routes.length === 0) return;
-    await tx.insert(guestRegistrationRoutes).values(
+  async insertRoutes(tx: Tx, registrationId: string, routes: (PlannedRoute & { assignmentId: string | null })[], now: Date): Promise<string[]> {
+    if (routes.length === 0) return [];
+    const rows = await tx.insert(guestRegistrationRoutes).values(
       routes.map((r) => ({
         registrationId,
         step: r.step,
@@ -455,10 +467,12 @@ export class GuestRegistryRepository {
         cellId: r.area.cellId,
         sectorId: r.area.sectorId,
         districtId: r.area.districtId,
+        provinceId: r.area.provinceId ?? null,
         assignmentId: r.assignmentId,
         deliveredAt: r.assignmentId ? now : null,
       })),
-    );
+    ).returning({ id: guestRegistrationRoutes.id });
+    return rows.map((r) => r.id);
   }
 
   /**
@@ -805,10 +819,39 @@ export class GuestRegistryRepository {
          set assignment_id = ${assignmentId}, delivered_at = ${now}
         from guest_registrations g
        where g.id = r.registration_id and r.assignment_id is null
-         and r.recipient_role::text = ${role} and r.${sql.raw(POST_COLUMN[role])} = ${key}
+         and r.recipient_role::text = ${role} and ${postMatch('r', role, key)}
          and g.status = 'submitted' and g.departure_on >= ${today}::date
       returning r.registration_id as "registrationId"`);
     return rowsOf<{ registrationId: string }>(result).map((r) => r.registrationId);
+  }
+
+  /**
+   * Current guests with the routes they already have: the sweep compares them with the chain a guest
+   * now goes along and adds the missing posts (a chain that gained a post, or a guest filed before it).
+   */
+  async currentWithRoles(today: string): Promise<{ id: string; nationality: string; area: Area; roles: string[] }[]> {
+    const result = await this.db.execute(sql`
+      select g.id, g.nationality, g.village_id as "villageId", g.cell_id as "cellId", g.sector_id as "sectorId",
+             g.district_id as "districtId", d.province_id as "provinceId",
+             coalesce(array_agg(r.recipient_role::text) filter (where r.id is not null), '{}') as roles
+        from guest_registrations g
+        left join districts d on d.id = g.district_id
+        left join guest_registration_routes r on r.registration_id = g.id
+       where g.status = 'submitted' and g.departure_on >= ${today}::date
+       group by g.id, d.province_id
+       limit 5000`);
+    return rowsOf<Record<string, unknown>>(result).map((r) => ({
+      id: r.id as string,
+      nationality: r.nationality as string,
+      area: {
+        villageId: r.villageId as number | null,
+        cellId: r.cellId as number | null,
+        sectorId: r.sectorId as number | null,
+        districtId: r.districtId as number | null,
+        provinceId: r.provinceId as number | null,
+      },
+      roles: r.roles as string[],
+    }));
   }
 
   /**
@@ -821,6 +864,7 @@ export class GuestRegistryRepository {
       select r.id as "routeId", r.registration_id as "registrationId", r.recipient_role::text as role, g.property_id as "propertyId",
              p.village_id as "cVillageId", hv.cell_id as "cCellId",
              coalesce(hc.sector_id, p.sector_id) as "cSectorId", coalesce(hs.district_id, p.district_id) as "cDistrictId",
+             hd.province_id as "cProvinceId",
              g.village_id as "sVillageId", g.cell_id as "sCellId", g.sector_id as "sSectorId", g.district_id as "sDistrictId"
         from guest_registration_routes r
         join guest_registrations g on g.id = r.registration_id
@@ -840,6 +884,7 @@ export class GuestRegistryRepository {
         cellId: r.cCellId as number | null,
         sectorId: r.cSectorId as number | null,
         districtId: r.cDistrictId as number | null,
+        provinceId: r.cProvinceId as number | null,
       },
       stored: {
         villageId: r.sVillageId as number | null,
@@ -864,7 +909,7 @@ export class GuestRegistryRepository {
     const result = await tx.execute(sql`
       update guest_registration_routes
          set village_id = ${area.villageId}, cell_id = ${area.cellId}, sector_id = ${area.sectorId},
-             district_id = ${area.districtId}, assignment_id = ${assignmentId},
+             district_id = ${area.districtId}, province_id = ${area.provinceId ?? null}, assignment_id = ${assignmentId},
              delivered_at = ${assignmentId ? now : null}
        where id = ${routeId} and assignment_id is null
       returning id`);

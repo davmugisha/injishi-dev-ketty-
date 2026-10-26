@@ -1,6 +1,7 @@
 import {
   LEADER_ROLE_SCOPE,
   LEADER_ROLE_STEP,
+  type LeaderLevel,
   type LeaderRole,
   type OversightGrant,
   RWANDA_CODE,
@@ -21,6 +22,8 @@ export interface Area {
   cellId: number | null;
   sectorId: number | null;
   districtId: number | null;
+  /** The district's province: DGIE's province post is keyed on it. */
+  provinceId?: number | null;
 }
 
 /** One step of a registration's chain, before a holder is looked up. */
@@ -34,7 +37,7 @@ export interface PlannedRoute {
 export type LeaderGrant = Pick<
   OversightGrant,
   'assignmentId' | 'oversightRole' | 'districtId' | 'sectorId' | 'cellId' | 'villageId'
-> & { oversightRole: LeaderRole };
+> & { oversightRole: LeaderRole; provinceId?: number | null };
 
 /** What a scope decision needs to know about a registration. */
 export interface GuestPlace extends Area {
@@ -47,17 +50,25 @@ export interface GuestPlace extends Area {
  * district it does know, so admin can say where the guest is waiting.
  */
 export function routeArea(role: LeaderRole, home: Area): Area {
+  const provinceId = home.provinceId ?? null;
   switch (LEADER_ROLE_SCOPE[role]) {
     case 'village':
-      return { villageId: home.villageId, cellId: home.cellId, sectorId: home.sectorId, districtId: home.districtId };
+      return { villageId: home.villageId, cellId: home.cellId, sectorId: home.sectorId, districtId: home.districtId, provinceId };
     case 'cell':
-      return { villageId: null, cellId: home.cellId, sectorId: home.sectorId, districtId: home.districtId };
+      return { villageId: null, cellId: home.cellId, sectorId: home.sectorId, districtId: home.districtId, provinceId };
     case 'sector':
-      return { villageId: null, cellId: null, sectorId: home.sectorId, districtId: home.districtId };
+      return { villageId: null, cellId: null, sectorId: home.sectorId, districtId: home.districtId, provinceId };
     case 'district':
-      return { villageId: null, cellId: null, sectorId: null, districtId: home.districtId };
+      return { villageId: null, cellId: null, sectorId: null, districtId: home.districtId, provinceId };
+    // DGIE's province and headquarters posts keep the district too, so admin can say where a guest waits.
+    case 'province':
+    case 'country':
+      return { villageId: null, cellId: null, sectorId: null, districtId: home.districtId, provinceId };
   }
 }
+
+/** The key that stands for the whole country: DGIE headquarters holds one post for every guest. */
+export const COUNTRY_POST_KEY = 0;
 
 /** The id a role's post is keyed on in an area, or null when the area is not known at that level. */
 export function postKey(role: LeaderRole, area: Area): number | null {
@@ -70,13 +81,16 @@ export function postKey(role: LeaderRole, area: Area): number | null {
       return area.sectorId;
     case 'district':
       return area.districtId;
+    case 'province':
+      return area.provinceId ?? null;
+    case 'country':
+      return COUNTRY_POST_KEY;
   }
 }
 
 /**
- * Every step a guest of this nationality goes to from this home, in order:
- * village leader, DASSO, cell executive, then the district officer for a
- * Rwandan or the district immigration officer for a guest from abroad.
+ * Every step a guest of this nationality goes to from this home, in order: the local government chain
+ * for every guest, then DGIE's for a guest from abroad (`guestChainFor`).
  */
 export function planRoutes(home: Area, nationality: string): PlannedRoute[] {
   return guestChainFor(isFromAbroad(nationality)).map((role) => ({
@@ -92,8 +106,8 @@ export function leaderGrants(grants: readonly OversightGrant[]): LeaderGrant[] {
 }
 
 /**
- * Does one post cover a registration? Area first, then role: the district
- * officer reads Rwandan guests, the immigration officer guests from abroad.
+ * Does one post cover a registration? Area first, then nationality: local government posts read every
+ * guest in their area; DGIE's posts only guests from abroad.
  */
 export function grantCovers(grant: LeaderGrant, guest: GuestPlace): boolean {
   const abroad = (guest.nationality ?? RWANDA_CODE) !== RWANDA_CODE;
@@ -101,13 +115,18 @@ export function grantCovers(grant: LeaderGrant, guest: GuestPlace): boolean {
     case 'village_leader':
       return grant.villageId !== null && grant.villageId === guest.villageId;
     case 'dasso':
+    case 'sector_executive':
       return grant.sectorId !== null && grant.sectorId === guest.sectorId;
     case 'cell_executive':
       return grant.cellId !== null && grant.cellId === guest.cellId;
     case 'district_officer':
-      return !abroad && grant.districtId !== null && grant.districtId === guest.districtId;
+      return grant.districtId !== null && grant.districtId === guest.districtId;
     case 'district_immigration':
       return abroad && grant.districtId !== null && grant.districtId === guest.districtId;
+    case 'dgie_province':
+      return abroad && grant.provinceId !== null && grant.provinceId === (guest.provinceId ?? null);
+    case 'dgie_national':
+      return abroad;
   }
 }
 
@@ -117,7 +136,7 @@ export function grantsCovering(grants: readonly LeaderGrant[], guest: GuestPlace
 }
 
 /** The level a post covers, in the words a scope line uses. */
-export function grantLevel(grant: LeaderGrant): 'village' | 'cell' | 'sector' | 'district' {
+export function grantLevel(grant: LeaderGrant): LeaderLevel {
   return LEADER_ROLE_SCOPE[grant.oversightRole];
 }
 
@@ -128,7 +147,7 @@ export function grantLevel(grant: LeaderGrant): 'village' | 'cell' | 'sector' | 
  */
 export function reportAreaLevel(grants: readonly LeaderGrant[]): 'sector' | 'cell' | 'village' {
   const levels = grants.map(grantLevel);
-  if (levels.includes('district')) return 'sector';
+  if (levels.includes('country') || levels.includes('province') || levels.includes('district')) return 'sector';
   if (levels.includes('sector')) return 'cell';
   return 'village';
 }

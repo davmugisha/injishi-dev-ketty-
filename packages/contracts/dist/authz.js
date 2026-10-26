@@ -900,6 +900,9 @@ function oversightConsoleFor(role) {
         case "cell_executive":
         case "district_officer":
         case "district_immigration":
+        case "sector_executive":
+        case "dgie_province":
+        case "dgie_national":
             return "guests";
         case "business_field_verifier":
             return "verification";
@@ -1007,6 +1010,9 @@ function opposingGateRole(role) {
         case "cell_executive":
         case "district_officer":
         case "district_immigration":
+        case "sector_executive":
+        case "dgie_province":
+        case "dgie_national":
             return null;
     }
 }

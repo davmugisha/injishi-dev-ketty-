@@ -3126,7 +3126,7 @@ export declare const LeaseContractView: z.ZodObject<{
      * by migration 0077 (template 0) holds the old free-form JSON.
      */
     content: z.ZodUnion<[z.ZodObject<{
-        version: z.ZodLiteral<3>;
+        version: z.ZodUnion<[z.ZodLiteral<3>, z.ZodLiteral<4>]>;
         title: z.ZodString;
         parties: z.ZodObject<{
             landlord: z.ZodObject<{
@@ -3282,7 +3282,7 @@ export declare const LeaseContractView: z.ZodObject<{
         issuedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         title: string;
-        version: 3;
+        version: 3 | 4;
         terms: {
             monthlyRentRwf: number;
             startDate: string;
@@ -3331,7 +3331,7 @@ export declare const LeaseContractView: z.ZodObject<{
         premisesLine: string;
     }, {
         title: string;
-        version: 3;
+        version: 3 | 4;
         terms: {
             monthlyRentRwf: number;
             startDate: string;
@@ -3419,7 +3419,7 @@ export declare const LeaseContractView: z.ZodObject<{
     }[];
     content: Record<string, unknown> | {
         title: string;
-        version: 3;
+        version: 3 | 4;
         terms: {
             monthlyRentRwf: number;
             startDate: string;
@@ -3486,7 +3486,7 @@ export declare const LeaseContractView: z.ZodObject<{
     }[];
     content: Record<string, unknown> | {
         title: string;
-        version: 3;
+        version: 3 | 4;
         terms: {
             monthlyRentRwf: number;
             startDate: string;

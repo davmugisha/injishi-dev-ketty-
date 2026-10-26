@@ -159,7 +159,10 @@ export const OVERSIGHT_ROLE_LABEL: Readonly<Record<OversightRole, string>> = {
     dasso: "Sector DASSO",
     cell_executive: "Cell executive secretary",
     district_officer: "District officer",
-    district_immigration: "District immigration officer",
+    district_immigration: "DGIE district officer",
+    sector_executive: "Sector executive secretary",
+    dgie_province: "DGIE province officer",
+    dgie_national: "DGIE headquarters",
 };
 
 /** The short words a platform staff role is read in. */

@@ -16,7 +16,7 @@ const AREA_KEYS = ["sectorId", "cellId", "villageId"] as const;
 
 /** The level a leader's widest post covers: what their area filter can go below. */
 function widest(scopes: readonly LeaderScope[]): LeaderScope["level"] {
-  const order = ["village", "cell", "sector", "district"] as const;
+  const order = ["village", "cell", "sector", "district", "province", "country"] as const;
   return scopes.reduce<LeaderScope["level"]>(
     (best, s) => (order.indexOf(s.level) > order.indexOf(best) ? s.level : best),
     "village",

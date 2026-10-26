@@ -102,6 +102,12 @@ exports.OversightRole = zod_1.z.enum([
     "cell_executive",
     "district_officer",
     "district_immigration",
+    // The local government chain gains the sector executive secretary, and the
+    // immigration directorate (DGIE) its province and headquarters levels: DGIE
+    // reads guests from abroad only, the local government every guest.
+    "sector_executive",
+    "dgie_province",
+    "dgie_national",
 ]);
 /**
  * Region scope of an oversight assignment (Decision B). Sector, cell and

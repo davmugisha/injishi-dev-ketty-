@@ -118,9 +118,9 @@ describe('LeaderConsoleService · scope', () => {
     await expect(forAbroad.one([grant('district_immigration')], REG)).resolves.toMatchObject({ id: REG, fromAbroad: true, idNumber: 'PA123456' });
   });
 
-  it('the district officer never reads a guest from abroad', async () => {
+  it('the district officer (local government) reads guests from abroad too', async () => {
     const { service } = setup(guest());
-    await expect(service.one([grant('district_officer')], REG)).rejects.toThrow(NotFoundException);
+    await expect(service.one([grant('district_officer')], REG)).resolves.toMatchObject({ id: REG, fromAbroad: true });
   });
 
   it('writes the area as SQL: one clause per post, immigration with the abroad test', () => {
@@ -129,10 +129,14 @@ describe('LeaderConsoleService · scope', () => {
         { assignmentId: 'a', oversightRole: 'village_leader', districtId: 1, sectorId: 11, cellId: 110, villageId: 1101 },
         { assignmentId: 'b', oversightRole: 'district_immigration', districtId: 1, sectorId: null, cellId: null, villageId: null },
         { assignmentId: 'c', oversightRole: 'district_officer', districtId: 2, sectorId: null, cellId: null, villageId: null },
+        { assignmentId: 'e', oversightRole: 'dgie_province', provinceId: 5, districtId: null, sectorId: null, cellId: null, villageId: null },
+        { assignmentId: 'f', oversightRole: 'dgie_national', districtId: null, sectorId: null, cellId: null, villageId: null },
       ]),
     );
-    expect(q.sql).toBe("(g.village_id = $1 or (g.district_id = $2 and (g.nationality <> 'RW')) or (g.district_id = $3 and not (g.nationality <> 'RW')))");
-    expect(q.params).toEqual([1101, 1, 2]);
+    expect(q.sql).toBe(
+      "(g.village_id = $1 or (g.district_id = $2 and (g.nationality <> 'RW')) or g.district_id = $3 or (g.district_id in (select pd.id from districts pd where pd.province_id = $4) and (g.nationality <> 'RW')) or (g.nationality <> 'RW'))",
+    );
+    expect(q.params).toEqual([1101, 1, 2, 5]);
     expect(render(scopeSql([])).sql).toBe('false');
     expect(render(scopeSql([{ assignmentId: 'b', oversightRole: 'district_immigration', districtId: 1, sectorId: null, cellId: null, villageId: null }], TALLY_COLUMNS)).sql).toBe(
       '((t.district_id = $1 and t.from_abroad))',

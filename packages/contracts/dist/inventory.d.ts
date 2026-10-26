@@ -497,12 +497,6 @@ export declare const OperatorProperty: z.ZodObject<{
     checkInTime: string | null;
     checkOutTime: string | null;
     description: string | null;
-    houseRules: string | null;
-    locationPrivacy: boolean;
-    listingStatus: "draft" | "published";
-    sellableRoomCount: number;
-    branchCode: string | null;
-    timezone: string;
     photos: {
         objectKey: string;
         id: string;
@@ -511,6 +505,12 @@ export declare const OperatorProperty: z.ZodObject<{
         isCover: boolean;
         caption: string | null;
     }[];
+    houseRules: string | null;
+    locationPrivacy: boolean;
+    listingStatus: "draft" | "published";
+    sellableRoomCount: number;
+    branchCode: string | null;
+    timezone: string;
 }, {
     name: string;
     address: {
@@ -542,12 +542,6 @@ export declare const OperatorProperty: z.ZodObject<{
     checkInTime: string | null;
     checkOutTime: string | null;
     description: string | null;
-    houseRules: string | null;
-    locationPrivacy: boolean;
-    listingStatus: "draft" | "published";
-    sellableRoomCount: number;
-    branchCode: string | null;
-    timezone: string;
     photos: {
         objectKey: string;
         id: string;
@@ -556,6 +550,12 @@ export declare const OperatorProperty: z.ZodObject<{
         isCover: boolean;
         caption: string | null;
     }[];
+    houseRules: string | null;
+    locationPrivacy: boolean;
+    listingStatus: "draft" | "published";
+    sellableRoomCount: number;
+    branchCode: string | null;
+    timezone: string;
 }>;
 export type OperatorProperty = z.infer<typeof OperatorProperty>;
 /**

@@ -731,12 +731,12 @@ export declare const ResidenceApplicationRow: z.ZodObject<{
     roomId: string;
     leaseId: string | null;
     unitLabel: string;
-    screening: ("identity" | "reference" | "balance" | "rules" | "income" | "employment")[];
+    depositRwf: number | null;
+    screening: ("identity" | "reference" | "rules" | "income" | "employment" | "balance")[];
     occupants: string | null;
     offeredRentRwf: number | null;
     termMonths: number | null;
     desiredMoveIn: string | null;
-    depositRwf: number | null;
 }, {
     broker: {
         name: string;
@@ -759,12 +759,12 @@ export declare const ResidenceApplicationRow: z.ZodObject<{
     roomId: string;
     leaseId: string | null;
     unitLabel: string;
-    screening: ("identity" | "reference" | "balance" | "rules" | "income" | "employment")[];
+    depositRwf: number | null;
+    screening: ("identity" | "reference" | "rules" | "income" | "employment" | "balance")[];
     occupants: string | null;
     offeredRentRwf: number | null;
     termMonths: number | null;
     desiredMoveIn: string | null;
-    depositRwf: number | null;
 }>;
 export declare const ResidencePayoutRow: z.ZodObject<{
     id: z.ZodString;
@@ -1497,12 +1497,12 @@ export declare const ResidenceView: z.ZodObject<{
         roomId: string;
         leaseId: string | null;
         unitLabel: string;
-        screening: ("identity" | "reference" | "balance" | "rules" | "income" | "employment")[];
+        depositRwf: number | null;
+        screening: ("identity" | "reference" | "rules" | "income" | "employment" | "balance")[];
         occupants: string | null;
         offeredRentRwf: number | null;
         termMonths: number | null;
         desiredMoveIn: string | null;
-        depositRwf: number | null;
     }, {
         broker: {
             name: string;
@@ -1525,12 +1525,12 @@ export declare const ResidenceView: z.ZodObject<{
         roomId: string;
         leaseId: string | null;
         unitLabel: string;
-        screening: ("identity" | "reference" | "balance" | "rules" | "income" | "employment")[];
+        depositRwf: number | null;
+        screening: ("identity" | "reference" | "rules" | "income" | "employment" | "balance")[];
         occupants: string | null;
         offeredRentRwf: number | null;
         termMonths: number | null;
         desiredMoveIn: string | null;
-        depositRwf: number | null;
     }>, "many">;
     payouts: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -1606,12 +1606,12 @@ export declare const ResidenceView: z.ZodObject<{
         roomId: string;
         leaseId: string | null;
         unitLabel: string;
-        screening: ("identity" | "reference" | "balance" | "rules" | "income" | "employment")[];
+        depositRwf: number | null;
+        screening: ("identity" | "reference" | "rules" | "income" | "employment" | "balance")[];
         occupants: string | null;
         offeredRentRwf: number | null;
         termMonths: number | null;
         desiredMoveIn: string | null;
-        depositRwf: number | null;
     }[];
     property: {
         name: string;
@@ -1862,12 +1862,12 @@ export declare const ResidenceView: z.ZodObject<{
         roomId: string;
         leaseId: string | null;
         unitLabel: string;
-        screening: ("identity" | "reference" | "balance" | "rules" | "income" | "employment")[];
+        depositRwf: number | null;
+        screening: ("identity" | "reference" | "rules" | "income" | "employment" | "balance")[];
         occupants: string | null;
         offeredRentRwf: number | null;
         termMonths: number | null;
         desiredMoveIn: string | null;
-        depositRwf: number | null;
     }[];
     property: {
         name: string;
@@ -2288,9 +2288,9 @@ export type DecideAccessRequest = z.infer<typeof DecideAccessRequest>;
 export declare const RecordScreeningRequest: z.ZodObject<{
     done: z.ZodArray<z.ZodEnum<["identity", "income", "employment", "reference", "balance", "rules"]>, "many">;
 }, "strip", z.ZodTypeAny, {
-    done: ("identity" | "reference" | "balance" | "rules" | "income" | "employment")[];
+    done: ("identity" | "reference" | "rules" | "income" | "employment" | "balance")[];
 }, {
-    done: ("identity" | "reference" | "balance" | "rules" | "income" | "employment")[];
+    done: ("identity" | "reference" | "rules" | "income" | "employment" | "balance")[];
 }>;
 export type RecordScreeningRequest = z.infer<typeof RecordScreeningRequest>;
 /** Decline an application, with the reason the applicant is told. */

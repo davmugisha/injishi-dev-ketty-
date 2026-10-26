@@ -152,11 +152,11 @@ export declare const LeaseFilingView: z.ZodObject<{
     unitLabel: string;
     tenantName: string;
     dueOn: string;
-    leaseReference: string;
     filedOn: string | null;
+    daysLeft: number | null;
+    leaseReference: string;
     signedOn: string | null;
     late: boolean;
-    daysLeft: number | null;
     proofUrl: string | null;
 }, {
     status: "pending" | "filed";
@@ -168,11 +168,11 @@ export declare const LeaseFilingView: z.ZodObject<{
     unitLabel: string;
     tenantName: string;
     dueOn: string;
-    leaseReference: string;
     filedOn: string | null;
+    daysLeft: number | null;
+    leaseReference: string;
     signedOn: string | null;
     late: boolean;
-    daysLeft: number | null;
     proofUrl: string | null;
 }>;
 export type LeaseFilingView = z.infer<typeof LeaseFilingView>;
@@ -218,11 +218,11 @@ export declare const LeaseFilingList: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
-        leaseReference: string;
         filedOn: string | null;
+        daysLeft: number | null;
+        leaseReference: string;
         signedOn: string | null;
         late: boolean;
-        daysLeft: number | null;
         proofUrl: string | null;
     }, {
         status: "pending" | "filed";
@@ -234,11 +234,11 @@ export declare const LeaseFilingList: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
-        leaseReference: string;
         filedOn: string | null;
+        daysLeft: number | null;
+        leaseReference: string;
         signedOn: string | null;
         late: boolean;
-        daysLeft: number | null;
         proofUrl: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -252,11 +252,11 @@ export declare const LeaseFilingList: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
-        leaseReference: string;
         filedOn: string | null;
+        daysLeft: number | null;
+        leaseReference: string;
         signedOn: string | null;
         late: boolean;
-        daysLeft: number | null;
         proofUrl: string | null;
     }[];
 }, {
@@ -270,11 +270,11 @@ export declare const LeaseFilingList: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
-        leaseReference: string;
         filedOn: string | null;
+        daysLeft: number | null;
+        leaseReference: string;
         signedOn: string | null;
         late: boolean;
-        daysLeft: number | null;
         proofUrl: string | null;
     }[];
 }>;
@@ -626,11 +626,11 @@ export declare const TaxYearView: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
-        leaseReference: string;
         filedOn: string | null;
+        daysLeft: number | null;
+        leaseReference: string;
         signedOn: string | null;
         late: boolean;
-        daysLeft: number | null;
         proofUrl: string | null;
     }, {
         status: "pending" | "filed";
@@ -642,11 +642,11 @@ export declare const TaxYearView: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
-        leaseReference: string;
         filedOn: string | null;
+        daysLeft: number | null;
+        leaseReference: string;
         signedOn: string | null;
         late: boolean;
-        daysLeft: number | null;
         proofUrl: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -660,11 +660,11 @@ export declare const TaxYearView: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
-        leaseReference: string;
         filedOn: string | null;
+        daysLeft: number | null;
+        leaseReference: string;
         signedOn: string | null;
         late: boolean;
-        daysLeft: number | null;
         proofUrl: string | null;
     }[];
     declaration: {
@@ -766,11 +766,11 @@ export declare const TaxYearView: z.ZodObject<{
         unitLabel: string;
         tenantName: string;
         dueOn: string;
-        leaseReference: string;
         filedOn: string | null;
+        daysLeft: number | null;
+        leaseReference: string;
         signedOn: string | null;
         late: boolean;
-        daysLeft: number | null;
         proofUrl: string | null;
     }[];
     declaration: {

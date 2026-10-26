@@ -129,6 +129,31 @@ export class GuestRoutingService {
   }
 
   /**
+   * Give every current guest the posts their chain now has and they lack (the chain gained a post, or
+   * the guest was filed before it): each new step is delivered to whoever holds that post, or waits.
+   * Leaders newly delivered a guest are emailed. Safe to repeat.
+   */
+  async completeChains(today: string): Promise<number> {
+    let added = 0;
+    for (const g of await this.guests.currentWithRoles(today)) {
+      const have = new Set(g.roles);
+      const missing = planRoutes(g.area, g.nationality).filter((s) => !have.has(s.role));
+      if (missing.length === 0) continue;
+      const routed: RoutedStep[] = [];
+      for (const s of missing) {
+        const [first] = await this.guests.holders(s.role, postKey(s.role, s.area));
+        routed.push({ ...s, assignmentId: first?.assignmentId ?? null });
+      }
+      const ids = await this.guests.transaction((tx) => this.guests.insertRoutes(tx, g.id, routed, this.now()));
+      added += routed.length;
+      // Only the leaders of the new, delivered steps hear about this guest.
+      if (routed.some((r) => r.assignmentId)) await this.notify(g.id, false, ids);
+    }
+    if (added) this.log.log(`Guest routing: ${added} step(s) added to current guests' chains.`);
+    return added;
+  }
+
+  /**
    * Deliver what is waiting and can now be delivered: a building whose
    * village was set moves its current guests there, and every waiting step
    * whose area has someone in the post is delivered and its leaders emailed.
@@ -136,6 +161,7 @@ export class GuestRoutingService {
    */
   async sweep(propertyId?: string): Promise<{ relocated: number; delivered: number }> {
     const today = kigaliToday(this.now());
+    if (!propertyId) await this.completeChains(today);
     const waiting = await this.guests.waitingRoutes(today, propertyId);
     const relocated = new Set<string>();
     const delivered = new Map<string, string[]>();

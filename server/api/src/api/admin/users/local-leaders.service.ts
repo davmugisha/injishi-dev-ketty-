@@ -298,7 +298,7 @@ export class LocalLeadersService {
         ? await this.routing.handOverOnAppointment(tx, {
             assignmentId: created.id,
             role: leader,
-            area: { villageId: values.villageId, cellId: values.cellId, sectorId: values.sectorId, districtId: values.districtId },
+            area: { villageId: values.villageId, cellId: values.cellId, sectorId: values.sectorId, districtId: values.districtId, provinceId: values.provinceId },
           })
         : [];
       return { assignmentId: created.id, handedOver, area: values };
@@ -348,6 +348,7 @@ export class LocalLeadersService {
           userId: oversightAssignments.userId,
           role: oversightAssignments.oversightRole,
           governmentBodyCode: oversightAssignments.governmentBodyCode,
+          provinceId: oversightAssignments.provinceId,
           districtId: oversightAssignments.districtId,
           sectorId: oversightAssignments.sectorId,
           cellId: oversightAssignments.cellId,
@@ -367,7 +368,7 @@ export class LocalLeadersService {
         const moved = await this.routing.releaseOnEnd(tx, {
           assignmentId: row.id,
           role: row.role,
-          area: { villageId: row.villageId, cellId: row.cellId, sectorId: row.sectorId, districtId: row.districtId },
+          area: { villageId: row.villageId, cellId: row.cellId, sectorId: row.sectorId, districtId: row.districtId, provinceId: row.provinceId ?? null },
         });
         if (moved) this.log.log(`Appointment ${row.id} ended: ${moved} current guest step(s) handed on or back to waiting.`);
       }

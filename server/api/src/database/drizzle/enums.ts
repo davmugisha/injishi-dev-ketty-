@@ -298,6 +298,11 @@ export const oversightRoleEnum = pgEnum('oversight_role', [
   'cell_executive',
   'district_officer',
   'district_immigration',
+  // The sector executive secretary (local government) and DGIE's province and
+  // headquarters levels (guests from abroad only).
+  'sector_executive',
+  'dgie_province',
+  'dgie_national',
 ]);
 
 export const oversightScopeLevelEnum = pgEnum('oversight_scope_level', [

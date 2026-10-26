@@ -140,10 +140,10 @@ describe('GuestRegistryService · a tenant registers a guest', () => {
         idNumber: null,
         originCountry: 'KE',
         originVillageId: null,
-        area: { villageId: 1101, cellId: 110, sectorId: 11, districtId: 1 },
+        area: { villageId: 1101, cellId: 110, sectorId: 11, districtId: 1, provinceId: null },
       }),
     );
-    expect(routing.plan).toHaveBeenCalledWith({ villageId: 1101, cellId: 110, sectorId: 11, districtId: 1 }, 'KE', tx);
+    expect(routing.plan).toHaveBeenCalledWith({ villageId: 1101, cellId: 110, sectorId: 11, districtId: 1, provinceId: null }, 'KE', tx);
     expect(repo.insertRoutes).toHaveBeenCalledWith(tx, REG, expect.any(Array), NOW);
     expect(repo.audit).toHaveBeenCalledWith(tx, expect.objectContaining({ eventType: 'guest_registration.filed', registrationId: REG }));
     expect(repo.outbox).toHaveBeenCalledWith(tx, expect.objectContaining({ eventType: 'guest.registered', registrationId: REG }));

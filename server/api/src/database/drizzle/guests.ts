@@ -39,7 +39,7 @@ import {
 import { users } from './auth';
 import { timestamps } from './columns';
 import { idKindEnum, oversightRoleEnum } from './enums';
-import { cells, districts, sectors, villages } from './geography';
+import { cells, districts, provinces, sectors, villages } from './geography';
 import { properties, rentalUnits } from './inventory';
 import { oversightAssignments, orgs, workspaces } from './org';
 import { leases } from './residence';
@@ -182,7 +182,7 @@ export const guestRegistrationRoutes = pgTable(
     registrationId: uuid('registration_id')
       .notNull()
       .references(() => guestRegistrations.id, { onDelete: 'cascade' }),
-    /** 1 village leader, 2 DASSO, 3 cell executive, 4 district (officer or immigration). */
+    /** The post's place in the chain: 1 village leader to 5 district officer, then DGIE 6 to 8. */
     step: smallint('step').notNull(),
     recipientRole: oversightRoleEnum('recipient_role').notNull(),
     /** The area at the role's level, with the levels above it; null while not known. */
@@ -190,6 +190,8 @@ export const guestRegistrationRoutes = pgTable(
     cellId: integer('cell_id').references(() => cells.id),
     sectorId: integer('sector_id').references(() => sectors.id),
     districtId: integer('district_id').references(() => districts.id),
+    /** The province, for DGIE's province post. */
+    provinceId: integer('province_id').references(() => provinces.id),
     /** The post it was delivered to; null while nobody holds it (waiting). */
     assignmentId: uuid('assignment_id').references(() => oversightAssignments.id),
     deliveredAt: timestamp('delivered_at', { withTimezone: true }),
@@ -212,9 +214,9 @@ export const guestRegistrationRoutes = pgTable(
     // same migration run that writes this check (blueprint 1.1).
     check(
       'guest_registration_routes_role',
-      sql`${t.recipientRole}::text IN ('village_leader', 'dasso', 'cell_executive', 'district_officer', 'district_immigration')`,
+      sql`${t.recipientRole}::text IN ('village_leader', 'dasso', 'cell_executive', 'sector_executive', 'district_officer', 'district_immigration', 'dgie_province', 'dgie_national')`,
     ),
-    check('guest_registration_routes_step', sql`${t.step} BETWEEN 1 AND 4`),
+    check('guest_registration_routes_step', sql`${t.step} BETWEEN 1 AND 8`),
     check(
       'guest_registration_routes_delivered',
       sql`(${t.assignmentId} IS NULL) = (${t.deliveredAt} IS NULL)`,
