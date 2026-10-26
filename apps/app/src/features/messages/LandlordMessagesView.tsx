@@ -212,7 +212,6 @@ function Inbox({
         (t) =>
           (tab === "all" ||
             (tab === "unread" && t.unread > 0) ||
-            (tab === "tenants" && t.kind === "lease") ||
             (tab === "brokers" && t.kind === "placement")) &&
           (!needle || t.search.some((v) => v.toLowerCase().includes(needle))),
       ),
@@ -245,7 +244,6 @@ function Inbox({
     { id: "unread", label: "Unread", count: rows.filter((t) => t.unread > 0).length },
     ...(both
       ? [
-          { id: "tenants", label: "Tenants", count: rows.filter((t) => t.kind === "lease").length },
           { id: "brokers", label: "Brokers", count: rows.filter((t) => t.kind === "placement").length },
         ]
       : []),
