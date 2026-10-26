@@ -6,7 +6,7 @@ import { comparableName, sameName } from "./identity";
 import { IdKind, formatRwf } from "./vocab";
 
 // ===========================================================================
-// The lease contract (template version 3)
+// The lease contract (template version 4)
 // ===========================================================================
 //
 // The residential lease agreement both sides sign: both parties in full, the
@@ -22,8 +22,22 @@ import { IdKind, formatRwf } from "./vocab";
 // tables differ between runtimes: a different comma would be a different
 // fingerprint.
 
-/** The contract template this module writes. */
-export const LEASE_CONTRACT_TEMPLATE_VERSION = 3;
+/** The contract template this module writes for a new version. */
+export const LEASE_CONTRACT_TEMPLATE_VERSION = 4;
+
+/**
+ * Every template a frozen contract may carry. Each is kept as text on its version, so one written under
+ * an older template still reads, prints and signs as it stands; only new versions use the latest.
+ *   3  signers confirm "with a code sent to their email or with their password"
+ *   4  signers confirm "with an emailed code, or a tenant's password" (a landlord holds no password)
+ */
+export const LEASE_CONTRACT_TEMPLATE_VERSIONS = [3, 4] as const;
+export type LeaseContractTemplateVersion = (typeof LEASE_CONTRACT_TEMPLATE_VERSIONS)[number];
+
+/** A template version a stored contract may name. */
+export function isKnownContractTemplate(version: number): version is LeaseContractTemplateVersion {
+  return (LEASE_CONTRACT_TEMPLATE_VERSIONS as readonly number[]).includes(version);
+}
 
 /** The law electronic signatures in Rwanda stand on. */
 export const E_SIGNATURE_LAW =
@@ -93,7 +107,7 @@ export type LeaseClause = z.infer<typeof LeaseClause>;
 
 /** The contract both sides sign. */
 export const LeaseContract = z.object({
-  version: z.literal(LEASE_CONTRACT_TEMPLATE_VERSION),
+  version: z.union([z.literal(3), z.literal(4)]),
   title: z.string(),
   parties: z.object({ landlord: LeaseLandlordParty, tenant: LeaseTenantParty }),
   premises: LeasePremises,
@@ -155,8 +169,18 @@ function idWords(kind: IdKind): string {
   return kind === "national_id" ? "national ID" : "passport";
 }
 
+/** How a signer proves it is them, as each template words it. */
+const SIGNER_PROOF: Readonly<Record<LeaseContractTemplateVersion, string>> = {
+  3: "a code sent to their email or with their password",
+  4: "an emailed code, or a tenant's password",
+};
+
 /** The clauses of the agreement, in plain words. */
-function leaseClauses(input: LeaseContractInput, premises: string): LeaseClause[] {
+function leaseClauses(
+  input: LeaseContractInput,
+  premises: string,
+  template: LeaseContractTemplateVersion,
+): LeaseClause[] {
   const { landlord, tenant, terms } = input;
   const clauses: LeaseClause[] = [
     {
@@ -240,7 +264,7 @@ function leaseClauses(input: LeaseContractInput, premises: string): LeaseClause[
     },
     {
       heading: "Signatures",
-      body: `Both sides sign electronically on Injishi, under ${E_SIGNATURE_LAW}. Each side types their full name, may draw their signature, and confirms it is them with a code sent to their email or with their password. Injishi records when and from where each side signed and a fingerprint (SHA-256) of this agreement, and sends both sides the signed copy. The lease takes effect once both have signed and the tenancy starts.`,
+      body: `Both sides sign electronically on Injishi, under ${E_SIGNATURE_LAW}. Each side types their full name, may draw their signature, and confirms it is them with ${SIGNER_PROOF[template]}. Injishi records when and from where each side signed and a fingerprint (SHA-256) of this agreement, and sends both sides the signed copy. The lease takes effect once both have signed and the tenancy starts.`,
     },
   );
   return clauses;
@@ -249,18 +273,23 @@ function leaseClauses(input: LeaseContractInput, premises: string): LeaseClause[
 /**
  * The agreement for these parties, this home and these terms, as of
  * `issuedAt`. Pure: the same input gives the same text, and so the same
- * fingerprint, on every runtime.
+ * fingerprint, on every runtime. `template` is the latest unless an older
+ * version is being rebuilt (tests pin each one's fingerprint).
  */
-export function buildLeaseContract(input: LeaseContractInput, issuedAt: Date | string): LeaseContract {
+export function buildLeaseContract(
+  input: LeaseContractInput,
+  issuedAt: Date | string,
+  template: LeaseContractTemplateVersion = LEASE_CONTRACT_TEMPLATE_VERSION,
+): LeaseContract {
   const line = premisesLine(input.premises);
   return {
-    version: LEASE_CONTRACT_TEMPLATE_VERSION,
+    version: template,
     title: "Residential lease agreement",
     parties: { landlord: input.landlord, tenant: input.tenant },
     premises: input.premises,
     premisesLine: line,
     terms: { ...input.terms, occupants: [...input.terms.occupants] },
-    clauses: leaseClauses(input, line),
+    clauses: leaseClauses(input, line, template),
     issuedAt: typeof issuedAt === "string" ? issuedAt : issuedAt.toISOString(),
   };
 }
@@ -312,7 +341,7 @@ export function typedNameProblem(typed: string, contract: LeaseContract, role: "
  *
  * An electronic signature under Law No. 18/2010: the signer types their full
  * name as the contract states it, may draw a signature (an uploaded PNG), and
- * proves it is them with the code emailed to them or their password.
+ * proves it is them with the code emailed to them, or a tenant with their password.
  * `documentHash` is the `contractHash` they were shown; the API recomputes it
  * and refuses a signature on a contract that has changed since.
  *

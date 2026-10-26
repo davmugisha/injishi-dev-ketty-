@@ -1,6 +1,16 @@
 import { z } from "zod";
-/** The contract template this module writes. */
-export declare const LEASE_CONTRACT_TEMPLATE_VERSION = 3;
+/** The contract template this module writes for a new version. */
+export declare const LEASE_CONTRACT_TEMPLATE_VERSION = 4;
+/**
+ * Every template a frozen contract may carry. Each is kept as text on its version, so one written under
+ * an older template still reads, prints and signs as it stands; only new versions use the latest.
+ *   3  signers confirm "with a code sent to their email or with their password"
+ *   4  signers confirm "with an emailed code, or a tenant's password" (a landlord holds no password)
+ */
+export declare const LEASE_CONTRACT_TEMPLATE_VERSIONS: readonly [3, 4];
+export type LeaseContractTemplateVersion = (typeof LEASE_CONTRACT_TEMPLATE_VERSIONS)[number];
+/** A template version a stored contract may name. */
+export declare function isKnownContractTemplate(version: number): version is LeaseContractTemplateVersion;
 /** The law electronic signatures in Rwanda stand on. */
 export declare const E_SIGNATURE_LAW = "Law No. 18/2010 relating to electronic messages, electronic signatures and electronic transactions";
 /** The law that asks the landlord to file the lease with the tax administration. */
@@ -106,22 +116,22 @@ export declare const LeaseContractTerms: z.ZodObject<{
     endDate: string;
     billingStartsOn: string | null;
     noticeDays: number;
+    depositRwf: number;
     rentDueDay: number;
     graceDays: number;
     occupants: string[];
     otherTerms: string | null;
-    depositRwf: number;
 }, {
     monthlyRentRwf: number;
     startDate: string;
     endDate: string;
     billingStartsOn: string | null;
     noticeDays: number;
+    depositRwf: number;
     rentDueDay: number;
     graceDays: number;
     occupants: string[];
     otherTerms: string | null;
-    depositRwf: number;
 }>;
 export type LeaseContractTerms = z.infer<typeof LeaseContractTerms>;
 /** One clause, as it was frozen. */
@@ -138,7 +148,7 @@ export declare const LeaseClause: z.ZodObject<{
 export type LeaseClause = z.infer<typeof LeaseClause>;
 /** The contract both sides sign. */
 export declare const LeaseContract: z.ZodObject<{
-    version: z.ZodLiteral<3>;
+    version: z.ZodUnion<[z.ZodLiteral<3>, z.ZodLiteral<4>]>;
     title: z.ZodString;
     parties: z.ZodObject<{
         landlord: z.ZodObject<{
@@ -270,22 +280,22 @@ export declare const LeaseContract: z.ZodObject<{
         endDate: string;
         billingStartsOn: string | null;
         noticeDays: number;
+        depositRwf: number;
         rentDueDay: number;
         graceDays: number;
         occupants: string[];
         otherTerms: string | null;
-        depositRwf: number;
     }, {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
         billingStartsOn: string | null;
         noticeDays: number;
+        depositRwf: number;
         rentDueDay: number;
         graceDays: number;
         occupants: string[];
         otherTerms: string | null;
-        depositRwf: number;
     }>;
     clauses: z.ZodArray<z.ZodObject<{
         heading: z.ZodString;
@@ -301,18 +311,18 @@ export declare const LeaseContract: z.ZodObject<{
     issuedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     title: string;
-    version: 3;
+    version: 3 | 4;
     terms: {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
         billingStartsOn: string | null;
         noticeDays: number;
+        depositRwf: number;
         rentDueDay: number;
         graceDays: number;
         occupants: string[];
         otherTerms: string | null;
-        depositRwf: number;
     };
     parties: {
         landlord: {
@@ -350,18 +360,18 @@ export declare const LeaseContract: z.ZodObject<{
     premisesLine: string;
 }, {
     title: string;
-    version: 3;
+    version: 3 | 4;
     terms: {
         monthlyRentRwf: number;
         startDate: string;
         endDate: string;
         billingStartsOn: string | null;
         noticeDays: number;
+        depositRwf: number;
         rentDueDay: number;
         graceDays: number;
         occupants: string[];
         otherTerms: string | null;
-        depositRwf: number;
     };
     parties: {
         landlord: {
@@ -410,9 +420,10 @@ export declare function premisesLine(p: LeasePremises): string;
 /**
  * The agreement for these parties, this home and these terms, as of
  * `issuedAt`. Pure: the same input gives the same text, and so the same
- * fingerprint, on every runtime.
+ * fingerprint, on every runtime. `template` is the latest unless an older
+ * version is being rebuilt (tests pin each one's fingerprint).
  */
-export declare function buildLeaseContract(input: LeaseContractInput, issuedAt: Date | string): LeaseContract;
+export declare function buildLeaseContract(input: LeaseContractInput, issuedAt: Date | string, template?: LeaseContractTemplateVersion): LeaseContract;
 /**
  * JSON with object keys sorted at every level and `undefined` fields left
  * out, so two equal values always serialise to the same string.
@@ -436,7 +447,7 @@ export declare function typedNameProblem(typed: string, contract: LeaseContract,
  *
  * An electronic signature under Law No. 18/2010: the signer types their full
  * name as the contract states it, may draw a signature (an uploaded PNG), and
- * proves it is them with the code emailed to them or their password.
+ * proves it is them with the code emailed to them, or a tenant with their password.
  * `documentHash` is the `contractHash` they were shown; the API recomputes it
  * and refuses a signature on a contract that has changed since.
  *

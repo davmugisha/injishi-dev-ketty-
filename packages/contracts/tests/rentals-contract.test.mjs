@@ -54,12 +54,13 @@ const INPUT = {
 };
 
 /**
- * The fingerprint of `INPUT`'s contract, pinned. Signatures are stored
- * against fingerprints, so the same terms must give the same fingerprint for
- * as long as template version 3 exists. A change to any clause's wording
- * changes this: make it a new template version instead.
+ * The fingerprint of `INPUT`'s contract under each template, pinned.
+ * Signatures are stored against fingerprints, so the same terms must give the
+ * same fingerprint for as long as a template exists. A change to any clause's
+ * wording changes this: make it a new template version instead.
  */
-const PINNED_HASH = "2ff6c9552061a73b4369697b7de744fa367f8008a132396220f1b731ed39b1e2";
+const PINNED_HASH = "f4783ac9cc844587ae33d2e69d2eb50d9eb844c7b23dc8ab45a3c8b45a30d09e";
+const PINNED_HASH_V3 = "2ff6c9552061a73b4369697b7de744fa367f8008a132396220f1b731ed39b1e2";
 
 describe("SHA-256", () => {
   const nodeHash = (s) => createHash("sha256").update(s, "utf8").digest("hex");
@@ -98,9 +99,20 @@ describe("canonical JSON", () => {
 describe("the contract", () => {
   const contract = c.buildLeaseContract(INPUT, "2026-10-24T08:00:00.000Z");
 
-  test("it is a version 3 agreement the schema accepts", () => {
-    assert.equal(contract.version, 3);
+  test("it is a version 4 agreement the schema accepts, and a stored version 3 still parses", () => {
+    assert.equal(contract.version, 4);
     assert.equal(c.LeaseContract.safeParse(contract).success, true);
+    const older = c.buildLeaseContract(INPUT, "2026-10-24T08:00:00.000Z", 3);
+    assert.equal(c.LeaseContract.safeParse(JSON.parse(JSON.stringify(older))).success, true);
+    assert.equal(c.isKnownContractTemplate(3), true);
+    assert.equal(c.isKnownContractTemplate(0), false);
+  });
+
+  test("signers confirm with an emailed code, or a tenant's password", () => {
+    const signing = contract.clauses.find((k) => k.heading === "Signatures");
+    assert.match(signing.body, /confirms it is them with an emailed code, or a tenant's password\./);
+    const older = c.buildLeaseContract(INPUT, "2026-10-24T08:00:00.000Z", 3).clauses.find((k) => k.heading === "Signatures");
+    assert.match(older.body, /with a code sent to their email or with their password\./);
     assert.equal(contract.title, "Residential lease agreement");
   });
 
@@ -198,8 +210,9 @@ describe("the fingerprint", () => {
     assert.equal(c.contractHash(JSON.parse(JSON.stringify(contract))), c.contractHash(contract));
   });
 
-  test("it is pinned: the same terms give the same fingerprint for as long as version 3 exists", () => {
+  test("it is pinned: the same terms give the same fingerprint for as long as each template exists", () => {
     assert.equal(at("2026-10-24T08:00:00.000Z"), PINNED_HASH);
+    assert.equal(c.contractHash(c.buildLeaseContract(INPUT, "2026-10-24T08:00:00.000Z", 3)), PINNED_HASH_V3);
   });
 
   test("a signature names the fingerprint it was given against", () => {

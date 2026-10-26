@@ -1,6 +1,7 @@
 import { ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   LEASE_CONTRACT_TEMPLATE_VERSION,
+  isKnownContractTemplate,
   LeaseContract,
   buildLeaseContract,
   contractHash,
@@ -241,7 +242,8 @@ export class LeaseContractService {
     mustKeep: boolean,
   ): Promise<{ body: Buffer; filename: string; signed: boolean; objectId: string | null }> {
     const parsed = LeaseContract.safeParse(version.content);
-    if (version.templateVersion !== LEASE_CONTRACT_TEMPLATE_VERSION || !parsed.success) {
+    // Any template a frozen version may carry prints from its own text; only a carried over one has none.
+    if (!isKnownContractTemplate(version.templateVersion) || !parsed.success) {
       throw new ConflictException(
         'This version was carried over from before contracts were kept as text, so there is no PDF of it.',
       );
