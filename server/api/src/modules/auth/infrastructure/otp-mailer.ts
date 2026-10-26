@@ -45,10 +45,16 @@ export class OtpMailer {
 
   /** Bound so it can be handed to `createAuth({ sendOtp })` as a value. */
   readonly send: SendOtp = async ({ email, otp, type }) => {
+    // A `forget-password` code sets a password: a first one from the account
+    // screen, or a new one after "Forgot password?" (2026-10-22). Calling it a
+    // sign-in code would tell the person the wrong thing to do with it.
+    const password = type === 'forget-password';
     const subject =
       type === 'sign-in'
         ? 'Your Injishi sign-in code'
-        : 'Your Injishi verification code';
+        : password
+          ? 'Your Injishi password code'
+          : 'Your Injishi verification code';
 
     try {
       await this.withTimeout(
@@ -56,7 +62,7 @@ export class OtpMailer {
           to: email,
           subject,
           text: `Your Injishi code is ${otp}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`,
-          html: renderOtpEmail(otp),
+          html: renderOtpEmail(otp, password),
         }),
       );
     } catch (cause) {
@@ -122,14 +128,18 @@ export class OtpMailer {
 }
 
 /** Minimal on-brand OTP email (ink text, generous spacing). */
-function renderOtpEmail(otp: string): string {
+function renderOtpEmail(otp: string, password = false): string {
+  const title = password ? 'Your password code' : 'Your sign-in code';
+  const lead = password
+    ? 'Enter this code to set your Injishi password. It expires in 10 minutes.'
+    : 'Enter this code to sign in to Injishi. It expires in 10 minutes.';
   return `<!doctype html>
 <html>
   <body style="margin:0;background:#f4f6f6;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#042330;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:420px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;">
       <tr><td>
-        <h1 style="margin:0 0 8px;font-size:20px;color:#042330;">Your sign-in code</h1>
-        <p style="margin:0 0 24px;font-size:14px;color:#4a5c62;">Enter this code to sign in to Injishi. It expires in 10 minutes.</p>
+        <h1 style="margin:0 0 8px;font-size:20px;color:#042330;">${title}</h1>
+        <p style="margin:0 0 24px;font-size:14px;color:#4a5c62;">${lead}</p>
         <div style="font-size:32px;font-weight:700;letter-spacing:10px;color:#22AD01;text-align:center;padding:16px 0;background:#f4f6f6;border-radius:12px;">${otp}</div>
         <p style="margin:24px 0 0;font-size:12px;color:#8a999e;">Didn't request this? You can safely ignore this email — no one can sign in without the code.</p>
       </td></tr>
