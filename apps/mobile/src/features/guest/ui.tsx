@@ -672,4 +672,3 @@ export function SoftChip({ label, tone = "default", icon }: { label: string; ton
     </Chip>
   );
 }
-

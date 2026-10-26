@@ -5,7 +5,13 @@ import { EmptyState } from "@heroui-pro/react";
 import { useState } from "react";
 import { RegionOverlays } from "@/features/outlets/shared";
 import { METHOD_LABEL, type PosOutlet, type PosRegister, type PosShift } from "@/server/pos";
-import { cashMovementAction, closeShiftAction, decideMovementAction, openShiftAction, reviewShiftAction } from "./actions";
+import {
+  cashMovementAction,
+  closeShiftAction,
+  decideMovementAction,
+  openShiftAction,
+  reviewShiftAction,
+} from "./actions";
 import { PosNav } from "./PosNav";
 import { clock, money, PosDialog, PosHeader, parseRwf, SimulationNotice, StatusChip, usePosAction } from "./shared";
 
@@ -84,7 +90,9 @@ export function PosShiftView({
           ) : operate ? (
             <Card className="gap-3 p-4">
               <h2 className="text-[18px] font-semibold">Open a shift</h2>
-              <p className="text-[13px] text-muted">Cash can only be taken into an open shift. Choose a free register.</p>
+              <p className="text-[13px] text-muted">
+                Cash can only be taken into an open shift. Choose a free register.
+              </p>
               <div className="flex flex-wrap gap-2">
                 {registers.map((r) => (
                   <Button key={r.id} variant="secondary" isDisabled={!!r.openShiftId} onPress={() => setOpenOn(r)}>
@@ -95,9 +103,13 @@ export function PosShiftView({
               </div>
             </Card>
           ) : (
-            <p className="text-[13px] text-muted">You do not run a till. Shifts other cashiers closed are listed for review.</p>
+            <p className="text-[13px] text-muted">
+              You do not run a till. Shifts other cashiers closed are listed for review.
+            </p>
           )}
-          <SimulationNotice>Only cash is counted into the drawer. Every other method is simulated and listed for reconciliation only.</SimulationNotice>
+          <SimulationNotice>
+            Only cash is counted into the drawer. Every other method is simulated and listed for reconciliation only.
+          </SimulationNotice>
         </div>
 
         <aside className="flex min-h-0 flex-col gap-2 overflow-y-auto">
@@ -115,7 +127,9 @@ export function PosShiftView({
                 <span className="text-[13px] font-semibold">
                   {s.registerName} · {s.cashierName}
                 </span>
-                <StatusChip color={s.status === "open" ? "success" : s.status === "closed" ? "warning" : "default"}>{s.status}</StatusChip>
+                <StatusChip color={s.status === "open" ? "success" : s.status === "closed" ? "warning" : "default"}>
+                  {s.status}
+                </StatusChip>
               </div>
               <span className="text-muted tabular">
                 {clock(s.openedAt)}
@@ -123,18 +137,36 @@ export function PosShiftView({
                 {s.countedCashRwf !== null ? ` · counted ${money(s.countedCashRwf)}` : ""}
               </span>
               {s.varianceRwf !== null ? (
-                <span className={`font-semibold tabular ${s.varianceRwf < 0 ? "text-danger" : s.varianceRwf > 0 ? "text-warning" : "text-success"}`}>
-                  {s.varianceRwf === 0 ? "Balanced" : s.varianceRwf < 0 ? `Short ${money(-s.varianceRwf)}` : `Over ${money(s.varianceRwf)}`}
+                <span
+                  className={`font-semibold tabular ${s.varianceRwf < 0 ? "text-danger" : s.varianceRwf > 0 ? "text-warning" : "text-success"}`}
+                >
+                  {s.varianceRwf === 0
+                    ? "Balanced"
+                    : s.varianceRwf < 0
+                      ? `Short ${money(-s.varianceRwf)}`
+                      : `Over ${money(s.varianceRwf)}`}
                 </span>
               ) : null}
               {s.closeNote ? <span>Note: {s.closeNote}</span> : null}
-              {s.reviewedByName ? <span className="text-muted">Reviewed by {s.reviewedByName}{s.reviewNote ? `: ${s.reviewNote}` : ""}</span> : null}
+              {s.reviewedByName ? (
+                <span className="text-muted">
+                  Reviewed by {s.reviewedByName}
+                  {s.reviewNote ? `: ${s.reviewNote}` : ""}
+                </span>
+              ) : null}
               {review && s.status === "closed" && s.cashierUserId !== userId ? (
-                <Button size="sm" className="self-start" isDisabled={pending} onPress={() => run(() => reviewShiftAction(s.id, "Reviewed"), "Shift reviewed")}>
+                <Button
+                  size="sm"
+                  className="self-start"
+                  isDisabled={pending}
+                  onPress={() => run(() => reviewShiftAction(s.id, "Reviewed"), "Shift reviewed")}
+                >
                   Mark reviewed
                 </Button>
               ) : null}
-              {review && s.status === "open" && s.id !== mine?.id ? <Movements shift={s} review={review} userId={userId} pending={pending} run={run} compact /> : null}
+              {review && s.status === "open" && s.id !== mine?.id ? (
+                <Movements shift={s} review={review} userId={userId} pending={pending} run={run} compact />
+              ) : null}
             </Card>
           ))}
         </aside>
@@ -152,7 +184,16 @@ export function PosShiftView({
                 <Button variant="secondary" onPress={() => setOpenOn(null)}>
                   Cancel
                 </Button>
-                <Button isDisabled={pending || parseRwf(float) === null} onPress={() => run(() => openShiftAction(openOn.id, parseRwf(float) ?? 0), "Shift opened", () => setOpenOn(null))}>
+                <Button
+                  isDisabled={pending || parseRwf(float) === null}
+                  onPress={() =>
+                    run(
+                      () => openShiftAction(openOn.id, parseRwf(float) ?? 0),
+                      "Shift opened",
+                      () => setOpenOn(null),
+                    )
+                  }
+                >
                   Open with {money(parseRwf(float) ?? 0)}
                 </Button>
               </>
@@ -169,7 +210,11 @@ export function PosShiftView({
             isOpen
             onOpenChange={(open) => !open && setMove(null)}
             title={move.kind === "paid_in" ? "Cash into the drawer" : "Cash out of the drawer"}
-            subtitle={move.kind === "paid_out" && !review ? "A paid out waits for a manager's approval." : "Recorded with your name and the reason."}
+            subtitle={
+              move.kind === "paid_out" && !review
+                ? "A paid out waits for a manager's approval."
+                : "Recorded with your name and the reason."
+            }
             footer={
               <>
                 <Button variant="secondary" onPress={() => setMove(null)}>
@@ -179,7 +224,12 @@ export function PosShiftView({
                   isDisabled={pending || !parseRwf(move.amount) || move.reason.trim().length < 3}
                   onPress={() =>
                     run(
-                      () => cashMovementAction(mine.id, { kind: move.kind, amountRwf: parseRwf(move.amount) ?? 0, reason: move.reason.trim() }),
+                      () =>
+                        cashMovementAction(mine.id, {
+                          kind: move.kind,
+                          amountRwf: parseRwf(move.amount) ?? 0,
+                          reason: move.reason.trim(),
+                        }),
                       "Recorded",
                       () => setMove(null),
                     )
@@ -194,7 +244,10 @@ export function PosShiftView({
               <ToggleButton isSelected={move.kind === "paid_in"} onChange={() => setMove({ ...move, kind: "paid_in" })}>
                 Cash in
               </ToggleButton>
-              <ToggleButton isSelected={move.kind === "paid_out"} onChange={() => setMove({ ...move, kind: "paid_out" })}>
+              <ToggleButton
+                isSelected={move.kind === "paid_out"}
+                onChange={() => setMove({ ...move, kind: "paid_out" })}
+              >
                 Cash out
               </ToggleButton>
             </div>
@@ -229,7 +282,8 @@ export function PosShiftView({
                           closeNote: closing.note.trim() || undefined,
                           handoverNote: closing.handover.trim() || undefined,
                         }),
-                      (s) => (s.varianceRwf === 0 ? "Closed and balanced" : `Closed · variance ${money(s.varianceRwf ?? 0)}`),
+                      (s) =>
+                        s.varianceRwf === 0 ? "Closed and balanced" : `Closed · variance ${money(s.varianceRwf ?? 0)}`,
                       () => setClosing(null),
                     )
                   }
@@ -239,12 +293,19 @@ export function PosShiftView({
               </>
             }
           >
-            <TextField value={closing.counted} onChange={(v) => setClosing({ ...closing, counted: v })} fullWidth isRequired>
+            <TextField
+              value={closing.counted}
+              onChange={(v) => setClosing({ ...closing, counted: v })}
+              fullWidth
+              isRequired
+            >
               <Label>Cash counted (RWF)</Label>
               <Input inputMode="numeric" className="tabular" />
             </TextField>
             {counted !== null ? (
-              <p className={`text-[15px] font-semibold tabular ${counted - mine.expectedCashRwf < 0 ? "text-danger" : ""}`}>
+              <p
+                className={`text-[15px] font-semibold tabular ${counted - mine.expectedCashRwf < 0 ? "text-danger" : ""}`}
+              >
                 {counted === mine.expectedCashRwf
                   ? "Balanced"
                   : counted < mine.expectedCashRwf
@@ -298,16 +359,27 @@ function Movements({
     <ul className="flex flex-col gap-1 text-[12px]">
       {list.map((m) => (
         <li key={m.id} className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{m.kind === "paid_in" ? "In" : "Out"} {money(m.amountRwf)}</span>
+          <span className="font-medium">
+            {m.kind === "paid_in" ? "In" : "Out"} {money(m.amountRwf)}
+          </span>
           <span className="text-muted">
             {m.reason} · {m.requestedByName}
           </span>
           {m.status === "pending_approval" && review && shift.cashierUserId !== userId ? (
             <>
-              <Button size="sm" isDisabled={pending} onPress={() => run(() => decideMovementAction(m.id, true), "Approved")}>
+              <Button
+                size="sm"
+                isDisabled={pending}
+                onPress={() => run(() => decideMovementAction(m.id, true), "Approved")}
+              >
                 Approve
               </Button>
-              <Button size="sm" variant="secondary" isDisabled={pending} onPress={() => run(() => decideMovementAction(m.id, false), "Rejected")}>
+              <Button
+                size="sm"
+                variant="secondary"
+                isDisabled={pending}
+                onPress={() => run(() => decideMovementAction(m.id, false), "Rejected")}
+              >
                 Reject
               </Button>
             </>

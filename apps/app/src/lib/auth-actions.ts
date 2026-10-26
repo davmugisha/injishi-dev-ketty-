@@ -97,12 +97,14 @@ export async function verifyCode(_prev: VerifyState, form: FormData): Promise<Ve
   store.delete(LEGACY_SESSION_COOKIE);
   store.delete(OTP_COOKIE);
   const account = await accountFor(result.cookie);
-  redirect(destinationAfterSignIn(
+  redirect(
+    destinationAfterSignIn(
       account?.persona.id ?? "guest",
       String(form.get("next") ?? ""),
       account?.user.email,
       account?.persona.home,
-    ));
+    ),
+  );
 }
 
 /** "Resend code" on the code step, to the address the first code went to. Says why when it cannot. */

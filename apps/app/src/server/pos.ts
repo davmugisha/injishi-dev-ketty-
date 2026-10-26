@@ -11,7 +11,14 @@ import type { SourceContext } from "./sources/types";
 // ── Shapes (PosOutlet, PosMenu, PosFloor, PosOrder, PosTicket, PosRegister, PosShift in contracts) ──────
 
 export type TaxMode = "exclusive" | "inclusive";
-export type PaymentMethod = "cash" | "mtn_momo" | "airtel_money" | "card" | "bank_transfer" | "voucher" | "customer_credit";
+export type PaymentMethod =
+  | "cash"
+  | "mtn_momo"
+  | "airtel_money"
+  | "card"
+  | "bank_transfer"
+  | "voucher"
+  | "customer_credit";
 export type PaymentStatus = "initiated" | "pending" | "successful" | "failed" | "cancelled" | "expired" | "refunded";
 export type OrderStatus = "draft" | "submitted" | "in_progress" | "ready" | "delivered" | "completed" | "cancelled";
 export type OrderType = "dine_in" | "takeaway" | "delivery" | "room_service" | "event";
@@ -184,7 +191,15 @@ export interface PosTicket {
   tableLabel: string | null;
   waiterName: string | null;
   orderType: OrderType;
-  items: { id: string; orderItemId: string; name: string; quantity: number; options: string[]; note: string | null; status: TicketStatus }[];
+  items: {
+    id: string;
+    orderItemId: string;
+    name: string;
+    quantity: number;
+    options: string[];
+    note: string | null;
+    status: TicketStatus;
+  }[];
   createdAt: string;
   startedAt: string | null;
   readyAt: string | null;
@@ -306,8 +321,10 @@ export const POS_DEMO_NOTICE = "Simulated payments: no money moves and no provid
 const P = "/api/v1/ops/pos";
 
 export const posOutlets = (ctx: SourceContext) => ctx.ops().get<PosOutlet[]>(`${P}/outlets`);
-export const posMenu = (ctx: SourceContext, outletId: string) => ctx.ops().get<PosMenu>(`${P}/outlets/${outletId}/menu`);
-export const posFloor = (ctx: SourceContext, outletId: string) => ctx.ops().get<PosFloor>(`${P}/outlets/${outletId}/floor`);
+export const posMenu = (ctx: SourceContext, outletId: string) =>
+  ctx.ops().get<PosMenu>(`${P}/outlets/${outletId}/menu`);
+export const posFloor = (ctx: SourceContext, outletId: string) =>
+  ctx.ops().get<PosFloor>(`${P}/outlets/${outletId}/floor`);
 export const posOrder = (ctx: SourceContext, orderId: string) => ctx.ops().get<PosOrder>(`${P}/orders/${orderId}`);
 export const posOrders = (ctx: SourceContext, query: { outletId?: string; status?: string; limit?: number }) =>
   ctx.ops().get<PosOrderSummary[]>(`${P}/orders`, { query });
@@ -334,20 +351,31 @@ export const posWrite = {
     ctx.ops().post<PosFloor>(`${P}/tables/${tableId}/seat`, { guestCount }),
   tableStatus: (ctx: SourceContext, tableId: string, status: TableStatus) =>
     ctx.ops().post<PosFloor>(`${P}/tables/${tableId}/status`, { status }),
-  release: (ctx: SourceContext, sessionId: string) => ctx.ops().post<PosFloor>(`${P}/sessions/${sessionId}/release`, {}),
+  release: (ctx: SourceContext, sessionId: string) =>
+    ctx.ops().post<PosFloor>(`${P}/sessions/${sessionId}/release`, {}),
   moveSession: (ctx: SourceContext, sessionId: string, toTableId: string) =>
     ctx.ops().post<PosFloor>(`${P}/sessions/${sessionId}/move`, { toTableId }),
   mergeSessions: (ctx: SourceContext, sessionId: string, fromSessionId: string) =>
     ctx.ops().post<PosFloor>(`${P}/sessions/${sessionId}/merge`, { fromSessionId }),
   createOrder: (
     ctx: SourceContext,
-    body: { outletId: string; orderType: OrderType; tableSessionId?: string; guestNote?: string; lines?: LineRequest[] },
+    body: {
+      outletId: string;
+      orderType: OrderType;
+      tableSessionId?: string;
+      guestNote?: string;
+      lines?: LineRequest[];
+    },
     idempotencyKey: string,
   ) => ctx.ops().post<PosOrder>(`${P}/orders`, body, { idempotencyKey }),
   addLines: (ctx: SourceContext, orderId: string, lines: LineRequest[]) =>
     ctx.ops().post<PosOrder>(`${P}/orders/${orderId}/lines`, { lines }),
-  updateLine: (ctx: SourceContext, orderId: string, lineId: string, body: { quantity?: number; note?: string | null }) =>
-    ctx.ops().patch<PosOrder>(`${P}/orders/${orderId}/lines/${lineId}`, body),
+  updateLine: (
+    ctx: SourceContext,
+    orderId: string,
+    lineId: string,
+    body: { quantity?: number; note?: string | null },
+  ) => ctx.ops().patch<PosOrder>(`${P}/orders/${orderId}/lines/${lineId}`, body),
   removeLine: (ctx: SourceContext, orderId: string, lineId: string) =>
     ctx.ops().delete<PosOrder>(`${P}/orders/${orderId}/lines/${lineId}`),
   voidLine: (ctx: SourceContext, orderId: string, lineId: string, reason: string) =>
@@ -366,7 +394,8 @@ export const posWrite = {
     ctx.ops().post<PosOrder>(`${P}/orders/${orderId}/transfer`, { toTableSessionId, reason }),
   split: (ctx: SourceContext, orderId: string, orderItemIds: string[]) =>
     ctx.ops().post<PosOrder>(`${P}/orders/${orderId}/split`, { orderItemIds }),
-  printBill: (ctx: SourceContext, orderId: string) => ctx.ops().post<BillPrint>(`${P}/orders/${orderId}/print-bill`, {}),
+  printBill: (ctx: SourceContext, orderId: string) =>
+    ctx.ops().post<BillPrint>(`${P}/orders/${orderId}/print-bill`, {}),
   pay: (
     ctx: SourceContext,
     orderId: string,
@@ -383,19 +412,29 @@ export const posWrite = {
   ) => ctx.ops().post<PosOrder>(`${P}/orders/${orderId}/payments`, body),
   resolvePayment: (ctx: SourceContext, paymentId: string, outcome: "success" | "failure" | "timeout") =>
     ctx.ops().post<PosOrder>(`${P}/payments/${paymentId}/resolve`, { outcome }),
-  refund: (ctx: SourceContext, paymentId: string, body: { amountRwf: number; reason: string; idempotencyKey: string }) =>
-    ctx.ops().post<PosOrder>(`${P}/payments/${paymentId}/refund`, body),
+  refund: (
+    ctx: SourceContext,
+    paymentId: string,
+    body: { amountRwf: number; reason: string; idempotencyKey: string },
+  ) => ctx.ops().post<PosOrder>(`${P}/payments/${paymentId}/refund`, body),
   advanceTicket: (ctx: SourceContext, ticketId: string, to: TicketStatus) =>
     ctx.ops().post<PosTicket>(`${P}/tickets/${ticketId}/advance`, { to }),
-  reprintTicket: (ctx: SourceContext, ticketId: string) => ctx.ops().post<PosTicket>(`${P}/tickets/${ticketId}/reprint`, {}),
+  reprintTicket: (ctx: SourceContext, ticketId: string) =>
+    ctx.ops().post<PosTicket>(`${P}/tickets/${ticketId}/reprint`, {}),
   openShift: (ctx: SourceContext, registerId: string, openingFloatRwf: number) =>
     ctx.ops().post<PosShift>(`${P}/shifts`, { registerId, openingFloatRwf }),
-  cashMovement: (ctx: SourceContext, shiftId: string, body: { kind: "paid_in" | "paid_out"; amountRwf: number; reason: string }) =>
-    ctx.ops().post<PosShift>(`${P}/shifts/${shiftId}/movements`, body),
+  cashMovement: (
+    ctx: SourceContext,
+    shiftId: string,
+    body: { kind: "paid_in" | "paid_out"; amountRwf: number; reason: string },
+  ) => ctx.ops().post<PosShift>(`${P}/shifts/${shiftId}/movements`, body),
   decideMovement: (ctx: SourceContext, movementId: string, approve: boolean) =>
     ctx.ops().post<PosShift>(`${P}/cash-movements/${movementId}/decide`, { approve }),
-  closeShift: (ctx: SourceContext, shiftId: string, body: { countedCashRwf: number; closeNote?: string; handoverNote?: string }) =>
-    ctx.ops().post<PosShift>(`${P}/shifts/${shiftId}/close`, body),
+  closeShift: (
+    ctx: SourceContext,
+    shiftId: string,
+    body: { countedCashRwf: number; closeNote?: string; handoverNote?: string },
+  ) => ctx.ops().post<PosShift>(`${P}/shifts/${shiftId}/close`, body),
   reviewShift: (ctx: SourceContext, shiftId: string, note?: string) =>
     ctx.ops().post<PosShift>(`${P}/shifts/${shiftId}/review`, { note }),
 };

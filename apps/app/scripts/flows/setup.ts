@@ -14,8 +14,8 @@ import {
   createProperty,
   publish,
   readSetup,
-  SetupRefusal,
   type SetupRead,
+  SetupRefusal,
   updateProperty,
 } from "../../src/server/mutations/setup";
 import type { SourceContext } from "../../src/server/sources/types";

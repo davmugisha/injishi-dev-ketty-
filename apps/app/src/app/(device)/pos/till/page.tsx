@@ -22,17 +22,24 @@ export default async function PosTillPage({ searchParams }: { searchParams: Prom
     order = await posOrder(first.ctx, orderId);
   } catch (error) {
     if (error instanceof ApiError && error.notFound) {
-      return <PosBlocked title="Order not found" message="This order is not in a branch you cover, or it does not exist." />;
+      return (
+        <PosBlocked title="Order not found" message="This order is not in a branch you cover, or it does not exist." />
+      );
     }
     throw error;
   }
   const outlet = first.outlets.find((o) => o.id === order.outletId);
-  if (!outlet) return <PosBlocked title="Order not found" message="This order's outlet is not in a branch you cover." />;
+  if (!outlet)
+    return <PosBlocked title="Order not found" message="This order's outlet is not in a branch you cover." />;
   const has = (p: string) => first.can.includes(p);
   const [menu, floor, shift] = await Promise.all([
     posMenu(first.ctx, outlet.id),
-    has("pos.sell") || has("table.manage") || has("pos.checkout") ? posFloor(first.ctx, outlet.id) : Promise.resolve(null),
+    has("pos.sell") || has("table.manage") || has("pos.checkout")
+      ? posFloor(first.ctx, outlet.id)
+      : Promise.resolve(null),
     has("register.operate") || has("pos.checkout") ? posMyShift(first.ctx, outlet.id) : Promise.resolve(null),
   ]);
-  return <PosTillView outlet={outlet} order={order} menu={menu} tables={floor?.tables ?? []} shift={shift} can={first.can} />;
+  return (
+    <PosTillView outlet={outlet} order={order} menu={menu} tables={floor?.tables ?? []} shift={shift} can={first.can} />
+  );
 }

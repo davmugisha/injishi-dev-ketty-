@@ -40,7 +40,8 @@ async function run<T>(act: () => Promise<T>): Promise<ActionResult<T>> {
       if (error.forbidden) return { ok: false, error: `Not allowed: ${error.message}` };
       return { ok: false, error: error.message };
     }
-    if (error instanceof ApiUnreachableError) return { ok: false, error: "The Injishi service did not answer. Try again." };
+    if (error instanceof ApiUnreachableError)
+      return { ok: false, error: "The Injishi service did not answer. Try again." };
     throw error;
   }
 }
@@ -114,11 +115,19 @@ export async function discountAction(
   return run(async () => posWrite.discount(await ctx(), orderId, body));
 }
 
-export async function decideDiscountAction(orderId: string, discountId: string, approve: boolean): Promise<ActionResult<PosOrder>> {
+export async function decideDiscountAction(
+  orderId: string,
+  discountId: string,
+  approve: boolean,
+): Promise<ActionResult<PosOrder>> {
   return run(async () => posWrite.decideDiscount(await ctx(), orderId, discountId, approve));
 }
 
-export async function transferAction(orderId: string, toTableSessionId: string, reason: string): Promise<ActionResult<PosOrder>> {
+export async function transferAction(
+  orderId: string,
+  toTableSessionId: string,
+  reason: string,
+): Promise<ActionResult<PosOrder>> {
   return run(async () => posWrite.transfer(await ctx(), orderId, toTableSessionId, reason));
 }
 

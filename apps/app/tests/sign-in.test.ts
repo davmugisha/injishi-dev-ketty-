@@ -31,7 +31,10 @@ test("a floor role borrowing the waiter's shell lands on its own live screen", (
   assert.equal(destinationAfterSignIn("waiter", "", "kitchen1@pos.demo.injishi.com", "PosStations"), "/pos/stations");
   assert.equal(homeAfterSignIn("waiter", personas.waiter.email), homeHref("waiter"));
   // A return target the shell may open still wins over the role's landing.
-  assert.equal(destinationAfterSignIn("waiter", "/pos/shift", "cashier1@pos.demo.injishi.com", "PosFloor"), "/pos/shift");
+  assert.equal(
+    destinationAfterSignIn("waiter", "/pos/shift", "cashier1@pos.demo.injishi.com", "PosFloor"),
+    "/pos/shift",
+  );
 });
 
 test("an explicit return target still wins over the home", () => {

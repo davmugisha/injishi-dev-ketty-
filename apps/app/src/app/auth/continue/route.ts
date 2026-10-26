@@ -44,5 +44,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${WEB_URL}/two-factor/verify?${new URLSearchParams({ redirect: self }).toString()}`);
   }
 
-  return NextResponse.redirect(new URL(destinationAfterSignIn(account.persona.id, next, account.user.email, account.persona.home), APP_URL));
+  return NextResponse.redirect(
+    new URL(destinationAfterSignIn(account.persona.id, next, account.user.email, account.persona.home), APP_URL),
+  );
 }

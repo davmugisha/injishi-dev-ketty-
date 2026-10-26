@@ -31,6 +31,11 @@ export async function loadPosPage(board: BoardId, outletParam: string | undefine
     throw error;
   }
   const outlet = outlets.find((o) => o.id === outletParam) ?? outlets[0];
-  if (!outlet) return { ok: false, title: "No outlet", message: "No restaurant or bar outlet is set up in the branches you cover." };
+  if (!outlet)
+    return {
+      ok: false,
+      title: "No outlet",
+      message: "No restaurant or bar outlet is set up in the branches you cover.",
+    };
   return { ok: true, ctx, outlets, outlet, can: [...posPermissions(ctx)], userId: ctx.account?.user.id ?? null };
 }
