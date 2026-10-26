@@ -14,6 +14,7 @@ import {
   formatNumber,
   IconAction,
   type IconKey,
+  ListToolbar,
   Money,
   PageContent,
   PageHeader,
@@ -35,8 +36,8 @@ export interface LeasesQuery {
   page: number;
 }
 
-/** Tabs a business may never have used: shown once something is under them, or while chosen. */
-const QUIET_TABS: readonly LeaseTab[] = ["ended", "cancelled"];
+/** Tabs always shown; the others appear once something is under them, or while chosen. */
+const ALWAYS_TABS: readonly LeaseTab[] = ["to_sign", "active"];
 
 /** The one step the landlord can take on a lease from the list, as the record opens it (`?open=`). */
 function nextStep(
@@ -107,7 +108,7 @@ export function LeasesView({
 
   const tabs = [
     { id: "all", label: "All", count: counts.total },
-    ...LEASE_TABS.filter((t) => !QUIET_TABS.includes(t) || (counts.counts[t] ?? 0) > 0 || query.tab === t).map((t) => ({
+    ...LEASE_TABS.filter((t) => ALWAYS_TABS.includes(t) || (counts.counts[t] ?? 0) > 0 || query.tab === t).map((t) => ({
       id: t,
       label: TAB_LABEL[t],
       count: counts.counts[t] ?? 0,
@@ -158,23 +159,12 @@ export function LeasesView({
         sortValue: (l) => l.status,
         cell: (l) => <StatusChip kind="lease" status={l.status} />,
       },
-      {
-        id: "next",
-        header: "Next step",
-        hideBelow: "xl",
-        cell: (l) =>
-          l.nextAction ? (
-            <span className="text-sm text-muted">{l.nextAction}</span>
-          ) : (
-            <span className="text-muted">-</span>
-          ),
-      },
     ],
     [manyBuildings],
   );
 
-  // A column every row would leave empty is not shown.
-  const shownColumns = list.items.some((l) => l.nextAction) ? columns : columns.filter((c) => c.id !== "next");
+  // The next step is each row's first action (its tooltip says it), not a column repeating the status.
+  const shownColumns = columns;
   const filtered = query.tab !== "all" || query.q !== "";
   const pages = Math.max(1, Math.ceil(list.total / Math.max(1, list.pageSize)));
   const can = { manage: canManage, sign: canSign, record: canRecord };
@@ -183,7 +173,6 @@ export function LeasesView({
     <PageContent>
       <PageHeader
         title="Leases"
-        description="Every lease, where it stands and what comes next."
         actions={
           canManage ? (
             <ActionLink href={screenHref("LeaseNew")} icon="Plus" intent="primary">
@@ -193,15 +182,18 @@ export function LeasesView({
         }
       />
 
-      <div className="flex flex-col gap-3">
-        <FilterTabs
-          label="Leases by stage"
-          tabs={tabs}
-          selectedKey={query.tab}
-          onSelectionChange={(key) => go({ tab: key as LeaseListTab })}
-        />
+      <ListToolbar
+        tabs={
+          <FilterTabs
+            label="Leases by stage"
+            tabs={tabs}
+            selectedKey={query.tab}
+            onSelectionChange={(key) => go({ tab: key as LeaseListTab })}
+          />
+        }
+      >
         <SearchBar label="Search leases" value={search} onChange={onSearch} placeholder="Tenant, unit or reference" />
-      </div>
+      </ListToolbar>
 
       <div className={pending ? "opacity-60 transition-opacity" : "transition-opacity"} aria-busy={pending}>
         <DataTable
@@ -232,8 +224,7 @@ export function LeasesView({
           }}
           mobile={{
             title: (l) => l.tenant.fullName,
-            description: (l) =>
-              [l.unit.label, l.reference, formatMoney(l.monthlyRentRwf), l.nextAction].filter(Boolean).join(" · "),
+            description: (l) => [l.unit.label, l.reference, formatMoney(l.monthlyRentRwf)].join(" · "),
             trailing: (l) => <StatusChip kind="lease" status={l.status} />,
           }}
           empty={
