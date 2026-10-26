@@ -20,7 +20,7 @@ import { ArAccountCard, ArCollectionsCard, ArInvoicesCard, type DisputeState } f
 import { ArAllocationDialog } from "./ArAllocationDialog";
 import { firstKey, type KpiItem, KpiStrip, LINE_LIST, LINE_PANEL, LINE_TAB, Note, rwf, Stack } from "./shared";
 
-export interface AccountsReceivableData {
+interface AccountsReceivableData {
   kpis: AccountingKpi[];
   accounts: ArAccount[];
   aging: AgingBucket[];

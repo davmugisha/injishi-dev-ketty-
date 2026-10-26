@@ -1,7 +1,7 @@
 "use client";
 
 import { Info } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { AddressPicker, type AddressDraft } from "./address-picker";
 import { Callout } from "./register-shell";

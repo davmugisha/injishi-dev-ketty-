@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { EbmReceipt } from "@injishi/contracts";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { apiResultMessage } from "@/lib/api";
 import { fetchReceipt } from "@/data/receipt";
@@ -37,7 +37,7 @@ type Screen =
   | { state: "refused"; message: string }
   | { state: "unreachable" };
 
-export interface ReceiptScreenProps {
+interface ReceiptScreenProps {
   /** The booking reference from the route, e.g. `BK-RBSV-XACM`. */
   reference: string;
 }

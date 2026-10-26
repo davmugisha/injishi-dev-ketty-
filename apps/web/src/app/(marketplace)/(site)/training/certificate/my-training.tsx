@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import {
   TRAINING_CREDENTIAL_WORDING,
   type TrainingMeResponse,

@@ -165,6 +165,14 @@ const PERSONAS = [
   { email: "guest@injishi.com", personal: true, to: HOME },
   { email: "localgov@injishi.com", personal: true, consoles: 1, to: APP },
   { email: "approver@injishi.com", personal: true, consoles: 1, to: APP },
+  { email: "finance@injishi.com", personal: true, operator: [biz("w-hotel")], to: APP },
+  { email: "hr@injishi.com", personal: true, operator: [biz("w-hotel")], to: APP },
+  { email: "admin-ops@injishi.com", personal: true, staff: true, to: APP },
+  { email: "admin-compliance@injishi.com", personal: true, staff: true, to: APP },
+  { email: "admin-finance@injishi.com", personal: true, staff: true, to: APP },
+  { email: "admin-trainer@injishi.com", personal: true, staff: true, to: APP },
+  { email: "taxofficer@injishi.com", personal: true, consoles: 1, to: APP },
+  { email: "psf@injishi.com", personal: true, consoles: 1, to: APP },
   // Still at `submitted`: the workspace is listed so the registrant can watch
   // the pipeline, and the operator app words the refusal inside it.
   { email: "pending@injishi.com", personal: true, operator: [biz("w-pending")], to: APP },

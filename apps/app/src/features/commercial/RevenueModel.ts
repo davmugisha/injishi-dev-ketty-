@@ -92,7 +92,7 @@ export function revenueNightEvent(events: RevenueEvent[], nightId: string): stri
 }
 
 /** Headline figures of the 30-night window in one scenario (KPIs, scenario comparison). */
-export interface RevenueFigures {
+interface RevenueFigures {
   capacity: number;
   onTheBooks: number;
   onTheBooksRoomNights: number;

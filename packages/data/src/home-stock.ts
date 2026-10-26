@@ -37,10 +37,7 @@ export function homeStockCover(seed: string): Pick<StockImage, "src" | "alt"> {
 }
 
 /** The cover URL to show: the uploaded photo, or a local stock fallback. */
-export function homeCoverPhoto(
-  seed: string,
-  photos: readonly string[],
-): { src: string; alt: string; stock: boolean } {
+export function homeCoverPhoto(seed: string, photos: readonly string[]): { src: string; alt: string; stock: boolean } {
   const first = photos[0]?.trim();
   if (first) return { src: first, alt: "Photo of the home", stock: false };
   return { ...homeStockCover(seed), stock: true };

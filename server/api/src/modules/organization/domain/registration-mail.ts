@@ -58,17 +58,18 @@ export function registrationLink(webUrl: string): string {
 }
 
 /**
- * The operator workspace's setup screen. The operator app is a zone under web's
- * origin (web rewrites `/w/*` to it), so the origin is web's.
+ * The operator workspace's setup screen, on web's origin. Web forwards `/w/*` to
+ * the operator app, which sends the visit on to its own host where it has one
+ * (`apps/app/src/proxy.ts`), so the link holds whichever way the app is served.
  */
 export function workspaceSetupLink(webUrl: string, workspaceId: string): string {
   return new URL(`/w/${encodeURIComponent(workspaceId)}/setup`, webUrl).toString();
 }
 
 /**
- * An officer's own queue. `/oversight` is also a zone path under web's origin,
- * and each function owns one console segment (`CONSOLE_SEGMENT` in the operator
- * app).
+ * An officer's queue. `/oversight` is the console's old address on web's origin:
+ * web forwards it to the operator app, which answers it with its console at
+ * `/officer`. The segment names the function, for when the console reads it.
  */
 export function oversightQueueLink(
   webUrl: string,

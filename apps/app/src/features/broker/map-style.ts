@@ -93,12 +93,7 @@ const DARK: Palette = {
 };
 
 // Layers that add noise without helping a guest pick a stay.
-const DROPPED = new Set([
-  "road_one_way_arrow",
-  "road_one_way_arrow_opposite",
-  "building-3d",
-  "park_outline",
-]);
+const DROPPED = new Set(["road_one_way_arrow", "road_one_way_arrow_opposite", "building-3d", "park_outline"]);
 
 function roadColour(id: string, p: Palette): string | null {
   const casing = id.includes("casing");

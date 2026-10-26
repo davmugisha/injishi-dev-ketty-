@@ -11,7 +11,7 @@ WORKDIR /repo
 # ---- dependencies ----------------------------------------------------------
 # Manifests are copied on their own so a source-only change does not bust the
 # install layer. Every workspace member that exists is listed: pnpm-workspace.yaml
-# globs apps/*, server/*, packages/*, and a frozen install fails if any
+# globs apps/*, products/*, server/*, packages/*, and a frozen install fails if any
 # member's package.json is missing. Do not copy turbo.json or packages/config;
 # neither exists in this repo.
 FROM base AS deps
@@ -32,6 +32,13 @@ COPY packages/ui-contract/package.json ./packages/ui-contract/
 COPY packages/data/package.json ./packages/data/
 COPY packages/db/package.json ./packages/db/
 COPY packages/utils/package.json ./packages/utils/
+# ADR-074 stage 1. products/* is globbed too; each product adds its own line
+# here, in all three Dockerfiles, in the change that creates it; the first one
+# also adds `COPY products ./products` to the build stage, which would fail on
+# a folder that does not exist yet.
+COPY packages/product-contract/package.json ./packages/product-contract/
+COPY packages/api-client/package.json ./packages/api-client/
+COPY packages/i18n/package.json ./packages/i18n/
 # HeroUI Pro (a paid licence) ships a stub on npm; its postinstall downloads
 # the real code with HEROUI_AUTH_TOKEN, the team's CI/CD token (never a
 # personal one). It arrives as a BuildKit secret, so it is never written into

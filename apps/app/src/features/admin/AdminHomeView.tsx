@@ -29,7 +29,7 @@ import {
   ToneChip,
 } from "./shared";
 
-export interface AdminHomeData {
+interface AdminHomeData {
   kpis: AdminKpi[];
   items: TriageItem[];
   deploys: Deploy[];

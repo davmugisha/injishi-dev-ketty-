@@ -79,7 +79,7 @@ const RASTER_FALLBACK_STYLE: StyleSpecification = {
   layers: [{ id: "osm", type: "raster", source: "osm", paint: { "raster-saturation": -0.6 } }],
 };
 
-export type PlottedListing = Listing & { latitude: number; longitude: number };
+type PlottedListing = Listing & { latitude: number; longitude: number };
 
 /**
  * West, south, east, north — the visible map, for "search as I move". The

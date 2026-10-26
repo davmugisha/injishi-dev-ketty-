@@ -2,7 +2,6 @@
 
 import { createContext, isValidElement, useContext, useId, type ReactNode } from "react";
 import {
-  Button,
   Input,
   ListBox,
   Select,
@@ -305,45 +304,6 @@ export function Notice({
   return (
     <div className={`rounded-card border p-4 text-sm ${toneClass}`} role="status">
       {children}
-    </div>
-  );
-}
-
-/** The footer every step shares: back on the left, forward on the right. */
-export function StepActions({
-  onBack,
-  backLabel = "Back",
-  onNext,
-  nextLabel,
-  busy,
-  disabled,
-}: {
-  onBack?: () => void;
-  backLabel?: string;
-  onNext: () => void;
-  nextLabel: string;
-  busy?: boolean;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="mt-8 flex items-center gap-3">
-      {onBack ? (
-        <Button variant="outline" onPress={onBack}>
-          {backLabel}
-        </Button>
-      ) : null}
-      <span className="grow" />
-      {/* `isPending` rather than a swapped label alone: it puts the button in
-          HeroUI's pending state, which also stops a second press. The old
-          version only changed the text and stayed live. */}
-      <Button
-        variant="primary"
-        onPress={onNext}
-        isDisabled={busy || disabled}
-        isPending={busy}
-      >
-        {busy ? "Working…" : nextLabel}
-      </Button>
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Smartphone } from "lucide-react";
 import type { PaymentAttemptStatus } from "@injishi/contracts";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
 import { AirtelMark, MtnMark } from "@/components/icons/marks";
 import { fetchPaymentAttempt } from "@/data/bookings";

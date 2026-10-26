@@ -20,7 +20,7 @@
  */
 
 /** How many digits a Rwandan National ID carries. */
-export const NATIONAL_ID_DIGITS = 16;
+const NATIONAL_ID_DIGITS = 16;
 
 /**
  * Why this value is not a National ID, or `null` when it is one.

@@ -164,7 +164,7 @@ export function TeamRolesProposedAlert({ role }: { role: TeamRolesRole }) {
 }
 
 /** What the chosen role can do: its permission keys and what it cannot do. */
-export function TeamRolesRoleSummary({ role, permissions }: { role: TeamRolesRole; permissions: string[] }) {
+function TeamRolesRoleSummary({ role, permissions }: { role: TeamRolesRole; permissions: string[] }) {
   return (
     <Card variant="secondary" className="gap-1.5 px-3.5 py-3">
       <span className="text-[13px] font-semibold">What {role.name} can do</span>

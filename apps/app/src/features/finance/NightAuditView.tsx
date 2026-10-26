@@ -21,7 +21,7 @@ import { type Key, useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { selectableRow, ToneChip } from "./shared";
 
-export interface NightAuditData {
+interface NightAuditData {
   steps: AuditStep[];
   issues: AuditIssue[];
   runs: AuditRun[];

@@ -5,9 +5,7 @@ import {
   FileText,
   GitBranch,
   House,
-  KeyRound,
   PenLine,
-  UserRound,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@injishi/utils";
@@ -48,11 +46,6 @@ import { STEP_TITLE, type StepId } from "@/app/(app)/(entry)/register/register-s
  * wizard passes the list without it (`register/register-steps.ts`) and the rail
  * renders what it is given.
  *
- * A broker walks a shorter path — no business, no documents, no fee — so the
- * rail is a LIST rather than a constant, and `BROKER_STEPS` is that list. A
- * broker shown five nodes and stopped after two would read as an abandoned
- * form.
- *
  * EACH STEP CARRIES AN ICON, and the icon is what the node shows. A numeral
  * said where you are and nothing about what is asked there; on a phone, where
  * the labels do not fit beside the nodes, five numbered dots were the whole
@@ -61,7 +54,7 @@ import { STEP_TITLE, type StepId } from "@/app/(app)/(entry)/register/register-s
  * node says "Step 2 of 4" to a screen reader, and a phone shows the same
  * count and the current step's name on a line under the rail.
  */
-export type RegistrationStepId = StepId | "about";
+type RegistrationStepId = StepId | "about";
 
 export interface RegistrationStep {
   id: RegistrationStepId;
@@ -82,21 +75,6 @@ export const REGISTRATION_STEPS: ReadonlyArray<RegistrationStep> = [
   { id: "documents", label: STEP_TITLE.documents, icon: FileText },
   { id: "overview", label: STEP_TITLE.overview, icon: PenLine },
   { id: "pay", label: STEP_TITLE.pay, icon: CreditCard },
-];
-
-/** A residence walks five: Property and owner in place of the TIN, and no branches or PSF. */
-export const RESIDENCE_STEPS: ReadonlyArray<RegistrationStep> = [
-  { id: "type", label: STEP_TITLE.type, icon: House },
-  { id: "property", label: STEP_TITLE.property, icon: KeyRound },
-  { id: "documents", label: STEP_TITLE.documents, icon: FileText },
-  { id: "overview", label: STEP_TITLE.overview, icon: PenLine },
-  { id: "pay", label: STEP_TITLE.pay, icon: CreditCard },
-];
-
-/** A broker registers a person, not a business: the kind, then one short form, and no fee. */
-export const BROKER_STEPS: ReadonlyArray<RegistrationStep> = [
-  { id: "type", label: STEP_TITLE.type, icon: House },
-  { id: "about", label: "You", icon: UserRound },
 ];
 
 export function RegistrationStepRail({

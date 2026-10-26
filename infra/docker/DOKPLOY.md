@@ -281,6 +281,51 @@ an existing staging database from before ADR-043 cannot be marked: take it down
 with its volumes (`$S down -v`; staging holds no data worth keeping) and run the
 steps above. Running the mark twice is harmless; it exits 0 the second time.
 
+## Opening registration on a real database
+
+Production is migrated and given reference data (`seed-reference.mjs`) and
+nothing else. Until the steps below are done, `GET /api/v1/registrations/fee`
+answers 404 "Registration for this business type is not open yet", and a
+business that did register could never be approved, because nobody holds an
+officer seat. Do them once, in this order, after the first deploy.
+
+1. **The first platform admin.** The person signs in once on
+   `www.injishi.com` with the emailed code, which makes their account. Then:
+
+   ```sh
+   docker compose -p injishi -f infra/docker/docker-compose.dokploy.yml --env-file /opt/injishi/.env \
+     exec api node scripts/bootstrap-admin.mjs --email <their email>
+   ```
+
+   It refuses while any staff grant is live, so it makes the first admin and
+   no other; every later grant is made in the admin console, where it is
+   audited. It writes an `audit_events` row naming itself.
+
+2. **Registration fees** (`admin.fee.edit`): `POST /api/v1/admin/configuration/fees`
+   with `{ businessType, amountRwf, reason }`, once for `hospitality` and once
+   for `residence`. Appended, never edited; a registration keeps the amount on
+   its invoice.
+
+3. **Officers** (`admin.user.role.grant`): each officer signs in once, then
+   `POST /api/v1/admin/users/<userId>/oversight` with `oversightRole`
+   (`business_field_verifier` or `business_approver`), `governmentBodyCode`,
+   `governmentTitle`, `scopeLevel` (`country`, `province` + `provinceId`, or
+   `district` + `districtId`) and a `reason`. Appoint at least one verifier and
+   one approver who are **different people** for every district you open: the
+   API refuses an approval by the officer who verified.
+
+4. **PSF tiers** (optional): until one is active, the wizard says "PSF has no
+   active membership tiers right now" and a registrant can still continue with
+   "Not now".
+
+All three admin writes need the console's emailed step up first
+(`POST /api/v1/me/two-factor/send`, then `/verify`).
+
+Two things are stand-ins on a real database, by decision, and the wizard
+says so: the RRA TIN check is the mock (it verifies every TIN; the field
+verifier and the approver are the real gate), and `POST /registrations/:id/pay`
+records the fee as paid without moving money while `PAYMENT_ADAPTER_MODE=off`.
+
 ## Staging
 
 - **Its own domain.** Production's session cookie is set on `.injishi.com`, so a

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { InlineError, InlineNote, useSlow } from "@/components/auth/auth-feedback";
 import { fetchAccess } from "@/lib/access";

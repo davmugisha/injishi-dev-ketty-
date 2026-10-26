@@ -22,14 +22,14 @@ import type { PersonalDraft } from "./step-about-you";
  * `register-steps.ts`).
  */
 
-export type DraftPhase = RegistrationDraft["phase"];
+type DraftPhase = RegistrationDraft["phase"];
 
 
 export function isDraftPhase(phase: string): phase is DraftPhase {
   return (REGISTRATION_DRAFT_PHASES as readonly string[]).includes(phase);
 }
 
-export interface WizardAnswers {
+interface WizardAnswers {
   phase: DraftPhase;
   kind: string | null;
   capacity: RegistrantCapacity;

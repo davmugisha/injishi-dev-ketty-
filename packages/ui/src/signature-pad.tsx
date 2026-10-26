@@ -71,7 +71,8 @@ function exportPng(strokes: Point[][], width: number, height: number): string | 
   const ctx = out.getContext("2d");
   if (!ctx) return null;
   ctx.scale(2, 2);
-  setInk(ctx, "#000");
+  // The saved signature goes on a printed contract: black ink whatever the theme.
+  setInk(ctx, "black");
   for (const stroke of strokes) drawStroke(ctx, stroke, width);
   return out.toDataURL("image/png");
 }

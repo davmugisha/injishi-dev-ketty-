@@ -38,7 +38,15 @@ async function loadHandoff() {
   return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 }
 
-const { appHandoffRedirects, APP_HANDOFF_PATHS, oldZoneRedirects, OLD_ZONE_ROOTS } = await loadHandoff();
+const {
+  appHandoffRedirects,
+  appHandoffRscRewrites,
+  APP_HANDOFF_PATHS,
+  HANDOFF_RSC_ANSWER,
+  oldZoneRedirects,
+  OLD_ZONE_ROOTS,
+  RSC_HEADER,
+} = await loadHandoff();
 
 /** Builds whose app shares web's origin: the retired zone model, kept safe. */
 const SAME_ORIGIN = {
@@ -60,13 +68,19 @@ describe("no hand-off when the app shares web's origin", () => {
 describe("the hand-off runs when the app is its own origin, as in every stack", () => {
   test("production (docker-compose.dokploy.yml) sends sign in to app.injishi.com", () => {
     assert.deepEqual(appHandoffRedirects("https://www.injishi.com", "https://app.injishi.com"), [
-      { source: "/sign-in", destination: "https://app.injishi.com/sign-in", permanent: false },
+      {
+        source: "/sign-in",
+        destination: "https://app.injishi.com/sign-in",
+        permanent: false,
+        missing: [{ type: "header", key: "rsc" }],
+      },
     ]);
   });
 
   test("a laptop with the app on :3002 sends sign in there", () => {
+    const pageLoadsOnly = [{ type: "header", key: "rsc" }];
     assert.deepEqual(appHandoffRedirects("http://localhost:3000", "http://localhost:3002"), [
-      { source: "/sign-in", destination: "http://localhost:3002/sign-in", permanent: false },
+      { source: "/sign-in", destination: "http://localhost:3002/sign-in", permanent: false, missing: pageLoadsOnly },
     ]);
   });
 
@@ -109,6 +123,61 @@ describe("a hand-off can never point at web itself", () => {
       }
     });
   }
+});
+
+describe("a soft navigation to a hand-off path is answered, not redirected across origins", () => {
+  // The bug this pins: a `<Link>` to a hand-off path fetched the RSC payload, the
+  // fetch followed the 307 to :3002, CORS blocked it, and the dev overlay showed
+  // "Failed to fetch RSC payload" before Next loaded the page anyway.
+  test("every hand-off redirect skips RSC fetches", () => {
+    for (const r of appHandoffRedirects("http://localhost:3000", "http://localhost:3002")) {
+      assert.deepEqual(r.missing, [{ type: "header", key: RSC_HEADER }], `${r.source} would redirect an RSC fetch`);
+    }
+  });
+
+  const laptop = ["http://localhost:3000", "http://localhost:3002"];
+
+  test("on a laptop an RSC fetch for a hand-off path is rewritten to the empty answer", () => {
+    assert.deepEqual(
+      appHandoffRscRewrites(...laptop),
+      APP_HANDOFF_PATHS.map((source) => ({
+        source,
+        has: [{ type: "header", key: RSC_HEADER }],
+        destination: HANDOFF_RSC_ANSWER,
+      })),
+    );
+  });
+
+  for (const [name, [web, app]] of Object.entries(SAME_ORIGIN)) {
+    test(`no rewrite where the app shares web's origin: ${name}`, () => {
+      assert.deepEqual(appHandoffRscRewrites(web, app), []);
+    });
+  }
+
+  test("the rewrites name exactly the paths the redirects do", () => {
+    const stacks = [...Object.values(SAME_ORIGIN), laptop, [undefined, undefined], ["https://www.injishi.com", "/operator"]];
+    for (const [web, app] of stacks) {
+      assert.deepEqual(
+        appHandoffRscRewrites(web, app).map((r) => r.source),
+        appHandoffRedirects(web, app).map((r) => r.source),
+        `${web} with ${app}`,
+      );
+    }
+  });
+
+  test("the empty answer is a route that returns 204", () => {
+    const route = readFileSync(resolve(here, `../src/app${HANDOFF_RSC_ANSWER}/route.ts`), "utf8");
+    assert.match(route, /export function GET\(/);
+    assert.match(route, /status:\s*204/);
+  });
+
+  test("next.config.ts rewrites with the same two origins it redirects with", () => {
+    const config = readFileSync(resolve(here, "../next.config.ts"), "utf8");
+    assert.match(
+      config,
+      /appHandoffRscRewrites\(\s*process\.env\.NEXT_PUBLIC_WEB_URL,\s*process\.env\.NEXT_PUBLIC_PMS_URL\s*\)/,
+    );
+  });
 });
 
 describe("next.config.ts decides through this function and nowhere else", () => {
@@ -156,9 +225,9 @@ describe("old zone links are sent on, never forwarded", () => {
 describe("next.config.ts forwards nothing to the app", () => {
   const config = readFileSync(resolve(here, "../next.config.ts"), "utf8");
 
-  test("it has no rewrites", () => {
-    assert.doesNotMatch(config, /async rewrites\(/);
+  test("its only rewrites answer RSC fetches of hand-off paths, never the app's screens", () => {
     assert.doesNotMatch(config, /OPERATOR_APP_URL/);
+    assert.match(config, /afterFiles:\s*\[\]/);
   });
 
   test("it spreads oldZoneRedirects with the two public origins", () => {

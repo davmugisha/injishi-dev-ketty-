@@ -113,7 +113,7 @@ interface ApiSavedView {
 }
 
 /** GET /api/v1/ops/certificates (OperatorCertificateList). */
-export interface ApiCertificates {
+interface ApiCertificates {
   legalName: string;
   tin: string | null;
   chamberOfTourismMember: boolean;
@@ -287,7 +287,7 @@ export function daysUntil(ctx: SourceContext, iso: string): number {
 // ── Team and roles ────────────────────────────────────────────────────────────────────────────────────
 
 /** The platform's org roles as the screen's role ids. `store` has no platform role yet. */
-export const ROLE_ID: Record<OrgRole, TeamRolesRoleId> = {
+const ROLE_ID: Record<OrgRole, TeamRolesRoleId> = {
   owner: "owner",
   manager: "manager",
   receptionist: "frontdesk",
@@ -428,7 +428,7 @@ async function teamMembers(ctx: SourceContext): Promise<TeamRolesMember[]> {
 }
 
 /** The workspace the role presets are read from and saved to: the first business the person manages. */
-export function rolesWorkspace(ctx: SourceContext): Workspace | null {
+function rolesWorkspace(ctx: SourceContext): Workspace | null {
   return businessesWith(ctx, "team.manage")[0] ?? null;
 }
 
@@ -660,7 +660,7 @@ export function licenceDocs(ctx: SourceContext, lists: ApiCertificates[]): Compl
 }
 
 /** GET /api/v1/orgs/:orgId/psf-membership (PsfMembershipOverview, the fields read here). */
-export interface ApiPsf {
+interface ApiPsf {
   current: { membershipNumber: string; tierName: string | null; expiresOn: string | null } | null;
   open: { status: string; requestedTierName: string; submittedAt: string; stage: string } | null;
   history: { status: string; decidedAt: string | null }[];

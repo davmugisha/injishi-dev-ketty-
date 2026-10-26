@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Input } from "@injishi/ui";
+import { Input } from "@injishi/web-ui";
 import {
   PHONE_COUNTRIES,
   countryForE164,
@@ -119,23 +119,6 @@ export function PhoneField({
       </div>
     </div>
   );
-}
-
-/**
- * How many digits the national part of `value` has, or `0` when it has none.
- *
- * Exported because the form validates the length against
- * `DialCountry.nationalDigits`, and the split between the dialling code and the
- * rest is decided here rather than in two places.
- */
-export function nationalLength(value: string): number {
-  const parsed = countryForE164(value);
-  return parsed ? value.length - parsed.dial.length : nationalDigits(value).length;
-}
-
-/** The country a composed number names, for a message that can say which one. */
-export function countryOf(value: string): DialCountry | null {
-  return countryForE164(value);
 }
 
 /**

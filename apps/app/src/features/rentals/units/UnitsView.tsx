@@ -1,6 +1,6 @@
 "use client";
 
-import { Chip, Toast, toast } from "@heroui/react";
+import { Toast, toast } from "@heroui/react";
 import type {
   BlockView,
   BrokerFeeTerms,
@@ -255,7 +255,9 @@ export function UnitsView({
             icon: "ChartLine",
             progress: unitCount > 0 ? (occupiedCount / unitCount) * 100 : 0,
             footnote:
-              unitCount === 0 ? "No units yet" : `${formatNumber(occupiedCount)} of ${formatNumber(unitCount)} occupied`,
+              unitCount === 0
+                ? "No units yet"
+                : `${formatNumber(occupiedCount)} of ${formatNumber(unitCount)} occupied`,
             href: "?tab=occupied",
             isCurrent: query.tab === "occupied",
           },

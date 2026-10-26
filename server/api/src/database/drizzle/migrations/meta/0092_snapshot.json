@@ -1,6 +1,6 @@
 {
-  "id": "ad964063-07f5-409f-80da-1390b1e9a09e",
-  "prevId": "cab2941a-fadb-4697-8b0a-4c7bbb9faf57",
+  "id": "cab2941a-fadb-4697-8b0a-4c7bbb9faf57",
+  "prevId": "1e89832a-d5a9-40cb-8ad4-bb87a9ff928c",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -12459,12 +12459,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "nudged_at": {
-          "name": "nudged_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {

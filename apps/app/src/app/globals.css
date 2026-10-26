@@ -6,9 +6,10 @@
 @import "@heroui-pro/react/css";
 @import "@heroui-pro/react/themes/mouve";
 @import "@injishi/ui/styles/injishi.css";
-
-/* Scan the shared UI kit for Tailwind classes. */
-@source "../../../../packages/ui/src";
+/* Scans the shared UI kit for Tailwind classes: the package's own `@source "./"`,
+   resolved from the package wherever it is installed (ADR-074), rather than a
+   path into it typed here. */
+@import "@injishi/ui/styles.css";
 
 @custom-variant dark (&:where([data-theme="mouve-dark"], [data-theme="mouve-dark"] *));
 

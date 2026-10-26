@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
-import { appHandoffRedirects, oldZoneRedirects } from "./src/lib/app-handoff";
+import { appHandoffRedirects, appHandoffRscRewrites, oldZoneRedirects } from "./src/lib/app-handoff";
 
 /**
  * The marketing `screens` list that used to sit here is gone with the captured
@@ -74,21 +74,30 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   /**
-   * @injishi/ui and @injishi/utils ship TypeScript source rather than a built
-   * dist/, which is a recorded exception to the dist/ rule in the root
-   * AGENTS.md, scoped to these two packages and to Next consumers (ADR-008).
-   * Next compiles them here instead.
+   * These ship TypeScript source rather than a built dist/, a recorded
+   * exception to the dist/ rule (ADR-008, extended to products by ADR-074
+   * D-d), so Next compiles them here instead.
+   *
+   * Two component libraries, each by its own name (ADR-074 D-p):
+   * `@injishi/web-ui` is the kit this app was written against, and
+   * `@injishi/ui` is the one web library products import, beside it until
+   * stage 9 retires `web-ui`. A product added here owes its stylesheet import
+   * in the same change (`pnpm check:manifests` refuses one without it).
    */
-  transpilePackages: ["@injishi/ui", "@injishi/utils"],
+  transpilePackages: ["@injishi/web-ui", "@injishi/ui", "@injishi/utils"],
   experimental: {
     // The 404 for a URL that matches no route group. apps/web has five root
     // layouts and no app/layout.tsx, so a plain not-found.tsx would have no
     // document to render into; globalNotFound lets app/global-not-found.tsx
     // supply its own <html> and <body> (ADR-013 call 7).
     globalNotFound: true,
-    // A barrel import of @injishi/ui would otherwise pull all 16 of its client
-    // components into a server page that wanted one Button (ADR-008).
-    optimizePackageImports: ["@injishi/ui", "lucide-react"],
+    // Next 15.5.4's dev-only Segment Explorer devtool injects a client
+    // reference (segment-explorer-node.js#SegmentViewNode) that the RSC client
+    // manifest fails to resolve after a hot recompile, 500ing every route and
+    // killing the dev server. Off until the upstream regression is patched.
+    // A barrel import of @injishi/web-ui would otherwise pull all 16 of its
+    // client components into a server page that wanted one Button (ADR-008).
+    optimizePackageImports: ["@injishi/web-ui", "lucide-react"],
   },
   /**
    * NO REWRITES. The operator app (`apps/app`) has its own origin in every
@@ -98,6 +107,14 @@ const nextConfig: NextConfig = {
    * live at its root (`/residence`, `/owner`, ...), so the zone could only ever
    * reach a 404. Web hands sign-in to the app and sends old zone links on.
    */
+  // Only the soft-navigation answer for the hand-off paths (`app-handoff.ts`): an RSC fetch cannot follow
+  // a redirect across origins. Nothing is forwarded to the app as a zone.
+  async rewrites() {
+    return {
+      beforeFiles: [...appHandoffRscRewrites(process.env.NEXT_PUBLIC_WEB_URL, process.env.NEXT_PUBLIC_PMS_URL)],
+      afterFiles: [],
+    };
+  },
   async redirects() {
     /**
      * Signing in happens in the app, on its own origin. Redirects run before the

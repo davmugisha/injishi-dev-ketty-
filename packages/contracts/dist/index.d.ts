@@ -56,4 +56,5 @@ export * from "./staff-phone";
 export * from "./rentals";
 export * from "./me-context";
 export * from "./guests";
+export * from "./pos";
 //# sourceMappingURL=index.d.ts.map

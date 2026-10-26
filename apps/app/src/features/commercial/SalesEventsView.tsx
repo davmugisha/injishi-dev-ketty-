@@ -33,7 +33,7 @@ import { type ReactNode, useState } from "react";
 import { SalesEventsEditQuoteDialog, SalesEventsNewLeadDialog } from "./SalesEventsDialogs";
 import { SalesEventsSpaceLegend, SalesEventsSpaceTimeline } from "./SalesEventsSpaceTimeline";
 
-export interface SalesEventsData {
+interface SalesEventsData {
   stages: SalesEventsStage[];
   leads: SalesEventsLead[];
   spaces: SalesEventsSpace[];

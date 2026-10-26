@@ -1,6 +1,8 @@
 /*
  * Injishi design system — HeroUI Pro "mouve" theme + the saved Injishi overrides
- * (heroui.pro/ds/de231dfa-8a53-40c9-ba3b-cd9d5a93685b, updatedAt 1791883604103).
+ * (heroui.pro/ds/de231dfa-8a53-40c9-ba3b-cd9d5a93685b, updatedAt 1792979018879,
+ * re-read 2026-10-26; every value below equals that save's CSS export except
+ * --eclipse, which the export does not set and its DESIGN.md does).
  * Figtree (body) and Instrument Sans (headings) are loaded with next/font as
  * --font-figtree and --font-instrument-sans. Activate with
  * data-theme="mouve-light|mouve-dark" (and data-vibrant-palette="true" where the
@@ -18,6 +20,12 @@
 [data-theme="mouve-light"],
 .mouve-dark,
 [data-theme="mouve-dark"] {
+  /* Ink. The CSS export leaves --eclipse to the mouve theme, whose own is at
+     hue 300, so light-theme text was a violet near-black. The save's DESIGN.md
+     resolves eclipse at the saved hue (#172522), and foreground,
+     default-foreground and the light status labels all read it. */
+  --eclipse: oklch(25% 0.0208 177.9);
+
   /* Border radius */
   --radius: 0.5rem;
   --field-radius: 0.5rem;

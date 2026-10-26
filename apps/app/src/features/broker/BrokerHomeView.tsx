@@ -61,15 +61,15 @@ export function BrokerHomeView({
   const body = (
     <>
       {desk ? null : (
-      <PageHeader
-        size="hello"
-        title={first ? `Welcome back, ${first}` : "Welcome back"}
-        actions={
-          <ActionLink href={findHomes} icon="Magnifier" intent="primary">
-            Find homes
-          </ActionLink>
-        }
-      />
+        <PageHeader
+          size="hello"
+          title={first ? `Welcome back, ${first}` : "Welcome back"}
+          actions={
+            <ActionLink href={findHomes} icon="Magnifier" intent="primary">
+              Find homes
+            </ActionLink>
+          }
+        />
       )}
       {desk ? (
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -167,10 +167,7 @@ export function BrokerHomeView({
               }
               action={
                 summary.scope.needsDistrict || summary.scope.upgrade ? (
-                  <ActionLink
-                    href="/account?plan=1"
-                    icon={summary.scope.needsDistrict ? "MapPin" : "ArrowUpRight"}
-                  >
+                  <ActionLink href="/account?plan=1" icon={summary.scope.needsDistrict ? "MapPin" : "ArrowUpRight"}>
                     {summary.scope.needsDistrict ? "Choose a district" : "See more of Rwanda"}
                   </ActionLink>
                 ) : undefined

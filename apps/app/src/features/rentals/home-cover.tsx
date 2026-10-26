@@ -29,7 +29,10 @@ export function HomeCoverImage({
           imgClassName,
         )}
       />
-      <span className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/30 via-black/5 to-transparent" aria-hidden />
+      <span
+        className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/30 via-black/5 to-transparent"
+        aria-hidden
+      />
     </div>
   );
 }

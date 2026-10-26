@@ -15,7 +15,7 @@ import { formatNumber, Icon, KeyValueList, LinkButton, PageContent, PageHeader, 
 import { type Key, useState } from "react";
 import { KvRows, lineTab, Muted, money, selectableRow, TabCount, ToneChip } from "./shared";
 
-export interface PurchaseOrdersData {
+interface PurchaseOrdersData {
   orders: PurchaseOrder[];
   quotes: SupplierQuote[];
   lines: DraftPoLine[];

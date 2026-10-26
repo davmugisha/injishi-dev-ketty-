@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { type IdentityStatus, type MyProfile, type VerifiedPerson, countryName } from "@injishi/contracts";
-import { Checkbox, Button } from "@injishi/ui";
+import { Checkbox, Button } from "@injishi/web-ui";
 import { CircleCheck, Smartphone, TriangleAlert } from "lucide-react";
 
 import { confirmNationalId, lookupNationalId } from "@/data/identity";

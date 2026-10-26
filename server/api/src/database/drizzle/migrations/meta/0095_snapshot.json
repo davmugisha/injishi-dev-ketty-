@@ -1,6 +1,6 @@
 {
-  "id": "006e0f4c-c648-4ff1-b062-106a9fe06791",
-  "prevId": "f1f046ff-db2f-403b-80d4-1de30c7a91df",
+  "id": "f1f046ff-db2f-403b-80d4-1de30c7a91df",
+  "prevId": "96b333fb-9fe2-4591-90b8-91eac9424cdf",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2998,7 +2998,7 @@
         },
         "oversight_assignments_role_scope": {
           "name": "oversight_assignments_role_scope",
-          "value": "(\"oversight_assignments\".\"oversight_role\"::text IN ('village_leader', 'dgie_village') AND \"oversight_assignments\".\"scope_level\"::text = 'village')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'dasso' AND \"oversight_assignments\".\"scope_level\"::text = 'sector')\n          OR (\"oversight_assignments\".\"oversight_role\"::text IN ('cell_executive', 'dgie_cell') AND \"oversight_assignments\".\"scope_level\"::text = 'cell')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'sector_executive' AND \"oversight_assignments\".\"scope_level\"::text = 'sector')\n          OR (\"oversight_assignments\".\"oversight_role\"::text IN ('district_officer', 'district_immigration') AND \"oversight_assignments\".\"scope_level\"::text = 'district')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'dgie_province' AND \"oversight_assignments\".\"scope_level\"::text = 'province')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'dgie_national' AND \"oversight_assignments\".\"scope_level\"::text = 'country')\n          OR (\"oversight_assignments\".\"oversight_role\"::text IN ('business_field_verifier', 'business_approver', 'tax_compliance_officer', 'psf_membership_officer')\n              AND \"oversight_assignments\".\"scope_level\"::text IN ('country', 'province', 'district'))"
+          "value": "(\"oversight_assignments\".\"oversight_role\"::text = 'village_leader' AND \"oversight_assignments\".\"scope_level\"::text = 'village')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'dasso' AND \"oversight_assignments\".\"scope_level\"::text = 'sector')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'cell_executive' AND \"oversight_assignments\".\"scope_level\"::text = 'cell')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'sector_executive' AND \"oversight_assignments\".\"scope_level\"::text = 'sector')\n          OR (\"oversight_assignments\".\"oversight_role\"::text IN ('district_officer', 'district_immigration') AND \"oversight_assignments\".\"scope_level\"::text = 'district')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'dgie_province' AND \"oversight_assignments\".\"scope_level\"::text = 'province')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'dgie_national' AND \"oversight_assignments\".\"scope_level\"::text = 'country')\n          OR (\"oversight_assignments\".\"oversight_role\"::text IN ('business_field_verifier', 'business_approver', 'tax_compliance_officer', 'psf_membership_officer')\n              AND \"oversight_assignments\".\"scope_level\"::text IN ('country', 'province', 'district'))"
         }
       },
       "isRLSEnabled": false
@@ -44560,7 +44560,7 @@
       "checkConstraints": {
         "guest_registration_routes_role": {
           "name": "guest_registration_routes_role",
-          "value": "\"guest_registration_routes\".\"recipient_role\"::text IN ('village_leader', 'dasso', 'cell_executive', 'sector_executive', 'district_officer', 'district_immigration', 'dgie_province', 'dgie_national', 'dgie_village', 'dgie_cell')"
+          "value": "\"guest_registration_routes\".\"recipient_role\"::text IN ('village_leader', 'dasso', 'cell_executive', 'sector_executive', 'district_officer', 'district_immigration', 'dgie_province', 'dgie_national')"
         },
         "guest_registration_routes_step": {
           "name": "guest_registration_routes_step",
@@ -47120,9 +47120,7 @@
         "district_immigration",
         "sector_executive",
         "dgie_province",
-        "dgie_national",
-        "dgie_village",
-        "dgie_cell"
+        "dgie_national"
       ]
     },
     "public.oversight_scope_level": {

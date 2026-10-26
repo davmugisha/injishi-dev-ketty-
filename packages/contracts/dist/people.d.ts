@@ -290,7 +290,7 @@ export declare const EmployeeBasic: z.ZodObject<{
     /** Whether the file is linked to an account (an `org_memberships` row). */
     hasAccount: z.ZodBoolean;
     /** The role that account holds here, when it does. Never held by the file. */
-    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
     detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
 } & {
     view: z.ZodLiteral<"basic">;
@@ -329,7 +329,7 @@ export declare const EmployeeBasic: z.ZodObject<{
     email: string | null;
     legalName: string;
     id: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "basic";
     employeeNumber: string;
@@ -372,7 +372,7 @@ export declare const EmployeeBasic: z.ZodObject<{
     email: string | null;
     legalName: string;
     id: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "basic";
     employeeNumber: string;
@@ -498,7 +498,7 @@ export declare const EmployeeFull: z.ZodObject<{
     /** Whether the file is linked to an account (an `org_memberships` row). */
     hasAccount: z.ZodBoolean;
     /** The role that account holds here, when it does. Never held by the file. */
-    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
     detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
 } & {
     view: z.ZodLiteral<"full">;
@@ -603,7 +603,7 @@ export declare const EmployeeFull: z.ZodObject<{
     id: string;
     idDocumentType: "national_id" | "passport" | null;
     idDocumentNumber: string | null;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "full";
     employeeNumber: string;
@@ -671,7 +671,7 @@ export declare const EmployeeFull: z.ZodObject<{
     id: string;
     idDocumentType: "national_id" | "passport" | null;
     idDocumentNumber: string | null;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "full";
     employeeNumber: string;
@@ -772,7 +772,7 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
     /** Whether the file is linked to an account (an `org_memberships` row). */
     hasAccount: z.ZodBoolean;
     /** The role that account holds here, when it does. Never held by the file. */
-    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
     detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
 } & {
     view: z.ZodLiteral<"basic">;
@@ -811,7 +811,7 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
     email: string | null;
     legalName: string;
     id: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "basic";
     employeeNumber: string;
@@ -854,7 +854,7 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
     email: string | null;
     legalName: string;
     id: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "basic";
     employeeNumber: string;
@@ -939,7 +939,7 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
     /** Whether the file is linked to an account (an `org_memberships` row). */
     hasAccount: z.ZodBoolean;
     /** The role that account holds here, when it does. Never held by the file. */
-    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
     detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
 } & {
     view: z.ZodLiteral<"full">;
@@ -1044,7 +1044,7 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
     id: string;
     idDocumentType: "national_id" | "passport" | null;
     idDocumentNumber: string | null;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "full";
     employeeNumber: string;
@@ -1112,7 +1112,7 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
     id: string;
     idDocumentType: "national_id" | "passport" | null;
     idDocumentNumber: string | null;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "full";
     employeeNumber: string;
@@ -1230,7 +1230,7 @@ export declare const EmployeeFile: z.ZodObject<{
         /** Whether the file is linked to an account (an `org_memberships` row). */
         hasAccount: z.ZodBoolean;
         /** The role that account holds here, when it does. Never held by the file. */
-        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
         detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
     } & {
         view: z.ZodLiteral<"basic">;
@@ -1269,7 +1269,7 @@ export declare const EmployeeFile: z.ZodObject<{
         email: string | null;
         legalName: string;
         id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -1312,7 +1312,7 @@ export declare const EmployeeFile: z.ZodObject<{
         email: string | null;
         legalName: string;
         id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -1397,7 +1397,7 @@ export declare const EmployeeFile: z.ZodObject<{
         /** Whether the file is linked to an account (an `org_memberships` row). */
         hasAccount: z.ZodBoolean;
         /** The role that account holds here, when it does. Never held by the file. */
-        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
         detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
     } & {
         view: z.ZodLiteral<"full">;
@@ -1502,7 +1502,7 @@ export declare const EmployeeFile: z.ZodObject<{
         id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -1570,7 +1570,7 @@ export declare const EmployeeFile: z.ZodObject<{
         id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -1708,7 +1708,7 @@ export declare const EmployeeFile: z.ZodObject<{
         email: string | null;
         legalName: string;
         id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -1762,7 +1762,7 @@ export declare const EmployeeFile: z.ZodObject<{
         id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -1847,7 +1847,7 @@ export declare const EmployeeFile: z.ZodObject<{
         email: string | null;
         legalName: string;
         id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -1901,7 +1901,7 @@ export declare const EmployeeFile: z.ZodObject<{
         id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -2257,17 +2257,17 @@ export declare const CreateContractRequest: z.ZodObject<{
     contractType: "permanent" | "fixed_term" | "casual";
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
+    noticeDays?: number | null | undefined;
     endsOn?: string | null | undefined;
     payStructureId?: string | null | undefined;
-    noticeDays?: number | null | undefined;
 }, {
     startsOn: string;
     contractType: "permanent" | "fixed_term" | "casual";
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
+    noticeDays?: number | null | undefined;
     endsOn?: string | null | undefined;
     payStructureId?: string | null | undefined;
-    noticeDays?: number | null | undefined;
 }>;
 export type CreateContractRequest = z.infer<typeof CreateContractRequest>;
 /** The new contract, and the one it shortened, if any. */

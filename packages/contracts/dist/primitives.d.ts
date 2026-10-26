@@ -22,7 +22,7 @@ export type WorkspaceKind = z.infer<typeof WorkspaceKind>;
  * with a default set of its own rather than a manager's. Their migration adds
  * each `BEFORE 'housekeeper'`, so the database's order is this order.
  */
-export declare const OrgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>;
+export declare const OrgRole: z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>;
 export type OrgRole = z.infer<typeof OrgRole>;
 /**
  * Global identity grants. `gov_oversight` (renamed from `local_gov`, Decision B)

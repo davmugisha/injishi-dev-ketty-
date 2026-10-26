@@ -97,7 +97,7 @@ function usage() {
     'Starts Postgres, Redis and Mailpit in Docker, migrates, then every app',
     `in this one terminal: ${APPS.map((a) => a.name).join(', ')}.`,
     '',
-    '  --skip mobile,worker  everything except these',
+    '  --skip mobile,app     everything except these',
     '  --only web,api        just these',
     "  --lan 192.168.1.68    the address your phone reaches this PC on (Expo Go).",
     "                        Default: this PC's Wi-Fi address",

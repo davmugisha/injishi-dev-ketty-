@@ -20,7 +20,7 @@ const SUBS: Record<KeyMode, string> = {
   unavailable: "This room uses a key card instead.",
 };
 
-export interface GuestKeyData {
+interface GuestKeyData {
   stay: GuestStayRecord;
   events: KeyEvent[];
   access: KeyAccessPoint[];

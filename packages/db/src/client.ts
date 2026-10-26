@@ -55,15 +55,17 @@ export async function seed(db: Db, client: Client): Promise<{ users: number; col
   // Only demo people get a fixture user. The `landlord` and `tenant` personas
   // are surfaces for real accounts and carry no email (2026-10-25); two empty
   // emails would collide on `UNIQUE(email)` and stop every page from seeding.
-  const userRows = Object.values(personas).filter((p) => p.email.trim() !== "").map((p) => ({
-    id: p.id,
-    name: p.name,
-    email: p.email,
-    phone: p.phone,
-    role: p.role,
-    org: p.org,
-    home: screens[p.home].href,
-  }));
+  const userRows = Object.values(personas)
+    .filter((p) => p.email.trim() !== "")
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      email: p.email,
+      phone: p.phone,
+      role: p.role,
+      org: p.org,
+      home: screens[p.home].href,
+    }));
   const docRows = Object.entries(collections).flatMap(([collection, docs]) =>
     docs.map((doc, position) => ({ collection, id: String(doc.id), position, data: doc, updatedAt: now })),
   );

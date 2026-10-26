@@ -1,6 +1,6 @@
 {
-  "id": "1e89832a-d5a9-40cb-8ad4-bb87a9ff928c",
-  "prevId": "337873d3-6957-4775-ad98-e1036a80d22b",
+  "id": "337873d3-6957-4775-ad98-e1036a80d22b",
+  "prevId": "47674296-fe1e-4951-892f-37dd4f0a1f9a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -13884,19 +13884,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         }
       },
       "indexes": {
@@ -13999,12 +13986,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "maintenance_ticket_id": {
-          "name": "maintenance_ticket_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -14019,27 +14000,6 @@
           "columns": [
             {
               "expression": "thread_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "messages_thread_created_idx": {
-          "name": "messages_thread_created_idx",
-          "columns": [
-            {
-              "expression": "thread_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -14090,19 +14050,6 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "messages_maintenance_ticket_id_maintenance_tickets_id_fk": {
-          "name": "messages_maintenance_ticket_id_maintenance_tickets_id_fk",
-          "tableFrom": "messages",
-          "tableTo": "maintenance_tickets",
-          "columnsFrom": [
-            "maintenance_ticket_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -14111,71 +14058,7 @@
       "checkConstraints": {
         "messages_voice_duration_cap": {
           "name": "messages_voice_duration_cap",
-          "value": "\"messages\".\"voice_duration_s\" IS NULL OR \"messages\".\"voice_duration_s\" BETWEEN 1 AND 120"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.thread_digests": {
-      "name": "thread_digests",
-      "schema": "",
-      "columns": {
-        "thread_id": {
-          "name": "thread_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "side": {
-          "name": "side",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "notified_through": {
-          "name": "notified_through",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "thread_digests_thread_id_threads_id_fk": {
-          "name": "thread_digests_thread_id_threads_id_fk",
-          "tableFrom": "thread_digests",
-          "tableTo": "threads",
-          "columnsFrom": [
-            "thread_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "thread_digests_thread_id_side_pk": {
-          "name": "thread_digests_thread_id_side_pk",
-          "columns": [
-            "thread_id",
-            "side"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "thread_digests_side": {
-          "name": "thread_digests_side",
-          "value": "\"thread_digests\".\"side\" IN ('landlord', 'tenant')"
+          "value": "\"messages\".\"voice_duration_s\" IS NULL OR \"messages\".\"voice_duration_s\" <= 60"
         }
       },
       "isRLSEnabled": false
@@ -14422,22 +14305,6 @@
           ],
           "isUnique": true,
           "where": "\"threads\".\"thread_kind\" = 'department_request'\n             AND \"threads\".\"guest_stay_id\" IS NULL\n             AND \"threads\".\"booking_id\" IS NOT NULL\n             AND \"threads\".\"department_id\" IS NOT NULL\n             AND \"threads\".\"status\" = 'active'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "threads_lease_uk": {
-          "name": "threads_lease_uk",
-          "columns": [
-            {
-              "expression": "lease_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"threads\".\"lease_id\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}

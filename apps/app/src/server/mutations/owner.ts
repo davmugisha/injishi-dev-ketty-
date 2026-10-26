@@ -63,7 +63,7 @@ export async function sendStepUpCode(ctx: SourceContext): Promise<{ sentTo: stri
  * person typing it is shown to hold the mailbox at the moment of granting; the grant route itself does not
  * check that the code was fresh.
  */
-export async function verifyStepUpCode(ctx: SourceContext, code: string): Promise<void> {
+async function verifyStepUpCode(ctx: SourceContext, code: string): Promise<void> {
   const digits = code.replace(/\D/g, "");
   if (!/^\d{6}$/.test(digits)) throw new OwnerRefusal("Enter the 6-digit code from the email.");
   await ctx.api.post("/api/v1/me/two-factor/verify", { code: digits });

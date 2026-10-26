@@ -341,11 +341,11 @@ export declare const PayRun: z.ZodObject<{
     periodStart: string;
     grossRwf: number;
     confirmedAt: string | null;
+    period: string;
     payeRwf: number;
     employeeContributionsRwf: number;
     employerContributionsRwf: number;
     netRwf: number;
-    period: string;
     computedAt: string;
     ruleVersions: {
         configType: string;
@@ -360,11 +360,11 @@ export declare const PayRun: z.ZodObject<{
     periodStart: string;
     grossRwf: number;
     confirmedAt: string | null;
+    period: string;
     payeRwf: number;
     employeeContributionsRwf: number;
     employerContributionsRwf: number;
     netRwf: number;
-    period: string;
     computedAt: string;
     ruleVersions: {
         configType: string;
@@ -410,11 +410,11 @@ export declare const PayRunDetail: z.ZodObject<{
         periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -429,11 +429,11 @@ export declare const PayRunDetail: z.ZodObject<{
         periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -628,11 +628,11 @@ export declare const PayRunDetail: z.ZodObject<{
         periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -692,11 +692,11 @@ export declare const PayRunDetail: z.ZodObject<{
         periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;

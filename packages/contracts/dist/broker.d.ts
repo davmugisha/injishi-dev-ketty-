@@ -124,6 +124,7 @@ export declare const BrokerHome: z.ZodObject<{
         id: string;
     }>>;
 }, "strip", z.ZodTypeAny, {
+    kitchen: "none" | "own" | "shared" | null;
     district: string | null;
     sector: string | null;
     districtId: number | null;
@@ -146,7 +147,6 @@ export declare const BrokerHome: z.ZodObject<{
     landlordName: string;
     bedrooms: number | null;
     bathrooms: number | null;
-    kitchen: "none" | "own" | "shared" | null;
     furnished: boolean;
     sizeSqm: number | null;
     rentRwf: number;
@@ -166,6 +166,7 @@ export declare const BrokerHome: z.ZodObject<{
         id: string;
     } | null;
 }, {
+    kitchen: "none" | "own" | "shared" | null;
     district: string | null;
     sector: string | null;
     districtId: number | null;
@@ -188,7 +189,6 @@ export declare const BrokerHome: z.ZodObject<{
     landlordName: string;
     bedrooms: number | null;
     bathrooms: number | null;
-    kitchen: "none" | "own" | "shared" | null;
     furnished: boolean;
     sizeSqm: number | null;
     rentRwf: number;
@@ -338,6 +338,7 @@ export declare const BrokerHomes: z.ZodObject<{
             id: string;
         }>>;
     }, "strip", z.ZodTypeAny, {
+        kitchen: "none" | "own" | "shared" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
@@ -360,7 +361,6 @@ export declare const BrokerHomes: z.ZodObject<{
         landlordName: string;
         bedrooms: number | null;
         bathrooms: number | null;
-        kitchen: "none" | "own" | "shared" | null;
         furnished: boolean;
         sizeSqm: number | null;
         rentRwf: number;
@@ -380,6 +380,7 @@ export declare const BrokerHomes: z.ZodObject<{
             id: string;
         } | null;
     }, {
+        kitchen: "none" | "own" | "shared" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
@@ -402,7 +403,6 @@ export declare const BrokerHomes: z.ZodObject<{
         landlordName: string;
         bedrooms: number | null;
         bathrooms: number | null;
-        kitchen: "none" | "own" | "shared" | null;
         furnished: boolean;
         sizeSqm: number | null;
         rentRwf: number;
@@ -485,6 +485,7 @@ export declare const BrokerHomes: z.ZodObject<{
         count: number;
     }[];
     homes: {
+        kitchen: "none" | "own" | "shared" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
@@ -507,7 +508,6 @@ export declare const BrokerHomes: z.ZodObject<{
         landlordName: string;
         bedrooms: number | null;
         bathrooms: number | null;
-        kitchen: "none" | "own" | "shared" | null;
         furnished: boolean;
         sizeSqm: number | null;
         rentRwf: number;
@@ -548,6 +548,7 @@ export declare const BrokerHomes: z.ZodObject<{
         count: number;
     }[];
     homes: {
+        kitchen: "none" | "own" | "shared" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
@@ -570,7 +571,6 @@ export declare const BrokerHomes: z.ZodObject<{
         landlordName: string;
         bedrooms: number | null;
         bathrooms: number | null;
-        kitchen: "none" | "own" | "shared" | null;
         furnished: boolean;
         sizeSqm: number | null;
         rentRwf: number;

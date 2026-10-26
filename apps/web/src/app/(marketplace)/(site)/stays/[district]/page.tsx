@@ -8,7 +8,7 @@ import {
   AccordionItem,
   AccordionTrigger,
   Button,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import { GuideCard } from "@/components/guides/guide-card";
 import { ShelfStayCard } from "@/components/home/shelf-stay-card";
 import { JsonLd } from "@/components/shared/json-ld";

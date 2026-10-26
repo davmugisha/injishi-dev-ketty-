@@ -17,7 +17,7 @@ import { SettingsBusinessProperty } from "./SettingsBusinessProperty";
 import { SettingsBusinessTree } from "./SettingsBusinessTree";
 import { SettingsNav } from "./SettingsNav";
 
-export interface SettingsBusinessData {
+interface SettingsBusinessData {
   nodes: SettingsBusinessNode[];
   profiles: SettingsBusinessProfile[];
   units: SettingsBusinessUnit[];

@@ -21,7 +21,7 @@ import { API_URL, apiFetch, apiFetchParsed } from "@/lib/api";
 /** The same ceiling `apiFetch` puts on one round trip. */
 const PUNCH_TIMEOUT_MS = 12_000;
 
-export type SessionOutcome =
+type SessionOutcome =
   | { kind: "paired"; session: KioskSession }
   /** No cookie, a revoked kiosk, or an address the kiosk was not set up for. */
   | { kind: "unpaired" }
@@ -37,7 +37,7 @@ export async function readSession(): Promise<SessionOutcome> {
   return { kind: "unreachable" };
 }
 
-export type PairOutcome =
+type PairOutcome =
   | { kind: "paired"; session: KioskSession }
   | { kind: "refused"; message: string }
   | { kind: "unreachable" };
@@ -59,7 +59,7 @@ export async function forgetKiosk(): Promise<boolean> {
   return result.status === "ok";
 }
 
-export type PunchOutcome =
+type PunchOutcome =
   /** `offsetMs` is Injishi's clock minus this tablet's, measured on this answer. */
   | { kind: "recorded"; result: KioskPunchResult; offsetMs: number }
   /** A wrong PIN, an unknown number and a person of another branch, all alike. */

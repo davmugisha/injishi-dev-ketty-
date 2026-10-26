@@ -31,7 +31,7 @@ import { CardHeading, InlineTitle, ToneChip } from "./shared";
 export type Choice = "verify" | "reject";
 
 /** What a live case adds: the gate this officer decides, and the state of the call to the API. */
-export interface LiveDecision {
+interface LiveDecision {
   gate: "field" | "approval";
   /** The officer field-verified this case themselves, so the API will refuse their approval. */
   blocked: boolean;

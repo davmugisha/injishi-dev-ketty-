@@ -210,9 +210,7 @@ function Inbox({
     () =>
       rows.filter(
         (t) =>
-          (tab === "all" ||
-            (tab === "unread" && t.unread > 0) ||
-            (tab === "brokers" && t.kind === "placement")) &&
+          (tab === "all" || (tab === "unread" && t.unread > 0) || (tab === "brokers" && t.kind === "placement")) &&
           (!needle || t.search.some((v) => v.toLowerCase().includes(needle))),
       ),
     [rows, tab, needle],
@@ -242,11 +240,7 @@ function Inbox({
   const tabs = [
     { id: "all", label: "All", count: rows.length },
     { id: "unread", label: "Unread", count: rows.filter((t) => t.unread > 0).length },
-    ...(both
-      ? [
-          { id: "brokers", label: "Brokers", count: rows.filter((t) => t.kind === "placement").length },
-        ]
-      : []),
+    ...(both ? [{ id: "brokers", label: "Brokers", count: rows.filter((t) => t.kind === "placement").length }] : []),
   ];
 
   return (

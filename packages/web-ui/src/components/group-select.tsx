@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import type { ListField } from "@injishi/contracts";
 import { cn } from "@injishi/utils";
 

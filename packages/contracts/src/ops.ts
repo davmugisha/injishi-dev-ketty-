@@ -1270,6 +1270,11 @@ export const ORG_ROLE_LABEL: Readonly<Record<OrgRole, string>> = {
     finance: "Finance",
     hr: "HR",
     housekeeper: "Housekeeper",
+    cashier: "Cashier",
+    waiter: "Waiter",
+    bartender: "Bartender",
+    kitchen: "Kitchen",
+    stock_controller: "Stock controller",
 };
 export const InviteStaffRequest = z.object({
     /** The person's name as the inviter typed it, shown on the Team screen until they accept. */

@@ -148,15 +148,15 @@ export declare const PayoutAccountInput: z.ZodEffects<z.ZodDiscriminatedUnion<"k
     accountName: string;
     bankName: "Other" | "Bank of Kigali" | "BPR Bank Rwanda" | "I&M Bank Rwanda" | "Equity Bank Rwanda" | "Access Bank Rwanda" | "Ecobank Rwanda" | "NCBA Bank Rwanda" | "Guaranty Trust Bank Rwanda" | "Cogebanque" | "Urwego Bank" | "Development Bank of Rwanda" | "Zigama CSS";
     accountNumber: string;
-    makePrimary?: boolean | undefined;
     otherBankName?: string | undefined;
+    makePrimary?: boolean | undefined;
 }, {
     kind: "bank";
     accountName: string;
     bankName: "Other" | "Bank of Kigali" | "BPR Bank Rwanda" | "I&M Bank Rwanda" | "Equity Bank Rwanda" | "Access Bank Rwanda" | "Ecobank Rwanda" | "NCBA Bank Rwanda" | "Guaranty Trust Bank Rwanda" | "Cogebanque" | "Urwego Bank" | "Development Bank of Rwanda" | "Zigama CSS";
     accountNumber: string;
-    makePrimary?: boolean | undefined;
     otherBankName?: string | undefined;
+    makePrimary?: boolean | undefined;
 }>, z.ZodObject<{
     kind: z.ZodLiteral<"momo">;
     accountName: z.ZodString;
@@ -166,14 +166,14 @@ export declare const PayoutAccountInput: z.ZodEffects<z.ZodDiscriminatedUnion<"k
 }, "strip", z.ZodTypeAny, {
     kind: "momo";
     accountName: string;
-    momoPhone: string;
     momoNetwork: "mtn" | "airtel";
+    momoPhone: string;
     makePrimary?: boolean | undefined;
 }, {
     kind: "momo";
     accountName: string;
-    momoPhone: string;
     momoNetwork: "mtn" | "airtel";
+    momoPhone: string;
     makePrimary?: boolean | undefined;
 }>, z.ZodObject<{
     kind: z.ZodLiteral<"momo_pay">;
@@ -195,13 +195,13 @@ export declare const PayoutAccountInput: z.ZodEffects<z.ZodDiscriminatedUnion<"k
     accountName: string;
     bankName: "Other" | "Bank of Kigali" | "BPR Bank Rwanda" | "I&M Bank Rwanda" | "Equity Bank Rwanda" | "Access Bank Rwanda" | "Ecobank Rwanda" | "NCBA Bank Rwanda" | "Guaranty Trust Bank Rwanda" | "Cogebanque" | "Urwego Bank" | "Development Bank of Rwanda" | "Zigama CSS";
     accountNumber: string;
-    makePrimary?: boolean | undefined;
     otherBankName?: string | undefined;
+    makePrimary?: boolean | undefined;
 } | {
     kind: "momo";
     accountName: string;
-    momoPhone: string;
     momoNetwork: "mtn" | "airtel";
+    momoPhone: string;
     makePrimary?: boolean | undefined;
 } | {
     kind: "momo_pay";
@@ -213,13 +213,13 @@ export declare const PayoutAccountInput: z.ZodEffects<z.ZodDiscriminatedUnion<"k
     accountName: string;
     bankName: "Other" | "Bank of Kigali" | "BPR Bank Rwanda" | "I&M Bank Rwanda" | "Equity Bank Rwanda" | "Access Bank Rwanda" | "Ecobank Rwanda" | "NCBA Bank Rwanda" | "Guaranty Trust Bank Rwanda" | "Cogebanque" | "Urwego Bank" | "Development Bank of Rwanda" | "Zigama CSS";
     accountNumber: string;
-    makePrimary?: boolean | undefined;
     otherBankName?: string | undefined;
+    makePrimary?: boolean | undefined;
 } | {
     kind: "momo";
     accountName: string;
-    momoPhone: string;
     momoNetwork: "mtn" | "airtel";
+    momoPhone: string;
     makePrimary?: boolean | undefined;
 } | {
     kind: "momo_pay";

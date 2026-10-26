@@ -17,7 +17,7 @@ import { AuditLogInspector } from "./AuditLogInspector";
 import { AuditLogRetention, type AuditLogRetentionState, auditLogRetentionInitial } from "./AuditLogRetention";
 import { SettingsNav } from "./SettingsNav";
 
-export interface AuditLogData {
+interface AuditLogData {
   areas: AuditLogArea[];
   entries: AuditLogEntry[];
   retention: AuditLogRetentionRule[];
@@ -25,7 +25,7 @@ export interface AuditLogData {
   chain: AuditLogChain;
 }
 
-export type AuditLogTab = "entries" | "retention";
+type AuditLogTab = "entries" | "retention";
 
 /** The entry the inspector opens on (the artifact's dirty-room override). */
 const DEFAULT_ENTRY_ID = "48207";

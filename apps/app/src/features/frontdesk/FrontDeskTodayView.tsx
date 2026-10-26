@@ -67,7 +67,7 @@ import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { assignArrivalRoom } from "./actions";
 import { bookingHref, isReady, plural, ROOM_STATUS } from "./shared";
 
-export interface FrontDeskTodayData {
+interface FrontDeskTodayData {
   kpis: DeskKpi[];
   tabs: QueueTab[];
   arrivals: Arrival[];

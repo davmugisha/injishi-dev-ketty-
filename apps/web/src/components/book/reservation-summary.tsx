@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { BookablePropertySummary } from "@injishi/contracts";
-import { Separator } from "@injishi/ui";
+import { Separator } from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
 import type { QuotePreview } from "@/lib/booking";
 import { cancellationCopy } from "@/lib/booking";

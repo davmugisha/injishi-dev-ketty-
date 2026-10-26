@@ -511,6 +511,7 @@ export declare const RentalUnitView: z.ZodObject<{
     createdAt: z.ZodString;
     updatedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    kitchen: "none" | "own" | "shared" | null;
     id: string;
     note: string | null;
     label: string;
@@ -520,7 +521,6 @@ export declare const RentalUnitView: z.ZodObject<{
     propertyId: string;
     bedrooms: number | null;
     bathrooms: number | null;
-    kitchen: "none" | "own" | "shared" | null;
     furnished: boolean;
     sizeSqm: number | null;
     availableFrom: string | null;
@@ -552,6 +552,7 @@ export declare const RentalUnitView: z.ZodObject<{
         endDate: string;
     } | null;
 }, {
+    kitchen: "none" | "own" | "shared" | null;
     id: string;
     note: string | null;
     label: string;
@@ -561,7 +562,6 @@ export declare const RentalUnitView: z.ZodObject<{
     propertyId: string;
     bedrooms: number | null;
     bathrooms: number | null;
-    kitchen: "none" | "own" | "shared" | null;
     furnished: boolean;
     sizeSqm: number | null;
     availableFrom: string | null;
@@ -691,6 +691,7 @@ export declare const RentalUnitList: z.ZodObject<{
         createdAt: z.ZodString;
         updatedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
+        kitchen: "none" | "own" | "shared" | null;
         id: string;
         note: string | null;
         label: string;
@@ -700,7 +701,6 @@ export declare const RentalUnitList: z.ZodObject<{
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
-        kitchen: "none" | "own" | "shared" | null;
         furnished: boolean;
         sizeSqm: number | null;
         availableFrom: string | null;
@@ -732,6 +732,7 @@ export declare const RentalUnitList: z.ZodObject<{
             endDate: string;
         } | null;
     }, {
+        kitchen: "none" | "own" | "shared" | null;
         id: string;
         note: string | null;
         label: string;
@@ -741,7 +742,6 @@ export declare const RentalUnitList: z.ZodObject<{
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
-        kitchen: "none" | "own" | "shared" | null;
         furnished: boolean;
         sizeSqm: number | null;
         availableFrom: string | null;
@@ -777,6 +777,7 @@ export declare const RentalUnitList: z.ZodObject<{
     counts: z.ZodRecord<z.ZodEnum<["all", "occupied", "vacant", "off_market", "retired"]>, z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     units: {
+        kitchen: "none" | "own" | "shared" | null;
         id: string;
         note: string | null;
         label: string;
@@ -786,7 +787,6 @@ export declare const RentalUnitList: z.ZodObject<{
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
-        kitchen: "none" | "own" | "shared" | null;
         furnished: boolean;
         sizeSqm: number | null;
         availableFrom: string | null;
@@ -821,6 +821,7 @@ export declare const RentalUnitList: z.ZodObject<{
     counts: Partial<Record<"all" | "off_market" | "retired" | "occupied" | "vacant", number>>;
 }, {
     units: {
+        kitchen: "none" | "own" | "shared" | null;
         id: string;
         note: string | null;
         label: string;
@@ -830,7 +831,6 @@ export declare const RentalUnitList: z.ZodObject<{
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
-        kitchen: "none" | "own" | "shared" | null;
         furnished: boolean;
         sizeSqm: number | null;
         availableFrom: string | null;
@@ -907,12 +907,12 @@ export declare const CreateUnitRequest: z.ZodObject<{
     }>]>>>;
 }, "strip", z.ZodTypeAny, {
     label: string;
+    kitchen?: "none" | "own" | "shared" | null | undefined;
     note?: string | null | undefined;
     state?: "active" | "off_market" | undefined;
     propertyId?: string | undefined;
     bedrooms?: number | null | undefined;
     bathrooms?: number | null | undefined;
-    kitchen?: "none" | "own" | "shared" | null | undefined;
     furnished?: boolean | undefined;
     sizeSqm?: number | null | undefined;
     availableFrom?: string | null | undefined;
@@ -930,12 +930,12 @@ export declare const CreateUnitRequest: z.ZodObject<{
     brokerOffer?: boolean | undefined;
 }, {
     label: string;
+    kitchen?: "none" | "own" | "shared" | null | undefined;
     note?: string | null | undefined;
     state?: "active" | "off_market" | undefined;
     propertyId?: string | undefined;
     bedrooms?: number | null | undefined;
     bathrooms?: number | null | undefined;
-    kitchen?: "none" | "own" | "shared" | null | undefined;
     furnished?: boolean | undefined;
     sizeSqm?: number | null | undefined;
     availableFrom?: string | null | undefined;
@@ -955,12 +955,12 @@ export declare const CreateUnitRequest: z.ZodObject<{
 export type CreateUnitRequest = z.infer<typeof CreateUnitRequest>;
 /** `PATCH /ops/units/:id`: only what is sent changes. */
 export declare const UpdateUnitRequest: z.ZodEffects<z.ZodObject<{
+    kitchen: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["own", "shared", "none"]>>>>;
     note: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     label: z.ZodOptional<z.ZodString>;
     state: z.ZodOptional<z.ZodOptional<z.ZodEnum<["active", "off_market"]>>>;
     bedrooms: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
     bathrooms: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
-    kitchen: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["own", "shared", "none"]>>>>;
     furnished: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
     sizeSqm: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
     availableFrom: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string, string>>>>;
@@ -989,12 +989,12 @@ export declare const UpdateUnitRequest: z.ZodEffects<z.ZodObject<{
     askingDepositRwf: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
     brokerOffer: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
 }, "strip", z.ZodTypeAny, {
+    kitchen?: "none" | "own" | "shared" | null | undefined;
     note?: string | null | undefined;
     label?: string | undefined;
     state?: "active" | "off_market" | undefined;
     bedrooms?: number | null | undefined;
     bathrooms?: number | null | undefined;
-    kitchen?: "none" | "own" | "shared" | null | undefined;
     furnished?: boolean | undefined;
     sizeSqm?: number | null | undefined;
     availableFrom?: string | null | undefined;
@@ -1011,12 +1011,12 @@ export declare const UpdateUnitRequest: z.ZodEffects<z.ZodObject<{
     askingDepositRwf?: number | null | undefined;
     brokerOffer?: boolean | undefined;
 }, {
+    kitchen?: "none" | "own" | "shared" | null | undefined;
     note?: string | null | undefined;
     label?: string | undefined;
     state?: "active" | "off_market" | undefined;
     bedrooms?: number | null | undefined;
     bathrooms?: number | null | undefined;
-    kitchen?: "none" | "own" | "shared" | null | undefined;
     furnished?: boolean | undefined;
     sizeSqm?: number | null | undefined;
     availableFrom?: string | null | undefined;
@@ -1033,12 +1033,12 @@ export declare const UpdateUnitRequest: z.ZodEffects<z.ZodObject<{
     askingDepositRwf?: number | null | undefined;
     brokerOffer?: boolean | undefined;
 }>, {
+    kitchen?: "none" | "own" | "shared" | null | undefined;
     note?: string | null | undefined;
     label?: string | undefined;
     state?: "active" | "off_market" | undefined;
     bedrooms?: number | null | undefined;
     bathrooms?: number | null | undefined;
-    kitchen?: "none" | "own" | "shared" | null | undefined;
     furnished?: boolean | undefined;
     sizeSqm?: number | null | undefined;
     availableFrom?: string | null | undefined;
@@ -1055,12 +1055,12 @@ export declare const UpdateUnitRequest: z.ZodEffects<z.ZodObject<{
     askingDepositRwf?: number | null | undefined;
     brokerOffer?: boolean | undefined;
 }, {
+    kitchen?: "none" | "own" | "shared" | null | undefined;
     note?: string | null | undefined;
     label?: string | undefined;
     state?: "active" | "off_market" | undefined;
     bedrooms?: number | null | undefined;
     bathrooms?: number | null | undefined;
-    kitchen?: "none" | "own" | "shared" | null | undefined;
     furnished?: boolean | undefined;
     sizeSqm?: number | null | undefined;
     availableFrom?: string | null | undefined;
@@ -1126,13 +1126,13 @@ export declare const BulkUnitsRequest: z.ZodEffects<z.ZodObject<{
     }>]>>>;
 }, "strip", z.ZodTypeAny, {
     labels: string[];
+    kitchen?: "none" | "own" | "shared" | null | undefined;
     note?: string | null | undefined;
     label?: undefined;
     state?: "active" | "off_market" | undefined;
     propertyId?: string | undefined;
     bedrooms?: number | null | undefined;
     bathrooms?: number | null | undefined;
-    kitchen?: "none" | "own" | "shared" | null | undefined;
     furnished?: boolean | undefined;
     sizeSqm?: number | null | undefined;
     availableFrom?: string | null | undefined;
@@ -1150,13 +1150,13 @@ export declare const BulkUnitsRequest: z.ZodEffects<z.ZodObject<{
     brokerOffer?: boolean | undefined;
 }, {
     labels: string[];
+    kitchen?: "none" | "own" | "shared" | null | undefined;
     note?: string | null | undefined;
     label?: undefined;
     state?: "active" | "off_market" | undefined;
     propertyId?: string | undefined;
     bedrooms?: number | null | undefined;
     bathrooms?: number | null | undefined;
-    kitchen?: "none" | "own" | "shared" | null | undefined;
     furnished?: boolean | undefined;
     sizeSqm?: number | null | undefined;
     availableFrom?: string | null | undefined;
@@ -1174,13 +1174,13 @@ export declare const BulkUnitsRequest: z.ZodEffects<z.ZodObject<{
     brokerOffer?: boolean | undefined;
 }>, {
     labels: string[];
+    kitchen?: "none" | "own" | "shared" | null | undefined;
     note?: string | null | undefined;
     label?: undefined;
     state?: "active" | "off_market" | undefined;
     propertyId?: string | undefined;
     bedrooms?: number | null | undefined;
     bathrooms?: number | null | undefined;
-    kitchen?: "none" | "own" | "shared" | null | undefined;
     furnished?: boolean | undefined;
     sizeSqm?: number | null | undefined;
     availableFrom?: string | null | undefined;
@@ -1198,13 +1198,13 @@ export declare const BulkUnitsRequest: z.ZodEffects<z.ZodObject<{
     brokerOffer?: boolean | undefined;
 }, {
     labels: string[];
+    kitchen?: "none" | "own" | "shared" | null | undefined;
     note?: string | null | undefined;
     label?: undefined;
     state?: "active" | "off_market" | undefined;
     propertyId?: string | undefined;
     bedrooms?: number | null | undefined;
     bathrooms?: number | null | undefined;
-    kitchen?: "none" | "own" | "shared" | null | undefined;
     furnished?: boolean | undefined;
     sizeSqm?: number | null | undefined;
     availableFrom?: string | null | undefined;
@@ -1294,6 +1294,7 @@ export declare const BulkUnitsResult: z.ZodObject<{
         createdAt: z.ZodString;
         updatedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
+        kitchen: "none" | "own" | "shared" | null;
         id: string;
         note: string | null;
         label: string;
@@ -1303,7 +1304,6 @@ export declare const BulkUnitsResult: z.ZodObject<{
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
-        kitchen: "none" | "own" | "shared" | null;
         furnished: boolean;
         sizeSqm: number | null;
         availableFrom: string | null;
@@ -1335,6 +1335,7 @@ export declare const BulkUnitsResult: z.ZodObject<{
             endDate: string;
         } | null;
     }, {
+        kitchen: "none" | "own" | "shared" | null;
         id: string;
         note: string | null;
         label: string;
@@ -1344,7 +1345,6 @@ export declare const BulkUnitsResult: z.ZodObject<{
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
-        kitchen: "none" | "own" | "shared" | null;
         furnished: boolean;
         sizeSqm: number | null;
         availableFrom: string | null;
@@ -1378,6 +1378,7 @@ export declare const BulkUnitsResult: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     created: {
+        kitchen: "none" | "own" | "shared" | null;
         id: string;
         note: string | null;
         label: string;
@@ -1387,7 +1388,6 @@ export declare const BulkUnitsResult: z.ZodObject<{
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
-        kitchen: "none" | "own" | "shared" | null;
         furnished: boolean;
         sizeSqm: number | null;
         availableFrom: string | null;
@@ -1421,6 +1421,7 @@ export declare const BulkUnitsResult: z.ZodObject<{
     }[];
 }, {
     created: {
+        kitchen: "none" | "own" | "shared" | null;
         id: string;
         note: string | null;
         label: string;
@@ -1430,7 +1431,6 @@ export declare const BulkUnitsResult: z.ZodObject<{
         propertyId: string;
         bedrooms: number | null;
         bathrooms: number | null;
-        kitchen: "none" | "own" | "shared" | null;
         furnished: boolean;
         sizeSqm: number | null;
         availableFrom: string | null;

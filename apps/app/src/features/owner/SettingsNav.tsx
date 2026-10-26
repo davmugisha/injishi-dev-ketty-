@@ -11,7 +11,7 @@ const SECTIONS = [
   { board: "AuditLog", label: "Audit log", Icon: ShieldCheck },
 ] as const satisfies readonly { board: BoardId; label: string; Icon: unknown }[];
 
-export type SettingsSection = (typeof SECTIONS)[number]["board"];
+type SettingsSection = (typeof SECTIONS)[number]["board"];
 
 /** Settings sub-navigation shared by the four settings screens (artifact: nav.ij-tabs-line "Settings sections"). */
 export function SettingsNav({ current }: { current: SettingsSection }) {

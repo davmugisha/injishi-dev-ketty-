@@ -44,7 +44,7 @@ import { decideCorrection, saveDeskEntry } from "./actions";
 import { dayMonthYear, fullDay } from "./days";
 import { PanelCard } from "./parts";
 
-export interface AttendanceData {
+interface AttendanceData {
   records: ClockRecord[];
   corrections: ClockCorrection[];
   exceptions: AttendanceException[];

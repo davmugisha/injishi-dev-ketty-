@@ -23,7 +23,7 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { NoPhoto } from "@/components/stays/no-photo";
 import type { Listing } from "@/data/listings";

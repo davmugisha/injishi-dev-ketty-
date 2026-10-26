@@ -35,7 +35,7 @@ import { EmployeeFileCard } from "./EmployeeFileCard";
 import { LoginChip, STATUS } from "./employee-status";
 import { initials, PanelCard } from "./parts";
 
-export interface EmployeesData {
+interface EmployeesData {
   properties: PeopleProperty[];
   employees: Employee[];
   compensation: CompensationChange[];

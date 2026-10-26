@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { Icon } from "@/components/app/icon";
 import { useSignOutAndLeave } from "@/components/auth/sign-out";
 import { sessionDisplayName, useSessionUser } from "@/lib/session";

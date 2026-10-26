@@ -28,7 +28,7 @@ const COPY = {
   fr: { hello: "Bonsoir, Sarah", sub: "Mercredi 15 octobre · nuit 2 sur 2" },
 } as const;
 
-export interface GuestStayData {
+interface GuestStayData {
   stay: GuestStayRecord;
   shortcuts: StayShortcut[];
   lateOptions: LateCheckoutOption[];

@@ -88,3 +88,6 @@ export * from './guests';
 // Brokers (P5, 2026-10-25): plans and their payments, the registration fee, ratings. A leaf over
 // residence, geography and auth.
 export * from './brokers';
+// The bar and restaurant point of sale (POS spec, phase 1): tables, orders, kitchen tickets,
+// simulated payments, registers and cashier shifts. A leaf: nothing imports it back.
+export * from './pos';

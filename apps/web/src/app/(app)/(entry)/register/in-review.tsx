@@ -8,7 +8,7 @@ import {
   stepForRejectionReason,
 } from "@injishi/contracts";
 import { Alert } from "@heroui/react";
-import { Avatar, AvatarFallback, Badge, Button } from "@injishi/ui";
+import { Avatar, AvatarFallback, Badge, Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { Check, X } from "lucide-react";
 

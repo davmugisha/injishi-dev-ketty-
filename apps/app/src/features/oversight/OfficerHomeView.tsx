@@ -21,7 +21,7 @@ import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { OfficerQueues } from "./OfficerQueues";
 import { CardHeading, FactGrid, ToneChip } from "./shared";
 
-export interface OfficerHomeData {
+interface OfficerHomeData {
   facts: MandateFact[];
   /** Labels of the permissions delegated to the signed-in officer. */
   granted: string[];

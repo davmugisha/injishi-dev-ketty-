@@ -41,7 +41,7 @@ import { decideLeave } from "./actions";
 import { addDays, fullDay, rangeShort } from "./days";
 import { firstName, initials, PanelCard } from "./parts";
 
-export interface PeopleHomeData {
+interface PeopleHomeData {
   properties: PeopleProperty[];
   presence: DeptPresence[];
   leave: LeaveRequest[];

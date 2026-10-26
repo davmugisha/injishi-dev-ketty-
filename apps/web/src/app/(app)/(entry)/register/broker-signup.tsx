@@ -10,7 +10,7 @@ import {
 } from "@injishi/contracts";
 import { CircleAlert, CircleCheck, Smartphone } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { fetchDistricts, fetchProvinces } from "@/data/geography";
 import { fetchBrokerFee, fetchBrokerFeePayment, payBrokerFee } from "@/data/registration";

@@ -24,7 +24,7 @@ export class SetupRefusal extends Error {
 // ── API shapes (as server/api answers; the app does not depend on @injishi/contracts) ─────────────
 
 /** One entry of GET /api/v1/inventory/properties (OperatorPropertySummary), the fields read here. */
-export interface ApiPropertySummary {
+interface ApiPropertySummary {
   id: string;
   name: string;
   slug: string | null;
@@ -305,4 +305,14 @@ export async function publish(
 ): Promise<ApiPropertySummary> {
   workspaceOf(ctx, workspaceId);
   return ctx.api.post<ApiPropertySummary>(`/api/v1/inventory/properties/${propertyId}/publish`, {}, { workspaceId });
+}
+
+/** Take it off the marketplace (`POST /inventory/properties/:id/unpublish`). The address is kept for a republish. */
+export async function unpublish(
+  ctx: SourceContext,
+  workspaceId: string,
+  propertyId: string,
+): Promise<ApiPropertySummary> {
+  workspaceOf(ctx, workspaceId);
+  return ctx.api.post<ApiPropertySummary>(`/api/v1/inventory/properties/${propertyId}/unpublish`, {}, { workspaceId });
 }

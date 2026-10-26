@@ -9,7 +9,7 @@ import {
   SheetDescription,
   SheetTitle,
   SheetTrigger,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import { ScrollShadow } from "@heroui/react";
 import { cn } from "@injishi/utils";
 import { AccountMenuMobile } from "@/components/layout/account-menu";

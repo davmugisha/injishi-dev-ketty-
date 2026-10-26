@@ -34,7 +34,7 @@ import { GateChip, PageContent, PageHeader, SectionHeader, toneColor } from "@in
 import { useState } from "react";
 import { CardHeading, ToneChip } from "./shared";
 
-export interface DistrictAdminData {
+interface DistrictAdminData {
   bodies: GovernmentBody[];
   officers: DistrictOfficer[];
   permissions: OfficerPermission[];

@@ -10,7 +10,8 @@
 //      never a 403, and a suspended business is refused through both doors with
 //      the refusal worded from the registration stage (AC-A5).
 //
-// The operator nav (AC-A1, AC-A2) is `verify-role-nav.mjs`; the admin sidebar
+// The operator nav (AC-A1, AC-A2) had its own script, removed with the old
+// operator app it read; the admin sidebar
 // and the typed URL refusal (AC-A3, AC-A4) are a browser check; the staff matrix
 // itself is `packages/contracts/tests/staff-authz.test.mjs` (AC-A7).
 //

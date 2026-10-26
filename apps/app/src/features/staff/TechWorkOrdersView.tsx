@@ -54,7 +54,7 @@ import {
   renderSection,
 } from "./parts";
 
-export interface TechWorkOrdersData {
+interface TechWorkOrdersData {
   /** The caller's own profile; null when none is on file (never another person's). */
   profile: StaffProfile | null;
   orders: WorkOrder[];

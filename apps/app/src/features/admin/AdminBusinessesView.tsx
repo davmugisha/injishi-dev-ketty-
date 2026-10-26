@@ -19,7 +19,7 @@ import { EntitlementsPane, KybPane, LifecyclePane } from "./BusinessPanes";
 import { initials, lineTab, selectableRow, TabCount, ToneChip } from "./shared";
 import { type AccessMode, ViewAsDialog } from "./ViewAsDialog";
 
-export interface AdminBusinessesData {
+interface AdminBusinessesData {
   businesses: Business[];
   counts: LifecycleCount[];
   documentTypes: KybDocumentType[];

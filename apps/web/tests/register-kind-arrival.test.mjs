@@ -62,7 +62,7 @@ describe("a tile on /host", () => {
   });
 
   test("the chooser and the closing call to action no longer link through /host/start", () => {
-    for (const file of ["components/host/host-chooser.tsx", "components/host/host-cta.tsx"]) {
+    for (const file of ["components/host/host-chooser.tsx", "app/(marketplace)/(site)/host/host-entry-lines.tsx"]) {
       const code = src(file)
         .split(/\r?\n/)
         .filter((line) => !/^\s*(\*|\/\/|\{\/\*)/.test(line))

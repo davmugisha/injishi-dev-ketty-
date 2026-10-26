@@ -228,22 +228,22 @@ export declare const PayAccount: z.ZodObject<{
     id: string;
     createdAt: string;
     isPrimary: boolean;
-    employeeId: string;
-    branchName: string | null;
     bankName: string | null;
     accountNumber: string | null;
     momoPhone: string | null;
+    employeeId: string;
+    branchName: string | null;
 }, {
     status: "active" | "retired";
     kind: "bank" | "momo";
     id: string;
     createdAt: string;
     isPrimary: boolean;
-    employeeId: string;
-    branchName: string | null;
     bankName: string | null;
     accountNumber: string | null;
     momoPhone: string | null;
+    employeeId: string;
+    branchName: string | null;
 }>;
 export type PayAccount = z.infer<typeof PayAccount>;
 export declare const PayAccountList: z.ZodObject<{
@@ -264,22 +264,22 @@ export declare const PayAccountList: z.ZodObject<{
         id: string;
         createdAt: string;
         isPrimary: boolean;
-        employeeId: string;
-        branchName: string | null;
         bankName: string | null;
         accountNumber: string | null;
         momoPhone: string | null;
+        employeeId: string;
+        branchName: string | null;
     }, {
         status: "active" | "retired";
         kind: "bank" | "momo";
         id: string;
         createdAt: string;
         isPrimary: boolean;
-        employeeId: string;
-        branchName: string | null;
         bankName: string | null;
         accountNumber: string | null;
         momoPhone: string | null;
+        employeeId: string;
+        branchName: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     accounts: {
@@ -288,11 +288,11 @@ export declare const PayAccountList: z.ZodObject<{
         id: string;
         createdAt: string;
         isPrimary: boolean;
-        employeeId: string;
-        branchName: string | null;
         bankName: string | null;
         accountNumber: string | null;
         momoPhone: string | null;
+        employeeId: string;
+        branchName: string | null;
     }[];
 }, {
     accounts: {
@@ -301,11 +301,11 @@ export declare const PayAccountList: z.ZodObject<{
         id: string;
         createdAt: string;
         isPrimary: boolean;
-        employeeId: string;
-        branchName: string | null;
         bankName: string | null;
         accountNumber: string | null;
         momoPhone: string | null;
+        employeeId: string;
+        branchName: string | null;
     }[];
 }>;
 export type PayAccountList = z.infer<typeof PayAccountList>;
@@ -319,14 +319,14 @@ export declare const CreatePayAccountRequest: z.ZodDiscriminatedUnion<"kind", [z
     kind: "bank";
     bankName: string;
     accountNumber: string;
-    branchName?: string | null | undefined;
     makePrimary?: boolean | undefined;
+    branchName?: string | null | undefined;
 }, {
     kind: "bank";
     bankName: string;
     accountNumber: string;
-    branchName?: string | null | undefined;
     makePrimary?: boolean | undefined;
+    branchName?: string | null | undefined;
 }>, z.ZodObject<{
     kind: z.ZodLiteral<"momo">;
     momoPhone: z.ZodString;

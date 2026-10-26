@@ -138,7 +138,7 @@ export declare const EmployeePage: z.ZodObject<{
         qualification: z.ZodNullable<z.ZodString>;
         priorExperienceYears: z.ZodNullable<z.ZodNumber>;
         hasAccount: z.ZodBoolean;
-        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
         detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
     } & {
         view: z.ZodLiteral<"basic">;
@@ -176,7 +176,7 @@ export declare const EmployeePage: z.ZodObject<{
         email: string | null;
         legalName: string;
         id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -219,7 +219,7 @@ export declare const EmployeePage: z.ZodObject<{
         email: string | null;
         legalName: string;
         id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -301,7 +301,7 @@ export declare const EmployeePage: z.ZodObject<{
         qualification: z.ZodNullable<z.ZodString>;
         priorExperienceYears: z.ZodNullable<z.ZodNumber>;
         hasAccount: z.ZodBoolean;
-        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
         detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
     } & {
         view: z.ZodLiteral<"full">;
@@ -401,7 +401,7 @@ export declare const EmployeePage: z.ZodObject<{
         id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -469,7 +469,7 @@ export declare const EmployeePage: z.ZodObject<{
         id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -564,7 +564,7 @@ export declare const EmployeePage: z.ZodObject<{
         email: string | null;
         legalName: string;
         id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -618,7 +618,7 @@ export declare const EmployeePage: z.ZodObject<{
         id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -693,7 +693,7 @@ export declare const EmployeePage: z.ZodObject<{
         email: string | null;
         legalName: string;
         id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -747,7 +747,7 @@ export declare const EmployeePage: z.ZodObject<{
         id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -3074,11 +3074,11 @@ export declare const PayRunPage: z.ZodObject<{
         periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -3093,11 +3093,11 @@ export declare const PayRunPage: z.ZodObject<{
         periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -3150,11 +3150,11 @@ export declare const PayRunPage: z.ZodObject<{
         periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -3187,11 +3187,11 @@ export declare const PayRunPage: z.ZodObject<{
         periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -3322,12 +3322,12 @@ export declare const PayslipPage: z.ZodObject<{
         grossRwf: number;
         paidAt: string | null;
         branchId: string | null;
+        period: string;
         employeeNumber: string;
         netRwf: number;
         paidMethod: "cash" | "bank" | "momo" | null;
         paidReference: string | null;
         sentAt: string | null;
-        period: string;
         payRunId: string;
     }, {
         status: "draft" | "confirmed";
@@ -3340,12 +3340,12 @@ export declare const PayslipPage: z.ZodObject<{
         grossRwf: number;
         paidAt: string | null;
         branchId: string | null;
+        period: string;
         employeeNumber: string;
         netRwf: number;
         paidMethod: "cash" | "bank" | "momo" | null;
         paidReference: string | null;
         sentAt: string | null;
-        period: string;
         payRunId: string;
     }>, "many">;
     total: z.ZodNumber;
@@ -3396,12 +3396,12 @@ export declare const PayslipPage: z.ZodObject<{
         grossRwf: number;
         paidAt: string | null;
         branchId: string | null;
+        period: string;
         employeeNumber: string;
         netRwf: number;
         paidMethod: "cash" | "bank" | "momo" | null;
         paidReference: string | null;
         sentAt: string | null;
-        period: string;
         payRunId: string;
     }[];
     total: number;
@@ -3432,12 +3432,12 @@ export declare const PayslipPage: z.ZodObject<{
         grossRwf: number;
         paidAt: string | null;
         branchId: string | null;
+        period: string;
         employeeNumber: string;
         netRwf: number;
         paidMethod: "cash" | "bank" | "momo" | null;
         paidReference: string | null;
         sentAt: string | null;
-        period: string;
         payRunId: string;
     }[];
     total: number;
@@ -3886,8 +3886,8 @@ export declare const PayClaimPage: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        days: number | null;
         period: string;
+        days: number | null;
         leaveType: {
             name: string;
             id: string;
@@ -3910,8 +3910,8 @@ export declare const PayClaimPage: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        days: number | null;
         period: string;
+        days: number | null;
         leaveType: {
             name: string;
             id: string;
@@ -3972,8 +3972,8 @@ export declare const PayClaimPage: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        days: number | null;
         period: string;
+        days: number | null;
         leaveType: {
             name: string;
             id: string;
@@ -4014,8 +4014,8 @@ export declare const PayClaimPage: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        days: number | null;
         period: string;
+        days: number | null;
         leaveType: {
             name: string;
             id: string;
@@ -4401,6 +4401,7 @@ export declare const ContractPage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         };
+        noticeDays: number | null;
         branchId: string | null;
         contractType: string;
         employeeNumber: string;
@@ -4408,7 +4409,6 @@ export declare const ContractPage: z.ZodObject<{
         wageBasis: "monthly" | "daily" | "hourly";
         wageRwf: number;
         payStructureId: string | null;
-        noticeDays: number | null;
     }, {
         status: string;
         id: string;
@@ -4418,6 +4418,7 @@ export declare const ContractPage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         };
+        noticeDays: number | null;
         branchId: string | null;
         contractType: string;
         employeeNumber: string;
@@ -4425,7 +4426,6 @@ export declare const ContractPage: z.ZodObject<{
         wageBasis: "monthly" | "daily" | "hourly";
         wageRwf: number;
         payStructureId: string | null;
-        noticeDays: number | null;
     }>, "many">;
     total: z.ZodNumber;
     page: z.ZodNumber;
@@ -4473,6 +4473,7 @@ export declare const ContractPage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         };
+        noticeDays: number | null;
         branchId: string | null;
         contractType: string;
         employeeNumber: string;
@@ -4480,7 +4481,6 @@ export declare const ContractPage: z.ZodObject<{
         wageBasis: "monthly" | "daily" | "hourly";
         wageRwf: number;
         payStructureId: string | null;
-        noticeDays: number | null;
     }[];
     total: number;
     page: number;
@@ -4508,6 +4508,7 @@ export declare const ContractPage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         };
+        noticeDays: number | null;
         branchId: string | null;
         contractType: string;
         employeeNumber: string;
@@ -4515,7 +4516,6 @@ export declare const ContractPage: z.ZodObject<{
         wageBasis: "monthly" | "daily" | "hourly";
         wageRwf: number;
         payStructureId: string | null;
-        noticeDays: number | null;
     }[];
     total: number;
     page: number;

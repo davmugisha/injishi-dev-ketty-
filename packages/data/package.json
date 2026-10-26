@@ -11,10 +11,14 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "biome check .",
+    "lint": "pnpm run --silent lint:biome && pnpm run --silent lint:eslint",
+    "lint:biome": "biome lint .",
+    "lint:eslint": "eslint \"src/**/*.ts\"",
     "test": "node ../../scripts/no-tests.mjs"
   },
   "devDependencies": {
+    "@typescript-eslint/parser": "^8.68.0",
+    "eslint": "^10.9.1",
     "typescript": "5.9.3"
   }
 }

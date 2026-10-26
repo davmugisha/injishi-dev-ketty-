@@ -7,7 +7,6 @@ import {
   type CreateBrokerRegistrationRequest,
   type CreateRegistrationRequest,
   MyProfile,
-  type PersonalDetails,
   PsfTier,
   RegistrationDraft,
   RegistrationFeeQuote,
@@ -42,19 +41,6 @@ export async function fetchMyProfile(): Promise<ApiResult<MyProfile>> {
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }
 
-/** Save Step 1 on its own — the edit path for someone who already registered. */
-export async function saveMyProfile(
-  details: PersonalDetails,
-): Promise<ApiResult<MyProfile>> {
-  const res = await apiFetch<unknown>("/api/v1/me/profile", {
-    method: "PUT",
-    body: details,
-  });
-  if (res.status !== "ok") return res;
-  const parsed = MyProfile.safeParse(res.data);
-  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
-}
-
 /**
  * What this kind of registration costs right now.
  *
@@ -73,9 +59,9 @@ export async function fetchRegistrationFee(
 }
 
 /** Where the figure on the pay step came from, in order of authority. */
-export type RegistrationFeeSource = "invoice" | "quote" | "configured" | "none";
+type RegistrationFeeSource = "invoice" | "quote" | "configured" | "none";
 
-export interface ResolvedRegistrationFee {
+interface ResolvedRegistrationFee {
   /** What to print. Null only when nothing anywhere could name an amount. */
   amountRwf: number | null;
   source: RegistrationFeeSource;

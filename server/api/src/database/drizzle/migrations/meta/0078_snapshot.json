@@ -1,6 +1,6 @@
 {
-  "id": "107499bd-8356-49ae-896d-7d7102676d6d",
-  "prevId": "85ec8931-b1dd-48f3-b459-e52b9310a737",
+  "id": "85ec8931-b1dd-48f3-b459-e52b9310a737",
+  "prevId": "815b1136-23dc-4c30-a3f1-beba0d451d30",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -9595,208 +9595,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.lease_charges": {
-      "name": "lease_charges",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "lease_id": {
-          "name": "lease_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "lease_charge_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'rent'"
-        },
-        "period_start": {
-          "name": "period_start",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "period_end": {
-          "name": "period_end",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "due_on": {
-          "name": "due_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount_rwf": {
-          "name": "amount_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "paid_rwf": {
-          "name": "paid_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "currency": {
-          "name": "currency",
-          "type": "char(3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'RWF'"
-        },
-        "status": {
-          "name": "status",
-          "type": "lease_charge_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'open'"
-        },
-        "waived_reason": {
-          "name": "waived_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "paid_at": {
-          "name": "paid_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "idempotency_key": {
-          "name": "idempotency_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "lease_charges_rent_period_uk": {
-          "name": "lease_charges_rent_period_uk",
-          "columns": [
-            {
-              "expression": "lease_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "period_start",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"lease_charges\".\"kind\" = 'rent'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "lease_charges_deposit_uk": {
-          "name": "lease_charges_deposit_uk",
-          "columns": [
-            {
-              "expression": "lease_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"lease_charges\".\"kind\" = 'deposit'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "lease_charges_open_due_idx": {
-          "name": "lease_charges_open_due_idx",
-          "columns": [
-            {
-              "expression": "due_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"lease_charges\".\"status\" = 'open'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "lease_charges_lease_id_leases_id_fk": {
-          "name": "lease_charges_lease_id_leases_id_fk",
-          "tableFrom": "lease_charges",
-          "tableTo": "leases",
-          "columnsFrom": [
-            "lease_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "lease_charges_idempotency_key_uk": {
-          "name": "lease_charges_idempotency_key_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "idempotency_key"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "lease_charges_amount_positive": {
-          "name": "lease_charges_amount_positive",
-          "value": "\"lease_charges\".\"amount_rwf\" > 0"
-        },
-        "lease_charges_period_shape": {
-          "name": "lease_charges_period_shape",
-          "value": "(\"lease_charges\".\"kind\" = 'rent' AND \"lease_charges\".\"period_start\" IS NOT NULL AND \"lease_charges\".\"period_end\" IS NOT NULL AND \"lease_charges\".\"period_end\" >= \"lease_charges\".\"period_start\")\n        OR (\"lease_charges\".\"kind\" = 'deposit' AND \"lease_charges\".\"period_start\" IS NULL AND \"lease_charges\".\"period_end\" IS NULL)"
-        },
-        "lease_charges_waived_shape": {
-          "name": "lease_charges_waived_shape",
-          "value": "(\"lease_charges\".\"status\" = 'waived') = (\"lease_charges\".\"waived_reason\" IS NOT NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.lease_contract_versions": {
       "name": "lease_contract_versions",
       "schema": "",
@@ -12486,6 +12284,142 @@
           "value": "\"payment_compensations\".\"kind\" IN ('refund', 'void-pending', 'release-escrow')"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.rent_charges": {
+      "name": "rent_charges",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "lease_id": {
+          "name": "lease_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_month": {
+          "name": "period_month",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_rwf": {
+          "name": "amount_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paid_amount_rwf": {
+          "name": "paid_amount_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "currency": {
+          "name": "currency",
+          "type": "char(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'RWF'"
+        },
+        "status": {
+          "name": "status",
+          "type": "rent_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'due'"
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paid_at": {
+          "name": "paid_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "rent_charges_lease_period_uk": {
+          "name": "rent_charges_lease_period_uk",
+          "columns": [
+            {
+              "expression": "lease_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "period_month",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "rent_charges_lease_id_leases_id_fk": {
+          "name": "rent_charges_lease_id_leases_id_fk",
+          "tableFrom": "rent_charges",
+          "tableTo": "leases",
+          "columnsFrom": [
+            "lease_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "rent_charges_idempotency_key_uk": {
+          "name": "rent_charges_idempotency_key_uk",
+          "nullsNotDistinct": false,
+          "columns": [
+            "idempotency_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.tenant_placements": {
@@ -39943,10 +39877,10 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "rent_payments_rent_charge_id_lease_charges_id_fk": {
-          "name": "rent_payments_rent_charge_id_lease_charges_id_fk",
+        "rent_payments_rent_charge_id_rent_charges_id_fk": {
+          "name": "rent_payments_rent_charge_id_rent_charges_id_fk",
           "tableFrom": "rent_payments",
-          "tableTo": "lease_charges",
+          "tableTo": "rent_charges",
           "columnsFrom": [
             "rent_charge_id"
           ],
@@ -42623,6 +42557,15 @@
         "pending",
         "approved",
         "rejected"
+      ]
+    },
+    "public.rent_status": {
+      "name": "rent_status",
+      "schema": "public",
+      "values": [
+        "paid",
+        "due",
+        "overdue"
       ]
     },
     "public.rental_unit_state": {

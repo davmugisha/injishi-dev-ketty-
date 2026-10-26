@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.rnLineHeight = exports.rnFontSize = exports.rnRadiusRoles = exports.rnRadius = exports.rnSpace = exports.easingCurves = exports.motionMs = exports.rhythm = exports.containers = exports.typeScale = exports.typeSteps = exports.herouiFixedGrounds = exports.herouiSpacing = exports.herouiFieldRadius = exports.herouiRadius = exports.herouiMixes = exports.herouiElevation = exports.herouiAliases = exports.herouiDark = exports.herouiLight = exports.herouiFixed = exports.palettes = exports.shadowControl = exports.radiusCard = exports.fixedGrounds = exports.aliases = exports.dark = exports.light = exports.fixed = exports.status = exports.green = exports.ink = void 0;
+exports.rnLineHeight = exports.rnFontSize = exports.rnRadiusRoles = exports.rnRadius = exports.rnSpace = exports.easingCurves = exports.motionMs = exports.rhythm = exports.containers = exports.typeScale = exports.typeSteps = exports.herouiFixedGrounds = exports.herouiTypeScale = exports.herouiTracking = exports.herouiSpacing = exports.herouiFieldBorderWidth = exports.herouiFieldRadius = exports.herouiRadius = exports.herouiMixes = exports.herouiElevation = exports.herouiAliases = exports.herouiDark = exports.herouiLight = exports.herouiFixed = exports.palettes = exports.shadowControl = exports.radiusCard = exports.fixedGrounds = exports.aliases = exports.dark = exports.light = exports.fixed = exports.status = exports.green = exports.ink = void 0;
 /**
  * @injishi/design-tokens — one vocabulary everywhere.
  *
@@ -45,7 +45,10 @@ Object.defineProperty(exports, "herouiElevation", { enumerable: true, get: funct
 Object.defineProperty(exports, "herouiMixes", { enumerable: true, get: function () { return heroui_1.herouiMixes; } });
 Object.defineProperty(exports, "herouiRadius", { enumerable: true, get: function () { return heroui_1.herouiRadius; } });
 Object.defineProperty(exports, "herouiFieldRadius", { enumerable: true, get: function () { return heroui_1.herouiFieldRadius; } });
+Object.defineProperty(exports, "herouiFieldBorderWidth", { enumerable: true, get: function () { return heroui_1.herouiFieldBorderWidth; } });
 Object.defineProperty(exports, "herouiSpacing", { enumerable: true, get: function () { return heroui_1.herouiSpacing; } });
+Object.defineProperty(exports, "herouiTracking", { enumerable: true, get: function () { return heroui_1.herouiTracking; } });
+Object.defineProperty(exports, "herouiTypeScale", { enumerable: true, get: function () { return heroui_1.herouiTypeScale; } });
 Object.defineProperty(exports, "herouiFixedGrounds", { enumerable: true, get: function () { return heroui_1.herouiFixedGrounds; } });
 var layout_1 = require("./layout");
 Object.defineProperty(exports, "typeSteps", { enumerable: true, get: function () { return layout_1.typeSteps; } });

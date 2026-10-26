@@ -11,9 +11,9 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import type { BrokerHome } from "@injishi/contracts";
-import { getVersion, setWorkerUrl, type StyleSpecification } from "maplibre-gl";
+import { getVersion, type StyleSpecification, setWorkerUrl } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Map, Marker, type MapRef } from "react-map-gl/maplibre";
+import { type MapRef, Map as MapView, Marker } from "react-map-gl/maplibre";
 import { twMerge } from "tailwind-merge";
 
 import { loadMapStyle } from "./map-style";
@@ -121,7 +121,7 @@ export function HomesMap({
   if (!style) return <div className="size-full animate-pulse bg-foreground/5" />;
 
   return (
-    <Map
+    <MapView
       ref={ref}
       initialViewState={RWANDA}
       mapStyle={style}
@@ -201,6 +201,6 @@ export function HomesMap({
           </Marker>
         ),
       )}
-    </Map>
+    </MapView>
   );
 }

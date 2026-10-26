@@ -13,16 +13,25 @@
  * backlog grow with nothing watching. The ratchet is the only policy that
  * matches what the configs already mean.
  *
- * The count comes from `eslint --format json` (or Biome's `--reporter=json`
- * for the members Biome lints: apps/app, apps/mobile, packages/data, db, ui),
- * never from parsing human readable output, because the human format is not a
- * stable interface and a counter that silently reads zero is worse than no
- * counter at all.
+ * The count comes from `eslint --format json`, never from parsing human
+ * readable output, because the human format is not a stable interface and a
+ * counter that silently reads zero is worse than no counter at all.
  *
  * Each member is linted through ITS OWN `lint` script, so this file never
  * restates a package's globs or config. Extra arguments are appended by pnpm,
  * which is what puts `--format json` on the end of that package's own eslint
- * invocation (`--reporter=json --reporter-file` on a Biome one).
+ * invocation.
+ *
+ * Not every member is on ESLint. The interface `2d32525a` brought in (apps/app,
+ * apps/mobile, packages/ui, data and db) came linted by Biome, from the root
+ * `biome.json`, and its `lint` scripts run `biome lint .`. A member whose script
+ * starts with `biome` is asked for Biome's JSON report instead and counted from
+ * its summary, so the same three rules hold for both: an error fails, a missing
+ * row fails, a count above its row fails.
+ *
+ * ADR-074 stage 1 put the `injishi` ESLint rules on those members too, beside
+ * Biome. A member on both linters declares `lint:biome` and `lint:eslint`, and
+ * its row is the SUM of the two counts (see `lintParts`).
  *
  * Usage:
  *   node scripts/lint-ratchet.mjs            check against the baseline
@@ -52,15 +61,58 @@ function readBaseline() {
   return Object.fromEntries(Object.entries(raw).filter(([key]) => !key.startsWith('//')));
 }
 
+/** A member whose `lint` script runs Biome rather than ESLint. */
+const runsBiome = (member) => /^\s*biome\s/.test(member.scripts.lint);
+
+/** The two scripts a member on BOTH linters splits its `lint` into. */
+const SPLIT_PARTS = ['lint:biome', 'lint:eslint'];
+
 /**
- * Lint one member and return its error and warning counts.
+ * The scripts that make up one member's lint, each with the linter it runs.
  *
- * Returns null when the member produced no report at all, which is a failure
- * and not a zero: a lint script that dies before eslint runs (mobile's palette
- * check is chained ahead of eslint, for example) must never be read as clean.
+ * Since ADR-074 stage 1 the interface members run both: Biome for general
+ * lint, ESLint for the `injishi` rules. A reporter flag appended to a `lint`
+ * that chains two linters reaches only the last one, so such a member declares
+ * `lint:biome` and `lint:eslint`, its `lint` runs the two, and each part is
+ * asked for its own JSON report here.
+ */
+function lintParts(member) {
+  const split = SPLIT_PARTS.filter((script) => typeof member.scripts[script] === 'string');
+  if (split.length === 0) return [{ script: 'lint', biome: runsBiome(member) }];
+  return split.map((script) => ({ script, biome: script === 'lint:biome' }));
+}
+
+/**
+ * Lint one member and return its error and warning counts, summed over its
+ * parts.
+ *
+ * A part that produced no report at all is a failure and not a zero: a lint
+ * script that dies before the linter runs (mobile's palette check was once
+ * chained ahead of eslint, for example) must never be read as clean. So is a
+ * split part the member's `lint` does not run, because counting it would
+ * count something CI's lint job never sees.
  */
 function countFor(member, workDir) {
-  const reportFile = join(workDir, `${member.name.replace(/[^a-z0-9]+/gi, '-')}.json`);
+  const totals = { failed: false, errorCount: 0, warningCount: 0, errorMessages: [] };
+  for (const part of lintParts(member)) {
+    if (part.script !== 'lint' && !member.scripts.lint.includes(part.script)) {
+      return { failed: true, reason: `\`${part.script}\` is declared but its \`lint\` script does not run it.` };
+    }
+    const count = countPart(member, part, workDir);
+    if (count.failed) return { failed: true, reason: `${part.script}: ${count.reason}` };
+    totals.errorCount += count.errorCount;
+    totals.warningCount += count.warningCount;
+    totals.errorMessages.push(...count.errorMessages);
+  }
+  totals.errorMessages = totals.errorMessages.slice(0, 10);
+  return totals;
+}
+
+function countPart(member, { script, biome }, workDir) {
+  const reportFile = join(workDir, `${`${member.name}-${script}`.replace(/[^a-z0-9]+/gi, '-')}.json`);
+  const reportArgs = biome
+    ? ['--reporter=json', `--reporter-file=${reportFile}`]
+    : ['--format', 'json', '--output-file', reportFile];
 
   // On Windows `pnpm` is a .cmd shim, which Node will not spawn without a
   // shell. A shell then re-splits the argument array on whitespace, so the
@@ -69,16 +121,12 @@ function countFor(member, workDir) {
   const useShell = process.platform === 'win32';
   const quote = (arg) => (useShell && /[\s"]/.test(arg) ? `"${arg.replace(/"/g, '\\"')}"` : arg);
 
-  const biome = isBiome(member);
-  const reportArgs = biome
-    ? ['--reporter=json', `--reporter-file=${reportFile}`]
-    : ['--format', 'json', '--output-file', reportFile];
   const result = spawnSync(
     'pnpm',
     // No `--` separator: pnpm 10 forwards trailing arguments to the script as
     // they are, and passing `--` makes eslint read the flags after it as FILE
     // PATTERNS ("No files matching the pattern --format were found").
-    ['--filter', member.name, '--silent', 'run', 'lint', ...reportArgs].map(quote),
+    ['--filter', member.name, '--silent', 'run', script, ...reportArgs].map(quote),
     { cwd: REPO_ROOT, encoding: 'utf8', shell: useShell },
   );
 
@@ -93,7 +141,29 @@ function countFor(member, workDir) {
   }
 
   const report = JSON.parse(readFileSync(reportFile, 'utf8'));
-  if (biome) return biomeCount(report);
+  return biome ? countBiomeReport(report) : countEslintReport(report);
+}
+
+/**
+ * Biome's report carries one summary for the whole run. Its counts are totals
+ * even when `--max-diagnostics` stops printing, and only the printed
+ * diagnostics are listed. Biome calls this reporter experimental and free to
+ * change in a patch release, which is safe only because the root manifest pins
+ * Biome exactly: a summary without both counts is a failure, never a zero.
+ */
+function countBiomeReport(report) {
+  const { errors, warnings } = report.summary ?? {};
+  if (!Number.isInteger(errors) || !Number.isInteger(warnings)) {
+    return { failed: true, reason: 'Biome report has no error and warning counts in its summary.' };
+  }
+  const errorMessages = (report.diagnostics ?? [])
+    .filter((d) => d.severity === 'error' || d.severity === 'fatal')
+    .slice(0, 10)
+    .map((d) => `${d.location?.path ?? '?'}:${d.location?.start?.line ?? 0}  ${d.category ?? 'error'}  ${d.message}`);
+  return { failed: false, errorCount: errors, warningCount: warnings, errorMessages };
+}
+
+function countEslintReport(report) {
   let errorCount = 0;
   let warningCount = 0;
   const errorMessages = [];
@@ -107,27 +177,6 @@ function countFor(member, workDir) {
     }
   }
   return { failed: false, errorCount, warningCount, errorMessages };
-}
-
-/** A member whose `lint` script runs Biome rather than ESLint. */
-function isBiome(member) {
-  return /^\s*biome\s/.test(member.scripts.lint ?? '');
-}
-
-/**
- * Counts from Biome's JSON report. The summary counts every diagnostic, also the
- * ones past `--max-diagnostics` that the list leaves out.
- */
-function biomeCount(report) {
-  const summary = report.summary ?? {};
-  if (typeof summary.errors !== 'number' || typeof summary.warnings !== 'number') {
-    return { failed: true, reason: 'the Biome report has no summary counts' };
-  }
-  const errorMessages = (report.diagnostics ?? [])
-    .filter((d) => d.severity === 'error' || d.severity === 'fatal')
-    .slice(0, 10)
-    .map((d) => `${d.location?.path ?? '?'}:${d.location?.start?.line ?? 0}  ${d.category ?? 'error'}  ${d.message ?? ''}`);
-  return { failed: false, errorCount: summary.errors, warningCount: summary.warnings, errorMessages };
 }
 
 const members = workspaceMembers().filter((member) => typeof member.scripts.lint === 'string');
@@ -162,7 +211,7 @@ if (update) {
   }
   const counts = Object.fromEntries(results.map((r) => [r.member.name, r.warningCount]));
   const file = {
-    '//': 'Lint warning counts per workspace member (ESLint, or Biome for the new interface), the ADR-052 AC-3 ratchet baseline.',
+    '//': 'ESLint or Biome warning counts per workspace member, the ADR-052 AC-3 ratchet baseline.',
     '//how': 'A count that RISES above its entry fails CI. Regenerate with: node scripts/lint-ratchet.mjs --update',
     '//when': 'Update this in the commit that FIXES warnings, never to make a failing run pass.',
     '//zero': 'When a count reaches 0, flip that rule to `error` in the app config and drop the row.',

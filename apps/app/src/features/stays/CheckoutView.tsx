@@ -46,7 +46,7 @@ export type MomoState = "idle" | "pending" | "unknown" | "verified";
  * The prototype's MoMo trail, fiscal receipt drafts and key list (payments in flight, a receipt list and key
  * cards have no table) are not read at all, so nothing of theirs can be drawn as this guest's.
  */
-export interface CheckoutData {
+interface CheckoutData {
   checkout: CheckoutCase;
   ledger: CheckoutLedgerLine[];
 }

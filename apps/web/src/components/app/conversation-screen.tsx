@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { GuestMessage, GuestOrderDetail, GuestThread } from "@injishi/contracts";
 import { GUEST_MESSAGE_MAX } from "@injishi/contracts";
-import { Badge, Button, Skeleton, Textarea } from "@injishi/ui";
+import { Badge, Button, Skeleton, Textarea } from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
 import { EmptyPanel } from "@/components/app/empty-panel";
 import { Icon } from "@/components/app/icon";

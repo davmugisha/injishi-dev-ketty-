@@ -81,7 +81,6 @@ export function ExpensesView({
     start(() => router.replace(href(next), { scroll: false }));
 
   const counted = list.items.filter((e) => !e.voided);
-  const sum = (s: ExpenseShow) => counted.filter((e) => inShow(e, s)).reduce((t, e) => t + e.amountRwf, 0);
   const count = (s: ExpenseShow) => list.items.filter((e) => inShow(e, s)).length;
   const running = list.year === Number(today.slice(0, 4));
   const lastMonth = running ? Number(today.slice(5, 7)) : 12;

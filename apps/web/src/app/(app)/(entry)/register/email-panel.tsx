@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import GoogleButton from "@/components/auth/google-button";
 import { useSlow } from "@/components/auth/auth-feedback";

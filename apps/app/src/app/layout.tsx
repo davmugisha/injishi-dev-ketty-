@@ -31,11 +31,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${figtree.variable} ${instrumentSans.variable}`}
       suppressHydrationWarning
     >
-      <head>
+      <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static pre-paint script, no user input (Next "Preventing Flash" guide) */}
         <script dangerouslySetInnerHTML={{ __html: THEME_MIGRATION }} />
-      </head>
-      <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

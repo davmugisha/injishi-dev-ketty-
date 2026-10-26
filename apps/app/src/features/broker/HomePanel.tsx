@@ -10,7 +10,6 @@ import {
   FormDialog,
   formatDay,
   formatMoney,
-  Icon,
   KeyValueList,
   PhotoGallery,
   SectionHeader,

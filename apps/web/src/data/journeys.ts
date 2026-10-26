@@ -144,10 +144,6 @@ export const DISTRICT_PLACES: DistrictPlace[] = [
   },
 ];
 
-export function placeFor(slug: DistrictSlug): DistrictPlace | undefined {
-  return DISTRICT_PLACES.find((place) => place.slug === slug);
-}
-
 /** "2h", "2½h", "5½h". The half is the only fraction the table uses. */
 export function formatHours(hours: number): string {
   const whole = Math.floor(hours);
@@ -364,7 +360,7 @@ export const TRIP_ROUTES: TripRoute[] = [
 
 export type Season = "dry" | "short-rains" | "long-rains";
 
-export interface MonthNote {
+interface MonthNote {
   /** 0 = January. */
   month: number;
   season: Season;

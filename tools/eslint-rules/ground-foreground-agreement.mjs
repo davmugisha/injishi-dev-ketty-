@@ -37,10 +37,14 @@
  * and that takes the cases that do matter down with it."* So three shapes are
  * allowed and the tests below pin each one.
  *
- * `accent` IS NOT A VIOLATION, and this is read from the tokens rather than
- * hardcoded. Some theme-following roles carry the same value in both blocks —
- * `accent` and `accent-foreground` do — so `bg-accent text-white` is stable
- * while `bg-primary text-white` is a genuine failure. The rule resolves each
+ * A ROLE THAT DOES NOT MOVE IS NOT A VIOLATION, and this is read from the
+ * tokens rather than hardcoded. Some theme-following roles carry the same value
+ * in both blocks — `success` and `danger-foreground` do — so
+ * `bg-success text-ink` is stable while `bg-primary text-white` is a genuine
+ * failure. `accent` used to be the example: it held one value in both blocks
+ * until the 2026-10-26 re-sync of ADR-068 gave dark its own lighter accent with
+ * a dark label, and `bg-accent text-white` became a failure the same day with
+ * no edit here. The rule resolves each
  * role's light and dark value from `@injishi/design-tokens` and compares them,
  * *"so this stays true if either value later changes."*
  *

@@ -185,7 +185,7 @@ export async function deskPropertyName(ctx: SourceContext): Promise<string> {
  * What the guest paid online with the booking, in the desk's words: the escrow the API reports
  * (`paidRwf`, by `paymentStatus`), never assumed. "Nothing paid online" when no payment was taken.
  */
-export function onlinePayment(b: Pick<ApiBooking, "paidRwf" | "totalRwf" | "paymentStatus">): string {
+function onlinePayment(b: Pick<ApiBooking, "paidRwf" | "totalRwf" | "paymentStatus">): string {
   if (b.paidRwf <= 0) return "nothing paid online";
   const what = b.paidRwf >= b.totalRwf ? `${rwf(b.paidRwf)} paid online in full` : `${rwf(b.paidRwf)} paid online`;
   if (b.paymentStatus === "paid_out") return `${what} · paid out to the business`;
@@ -195,7 +195,7 @@ export function onlinePayment(b: Pick<ApiBooking, "paidRwf" | "totalRwf" | "paym
 
 // ── Words and numbers ────────────────────────────────────────────────────────
 
-export const CHANNEL: Record<ApiChannel, string> = {
+const CHANNEL: Record<ApiChannel, string> = {
   marketplace: "Marketplace",
   direct: "Direct",
   phone: "Phone",
@@ -234,14 +234,14 @@ export function daysBetween(a: string, b: string): number {
 /** Days since 1970-01-01 of a Kigali calendar day: the day number the reservation filters compare. */
 export const dayNumber = (iso: string) => Math.round(Date.parse(`${iso}T00:00:00Z`) / 86_400_000);
 
-export function guestsLabel(b: Pick<ApiBooking, "adults" | "children" | "guestCount">): string {
+function guestsLabel(b: Pick<ApiBooking, "adults" | "children" | "guestCount">): string {
   const adults = b.adults ?? b.guestCount;
   const kids = b.children ?? 0;
   return kids ? `${plural(adults, "adult")}, ${plural(kids, "child", "children")}` : plural(adults, "adult");
 }
 
 /** The room a booking holds tonight, if any. */
-export function holdTonight(b: ApiBooking, today: string) {
+function holdTonight(b: ApiBooking, today: string) {
   return b.holds.find((h) => h.from <= today && today < h.to) ?? null;
 }
 
@@ -290,7 +290,7 @@ function roomNote(room: ApiRoom, today: string, board: ApiBoard): string {
 }
 
 /** Today's arrivals not yet checked in, the next expected first (no ETA last). */
-export function arrivalsOf(board: ApiBoard): ApiBooking[] {
+function arrivalsOf(board: ApiBoard): ApiBooking[] {
   return board.bookings
     .filter((b) => b.state === "confirmed" && b.checkIn === board.today)
     .sort(
@@ -389,7 +389,7 @@ function presentInHouse(s: ApiStay, board: ApiBoard): InHouseStay {
  * Departures and the Checkout screen share it, so the first open row on Today is the guest Checkout
  * opens on.
  */
-export function departureOrder(a: ApiStay, b: ApiStay): number {
+function departureOrder(a: ApiStay, b: ApiStay): number {
   const owes = (s: ApiStay) => ((s.folio?.balanceRwf ?? 0) > 0 ? 0 : 1);
   return (
     (a.plannedExitAt ?? "9999").localeCompare(b.plannedExitAt ?? "9999") ||

@@ -34,7 +34,7 @@ export function nextReconnectDelay(failedRetries: number): number | null {
     : null;
 }
 
-export type GateView =
+type GateView =
   /** The first lookup has not settled. */
   | "checking"
   /** The API has not answered yet, and we are still asking. Nothing to press. */

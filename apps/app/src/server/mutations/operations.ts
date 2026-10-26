@@ -44,7 +44,7 @@ async function board(ctx: SourceContext): Promise<ApiBoard> {
 
 // ── Housekeeping ───────────────────────────────────────────────────────────────────────────────────
 
-export interface NewCleaningTask {
+interface NewCleaningTask {
   /** The room's label, "204". */
   room: string;
   kind: Exclude<CleaningTask["kind"], "Re-clean">;
@@ -132,7 +132,7 @@ function assigneeFor(list: ApiWorkOrderList, name: string): { userId: string } |
   return { contractor: name };
 }
 
-export interface NewWorkOrder {
+interface NewWorkOrder {
   /** "Room 302", "Lake Bar", "Generator". */
   asset: string;
   title: string;
@@ -240,7 +240,7 @@ const CATEGORY: Record<string, string> = {
 };
 
 /** "15 Oct 2026, 12:20" (as the intake form shows it, Kigali time) → an instant. */
-export function parseFoundAt(text: string): string {
+function parseFoundAt(text: string): string {
   const m = text.trim().match(/^(\d{1,2}) ([A-Z][a-z]{2}) (\d{4}),? (\d{1,2}):(\d{2})$/);
   const month = m ? MONTHS.indexOf(m[2] as string) : -1;
   if (!m || month < 0) throw new OperationsInputError(`Write when it was found as “15 Oct 2026, 12:20”.`);

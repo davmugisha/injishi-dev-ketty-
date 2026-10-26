@@ -80,7 +80,7 @@ export async function sendSignInCode(email: string, clientIp?: string | null): P
   }
 }
 
-export type VerifyResult =
+type VerifyResult =
   /** `cookie` is the session as a `Cookie` header; `setCookies` is what the browser must be given. */
   | { ok: true; cookie: SessionCookie; setCookies: ForwardedCookie[] }
   | { ok: false; reason: "wrong-code" | "expired" | "too-many" | "unavailable" };
@@ -207,7 +207,7 @@ interface ApiSession {
 }
 
 /** One of the person's active sessions, as the account screen may show it. */
-export interface SessionSummary {
+interface SessionSummary {
   id: string;
   userAgent: string | null;
   ipAddress: string | null;
@@ -399,6 +399,24 @@ const ROLE_PERSONA: Record<string, PersonaId> = {
   finance: "finance",
   hr: "hr",
   housekeeper: "housekeeper",
+  // The bar and restaurant floor (POS spec, phase 1) wears the outlet staff's tablet shell.
+  cashier: "waiter",
+  waiter: "waiter",
+  bartender: "waiter",
+  kitchen: "waiter",
+  stock_controller: "store",
+};
+
+/**
+ * Where a floor role lands: the live floor, or for the kitchen its station board. The demo waiter keeps
+ * the story written for her; a real cashier, waiter, bartender or cook lands on the screens that read
+ * their outlet from the API.
+ */
+const ROLE_HOME: Partial<Record<string, BoardId>> = {
+  cashier: "PosFloor",
+  waiter: "PosFloor",
+  bartender: "PosFloor",
+  kitchen: "PosStations",
 };
 
 /**
@@ -420,15 +438,33 @@ async function personaFor(
   if (landing?.surface === "landlord") return personas.landlord;
   // A broker's workspace has kind `broker`, never a business: their landing says so (`/me/context`).
   if (landing?.surface === "broker") return personas.broker;
+  // The shell of a role in a business, with the floor roles' own home (POS) where they have one.
+  const shellFor = (role: string) => {
+    const shell = personas[ROLE_PERSONA[role] as PersonaId];
+    const home = ROLE_HOME[role];
+    return home ? { ...shell, home } : shell;
+  };
   if (landing?.surface === "business") {
     const chosen = workspaces.find((w) => w.workspaceId === landing.workspaceId);
-    if (chosen?.orgRole && ROLE_PERSONA[chosen.orgRole]) return personas[ROLE_PERSONA[chosen.orgRole]];
+    if (chosen?.orgRole && ROLE_PERSONA[chosen.orgRole]) return shellFor(chosen.orgRole);
   }
   const business = workspaces.filter((w) => w.kind === "business" && w.orgRole && w.domain !== "residence");
-  const order = ["owner", "manager", "finance", "hr", "receptionist", "housekeeper"];
+  const order = [
+    "owner",
+    "manager",
+    "finance",
+    "hr",
+    "receptionist",
+    "cashier",
+    "bartender",
+    "waiter",
+    "stock_controller",
+    "kitchen",
+    "housekeeper",
+  ];
   business.sort((a, b) => order.indexOf(a.orgRole ?? "") - order.indexOf(b.orgRole ?? ""));
   const top = business[0];
-  if (top?.orgRole && ROLE_PERSONA[top.orgRole]) return personas[ROLE_PERSONA[top.orgRole]];
+  if (top?.orgRole && ROLE_PERSONA[top.orgRole]) return shellFor(top.orgRole);
   if (landing?.surface === "tenant") return personas.tenant;
   if (context ? context.staff.isStaff : await holds(cookie, "/api/v1/me/staff")) return personas.ops;
   if (context ? context.oversight.length > 0 : await holds(cookie, "/api/v1/me/oversight")) return personas.officer;

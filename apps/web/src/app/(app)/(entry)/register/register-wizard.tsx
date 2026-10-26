@@ -21,7 +21,7 @@ import {
 } from "@injishi/contracts";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, CircleAlert, Landmark, PenLine } from "lucide-react";
-import { Badge, Button } from "@injishi/ui";
+import { Badge, Button } from "@injishi/web-ui";
 
 import { openAssistant } from "@/components/assistant/assistant-widget";
 import { fetchMyWorkspaces, type LabelledWorkspace } from "@/data/me";
@@ -51,7 +51,6 @@ import { EMPTY_ADDRESS, addressFromDraft, useAddressLine } from "./address-picke
 import {
   EMPTY_BUSINESS,
   formatTin,
-  maskedPhone,
   newBranchDraft,
   normalizeTin,
   registryAddressDraft,
@@ -255,7 +254,6 @@ export default function RegisterWizard({
   const order = stepOrder(path, carried);
   const identityVerified = identity?.kycStatus === "verified";
   const canVerify = Boolean(identity && (identity.available.nationalId || identity.available.passport));
-  const storedProfile = profile?.complete === true && !editingProfile;
 
   const tin = normalizeTin(business.tin);
   const verdict = tinCheck?.tin === tin ? tinCheck.verdict : null;
@@ -556,8 +554,11 @@ export default function RegisterWizard({
       setErrors({});
       setFormError("");
       void (async () => {
-        const res = await fetchIdentity();
+        // Verifying rewrote the stored profile (name, birth date, ID), so the
+        // one loaded with the page is stale: editing it would send the old name.
+        const [res, prof] = await Promise.all([fetchIdentity(), fetchMyProfile()]);
         if (res.status === "ok") setIdentity(res.data);
+        if (prof.status === "ok") setProfile(prof.data);
         // Whether this ID is one of the directors is RRA's answer to the TIN
         // ASKED BY A VERIFIED CALLER, so the TIN is asked again now.
         if (tinCheck && /^\d{9}$/.test(tinCheck.tin)) {
