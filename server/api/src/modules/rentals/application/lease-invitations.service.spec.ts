@@ -137,6 +137,7 @@ function harness(opts: Opts = {}) {
     revokeInvitation: jest.fn(async (_tx: unknown, id: string) => record('revoke')(id)),
     touchInvitation: jest.fn(async (_tx: unknown, id: string) => record('touch')(id)),
     markAccepted: jest.fn(async (_tx: unknown, id: string, userId: string) => record('accepted')(id, userId)),
+    nameUserIfNameless: jest.fn(async () => undefined),
     linkTenant: jest.fn(async (_tx: unknown, tenantId: string, userId: string) => (record('link')(tenantId, userId), opts.linked ?? true)),
     accountEmail: jest.fn(async () => 'aimee.account@example.rw'),
   };
@@ -243,6 +244,8 @@ describe('LeaseInvitationsService.accept', () => {
     expect(h.calls.event![0]![0]).toMatchObject({ kind: 'invitation_accepted', actorRole: 'tenant', actorUserId: TENANT_USER });
     expect(h.calls.audit![0]![0]).toMatchObject({ subjectType: 'tenant', eventType: 'tenant.account_linked' });
     expect(h.tenancies.detail).toHaveBeenCalledWith({ leaseId: LEASE, tenantId: 'tenant', userId: TENANT_USER, workspaceId: WS });
+    // A nameless account takes the name the landlord typed on the tenant record.
+    expect(h.signing.nameUserIfNameless).toHaveBeenCalledWith(expect.anything(), TENANT_USER, expect.any(String));
   });
 
   it('refuses another email, naming the address partly hidden', async () => {

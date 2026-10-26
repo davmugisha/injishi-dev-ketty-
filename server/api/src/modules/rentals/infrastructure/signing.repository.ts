@@ -322,4 +322,17 @@ export class SigningRepository {
       .returning({ id: tenants.id });
     return rows.length > 0;
   }
+
+  /**
+   * Give a nameless account the tenant record's full name (the landlord typed it on the lease), so the
+   * tenant is not greeted by their email's first part. A name the person set themselves is never touched.
+   */
+  async nameUserIfNameless(tx: DbOrTx, userId: string, fullName: string): Promise<void> {
+    const name = fullName.trim();
+    if (!name) return;
+    await tx
+      .update(users)
+      .set({ name, updatedAt: new Date() })
+      .where(and(eq(users.id, userId), or(isNull(users.name), sql`btrim(${users.name}) = ''`)));
+  }
 }

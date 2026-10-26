@@ -332,6 +332,7 @@ export class LeaseInvitationsService {
           });
         }
         await this.signing.markAccepted(tx, inv.id, user.id);
+        await this.signing.nameUserIfNameless(tx, user.id, record.tenant.fullName);
         await this.events.write(tx, {
           leaseId: record.lease.id,
           workspaceId: record.lease.workspaceId,
