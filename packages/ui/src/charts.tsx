@@ -503,6 +503,50 @@ function fromFirstReal<T extends Record<K, number>, K extends keyof T>(
 /** A dot on every point only when a series is too short to draw a line. */
 const lonelyDot = (real: number, color: string) => (real <= 1 ? { r: 3.5, strokeWidth: 0, fill: color } : false);
 
+/**
+ * One month of figures as bars instead of a line: with a single month of data a chart is one dot, so the
+ * month reads as labelled amounts against the largest, the honest picture until a second month arrives.
+ */
+function MonthBars({
+  month,
+  rows,
+  note,
+}: {
+  month: string;
+  rows: { label: string; value: number; color: string; dashed?: boolean }[];
+  note?: ReactNode;
+}) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  return (
+    <div className="flex min-h-48 flex-col justify-center gap-4 px-1 py-4">
+      <span className="text-xs text-muted">{monthLabel(month, true)}, the first month with figures</span>
+      {rows.map((r) => (
+        <div key={r.label} className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="flex items-center gap-2 text-sm">
+              <span aria-hidden className="size-2 rounded-full" style={{ background: r.color }} />
+              {r.label}
+            </span>
+            <span className="text-lg font-semibold tabular">{formatMoney(r.value)}</span>
+          </div>
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-default">
+            <div
+              className="h-full rounded-full transition-[width] duration-500"
+              style={{
+                width: `${Math.max(r.value > 0 ? 2 : 0, (r.value / max) * 100)}%`,
+                background: r.dashed
+                  ? `repeating-linear-gradient(90deg, ${r.color} 0 6px, transparent 6px 10px)`
+                  : r.color,
+              }}
+            />
+          </div>
+        </div>
+      ))}
+      {note ? <p className="text-xs text-muted">{note}</p> : null}
+    </div>
+  );
+}
+
 function Gradient({ id, color }: { id: string; color: string }) {
   return (
     <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
@@ -573,53 +617,69 @@ export function CollectedVsExpectedArea({
         rows: shown.map((d) => [monthLabel(d.month, true), bare(d.expected), bare(d.collected)]),
       }}
     >
-      <AreaChart data={rows} height={height} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-        <defs>
-          <Gradient id={gradient} color={CHART_COLOR.cat(1)} />
-        </defs>
-        <AreaChart.Grid vertical={false} />
-        <AreaChart.XAxis dataKey="label" {...axisProps} tickMargin={8} padding={{ left: 12, right: 12 }} />
-        <AreaChart.YAxis {...axisProps} width={44} tickFormatter={(v: number) => formatMoneyAxis(v)} />
-        <AreaChart.Tooltip
-          cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
-          content={
-            <AreaChart.TooltipContent
-              {...moneyTooltip((l) => {
-                const hit = rows.find((r) => r.label === l);
-                if (!hit) return l;
-                const pct =
-                  hit.expected && hit.expected > 0
-                    ? ` · ${Math.round(((hit.collected ?? 0) / hit.expected) * 100)}%`
-                    : "";
-                return `${monthLabel(hit.month, true)}${pct}`;
-              })}
-            />
-          }
+      {real <= 1 && rows.length > 0 ? (
+        <MonthBars
+          month={rows[rows.length - 1].month}
+          rows={[
+            {
+              label: "Expected",
+              value: rows[rows.length - 1].expected ?? 0,
+              color: "var(--chart-other)",
+              dashed: true,
+            },
+            { label: "Collected", value: rows[rows.length - 1].collected ?? 0, color: CHART_COLOR.cat(1) },
+          ]}
+          note="The line appears once a second month has figures."
         />
-        <AreaChart.Area
-          dataKey="expected"
-          name="Expected"
-          type="monotone"
-          stroke="var(--chart-other)"
-          strokeWidth={1.5}
-          strokeDasharray="4 4"
-          fill="transparent"
-          dot={lonelyDot(real, "var(--chart-other)")}
-          activeDot={{ r: 3, strokeWidth: 2, stroke: "var(--surface)" }}
-          isAnimationActive={motion}
-        />
-        <AreaChart.Area
-          dataKey="collected"
-          name="Collected"
-          type="monotone"
-          stroke={CHART_COLOR.cat(1)}
-          strokeWidth={2}
-          fill={`url(#${gradient})`}
-          dot={lonelyDot(real, CHART_COLOR.cat(1))}
-          activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
-          isAnimationActive={motion}
-        />
-      </AreaChart>
+      ) : (
+        <AreaChart data={rows} height={height} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <defs>
+            <Gradient id={gradient} color={CHART_COLOR.cat(1)} />
+          </defs>
+          <AreaChart.Grid vertical={false} />
+          <AreaChart.XAxis dataKey="label" {...axisProps} tickMargin={8} padding={{ left: 12, right: 12 }} />
+          <AreaChart.YAxis {...axisProps} width={44} tickFormatter={(v: number) => formatMoneyAxis(v)} />
+          <AreaChart.Tooltip
+            cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+            content={
+              <AreaChart.TooltipContent
+                {...moneyTooltip((l) => {
+                  const hit = rows.find((r) => r.label === l);
+                  if (!hit) return l;
+                  const pct =
+                    hit.expected && hit.expected > 0
+                      ? ` · ${Math.round(((hit.collected ?? 0) / hit.expected) * 100)}%`
+                      : "";
+                  return `${monthLabel(hit.month, true)}${pct}`;
+                })}
+              />
+            }
+          />
+          <AreaChart.Area
+            dataKey="expected"
+            name="Expected"
+            type="monotone"
+            stroke="var(--chart-other)"
+            strokeWidth={1.5}
+            strokeDasharray="4 4"
+            fill="transparent"
+            dot={lonelyDot(real, "var(--chart-other)")}
+            activeDot={{ r: 3, strokeWidth: 2, stroke: "var(--surface)" }}
+            isAnimationActive={motion}
+          />
+          <AreaChart.Area
+            dataKey="collected"
+            name="Collected"
+            type="monotone"
+            stroke={CHART_COLOR.cat(1)}
+            strokeWidth={2}
+            fill={`url(#${gradient})`}
+            dot={lonelyDot(real, CHART_COLOR.cat(1))}
+            activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
+            isAnimationActive={motion}
+          />
+        </AreaChart>
+      )}
     </ChartCard>
   );
 }
@@ -690,49 +750,60 @@ export function CashFlowArea({
         ]),
       }}
     >
-      <AreaChart data={rows} height={height} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-        <defs>
-          <Gradient id={inId} color={CHART_COLOR.cat(1)} />
-          <Gradient id={outId} color={CHART_COLOR.cat(3)} />
-        </defs>
-        <AreaChart.Grid vertical={false} />
-        <AreaChart.XAxis dataKey="label" {...axisProps} tickMargin={8} padding={{ left: 12, right: 12 }} />
-        <AreaChart.YAxis {...axisProps} width={44} tickFormatter={(v: number) => formatMoneyAxis(v)} />
-        <AreaChart.Tooltip
-          cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
-          content={
-            <AreaChart.TooltipContent
-              {...moneyTooltip((l) => {
-                const hit = rows.find((r) => r.label === l);
-                if (!hit) return l;
-                return `${monthLabel(hit.month, true)} · net ${formatMoney((hit.moneyIn ?? 0) - (hit.moneyOut ?? 0), { signed: true })}`;
-              })}
-            />
-          }
+      {real <= 1 && rows.length > 0 ? (
+        <MonthBars
+          month={rows[rows.length - 1].month}
+          rows={[
+            { label: "Money in", value: rows[rows.length - 1].moneyIn ?? 0, color: CHART_COLOR.cat(1) },
+            { label: "Money out", value: rows[rows.length - 1].moneyOut ?? 0, color: CHART_COLOR.cat(3) },
+          ]}
+          note="The line appears once a second month has figures."
         />
-        <AreaChart.Area
-          dataKey="moneyIn"
-          name="Money in"
-          type="monotone"
-          stroke={CHART_COLOR.cat(1)}
-          strokeWidth={2}
-          fill={`url(#${inId})`}
-          dot={lonelyDot(real, CHART_COLOR.cat(1))}
-          activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
-          isAnimationActive={motion}
-        />
-        <AreaChart.Area
-          dataKey="moneyOut"
-          name="Money out"
-          type="monotone"
-          stroke={CHART_COLOR.cat(3)}
-          strokeWidth={2}
-          fill={`url(#${outId})`}
-          dot={lonelyDot(real, CHART_COLOR.cat(3))}
-          activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
-          isAnimationActive={motion}
-        />
-      </AreaChart>
+      ) : (
+        <AreaChart data={rows} height={height} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <defs>
+            <Gradient id={inId} color={CHART_COLOR.cat(1)} />
+            <Gradient id={outId} color={CHART_COLOR.cat(3)} />
+          </defs>
+          <AreaChart.Grid vertical={false} />
+          <AreaChart.XAxis dataKey="label" {...axisProps} tickMargin={8} padding={{ left: 12, right: 12 }} />
+          <AreaChart.YAxis {...axisProps} width={44} tickFormatter={(v: number) => formatMoneyAxis(v)} />
+          <AreaChart.Tooltip
+            cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+            content={
+              <AreaChart.TooltipContent
+                {...moneyTooltip((l) => {
+                  const hit = rows.find((r) => r.label === l);
+                  if (!hit) return l;
+                  return `${monthLabel(hit.month, true)} · net ${formatMoney((hit.moneyIn ?? 0) - (hit.moneyOut ?? 0), { signed: true })}`;
+                })}
+              />
+            }
+          />
+          <AreaChart.Area
+            dataKey="moneyIn"
+            name="Money in"
+            type="monotone"
+            stroke={CHART_COLOR.cat(1)}
+            strokeWidth={2}
+            fill={`url(#${inId})`}
+            dot={lonelyDot(real, CHART_COLOR.cat(1))}
+            activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
+            isAnimationActive={motion}
+          />
+          <AreaChart.Area
+            dataKey="moneyOut"
+            name="Money out"
+            type="monotone"
+            stroke={CHART_COLOR.cat(3)}
+            strokeWidth={2}
+            fill={`url(#${outId})`}
+            dot={lonelyDot(real, CHART_COLOR.cat(3))}
+            activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
+            isAnimationActive={motion}
+          />
+        </AreaChart>
+      )}
     </ChartCard>
   );
 }
