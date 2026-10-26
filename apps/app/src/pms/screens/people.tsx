@@ -87,5 +87,5 @@ export function People({ lens }: { lens: string }) {
         <Team landlord={landlord} />
       )}
     </LensPage>
-  );
+  );  
 }
