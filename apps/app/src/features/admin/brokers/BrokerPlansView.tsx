@@ -178,6 +178,7 @@ export function BrokerPlansView({
         tabs={
           <FilterTabs
             label="Subscriptions by status"
+            name="Status"
             selectedKey={tab}
             onSelectionChange={(k) => setTab(k as Tab)}
             tabs={[

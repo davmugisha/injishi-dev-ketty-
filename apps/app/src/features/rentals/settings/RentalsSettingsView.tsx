@@ -70,6 +70,7 @@ export function RentalsSettingsView({
       <PageHeader title="Settings" />
       <FilterTabs
         label="Settings"
+        variant="tabs"
         tabs={SETTINGS_TABS.filter((id) => id !== "team" || can.team).map((id) => ({ id, label: LABEL[id] }))}
         selectedKey={tab}
         onSelectionChange={(key) => router.replace(`${pathname}?tab=${key}`, { scroll: false })}

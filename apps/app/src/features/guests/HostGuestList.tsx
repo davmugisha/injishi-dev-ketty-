@@ -163,6 +163,7 @@ export function HostGuestList({
         tabs={
           <FilterTabs
             label="Guests by stay"
+            name="Show"
             tabs={TABS.filter(
               (t) => t.id !== "cancelled" || (list.counts.cancelled ?? 0) > 0 || tab === "cancelled",
             ).map((t) => ({ ...t, count: list.counts[t.id] ?? 0 }))}

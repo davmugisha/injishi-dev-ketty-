@@ -298,6 +298,7 @@ export function UnitsView({
         tabs={
           <FilterTabs
             label="Units by status"
+            name="Status"
             tabs={TABS.map((t) => ({ ...t, count: list.counts[t.id] ?? 0 }))}
             selectedKey={query.tab === "retired" ? "all" : query.tab}
             onSelectionChange={(key) => go({ tab: key as UnitTab })}

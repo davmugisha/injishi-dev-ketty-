@@ -653,6 +653,7 @@ function ListsSection({ today }: { today: string }) {
         <div className="flex flex-col gap-3">
           <FilterTabs
             label="Lease status"
+            name="Stage"
             tabs={TABS.map((t) => ({
               ...t,
               count: t.id === "all" ? all.length : all.filter((l) => l.status === t.id).length,

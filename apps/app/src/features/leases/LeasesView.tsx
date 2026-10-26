@@ -186,6 +186,7 @@ export function LeasesView({
         tabs={
           <FilterTabs
             label="Leases by stage"
+            name="Stage"
             tabs={tabs}
             selectedKey={query.tab}
             onSelectionChange={(key) => go({ tab: key as LeaseListTab })}

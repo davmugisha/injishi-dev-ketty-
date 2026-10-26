@@ -13,11 +13,12 @@ import {
   RangeCalendar,
   Select,
 } from "@heroui/react";
-import { Segment } from "@heroui-pro/react";
+
 import { type CalendarDate, parseDate } from "@internationalized/date";
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { IconAction } from "./buttons.tsx";
 import { formatDay } from "./date.tsx";
+import { Icon } from "./icon.tsx";
 import {
   addMonths,
   clampTo,
@@ -316,31 +317,20 @@ export function PeriodPicker({
 
   return (
     <fieldset aria-label={label} className={cx("flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2", className)}>
-      <Segment
-        aria-label={label}
-        size="sm"
-        selectedKey={value.preset}
-        onSelectionChange={(k) => choose(String(k))}
-        className="hidden w-fit md:inline-flex"
-      >
-        {choices.map((c) => (
-          <Segment.Item key={c.id} id={c.id}>
-            {c.label}
-          </Segment.Item>
-        ))}
-      </Segment>
+      {/* A filter like the others in the row: what it sets, then the choice; the days show beside it. */}
       <Select
         aria-label={label}
         value={value.preset}
         onChange={(k) => (k != null ? choose(String(k)) : undefined)}
-        className="w-full md:hidden"
+        className="w-auto min-w-0 shrink-0"
       >
-        <Select.Trigger>
-          {/* Only the name: the days show beside the control. */}
-          <Select.Value>{({ selectedText }) => selectedText}</Select.Value>
+        <Select.Trigger className="h-9 gap-2 rounded-lg border border-separator bg-surface px-3 shadow-none">
+          <Icon name="Calendar" className="size-4 shrink-0 text-muted" />
+          <span className="shrink-0 text-sm text-muted">Period</span>
+          <Select.Value className="truncate text-sm font-medium">{({ selectedText }) => selectedText}</Select.Value>
           <Select.Indicator />
         </Select.Trigger>
-        <Select.Popover>
+        <Select.Popover className="min-w-60">
           <ListBox>
             {choices.map((c) => {
               const days = c.id === CUSTOM ? null : presetPeriod(c.id, today);

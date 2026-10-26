@@ -89,6 +89,7 @@ export function EarningsView({ data, today }: { data: BrokerEarnings; today: str
         tabs={
           <FilterTabs
             label="Fees by status"
+            name="Status"
             tabs={[
               { id: "all", label: "All", count: data.fees.length },
               { id: "owed", label: "Owed", count: owed.length },

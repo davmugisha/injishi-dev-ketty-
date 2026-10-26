@@ -135,6 +135,7 @@ export function PlacementsView({ data }: { data: BrokerPlacementList }) {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <FilterTabs
           label="Placements by status"
+          name="Status"
           tabs={[
             { id: "open", label: "Open", count: open.length },
             { id: "leased", label: "Leased", count: leased.length },

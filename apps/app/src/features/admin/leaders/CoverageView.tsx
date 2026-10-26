@@ -92,6 +92,7 @@ export function CoverageView({ coverage, canAppoint }: { coverage: LeaderCoverag
           tabs={
             <FilterTabs
               label="Posts to fill"
+              name="Show"
               selectedKey={tab}
               onSelectionChange={(k) => setTab(k === "waiting" ? "waiting" : "all")}
               tabs={[

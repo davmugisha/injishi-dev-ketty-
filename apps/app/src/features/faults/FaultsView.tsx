@@ -230,6 +230,7 @@ export function FaultsView({
           query.view === "list" ? (
             <FilterTabs
               label="Faults by stage"
+              name="Stage"
               tabs={tabs}
               selectedKey={query.tab}
               onSelectionChange={(key) => go({ tab: key as FaultListTab })}

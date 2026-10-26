@@ -406,7 +406,7 @@ export function LeaseRecordView({
 
       <MoveOutCard lease={lease} today={today} can={{ manage: can.manage, settle: can.settle ?? false }} />
 
-      <FilterTabs label="Lease record" tabs={tabs} selectedKey={shownTab} onSelectionChange={goTab} />
+      <FilterTabs variant="tabs" label="Lease record" tabs={tabs} selectedKey={shownTab} onSelectionChange={goTab} />
 
       {shownTab === "overview" ? (
         <div className="grid min-w-0 gap-5 lg:grid-cols-3">

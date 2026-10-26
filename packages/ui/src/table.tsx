@@ -17,6 +17,7 @@ import { ActionBar, ListView, Segment } from "@heroui-pro/react";
 import { type ReactNode, useMemo, useState } from "react";
 import { IconAction } from "./buttons.tsx";
 import { formatNumber } from "./format.tsx";
+import { Icon, type IconKey } from "./icon.tsx";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -265,15 +266,19 @@ export interface FilterTab {
 }
 
 /**
- * The filter tabs of a list page, each with its count. Keeping the selected tab in the URL is the page's
- * job (`?tab=`). "tabs" for a list's status filter, "segment" for a compact switch of two to four views.
+ * The status filter of a list page, each choice with its count. Keeping the choice in the URL is the page's
+ * job (`?tab=`). "menu" (the default) is a filter: one dropdown that names what it filters and what is
+ * chosen ("Stage: Active 12"), so it sits in one row with the search and reads as a filter, not a page.
+ * "tabs" is for real sections of one record; "segment" for a compact switch of two to four views.
  */
 export function FilterTabs({
   label,
   tabs,
   selectedKey,
   onSelectionChange,
-  variant = "tabs",
+  variant = "menu",
+  name,
+  icon,
   className,
 }: {
   /** What the tabs filter, for screen readers ("Lease status"). */
@@ -281,9 +286,25 @@ export function FilterTabs({
   tabs: FilterTab[];
   selectedKey: string;
   onSelectionChange: (key: string) => void;
-  variant?: "tabs" | "segment";
+  variant?: "menu" | "tabs" | "segment";
+  /** The menu's visible name ("Stage"); @default "Show" */
+  name?: string;
+  icon?: IconKey;
   className?: string;
 }) {
+  if (variant === "menu") {
+    return (
+      <FilterMenu
+        label={label}
+        name={name ?? "Show"}
+        icon={icon}
+        options={tabs}
+        value={selectedKey}
+        onChange={onSelectionChange}
+        className={className}
+      />
+    );
+  }
   if (variant === "segment") {
     // As the feature screens write it: the count after the words ("Money 3").
     return (
@@ -332,6 +353,64 @@ export function FilterTabs({
   );
 }
 
+/**
+ * A filter of a list: a field-like button that says what it filters and what is chosen ("Stage  Active"),
+ * opening a list of the choices with their counts and a tick on the chosen one. Set (anything but the
+ * first choice) it takes the accent tint, so a filtered list is plain to see.
+ */
+export function FilterMenu({
+  label,
+  name,
+  icon = "Funnel",
+  options,
+  value,
+  onChange,
+  className,
+}: {
+  /** What it filters, for screen readers ("Lease stage"). */
+  label: string;
+  /** The visible name before the choice ("Stage"). */
+  name: string;
+  icon?: IconKey;
+  options: readonly { id: string; label: string; count?: number }[];
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  const isSet = options.length > 0 && value !== options[0]?.id;
+  return (
+    <Select
+      aria-label={label}
+      value={value}
+      onChange={(k) => (k != null ? onChange(String(k)) : undefined)}
+      className={cx("w-auto min-w-0 shrink-0", className)}
+    >
+      <Select.Trigger
+        className={cx(
+          "h-9 gap-2 rounded-lg border px-3 shadow-none",
+          isSet ? "border-accent/50 bg-accent-soft text-accent-soft-foreground" : "border-separator bg-surface",
+        )}
+      >
+        <Icon name={icon} className={cx("size-4 shrink-0", isSet ? "text-accent" : "text-muted")} />
+        <span className={cx("shrink-0 text-sm", isSet ? "text-accent" : "text-muted")}>{name}</span>
+        <Select.Value className="truncate text-sm font-medium" />
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover className="min-w-56">
+        <ListBox>
+          {options.map((o) => (
+            <ListBox.Item key={o.id} id={o.id} textValue={o.label} className="gap-3">
+              <span className="flex-1 truncate">{o.label}</span>
+              {o.count == null ? null : <span className="text-xs text-muted tabular">{formatNumber(o.count)}</span>}
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </Select.Popover>
+    </Select>
+  );
+}
+
 /** The search box of a list page. Keeping the query in the URL is the page's job. */
 export function SearchBar({
   label,
@@ -371,16 +450,15 @@ export function SearchBar({
 }
 
 /**
- * The one row above a list: filter tabs on the left, the search and compact filters on the right, one
- * line under both. On a phone the search and filters come first, the tabs (scrolling sideways) under
- * them, so the selected tab's underline always sits on the line.
+ * The one row above a list: the filters on the left (the status menu first, then any other filter), the
+ * search at the end. It wraps on a narrow screen, the search taking the full width on a phone.
  */
 export function ListToolbar({
   tabs,
   children,
   className,
 }: {
-  /** A `FilterTabs` (variant "tabs"). */
+  /** The status filter: a `FilterTabs` (its "menu" variant). */
   tabs?: ReactNode;
   /** `SearchBar`, `FilterSelect`s, a view switch: in reading order. */
   children?: ReactNode;
@@ -389,17 +467,12 @@ export function ListToolbar({
   return (
     <div
       className={cx(
-        "ij-toolbar flex min-w-0 flex-col-reverse gap-2 md:flex-row md:items-end md:justify-between md:gap-4",
-        tabs ? "md:border-b md:border-separator" : "md:justify-end",
+        "ij-toolbar flex min-w-0 flex-wrap items-center gap-2 [&>.search-field]:w-full sm:[&>.search-field]:ml-auto sm:[&>.search-field]:w-64",
         className,
       )}
     >
-      {tabs ? <div className="min-w-0 max-w-full border-b border-separator md:border-b-0">{tabs}</div> : null}
-      {children ? (
-        <div className="flex min-w-0 items-center gap-2 md:shrink-0 md:pb-1.5 [&>.search-field]:flex-1 md:[&>.search-field]:flex-none">
-          {children}
-        </div>
-      ) : null}
+      {tabs}
+      {children}
     </div>
   );
 }

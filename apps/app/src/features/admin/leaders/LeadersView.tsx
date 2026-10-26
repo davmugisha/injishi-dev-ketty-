@@ -265,6 +265,7 @@ export function LeadersView({
         tabs={
           <FilterTabs
             label="Appointments"
+            name="Show"
             selectedKey={kind}
             onSelectionChange={(k) => go({ kind: k === "all" ? null : k, role: null })}
             tabs={KIND_TABS.map((t) => ({

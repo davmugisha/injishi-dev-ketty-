@@ -273,6 +273,7 @@ export function ExpensesView({
         tabs={
           <FilterTabs
             label="Expenses by kind"
+            name="Kind"
             tabs={tabs.map((t) => ({ ...t, count: count(t.id) }))}
             selectedKey={show}
             onSelectionChange={(key) => go({ show: key as ExpenseShow })}

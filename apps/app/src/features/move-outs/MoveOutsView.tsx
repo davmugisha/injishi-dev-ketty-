@@ -232,6 +232,7 @@ export function MoveOutsView({
         tabs={
           <FilterTabs
             label="Move-outs by stage"
+            name="Stage"
             tabs={tabs}
             selectedKey={list.tab}
             onSelectionChange={(k) => go(k as MoveOutTab, search)}

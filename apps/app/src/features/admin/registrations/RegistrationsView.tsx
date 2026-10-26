@@ -246,6 +246,7 @@ export function RegistrationsView({ orgs, total }: { orgs: AdminOrgRow[]; total:
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <FilterTabs
             label="Registrations by stage"
+            name="Stage"
             selectedKey={tab}
             onSelectionChange={(k) => setTab(k as Tab)}
             tabs={TABS.map((t) => ({ id: t, label: TAB_LABEL[t], count: count(t) }))}

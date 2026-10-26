@@ -189,6 +189,8 @@ export function TenantRentView({
           tabs={
             <FilterTabs
               label="Show"
+              name="Show"
+              icon="ListUl"
               selectedKey={tab}
               onSelectionChange={(k) => setTab(k === "charges" ? "charges" : "payments")}
               tabs={[

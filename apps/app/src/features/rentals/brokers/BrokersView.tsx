@@ -179,6 +179,7 @@ export function BrokersView({ list, show, q }: { list: LandlordPlacementList; sh
         tabs={
           <FilterTabs
             label="Placements"
+            name="Status"
             tabs={TABS.map((t) => ({ ...t, count: list.placements.filter((p) => inTab(p, t.id)).length }))}
             selectedKey={show}
             onSelectionChange={(key) => go({ show: key as BrokersShow })}
