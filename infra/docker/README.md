@@ -106,6 +106,51 @@ the same network can open the app (`--lan <address>` picks another).
 
 Every seed refuses a database without the sample marker.
 
+## A second stack, in a git worktree
+
+A worktree of `injishi` (the mobile one is `Injishi-workspace/injishi-mobile`,
+mobile spec 0001) can run its own stack while the main checkout's runs. Its
+`server/api/.env` is a copy of the main one with every port moved, plus the
+settings in the "second local stack" section of `server/api/.env.example`:
+
+| Setting | Main checkout (default) | Mobile worktree |
+|---|---|---|
+| `INJISHI_COMPOSE_PROJECT` | unset (`docker`) | `injishi-mobile` |
+| `DATABASE_URL` port, `REDIS_PORT` | 5432, 6379 | 5532, 6479 |
+| `INJISHI_MINIO_PORT`, `INJISHI_MINIO_CONSOLE_PORT` (and the `STORAGE_S3_*` endpoints) | 9000, 9001 | 9100, 9101 |
+| `SMTP_URL` port, `INJISHI_MAILPIT_PORT` | 1025, 8025 | 1125, 8125 |
+| `PORT` (and `BETTER_AUTH_URL`), `INJISHI_METRO_PORT` | 8000, 8081 | 8100, 8181 |
+| `INJISHI_ENVIRONMENT`, `INJISHI_SAMPLE_DATA` | unset, unset (`on`) | `production`, `off` |
+
+The project name gives it its own containers and volumes. A worktree that sets
+no project is refused, because compose would otherwise run it as the main
+checkout's `docker` project, recreate those containers on its ports and share
+their data. With `INJISHI_SAMPLE_DATA=off` the stack only migrates: the
+database is never marked sample or seeded, and the API runs as production, so
+codes are random and land in that stack's Mailpit. In a second stack,
+`pnpm dev:all` starts the API, the worker and Metro only; web and app run from
+the main checkout, because their ports are fixed.
+
+## Why the API is not in this compose file
+
+The file used to have `api` and `web` services. They built the production
+images and could not work for local development:
+
+- The image sets `NODE_ENV=production`. Under production nobody can sign in
+  locally: `OTP_DEBUG_LOG` is forced off and the process runs as production,
+  with no fixed code.
+  `SmsModule` also refuses to boot on its mock adapter.
+- Setting `NODE_ENV=development` instead crashes the logger. `pino-pretty` is
+  a devDependency, and the image leaves devDependencies out.
+- The `api` service published port 4000, but the API listens on `PORT` (8000).
+- It passed `SESSION_SECRET`, which the API never reads. The API reads
+  `BETTER_AUTH_SECRET` and `COOKIE_SECRET`.
+- It had no Redis.
+
+So local development runs the API on your machine, with hot reload, against
+`db` and `redis` here. The stack built from the images is
+`docker-compose.staging.yml`.
+
 ## Troubleshooting
 
 - **`password authentication failed` during migrate.** The data volume was made

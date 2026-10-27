@@ -64,6 +64,9 @@ x-api-env: &api-env
   AUTH_COOKIE_DOMAIN: ""
   # The app's origin, which its server side calls send as their Origin.
   CORS_ORIGINS: https://${APP_HOST:-app-staging.injishi.com}
+  # The phone app's internal test build (`injishi-preview://`) signs in here,
+  # and only here: production lists no extra scheme (mobile spec 0001, AC-7).
+  MOBILE_EXTRA_SCHEMES: injishi-preview
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
   # The support assistant (ADR-061). Off unless the host env file turns it on. `live` needs ANTHROPIC_API_KEY from the host env file, never from this file, and the API refuses to boot on `live` without it.

@@ -40,6 +40,12 @@ fetchRetries: 6
 fetchTimeout: 300000
 networkConcurrency: 8
 
+# The same store folder names on every machine. pnpm shortens long names to 60 characters on Windows
+# and 120 elsewhere, and the Expo app's runtime version (its fingerprint, mobile spec 0001 AC-9) hashes
+# those paths, so without this a build made on EAS's Linux machines refuses updates published from
+# Windows. 60 is Windows' own default, so nothing changes there.
+virtualStoreDirMaxLength: 60
+
 # Only these packages may run install scripts.
 # @heroui-pro/react downloads its licensed components in postinstall,
 # authenticated with HEROUI_AUTH_TOKEN (see .env.example). msgpackr-extract

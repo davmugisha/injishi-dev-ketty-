@@ -28,15 +28,22 @@
  *   5. starts each app through its own package script, so how an app runs is
  *      still defined once, in its package.json, and prefixes every line an app
  *      prints with its name;
- *   6. says where everything is once it answers, with a QR code for Expo Go.
+ *   6. says where everything is once it answers, with a QR code that opens the
+ *      app's development build (mobile spec 0001) on this Metro.
  *
- * MOBILE STARTS FOR EXPO GO ON A PHONE (its `dev` script, `expo start`). A phone cannot reach
+ * MOBILE STARTS FOR A PHONE (its `dev` script). A phone cannot reach
  * `localhost`, which is the phone itself, so Metro advertises this PC's LAN
  * address and the bundle inlines the API at that address too:
  * EXPO_PUBLIC_API_URL from the environment beats the one in apps/mobile/.env.
  * Hyper-V, WSL and other virtual adapters are passed over, because they hold
  * private addresses too and a phone handed one never connects. The address is
  * read once, at start, so after the PC changes network, restart this.
+ *
+ * A SECOND STACK (a git worktree whose server/api/.env sets
+ * INJISHI_COMPOSE_PROJECT, mobile spec 0001) takes every port from that .env,
+ * Metro's included, and starts the API, the worker and Metro only. web and app
+ * keep fixed ports that sign in, CORS and each other point at, so they run from
+ * the main checkout alone.
  *
  * Plain Node, no dependencies, like dev-stack.mjs.
  */
@@ -67,7 +74,6 @@ const COLOR = process.env.FORCE_COLOR
   ? process.env.FORCE_COLOR !== '0'
   : !('NO_COLOR' in process.env) && Boolean(process.stdout.isTTY);
 
-const METRO_PORT = 8081;
 const DOCKER_START_TIMEOUT_S = 240;
 /** Metro's first start walks the whole node_modules tree: minutes, not seconds. */
 const READY_TIMEOUT_MS = 10 * 60_000;
@@ -99,7 +105,7 @@ function usage() {
     '',
     '  --skip mobile,app     everything except these',
     '  --only web,api        just these',
-    "  --lan 192.168.1.68    the address your phone reaches this PC on (Expo Go).",
+    "  --lan 192.168.1.68    the address your phone reaches this PC on.",
     "                        Default: this PC's Wi-Fi address",
     '',
     'Ctrl+C stops the apps. Docker keeps running; `pnpm dev:stack:down` stops it.',
@@ -400,7 +406,10 @@ function startApp(app, ctx, width) {
     env.REACT_NATIVE_PACKAGER_HOSTNAME = ctx.lan.address;
   }
 
-  const cmd = pnpmCommand(['--filter', app.pkg, 'run', app.script]);
+  // Metro's port is passed rather than left to Expo, so it is the one this
+  // waits on and advertises, a second stack's included.
+  const extra = app.name === 'mobile' ? ['--port', String(app.port)] : [];
+  const cmd = pnpmCommand(['--filter', app.pkg, 'run', app.script, ...extra]);
   const child = spawn(cmd.file, cmd.args, {
     cwd: ROOT,
     env,
@@ -455,7 +464,7 @@ async function httpText(url) {
 function probe(app, ctx) {
   if (app.name === 'api') return httpOk(`http://127.0.0.1:${ctx.apiPort}/api/v1/health`);
   if (app.name === 'mobile') {
-    return httpText(`http://127.0.0.1:${METRO_PORT}/status`).then((t) => t.includes('packager-status:running'));
+    return httpText(`http://127.0.0.1:${app.port}/status`).then((t) => t.includes('packager-status:running'));
   }
   if (app.name === 'worker') return Promise.resolve(true); // no port: running is all there is to see
   return portTaken(app.port);
@@ -490,8 +499,8 @@ function printServerSummary(servers, results, ctx) {
     .filter((i) => i !== -1)
     .map((i) => `  ${servers[i].name.padEnd(8)}${stateOf(servers[i], results[i]) ?? where[servers[i].name]}`);
   if (ctx.stackStarted) {
-    rows.push('  mailpit http://localhost:8025   every mail the API sends');
-    if (ctx.minio) rows.push('  minio   http://localhost:9001   object storage console');
+    rows.push(`  mailpit http://localhost:${ctx.ports.mailpit}   every mail the API sends`);
+    if (ctx.minio) rows.push(`  minio   http://localhost:${ctx.ports.minioConsole}   object storage console`);
   }
 
   const rule = paint(90, '─'.repeat(72));
@@ -525,16 +534,20 @@ function printMobileSummary(mobile, ready, ctx) {
     return;
   }
   const host = ctx.lan?.address ?? 'localhost';
-  const url = `exp://${host}:${METRO_PORT}`;
-  const lines = ['', rule, paint(1, '  mobile is ready for Expo Go'), '', `  ${url}`];
-  if (COLOR) lines.push('', ...qrLines(url));
+  const metro = `http://${host}:${mobile.port}`;
+  // The development build's own scheme (apps/mobile/app.config.ts), so only "Injishi Dev" answers the
+  // link, never a preview or store build installed beside it.
+  const link = `injishi-dev://expo-development-client/?url=${encodeURIComponent(metro)}`;
+  const lines = ['', rule, paint(1, '  mobile is ready for the development build (Injishi Dev)'), '', `  ${metro}`];
+  if (COLOR) lines.push('', ...qrLines(link));
   lines.push(
     '',
     ctx.lan
-      ? `  Scan it with the phone's camera (iOS) or in Expo Go (Android). The phone must be\n` +
+      ? `  Scan it with the phone's camera, or type the address in Injishi Dev. The phone must be\n` +
           `  on the same network as this PC (${ctx.lan.name}, ${ctx.lan.address}).`
       : '  No LAN address was found, so only an emulator or simulator on this PC can\n' +
           '  reach it. Pass --lan <address> for a phone.',
+    `  Expo Go still opens exp://${host}:${mobile.port} until the development build replaces it.`,
     '  The first open builds the bundle; that can take two minutes.',
     rule,
     '',
@@ -622,17 +635,41 @@ async function main() {
     return;
   }
 
-  const apps = APPS.filter((a) => (opts.only ? opts.only.has(a.name) : true) && !opts.skip.has(a.name)).map(
-    (a) => ({ ...a }),
-  );
-  if (!apps.length) throw new StackError('Nothing to start: --only and --skip left no app.');
-
   const api = resolveApiDir();
   const cfg = readApiEnv(api.dir, api.rel);
-  const apiPort = Number(cfg.env.PORT?.trim() || 8000);
+
+  // A second stack never runs the apps whose ports are fixed (`dir` names a
+  // Next app). Left out by default; asked for by name, refused.
+  const secondStack = Boolean(cfg.composeProject);
+  const fixedPortApps = APPS.filter((a) => a.dir).map((a) => a.name);
+  if (secondStack) {
+    const asked = fixedPortApps.filter((name) => opts.only?.has(name));
+    if (asked.length) {
+      throw new StackError(
+        `${cfg.envRel} makes this a second stack (INJISHI_COMPOSE_PROJECT=${cfg.composeProject}),\n` +
+          `and ${asked.join(' and ')} run from the main checkout only: their ports are fixed, and\n` +
+          'sign in, CORS and the other apps point at them.',
+      );
+    }
+  }
+
+  const apps = APPS.filter(
+    (a) =>
+      (opts.only ? opts.only.has(a.name) : true) &&
+      !opts.skip.has(a.name) &&
+      !(secondStack && fixedPortApps.includes(a.name)),
+  ).map((a) => ({ ...a }));
+  if (!apps.length) throw new StackError('Nothing to start: --only and --skip left no app.');
+  if (secondStack && !opts.only) {
+    console.log(
+      `Second stack (compose project ${cfg.composeProject}): starting the API, the worker and Metro only.`,
+    );
+  }
+
+  const apiPort = cfg.ports.api;
   for (const app of apps) {
     if (app.name === 'api') app.port = apiPort;
-    else if (app.name === 'mobile') app.port = METRO_PORT;
+    else if (app.name === 'mobile') app.port = cfg.ports.metro;
     else if (app.dir) app.port = nextDevPort(app);
   }
 
@@ -659,7 +696,7 @@ async function main() {
   }
 
   const minio = usesMinio(cfg);
-  const ctx = { apps, apiPort, lan, stackStarted, minio, fixedCode: !isProductionProcess(cfg) };
+  const ctx = { apps, apiPort, ports: cfg.ports, lan, stackStarted, minio, fixedCode: !isProductionProcess(cfg) };
   const width = Math.max(...apps.map((a) => a.name.length));
   console.log(
     `\n→ Starting ${apps.map((a) => a.name).join(', ')}. Ctrl+C stops ${apps.length === 1 ? 'it' : 'them all'}.\n`,
