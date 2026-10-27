@@ -1218,6 +1218,10 @@ exports.MyProfile = zod_1.z.object({
  */
 exports.CreateBrokerRegistrationRequest = zod_1.z.object({
     personal: exports.PersonalDetails.optional(),
+    /** The district the broker works in: the free plan shows the homes there (2026-10-25). */
+    homeDistrictId: zod_1.z.number({ required_error: "Choose the district you work in.", invalid_type_error: "Choose the district you work in." }).int().positive("Choose the district you work in."),
+    /** The registration fee, paid first by mobile money (`POST /registrations/broker/fee`). */
+    feePaymentId: primitives_1.Uuid,
 });
 /** A broker's own status. Two values, and no government pipeline (F-R09 §8). */
 exports.BrokerStatus = zod_1.z.enum(["active", "suspended"]);

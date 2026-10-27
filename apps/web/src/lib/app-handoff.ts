@@ -1,22 +1,20 @@
 /**
- * Whether web hands `/sign-in` to the operator app (`apps/app`). It used to hand
- * `/register` too; see `APP_HANDOFF_PATHS`.
+ * Where web hands a visitor to the operator app (`apps/app`): `/sign-in`, and
+ * the links that used to open the app as a zone under web.
  *
- * Since the new interface (`3d42976`) a laptop runs web on :3000 and the app on
- * :3002, and the app has its own sign-in and register screens there, so web
- * redirects both paths to it. In a deployed stack the app is not another origin:
- * it is a ZONE under web's (`NEXT_PUBLIC_PMS_URL` is web's own origin, DOKPLOY.md
- * § Public hosts), and only the roots `next.config.ts` rewrites reach it.
- * `/sign-in` is not one of them, so the same redirect pointed `/sign-in` at
- * itself: `https://www.injishi.com/sign-in` answered `307 Location:
- * https://www.injishi.com/sign-in` forever, `/register` likewise, on production
- * and on the demo alike (observed 2026-10-19). The waitlist's only door into the
- * product (ADR-048 AC-19b) was a redirect loop.
+ * The app has its OWN origin in every stack: app.injishi.com in production,
+ * :3002 on a laptop and in `pnpm docker:up` (NEXT_PUBLIC_PMS_URL). It has its
+ * own sign-in, which decides each persona's home, so web's `/sign-in` sends
+ * people there. Web used to serve the app as a zone under its own origin, with
+ * NEXT_PUBLIC_PMS_URL equal to web's; the app's screens live at its root, so
+ * that zone answered a 404 to everyone it signed in (2026-10-24), and it is
+ * gone.
  *
- * So the hand-off happens only when the app really is a different origin. When
- * it is web's own, web's `(app)/(entry)/sign-in` and `register` answer, which are
- * the screens sign-in and the registration pipeline were built and verified
- * against. Neither choice can loop: the destination is never this origin.
+ * Both sets of redirects check that the app really is another origin. When it
+ * is web's own, the same redirect would point a path at itself:
+ * `https://www.injishi.com/sign-in` once answered `307 Location:
+ * https://www.injishi.com/sign-in` forever (observed 2026-10-19). Then web's
+ * own `(app)/(entry)/sign-in` answers instead. Neither choice can loop.
  *
  * NO IMPORTS. `next.config.ts` loads this through Next's config require hook,
  * and `tests/app-handoff.test.mjs` loads it bare.
@@ -26,7 +24,7 @@ interface HandoffRedirect {
   source: string;
   destination: string;
   permanent: false;
-  missing: { type: "header"; key: string }[];
+  missing?: { type: "header"; key: string }[];
 }
 
 /**
@@ -84,20 +82,30 @@ function originOf(raw: string): string | null {
 }
 
 /**
- * The redirects for `next.config.ts`, from the two public origins it was built
- * with. Empty when the app shares web's origin, and empty when the app's url is
- * not an absolute url: a relative destination would be this origin again.
+ * The app's url when it is another origin than web's, else null.
  *
  * `||`, not `??`, because a build arg passed as an empty string is set to
  * nothing, not unset (the note in `.env.example` about `NEXT_PUBLIC_SITE_URL`).
+ */
+function separateApp(webUrl: string | undefined, appUrl: string | undefined): string | null {
+  const app = (appUrl || APP_DEFAULT).replace(/\/+$/, "");
+  const appOrigin = originOf(app);
+  if (!appOrigin || appOrigin === originOf(webUrl || WEB_DEFAULT)) return null;
+  return app;
+}
+
+/**
+ * The sign-in redirects for `next.config.ts`, from the two public origins it
+ * was built with. Empty when the app shares web's origin, and empty when the
+ * app's url is not an absolute url: a relative destination would be this
+ * origin again.
  */
 export function appHandoffRedirects(
   webUrl: string | undefined,
   appUrl: string | undefined,
 ): HandoffRedirect[] {
-  const app = (appUrl || APP_DEFAULT).replace(/\/+$/, "");
-  const appOrigin = originOf(app);
-  if (!appOrigin || appOrigin === originOf(webUrl || WEB_DEFAULT)) return [];
+  const app = separateApp(webUrl, appUrl);
+  if (!app) return [];
   return APP_HANDOFF_PATHS.map((source) => ({
     source,
     destination: `${app}${source}`,
@@ -121,4 +129,34 @@ export function appHandoffRscRewrites(
     has: [{ type: "header", key: RSC_HEADER }],
     destination: HANDOFF_RSC_ANSWER,
   }));
+}
+
+/** The roots web used to forward to the app as a zone. Web has no page under any of them. */
+export const OLD_ZONE_ROOTS = ["/w", "/oversight", "/landlord", "/broker"];
+
+/**
+ * Old zone links, sent on rather than left to 404 (2026-10-24).
+ *
+ * A property setup page (`/w/<id>/setup`) is a real page of the app, so it
+ * keeps its path there. Anything else under an old root (`/w/<id>`,
+ * `/oversight/verifier`, ...) named a screen the app no longer has at that
+ * path, so it goes to web's `/start`: signed in, that opens the person's own
+ * home in the app (`access.ts`); signed out, the gate sends them to sign in
+ * first and `/start` runs after.
+ */
+export function oldZoneRedirects(
+  webUrl: string | undefined,
+  appUrl: string | undefined,
+): HandoffRedirect[] {
+  const app = separateApp(webUrl, appUrl);
+  const setup: HandoffRedirect[] = app
+    ? [{ source: "/w/:workspaceId/setup", destination: `${app}/w/:workspaceId/setup`, permanent: false }]
+    : [];
+  return [
+    ...setup,
+    ...OLD_ZONE_ROOTS.flatMap((root): HandoffRedirect[] => [
+      { source: root, destination: "/start", permanent: false },
+      { source: `${root}/:path*`, destination: "/start", permanent: false },
+    ]),
+  ];
 }

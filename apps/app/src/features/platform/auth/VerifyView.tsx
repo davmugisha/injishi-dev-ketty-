@@ -65,8 +65,8 @@ export function VerifyView({
               A code beats a password, every time.
             </h2>
             <p className="text-[17px] leading-7 text-white/85">
-              Nothing to remember, nothing to reuse. Use the same email with Google later and it opens this same account
-              — for the stays you book, the place you rent, and anything you host.
+              Nothing to remember, nothing to reuse. Use the same email with Google later and it opens this same
+              account, for the stays you book, the place you rent, and anything you host.
             </p>
           </div>
           <p className="text-[13px] text-white/75">Each code works for 10 minutes, and only for you.</p>

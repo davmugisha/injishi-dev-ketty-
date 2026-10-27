@@ -215,6 +215,62 @@ export interface PayoutCommand extends MoneyCommand {
 }
 
 /**
+ * Pay a landlord their collected rent (rentals blueprint 2.7, WP 1.6b), to the
+ * payout account they chose: a MoMo number, a MoMo Pay merchant code or a bank
+ * account. Apart from `payout` because a landlord's account is the business's
+ * own, kept by rentals, not a verified person's wallet (073-gtbank-payments).
+ */
+export interface LandlordPayoutCommand extends MoneyCommand {
+  kind: 'landlord_payout';
+  destination: 'momo' | 'bank' | 'momo_pay';
+  /** The MoMo number (E.164), merchant code or bank account number. */
+  destinationRef: string;
+}
+
+/**
+ * Collect a tenant's rent (rentals blueprint 2.7, WP 1.6b). Collected for the
+ * landlord and paid on to them once it settles; nothing is held in escrow.
+ * Like a capture, it names who pays and on which rail, and a mobile money
+ * collection comes back `pending` until the tenant approves the prompt.
+ */
+export interface RentCollectCommand extends MoneyCommand {
+  kind: 'rent_collect';
+  instrument: PaymentInstrument;
+  /** The lease this rent belongs to. */
+  leaseRef: string;
+  /** Our own payment record, so a callback can name it. */
+  paymentRef: string;
+}
+
+/**
+ * The landlord's own phone pays a fixer, or refunds a deposit to the tenant
+ * (rentals blueprint 2.7). Two legs at the provider: the landlord approves on
+ * their handset, then the money goes to the destination.
+ */
+export interface VendorPayoutCommand extends MoneyCommand {
+  kind: 'vendor_payout';
+  /** Who funds it: the landlord's handset. */
+  instrument: PaymentInstrument;
+  destination: 'momo' | 'bank';
+  /** The fixer's or tenant's MoMo number (E.164) or bank account number. */
+  destinationRef: string;
+  /** The fault or deposit this pays for. */
+  subjectRef: string;
+}
+
+/**
+ * A broker plan month (rentals blueprint 2.7): on a handset, with a card the
+ * provider saved from a past checkout, or on the provider's card page, which
+ * answers `pending` with `checkoutUrl` and, once paid, a `savedCardToken`.
+ */
+export interface SubscriptionChargeCommand extends MoneyCommand {
+  kind: 'subscription_charge';
+  instrument: PaymentInstrument | { kind: 'saved_card'; token: string } | { kind: 'card_checkout'; returnUrl: string };
+  /** The broker subscription this month belongs to. */
+  subscriptionRef: string;
+}
+
+/**
  * A recurring charge: subscription billing (F-S14) or rent collection (F-R05).
  *
  * Carries its payer, as a capture does (073-gtbank-payments): every instalment
@@ -249,6 +305,10 @@ export type PaymentCommand =
   | RefundCommand
   | VoidPendingCommand
   | PayoutCommand
+  | LandlordPayoutCommand
+  | RentCollectCommand
+  | VendorPayoutCommand
+  | SubscriptionChargeCommand
   | RecurringChargeCommand
   | OneTimeFeeCommand;
 
@@ -289,6 +349,24 @@ export interface PaymentReceipt {
    * reported successful (073-gtbank-payments AC-18). Absent otherwise.
    */
   providerStatus?: 'reversed' | 'refunded';
+  /** A card checkout: the provider's page to send the payer to (rentals blueprint 2.7). */
+  checkoutUrl?: string;
+  /** A card the provider saved at checkout, for the next charge. A token, never a number. */
+  savedCardToken?: string;
+}
+
+/**
+ * What a provider's callback said about one transaction (rentals blueprint
+ * 2.5, 2.7), as `parseCallback` reads it from the signed raw body. `eventId`
+ * is the provider's own id for the notification, so a replay is one event.
+ */
+export interface CallbackEvent {
+  provider: string;
+  eventId: string;
+  adapterRef: string;
+  outcome: 'settled' | 'failed';
+  amountRwf?: number;
+  reason?: string;
 }
 
 /** The provider was reached and said no. Retrying the same command will not help. */
@@ -351,6 +429,19 @@ export interface PaymentPort {
   payout(command: PayoutCommand): Promise<PaymentReceipt>;
   chargeRecurring(command: RecurringChargeCommand): Promise<PaymentReceipt>;
   chargeOneTimeFee(command: OneTimeFeeCommand): Promise<PaymentReceipt>;
+  /** Rentals (blueprint 2.7): a tenant's rent, a landlord paid, a landlord paying a fixer, a broker's plan. */
+  collectRent(command: RentCollectCommand): Promise<PaymentReceipt>;
+  payLandlord(command: LandlordPayoutCommand): Promise<PaymentReceipt>;
+  payVendor(command: VendorPayoutCommand): Promise<PaymentReceipt>;
+  chargeSubscription(command: SubscriptionChargeCommand): Promise<PaymentReceipt>;
+
+  /**
+   * Read a provider's callback (`POST /api/v1/payments/webhooks/:provider`),
+   * checking its signature against the RAW body. Null when the body is not
+   * this provider's, or the signature does not hold: the route then answers
+   * nothing was taken and the settlement sweep stays the source of truth.
+   */
+  parseCallback(provider: string, headers: Record<string, string | string[] | undefined>, rawBody: Buffer): CallbackEvent | null;
 
   /**
    * The provider's own view of one transaction (ADR-020 D-e, AC-6).
@@ -417,6 +508,9 @@ export function describeForLog(c: PaymentCommand): string {
   // An instrument is a payer. The rail is safe to log and identifies nobody;
   // the handset is masked by the same rule a payout destination is, and a card
   // token is never printed at all — it is a bearer credential for that charge.
+  if ('destinationRef' in c && !('instrument' in c)) {
+    return `${base} to=${c.destination} ${maskDestination(c.destinationRef)}`;
+  }
   if ('instrument' in c) {
     const i = c.instrument;
     return i.kind === 'mobile_money'

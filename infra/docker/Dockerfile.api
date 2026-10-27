@@ -12,7 +12,7 @@
 #   HTTP:    node dist/main.js
 #   worker:  node dist/main.js --worker
 #
-# Node is pinned. The root package.json asks for >=20.19, which is a floor and
+# Node is pinned. The root package.json asks for >=22.13, which is a floor and
 # not a choice; a floor lets the base image drift under the build.
 FROM node:22-alpine AS base
 ENV PNPM_HOME=/pnpm

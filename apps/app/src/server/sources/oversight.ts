@@ -586,16 +586,19 @@ async function mandateStates(ctx: SourceContext): Promise<O.MandateState[]> {
   const scope = [...new Set(desk.consoles.map((c) => c.scopeLabel))].join(", ") || "your jurisdiction";
   const v = desk.verification?.length ?? 0;
   const a = desk.approval?.length ?? 0;
-  const count = (n: number, one: string, many: string) => `${n === 0 ? "No" : n} ${n === 1 ? one : many}`;
+  const waiting =
+    v + a === 0
+      ? `Nothing waits on you in ${scope}.`
+      : [v > 0 ? `${v} waiting on a field visit` : null, a > 0 ? `${a} waiting on approval` : null]
+          .filter(Boolean)
+          .join(" · ");
   return [
     {
       id: "verified",
       pill: `Active mandate · ${scope}`,
       tone: "success",
       chip: "Active",
-      summary: desk.consoles.length
-        ? `${count(v, "business waits", "businesses wait")} on a field visit and ${a === 0 ? "none" : a} on approval in ${scope}.`
-        : "You hold no oversight assignment, so no queue is open to you.",
+      summary: desk.consoles.length ? waiting : "You hold no oversight assignment, so no queue is open to you.",
       alert: null,
       validUntil: "No end date recorded",
       validNote: "Until revoked",

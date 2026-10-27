@@ -4,7 +4,9 @@ import {
   PaymentRateLimitedError,
   PaymentUnavailableError,
   type AdapterMode,
+  type CallbackEvent,
   type CaptureEscrowCommand,
+  type LandlordPayoutCommand,
   type OneTimeFeeCommand,
   type PaymentPort,
   type PaymentReceipt,
@@ -12,6 +14,9 @@ import {
   type RecurringChargeCommand,
   type RefundCommand,
   type ReleaseEscrowCommand,
+  type RentCollectCommand,
+  type SubscriptionChargeCommand,
+  type VendorPayoutCommand,
   type VoidPendingCommand,
 } from '../domain/payment-port';
 
@@ -140,6 +145,22 @@ export class GuardedPaymentPort implements PaymentPort {
   }
   chargeOneTimeFee(c: OneTimeFeeCommand): Promise<PaymentReceipt> {
     return this.guard(c.idempotencyKey, () => this.inner.chargeOneTimeFee(c));
+  }
+  collectRent(c: RentCollectCommand): Promise<PaymentReceipt> {
+    return this.guard(c.idempotencyKey, () => this.inner.collectRent(c));
+  }
+  payLandlord(c: LandlordPayoutCommand): Promise<PaymentReceipt> {
+    return this.guard(c.idempotencyKey, () => this.inner.payLandlord(c));
+  }
+  payVendor(c: VendorPayoutCommand): Promise<PaymentReceipt> {
+    return this.guard(c.idempotencyKey, () => this.inner.payVendor(c));
+  }
+  chargeSubscription(c: SubscriptionChargeCommand): Promise<PaymentReceipt> {
+    return this.guard(c.idempotencyKey, () => this.inner.chargeSubscription(c));
+  }
+  /** Reading a callback is local work: no provider is called, so nothing to guard. */
+  parseCallback(provider: string, headers: Record<string, string | string[] | undefined>, rawBody: Buffer): CallbackEvent | null {
+    return this.inner.parseCallback(provider, headers, rawBody);
   }
   fetchTransaction(
     workspaceId: string,

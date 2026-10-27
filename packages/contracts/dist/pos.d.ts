@@ -591,10 +591,10 @@ export declare const PosTable: z.ZodObject<{
     openedAt: string | null;
     seats: number;
     sessionId: string | null;
+    outstandingRwf: number;
     areaId: string;
     waiterName: string | null;
     openOrders: number;
-    outstandingRwf: number;
 }, {
     status: "available" | "cleaning" | "occupied" | "reserved" | "bill_requested";
     id: string;
@@ -603,10 +603,10 @@ export declare const PosTable: z.ZodObject<{
     openedAt: string | null;
     seats: number;
     sessionId: string | null;
+    outstandingRwf: number;
     areaId: string;
     waiterName: string | null;
     openOrders: number;
-    outstandingRwf: number;
 }>;
 export type PosTable = z.infer<typeof PosTable>;
 export declare const PosFloor: z.ZodObject<{
@@ -645,10 +645,10 @@ export declare const PosFloor: z.ZodObject<{
         openedAt: string | null;
         seats: number;
         sessionId: string | null;
+        outstandingRwf: number;
         areaId: string;
         waiterName: string | null;
         openOrders: number;
-        outstandingRwf: number;
     }, {
         status: "available" | "cleaning" | "occupied" | "reserved" | "bill_requested";
         id: string;
@@ -657,10 +657,10 @@ export declare const PosFloor: z.ZodObject<{
         openedAt: string | null;
         seats: number;
         sessionId: string | null;
+        outstandingRwf: number;
         areaId: string;
         waiterName: string | null;
         openOrders: number;
-        outstandingRwf: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     outletId: string;
@@ -677,10 +677,10 @@ export declare const PosFloor: z.ZodObject<{
         openedAt: string | null;
         seats: number;
         sessionId: string | null;
+        outstandingRwf: number;
         areaId: string;
         waiterName: string | null;
         openOrders: number;
-        outstandingRwf: number;
     }[];
 }, {
     outletId: string;
@@ -697,10 +697,10 @@ export declare const PosFloor: z.ZodObject<{
         openedAt: string | null;
         seats: number;
         sessionId: string | null;
+        outstandingRwf: number;
         areaId: string;
         waiterName: string | null;
         openOrders: number;
-        outstandingRwf: number;
     }[];
 }>;
 export type PosFloor = z.infer<typeof PosFloor>;
@@ -893,8 +893,8 @@ export declare const PosSettlement: z.ZodObject<{
     pendingRwf: number;
     totalRwf: number;
     refundedRwf: number;
-    outstandingRwf: number;
     collectedRwf: number;
+    outstandingRwf: number;
     payableRwf: number;
 }, {
     state: "paid" | "unpaid" | "partially_paid" | "overpaid";
@@ -902,8 +902,8 @@ export declare const PosSettlement: z.ZodObject<{
     pendingRwf: number;
     totalRwf: number;
     refundedRwf: number;
-    outstandingRwf: number;
     collectedRwf: number;
+    outstandingRwf: number;
     payableRwf: number;
 }>;
 export declare const PosOrder: z.ZodObject<{
@@ -936,8 +936,8 @@ export declare const PosOrder: z.ZodObject<{
         pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        outstandingRwf: number;
         collectedRwf: number;
+        outstandingRwf: number;
         payableRwf: number;
     }, {
         state: "paid" | "unpaid" | "partially_paid" | "overpaid";
@@ -945,8 +945,8 @@ export declare const PosOrder: z.ZodObject<{
         pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        outstandingRwf: number;
         collectedRwf: number;
+        outstandingRwf: number;
         payableRwf: number;
     }>;
     lines: z.ZodArray<z.ZodObject<{
@@ -1154,8 +1154,8 @@ export declare const PosOrder: z.ZodObject<{
         pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        outstandingRwf: number;
         collectedRwf: number;
+        outstandingRwf: number;
         payableRwf: number;
     };
     outletId: string;
@@ -1235,8 +1235,8 @@ export declare const PosOrder: z.ZodObject<{
         pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        outstandingRwf: number;
         collectedRwf: number;
+        outstandingRwf: number;
         payableRwf: number;
     };
     outletId: string;
@@ -1317,8 +1317,8 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        outstandingRwf: number;
         collectedRwf: number;
+        outstandingRwf: number;
         payableRwf: number;
     }, {
         state: "paid" | "unpaid" | "partially_paid" | "overpaid";
@@ -1326,8 +1326,8 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        outstandingRwf: number;
         collectedRwf: number;
+        outstandingRwf: number;
         payableRwf: number;
     }>;
     lines: z.ZodArray<z.ZodObject<{
@@ -1519,8 +1519,8 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        outstandingRwf: number;
         collectedRwf: number;
+        outstandingRwf: number;
         payableRwf: number;
     };
     outletId: string;
@@ -1548,8 +1548,8 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        outstandingRwf: number;
         collectedRwf: number;
+        outstandingRwf: number;
         payableRwf: number;
     };
     outletId: string;
@@ -1651,6 +1651,7 @@ export declare const PosTicket: z.ZodObject<{
     createdAt: string;
     startedAt: string | null;
     orderNumber: string;
+    late: boolean;
     stationId: string;
     waiterName: string | null;
     orderId: string;
@@ -1662,7 +1663,6 @@ export declare const PosTicket: z.ZodObject<{
     readyAt: string | null;
     servedAt: string | null;
     elapsedMinutes: number;
-    late: boolean;
     printCount: number;
 }, {
     status: "cancelled" | "queued" | "ready" | "preparing" | "served";
@@ -1679,6 +1679,7 @@ export declare const PosTicket: z.ZodObject<{
     createdAt: string;
     startedAt: string | null;
     orderNumber: string;
+    late: boolean;
     stationId: string;
     waiterName: string | null;
     orderId: string;
@@ -1690,7 +1691,6 @@ export declare const PosTicket: z.ZodObject<{
     readyAt: string | null;
     servedAt: string | null;
     elapsedMinutes: number;
-    late: boolean;
     printCount: number;
 }>;
 export type PosTicket = z.infer<typeof PosTicket>;
@@ -1817,11 +1817,11 @@ export declare const PosShift: z.ZodObject<{
     closedAt: string | null;
     reviewedByName: string | null;
     reviewNote: string | null;
+    paidOutRwf: number;
     openingFloatRwf: number;
     cashSalesRwf: number;
     cashRefundsRwf: number;
     paidInRwf: number;
-    paidOutRwf: number;
     registerId: string;
     registerName: string;
     cashierUserId: string;
@@ -1854,11 +1854,11 @@ export declare const PosShift: z.ZodObject<{
     closedAt: string | null;
     reviewedByName: string | null;
     reviewNote: string | null;
+    paidOutRwf: number;
     openingFloatRwf: number;
     cashSalesRwf: number;
     cashRefundsRwf: number;
     paidInRwf: number;
-    paidOutRwf: number;
     registerId: string;
     registerName: string;
     cashierUserId: string;
@@ -2244,17 +2244,17 @@ export declare const TakePosPaymentRequest: z.ZodObject<{
     idempotencyKey: string;
     tipRwf: number;
     simulate: "pending" | "success" | "failure" | "timeout";
-    tenderedRwf?: number | undefined;
     payerPhone?: string | undefined;
+    tenderedRwf?: number | undefined;
     voucherCode?: string | undefined;
 }, {
     amountRwf: number;
     method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
     idempotencyKey: string;
+    payerPhone?: string | undefined;
     tenderedRwf?: number | undefined;
     tipRwf?: number | undefined;
     simulate?: "pending" | "success" | "failure" | "timeout" | undefined;
-    payerPhone?: string | undefined;
     voucherCode?: string | undefined;
 }>;
 export type TakePosPaymentRequest = z.infer<typeof TakePosPaymentRequest>;

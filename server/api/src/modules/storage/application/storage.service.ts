@@ -344,26 +344,44 @@ export class StorageService {
    * scan of somebody's tax clearance as a photograph of a hotel.
    */
   async describe(objectKey: string): Promise<{
+    id: string;
     objectKey: string;
     kind: string;
     mime: string | null;
     sizeBytes: number | null;
     uploadedByUserId: string | null;
     workspaceId: string | null;
+    legalHold: boolean;
   } | null> {
     const [row] = await this.db
       .select({
+        id: storedObjects.id,
         objectKey: storedObjects.objectKey,
         kind: storedObjects.kind,
         mime: storedObjects.mime,
         sizeBytes: storedObjects.sizeBytes,
         uploadedByUserId: storedObjects.uploadedByUserId,
         workspaceId: storedObjects.workspaceId,
+        legalHold: storedObjects.legalHold,
       })
       .from(storedObjects)
       .where(eq(storedObjects.objectKey, objectKey))
       .limit(1);
     return row ?? null;
+  }
+
+  /**
+   * Put an object under legal hold and give it a home: it has become evidence
+   * (a drawn signature on a lease the moment the signature stands). Held, it
+   * can no longer be removed by its uploader (`removeOwnUnattached`) or any
+   * retention sweep. Never lifted here: a hold is released by a person, on
+   * the record, or not at all.
+   */
+  async holdObject(id: string, workspaceId: string | null): Promise<void> {
+    await this.db
+      .update(storedObjects)
+      .set({ legalHold: true, ...(workspaceId ? { workspaceId } : {}) })
+      .where(eq(storedObjects.id, id));
   }
 
   /**
@@ -492,6 +510,82 @@ export class StorageService {
       workspaceId: input.workspaceId,
     });
     return put.objectKey;
+  }
+
+  /**
+   * Store a lease contract PDF the rentals module rendered (blueprint 1.2): a
+   * version before signatures, or its signed copy with the audit trail page.
+   * Like a training certificate, the bytes were made here a moment ago, so
+   * there is no client to distrust. `keyHint` is derived from the version, so
+   * rendering the same copy twice converges on one object. A signed copy is
+   * put under legal hold: it is the evidence of an agreement.
+   */
+  async putLeaseContract(input: {
+    body: Buffer;
+    filename: string;
+    keyHint: string;
+    workspaceId: string;
+    createdByUserId: string | null;
+    legalHold: boolean;
+  }): Promise<{ objectKey: string; id: string }> {
+    const kind = 'lease_contract' as const;
+    const mime = 'application/pdf';
+    const put = await this.storage.put({
+      body: input.body,
+      mime,
+      filename: input.filename,
+      kind,
+      keyHint: input.keyHint,
+    });
+    await this.db
+      .insert(storedObjects)
+      .values({
+        objectKey: put.objectKey,
+        kind,
+        mime,
+        sizeBytes: put.sizeBytes,
+        uploadedByUserId: input.createdByUserId,
+        workspaceId: input.workspaceId,
+        legalHold: input.legalHold,
+      })
+      .onConflictDoNothing({ target: storedObjects.objectKey });
+    const [row] = await this.db
+      .select({ id: storedObjects.id })
+      .from(storedObjects)
+      .where(eq(storedObjects.objectKey, put.objectKey))
+      .limit(1);
+    if (!row) throw new Error(`stored object ${put.objectKey} vanished`);
+    return { objectKey: put.objectKey, id: row.id };
+  }
+
+  /**
+   * Store a payment receipt PDF the rentals module rendered (WP 1.6): made
+   * here a moment ago, keyed by the payment so a second render converges on
+   * one object. Not under legal hold: it can be rendered again from the rows.
+   */
+  async putPaymentReceipt(input: {
+    body: Buffer;
+    filename: string;
+    keyHint: string;
+    workspaceId: string;
+  }): Promise<{ objectKey: string; id: string }> {
+    return this.putRendered('payment_receipt', 'application/pdf', input);
+  }
+
+  /** A file this process rendered: stored under a stable key and recorded once. */
+  private async putRendered(
+    kind: 'payment_receipt',
+    mime: string,
+    input: { body: Buffer; filename: string; keyHint: string; workspaceId: string },
+  ): Promise<{ objectKey: string; id: string }> {
+    const put = await this.storage.put({ body: input.body, mime, filename: input.filename, kind, keyHint: input.keyHint });
+    await this.db
+      .insert(storedObjects)
+      .values({ objectKey: put.objectKey, kind, mime, sizeBytes: put.sizeBytes, uploadedByUserId: null, workspaceId: input.workspaceId })
+      .onConflictDoNothing({ target: storedObjects.objectKey });
+    const [row] = await this.db.select({ id: storedObjects.id }).from(storedObjects).where(eq(storedObjects.objectKey, put.objectKey)).limit(1);
+    if (!row) throw new Error(`stored object ${put.objectKey} vanished`);
+    return { objectKey: put.objectKey, id: row.id };
   }
 
   /** A short-lived read, for showing back what was attached. */

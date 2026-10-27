@@ -244,8 +244,8 @@ const roles: HubRole[] = [
     lands: "Vacancy, arrears, rent due and notices. Leases and deposits, never hotel stays.",
     board: "ResidenceHome",
     links: [
-      { label: "Leases", board: "Leases" },
-      { label: "Rent roll", board: "RentRoll" },
+      { label: "Units", board: "Units" },
+      { label: "Rentals", board: "ResidenceHome" },
     ],
   },
   {
@@ -390,10 +390,7 @@ const roles: HubRole[] = [
     deviceIcon: "Smartphone",
     lands: "Rent due and receipts, deposit held, maintenance requests, visitors and lease documents.",
     board: "TenantHome",
-    links: [
-      { label: "Pay rent", board: "TenantPay" },
-      { label: "My lease", board: "TenantLease" },
-    ],
+    links: [{ label: "My home", board: "TenantHome" }],
   },
   {
     id: "visitor",

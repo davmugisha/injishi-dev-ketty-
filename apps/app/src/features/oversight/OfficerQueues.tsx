@@ -15,13 +15,13 @@ const TABS: { id: TabId; label: string; note: string; whoHead: string; locked?: 
   {
     id: "verification",
     label: "Verification",
-    note: "Registrations you check against their documents. A verified case still needs a second officer to approve.",
+    note: "A verified case still needs a second officer to approve.",
     whoHead: "Assigned to",
   },
   {
     id: "approval",
     label: "Approval",
-    note: "Cases another officer verified. You can approve or reject them, but never a case you verified yourself.",
+    note: "Cases another officer verified. Never one you verified yourself.",
     whoHead: "Verified by",
   },
   {
@@ -46,11 +46,10 @@ function emptyTitle(id: TabId, held: QueueId[]): string {
 }
 
 function emptyNote(id: TabId, held: QueueId[]): string {
-  if (id !== "membership" && held.includes(id))
-    return "New registrations in your jurisdiction appear here as soon as they reach this stage. The list is read from the registry each time you open it.";
+  if (id !== "membership" && held.includes(id)) return "New registrations show here when they reach this stage.";
   return id === "membership"
-    ? "PSF and the Chamber of Tourism decide memberships in their own console, so no applications are routed here."
-    : "Your assignment does not include this function, so the registry shows you nothing in it.";
+    ? "PSF and the Chamber of Tourism decide memberships in their own console."
+    : "Your assignment does not include this function.";
 }
 
 /** The officer's queues (tabs and table) beside the inspector of the selected case. */
@@ -75,9 +74,9 @@ export function OfficerQueues({ cases, held }: { cases: QueueCase[]; held: Queue
       <section className="flex min-w-0 flex-[999_1_600px] flex-col gap-3" aria-labelledby="q-h">
         <SectionHeader
           id="q-h"
-          title="Your Queues"
+          title="Your queues"
           className="items-center"
-          action={<span className="text-[12px] text-muted">Sorted by SLA due date · working days, Kigali time</span>}
+          action={<span className="text-[12px] text-muted">Oldest due first</span>}
         />
         <Tabs variant="secondary" selectedKey={tab} onSelectionChange={(k) => setTab(String(k) as TabId)}>
           <Tabs.ListContainer>

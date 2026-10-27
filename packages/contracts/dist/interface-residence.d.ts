@@ -265,20 +265,20 @@ export declare const ResidenceNoticeRow: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     message: string | null;
     id: string;
-    reasonCode: "other" | "kigali" | "leaving" | "own-home" | "terms" | null;
+    reasonCode: "other" | "terms" | "kigali" | "leaving" | "own-home" | null;
     leaseId: string;
     moveOutDate: string;
-    filedVia: "email" | "app" | "in_person" | "letter" | null;
+    filedVia: "email" | "app" | "letter" | "in_person" | null;
     filedAt: string;
     noticeGivenDays: number | null;
     isShortNotice: boolean;
 }, {
     message: string | null;
     id: string;
-    reasonCode: "other" | "kigali" | "leaving" | "own-home" | "terms" | null;
+    reasonCode: "other" | "terms" | "kigali" | "leaving" | "own-home" | null;
     leaseId: string;
     moveOutDate: string;
-    filedVia: "email" | "app" | "in_person" | "letter" | null;
+    filedVia: "email" | "app" | "letter" | "in_person" | null;
     filedAt: string;
     noticeGivenDays: number | null;
     isShortNotice: boolean;
@@ -402,7 +402,7 @@ export declare const ResidenceTicketRow: z.ZodObject<{
     title: z.ZodString;
     description: z.ZodNullable<z.ZodString>;
     category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
-    status: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
+    status: z.ZodEnum<["open", "acknowledged", "assigned", "in_progress", "resolved", "closed", "wont_fix", "cancelled"]>;
     staffMayEnter: z.ZodNullable<z.ZodBoolean>;
     assignedContractor: z.ZodNullable<z.ZodString>;
     assignedToName: z.ZodNullable<z.ZodString>;
@@ -428,7 +428,7 @@ export declare const ResidenceTicketRow: z.ZodObject<{
     /** The conversation with the resident, when the ticket is on a tenancy. */
     threadId: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "cancelled" | "open" | "resolved" | "closed" | "assigned" | "in_progress";
+    status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
     reference: string | null;
     title: string;
@@ -454,9 +454,9 @@ export declare const ResidenceTicketRow: z.ZodObject<{
     visitWindow: string | null;
     costBearer: "landlord" | "tenant" | "to_be_decided" | null;
     costNote: string | null;
-    raisedByRole: "housekeeper" | "guest" | "staff" | "tenant" | null;
+    raisedByRole: "housekeeper" | "guest" | "tenant" | "staff" | null;
 }, {
-    status: "cancelled" | "open" | "resolved" | "closed" | "assigned" | "in_progress";
+    status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
     reference: string | null;
     title: string;
@@ -482,7 +482,7 @@ export declare const ResidenceTicketRow: z.ZodObject<{
     visitWindow: string | null;
     costBearer: "landlord" | "tenant" | "to_be_decided" | null;
     costNote: string | null;
-    raisedByRole: "housekeeper" | "guest" | "staff" | "tenant" | null;
+    raisedByRole: "housekeeper" | "guest" | "tenant" | "staff" | null;
 }>;
 /** A staff note on a ticket: never shown to a resident. */
 export declare const ResidenceTicketNote: z.ZodObject<{
@@ -679,13 +679,13 @@ export declare const ResidenceApplicationRow: z.ZodObject<{
         terms: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        feeRwf: number;
         terms: string;
+        feeRwf: number;
         referredAt: string;
     }, {
         name: string;
-        feeRwf: number;
         terms: string;
+        feeRwf: number;
         referredAt: string;
     }>>;
     desiredMoveIn: z.ZodNullable<z.ZodString>;
@@ -700,11 +700,11 @@ export declare const ResidenceApplicationRow: z.ZodObject<{
         state: z.ZodEnum<["requested", "waiting", "uploaded", "checked"]>;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        state: "requested" | "waiting" | "checked" | "uploaded";
+        state: "waiting" | "requested" | "checked" | "uploaded";
         note: string;
     }, {
         name: string;
-        state: "requested" | "waiting" | "checked" | "uploaded";
+        state: "waiting" | "requested" | "checked" | "uploaded";
         note: string;
     }>, "many">;
     createdAt: z.ZodString;
@@ -712,8 +712,8 @@ export declare const ResidenceApplicationRow: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     broker: {
         name: string;
-        feeRwf: number;
         terms: string;
+        feeRwf: number;
         referredAt: string;
     } | null;
     name: string;
@@ -721,7 +721,7 @@ export declare const ResidenceApplicationRow: z.ZodObject<{
     email: string | null;
     documents: {
         name: string;
-        state: "requested" | "waiting" | "checked" | "uploaded";
+        state: "waiting" | "requested" | "checked" | "uploaded";
         note: string;
     }[];
     stage: "declined" | "converted" | "ready" | "invited" | "screening";
@@ -731,17 +731,17 @@ export declare const ResidenceApplicationRow: z.ZodObject<{
     roomId: string;
     leaseId: string | null;
     unitLabel: string;
-    screening: ("reference" | "identity" | "balance" | "rules" | "income" | "employment")[];
+    depositRwf: number | null;
+    screening: ("reference" | "identity" | "rules" | "income" | "employment" | "balance")[];
     occupants: string | null;
     offeredRentRwf: number | null;
     termMonths: number | null;
     desiredMoveIn: string | null;
-    depositRwf: number | null;
 }, {
     broker: {
         name: string;
-        feeRwf: number;
         terms: string;
+        feeRwf: number;
         referredAt: string;
     } | null;
     name: string;
@@ -749,7 +749,7 @@ export declare const ResidenceApplicationRow: z.ZodObject<{
     email: string | null;
     documents: {
         name: string;
-        state: "requested" | "waiting" | "checked" | "uploaded";
+        state: "waiting" | "requested" | "checked" | "uploaded";
         note: string;
     }[];
     stage: "declined" | "converted" | "ready" | "invited" | "screening";
@@ -759,12 +759,12 @@ export declare const ResidenceApplicationRow: z.ZodObject<{
     roomId: string;
     leaseId: string | null;
     unitLabel: string;
-    screening: ("reference" | "identity" | "balance" | "rules" | "income" | "employment")[];
+    depositRwf: number | null;
+    screening: ("reference" | "identity" | "rules" | "income" | "employment" | "balance")[];
     occupants: string | null;
     offeredRentRwf: number | null;
     termMonths: number | null;
     desiredMoveIn: string | null;
-    depositRwf: number | null;
 }>;
 export declare const ResidencePayoutRow: z.ZodObject<{
     id: z.ZodString;
@@ -821,7 +821,7 @@ export declare const ResidenceNotificationRow: z.ZodObject<{
 /**
  * Everything the residence screens read, for one business (`/ops/residence`) or one tenant
  * (`/me/residence`). A part the caller may not read comes back empty rather than refused: rent and
- * deposits need `money.view` or `rent.record`, tickets `ticket.advance`, the rest `lease.advance`.
+ * deposits need `money.view` or `rent.record`, tickets `ticket.advance`, the rest `lease.manage`.
  * The tenant's copy never carries staff notes, other tenants' rows, applications or clauses.
  */
 export declare const ResidenceView: z.ZodObject<{
@@ -1044,20 +1044,20 @@ export declare const ResidenceView: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         message: string | null;
         id: string;
-        reasonCode: "other" | "kigali" | "leaving" | "own-home" | "terms" | null;
+        reasonCode: "other" | "terms" | "kigali" | "leaving" | "own-home" | null;
         leaseId: string;
         moveOutDate: string;
-        filedVia: "email" | "app" | "in_person" | "letter" | null;
+        filedVia: "email" | "app" | "letter" | "in_person" | null;
         filedAt: string;
         noticeGivenDays: number | null;
         isShortNotice: boolean;
     }, {
         message: string | null;
         id: string;
-        reasonCode: "other" | "kigali" | "leaving" | "own-home" | "terms" | null;
+        reasonCode: "other" | "terms" | "kigali" | "leaving" | "own-home" | null;
         leaseId: string;
         moveOutDate: string;
-        filedVia: "email" | "app" | "in_person" | "letter" | null;
+        filedVia: "email" | "app" | "letter" | "in_person" | null;
         filedAt: string;
         noticeGivenDays: number | null;
         isShortNotice: boolean;
@@ -1170,7 +1170,7 @@ export declare const ResidenceView: z.ZodObject<{
         title: z.ZodString;
         description: z.ZodNullable<z.ZodString>;
         category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
-        status: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
+        status: z.ZodEnum<["open", "acknowledged", "assigned", "in_progress", "resolved", "closed", "wont_fix", "cancelled"]>;
         staffMayEnter: z.ZodNullable<z.ZodBoolean>;
         assignedContractor: z.ZodNullable<z.ZodString>;
         assignedToName: z.ZodNullable<z.ZodString>;
@@ -1196,7 +1196,7 @@ export declare const ResidenceView: z.ZodObject<{
         /** The conversation with the resident, when the ticket is on a tenancy. */
         threadId: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "cancelled" | "open" | "resolved" | "closed" | "assigned" | "in_progress";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         reference: string | null;
         title: string;
@@ -1222,9 +1222,9 @@ export declare const ResidenceView: z.ZodObject<{
         visitWindow: string | null;
         costBearer: "landlord" | "tenant" | "to_be_decided" | null;
         costNote: string | null;
-        raisedByRole: "housekeeper" | "guest" | "staff" | "tenant" | null;
+        raisedByRole: "housekeeper" | "guest" | "tenant" | "staff" | null;
     }, {
-        status: "cancelled" | "open" | "resolved" | "closed" | "assigned" | "in_progress";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         reference: string | null;
         title: string;
@@ -1250,7 +1250,7 @@ export declare const ResidenceView: z.ZodObject<{
         visitWindow: string | null;
         costBearer: "landlord" | "tenant" | "to_be_decided" | null;
         costNote: string | null;
-        raisedByRole: "housekeeper" | "guest" | "staff" | "tenant" | null;
+        raisedByRole: "housekeeper" | "guest" | "tenant" | "staff" | null;
     }>, "many">;
     ticketNotes: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -1445,13 +1445,13 @@ export declare const ResidenceView: z.ZodObject<{
             terms: z.ZodString;
         }, "strip", z.ZodTypeAny, {
             name: string;
-            feeRwf: number;
             terms: string;
+            feeRwf: number;
             referredAt: string;
         }, {
             name: string;
-            feeRwf: number;
             terms: string;
+            feeRwf: number;
             referredAt: string;
         }>>;
         desiredMoveIn: z.ZodNullable<z.ZodString>;
@@ -1466,11 +1466,11 @@ export declare const ResidenceView: z.ZodObject<{
             state: z.ZodEnum<["requested", "waiting", "uploaded", "checked"]>;
         }, "strip", z.ZodTypeAny, {
             name: string;
-            state: "requested" | "waiting" | "checked" | "uploaded";
+            state: "waiting" | "requested" | "checked" | "uploaded";
             note: string;
         }, {
             name: string;
-            state: "requested" | "waiting" | "checked" | "uploaded";
+            state: "waiting" | "requested" | "checked" | "uploaded";
             note: string;
         }>, "many">;
         createdAt: z.ZodString;
@@ -1478,8 +1478,8 @@ export declare const ResidenceView: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         broker: {
             name: string;
-            feeRwf: number;
             terms: string;
+            feeRwf: number;
             referredAt: string;
         } | null;
         name: string;
@@ -1487,7 +1487,7 @@ export declare const ResidenceView: z.ZodObject<{
         email: string | null;
         documents: {
             name: string;
-            state: "requested" | "waiting" | "checked" | "uploaded";
+            state: "waiting" | "requested" | "checked" | "uploaded";
             note: string;
         }[];
         stage: "declined" | "converted" | "ready" | "invited" | "screening";
@@ -1497,17 +1497,17 @@ export declare const ResidenceView: z.ZodObject<{
         roomId: string;
         leaseId: string | null;
         unitLabel: string;
-        screening: ("reference" | "identity" | "balance" | "rules" | "income" | "employment")[];
+        depositRwf: number | null;
+        screening: ("reference" | "identity" | "rules" | "income" | "employment" | "balance")[];
         occupants: string | null;
         offeredRentRwf: number | null;
         termMonths: number | null;
         desiredMoveIn: string | null;
-        depositRwf: number | null;
     }, {
         broker: {
             name: string;
-            feeRwf: number;
             terms: string;
+            feeRwf: number;
             referredAt: string;
         } | null;
         name: string;
@@ -1515,7 +1515,7 @@ export declare const ResidenceView: z.ZodObject<{
         email: string | null;
         documents: {
             name: string;
-            state: "requested" | "waiting" | "checked" | "uploaded";
+            state: "waiting" | "requested" | "checked" | "uploaded";
             note: string;
         }[];
         stage: "declined" | "converted" | "ready" | "invited" | "screening";
@@ -1525,12 +1525,12 @@ export declare const ResidenceView: z.ZodObject<{
         roomId: string;
         leaseId: string | null;
         unitLabel: string;
-        screening: ("reference" | "identity" | "balance" | "rules" | "income" | "employment")[];
+        depositRwf: number | null;
+        screening: ("reference" | "identity" | "rules" | "income" | "employment" | "balance")[];
         occupants: string | null;
         offeredRentRwf: number | null;
         termMonths: number | null;
         desiredMoveIn: string | null;
-        depositRwf: number | null;
     }>, "many">;
     payouts: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -1594,8 +1594,8 @@ export declare const ResidenceView: z.ZodObject<{
     applications: {
         broker: {
             name: string;
-            feeRwf: number;
             terms: string;
+            feeRwf: number;
             referredAt: string;
         } | null;
         name: string;
@@ -1603,7 +1603,7 @@ export declare const ResidenceView: z.ZodObject<{
         email: string | null;
         documents: {
             name: string;
-            state: "requested" | "waiting" | "checked" | "uploaded";
+            state: "waiting" | "requested" | "checked" | "uploaded";
             note: string;
         }[];
         stage: "declined" | "converted" | "ready" | "invited" | "screening";
@@ -1613,12 +1613,12 @@ export declare const ResidenceView: z.ZodObject<{
         roomId: string;
         leaseId: string | null;
         unitLabel: string;
-        screening: ("reference" | "identity" | "balance" | "rules" | "income" | "employment")[];
+        depositRwf: number | null;
+        screening: ("reference" | "identity" | "rules" | "income" | "employment" | "balance")[];
         occupants: string | null;
         offeredRentRwf: number | null;
         termMonths: number | null;
         desiredMoveIn: string | null;
-        depositRwf: number | null;
     }[];
     payouts: {
         status: "held" | "paid" | "scheduled" | "queued";
@@ -1643,7 +1643,7 @@ export declare const ResidenceView: z.ZodObject<{
         recordedByName: string | null;
     }[];
     tickets: {
-        status: "cancelled" | "open" | "resolved" | "closed" | "assigned" | "in_progress";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         reference: string | null;
         title: string;
@@ -1669,7 +1669,7 @@ export declare const ResidenceView: z.ZodObject<{
         visitWindow: string | null;
         costBearer: "landlord" | "tenant" | "to_be_decided" | null;
         costNote: string | null;
-        raisedByRole: "housekeeper" | "guest" | "staff" | "tenant" | null;
+        raisedByRole: "housekeeper" | "guest" | "tenant" | "staff" | null;
     }[];
     leases: {
         status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended";
@@ -1761,10 +1761,10 @@ export declare const ResidenceView: z.ZodObject<{
     notices: {
         message: string | null;
         id: string;
-        reasonCode: "other" | "kigali" | "leaving" | "own-home" | "terms" | null;
+        reasonCode: "other" | "terms" | "kigali" | "leaving" | "own-home" | null;
         leaseId: string;
         moveOutDate: string;
-        filedVia: "email" | "app" | "in_person" | "letter" | null;
+        filedVia: "email" | "app" | "letter" | "in_person" | null;
         filedAt: string;
         noticeGivenDays: number | null;
         isShortNotice: boolean;
@@ -1850,8 +1850,8 @@ export declare const ResidenceView: z.ZodObject<{
     applications: {
         broker: {
             name: string;
-            feeRwf: number;
             terms: string;
+            feeRwf: number;
             referredAt: string;
         } | null;
         name: string;
@@ -1859,7 +1859,7 @@ export declare const ResidenceView: z.ZodObject<{
         email: string | null;
         documents: {
             name: string;
-            state: "requested" | "waiting" | "checked" | "uploaded";
+            state: "waiting" | "requested" | "checked" | "uploaded";
             note: string;
         }[];
         stage: "declined" | "converted" | "ready" | "invited" | "screening";
@@ -1869,12 +1869,12 @@ export declare const ResidenceView: z.ZodObject<{
         roomId: string;
         leaseId: string | null;
         unitLabel: string;
-        screening: ("reference" | "identity" | "balance" | "rules" | "income" | "employment")[];
+        depositRwf: number | null;
+        screening: ("reference" | "identity" | "rules" | "income" | "employment" | "balance")[];
         occupants: string | null;
         offeredRentRwf: number | null;
         termMonths: number | null;
         desiredMoveIn: string | null;
-        depositRwf: number | null;
     }[];
     payouts: {
         status: "held" | "paid" | "scheduled" | "queued";
@@ -1899,7 +1899,7 @@ export declare const ResidenceView: z.ZodObject<{
         recordedByName: string | null;
     }[];
     tickets: {
-        status: "cancelled" | "open" | "resolved" | "closed" | "assigned" | "in_progress";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         reference: string | null;
         title: string;
@@ -1925,7 +1925,7 @@ export declare const ResidenceView: z.ZodObject<{
         visitWindow: string | null;
         costBearer: "landlord" | "tenant" | "to_be_decided" | null;
         costNote: string | null;
-        raisedByRole: "housekeeper" | "guest" | "staff" | "tenant" | null;
+        raisedByRole: "housekeeper" | "guest" | "tenant" | "staff" | null;
     }[];
     leases: {
         status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended";
@@ -2017,10 +2017,10 @@ export declare const ResidenceView: z.ZodObject<{
     notices: {
         message: string | null;
         id: string;
-        reasonCode: "other" | "kigali" | "leaving" | "own-home" | "terms" | null;
+        reasonCode: "other" | "terms" | "kigali" | "leaving" | "own-home" | null;
         leaseId: string;
         moveOutDate: string;
-        filedVia: "email" | "app" | "in_person" | "letter" | null;
+        filedVia: "email" | "app" | "letter" | "in_person" | null;
         filedAt: string;
         noticeGivenDays: number | null;
         isShortNotice: boolean;
@@ -2240,11 +2240,11 @@ export declare const GiveNoticeRequest: z.ZodObject<{
     reason: z.ZodEnum<["kigali", "leaving", "own-home", "terms", "other"]>;
     message: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    reason: "other" | "kigali" | "leaving" | "own-home" | "terms";
+    reason: "other" | "terms" | "kigali" | "leaving" | "own-home";
     moveOutDate: string;
     message?: string | undefined;
 }, {
-    reason: "other" | "kigali" | "leaving" | "own-home" | "terms";
+    reason: "other" | "terms" | "kigali" | "leaving" | "own-home";
     moveOutDate: string;
     message?: string | undefined;
 }>;
@@ -2256,12 +2256,12 @@ export declare const RecordNoticeRequest: z.ZodObject<{
     channel: z.ZodEnum<["app", "letter", "email", "in_person"]>;
 }, "strip", z.ZodTypeAny, {
     unit: string;
-    channel: "email" | "app" | "in_person" | "letter";
+    channel: "email" | "app" | "letter" | "in_person";
     moveOutDate: string;
     receivedOn: string;
 }, {
     unit: string;
-    channel: "email" | "app" | "in_person" | "letter";
+    channel: "email" | "app" | "letter" | "in_person";
     moveOutDate: string;
     receivedOn: string;
 }>;
@@ -2288,9 +2288,9 @@ export type DecideAccessRequest = z.infer<typeof DecideAccessRequest>;
 export declare const RecordScreeningRequest: z.ZodObject<{
     done: z.ZodArray<z.ZodEnum<["identity", "income", "employment", "reference", "balance", "rules"]>, "many">;
 }, "strip", z.ZodTypeAny, {
-    done: ("reference" | "identity" | "balance" | "rules" | "income" | "employment")[];
+    done: ("reference" | "identity" | "rules" | "income" | "employment" | "balance")[];
 }, {
-    done: ("reference" | "identity" | "balance" | "rules" | "income" | "employment")[];
+    done: ("reference" | "identity" | "rules" | "income" | "employment" | "balance")[];
 }>;
 export type RecordScreeningRequest = z.infer<typeof RecordScreeningRequest>;
 /** Decline an application, with the reason the applicant is told. */

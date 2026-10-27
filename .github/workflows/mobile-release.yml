@@ -35,12 +35,24 @@ jobs:
       - name: Check before spending build minutes
         run: pnpm --filter @injishi/mobile check:ci
 
+      - name: Is EAS set up
+        id: eas
+        run: |
+          if [ -f apps/mobile/eas.json ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice file=apps/mobile::No apps/mobile/eas.json yet, so no EAS build starts. The checks above passed."
+          fi
+
       - uses: expo/expo-github-action@v8
+        if: steps.eas.outputs.configured == 'true'
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Start the build
+        if: steps.eas.outputs.configured == 'true'
         working-directory: apps/mobile
         # The `production` profile in eas.json. Derived from the tag rather than
         # taken as an input: `mobile-v*` means a release, and a release builds

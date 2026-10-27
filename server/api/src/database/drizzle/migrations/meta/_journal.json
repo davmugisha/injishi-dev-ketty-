@@ -554,6 +554,167 @@
       "when": 1793040676609,
       "tag": "0078_adr075_org_franchises",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1793040776609,
+      "tag": "0079_rentals_core_enum_values",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1793040876609,
+      "tag": "0080_rentals_profiles",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1793040976609,
+      "tag": "0081_rental_units",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1793041076609,
+      "tag": "0082_tenants_and_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1793041176609,
+      "tag": "0083_lease_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1793041276609,
+      "tag": "0084_lease_charges",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1793041376609,
+      "tag": "0085_lease_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1793041476609,
+      "tag": "0086_lease_deposits",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1793041576609,
+      "tag": "0087_payout_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1793041676609,
+      "tag": "0088_notices_and_filings",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1793041776609,
+      "tag": "0089_rentals_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1793041876609,
+      "tag": "0090_local_leader_posts",
+      "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1793041976609,
+      "tag": "0091_guest_registrations",
+      "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1793042076609,
+      "tag": "0092_rent_reminder_stages_and_payment_charges",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1793042176609,
+      "tag": "0093_faults",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1793042276609,
+      "tag": "0094_expenses",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1793042376609,
+      "tag": "0095_taxes",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1793042476609,
+      "tag": "0096_lease_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1793042576609,
+      "tag": "0097_brokers",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1793042676609,
+      "tag": "0098_move_outs",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1793042776609,
+      "tag": "0099_placement_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1793042876609,
+      "tag": "0100_leader_chains",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1793042976609,
+      "tag": "0101_chains_village_cell_district",
+      "breakpoints": true
     }
   ]
 }

@@ -48,6 +48,7 @@ import { pathToFileURL } from 'node:url';
 import pg from 'pg';
 
 import { assertSampleDatabase } from './sample-database.mjs';
+import { apiEnvFile } from './env-file.mjs';
 
 // --- Fixed points owned by seed-demo.mjs ---------------------------------------
 
@@ -147,7 +148,7 @@ function at(offset, hm) {
 // --- Environment ---------------------------------------------------------------
 
 function loadDotEnv() {
-  const file = path.join(process.cwd(), '.env');
+  const file = apiEnvFile() ?? path.join(process.cwd(), '.env');
   if (!fs.existsSync(file)) return;
   for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
     const match = /^([A-Za-z0-9_]+)=(.*)$/.exec(line.trim());

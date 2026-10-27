@@ -84,3 +84,28 @@ test("demo: no IP limiter, even at 105 sign-ins a minute", async () => {
   );
   assert.equal(refused, 0, `the demo refused ${refused} of 105 sign-ins: its limiter is still on`);
 });
+// A password can be guessed, so its route keeps Better Auth's own per-IP limit
+// on `/sign-in/*` (3 in 10 seconds) in production.
+test("production: password sign-in is limited per IP", async () => {
+  const auth = build();
+  const refused = await burst(
+    auth,
+    "/sign-in/email",
+    { email: "someone@example.com", password: "not-the-password" },
+    10,
+    "203.0.113.12",
+  );
+  assert.ok(refused > 0, "10 password guesses in a few seconds from one IP were never refused");
+});
+
+test("production: changing a password is limited per IP too", async () => {
+  const auth = build();
+  const refused = await burst(
+    auth,
+    "/change-password",
+    { currentPassword: "a-guess-123", newPassword: "another-1234" },
+    10,
+    "203.0.113.13",
+  );
+  assert.ok(refused > 0, "10 current-password guesses from one IP were never refused");
+});

@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -6,6 +6,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { mintObjectKey } from '../domain/object-key';
 import {
   MIME_EXTENSION,
+  type PutFileInput,
   type PutObjectInput,
   type PutObjectResult,
   type StoragePort,
@@ -47,6 +48,15 @@ export class LocalDiskStorageAdapter implements StoragePort {
     await writeFile(target, input.body);
 
     return { objectKey, sizeBytes: input.body.byteLength };
+  }
+
+  /** Copied, not moved: the source may sit on another device, and it stays the caller's. */
+  async putFile(input: PutFileInput): Promise<PutObjectResult> {
+    const objectKey = mintObjectKey(input);
+    const target = this.pathFor(objectKey);
+    await mkdir(dirname(target), { recursive: true });
+    await copyFile(input.path, target);
+    return { objectKey, sizeBytes: input.sizeBytes };
   }
 
   /**

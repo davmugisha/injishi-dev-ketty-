@@ -49,11 +49,14 @@ import { fileURLToPath } from 'node:url';
 import { computeBreakdown } from '@injishi/contracts';
 import pg from 'pg';
 
+import { rentalsRebuilt, skipRentalsNote } from './rentals-rebuilt.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
 import { syntheticCoordFor } from './synthetic-coords.mjs';
+import { apiEnvFile } from './env-file.mjs';
 
 /**
- * Load `server/api/.env` when the variables are not already set.
+ * Load the env file (`env-file.mjs`: `.env.test` unless APP_ENV names another)
+ * when the variables are not already set.
  *
  * The script is run directly with `node`, which does not read a `.env`, and the
  * URL it needs carries characters a shell eats if you try to source the file
@@ -61,7 +64,7 @@ import { syntheticCoordFor } from './synthetic-coords.mjs';
  * unaffected — this only fills in what a local run has not been given.
  */
 function loadDotEnv() {
-  const file = path.join(process.cwd(), '.env');
+  const file = apiEnvFile() ?? path.join(process.cwd(), '.env');
   if (!fs.existsSync(file)) return;
   for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
     const match = /^([A-Za-z0-9_]+)=(.*)$/.exec(line.trim());
@@ -1388,7 +1391,7 @@ async function reset(c) {
   // at, so without this a reset either fails on a foreign key or leaves a lease
   // hanging off a workspace that no longer exists. Child-to-parent order:
   // charges, then leases, then the rooms and the type and the property.
-  await c.query('DELETE FROM rent_charges WHERE lease_id = ANY($1::uuid[])', [RESIDENCE_LEASES.map((l) => l.id)]);
+  await c.query(`DELETE FROM ${(await rentalsRebuilt(c)) ? 'lease_charges' : 'rent_charges'} WHERE lease_id = ANY($1::uuid[])`, [RESIDENCE_LEASES.map((l) => l.id)]);
   await c.query('DELETE FROM leases WHERE id = ANY($1::uuid[])', [RESIDENCE_LEASES.map((l) => l.id)]);
   await c.query('DELETE FROM rooms WHERE id = ANY($1::uuid[])', [RESIDENCE_UNITS.map((u) => u.id)]);
   await c.query('DELETE FROM room_types WHERE id = $1', [RESIDENCE_ROOM_TYPE.id]);
@@ -1624,6 +1627,11 @@ async function seedResidenceRentRoll(c) {
        ON CONFLICT (id) DO NOTHING`,
       [unit.id, rt.id, p.id, p.workspaceId, unit.label],
     );
+  }
+
+  if (await rentalsRebuilt(c)) {
+    console.log(skipRentalsNote('seed-demo.mjs', 'the Lavender Court leases and rent roll'));
+    return;
   }
 
   for (const lease of RESIDENCE_LEASES) {
@@ -1918,6 +1926,11 @@ async function seedKayitareCourt(c) {
     );
   }
 
+  if (await rentalsRebuilt(c)) {
+    console.log(skipRentalsNote('seed-demo.mjs', 'the Kayitare Court leases, rent, deposits, repairs and tenant threads'));
+    return;
+  }
+
   for (const l of KAYITARE_LEASES) {
     const startDate = monthStart(l.start);
     // A signature a week before the tenancy began, never in the future.
@@ -1991,7 +2004,7 @@ async function resetLandlordRows(c) {
   await c.query('DELETE FROM maintenance_tickets WHERE lease_id = ANY($1::uuid[])', [leaseIds]);
   await c.query('DELETE FROM caution_settlements WHERE lease_id = ANY($1::uuid[])', [leaseIds]);
   await c.query('DELETE FROM caution_holds WHERE lease_id = ANY($1::uuid[])', [leaseIds]);
-  await c.query('DELETE FROM rent_charges WHERE lease_id = ANY($1::uuid[])', [leaseIds]);
+  await c.query(`DELETE FROM ${(await rentalsRebuilt(c)) ? 'lease_charges' : 'rent_charges'} WHERE lease_id = ANY($1::uuid[])`, [leaseIds]);
   await c.query('DELETE FROM leases WHERE id = ANY($1::uuid[])', [leaseIds]);
   const p = KAYITARE_PROPERTY;
   await c.query('DELETE FROM rooms WHERE property_id = $1', [p.id]);
@@ -2358,9 +2371,12 @@ async function main() {
     // Tenancy conversations after the leases, then their lines. The booking
     // loop above writes only booking-thread lines, because a lease thread does
     // not exist until this point and its lines would fail the foreign key.
-    for (const t of LEASE_THREADS) await seedLeaseThread(client, t);
-    for (const m of MESSAGES.filter((x) => LEASE_THREADS.some((t) => t.id === x.thread))) {
-      await seedMessage(client, m);
+    // Skipped with the leases they hang off after the rentals rebuild.
+    if (!(await rentalsRebuilt(client))) {
+      for (const t of LEASE_THREADS) await seedLeaseThread(client, t);
+      for (const m of MESSAGES.filter((x) => LEASE_THREADS.some((t) => t.id === x.thread))) {
+        await seedMessage(client, m);
+      }
     }
     // Samuel's landlord seat, which used to be an org with no building.
     await seedKayitareCourt(client);

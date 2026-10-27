@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PropertyScopedQuery = exports.AddAmenityRequest = exports.OperatorAmenityList = exports.OperatorAmenity = exports.ReturnDepositRequest = exports.OperatorDepositList = exports.OperatorDeposit = exports.RecordRentRequest = exports.OperatorFilingList = exports.OperatorContractFiling = exports.CONTRACT_FILING_WINDOW_DAYS = exports.FilingStatus = exports.OperatorRentRoll = exports.OperatorRentCharge = exports.AdvanceLeaseRequest = exports.OperatorLeaseList = exports.OperatorLease = exports.AdvanceTicketRequest = exports.OperatorTicketList = exports.OperatorTicket = exports.MaintenancePriority = exports.MaintenanceCategory = exports.SendMessageRequest = exports.OperatorMessageList = exports.OperatorMessage = exports.OperatorThreadList = exports.OperatorThread = exports.SetHousekeepingRequest = exports.CheckOutRequest = exports.WalkInRequest = exports.CheckInRequest = exports.OperatorStayList = exports.OperatorStay = exports.IssueStayClaimInviteRequest = exports.StayClaimInvite = exports.CLAIM_CODE_PATTERN = exports.StayRegistrationDetails = exports.OperatorRoomList = exports.OperatorRoom = exports.CautionStatus = exports.RentStatus = exports.LeaseStatus = exports.MaintenanceStatus = exports.HousekeepingStatus = exports.RoomStatus = exports.ReservationDecisionResult = exports.OperatorReservationQuery = exports.OperatorReservationList = exports.OperatorReservation = exports.OperatorReservationState = void 0;
+exports.PropertyScopedQuery = exports.AddAmenityRequest = exports.OperatorAmenityList = exports.OperatorAmenity = exports.ReturnDepositRequest = exports.OperatorDepositList = exports.OperatorDeposit = exports.RecordRentRequest = exports.OperatorFilingList = exports.OperatorContractFiling = exports.CONTRACT_FILING_WINDOW_DAYS = exports.FilingStatus = exports.OperatorRentRoll = exports.OperatorRentCharge = exports.AdvanceLeaseRequest = exports.OperatorLeaseList = exports.OperatorLease = exports.AdvanceTicketRequest = exports.OperatorTicketList = exports.OperatorTicket = exports.MaintenancePriority = exports.MaintenanceCategory = exports.SendMessageRequest = exports.OperatorMessageList = exports.OperatorMessage = exports.OperatorThreadList = exports.OperatorThread = exports.SetHousekeepingRequest = exports.CheckOutRequest = exports.WalkInRequest = exports.CheckInRequest = exports.OperatorStayList = exports.OperatorStay = exports.IssueStayClaimInviteRequest = exports.StayClaimInvite = exports.CLAIM_CODE_PATTERN = exports.StayRegistrationDetails = exports.OperatorRoomList = exports.OperatorRoom = exports.CautionStatus = exports.RentStatus = exports.LegacyLeaseStatus = exports.MaintenanceStatus = exports.HousekeepingStatus = exports.RoomStatus = exports.ReservationDecisionResult = exports.OperatorReservationQuery = exports.OperatorReservationList = exports.OperatorReservation = exports.OperatorReservationState = void 0;
 exports.OperatorHousekeepingTask = exports.HousekeepingTaskStatus = exports.HousekeepingTaskType = exports.AcceptedStaffInvitation = exports.StaffInvitationPreview = exports.StaffInvitationTokenRequest = exports.OperatorStaffInvitationList = exports.OperatorStaffInvitation = exports.StaffInvitationStatus = exports.MEMBER_ROLE_REFUSAL = exports.ChangeMemberRoleRequest = exports.InviteStaffRequest = exports.ORG_ROLE_LABEL = exports.InvitableOrgRole = exports.OperatorTeamList = exports.MEMBER_BRANCHES_REFUSAL = exports.SetMemberBranchesRequest = exports.MemberBranchIds = exports.OperatorTeamMember = exports.RoomAssignmentWindowQuery = exports.AssignRoomRequest = exports.OperatorRoomAssignmentList = exports.OperatorRoomAssignment = exports.RoomAssignmentStatus = exports.OperatorRevenue = exports.OperatorRevenueDepartment = exports.OperatorRevenueQuery = exports.CloseFolioResult = exports.FolioDeclaration = exports.CloseFolioRequest = exports.VoidChargeRequest = exports.TakePaymentRequest = exports.PostChargeResult = exports.PostChargeRequest = exports.OperatorFolioDetail = exports.OperatorFolioCharge = exports.OperatorFolioList = exports.OperatorFolio = exports.PaymentMethod = exports.TaxCode = exports.ChargeType = exports.FolioStatus = exports.FolioType = exports.UpdateDepartmentRequest = exports.CreateDepartmentRequest = exports.OperatorDepartmentList = exports.OperatorDepartment = exports.DepartmentStatus = exports.DepartmentType = exports.DepartmentCategory = void 0;
 exports.AssignDepartmentMemberRequest = exports.OperatorDepartmentMemberList = exports.OperatorDepartmentMember = exports.DepartmentPosition = exports.UpdateServiceItemRequest = exports.AdvanceServiceOrderRequest = exports.MarkOrderPaidCashResult = exports.MarkOrderPaidCashRequest = exports.CreateServiceOrderRequest = exports.OperatorServiceOrderList = exports.OperatorServiceOrder = exports.OperatorServiceOrderItem = exports.RraClassificationList = exports.RraClassificationSearch = exports.RraClassification = exports.UpsertServiceItemRequest = exports.UpdateServiceCategoryRequest = exports.CreateServiceCategoryRequest = exports.OperatorServiceCatalog = exports.OperatorServiceCategory = exports.OperatorServiceItem = exports.RraItemField = exports.SelectedOptionSnapshot = exports.SelectedOption = exports.ServiceItemOptions = exports.ServiceItemOption = exports.RraUnitCode = exports.RraClassificationCode = exports.RraItemTypeCode = exports.OrderContext = exports.ServiceOrderStatus = exports.ServiceOrderChannel = exports.FulfillmentType = exports.ServiceCatalogStatus = exports.RaiseTicketRequest = exports.AdvanceHousekeepingTaskRequest = exports.CreateHousekeepingTaskRequest = exports.OperatorHousekeepingTaskList = void 0;
 const zod_1 = require("zod");
@@ -157,13 +157,22 @@ exports.HousekeepingStatus = zod_1.z.enum([
  */
 exports.MaintenanceStatus = zod_1.z.enum([
     "open",
+    // Rentals P4 (migration 0087 swapped the type): the landlord has seen a
+    // tenant's report, and a fault the landlord will not fix, with the reason.
+    "acknowledged",
     "assigned",
     "in_progress",
     "resolved",
     "closed",
+    "wont_fix",
     "cancelled",
 ]);
-exports.LeaseStatus = zod_1.z.enum([
+/**
+ * The OLD lease statuses (no `signed`), read by the residence code the rentals
+ * rebuild replaces. The rentals `LeaseStatus` (`rentals/vocab.ts`) is the one
+ * to use; this goes with that code.
+ */
+exports.LegacyLeaseStatus = zod_1.z.enum([
     "draft",
     "pending_signature",
     "active",
@@ -437,8 +446,8 @@ exports.OperatorMessage = zod_1.z.object({
     senderName: zod_1.z.string().nullable(),
     /** True when this workspace sent it, so a screen can side the bubble. */
     fromUs: zod_1.z.boolean(),
-    /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s). */
-    bodyType: zod_1.z.enum(["text", "image", "voice", "system"]),
+    /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s); `file` a document sent in a lease thread (migration 0073). */
+    bodyType: zod_1.z.enum(["text", "image", "voice", "system", "file"]),
     body: zod_1.z.string().nullable(),
     /** The order a `system` line reports on, so a screen can draw its card. */
     serviceOrderId: primitives_1.Uuid.nullable(),
@@ -540,7 +549,7 @@ exports.OperatorLease = zod_1.z.object({
     cautionRwf: zod_1.z.number().int().nullable(),
     startDate: zod_1.z.string().nullable(),
     endDate: zod_1.z.string().nullable(),
-    status: exports.LeaseStatus,
+    status: exports.LegacyLeaseStatus,
     /** Whether both signatures are in, which is what gates going active. */
     landlordSignedAt: zod_1.z.string().nullable(),
     tenantSignedAt: zod_1.z.string().nullable(),
@@ -554,7 +563,7 @@ exports.OperatorLeaseList = zod_1.z.object({ leases: zod_1.z.array(exports.Opera
  * activated: the server would have no way to tell the second call from a
  * legitimate second step.
  */
-exports.AdvanceLeaseRequest = zod_1.z.object({ to: exports.LeaseStatus });
+exports.AdvanceLeaseRequest = zod_1.z.object({ to: exports.LegacyLeaseStatus });
 /** One month's rent on one lease. */
 exports.OperatorRentCharge = zod_1.z.object({
     id: primitives_1.Uuid,
@@ -606,7 +615,7 @@ exports.OperatorContractFiling = zod_1.z.object({
     leaseId: primitives_1.Uuid,
     unitLabel: zod_1.z.string().nullable(),
     tenantName: zod_1.z.string().nullable(),
-    leaseStatus: exports.LeaseStatus,
+    leaseStatus: exports.LegacyLeaseStatus,
     /** Null when no filing has been raised for this lease at all. */
     status: exports.FilingStatus.nullable(),
     /** When the fifteen days started. The signature, or the amendment that reset it. */

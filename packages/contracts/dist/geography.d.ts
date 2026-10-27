@@ -197,4 +197,12 @@ export declare const VillageListQuery: z.ZodObject<{
     cellId?: number | undefined;
 }>;
 export type VillageListQuery = z.infer<typeof VillageListQuery>;
+export declare function provinceWords(name: string): string;
+/**
+ * A place's name as people write it. The reference tables carry some names
+ * in capitals ("EAST", "GATUMBA") and roman numerals in the wrong case
+ * ("Nyakabanda Ii"): each word is capitalised, a numeral is kept in capitals,
+ * and a province is named as people say it ("Eastern Province").
+ */
+export declare function tidyPlaceName(name: string): string;
 //# sourceMappingURL=geography.d.ts.map

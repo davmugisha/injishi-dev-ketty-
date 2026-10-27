@@ -1,143 +1,155 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BrokerEarnings = exports.BrokerFee = exports.BrokerPlacementList = exports.BrokerPlacement = exports.BrokerPlacementFeeStatus = exports.BrokerCredits = exports.BrokerCreditEntry = exports.BrokerReveal = exports.BrokerDirectory = exports.BrokerDirectoryListing = exports.BrokerDirectoryUnit = exports.BrokerContact = void 0;
+exports.BrokerSummary = exports.BrokerReviews = exports.BrokerReview = exports.BrokerEarnings = exports.BrokerFeeLine = exports.BrokerPlacementList = exports.BrokerPlacement = exports.StartPlacementRequest = exports.BrokerReveal = exports.BrokerHomes = exports.BrokerHomesQuery = exports.BrokerHomesSort = exports.BrokerHome = exports.BrokerHomePlacement = exports.BrokerContact = void 0;
 const zod_1 = require("zod");
-const admin_1 = require("./admin");
+const broker_plans_1 = require("./broker-plans");
 const primitives_1 = require("./primitives");
 const registration_1 = require("./registration");
+const brokers_1 = require("./rentals/brokers");
+const dates_1 = require("./rentals/dates");
 /**
- * The broker's own surface (ADR-038 child 6, `/api/v1/ops/broker/*`).
+ * The broker's own surface (`/api/v1/ops/broker/*`).
  *
- * A broker workspace belongs to one person and runs no departments, so none of
- * these shapes carries a permission. What they carry instead is the answer to
- * the three questions the broker screens ask: which residence units can I place
- * a tenant in, what did revealing a landlord cost me, and what has the work
- * earned.
- *
- * Two departures from the child 6 spec, both the schema's call:
- *
- *   - A placement is `initiated | converted | abandoned | unavailable`
- *     (`placement_status`), not the spec's `viewing -> offer -> placed`. A
- *     placement converts when the landlord records the broker on a lease
- *     (FL19); the broker has no step to advance in between.
- *   - A reveal buys a LISTING's contact, not a unit's. `contact_reveals` keys on
- *     `listing_id`, and a property has one contact however many unit types it
- *     lets, so every unit card on that listing opens together.
+ * A broker sees only the units a landlord switched on for brokers, inside the
+ * area their plan covers (District, Province or Country). A unit outside that
+ * is not there at all: every read and command answers 404. Revealing a
+ * landlord's contact is free and logged; a placement says "I have a tenant for
+ * this unit" and becomes the lease's broker record when the landlord names the
+ * broker on the lease. Fees are recorded, never collected by Injishi.
  */
-// ---------------------------------------------------------------------------
-// Directory
-// ---------------------------------------------------------------------------
-/**
- * The landlord contact a broker paid for, as it stood when they paid.
- *
- * A snapshot, never a join: a landlord who changes their number later has not
- * changed what the broker was sold. Absent entirely until revealed; the server
- * sends no masked string for a client to unmask.
- */
+/** The landlord contact a broker revealed, as it stood when they revealed it. */
 exports.BrokerContact = zod_1.z.object({
+    name: zod_1.z.string().nullable(),
     phone: zod_1.z.string().nullable(),
     email: zod_1.z.string().nullable(),
     revealedAt: zod_1.z.string(),
 });
-/** One unit type on a listing, and how many of its rooms have no active lease. */
-exports.BrokerDirectoryUnit = zod_1.z.object({
-    roomTypeId: primitives_1.Uuid,
-    name: zod_1.z.string(),
-    monthlyRentRwf: zod_1.z.number().int().nullable(),
-    cautionRwf: zod_1.z.number().int().nullable(),
-    vacantUnits: zod_1.z.number().int(),
-    totalUnits: zod_1.z.number().int(),
-});
-exports.BrokerDirectoryListing = zod_1.z.object({
-    listingId: primitives_1.Uuid,
+/** The broker's placement on a unit, when they started one. */
+exports.BrokerHomePlacement = zod_1.z.object({ id: primitives_1.Uuid, status: brokers_1.PlacementStatus });
+/** One opted-in vacant unit a broker may offer. */
+exports.BrokerHome = zod_1.z.object({
+    unitId: primitives_1.Uuid,
+    unitLabel: zod_1.z.string(),
     propertyName: zod_1.z.string(),
     landlordName: zod_1.z.string(),
+    districtId: zod_1.z.number().int().nullable(),
     district: zod_1.z.string().nullable(),
-    units: zod_1.z.array(exports.BrokerDirectoryUnit),
-    /** Null until this broker reveals the listing. */
+    sector: zod_1.z.string().nullable(),
+    bedrooms: zod_1.z.number().int().nullable(),
+    bathrooms: zod_1.z.number().int().nullable(),
+    kitchen: zod_1.z.enum(["own", "shared", "none"]).nullable(),
+    furnished: zod_1.z.boolean(),
+    sizeSqm: zod_1.z.number().int().nullable(),
+    rentRwf: zod_1.z.number().int(),
+    depositRwf: zod_1.z.number().int().nullable(),
+    /** What the landlord pays the broker who brings the tenant. */
+    fee: brokers_1.BrokerFeeTerms,
+    /** The fee in francs on this unit's asking rent. */
+    feeRwf: zod_1.z.number().int(),
+    /** Signed, short-lived photo URLs, cover first. */
+    photos: zod_1.z.array(zod_1.z.string()),
+    video: zod_1.z.object({ url: zod_1.z.string(), posterUrl: zod_1.z.string().nullable(), durationS: zod_1.z.number().int() }).nullable(),
+    /** Null when it is free now. */
+    availableFrom: dates_1.CalendarDay.nullable(),
+    latitude: zod_1.z.number().nullable(),
+    longitude: zod_1.z.number().nullable(),
+    /** Null until this broker reveals the landlord. */
     contact: exports.BrokerContact.nullable(),
-    /** The broker's open (`initiated`) placement on this listing, if any. */
-    openPlacementId: primitives_1.Uuid.nullable(),
+    placement: exports.BrokerHomePlacement.nullable(),
 });
-exports.BrokerDirectory = zod_1.z.object({
+exports.BrokerHomesSort = zod_1.z.enum(["newest", "price_asc", "price_desc", "fee_desc"]);
+/** `GET /ops/broker/homes`. A district outside the plan shows nothing. */
+exports.BrokerHomesQuery = zod_1.z.object({
+    district: zod_1.z.coerce.number().int().positive().optional(),
+    minRent: zod_1.z.coerce.number().int().nonnegative().optional(),
+    maxRent: zod_1.z.coerce.number().int().positive().optional(),
+    /** At least this many bedrooms. */
+    bedrooms: zod_1.z.coerce.number().int().min(0).max(20).optional(),
+    q: zod_1.z.string().trim().max(80).optional(),
+    sort: exports.BrokerHomesSort.optional(),
+});
+exports.BrokerHomes = zod_1.z.object({
     brokerStatus: registration_1.BrokerStatus,
-    /** `sum(delta)` over the credit ledger. Never stored. */
-    balance: zod_1.z.number().int(),
-    /** What one reveal spends. The product's number, sent so a screen can say it. */
-    revealCost: zod_1.z.number().int(),
-    listings: zod_1.z.array(exports.BrokerDirectoryListing),
+    /** The district filter applied, or null for the whole plan area. */
+    districtId: zod_1.z.number().int().nullable(),
+    /** Every district inside the plan with a home on offer, with how many. */
+    districts: zod_1.z.array(zod_1.z.object({ id: zod_1.z.number().int(), name: zod_1.z.string(), count: zod_1.z.number().int() })),
+    homes: zod_1.z.array(exports.BrokerHome),
+    scope: broker_plans_1.BrokerScope,
 });
-/** The answer to a reveal. `charged` is false when the listing was already revealed. */
-exports.BrokerReveal = zod_1.z.object({
-    listingId: primitives_1.Uuid,
-    contact: exports.BrokerContact,
-    balance: zod_1.z.number().int(),
-    charged: zod_1.z.boolean(),
+/** `POST /ops/broker/homes/:unitId/reveal`. `first` is false when it was revealed before. */
+exports.BrokerReveal = zod_1.z.object({ unitId: primitives_1.Uuid, contact: exports.BrokerContact, first: zod_1.z.boolean() });
+/** `POST /ops/broker/homes/:unitId/placements`: "I have a tenant for this unit". */
+exports.StartPlacementRequest = zod_1.z.object({
+    tenantName: zod_1.z.string().trim().max(120, "Keep the name under 120 characters.").nullable().optional(),
+    note: zod_1.z.string().trim().max(500, "Keep the note under 500 characters.").nullable().optional(),
 });
-// ---------------------------------------------------------------------------
-// Credits
-// ---------------------------------------------------------------------------
-exports.BrokerCreditEntry = zod_1.z.object({
-    id: primitives_1.Uuid,
-    /** Positive grants, negative spends. Credits, not money. */
-    delta: zod_1.z.number().int(),
-    /** `plan_grant | reveal | refund | correction`. */
-    reason: zod_1.z.string(),
-    note: zod_1.z.string().nullable(),
-    /** The listing a spend revealed, resolved through `reveal_id`. */
-    propertyName: zod_1.z.string().nullable(),
-    createdAt: zod_1.z.string(),
-});
-exports.BrokerCredits = zod_1.z.object({
-    balance: zod_1.z.number().int(),
-    entries: zod_1.z.array(exports.BrokerCreditEntry),
-});
-// ---------------------------------------------------------------------------
-// Placements and earnings
-// ---------------------------------------------------------------------------
-exports.BrokerPlacementFeeStatus = zod_1.z.enum(["pending", "disbursed"]);
 exports.BrokerPlacement = zod_1.z.object({
     id: primitives_1.Uuid,
-    listingId: primitives_1.Uuid.nullable(),
-    propertyName: zod_1.z.string().nullable(),
+    status: brokers_1.PlacementStatus,
+    startedAt: zod_1.z.string(),
+    unit: zod_1.z.object({ id: primitives_1.Uuid, label: zod_1.z.string(), propertyName: zod_1.z.string(), district: zod_1.z.string().nullable() }).nullable(),
     landlordName: zod_1.z.string().nullable(),
-    status: admin_1.AdminPlacementStatus,
-    initiatedAt: zod_1.z.string(),
-    /** The lease the placement became. Null until the landlord records one. */
+    tenantName: zod_1.z.string().nullable(),
+    note: zod_1.z.string().nullable(),
+    /** The unit's fee when the placement started. */
+    terms: brokers_1.BrokerFeeTerms.nullable(),
+    /** The lease the landlord wrote naming this broker. */
     lease: zod_1.z
-        .object({
-        id: primitives_1.Uuid,
-        unitLabel: zod_1.z.string().nullable(),
-        tenantName: zod_1.z.string().nullable(),
-        status: zod_1.z.string(),
-        startDate: zod_1.z.string().nullable(),
-    })
+        .object({ id: primitives_1.Uuid, reference: zod_1.z.string(), tenantName: zod_1.z.string(), status: zod_1.z.string(), startDate: dates_1.CalendarDay })
         .nullable(),
-    /** The fee that lease raised. Earned when the lease activates (F-R08). */
-    fee: zod_1.z
-        .object({
-        amountRwf: zod_1.z.number().int().nullable(),
-        status: exports.BrokerPlacementFeeStatus,
-    })
-        .nullable(),
+    fee: brokers_1.BrokerFeeRecord.nullable(),
 });
 exports.BrokerPlacementList = zod_1.z.object({ placements: zod_1.z.array(exports.BrokerPlacement) });
-exports.BrokerFee = zod_1.z.object({
-    id: primitives_1.Uuid,
+/** One fee a lease records for this broker. */
+exports.BrokerFeeLine = zod_1.z.object({
     leaseId: primitives_1.Uuid,
-    tenantName: zod_1.z.string().nullable(),
-    unitLabel: zod_1.z.string().nullable(),
-    landlordName: zod_1.z.string().nullable(),
-    amountRwf: zod_1.z.number().int().nullable(),
-    status: exports.BrokerPlacementFeeStatus,
-    /** When the fee last moved: raised, or disbursed. */
-    updatedAt: zod_1.z.string(),
+    reference: zod_1.z.string(),
+    tenantName: zod_1.z.string(),
+    unitLabel: zod_1.z.string(),
+    propertyName: zod_1.z.string(),
+    landlordName: zod_1.z.string(),
+    startDate: dates_1.CalendarDay,
+    fee: brokers_1.BrokerFeeRecord,
 });
+/** `GET /ops/broker/earnings`: what landlords recorded as owed and paid. Injishi moves none of it. */
 exports.BrokerEarnings = zod_1.z.object({
-    /** Disbursed since 1 January, in the server's clock. */
-    disbursedThisYearRwf: zod_1.z.number().int(),
-    pendingRwf: zod_1.z.number().int(),
-    balance: zod_1.z.number().int(),
-    fees: zod_1.z.array(exports.BrokerFee),
+    owedRwf: zod_1.z.number().int(),
+    paidRwf: zod_1.z.number().int(),
+    paidThisYearRwf: zod_1.z.number().int(),
+    /** Recorded by the month the lease starts, the last 12 months, oldest first (`yyyy-mm`). */
+    byMonth: zod_1.z.array(zod_1.z.object({ month: zod_1.z.string(), paidRwf: zod_1.z.number().int(), owedRwf: zod_1.z.number().int() })),
+    fees: zod_1.z.array(exports.BrokerFeeLine),
+});
+exports.BrokerReview = zod_1.z.object({
+    stars: zod_1.z.number().int(),
+    comment: zod_1.z.string().nullable(),
+    from: zod_1.z.enum(["tenant", "landlord"]),
+    /** A tenant by first name; a landlord by their business. */
+    raterName: zod_1.z.string().nullable(),
+    propertyName: zod_1.z.string().nullable(),
+    ratedAt: zod_1.z.string(),
+});
+/** `GET /ops/broker/reviews`. */
+exports.BrokerReviews = zod_1.z.object({
+    average: zod_1.z.number().nullable(),
+    count: zod_1.z.number().int(),
+    /** How many ratings gave 5, 4, 3, 2 and 1 stars, in that order. */
+    breakdown: zod_1.z.array(zod_1.z.number().int()).length(5),
+    /** Leases they brought a tenant to that started. */
+    placedCount: zod_1.z.number().int(),
+    reviews: zod_1.z.array(exports.BrokerReview),
+});
+/** `GET /ops/broker/summary`: the figures the broker home opens on. */
+exports.BrokerSummary = zod_1.z.object({
+    name: zod_1.z.string().nullable(),
+    status: registration_1.BrokerStatus,
+    scope: broker_plans_1.BrokerScope,
+    homesInScope: zod_1.z.number().int(),
+    openPlacements: zod_1.z.number().int(),
+    owedRwf: zod_1.z.number().int(),
+    paidRwf: zod_1.z.number().int(),
+    ratingAverage: zod_1.z.number().nullable(),
+    ratingCount: zod_1.z.number().int(),
 });
 //# sourceMappingURL=broker.js.map

@@ -28,7 +28,7 @@ export function UserMenu({ persona, compact = false }: { persona: Persona; compa
     <Dropdown>
       <Button
         variant="ghost"
-        className="h-auto w-full justify-start gap-2.5 rounded-[14px] px-2.5 py-2 text-left"
+        className="h-auto w-full justify-start gap-2.5 rounded-xl px-2.5 py-2 text-left in-[.sidebar[data-state=collapsed]]:w-auto in-[.sidebar[data-state=collapsed]]:p-1"
         isPending={pending}
         aria-label={`${persona.name}, ${persona.role}. Account menu`}
       >
@@ -37,7 +37,7 @@ export function UserMenu({ persona, compact = false }: { persona: Persona; compa
         </Avatar>
         {compact ? null : (
           <span className="flex min-w-0 flex-1 flex-col" data-sidebar="label">
-            <span className="truncate text-[13px] leading-[18px] font-semibold">{persona.name}</span>
+            <span className="truncate text-sm font-semibold">{persona.name}</span>
             <span className="truncate text-xs leading-4 font-normal text-muted">{persona.role}</span>
             {persona.workspace?.proposedRole ? (
               <Chip size="sm" variant="soft" color="warning" className="mt-0.5 self-start">
@@ -46,7 +46,9 @@ export function UserMenu({ persona, compact = false }: { persona: Persona; compa
             ) : null}
           </span>
         )}
-        {compact ? null : <ChevronsExpandVertical className="size-4 shrink-0 text-muted" aria-hidden="true" />}
+        {compact ? null : (
+          <ChevronsExpandVertical className="size-4 shrink-0 text-muted" aria-hidden="true" data-sidebar="label" />
+        )}
       </Button>
       <Dropdown.Popover placement="top start" className="min-w-[240px]">
         <Dropdown.Menu aria-label="Account" onAction={onAction}>

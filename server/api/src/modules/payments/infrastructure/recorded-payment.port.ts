@@ -4,7 +4,9 @@ import { reportAlarm } from '../../../shared/observability/error-reporter';
 import type { PaymentSeam } from '../domain/payment-seam';
 import {
   type AdapterMode,
+  type CallbackEvent,
   type CaptureEscrowCommand,
+  type LandlordPayoutCommand,
   type OneTimeFeeCommand,
   type PaymentPort,
   type PaymentReceipt,
@@ -14,6 +16,9 @@ import {
   type RecurringChargeCommand,
   type RefundCommand,
   type ReleaseEscrowCommand,
+  type RentCollectCommand,
+  type SubscriptionChargeCommand,
+  type VendorPayoutCommand,
   type VoidPendingCommand,
 } from '../domain/payment-port';
 import { referenceFor } from '../domain/reference';
@@ -147,6 +152,31 @@ export class RecordedPaymentPort implements PaymentPort {
 
   payout(command: PayoutCommand): Promise<PaymentReceipt> {
     return this.inner.payout(command);
+  }
+
+  /*
+   * Rentals (blueprint 2.7) keeps its own record of every one of these: the
+   * lease payment, the landlord payout, the fault payment, the plan month,
+   * each with its key and the provider's reference. So they pass through.
+   */
+  collectRent(command: RentCollectCommand): Promise<PaymentReceipt> {
+    return this.inner.collectRent(command);
+  }
+
+  payLandlord(command: LandlordPayoutCommand): Promise<PaymentReceipt> {
+    return this.inner.payLandlord(command);
+  }
+
+  payVendor(command: VendorPayoutCommand): Promise<PaymentReceipt> {
+    return this.inner.payVendor(command);
+  }
+
+  chargeSubscription(command: SubscriptionChargeCommand): Promise<PaymentReceipt> {
+    return this.inner.chargeSubscription(command);
+  }
+
+  parseCallback(provider: string, headers: Record<string, string | string[] | undefined>, rawBody: Buffer): CallbackEvent | null {
+    return this.inner.parseCallback(provider, headers, rawBody);
   }
 
   /**

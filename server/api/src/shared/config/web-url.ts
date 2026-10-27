@@ -41,25 +41,34 @@ export function resolveWebUrl(env: WebUrlEnv): string {
     }
     return DEV_WEB_URL;
   }
+  return parseOrigin('WEB_URL', raw, 'https://www.injishi.com');
+}
 
+/**
+ * Validate a public origin read from `variable` (`WEB_URL`, `APP_URL`): an
+ * absolute `http` or `https` URL with no path, query, fragment or
+ * credentials, answered with no trailing slash. A path would be silently
+ * doubled by every link built on it. Throws naming the variable.
+ */
+export function parseOrigin(variable: string, raw: string, example: string): string {
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
     throw new Error(
-      'WEB_URL is not a valid URL (expected an origin such as https://www.injishi.com).',
+      `${variable} is not a valid URL (expected an origin such as ${example}).`,
     );
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error(`WEB_URL must use http:// or https://, got "${url.protocol}//".`);
+    throw new Error(`${variable} must use http:// or https://, got "${url.protocol}//".`);
   }
   if ((url.pathname !== '/' && url.pathname !== '') || url.search || url.hash) {
     throw new Error(
-      'WEB_URL must be an origin with no path, query or fragment (e.g. https://www.injishi.com).',
+      `${variable} must be an origin with no path, query or fragment (e.g. ${example}).`,
     );
   }
   if (url.username || url.password) {
-    throw new Error('WEB_URL may not carry credentials.');
+    throw new Error(`${variable} may not carry credentials.`);
   }
   return url.origin;
 }

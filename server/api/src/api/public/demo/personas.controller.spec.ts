@@ -80,6 +80,9 @@ function grant(over: Partial<OversightConsoleGrant> = {}): OversightConsoleGrant
     scopeLevel: 'district',
     provinceId: null,
     districtId: 102,
+    sectorId: null,
+    cellId: null,
+    villageId: null,
     scopeLabel: 'Gasabo',
     ...over,
   };

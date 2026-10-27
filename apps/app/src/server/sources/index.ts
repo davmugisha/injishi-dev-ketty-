@@ -16,8 +16,6 @@ import { sources as people } from "./people";
 import { sources as platform } from "./platform";
 import { sources as platformops } from "./platformops";
 import { sources as publicArea } from "./public";
-import { sources as residence } from "./residence";
-import { sources as resident } from "./resident";
 import { sources as shared } from "./shared";
 import { sources as staff } from "./staff";
 import { sources as stays } from "./stays";
@@ -39,8 +37,6 @@ const areas = {
   staff,
   outlets,
   stock,
-  residence,
-  resident,
   guest,
   market,
   public: publicArea,

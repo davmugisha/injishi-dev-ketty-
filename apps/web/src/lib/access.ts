@@ -2,7 +2,7 @@
 
 import { apiFetch } from "@/lib/api";
 import { HOME } from "@/lib/app-nav";
-import { safeRedirect } from "@/lib/redirect";
+import { appHome, safeRedirect } from "@/lib/redirect";
 
 /**
  * Where a signed-in person goes first (F-S02, role routing).
@@ -18,12 +18,15 @@ import { safeRedirect } from "@/lib/redirect";
  * destination travels along and is honoured once the code is accepted. There is
  * nothing to enrol, so there is one screen rather than two.
  *
- * PLATFORM STAFF OPEN THE ADMIN CONSOLE. A staffer who holds no business
- * workspace and no oversight console used to land on the marketplace's
- * `/trips`, because nothing here asked `/me/staff`. The console is another
- * origin (`NEXT_PUBLIC_ADMIN_URL`) and the one `safeRedirect` already allows,
- * so the destination is still an allowlisted url; admin's own `StaffGuard`
- * decides what they may do there.
+ * THE APP DECIDES THE HOME (2026-10-24). Operators, landlords, officers and
+ * platform staff all work in the operator app (`apps/app`), on its own origin,
+ * and its screens live at its root (`/owner`, `/residence`, `/officer`,
+ * `/admin`, ...). This module used to build that destination itself
+ * (`/w/<workspaceId>`, `/oversight`, an admin console url) and every one of
+ * those 404ed once the app moved. So anyone holding something there goes to
+ * the app's `/auth/continue` (`appHome()`), which asks the API who they are
+ * and opens their persona's home. A staffer who holds nothing else used to
+ * land on `/trips` because nothing here asked `/me/staff`; that read stays.
  */
 
 export interface TwoFactorStatus {
@@ -60,7 +63,6 @@ export type Access =
       twoFactor: TwoFactorStatus;
       /** Operator workspaces (business or broker), in the API's order. */
       operatorWorkspaceIds: string[];
-      activeWorkspaceId: string | null;
       holdsConsole: boolean;
       /** `GET /api/v1/me/staff` said this is platform staff. */
       isStaff: boolean;
@@ -104,7 +106,6 @@ export async function fetchAccess(): Promise<Access> {
     status: "resolved",
     twoFactor,
     operatorWorkspaceIds,
-    activeWorkspaceId: ws.data.activeWorkspaceId ?? null,
     holdsConsole,
     isStaff,
   };
@@ -118,11 +119,9 @@ export async function fetchAccess(): Promise<Access> {
  *     is carried through and honoured afterwards.
  *  2. An explicit, allowlisted `redirect` wins. It is where the person was
  *     bounced from, and a guard on that route still has the final say.
- *  3. Otherwise by role: an officer opens the oversight console (`/officer`
- *     on the operator app); an operator opens the workspace they were last
- *     in, else the first they hold (`/w/<id>` there, which routes them on);
- *     platform staff open the admin console; a guest opens the marketplace
- *     home.
+ *  3. Otherwise by what they hold: an officer, an operator (business or
+ *     broker) or platform staff opens the app, which picks their home; a guest
+ *     opens the marketplace home.
  */
 export function resolveDestination(
   access: Extract<Access, { status: "resolved" }>,
@@ -137,69 +136,14 @@ export function resolveDestination(
 
   if (afterFactor) return afterFactor;
 
-  if (access.holdsConsole) return `${operatorOrigin()}/officer`;
-
-  if (access.operatorWorkspaceIds.length > 0) {
-    const lastUsed =
-      access.activeWorkspaceId &&
-      access.operatorWorkspaceIds.includes(access.activeWorkspaceId)
-        ? access.activeWorkspaceId
-        : access.operatorWorkspaceIds[0];
-    return `${operatorOrigin()}/w/${lastUsed}`;
-  }
-
-  if (access.isStaff) {
-    const admin = adminConsoleUrl();
-    if (admin) return admin;
+  if (access.holdsConsole || access.operatorWorkspaceIds.length > 0 || access.isStaff) {
+    return appHome();
   }
 
   return HOME;
 }
 
-/**
- * Where the operator app answers: its own origin when it has one, else nothing (a path on this origin).
- *
- * Production serves the app on its own host (`NEXT_PUBLIC_PMS_URL`, `app.injishi.com`) with its screens at
- * the root, so `/oversight` and `/w/<id>` on THIS origin answered 404: every officer and every operator who
- * signed in on web, accepted a claim or passed the step-up here landed on a dead page. The same rule as
- * `setup-link.ts`: a different origin is prefixed, the same origin stays a path.
- */
-function operatorOrigin(): string {
-  const origin = (raw: string) => {
-    try {
-      return new URL(raw).origin;
-    } catch {
-      return null;
-    }
-  };
-  const app = origin(process.env.NEXT_PUBLIC_PMS_URL || "http://localhost:3002");
-  const web = origin(process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000");
-  return app && app !== web ? app : "";
-}
-
-/**
- * The admin console's front door, or null when this build names none.
- *
- * Read from `NEXT_PUBLIC_ADMIN_URL` and passed through `safeRedirect`, so it
- * can only ever be an origin the allowlist already trusts. Production's env
- * file sets it EMPTY on purpose (no console is deployed there), and an empty
- * value is null here: a staffer then lands on the home screen rather than on a
- * localhost default.
- */
-function adminConsoleUrl(): string | null {
-  const raw = process.env.NEXT_PUBLIC_ADMIN_URL;
-  if (!raw) return null;
-  let url: string;
-  try {
-    url = new URL("/", raw).toString();
-  } catch {
-    return null;
-  }
-  const safe = safeRedirect(url);
-  return safe === url ? safe : null;
-}
-
-function twoFactorUrl(returnTo: string): string {
+export function twoFactorUrl(returnTo: string): string {
   const params = new URLSearchParams({ redirect: returnTo });
   return `/two-factor/verify?${params.toString()}`;
 }

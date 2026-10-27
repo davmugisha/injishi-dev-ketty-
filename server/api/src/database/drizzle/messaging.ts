@@ -26,7 +26,7 @@ import { messageBodyTypeEnum, threadKindEnum, threadStatusEnum } from './enums';
 import { bookings, guestStays, storedObjects } from './hospitality';
 import { departments, serviceOrders } from './operations';
 import { workspaces } from './org';
-import { leases, maintenanceTickets } from './residence';
+import { leases, maintenanceTickets, tenantPlacements } from './residence';
 
 export const threads = pgTable(
   'threads',
@@ -38,6 +38,12 @@ export const threads = pgTable(
     bookingId: uuid('booking_id').references(() => bookings.id),
     guestStayId: uuid('guest_stay_id').references(() => guestStays.id),
     leaseId: uuid('lease_id').references(() => leases.id),
+    /**
+     * A broker and a landlord about one placement (2026-10-26): the broker's
+     * account on one side, the landlord business's team on the other. Made
+     * the first time either side opens it.
+     */
+    placementId: uuid('placement_id').references((): AnyPgColumn => tenantPlacements.id),
     /**
      * §14.8. The department this conversation is with, when it is with one.
      * Routing is to the department and not to a person (D14), so a shift change
@@ -66,7 +72,8 @@ export const threads = pgTable(
       'threads_scope_exactly_one',
       sql`(CASE WHEN ${t.bookingId} IS NOT NULL THEN 1 ELSE 0 END
            + CASE WHEN ${t.guestStayId} IS NOT NULL THEN 1 ELSE 0 END
-           + CASE WHEN ${t.leaseId} IS NOT NULL THEN 1 ELSE 0 END) = 1`,
+           + CASE WHEN ${t.leaseId} IS NOT NULL THEN 1 ELSE 0 END
+           + CASE WHEN ${t.placementId} IS NOT NULL THEN 1 ELSE 0 END) = 1`,
     ),
     /**
      * ONE conversation per stay per department, enforced where a race cannot
@@ -119,6 +126,19 @@ export const threads = pgTable(
              AND ${t.departmentId} IS NOT NULL
              AND ${t.status} = 'active'`,
       ),
+    /**
+     * Rentals P3.4: ONE conversation per lease, landlord and tenant. Made when
+     * the lease is signed or on the first message; the service inserts with
+     * ON CONFLICT DO NOTHING and reads the winner, and this index is what
+     * refuses the second of two racing first messages.
+     */
+    uniqueIndex('threads_lease_uk')
+      .on(t.leaseId)
+      .where(sql`${t.leaseId} IS NOT NULL`),
+    /** One conversation per placement, broker and landlord; the same race rule as a lease's. */
+    uniqueIndex('threads_placement_uk')
+      .on(t.placementId)
+      .where(sql`${t.placementId} IS NOT NULL`),
   ],
 );
 
@@ -141,15 +161,25 @@ export const messages = pgTable(
       (): AnyPgColumn => serviceOrders.id,
     ),
     voiceDurationS: integer('voice_duration_s'),
+    /**
+     * Rentals P3.4: the fault a lease conversation line is about (the tenant's
+     * report, or a reply either side wrote on it), so the conversation shows
+     * it and links to it. The fault's own timeline stays the record.
+     */
+    maintenanceTicketId: uuid('maintenance_ticket_id').references(
+      (): AnyPgColumn => maintenanceTickets.id,
+    ),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
   (t) => [
     index('messages_thread_idx').on(t.threadId),
+    index('messages_thread_created_idx').on(t.threadId, t.createdAt),
+    // Rentals P3.4: a voice note is up to two minutes (`VOICE_NOTE_MAX_S`).
     check(
       'messages_voice_duration_cap',
-      sql`${t.voiceDurationS} IS NULL OR ${t.voiceDurationS} <= 60`,
+      sql`${t.voiceDurationS} IS NULL OR ${t.voiceDurationS} BETWEEN 1 AND 120`,
     ),
   ],
 );
@@ -203,8 +233,37 @@ export const messageAttachments = pgTable(
     storedObjectId: uuid('stored_object_id')
       .notNull()
       .references(() => storedObjects.id),
+    /** Rentals P3.4: the name the sender's file had, for a document card. */
+    filename: text('filename'),
+    /** Rentals P3.4: the order the files were sent in. */
+    position: integer('position').notNull().default(0),
   },
   (t) => [index('message_attachments_message_idx').on(t.messageId)],
+);
+
+/**
+ * Rentals P3.4: the unread-message emails, one row per conversation and side.
+ *
+ * A reader who leaves a message unread for a few minutes gets ONE email for
+ * everything waiting for them, never one per message. `notified_through` is
+ * the newest message the last email covered, so the next one is only about
+ * what came after it; `sent_at` spaces two emails to the same side of the
+ * same conversation (`MESSAGE_DIGEST_COOLDOWN_MIN`).
+ */
+export const threadDigests = pgTable(
+  'thread_digests',
+  {
+    threadId: uuid('thread_id')
+      .notNull()
+      .references(() => threads.id, { onDelete: 'cascade' }),
+    side: text('side').notNull(),
+    notifiedThrough: timestamp('notified_through', { withTimezone: true }).notNull(),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.threadId, t.side] }),
+    check('thread_digests_side', sql`${t.side} IN ('landlord', 'tenant', 'broker')`),
+  ],
 );
 
 // ===========================================================================

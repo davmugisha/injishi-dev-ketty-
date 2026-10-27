@@ -73,22 +73,53 @@ const REDIS_HEALTH_TIMEOUT_MS = 60_000;
 const PORT_TIMEOUT_MS = 30_000;
 
 /**
- * After migrating: mark the database sample, then run the one recipe. The same
- * two steps the first bring up of a deployed sample stack runs (ADR-043 AC-31).
+ * After migrating: mark the database sample (so payments, SMS and identity may
+ * stay on their mocks), then seed. Which seed is the env file's STACK_SEED
+ * (2026-10-24):
+ *   - `reference` (the default, the TESTING database): platform reference data
+ *     (seed-reference.mjs, what production runs), test settings
+ *     (seed-test-config.mjs) and the first admin (grant-staff.mjs, from
+ *     TEST_ADMIN_EMAIL). No demo people, businesses or homes.
+ *   - `sample`: the old demo world (seed-sample.mjs, ADR-043 AC-31).
  */
-const STEPS = [
-  {
-    script: 'mark-sample-database.mjs',
-    args: ['--sample'],
-    what: 'mark the database as sample data',
-    onFailure:
-      '\nThis database already holds accounts from before the sample marker existed, so\n' +
-      'Postgres will not mark it. Either:\n' +
-      '  pnpm dev:stack:reset     rebuild it as a sample database (deletes its data), or\n' +
-      '  keep it, and run the API with INJISHI_ENVIRONMENT=production (random codes, in Mailpit).',
-  },
-  { script: 'seed-sample.mjs', what: 'the sample recipe (seed-sample.mjs)' },
-];
+const MARK_STEP = {
+  script: 'mark-sample-database.mjs',
+  args: ['--sample'],
+  what: 'mark the database as sample data',
+  onFailure:
+    '\nThis database already holds accounts from before the sample marker existed, so\n' +
+    'Postgres will not mark it. Either:\n' +
+    '  pnpm dev:stack:reset     rebuild it (deletes its data), or\n' +
+    '  keep it, and run the API with INJISHI_DATABASE_KIND unset.',
+};
+
+export function stackSeed(cfg) {
+  const seed = cfg.env.STACK_SEED?.trim().toLowerCase() || 'reference';
+  if (seed !== 'reference' && seed !== 'sample') {
+    throw new StackError(`STACK_SEED in ${cfg.envRel} is "${seed}"; use reference or sample.`);
+  }
+  return seed;
+}
+
+export function stepsFor(cfg) {
+  if (stackSeed(cfg) === 'sample') {
+    return [MARK_STEP, { script: 'seed-sample.mjs', what: 'the sample recipe (seed-sample.mjs)' }];
+  }
+  const steps = [
+    MARK_STEP,
+    { script: 'seed-reference.mjs', what: 'platform reference data' },
+    { script: 'seed-test-config.mjs', what: 'test settings (registration fees)' },
+  ];
+  const admin = cfg.env.TEST_ADMIN_EMAIL?.trim();
+  if (admin) {
+    steps.push({
+      script: 'grant-staff.mjs',
+      args: ['--email', admin, '--role', 'super_admin'],
+      what: `the first admin, ${admin}`,
+    });
+  }
+  return steps;
+}
 
 /** Variables the API no longer reads (ADR-043). A line left in .env does nothing. */
 const RETIRED_VARIABLES = [
@@ -172,15 +203,25 @@ function parsePort(raw, name, envRel) {
   return port;
 }
 
+/**
+ * The local stack is the TEST environment (2026-10-24): `.env.test`, the same
+ * file `APP_ENV=test` gives the API and that scripts read by default. The
+ * development file points at the hosted dev services, which this script must
+ * never migrate or seed. A checkout that still has only the old single `.env`
+ * keeps working on it.
+ */
+export const STACK_ENV_FILE = '.env.test';
+
 export function readApiEnv(apiDir, apiRel) {
-  const envFile = path.join(apiDir, '.env');
-  const envRel = `${apiRel}/.env`;
+  const own = path.join(apiDir, STACK_ENV_FILE);
+  const legacy = path.join(apiDir, '.env');
+  const envFile = existsSync(own) || !existsSync(legacy) ? own : legacy;
+  const envRel = `${apiRel}/${path.basename(envFile)}`;
   if (!existsSync(envFile)) {
     throw new StackError(
       `${envRel} does not exist.\n` +
-        `Create it from the template (from injishi/), then run this again:\n` +
-        `  copy ${apiRel.replace(/\//g, '\\')}\\.env.example ${apiRel.replace(/\//g, '\\')}\\.env     (PowerShell/cmd)\n` +
-        `  cp ${apiRel}/.env.example ${apiRel}/.env       (bash)`,
+        `It is committed with the repo; restore it, then run this again:\n` +
+        `  git checkout -- ${apiRel}/${STACK_ENV_FILE}`,
     );
   }
   const { values: env, seen } = parseDotEnv(envFile);
@@ -413,7 +454,7 @@ export function assertDockerReady() {
  * runs as. Left unset, the project is compose's default for the file's folder
  * (`docker`), exactly as before a second stack existed.
  */
-function composeEnv(cfg) {
+export function composeEnv(cfg) {
   return {
     ...process.env,
     ...(cfg.composeProject ? { COMPOSE_PROJECT_NAME: cfg.composeProject } : {}),
@@ -610,8 +651,8 @@ export function warnAboutEnv(cfg) {
   const shellDb = process.env.DATABASE_URL?.trim();
   if (shellDb && shellDb !== cfg.db.url) {
     warnings.push(
-      'DATABASE_URL is also set in this shell, to a different value. `pnpm api:dev` gives the\n' +
-        '  shell precedence over .env, so it would serve THAT database, not this stack. Unset it\n' +
+      'DATABASE_URL is also set in this shell, to a different value. `pnpm api:dev:test` gives\n' +
+        '  the shell precedence over .env.test, so it would serve THAT database, not this stack. Unset it\n' +
         '  in the terminal you start the API from.',
     );
   }
@@ -623,7 +664,7 @@ export function warnAboutEnv(cfg) {
     );
   }
   if (cfg.redis.hasPassword) {
-    warnings.push('Your .env gives Redis a password; the dev stack Redis has none.');
+    warnings.push(`${cfg.envRel} gives Redis a password; the dev stack Redis has none.`);
   }
   // A worktree's stack is usually wanted empty (mobile spec 0001, D-ac), and
   // unset means `on`, so say it before the database is marked and seeded.
@@ -643,6 +684,11 @@ export function warnAboutEnv(cfg) {
     );
   }
   for (const w of warnings) console.warn(`\nWARNING: ${w}`);
+}
+
+/** Storage goes through S3 (MinIO locally) unless the env file says `local`. */
+export function usesMinio(cfg) {
+  return (cfg.env.STORAGE_ADAPTER_MODE?.trim().toLowerCase() || 'live') !== 'local';
 }
 
 /**
@@ -685,29 +731,32 @@ Dev stack is up, migrated, marked sample and seeded.
 
 Start every app in this one terminal (mobile included) with:  pnpm dev:all
 Or start what you need, each in its own terminal, from injishi/:
-  pnpm api:dev                        API       http://localhost:${apiPort}  (health: /api/v1/health)
+  pnpm api:dev:test                   API on THIS stack  http://localhost:${apiPort}  (health: /api/v1/health)
+                                      (\`pnpm api:dev\` is the hosted dev services, .env.development)
   pnpm web:dev                        web       http://localhost:3000
-  pnpm app:dev                        operator  http://localhost:3002
+  pnpm app:dev                        app       http://localhost:3002  (sign-in, operator screens, /admin)
   pnpm api:worker:dev                 BullMQ worker. Booking and training mail
                                       is QUEUED and waits in Redis until this runs.
                                       It builds into dist-worker/, so it runs beside api:dev.
 
   Mailpit   ${mailpit}     every mail the API sends
-  MinIO     http://localhost:${cfg.ports.minioConsole}     object storage console
-
-Sign in at http://localhost:3000/sign-in with a seeded account, or pick one of
-the demo personas listed there (*@demo.injishi.com):
-  host@injishi.com      owner of the seeded hotel (operator app)
-  landlord@injishi.com  owner of the seeded residence
-  admin@injishi.com     platform super_admin (admin console, :3001)
-  guest@injishi.com     marketplace only
+${usesMinio(cfg) ? `  MinIO     http://localhost:${cfg.ports.minioConsole}     object storage console\n` : '  Storage   on disk (STORAGE_ADAPTER_MODE=local), no MinIO\n'}
 ${
-  fixedCode
-    ? '  Code: 123456. The API runs as the demo (INJISHI_ENVIRONMENT unset), and every\n' +
-      `  code also lands in Mailpit at ${mailpit}.`
-    : '  Code: random, since the API runs as production. Read it in Mailpit at\n' +
-      `  ${mailpit}, or in the \`pnpm api:dev\` log when OTP_DEBUG_LOG=true.`
-}`);
+  stackSeed(cfg) === 'reference'
+    ? 'This is the TESTING database: reference data and settings, no demo accounts.\n' +
+      'Sign in at http://localhost:3002/sign-in (web\'s :3000/sign-in hands off there) as\n' +
+      `${cfg.env.TEST_ADMIN_EMAIL?.trim() || 'an admin you grant with scripts/grant-staff.mjs'} (Injishi admin), or with any new email to create an\n` +
+      `account. Codes are real: read them in Mailpit at ${mailpit}.`
+    : 'Sign in at http://localhost:3002/sign-in (web\'s :3000/sign-in hands off there)\n' +
+      'with a seeded account, or pick one of the demo personas listed there:\n' +
+      '  host@injishi.com      owner of the seeded hotel\n' +
+      '  landlord@injishi.com  owner of the seeded residence\n' +
+      '  admin@injishi.com     platform super_admin (the app\'s /admin)\n' +
+      '  guest@injishi.com     marketplace only\n' +
+      (fixedCode
+        ? `  Code: 123456. The API runs as the demo, and every code also lands in Mailpit at ${mailpit}.`
+        : `  Code: random, since the API runs as production. Read it in Mailpit at ${mailpit}.`)
+}}`);
 }
 
 /**
@@ -735,12 +784,12 @@ export async function up(api, cfg, { reset = false, seed = 'always', summary = t
   // in Mailpit, and `.env.example` points SMTP_URL and live storage at them,
   // but only db and redis were started: every mail then failed, a queued one
   // retried into the failed set, and uploads refused.
-  console.log('\n→ Starting Postgres, Redis, Mailpit and MinIO');
-  composeOrThrow(
-    cfg,
-    ['up', '-d', '--remove-orphans', 'db', 'redis', 'mailpit', 'minio'],
-    'docker compose up',
-  );
+  // MinIO only when the env file stores through S3 (2026-10-24): with
+  // STORAGE_ADAPTER_MODE=local nothing reads it, and its image registry is not
+  // reachable from every network, which used to stop the whole stack.
+  const services = usesMinio(cfg) ? ['db', 'redis', 'mailpit', 'minio'] : ['db', 'redis', 'mailpit'];
+  console.log(`\n→ Starting ${usesMinio(cfg) ? 'Postgres, Redis, Mailpit and MinIO' : 'Postgres, Redis and Mailpit'}`);
+  composeOrThrow(cfg, ['up', '-d', '--remove-orphans', ...services], 'docker compose up');
 
   console.log('\n→ Waiting for Postgres and Redis to report healthy');
   await waitHealthy(cfg, 'db', DB_HEALTH_TIMEOUT_MS);
@@ -769,7 +818,7 @@ export async function up(api, cfg, { reset = false, seed = 'always', summary = t
         '`pnpm dev:stack` reseeds.',
     );
   } else {
-    for (const step of STEPS) {
+    for (const step of stepsFor(cfg)) {
       runNodeScript(api, cfg, step, `${step.script}: ${step.what}`);
     }
   }

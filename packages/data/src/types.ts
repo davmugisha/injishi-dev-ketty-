@@ -10,14 +10,14 @@ export type PersonaId =
   | "finance"
   | "hr"
   | "store"
-  | "residence"
+  | "landlord"
   | "housekeeper"
   | "supervisor"
   | "technician"
   | "waiter"
   | "outlet"
   | "guest"
-  | "resident"
+  | "tenant"
   | "broker"
   | "officer"
   | "psf"
@@ -31,7 +31,8 @@ export type WorkspacePersonaId =
   | "finance"
   | "hr"
   | "store"
-  | "residence"
+  | "landlord"
+  | "tenant"
   | "outlet"
   | "broker"
   | "officer"
@@ -39,7 +40,7 @@ export type WorkspacePersonaId =
   | "ops";
 
 /** Phone apps (portrait, bottom tab bar). */
-export type PhoneAppId = "housekeeper" | "supervisor" | "technician" | "resident" | "guest";
+export type PhoneAppId = "housekeeper" | "supervisor" | "technician" | "guest";
 
 /** Where a screen renders. */
 export type Surface = "workspace" | "phone" | "tablet" | "public" | "auth" | "component";
@@ -60,8 +61,8 @@ export type AreaId =
   | "staff"
   | "outlets"
   | "stock"
-  | "residence"
-  | "resident"
+  | "rentals"
+  | "tenant"
   | "guest"
   | "market"
   | "public"

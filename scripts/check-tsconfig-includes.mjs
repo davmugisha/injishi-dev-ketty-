@@ -3,6 +3,8 @@
  * A Next app's tsconfig may include generated types from `.next/` only.
  *
  * `next build` and `next dev` append their distDir's `types/**` to `include`.
+ * Next 16's dev server builds into `.next/dev`, so `.next/dev/types/**` is the
+ * second standard entry: Next adds it back on every `next dev` if it is missing.
  * Every scratch build run with `NEXT_DIST_DIR` (AGENTS.md § Commands) therefore
  * left a line behind, and the lines were committed: nine in web, six in app,
  * three in admin (platform audit 2026-09-14, H4). A listed folder that goes

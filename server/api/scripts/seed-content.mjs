@@ -17,14 +17,16 @@ import pg from 'pg';
 
 import { ensureTaxRates, upsertAmenities, upsertRdbClassifications } from './reference-data.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
+import { rentalsRebuilt, skipRentalsNote } from './rentals-rebuilt.mjs';
+import { apiEnvFile } from './env-file.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function databaseUrl() {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  const env = readFileSync(resolve(__dirname, '../.env'), 'utf8');
+  const env = readFileSync(apiEnvFile() ?? resolve(__dirname, '../.env'), 'utf8');
   const m = env.match(/^DATABASE_URL=(.+)$/m);
-  if (!m) throw new Error('DATABASE_URL not set and not found in server/api/.env');
+  if (!m) throw new Error('DATABASE_URL not set and not found in server/api/.env.test (or the APP_ENV file)');
   return m[1].trim();
 }
 
@@ -566,6 +568,11 @@ async function main() {
           unitIds.push(made.rows[0].id);
         }
 
+        // Leases, rent and deposits: the old shape, written only before the
+        // rentals rebuild (scripts/rentals-rebuilt.mjs).
+        if (await rentalsRebuilt(client)) {
+          console.log(skipRentalsNote('seed-content.mjs', 'Lavender Hill leases, rent and deposits'));
+        } else {
         /*
          * `leases_active_room_uk` allows ONE active lease per unit, so each of
          * the three below sits on its own unit. Two active leases on A1 would
@@ -699,13 +706,15 @@ async function main() {
             ],
           );
         }
+        }
       }
     }
 
     await client.query('COMMIT');
 
     const counts = {};
-    for (const t of ['rdb_classifications', 'config_entries', 'registration_fees', 'orgs', 'workspaces', 'properties', 'room_types', 'rate_plans', 'rooms', 'listings', 'departments', 'service_categories', 'service_items', 'amenities', 'leases', 'rent_charges', 'caution_holds', 'caution_settlements']) {
+    const chargeTable = (await rentalsRebuilt(client)) ? 'lease_charges' : 'rent_charges';
+    for (const t of ['rdb_classifications', 'config_entries', 'registration_fees', 'orgs', 'workspaces', 'properties', 'room_types', 'rate_plans', 'rooms', 'listings', 'departments', 'service_categories', 'service_items', 'amenities', 'leases', chargeTable, 'caution_holds', 'caution_settlements']) {
       const q = await client.query(`select count(*)::int n from ${t}`);
       counts[t] = q.rows[0].n;
     }

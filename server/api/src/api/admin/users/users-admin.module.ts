@@ -10,8 +10,12 @@ import { AdminGovernmentBodiesController } from '../governance/government-bodies
 import { GovernmentBodiesService } from '../governance/government-bodies.service';
 import { AdminModerationController } from '../governance/moderation.controller';
 import { AdminModerationService } from '../governance/moderation.service';
+import { GuestsModule } from '../../../modules/guests/guests.module';
 import { AdminUsersRepository } from './admin-users.repository';
 import { AdminUsersService } from './admin-users.service';
+import { AdminLocalLeadersController } from './local-leaders.controller';
+import { LocalLeadersRepository } from './local-leaders.repository';
+import { LocalLeadersService } from './local-leaders.service';
 import { OversightGrantsService } from './oversight-grants.service';
 import { RecordAccessService } from './record-access.service';
 import { AdminUserActionsService } from './user-actions.service';
@@ -48,7 +52,9 @@ import { AdminUsersController } from './users.controller';
  * to boot. That is owed work, not done work.
  */
 @Module({
-  imports: [AdminSharedModule],
+  // GuestsModule: appointing a local leader hands them the guests waiting in
+  // their area, and ending one hands current guests on (P5).
+  imports: [AdminSharedModule, GuestsModule],
   controllers: [
     AdminUsersController,
     AdminComplianceController,
@@ -57,6 +63,9 @@ import { AdminUsersController } from './users.controller';
     // The government body catalogue (ADR-053, AC-G4). Here, beside the grants
     // that choose a body, because a retired body is refused at grant time.
     AdminGovernmentBodiesController,
+    // Local leaders and officers (P5): every appointment, by email and area,
+    // the guests waiting for a leader, and the coverage report.
+    AdminLocalLeadersController,
   ],
   providers: [
     AdminUsersRepository,
@@ -70,6 +79,8 @@ import { AdminUsersController } from './users.controller';
     // conflict rules it enforces are the longest reasoning in this area and do
     // not belong among the session and claim-code writes.
     OversightGrantsService,
+    LocalLeadersRepository,
+    LocalLeadersService,
     RecordAccessService,
     AdminGovernanceRepository,
     AdminComplianceService,

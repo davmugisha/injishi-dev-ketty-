@@ -18,7 +18,12 @@ export function apiBaseUrl(): string {
  * (403 MISSING_OR_NULL_ORIGIN). The app's own public origin is on the API's CORS_ORIGINS list.
  */
 export function apiOrigin(): string {
-  return (process.env.INJISHI_API_ORIGIN ?? process.env.INJISHI_APP_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+  return (
+    process.env.INJISHI_API_ORIGIN ||
+    process.env.INJISHI_APP_URL ||
+    process.env.NEXT_PUBLIC_PMS_URL ||
+    "http://localhost:3002"
+  ).replace(/\/+$/, "");
 }
 
 const TIMEOUT_MS = 15_000;
@@ -66,6 +71,8 @@ export interface RequestOptions {
   form?: FormData;
   /** The visitor's address, forwarded so the API's per-IP sign-in limits count them and not this server. */
   clientIp?: string | null;
+  /** The visitor's browser, forwarded where the API keeps it as evidence (a lease signature). */
+  userAgent?: string | null;
 }
 
 /**
@@ -111,6 +118,7 @@ export async function apiRequest<T>(
   if (options.workspaceId) headers["x-workspace-id"] = options.workspaceId;
   if (options.branchId) headers["x-branch-id"] = options.branchId;
   if (options.idempotencyKey) headers["idempotency-key"] = options.idempotencyKey;
+  if (options.userAgent) headers["user-agent"] = options.userAgent.slice(0, 500);
   let payload: string | FormData | undefined;
   if (options.form) {
     payload = options.form;

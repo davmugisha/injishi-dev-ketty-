@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
 import { AmenitiesService } from './application/amenities.service';
-import { BrokerService } from './application/broker.service';
 import { DepartmentsService } from './application/departments.service';
 import { FolioService } from './application/folio.service';
 import { FrontDeskService } from './application/front-desk.service';
@@ -13,12 +12,11 @@ import { HousekeepingService } from './application/housekeeping.service';
 import { HousekeepingBoardService } from './application/housekeeping-board.service';
 import { LostFoundService } from './application/lost-found.service';
 import { WorkOrdersService } from './application/work-orders.service';
+// The one ticket lifecycle hotel work orders, the tickets board and rentals faults share (WP 4.1).
+import { TicketLifecycle } from './application/ticket-lifecycle';
 import { HousekeepingBoardRepository } from './infrastructure/housekeeping-board.repository';
 import { LostFoundRepository } from './infrastructure/lost-found.repository';
 import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
-// The new interface's residence (real-data 1.3.1).
-import { ResidenceInterfaceService } from './application/residence-interface.service';
-import { ResidenceInterfaceRepository } from './infrastructure/residence-interface.repository';
 // The staff phone (real-data 1.3.3).
 import { StaffPhoneService } from './application/staff-phone.service';
 import { WorkOrderTimeService } from './application/work-order-time.service';
@@ -38,7 +36,6 @@ import { OffersService } from './application/offers.service';
 import { StayClaimService } from './application/stay-claim.service';
 import { StayRefundService } from './application/stay-refund.service';
 import { AmenitiesRepository } from './infrastructure/amenities.repository';
-import { BrokerOpsRepository } from './infrastructure/broker-ops.repository';
 import { DepartmentsRepository } from './infrastructure/departments.repository';
 import { FolioRepository } from './infrastructure/folio.repository';
 import { FrontDeskRepository } from './infrastructure/front-desk.repository';
@@ -111,7 +108,6 @@ import { PaymentsModule } from '../payments/payments.module';
     MessageTemplatesRepository,
     MessagingRepository,
     ResidenceRepository,
-    BrokerOpsRepository,
     AmenitiesRepository,
     DepartmentsRepository,
     FolioRepository,
@@ -132,18 +128,16 @@ import { PaymentsModule } from '../payments/payments.module';
     HousekeepingBoardRepository,
     WorkOrdersRepository,
     LostFoundRepository,
-    ResidenceInterfaceRepository,
     HousekeepingBoardService,
     WorkOrdersService,
+    TicketLifecycle,
     LostFoundService,
-    ResidenceInterfaceService,
     StaffPhoneRepository,
     StaffPhoneService,
     WorkOrderTimeService,
     FrontDeskService,
     MessagingService,
     ResidenceService,
-    BrokerService,
     AmenitiesService,
     DepartmentsService,
     FolioService,
@@ -174,7 +168,6 @@ import { PaymentsModule } from '../payments/payments.module';
     FrontDeskService,
     MessagingService,
     ResidenceService,
-    BrokerService,
     AmenitiesService,
     DepartmentsService,
     FolioService,
@@ -192,7 +185,6 @@ import { PaymentsModule } from '../payments/payments.module';
     HousekeepingBoardService,
     WorkOrdersService,
     LostFoundService,
-    ResidenceInterfaceService,
     StaffPhoneService,
     WorkOrderTimeService,
   ],

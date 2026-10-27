@@ -1,5 +1,10 @@
 import {
   AdminActionRequest,
+  AdminBrokerPlanUpdate,
+  BrokerPlanCode,
+  type AdminBrokerPlanList,
+  type AdminBrokerSubscriptionList,
+  type BrokerPlan,
   type AdminBrokerListResponse,
   type AdminBrokerStatusChange,
   AdminOrgListQuery,
@@ -12,6 +17,7 @@ import {
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -26,6 +32,7 @@ import {
 import { StaffGuard } from '../../../shared/auth/staff.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 import { AdminBrokerActionsService } from './broker-actions.service';
+import { AdminBrokerPlansService } from './broker-plans-admin.service';
 import { AdminBrokersService } from './brokers.service';
 
 /**
@@ -59,7 +66,40 @@ export class AdminBrokersController {
   constructor(
     private readonly brokers: AdminBrokersService,
     private readonly actions: AdminBrokerActionsService,
+    private readonly plans: AdminBrokerPlansService,
   ) {}
+
+  /** The three broker plans with their monthly prices (2026-10-25). */
+  @Get('plans')
+  @RequireStaffPermission('admin.broker.view')
+  listPlans(): Promise<AdminBrokerPlanList> {
+    return this.plans.plans();
+  }
+
+  /**
+   * Change a plan's monthly price, with a reason, audited. The next payment
+   * anyone makes uses it; a month already paid keeps its amount. District stays
+   * free. `admin.fee.edit`, the fee catalog's power.
+   */
+  @Patch('plans/:code')
+  @RequireStaffPermission('admin.fee.edit')
+  pricePlan(
+    @Param('code', new ZodValidationPipe(BrokerPlanCode)) code: BrokerPlanCode,
+    @Body(new ZodValidationPipe(AdminBrokerPlanUpdate)) body: AdminBrokerPlanUpdate,
+    @CurrentUser() user: SessionUser,
+  ): Promise<BrokerPlan> {
+    return this.plans.setPrice(code, body, user.id);
+  }
+
+  /** Every broker's paid plan, newest first, read only. */
+  @Get('subscriptions')
+  @RequireStaffPermission('admin.broker.view')
+  subscriptions(
+    @Query(new ZodValidationPipe(PageOnlyQuery))
+    query: { page?: number; pageSize?: number },
+  ): Promise<AdminBrokerSubscriptionList> {
+    return this.plans.subscriptions(query.page ?? 1, query.pageSize ?? 25);
+  }
 
   /** The broker directory, with credits, reveals and placements counted. */
   @Get()

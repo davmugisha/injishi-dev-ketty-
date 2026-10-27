@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 /**
- * Every app in one terminal.
+ * Every app in one terminal, as dev servers on the host (hot reload).
+ *
+ * `pnpm docker:up` is the main way to run the whole product; this is for
+ * working on the code with each app recompiling on save.
  *
  *   pnpm dev:all                      the whole product: the Docker services,
  *                                     then api, worker, web, app, mobile
@@ -8,9 +11,10 @@
  *   pnpm dev:all --only web,api       just these
  *   pnpm dev:all --lan 192.168.1.68   the address a phone reaches this PC on
  *
- * Ctrl+C stops every app it started. Postgres, Redis, MinIO and Mailpit keep
- * running in Docker, because they hold the data and are slow to come back;
- * `pnpm dev:stack:down` stops them.
+ * Ctrl+C stops every app it started. Postgres, Redis and Mailpit (and MinIO,
+ * when the API's env file stores through S3) keep running in Docker, because
+ * they hold the data and are slow to come back; `pnpm dev:stack:down` stops
+ * them.
  *
  * In order, it:
  *   1. runs `pnpm install --frozen-lockfile` when pnpm-lock.yaml no longer
@@ -44,7 +48,7 @@
  * Plain Node, no dependencies, like dev-stack.mjs.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
@@ -59,6 +63,7 @@ import {
   readApiEnv,
   resolveApiDir,
   up,
+  usesMinio,
   warnAboutEnv,
 } from './dev-stack.mjs';
 
@@ -95,7 +100,7 @@ function usage() {
   return [
     'Usage: pnpm dev:all [--skip <apps>] [--only <apps>] [--lan <address>]',
     '',
-    'Starts Postgres, Redis, MinIO and Mailpit in Docker, migrates, then every app',
+    'Starts Postgres, Redis and Mailpit in Docker, migrates, then every app',
     `in this one terminal: ${APPS.map((a) => a.name).join(', ')}.`,
     '',
     '  --skip mobile,app     everything except these',
@@ -162,15 +167,15 @@ function pnpmCommand(args) {
  * pnpm keeps a copy of the lockfile it last installed from. When the real one
  * no longer matches it, a pull moved a dependency and the apps would start on
  * the old tree. Compared without line endings: a Windows checkout may hold CRLF.
- * pnpm 12 writes pnpm-lock.yaml as two YAML documents, its own version pin and
- * then the lockfile proper, and its copy holds only the last one, so the last
- * document is what is compared. A one-document lockfile compares whole.
  */
 function ensureInstalled() {
-  const read = (file) => (existsSync(file) ? readFileSync(file, 'utf8').replace(/\r/g, '') : null);
-  const wanted = read(path.join(ROOT, 'pnpm-lock.yaml'))?.split(/^---\n/m).at(-1) ?? null;
-  const installed = read(path.join(ROOT, 'node_modules', '.pnpm', 'lock.yaml'));
-  if (wanted !== null && wanted === installed) return;
+  // pnpm writes node_modules/.pnpm/lock.yaml on every install. Its content is not a copy of
+  // pnpm-lock.yaml under pnpm 12 (no packageManager document, no other platforms' packages),
+  // so the two are compared by age: a lockfile newer than the last install was changed since.
+  const mtime = (file) => (existsSync(file) ? statSync(file).mtimeMs : null);
+  const wanted = mtime(path.join(ROOT, 'pnpm-lock.yaml'));
+  const installed = mtime(path.join(ROOT, 'node_modules', '.pnpm', 'lock.yaml'));
+  if (wanted !== null && installed !== null && wanted <= installed) return;
 
   console.log(
     installed === null
@@ -393,6 +398,9 @@ function startApp(app, ctx, width) {
   // input", and that app never starts. ensureInstalled() already checked.
   delete env.pnpm_config_verify_deps_before_run;
   delete env.npm_config_verify_deps_before_run;
+  // `dev:all` brings up the LOCAL stack, so the API and worker read .env.test
+  // (2026-10-24), the file that stack is configured from, not .env.development.
+  if (app.needsStack) env.APP_ENV = 'test';
   if (app.name === 'mobile' && ctx.lan) {
     env.EXPO_PUBLIC_API_URL = `http://${ctx.lan.address}:${ctx.apiPort}`;
     env.REACT_NATIVE_PACKAGER_HOSTNAME = ctx.lan.address;
@@ -483,7 +491,7 @@ function printServerSummary(servers, results, ctx) {
     api: `http://localhost:${ctx.apiPort}/api/v1/health`,
     worker: 'running (queues, no port)',
     web: `http://localhost:${portOf('web')}`,
-    app: `http://localhost:${portOf('app')}   (the operator zone; open it here directly for hot reload)`,
+    app: `http://localhost:${portOf('app')}   the app (its screens, /admin; sign in here)`,
   };
   const order = ['web', 'app', 'api', 'worker'];
   const rows = order
@@ -492,7 +500,7 @@ function printServerSummary(servers, results, ctx) {
     .map((i) => `  ${servers[i].name.padEnd(8)}${stateOf(servers[i], results[i]) ?? where[servers[i].name]}`);
   if (ctx.stackStarted) {
     rows.push(`  mailpit http://localhost:${ctx.ports.mailpit}   every mail the API sends`);
-    rows.push(`  minio   http://localhost:${ctx.ports.minioConsole}   object storage console`);
+    if (ctx.minio) rows.push(`  minio   http://localhost:${ctx.ports.minioConsole}   object storage console`);
   }
 
   const rule = paint(90, '─'.repeat(72));
@@ -500,8 +508,8 @@ function printServerSummary(servers, results, ctx) {
   if (servers.some((a) => a.name === 'web')) {
     lines.push(
       '',
-      `  Sign in at ${where.web}/sign-in as host@injishi.com (hotel owner),`,
-      '  admin@injishi.com (admin console) or guest@injishi.com, or pick a demo persona.',
+      `  Sign in at ${where.web}/sign-in (it hands you to the app) as landlord@injishi.com,`,
+      '  host@injishi.com, admin@injishi.com or guest@injishi.com, or pick a demo persona.',
       ctx.fixedCode
         ? '  The code is 123456.'
         : '  The code is random (the API runs as production): read it in Mailpit.',
@@ -582,7 +590,7 @@ function killTree(app) {
   });
 }
 
-function installStopHandlers(apps) {
+function installStopHandlers(apps, minio) {
   const stop = async (signal) => {
     if (stopping) return;
     stopping = true;
@@ -592,7 +600,7 @@ function installStopHandlers(apps) {
     const stackStarted = apps.some((a) => a.needsStack);
     console.log(
       stackStarted
-        ? 'Stopped. Postgres, Redis, MinIO and Mailpit are still running in Docker;\n' +
+        ? `Stopped. Postgres, Redis${minio ? ', MinIO' : ''} and Mailpit are still running in Docker;\n` +
             '`pnpm dev:stack:down` stops them.'
         : 'Stopped.',
     );
@@ -687,12 +695,13 @@ async function main() {
     }
   }
 
-  const ctx = { apps, apiPort, ports: cfg.ports, lan, stackStarted, fixedCode: !isProductionProcess(cfg) };
+  const minio = usesMinio(cfg);
+  const ctx = { apps, apiPort, ports: cfg.ports, lan, stackStarted, minio, fixedCode: !isProductionProcess(cfg) };
   const width = Math.max(...apps.map((a) => a.name.length));
   console.log(
     `\n→ Starting ${apps.map((a) => a.name).join(', ')}. Ctrl+C stops ${apps.length === 1 ? 'it' : 'them all'}.\n`,
   );
-  installStopHandlers(apps);
+  installStopHandlers(apps, minio);
   for (const app of apps) startApp(app, ctx, width);
   await announce(apps, ctx);
 }

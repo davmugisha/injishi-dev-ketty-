@@ -11,6 +11,7 @@
  */
 import { iid, kigaliAt, parseFixtureDate, shiftDate, userId } from './lib.mjs';
 import { leaseId, ticketId, unitRoom, upsert } from './residence.mjs';
+import { rentalsRebuilt, skipRentalsNote } from '../rentals-rebuilt.mjs';
 import { ORG, PROPERTY, WORKSPACE } from './world.mjs';
 
 const WS = WORKSPACE.residences;
@@ -35,6 +36,12 @@ const story = (text) => shiftDate(parseFixtureDate(text));
 const at = (iso, time) => new Date(`${iso}T${time}:00+02:00`);
 
 export async function seed({ c, fx, keep, log }) {
+  // Olivier's notices, repairs and visits hang off his lease, which the residence area no longer
+  // seeds after the rentals rebuild (../rentals-rebuilt.mjs).
+  if (await rentalsRebuilt(c)) {
+    log(skipRentalsNote('resident', "Olivier Habineza's notices, repairs and visits"));
+    return;
+  }
   // ── The notices on his home screen ───────────────────────────────────────────────────────────────
   const noticeRows = fx('resident.notices').map((n) => {
     const plan = NOTICES[n.id];

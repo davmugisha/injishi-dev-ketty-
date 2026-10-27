@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { type SignInState, signInAs, startSignIn } from "@/lib/auth-actions";
 import { GoogleButton } from "./GoogleButton";
 import { HeroCarousel } from "./HeroCarousel";
+import { ForgotPasswordForm, PasswordSignInForm } from "./PasswordSignIn";
 
 const GROUP_LABEL: Record<PersonaGroup, string> = {
   operator: "Operator workspaces",
@@ -141,7 +142,11 @@ export function SignInView({
   const [state, formAction, pending] = useActionState<SignInState, FormData>(startSignIn, {});
   const [email, setEmail] = useState(state.email ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
+  // Email code by default; a password only for those who set one (tenants), offered to every address.
+  const [mode, setMode] = useState<"code" | "password" | "forgot">("code");
+  const [saved, setSaved] = useState<string | null>(null);
   const useEmail = (value: string) => {
+    setMode("code");
     setEmail(value);
     inputRef.current?.focus();
     inputRef.current?.scrollIntoView({ block: "center" });
@@ -188,25 +193,57 @@ export function SignInView({
             <Separator className="flex-1" />
           </div>
 
-          <Form action={formAction} className="flex w-full flex-col gap-3" validationBehavior="aria">
-            <input type="hidden" name="next" value={next} />
-            <TextField
-              name="email"
-              type="email"
-              value={email}
-              onChange={setEmail}
-              isInvalid={!!state.error}
-              fullWidth
-              autoComplete="email"
-            >
-              <Label className="sr-only">Email</Label>
-              <Input ref={inputRef} placeholder="Enter your email" className="rounded-xl" />
-              {state.error ? <FieldError>{state.error}</FieldError> : null}
-            </TextField>
-            <Button type="submit" variant="secondary" fullWidth isPending={pending} className="rounded-full">
-              Continue
-            </Button>
-          </Form>
+          {mode === "password" ? (
+            <PasswordSignInForm
+              next={next}
+              email={email}
+              onEmailChange={setEmail}
+              notice={saved}
+              onForgot={() => {
+                setSaved(null);
+                setMode("forgot");
+              }}
+              onUseCode={() => {
+                setSaved(null);
+                setMode("code");
+              }}
+            />
+          ) : mode === "forgot" ? (
+            <ForgotPasswordForm
+              email={email}
+              onBack={() => setMode("password")}
+              onDone={(address) => {
+                setEmail(address);
+                setSaved("Password saved. Sign in with it.");
+                setMode("password");
+              }}
+            />
+          ) : (
+            <>
+              <Form action={formAction} className="flex w-full flex-col gap-3" validationBehavior="aria">
+                <input type="hidden" name="next" value={next} />
+                <TextField
+                  name="email"
+                  type="email"
+                  value={email}
+                  onChange={setEmail}
+                  isInvalid={!!state.error}
+                  fullWidth
+                  autoComplete="email"
+                >
+                  <Label className="sr-only">Email</Label>
+                  <Input ref={inputRef} placeholder="Enter your email" className="rounded-xl" />
+                  {state.error ? <FieldError>{state.error}</FieldError> : null}
+                </TextField>
+                <Button type="submit" variant="secondary" fullWidth isPending={pending} className="rounded-full">
+                  Continue
+                </Button>
+              </Form>
+              <Button variant="ghost" size="sm" className="text-sm text-muted" onPress={() => setMode("password")}>
+                Sign in with your password
+              </Button>
+            </>
+          )}
 
           {demo ? (
             <Card className="w-full gap-3 p-4" aria-labelledby="demo-h">
