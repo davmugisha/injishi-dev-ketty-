@@ -57,6 +57,11 @@ apps/web/*
 !apps/web/package.json
 apps/app/*
 !apps/app/package.json
+# Except the stock photos apps/mobile/src/lib/stock.ts bundles, until feature 7 (remove all demo
+# data) takes that file out.
+!apps/app/public/
+apps/app/public/*
+!apps/app/public/stock/
 server/*/*
 !server/*/package.json
 infra/
