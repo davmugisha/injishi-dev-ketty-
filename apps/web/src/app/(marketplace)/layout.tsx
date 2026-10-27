@@ -7,7 +7,7 @@ import { AnalyticsScript } from "@/components/shared/analytics-script";
 import { shareMetadata } from "@/lib/share-metadata";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { HeroRouter } from "@/components/heroui/router";
-import { inter } from "@/lib/fonts";
+import { figtree, instrumentSans } from "@/lib/fonts";
 import "../_injishi-public.css";
 
 /**
@@ -101,7 +101,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   return (
     <html
       lang="en"
-      className={cn(inter.variable)}
+      className={cn(figtree.variable, instrumentSans.variable)}
       suppressHydrationWarning
     >
       <body className="antialiased">

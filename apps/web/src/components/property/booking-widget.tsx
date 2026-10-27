@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
-import { Button, Popover, PopoverContent, PopoverTrigger } from "@injishi/ui";
+import { Button, Popover, PopoverContent, PopoverTrigger } from "@injishi/web-ui";
 import { formatPrice, nightsBetween, pluralize } from "@injishi/utils";
 import { BookingGuestPicker } from "@/components/property/booking-guest-picker";
 import { StayDatePicker } from "@/components/search/stay-date-picker";

@@ -1,7 +1,7 @@
 -- ADR-075 A1, the thread: what kind of business an org is (D-h), the key that makes a Pay press create one
 -- registration however often it is pressed (AC-14), and the 50,000 RWF fee (O-9, D-j).
 --
--- Written by hand, not generated: drizzle-kit's diff against 0072's snapshot also holds the waitlist table and
+-- Written by hand, not generated: drizzle-kit's diff against 0073's snapshot also holds the waitlist table and
 -- enums the schema dropped in 4f32a8f1 without a migration, and generating would drop them. That drift is not
 -- this migration's to settle.
 CREATE TYPE "public"."business_kind" AS ENUM('hotel', 'motel', 'tented_camp', 'guest_house', 'apartment', 'lodge', 'villa', 'other', 'bar_restaurant', 'coffee_shop', 'residence', 'broker');--> statement-breakpoint

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
-import { Badge, Button } from "@injishi/ui";
+import { Badge, Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
 import { AssistantWidget } from "@/components/assistant/assistant-widget";

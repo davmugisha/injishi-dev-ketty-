@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { GoogleMark } from "@/components/icons/marks";
 import { InlineError } from "@/components/auth/auth-feedback";
 import { authClient } from "@/lib/auth-client";

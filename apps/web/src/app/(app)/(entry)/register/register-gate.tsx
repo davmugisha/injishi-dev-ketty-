@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { fetchPlatform, isDemo, offersGoogle } from "@/data/platform";
 import { useOnline } from "@/hooks/use-online";

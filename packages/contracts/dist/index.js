@@ -73,4 +73,6 @@ __exportStar(require("./marketplace"), exports);
 // The residence screens of the new interface (real-data 1.3.1).
 __exportStar(require("./interface-residence"), exports);
 __exportStar(require("./staff-phone"), exports);
+// The bar and restaurant point of sale (POS spec, phase 1).
+__exportStar(require("./pos"), exports);
 //# sourceMappingURL=index.js.map

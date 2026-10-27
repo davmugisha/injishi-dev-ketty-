@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { countryName, type AccountDocumentType, type IdentityOnFile, type IdentityScanResult } from "@injishi/contracts";
-import { Button, Checkbox } from "@injishi/ui";
+import { Button, Checkbox } from "@injishi/web-ui";
 import { BadgeCheck, Camera, Clock, IdCard, ScanFace, TriangleAlert } from "lucide-react";
 
 import { scanIdentity } from "@/data/identity";

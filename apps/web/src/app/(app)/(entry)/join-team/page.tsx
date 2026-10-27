@@ -16,7 +16,7 @@ import {
   type StaffInvitationPreview,
 } from "@injishi/contracts";
 import { Button } from "@heroui/react";
-import { Button as UiButton } from "@injishi/ui";
+import { Button as UiButton } from "@injishi/web-ui";
 import { useEffect, useRef, useState } from "react";
 
 import BrandLogo from "@/components/app/brand-logo";

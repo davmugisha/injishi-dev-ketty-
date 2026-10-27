@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import type { DemoPersona } from "@injishi/contracts";
-import { Button, Input } from "@injishi/ui";
+import { Button, Input } from "@injishi/web-ui";
 
 import DemoPersonaPicker from "@/components/auth/demo-persona-picker";
 import {

@@ -516,29 +516,36 @@
     {
       "idx": 73,
       "version": "7",
-      "when": 1793004125463,
-      "tag": "0073_adr075_business_kind",
+      "when": 1792956663982,
+      "tag": "0073_pos_floor_orders_payments_shifts",
       "breakpoints": true
     },
     {
       "idx": 74,
       "version": "7",
-      "when": 1793004185463,
-      "tag": "0074_adr075_identity_scans",
+      "when": 1793004125463,
+      "tag": "0074_adr075_business_kind",
       "breakpoints": true
     },
     {
       "idx": 75,
       "version": "7",
-      "when": 1793004245463,
-      "tag": "0075_adr075_franchise_agreement",
+      "when": 1793004185463,
+      "tag": "0075_adr075_identity_scans",
       "breakpoints": true
     },
     {
       "idx": 76,
       "version": "7",
+      "when": 1793004245463,
+      "tag": "0076_adr075_franchise_agreement",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
       "when": 1793004305463,
-      "tag": "0076_adr075_org_franchises",
+      "tag": "0077_adr075_org_franchises",
       "breakpoints": true
     }
   ]

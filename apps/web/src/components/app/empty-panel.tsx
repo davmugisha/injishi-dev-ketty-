@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { Icon } from "./icon";
 
 /**

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import type { StepId } from "./register-steps";
 import { formatRwf } from "./wizard-ui";

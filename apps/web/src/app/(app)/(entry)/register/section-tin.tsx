@@ -18,7 +18,7 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { formatTin, normalizeTin, sameName } from "./business-draft";
 import { Callout } from "./register-shell";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import type { BusinessDraft } from "./business-draft";
 import { COUNTRY_OPTIONS } from "./country-options";

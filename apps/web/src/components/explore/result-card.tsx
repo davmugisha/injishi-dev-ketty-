@@ -2,7 +2,7 @@ import { ACCOMMODATION_CLASS_LABEL } from "@injishi/contracts";
 import { ArrowRight, Award, MapPin, ShieldCheck, Star } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { Badge } from "@injishi/ui";
+import { Badge } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { ResultGallery } from "@/components/explore/result-gallery";
 import { NoPhoto } from "@/components/stays/no-photo";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 /**
  * The left half of /sign-in: a photo, a caption and five workspace tabs whose

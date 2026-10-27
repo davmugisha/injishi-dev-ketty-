@@ -6,19 +6,24 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css",
     "./styles/*": "./src/styles/*",
     "./*": "./src/*.tsx"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "pnpm run --silent lint:biome && pnpm run --silent lint:eslint",
+    "lint:biome": "biome lint .",
+    "lint:eslint": "eslint \"src/**/*.{ts,tsx}\"",
+    "test": "node ../../scripts/no-tests.mjs"
   },
   "peerDependencies": {
     "@gravity-ui/icons": "2.22.1",
     "@heroui-pro/react": "1.0.0-beta.10",
     "@heroui/react": "3.2.6",
     "@heroui/styles": "3.2.6",
-    "next": "16.3.5",
-    "react": "19.3.0"
+    "next": ">=15.5.24 <17",
+    "react": ">=19.1.0 <20"
   },
   "devDependencies": {
     "@gravity-ui/icons": "2.22.1",
@@ -28,6 +33,8 @@
     "@injishi/data": "workspace:*",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "@typescript-eslint/parser": "^8.68.0",
+    "eslint": "^10.9.1",
     "next": "16.3.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",

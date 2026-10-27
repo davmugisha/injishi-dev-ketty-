@@ -19,9 +19,9 @@
  * Three things are refused:
  *
  *  1. A file at `src/components/ui/<name>.tsx` whose `<name>` matches something
- *     `@injishi/ui` exports. The export list is read from the package the
- *     linted app resolves `@injishi/ui` to rather than hardcoded, so the rule
- *     cannot drift from it.
+ *     a shared library exports. The export list is read from the libraries the
+ *     linted app resolves rather than hardcoded, so the rule cannot drift from
+ *     them.
  *  2. A raw Tailwind palette class in a `.tsx` file (`bg-green-800`,
  *     `text-slate-500`). ADR-027 call 8 specified this for `apps/web`; ADR-036
  *     call 12 extends it to `apps/app`. These are not merely untidy: the
@@ -46,14 +46,15 @@ import { dirname, join, basename, extname } from 'node:path';
  * list cannot go stale.
  *
  * Resolved from the linted FILE, the way the app resolves the import: the
- * nearest `node_modules/@injishi/ui`, followed through pnpm's link to the
- * package behind it. Two packages answer to that name. `apps/web` aliases it
- * to `packages/web-ui`, the Radix and HeroUI kit, with its components in
- * `src/components/`; everywhere else it is the new interface's `packages/ui`,
- * flat modules in `src/`. One fixed directory checks one of them against the
- * other's list: pointed at `packages/ui` after PR #38, it held `apps/web`, the
- * only app that enables this rule, to six names its kit does not have and to
- * none of the forty six it does.
+ * nearest `node_modules/@injishi/ui` and `node_modules/@injishi/web-ui`,
+ * followed through pnpm's links to the packages behind them. `web-ui`, the
+ * Radix and HeroUI kit, keeps its components in `src/components/`; `ui`, the
+ * interface's library, keeps flat modules in `src/`. Until ADR-074 D-p,
+ * `apps/web` aliased `@injishi/ui` to `web-ui`, so one name meant two
+ * libraries depending on the app, and one fixed directory checked one of them
+ * against the other's list: pointed at `packages/ui` after PR #38, it held
+ * `apps/web` to six names its kit does not have and to none of the forty six
+ * it does. Each library now answers to its own name.
  *
  * This used to read `injishi/vendor/ui/` and fall back to an EMPTY set when the
  * directory was missing, on the grounds that the mirror might not be synced
@@ -69,23 +70,36 @@ import { dirname, join, basename, extname } from 'node:path';
  */
 const sharedByPackage = new Map();
 
+/**
+ * Since ADR-074 D-p, `apps/web` imports each library by its own name, and has
+ * both until stage 9 retires `web-ui`: `@injishi/web-ui` (its kit) and
+ * `@injishi/ui` (the interface's, which products import). A component either
+ * one owns is a component the app must not define again, so the owned set is
+ * the union of every library the linted file can resolve. The alias that let
+ * one name mean either library depending on the app is gone.
+ */
+const SHARED_LIBRARIES = ['ui', 'web-ui'];
+
+function namesIn(pkg) {
+  if (!sharedByPackage.has(pkg)) {
+    const nested = join(pkg, 'src', 'components');
+    const files = readdirSync(existsSync(nested) ? nested : join(pkg, 'src'));
+    const names = files.filter((f) => f.endsWith('.tsx')).map((f) => basename(f, '.tsx'));
+    sharedByPackage.set(pkg, new Set(names));
+  }
+  return sharedByPackage.get(pkg);
+}
+
 function sharedComponentNames(filename) {
   for (let dir = dirname(filename); ; dir = dirname(dir)) {
-    const link = join(dir, 'node_modules', '@injishi', 'ui');
-    if (existsSync(link)) {
-      const pkg = realpathSync(link);
-      if (!sharedByPackage.has(pkg)) {
-        const nested = join(pkg, 'src', 'components');
-        const files = readdirSync(existsSync(nested) ? nested : join(pkg, 'src'));
-        const names = files.filter((f) => f.endsWith('.tsx')).map((f) => basename(f, '.tsx'));
-        sharedByPackage.set(pkg, new Set(names));
-      }
-      return sharedByPackage.get(pkg);
+    const links = SHARED_LIBRARIES.map((name) => join(dir, 'node_modules', '@injishi', name)).filter(existsSync);
+    if (links.length > 0) {
+      return new Set(links.flatMap((link) => [...namesIn(realpathSync(link))]));
     }
     if (dirname(dir) === dir) {
       throw new Error(
-        `injishi/no-duplicate-shared-component: no node_modules/@injishi/ui above ${filename}. ` +
-          'The rule needs the @injishi/ui source to know what the package owns.',
+        `injishi/no-duplicate-shared-component: no node_modules/@injishi/ui or @injishi/web-ui above ${filename}. ` +
+          'The rule needs the shared source to know what the package owns.',
       );
     }
   }
@@ -117,7 +131,7 @@ const rule = {
     schema: [],
     messages: {
       duplicate:
-        "`{{name}}` is already a component in `@injishi/ui`. Import it from " +
+        "`{{name}}` is already a component in a shared library (`@injishi/ui` or `@injishi/web-ui`). Import it from " +
         'there instead of defining a second one here. Two copies drift, and ' +
         'a fix to one never reaches the other (ADR-036 call 1).',
       rawPalette:

@@ -23,7 +23,7 @@ import {
 } from "@injishi/contracts";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, CircleAlert, Landmark } from "lucide-react";
-import { Badge, Button } from "@injishi/ui";
+import { Badge, Button } from "@injishi/web-ui";
 
 import { openAssistant } from "@/components/assistant/assistant-widget";
 import { fetchMyWorkspaces, type LabelledWorkspace } from "@/data/me";

@@ -2,5 +2,5 @@
 -- agreement (O-7), optional and asked only of a franchisee. Which kinds are required is code, not schema: the
 -- one table is `registrationDocumentRows` in @injishi/contracts, read by the wizard and by create alike.
 --
--- Written by hand, as 0073 and 0074 were: generating would also drop the waitlist drift 0073 describes.
+-- Written by hand, as 0074 and 0075 were: generating would also drop the waitlist drift 0074 describes.
 ALTER TYPE "public"."org_certificate_kind" ADD VALUE 'franchise_agreement';

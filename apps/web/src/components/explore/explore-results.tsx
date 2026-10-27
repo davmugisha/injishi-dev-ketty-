@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { CompareToggle } from "@/components/explore/compare";
 import { Pagination } from "@/components/explore/pagination";

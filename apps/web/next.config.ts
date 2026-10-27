@@ -74,12 +74,17 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   /**
-   * @injishi/ui and @injishi/utils ship TypeScript source rather than a built
-   * dist/, which is a recorded exception to the dist/ rule in the root
-   * AGENTS.md, scoped to these two packages and to Next consumers (ADR-008).
-   * Next compiles them here instead.
+   * These ship TypeScript source rather than a built dist/, a recorded
+   * exception to the dist/ rule (ADR-008, extended to products by ADR-074
+   * D-d), so Next compiles them here instead.
+   *
+   * Two component libraries, each by its own name (ADR-074 D-p):
+   * `@injishi/web-ui` is the kit this app was written against, and
+   * `@injishi/ui` is the one web library products import, beside it until
+   * stage 9 retires `web-ui`. A product added here owes its stylesheet import
+   * in the same change (`pnpm check:manifests` refuses one without it).
    */
-  transpilePackages: ["@injishi/ui", "@injishi/utils"],
+  transpilePackages: ["@injishi/web-ui", "@injishi/ui", "@injishi/utils"],
   experimental: {
     // The 404 for a URL that matches no route group. apps/web has five root
     // layouts and no app/layout.tsx, so a plain not-found.tsx would have no
@@ -91,9 +96,9 @@ const nextConfig: NextConfig = {
     // manifest fails to resolve after a hot recompile, 500ing every route and
     // killing the dev server. Off until the upstream regression is patched.
     devtoolSegmentExplorer: false,
-    // A barrel import of @injishi/ui would otherwise pull all 16 of its client
-    // components into a server page that wanted one Button (ADR-008).
-    optimizePackageImports: ["@injishi/ui", "lucide-react"],
+    // A barrel import of @injishi/web-ui would otherwise pull all 16 of its
+    // client components into a server page that wanted one Button (ADR-008).
+    optimizePackageImports: ["@injishi/web-ui", "lucide-react"],
     // The rewrite proxy to the operator zone gives up after 30s by default. In
     // development the zone compiles a page on its first request, and
     // `/w/[workspaceId]` alone took 29.8s cold, so web answered 500 ("socket

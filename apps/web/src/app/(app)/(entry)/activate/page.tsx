@@ -34,7 +34,7 @@
  */
 import { useEffect, useState } from "react";
 import { Button, Input } from "@heroui/react";
-import { Badge } from "@injishi/ui";
+import { Badge } from "@injishi/web-ui";
 import { CLAIM_CODE_PATTERN } from "@injishi/contracts";
 import BrandLogo from "@/components/app/brand-logo";
 import ThemeToggleButton from "@/components/app/theme-toggle-button";

@@ -57,3 +57,5 @@ export * from "./marketplace";
 // The residence screens of the new interface (real-data 1.3.1).
 export * from "./interface-residence";
 export * from "./staff-phone";
+// The bar and restaurant point of sale (POS spec, phase 1).
+export * from "./pos";

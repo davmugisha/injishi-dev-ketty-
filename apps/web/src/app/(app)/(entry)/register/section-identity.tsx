@@ -7,7 +7,7 @@ import {
   type IdentityScanResult,
   type IdentityStatus,
 } from "@injishi/contracts";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { CircleCheck, TriangleAlert } from "lucide-react";
 
 import { putTypedIdentity } from "@/data/identity";

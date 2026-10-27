@@ -29,6 +29,12 @@ exports.OrgRole = zod_1.z.enum([
     "finance",
     "hr",
     "housekeeper",
+    // The bar and restaurant floor (POS spec, phase 1).
+    "cashier",
+    "waiter",
+    "bartender",
+    "kitchen",
+    "stock_controller",
 ]);
 /**
  * Global identity grants. `gov_oversight` (renamed from `local_gov`, Decision B)

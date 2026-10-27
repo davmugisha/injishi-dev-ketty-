@@ -12,6 +12,9 @@
     "seed": "tsx src/cli.ts seed",
     "reset": "tsx src/cli.ts reset",
     "typecheck": "tsc --noEmit",
+    "lint": "pnpm run --silent lint:biome && pnpm run --silent lint:eslint",
+    "lint:biome": "biome lint .",
+    "lint:eslint": "eslint \"src/**/*.ts\"",
     "test": "tsx --test src/guard.test.ts"
   },
   "dependencies": {
@@ -21,6 +24,8 @@
   },
   "devDependencies": {
     "@types/node": "22.20.5",
+    "@typescript-eslint/parser": "^8.68.0",
+    "eslint": "^10.9.1",
     "tsx": "4.23.15",
     "typescript": "5.9.3"
   }

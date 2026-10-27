@@ -3,13 +3,13 @@
  *
  * WHY THIS FILE EXISTS. HeroUI 3.2's `Checkbox` is only a field wrapper: the
  * clickable part carrying the input is `Checkbox.Content`, and the visible box
- * is `Checkbox.Control`. The `@injishi/ui` wrapper used to pass its children
+ * is `Checkbox.Control`. The `@injishi/web-ui` wrapper used to pass its children
  * straight to the root, so every `<Checkbox>label</Checkbox>` in this app
  * rendered text inside an empty field. The waitlist's marketing consent could
  * never be given, and the booking and explore checkboxes had no box either.
  * Every unit test stayed green, because none of them rendered it.
  *
- * WHAT IT RUNS. The real wrapper source (`packages/ui/src/components/checkbox.tsx`),
+ * WHAT IT RUNS. The real wrapper source (`packages/web-ui/src/components/checkbox.tsx`),
  * transpiled and rendered to static markup with the web app's own React and
  * HeroUI. The one substitution is `cn` from `@injishi/utils`, which ships as
  * TypeScript source Node cannot load; it only joins class names.
@@ -32,8 +32,8 @@ const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 
-// `@injishi/ui` in this app is `packages/web-ui` (package.json aliases it); the
-// old `packages/ui` copy was deleted with the old interface (c1e9a55).
+// This app imports `packages/web-ui` by its own name, `@injishi/web-ui`
+// (ADR-074 D-p). `@injishi/ui` here is the interface's library, beside it.
 const SOURCE = resolve(here, "../../../packages/web-ui/src/components/checkbox.tsx");
 const COMPILED = resolve(here, `.checkbox-under-test-${process.pid}.mjs`);
 
@@ -68,7 +68,7 @@ const render = (props, label = "Also email me occasional updates and offers from
 
 const inputs = (html) => html.match(/<input[^>]*type="checkbox"[^>]*>/g) ?? [];
 
-describe("the @injishi/ui Checkbox (covers: AC-15)", () => {
+describe("the @injishi/web-ui Checkbox (covers: AC-15)", () => {
   test("renders exactly one checkbox input", () => {
     assert.equal(inputs(render({ isSelected: false, onChange: () => {} })).length, 1);
   });

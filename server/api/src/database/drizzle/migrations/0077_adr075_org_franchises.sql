@@ -1,7 +1,7 @@
 -- ADR-075 A1 task 5: whether a business is part of a franchise, and how (O-7, AC-8). One row per franchised org,
 -- written in the registration's create transaction; no row means No. Each role is held to its own fields.
 --
--- Written by hand, as 0073 to 0075 were: generating would also drop the waitlist drift 0073 describes.
+-- Written by hand, as 0074 to 0076 were: generating would also drop the waitlist drift 0074 describes.
 CREATE TYPE "public"."franchise_role" AS ENUM('franchisee', 'franchisor');--> statement-breakpoint
 CREATE TABLE "org_franchises" (
 	"org_id" uuid PRIMARY KEY NOT NULL,

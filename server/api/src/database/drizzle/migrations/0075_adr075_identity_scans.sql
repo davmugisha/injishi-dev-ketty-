@@ -3,7 +3,7 @@
 -- photos and all, for the PSF officer (D-n), and the draft counts the tries in a column only the server writes
 -- (D-m).
 --
--- Written by hand, as 0073 was: generating would also drop the waitlist drift 0073 describes.
+-- Written by hand, as 0074 was: generating would also drop the waitlist drift 0074 describes.
 CREATE TYPE "public"."identity_scan_outcome" AS ENUM('machine_passed', 'machine_failed', 'manual_needed');--> statement-breakpoint
 CREATE TYPE "public"."identity_adapter_mode" AS ENUM('mock', 'live', 'off');--> statement-breakpoint
 CREATE TABLE "identity_scans" (

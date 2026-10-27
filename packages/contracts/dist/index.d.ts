@@ -55,4 +55,5 @@ export * from "./front-desk";
 export * from "./marketplace";
 export * from "./interface-residence";
 export * from "./staff-phone";
+export * from "./pos";
 //# sourceMappingURL=index.d.ts.map

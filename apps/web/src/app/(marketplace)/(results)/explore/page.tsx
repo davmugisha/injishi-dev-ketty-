@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Skeleton } from "@injishi/ui";
+import { Skeleton } from "@injishi/web-ui";
 import { ExploreShell } from "@/components/explore/explore-shell";
 import { databaseListings } from "@/data/discovery";
 

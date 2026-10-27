@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { GuestOrder } from "@injishi/contracts";
-import { Badge, Button } from "@injishi/ui";
+import { Badge, Button } from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
 import { Icon } from "@/components/app/icon";
 import {

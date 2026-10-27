@@ -1,0 +1,20 @@
+{
+  // Types only, like @injishi/ui-contract, but a `.ts` file rather than a
+  // declaration file: a module names the permissions it needs, and those are
+  // typed by @injishi/contracts, whose own declarations pull in zod's. With
+  // skipLibCheck off (ui-contract's setting) this package would check zod. The
+  // `exports` map offers only a `types` condition, so a value import still
+  // fails to resolve rather than bundling nothing.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": []
+  },
+  "include": ["src/**/*.ts"]
+}

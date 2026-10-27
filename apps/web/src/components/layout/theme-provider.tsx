@@ -1,7 +1,7 @@
 "use client";
 
 import { ThemeProvider as NextThemesProvider } from "next-themes";
-import { TooltipProvider } from "@injishi/ui";
+import { TooltipProvider } from "@injishi/web-ui";
 
 /**
  * The public layer's theme mechanism.

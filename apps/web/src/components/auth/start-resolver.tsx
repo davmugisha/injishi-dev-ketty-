@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { fetchAccess, resolveDestination } from "@/lib/access";
 
 /**

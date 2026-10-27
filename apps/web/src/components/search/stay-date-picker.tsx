@@ -3,7 +3,7 @@
 import { X } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
-import { Button, Calendar, HALF_BAND } from "@injishi/ui";
+import { Button, Calendar, HALF_BAND } from "@injishi/web-ui";
 import { cn, formatDateRange, nightsBetween, pluralize } from "@injishi/utils";
 import type { BookingCalendar } from "@/data/availability";
 import {

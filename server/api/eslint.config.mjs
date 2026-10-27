@@ -18,6 +18,10 @@ export default tseslint.config(
     files: ['src/**/*.ts'],
     plugins: { injishi },
     rules: {
+      // ADR-074 D-f. The server never imports a product: a shape both sides
+      // need belongs in `@injishi/contracts`. Nor the demo's fixtures.
+      'injishi/product-boundaries': 'error',
+      'injishi/no-demo-data': 'error',
       /**
        * ADR-012, AC-1. A mutating route behind `WorkspaceGuard` or
        * `StaffGuard` must say which power it needs, or every member

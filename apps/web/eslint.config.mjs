@@ -36,8 +36,13 @@ export default [
       // case-only difference resolves on Windows and 404s on Linux CI.
       'injishi/kebab-case-filenames': 'error',
       'injishi/no-client-authz': 'error',
-      // ADR-036 calls 1 and 12. A component `@injishi/ui` owns is defined
-      // there and nowhere else, and colour comes from a role rather than a
+      // ADR-074 D-f. An app imports a product only through its `exports`, and
+      // never the server, a database driver or a provider SDK. The demo
+      // packages are refused outright here: this app reads the API.
+      'injishi/product-boundaries': 'error',
+      'injishi/no-demo-data': 'error',
+      // ADR-036 calls 1 and 12. A component `@injishi/web-ui` or `@injishi/ui`
+      // owns is defined there and nowhere else, and colour comes from a role rather than a
       // Tailwind ramp. This app is where the proof came from: its copy of
       // `button.tsx` had a HeroUI bug the package had already fixed.
       'injishi/no-duplicate-shared-component': 'error',

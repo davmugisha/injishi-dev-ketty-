@@ -48,8 +48,11 @@ const EVERYTHING = [
 const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|css)$/;
 /** Extensions and names that mean "something TypeScript would read". */
 const TYPE_EXT = /\.(ts|tsx)$/;
-/** Files that change what a lint run concludes even with no source change. */
-const LINT_CONFIG = /(^|\/)(eslint\.config\.mjs|tsconfig[^/]*\.json|package\.json)$/;
+/**
+ * Files that change what a lint run concludes even with no source change.
+ * `biome.json` is the one root config the interface members lint against.
+ */
+const LINT_CONFIG = /(^|\/)(eslint\.config\.mjs|biome\.json|tsconfig[^/]*\.json|package\.json)$/;
 
 function changedFiles() {
   if (!baseRef) {

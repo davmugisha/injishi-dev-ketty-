@@ -33,7 +33,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { useSignOutAndLeave } from "@/components/auth/sign-out";
 import { fetchMyThreads } from "@/data/inbox";
 import { displayNameFrom, initialsFrom } from "@/lib/avatar";

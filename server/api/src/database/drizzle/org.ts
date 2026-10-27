@@ -53,7 +53,7 @@ export const orgs = pgTable(
     /**
      * What kind of business it is (ADR-075 D-h, AC-31): the noun the register,
      * the PSF case and setup say. Backfilled from `domain` and the class by
-     * migration 0073, where Bar & Restaurant left the free text `other`.
+     * migration 0074, where Bar & Restaurant left the free text `other`.
      */
     businessKind: businessKindEnum('business_kind').notNull(),
     rdbEntityGroup: text('rdb_entity_group').references(
