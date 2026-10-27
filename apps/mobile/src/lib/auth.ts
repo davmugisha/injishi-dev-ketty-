@@ -23,7 +23,8 @@ export const authClient = createAuthClient({
   fetchOptions: { timeout: TIMEOUT_MS },
   plugins: [
     expoClient({
-      scheme: "injishi",
+      // No `scheme`: the client takes the build's own from app.config.ts (injishi, injishi-preview or
+      // injishi-dev), so the API sees the origin it trusts for that build and Google returns to this app.
       storagePrefix: "injishi",
       // Production's cookie, and the demo stack's (ADR-043): a build talks to one of them.
       cookiePrefix: ["better-auth", "injishi-demo"],
