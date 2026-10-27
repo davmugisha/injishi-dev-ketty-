@@ -24,9 +24,10 @@
  *   5. starts each app through its own package script, so how an app runs is
  *      still defined once, in its package.json, and prefixes every line an app
  *      prints with its name;
- *   6. says where everything is once it answers, with a QR code for Expo Go.
+ *   6. says where everything is once it answers, with a QR code that opens the
+ *      app's development build (mobile spec 0001) on this Metro.
  *
- * MOBILE STARTS FOR EXPO GO ON A PHONE (its `dev` script). A phone cannot reach
+ * MOBILE STARTS FOR A PHONE (its `dev` script). A phone cannot reach
  * `localhost`, which is the phone itself, so Metro advertises this PC's LAN
  * address and the bundle inlines the API at that address too:
  * EXPO_PUBLIC_API_URL from the environment beats the one in apps/mobile/.env.
@@ -99,7 +100,7 @@ function usage() {
     '',
     '  --skip mobile,app     everything except these',
     '  --only web,api        just these',
-    "  --lan 192.168.1.68    the address your phone reaches this PC on (Expo Go).",
+    "  --lan 192.168.1.68    the address your phone reaches this PC on.",
     "                        Default: this PC's Wi-Fi address",
     '',
     'Ctrl+C stops the apps. Docker keeps running; `pnpm dev:stack:down` stops it.',
@@ -525,16 +526,20 @@ function printMobileSummary(mobile, ready, ctx) {
     return;
   }
   const host = ctx.lan?.address ?? 'localhost';
-  const url = `exp://${host}:${mobile.port}`;
-  const lines = ['', rule, paint(1, '  mobile is ready for Expo Go'), '', `  ${url}`];
-  if (COLOR) lines.push('', ...qrLines(url));
+  const metro = `http://${host}:${mobile.port}`;
+  // The development build's own scheme (apps/mobile/app.config.ts), so only "Injishi Dev" answers the
+  // link, never a preview or store build installed beside it.
+  const link = `injishi-dev://expo-development-client/?url=${encodeURIComponent(metro)}`;
+  const lines = ['', rule, paint(1, '  mobile is ready for the development build (Injishi Dev)'), '', `  ${metro}`];
+  if (COLOR) lines.push('', ...qrLines(link));
   lines.push(
     '',
     ctx.lan
-      ? `  Scan it with the phone's camera (iOS) or in Expo Go (Android). The phone must be\n` +
+      ? `  Scan it with the phone's camera, or type the address in Injishi Dev. The phone must be\n` +
           `  on the same network as this PC (${ctx.lan.name}, ${ctx.lan.address}).`
       : '  No LAN address was found, so only an emulator or simulator on this PC can\n' +
           '  reach it. Pass --lan <address> for a phone.',
+    `  Expo Go still opens exp://${host}:${mobile.port} until the development build replaces it.`,
     '  The first open builds the bundle; that can take two minutes.',
     rule,
     '',
