@@ -132,7 +132,7 @@ export function BrokerHomeView({
                 value: 0,
                 format: "count",
                 icon: "Star",
-                href: screenHref("BrokerReviews"),
+                href: `${screenHref("BrokerEarnings")}#reviews`,
                 footnote: "None yet",
               }
             : {
@@ -141,7 +141,7 @@ export function BrokerHomeView({
                 value: summary.ratingAverage,
                 format: "count",
                 icon: "Star",
-                href: screenHref("BrokerReviews"),
+                href: `${screenHref("BrokerEarnings")}#reviews`,
                 footnote: starsWords(summary.ratingAverage, summary.ratingCount),
               },
         ]}

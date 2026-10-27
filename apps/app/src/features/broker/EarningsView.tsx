@@ -1,6 +1,6 @@
 "use client";
 
-import type { BrokerEarnings, BrokerFeeLine } from "@injishi/contracts";
+import type { BrokerEarnings, BrokerFeeLine, BrokerReviews } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import {
   ActionLink,
@@ -17,6 +17,7 @@ import {
 } from "@injishi/ui";
 import { useState } from "react";
 import { FeesChart } from "./FeesChart";
+import { ReviewsSection } from "./ReviewsView";
 import { FeeChip, feeTermsWords } from "./shared";
 
 type Tab = "all" | "owed" | "paid";
@@ -25,7 +26,16 @@ type Tab = "all" | "owed" | "paid";
  * What landlords recorded as owed to the broker and paid (2026-10-25). A record: the money moves between
  * the landlord and the broker, outside Injishi, and the landlord marks it paid.
  */
-export function EarningsView({ data, today }: { data: BrokerEarnings; today: string }) {
+export function EarningsView({
+  data,
+  reviews,
+  today,
+}: {
+  data: BrokerEarnings;
+  /** What landlords and tenants said, shown under the fees (2026-10-27). */
+  reviews: BrokerReviews;
+  today: string;
+}) {
   const [tab, setTab] = useState<Tab>("all");
   const owed = data.fees.filter((f) => f.fee.status === "owed");
   const paid = data.fees.filter((f) => f.fee.status === "paid");
@@ -68,7 +78,7 @@ export function EarningsView({ data, today }: { data: BrokerEarnings; today: str
   ];
   return (
     <PageContent>
-      <PageHeader title="Earnings" />
+      <PageHeader title="Earnings and reviews" />
       <KpiStrip
         label="Fees"
         items={[
@@ -133,6 +143,7 @@ export function EarningsView({ data, today }: { data: BrokerEarnings; today: str
           />
         }
       />
+      <ReviewsSection data={reviews} />
     </PageContent>
   );
 }

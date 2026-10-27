@@ -1,31 +1,50 @@
-import { Card } from "@heroui/react";
 import type { BrokerReviews } from "@injishi/contracts";
-import { EmptyBlock, formatDay, formatNumber, PageContent, PageHeader, SectionCard, Stars } from "@injishi/ui";
+import { EmptyBlock, formatDay, formatNumber, KpiStrip, SectionCard, Stars } from "@injishi/ui";
 
 /**
- * What landlords and tenants said about the broker (2026-10-25): the average, the spread of stars, and
- * every review, newest first. Each side rates once the tenancy the broker brought has started.
+ * What landlords and tenants said about the broker (2026-10-25), on the earnings page since 2026-10-27:
+ * the figures in the same panel as the page's other figures, the spread of stars, and every review,
+ * newest first. Each side rates once the tenancy the broker brought has started.
  */
-export function ReviewsView({ data }: { data: BrokerReviews }) {
+export function ReviewsSection({ data }: { data: BrokerReviews }) {
   const max = Math.max(1, ...data.breakdown);
   return (
-    <PageContent>
-      <PageHeader title="Reviews" />
+    <section id="reviews" aria-labelledby="reviews-title" className="flex scroll-mt-20 flex-col gap-4">
+      <h2 id="reviews-title" className="text-lg font-semibold">
+        Reviews
+      </h2>
+      <KpiStrip
+        label="Reviews"
+        items={[
+          {
+            id: "average",
+            label: "Average rating",
+            value: data.average ?? 0,
+            format: "count",
+            icon: "Star",
+            footnote: data.average === null ? "No ratings yet" : "Out of 5 stars",
+          },
+          {
+            id: "ratings",
+            label: "Ratings",
+            value: data.count,
+            format: "count",
+            icon: "Comments",
+            footnote: "From landlords and tenants",
+          },
+          {
+            id: "placed",
+            label: "Tenancies started",
+            value: data.placedCount,
+            format: "count",
+            icon: "Persons",
+            footnote: "Each one can be rated",
+          },
+        ]}
+      />
       <div className="grid items-stretch gap-4 lg:grid-cols-3">
-        <Card className="flex flex-col gap-4 p-5">
-          <div className="flex items-end gap-3">
-            <span className="text-4xl font-semibold tabular">
-              {data.average === null ? "-" : data.average.toFixed(1)}
-            </span>
-            <span className="flex flex-col gap-1 pb-1">
-              <Stars value={Math.round(data.average ?? 0)} />
-              <span className="text-xs text-muted">
-                {formatNumber(data.count)} {data.count === 1 ? "rating" : "ratings"} · {formatNumber(data.placedCount)}{" "}
-                {data.placedCount === 1 ? "tenancy" : "tenancies"} started
-              </span>
-            </span>
-          </div>
-          <ul className="flex flex-col gap-1.5" aria-label="Stars given">
+        <SectionCard title="Stars given">
+          <ul className="flex flex-col gap-2" aria-label="Stars given">
             {data.breakdown.map((n, i) => {
               const stars = 5 - i;
               return (
@@ -39,7 +58,7 @@ export function ReviewsView({ data }: { data: BrokerReviews }) {
               );
             })}
           </ul>
-        </Card>
+        </SectionCard>
         <SectionCard title="What people said" className="lg:col-span-2">
           {data.reviews.length === 0 ? (
             <EmptyBlock
@@ -71,6 +90,6 @@ export function ReviewsView({ data }: { data: BrokerReviews }) {
           )}
         </SectionCard>
       </div>
-    </PageContent>
+    </section>
   );
 }
