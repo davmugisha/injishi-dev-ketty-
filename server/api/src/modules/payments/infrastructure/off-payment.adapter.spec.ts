@@ -14,6 +14,7 @@ describe('OffPaymentAdapter', () => {
     await expect(
       adapter.captureEscrow({
         kind: 'escrow_capture',
+      purpose: 'booking',
         idempotencyKey: 'ws:booking-capture:tok',
         amountRwf: 94_500,
         currency: 'RWF',

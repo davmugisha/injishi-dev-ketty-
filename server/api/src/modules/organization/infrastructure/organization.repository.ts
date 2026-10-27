@@ -495,9 +495,40 @@ export class OrganizationRepository {
    * move that cannot find its invoice is undone rather than submitting a
    * business nobody paid for.
    */
+  /** The org a registration invoice bills (073-gtbank-payments AC-16). */
+  async orgOfRegistrationInvoice(invoiceId: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({ orgId: subscriptionInvoices.orgId })
+      .from(subscriptionInvoices)
+      .where(
+        and(
+          eq(subscriptionInvoices.id, invoiceId),
+          eq(subscriptionInvoices.invoiceKind, 'registration_fee'),
+        ),
+      )
+      .limit(1);
+    return row?.orgId ?? null;
+  }
+
+  /** A paid registration invoice back to pending, because its payment was reversed (073 AC-20). */
+  async reopenRegistrationInvoice(invoiceId: string): Promise<boolean> {
+    const reopened = await this.db
+      .update(subscriptionInvoices)
+      .set({ status: 'pending', updatedAt: new Date() })
+      .where(
+        and(
+          eq(subscriptionInvoices.id, invoiceId),
+          eq(subscriptionInvoices.invoiceKind, 'registration_fee'),
+          eq(subscriptionInvoices.status, 'paid'),
+        ),
+      )
+      .returning({ id: subscriptionInvoices.id });
+    return reopened.length > 0;
+  }
+
   async settleRegistrationFee(
     orgId: string,
-    actorUserId: string,
+    mover: RegistrationMover,
   ): Promise<boolean> {
     try {
       return await this.db.transaction(async (tx) => {
@@ -529,13 +560,14 @@ export class OrganizationRepository {
         // for.
         if (paid.length === 0) throw new NothingToSettle();
 
-        // The registrant paying is what moved it. When a real payment callback
-        // replaces this stand in, the mover becomes `system` in the same line.
+        // The registrant moves it on the free path (the seam is off); the
+        // payment settling moves it, as `system`, when money was taken
+        // (073-gtbank-payments AC-16).
         await recordRegistrationEvent(tx, {
           orgId,
           from: 'pending_payment',
           to: 'submitted',
-          mover: { trigger: 'registrant', actorUserId },
+          mover,
         });
         // The draft this registration was made from has nothing left to hold (ADR-075 D-m): its checks and its
         // tries reset with it, so a helper's next business starts clean. Only the draft marked with THIS

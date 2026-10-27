@@ -478,8 +478,8 @@ export declare const WorkspaceAccess: z.ZodObject<{
         canManage: boolean;
     }>>>;
 }, "strip", z.ZodTypeAny, {
-    kind: "business" | "broker" | "personal";
     domain: "hospitality" | "residence" | null;
+    kind: "business" | "broker" | "personal";
     branches: {
         name: string;
         id: string;
@@ -499,8 +499,8 @@ export declare const WorkspaceAccess: z.ZodObject<{
         canManage: boolean;
     } | null;
 }, {
-    kind: "business" | "broker" | "personal";
     domain: "hospitality" | "residence" | null;
+    kind: "business" | "broker" | "personal";
     branches: {
         name: string;
         id: string;

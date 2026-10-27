@@ -76,8 +76,8 @@ export declare const AssistantSource: z.ZodObject<{
         photoUrl: string | null;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    kind: "listing" | "article" | "task" | "tutorial" | "record";
     id: string;
+    kind: "listing" | "article" | "task" | "tutorial" | "record";
     title: string;
     href: string | null;
     listing?: {
@@ -88,8 +88,8 @@ export declare const AssistantSource: z.ZodObject<{
         photoUrl: string | null;
     } | undefined;
 }, {
-    kind: "listing" | "article" | "task" | "tutorial" | "record";
     id: string;
+    kind: "listing" | "article" | "task" | "tutorial" | "record";
     title: string;
     href: string | null;
     listing?: {
@@ -140,22 +140,22 @@ export declare const AssistantProposal: z.ZodObject<{
     /** Why it failed or could not be approved, when it did not execute. */
     error: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    kind: "room_type.price";
     id: string;
+    kind: "room_type.price";
+    state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+    expiresAt: string;
     current: string;
     title: string;
-    state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
     proposed: string;
-    expiresAt: string;
     error: string | null;
 }, {
-    kind: "room_type.price";
     id: string;
+    kind: "room_type.price";
+    state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+    expiresAt: string;
     current: string;
     title: string;
-    state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
     proposed: string;
-    expiresAt: string;
     error: string | null;
 }>;
 export type AssistantProposal = z.infer<typeof AssistantProposal>;
@@ -175,44 +175,44 @@ export declare const AssistantProposalResult: z.ZodObject<{
         /** Why it failed or could not be approved, when it did not execute. */
         error: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "room_type.price";
         id: string;
+        kind: "room_type.price";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+        expiresAt: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
-        expiresAt: string;
         error: string | null;
     }, {
-        kind: "room_type.price";
         id: string;
+        kind: "room_type.price";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+        expiresAt: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
-        expiresAt: string;
         error: string | null;
     }>;
 }, "strip", z.ZodTypeAny, {
     proposal: {
-        kind: "room_type.price";
         id: string;
+        kind: "room_type.price";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+        expiresAt: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
-        expiresAt: string;
         error: string | null;
     };
 }, {
     proposal: {
-        kind: "room_type.price";
         id: string;
+        kind: "room_type.price";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+        expiresAt: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
-        expiresAt: string;
         error: string | null;
     };
 }>;
@@ -256,8 +256,8 @@ export declare const AssistantMessage: z.ZodObject<{
             photoUrl: string | null;
         }>>;
     }, "strip", z.ZodTypeAny, {
-        kind: "listing" | "article" | "task" | "tutorial" | "record";
         id: string;
+        kind: "listing" | "article" | "task" | "tutorial" | "record";
         title: string;
         href: string | null;
         listing?: {
@@ -268,8 +268,8 @@ export declare const AssistantMessage: z.ZodObject<{
             photoUrl: string | null;
         } | undefined;
     }, {
-        kind: "listing" | "article" | "task" | "tutorial" | "record";
         id: string;
+        kind: "listing" | "article" | "task" | "tutorial" | "record";
         title: string;
         href: string | null;
         listing?: {
@@ -295,22 +295,22 @@ export declare const AssistantMessage: z.ZodObject<{
         /** Why it failed or could not be approved, when it did not execute. */
         error: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "room_type.price";
         id: string;
+        kind: "room_type.price";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+        expiresAt: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
-        expiresAt: string;
         error: string | null;
     }, {
-        kind: "room_type.price";
         id: string;
+        kind: "room_type.price";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+        expiresAt: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
-        expiresAt: string;
         error: string | null;
     }>, "many">;
     /**
@@ -321,21 +321,21 @@ export declare const AssistantMessage: z.ZodObject<{
     escalation: z.ZodNullable<z.ZodObject<{
         topic: z.ZodEnum<["booking", "payment", "listing", "other"]>;
     }, "strip", z.ZodTypeAny, {
-        topic: "other" | "payment" | "booking" | "listing";
+        topic: "other" | "booking" | "payment" | "listing";
     }, {
-        topic: "other" | "payment" | "booking" | "listing";
+        topic: "other" | "booking" | "payment" | "listing";
     }>>;
     /** Whether the person marked this answer helpful; null until they do. */
     helpful: z.ZodNullable<z.ZodBoolean>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    role: "user" | "assistant";
     id: string;
+    role: "user" | "assistant";
     createdAt: string;
     text: string;
     sources: {
-        kind: "listing" | "article" | "task" | "tutorial" | "record";
         id: string;
+        kind: "listing" | "article" | "task" | "tutorial" | "record";
         title: string;
         href: string | null;
         listing?: {
@@ -347,27 +347,27 @@ export declare const AssistantMessage: z.ZodObject<{
         } | undefined;
     }[];
     proposals: {
-        kind: "room_type.price";
         id: string;
+        kind: "room_type.price";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+        expiresAt: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
-        expiresAt: string;
         error: string | null;
     }[];
     escalation: {
-        topic: "other" | "payment" | "booking" | "listing";
+        topic: "other" | "booking" | "payment" | "listing";
     } | null;
     helpful: boolean | null;
 }, {
-    role: "user" | "assistant";
     id: string;
+    role: "user" | "assistant";
     createdAt: string;
     text: string;
     sources: {
-        kind: "listing" | "article" | "task" | "tutorial" | "record";
         id: string;
+        kind: "listing" | "article" | "task" | "tutorial" | "record";
         title: string;
         href: string | null;
         listing?: {
@@ -379,17 +379,17 @@ export declare const AssistantMessage: z.ZodObject<{
         } | undefined;
     }[];
     proposals: {
-        kind: "room_type.price";
         id: string;
+        kind: "room_type.price";
+        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+        expiresAt: string;
         current: string;
         title: string;
-        state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
         proposed: string;
-        expiresAt: string;
         error: string | null;
     }[];
     escalation: {
-        topic: "other" | "payment" | "booking" | "listing";
+        topic: "other" | "booking" | "payment" | "listing";
     } | null;
     helpful: boolean | null;
 }>;
@@ -436,8 +436,8 @@ export declare const AssistantConversation: z.ZodObject<{
                 photoUrl: string | null;
             }>>;
         }, "strip", z.ZodTypeAny, {
-            kind: "listing" | "article" | "task" | "tutorial" | "record";
             id: string;
+            kind: "listing" | "article" | "task" | "tutorial" | "record";
             title: string;
             href: string | null;
             listing?: {
@@ -448,8 +448,8 @@ export declare const AssistantConversation: z.ZodObject<{
                 photoUrl: string | null;
             } | undefined;
         }, {
-            kind: "listing" | "article" | "task" | "tutorial" | "record";
             id: string;
+            kind: "listing" | "article" | "task" | "tutorial" | "record";
             title: string;
             href: string | null;
             listing?: {
@@ -475,22 +475,22 @@ export declare const AssistantConversation: z.ZodObject<{
             /** Why it failed or could not be approved, when it did not execute. */
             error: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            kind: "room_type.price";
             id: string;
+            kind: "room_type.price";
+            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+            expiresAt: string;
             current: string;
             title: string;
-            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
             proposed: string;
-            expiresAt: string;
             error: string | null;
         }, {
-            kind: "room_type.price";
             id: string;
+            kind: "room_type.price";
+            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+            expiresAt: string;
             current: string;
             title: string;
-            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
             proposed: string;
-            expiresAt: string;
             error: string | null;
         }>, "many">;
         /**
@@ -501,21 +501,21 @@ export declare const AssistantConversation: z.ZodObject<{
         escalation: z.ZodNullable<z.ZodObject<{
             topic: z.ZodEnum<["booking", "payment", "listing", "other"]>;
         }, "strip", z.ZodTypeAny, {
-            topic: "other" | "payment" | "booking" | "listing";
+            topic: "other" | "booking" | "payment" | "listing";
         }, {
-            topic: "other" | "payment" | "booking" | "listing";
+            topic: "other" | "booking" | "payment" | "listing";
         }>>;
         /** Whether the person marked this answer helpful; null until they do. */
         helpful: z.ZodNullable<z.ZodBoolean>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        role: "user" | "assistant";
         id: string;
+        role: "user" | "assistant";
         createdAt: string;
         text: string;
         sources: {
-            kind: "listing" | "article" | "task" | "tutorial" | "record";
             id: string;
+            kind: "listing" | "article" | "task" | "tutorial" | "record";
             title: string;
             href: string | null;
             listing?: {
@@ -527,27 +527,27 @@ export declare const AssistantConversation: z.ZodObject<{
             } | undefined;
         }[];
         proposals: {
-            kind: "room_type.price";
             id: string;
+            kind: "room_type.price";
+            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+            expiresAt: string;
             current: string;
             title: string;
-            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
             proposed: string;
-            expiresAt: string;
             error: string | null;
         }[];
         escalation: {
-            topic: "other" | "payment" | "booking" | "listing";
+            topic: "other" | "booking" | "payment" | "listing";
         } | null;
         helpful: boolean | null;
     }, {
-        role: "user" | "assistant";
         id: string;
+        role: "user" | "assistant";
         createdAt: string;
         text: string;
         sources: {
-            kind: "listing" | "article" | "task" | "tutorial" | "record";
             id: string;
+            kind: "listing" | "article" | "task" | "tutorial" | "record";
             title: string;
             href: string | null;
             listing?: {
@@ -559,17 +559,17 @@ export declare const AssistantConversation: z.ZodObject<{
             } | undefined;
         }[];
         proposals: {
-            kind: "room_type.price";
             id: string;
+            kind: "room_type.price";
+            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+            expiresAt: string;
             current: string;
             title: string;
-            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
             proposed: string;
-            expiresAt: string;
             error: string | null;
         }[];
         escalation: {
-            topic: "other" | "payment" | "booking" | "listing";
+            topic: "other" | "booking" | "payment" | "listing";
         } | null;
         helpful: boolean | null;
     }>, "many">;
@@ -590,17 +590,17 @@ export declare const AssistantConversation: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     id: string;
-    surface: "admin" | "web" | "app" | "mobile";
     expiresAt: string;
+    surface: "admin" | "web" | "app" | "mobile";
     anonymous: boolean;
     messages: {
-        role: "user" | "assistant";
         id: string;
+        role: "user" | "assistant";
         createdAt: string;
         text: string;
         sources: {
-            kind: "listing" | "article" | "task" | "tutorial" | "record";
             id: string;
+            kind: "listing" | "article" | "task" | "tutorial" | "record";
             title: string;
             href: string | null;
             listing?: {
@@ -612,17 +612,17 @@ export declare const AssistantConversation: z.ZodObject<{
             } | undefined;
         }[];
         proposals: {
-            kind: "room_type.price";
             id: string;
+            kind: "room_type.price";
+            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+            expiresAt: string;
             current: string;
             title: string;
-            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
             proposed: string;
-            expiresAt: string;
             error: string | null;
         }[];
         escalation: {
-            topic: "other" | "payment" | "booking" | "listing";
+            topic: "other" | "booking" | "payment" | "listing";
         } | null;
         helpful: boolean | null;
     }[];
@@ -633,17 +633,17 @@ export declare const AssistantConversation: z.ZodObject<{
     }[];
 }, {
     id: string;
-    surface: "admin" | "web" | "app" | "mobile";
     expiresAt: string;
+    surface: "admin" | "web" | "app" | "mobile";
     anonymous: boolean;
     messages: {
-        role: "user" | "assistant";
         id: string;
+        role: "user" | "assistant";
         createdAt: string;
         text: string;
         sources: {
-            kind: "listing" | "article" | "task" | "tutorial" | "record";
             id: string;
+            kind: "listing" | "article" | "task" | "tutorial" | "record";
             title: string;
             href: string | null;
             listing?: {
@@ -655,17 +655,17 @@ export declare const AssistantConversation: z.ZodObject<{
             } | undefined;
         }[];
         proposals: {
-            kind: "room_type.price";
             id: string;
+            kind: "room_type.price";
+            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+            expiresAt: string;
             current: string;
             title: string;
-            state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
             proposed: string;
-            expiresAt: string;
             error: string | null;
         }[];
         escalation: {
-            topic: "other" | "payment" | "booking" | "listing";
+            topic: "other" | "booking" | "payment" | "listing";
         } | null;
         helpful: boolean | null;
     }[];
@@ -720,8 +720,8 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                     photoUrl: string | null;
                 }>>;
             }, "strip", z.ZodTypeAny, {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -732,8 +732,8 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                     photoUrl: string | null;
                 } | undefined;
             }, {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -759,22 +759,22 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 /** Why it failed or could not be approved, when it did not execute. */
                 error: z.ZodNullable<z.ZodString>;
             }, "strip", z.ZodTypeAny, {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }, {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }>, "many">;
             /**
@@ -785,21 +785,21 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
             escalation: z.ZodNullable<z.ZodObject<{
                 topic: z.ZodEnum<["booking", "payment", "listing", "other"]>;
             }, "strip", z.ZodTypeAny, {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             }, {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             }>>;
             /** Whether the person marked this answer helpful; null until they do. */
             helpful: z.ZodNullable<z.ZodBoolean>;
             createdAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -811,27 +811,27 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }, {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -843,17 +843,17 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }>, "many">;
@@ -874,17 +874,17 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        surface: "admin" | "web" | "app" | "mobile";
         expiresAt: string;
+        surface: "admin" | "web" | "app" | "mobile";
         anonymous: boolean;
         messages: {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -896,17 +896,17 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }[];
@@ -917,17 +917,17 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
         }[];
     }, {
         id: string;
-        surface: "admin" | "web" | "app" | "mobile";
         expiresAt: string;
+        surface: "admin" | "web" | "app" | "mobile";
         anonymous: boolean;
         messages: {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -939,17 +939,17 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }[];
@@ -969,17 +969,17 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     conversation: {
         id: string;
-        surface: "admin" | "web" | "app" | "mobile";
         expiresAt: string;
+        surface: "admin" | "web" | "app" | "mobile";
         anonymous: boolean;
         messages: {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -991,17 +991,17 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }[];
@@ -1015,17 +1015,17 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
 }, {
     conversation: {
         id: string;
-        surface: "admin" | "web" | "app" | "mobile";
         expiresAt: string;
+        surface: "admin" | "web" | "app" | "mobile";
         anonymous: boolean;
         messages: {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1037,17 +1037,17 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }[];
@@ -1108,8 +1108,8 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                     photoUrl: string | null;
                 }>>;
             }, "strip", z.ZodTypeAny, {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1120,8 +1120,8 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                     photoUrl: string | null;
                 } | undefined;
             }, {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1147,22 +1147,22 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 /** Why it failed or could not be approved, when it did not execute. */
                 error: z.ZodNullable<z.ZodString>;
             }, "strip", z.ZodTypeAny, {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }, {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }>, "many">;
             /**
@@ -1173,21 +1173,21 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
             escalation: z.ZodNullable<z.ZodObject<{
                 topic: z.ZodEnum<["booking", "payment", "listing", "other"]>;
             }, "strip", z.ZodTypeAny, {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             }, {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             }>>;
             /** Whether the person marked this answer helpful; null until they do. */
             helpful: z.ZodNullable<z.ZodBoolean>;
             createdAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1199,27 +1199,27 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }, {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1231,17 +1231,17 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }>, "many">;
@@ -1262,17 +1262,17 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        surface: "admin" | "web" | "app" | "mobile";
         expiresAt: string;
+        surface: "admin" | "web" | "app" | "mobile";
         anonymous: boolean;
         messages: {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1284,17 +1284,17 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }[];
@@ -1305,17 +1305,17 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
         }[];
     }, {
         id: string;
-        surface: "admin" | "web" | "app" | "mobile";
         expiresAt: string;
+        surface: "admin" | "web" | "app" | "mobile";
         anonymous: boolean;
         messages: {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1327,17 +1327,17 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }[];
@@ -1377,17 +1377,17 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
     }[];
     conversation: {
         id: string;
-        surface: "admin" | "web" | "app" | "mobile";
         expiresAt: string;
+        surface: "admin" | "web" | "app" | "mobile";
         anonymous: boolean;
         messages: {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1399,17 +1399,17 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }[];
@@ -1429,17 +1429,17 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
     }[];
     conversation: {
         id: string;
-        surface: "admin" | "web" | "app" | "mobile";
         expiresAt: string;
+        surface: "admin" | "web" | "app" | "mobile";
         anonymous: boolean;
         messages: {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1451,17 +1451,17 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }[];
@@ -1536,8 +1536,8 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                     photoUrl: string | null;
                 }>>;
             }, "strip", z.ZodTypeAny, {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1548,8 +1548,8 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                     photoUrl: string | null;
                 } | undefined;
             }, {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1575,22 +1575,22 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 /** Why it failed or could not be approved, when it did not execute. */
                 error: z.ZodNullable<z.ZodString>;
             }, "strip", z.ZodTypeAny, {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }, {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }>, "many">;
             /**
@@ -1601,21 +1601,21 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
             escalation: z.ZodNullable<z.ZodObject<{
                 topic: z.ZodEnum<["booking", "payment", "listing", "other"]>;
             }, "strip", z.ZodTypeAny, {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             }, {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             }>>;
             /** Whether the person marked this answer helpful; null until they do. */
             helpful: z.ZodNullable<z.ZodBoolean>;
             createdAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1627,27 +1627,27 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }, {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1659,17 +1659,17 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }>, "many">;
@@ -1690,17 +1690,17 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        surface: "admin" | "web" | "app" | "mobile";
         expiresAt: string;
+        surface: "admin" | "web" | "app" | "mobile";
         anonymous: boolean;
         messages: {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1712,17 +1712,17 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }[];
@@ -1733,17 +1733,17 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
         }[];
     }, {
         id: string;
-        surface: "admin" | "web" | "app" | "mobile";
         expiresAt: string;
+        surface: "admin" | "web" | "app" | "mobile";
         anonymous: boolean;
         messages: {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1755,17 +1755,17 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }[];
@@ -1778,17 +1778,17 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     conversation: {
         id: string;
-        surface: "admin" | "web" | "app" | "mobile";
         expiresAt: string;
+        surface: "admin" | "web" | "app" | "mobile";
         anonymous: boolean;
         messages: {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1800,17 +1800,17 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }[];
@@ -1824,17 +1824,17 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
 }, {
     conversation: {
         id: string;
-        surface: "admin" | "web" | "app" | "mobile";
         expiresAt: string;
+        surface: "admin" | "web" | "app" | "mobile";
         anonymous: boolean;
         messages: {
-            role: "user" | "assistant";
             id: string;
+            role: "user" | "assistant";
             createdAt: string;
             text: string;
             sources: {
-                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 id: string;
+                kind: "listing" | "article" | "task" | "tutorial" | "record";
                 title: string;
                 href: string | null;
                 listing?: {
@@ -1846,17 +1846,17 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
                 } | undefined;
             }[];
             proposals: {
-                kind: "room_type.price";
                 id: string;
+                kind: "room_type.price";
+                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
+                expiresAt: string;
                 current: string;
                 title: string;
-                state: "approved" | "rejected" | "expired" | "failed" | "proposed" | "executed";
                 proposed: string;
-                expiresAt: string;
                 error: string | null;
             }[];
             escalation: {
-                topic: "other" | "payment" | "booking" | "listing";
+                topic: "other" | "booking" | "payment" | "listing";
             } | null;
             helpful: boolean | null;
         }[];
@@ -1884,12 +1884,12 @@ export declare const SendAssistantEscalationInput: z.ZodObject<{
     email: z.ZodOptional<z.ZodString>;
     name: z.ZodOptional<z.ZodString>;
 }, "strict", z.ZodTypeAny, {
-    topic: "other" | "payment" | "booking" | "listing";
+    topic: "other" | "booking" | "payment" | "listing";
     surface: "admin" | "web" | "app" | "mobile";
     name?: string | undefined;
     email?: string | undefined;
 }, {
-    topic: "other" | "payment" | "booking" | "listing";
+    topic: "other" | "booking" | "payment" | "listing";
     surface: "admin" | "web" | "app" | "mobile";
     name?: string | undefined;
     email?: string | undefined;
@@ -2011,6 +2011,7 @@ export declare const AssistantUsageReport: z.ZodObject<{
             refused: z.ZodNumber;
             failed: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
+            refused: number;
             failed: number;
             fallback: number;
             answered: number;
@@ -2018,8 +2019,8 @@ export declare const AssistantUsageReport: z.ZodObject<{
             truncated: number;
             out_of_time: number;
             step_limit: number;
-            refused: number;
         }, {
+            refused: number;
             failed: number;
             fallback: number;
             answered: number;
@@ -2027,7 +2028,6 @@ export declare const AssistantUsageReport: z.ZodObject<{
             truncated: number;
             out_of_time: number;
             step_limit: number;
-            refused: number;
         }>;
         /** Model answered turns by the calls they took: one is the norm (D-x). */
         modelCallsPerModelTurn: z.ZodObject<{
@@ -2058,6 +2058,7 @@ export declare const AssistantUsageReport: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         total: number;
         byOutcome: {
+            refused: number;
             failed: number;
             fallback: number;
             answered: number;
@@ -2065,7 +2066,6 @@ export declare const AssistantUsageReport: z.ZodObject<{
             truncated: number;
             out_of_time: number;
             step_limit: number;
-            refused: number;
         };
         modelCallsPerModelTurn: {
             one: number;
@@ -2080,6 +2080,7 @@ export declare const AssistantUsageReport: z.ZodObject<{
     }, {
         total: number;
         byOutcome: {
+            refused: number;
             failed: number;
             fallback: number;
             answered: number;
@@ -2087,7 +2088,6 @@ export declare const AssistantUsageReport: z.ZodObject<{
             truncated: number;
             out_of_time: number;
             step_limit: number;
-            refused: number;
         };
         modelCallsPerModelTurn: {
             one: number;
@@ -2169,6 +2169,7 @@ export declare const AssistantUsageReport: z.ZodObject<{
     turns: {
         total: number;
         byOutcome: {
+            refused: number;
             failed: number;
             fallback: number;
             answered: number;
@@ -2176,7 +2177,6 @@ export declare const AssistantUsageReport: z.ZodObject<{
             truncated: number;
             out_of_time: number;
             step_limit: number;
-            refused: number;
         };
         modelCallsPerModelTurn: {
             one: number;
@@ -2231,6 +2231,7 @@ export declare const AssistantUsageReport: z.ZodObject<{
     turns: {
         total: number;
         byOutcome: {
+            refused: number;
             failed: number;
             fallback: number;
             answered: number;
@@ -2238,7 +2239,6 @@ export declare const AssistantUsageReport: z.ZodObject<{
             truncated: number;
             out_of_time: number;
             step_limit: number;
-            refused: number;
         };
         modelCallsPerModelTurn: {
             one: number;

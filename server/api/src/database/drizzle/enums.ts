@@ -184,10 +184,55 @@ export const paymentAttemptStateEnum = pgEnum('payment_attempt_state', [
  * The table was built for bookings, and a pay now order waits on a handset in
  * exactly the same way. One table with a purpose rather than a sibling, because
  * two copies of the poll and the sweep would drift. Completion branches on it.
+ *
+ * `registration_fee` (073-gtbank-payments AC-16): the registrant's Request to
+ * Pay for the org's pending registration invoice. Migration 0073 recreates the
+ * type rather than ADD VALUE, because the rebuilt purpose CHECK names the value
+ * in the same transaction (library-docs, Drizzle row).
  */
 export const paymentAttemptPurposeEnum = pgEnum('payment_attempt_purpose', [
   'booking',
   'service_order',
+  'registration_fee',
+]);
+
+/**
+ * Which way money moves through the bank (073-gtbank-payments).
+ *
+ * A `collection` comes into Hangaa's account (a Request to Pay), a
+ * `disbursement` leaves it (a refund, a release, a payout), and an `adjustment`
+ * is a treasury movement two people approved (a deposit, a bank debit).
+ */
+export const paymentDirectionEnum = pgEnum('payment_direction', [
+  'collection',
+  'disbursement',
+  'adjustment',
+]);
+
+/**
+ * Where one instruction to the bank got to (073-gtbank-payments, state
+ * transitions).
+ *
+ * GTBank's own six words (`pending`, `successful`, `failed`, `rejected`,
+ * `reversed`, `refunded`) plus Injishi's: `queued` (written, not sent yet),
+ * `sending` (written before the call, so a crash leaves a row to pull),
+ * `unknown` (it may have arrived and nothing may resend it; a pull or a person
+ * settles it), `expired` (a prompt the sweep abandoned; a late approval may
+ * still settle it inside the late window) and `not_sent` (it never arrived).
+ * Only `successful` ever counts as paid.
+ */
+export const paymentTransactionStatusEnum = pgEnum('payment_transaction_status', [
+  'queued',
+  'sending',
+  'pending',
+  'successful',
+  'failed',
+  'rejected',
+  'reversed',
+  'refunded',
+  'unknown',
+  'expired',
+  'not_sent',
 ]);
 
 export const tinVerificationResultEnum = pgEnum('tin_verification_result', [
@@ -398,12 +443,18 @@ export const declineReasonEnum = pgEnum('decline_reason', [
   'expired',
 ]);
 
+/**
+ * `refund_pending` (073-gtbank-payments AC-13): cancelled at once, with the
+ * refund owed as a disbursement; it reads refunded only when the bank says so.
+ * A plain ADD VALUE is safe in 0073: no constraint or default names it.
+ */
 export const paymentStatusEnum = pgEnum('payment_status', [
   'captured',
   'refunded_full',
   'refunded_partial',
   'forfeited',
   'paid_out',
+  'refund_pending',
 ]);
 
 export const checkInModeEnum = pgEnum('check_in_mode', ['staffed', 'self']);
@@ -601,12 +652,18 @@ export const ledgerTxnKindEnum = pgEnum('ledger_txn_kind', [
 
 export const escrowSourceEnum = pgEnum('escrow_source', ['booking', 'caution']);
 
+/**
+ * An escrow is Hangaa's internal hold over its one GTBank account
+ * (073-gtbank-payments call 3, superseding ADR-020 D-e), not a provider's.
+ * `refund_pending`: the hold is released to the guest and the refund is owed.
+ */
 export const escrowStatusEnum = pgEnum('escrow_status', [
   'held',
   'released',
   'refunded_full',
   'refunded_partial',
   'forfeited',
+  'refund_pending',
 ]);
 
 export const payoutPayeeTypeEnum = pgEnum('payout_payee_type', [
@@ -735,18 +792,31 @@ export const reconciliationStatusEnum = pgEnum('reconciliation_status', [
   'discrepancies_flagged',
 ]);
 
+/**
+ * The four GTBank actions (073-gtbank-payments AC-15, AC-20, AC-21) each need a
+ * second `super_admin`: sending a disbursement again, recording a treasury
+ * movement, marking an `unknown` collection received, and cancelling the
+ * service a reversed collection paid for. `write_off` already existed.
+ */
 export const moneyOverrideActionEnum = pgEnum('money_override_action', [
   'force_refund',
   'retarget_payout',
   'force_release',
   'write_off',
   'reverse',
+  'resend_disbursement',
+  'treasury_adjustment',
+  'confirm_received',
+  'cancel_service',
 ]);
 
 export const moneyOverrideStateEnum = pgEnum('money_override_state', [
   'initiated',
   'approved',
   'applied',
+  // The second signer said no (073-gtbank-payments AC-21). `approved_by_user_id`
+  // names whoever decided, either way, and the dual auth CHECK holds for both.
+  'rejected',
 ]);
 
 

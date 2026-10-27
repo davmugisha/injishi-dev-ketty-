@@ -3,7 +3,9 @@ import { Module } from '@nestjs/common';
 import { AdminSharedModule } from '../admin-shared.module';
 import { AdminConfigurationController } from '../configuration/configuration.controller';
 import { ConfigurationAdminService } from '../configuration/configuration.service';
+import { PaymentsModule } from '../../../modules/payments/payments.module';
 import { AdminFinanceController } from './finance.controller';
+import { AdminMoneyOverridesController, AdminMoneyQueueController } from './money-queue.controller';
 import { FinanceAdminService } from './finance.service';
 
 /**
@@ -26,8 +28,16 @@ import { FinanceAdminService } from './finance.service';
  * `DRIZZLE` resolves in both services without being imported here.
  */
 @Module({
-  imports: [AdminSharedModule],
-  controllers: [AdminFinanceController, AdminConfigurationController],
+  // PaymentsModule carries the money queue (073-gtbank-payments AC-15, AC-19 to
+  // AC-21): the bank record, the dispatcher a pull goes through, and the outcome
+  // hook an approval announces on.
+  imports: [AdminSharedModule, PaymentsModule],
+  controllers: [
+    AdminFinanceController,
+    AdminConfigurationController,
+    AdminMoneyQueueController,
+    AdminMoneyOverridesController,
+  ],
   providers: [FinanceAdminService, ConfigurationAdminService],
 })
 export class FinanceAdminModule {}

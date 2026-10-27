@@ -8,10 +8,11 @@ import type {
   StaffDocument,
   StaffRequest,
 } from "@injishi/data/fixtures/staff";
+import { StaffMeView } from "@injishi/product-hr/web";
+import { NothingYet } from "@injishi/ui/phone";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { NothingYet } from "@/features/staff/parts";
-import { StaffMeView } from "@/features/staff/StaffMeView";
+import { HrMount } from "@/features/hr/hr-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument, requestContext } from "@/server/data";
 import { myClockIn, myProfile, staffReadRefusal } from "@/server/sources/staff";
@@ -43,10 +44,22 @@ export default async function StaffMePage({ searchParams }: { searchParams: Prom
   const clockedInAt = await myClockIn(await requestContext());
   const { payslips: payslipsParam } = await searchParams;
   return (
-    <StaffMeView
-      persona={persona}
-      data={{ profile: profile ?? null, payslips, balance, requests, documents, assets, tickets, topics, clockedInAt }}
-      initialPayslips={payslipsParam === "unlocked" ? "unlocked" : "locked"}
-    />
+    <HrMount>
+      <StaffMeView
+        persona={persona}
+        data={{
+          profile: profile ?? null,
+          payslips,
+          balance,
+          requests,
+          documents,
+          assets,
+          tickets,
+          topics,
+          clockedInAt,
+        }}
+        initialPayslips={payslipsParam === "unlocked" ? "unlocked" : "locked"}
+      />
+    </HrMount>
   );
 }

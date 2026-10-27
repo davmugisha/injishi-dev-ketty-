@@ -8,6 +8,7 @@
       "packages/data/**",
       "packages/db/**",
       "packages/ui/**",
+      "products/**",
       "biome.json",
       "turbo.json",
       "!**/.next",

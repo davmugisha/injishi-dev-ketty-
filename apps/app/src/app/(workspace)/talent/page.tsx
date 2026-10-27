@@ -7,8 +7,9 @@ import type {
   ReviewDepartment,
   Vacancy,
 } from "@injishi/data/fixtures/payroll";
+import { TalentView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
-import { TalentView } from "@/features/payroll/TalentView";
+import { HrMount } from "@/features/hr/hr-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -24,5 +25,9 @@ export default async function TalentPage() {
     getCollection<ReviewCycleMetric>("payroll.reviewCycle"),
     getCollection<ReviewDepartment>("payroll.reviewDepartments"),
   ]);
-  return <TalentView data={{ vacancies, candidates, interviews, onboarding, cycle, departments }} />;
+  return (
+    <HrMount>
+      <TalentView data={{ vacancies, candidates, interviews, onboarding, cycle, departments }} />
+    </HrMount>
+  );
 }

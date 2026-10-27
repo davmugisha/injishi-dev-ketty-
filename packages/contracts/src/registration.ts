@@ -3,6 +3,7 @@ import { isKnownCountry } from "./countries";
 import { BusinessKind, HospitalityKind, hospitalityKindOf, isVenueKind } from "./business-kind";
 import { AccommodationClass, RdbEntityGroup, ResidenceClass, StoredAccommodationClass } from "./rdb";
 import { Domain, OrgRegistrationStatus, OversightRole, RwfAmount, Uuid } from "./primitives";
+import { MobileMoneyNetwork, PaymentAttemptState, PaymentInstrument } from "./booking";
 /**
  * Business registration (F-S03 / FL01), governed by D20, D23 and D24.
  *
@@ -1165,6 +1166,44 @@ export const RegistrationFeeQuote = z.object({
     currency: z.literal("RWF"),
 });
 export type RegistrationFeeQuote = z.infer<typeof RegistrationFeeQuote>;
+// ---------------------------------------------------------------------------
+// Paying the fee — POST /api/v1/registrations/:id/pay (073-gtbank-payments AC-16)
+// ---------------------------------------------------------------------------
+/**
+ * One press of pay. Both fields are optional because the fee settles free
+ * while payments are off (call 9), and then there is nothing to prompt; when
+ * money is taken, the server refuses a body missing either with a 422.
+ */
+export const RegistrationPayRequest = z.object({
+    /** Minted once per press and reused on every retry of that press. */
+    attemptToken: Uuid.optional(),
+    /** The registrant's mobile money number. A card is refused. */
+    instrument: PaymentInstrument.optional(),
+});
+export type RegistrationPayRequest = z.infer<typeof RegistrationPayRequest>;
+/** A fee payment waiting on the registrant's handset, as the wizard watches it. */
+export const RegistrationFeeAttemptStatus = z.object({
+    attemptToken: z.string(),
+    state: PaymentAttemptState,
+    network: MobileMoneyNetwork.nullable(),
+    /** Masked: enough to recognise, never enough to charge. */
+    payerMasked: z.string().nullable(),
+    amountRwf: RwfAmount.nullable(),
+    expiresAt: z.string(),
+    failureReason: z.string().nullable(),
+    /** The registration as it stands now: `submitted` once the fee settled. */
+    registration: RegistrationSummary,
+});
+export type RegistrationFeeAttemptStatus = z.infer<typeof RegistrationFeeAttemptStatus>;
+/**
+ * What the pay press answers: settled at once (the free path, or an
+ * instrument that settled inside the call), or an attempt to wait on.
+ */
+export const RegistrationPayResult = z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("settled"), registration: RegistrationSummary }),
+    z.object({ kind: z.literal("attempt"), attempt: RegistrationFeeAttemptStatus }),
+]);
+export type RegistrationPayResult = z.infer<typeof RegistrationPayResult>;
 // ---------------------------------------------------------------------------
 // Step 1, read back — GET /api/v1/me/profile
 // ---------------------------------------------------------------------------

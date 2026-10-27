@@ -25,12 +25,12 @@ export declare const District: z.ZodObject<{
     provinceId: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    provinceId: number;
     id: number;
+    provinceId: number;
 }, {
     name: string;
-    provinceId: number;
     id: number;
+    provinceId: number;
 }>;
 export type District = z.infer<typeof District>;
 export declare const Sector: z.ZodObject<{
@@ -39,12 +39,12 @@ export declare const Sector: z.ZodObject<{
     districtId: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    districtId: number;
     id: number;
+    districtId: number;
 }, {
     name: string;
-    districtId: number;
     id: number;
+    districtId: number;
 }>;
 export type Sector = z.infer<typeof Sector>;
 export declare const Cell: z.ZodObject<{
@@ -53,12 +53,12 @@ export declare const Cell: z.ZodObject<{
     sectorId: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    sectorId: number;
     id: number;
+    sectorId: number;
 }, {
     name: string;
-    sectorId: number;
     id: number;
+    sectorId: number;
 }>;
 export type Cell = z.infer<typeof Cell>;
 export declare const Village: z.ZodObject<{
@@ -67,12 +67,12 @@ export declare const Village: z.ZodObject<{
     cellId: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    cellId: number;
     id: number;
+    cellId: number;
 }, {
     name: string;
-    cellId: number;
     id: number;
+    cellId: number;
 }>;
 export type Village = z.infer<typeof Village>;
 export declare const ProvinceListResponse: z.ZodArray<z.ZodObject<{
@@ -92,12 +92,12 @@ export declare const DistrictListResponse: z.ZodArray<z.ZodObject<{
     provinceId: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    provinceId: number;
     id: number;
+    provinceId: number;
 }, {
     name: string;
-    provinceId: number;
     id: number;
+    provinceId: number;
 }>, "many">;
 export type DistrictListResponse = z.infer<typeof DistrictListResponse>;
 /** Query params for GET /api/v1/geography/districts (optionally scoped). */
@@ -115,12 +115,12 @@ export declare const SectorListResponse: z.ZodArray<z.ZodObject<{
     districtId: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    districtId: number;
     id: number;
+    districtId: number;
 }, {
     name: string;
-    districtId: number;
     id: number;
+    districtId: number;
 }>, "many">;
 export type SectorListResponse = z.infer<typeof SectorListResponse>;
 /**
@@ -144,12 +144,12 @@ export declare const CellListResponse: z.ZodArray<z.ZodObject<{
     sectorId: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    sectorId: number;
     id: number;
+    sectorId: number;
 }, {
     name: string;
-    sectorId: number;
     id: number;
+    sectorId: number;
 }>, "many">;
 export type CellListResponse = z.infer<typeof CellListResponse>;
 /**
@@ -173,12 +173,12 @@ export declare const VillageListResponse: z.ZodArray<z.ZodObject<{
     cellId: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    cellId: number;
     id: number;
+    cellId: number;
 }, {
     name: string;
-    cellId: number;
     id: number;
+    cellId: number;
 }>, "many">;
 export type VillageListResponse = z.infer<typeof VillageListResponse>;
 /**

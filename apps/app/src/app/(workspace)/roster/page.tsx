@@ -7,8 +7,9 @@ import type {
   Rotation,
   ShiftSwap,
 } from "@injishi/data/fixtures/people";
+import { RosterView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
-import { RosterView } from "@/features/people/RosterView";
+import { HrMount } from "@/features/hr/hr-mount";
 import { requirePersona } from "@/lib/session";
 import { workspaceFor } from "@/server/auth";
 import { getCollection, requestContext } from "@/server/data";
@@ -32,12 +33,14 @@ export default async function RosterPage({ searchParams }: { searchParams: Promi
     name: string;
   }[];
   return (
-    <RosterView
-      data={{ groups, staff, weeks, swaps, rotations, holidays }}
-      initialWeek={week === "next" ? "next" : "this"}
-      today={ctx.today.iso}
-      branchName={branches[0]?.name ?? "this branch"}
-      otherBranchName={branches[1]?.name ?? "another branch"}
-    />
+    <HrMount>
+      <RosterView
+        data={{ groups, staff, weeks, swaps, rotations, holidays }}
+        initialWeek={week === "next" ? "next" : "this"}
+        today={ctx.today.iso}
+        branchName={branches[0]?.name ?? "this branch"}
+        otherBranchName={branches[1]?.name ?? "another branch"}
+      />
+    </HrMount>
   );
 }

@@ -305,14 +305,14 @@ export declare const PosStation: z.ZodObject<{
     printerName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    kind: "kitchen" | "bar";
     id: string;
+    kind: "kitchen" | "bar";
     outletId: string;
     printerName: string | null;
 }, {
     name: string;
-    kind: "kitchen" | "bar";
     id: string;
+    kind: "kitchen" | "bar";
     outletId: string;
     printerName: string | null;
 }>;
@@ -750,8 +750,8 @@ export declare const PosOrderLine: z.ZodObject<{
     status: "draft" | "sent" | "voided";
     name: string;
     id: string;
-    note: string | null;
     grossRwf: number;
+    note: string | null;
     totalRwf: number;
     quantity: number;
     unitPriceRwf: number;
@@ -774,8 +774,8 @@ export declare const PosOrderLine: z.ZodObject<{
     status: "draft" | "sent" | "voided";
     name: string;
     id: string;
-    note: string | null;
     grossRwf: number;
+    note: string | null;
     totalRwf: number;
     quantity: number;
     unitPriceRwf: number;
@@ -843,11 +843,11 @@ export declare const PosPayment: z.ZodObject<{
     createdAt: z.ZodString;
     settledAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "pending" | "expired" | "failed" | "initiated" | "cancelled" | "refunded" | "successful";
+    status: "pending" | "cancelled" | "expired" | "failed" | "initiated" | "refunded" | "successful";
     id: string;
     amountRwf: number;
-    createdAt: string;
     failureReason: string | null;
+    createdAt: string;
     settledAt: string | null;
     method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
     refundedRwf: number;
@@ -860,11 +860,11 @@ export declare const PosPayment: z.ZodObject<{
     simulated: boolean;
     shiftId: string | null;
 }, {
-    status: "pending" | "expired" | "failed" | "initiated" | "cancelled" | "refunded" | "successful";
+    status: "pending" | "cancelled" | "expired" | "failed" | "initiated" | "refunded" | "successful";
     id: string;
     amountRwf: number;
-    createdAt: string;
     failureReason: string | null;
+    createdAt: string;
     settledAt: string | null;
     method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
     refundedRwf: number;
@@ -888,20 +888,20 @@ export declare const PosSettlement: z.ZodObject<{
     state: z.ZodEnum<["unpaid", "partially_paid", "paid", "overpaid"]>;
     settled: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    pendingRwf: number;
     state: "paid" | "unpaid" | "partially_paid" | "overpaid";
+    settled: boolean;
+    pendingRwf: number;
     totalRwf: number;
     refundedRwf: number;
-    settled: boolean;
     outstandingRwf: number;
     collectedRwf: number;
     payableRwf: number;
 }, {
-    pendingRwf: number;
     state: "paid" | "unpaid" | "partially_paid" | "overpaid";
+    settled: boolean;
+    pendingRwf: number;
     totalRwf: number;
     refundedRwf: number;
-    settled: boolean;
     outstandingRwf: number;
     collectedRwf: number;
     payableRwf: number;
@@ -931,20 +931,20 @@ export declare const PosOrder: z.ZodObject<{
         state: z.ZodEnum<["unpaid", "partially_paid", "paid", "overpaid"]>;
         settled: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        pendingRwf: number;
         state: "paid" | "unpaid" | "partially_paid" | "overpaid";
+        settled: boolean;
+        pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        settled: boolean;
         outstandingRwf: number;
         collectedRwf: number;
         payableRwf: number;
     }, {
-        pendingRwf: number;
         state: "paid" | "unpaid" | "partially_paid" | "overpaid";
+        settled: boolean;
+        pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        settled: boolean;
         outstandingRwf: number;
         collectedRwf: number;
         payableRwf: number;
@@ -995,8 +995,8 @@ export declare const PosOrder: z.ZodObject<{
         status: "draft" | "sent" | "voided";
         name: string;
         id: string;
-        note: string | null;
         grossRwf: number;
+        note: string | null;
         totalRwf: number;
         quantity: number;
         unitPriceRwf: number;
@@ -1019,8 +1019,8 @@ export declare const PosOrder: z.ZodObject<{
         status: "draft" | "sent" | "voided";
         name: string;
         id: string;
-        note: string | null;
         grossRwf: number;
+        note: string | null;
         totalRwf: number;
         quantity: number;
         unitPriceRwf: number;
@@ -1086,11 +1086,11 @@ export declare const PosOrder: z.ZodObject<{
         createdAt: z.ZodString;
         settledAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "pending" | "expired" | "failed" | "initiated" | "cancelled" | "refunded" | "successful";
+        status: "pending" | "cancelled" | "expired" | "failed" | "initiated" | "refunded" | "successful";
         id: string;
         amountRwf: number;
-        createdAt: string;
         failureReason: string | null;
+        createdAt: string;
         settledAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
         refundedRwf: number;
@@ -1103,11 +1103,11 @@ export declare const PosOrder: z.ZodObject<{
         simulated: boolean;
         shiftId: string | null;
     }, {
-        status: "pending" | "expired" | "failed" | "initiated" | "cancelled" | "refunded" | "successful";
+        status: "pending" | "cancelled" | "expired" | "failed" | "initiated" | "refunded" | "successful";
         id: string;
         amountRwf: number;
-        createdAt: string;
         failureReason: string | null;
+        createdAt: string;
         settledAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
         refundedRwf: number;
@@ -1124,16 +1124,17 @@ export declare const PosOrder: z.ZodObject<{
     createdAt: z.ZodString;
     settledAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "submitted" | "draft" | "cancelled" | "in_progress" | "ready" | "delivered" | "completed";
+    status: "submitted" | "cancelled" | "draft" | "in_progress" | "ready" | "delivered" | "completed";
     id: string;
+    grossRwf: number;
     createdAt: string;
     settledAt: string | null;
     payments: {
-        status: "pending" | "expired" | "failed" | "initiated" | "cancelled" | "refunded" | "successful";
+        status: "pending" | "cancelled" | "expired" | "failed" | "initiated" | "refunded" | "successful";
         id: string;
         amountRwf: number;
-        createdAt: string;
         failureReason: string | null;
+        createdAt: string;
         settledAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
         refundedRwf: number;
@@ -1146,14 +1147,13 @@ export declare const PosOrder: z.ZodObject<{
         simulated: boolean;
         shiftId: string | null;
     }[];
-    grossRwf: number;
     totalRwf: number;
     settlement: {
-        pendingRwf: number;
         state: "paid" | "unpaid" | "partially_paid" | "overpaid";
+        settled: boolean;
+        pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        settled: boolean;
         outstandingRwf: number;
         collectedRwf: number;
         payableRwf: number;
@@ -1166,8 +1166,8 @@ export declare const PosOrder: z.ZodObject<{
         status: "draft" | "sent" | "voided";
         name: string;
         id: string;
-        note: string | null;
         grossRwf: number;
+        note: string | null;
         totalRwf: number;
         quantity: number;
         unitPriceRwf: number;
@@ -1205,16 +1205,17 @@ export declare const PosOrder: z.ZodObject<{
         orderItemId: string | null;
     }[];
 }, {
-    status: "submitted" | "draft" | "cancelled" | "in_progress" | "ready" | "delivered" | "completed";
+    status: "submitted" | "cancelled" | "draft" | "in_progress" | "ready" | "delivered" | "completed";
     id: string;
+    grossRwf: number;
     createdAt: string;
     settledAt: string | null;
     payments: {
-        status: "pending" | "expired" | "failed" | "initiated" | "cancelled" | "refunded" | "successful";
+        status: "pending" | "cancelled" | "expired" | "failed" | "initiated" | "refunded" | "successful";
         id: string;
         amountRwf: number;
-        createdAt: string;
         failureReason: string | null;
+        createdAt: string;
         settledAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
         refundedRwf: number;
@@ -1227,14 +1228,13 @@ export declare const PosOrder: z.ZodObject<{
         simulated: boolean;
         shiftId: string | null;
     }[];
-    grossRwf: number;
     totalRwf: number;
     settlement: {
-        pendingRwf: number;
         state: "paid" | "unpaid" | "partially_paid" | "overpaid";
+        settled: boolean;
+        pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        settled: boolean;
         outstandingRwf: number;
         collectedRwf: number;
         payableRwf: number;
@@ -1247,8 +1247,8 @@ export declare const PosOrder: z.ZodObject<{
         status: "draft" | "sent" | "voided";
         name: string;
         id: string;
-        note: string | null;
         grossRwf: number;
+        note: string | null;
         totalRwf: number;
         quantity: number;
         unitPriceRwf: number;
@@ -1312,20 +1312,20 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         state: z.ZodEnum<["unpaid", "partially_paid", "paid", "overpaid"]>;
         settled: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        pendingRwf: number;
         state: "paid" | "unpaid" | "partially_paid" | "overpaid";
+        settled: boolean;
+        pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        settled: boolean;
         outstandingRwf: number;
         collectedRwf: number;
         payableRwf: number;
     }, {
-        pendingRwf: number;
         state: "paid" | "unpaid" | "partially_paid" | "overpaid";
+        settled: boolean;
+        pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        settled: boolean;
         outstandingRwf: number;
         collectedRwf: number;
         payableRwf: number;
@@ -1376,8 +1376,8 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         status: "draft" | "sent" | "voided";
         name: string;
         id: string;
-        note: string | null;
         grossRwf: number;
+        note: string | null;
         totalRwf: number;
         quantity: number;
         unitPriceRwf: number;
@@ -1400,8 +1400,8 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         status: "draft" | "sent" | "voided";
         name: string;
         id: string;
-        note: string | null;
         grossRwf: number;
+        note: string | null;
         totalRwf: number;
         quantity: number;
         unitPriceRwf: number;
@@ -1467,11 +1467,11 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         createdAt: z.ZodString;
         settledAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "pending" | "expired" | "failed" | "initiated" | "cancelled" | "refunded" | "successful";
+        status: "pending" | "cancelled" | "expired" | "failed" | "initiated" | "refunded" | "successful";
         id: string;
         amountRwf: number;
-        createdAt: string;
         failureReason: string | null;
+        createdAt: string;
         settledAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
         refundedRwf: number;
@@ -1484,11 +1484,11 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
         simulated: boolean;
         shiftId: string | null;
     }, {
-        status: "pending" | "expired" | "failed" | "initiated" | "cancelled" | "refunded" | "successful";
+        status: "pending" | "cancelled" | "expired" | "failed" | "initiated" | "refunded" | "successful";
         id: string;
         amountRwf: number;
-        createdAt: string;
         failureReason: string | null;
+        createdAt: string;
         settledAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer" | "voucher" | "customer_credit";
         refundedRwf: number;
@@ -1507,18 +1507,18 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
 }, "payments" | "lines" | "discounts"> & {
     lineCount: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    status: "submitted" | "draft" | "cancelled" | "in_progress" | "ready" | "delivered" | "completed";
+    status: "submitted" | "cancelled" | "draft" | "in_progress" | "ready" | "delivered" | "completed";
     id: string;
+    grossRwf: number;
     createdAt: string;
     settledAt: string | null;
-    grossRwf: number;
     totalRwf: number;
     settlement: {
-        pendingRwf: number;
         state: "paid" | "unpaid" | "partially_paid" | "overpaid";
+        settled: boolean;
+        pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        settled: boolean;
         outstandingRwf: number;
         collectedRwf: number;
         payableRwf: number;
@@ -1536,18 +1536,18 @@ export declare const PosOrderSummary: z.ZodObject<Omit<{
     tableLabel: string | null;
     lineCount: number;
 }, {
-    status: "submitted" | "draft" | "cancelled" | "in_progress" | "ready" | "delivered" | "completed";
+    status: "submitted" | "cancelled" | "draft" | "in_progress" | "ready" | "delivered" | "completed";
     id: string;
+    grossRwf: number;
     createdAt: string;
     settledAt: string | null;
-    grossRwf: number;
     totalRwf: number;
     settlement: {
-        pendingRwf: number;
         state: "paid" | "unpaid" | "partially_paid" | "overpaid";
+        settled: boolean;
+        pendingRwf: number;
         totalRwf: number;
         refundedRwf: number;
-        settled: boolean;
         outstandingRwf: number;
         collectedRwf: number;
         payableRwf: number;
@@ -1576,7 +1576,7 @@ export declare const PosTicketItem: z.ZodObject<{
     status: z.ZodEnum<["queued", "preparing", "ready", "served", "cancelled"]>;
 }, "strip", z.ZodTypeAny, {
     options: string[];
-    status: "queued" | "cancelled" | "ready" | "preparing" | "served";
+    status: "cancelled" | "queued" | "ready" | "preparing" | "served";
     name: string;
     id: string;
     note: string | null;
@@ -1584,7 +1584,7 @@ export declare const PosTicketItem: z.ZodObject<{
     orderItemId: string;
 }, {
     options: string[];
-    status: "queued" | "cancelled" | "ready" | "preparing" | "served";
+    status: "cancelled" | "queued" | "ready" | "preparing" | "served";
     name: string;
     id: string;
     note: string | null;
@@ -1613,7 +1613,7 @@ export declare const PosTicket: z.ZodObject<{
         status: z.ZodEnum<["queued", "preparing", "ready", "served", "cancelled"]>;
     }, "strip", z.ZodTypeAny, {
         options: string[];
-        status: "queued" | "cancelled" | "ready" | "preparing" | "served";
+        status: "cancelled" | "queued" | "ready" | "preparing" | "served";
         name: string;
         id: string;
         note: string | null;
@@ -1621,7 +1621,7 @@ export declare const PosTicket: z.ZodObject<{
         orderItemId: string;
     }, {
         options: string[];
-        status: "queued" | "cancelled" | "ready" | "preparing" | "served";
+        status: "cancelled" | "queued" | "ready" | "preparing" | "served";
         name: string;
         id: string;
         note: string | null;
@@ -1637,11 +1637,11 @@ export declare const PosTicket: z.ZodObject<{
     late: z.ZodBoolean;
     printCount: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    status: "queued" | "cancelled" | "ready" | "preparing" | "served";
+    status: "cancelled" | "queued" | "ready" | "preparing" | "served";
     id: string;
     items: {
         options: string[];
-        status: "queued" | "cancelled" | "ready" | "preparing" | "served";
+        status: "cancelled" | "queued" | "ready" | "preparing" | "served";
         name: string;
         id: string;
         note: string | null;
@@ -1665,11 +1665,11 @@ export declare const PosTicket: z.ZodObject<{
     late: boolean;
     printCount: number;
 }, {
-    status: "queued" | "cancelled" | "ready" | "preparing" | "served";
+    status: "cancelled" | "queued" | "ready" | "preparing" | "served";
     id: string;
     items: {
         options: string[];
-        status: "queued" | "cancelled" | "ready" | "preparing" | "served";
+        status: "cancelled" | "queued" | "ready" | "preparing" | "served";
         name: string;
         id: string;
         note: string | null;
@@ -1728,8 +1728,8 @@ export declare const PosCashMovement: z.ZodObject<{
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     status: "approved" | "rejected" | "pending_approval";
-    kind: "paid_out" | "paid_in";
     id: string;
+    kind: "paid_out" | "paid_in";
     amountRwf: number;
     reason: string;
     createdAt: string;
@@ -1737,8 +1737,8 @@ export declare const PosCashMovement: z.ZodObject<{
     requestedByName: string | null;
 }, {
     status: "approved" | "rejected" | "pending_approval";
-    kind: "paid_out" | "paid_in";
     id: string;
+    kind: "paid_out" | "paid_in";
     amountRwf: number;
     reason: string;
     createdAt: string;
@@ -1793,8 +1793,8 @@ export declare const PosShift: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "pending_approval";
-        kind: "paid_out" | "paid_in";
         id: string;
+        kind: "paid_out" | "paid_in";
         amountRwf: number;
         reason: string;
         createdAt: string;
@@ -1802,8 +1802,8 @@ export declare const PosShift: z.ZodObject<{
         requestedByName: string | null;
     }, {
         status: "approved" | "rejected" | "pending_approval";
-        kind: "paid_out" | "paid_in";
         id: string;
+        kind: "paid_out" | "paid_in";
         amountRwf: number;
         reason: string;
         createdAt: string;
@@ -1839,8 +1839,8 @@ export declare const PosShift: z.ZodObject<{
     handoverNote: string | null;
     movements: {
         status: "approved" | "rejected" | "pending_approval";
-        kind: "paid_out" | "paid_in";
         id: string;
+        kind: "paid_out" | "paid_in";
         amountRwf: number;
         reason: string;
         createdAt: string;
@@ -1876,8 +1876,8 @@ export declare const PosShift: z.ZodObject<{
     handoverNote: string | null;
     movements: {
         status: "approved" | "rejected" | "pending_approval";
-        kind: "paid_out" | "paid_in";
         id: string;
+        kind: "paid_out" | "paid_in";
         amountRwf: number;
         reason: string;
         createdAt: string;
@@ -2284,9 +2284,9 @@ export type RefundPosPaymentRequest = z.infer<typeof RefundPosPaymentRequest>;
 export declare const AdvancePosTicketRequest: z.ZodObject<{
     to: z.ZodEnum<["queued", "preparing", "ready", "served", "cancelled"]>;
 }, "strip", z.ZodTypeAny, {
-    to: "queued" | "cancelled" | "ready" | "preparing" | "served";
+    to: "cancelled" | "queued" | "ready" | "preparing" | "served";
 }, {
-    to: "queued" | "cancelled" | "ready" | "preparing" | "served";
+    to: "cancelled" | "queued" | "ready" | "preparing" | "served";
 }>;
 export type AdvancePosTicketRequest = z.infer<typeof AdvancePosTicketRequest>;
 export declare const OpenShiftRequest: z.ZodObject<{

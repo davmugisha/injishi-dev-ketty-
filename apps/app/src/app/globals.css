@@ -10,6 +10,8 @@
    resolved from the package wherever it is installed (ADR-074), rather than a
    path into it typed here. */
 @import "@injishi/ui/styles.css";
+/* HR's views (ADR-074 stage 3): the product's own `@source "./"`, for the same reason. */
+@import "@injishi/product-hr/styles.css";
 
 @custom-variant dark (&:where([data-theme="mouve-dark"], [data-theme="mouve-dark"] *));
 

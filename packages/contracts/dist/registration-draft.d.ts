@@ -128,12 +128,12 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         lastName: string;
         middleName: string;
     };
+    capacity: "owner" | "on_behalf_of";
     kind: string | null;
     branches: {
         name: string;
         address: Record<string, string>;
     }[];
-    capacity: "owner" | "on_behalf_of";
     intendedOwner: {
         name: string;
         email: string;
@@ -153,7 +153,7 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         sizeBytes: number;
         filename: string;
     }[] | undefined;
-    done?: ("owner" | "tin" | "upi" | "id" | "review" | "fr" | "intended" | "loc")[] | undefined;
+    done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
     phase?: "business" | "documents" | "place" | "about" | undefined;
     openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
@@ -170,12 +170,12 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         lastName: string;
         middleName: string;
     };
+    capacity: "owner" | "on_behalf_of";
     kind: string | null;
     branches: {
         name: string;
         address: Record<string, string>;
     }[];
-    capacity: "owner" | "on_behalf_of";
     intendedOwner: {
         name: string;
         email: string;
@@ -195,7 +195,7 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         sizeBytes: number;
         filename: string;
     }[] | undefined;
-    done?: ("owner" | "tin" | "upi" | "id" | "review" | "fr" | "intended" | "loc")[] | undefined;
+    done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
     phase?: "business" | "documents" | "place" | "about" | undefined;
     openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
@@ -212,12 +212,12 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         lastName: string;
         middleName: string;
     };
+    capacity: "owner" | "on_behalf_of";
     kind: string | null;
     branches: {
         name: string;
         address: Record<string, string>;
     }[];
-    capacity: "owner" | "on_behalf_of";
     intendedOwner: {
         name: string;
         email: string;
@@ -237,7 +237,7 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         sizeBytes: number;
         filename: string;
     }[] | undefined;
-    done?: ("owner" | "tin" | "upi" | "id" | "review" | "fr" | "intended" | "loc")[] | undefined;
+    done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
     phase?: "business" | "documents" | "place" | "about" | undefined;
     openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
@@ -254,12 +254,12 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         lastName: string;
         middleName: string;
     };
+    capacity: "owner" | "on_behalf_of";
     kind: string | null;
     branches: {
         name: string;
         address: Record<string, string>;
     }[];
-    capacity: "owner" | "on_behalf_of";
     intendedOwner: {
         name: string;
         email: string;
@@ -279,7 +279,7 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         sizeBytes: number;
         filename: string;
     }[] | undefined;
-    done?: ("owner" | "tin" | "upi" | "id" | "review" | "fr" | "intended" | "loc")[] | undefined;
+    done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
     phase?: "business" | "documents" | "place" | "about" | undefined;
     openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
@@ -405,8 +405,8 @@ export declare const RegistrationDraftChecks: z.ZodObject<{
         }>;
         checkedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        tin: string;
         capacity: "owner" | "on_behalf_of" | null;
+        tin: string;
         checkedAt: string;
         attempts: number;
         answer: {
@@ -431,8 +431,8 @@ export declare const RegistrationDraftChecks: z.ZodObject<{
             registrantIsDirector: boolean | null;
         };
     }, {
-        tin: string;
         capacity: "owner" | "on_behalf_of" | null;
+        tin: string;
         checkedAt: string;
         attempts: number;
         answer: {
@@ -473,8 +473,8 @@ export declare const RegistrationDraftChecks: z.ZodObject<{
     registrationId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     tin?: {
-        tin: string;
         capacity: "owner" | "on_behalf_of" | null;
+        tin: string;
         checkedAt: string;
         attempts: number;
         answer: {
@@ -507,8 +507,8 @@ export declare const RegistrationDraftChecks: z.ZodObject<{
     registrationId?: string | undefined;
 }, {
     tin?: {
-        tin: string;
         capacity: "owner" | "on_behalf_of" | null;
+        tin: string;
         checkedAt: string;
         attempts: number;
         answer: {
@@ -661,12 +661,12 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             lastName: string;
             middleName: string;
         };
+        capacity: "owner" | "on_behalf_of";
         kind: string | null;
         branches: {
             name: string;
             address: Record<string, string>;
         }[];
-        capacity: "owner" | "on_behalf_of";
         intendedOwner: {
             name: string;
             email: string;
@@ -686,7 +686,7 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             sizeBytes: number;
             filename: string;
         }[] | undefined;
-        done?: ("owner" | "tin" | "upi" | "id" | "review" | "fr" | "intended" | "loc")[] | undefined;
+        done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
         phase?: "business" | "documents" | "place" | "about" | undefined;
         openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
         reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
@@ -703,12 +703,12 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             lastName: string;
             middleName: string;
         };
+        capacity: "owner" | "on_behalf_of";
         kind: string | null;
         branches: {
             name: string;
             address: Record<string, string>;
         }[];
-        capacity: "owner" | "on_behalf_of";
         intendedOwner: {
             name: string;
             email: string;
@@ -728,7 +728,7 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             sizeBytes: number;
             filename: string;
         }[] | undefined;
-        done?: ("owner" | "tin" | "upi" | "id" | "review" | "fr" | "intended" | "loc")[] | undefined;
+        done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
         phase?: "business" | "documents" | "place" | "about" | undefined;
         openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
         reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
@@ -745,12 +745,12 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             lastName: string;
             middleName: string;
         };
+        capacity: "owner" | "on_behalf_of";
         kind: string | null;
         branches: {
             name: string;
             address: Record<string, string>;
         }[];
-        capacity: "owner" | "on_behalf_of";
         intendedOwner: {
             name: string;
             email: string;
@@ -770,7 +770,7 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             sizeBytes: number;
             filename: string;
         }[] | undefined;
-        done?: ("owner" | "tin" | "upi" | "id" | "review" | "fr" | "intended" | "loc")[] | undefined;
+        done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
         phase?: "business" | "documents" | "place" | "about" | undefined;
         openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
         reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
@@ -787,12 +787,12 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             lastName: string;
             middleName: string;
         };
+        capacity: "owner" | "on_behalf_of";
         kind: string | null;
         branches: {
             name: string;
             address: Record<string, string>;
         }[];
-        capacity: "owner" | "on_behalf_of";
         intendedOwner: {
             name: string;
             email: string;
@@ -812,7 +812,7 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             sizeBytes: number;
             filename: string;
         }[] | undefined;
-        done?: ("owner" | "tin" | "upi" | "id" | "review" | "fr" | "intended" | "loc")[] | undefined;
+        done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
         phase?: "business" | "documents" | "place" | "about" | undefined;
         openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
         reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
@@ -929,8 +929,8 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             }>;
             checkedAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            tin: string;
             capacity: "owner" | "on_behalf_of" | null;
+            tin: string;
             checkedAt: string;
             attempts: number;
             answer: {
@@ -955,8 +955,8 @@ export declare const RegistrationDraftRead: z.ZodObject<{
                 registrantIsDirector: boolean | null;
             };
         }, {
-            tin: string;
             capacity: "owner" | "on_behalf_of" | null;
+            tin: string;
             checkedAt: string;
             attempts: number;
             answer: {
@@ -997,8 +997,8 @@ export declare const RegistrationDraftRead: z.ZodObject<{
         registrationId: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         tin?: {
-            tin: string;
             capacity: "owner" | "on_behalf_of" | null;
+            tin: string;
             checkedAt: string;
             attempts: number;
             answer: {
@@ -1031,8 +1031,8 @@ export declare const RegistrationDraftRead: z.ZodObject<{
         registrationId?: string | undefined;
     }, {
         tin?: {
-            tin: string;
             capacity: "owner" | "on_behalf_of" | null;
+            tin: string;
             checkedAt: string;
             attempts: number;
             answer: {
@@ -1079,12 +1079,12 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             lastName: string;
             middleName: string;
         };
+        capacity: "owner" | "on_behalf_of";
         kind: string | null;
         branches: {
             name: string;
             address: Record<string, string>;
         }[];
-        capacity: "owner" | "on_behalf_of";
         intendedOwner: {
             name: string;
             email: string;
@@ -1104,15 +1104,15 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             sizeBytes: number;
             filename: string;
         }[] | undefined;
-        done?: ("owner" | "tin" | "upi" | "id" | "review" | "fr" | "intended" | "loc")[] | undefined;
+        done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
         phase?: "business" | "documents" | "place" | "about" | undefined;
         openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
         reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     } | null;
     checks: {
         tin?: {
-            tin: string;
             capacity: "owner" | "on_behalf_of" | null;
+            tin: string;
             checkedAt: string;
             attempts: number;
             answer: {
@@ -1159,12 +1159,12 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             lastName: string;
             middleName: string;
         };
+        capacity: "owner" | "on_behalf_of";
         kind: string | null;
         branches: {
             name: string;
             address: Record<string, string>;
         }[];
-        capacity: "owner" | "on_behalf_of";
         intendedOwner: {
             name: string;
             email: string;
@@ -1184,15 +1184,15 @@ export declare const RegistrationDraftRead: z.ZodObject<{
             sizeBytes: number;
             filename: string;
         }[] | undefined;
-        done?: ("owner" | "tin" | "upi" | "id" | "review" | "fr" | "intended" | "loc")[] | undefined;
+        done?: ("owner" | "id" | "tin" | "upi" | "review" | "fr" | "intended" | "loc")[] | undefined;
         phase?: "business" | "documents" | "place" | "about" | undefined;
         openStep?: "business" | "documents" | "review" | "you" | "pay" | undefined;
         reached?: "business" | "documents" | "review" | "you" | "pay" | undefined;
     } | null;
     checks: {
         tin?: {
-            tin: string;
             capacity: "owner" | "on_behalf_of" | null;
+            tin: string;
             checkedAt: string;
             attempts: number;
             answer: {

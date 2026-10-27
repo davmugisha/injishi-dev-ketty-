@@ -9,8 +9,9 @@ import type {
   PeopleProperty,
   PolicyAck,
 } from "@injishi/data/fixtures/people";
+import { EmployeesView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
-import { EmployeesView } from "@/features/people/EmployeesView";
+import { HrMount } from "@/features/hr/hr-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 
@@ -37,14 +38,16 @@ export default async function EmployeesPage({
   ]);
   const { view, employee, tab } = await searchParams;
   return (
-    <EmployeesView
-      data={{ properties, employees, compensation, documents, family, policies, org, offboarding }}
-      today={(await requestContext()).today.iso}
-      initial={{
-        view: view === "org" ? "org" : "dir",
-        employee: employees.some((e) => e.id === employee) ? (employee as string) : (employees[0]?.id ?? ""),
-        tab: FILE_TABS.includes(tab ?? "") ? (tab as string) : "overview",
-      }}
-    />
+    <HrMount>
+      <EmployeesView
+        data={{ properties, employees, compensation, documents, family, policies, org, offboarding }}
+        today={(await requestContext()).today.iso}
+        initial={{
+          view: view === "org" ? "org" : "dir",
+          employee: employees.some((e) => e.id === employee) ? (employee as string) : (employees[0]?.id ?? ""),
+          tab: FILE_TABS.includes(tab ?? "") ? (tab as string) : "overview",
+        }}
+      />
+    </HrMount>
   );
 }

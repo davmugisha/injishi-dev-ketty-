@@ -75,6 +75,8 @@ export class GuardedPaymentPort implements PaymentPort {
       throw new PaymentUnavailableError(
         'payment circuit is open after repeated failures',
         key,
+        // The breaker refused before calling: nothing was sent (073 AC-7).
+        'no',
       );
     }
 

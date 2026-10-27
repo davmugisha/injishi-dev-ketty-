@@ -334,6 +334,14 @@ export const paymentAttempts = pgTable(
     serviceOrderId: uuid('service_order_id').references(
       (): AnyPgColumn => serviceOrders.id,
     ),
+    /**
+     * The org's pending registration invoice a `registration_fee` attempt pays
+     * (073-gtbank-payments AC-16). A refused or expired attempt leaves the
+     * invoice payable, so one invoice may have several attempts. Its foreign
+     * key to `subscription_invoices` is hand written in migration 0073
+     * (money.ts imports this file).
+     */
+    subscriptionInvoiceId: uuid('subscription_invoice_id'),
 
     // --- the stay this attempt is for, because no booking exists yet ---
     // Null on a `service_order` attempt, which has no stay.
@@ -384,15 +392,22 @@ export const paymentAttempts = pgTable(
     index('payment_attempts_expiry_idx')
       .on(t.expiresAt)
       .where(sql`${t.state} = 'prompting'`),
+    index('payment_attempts_subscription_invoice_idx').on(t.subscriptionInvoiceId),
     /** Each purpose carries its own inputs and none of the other's. */
     check(
       'payment_attempts_purpose_shape',
       sql`(${t.purpose} = 'booking'
             AND ${t.roomTypeId} IS NOT NULL AND ${t.checkIn} IS NOT NULL
             AND ${t.checkOut} IS NOT NULL AND ${t.guestCount} IS NOT NULL
-            AND ${t.serviceOrderId} IS NULL)
+            AND ${t.serviceOrderId} IS NULL AND ${t.subscriptionInvoiceId} IS NULL)
         OR (${t.purpose} = 'service_order'
             AND ${t.serviceOrderId} IS NOT NULL
+            AND ${t.roomTypeId} IS NULL AND ${t.checkIn} IS NULL
+            AND ${t.checkOut} IS NULL AND ${t.guestCount} IS NULL
+            AND ${t.subscriptionInvoiceId} IS NULL)
+        OR (${t.purpose} = 'registration_fee'
+            AND ${t.subscriptionInvoiceId} IS NOT NULL
+            AND ${t.serviceOrderId} IS NULL
             AND ${t.roomTypeId} IS NULL AND ${t.checkIn} IS NULL
             AND ${t.checkOut} IS NULL AND ${t.guestCount} IS NULL)`,
     ),

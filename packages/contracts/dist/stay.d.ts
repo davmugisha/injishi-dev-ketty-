@@ -594,17 +594,17 @@ export declare const StayRefundRequestView: z.ZodObject<{
     decidedAt: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    decidedAt: string | null;
     id: string;
+    reference: string;
+    state: "submitted" | "approved" | "rejected" | "withdrawn";
+    decidedAt: string | null;
     reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
     decisionNote: string | null;
     detail: string;
     createdAt: string;
     stayId: string;
-    reference: string;
     propertyName: string | null;
     guestName: string | null;
-    state: "submitted" | "approved" | "rejected" | "withdrawn";
     roomLabel: string | null;
     requestedRwf: number | null;
     policyEligible: boolean;
@@ -615,17 +615,17 @@ export declare const StayRefundRequestView: z.ZodObject<{
     refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
     refusalLabel: string | null;
 }, {
-    decidedAt: string | null;
     id: string;
+    reference: string;
+    state: "submitted" | "approved" | "rejected" | "withdrawn";
+    decidedAt: string | null;
     reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
     decisionNote: string | null;
     detail: string;
     createdAt: string;
     stayId: string;
-    reference: string;
     propertyName: string | null;
     guestName: string | null;
-    state: "submitted" | "approved" | "rejected" | "withdrawn";
     roomLabel: string | null;
     requestedRwf: number | null;
     policyEligible: boolean;
@@ -663,17 +663,17 @@ export declare const StayRefundRequestList: z.ZodObject<{
         decidedAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        decidedAt: string | null;
         id: string;
+        reference: string;
+        state: "submitted" | "approved" | "rejected" | "withdrawn";
+        decidedAt: string | null;
         reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
         decisionNote: string | null;
         detail: string;
         createdAt: string;
         stayId: string;
-        reference: string;
         propertyName: string | null;
         guestName: string | null;
-        state: "submitted" | "approved" | "rejected" | "withdrawn";
         roomLabel: string | null;
         requestedRwf: number | null;
         policyEligible: boolean;
@@ -684,17 +684,17 @@ export declare const StayRefundRequestList: z.ZodObject<{
         refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
         refusalLabel: string | null;
     }, {
-        decidedAt: string | null;
         id: string;
+        reference: string;
+        state: "submitted" | "approved" | "rejected" | "withdrawn";
+        decidedAt: string | null;
         reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
         decisionNote: string | null;
         detail: string;
         createdAt: string;
         stayId: string;
-        reference: string;
         propertyName: string | null;
         guestName: string | null;
-        state: "submitted" | "approved" | "rejected" | "withdrawn";
         roomLabel: string | null;
         requestedRwf: number | null;
         policyEligible: boolean;
@@ -707,17 +707,17 @@ export declare const StayRefundRequestList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     requests: {
-        decidedAt: string | null;
         id: string;
+        reference: string;
+        state: "submitted" | "approved" | "rejected" | "withdrawn";
+        decidedAt: string | null;
         reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
         decisionNote: string | null;
         detail: string;
         createdAt: string;
         stayId: string;
-        reference: string;
         propertyName: string | null;
         guestName: string | null;
-        state: "submitted" | "approved" | "rejected" | "withdrawn";
         roomLabel: string | null;
         requestedRwf: number | null;
         policyEligible: boolean;
@@ -730,17 +730,17 @@ export declare const StayRefundRequestList: z.ZodObject<{
     }[];
 }, {
     requests: {
-        decidedAt: string | null;
         id: string;
+        reference: string;
+        state: "submitted" | "approved" | "rejected" | "withdrawn";
+        decidedAt: string | null;
         reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
         decisionNote: string | null;
         detail: string;
         createdAt: string;
         stayId: string;
-        reference: string;
         propertyName: string | null;
         guestName: string | null;
-        state: "submitted" | "approved" | "rejected" | "withdrawn";
         roomLabel: string | null;
         requestedRwf: number | null;
         policyEligible: boolean;
@@ -774,20 +774,20 @@ export declare const StayRefundQuote: z.ZodObject<{
     /** Why the guest cannot raise one at all, when they cannot. */
     refusal: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    refusal: string | null;
+    rule: string;
     reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
     stayId: string;
     paidRwf: number;
-    refusal: string | null;
-    rule: string;
     refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
     eligible: boolean;
     maxRefundRwf: number;
 }, {
+    refusal: string | null;
+    rule: string;
     reason: "other" | "service_failure" | "room_not_as_described" | "cleanliness" | "noise" | "maintenance_unresolved" | "overcharged" | "early_departure" | "changed_plans";
     stayId: string;
     paidRwf: number;
-    refusal: string | null;
-    rule: string;
     refusalReason: "other" | "non_refundable_rate" | "outside_cancellation_window" | "nights_already_consumed" | "no_show_policy" | "house_rules_breach" | "damage_to_property" | "third_party_booking" | "not_reported_during_stay" | "duplicate_request" | null;
     eligible: boolean;
     maxRefundRwf: number;

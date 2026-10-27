@@ -25,7 +25,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { TimeService } from '../../../modules/people/application/time.service';
+import { TimeService } from '../../../modules/hr/application/time.service';
 import {
   CurrentUser,
   SessionGuard,

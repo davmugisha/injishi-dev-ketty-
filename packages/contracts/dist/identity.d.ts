@@ -254,8 +254,8 @@ export declare const IdentityScanResult: z.ZodObject<{
     mayContinue: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     message: string | null;
-    reason: "expired" | "unavailable" | "not_authentic" | "face_mismatch" | "unreadable" | null;
     attempt: number;
+    reason: "expired" | "unavailable" | "not_authentic" | "face_mismatch" | "unreadable" | null;
     outcome: "machine_passed" | "machine_failed" | "manual_needed";
     mayContinue: boolean;
     fields: {
@@ -270,8 +270,8 @@ export declare const IdentityScanResult: z.ZodObject<{
     } | null;
 }, {
     message: string | null;
-    reason: "expired" | "unavailable" | "not_authentic" | "face_mismatch" | "unreadable" | null;
     attempt: number;
+    reason: "expired" | "unavailable" | "not_authentic" | "face_mismatch" | "unreadable" | null;
     outcome: "machine_passed" | "machine_failed" | "manual_needed";
     mayContinue: boolean;
     fields: {

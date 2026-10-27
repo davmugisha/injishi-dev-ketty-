@@ -8,6 +8,11 @@ import {
   bookingMailJobId,
   type BookingMailEvent,
 } from '../domain/booking-mail';
+import {
+  REFUND_MAIL_JOB,
+  refundMailJobId,
+  type RefundMailEvent,
+} from '../domain/refund-mail';
 
 /**
  * The one way a booking tells its guest something (ADR-047).
@@ -66,6 +71,29 @@ export class BookingNotificationsService {
       this.log.error(
         `Could not queue the "${event}" mail for booking ${bookingId}. ` +
           'The booking is unaffected; the guest has not been told.',
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
+
+  /**
+   * Tell the payer about a refund owed to them (073-gtbank-payments AC-12,
+   * AC-12a). Same rules as `notify`: queued, one job per refund per event, and
+   * never throws. The refund is owed either way; `/account/refunds` shows it.
+   */
+  async notifyRefund(transactionId: string, event: RefundMailEvent): Promise<void> {
+    const job = { transactionId, event };
+    try {
+      await this.email.add(REFUND_MAIL_JOB, job, {
+        jobId: refundMailJobId(job),
+        attempts: 5,
+        backoff: { type: 'exponential', delay: 30_000 },
+        removeOnComplete: { age: 86_400, count: 1_000 },
+        removeOnFail: false,
+      });
+    } catch (error) {
+      this.log.error(
+        `Could not queue the "${event}" mail for refund ${transactionId}. The refund is unaffected.`,
         error instanceof Error ? error.stack : undefined,
       );
     }

@@ -29,11 +29,12 @@ import { RadioButtonGroup, Timeline } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type { ProblemCategory, ProblemReport, ReportPlace, UrgencyLevel } from "@injishi/data/fixtures/staff";
 import { Icon, KeyValueList, LinkButton, PhoneBody, PhoneTop, StatusDot } from "@injishi/ui";
+import { PhoneActionBar, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "@injishi/ui/phone";
 import type { ReactNode } from "react";
 import { useState, useTransition } from "react";
 import { reported } from "../operations/shared";
 import { reportProblemAction } from "./actions";
-import { kigaliClock, PhoneActionBar, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "./parts";
+import { kigaliClock } from "./parts";
 
 interface StaffReportData {
   places: ReportPlace[];

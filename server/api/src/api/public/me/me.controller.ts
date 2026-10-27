@@ -22,6 +22,8 @@ import type {
   MyThreads,
   OpenDepartmentResult,
   MyTrips,
+  GuestRefund,
+  GuestRefundList,
   OversightConsoleGrant,
   StaffAccess,
   WorkspaceAccess,
@@ -33,11 +35,13 @@ import {
   PlaceOrderRequest,
   PlaceOrderResult,
   PersonalDetails,
+  RefundPayeeRequest,
   SendGuestMessageInput,
   staffRequiresStepUp,
   workspaceLabel,
 } from '@injishi/contracts';
 
+import { GuestRefundsService } from '../../../modules/booking/application/guest-refunds.service';
 import { GuestTripsService } from '../../../modules/booking/application/guest-trips.service';
 import { PaymentAttemptService } from '../../../modules/booking/application/payment-attempt.service';
 import { GuestOrderingService } from '../../../modules/operations/application/guest-ordering.service';
@@ -83,6 +87,7 @@ export class MeController {
     private readonly messaging: MessagingService,
     private readonly ordering: GuestOrderingService,
     private readonly attempts: PaymentAttemptService,
+    private readonly refunds: GuestRefundsService,
   ) {}
 
   /**
@@ -196,6 +201,34 @@ export class MeController {
   @Get('trips')
   myTrips(@CurrentUser() user: SessionUser): Promise<MyTrips> {
     return this.trips.forGuest(user.id);
+  }
+
+  /**
+   * The caller's own refunds, in four plain words (073-gtbank-payments AC-12a).
+   *
+   * Session only: a refund is the caller's when the payment it returns was
+   * theirs, and `GuestRefundsRepository` scopes the query by the session's
+   * user id, so there is no parameter to name anybody else's.
+   */
+  @Get('refunds')
+  myRefunds(@CurrentUser() user: SessionUser): Promise<GuestRefundList> {
+    return this.refunds.list(user.id);
+  }
+
+  /**
+   * The name and ID the bank needs to pay a refund back (073 AC-12), from a
+   * payer with no verified identity. 404 for a refund that is not the
+   * caller's, 409 when their account holds a verified identity or the refund
+   * is not waiting on them. Never echoes the number. Where the money goes is
+   * not an input: it is always the number that paid.
+   */
+  @Put('refunds/:id/payee')
+  supplyRefundPayee(
+    @CurrentUser() user: SessionUser,
+    @Param('id', new ParseUUIDPipe()) transactionId: string,
+    @Body(new ZodValidationPipe(RefundPayeeRequest)) body: RefundPayeeRequest,
+  ): Promise<GuestRefund> {
+    return this.refunds.supplyPayee(user.id, transactionId, body);
   }
 
   /**

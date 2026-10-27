@@ -298,6 +298,9 @@ function paidRwf(row: BoardBookingRow): number {
     case 'forfeited':
       return row.escrowRwf;
     case 'refunded_partial':
+    // Owed back and not yet paid (073-gtbank-payments AC-13): what the
+    // business keeps is the same sum either way.
+    case 'refund_pending':
       return Math.max(0, row.escrowRwf - (row.refundRwf ?? 0));
     default:
       return 0;

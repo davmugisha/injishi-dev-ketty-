@@ -39,20 +39,19 @@ import { ItemCard, ListView, Timeline } from "@heroui-pro/react";
 import type { Persona } from "@injishi/data";
 import type { StaffProfile, StorePart, WorkOrder, WorkOrderPart } from "@injishi/data/fixtures/staff";
 import { Icon, KeyValueList, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
-import { type ReactNode, useState, useTransition } from "react";
-import { reported } from "../operations/shared";
-import { noteWorkOrderAction, resolveWorkOrderAction, setWorkOrderTimerAction, startWorkOrderAction } from "./actions";
 import {
-  kigaliClock,
   NothingYet,
   PhoneActionBar,
   PhoneSheet,
   PhoneTitle,
   PhoneToasts,
-  PhotoTile,
   renderAsButton,
   renderSection,
-} from "./parts";
+} from "@injishi/ui/phone";
+import { type ReactNode, useState, useTransition } from "react";
+import { reported } from "../operations/shared";
+import { noteWorkOrderAction, resolveWorkOrderAction, setWorkOrderTimerAction, startWorkOrderAction } from "./actions";
+import { kigaliClock, PhotoTile } from "./parts";
 
 interface TechWorkOrdersData {
   /** The caller's own profile; null when none is on file (never another person's). */

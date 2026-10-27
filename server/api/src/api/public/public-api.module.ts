@@ -3,6 +3,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 
 import { AuthModule } from '../../modules/auth/auth.module';
 import { BookingModule } from '../../modules/booking/booking.module';
+import { PaymentsModule } from '../../modules/payments/payments.module';
 import { GeographyModule } from '../../modules/geography/geography.module';
 import { ListingSetupModule } from '../../modules/listing-setup/listing-setup.module';
 import { ListingModule } from '../../modules/listing/listing.module';
@@ -10,7 +11,7 @@ import { MarketplaceModule } from '../../modules/marketplace/marketplace.module'
 import { OperationsModule } from '../../modules/operations/operations.module';
 import { OrganizationModule } from '../../modules/organization/organization.module';
 import { ListsModule } from '../../modules/lists/lists.module';
-import { PeopleModule } from '../../modules/people/people.module';
+import { PeopleModule } from '../../modules/hr/people.module';
 import { StorageModule } from '../../modules/storage/storage.module';
 import { UserModule } from '../../modules/user/user.module';
 import { TwoFactorService } from '../../shared/auth/two-factor.service';
@@ -179,6 +180,8 @@ import { TrainingPublicModule } from './training/training.module';
     MarketplaceModule,
     ListingSetupModule,
     BookingModule,
+    // `PaymentSeam` for `/platform` (073-gtbank-payments AC-2, AC-17).
+    PaymentsModule,
     OperationsModule,
     // The bar and restaurant point of sale (POS spec, phase 1). Payments are simulated.
     PosModule,

@@ -17,6 +17,7 @@ import { BookingDecisionService } from './booking-decision.service';
 import { BookingNotificationsService } from './booking-notifications.service';
 import type { FolioService } from '../../operations/application/folio.service';
 import type { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
+import type { BookingRefunds } from './booking-refunds';
 
 /**
  * Unit scope: containment + state-guard mapping (404 / 409 / success) around a
@@ -98,6 +99,8 @@ describe('BookingApprovalService', () => {
       // ADR-047: the guest is told what happened. A recording double rather
       // than a no-op, so a test can assert WHICH event was raised.
       { notify: jest.fn().mockResolvedValue(undefined) } as unknown as BookingNotificationsService,
+      // 073 AC-13: no bank record behind these payments, so the provider path runs.
+      { plan: jest.fn().mockResolvedValue(null) } as unknown as BookingRefunds,
     );
     const service = new BookingApprovalService(
       repo as unknown as BookingRepository,

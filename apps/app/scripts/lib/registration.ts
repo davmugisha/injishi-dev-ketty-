@@ -119,10 +119,31 @@ export async function registerBusiness(place: typeof GASABO, label: string): Pro
     },
   });
   check(created.orgId, `the registration was not created: ${JSON.stringify(created)}`);
-  await registrant.ctx.api.post(`/api/v1/registrations/${created.orgId}/pay`);
+  await payFee(registrant.ctx, created.orgId);
   const summary = await registrationOf(registrant.ctx, created.orgId);
   check(summary.status === "tin_verified", `${legalName} is at ${summary.status}, expected tin_verified`);
   return { ...registrant, orgId: created.orgId, legalName };
+}
+
+/**
+ * Pay the registration fee the way a registrant does now (073-gtbank-payments
+ * AC-16): press pay with a mobile money number, then poll until the prompt
+ * settles. A stack where payments are off answers `settled` at once.
+ */
+async function payFee(ctx: SourceContext, orgId: string): Promise<void> {
+  const attemptToken = randomUUID();
+  const pressed = await ctx.api.post<{ kind: string; attempt?: { state: string } }>(
+    `/api/v1/registrations/${orgId}/pay`,
+    { attemptToken, instrument: { kind: "mobile_money", network: "mtn_momo", msisdn: "788123456" } },
+  );
+  if (pressed.kind === "settled") return;
+  for (let i = 0; i < 60; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    const polled = await ctx.api.get<{ state: string }>(`/api/v1/registrations/${orgId}/pay/attempts/${attemptToken}`);
+    if (polled.state === "confirmed") return;
+    check(polled.state === "prompting", `the fee payment for ${orgId} ended ${polled.state}`);
+  }
+  check(false, `the fee payment for ${orgId} never settled`);
 }
 
 /** What the owner reads about their registration (RegistrationSummary), the fields the flows check. */

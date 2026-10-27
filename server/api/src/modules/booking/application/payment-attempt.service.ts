@@ -6,6 +6,7 @@ import {
   type OrderPaymentAttemptStatus,
   type PaymentAttemptStatus,
   type PaymentInstrument,
+  type RegistrationFeeAttemptStatus,
 } from '@injishi/contracts';
 import {
   Inject,
@@ -19,7 +20,9 @@ import { ListingService } from '../../listing/application/listing.service';
 import { GuestOrderingService } from '../../operations/application/guest-ordering.service';
 import { OrderPaymentService } from '../../operations/application/order-payment.service';
 import { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
-import { voidKeyFor } from '../../payments/domain/keys';
+import { feeDuplicateKeyFor, registrationFeeKeyFor, voidKeyFor } from '../../payments/domain/keys';
+import { PaymentTransactionsRepository } from '../../payments/infrastructure/payment-transactions.repository';
+import { REGISTRATION_FEES, type RegistrationFees } from '../domain/registration-fees';
 import { reportAlarm } from '../../../shared/observability/error-reporter';
 import {
   PAYMENT_PORT,
@@ -80,6 +83,10 @@ export class PaymentAttemptService {
     @Inject(PAYMENT_PORT) private readonly payments: PaymentPort,
     private readonly orderPayments: OrderPaymentService,
     private readonly guestOrders: GuestOrderingService,
+    /** The bank record, so an attempt and its collection stay linked (073 AC-9). */
+    private readonly transactions: PaymentTransactionsRepository,
+    /** Settles a registration once its fee lands (073 AC-16). */
+    @Inject(REGISTRATION_FEES) private readonly registrations: RegistrationFees,
   ) {}
 
   /**
@@ -123,6 +130,7 @@ export class PaymentAttemptService {
     try {
       receipt = await this.payments.captureEscrow({
         kind: 'escrow_capture',
+        purpose: 'service_order',
         idempotencyKey,
         amountRwf: args.amountRwf,
         currency: 'RWF',
@@ -169,6 +177,7 @@ export class PaymentAttemptService {
       expiresAt,
     });
     await this.orderPayments.attach(args.orderId, attemptId);
+    await this.transactions.linkAttempt(idempotencyKey, attemptId);
 
     const row = await this.attempts.findByKey(idempotencyKey);
     if (!row) throw new Error(`Payment attempt ${idempotencyKey} was written and could not be read back.`);
@@ -199,6 +208,190 @@ export class PaymentAttemptService {
     return {
       ...this.presentOrderAttempt({ ...row, state, failureReason }),
       order: await this.guestOrders.detail(guestUserId, row.serviceOrderId),
+    };
+  }
+
+  /**
+   * ASK FOR A REGISTRATION'S FEE (073-gtbank-payments AC-16).
+   *
+   * The caller has already checked that the fee is owed, payable (the operator
+   * contract is accepted) and not settling free. One press is one key, so a
+   * retried press replays rather than prompting the registrant twice; a press
+   * already answered is final and says so without asking again.
+   *
+   * - The provider refused: `refused`, with nothing recorded and the invoice
+   *   still payable with a fresh press.
+   * - It waits on the handset: the attempt is recorded and the registrant polls.
+   * - It settled inside the call: the registration is settled at once.
+   *
+   * A provider that could not be reached is a 503. When the request may have
+   * arrived, the sentence says so, because "nothing has been charged" could be
+   * false.
+   */
+  async beginForRegistrationFee(args: {
+    invoiceId: string;
+    workspaceId: string;
+    registrantUserId: string;
+    amountRwf: number;
+    legalName: string;
+    instrument: PaymentInstrument;
+    attemptToken: string;
+  }): Promise<Omit<RegistrationFeeAttemptStatus, 'registration'>> {
+    const idempotencyKey = registrationFeeKeyFor(args.workspaceId, args.attemptToken);
+    const { instrument } = args;
+    const network = instrument.kind === 'mobile_money' ? instrument.network : null;
+    const payerMasked =
+      instrument.kind === 'mobile_money' ? maskDestination(instrument.msisdn) : null;
+
+    const known = await this.attempts.findByKey(idempotencyKey);
+    if (known && known.state !== 'prompting') return this.presentFeeAttempt(known);
+
+    let receipt: PaymentReceipt;
+    try {
+      receipt = await this.payments.chargeOneTimeFee({
+        kind: 'one_time_fee',
+        purpose: 'registration_fee',
+        feeCode: 'registration_fee',
+        idempotencyKey,
+        amountRwf: args.amountRwf,
+        currency: 'RWF',
+        workspaceId: args.workspaceId,
+        instrument,
+        memo: `Registration fee, ${args.legalName}`,
+      });
+    } catch (err) {
+      if (err instanceof PaymentDeclinedError) {
+        return {
+          attemptToken: args.attemptToken,
+          state: 'refused',
+          network,
+          payerMasked,
+          amountRwf: args.amountRwf,
+          expiresAt: new Date().toISOString(),
+          failureReason: DECLINED,
+        };
+      }
+      if (err instanceof PaymentUnavailableError) {
+        throw new ServiceUnavailableException(
+          err.delivered === 'no'
+            ? 'We could not reach the payment service. Nothing has been charged. Please try again.'
+            : 'We could not confirm whether the payment request reached your phone. Do not approve a second prompt; check this page again in a minute.',
+        );
+      }
+      throw err;
+    }
+
+    const expiresAt = new Date(Date.now() + PAYMENT_PROMPT_TTL_SECONDS * 1_000);
+    const attemptId = await this.attempts.record({
+      purpose: 'registration_fee',
+      subscriptionInvoiceId: args.invoiceId,
+      attemptToken: args.attemptToken,
+      idempotencyKey,
+      guestUserId: args.registrantUserId,
+      workspaceId: args.workspaceId,
+      attemptFingerprint: `registration-fee:${args.invoiceId}:${args.amountRwf}`,
+      amountRwf: args.amountRwf,
+      adapterRef: receipt.adapterRef,
+      adapterMode: receipt.mode,
+      instrumentKind: instrument.kind,
+      network,
+      payerMasked,
+      expiresAt,
+    });
+    await this.transactions.linkAttempt(idempotencyKey, attemptId);
+
+    const row = await this.attempts.findByKey(idempotencyKey);
+    if (!row) throw new Error(`Payment attempt ${idempotencyKey} was written and could not be read back.`);
+    if (receipt.settlement === 'settled') {
+      const done = await this.completeRegistrationFee(row);
+      return this.presentFeeAttempt({ ...row, state: done.state, failureReason: done.failureReason });
+    }
+    return this.presentFeeAttempt(row);
+  }
+
+  /**
+   * Where did my registration fee get to? The booking poll's rules: the
+   * provider first, an outage is not an answer. Scoped to the registrant who
+   * pressed pay; anyone else's token is a 404. Answers with the org it pays
+   * for, so the caller can attach the registration as it stands.
+   */
+  async pollRegistrationFee(
+    attemptToken: string,
+    registrantUserId: string,
+  ): Promise<{ status: Omit<RegistrationFeeAttemptStatus, 'registration'>; invoiceId: string }> {
+    const row = await this.attempts.findForGuest(attemptToken, registrantUserId, 'registration_fee');
+    if (!row?.subscriptionInvoiceId) throw new NotFoundException('No such payment attempt.');
+
+    let { state, failureReason } = row;
+    if (row.state === 'prompting') {
+      const step = await this.resolve(row, 'poll');
+      state = step.state;
+      failureReason = step.failureReason;
+    }
+    return {
+      status: this.presentFeeAttempt({ ...row, state, failureReason }),
+      invoiceId: row.subscriptionInvoiceId,
+    };
+  }
+
+  /**
+   * A settled fee, completed once. The attempt is claimed FIRST (guarded on
+   * `prompting`), so a poll and the sweep reaching the same settled prompt can
+   * never both complete it, and the one that loses never reads the registration
+   * it just watched settle as a second payment.
+   */
+  private async completeRegistrationFee(row: PaymentAttemptRow): Promise<Resolution> {
+    if (!(await this.attempts.claimConfirmed(row.id))) {
+      const now = await this.attempts.findByKey(row.idempotencyKey);
+      return {
+        state: now?.state ?? row.state,
+        failureReason: now?.failureReason ?? row.failureReason,
+        booking: null,
+      };
+    }
+    return this.settleFee(row);
+  }
+
+  /**
+   * Settle the registration this claimed fee pays for. A fee that pays for
+   * nothing (the invoice was already paid by another press, or the
+   * registration can no longer take one) goes back in full on its own derived
+   * key, once.
+   */
+  private async settleFee(row: PaymentAttemptRow): Promise<Resolution> {
+    const orgId = row.subscriptionInvoiceId
+      ? await this.registrations.orgOfRegistrationInvoice(row.subscriptionInvoiceId)
+      : null;
+    const outcome = orgId ? await this.registrations.settleFeeFromPayment(orgId) : 'not_payable';
+    if (outcome === 'settled') {
+      this.log.log(`Registration fee attempt ${row.attemptToken} settled its registration.`);
+      return { state: 'confirmed', failureReason: null, booking: null };
+    }
+
+    const reason = outcome === 'already_settled' ? FEE_ALREADY_PAID : FEE_NOT_PAYABLE;
+    if ((await this.attempts.markDuplicateFee(row.id, reason)) && row.adapterRef && row.amountRwf != null) {
+      await this.compensations.enqueue({
+        kind: 'refund',
+        idempotencyKey: feeDuplicateKeyFor(row.idempotencyKey),
+        workspaceId: row.workspaceId,
+        originalRef: row.adapterRef,
+        amountRwf: row.amountRwf,
+        memo: `Registration fee paid for nothing (${outcome}); refunded in full`,
+      });
+      this.log.warn(`Registration fee attempt ${row.attemptToken} paid for nothing (${outcome}); refund queued.`);
+    }
+    return { state: 'refused', failureReason: reason, booking: null };
+  }
+
+  private presentFeeAttempt(row: PaymentAttemptRow): Omit<RegistrationFeeAttemptStatus, 'registration'> {
+    return {
+      attemptToken: row.attemptToken,
+      state: row.state,
+      network: row.network,
+      payerMasked: row.payerMasked,
+      amountRwf: row.amountRwf,
+      expiresAt: row.expiresAt.toISOString(),
+      failureReason: row.failureReason,
     };
   }
 
@@ -249,6 +442,9 @@ export class PaymentAttemptService {
         workspaceId: row.workspaceId,
         amountRwf: row.amountRwf,
       });
+      // Its bank row, if one was written, may have reached the provider: parked
+      // for a pull or a person, never sent again (073 AC-9).
+      await this.transactions.markParked(row.idempotencyKey, 'the request never recorded an answer');
       return this.end(row, 'refused', UNREACHABLE);
     }
 
@@ -283,6 +479,7 @@ export class PaymentAttemptService {
     }
 
     // --- It landed, whatever the clock says. Hand it to what it paid for. ---
+    if (row.purpose === 'registration_fee') return this.completeRegistrationFee(row);
     if (row.purpose === 'service_order') {
       return (await this.completeOrder(row))
         ? { state: 'confirmed', failureReason: null, booking: null }
@@ -421,6 +618,7 @@ export class PaymentAttemptService {
   /** The provider answered the capture; the hold now names it. */
   async attachCapture(row: PaymentAttemptRow, receipt: PaymentReceipt): Promise<PaymentAttemptRow> {
     await this.attempts.attachCapture(row.id, receipt.adapterRef, receipt.mode);
+    await this.transactions.linkAttempt(row.idempotencyKey, row.id);
     return { ...row, adapterRef: receipt.adapterRef };
   }
 
@@ -591,6 +789,9 @@ export class PaymentAttemptService {
   ): Promise<boolean> {
     const moved = await this.attempts.markEnded(row.id, state, reason);
     if (!moved) return false;
+    // The bank row says the prompt was abandoned; a late approval may still
+    // settle it inside the late window (073 AC-9a).
+    if (state === 'expired') await this.transactions.markExpired(row.idempotencyKey);
     // An order attempt that ends badly ends its order's wait too (D-n). Only a
     // still pending order moves, so this can never undo a settled one.
     if (row.purpose === 'service_order' && row.serviceOrderId) {
@@ -655,6 +856,18 @@ export class PaymentAttemptService {
         );
       }
     }
+    // A registration fee claimed but not settled (a completion interrupted
+    // between the claim and the settle) is settled again; settling is idempotent.
+    for (const row of await this.attempts.findUnsettledFees()) {
+      try {
+        await this.settleFee(row);
+      } catch (error) {
+        this.log.error(
+          `Could not settle the registration fee for attempt ${row.attemptToken}.`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+    }
     if (completed + ended > 0) {
       this.log.log(`Payment sweep: ${completed} completed, ${ended} ended.`);
     }
@@ -685,10 +898,14 @@ const UNREACHABLE =
 const LOST =
   'The payment provider has no record of this request. Nothing has been charged.';
 const WITHDRAWN =
-  'That room stopped being available while the payment was being approved, so you have been refunded in full.';
+  'That room stopped being available while the payment was being approved, so your payment is being refunded in full.';
 const DECLINED = 'That payment was declined. Nothing has been charged.';
 const ORDER_GONE =
-  'This order was cancelled while the payment was being approved, so you have been refunded in full.';
+  'This order was cancelled while the payment was being approved, so your payment is being refunded in full.';
+const FEE_ALREADY_PAID =
+  'This registration fee was already paid, so this payment is being refunded in full.';
+const FEE_NOT_PAYABLE =
+  'This registration can no longer take a fee, so this payment is being refunded in full.';
 
 /** `<workspace>:booking-capture:<token>` → `<token>`. */
 function tokenFromKey(idempotencyKey: string): string {

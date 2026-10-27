@@ -431,7 +431,7 @@ async function main() {
 
     // 8. Registration fee catalog (D21 §8.3a, D23).
     //    The owner's fee (ADR-075 O-9, D-j): 50,000 RWF for every business PSF
-    //    reviews, nothing for a broker. Migration 0074 writes the same rows on
+    //    reviews, nothing for a broker. Migration 0075 writes the same rows on
     //    every database; this seed agrees with it, so seeding after migrating
     //    never prices a registration back down to ADR-026's 5,000.
     //    The catalog is effective-dated and APPEND-ONLY: changing a price
