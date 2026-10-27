@@ -1,5 +1,5 @@
 import {
-  AcceptContractRequest,
+  BusinessKind,
   type BrokerRegistrationSummary,
   CreateBrokerRegistrationRequest,
   CreateRegistrationRequest,
@@ -19,6 +19,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
@@ -38,6 +39,7 @@ import {
   OversightGuard,
   RequireOversight,
 } from '../../../shared/auth/oversight.guard';
+import { OptionalIdempotencyKey } from '../../../shared/http/idempotency-key';
 import { UserThrottlerGuard } from '../../../shared/http/user-throttler.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
@@ -64,7 +66,14 @@ export class RegistrationsController {
   @Get('fee')
   fee(
     @Query('businessType') businessType: string,
+    @Query('kind') kind?: string,
   ): Promise<RegistrationFeeQuote> {
+    // ADR-075: asked by kind ("coffee_shop"), which decides the fee's business type (D-j).
+    if (kind !== undefined) {
+      const k = BusinessKind.safeParse(kind);
+      if (!k.success) throw new NotFoundException('Registration for this kind of business is not open.');
+      return this.registrations.quoteForKind(k.data);
+    }
     const parsed = RegistrationBusinessType.safeParse(businessType);
     if (!parsed.success) {
       throw new BadRequestException(
@@ -91,18 +100,24 @@ export class RegistrationsController {
     @CurrentUser() user: SessionUser,
   ): Promise<TinCheckResult> {
     // The caller, because "are you one of its directors?" is asked of them.
-    return this.registrations.checkTin(body.tin, user.id);
+    return this.registrations.checkTin(body.tin, user.id, body.capacity);
   }
 
-  /** Create the registration at `pending_payment`, with its bill. */
+  /**
+   * Create the registration at `pending_payment`, with its bill, at the first Pay press (ADR-075 D-l).
+   *
+   * The press's `Idempotency-Key` makes a double press, a retry or a second tab land on the one registration the
+   * first press created (AC-14); a replay with a lost key is answered by the caller's own registration of the TIN.
+   */
   @Post()
   @UseGuards(SessionGuard)
   create(
     @Body(new ZodValidationPipe(CreateRegistrationRequest))
     body: CreateRegistrationRequest,
     @CurrentUser() user: SessionUser,
+    @OptionalIdempotencyKey() key: string | null,
   ): Promise<RegistrationSummary> {
-    return this.registrations.create(body, user.id);
+    return this.registrations.create(body, user.id, key);
   }
 
   /**
@@ -128,37 +143,15 @@ export class RegistrationsController {
   }
 
   /**
-   * Accept the operator contract, after creating and before paying (ADR-053,
-   * AC-R8).
-   *
-   * Its own call because the contract quotes the registration reference and
-   * the invoiced amount, and neither exists until the business does. The wizard
-   * puts the step between create and pay; `/pay` refusing without it is the
-   * control. Membership and the refusal order are the service's.
-   */
-  @Post(':id/contract')
-  @HttpCode(200)
-  @UseGuards(SessionGuard)
-  acceptContract(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(AcceptContractRequest))
-    body: AcceptContractRequest,
-    @CurrentUser() user: SessionUser,
-  ): Promise<RegistrationSummary> {
-    return this.registrations.acceptContract(id, user.id, body.contractVersion);
-  }
-
-  /**
    * Settle the registration fee, which is what enqueues the RRA check.
    *
    * A stand-in for the payment provider callback until F-S08 lands a real one.
    * It is idempotent by construction: the repository's conditional update means
    * a second call advances nothing and bills nothing.
    *
-   * Refused with 409 `contract_not_accepted` while the operator contract is
-   * open (ADR-053, AC-R13). Settling is the only door into `submitted`, so this
-   * is what keeps a business without an accepted contract out of every
-   * officer's queue.
+   * It no longer waits on an operator contract: ADR-075 moved the agreement to
+   * after approval (AC-12), so `POST /registrations/:id/contract` and its 409
+   * `contract_not_accepted` are gone.
    */
   @Post(':id/pay')
   @UseGuards(SessionGuard)

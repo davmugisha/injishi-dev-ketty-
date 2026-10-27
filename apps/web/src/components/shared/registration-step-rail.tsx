@@ -1,13 +1,4 @@
-import {
-  Building2,
-  Check,
-  CreditCard,
-  FileText,
-  GitBranch,
-  House,
-  PenLine,
-  type LucideIcon,
-} from "lucide-react";
+import { Building2, Check, CreditCard, FileText, House, ListChecks, type LucideIcon } from "lucide-react";
 import { cn } from "@injishi/utils";
 
 import { STEP_TITLE, type StepId } from "@/app/(app)/(entry)/register/register-steps";
@@ -63,17 +54,16 @@ export interface RegistrationStep {
 }
 
 /**
- * A business's path, every step of it, as the registration artboard draws it
- * (Register.dc.html, 2026-10-19). The labels are the wizard's own
+ * A business's path, every step of it: the five ADR-075 decides (AC-3), Business
+ * · You · Documents · Review · Pay. The labels are the wizard's own
  * (`STEP_TITLE` in `register/register-steps.ts`, which owns the order), so
  * what `/host` names is what the wizard walks.
  */
 export const REGISTRATION_STEPS: ReadonlyArray<RegistrationStep> = [
-  { id: "type", label: STEP_TITLE.type, icon: House },
-  { id: "tin", label: STEP_TITLE.tin, icon: Building2 },
-  { id: "branches", label: STEP_TITLE.branches, icon: GitBranch },
+  { id: "business", label: STEP_TITLE.business, icon: Building2 },
+  { id: "you", label: STEP_TITLE.you, icon: House },
   { id: "documents", label: STEP_TITLE.documents, icon: FileText },
-  { id: "overview", label: STEP_TITLE.overview, icon: PenLine },
+  { id: "review", label: STEP_TITLE.review, icon: ListChecks },
   { id: "pay", label: STEP_TITLE.pay, icon: CreditCard },
 ];
 

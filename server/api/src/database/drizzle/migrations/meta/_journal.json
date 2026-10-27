@@ -512,6 +512,34 @@
       "when": 1792397078710,
       "tag": "0072_register_artboard_document_kinds",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1793004125463,
+      "tag": "0073_adr075_business_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1793004185463,
+      "tag": "0074_adr075_identity_scans",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1793004245463,
+      "tag": "0075_adr075_franchise_agreement",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1793004305463,
+      "tag": "0076_adr075_org_franchises",
+      "breakpoints": true
     }
   ]
 }

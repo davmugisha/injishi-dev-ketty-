@@ -1,32 +1,33 @@
 "use client";
 
 import { ArrowRight, CircleCheck, Landmark } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button, Checkbox } from "@injishi/ui";
 import { cn } from "@injishi/utils";
 
 import { Callout } from "./register-shell";
 import { formatRwf } from "./wizard-ui";
 
 /**
- * Step 6, Pay (Register.dc.html).
+ * Step 5, Pay (ADR-075 S7).
  *
- * THE ARTBOARD'S BANK TRANSFER IS NOT BUILT, and this screen says so rather
- * than printing an account number. The artboard checks the paying account's
- * name with a bank, gives a transfer reference, and waits for the transfer
- * (waiting, held for a check, paid). None of that has an endpoint, and the
- * artboard itself leaves the collection account, its number and its SWIFT code
- * as placeholders: a decision for the owner, recorded in progress-tracker.md.
+ * The first press of Pay creates the registration from the answers (D-l), with
+ * an \`Idempotency-Key\` minted once for that press, so a double press, a retry
+ * or a second tab land on one registration (AC-14); then it pays. The press
+ * needs one checkbox: the fee is not refundable.
  *
- * What the API has is `POST /registrations/:id/pay`, the stand-in for the
- * payment provider (F-S08): it records the fee as paid and sends the
- * registration for review, and no money moves. The step's primary action, in
- * the wizard, is that call.
+ * The payment itself is the API's stand in, \`POST /registrations/:id/pay\`: it
+ * records the fee and sends the registration to PSF review, and no money moves.
+ * The mobile money request to pay (ADR-073's GTBank child, D-k) replaces it in a
+ * later slice; until then this screen says plainly that nothing is charged.
  */
 export function StepPay({
   kindLabel,
   fee,
   paid,
   paidOn,
+  understood,
+  onUnderstood,
+  demo,
   onSeeStatus,
 }: {
   kindLabel: string;
@@ -34,6 +35,11 @@ export function StepPay({
   paid: boolean;
   /** When the fee was recorded, as a person reads it, once it is. */
   paidOn: string | null;
+  /** "I understand the registration fee is not refundable." */
+  understood: boolean;
+  onUnderstood: (next: boolean) => void;
+  /** The API is the demo: the payment note says so. */
+  demo: boolean;
   onSeeStatus: () => void;
 }) {
   return (
@@ -49,14 +55,14 @@ export function StepPay({
             paid ? "bg-success/15 text-success" : "bg-card text-muted-foreground",
           )}
         >
-          {paid ? "Paid" : "Not paid yet"}
+          {paid ? "Paid" : "Not paid"}
         </span>
       </div>
 
       {paid ? (
         <>
-          <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title="Paid. Your registration is with Injishi for review">
-            {paidOn ? `The fee was recorded on ${paidOn}. ` : ""}An officer reviews it next, and we email you either way.
+          <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title="Paid. PSF reviews it next">
+            {paidOn ? `The fee was recorded on ${paidOn}. ` : ""}We email you when PSF has decided.
           </Callout>
           <div>
             <Button onClick={onSeeStatus}>
@@ -66,10 +72,19 @@ export function StepPay({
           </div>
         </>
       ) : (
-        <Callout tone="info" icon={<Landmark size={16} aria-hidden />} title="Bank transfer is not connected yet">
-          Injishi&apos;s payment provider is not connected, so no transfer details are shown and no money moves. Pressing
-          Pay records the fee against this registration and sends it to Injishi for review.
-        </Callout>
+        <>
+          <Checkbox
+            isSelected={understood}
+            onChange={(on: boolean) => onUnderstood(on)}
+            className="items-start gap-3"
+            controlClassName="mt-0.5"
+          >
+            <span className="text-sm">I understand the registration fee is not refundable.</span>
+          </Checkbox>
+          <Callout tone="info" icon={<Landmark size={16} aria-hidden />} title={demo ? "Demo payment, no money moves" : "No money moves yet"}>
+            Pressing Pay records the fee against this registration and sends it to PSF for review.
+          </Callout>
+        </>
       )}
     </>
   );

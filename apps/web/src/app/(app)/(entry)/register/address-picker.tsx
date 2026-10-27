@@ -18,6 +18,7 @@ import {
   fetchVillages,
   type GeographyList,
 } from "@/data/geography";
+import { useOnline } from "@/hooks/use-online";
 
 import { COUNTRY_OPTIONS } from "./country-options";
 import { Field, SelectField, TextArea, TextInput } from "./wizard-ui";
@@ -103,11 +104,15 @@ function LoadStatus({
   phase: OptionsPhase;
   retry: () => void;
 }) {
+  // Read before the early return: a hook runs on every render or none.
+  const online = useOnline();
   if (phase !== "error" && phase !== "empty") return null;
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
       <span>{phase === "error"
-        ? `We couldn't load the ${level} list.`
+        ? online
+          ? `We couldn't load the ${level} list.`
+          : `You're offline. Connect to load the ${level} list.`
         : `No ${level} options were returned.`}</span>
       <Button variant="ghost" size="sm" onClick={retry}>Try again</Button>
     </div>

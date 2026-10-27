@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@injishi/ui";
 
 import { fetchPlatform, isDemo, offersGoogle } from "@/data/platform";
+import { useOnline } from "@/hooks/use-online";
 import { useSessionUser } from "@/lib/session";
 import { gateView, nextReconnectDelay } from "@/lib/session-reconnect";
 
@@ -11,24 +12,6 @@ import { EmailPanel } from "./email-panel";
 import { RegisterShell, StepCard, StepSkeleton } from "./register-shell";
 import RegisterWizard from "./register-wizard";
 import { findRegistrationKind, type RegistrationKind } from "./registration-kinds";
-
-function subscribeOnline(onChange: () => void) {
-  window.addEventListener("online", onChange);
-  window.addEventListener("offline", onChange);
-  return () => {
-    window.removeEventListener("online", onChange);
-    window.removeEventListener("offline", onChange);
-  };
-}
-
-/** `navigator.onLine`, live. The server render assumes online. */
-function useOnline(): boolean {
-  return useSyncExternalStore(
-    subscribeOnline,
-    () => navigator.onLine,
-    () => true,
-  );
-}
 
 /**
  * The front door of business registration (FL01): who is registering.
@@ -156,8 +139,10 @@ export default function RegisterGate({
       ) : view === "reconnecting" ? (
         /**
          * Unreachable is NOT signed out (lib/session.ts), and it is usually
-         * brief. Every step needs the API, so the gate waits, visibly, while
-         * it is not answering, and only after the schedule is spent says so.
+         * brief. Opening the registration needs the API once, so the gate
+         * waits, visibly, while it is not answering, and only after the
+         * schedule is spent says so. Once open, the wizard carries on without
+         * a connection (ADR-075 S9).
          */
         <StepCard
           id="register-connecting"
@@ -170,7 +155,7 @@ export default function RegisterGate({
           title={view === "offline" ? "You're offline" : "We can't reach Injishi"}
           lead={
             view === "offline"
-              ? "Registering a business needs a live connection: we check your TIN with RRA and send your application to a government officer. We'll carry on as soon as you're back online."
+              ? "Connect to open your registration. Once it's open you can keep going offline: your answers are saved on this phone, and only the TIN check, uploads and paying wait for a connection."
               : "Injishi isn't answering right now. Registering a business needs it, so it can't start until Injishi is back. Try again in a few minutes."
           }
           footer={

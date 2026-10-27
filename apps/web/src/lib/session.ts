@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { clearDeviceCopies } from "@/lib/register-device-copy";
 
 /**
  * The one place the web app reads the Better Auth session (F-S01).
@@ -71,9 +72,12 @@ async function fetchSessionUser(): Promise<SessionState> {
     if (res === TIMED_OUT) return { status: "unreachable", user: null };
 
     const user = (res?.data as { user?: SessionUser } | null)?.user;
-    return user?.id || user?.email
-      ? { status: "authenticated", user }
-      : { status: "anonymous", user: null };
+    if (user?.id || user?.email) return { status: "authenticated", user };
+    // Nobody is signed in on this browser, so no registration's device copy may stay on it (ADR-075 AC-9): it
+    // belongs to a signed in person. This is where a sign out made anywhere else lands (the operator app's,
+    // a session that ended). Only on a real answer: an error page read as "no session" deletes nothing.
+    if (!(res as { error?: unknown } | null)?.error) clearDeviceCopies();
+    return { status: "anonymous", user: null };
   } catch {
     return { status: "unreachable", user: null };
   } finally {
@@ -139,6 +143,9 @@ export function useSessionUser(): SessionState & {
     } finally {
       if (timer) clearTimeout(timer);
     }
+    // Whether or not the server confirmed it, this person has left this browser: their registration's device copy
+    // goes with them (ADR-075 AC-9).
+    clearDeviceCopies();
     setState({ status: "anonymous", user: null });
     return confirmed;
   }, []);

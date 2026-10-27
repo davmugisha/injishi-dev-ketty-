@@ -1,45 +1,45 @@
-import type { OrgCertificateKind, RegistrantCapacity, RegistrantRole } from "@injishi/contracts";
+import {
+  registrationDocumentRows,
+  type BusinessKind,
+  type OrgCertificateKind,
+  type RegistrantCapacity,
+  type RegistrantRole,
+} from "@injishi/contracts";
 
 /**
- * The registration's steps and sections, decided in one place
- * (Register.dc.html, the "Business registration · six steps" artboard,
- * 2026-10-19).
+ * The registration's steps and sections, decided in one place (ADR-075 A1, the
+ * owner's five steps, O-3).
  *
- * SIX STEPS FOR A BUSINESS. Business type; TIN and licences; Branches and PSF;
- * Documents; Overview, where the agreement is signed and the registration is
- * created; Pay. A residence walks five: its second step is Property and owner,
- * and it has no branches or PSF (the API refuses both on a residence). A kind
- * carried in from the `/host` chooser is not asked again, so Business type drops
- * out of the rail until Change is pressed.
+ * FIVE STEPS FOR EVERY KIND: Business · You · Documents · Review · Pay (AC-3).
+ * Business opens on "What kind of business?" when no kind arrived, then the TIN
+ * (a residence: its property and UPI), who is registering it, the location,
+ * and for a business the branches and PSF. You is the identity. Review shows
+ * the answers and the fee with no agreement and no signature: the agreement
+ * moved to after approval (O-10). The first Pay press creates the registration
+ * (D-l). The six step wizard this replaces (ADR-071) is superseded whole.
  *
- * STEP TWO IS SECTIONS THAT UNLOCK IN ORDER. Each is open, done or locked, and
- * the next opens only when the one before is satisfied, so a person always sees
- * where they are and nothing past what has been checked. The artboard's
- * "Code to the company's contact" section is NOT here: the API has no endpoint
- * that sends a code to a contact RRA holds (the TIN check returns no contacts),
- * so drawing it would be a check that checks nothing. It is an owner decision,
- * recorded in progress-tracker.md, not a gap this file hides.
+ * A STEP'S SECTIONS SHOW IN ORDER: each appears once the one before it is done,
+ * so a person always sees where they are and nothing past what has been
+ * checked. No padlocks, and no "Opens after the TIN check" placeholders.
  *
  * Pure functions with no React, so `tests/register-steps.test.mjs` runs them as
  * they are.
  */
 
-export type StepId = "type" | "tin" | "property" | "branches" | "documents" | "overview" | "pay";
+export type StepId = "business" | "you" | "documents" | "review" | "pay";
 
 /**
- * Who is walking it. `helper` is the artboard's "I'm registering it for the
- * owner": the API's `capacity: on_behalf_of`, which names the owner, who claims
- * the business once it is approved (ADR-053).
+ * Who is walking it. `helper` is "For the owner": the API's
+ * `capacity: on_behalf_of`, which names the owner, who claims the business once
+ * it is approved (ADR-053).
  */
 export type RegisterPath = "owner" | "helper" | "landlord";
 
 export const STEP_TITLE: Readonly<Record<StepId, string>> = {
-  type: "Business type",
-  tin: "TIN and licences",
-  property: "Property and owner",
-  branches: "Branches and PSF",
+  business: "Business",
+  you: "You",
   documents: "Documents",
-  overview: "Overview",
+  review: "Review",
   pay: "Pay",
 };
 
@@ -49,27 +49,15 @@ export function pathFor(role: RegistrantRole | null, capacity: RegistrantCapacit
   return capacity === "on_behalf_of" ? "helper" : "owner";
 }
 
-/** Every step of a path, in order, less Business type while the kind is the one that arrived. */
-export function stepOrder(path: RegisterPath, carried: boolean): StepId[] {
-  const ids: StepId[] =
-    path === "landlord"
-      ? ["type", "property", "documents", "overview", "pay"]
-      : ["type", "tin", "branches", "documents", "overview", "pay"];
-  return carried ? ids.filter((id) => id !== "type") : ids;
-}
+/** Every path walks the same five steps, in this order (AC-3). */
+export const STEP_ORDER: readonly StepId[] = ["business", "you", "documents", "review", "pay"];
 
-/** Step two's id on a path. */
-export function proofStep(path: RegisterPath): "tin" | "property" {
-  return path === "landlord" ? "property" : "tin";
-}
-
-/** "Six", for "Six short steps." */
-export function countWord(n: number): string {
-  return ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven"][n] ?? String(n);
+export function stepOrder(): StepId[] {
+  return [...STEP_ORDER];
 }
 
 // ---------------------------------------------------------------------------
-// Step two's sections
+// The sections of Business and You
 // ---------------------------------------------------------------------------
 
 export type SectionId =
@@ -85,20 +73,36 @@ export type SectionId =
   | "cls"
   /** Location: province to village, and a street or landmark. */
   | "loc"
+  /** Franchise: part of one, and how (ADR-075 O-7). A business with a TIN only. */
+  | "fr"
   /** The property: its name, its UPI and how it is held. */
   | "upi";
 
-export function sectionOrder(path: RegisterPath): SectionId[] {
-  if (path === "landlord") return ["upi", "id", "loc"];
-  if (path === "helper") return ["tin", "id", "intended", "cls", "loc"];
-  return ["tin", "owner", "cls", "loc"];
+/** Business's sections, in order: what the business is, where it is, and whether it is a franchise (S3). */
+export function businessSections(path: RegisterPath): SectionId[] {
+  return path === "landlord" ? ["upi", "loc"] : ["tin", "cls", "loc", "fr"];
+}
+
+/** You's sections, in order: who is registering it, and on the helper path whose it is. */
+export function youSections(path: RegisterPath): SectionId[] {
+  if (path === "landlord") return ["id"];
+  if (path === "helper") return ["id", "intended"];
+  return ["owner"];
+}
+
+/** The sections a step carries; Documents, Review and Pay have none. */
+export function sectionOrder(path: RegisterPath, step: StepId): SectionId[] {
+  if (step === "business") return businessSections(path);
+  if (step === "you") return youSections(path);
+  return [];
 }
 
 export type SectionState = "done" | "open" | "locked";
 
 /**
  * Open, done or locked, for each section: everything before the first section
- * not yet satisfied is done, that one is open, and the rest wait.
+ * not yet satisfied is done, that one is open, and the rest wait. A locked
+ * section is not drawn (AC-3: no padlocks); it appears once it opens.
  */
 export function sectionStates(
   ids: readonly SectionId[],
@@ -112,32 +116,15 @@ export function sectionStates(
   return { states, open: openIndex < 0 ? null : (ids[openIndex] ?? null), allDone: openIndex < 0 };
 }
 
-/** What a locked section says it is waiting for. */
-export function lockedReason(path: RegisterPath, id: SectionId): string {
-  switch (id) {
-    case "owner":
-    case "id":
-      return path === "landlord" ? "Opens after the property" : "Opens after the TIN check";
-    case "intended":
-      return "Opens after your identity";
-    case "cls":
-      return path === "helper" ? "Opens after the owner" : "Opens after ownership";
-    case "loc":
-      return path === "owner" ? "Opens after ownership" : path === "helper" ? "Opens after the owner" : "Opens after your identity";
-    default:
-      return "";
-  }
-}
-
 // ---------------------------------------------------------------------------
-// The rail: which steps can be opened
+// The progress: which steps can be opened
 // ---------------------------------------------------------------------------
 
 /**
  * The furthest step that can be opened: every step up to and including the
  * first one not yet complete. A step that WAS complete and is not any more (a
- * TIN changed after the documents) locks what follows it again, so nobody signs
- * an overview built on an answer that changed underneath it.
+ * TIN changed after the documents) closes what follows it again, so nobody
+ * pays for a review built on an answer that changed underneath it.
  */
 export function openableThrough(order: readonly StepId[], complete: (id: StepId) => boolean): number {
   const first = order.findIndex((id) => !complete(id));
@@ -145,44 +132,32 @@ export function openableThrough(order: readonly StepId[], complete: (id: StepId)
 }
 
 // ---------------------------------------------------------------------------
-// Drafts (ADR-060): which phase a step saves as, and where a draft resumes
+// Drafts (ADR-075 S9): where a person begins, and where a draft reopens
 // ---------------------------------------------------------------------------
 
-/**
- * The server's draft knows four phases (`REGISTRATION_DRAFT_PHASES`). Business
- * type saves as `place`, Documents as `documents`, and the steps in between as
- * `business`. Overview and Pay are never saved: by then the registration
- * exists, and creating it clears the draft.
- */
-export function draftPhaseFor(step: StepId): "place" | "business" | "documents" | null {
-  if (step === "type") return "place";
-  if (step === "documents") return "documents";
-  if (step === "overview" || step === "pay") return null;
+/** Where a person opening `/register` begins: always Business, which asks the kind when it is not known. */
+export function openingStep(): StepId {
   return "business";
 }
 
 /**
- * Where a person opening `/register` begins: Business type when the kind is
- * not known, step two when it arrived answered.
+ * Where a saved draft reopens (AC-9): the step that was open, with the checks
+ * it finished kept (the server writes them, D-m). A draft saved before ADR-075
+ * knows no step and reopens on Business. The wizard still opens no step past
+ * the first one whose answers are not complete (`openableThrough`): an answer
+ * the draft cannot keep, such as the owner's National ID, is asked there.
  */
-export function openingStep(path: RegisterPath, kindKnown: boolean): StepId {
-  return kindKnown ? proofStep(path) : "type";
+export function resumeStep(openStep: StepId | undefined): StepId {
+  return openStep ?? openingStep();
 }
 
 /**
- * Where a saved draft resumes: step two whenever the draft knows the kind,
- * whatever phase it was saved at. The checks step two carries (the TIN with
- * RRA, the ID) are never kept in a draft, so a later step could not be trusted
- * until they are asked again there, one press each.
+ * The step a draft may reopen on, given which steps can be opened now: the one
+ * it names, or the first one still owing an answer when that comes before it.
  */
-export function resumeStep(path: RegisterPath, kindKnown: boolean): StepId {
-  return kindKnown ? proofStep(path) : "type";
-}
-
-/** Whether leaving `from` for `to` saves the draft: a step saves when it is left, never on opening. */
-export function savesOnLeave(from: StepId | null, to: StepId): boolean {
-  if (from === null || from === to) return false;
-  return draftPhaseFor(from) !== null;
+export function clampToOpenable(order: readonly StepId[], wanted: StepId, openable: number): StepId {
+  const i = order.indexOf(wanted);
+  return i < 0 || i <= openable ? wanted : (order[openable] ?? openingStep());
 }
 
 // ---------------------------------------------------------------------------
@@ -195,32 +170,34 @@ export interface DocumentRow {
   required: boolean;
 }
 
+/** What each row is called on the Documents step. */
+const DOCUMENT_LABEL: Readonly<Record<OrgCertificateKind, string>> = {
+  rdb_certificate: "RDB certificate",
+  tourism_license: "Tourism licence",
+  rdb_grade: "Grading certificate (RDB, EAC criteria)",
+  tax_clearance: "Tax clearance",
+  fire_safety: "Fire safety",
+  health_inspection: "Health inspection",
+  psf_certificate: "PSF certificate",
+  land_title: "Land title",
+  franchise_agreement: "Franchise agreement",
+  other: "Other",
+};
+
 /**
- * The artboard's rows, in its order. One required document per path: the RDB
- * certificate for a business, the land title for a residence. The server keeps
- * every document optional (an officer can ask for one at the visit), so the
- * requirement is this wizard's, recorded as such.
+ * The rows for a business kind, in order (ADR-075 S5): a stay's seven, a
+ * venue's five, a residence's land title, and a franchisee's agreement added
+ * to its kind's. Which kinds, and which one is required, come from
+ * `registrationDocumentRows` in `@injishi/contracts`, the table the API refuses
+ * a registration from (AC-11); only the labels are this screen's. Nothing
+ * before the kind is known.
  */
-export function documentRows(path: RegisterPath): DocumentRow[] {
-  if (path === "landlord") {
-    return [
-      { kind: "land_title", label: "Land title", required: true },
-      { kind: "other", label: "Other", required: false },
-    ];
-  }
-  return [
-    { kind: "rdb_certificate", label: "RDB certificate", required: true },
-    { kind: "tourism_license", label: "Tourism licence", required: false },
-    { kind: "rdb_grade", label: "Grading certificate (RDB, EAC criteria)", required: false },
-    { kind: "tax_clearance", label: "Tax clearance", required: false },
-    { kind: "fire_safety", label: "Fire safety", required: false },
-    { kind: "health_inspection", label: "Health inspection", required: false },
-    { kind: "psf_certificate", label: "PSF certificate", required: false },
-    { kind: "other", label: "Other", required: false },
-  ];
+export function documentRows(kind: BusinessKind | null, options: { franchisee?: boolean } = {}): DocumentRow[] {
+  if (kind === null) return [];
+  return registrationDocumentRows(kind, options).map((row) => ({ ...row, label: DOCUMENT_LABEL[row.kind] }));
 }
 
 /** The rows still needed before Documents can be left. */
-export function missingRequired(path: RegisterPath, uploaded: ReadonlySet<string>): DocumentRow[] {
-  return documentRows(path).filter((r) => r.required && !uploaded.has(r.kind));
+export function missingRequired(kind: BusinessKind | null, uploaded: ReadonlySet<string>): DocumentRow[] {
+  return documentRows(kind).filter((r) => r.required && !uploaded.has(r.kind));
 }

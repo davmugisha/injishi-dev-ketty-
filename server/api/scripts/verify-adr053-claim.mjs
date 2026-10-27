@@ -1,5 +1,5 @@
-// Verify the ADR-053 registration ends that slice 2 left: the operator contract
-// acceptance (task 11) and the owner claim (task 14).
+// Verify the ADR-053 registration ends that slice 2 left: the owner claim
+// (task 14), and, since ADR-075, that paying needs no contract (task 11 undone).
 //
 // The twelfth verify script, and it WRITES. It drives registrations over HTTP,
 // reads the claim invitation out of Mailpit the way an owner would, and reads the
@@ -7,11 +7,10 @@
 // claims about rows.
 //
 // WHAT IT PROVES, in order:
-//   A. The contract sits between create and pay. Pay before accepting is 409
-//      `contract_not_accepted` and moves nothing; a stale version is 409
-//      `contract_version_stale`; a stranger is 404; the current version is
-//      recorded server side once, and a second accept returns the first; after
-//      paying, accept is 409 `contract_not_open` (AC-R8, AC-R13).
+//   A. ADR-075 moved the agreement to after approval (AC-12, superseding AC-R8
+//      and AC-R13): the contract route is gone, paying needs no acceptance and
+//      records none, and paying never makes a business `active`; only signing
+//      the agreement will (A3).
 //   B. An OBO registration writes a claim invitation in its create transaction,
 //      7 days, addressed to the owner, and mails a link on WEB_URL's origin
 //      (AC-R12, AC-R14).
@@ -187,7 +186,38 @@ const randomTin = () => String(100000000 + Math.floor(Math.random() * 899999999)
 const userId = async (email) =>
   (await q(`select id from users where lower(email) = lower($1)`, [email]))[0]?.id;
 
-function registrationBody(name, intendedOwner) {
+/**
+ * Upload a small PDF as this session's RDB certificate. ADR-075 AC-11: create refuses a stay or a venue without
+ * one, and only takes a certificate the registrant uploaded. Uploaded once per person per run and reused for each
+ * of their registrations, because the certificate route allows 10 per person in 10 minutes.
+ */
+const uploadedCertificates = new WeakMap();
+async function rdbCertificate(session) {
+  if (uploadedCertificates.has(session)) return uploadedCertificates.get(session);
+  const form = new FormData();
+  form.append("file", new Blob([CERTIFICATE_PDF], { type: "application/pdf" }), "rdb-certificate.pdf");
+  const res = await fetch(`${BASE}/api/v1/uploads/certificate`, { method: "POST", headers: { cookie: session.cookie() }, body: form });
+  session.absorb(res);
+  const json = await res.json().catch(() => null);
+  if (!json?.objectKey) throw new Error(`certificate upload: ${res.status} ${JSON.stringify(json)}`);
+  const certificates = [{ kind: "rdb_certificate", objectKey: json.objectKey }];
+  uploadedCertificates.set(session, certificates);
+  return certificates;
+}
+const CERTIFICATE_PDF = "%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n";
+
+/**
+ * Mark every document on a registration checked, as the field verifier does before verifying (F-S03 §5: the gate
+ * refuses while one is unread). Every registration carries its RDB certificate since ADR-075 AC-11.
+ */
+async function checkEveryDocument(officer, orgId) {
+  const list = await call(officer, "GET", `/api/v1/oversight/registrations/${orgId}/documents`);
+  for (const d of list.json?.documents ?? []) {
+    await call(officer, "POST", `/api/v1/oversight/registrations/${orgId}/documents/${d.id}/check`, {});
+  }
+}
+
+async function registrationBody(session, name, intendedOwner) {
   return {
     role: "host",
     ...(intendedOwner ? { capacity: "on_behalf_of", intendedOwner } : { capacity: "owner" }),
@@ -197,7 +227,7 @@ function registrationBody(name, intendedOwner) {
       address: GASABO,
       accommodationClass: "guest_house",
       tin: randomTin(),
-      certificates: [],
+      certificates: await rdbCertificate(session),
     },
   };
 }
@@ -223,11 +253,11 @@ const DIGITS_ONLY = (s) => s.replace(/\s+/g, "");
 
 async function throughBothGates(sessions, orgId) {
   const { host, verifier, approver } = sessions;
-  const accepted = await call(host, "POST", `/api/v1/registrations/${orgId}/contract`, { contractVersion: OPERATOR_CONTRACT_VERSION });
   const paid = await call(host, "POST", `/api/v1/registrations/${orgId}/pay`);
+  await checkEveryDocument(verifier, orgId);
   const fv = await call(verifier, "POST", `/api/v1/registrations/${orgId}/field-verify`, {});
   const ap = await call(approver, "POST", `/api/v1/registrations/${orgId}/approve`, {});
-  return [accepted.status, paid.status, fv.status, ap.status];
+  return [paid.status, fv.status, ap.status];
 }
 
 const main = async () => {
@@ -242,7 +272,6 @@ const main = async () => {
   await ensureProfile(owner, OWNER, "ADR-053 Verify Owner");
   await ensureProfile(owner2, OWNER2, "ADR-053 Verify Verified Owner");
   await ensureProfile(other, OTHER, "ADR-053 Verify Other");
-  const hostId = await userId(REGISTRANT);
   const ownerId = await userId(OWNER);
   const owner2Id = await userId(OWNER2);
 
@@ -255,86 +284,34 @@ const main = async () => {
   );
 
   // -------------------------------------------------------------------------
-  console.log("\n=== A. The contract, between create and pay (AC-R8, AC-R13) ===");
-  const created = await call(host, "POST", "/api/v1/registrations", registrationBody("Contract"));
+  console.log("\n=== A. Paying needs no contract (ADR-075 AC-12) ===");
+  const created = await call(host, "POST", "/api/v1/registrations", await registrationBody(host, "Contract"));
   const orgId = created.json?.orgId;
   check(
-    "create answers a summary with the contract still open",
+    "create answers a summary with no contract on it",
     created.status === 201 && orgId && created.json.contractAcceptedAt === null && created.json.contractVersion === null && created.json.payoutLocked === null,
     `status ${created.status} ${created.text.slice(0, 200)}`,
   );
   if (!orgId) return;
 
-  const early = await call(host, "POST", `/api/v1/registrations/${orgId}/pay`);
-  const [afterEarly] = await q(
-    `select o.registration_status, i.status as invoice from orgs o
-       join subscription_invoices i on i.org_id = o.id and i.invoice_kind = 'registration_fee'
-      where o.id = $1`,
-    [orgId],
-  );
-  check(
-    "AC-R13 pay before accepting is 409 contract_not_accepted",
-    early.status === 409 && early.json?.code === "contract_not_accepted",
-    `status ${early.status} ${early.text.slice(0, 200)}`,
-  );
-  check(
-    "and nothing moved: still pending_payment, invoice still pending",
-    afterEarly?.registration_status === "pending_payment" && afterEarly?.invoice === "pending",
-    JSON.stringify(afterEarly),
-  );
-
-  const stale = await call(host, "POST", `/api/v1/registrations/${orgId}/contract`, { contractVersion: "Revision A" });
-  check(
-    "a stale version is 409 contract_version_stale",
-    stale.status === 409 && stale.json?.code === "contract_version_stale",
-    `status ${stale.status} ${stale.text.slice(0, 200)}`,
-  );
-
-  const stranger = await call(other, "POST", `/api/v1/registrations/${orgId}/contract`, { contractVersion: OPERATOR_CONTRACT_VERSION });
-  check("a stranger is 404, not 403", stranger.status === 404, `status ${stranger.status}`);
-
-  const accepted = await call(host, "POST", `/api/v1/registrations/${orgId}/contract`, { contractVersion: OPERATOR_CONTRACT_VERSION });
-  check(
-    "AC-R8 the current version is accepted",
-    accepted.status === 200 && accepted.json?.contractVersion === OPERATOR_CONTRACT_VERSION && typeof accepted.json?.contractAcceptedAt === "string",
-    `status ${accepted.status} ${accepted.text.slice(0, 200)}`,
-  );
-  const [row] = await q(
-    `select contract_version, contract_accepted_at, contract_accepted_by_user_id from orgs where id = $1`,
-    [orgId],
-  );
-  check(
-    "AC-R8 written server side: the constant, the time, the accepting user",
-    row?.contract_version === OPERATOR_CONTRACT_VERSION && row?.contract_accepted_at && row?.contract_accepted_by_user_id === hostId,
-    JSON.stringify(row),
-  );
-
-  const again = await call(host, "POST", `/api/v1/registrations/${orgId}/contract`, { contractVersion: OPERATOR_CONTRACT_VERSION });
-  check(
-    "accepting twice returns the first acceptance unchanged",
-    again.status === 200 && again.json?.contractAcceptedAt === accepted.json?.contractAcceptedAt,
-    `${accepted.json?.contractAcceptedAt} vs ${again.json?.contractAcceptedAt}`,
-  );
-
-  const read = await call(host, "GET", `/api/v1/registrations/${orgId}`);
-  check(
-    "AC-R8 a fresh read (no browser state) carries the acceptance",
-    read.status === 200 && read.json?.contractAcceptedAt === accepted.json?.contractAcceptedAt,
-    read.text.slice(0, 200),
-  );
+  const gone = await call(host, "POST", `/api/v1/registrations/${orgId}/contract`, { contractVersion: OPERATOR_CONTRACT_VERSION });
+  check("the contract route is gone", gone.status === 404, `status ${gone.status}`);
 
   const paid = await call(host, "POST", `/api/v1/registrations/${orgId}/pay`);
   check(
-    "pay now settles and the business leaves pending_payment",
+    "pay settles with no acceptance and the business leaves pending_payment",
     // `/pay` has always answered 201, being a POST with no `@HttpCode`.
     (paid.status === 200 || paid.status === 201) && paid.json?.status !== "pending_payment",
     `status ${paid.status} ${paid.text.slice(0, 160)}`,
   );
-  const late = await call(host, "POST", `/api/v1/registrations/${orgId}/contract`, { contractVersion: OPERATOR_CONTRACT_VERSION });
+  const [row] = await q(
+    `select registration_status, contract_version, contract_accepted_at from orgs where id = $1`,
+    [orgId],
+  );
   check(
-    "after paying, accept is 409 contract_not_open",
-    late.status === 409 && late.json?.code === "contract_not_open",
-    `status ${late.status} ${late.text.slice(0, 160)}`,
+    "no acceptance was recorded, and paying did not make it active",
+    row?.contract_version === null && row?.contract_accepted_at === null && row?.registration_status !== "active",
+    JSON.stringify(row),
   );
 
   // -------------------------------------------------------------------------
@@ -343,7 +320,7 @@ const main = async () => {
     host,
     "POST",
     "/api/v1/registrations",
-    registrationBody("Claim", { name: "ADR-053 Verify Owner", nationalId: NID[OWNER], email: OWNER }),
+    await registrationBody(host, "Claim", { name: "ADR-053 Verify Owner", nationalId: NID[OWNER], email: OWNER }),
   );
   const oboId = oboCreated.json?.orgId;
   check(
@@ -391,11 +368,11 @@ const main = async () => {
   );
   const token = link?.searchParams.get("token") ?? invitation?.token;
 
-  console.log("\n--- contract, pay, both gates: it stops at approved, held for the claim ---");
+  console.log("\n--- pay, both gates: it stops at approved, held for the claim ---");
   const walk = await throughBothGates({ host, verifier, approver }, oboId);
   const [held] = await q(`select registration_status from orgs where id = $1`, [oboId]);
   check(
-    "accept, pay, field verify, approve, and the business waits at approved",
+    "pay, field verify, approve, and the business waits at approved",
     walk.every((s) => s === 200 || s === 201) && held?.registration_status === "approved",
     `${walk.join(",")} → ${held?.registration_status}`,
   );
@@ -511,7 +488,7 @@ const main = async () => {
     host,
     "POST",
     "/api/v1/registrations",
-    registrationBody("Verified Claim", { name: "ADR-053 Verify Verified Owner", nationalId: NID[OWNER2], email: OWNER2 }),
+    await registrationBody(host, "Verified Claim", { name: "ADR-053 Verify Verified Owner", nationalId: NID[OWNER2], email: OWNER2 }),
   );
   const vId = verifiedObo.json?.orgId;
   check("a second OBO registration", verifiedObo.status === 201 && vId, `status ${verifiedObo.status}`);
@@ -548,7 +525,7 @@ const main = async () => {
     host,
     "POST",
     "/api/v1/registrations",
-    registrationBody("Expired Claim", { name: "ADR-053 Verify Owner", nationalId: NID[OWNER], email: OWNER }),
+    await registrationBody(host, "Expired Claim", { name: "ADR-053 Verify Owner", nationalId: NID[OWNER], email: OWNER }),
   );
   const eId = expiring.json?.orgId;
   if (eId) {

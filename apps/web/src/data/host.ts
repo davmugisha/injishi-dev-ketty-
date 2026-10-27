@@ -35,7 +35,7 @@ import {
  * The union is widened HERE, at the one screen that asks all three questions in
  * one card, so the contract keeps saying the true thing.
  */
-export type HostKind = AccommodationClass | "residence" | "bar_restaurant";
+export type HostKind = AccommodationClass | "residence" | "bar_restaurant" | "coffee_shop";
 
 interface HostPropertyKind {
   value: HostKind;
@@ -64,6 +64,7 @@ interface HostPropertyKind {
  */
 const RESIDENCE_LABEL = "Residence";
 const BAR_RESTAURANT_LABEL = "Bar & Restaurant";
+const COFFEE_SHOP_LABEL = "Coffee Shop";
 
 const CHOOSER: ReadonlyArray<{ value: HostKind; blurb: string }> = [
   { value: "hotel", blurb: "Serviced rooms, front desk" },
@@ -74,6 +75,7 @@ const CHOOSER: ReadonlyArray<{ value: HostKind; blurb: string }> = [
   { value: "lodge", blurb: "Built for stays, with grounds" },
   { value: "villa", blurb: "A whole house, one party" },
   { value: "bar_restaurant", blurb: "Food and drink, no rooms" },
+  { value: "coffee_shop", blurb: "Coffee and a bite, no rooms" },
   { value: "residence", blurb: "Let on a lease, not nightly" },
 ];
 
@@ -85,7 +87,9 @@ export const HOST_PROPERTY_KINDS: HostPropertyKind[] = CHOOSER.map(
         ? RESIDENCE_LABEL
         : value === "bar_restaurant"
           ? BAR_RESTAURANT_LABEL
-          : ACCOMMODATION_CLASS_LABEL[value],
+          : value === "coffee_shop"
+            ? COFFEE_SHOP_LABEL
+            : ACCOMMODATION_CLASS_LABEL[value],
     blurb,
   }),
 );

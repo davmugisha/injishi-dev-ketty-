@@ -52,6 +52,27 @@ export const domainKindEnum = pgEnum('domain_kind', [
   'residence',
 ]);
 
+/**
+ * What kind of business an org is (ADR-075 D-h). `BusinessKind` in
+ * `@injishi/contracts` is the vocabulary; a stay's kind is its accommodation
+ * class, a venue (`bar_restaurant`, `coffee_shop`) has a kind and no class.
+ * `broker` is listed so the words match, and no org carries it.
+ */
+export const businessKindEnum = pgEnum('business_kind', [
+  'hotel',
+  'motel',
+  'tented_camp',
+  'guest_house',
+  'apartment',
+  'lodge',
+  'villa',
+  'other',
+  'bar_restaurant',
+  'coffee_shop',
+  'residence',
+  'broker',
+]);
+
 export const rdbClassificationKindEnum = pgEnum('rdb_classification_kind', [
   'entity_group',
   'accommodation_class',
@@ -232,6 +253,8 @@ export const orgCertificateKindEnum = pgEnum('org_certificate_kind', [
   'rdb_certificate',
   'psf_certificate',
   'land_title',
+  // A franchisee's agreement with its franchisor (ADR-075 O-7, AC-8, AC-11).
+  'franchise_agreement',
 ]);
 
 
@@ -247,6 +270,19 @@ export const identityDocumentStatusEnum = pgEnum('identity_document_status', [
   'active',
   'superseded',
 ]);
+
+/** How a business stands in a franchise (ADR-075 O-7). No `org_franchises` row means it is in none. */
+export const franchiseRoleEnum = pgEnum('franchise_role', ['franchisee', 'franchisor']);
+
+/** One ID scan's outcome (ADR-075 D-n). Only `machine_passed` reads "Checked". */
+export const identityScanOutcomeEnum = pgEnum('identity_scan_outcome', [
+  'machine_passed',
+  'machine_failed',
+  'manual_needed',
+]);
+
+/** The document verifier seam's mode when a scan ran. Unlike `adapter_mode`, `off` is a mode here. */
+export const identityAdapterModeEnum = pgEnum('identity_adapter_mode', ['mock', 'live', 'off']);
 
 
 // §4.4 government oversight (Decision B) — stable function enum + scope level.

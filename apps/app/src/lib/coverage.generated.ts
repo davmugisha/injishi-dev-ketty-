@@ -2,7 +2,7 @@
 // Sample collections each screen still draws from the fixture store; 0 means every collection is live or static.
 export const sampleCollectionsByBoard: Record<string, number> = {
   AccessDenied: 4,
-  Account: 8,
+  Account: 7,
   AccountsReceivable: 4,
   AdminAudit: 2,
   AdminBusinesses: 5,

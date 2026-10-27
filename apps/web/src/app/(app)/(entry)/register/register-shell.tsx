@@ -1,22 +1,28 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ArrowLeft, CloudCheck, Lock } from "lucide-react";
-import { Badge, Button, Progress } from "@injishi/ui";
+import { ArrowLeft } from "lucide-react";
+import { Badge, Button } from "@injishi/ui";
+import { cn } from "@injishi/utils";
 
 import { AssistantWidget } from "@/components/assistant/assistant-widget";
+
+import { SAVE_STATE_TEXT, type SaveState } from "./register-draft";
 
 /**
  * The frame every registration screen sits in (Register.dc.html, 2026-10-19).
  *
- * ONE HEADER FOR THE WHOLE WALK: the mark, "Register a business", whether the
- * answers are saved, and Save and exit. Below it the heading the artboard
- * draws: an eyebrow, the business's name once RRA has named it, one line on
- * what the walk is, and the kind carried in from `/host` with its Change.
+ * ONE HEADER FOR THE WHOLE WALK: the mark, whether the answers are saved
+ * (ADR-075 S9, AC-10: "Saving…", "✓ Saved", "Offline, saved on this phone",
+ * "Not saved, Retry", always true), and Save and exit. Below it one h1 that names the type ("Register your coffee
+ * shop", ADR-075 AC-2) with a small Change beside it, and at most one line
+ * under it: the business's name once RRA has returned it, never replacing the
+ * h1.
  *
- * Then the rail on the left and the step on the right. Below a tablet's width
- * the rail goes, and the step carries a progress bar instead, with its Back and
- * Continue fixed to the bottom of the screen where a thumb reaches them.
+ * Then the five step progress row above the step (S10). Below a tablet's width
+ * the row goes, and the step says "Step 2 of 5 · You" over a thin bar instead,
+ * with its Back and Continue fixed to the bottom of the screen where a thumb
+ * reaches them.
  *
  * The support assistant's launcher rides along (ADR-061): the artboard's "Ask
  * Injishi". It draws nothing when the API has the assistant off.
@@ -28,7 +34,7 @@ export function RegisterShell({
   changeKindHref,
   carried = false,
   heading = null,
-  saved = null,
+  save = null,
   exit,
   rail,
   children,
@@ -41,11 +47,12 @@ export function RegisterShell({
   onChangeKind?: () => void;
   /** Where Change goes for someone not signed in yet: the `/host` chooser. */
   changeKindHref?: string;
-  /** The kind is the one `/host` sent, so it is shown as chosen on the page before. */
+  /** Whether Change is offered beside the heading: the kind is known and nothing is locked yet. */
   carried?: boolean;
-  heading?: { eyebrow: string; title: string; sub: string } | null;
-  /** "Saved 10:41", or null before anything is saved. */
-  saved?: string | null;
+  /** The h1, and at most one short line under it. */
+  heading?: { title: string; sub: string | null } | null;
+  /** What the last save did, or null while there is nothing to say (nothing typed, nothing saved). */
+  save?: { state: Exclude<SaveState, "idle">; savedAt: string | null; onRetry: () => void } | null;
   /** The way out, as a link or as a press (Save and exit saves first). */
   exit: { label: string; href?: string; onPress?: () => void; busy?: boolean } | null;
   rail?: ReactNode;
@@ -73,18 +80,9 @@ export function RegisterShell({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/shared/img/injishi-extended-white.svg" alt="Injishi" className="hidden h-6 w-auto dark:block" />
           </a>
-          <span className="hidden text-muted-foreground md:inline" aria-hidden="true">
-            /
-          </span>
-          <span className="hidden text-sm font-semibold md:inline">Register a business</span>
           {demo ? <Badge variant="subtle" size="sm">Demo data</Badge> : null}
           <span className="grow" />
-          {saved ? (
-            <span role="status" className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
-              <CloudCheck size={14} aria-hidden />
-              {saved}
-            </span>
-          ) : null}
+          {save ? <SaveStatus {...save} /> : null}
           {!heading && kindLabel ? (
             <span className="flex items-center gap-1">
               <Badge variant="accent" size="sm">
@@ -110,28 +108,58 @@ export function RegisterShell({
       <main className="mx-auto flex max-w-page flex-col gap-6 px-4 pb-28 pt-6 sm:px-8 md:pb-16 md:pt-8">
         {heading ? (
           <div className="flex flex-col gap-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{heading.eyebrow}</p>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{heading.title}</h1>
-            <p className="text-sm text-muted-foreground sm:text-base">{heading.sub}</p>
-            {kindLabel && carried ? (
-              <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <Badge variant="subtle" size="sm">
-                  {kindLabel}, chosen on the page before
-                </Badge>
-                {change}
-              </div>
-            ) : null}
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{heading.title}</h1>
+              {carried ? change : null}
+            </div>
+            {heading.sub ? <p className="text-sm text-muted-foreground sm:text-base">{heading.sub}</p> : null}
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-8 md:flex-row md:items-start">
-          {rail ? <div className="hidden shrink-0 md:block md:w-48 lg:w-56">{rail}</div> : null}
-          <div className="flex min-w-0 flex-1 flex-col gap-4">{children}</div>
-        </div>
+        {rail ? <div className="hidden md:block">{rail}</div> : null}
+        <div className="flex min-w-0 flex-col gap-4">{children}</div>
       </main>
 
       <AssistantWidget />
     </>
+  );
+}
+
+const KIGALI_CLOCK: Intl.DateTimeFormatOptions = { timeZone: "Africa/Kigali", hour: "2-digit", minute: "2-digit" };
+
+/**
+ * The header's save status: what the last save did, in the four words ADR-075
+ * gives it, never ahead of the truth. "Not saved" carries its Retry.
+ */
+function SaveStatus({
+  state,
+  savedAt,
+  onRetry,
+}: {
+  state: Exclude<SaveState, "idle">;
+  savedAt: string | null;
+  onRetry: () => void;
+}) {
+  const at = savedAt ? new Date(savedAt) : null;
+  const when = at && !Number.isNaN(at.getTime()) ? at.toLocaleTimeString("en-GB", KIGALI_CLOCK) : null;
+  return (
+    <span
+      id="register-save-status"
+      role="status"
+      title={state === "saved" && when ? `Saved at ${when}` : undefined}
+      className={cn(
+        "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium",
+        state === "failed" ? "bg-destructive/10 text-foreground" : "bg-secondary text-secondary-foreground",
+      )}
+    >
+      {SAVE_STATE_TEXT[state]}
+      {state === "failed" ? (
+        // At least 24 px tall: the pill is small, and its one control still has to be easy to hit.
+        <Button variant="link" size="sm" onClick={onRetry} className="min-h-6">
+          Retry
+        </Button>
+      ) : null}
+    </span>
   );
 }
 
@@ -147,16 +175,15 @@ export interface StepPrimary {
 }
 
 /**
- * One of the six steps, drawn as the artboard's card: "Step 2 of 6", the step's
- * title and lead, its body, then Back and the primary action. On a phone the
- * card's chrome falls away, a progress bar says how far along this is, and the
- * actions are fixed to the bottom of the screen.
+ * One of the five steps: the step's title and lead, its body, then Back and the
+ * primary action. On a phone the card's chrome falls away, "Step 2 of 5 · You"
+ * sits over a thin bar of five segments (S10), and the actions are fixed to the
+ * bottom of the screen.
  */
 export function StepFrame({
   position,
   title,
   lead,
-  lockedBanner = false,
   onBack,
   primary,
   children,
@@ -164,40 +191,29 @@ export function StepFrame({
   position: { n: number; of: number };
   title: string;
   lead: string;
-  /** The registration exists: these details went to Injishi when it was signed. */
-  lockedBanner?: boolean;
   onBack: (() => void) | null;
   primary: StepPrimary | null;
   children: ReactNode;
 }) {
-  const pct = Math.round((position.n / position.of) * 100);
   return (
     <section
       aria-labelledby="register-step-title"
       className="flex flex-col gap-6 md:rounded-card md:border md:border-border md:bg-card md:p-7"
     >
       <div className="flex flex-col gap-1.5">
-        <span id="register-step-position" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Step {position.n} of {position.of}
+        <span id="register-step-position" className="text-sm font-semibold md:hidden">
+          Step {position.n} of {position.of} · {title}
         </span>
-        <Progress
-          aria-labelledby="register-step-position"
-          value={pct}
-          className="h-1.5 bg-secondary md:hidden"
-          indicatorClassName="bg-accent-brand"
-        />
-        <h2 id="register-step-title" className="text-xl font-semibold tracking-tight">
+        <span aria-hidden className="grid gap-1 md:hidden" style={{ gridTemplateColumns: `repeat(${position.of}, minmax(0, 1fr))` }}>
+          {Array.from({ length: position.of }, (_, i) => (
+            <span key={i} className={cn("h-1 rounded-full", i < position.n ? "bg-accent-brand" : "bg-secondary")} />
+          ))}
+        </span>
+        <h2 id="register-step-title" className="sr-only text-xl font-semibold tracking-tight md:not-sr-only">
           {title}
         </h2>
         <p className="text-sm text-muted-foreground">{lead}</p>
       </div>
-
-      {lockedBanner ? (
-        <Callout tone="info" icon={<Lock size={16} aria-hidden />} title="Signed and locked">
-          These details went to Injishi when you signed. If something needs fixing, an officer sends the
-          registration back to you.
-        </Callout>
-      ) : null}
 
       {children}
 
