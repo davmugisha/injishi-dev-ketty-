@@ -1,28 +1,36 @@
 #!/usr/bin/env node
 /**
- * The one way an over the air update goes out (mobile spec 0001, D-q, AC-10, AC-11).
+ * The one way an over the air update goes out (mobile spec 0001, D-q, D-ad, AC-10, AC-11).
  *
- *   pnpm --filter @injishi/mobile update:publish -- --to preview
- *   pnpm --filter @injishi/mobile update:publish -- --to production
+ *   pnpm --filter @injishi/mobile update:publish -- --to preview [--dry-run]
+ *   pnpm --filter @injishi/mobile update:publish -- --to production [--dry-run]
  *
  * Preview first, then production from the same merged commit. In order, it:
  *
- *   1. refuses a dirty tree (`git status --porcelain`, untracked files included), so every update
- *      maps to one commit;
- *   2. for production, fetches origin and refuses unless HEAD is merged into origin/main and an
- *      update for this exact commit is already on branch `preview`;
- *   3. drops EXPO_PUBLIC_API_URL and APP_VARIANT from its own environment and refuses if an
- *      apps/mobile/.env* file sets either, so the bundle takes the target environment's values from
- *      EAS and nothing else (a preview bundle never goes to production);
- *   4. builds the compiled workspace packages the app depends on;
- *   5. resolves, per platform, the runtime version this update would get under the target
- *      environment, and keeps only the platforms where a finished build on the target channel has
- *      it. No update goes out that no installed build can take; none left means it refuses;
- *   6. notes the update group live on the target branch for that runtime version;
- *   7. publishes with `eas update --channel <to> --environment <to>`;
- *   8. prints the command that takes the branch back to the noted group.
+ *    1. refuses a dirty tree (`git status --porcelain`, untracked files included), so every update
+ *       maps to one commit;
+ *    2. for production, fetches origin, refuses unless HEAD is merged into origin/main, and reminds
+ *       you that the API this commit calls must already be deployed (nothing checks it);
+ *    3. drops APP_VARIANT and every EXPO_PUBLIC_ variable from its own environment and refuses if an
+ *       apps/mobile/.env* file sets one, so the bundle takes the target environment's values from EAS
+ *       and nothing else (a preview bundle never goes to production);
+ *    4. installs with the commit's lockfile (`pnpm install --frozen-lockfile`), so the bundle and the
+ *       runtime version come from what the commit names;
+ *    5. refuses unless the target channel serves the branch of the same name, and only that. After
+ *       the install, because every eas call reads app.config.ts and resolves its config plugins
+ *       from the installed packages;
+ *    6. builds the compiled workspace packages the app depends on;
+ *    7. judges each platform on its own (publish-platforms.mjs): a finished build on the target
+ *       channel has the runtime version this update would get there, and, for production, the newest
+ *       update on branch `preview` for that platform was built from this commit. It prints every
+ *       failing reason and refuses if no platform is left;
+ *    8. notes, per platform it keeps, the update group live on the target branch for that runtime
+ *       version, and prints the command that takes the branch back to it. `--dry-run` stops here;
+ *    9. publishes once, with `eas update --channel <to> --environment <to> --clear-cache`;
+ *   10. fails loudly if a published update's platform or runtime version is not the one it resolved;
+ *   11. prints the rollback commands again and the platforms it skipped, and exits 0.
  *
- * It exits non-zero on any refusal and changes nothing before step 7.
+ * It exits non-zero on any refusal and changes nothing on EAS before step 9.
  */
 
 import { spawnSync } from "node:child_process";
@@ -30,11 +38,13 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { judgePlatforms, PLATFORMS } from "./publish-platforms.mjs";
+
 const APP_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TARGETS = ["preview", "production"];
-const PLATFORMS = ["android", "ios"];
 // The values an EAS environment owns. A local copy would end up in the bundle instead.
-const ENV_OWNED = ["EXPO_PUBLIC_API_URL", "APP_VARIANT"];
+const ENV_OWNED = /^(APP_VARIANT|EXPO_PUBLIC_\w*)$/;
+const ENV_OWNED_LINE = /^\s*(?:export\s+)?(APP_VARIANT|EXPO_PUBLIC_\w*)\s*=/gm;
 const WINDOWS = process.platform === "win32";
 
 class Refusal extends Error {}
@@ -44,13 +54,14 @@ function refuse(message) {
 }
 
 /**
- * Runs a command in the app's folder. Through a shell on Windows, where eas and pnpm are .cmd files;
- * every argument this script passes is a plain token or a double quoted string with no quote inside.
+ * Runs a command, in the app's folder unless told otherwise. Through a shell on Windows, where eas
+ * and pnpm are .cmd files; every argument this script passes is a plain token or a double quoted
+ * string with no quote inside.
  */
-function run(command, args, { capture = false, allowFailure = false } = {}) {
+function run(command, args, { capture = false, allowFailure = false, cwd = APP_DIR } = {}) {
   const quoted = args.map((a) => (/[\s"^&|<>()]/.test(a) ? `"${a}"` : a));
   const result = spawnSync(WINDOWS ? [command, ...quoted].join(" ") : command, WINDOWS ? [] : args, {
-    cwd: APP_DIR,
+    cwd,
     shell: WINDOWS,
     encoding: "utf8",
     stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit",
@@ -58,7 +69,9 @@ function run(command, args, { capture = false, allowFailure = false } = {}) {
   });
   if (result.error) throw result.error;
   if (result.status !== 0 && !allowFailure) {
-    const detail = capture ? `\n${(result.stderr || result.stdout || "").trim()}` : "";
+    // eas prints the cause on stdout and only "command failed" on stderr, so both are kept.
+    const output = [result.stdout, result.stderr].map((s) => (s ?? "").trim()).filter(Boolean);
+    const detail = capture ? `\n${output.join("\n")}` : "";
     throw new Error(`${command} ${args.join(" ")} failed with exit code ${result.status}.${detail}`);
   }
   return { ok: result.status === 0, stdout: (result.stdout ?? "").trim() };
@@ -79,17 +92,19 @@ function easJson(args, { nonInteractive = true } = {}) {
   return JSON.parse(stdout.slice(start));
 }
 
-function parseTarget(argv) {
+const asList = (value) => (Array.isArray(value) ? value : [value]);
+
+function parseArgs(argv) {
   const at = argv.indexOf("--to");
   const to = at >= 0 ? argv[at + 1] : argv.find((a) => a.startsWith("--to="))?.slice(5);
   if (!TARGETS.includes(to)) {
     refuse(`say where the update goes: --to preview or --to production (got ${to ?? "nothing"}).`);
   }
-  return to;
+  return { to, dryRun: argv.includes("--dry-run") };
 }
 
 /** Update groups on a branch, newest first. An unknown branch has none. */
-function groupsOn(branch, { platform, runtimeVersion, limit = 50 } = {}) {
+function groupsOn(branch, { platform, runtimeVersion, limit }) {
   const args = ["update:list", "--branch", branch, "--limit", String(limit)];
   if (platform) args.push("--platform", platform);
   if (runtimeVersion) args.push("--runtime-version", runtimeVersion);
@@ -101,15 +116,35 @@ function groupsOn(branch, { platform, runtimeVersion, limit = 50 } = {}) {
   }
 }
 
-/** True when branch `preview` holds an update built from this exact commit. */
-function previewHasCommit(head, short) {
-  // The listing carries no commit hash, so match the message first (it starts with the short hash),
-  // then confirm on each candidate's own updates.
-  const candidates = groupsOn("preview").filter((g) => String(g.message).includes(short));
-  return candidates.some((g) => {
-    const updates = easJson(["update:view", g.group], { nonInteractive: false });
-    return (Array.isArray(updates) ? updates : [updates]).some((u) => u.gitCommitHash === head);
-  });
+/** Step 3: the channel serves the branch of the same name, and nothing else (no rollout). */
+function checkChannel(to) {
+  const channel = easJson(["channel:view", to]).currentPage;
+  const branches = (channel?.updateBranches ?? []).map((b) => b.name);
+  let mapping = [];
+  try {
+    mapping = JSON.parse(channel?.branchMapping ?? "{}").data ?? [];
+  } catch {
+    // An unreadable mapping fails the check below.
+  }
+  const servesOnly = branches.length === 1 && branches[0] === to && mapping.length === 1;
+  if (!servesOnly || mapping[0].branchMappingLogic !== "true") {
+    refuse(
+      `channel ${to} must serve branch ${to} alone, and it serves ${branches.join(" and ") || "no branch"}` +
+        `${mapping.length > 1 ? " (a rollout is in progress)" : ""}. ` +
+        `Point it back with: eas channel:edit ${to} --branch ${to}`,
+    );
+  }
+}
+
+/** Step 4: the target environment's values, and only those. */
+function dropLocalValues(to) {
+  for (const name of Object.keys(process.env)) if (ENV_OWNED.test(name)) delete process.env[name];
+  for (const file of readdirSync(APP_DIR).filter((f) => f.startsWith(".env"))) {
+    const found = [...readFileSync(join(APP_DIR, file), "utf8").matchAll(ENV_OWNED_LINE)].map((m) => m[1]);
+    if (found.length > 0) {
+      refuse(`apps/mobile/${file} sets ${[...new Set(found)].join(", ")}, which would override the ${to} environment.`);
+    }
+  }
 }
 
 /** The runtime version an update for this platform gets with the target environment's values. */
@@ -139,6 +174,21 @@ function hasFinishedBuild(channel, platform, runtimeVersion) {
   return builds.length > 0;
 }
 
+/**
+ * The newest update on branch preview for this platform, with the commit it was built from. Only the
+ * newest counts, so no paging. A rollback carries no commit; the listing carries none at all, so the
+ * group is read with `update:view`, which rejects --non-interactive.
+ */
+function newestOnPreview(platform) {
+  const [newest] = groupsOn("preview", { platform, limit: 1 });
+  if (!newest) return null;
+  if (newest.isRollBackToEmbedded) return { group: newest.group, isRollBackToEmbedded: true };
+  const update = asList(easJson(["update:view", newest.group], { nonInteractive: false })).find(
+    (u) => u.platform === platform,
+  );
+  return { group: newest.group, gitCommitHash: update?.gitCommitHash, isRollBackToEmbedded: false };
+}
+
 /** Keeps only characters that read the same in every shell; the message is for people, not machines. */
 function safeMessage(text) {
   return text
@@ -148,7 +198,8 @@ function safeMessage(text) {
     .slice(0, 120);
 }
 
-function rollbackCommand(to, platform, runtimeVersion, live) {
+/** A live rollback to the build's own code counts as nothing live. */
+function rollbackCommand(to, { platform, runtimeVersion, live }) {
   if (live && !live.isRollBackToEmbedded) {
     return `eas update:republish --group ${live.group} --platform ${platform} --message "Roll back to ${live.group}" --non-interactive`;
   }
@@ -158,9 +209,40 @@ function rollbackCommand(to, platform, runtimeVersion, live) {
   );
 }
 
+function printRollback(to, kept) {
+  console.log(
+    `\nTo roll back, run this from apps/mobile. Each command is good until the next publish to ${to} ` +
+      "for that runtime version; phones go back after their next two cold starts.",
+  );
+  for (const target of kept) console.log(`  ${target.platform}: ${rollbackCommand(to, target)}`);
+}
+
+function printSkipped(skipped) {
+  if (skipped.length === 0) return;
+  console.log(`\nSkipped: ${skipped.map((s) => s.platform).join(", ")}. Run again once each reason above is gone.`);
+}
+
+/** Step 10: what EAS published is what this script resolved, platform by platform. */
+function checkPublished(published, kept) {
+  const problems = [];
+  for (const update of published) {
+    const expected = kept.find((k) => k.platform === update.platform);
+    if (!expected) problems.push(`an update went to ${update.platform}, which this script did not keep`);
+    else if (update.runtimeVersion !== expected.runtimeVersion) {
+      problems.push(
+        `the ${update.platform} update has runtime ${update.runtimeVersion}, not the resolved ${expected.runtimeVersion}`,
+      );
+    }
+  }
+  for (const { platform } of kept) {
+    if (!published.some((u) => u.platform === platform)) problems.push(`no ${platform} update was published`);
+  }
+  return problems;
+}
+
 function main() {
-  const to = parseTarget(process.argv.slice(2));
-  console.log(`update:publish → ${to}\n`);
+  const { to, dryRun } = parseArgs(process.argv.slice(2));
+  console.log(`update:publish → ${to}${dryRun ? " (dry run)" : ""}\n`);
 
   // 1. One commit, nothing else.
   const dirty = git("status", "--porcelain", "--untracked-files=all");
@@ -168,9 +250,10 @@ function main() {
   const head = git("rev-parse", "HEAD");
   const short = git("rev-parse", "--short", "HEAD");
   const subject = git("log", "-1", "--format=%s");
+  const repoRoot = git("rev-parse", "--show-toplevel");
   console.log(`commit ${short} ${subject}`);
 
-  // 2. Production takes only a merged commit that already ran on preview.
+  // 2. Production takes only a merged commit.
   if (to === "production") {
     run("git", ["fetch", "origin", "--quiet"]);
     const merged = run("git", ["merge-base", "--is-ancestor", "HEAD", "origin/main"], {
@@ -178,70 +261,92 @@ function main() {
       allowFailure: true,
     }).ok;
     if (!merged) refuse(`${short} is not merged into origin/main. Production gets only merged commits.`);
-    if (!previewHasCommit(head, short)) {
-      refuse(`no update for ${short} is on branch preview. Publish it with --to preview first and try it there.`);
-    }
-    console.log("merged into origin/main, and already on preview");
-  }
-
-  // 3. The target environment's values, and only those.
-  for (const name of ENV_OWNED) delete process.env[name];
-  for (const file of readdirSync(APP_DIR).filter((f) => f.startsWith(".env"))) {
-    const text = readFileSync(join(APP_DIR, file), "utf8");
-    const found = ENV_OWNED.filter((name) => new RegExp(`^\\s*(?:export\\s+)?${name}\\s*=`, "m").test(text));
-    if (found.length > 0) {
-      refuse(`apps/mobile/${file} sets ${found.join(" and ")}, which would override the ${to} environment.`);
-    }
-  }
-
-  // 4. The compiled packages the bundle imports.
-  console.log("\nbuilding the workspace packages the app depends on");
-  run("pnpm", ["--filter", "@injishi/mobile^...", "run", "--if-present", "build"]);
-
-  // 5. Only platforms with a build that can take it.
-  const ready = [];
-  for (const platform of PLATFORMS) {
-    const runtimeVersion = runtimeVersionUnder(to, platform);
-    if (hasFinishedBuild(to, platform, runtimeVersion)) {
-      ready.push({ platform, runtimeVersion });
-      console.log(`${platform}: runtime ${runtimeVersion}, a finished ${to} build has it`);
-    } else {
-      console.log(`${platform}: runtime ${runtimeVersion}, no finished ${to} build has it, so ${platform} is skipped`);
-    }
-  }
-  if (ready.length === 0) {
-    refuse(`no finished ${to} build can take this update. A native change needs a new build first.`);
-  }
-
-  // 6. What to go back to.
-  for (const target of ready) {
-    [target.live] = groupsOn(to, { platform: target.platform, runtimeVersion: target.runtimeVersion, limit: 1 });
+    console.log("merged into origin/main");
     console.log(
-      `${target.platform}: live before publishing: ${target.live ? target.live.group : "the build's own code"}`,
+      "reminder: the API this commit calls must already be deployed to https://api.injishi.com. Nothing checks it.",
     );
   }
 
-  // 7. Publish.
-  const platform = ready.length === PLATFORMS.length ? "all" : ready[0].platform;
-  console.log(`\npublishing to ${to} (${platform})\n`);
-  const published = easJson([
-    "update",
-    "--channel",
-    to,
-    "--environment",
-    to,
-    "--platform",
-    platform,
-    "--message",
-    safeMessage(`${short} ${subject}`),
-  ]);
-  const groups = [...new Set((Array.isArray(published) ? published : [published]).map((u) => u.group))];
+  // 3. The target environment's values, and only those.
+  dropLocalValues(to);
+
+  // 4. The commit's packages.
+  console.log("\ninstalling with the commit's lockfile");
+  run("pnpm", ["install", "--frozen-lockfile"], { cwd: repoRoot });
+
+  // 5. The channel serves its own branch. eas needs the packages above to read the app config.
+  checkChannel(to);
+  console.log(`\nchannel ${to} serves branch ${to}`);
+
+  // 6. The compiled packages the bundle imports.
+  console.log("\nbuilding the workspace packages the app depends on");
+  run("pnpm", ["--filter", "@injishi/mobile^...", "run", "--if-present", "build"]);
+
+  // 7. Each platform on its own.
+  console.log("");
+  const facts = PLATFORMS.map((platform) => {
+    const runtimeVersion = runtimeVersionUnder(to, platform);
+    return {
+      platform,
+      runtimeVersion,
+      hasBuild: hasFinishedBuild(to, platform, runtimeVersion),
+      newestPreview: to === "production" ? newestOnPreview(platform) : undefined,
+    };
+  });
+  const { kept, skipped, publishPlatform } = judgePlatforms({ to, head, platforms: facts });
+  for (const target of kept) console.log(`${target.platform}: runtime ${target.runtimeVersion}, ready`);
+  for (const { platform, runtimeVersion, reasons } of skipped) {
+    console.log(`${platform}: runtime ${runtimeVersion}, skipped:`);
+    for (const reason of reasons) console.log(`  - ${reason}`);
+  }
+  if (!publishPlatform) refuse(`no platform can take this update on ${to}; see the reasons above.`);
+
+  // 8. What to go back to.
+  console.log("");
+  for (const target of kept) {
+    [target.live] = groupsOn(to, { platform: target.platform, runtimeVersion: target.runtimeVersion, limit: 1 });
+    const live = target.live && !target.live.isRollBackToEmbedded ? target.live.group : "the build's own code";
+    console.log(`${target.platform}: live on ${to} before publishing: ${live}`);
+  }
+  printRollback(to, kept);
+  if (dryRun) {
+    console.log(`\ndry run: every check passed. It would publish to ${to} (${publishPlatform}); stopping here.`);
+    printSkipped(skipped);
+    return;
+  }
+
+  // 9. Publish, once.
+  console.log(`\npublishing to ${to} (${publishPlatform})\n`);
+  const published = asList(
+    easJson([
+      "update",
+      "--channel",
+      to,
+      "--environment",
+      to,
+      "--platform",
+      publishPlatform,
+      "--clear-cache",
+      "--message",
+      safeMessage(`${short} ${subject}`),
+    ]),
+  );
+  const groups = [...new Set(published.map((u) => u.group))];
   console.log(`published update group ${groups.join(", ")} to ${to}.`);
 
-  // 8. The way back.
-  console.log("\nTo roll back, run this from apps/mobile (phones go back after their next two cold starts):");
-  for (const target of ready)
-    console.log(`  ${rollbackCommand(to, target.platform, target.runtimeVersion, target.live)}`);
+  // 10. What went out is what was resolved.
+  const problems = checkPublished(published, kept);
+  if (problems.length > 0) {
+    printRollback(to, kept);
+    throw new Error(
+      `the published update does not match what this script resolved:\n  - ${problems.join("\n  - ")}\n` +
+        "Roll back with the commands above, then find out why before publishing again.",
+    );
+  }
+
+  // 11. The way back, and what was left out.
+  printRollback(to, kept);
+  printSkipped(skipped);
 }
 
 try {
