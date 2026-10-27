@@ -66,9 +66,13 @@ function run(command, args, { capture = false, allowFailure = false } = {}) {
 
 const git = (...args) => run("git", args, { capture: true }).stdout;
 
-/** An eas command's --json output. */
-function easJson(args) {
-  const { stdout } = run("eas", [...args, "--json", "--non-interactive"], { capture: true });
+/**
+ * An eas command's --json output. `--non-interactive` goes on unless a command rejects it, as
+ * `update:view` does (eas-cli 26); that one never prompts anyway.
+ */
+function easJson(args, { nonInteractive = true } = {}) {
+  const flags = nonInteractive ? ["--json", "--non-interactive"] : ["--json"];
+  const { stdout } = run("eas", [...args, ...flags], { capture: true });
   // Only the JSON document goes to stdout with --json; anything before it is a stray line.
   const start = stdout.search(/^[[{]/m);
   if (start < 0) throw new Error(`eas ${args.join(" ")} printed no JSON.`);
@@ -103,7 +107,7 @@ function previewHasCommit(head, short) {
   // then confirm on each candidate's own updates.
   const candidates = groupsOn("preview").filter((g) => String(g.message).includes(short));
   return candidates.some((g) => {
-    const updates = easJson(["update:view", g.group]);
+    const updates = easJson(["update:view", g.group], { nonInteractive: false });
     return (Array.isArray(updates) ? updates : [updates]).some((u) => u.gitCommitHash === head);
   });
 }
