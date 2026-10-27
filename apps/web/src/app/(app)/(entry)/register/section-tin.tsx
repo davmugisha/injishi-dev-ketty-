@@ -22,7 +22,7 @@ import { Button } from "@injishi/web-ui";
 
 import { formatTin, normalizeTin, sameName } from "./business-draft";
 import { Callout } from "./register-shell";
-import { ChoiceTile, Field, TextInput } from "./wizard-ui";
+import { ChoiceTile, Field, Offline, TextInput } from "./wizard-ui";
 
 /**
  * Business name and TIN (Register.dc.html, step two's first section).
@@ -65,6 +65,7 @@ export function SectionTin({
   onAskInjishi,
   onNext,
   error,
+  online = true,
 }: {
   typedName: string;
   onTypedNameChange: (next: string) => void;
@@ -82,6 +83,8 @@ export function SectionTin({
   onAskInjishi: () => void;
   onNext: () => void;
   error?: string;
+  /** The device has a network. RRA cannot be asked without one, and the section says so (ADR-075 S9). */
+  online?: boolean;
 }) {
   const digits = normalizeTin(tin);
   const verdict = view.kind === "result" ? view.verdict : null;
@@ -131,10 +134,11 @@ export function SectionTin({
       ) : null}
 
       {view.kind === "idle" || verdict?.result === "failed" || verdict?.result === "taken" ? (
-        <div>
-          <Button onClick={onValidate} disabled={!canValidate}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <Button onClick={onValidate} disabled={!canValidate || !online} aria-describedby={online ? undefined : "register-tin-offline"}>
             Validate with RRA
           </Button>
+          {online ? null : <Offline id="register-tin-offline">You're offline. Connect to check the TIN with RRA.</Offline>}
         </div>
       ) : null}
 
@@ -180,7 +184,7 @@ export function SectionTin({
             and an officer sees that it was not checked here.
           </Callout>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={onValidate}>
+            <Button variant="secondary" onClick={onValidate} disabled={!online}>
               <RotateCw size={16} aria-hidden />
               Try again
             </Button>

@@ -36,12 +36,12 @@ export declare const HrUpload: z.ZodObject<{
     objectKey: string;
     mime: string;
     sizeBytes: number;
-    purpose: "document" | "photo" | "attachment";
+    purpose: "photo" | "document" | "attachment";
 }, {
     objectKey: string;
     mime: string;
     sizeBytes: number;
-    purpose: "document" | "photo" | "attachment";
+    purpose: "photo" | "document" | "attachment";
 }>;
 export type HrUpload = z.infer<typeof HrUpload>;
 /** A short lived link to a private file, fetched after a permission check. */
@@ -224,8 +224,8 @@ export declare const PayAccount: z.ZodObject<{
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "retired";
-    kind: "bank" | "momo";
     id: string;
+    kind: "bank" | "momo";
     createdAt: string;
     isPrimary: boolean;
     employeeId: string;
@@ -235,8 +235,8 @@ export declare const PayAccount: z.ZodObject<{
     momoPhone: string | null;
 }, {
     status: "active" | "retired";
-    kind: "bank" | "momo";
     id: string;
+    kind: "bank" | "momo";
     createdAt: string;
     isPrimary: boolean;
     employeeId: string;
@@ -260,8 +260,8 @@ export declare const PayAccountList: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "retired";
-        kind: "bank" | "momo";
         id: string;
+        kind: "bank" | "momo";
         createdAt: string;
         isPrimary: boolean;
         employeeId: string;
@@ -271,8 +271,8 @@ export declare const PayAccountList: z.ZodObject<{
         momoPhone: string | null;
     }, {
         status: "active" | "retired";
-        kind: "bank" | "momo";
         id: string;
+        kind: "bank" | "momo";
         createdAt: string;
         isPrimary: boolean;
         employeeId: string;
@@ -284,8 +284,8 @@ export declare const PayAccountList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     accounts: {
         status: "active" | "retired";
-        kind: "bank" | "momo";
         id: string;
+        kind: "bank" | "momo";
         createdAt: string;
         isPrimary: boolean;
         employeeId: string;
@@ -297,8 +297,8 @@ export declare const PayAccountList: z.ZodObject<{
 }, {
     accounts: {
         status: "active" | "retired";
-        kind: "bank" | "momo";
         id: string;
+        kind: "bank" | "momo";
         createdAt: string;
         isPrimary: boolean;
         employeeId: string;
@@ -489,10 +489,10 @@ export declare const EmployeeDocument: z.ZodObject<{
     updatedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     status: "submitted" | "approved" | "rejected" | "requested";
+    expired: boolean;
+    id: string;
     issuedOn: string | null;
     expiresOn: string | null;
-    id: string;
-    expired: boolean;
     employee: {
         employeeId: string;
         displayName: string;
@@ -515,10 +515,10 @@ export declare const EmployeeDocument: z.ZodObject<{
     }[];
 }, {
     status: "submitted" | "approved" | "rejected" | "requested";
+    expired: boolean;
+    id: string;
     issuedOn: string | null;
     expiresOn: string | null;
-    id: string;
-    expired: boolean;
     employee: {
         employeeId: string;
         displayName: string;
@@ -592,10 +592,10 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         updatedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "submitted" | "approved" | "rejected" | "requested";
+        expired: boolean;
+        id: string;
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
-        expired: boolean;
         employee: {
             employeeId: string;
             displayName: string;
@@ -618,10 +618,10 @@ export declare const EmployeeDocumentList: z.ZodObject<{
         }[];
     }, {
         status: "submitted" | "approved" | "rejected" | "requested";
+        expired: boolean;
+        id: string;
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
-        expired: boolean;
         employee: {
             employeeId: string;
             displayName: string;
@@ -646,10 +646,10 @@ export declare const EmployeeDocumentList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     documents: {
         status: "submitted" | "approved" | "rejected" | "requested";
+        expired: boolean;
+        id: string;
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
-        expired: boolean;
         employee: {
             employeeId: string;
             displayName: string;
@@ -674,10 +674,10 @@ export declare const EmployeeDocumentList: z.ZodObject<{
 }, {
     documents: {
         status: "submitted" | "approved" | "rejected" | "requested";
+        expired: boolean;
+        id: string;
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
-        expired: boolean;
         employee: {
             employeeId: string;
             displayName: string;
@@ -1255,8 +1255,8 @@ export declare const StaffAnnouncement: z.ZodObject<{
     updatedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     status: "published" | "archived";
-    expiresOn: string | null;
     id: string;
+    expiresOn: string | null;
     title: string;
     createdAt: string;
     body: string;
@@ -1273,8 +1273,8 @@ export declare const StaffAnnouncement: z.ZodObject<{
     commentCount: number;
 }, {
     status: "published" | "archived";
-    expiresOn: string | null;
     id: string;
+    expiresOn: string | null;
     title: string;
     createdAt: string;
     body: string;
@@ -1321,8 +1321,8 @@ export declare const StaffAnnouncementList: z.ZodObject<{
         updatedAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "published" | "archived";
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         title: string;
         createdAt: string;
         body: string;
@@ -1339,8 +1339,8 @@ export declare const StaffAnnouncementList: z.ZodObject<{
         commentCount: number;
     }, {
         status: "published" | "archived";
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         title: string;
         createdAt: string;
         body: string;
@@ -1359,8 +1359,8 @@ export declare const StaffAnnouncementList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     announcements: {
         status: "published" | "archived";
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         title: string;
         createdAt: string;
         body: string;
@@ -1379,8 +1379,8 @@ export declare const StaffAnnouncementList: z.ZodObject<{
 }, {
     announcements: {
         status: "published" | "archived";
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         title: string;
         createdAt: string;
         body: string;
@@ -1556,12 +1556,12 @@ export declare const DisciplinaryAction: z.ZodObject<{
         title: z.ZodString;
         kind: z.ZodEnum<["warning", "suspension", "dismissal"]>;
     }, "strip", z.ZodTypeAny, {
-        kind: "warning" | "suspension" | "dismissal";
         id: string;
+        kind: "warning" | "suspension" | "dismissal";
         title: string;
     }, {
-        kind: "warning" | "suspension" | "dismissal";
         id: string;
+        kind: "warning" | "suspension" | "dismissal";
         title: string;
     }>;
     description: z.ZodString;
@@ -1574,8 +1574,8 @@ export declare const DisciplinaryAction: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     length: number | null;
     type: {
-        kind: "warning" | "suspension" | "dismissal";
         id: string;
+        kind: "warning" | "suspension" | "dismissal";
         title: string;
     };
     id: string;
@@ -1593,8 +1593,8 @@ export declare const DisciplinaryAction: z.ZodObject<{
 }, {
     length: number | null;
     type: {
-        kind: "warning" | "suspension" | "dismissal";
         id: string;
+        kind: "warning" | "suspension" | "dismissal";
         title: string;
     };
     id: string;
@@ -1632,12 +1632,12 @@ export declare const DisciplinaryActionList: z.ZodObject<{
             title: z.ZodString;
             kind: z.ZodEnum<["warning", "suspension", "dismissal"]>;
         }, "strip", z.ZodTypeAny, {
-            kind: "warning" | "suspension" | "dismissal";
             id: string;
+            kind: "warning" | "suspension" | "dismissal";
             title: string;
         }, {
-            kind: "warning" | "suspension" | "dismissal";
             id: string;
+            kind: "warning" | "suspension" | "dismissal";
             title: string;
         }>;
         description: z.ZodString;
@@ -1650,8 +1650,8 @@ export declare const DisciplinaryActionList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         length: number | null;
         type: {
-            kind: "warning" | "suspension" | "dismissal";
             id: string;
+            kind: "warning" | "suspension" | "dismissal";
             title: string;
         };
         id: string;
@@ -1669,8 +1669,8 @@ export declare const DisciplinaryActionList: z.ZodObject<{
     }, {
         length: number | null;
         type: {
-            kind: "warning" | "suspension" | "dismissal";
             id: string;
+            kind: "warning" | "suspension" | "dismissal";
             title: string;
         };
         id: string;
@@ -1690,8 +1690,8 @@ export declare const DisciplinaryActionList: z.ZodObject<{
     actions: {
         length: number | null;
         type: {
-            kind: "warning" | "suspension" | "dismissal";
             id: string;
+            kind: "warning" | "suspension" | "dismissal";
             title: string;
         };
         id: string;
@@ -1711,8 +1711,8 @@ export declare const DisciplinaryActionList: z.ZodObject<{
     actions: {
         length: number | null;
         type: {
-            kind: "warning" | "suspension" | "dismissal";
             id: string;
+            kind: "warning" | "suspension" | "dismissal";
             title: string;
         };
         id: string;
@@ -1795,12 +1795,12 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
             title: z.ZodString;
             kind: z.ZodEnum<["warning", "suspension", "dismissal"]>;
         }, "strip", z.ZodTypeAny, {
-            kind: "warning" | "suspension" | "dismissal";
             id: string;
+            kind: "warning" | "suspension" | "dismissal";
             title: string;
         }, {
-            kind: "warning" | "suspension" | "dismissal";
             id: string;
+            kind: "warning" | "suspension" | "dismissal";
             title: string;
         }>;
         description: z.ZodString;
@@ -1813,8 +1813,8 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         length: number | null;
         type: {
-            kind: "warning" | "suspension" | "dismissal";
             id: string;
+            kind: "warning" | "suspension" | "dismissal";
             title: string;
         };
         id: string;
@@ -1832,8 +1832,8 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
     }, {
         length: number | null;
         type: {
-            kind: "warning" | "suspension" | "dismissal";
             id: string;
+            kind: "warning" | "suspension" | "dismissal";
             title: string;
         };
         id: string;
@@ -1855,8 +1855,8 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
     actions: {
         length: number | null;
         type: {
-            kind: "warning" | "suspension" | "dismissal";
             id: string;
+            kind: "warning" | "suspension" | "dismissal";
             title: string;
         };
         id: string;
@@ -1877,8 +1877,8 @@ export declare const CreateDisciplinaryActionResponse: z.ZodObject<{
     actions: {
         length: number | null;
         type: {
-            kind: "warning" | "suspension" | "dismissal";
             id: string;
+            kind: "warning" | "suspension" | "dismissal";
             title: string;
         };
         id: string;

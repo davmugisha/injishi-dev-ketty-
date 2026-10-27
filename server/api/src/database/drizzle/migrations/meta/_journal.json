@@ -526,6 +526,34 @@
       "when": 1793040436609,
       "tag": "0074_gtbank_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1793040496609,
+      "tag": "0075_adr075_business_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1793040556609,
+      "tag": "0076_adr075_identity_scans",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1793040616609,
+      "tag": "0077_adr075_franchise_agreement",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1793040676609,
+      "tag": "0078_adr075_org_franchises",
+      "breakpoints": true
     }
   ]
 }

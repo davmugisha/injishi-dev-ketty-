@@ -1,12 +1,17 @@
-import { RegistrationDraft } from '@injishi/contracts';
+import {
+  holdsIdNumber,
+  RegistrationDraft,
+  type RegistrationDraftRead,
+  type RegistrationDraftSaved,
+} from '@injishi/contracts';
 import {
   Body,
   Controller,
   Delete,
   Get,
   HttpCode,
-  NotFoundException,
   Put,
+  UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
@@ -21,35 +26,41 @@ import { UserThrottlerGuard } from '../../../shared/http/user-throttler.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
- * The registration wizard's answers between steps → /api/v1/me/registration-draft
- * (ADR-060). Saved after each step, so a person can close the tab, come back
- * on another day or another device, and carry on where they were.
+ * The registration wizard's answers → /api/v1/me/registration-draft (ADR-060),
+ * saved as they are typed (ADR-075 S9, AC-9), so a person can close the tab,
+ * come back on another day or another device, and reopen the step they left.
  *
  * The body is a `RegistrationDraft`, which refuses an ID number structurally
  * (its contract says how), so this route can never become a place where
- * National IDs pile up outside `identity_documents` and its access log.
+ * National IDs pile up outside `identity_documents` and its access log. A body
+ * holding one is a 422 before its shape is read; any other bad shape is the
+ * validation pipe's 400.
  */
 @Controller({ path: 'me/registration-draft', version: '1' })
 @UseGuards(SessionGuard, UserThrottlerGuard)
 export class RegistrationDraftController {
   constructor(private readonly drafts: RegistrationDraftService) {}
 
+  /** The answers, the checks the server wrote beside them, and when the answers were saved; nulls when none. */
   @Get()
   @Throttle({ money: { limit: 60, ttl: 60_000 } })
-  async read(@CurrentUser() user: SessionUser): Promise<{ draft: RegistrationDraft; savedAt: string }> {
-    const found = await this.drafts.read(user.id);
-    if (!found) throw new NotFoundException('No registration draft.');
-    return found;
+  read(@CurrentUser() user: SessionUser): Promise<RegistrationDraftRead> {
+    return this.drafts.read(user.id);
   }
 
+  /**
+   * Saved as the person types, debounced by the wizard: a burst of typing is
+   * one save, so a minute of steady work stays far under the ceiling.
+   */
   @Put()
-  @HttpCode(204)
-  @Throttle({ money: { limit: 60, ttl: 60_000 } })
-  async save(
-    @Body(new ZodValidationPipe(RegistrationDraft)) body: RegistrationDraft,
-    @CurrentUser() user: SessionUser,
-  ): Promise<void> {
-    await this.drafts.save(user.id, body);
+  @HttpCode(200)
+  @Throttle({ money: { limit: 120, ttl: 60_000 } })
+  async save(@Body() body: unknown, @CurrentUser() user: SessionUser): Promise<RegistrationDraftSaved> {
+    if (holdsIdNumber(body)) {
+      throw new UnprocessableEntityException('A registration draft never holds an ID number.');
+    }
+    const draft = new ZodValidationPipe(RegistrationDraft).transform(body);
+    return this.drafts.save(user.id, draft);
   }
 
   @Delete()

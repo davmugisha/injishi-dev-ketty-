@@ -1,37 +1,39 @@
 "use client";
 
 import {
-  ACCOMMODATION_CLASS_LABEL,
   CreateRegistrationRequest,
+  FranchiseDeclaration,
   IntendedOwner,
-  OPERATOR_CONTRACT_VERSION,
   PersonalDetails,
   PsfApplicationInput,
   type BrokerRegistrationSummary,
+  type BusinessKind,
   type IdentityStatus,
   type MyProfile,
   type OrgRegistrationStatus,
   type PsfTier,
   type RegistrantCapacity,
   type MobileMoneyNetwork,
+  type RegistrationDraftChecks,
+  type RegistrationDraftDone,
   type RegistrationFeeAttemptStatus,
   type RegistrationFeeQuote,
   type RegistrationPayRequest,
   type RegistrationSummary,
-  type VerifiedPerson,
-  businessTypeFor,
+  BUSINESS_KIND_LABEL,
   isRwandanAddress,
+  registerHeadingFor,
 } from "@injishi/contracts";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, CircleAlert, Landmark, PenLine } from "lucide-react";
+import { ArrowRight, CircleAlert, Landmark } from "lucide-react";
 import { Badge, Button } from "@injishi/web-ui";
 
 import { openAssistant } from "@/components/assistant/assistant-widget";
 import { fetchMyWorkspaces, type LabelledWorkspace } from "@/data/me";
 import { fetchIdentity } from "@/data/identity";
 import {
-  acceptRegistrationContract,
   checkTin,
+  clearRegistrationDraft,
   createRegistration,
   fetchMyProfile,
   fetchPsfTiers,
@@ -42,12 +44,12 @@ import {
   registerAsBroker,
   resolveRegistrationFee,
   resubmitRegistration,
-  saveRegistrationDraft,
 } from "@/data/registration";
 import type { RegistrationFeeMode } from "@/data/platform";
+import { useOnline } from "@/hooks/use-online";
 import { apiResultMessage, type ApiResult, type RefusalIssue } from "@/lib/api";
+import { chooseDraft, clearDeviceCopies, clearDeviceCopy, readDeviceCopy } from "@/lib/register-device-copy";
 import type { SessionUser } from "@/lib/session";
-import { type ContractSignature, type RegistrationContractInput } from "@/lib/registration-contract";
 import { formatNationalId } from "@/lib/rwanda-id";
 import { upiError } from "@/lib/upi";
 
@@ -71,16 +73,12 @@ import { RegisterSection } from "./register-section";
 import { Callout, RegisterShell, StepCard, StepFrame, StepSkeleton, type StepPrimary } from "./register-shell";
 import {
   STEP_TITLE,
-  countWord,
+  clampToOpenable,
   documentRows,
-  draftPhaseFor,
-  lockedReason,
   openableThrough,
   openingStep,
   pathFor,
-  proofStep,
   resumeStep,
-  savesOnLeave,
   sectionOrder,
   sectionStates,
   stepOrder,
@@ -88,31 +86,33 @@ import {
   type SectionId,
   type StepId,
 } from "./register-steps";
-import { fromServerDraft, isDraftPhase, toServerDraft } from "./register-draft";
+import { fromServerDraft, toServerDraft, type WizardAnswers } from "./register-draft";
 import { REGISTRATION_KINDS, findRegistrationKind, registrationForKind, type RegistrationKind } from "./registration-kinds";
 import { SectionIdentity } from "./section-identity";
 import { SectionLocation, missingLevels } from "./section-location";
 import { SectionProperty } from "./section-property";
 import { SectionTin, type TinView } from "./section-tin";
-import type { SignatureCapture } from "./signature-pad";
 import { composeFullName, IntendedOwnerFields, splitFullName, type PersonalDraft } from "./step-about-you";
+import { franchiseCandidate, franchiseLine } from "./franchise-draft";
+import { SectionFranchise } from "./section-franchise";
 import { StepBranchesPsf } from "./step-branches-psf";
-import { downloadSignedContract } from "./step-contract";
 import { StepDocuments, documentsReady } from "./step-documents";
-import { StepOverview, type ReviewRow } from "./step-overview";
 import { StepPay, feeInstrument, feeLimitProblem } from "./step-pay";
+import { StepReview, type ReviewRow } from "./step-review";
 import { StepType } from "./step-type";
+import { useDraftAutosave } from "./use-draft-autosave";
 import { formatRwf } from "./wizard-ui";
 
 /**
- * Business registration (F-S03 / FL01) as the Register.dc.html artboard draws
- * it (2026-10-19), on the real API.
+ * Business registration (F-S03 / FL01) as ADR-075 A1 decides it, on the real
+ * API: the owner presses List Business and walks five steps.
  *
- * SIX STEPS: Business type; TIN and licences (sections that unlock in order:
- * the TIN with RRA, your ID and the director check, the classification, the
- * location); Branches and PSF; Documents; Overview, where the agreement is
- * signed and the registration created; Pay. A residence walks five, with
- * Property and owner. `register-steps.ts` owns the order, the sections and the
+ * FIVE STEPS: Business (the kind when none arrived, then sections that show in
+ * order: the TIN with RRA and who is registering it, the classification, the
+ * location; then branches and PSF), You (the ID and the director check),
+ * Documents, Review (no agreement, no signature) and Pay, whose first press
+ * creates the registration. A residence walks the same five, with its property
+ * and UPI in Business. `register-steps.ts` owns the order, the sections and the
  * saving; this component owns the state and the calls.
  *
  * WHAT THE ARTBOARD DRAWS AND THE API CANNOT DO is left out or said plainly,
@@ -131,7 +131,7 @@ type Screen =
   | "resume"
   /** More than one registration in flight: which to open. */
   | "pending"
-  /** The six steps. */
+  /** The five steps. */
   | "steps"
   /** The broker's one short form. */
   | "broker"
@@ -165,10 +165,6 @@ const EMPTY_PERSONAL: PersonalDraft = {
 
 const KIGALI: Intl.DateTimeFormatOptions = { timeZone: "Africa/Kigali" };
 
-function clock(d: Date): string {
-  return d.toLocaleTimeString("en-GB", { ...KIGALI, hour: "2-digit", minute: "2-digit" });
-}
-
 function onDay(iso: string | null): string | null {
   if (!iso) return null;
   const d = new Date(iso);
@@ -178,9 +174,7 @@ function onDay(iso: string | null): string | null {
 }
 
 function kindOfSummary(summary: RegistrationSummary): RegistrationKind | null {
-  if (summary.domain === "residence") return "residence";
-  const cls = summary.accommodationClass;
-  return cls && findRegistrationKind(cls) ? (cls as RegistrationKind) : null;
+  return findRegistrationKind(summary.businessKind) ? (summary.businessKind as RegistrationKind) : null;
 }
 
 export default function RegisterWizard({
@@ -206,10 +200,10 @@ export default function RegisterWizard({
   const arrivalKind = initialKind;
 
   const [screen, setScreen] = useState<Screen>("resume");
-  const [step, setStep] = useState<StepId>("type");
+  const [step, setStep] = useState<StepId>("business");
   const [kind, setKind] = useState<RegistrationKind | null>(arrivalKind);
-  /** The kind is still the one `/host` sent, which keeps Business type out of the rail. */
-  const [carried, setCarried] = useState(arrivalKind !== null);
+  /** Business is showing the kind chooser: no kind yet, or Change was pressed. */
+  const [choosingKind, setChoosingKind] = useState(arrivalKind === null);
   const [capacity, setCapacity] = useState<RegistrantCapacity>("owner");
   const [capPick, setCapPick] = useState<RegistrantCapacity>("owner");
   const [intendedOwner, setIntendedOwner] = useState({ name: "", nationalId: "", email: "" });
@@ -232,7 +226,6 @@ export default function RegisterWizard({
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [identity, setIdentity] = useState<IdentityStatus | null>(null);
-  const [phoneFromRegister, setPhoneFromRegister] = useState(false);
   const [quote, setQuote] = useState<RegistrationFeeQuote | null>(null);
   const [summary, setSummary] = useState<RegistrationSummary | null>(null);
   const [broker, setBroker] = useState<BrokerRegistrationSummary | null>(null);
@@ -250,7 +243,14 @@ export default function RegisterWizard({
   /** One token per press, kept across retries of that press so a retry never prompts twice. */
   const payToken = useRef<string | null>(null);
   const [exiting, setExiting] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+  /** Where saving starts, once the wizard has opened on its answers (ADR-075 S9). */
+  const [saveStart, setSaveStart] = useState<{ savedAt: string | null; push: boolean } | null>(null);
+  /** A draft just reopened: moved back, once, to the first step still owing an answer. */
+  const clampOnResume = useRef(false);
+  /** The steps this person has opened, which is what the rail ticks and unlocks. */
+  const [visited, setVisited] = useState<ReadonlySet<StepId>>(() => new Set());
+  const online = useOnline();
+  const userId = user?.id ?? null;
 
   // Step two's sections: what has been answered and confirmed.
   const [tinCheck, setTinCheck] = useState<TinCheck>(null);
@@ -261,18 +261,19 @@ export default function RegisterWizard({
   const [intendedConfirmed, setIntendedConfirmed] = useState(false);
   const [upiConfirmed, setUpiConfirmed] = useState(false);
   const [locSaved, setLocSaved] = useState(false);
+  const [frConfirmed, setFrConfirmed] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
 
-  // Overview: the drawn mark, and when it was drawn; kept for the signed copy.
-  const [signature, setSignature] = useState<SignatureCapture | null>(null);
-  const [signedAt, setSignedAt] = useState<string | null>(null);
-  const [signed, setSigned] = useState<ContractSignature | null>(null);
+  // Review was walked: its answers held against the contract and Continue pressed.
+  const [reviewed, setReviewed] = useState(false);
+  // Pay: "I understand the registration fee is not refundable."
+  const [understood, setUnderstood] = useState(false);
 
   const role = kind ? registrationForKind(kind).role : null;
   const path: RegisterPath = pathFor(role, capacity);
-  const order = stepOrder(path, carried);
-  const identityVerified = identity?.kycStatus === "verified";
-  const canVerify = Boolean(identity && (identity.available.nationalId || identity.available.passport));
+  const order = stepOrder();
+  // Scanned and checked, or typed for PSF to check (ADR-075 S4): either way the server keeps the document.
+  const identityOnFile = identity?.onFile ?? null;
 
   const tin = normalizeTin(business.tin);
   const verdict = tinCheck?.tin === tin ? tinCheck.verdict : null;
@@ -291,19 +292,75 @@ export default function RegisterWizard({
     }
     setSummary(res.data);
     setKind(kindOfSummary(res.data));
-    setCarried(false);
-    // Where to resume is read from the SERVER, never from this browser (AC-R8):
-    // unpaid opens the agreement if it is unsigned, else Pay; anything past
-    // payment is In review.
+    setChoosingKind(false);
+    // Where to resume is read from the SERVER, never from this browser: an
+    // unpaid registration opens on Pay, anything past payment is In review.
     if (res.data.status === "pending_payment") {
       setScreen("steps");
-      setStep(res.data.contractAcceptedAt === null ? "overview" : "pay");
+      setStep("pay");
     } else setScreen("review");
     return true;
   }, []);
 
-  // What this person already has: a registration in flight opens straight on
-  // it; otherwise the draft the server kept, or the first question.
+  /**
+   * Reopen a saved draft where it was left (ADR-075 S9, AC-9): its answers, its
+   * step, what was marked done, and the checks the server kept, so a finished
+   * TIN check is not asked again (D-m). Only for the TIN still typed: a check
+   * counts while the answers still match it.
+   */
+  function restore(
+    saved: WizardAnswers,
+    savedKind: RegistrationKind,
+    checks: RegistrationDraftChecks,
+    stored: MyProfile | null,
+    fillVerified: (p: PersonalDraft) => PersonalDraft,
+  ) {
+    const done = new Set<RegistrationDraftDone>(saved.done);
+    setKind(savedKind);
+    setChoosingKind(false);
+    setCapacity(saved.capacity);
+    setCapPick(saved.capacity);
+    setIntendedOwner(saved.intendedOwner);
+    if (saved.typedPersonal) {
+      setPersonal(fillVerified(saved.personal));
+      // The stored profile was being changed: what was typed over it is kept, not the profile.
+      if (stored?.complete) setEditingProfile(true);
+    }
+    setBusiness(saved.business);
+    setBranches(saved.branches);
+    setDocs(saved.documents);
+    const tinNow = normalizeTin(saved.business.tin);
+    const answered = checks.tin && checks.tin.tin === tinNow ? { tin: tinNow, verdict: checks.tin.answer } : null;
+    setTinCheck(answered);
+    const registered =
+      answered?.verdict.result === "verified" && answered.verdict.business ? registryAddressDraft(answered.verdict.business) : null;
+    const here = saved.business.address;
+    setPrefilled(
+      registered !== null &&
+        registered.provinceId === here.provinceId &&
+        registered.districtId === here.districtId &&
+        registered.sectorId === here.sectorId,
+    );
+    setTinConfirmed(answered !== null && done.has("tin"));
+    setCarryOnPending(answered?.verdict.result === "pending" && done.has("tin"));
+    setIdConfirmed(done.has("owner") || done.has("id"));
+    setIntendedConfirmed(done.has("intended"));
+    setLocSaved(done.has("loc"));
+    setFrConfirmed(done.has("fr"));
+    setUpiConfirmed(done.has("upi"));
+    setReviewed(done.has("review"));
+    setVisited(new Set(order.slice(0, order.indexOf(saved.reached) + 1)));
+    setScreen(savedKind === "broker" ? "broker" : "steps");
+    setStep(resumeStep(saved.openStep));
+    clampOnResume.current = true;
+    // The one answer a draft never keeps on the helper path: the owner's National ID.
+    if (saved.capacity === "on_behalf_of" && done.has("intended")) {
+      setFormError("Type the owner's National ID again. A saved registration never keeps an ID number.");
+    }
+  }
+
+  // What this person already has: a draft for a business not yet registered reopens where it was left (ADR-075
+  // S9); otherwise a registration in flight opens straight on it, or the first question.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -316,7 +373,7 @@ export default function RegisterWizard({
       if (cancelled) return;
       if (prof.status === "ok") setProfile(prof.data);
       if (ident.status === "ok") setIdentity(ident.data);
-      const verifiedOnFile = ident.status === "ok" && ident.data.kycStatus === "verified" ? ident.data.verified : null;
+      const verifiedOnFile = ident.status === "ok" ? ident.data.onFile : null;
       const fillVerified = (p: PersonalDraft): PersonalDraft =>
         verifiedOnFile
           ? {
@@ -333,6 +390,35 @@ export default function RegisterWizard({
         prof.status === "ok" && !prof.data.complete ? seedFromPartialProfile(prof.data, p) : p;
       setPersonal((p) => fillVerified(fromProfile(p)));
 
+      // The answers: the server's, or this browser's copy when it holds typing the server has not had (AC-9).
+      // Anyone else's copy on this browser goes.
+      if (userId) clearDeviceCopies(userId);
+      const device = userId ? readDeviceCopy(userId) : null;
+      // A read that failed is not "nothing saved": this browser's copy, if any, stands in, and nothing is dropped.
+      const read = stored.status === "ok" ? stored.data : null;
+      const choice = read
+        ? chooseDraft(read, device)
+        : { draft: device?.draft ?? null, push: device?.pending ?? false, dropDevice: false };
+      const checks = read?.checks ?? {};
+      if (choice.dropDevice && userId) clearDeviceCopy(userId);
+      const saved = choice.draft
+        ? fromServerDraft(choice.draft, { personal: EMPTY_PERSONAL, business: EMPTY_BUSINESS, address: EMPTY_ADDRESS }, newBranchDraft)
+        : null;
+      const savedKind =
+        saved?.kind && findRegistrationKind(saved.kind as RegistrationKind) ? (saved.kind as RegistrationKind) : null;
+      // A draft for a business not yet registered, of the kind this person came for (any, when they came for
+      // none). One the first Pay press already made into a registration opens on that registration instead.
+      if (
+        saved &&
+        savedKind !== null &&
+        checks.registrationId === undefined &&
+        (arrivalKind === null || savedKind === arrivalKind)
+      ) {
+        restore(saved, savedKind, checks, prof.status === "ok" ? prof.data : null, fillVerified);
+        setSaveStart({ savedAt: read ? read.savedAt : (device?.basedOn ?? null), push: choice.push });
+        return;
+      }
+
       const inFlight =
         ws.status === "ok"
           ? ws.workspaces.filter(
@@ -348,38 +434,13 @@ export default function RegisterWizard({
         setScreen("pending");
         return;
       }
-
-      // The draft the server kept (ADR-060), unless the person has since
-      // arrived from `/host` with a different answer.
-      const saved =
-        stored.status === "ok" && stored.data
-          ? fromServerDraft(stored.data, { personal: EMPTY_PERSONAL, business: EMPTY_BUSINESS, address: EMPTY_ADDRESS }, newBranchDraft)
-          : null;
-      const savedKind =
-        saved?.kind && findRegistrationKind(saved.kind as RegistrationKind) ? (saved.kind as RegistrationKind) : null;
-      if (saved && (arrivalKind === null || savedKind === arrivalKind)) {
-        const carriedNow = savedKind !== null && savedKind === arrivalKind;
-        const savedRole = savedKind ? registrationForKind(savedKind).role : null;
-        setKind(savedKind);
-        setCarried(carriedNow);
-        setCapacity(saved.capacity);
-        setCapPick(saved.capacity);
-        setIntendedOwner(saved.intendedOwner);
-        if (saved.typedPersonal) setPersonal(fillVerified(saved.personal));
-        setBusiness(saved.business);
-        setBranches(saved.branches);
-        setScreen(savedKind === "broker" ? "broker" : "steps");
-        setStep(resumeStep(pathFor(savedRole, saved.capacity), savedKind !== null));
-        if (savedKind !== null && savedKind !== "broker") {
-          setFormError(
-            "We kept your answers from before. Checks are never kept in a draft, so validate the TIN with RRA again" +
-              (verifiedOnFile ? "." : ", and check your ID."),
-          );
-        }
-        return;
-      }
+      // A fresh start: what it opens on is where saving starts, and nothing is saved behind it yet.
       setScreen(arrivalKind === "broker" ? "broker" : "steps");
-      setStep(openingStep(pathFor(arrivalKind ? registrationForKind(arrivalKind).role : null, "owner"), arrivalKind !== null));
+      setStep(openingStep());
+      setSaveStart({ savedAt: null, push: false });
+      if (!read && !device) {
+        setFormError("We couldn't read the answers you saved before. If you had started, reload the page before you type.");
+      }
     })();
     return () => {
       cancelled = true;
@@ -387,12 +448,29 @@ export default function RegisterWizard({
     // Once, on mount. The gate renders the wizard only for a resolved session.
   }, []);
 
-  /** The answers in the server's draft shape, saved at `phase`. */
-  const saveDraft = useCallback(
-    async (at: "place" | "business" | "documents") => {
-      const res = await saveRegistrationDraft(
-        toServerDraft({
-          phase: at,
+  useEffect(() => {
+    if (screen === "steps") setVisited((v) => (v.has(step) ? v : new Set(v).add(step)));
+  }, [step, screen]);
+
+  // Save as you type (ADR-075 S9, AC-9): the answers as they stand, with the step that is open, how far the walk
+  // has reached and what is marked done, while a business not yet registered is walked. Once the registration
+  // exists nothing is saved from here: the first Pay press marked the draft with it, and its fee clears it.
+  const reachedIndex = order.reduce((at, id, i) => (visited.has(id) || id === step ? i : at), 0);
+  const marks: [boolean, RegistrationDraftDone][] = [
+    [tinConfirmed, "tin"],
+    [idConfirmed, path === "owner" ? "owner" : "id"],
+    [intendedConfirmed, "intended"],
+    [locSaved, "loc"],
+    [frConfirmed, "fr"],
+    [upiConfirmed, "upi"],
+    [reviewed, "review"],
+  ];
+  const draftNow =
+    screen === "steps" && summary === null && kind !== null && kind !== "broker" && saveStart !== null
+      ? toServerDraft({
+          openStep: step,
+          reached: order[reachedIndex] ?? step,
+          done: marks.filter(([on]) => on).map(([, mark]) => mark),
           kind,
           capacity,
           typedPersonal: !(profile?.complete === true && !editingProfile),
@@ -400,52 +478,31 @@ export default function RegisterWizard({
           intendedOwner,
           business,
           branches,
-        }),
-      );
-      if (res.status === "ok") setSavedAt(`Saved ${clock(new Date())}`);
-    },
-    [kind, capacity, profile, editingProfile, personal, intendedOwner, business, branches],
-  );
+          documents: docs,
+        })
+      : null;
+  const autosave = useDraftAutosave({ userId, draft: draftNow, start: saveStart });
 
-  /** The steps this person has opened, which is what the rail ticks and unlocks. */
-  const [visited, setVisited] = useState<ReadonlySet<StepId>>(() => new Set());
+  // The fee, by kind (ADR-075 AC-13): 50,000 RWF for every business PSF reviews.
   useEffect(() => {
-    if (screen === "steps") setVisited((v) => (v.has(step) ? v : new Set(v).add(step)));
-  }, [step, screen]);
-
-  // A step saves when it is LEFT (ADR-060), so the person can come back on
-  // another day or device. Once the registration exists nothing is saved again.
-  const previousStep = useRef<StepId | null>(null);
-  useEffect(() => {
-    if (screen !== "steps") return;
-    const from = previousStep.current;
-    previousStep.current = step;
-    const phase = from ? draftPhaseFor(from) : null;
-    if (summary !== null || kind === null || phase === null || !isDraftPhase(phase) || !savesOnLeave(from, step)) return;
-    void saveDraft(phase);
-    // Deliberately the step only: typing does not save, moving on does.
-  }, [step, screen]);
-
-  // The fee, keyed by the role.
-  useEffect(() => {
-    if (role === null || role === "broker") {
+    if (kind === null || kind === "broker") {
       setQuote(null);
       return;
     }
     let cancelled = false;
     void (async () => {
-      const res = await fetchRegistrationFee(businessTypeFor(role));
+      const res = await fetchRegistrationFee(registrationForKind(kind).businessKind);
       if (!cancelled) setQuote(res.status === "ok" ? res.data : null);
     })();
     return () => {
       cancelled = true;
     };
-  }, [role]);
-  const fee = resolveRegistrationFee({ summary, quote, accommodationType: role === "broker" ? null : kind }).amountRwf;
+  }, [kind]);
+  const fee = resolveRegistrationFee({ summary, quote });
 
   // PSF's tiers, read once the step that offers them is reached.
   useEffect(() => {
-    if (step !== "branches" || tiers !== null || tiersFailed) return;
+    if (step !== "business" || tiers !== null || tiersFailed) return;
     let cancelled = false;
     void fetchPsfTiers().then((res) => {
       if (cancelled) return;
@@ -464,7 +521,7 @@ export default function RegisterWizard({
     const before = kind ? registrationForKind(kind).role : null;
     const derived = registrationForKind(next);
     setKind(next);
-    setCarried(false);
+    setChoosingKind(false);
     setErrors({});
     setFormError("");
     // A changed register (RRA for a TIN, the land register for a UPI) starts
@@ -485,10 +542,10 @@ export default function RegisterWizard({
     }));
   };
   const changeKind = () => {
-    setCarried(false);
+    setChoosingKind(true);
     setFormError("");
     setScreen("steps");
-    setStep("type");
+    setStep("business");
   };
 
   // --- step two: the TIN --------------------------------------------------------
@@ -496,7 +553,7 @@ export default function RegisterWizard({
     if (!/^\d{9}$/.test(tin)) return;
     setTinChecking(true);
     setCarryOnPending(false);
-    const res = await checkTin(tin);
+    const res = await checkTin(tin, capPick);
     setTinChecking(false);
     if (res.status !== "ok") {
       // No answer at all reads as RRA being down: never a refusal, because the
@@ -550,47 +607,69 @@ export default function RegisterWizard({
     }
     setCapacity(capPick);
     setTinConfirmed(true);
-    if (capPick === "on_behalf_of") {
-      setIntendedOwner((o) => ({ ...o, name: o.name || registry?.directors[0]?.name || "" }));
+    if (capPick === "on_behalf_of") void nameTheOwner();
+  };
+
+  /**
+   * The helper picks the owner from RRA's directors, which come by name only to
+   * the helper's capacity (ADR-075 AC-7): asked again when the answer on hand
+   * was given to an owner.
+   */
+  const nameTheOwner = async () => {
+    let directors = registry?.directors ?? [];
+    if (/^\d{9}$/.test(tin) && directors.length === 0) {
+      const named = await checkTin(tin, "on_behalf_of");
+      if (named.status === "ok") {
+        setTinCheck({ tin, verdict: named.data });
+        directors = named.data.result === "verified" ? (named.data.business?.directors ?? []) : [];
+      }
     }
+    setIntendedOwner((o) => ({ ...o, name: o.name || directors[0]?.name || "" }));
   };
 
   // --- step two: the ID -------------------------------------------------------
-  const onVerified = useCallback(
-    (person: VerifiedPerson) => {
-      setPersonal((p) => ({
-        ...p,
-        ...splitFullName(person.fullName),
-        dateOfBirth: person.dateOfBirth,
-        gender: person.gender ?? p.gender,
-        phoneE164: p.phoneE164 || person.phoneE164 || "",
-        documentType: person.documentType,
-        issuingCountry: person.issuingCountry,
-      }));
-      if (person.phoneE164) setPhoneFromRegister(true);
+  /** A scan or typed details changed what is on file: read it, fill the draft from it, and ask RRA again. */
+  const onIdentity = useCallback(
+    (next?: IdentityStatus) => {
       setErrors({});
       setFormError("");
       void (async () => {
-        // Verifying rewrote the stored profile (name, birth date, ID), so the
-        // one loaded with the page is stale: editing it would send the old name.
-        const [res, prof] = await Promise.all([fetchIdentity(), fetchMyProfile()]);
-        if (res.status === "ok") setIdentity(res.data);
+        // Recording an identity rewrote the stored profile (name, birth date, ID), so the one loaded with the
+        // page is stale: editing it would send the old name.
+        const [res, prof] = await Promise.all([
+          next ? Promise.resolve({ status: "ok" as const, data: next }) : fetchIdentity(),
+          fetchMyProfile(),
+        ]);
         if (prof.status === "ok") setProfile(prof.data);
-        // Whether this ID is one of the directors is RRA's answer to the TIN
-        // ASKED BY A VERIFIED CALLER, so the TIN is asked again now.
+        if (res.status !== "ok") return;
+        setIdentity(res.data);
+        const person = res.data.onFile;
+        if (!person) return;
+        setPersonal((p) => ({
+          ...p,
+          ...splitFullName(person.fullName),
+          dateOfBirth: person.dateOfBirth,
+          gender: person.gender ?? p.gender,
+          documentType: person.documentType,
+          // The server holds the number now; the browser never keeps it.
+          documentNumber: "",
+          issuingCountry: person.issuingCountry,
+        }));
+        // Whether this ID is one of the directors is RRA's answer to the TIN asked by a caller with an ID on
+        // file, so the TIN is asked again now. The server matches again at creation (AC-7).
         if (tinCheck && /^\d{9}$/.test(tinCheck.tin)) {
-          const again = await checkTin(tinCheck.tin);
+          const again = await checkTin(tinCheck.tin, capacity);
           if (again.status === "ok") setTinCheck({ tin: tinCheck.tin, verdict: again.data });
         }
       })();
     },
-    [tinCheck],
+    [tinCheck, capacity],
   );
 
   const confirmId = () => {
     setErrors({});
     if (!(profile?.complete === true && !editingProfile)) {
-      const parsed = PersonalDetails.safeParse(personalCandidate(personal, identityVerified));
+      const parsed = PersonalDetails.safeParse(personalCandidate(personal, identityOnFile !== null));
       if (!parsed.success) {
         setErrors(issuesToErrors(parsed.error.issues));
         return;
@@ -606,11 +685,30 @@ export default function RegisterWizard({
     setPersonal((p) => (profile ? seedFromPartialProfile(profile, p) : p));
   };
 
+  /**
+   * Franchise (ADR-075 AC-8): No, or an answer the contract accepts. A business
+   * that is not a franchisee keeps no franchise agreement, so one uploaded
+   * before the answer changed leaves the documents with it.
+   */
+  const confirmFranchise = () => {
+    setErrors({});
+    if (business.franchiseRole === "") return;
+    if (business.franchiseRole !== "none") {
+      const parsed = FranchiseDeclaration.safeParse(franchiseCandidate(business));
+      if (!parsed.success) {
+        setErrors(prefix("business.franchise", issuesToErrors(parsed.error.issues)));
+        return;
+      }
+    }
+    if (business.franchiseRole !== "franchisee") setDocs((d) => d.filter((doc) => doc.kind !== "franchise_agreement"));
+    setFrConfirmed(true);
+  };
+
   const prepareForOwner = () => {
     setCapacity("on_behalf_of");
     setCapPick("on_behalf_of");
-    setIntendedOwner((o) => ({ ...o, name: o.name || registry?.directors[0]?.name || "" }));
     setIdConfirmed(true);
+    void nameTheOwner();
   };
 
   const confirmIntended = () => {
@@ -627,8 +725,8 @@ export default function RegisterWizard({
   const personalOk =
     profile?.complete === true && !editingProfile
       ? true
-      : PersonalDetails.safeParse(personalCandidate(personal, identityVerified)).success;
-  const identityOk = (identityVerified || !canVerify) && personalOk && idConfirmed;
+      : PersonalDetails.safeParse(personalCandidate(personal, identityOnFile !== null)).success;
+  const identityOk = identityOnFile !== null && personalOk && idConfirmed;
   const satisfied = (id: SectionId): boolean => {
     switch (id) {
       case "tin":
@@ -647,12 +745,21 @@ export default function RegisterWizard({
         return true;
       case "loc":
         return locSaved && missingLevels(business.address).length === 0;
+      case "fr":
+        return (
+          frConfirmed &&
+          (business.franchiseRole === "none" ||
+            (business.franchiseRole !== "" && FranchiseDeclaration.safeParse(franchiseCandidate(business)).success))
+        );
       case "upi":
         return upiConfirmed && business.legalName.trim().length >= 2 && upiError(business.upi) === null;
     }
   };
-  const sections = sectionOrder(path);
-  const { states: sectionState, allDone: proofDone } = sectionStates(sections, satisfied);
+  const bizSections = sectionOrder(path, "business");
+  const youSections = sectionOrder(path, "you");
+  const { states: bizState, allDone: businessDone } = sectionStates(bizSections, satisfied);
+  const { states: youState, allDone: youDone } = sectionStates(youSections, satisfied);
+  const sectionState: Record<string, string> = { ...bizState, ...youState };
 
   const onFile = documentOnFileFor(identity, profile);
   /** The ID line PSF's form shows, saying where the number comes from. */
@@ -662,29 +769,35 @@ export default function RegisterWizard({
     business.psfMember !== false ||
     business.psfApply !== true ||
     PsfApplicationInput.safeParse(psfCandidate(psf, documentOnFile !== null)).success;
-  const docsState = documentsReady(path, docs);
-  const accepted = summary !== null && summary.contractAcceptedAt !== null;
+  // The rows Documents asks for, by the kind the org will carry (ADR-075 S5).
+  const documentKind: BusinessKind | null = kind && kind !== "broker" ? registrationForKind(kind).businessKind : null;
+  const docsState = documentsReady(documentKind, docs);
   const paid = summary !== null && summary.status !== "pending_payment";
+  const kindOk =
+    kind !== null && kind !== "broker" && !choosingKind && (kind !== "other" || business.accommodationClassOther.trim() !== "");
 
   const complete = (id: StepId): boolean => {
-    if (summary !== null) return id !== "pay" ? (id === "overview" ? accepted : true) : paid;
+    if (summary !== null) return id === "pay" ? paid : true;
     switch (id) {
-      case "type":
-        return kind !== null && kind !== "broker" && (kind !== "other" || business.accommodationClassOther.trim() !== "");
-      case "tin":
-      case "property":
-        return proofDone;
-      case "branches":
-        return psfReady;
+      case "business":
+        return kindOk && businessDone && psfReady;
+      case "you":
+        return youDone;
       case "documents":
         return docsState.ok;
-      case "overview":
-        return accepted;
+      case "review":
+        return reviewed;
       case "pay":
         return paid;
     }
   };
   const openable = openableThrough(order, complete);
+  // Checked once, after a reopened draft's answers are on screen (ADR-075 S9).
+  useEffect(() => {
+    if (!clampOnResume.current || screen !== "steps") return;
+    clampOnResume.current = false;
+    setStep((at) => clampToOpenable(order, at, openable));
+  }, [screen, openable, order]);
 
   /** Every answer against the contract, before the overview is shown. */
   const requestCandidate = () => {
@@ -692,7 +805,7 @@ export default function RegisterWizard({
     return {
       role,
       capacity,
-      ...(sendPersonal ? { personal: personalCandidate(personal, identityVerified) } : {}),
+      ...(sendPersonal ? { personal: personalCandidate(personal, identityOnFile !== null) } : {}),
       business: businessCandidate(business, role, kind, legalName, docs, branches, psf, documentOnFile !== null),
       ...(capacity === "on_behalf_of"
         ? {
@@ -708,9 +821,9 @@ export default function RegisterWizard({
 
   /** Where an issue at `key` is answered, so a refusal sends the person there. */
   const stepForIssue = (key: string): StepId => {
-    if (key.startsWith("business.branches") || key.startsWith("business.psf")) return "branches";
     if (key.startsWith("business.certificates")) return "documents";
-    return proofStep(path);
+    if (key.startsWith("personal") || key.startsWith("capacity") || key.startsWith("intendedOwner")) return "you";
+    return "business";
   };
 
   const goTo = (to: StepId) => {
@@ -723,113 +836,55 @@ export default function RegisterWizard({
     setErrors({});
     setFormError("");
     const i = order.indexOf(step);
-    if (step === "branches" && !psfReady) {
+    if (step === "business" && !psfReady) {
       const parsed = PsfApplicationInput.safeParse(psfCandidate(psf, documentOnFile !== null));
       if (!parsed.success) setErrors(prefix("psf", issuesToErrors(parsed.error.issues)));
       setFormError("Some of the PSF application needs fixing.");
       return;
     }
-    if (step === "documents") {
+    if (step === "documents" || step === "review") {
       const parsed = CreateRegistrationRequest.safeParse(requestCandidate());
       if (!parsed.success) {
         const found = issuesToErrors(parsed.error.issues);
         setErrors(found);
         const first = Object.keys(found)[0] ?? "";
         setStep(stepForIssue(first));
-        setFormError(`Something needs fixing before the overview: ${Object.values(found)[0] ?? "check your answers"}`);
+        setFormError(`Something needs fixing first: ${Object.values(found)[0] ?? "check your answers"}`);
         return;
       }
+      if (step === "review") setReviewed(true);
     }
     const to = order[i + 1];
     if (to) setStep(to);
   };
 
-  const createFromAnswers = async (): Promise<ApiResult<RegistrationSummary> | null> => {
+  const createFromAnswers = async (idempotencyKey: string): Promise<ApiResult<RegistrationSummary> | null> => {
     if (!role) return null;
     const parsed = CreateRegistrationRequest.safeParse(requestCandidate());
     if (!parsed.success) {
       const found = issuesToErrors(parsed.error.issues);
       setErrors(found);
-      setFormError(`Something needs fixing: ${Object.values(found)[0] ?? "check your answers"}. Use Edit to go back to it.`);
+      setFormError(`Something needs fixing: ${Object.values(found)[0] ?? "check your answers"}. Use Edit on Review to go back to it.`);
       return null;
     }
-    return createRegistration(parsed.data);
+    return createRegistration(parsed.data, idempotencyKey);
   };
 
   /**
-   * Sign and continue: create, then accept the agreement, the server's own
-   * order (ADR-053 AC-R8). Each call is skipped once it has happened, so a press
-   * after a partial failure resumes where it stopped.
+   * Pay (ADR-075 D-l): the first press creates the registration from the
+   * answers, then pays. The `Idempotency-Key` is minted HERE, once per press,
+   * never inside a retry, so a double press or a retry lands on the one
+   * registration this press created (AC-14). A press after a failed payment
+   * finds the registration already made and only pays. Paying is a mobile money
+   * Request to Pay (073-gtbank-payments AC-16, AC-17): settled at once when the
+   * fee is free here, otherwise an attempt the pay step polls.
    */
-  const signAndCreate = async () => {
-    setBusy(true);
-    setFormError("");
-    try {
-      let current = summary;
-      if (!current) {
-        const created = await createFromAnswers();
-        if (created === null) return;
-        if (created.status !== "ok") {
-          if (created.status === "refused" && created.issues) setErrors(refusalToErrors(created.issues));
-          setFormError(apiResultMessage(created));
-          return;
-        }
-        current = created.data;
-        setSummary(current);
-      }
-      if (current.status !== "pending_payment") {
-        setScreen("review");
-        return;
-      }
-      if (current.contractAcceptedAt === null) {
-        const acc = await acceptRegistrationContract(current.orgId, OPERATOR_CONTRACT_VERSION);
-        if (acc.status !== "ok") {
-          if (acc.status === "refused" && acc.code === "contract_not_open") {
-            const now = await fetchRegistration(current.orgId);
-            if (now.status === "ok") {
-              setSummary(now.data);
-              setScreen("review");
-              return;
-            }
-          }
-          setFormError(apiResultMessage(acc));
-          return;
-        }
-        current = acc.data;
-        setSummary(current);
-      }
-      if (signature) {
-        setSigned({
-          dataUrl: signature.dataUrl,
-          method: signature.method,
-          signedName: registrantName,
-          signedAt: signedAt ?? new Date().toISOString(),
-        });
-      }
-      setStep("pay");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  /** A fee press reached an answer the wizard can show. */
-  const takeFeeAttempt = (attempt: RegistrationFeeAttemptStatus) => {
-    setSummary(attempt.registration);
-    if (attempt.state === "prompting") {
-      setFeeAttempt(attempt);
-      setFeeEnded(null);
-      return;
-    }
-    // Final either way: the next press is a new press, with a new token.
-    payToken.current = null;
-    setFeeAttempt(null);
-    setFeeEnded(attempt.state === "confirmed" ? null : (attempt.failureReason ?? "The payment did not go through."));
-  };
-
-  const pay = async () => {
-    if (!summary) return;
+  const payNow = async () => {
     setFormError("");
     setPayProblem(null);
+    // The number is read before anything is created, so a press that cannot be charged creates nothing
+    // (073-gtbank-payments AC-23). The token is one per press, kept across retries of that press, so a retry never
+    // prompts twice.
     let body: RegistrationPayRequest = {};
     if (feeMode !== "free") {
       const chosen = feeInstrument(payPhone, feeNetworks, feeMaxRwf, fee);
@@ -841,20 +896,65 @@ export default function RegisterWizard({
       body = { attemptToken: payToken.current, instrument: chosen.instrument };
     }
     setBusy(true);
-    const res = await payRegistrationFee(summary.orgId, body);
-    setBusy(false);
-    if (res.status !== "ok") {
-      // The token is kept: pressing again is the same press, so the server
-      // replays it rather than prompting a second time.
-      setFormError(apiResultMessage(res));
+    try {
+      let current = summary;
+      if (!current) {
+        // The draft stays the answers' editable source until the fee settles (D-l), so it holds the last of them.
+        await autosave.flush();
+        const created = await createFromAnswers(crypto.randomUUID());
+        if (created === null) return;
+        if (created.status !== "ok") {
+          if (created.status === "refused" && created.issues) {
+            const found = refusalToErrors(created.issues);
+            setErrors(found);
+            const first = Object.keys(found)[0];
+            if (first) setStep(stepForIssue(first));
+          }
+          setFormError(apiResultMessage(created));
+          return;
+        }
+        current = created.data;
+        setSummary(current);
+      }
+      if (current.status !== "pending_payment") {
+        if (userId) clearDeviceCopy(userId);
+        setScreen("review");
+        return;
+      }
+      const res = await payRegistrationFee(current.orgId, body);
+      if (res.status !== "ok") {
+        // The token is kept: pressing again is the same press, so the server replays it rather than prompting a
+        // second time.
+        setFormError(apiResultMessage(res));
+        return;
+      }
+      if (res.data.kind === "settled") {
+        payToken.current = null;
+        // Submitted: the server cleared its draft as the fee settled (D-m), and this browser's copy goes too (AC-9).
+        if (res.data.registration.status !== "pending_payment" && userId) clearDeviceCopy(userId);
+        setSummary(res.data.registration);
+        return;
+      }
+      takeFeeAttempt(res.data.attempt);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** A fee press reached an answer the wizard can show. */
+  const takeFeeAttempt = (attempt: RegistrationFeeAttemptStatus) => {
+    setSummary(attempt.registration);
+    // Submitted: the server cleared its draft as the fee settled (D-m), and this browser's copy goes too (AC-9).
+    if (attempt.registration.status !== "pending_payment" && userId) clearDeviceCopy(userId);
+    if (attempt.state === "prompting") {
+      setFeeAttempt(attempt);
+      setFeeEnded(null);
       return;
     }
-    if (res.data.kind === "settled") {
-      payToken.current = null;
-      setSummary(res.data.registration);
-      return;
-    }
-    takeFeeAttempt(res.data.attempt);
+    // Final either way: the next press is a new press, with a new token.
+    payToken.current = null;
+    setFeeAttempt(null);
+    setFeeEnded(attempt.state === "confirmed" ? null : (attempt.failureReason ?? "The payment did not go through."));
   };
 
   // --- broker ------------------------------------------------------------------
@@ -863,7 +963,7 @@ export default function RegisterWizard({
     setFormError("");
     const sendPersonal = !(profile?.complete === true && !editingProfile);
     if (sendPersonal) {
-      const parsed = PersonalDetails.safeParse(personalCandidate(personal, identityVerified));
+      const parsed = PersonalDetails.safeParse(personalCandidate(personal, identityOnFile !== null));
       if (!parsed.success) {
         setErrors(issuesToErrors(parsed.error.issues));
         setFormError("Some of your details need fixing.");
@@ -872,7 +972,7 @@ export default function RegisterWizard({
     }
     setBusy(true);
     const res = await registerAsBroker(
-      sendPersonal ? { personal: PersonalDetails.parse(personalCandidate(personal, identityVerified)) } : {},
+      sendPersonal ? { personal: PersonalDetails.parse(personalCandidate(personal, identityOnFile !== null)) } : {},
     );
     setBusy(false);
     if (res.status !== "ok") {
@@ -898,12 +998,19 @@ export default function RegisterWizard({
     setScreen("review");
   };
 
-  /** A fresh registration, beside whatever is already in flight. */
-  const startNew = () => {
+  /**
+   * A fresh registration, beside whatever is already in flight. It starts from
+   * nothing saved: the draft, its checks and this browser's copy go first, so
+   * nothing of the last business is carried into it.
+   */
+  const startNew = async () => {
+    await clearRegistrationDraft();
+    if (userId) clearDeviceCopy(userId);
+    autosave.reset();
+    setVisited(new Set());
     setSummary(null);
-    setSigned(null);
-    setSignature(null);
-    setSignedAt(null);
+    setReviewed(false);
+    setUnderstood(false);
     setErrors({});
     setFormError("");
     setTinCheck(null);
@@ -912,6 +1019,7 @@ export default function RegisterWizard({
     setIntendedConfirmed(false);
     setUpiConfirmed(false);
     setLocSaved(false);
+    setFrConfirmed(false);
     setPrefilled(false);
     setCarryOnPending(false);
     setDocs([]);
@@ -927,21 +1035,20 @@ export default function RegisterWizard({
       accommodationClassOther: derived?.accommodationClassOther ?? "",
     });
     setKind(arrivalKind);
-    setCarried(arrivalKind !== null);
+    setChoosingKind(arrivalKind === null);
     setScreen(arrivalKind === "broker" ? "broker" : "steps");
-    setStep(openingStep(pathFor(derived?.role ?? null, "owner"), arrivalKind !== null));
+    setStep(openingStep());
   };
 
   const saveAndExit = async () => {
     setExiting(true);
-    const at = draftPhaseFor(step);
-    if (screen === "steps" && at && summary === null && kind) await saveDraft(at);
+    if (draftNow) await autosave.flush();
     window.location.assign("/start");
   };
 
   /** "Apply now": what the wizard already knows goes into PSF's form. */
   const seedPsf = () => {
-    const verifiedPerson = identity?.verified ?? null;
+    const verifiedPerson = identity?.onFile ?? null;
     const names = verifiedPerson ? splitFullName(verifiedPerson.fullName) : personal;
     setPsf((p) => ({
       ...p,
@@ -960,40 +1067,25 @@ export default function RegisterWizard({
 
   // --- render ------------------------------------------------------------------
   const kindEntry = kind ? (REGISTRATION_KINDS.find((k) => k.value === kind) ?? null) : null;
-  const summaryKindLabel = summary
-    ? summary.domain === "residence"
-      ? "Residence"
-      : summary.accommodationClass
-        ? (ACCOMMODATION_CLASS_LABEL[summary.accommodationClass as keyof typeof ACCOMMODATION_CLASS_LABEL] ?? null)
-        : null
-    : null;
+  const summaryKindLabel = summary ? BUSINESS_KIND_LABEL[summary.businessKind] : null;
   const kindLabel = kindEntry?.label ?? summaryKindLabel ?? "business";
   const landlord = path === "landlord";
 
-  const verifiedName = identity?.verified?.fullName ?? null;
+  const verifiedName = identity?.onFile?.fullName ?? null;
   const registrantName =
     profile?.complete === true && !editingProfile
       ? (profile.fullName ?? composeFullName(personal))
       : (verifiedName ?? composeFullName(personal));
   const idLine = onFile?.label ?? (personal.documentNumber ? `National ID ${formatNationalId(personal.documentNumber)}` : null);
-  const checkedBy =
-    identity?.method === "document_scan"
-      ? "Checked from your passport"
-      : identity?.method === "registry"
-        ? "Checked by the population register"
-        : identityVerified
-          ? "Verified"
-          : null;
+  // "Checked" only after a machine check passed; otherwise PSF checks it (AC-6).
+  const checkedBy = identityOnFile ? (identityOnFile.checked ? "Checked" : "PSF will check your ID") : null;
 
   const businessNamed = summary?.legalName ?? (landlord ? (upiConfirmed ? business.legalName.trim() : "") : registry && tinConfirmed ? legalName : "");
+  // One h1 that names the type, and the business's name as one line under it once RRA has returned it (AC-2).
+  const headingKind = summary?.businessKind ?? (kind && kind !== "broker" && !choosingKind ? registrationForKind(kind).businessKind : null);
   const heading = {
-    eyebrow: landlord ? "Residence registration" : "Business registration",
-    title: businessNamed ? `Register ${businessNamed}` : landlord ? "Register your residence" : "Register your business",
-    sub: landlord
-      ? `${countWord(order.length)} short steps for a property let on a lease. The population register confirms who you are.`
-      : path === "helper"
-        ? "You prepare it and name the owner, who claims it once Injishi approves it."
-        : `${countWord(order.length)} short steps. RRA and the population register confirm the business is yours, so you type very little.`,
+    title: headingKind ? registerHeadingFor(headingKind) : "List your business",
+    sub: businessNamed || null,
   };
 
   const SECTION_TITLE: Record<SectionId, string> = {
@@ -1003,6 +1095,7 @@ export default function RegisterWizard({
     intended: "The owner",
     cls: "Classification",
     loc: "Location",
+    fr: "Franchise",
     upi: "The property",
   };
   const entityGroup = kind ? registrationForKind(kind).entityGroup : null;
@@ -1021,6 +1114,8 @@ export default function RegisterWizard({
           : `${kindLabel}, in RDB's ${entityGroup === "restaurant_bar_nightclub" ? "restaurant, bar and nightclub" : "accommodation"} group. No licence number needed.`;
       case "loc":
         return locLine ?? "Saved";
+      case "fr":
+        return franchiseLine(business);
       case "upi":
         return `${business.legalName.trim()} · UPI ${business.upi.trim()}`;
     }
@@ -1040,6 +1135,7 @@ export default function RegisterWizard({
     } else if (id === "owner" || id === "id") setIdConfirmed(false);
     else if (id === "intended") setIntendedConfirmed(false);
     else if (id === "loc") setLocSaved(false);
+    else if (id === "fr") setFrConfirmed(false);
     else if (id === "upi") setUpiConfirmed(false);
     else if (id === "cls") changeKind();
   };
@@ -1068,6 +1164,7 @@ export default function RegisterWizard({
             }}
             onNext={confirmTin}
             error={errors["business.legalName"] ?? errors["business.tin"]}
+            online={online}
           />
         );
       case "owner":
@@ -1076,20 +1173,17 @@ export default function RegisterWizard({
           <SectionIdentity
             path={path}
             identity={identity}
-            profile={profile}
             profileComplete={profile?.complete === true && !editingProfile}
             draft={personal}
             onDraftChange={setPersonal}
-            onVerified={onVerified}
-            phoneFromRegister={phoneFromRegister}
+            onIdentity={onIdentity}
             needsExtras={!personalOk}
             isDirector={id === "owner" ? isDirector : null}
-            directorNames={registry?.directors.map((d) => d.name) ?? []}
-            demo={demo}
             errors={errors}
             onPrepareForOwner={prepareForOwner}
             onEditProfile={editStoredProfile}
             onNext={confirmId}
+            online={online}
           />
         );
       case "intended":
@@ -1116,6 +1210,8 @@ export default function RegisterWizard({
             onSave={() => setLocSaved(true)}
           />
         );
+      case "fr":
+        return <SectionFranchise draft={business} onChange={setBusiness} errors={errors} onNext={confirmFranchise} />;
       case "upi":
         return (
           <SectionProperty
@@ -1134,10 +1230,9 @@ export default function RegisterWizard({
   };
 
   // Overview rows, in the artboard's order.
+  const franchisee = business.franchiseRole === "franchisee";
   const docLabel = (d: DocumentDraft) =>
-    d.kind === "other"
-      ? d.kindOther.trim() || "Another document"
-      : (documentRows(path).find((r) => r.kind === d.kind)?.label ?? d.filename);
+    documentRows(documentKind, { franchisee }).find((r) => r.kind === d.kind)?.label ?? d.filename;
   const docsText = docs.length
     ? `${docLabel(docs[0]!)}${docs.length > 1 ? ` and ${docs.length - 1} more` : ""}`
     : "None yet";
@@ -1149,105 +1244,92 @@ export default function RegisterWizard({
           ? `Applying${tiers?.find((t) => t.code === psf.requestedTierCode)?.nameEn ? `: ${tiers.find((t) => t.code === psf.requestedTierCode)!.nameEn}` : ""}. Sent to PSF after approval`
           : "Not a member, not applying now"
         : "Not answered";
-  const youRow = `${registrantName || "You"}${idLine ? `, ${idLine}` : ""}${checkedBy ? `, ${checkedBy.toLowerCase()}` : ""}`;
+  // Mid sentence: "checked", but PSF and ID keep their capitals.
+  const statusInLine = identityOnFile ? (identityOnFile.checked ? "checked" : "PSF will check your ID") : null;
+  const youRow = `${registrantName || "You"}${idLine ? `, ${idLine}` : ""}${statusInLine ? `, ${statusInLine}` : ""}`;
   const rows: ReviewRow[] = summary
     ? [{ title: "Registering", value: `${kindLabel} · ${summary.legalName}`, step: null }]
     : landlord
       ? [
-          { title: "Business type", value: kindLabel, step: "type" },
-          { title: "The property", value: `${business.legalName.trim()} · UPI ${business.upi.trim()}`, step: "property" },
-          { title: "You", value: youRow, step: "property" },
-          { title: "Location", value: locLine ?? "Not chosen", step: "property" },
+          { title: "Business type", value: kindLabel, step: "business" },
+          { title: "The property", value: `${business.legalName.trim()} · UPI ${business.upi.trim()}`, step: "business" },
+          { title: "Location", value: locLine ?? "Not chosen", step: "business" },
+          { title: "You", value: youRow, step: "you" },
           { title: "Documents", value: docsText, step: "documents" },
         ]
       : [
-          { title: "Business type", value: kindLabel, step: "type" },
+          { title: "Business type", value: kindLabel, step: "business" },
           {
             title: "The business",
             value: `${legalName} · TIN ${formatTin(tin)}${verdict?.result === "verified" ? " · checked by RRA" : " · RRA checks it after payment"}`,
-            step: "tin",
+            step: "business",
           },
-          path === "helper"
-            ? { title: "You", value: youRow, step: "tin" }
-            : { title: "Proof it is yours", value: `${youRow}${isDirector ? ", a director" : ""}`, step: "tin" },
-          ...(path === "helper"
-            ? [
-                {
-                  title: "The owner",
-                  value: `${intendedOwner.name.trim()} · ${intendedOwner.email.trim()} · claims it after approval`,
-                  step: "tin" as const,
-                },
-              ]
-            : []),
-          { title: "Location", value: locLine ?? "Not chosen", step: "tin" },
+          { title: "Location", value: locLine ?? "Not chosen", step: "business" },
+          { title: "Franchise", value: franchiseLine(business), step: "business" },
           {
             title: "Branches",
             value: branches.length
               ? `${branches.length} ${branches.length === 1 ? "branch" : "branches"}: ${branches.map((b) => b.name).join(", ")}`
               : "None",
-            step: "branches",
+            step: "business",
           },
-          { title: "PSF", value: psfText, step: "branches" },
+          { title: "PSF", value: psfText, step: "business" },
+          path === "helper"
+            ? { title: "You", value: youRow, step: "you" }
+            : { title: "You", value: `${youRow}${isDirector ? ", a director" : ""}`, step: "you" },
+          ...(path === "helper"
+            ? [
+                {
+                  title: "The owner",
+                  value: `${intendedOwner.name.trim()} · ${intendedOwner.email.trim()} · claims it after approval`,
+                  step: "you" as const,
+                },
+              ]
+            : []),
           { title: "Documents", value: docsText, step: "documents" },
         ];
 
   const LEAD: Record<StepId, string> = {
-    type: "What you register decides the steps, the documents we ask for and the fee.",
-    tin:
+    business: choosingKind || !kind
+      ? "Pick the one that fits. It decides the documents we ask for."
+      : landlord
+        ? "Tell us about the property and where it is."
+        : "Check the TIN with RRA, then say where the business is.",
+    you:
       path === "helper"
-        ? "Check the TIN, confirm who you are, and name the owner. The owner proves the business is theirs when they claim it."
-        : "Prove the business is yours. RRA and the population register confirm it, so you type very little.",
-    property: "Tell us about the property and confirm who you are. A Residence needs no TIN.",
-    branches: "Add other sites that share this TIN, and tell us about PSF. Both are optional.",
-    documents: landlord
-      ? "Upload the land title. Everything else is optional."
-      : "Upload the RDB certificate. Everything else is optional, and it helps the review.",
-    overview: accepted
-      ? "You signed. These details are with Injishi now."
-      : "Check everything once. When you sign, the registration is created and these details lock until an Injishi officer sends them back to you.",
-    pay: landlord
-      ? "Pay the registration fee. It sends your residence to Injishi for review."
-      : "Pay the registration fee. It sends your business to Injishi for review.",
+        ? "Scan your ID, then take a selfie, and name the owner. They claim the business once PSF approves it."
+        : "Scan your ID, then take a selfie.",
+    documents: landlord ? "Upload the land title." : "Upload your RDB certificate. The rest are optional.",
+    review: "Check your answers. You can change them until you pay.",
+    pay: "Pay the registration fee. PSF reviews your registration next.",
   };
 
   let primary: StepPrimary | null = { label: "Continue", icon: <ArrowRight size={16} aria-hidden />, onPress: next };
-  if (step === "type") {
-    if (kind === "broker") {
-      primary = {
-        label: "Open the broker form",
-        icon: <ArrowRight size={16} aria-hidden />,
-        onPress: () => {
-          setFormError("");
-          setScreen("broker");
-        },
-      };
-    } else if (!complete("type")) {
+  if (step === "business") {
+    if (choosingKind || !kindOk) {
       primary = {
         ...primary,
         disabled: true,
-        why: kind === "other" ? "Say what kind of place it is to continue." : "Pick a business type to continue.",
+        why: kind === "other" && !choosingKind ? "Say what kind of place it is to continue." : "Pick a business type to continue.",
       };
+    } else if (!businessDone) {
+      primary = { ...primary, disabled: true, why: "Finish the sections above to continue." };
     }
-  } else if ((step === "tin" || step === "property") && !proofDone) {
+  } else if (step === "you" && !youDone) {
     primary = { ...primary, disabled: true, why: "Finish the sections above to continue." };
   } else if (step === "documents" && !docsState.ok) {
     primary = { ...primary, disabled: true, why: docsState.why };
-  } else if (step === "overview") {
-    primary = accepted
-      ? { label: "Continue to pay", icon: <ArrowRight size={16} aria-hidden />, onPress: () => goTo("pay") }
-      : {
-          label: "Sign and continue",
-          icon: <PenLine size={16} aria-hidden />,
-          onPress: () => void signAndCreate(),
-          pending: busy,
-          disabled: signature === null || fee === null,
-          why:
-            fee === null
-              ? "The fee could not be read, so nothing can be signed yet."
-              : signature
-                ? "This creates the registration and locks these details."
-                : "Sign the agreement to continue.",
-        };
+  } else if (step === "review") {
+    primary =
+      summary !== null
+        ? { label: "Continue to pay", icon: <ArrowRight size={16} aria-hidden />, onPress: () => goTo("pay") }
+        : {
+            label: "Continue to pay",
+            icon: <ArrowRight size={16} aria-hidden />,
+            onPress: next,
+            disabled: fee === null,
+            why: fee === null ? "The fee could not be read, so nothing can be paid yet." : undefined,
+          };
   } else if (step === "pay") {
     // While a prompt is out, the waiting screen carries its own controls.
     primary =
@@ -1256,22 +1338,22 @@ export default function RegisterWizard({
         : {
             label: feeMode === "free" ? "Submit for review" : fee === null ? "Pay" : `Pay ${formatRwf(fee)}`,
             icon: <Landmark size={16} aria-hidden />,
-            onPress: () => void pay(),
+            onPress: () => void payNow(),
             pending: busy,
-            disabled: summary === null,
+            disabled: !understood || fee === null || !online,
+            why: !online ? "You're offline. Connect to pay." : !understood ? "Tick the box to continue." : undefined,
           };
   }
 
   const stepIndex = Math.max(0, order.indexOf(step));
-  // The artboard ticks and opens only what has been reached: a step whose
-  // answers are all optional is complete before anyone has seen it.
-  const reachedIndex = order.reduce((at, id, i) => (visited.has(id) || id === step ? i : at), 0);
+  // The artboard ticks and opens only what has been reached (`reachedIndex`, above): a step whose answers are
+  // all optional is complete before anyone has seen it.
   const rail: RailStep[] = order.map((id, i) => ({
     id,
     title: STEP_TITLE[id],
     status: id === step ? "active" : complete(id) && visited.has(id) ? "complete" : "inactive",
     // Once the registration exists, only what is left to do can be opened.
-    locked: summary !== null ? id !== "overview" && id !== "pay" : i > Math.min(openable, reachedIndex),
+    locked: summary !== null ? id !== "review" && id !== "pay" : i > Math.min(openable, reachedIndex),
   }));
 
   let body: ReactNode;
@@ -1291,12 +1373,6 @@ export default function RegisterWizard({
           setScreen("fix");
         }}
         onStartNew={startNew}
-        signedDownload={
-          signed
-            ? () =>
-                downloadSignedContract(contractInputFor({ summary, kind, personal, business, legalName, profile, editingProfile }), signed)
-            : null
-        }
       />
     );
   } else if (screen === "fix" && summary) {
@@ -1329,20 +1405,17 @@ export default function RegisterWizard({
         <SectionIdentity
           path="landlord"
           identity={identity}
-          profile={profile}
           profileComplete={profile?.complete === true && !editingProfile}
           draft={personal}
           onDraftChange={setPersonal}
-          onVerified={onVerified}
-          phoneFromRegister={phoneFromRegister}
+          onIdentity={onIdentity}
           needsExtras={!personalOk}
           isDirector={null}
-          directorNames={[]}
-          demo={demo}
           errors={errors}
           onPrepareForOwner={() => undefined}
           onEditProfile={editStoredProfile}
           onNext={() => void submitBroker()}
+          online={online}
         />
         {formError ? (
           <Callout tone="danger" icon={<CircleAlert size={16} aria-hidden />} title="That did not go through">
@@ -1352,16 +1425,34 @@ export default function RegisterWizard({
       </StepCard>
     );
   } else if (screen === "steps") {
-    // Signed and locked: true once the agreement is accepted. A registration
-    // reopened before it was signed is not signed yet, whatever exists.
-    const lockedBanner = accepted && step !== "pay";
+    const sectionList = (ids: SectionId[]) => (
+      <div className="flex flex-col gap-2.5">
+        {/* A section shows once the one before it is done (AC-3): no locked placeholders. */}
+        {ids
+          .filter((id) => sectionState[id] !== "locked")
+          .map((id, i) => (
+            <RegisterSection
+              key={id}
+              id={id}
+              n={i + 1}
+              title={SECTION_TITLE[id]}
+              state={(sectionState[id] as "done" | "open") ?? "open"}
+              summary={sectionSummary(id)}
+              checkedBy={sectionChecked(id)}
+              editText={id === "cls" ? "Change" : "Edit"}
+              onEdit={summary === null ? () => editSection(id) : null}
+            >
+              {sectionBody(id)}
+            </RegisterSection>
+          ))}
+      </div>
+    );
     body = (
       <StepFrame
         position={{ n: stepIndex + 1, of: order.length }}
         title={STEP_TITLE[step]}
         lead={LEAD[step]}
-        lockedBanner={lockedBanner}
-        onBack={stepIndex > 0 && !(summary !== null && step === "overview") ? () => goTo(order[stepIndex - 1]!) : null}
+        onBack={stepIndex > 0 && !(summary !== null && step === "review") ? () => goTo(order[stepIndex - 1]!) : null}
         primary={primary}
       >
         {formError ? (
@@ -1369,8 +1460,13 @@ export default function RegisterWizard({
             {formError}
           </Callout>
         ) : null}
+        {autosave.state === "failed" && autosave.message ? (
+          <Callout tone="danger" icon={<CircleAlert size={16} aria-hidden />} title="Your answers are not saved">
+            {autosave.message}
+          </Callout>
+        ) : null}
 
-        {step === "type" ? (
+        {step === "business" && (choosingKind || !kind) ? (
           <StepType
             kind={kind}
             other={business.accommodationClassOther}
@@ -1380,77 +1476,50 @@ export default function RegisterWizard({
           />
         ) : null}
 
-        {step === "tin" || step === "property" ? (
-          <div className="flex flex-col gap-2.5">
-            {sections.map((id, i) => (
-              <RegisterSection
-                key={id}
-                id={id}
-                n={i + 1}
-                title={SECTION_TITLE[id]}
-                state={sectionState[id] ?? "locked"}
-                summary={sectionState[id] === "locked" ? lockedReason(path, id) : sectionSummary(id)}
-                checkedBy={sectionChecked(id)}
-                editText={id === "cls" ? "Change" : "Edit"}
-                onEdit={summary === null ? () => editSection(id) : null}
-              >
-                {sectionBody(id)}
-              </RegisterSection>
-            ))}
-          </div>
+        {step === "business" && !(choosingKind || !kind) ? (
+          <>
+            {sectionList(bizSections)}
+            {!landlord && businessDone ? (
+              <StepBranchesPsf
+                tinLabel={formatTin(tin)}
+                headOffice={business.address}
+                branches={branches}
+                onBranchesChange={setBranches}
+                business={business}
+                onBusinessChange={setBusiness}
+                psf={psf}
+                onPsfChange={setPsf}
+                onApplyNow={seedPsf}
+                tiers={tiers}
+                tiersFailed={tiersFailed}
+                onRetryTiers={() => {
+                  setTiers(null);
+                  setTiersFailed(false);
+                  setTierRetry((n) => n + 1);
+                }}
+                documentLine={documentOnFile}
+                errors={errors}
+              />
+            ) : null}
+          </>
         ) : null}
 
-        {step === "branches" ? (
-          <StepBranchesPsf
-            tinLabel={formatTin(tin)}
-            headOffice={business.address}
-            branches={branches}
-            onBranchesChange={setBranches}
-            business={business}
-            onBusinessChange={setBusiness}
-            psf={psf}
-            onPsfChange={setPsf}
-            onApplyNow={seedPsf}
-            tiers={tiers}
-            tiersFailed={tiersFailed}
-            onRetryTiers={() => {
-              setTiers(null);
-              setTiersFailed(false);
-              setTierRetry((n) => n + 1);
-            }}
-            documentLine={documentOnFile}
-            errors={errors}
-          />
+        {step === "you" ? sectionList(youSections) : null}
+
+        {step === "documents" ? (
+          <StepDocuments kind={documentKind} franchisee={franchisee} docs={docs} onDocsChange={setDocs} errors={errors} online={online} />
         ) : null}
 
-        {step === "documents" ? <StepDocuments path={path} docs={docs} onDocsChange={setDocs} errors={errors} /> : null}
-
-        {step === "overview" ? (
-          <StepOverview
+        {step === "review" ? (
+          <StepReview
             rows={rows}
             locked={summary !== null}
-            onEdit={(to) => (to === "type" ? changeKind() : goTo(to))}
+            onEdit={(to) => {
+              setReviewed(false);
+              goTo(to);
+            }}
             kindLabel={kindLabel}
             fee={fee}
-            feeNote="You pay it in the next step. The fee shown here is the one you are charged."
-            agreeText={`By signing, ${landlord ? "you agree" : `${legalName || summary?.legalName || "the business"} agrees`} to Injishi's terms for businesses: how the platform works, its fees, and how your data and your guests' data are handled.`}
-            contractInput={contractInputFor({ summary, kind, personal, business, legalName, profile, editingProfile })}
-            accepted={accepted}
-            signature={signature}
-            onSignature={(s) => {
-              setSignature(s);
-              // In the handler, never during a render: a date read while
-              // rendering differs between server and browser.
-              setSignedAt(s ? new Date().toISOString() : null);
-            }}
-            signerName={registrantName}
-            signLine={
-              accepted
-                ? `Signed${signed ? ` by ${signed.signedName}` : ""} · ${onDay(summary?.contractAcceptedAt ?? null) ?? "accepted"}`
-                : signature && signedAt
-                  ? `Signed by ${registrantName || "you"}${path === "owner" && isDirector ? ", director" : ""} · ${onDay(signedAt)}`
-                  : "Not signed yet"
-            }
           />
         ) : null}
 
@@ -1460,6 +1529,8 @@ export default function RegisterWizard({
             fee={fee}
             paid={paid}
             paidOn={onDay(summary?.submittedAt ?? null)}
+            understood={understood}
+            onUnderstood={setUnderstood}
             onSeeStatus={() => setScreen("review")}
             feeMode={feeMode}
             phone={payPhone}
@@ -1487,10 +1558,14 @@ export default function RegisterWizard({
     <RegisterShell
       kindLabel={screen === "resume" || screen === "pending" ? null : (kindEntry?.label ?? summaryKindLabel)}
       demo={demo}
-      onChangeKind={walking && carried ? changeKind : undefined}
-      carried={carried && screen === "steps"}
+      onChangeKind={walking && kind !== null && !choosingKind ? changeKind : undefined}
+      carried={walking && kind !== null && !choosingKind}
       heading={screen === "steps" ? heading : null}
-      saved={walking ? savedAt : null}
+      save={
+        walking && autosave.state !== "idle"
+          ? { state: autosave.state, savedAt: autosave.savedAt, onRetry: autosave.retry }
+          : null
+      }
       exit={walking ? { label: "Save and exit", onPress: () => void saveAndExit(), busy: exiting } : { label: "Exit", href: "/start" }}
       rail={screen === "steps" ? <RegisterRail steps={rail} onGo={(id) => goTo(id as StepId)} /> : null}
     >
@@ -1593,14 +1668,14 @@ function documentOnFileFor(
   identity: IdentityStatus | null,
   profile: MyProfile | null,
 ): { label: string; source: "checked" | "account" } | null {
-  const v = identity?.kycStatus === "verified" ? identity.verified : null;
+  const v = identity?.onFile ?? null;
   if (v) {
     return {
       label:
         v.documentType === "passport"
           ? `Passport ${v.documentNumberMasked}`
           : `National ID ending ${v.documentNumberMasked.replace(/\D/g, "")}`,
-      source: "checked",
+      source: v.checked ? "checked" : "account",
     };
   }
   if (profile?.document) {
@@ -1615,8 +1690,8 @@ function documentOnFileFor(
 /**
  * The draft holds strings because that is what the DOM produces. The contract
  * wants optionals absent and no empty strings standing in for "not answered".
- * `verified`: the identity is verified (ADR-060), so no document is sent and
- * the server keeps the verified one.
+ * `verified`: an identity is on file, scanned or typed (ADR-075 S4), so no
+ * document is sent and the server keeps the one it holds.
  */
 function personalCandidate(d: PersonalDraft, verified = false): unknown {
   return {
@@ -1657,15 +1732,19 @@ function businessCandidate(
   if (role === "landlord") {
     return { domain: "residence", legalName: d.legalName.trim(), residenceClass: d.residenceClass, upi: d.upi, address, certificates };
   }
-  const entityGroup = (kind ? registrationForKind(kind).entityGroup : null) ?? "accommodation";
+  const derived = kind ? registrationForKind(kind) : null;
+  const entityGroup = derived?.entityGroup ?? "accommodation";
   const member = d.psfMember === true;
   const number = d.psfMembershipNumber.trim();
+  // ADR-075 D-h: the kind the org carries. A venue (Bar & Restaurant, Coffee Shop) sends no accommodation class.
+  const stay = derived?.accommodationClass != null;
   return {
     domain: "hospitality",
     legalName,
+    ...(derived ? { businessKind: derived.businessKind } : {}),
     entityGroup,
-    accommodationClass: d.accommodationClass,
-    ...(d.accommodationClass === "other" ? { accommodationClassOther: d.accommodationClassOther.trim() } : {}),
+    ...(stay ? { accommodationClass: d.accommodationClass } : {}),
+    ...(stay && d.accommodationClass === "other" ? { accommodationClassOther: d.accommodationClassOther.trim() } : {}),
     tin: normalizeTin(d.tin),
     // Kept only for a draft from before the licence became a document.
     ...(d.tourismLicenseNumber.trim() ? { tourismLicenseNumber: d.tourismLicenseNumber.trim() } : {}),
@@ -1674,71 +1753,10 @@ function businessCandidate(
     psfMember: member,
     ...(member && number ? { psfMembershipNumber: number } : {}),
     ...(d.psfMember === false && d.psfApply === true ? { psfApplication: psfCandidate(psf, documentOnFile) } : {}),
+    ...(franchiseCandidate(d) ? { franchise: franchiseCandidate(d) } : {}),
     address,
     certificates,
     branches: branches.map((b) => ({ name: b.name.trim(), address: addressFromDraft(b.address) })),
-  };
-}
-
-/**
- * The registration, in the words the agreement prints it in. Every value
- * arrives formatted, because `lib/registration-contract.ts` formats nothing.
- */
-function contractInputFor({
-  summary,
-  kind,
-  personal,
-  business,
-  legalName,
-  profile,
-  editingProfile,
-}: {
-  summary: RegistrationSummary | null;
-  kind: RegistrationKind | null;
-  personal: PersonalDraft;
-  business: BusinessDraft;
-  legalName: string;
-  profile: MyProfile | null;
-  editingProfile: boolean;
-}): RegistrationContractInput {
-  const usingStoredProfile = profile?.complete === true && !editingProfile;
-  const typedName = composeFullName(personal);
-  const registrantName = usingStoredProfile ? (profile?.fullName ?? typedName) : typedName || (profile?.fullName ?? "");
-  const storedDocument = profile?.document ?? null;
-  const registrantIdLabel = usingStoredProfile
-    ? storedDocument?.documentNumberMasked
-      ? `${storedDocument.documentType === "passport" ? "Passport" : "National ID"} ${storedDocument.documentNumberMasked}`
-      : null
-    : personal.documentNumber.trim()
-      ? personal.documentType === "passport"
-        ? `Passport ${personal.documentNumber.trim()}`
-        : `National ID ${formatNationalId(personal.documentNumber)}`
-      : null;
-  const phone = (usingStoredProfile ? profile?.phoneE164 : personal.phoneE164) ?? "";
-  const storedClass = summary?.accommodationClass ?? null;
-  const kindLabel =
-    (kind ? (REGISTRATION_KINDS.find((k) => k.value === kind)?.label ?? null) : null) ??
-    (summary?.domain === "residence"
-      ? "Residence"
-      : storedClass
-        ? (ACCOMMODATION_CLASS_LABEL[storedClass as keyof typeof ACCOMMODATION_CLASS_LABEL] ?? "Hospitality business")
-        : "Hospitality business");
-  const businessIdLabel = business.tin.trim()
-    ? `RRA TIN ${normalizeTin(business.tin)}`
-    : business.upi.trim()
-      ? `UPI ${business.upi.trim()}`
-      : null;
-  const street = business.address.street.trim() || business.address.addressText.trim();
-  return {
-    registrantName,
-    registrantIdLabel,
-    registrantPhone: phone.trim() || null,
-    businessName: summary?.legalName ?? (legalName || "Your business"),
-    businessKindLabel: kindLabel,
-    businessIdLabel,
-    businessAddressLabel: street || null,
-    reference: summary?.orgId ?? "Assigned when you sign",
-    contractVersion: OPERATOR_CONTRACT_VERSION,
   };
 }
 

@@ -12,8 +12,8 @@ export declare const HousekeepingChecklistItem: z.ZodObject<{
     sortOrder: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     code: string;
-    kind: "inspection" | "cleaning";
     id: string;
+    kind: "inspection" | "cleaning";
     sortOrder: number;
     label: string;
     sectionCode: string;
@@ -21,8 +21,8 @@ export declare const HousekeepingChecklistItem: z.ZodObject<{
     requiresPhoto: boolean;
 }, {
     code: string;
-    kind: "inspection" | "cleaning";
     id: string;
+    kind: "inspection" | "cleaning";
     sortOrder: number;
     label: string;
     sectionCode: string;
@@ -262,8 +262,8 @@ export declare const HousekeepingPhone: z.ZodObject<{
         sortOrder: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         code: string;
-        kind: "inspection" | "cleaning";
         id: string;
+        kind: "inspection" | "cleaning";
         sortOrder: number;
         label: string;
         sectionCode: string;
@@ -271,8 +271,8 @@ export declare const HousekeepingPhone: z.ZodObject<{
         requiresPhoto: boolean;
     }, {
         code: string;
-        kind: "inspection" | "cleaning";
         id: string;
+        kind: "inspection" | "cleaning";
         sortOrder: number;
         label: string;
         sectionCode: string;
@@ -424,8 +424,8 @@ export declare const HousekeepingPhone: z.ZodObject<{
     } | null;
     checklist: {
         code: string;
-        kind: "inspection" | "cleaning";
         id: string;
+        kind: "inspection" | "cleaning";
         sortOrder: number;
         label: string;
         sectionCode: string;
@@ -486,8 +486,8 @@ export declare const HousekeepingPhone: z.ZodObject<{
     } | null;
     checklist: {
         code: string;
-        kind: "inspection" | "cleaning";
         id: string;
+        kind: "inspection" | "cleaning";
         sortOrder: number;
         label: string;
         sectionCode: string;
@@ -554,16 +554,16 @@ export declare const WorkOrderTimeLog: z.ZodObject<{
     /** Null while the timer runs. */
     endedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    kind: "diagnosis" | "repair";
     id: string;
+    kind: "diagnosis" | "repair";
     endedAt: string | null;
     userId: string;
     ticketId: string;
     startedAt: string;
     userName: string | null;
 }, {
-    kind: "diagnosis" | "repair";
     id: string;
+    kind: "diagnosis" | "repair";
     endedAt: string | null;
     userId: string;
     ticketId: string;
@@ -583,16 +583,16 @@ export declare const WorkOrderTimeLogList: z.ZodObject<{
         /** Null while the timer runs. */
         endedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "diagnosis" | "repair";
         id: string;
+        kind: "diagnosis" | "repair";
         endedAt: string | null;
         userId: string;
         ticketId: string;
         startedAt: string;
         userName: string | null;
     }, {
-        kind: "diagnosis" | "repair";
         id: string;
+        kind: "diagnosis" | "repair";
         endedAt: string | null;
         userId: string;
         ticketId: string;
@@ -601,8 +601,8 @@ export declare const WorkOrderTimeLogList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     logs: {
-        kind: "diagnosis" | "repair";
         id: string;
+        kind: "diagnosis" | "repair";
         endedAt: string | null;
         userId: string;
         ticketId: string;
@@ -611,8 +611,8 @@ export declare const WorkOrderTimeLogList: z.ZodObject<{
     }[];
 }, {
     logs: {
-        kind: "diagnosis" | "repair";
         id: string;
+        kind: "diagnosis" | "repair";
         endedAt: string | null;
         userId: string;
         ticketId: string;
@@ -661,20 +661,20 @@ export declare const MyDocument: z.ZodObject<{
     checkedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: string;
+    id: string;
     kind: "document" | "contract";
     issuedOn: string | null;
     expiresOn: string | null;
-    id: string;
     checkedAt: string | null;
     startsOn: string | null;
     title: string;
     contractType: string | null;
 }, {
     status: string;
+    id: string;
     kind: "document" | "contract";
     issuedOn: string | null;
     expiresOn: string | null;
-    id: string;
     checkedAt: string | null;
     startsOn: string | null;
     title: string;
@@ -697,20 +697,20 @@ export declare const MyDocumentList: z.ZodObject<{
         checkedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         status: string;
+        id: string;
         kind: "document" | "contract";
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
         checkedAt: string | null;
         startsOn: string | null;
         title: string;
         contractType: string | null;
     }, {
         status: string;
+        id: string;
         kind: "document" | "contract";
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
         checkedAt: string | null;
         startsOn: string | null;
         title: string;
@@ -719,10 +719,10 @@ export declare const MyDocumentList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     documents: {
         status: string;
+        id: string;
         kind: "document" | "contract";
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
         checkedAt: string | null;
         startsOn: string | null;
         title: string;
@@ -731,10 +731,10 @@ export declare const MyDocumentList: z.ZodObject<{
 }, {
     documents: {
         status: string;
+        id: string;
         kind: "document" | "contract";
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
         checkedAt: string | null;
         startsOn: string | null;
         title: string;

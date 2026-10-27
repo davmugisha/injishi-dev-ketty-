@@ -123,14 +123,11 @@ export function InReview({
   onSummary,
   onFix,
   onStartNew,
-  signedDownload,
 }: {
   summary: RegistrationSummary;
   onSummary: (next: RegistrationSummary) => void;
   onFix: () => void;
   onStartNew: () => void;
-  /** The agreement signed in this browser, ready to keep, when there is one. */
-  signedDownload: (() => void) | null;
 }) {
   const [checking, setChecking] = useState(false);
 
@@ -259,11 +256,6 @@ export function InReview({
               {checking ? "Checking…" : "Check for an update"}
             </Button>
           )}
-          {signedDownload ? (
-            <Button variant="link" size="sm" onClick={signedDownload}>
-              Download the signed agreement
-            </Button>
-          ) : null}
           <Button variant="link" size="sm" onClick={onStartNew}>
             Register another business
           </Button>

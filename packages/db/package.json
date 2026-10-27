@@ -15,7 +15,7 @@
     "lint": "pnpm run --silent lint:biome && pnpm run --silent lint:eslint",
     "lint:biome": "biome lint .",
     "lint:eslint": "eslint \"src/**/*.ts\"",
-    "test": "node ../../scripts/no-tests.mjs"
+    "test": "tsx --test src/guard.test.ts"
   },
   "dependencies": {
     "@injishi/data": "workspace:*",

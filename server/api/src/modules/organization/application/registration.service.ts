@@ -1,4 +1,5 @@
 import type {
+  BusinessKind,
   CreateRegistrationRequest,
   OrgRegistrationStatus,
   OversightDecisionPage,
@@ -7,18 +8,23 @@ import type {
   OversightGrant,
   OversightQueueItem,
   OversightRole,
+  RegistrantCapacity,
   RegistrationBusinessType,
-  RegistrationConflictCode,
   RegistrationFeeQuote,
   RegistrationRejectionReason,
   RegistrationSummary,
   TinCheckResult,
 } from '@injishi/contracts';
 import {
-  OPERATOR_CONTRACT_VERSION,
+  ORG_CERTIFICATE_KIND_LABEL,
   PSF_CONSENT_VERSION,
   SEPARATION_OF_DUTIES_MESSAGE,
   businessTypeFor,
+  businessTypeForKind,
+  entityGroupForKind,
+  hospitalityKindOf,
+  isVenueKind,
+  missingRegistrationDocument,
   OVERSIGHT_OWN_BUSINESS_MESSAGE,
   districtScopeOf,
   scopeCoversDistrict,
@@ -31,6 +37,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 
 import {
@@ -125,7 +132,10 @@ export class RegistrationService {
     private readonly psf: PsfMembershipService,
     /** A business is registered by a verified person, where a check can run (ADR-060). */
     private readonly identity: IdentityService,
-    /** The wizard's draft, cleared once the registration exists (ADR-060). */
+    /**
+     * The wizard's draft (ADR-060): the TIN check's answer is kept on it (ADR-075 D-m), and the first Pay press
+     * marks it with the registration it became, whose settled fee clears it.
+     */
     private readonly drafts: RegistrationDraftService,
   ) {}
 
@@ -144,16 +154,34 @@ export class RegistrationService {
     return { businessType, amountRwf, currency: 'RWF' };
   }
 
+  /** The same quote, asked by kind (ADR-075): the fee is keyed by business type, which the kind decides (D-j). */
+  quoteForKind(kind: BusinessKind): Promise<RegistrationFeeQuote> {
+    return this.quote(businessTypeForKind(kind));
+  }
+
   /**
    * Ask about a TIN before anything is created or billed (registration Phase 0).
    *
    * The check after payment stayed the gate of record, but on its own it found
    * a mistyped TIN only once a non-refundable fee was paid. This asks the same
-   * adapter at the Business step. It writes nothing: `tin_verifications` rows
-   * belong to an org, and there is none yet. It moves nothing either, so D23's
-   * rule that nothing unpaid reaches an officer still holds.
+   * adapter at the Business step. It writes no `tin_verifications` row, which
+   * belongs to an org, and there is none yet; the answer is kept on the
+   * caller's draft instead (ADR-075 D-m), so a refresh or another day never
+   * asks it again. It moves nothing, so D23's rule that nothing unpaid reaches
+   * an officer still holds.
+   *
+   * The directors' NAMES go only to the helper (ADR-075 AC-7), who picks the
+   * owner from them. The owner path learns listed or not, matched here against
+   * the caller's own document; with no machine check that document may be
+   * typed, and showing the names first would let anyone type one.
    */
-  async checkTin(tin: string, userId: string): Promise<TinCheckResult> {
+  async checkTin(tin: string, userId: string, capacity?: RegistrantCapacity): Promise<TinCheckResult> {
+    const answer = await this.answerTin(tin, userId, capacity);
+    await this.drafts.recordTinCheck(userId, { tin, capacity: capacity ?? null, answer });
+    return answer;
+  }
+
+  private async answerTin(tin: string, userId: string, capacity?: RegistrantCapacity): Promise<TinCheckResult> {
     const none = { business: null, registrantIsDirector: null };
     if (await this.orgs.tinTaken(tin)) {
       return {
@@ -181,7 +209,8 @@ export class RegistrationService {
                 registeredOn: business.registeredOn,
                 companyType: business.companyType,
                 address: business.address,
-                directors: business.directors.map((d) => ({ name: d.name })),
+                directors:
+                  capacity === 'on_behalf_of' ? business.directors.map((d) => ({ name: d.name })) : [],
                 generated: business.generated,
               }
             : null,
@@ -219,6 +248,45 @@ export class RegistrationService {
     } catch (error) {
       this.log.warn(`TIN pre-check could not run: ${(error as Error).message}`);
       return { result: 'pending', business: null };
+    }
+  }
+
+  /**
+   * The documents a registration must carry (ADR-075 S5, AC-11), refused with
+   * 422 at the field each came from, all at once.
+   *
+   * - The required row for the kind (`missingRegistrationDocument`, the same
+   *   table the wizard's Documents step draws), so the API asks for exactly
+   *   what the wizard asks for.
+   * - Every certificate a stored `certificate` this registrant uploaded. A key
+   *   is otherwise just a string: without this, "required" would be met by
+   *   any text, or by someone else's upload.
+   */
+  private async assertDocuments(
+    kind: BusinessKind,
+    certificates: readonly { kind: string; objectKey: string }[],
+    registrantUserId: string,
+  ): Promise<void> {
+    const issues: { code: 'custom'; path: (string | number)[]; message: string }[] = [];
+    const missing = missingRegistrationDocument(kind, certificates);
+    if (missing) {
+      const label = ORG_CERTIFICATE_KIND_LABEL[missing];
+      // "RDB certificate" keeps its capitals; "Land title" reads mid sentence.
+      const named = /^[A-Z]{2}/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
+      issues.push({ code: 'custom', path: ['business', 'certificates'], message: `Upload the ${named}.` });
+    }
+    for (const [index, certificate] of certificates.entries()) {
+      const stored = await this.storage.describe(certificate.objectKey);
+      if (!stored || stored.kind !== 'certificate' || stored.uploadedByUserId !== registrantUserId) {
+        issues.push({
+          code: 'custom',
+          path: ['business', 'certificates', index, 'objectKey'],
+          message: 'Upload that document again.',
+        });
+      }
+    }
+    if (issues.length > 0) {
+      throw new UnprocessableEntityException({ message: 'Validation failed', issues });
     }
   }
 
@@ -272,7 +340,16 @@ export class RegistrationService {
   async create(
     request: CreateRegistrationRequest,
     registrantUserId: string,
+    /**
+     * The Pay press's `Idempotency-Key` (ADR-075 AC-14), minted once per press at the call site. A replay of it
+     * answers the registration it created rather than creating another.
+     */
+    creationKey: string | null = null,
   ): Promise<RegistrationSummary> {
+    if (creationKey) {
+      const replay = await this.replayOf(creationKey, registrantUserId);
+      if (replay) return replay;
+    }
     if (request.role === 'broker') {
       // A broker is a `brokers` row, not an org, so it cannot come through
       // here: this method writes `orgs` and bills against `org_id`. The broker
@@ -309,6 +386,10 @@ export class RegistrationService {
 
     const b = request.business;
     const address = b.address;
+    // ADR-075 D-h: the kind the org carries. The contract has already refused a hospitality request with none.
+    const businessKind: BusinessKind =
+      b.domain === 'residence' ? 'residence' : (hospitalityKindOf(b) as BusinessKind);
+    const venue = isVenueKind(businessKind);
     if (b.domain === 'hospitality') {
       const tinOutcome = await this.verifyTinSafely(b.tin);
       // The shape the validation pipe gives, so the wizard puts each sentence
@@ -352,15 +433,28 @@ export class RegistrationService {
         })
       : null;
 
+    // ADR-075 AC-11: the required document for the kind, from the one table the wizard reads, and every
+    // certificate one this registrant uploaded. Last of the checks, so a request refused for something else is
+    // refused for that.
+    await this.assertDocuments(businessKind, b.certificates, registrantUserId);
+
     try {
       const created = await this.orgs.createRegistration({
         legalName: b.legalName,
         domain: b.domain,
-        rdbEntityGroup: b.domain === 'hospitality' ? b.entityGroup : null,
-        accommodationClass:
-          b.domain === 'hospitality' ? b.accommodationClass : null,
-        accommodationClassOther:
+        businessKind,
+        creationKey,
+        // A venue sits in the restaurant group and has no accommodation class (D-h); a stay keeps both as sent.
+        rdbEntityGroup:
           b.domain === 'hospitality'
+            ? venue
+              ? entityGroupForKind('bar_restaurant')
+              : b.entityGroup
+            : null,
+        accommodationClass:
+          b.domain === 'hospitality' && !venue ? (b.accommodationClass ?? null) : null,
+        accommodationClassOther:
+          b.domain === 'hospitality' && !venue
             ? (b.accommodationClassOther ?? null)
             : null,
         residenceClass: b.domain === 'residence' ? b.residenceClass : null,
@@ -403,6 +497,7 @@ export class RegistrationService {
                 intendedOwnerEmail: request.intendedOwner.email,
               }
             : null,
+        franchise: franchiseRowFor(b),
         certificates: b.certificates.map((c) => ({
           kind: c.kind,
           kindOther: c.kindOther ?? null,
@@ -430,9 +525,9 @@ export class RegistrationService {
         });
       }
       await this.mail.received(created.orgId, created.amountDueRwf);
-      // The server holds the registration now, so the wizard's draft has
-      // nothing left to remember, and must not offer to resume it (ADR-060).
-      await this.drafts.clear(registrantUserId);
+      // The draft stays the answers' editable source until the fee settles (ADR-075 D-l), so it is marked with the
+      // registration it became rather than cleared; settling the fee clears it (D-m).
+      await this.drafts.markRegistered(registrantUserId, created.orgId);
       // The PSF receipt. A new registration sits at `pending_payment`, so the
       // application waits for the TIN check and no officer is mailed yet.
       if (psfFiling) {
@@ -444,8 +539,9 @@ export class RegistrationService {
         workspaceId: created.workspaceId,
         legalName: b.legalName,
         domain: b.domain,
+        businessKind,
         accommodationClass:
-          b.domain === 'hospitality' ? b.accommodationClass : null,
+          b.domain === 'hospitality' && !venue ? (b.accommodationClass ?? null) : null,
         status: 'pending_payment',
         amountDueRwf: created.amountDueRwf,
         invoiceId: created.invoiceId,
@@ -459,7 +555,16 @@ export class RegistrationService {
       };
     } catch (err) {
       if (err instanceof DuplicateTinError) {
+        // A replay that lost its key, or a second tab: the caller's own registration of this TIN is the answer
+        // (ADR-075 AC-14). Anyone else's is the refusal it always was.
+        const own = b.domain === 'hospitality' ? await this.orgs.orgIdByTin(b.tin) : null;
+        if (own && (await this.orgs.isMember(own, registrantUserId))) return this.summary(own);
         throw new ConflictException(err.message);
+      }
+      if (creationKey && isUniqueViolation(err, 'orgs_creation_key_uk')) {
+        // Two presses of one key at the same moment: the one that lost the race answers the winner's registration.
+        const replay = await this.replayOf(creationKey, registrantUserId);
+        if (replay) return replay;
       }
       if (err instanceof MissingFeeError) {
         throw new NotFoundException(
@@ -606,23 +711,8 @@ export class RegistrationService {
     if (awaitsRegistrationFee(before.status)) {
       const settled = await this.orgs.settleRegistrationFee(orgId, mover);
       if (!settled) {
-        // Two reasons a settle writes nothing, and they need opposite answers.
-        // Still at `pending_payment` with no contract is the refusal (ADR-053,
-        // AC-R13), read AFTER the attempt so an accept that landed in between is
-        // honoured rather than refused. Anything else lost the race to a
-        // concurrent callback, which is not an error: re-reading is the answer.
-        const after = await this.orgs.findById(orgId);
-        if (
-          after &&
-          awaitsRegistrationFee(after.status) &&
-          after.contractVersion === null
-        ) {
-          throw new ConflictException({
-            code: 'contract_not_accepted' satisfies RegistrationConflictCode,
-            message:
-              'Accept the operator contract before paying the registration fee.',
-          });
-        }
+        // It lost the race to a concurrent callback, which is not an error: re-reading is the answer. Paying no
+        // longer waits on an accepted contract (ADR-075 AC-12); the agreement is signed after approval.
         this.log.log(`Registration fee for ${orgId} was already settled.`);
       } else {
         // Only the call that settled mails, so a repeated callback is silent.
@@ -635,19 +725,6 @@ export class RegistrationService {
   }
 
   /**
-   * Settle the fee because a payment for it landed (073-gtbank-payments AC-16).
-   *
-   * Called by the payment attempt that took the money, after it has claimed
-   * itself as confirmed, so this runs once per attempt. The mover is `system`:
-   * the provider settling is what moved the org, not a person's click.
-   *
-   * - `settled`: this payment settled the fee; the RRA check follows.
-   * - `already_settled`: the fee was already paid (another attempt won), so
-   *   this payment paid for nothing and is refunded by the caller.
-   * - `not_payable`: the registration cannot take a fee (it vanished, or its
-   *   contract is somehow open), and the money goes back too.
-   */
-  /**
    * Reopen a registration fee whose payment the bank reversed (073-gtbank-payments
    * AC-20, `cancel_service`). Only the invoice moves: nothing in the pipeline
    * reads it yet, so the business is not held where it stands (recorded in the
@@ -657,6 +734,20 @@ export class RegistrationService {
     return this.orgs.reopenRegistrationInvoice(invoiceId);
   }
 
+  /**
+   * Settle the fee because a payment for it landed (073-gtbank-payments AC-16).
+   *
+   * Called by the payment attempt that took the money, after it has claimed
+   * itself as confirmed, so this runs once per attempt. The mover is `system`:
+   * the provider settling is what moved the org, not a person's click.
+   *
+   * - `settled`: this payment settled the fee; the RRA check follows.
+   * - `already_settled`: the fee was already paid (another attempt won), so
+   *   this payment paid for nothing and is refunded by the caller.
+   * - `not_payable`: the registration cannot take a fee (it vanished, or it
+   *   has no pending invoice to settle), and the money goes back too. Paying
+   *   no longer waits on a contract (ADR-075 AC-12).
+   */
   async settleFeeFromPayment(
     orgId: string,
   ): Promise<'settled' | 'already_settled' | 'not_payable'> {
@@ -676,12 +767,11 @@ export class RegistrationService {
 
   /**
    * What paying the fee needs to know (073-gtbank-payments AC-16): where the
-   * registration stands, whether its contract is accepted, and the pending
-   * invoice the fee pays. Null when there is no such registration.
+   * registration stands and the pending invoice the fee pays. Null when there
+   * is no such registration.
    */
   async feeFacts(orgId: string): Promise<{
     status: OrgRegistrationStatus;
-    contractVersion: string | null;
     workspaceId: string | null;
     invoiceId: string | null;
     amountDueRwf: number | null;
@@ -691,7 +781,6 @@ export class RegistrationService {
     if (!org) return null;
     return {
       status: org.status,
-      contractVersion: org.contractVersion,
       workspaceId: org.workspaceId,
       invoiceId: org.invoiceId,
       amountDueRwf: org.amountDueRwf,
@@ -702,60 +791,6 @@ export class RegistrationService {
   /** The org a registration invoice bills, for a payment attempt that names only the invoice. */
   orgOfRegistrationInvoice(invoiceId: string): Promise<string | null> {
     return this.orgs.orgOfRegistrationInvoice(invoiceId);
-  }
-
-  /**
-   * Accept the operator contract, between creating the business and paying for
-   * it (ADR-053, AC-R8).
-   *
-   * Refusals run in a fixed order so two that apply at once always answer the
-   * same way: not a member (404), past `pending_payment` (409
-   * `contract_not_open`), then a version that is not the current document (409
-   * `contract_version_stale`). The stored version is always the constant, never
-   * the request's, so the request can only ever confirm it.
-   *
-   * Accepting twice returns the first acceptance unchanged.
-   */
-  async acceptContract(
-    orgId: string,
-    actorUserId: string,
-    contractVersion: string,
-  ): Promise<RegistrationSummary> {
-    await this.assertOwns(orgId, actorUserId);
-    const org = await this.orgs.findById(orgId);
-    if (!org) throw new NotFoundException('Registration not found.');
-
-    if (!awaitsRegistrationFee(org.status)) {
-      throw this.contractNotOpen();
-    }
-    if (contractVersion !== OPERATOR_CONTRACT_VERSION) {
-      throw new ConflictException({
-        code: 'contract_version_stale' satisfies RegistrationConflictCode,
-        message:
-          'The contract has changed since this page loaded. Reload it and read the current terms.',
-      });
-    }
-
-    const wrote = await this.orgs.acceptContract({
-      orgId,
-      userId: actorUserId,
-      contractVersion: OPERATOR_CONTRACT_VERSION,
-    });
-    if (!wrote) {
-      // Either it was already accepted, which is the idempotent answer, or the
-      // business moved past `pending_payment` between the read and the write.
-      const now = await this.orgs.findById(orgId);
-      if (!now?.contractVersion) throw this.contractNotOpen();
-    }
-    return this.summary(orgId);
-  }
-
-  private contractNotOpen(): ConflictException {
-    return new ConflictException({
-      code: 'contract_not_open' satisfies RegistrationConflictCode,
-      message:
-        'The contract is accepted while the registration fee is still owed, and this registration is past that step.',
-    });
   }
 
   /**
@@ -863,6 +898,20 @@ export class RegistrationService {
   }
 
   /** What the pending workspace renders. */
+  /**
+   * The registration an `Idempotency-Key` already created, for its own registrant; null when the key is new. A
+   * key that created someone else's registration is refused rather than answered, so a guessed key reveals
+   * nothing.
+   */
+  private async replayOf(creationKey: string, userId: string): Promise<RegistrationSummary | null> {
+    const orgId = await this.orgs.orgIdByCreationKey(creationKey);
+    if (!orgId) return null;
+    if (!(await this.orgs.isMember(orgId, userId))) {
+      throw new ConflictException('That Idempotency-Key was already used. Press again for a new one.');
+    }
+    return this.summary(orgId);
+  }
+
   async summary(orgId: string): Promise<RegistrationSummary> {
     const org = await this.orgs.findById(orgId);
     if (!org) throw new NotFoundException('Registration not found.');
@@ -880,6 +929,7 @@ export class RegistrationService {
       workspaceId: org.workspaceId,
       legalName: org.legalName,
       domain: org.domain,
+      businessKind: org.businessKind,
       accommodationClass:
         org.accommodationClass as RegistrationSummary['accommodationClass'],
       status: org.status,
@@ -1370,6 +1420,28 @@ export class RegistrationService {
   }
 }
 
+/**
+ * The `org_franchises` row a registration's answer writes (ADR-075 AC-8), or
+ * null for No. A franchisee's agreement is the `franchise_agreement` document
+ * it sent, when it sent one; the contract has already refused that document on
+ * anyone else.
+ */
+function franchiseRowFor(
+  b: CreateRegistrationRequest['business'],
+): Parameters<OrganizationRepository['createRegistration']>[0]['franchise'] {
+  if (b.domain !== 'hospitality' || !b.franchise) return null;
+  if (b.franchise.role === 'franchisor') {
+    return { role: 'franchisor', brandName: b.franchise.brandName, franchisedLocations: b.franchise.franchisedLocations };
+  }
+  return {
+    role: 'franchisee',
+    brandName: b.franchise.brandName,
+    franchisorLegalName: b.franchise.franchisorLegalName,
+    franchisorCountry: b.franchise.franchisorCountry,
+    agreementObjectKey: b.certificates.find((c) => c.kind === 'franchise_agreement')?.objectKey ?? null,
+  };
+}
+
 /** Whether this document is one of the register's directors. */
 function isDirector(
   business: TinRegistryBusiness,
@@ -1413,4 +1485,13 @@ function decodeDecisionCursor(
   if (!decidedAt || Number.isNaN(decidedAt.getTime()) || !id) return undefined;
   if (!/^[0-9a-f-]{36}$/i.test(id)) return undefined;
   return { decidedAt, id };
+}
+
+/** Postgres refused an insert on this unique constraint (23505), however the driver wrapped the error. */
+function isUniqueViolation(err: unknown, constraint: string): boolean {
+  for (let e: unknown = err; e && typeof e === 'object'; e = (e as { cause?: unknown }).cause) {
+    const pg = e as { code?: unknown; constraint?: unknown };
+    if (pg.code === '23505' && pg.constraint === constraint) return true;
+  }
+  return false;
 }

@@ -430,20 +430,19 @@ async function main() {
     await upsertAmenities(client);
 
     // 8. Registration fee catalog (D21 §8.3a, D23).
-    //    DEV DEFAULTS ONLY. Real amounts are admin-set config (F-A10) and the
-    //    per-type prices are still open (O-11). ADR-026 sets all three to 5,000
-    //    RWF as an assumed decision; the broker row is seeded but unread while
-    //    a broker registration is free (ADR-026, assumption 2).
+    //    The owner's fee (ADR-075 O-9, D-j): 50,000 RWF for every business PSF
+    //    reviews, nothing for a broker. Migration 0075 writes the same rows on
+    //    every database; this seed agrees with it, so seeding after migrating
+    //    never prices a registration back down to ADR-026's 5,000.
     //    The catalog is effective-dated and APPEND-ONLY: changing a price
     //    INSERTS a row rather than updating one, so the old price stays
     //    readable against the registrations that were quoted it. The guard is
     //    therefore on the AMOUNT and not merely on the type — guarding on the
-    //    type alone means a re-run can never correct a price, which is how the
-    //    catalog carried 50,000 after the decision said 5,000.
+    //    type alone means a re-run can never correct a price.
     for (const [businessType, amountRwf] of [
-      ['hospitality', 5000],
-      ['residence', 5000],
-      ['broker', 5000],
+      ['hospitality', 50000],
+      ['residence', 50000],
+      ['broker', 0],
     ]) {
       await client.query(
         `insert into registration_fees (business_type, amount_rwf, effective_from, active)

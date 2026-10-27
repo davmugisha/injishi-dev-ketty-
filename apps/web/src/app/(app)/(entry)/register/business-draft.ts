@@ -27,6 +27,14 @@ export interface BusinessDraft {
   /** Kept so drafts saved before still parse; the artboard asks no grade. */
   eacStarGrade: string;
   address: AddressDraft;
+  /** Part of a franchise? Empty until answered, then No (`none`), a franchisee or a franchisor (ADR-075 O-7). */
+  franchiseRole: "" | "none" | "franchisee" | "franchisor";
+  franchiseBrand: string;
+  /** A franchisee's franchisor: its registered name and its country (ISO 3166 alpha 2). */
+  franchisorLegalName: string;
+  franchisorCountry: string;
+  /** A franchisor's count of locations under its brand, as typed. */
+  franchisedLocations: string;
 }
 
 export const EMPTY_BUSINESS: BusinessDraft = {
@@ -43,6 +51,11 @@ export const EMPTY_BUSINESS: BusinessDraft = {
   psfMembershipNumber: "",
   eacStarGrade: "",
   address: { ...EMPTY_ADDRESS },
+  franchiseRole: "",
+  franchiseBrand: "",
+  franchisorLegalName: "",
+  franchisorCountry: "",
+  franchisedLocations: "",
 };
 
 /** RRA's answer, kept against the TIN it answered for. */
