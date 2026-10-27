@@ -212,7 +212,8 @@ export function WorkspaceShell({
           <NavMenu groups={groups} current={current} pathname={pathname} />
         </Sidebar.Content>
         <Sidebar.Footer className="gap-1">
-          {live && !searchable ? (
+          {/* Help is hidden for brokers for now (2026-10-27). */}
+          {live && !searchable && persona.id !== "broker" ? (
             <LinkButton
               href={screenHref("PublicHelp")}
               variant="ghost"
