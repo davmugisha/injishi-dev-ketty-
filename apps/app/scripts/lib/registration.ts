@@ -143,7 +143,9 @@ export function registrationOf(ctx: SourceContext, orgId: string): Promise<Regis
  * (F-S03 §5: the gate refuses while one is unread). Every registration carries its RDB certificate (ADR-075 AC-11).
  */
 export async function checkEveryDocument(officer: SourceContext, orgId: string): Promise<void> {
-  const list = await officer.api.get<{ documents: { id: string }[] }>(`/api/v1/oversight/registrations/${orgId}/documents`);
+  const list = await officer.api.get<{ documents: { id: string }[] }>(
+    `/api/v1/oversight/registrations/${orgId}/documents`,
+  );
   for (const document of list.documents) await checkDocument(officer, orgId, document.id);
 }
 
