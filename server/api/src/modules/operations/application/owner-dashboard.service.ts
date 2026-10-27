@@ -14,7 +14,7 @@ import {
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
-import { resolveMode } from '../../payments/payments.module';
+import { PaymentSeam } from '../../payments/domain/payment-seam';
 import {
   type NightRow,
   type OwnerBranchRow,
@@ -32,14 +32,15 @@ import {
  */
 @Injectable()
 export class OwnerDashboardService {
-  /**
-   * The stack's payment adapter setting, resolved by the payments module's own
-   * reader so the two can never differ. There is no live adapter registered
-   * yet (`LIVE_ADAPTER` is null), so in practice this reads `mock` or `off`.
-   */
-  private readonly paymentsMode = resolveMode(process.env.PAYMENT_ADAPTER_MODE);
-
-  constructor(private readonly repo: OwnerDashboardRepository) {}
+  constructor(
+    private readonly repo: OwnerDashboardRepository,
+    /**
+     * The stack's payment seam, the one reader of PAYMENT_ADAPTER_MODE
+     * (073-gtbank-payments interim record), so the dashboard and the seam can
+     * never disagree.
+     */
+    private readonly seam: PaymentSeam,
+  ) {}
 
   async dashboard(
     ws: ScopedWorkspace,
@@ -99,7 +100,7 @@ export class OwnerDashboardService {
         ws.branchScope.coverage === 'all' && ws.branchScope.selectedPropertyId === null
           ? [...fiscal.values()].reduce((s, n) => s + n, 0)
           : branchHealth.reduce((s, b) => s + b.fiscalPendingOver2h, 0),
-      paymentsMode: this.paymentsMode,
+      paymentsMode: this.seam.mode,
       branches: branchHealth,
     };
   }

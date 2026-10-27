@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { paymentRuleProblem } from "@injishi/contracts";
 import { Button } from "@injishi/web-ui";
 import { AirtelMark, CardMark, MtnMark } from "@/components/icons/marks";
 import {
@@ -16,6 +17,7 @@ import {
   type PaymentDraft,
   type PaymentMethodId,
 } from "@/lib/payment-methods";
+import type { PaymentTerms } from "@/data/platform";
 
 const ROW_MARK: Record<PaymentMethodId, typeof MtnMark> = {
   mtn_momo: MtnMark,
@@ -32,18 +34,35 @@ const ROW_MARK: Record<PaymentMethodId, typeof MtnMark> = {
  * `booking-widget.tsx`): the button stays live and pressing it is what
  * surfaces what is still missing, rather than the guest hunting for why a
  * disabled button will not move.
+ *
+ * The bank's rules come from `/platform` (073-gtbank-payments AC-23, AC-24):
+ * card is not offered at all while card payments are not taken, a network the
+ * bank does not prompt here is shown disabled with the sentence saying so, and
+ * a total above the collection limit is said here, before pay is pressed, in
+ * the words the API would refuse it with.
  */
 export function StepPaymentMethod({
   draft,
   onChange,
   onNext,
+  terms,
+  amountRwf,
 }: {
   draft: PaymentDraft;
   onChange: (draft: PaymentDraft) => void;
   onNext: () => void;
+  /** The bank's rules from `/platform`, or null when it could not be read. */
+  terms: PaymentTerms | null;
+  /** What this checkout would collect. */
+  amountRwf: number;
 }) {
   const [attempted, setAttempted] = useState(false);
-  const problem = paymentDraftProblem(draft);
+  const ruleFor = (id: PaymentMethodId): string | null =>
+    terms
+      ? paymentRuleProblem(terms, amountRwf, id === "card" ? { kind: "card" } : { kind: "mobile_money", network: id })
+      : null;
+  const methods = PAYMENT_METHODS.filter((m) => m.kind !== "card" || terms?.cardPayments === "live");
+  const problem = ruleFor(draft.method) ?? paymentDraftProblem(draft);
 
   const handleNext = () => {
     if (problem) {
@@ -57,8 +76,9 @@ export function StepPaymentMethod({
     <div>
       <CheckoutChoiceGroup legend="How you would like to pay">
         <CheckoutFieldGroup>
-          {PAYMENT_METHODS.map((method, index) => {
+          {methods.map((method, index) => {
             const Mark = ROW_MARK[method.id];
+            const refused = ruleFor(method.id);
             return (
               <Fragment key={method.id}>
                 {index > 0 ? <CheckoutDivider /> : null}
@@ -67,11 +87,11 @@ export function StepPaymentMethod({
                     name="payment-method"
                     value={method.id}
                     checked={draft.method === method.id}
-                    disabled={!method.available}
+                    disabled={!method.available || refused !== null}
                     onChange={(id) => onChange({ ...draft, method: id as PaymentMethodId })}
                     media={<Mark width={26} height={26} />}
                     label={method.label}
-                    description={method.hint}
+                    description={refused ?? method.hint}
                   />
                 </div>
               </Fragment>

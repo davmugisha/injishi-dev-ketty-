@@ -10,6 +10,7 @@ import {
   type PaymentReceipt,
   type PayoutCommand,
   PaymentDeclinedError,
+  PaymentUnavailableError,
   type RecurringChargeCommand,
   type RefundCommand,
   type ReleaseEscrowCommand,
@@ -92,7 +93,41 @@ function approvalDelayMs(msisdn: string): number {
 /** A payer number ending in this approves after the prompt window has closed. */
 export const LATE_APPROVER_SUFFIX = '9999';
 
-const CAPTURE_REF_PREFIX = 'mock_escrow_capture_';
+/**
+ * The collections that wait on a handset, and the prefix each one's reference
+ * carries. A registration fee and a rent instalment are a Request to Pay
+ * exactly as a capture is (073-gtbank-payments), so they share its behaviour.
+ */
+const COLLECTION_REF_PREFIXES = {
+  escrow_capture: 'mock_escrow_capture_',
+  one_time_fee: 'mock_one_time_fee_',
+  recurring_charge: 'mock_recurring_charge_',
+} as const;
+
+/**
+ * The disbursements, which carry the same kind of reference so a pending one
+ * (`1111`) and a reversed one (`7777`) read the same from every process
+ * (073-gtbank-payments, the mock's script).
+ */
+const DISBURSEMENT_REF_PREFIXES = {
+  refund: 'mock_refund_',
+  escrow_release: 'mock_escrow_release_',
+  payout: 'mock_payout_',
+} as const;
+
+const REF_PREFIXES = { ...COLLECTION_REF_PREFIXES, ...DISBURSEMENT_REF_PREFIXES } as const;
+
+export type MockCollectionKind = keyof typeof COLLECTION_REF_PREFIXES;
+export type MockRefKind = keyof typeof REF_PREFIXES;
+
+function isRefKind(kind: string): kind is MockRefKind {
+  return kind in REF_PREFIXES;
+}
+
+/** How long after it succeeds a `7777` transaction is reversed by the mock bank. */
+const REVERSAL_AFTER_MS = 120_000;
+/** How long a `1111` disbursement stays pending. */
+const SLOW_DISBURSEMENT_MS = 60_000;
 
 /**
  * What a capture reference carries, so any process can read it back.
@@ -107,25 +142,37 @@ const CAPTURE_REF_PREFIX = 'mock_escrow_capture_';
  * `~` appears in none of them.
  */
 interface CaptureRef {
+  /** Which transaction: a collection, or a disbursement. */
+  kind?: MockRefKind;
   key: string;
   workspaceId: string;
   settlesAt: number;
   amountRwf: number;
+  /** When the mock bank reverses it after success, or absent (073 AC-18). */
+  reversesAt?: number;
 }
 
 export function encodeCaptureRef(ref: CaptureRef): string {
-  return `${CAPTURE_REF_PREFIX}${ref.key}~${ref.workspaceId}~${ref.settlesAt}~${ref.amountRwf}`;
+  const prefix = REF_PREFIXES[ref.kind ?? 'escrow_capture'];
+  const base = `${prefix}${ref.key}~${ref.workspaceId}~${ref.settlesAt}~${ref.amountRwf}`;
+  return ref.reversesAt ? `${base}~${ref.reversesAt}` : base;
 }
 
-export function decodeCaptureRef(adapterRef: string): CaptureRef | null {
-  if (!adapterRef.startsWith(CAPTURE_REF_PREFIX)) return null;
-  const parts = adapterRef.slice(CAPTURE_REF_PREFIX.length).split('~');
-  if (parts.length !== 4) return null;
-  const [key, workspaceId, settlesAt, amountRwf] = parts as [string, string, string, string];
+export function decodeCaptureRef(adapterRef: string): (CaptureRef & { kind: MockRefKind }) | null {
+  // The longest prefix first: `mock_escrow_release_` must not read as a capture.
+  const kind = (Object.keys(REF_PREFIXES) as MockRefKind[])
+    .sort((a, b) => REF_PREFIXES[b].length - REF_PREFIXES[a].length)
+    .find((k) => adapterRef.startsWith(REF_PREFIXES[k]));
+  if (!kind) return null;
+  const parts = adapterRef.slice(REF_PREFIXES[kind].length).split('~');
+  if (parts.length !== 4 && parts.length !== 5) return null;
+  const [key, workspaceId, settlesAt, amountRwf, reversesAt] = parts as [string, string, string, string, string?];
   const at = Number(settlesAt);
   const amount = Number(amountRwf);
+  const reverses = reversesAt === undefined ? undefined : Number(reversesAt);
   if (!key || !workspaceId || !Number.isFinite(at) || !Number.isInteger(amount)) return null;
-  return { key, workspaceId, settlesAt: at, amountRwf: amount };
+  if (reverses !== undefined && !Number.isFinite(reverses)) return null;
+  return { kind, key, workspaceId, settlesAt: at, amountRwf: amount, ...(reverses ? { reversesAt: reverses } : {}) };
 }
 
 @Injectable()
@@ -139,6 +186,9 @@ export class MockPaymentAdapter implements PaymentPort {
    * process, on purpose.
    */
   private readonly seen = new Map<string, PaymentReceipt>();
+
+  /** `2222` disbursements already refused once for funds; the next send pays. */
+  private readonly shortOnce = new Set<string>();
 
   /**
    * The same receipts, addressed the way a provider addresses them: by its own
@@ -168,7 +218,13 @@ export class MockPaymentAdapter implements PaymentPort {
    * same answer from every process. A replay returns the original receipt and
    * so never restarts the customer's clock.
    */
-  async captureEscrow(command: CaptureEscrowCommand): Promise<PaymentReceipt> {
+  captureEscrow(command: CaptureEscrowCommand): Promise<PaymentReceipt> {
+    return this.collect(command);
+  }
+
+  private async collect(
+    command: CaptureEscrowCommand | OneTimeFeeCommand | RecurringChargeCommand,
+  ): Promise<PaymentReceipt> {
     const { instrument } = command;
 
     if (instrument.kind === 'mobile_money') {
@@ -178,18 +234,62 @@ export class MockPaymentAdapter implements PaymentPort {
           command.idempotencyKey,
         );
       }
-      return this.settle(command, 'pending', Date.now() + approvalDelayMs(instrument.msisdn));
+      // A payer ending `8888` gets no answer: the request may have arrived,
+      // so the bank record parks it for a pull or a person (073 AC-7).
+      if (instrument.msisdn.endsWith('8888')) {
+        throw new PaymentUnavailableError('no answer from the bank for this payment', command.idempotencyKey, 'maybe');
+      }
+      const settlesAt = Date.now() + approvalDelayMs(instrument.msisdn);
+      // A payer ending `7777` pays, then the bank reverses it (073 AC-18).
+      const reversesAt = instrument.msisdn.endsWith('7777') ? settlesAt + REVERSAL_AFTER_MS : undefined;
+      return this.settle(command, 'pending', settlesAt, reversesAt);
     }
 
     return this.settle(command);
   }
 
   releaseEscrow(command: ReleaseEscrowCommand): Promise<PaymentReceipt> {
-    return this.settle(command);
+    return this.disburse(command);
   }
 
   refund(command: RefundCommand): Promise<PaymentReceipt> {
-    return this.settle(command);
+    return this.disburse(command);
+  }
+
+  /**
+   * A disbursement, scripted by the payee account's last four digits so every
+   * path the bank record handles is walkable on a sample database
+   * (073-gtbank-payments, the mock): `0000` is refused, `3333` is refused
+   * because the name does not match the wallet, `1111` stays pending for a
+   * minute, `2222` is refused for insufficient funds the FIRST time it is sent
+   * and paid the next (as though the account were topped up in between),
+   * `8888` gets no answer (it may have arrived), `7777` succeeds and is
+   * reversed two minutes later, and anything else succeeds at once. `0000`
+   * also declines a collection, so a refund can never reach it through a
+   * booking; `3333` is the refusal a booking's refund can reach. A
+   * disbursement with no payee (a refund of a collection made before the bank
+   * record existed) succeeds, as it always did.
+   */
+  private async disburse(command: RefundCommand | ReleaseEscrowCommand | PayoutCommand): Promise<PaymentReceipt> {
+    const key = command.idempotencyKey;
+    const destination = command.payee?.destination;
+    const account = destination ? (destination.kind === 'mobile_money' ? destination.msisdn : destination.accountNumber) : '';
+    if (account.endsWith('0000')) {
+      throw new PaymentDeclinedError('the receiving wallet refused the payment', key);
+    }
+    if (account.endsWith('3333')) {
+      throw new PaymentDeclinedError('the name given does not match the receiving wallet', key, 'name_mismatch');
+    }
+    if (account.endsWith('2222') && !this.shortOnce.has(key)) {
+      this.shortOnce.add(key);
+      throw new PaymentDeclinedError("Hangaa's account cannot cover this payment yet", key, 'insufficient_funds');
+    }
+    if (account.endsWith('8888')) {
+      throw new PaymentUnavailableError('no answer from the bank for this payment', key, 'maybe');
+    }
+    const now = Date.now();
+    if (account.endsWith('1111')) return this.settle(command, 'pending', now + SLOW_DISBURSEMENT_MS);
+    return this.settle(command, 'settled', now, account.endsWith('7777') ? now + REVERSAL_AFTER_MS : undefined);
   }
 
   voidPending(command: VoidPendingCommand): Promise<PaymentReceipt> {
@@ -197,15 +297,15 @@ export class MockPaymentAdapter implements PaymentPort {
   }
 
   payout(command: PayoutCommand): Promise<PaymentReceipt> {
-    return this.settle(command);
+    return this.disburse(command);
   }
 
   chargeRecurring(command: RecurringChargeCommand): Promise<PaymentReceipt> {
-    return this.settle(command);
+    return this.collect(command);
   }
 
   chargeOneTimeFee(command: OneTimeFeeCommand): Promise<PaymentReceipt> {
-    return this.settle(command);
+    return this.collect(command);
   }
 
   /**
@@ -231,15 +331,18 @@ export class MockPaymentAdapter implements PaymentPort {
       // provider would have remembered, so it is read from the reference, still
       // workspace scoped. Anything else this process never issued is unknown.
       if (!decoded || decoded.workspaceId !== workspaceId) return null;
-      return {
-        adapterRef,
-        mode: this.mode,
-        replayed: false,
-        amountRwf: decoded.amountRwf,
-        currency: 'RWF',
-        occurredAt: new Date(decoded.settlesAt),
-        settlement: Date.now() >= decoded.settlesAt ? 'settled' : 'pending',
-      };
+      return withReversal(
+        {
+          adapterRef,
+          mode: this.mode,
+          replayed: false,
+          amountRwf: decoded.amountRwf,
+          currency: 'RWF',
+          occurredAt: new Date(decoded.settlesAt),
+          settlement: Date.now() >= decoded.settlesAt ? 'settled' : 'pending',
+        },
+        decoded.reversesAt,
+      );
     }
     if (entry.workspaceId !== workspaceId) return null;
 
@@ -254,12 +357,12 @@ export class MockPaymentAdapter implements PaymentPort {
     if (entry.receipt.settlement === 'pending' && decoded && Date.now() >= decoded.settlesAt) {
       const settled: PaymentReceipt = { ...entry.receipt, settlement: 'settled' };
       this.byRef.set(adapterRef, { ...entry, receipt: settled });
-      this.seen.set(`escrow_capture:${decoded.key}`, settled);
+      this.seen.set(`${decoded.kind}:${decoded.key}`, settled);
       this.log.debug(`mock handset approved ${adapterRef}`);
-      return settled;
+      return withReversal(settled, decoded.reversesAt);
     }
 
-    return entry.receipt;
+    return withReversal(entry.receipt, decoded?.reversesAt);
   }
 
   /**
@@ -278,6 +381,7 @@ export class MockPaymentAdapter implements PaymentPort {
     command: PaymentCommand,
     settlement: PaymentReceipt['settlement'] = 'settled',
     settlesAt: number = Date.now(),
+    reversesAt?: number,
   ): Promise<PaymentReceipt> {
     const { idempotencyKey, amountRwf } = command;
 
@@ -317,10 +421,9 @@ export class MockPaymentAdapter implements PaymentPort {
     }
 
     const receipt: PaymentReceipt = {
-      adapterRef:
-        command.kind === 'escrow_capture'
-          ? encodeCaptureRef({ key: idempotencyKey, workspaceId: command.workspaceId, settlesAt, amountRwf })
-          : `mock_${command.kind}_${idempotencyKey}`,
+      adapterRef: isRefKind(command.kind)
+        ? encodeCaptureRef({ kind: command.kind, key: idempotencyKey, workspaceId: command.workspaceId, settlesAt, amountRwf, reversesAt })
+        : `mock_${command.kind}_${idempotencyKey}`,
       mode: this.mode,
       replayed: false,
       amountRwf,
@@ -343,4 +446,13 @@ export class MockPaymentAdapter implements PaymentPort {
 
     return receipt;
   }
+}
+
+/**
+ * A settled transaction the mock bank has since reversed reads as reversed
+ * (073-gtbank-payments AC-18): `7777` payers and payees, two minutes after.
+ */
+function withReversal(receipt: PaymentReceipt, reversesAt: number | undefined): PaymentReceipt {
+  if (!reversesAt || receipt.settlement !== 'settled' || Date.now() < reversesAt) return receipt;
+  return { ...receipt, providerStatus: 'reversed' };
 }

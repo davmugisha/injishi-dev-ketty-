@@ -15,6 +15,16 @@ export function captureKeyFor(workspaceId: string, attemptToken: string): string
   return `${workspaceId}:booking-capture:${attemptToken}`;
 }
 
+/** One press of pay on a registration's fee (073-gtbank-payments AC-16). */
+export function registrationFeeKeyFor(workspaceId: string, attemptToken: string): string {
+  return `${workspaceId}:registration-fee:${attemptToken}`;
+}
+
+/** The refund of a registration fee paid a second time, derived from its collection's key. */
+export function feeDuplicateKeyFor(collectionKey: string): string {
+  return `fee-duplicate:${collectionKey}`;
+}
+
 export function refundKeyFor(captureKey: string): string {
   return `refund:${captureKey}`;
 }

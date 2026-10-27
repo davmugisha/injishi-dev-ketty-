@@ -6,6 +6,7 @@ import { BookingCancellationService, hoursUntilCheckIn } from './booking-cancell
 import type { BookingNotificationsService } from './booking-notifications.service';
 import { everyBranch } from '../../../shared/auth/branch-scope.fixture';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import type { BookingRefunds } from './booking-refunds';
 
 /**
  * Cancellation and refund tiers (F-B11, ADR-051). The provider is told before
@@ -39,23 +40,35 @@ describe('BookingCancellationService', () => {
     ...over,
   });
 
+  function recorded(input: { outcome: string | null; refundRwf: number | null }): {
+    id: string;
+    reference: string;
+    paymentStatus: string | null;
+    refundRwf: number | null;
+  } {
+    return { id: 'b', reference: 'r', paymentStatus: input.outcome, refundRwf: input.refundRwf };
+  }
+
   function build(
     row: CancellableBooking | null,
-    opts: { providerDown?: boolean; recorded?: boolean } = {},
+    opts: { providerDown?: boolean; recorded?: boolean; plan?: { oweTx: jest.Mock; announce: jest.Mock } } = {},
   ): {
     service: BookingCancellationService;
     repo: { findForCancellation: jest.Mock; recordCancellation: jest.Mock; recordNoShow: jest.Mock };
     payments: { releaseEscrow: jest.Mock; refund: jest.Mock };
     notifications: { notify: jest.Mock };
+    refunds: { plan: jest.Mock };
   } {
     const repo = {
       findForCancellation: jest.fn().mockResolvedValue(row),
-      recordCancellation: jest
-        .fn()
-        .mockResolvedValue(opts.recorded === false ? null : { id: row?.bookingId, reference: row?.reference }),
-      recordNoShow: jest
-        .fn()
-        .mockResolvedValue(opts.recorded === false ? null : { id: row?.bookingId, reference: row?.reference }),
+      // The ledger echoes what it was asked to record, as the real one does
+      // when no refund is owed (a payment from before the bank record).
+      recordCancellation: jest.fn(async (input: { outcome: string; refundRwf: number }) =>
+        opts.recorded === false ? null : recorded(input),
+      ),
+      recordNoShow: jest.fn(async (input: { outcome: string | null; refundRwf: number | null }) =>
+        opts.recorded === false ? null : recorded(input),
+      ),
     };
     const fail = (): Promise<never> => Promise.reject(new PaymentUnavailableError('down', 'k'));
     const payments = {
@@ -63,12 +76,16 @@ describe('BookingCancellationService', () => {
       refund: jest.fn(opts.providerDown ? fail : () => Promise.resolve({})),
     };
     const notifications = { notify: jest.fn().mockResolvedValue(undefined) };
+    // 073 AC-13: by default no bank record stands behind these payments, so the
+    // provider path runs; `plan` makes the refund owed instead.
+    const refunds = { plan: jest.fn().mockResolvedValue(opts.plan ?? null) };
     const service = new BookingCancellationService(
       repo as unknown as BookingRepository,
       payments as unknown as PaymentPort,
       notifications as unknown as BookingNotificationsService,
+      refunds as unknown as BookingRefunds,
     );
-    return { service, repo, payments, notifications };
+    return { service, repo, payments, notifications, refunds };
   }
 
   it('refunds a flexible booking in full, through the provider, before recording it', async () => {
@@ -78,9 +95,9 @@ describe('BookingCancellationService', () => {
       order.push('provider');
       return {};
     });
-    repo.recordCancellation.mockImplementation(async () => {
+    repo.recordCancellation.mockImplementation(async (input: { outcome: string; refundRwf: number }) => {
       order.push('ledger');
-      return { id: 'b', reference: 'r' };
+      return recorded(input);
     });
 
     const result = await service.cancelByGuest('bk-abcd-1234', GUEST);
@@ -205,11 +222,31 @@ describe('BookingCancellationService', () => {
     expect(repo.recordCancellation).toHaveBeenCalledWith(expect.objectContaining({ reason: 'Guest changed plans' }));
   });
 
+  it('cancels now with the refund owed in the same write, and never calls the provider (073 AC-13)', async () => {
+    const plan = { oweTx: jest.fn(), announce: jest.fn().mockResolvedValue(undefined) };
+    const { service, repo, payments, refunds } = build(booking(), { plan });
+    repo.recordCancellation.mockResolvedValue({ id: 'b', reference: 'r', paymentStatus: 'refund_pending', refundRwf: 100_000 });
+
+    const result = await service.cancelByGuest('bk-abcd-1234', GUEST);
+
+    expect(payments.releaseEscrow).not.toHaveBeenCalled();
+    expect(payments.refund).not.toHaveBeenCalled();
+    expect(refunds.plan).toHaveBeenCalledWith(expect.objectContaining({ operation: 'escrow_release_guest' }));
+    expect(repo.recordCancellation).toHaveBeenCalledWith(
+      expect.objectContaining({ owe: plan.oweTx, refundRwf: 100_000, outcome: 'refunded_full' }),
+    );
+    expect(plan.announce).toHaveBeenCalled();
+    expect(result).toMatchObject({ paymentStatus: 'refund_pending', escrowStatus: 'refund_pending', refundRwf: 100_000 });
+  });
+
   it('refunds a no-show on the locked late tier before recording the operator and reason', async () => {
     const { service, repo, payments } = build(booking({ tier: 'moderate', checkIn: daysAhead(-1) }));
     const order: string[] = [];
     payments.refund.mockImplementation(async () => { order.push('provider'); return {}; });
-    repo.recordNoShow.mockImplementation(async () => { order.push('ledger'); return { id: 'b', reference: 'r' }; });
+    repo.recordNoShow.mockImplementation(async (input: { outcome: string | null; refundRwf: number | null }) => {
+      order.push('ledger');
+      return recorded(input);
+    });
 
     const result = await service.markNoShow('b', desk(), { byUserId: GUEST, reason: 'Did not arrive' });
 

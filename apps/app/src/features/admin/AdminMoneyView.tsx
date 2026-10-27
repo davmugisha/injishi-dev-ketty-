@@ -3,12 +3,22 @@
 import { ArrowDownToLine, Check, Lock, Paperclip, ScalesBalanced } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Label, Table, TextArea, TextField } from "@heroui/react";
 import { ItemCard, ListView, Segment, Stepper } from "@heroui-pro/react";
-import type { AccountGroup, LedgerAccount, LedgerPosting, MoneyOverride, ReconRun } from "@injishi/data/fixtures/admin";
+import type {
+  AccountGroup,
+  LedgerAccount,
+  LedgerPosting,
+  MoneyDesk as MoneyDeskDoc,
+  MoneyOverride,
+  ReconRun,
+} from "@injishi/data/fixtures/admin";
 import { Icon, PageContent, PageHeader, SectionHeader, StatusDot } from "@injishi/ui";
 import { useState } from "react";
+import { MoneyDesk } from "./money-desk";
 import { amount, compactRwf, firstKey, money, ToneChip } from "./shared";
 
 interface AdminMoneyData {
+  /** The money queue and the balance, the first lens (073-gtbank-payments AC-19). */
+  desk: MoneyDeskDoc | null;
   accounts: LedgerAccount[];
   postings: LedgerPosting[];
   runs: ReconRun[];
@@ -63,6 +73,8 @@ export function AdminMoneyView({ data }: { data: AdminMoneyData }) {
           </>
         }
       />
+
+      {data.desk ? <MoneyDesk desk={data.desk} /> : null}
 
       <section
         className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr))]"

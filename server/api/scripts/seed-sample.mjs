@@ -11,6 +11,8 @@
  *   seed-content.mjs          reference data, the hospitality org and its hotel
  *   seed-users.mjs            the @injishi.com sign in accounts and their grants,
  *                             and the residence org their landlord owns
+ *   seed-payments-float.mjs   the mock payment provider's opening float, so a
+ *                             sample database can pay the refunds it owes
  *   seed-content.mjs (again)  the residence side (building, units, leases). It
  *                             skips that block while the residence org does not
  *                             exist, and seed-users is what creates it. Every
@@ -74,6 +76,8 @@ const STEPS = [
   // DATA, so pay and leave compute on a sample database (ADR-058 slice 1).
   { script: 'seed-hr-rules.mjs', what: 'HR rules: placeholder PAYE, RSSB, leave and holidays (ADR-058)' },
   { script: 'seed-users.mjs', what: 'sign in accounts and their grants' },
+  // Reads two staff accounts seed-users.mjs writes, as requester and approver.
+  { script: 'seed-payments-float.mjs', what: 'the mock payment provider\'s opening float, so refunds can be paid (073 AC-15)' },
   { script: 'seed-content.mjs', what: 'second pass: the residence side seed-users unlocked' },
   { script: 'seed-demo.mjs', what: 'the demo roster and the rows it trades on' },
   {

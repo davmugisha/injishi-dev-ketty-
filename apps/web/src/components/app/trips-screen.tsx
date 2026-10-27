@@ -182,6 +182,14 @@ function TripCard({ trip, onChanged }: { trip: GuestTrip; onChanged?: () => void
         <span className="money text-sm text-muted-foreground">
           Reference <b className="text-card-foreground">{trip.reference}</b>
         </span>
+        {/* Cancelling is immediate and the refund follows (073-gtbank-payments
+            AC-13): until the bank pays it, the stay points to where it is
+            followed, and where the bank's payee details are given if asked. */}
+        {trip.paymentStatus === "refund_pending" ? (
+          <Link href="/account/refunds" className="text-xs font-semibold underline">
+            Refund on its way
+          </Link>
+        ) : null}
         <span className="grow" />
         {trip.nonRefundable ? (
           <span className="text-xs text-muted-foreground">Non-refundable rate</span>

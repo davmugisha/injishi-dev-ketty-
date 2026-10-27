@@ -48,6 +48,7 @@ import {
 } from "@/lib/search-params";
 import { track } from "@/lib/analytics";
 import { useSessionUser } from "@/lib/session";
+import { fetchPlatform, paymentTerms, type PaymentTerms } from "@/data/platform";
 
 /**
  * Checkout, rebuilt on the reference's three-step "Confirm and pay" shape and
@@ -141,6 +142,17 @@ export function Checkout() {
   const [room, setRoom] = useState<ApiResult<BookableRoom> | null>(null);
   const [nonRefundable, setNonRefundable] = useState(() => selection?.nonRefundable ?? false);
   const [draft, setDraft] = useState<PaymentDraft>(EMPTY_PAYMENT_DRAFT);
+  /** The bank's rules (073-gtbank-payments AC-23, AC-24), read once from `/platform`. */
+  const [terms, setTerms] = useState<PaymentTerms | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchPlatform().then((p) => {
+      if (!cancelled) setTerms(paymentTerms(p));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [completed, setCompleted] = useState<ReadonlySet<CheckoutStepId>>(new Set());
   const [submission, setSubmission] = useState<Submission>({ state: "idle" });
   /** Set when this visit picked up choices carried through sign-in. */
@@ -517,6 +529,8 @@ export function Checkout() {
                     draft={draft}
                     onChange={setDraft}
                     onNext={() => markDone("method")}
+                    terms={terms}
+                    amountRwf={quote.grossRwf}
                   />
                 </CheckoutStep>
               );
@@ -541,7 +555,7 @@ export function Checkout() {
                   </p>
                 ) : null}
                 <p className="mt-3 text-xs text-page-fg-70">
-                  No stored cards. A fresh MoMo or card charge is captured into escrow,
+                  Nothing is stored. A fresh mobile money prompt is captured into escrow,
                   and the host receives the full amount at payout.
                 </p>
               </CheckoutStep>

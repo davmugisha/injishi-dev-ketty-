@@ -603,7 +603,7 @@ function assertRoomTypeOnSale(room: Pick<RoomRow, 'label' | 'roomTypeName' | 'ro
 export const ESCROW_RECEIVABLE = 'ESCROW_RECEIVABLE';
 
 /** Payment states in which the guest's money is held or already paid out. */
-const PREPAID_STATUSES = new Set(['captured', 'refunded_partial', 'paid_out']);
+const PREPAID_STATUSES = new Set(['captured', 'refunded_partial', 'refund_pending', 'paid_out']);
 
 /**
  * The room the guest already paid for online: the locked nightly rate times

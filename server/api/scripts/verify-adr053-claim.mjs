@@ -44,6 +44,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import pg from "pg";
 
 const BASE = process.env.API_BASE || "http://127.0.0.1:8000";
@@ -154,6 +155,33 @@ async function call(session, method, path, body, extraHeaders = {}) {
   return { status: res.status, json, text };
 }
 
+/**
+ * Pay the registration fee the way a registrant does now (073-gtbank-payments
+ * AC-16): press pay with a mobile money number, then poll the attempt until
+ * the prompt settles. Answers the registration summary in `json`, the shape the
+ * bare `/pay` used to answer, so the checks read it unchanged; `attempt` is set
+ * when money was taken. A stack where payments are off answers `settled` at
+ * once. A refusal (409 contract_not_accepted) comes back as it is.
+ */
+async function payFee(session, orgId) {
+  const attemptToken = randomUUID();
+  const pressed = await call(session, "POST", `/api/v1/registrations/${orgId}/pay`, {
+    attemptToken,
+    instrument: { kind: "mobile_money", network: "mtn_momo", msisdn: "788123456" },
+  });
+  if (pressed.status !== 200 && pressed.status !== 201) return pressed;
+  if (pressed.json?.kind === "settled") return { ...pressed, json: pressed.json.registration, attempt: null };
+  for (let i = 0; i < 60; i += 1) {
+    await new Promise((r) => setTimeout(r, 1_000));
+    const polled = await call(session, "GET", `/api/v1/registrations/${orgId}/pay/attempts/${attemptToken}`);
+    if (polled.status !== 200) return polled;
+    if (polled.json?.state !== "prompting") {
+      return { status: pressed.status, json: polled.json.registration, text: polled.text, attempt: polled.json };
+    }
+  }
+  return { status: 504, json: null, text: "the fee prompt never settled", attempt: null };
+}
+
 async function signIn(email) {
   const cached = JARS[email];
   if (cached) {
@@ -224,7 +252,7 @@ const DIGITS_ONLY = (s) => s.replace(/\s+/g, "");
 async function throughBothGates(sessions, orgId) {
   const { host, verifier, approver } = sessions;
   const accepted = await call(host, "POST", `/api/v1/registrations/${orgId}/contract`, { contractVersion: OPERATOR_CONTRACT_VERSION });
-  const paid = await call(host, "POST", `/api/v1/registrations/${orgId}/pay`);
+  const paid = await payFee(host, orgId);
   const fv = await call(verifier, "POST", `/api/v1/registrations/${orgId}/field-verify`, {});
   const ap = await call(approver, "POST", `/api/v1/registrations/${orgId}/approve`, {});
   return [accepted.status, paid.status, fv.status, ap.status];
@@ -265,7 +293,7 @@ const main = async () => {
   );
   if (!orgId) return;
 
-  const early = await call(host, "POST", `/api/v1/registrations/${orgId}/pay`);
+  const early = await payFee(host, orgId);
   const [afterEarly] = await q(
     `select o.registration_status, i.status as invoice from orgs o
        join subscription_invoices i on i.org_id = o.id and i.invoice_kind = 'registration_fee'
@@ -323,7 +351,7 @@ const main = async () => {
     read.text.slice(0, 200),
   );
 
-  const paid = await call(host, "POST", `/api/v1/registrations/${orgId}/pay`);
+  const paid = await payFee(host, orgId);
   check(
     "pay now settles and the business leaves pending_payment",
     // `/pay` has always answered 201, being a POST with no `@HttpCode`.

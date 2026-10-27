@@ -244,6 +244,60 @@ export interface MoneyOverride {
   postings: { side: "Dr" | "Cr"; account: string; amount: number }[];
 }
 
+// ── The money desk (AdminMoney's first lens, 073-gtbank-payments AC-19) ─────
+
+export type MoneyBucket = "parked" | "reversals" | "owed" | "short" | "over_limit" | "waiting_on_payer";
+
+export interface MoneyDeskRow {
+  id: string;
+  bucket: MoneyBucket;
+  /** Ours (`INJ…`). */
+  reference: string;
+  providerReference: string | null;
+  direction: string;
+  operation: string;
+  amount: number;
+  status: string;
+  reason: string | null;
+  /** The wallet, masked. */
+  party: string | null;
+  bookingReference: string | null;
+  /** How long it has waited ("3 min", "2 h"). */
+  age: string;
+  pendingOverride: { id: string; action: string } | null;
+}
+
+export interface MoneyDeskOverride {
+  id: string;
+  action: string;
+  state: string;
+  reason: string;
+  subjectReference: string | null;
+  amount: number | null;
+  initiatedBy: string;
+  createdAt: string;
+  /** A super admin who did not request it. */
+  canDecide: boolean;
+}
+
+export interface MoneyDesk {
+  id: string;
+  /** "none" for a staff role that cannot read finance (ops, compliance). */
+  access: "full" | "none";
+  provider: string;
+  mode: string;
+  available: number;
+  inFlight: number;
+  queued: number;
+  parked: number;
+  lastRun: string | null;
+  counts: Record<MoneyBucket, number>;
+  rows: MoneyDeskRow[];
+  overrides: MoneyDeskOverride[];
+  canRequest: boolean;
+  canDecide: boolean;
+}
+
 // ── Platform health (AdminHealth) ────────────────────────────────────────────
 
 export interface Incident {
@@ -2128,6 +2182,98 @@ const announcements: Announcement[] = [
   },
 ];
 
+const moneyDesk: MoneyDesk[] = [
+  {
+    id: "desk",
+    access: "full",
+    provider: "gtbank",
+    mode: "live",
+    available: 4_380_000,
+    inFlight: 186_000,
+    queued: 240_000,
+    parked: 1,
+    lastRun: "discrepancies_flagged · 2026-10-11",
+    counts: { parked: 1, reversals: 1, owed: 1, short: 0, over_limit: 0, waiting_on_payer: 1 },
+    rows: [
+      {
+        id: "pt-reversal-1",
+        bucket: "reversals",
+        reference: "INJ7Q2MZK4RT6PLX3WD5B",
+        providerReference: "GTB-RTP-88201",
+        direction: "collection",
+        operation: "escrow_capture",
+        amount: 186_000,
+        status: "reversed",
+        reason: "double_refund",
+        party: "078••••921",
+        bookingReference: "BK-7Q2M-ZK4R",
+        age: "2 h",
+        pendingOverride: null,
+      },
+      {
+        id: "pt-parked-1",
+        bucket: "parked",
+        reference: "INJK3VW8NPQ2HD7YC4RT1",
+        providerReference: null,
+        direction: "collection",
+        operation: "one_time_fee",
+        amount: 250_000,
+        status: "unknown",
+        reason: "no answer within 8000ms",
+        party: "073••••410",
+        bookingReference: null,
+        age: "41 min",
+        pendingOverride: { id: "ov-confirm-1", action: "confirm_received" },
+      },
+      {
+        id: "pt-owed-1",
+        bucket: "owed",
+        reference: "INJM5XC2TB8RWQ6KD3PL9",
+        providerReference: "GTB-DSB-55102",
+        direction: "disbursement",
+        operation: "refund",
+        amount: 94_000,
+        status: "failed",
+        reason: "the name given does not match the receiving wallet",
+        party: "078••••333",
+        bookingReference: "BK-M5XC-2TB8",
+        age: "1 d",
+        pendingOverride: null,
+      },
+      {
+        id: "pt-waiting-1",
+        bucket: "waiting_on_payer",
+        reference: "INJD8RT4YK2MZQ7XC5WB3",
+        providerReference: null,
+        direction: "disbursement",
+        operation: "escrow_release_guest",
+        amount: 146_000,
+        status: "queued",
+        reason: "payee_details_missing",
+        party: "079••••118",
+        bookingReference: "BK-D8RT-4YK2",
+        age: "5 h",
+        pendingOverride: null,
+      },
+    ],
+    overrides: [
+      {
+        id: "ov-confirm-1",
+        action: "confirm_received",
+        state: "initiated",
+        reason: "The GT Bank portal shows this fee as paid on 11 October at 14:02.",
+        subjectReference: "INJK3VW8NPQ2HD7YC4RT1",
+        amount: null,
+        initiatedBy: "Fabrice Ndayisaba",
+        createdAt: "2026-10-12T07:10:00Z",
+        canDecide: true,
+      },
+    ],
+    canRequest: true,
+    canDecide: true,
+  },
+];
+
 export const fixtures = {
   "admin.triageItems": triage,
   "admin.homeKpis": homeKpis,
@@ -2142,6 +2288,7 @@ export const fixtures = {
   "admin.ledgerPostings": ledgerPostings,
   "admin.reconRuns": reconRuns,
   "admin.overrides": overrides,
+  "admin.moneyDesk": moneyDesk,
   "admin.incidents": incidents,
   "admin.adapters": adapters,
   "admin.deadLetters": deadLetters,

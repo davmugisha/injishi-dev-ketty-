@@ -5,9 +5,13 @@ import { EbmModule } from '../ebm/ebm.module';
 import { ListingModule } from '../listing/listing.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { OperationsModule } from '../operations/operations.module';
+import { OrganizationModule } from '../organization/organization.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { AvailabilityService } from './application/availability.service';
 import { PaymentAttemptService } from './application/payment-attempt.service';
+import { RegistrationFeePaymentService } from './application/registration-fee-payment.service';
+import { REGISTRATION_FEES } from './domain/registration-fees';
+import { RegistrationService } from '../organization/application/registration.service';
 import { PaymentAttemptRepository } from './infrastructure/payment-attempt.repository';
 import { BookingApprovalService } from './application/booking-approval.service';
 import { BookingCancellationService } from './application/booking-cancellation.service';
@@ -17,12 +21,20 @@ import { BookingNotificationsService } from './application/booking-notifications
 import { BookingService } from './application/booking.service';
 import { BookingMailProcessor } from './infrastructure/booking-mail.processor';
 import { BookingMailer } from './infrastructure/booking-mailer';
+import { RefundMailer } from './infrastructure/refund-mailer';
+import { RefundLedgerRepository } from './infrastructure/refund-ledger.repository';
+import { BookingRefunds } from './application/booking-refunds';
+import { RefundOutcomesHandler } from './application/refund-outcomes.handler';
+import { CollectionOutcomesHandler } from './application/collection-outcomes.handler';
 import { GuestTripsService } from './application/guest-trips.service';
+import { GuestRefundsService } from './application/guest-refunds.service';
+import { GuestRefundsRepository } from './infrastructure/guest-refunds.repository';
 import { OperatorReservationsService } from './application/operator-reservations.service';
 import { BookingLifecycleProcessor } from './infrastructure/booking-lifecycle.processor';
 import { BookingRepository } from './infrastructure/booking.repository';
 import { GuestTripsRepository } from './infrastructure/guest-trips.repository';
 import { PaymentCompensationProcessor } from './infrastructure/payment-compensation.processor';
+import { PayerNumberPurgeRepository } from './infrastructure/payer-number-purge.repository';
 
 /**
  * `EbmModule` is imported here and nowhere else, and that is the whole of what
@@ -47,6 +59,13 @@ import { PaymentCompensationProcessor } from './infrastructure/payment-compensat
     OperationsModule,
     PaymentsModule,
     EbmModule,
+    /*
+     * A registration fee is a payment attempt like a booking's, and settling it
+     * settles the registration (073-gtbank-payments AC-16). Organization imports
+     * nothing that reaches back here, so this adds no cycle, and the worker's
+     * sweep can settle a fee nobody is polling.
+     */
+    OrganizationModule,
     /*
      * `BookingMailer` composes words over `MAILER_PORT`, and the port lives on
      * the mailer seam — the one wiring point for mail in this service
@@ -75,6 +94,9 @@ import { PaymentCompensationProcessor } from './infrastructure/payment-compensat
     // 34 KB write-path one does not grow a thirteenth concern.
     GuestTripsRepository,
     GuestTripsService,
+    // The payer's own refunds and the payee form (073-gtbank-payments AC-12).
+    GuestRefundsRepository,
+    GuestRefundsService,
     /*
      * Telling the guest what happened to their booking (ADR-047).
      *
@@ -87,6 +109,19 @@ import { PaymentCompensationProcessor } from './infrastructure/payment-compensat
      */
     BookingNotificationsService,
     BookingMailer,
+    RefundMailer,
+    /*
+     * Cancel now, refund owed (073-gtbank-payments AC-13). The planner writes
+     * a refund owed inside a booking's own transaction; the handler hears the
+     * bank's answer from the payments module, in BOTH processes, because
+     * whichever process applied the verdict applies its consequences.
+     */
+    BookingRefunds,
+    RefundLedgerRepository,
+    RefundOutcomesHandler,
+    // What two people decided about a collection: received after all, or a
+    // reversal that cancels what it paid for (073 AC-20, AC-21).
+    CollectionOutcomesHandler,
     /*
      * The wait between "we asked" and "they paid" (ADR-047 D-j).
      *
@@ -96,10 +131,14 @@ import { PaymentCompensationProcessor } from './infrastructure/payment-compensat
      */
     PaymentAttemptRepository,
     PaymentAttemptService,
+    RegistrationFeePaymentService,
+    // The attempt service completes a fee through this narrow port (073 AC-16).
+    { provide: REGISTRATION_FEES, useExisting: RegistrationService },
     ...(isWorkerProcess()
       ? [
           BookingLifecycleProcessor,
           PaymentCompensationProcessor,
+          PayerNumberPurgeRepository,
           BookingMailProcessor,
         ]
       : []),
@@ -110,12 +149,15 @@ import { PaymentCompensationProcessor } from './infrastructure/payment-compensat
     AvailabilityService,
     // Exported for `BookingsController`, which serves the guest's poll.
     PaymentAttemptService,
+    // Exported for `RegistrationsController`'s pay and poll (073 AC-16).
+    RegistrationFeePaymentService,
     BookingApprovalService,
     BookingCancellationService,
     OperatorReservationsService,
     // Exported for `MeController`, which is the only caller and lives in
     // `PublicApiModule`.
     GuestTripsService,
+    GuestRefundsService,
   ],
 })
 export class BookingModule {}

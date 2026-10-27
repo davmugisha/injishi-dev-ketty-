@@ -519,6 +519,13 @@
       "when": 1792956663982,
       "tag": "0073_pos_floor_orders_payments_shifts",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1793040436609,
+      "tag": "0074_gtbank_payments",
+      "breakpoints": true
     }
   ]
 }

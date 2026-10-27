@@ -13,7 +13,10 @@ import {
   type OrgRegistrationStatus,
   type PsfTier,
   type RegistrantCapacity,
+  type MobileMoneyNetwork,
+  type RegistrationFeeAttemptStatus,
   type RegistrationFeeQuote,
+  type RegistrationPayRequest,
   type RegistrationSummary,
   type VerifiedPerson,
   businessTypeFor,
@@ -41,6 +44,7 @@ import {
   resubmitRegistration,
   saveRegistrationDraft,
 } from "@/data/registration";
+import type { RegistrationFeeMode } from "@/data/platform";
 import { apiResultMessage, type ApiResult, type RefusalIssue } from "@/lib/api";
 import type { SessionUser } from "@/lib/session";
 import { type ContractSignature, type RegistrationContractInput } from "@/lib/registration-contract";
@@ -96,7 +100,7 @@ import { StepBranchesPsf } from "./step-branches-psf";
 import { downloadSignedContract } from "./step-contract";
 import { StepDocuments, documentsReady } from "./step-documents";
 import { StepOverview, type ReviewRow } from "./step-overview";
-import { StepPay } from "./step-pay";
+import { StepPay, feeInstrument, feeLimitProblem } from "./step-pay";
 import { StepType } from "./step-type";
 import { formatRwf } from "./wizard-ui";
 
@@ -183,12 +187,21 @@ export default function RegisterWizard({
   initialKind = null,
   user,
   demo,
+  feeMode = "unknown",
+  feeNetworks = ["mtn_momo", "airtel_money"],
+  feeMaxRwf = null,
 }: {
   initialKind?: RegistrationKind | null;
   /** The session the gate resolved. */
   user: SessionUser | null;
   /** The API said it is the demo, so the register's SMS code is the published one. */
   demo: boolean;
+  /** How the fee is taken on this stack, from `/platform` (073-gtbank-payments AC-17). */
+  feeMode?: RegistrationFeeMode;
+  /** The networks a fee prompt may go to. */
+  feeNetworks?: MobileMoneyNetwork[];
+  /** The bank's collection limit, from `/platform` (073-gtbank-payments AC-23). */
+  feeMaxRwf?: number | null;
 }) {
   const arrivalKind = initialKind;
 
@@ -227,6 +240,15 @@ export default function RegisterWizard({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
   const [busy, setBusy] = useState(false);
+  // --- paying the fee (073-gtbank-payments AC-17) ---
+  const [payPhone, setPayPhone] = useState("");
+  const [payProblem, setPayProblem] = useState<string | null>(null);
+  /** The press waiting on the registrant's phone. */
+  const [feeAttempt, setFeeAttempt] = useState<RegistrationFeeAttemptStatus | null>(null);
+  /** Why the last press ended without paying, as the server said it. */
+  const [feeEnded, setFeeEnded] = useState<string | null>(null);
+  /** One token per press, kept across retries of that press so a retry never prompts twice. */
+  const payToken = useRef<string | null>(null);
   const [exiting, setExiting] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
@@ -790,17 +812,49 @@ export default function RegisterWizard({
     }
   };
 
+  /** A fee press reached an answer the wizard can show. */
+  const takeFeeAttempt = (attempt: RegistrationFeeAttemptStatus) => {
+    setSummary(attempt.registration);
+    if (attempt.state === "prompting") {
+      setFeeAttempt(attempt);
+      setFeeEnded(null);
+      return;
+    }
+    // Final either way: the next press is a new press, with a new token.
+    payToken.current = null;
+    setFeeAttempt(null);
+    setFeeEnded(attempt.state === "confirmed" ? null : (attempt.failureReason ?? "The payment did not go through."));
+  };
+
   const pay = async () => {
     if (!summary) return;
-    setBusy(true);
     setFormError("");
-    const res = await payRegistrationFee(summary.orgId);
+    setPayProblem(null);
+    let body: RegistrationPayRequest = {};
+    if (feeMode !== "free") {
+      const chosen = feeInstrument(payPhone, feeNetworks, feeMaxRwf, fee);
+      if (!chosen.instrument) {
+        setPayProblem(chosen.problem);
+        return;
+      }
+      payToken.current ??= crypto.randomUUID();
+      body = { attemptToken: payToken.current, instrument: chosen.instrument };
+    }
+    setBusy(true);
+    const res = await payRegistrationFee(summary.orgId, body);
     setBusy(false);
     if (res.status !== "ok") {
+      // The token is kept: pressing again is the same press, so the server
+      // replays it rather than prompting a second time.
       setFormError(apiResultMessage(res));
       return;
     }
-    setSummary(res.data);
+    if (res.data.kind === "settled") {
+      payToken.current = null;
+      setSummary(res.data.registration);
+      return;
+    }
+    takeFeeAttempt(res.data.attempt);
   };
 
   // --- broker ------------------------------------------------------------------
@@ -1195,15 +1249,17 @@ export default function RegisterWizard({
                 : "Sign the agreement to continue.",
         };
   } else if (step === "pay") {
-    primary = paid
-      ? null
-      : {
-          label: fee === null ? "Pay" : `Pay ${formatRwf(fee)}`,
-          icon: <Landmark size={16} aria-hidden />,
-          onPress: () => void pay(),
-          pending: busy,
-          disabled: summary === null,
-        };
+    // While a prompt is out, the waiting screen carries its own controls.
+    primary =
+      paid || feeAttempt?.state === "prompting"
+        ? null
+        : {
+            label: feeMode === "free" ? "Submit for review" : fee === null ? "Pay" : `Pay ${formatRwf(fee)}`,
+            icon: <Landmark size={16} aria-hidden />,
+            onPress: () => void pay(),
+            pending: busy,
+            disabled: summary === null,
+          };
   }
 
   const stepIndex = Math.max(0, order.indexOf(step));
@@ -1405,6 +1461,19 @@ export default function RegisterWizard({
             paid={paid}
             paidOn={onDay(summary?.submittedAt ?? null)}
             onSeeStatus={() => setScreen("review")}
+            feeMode={feeMode}
+            phone={payPhone}
+            onPhone={(next) => {
+              setPayPhone(next);
+              setPayProblem(null);
+            }}
+            phoneProblem={payProblem ?? (feeMode === "free" ? null : feeLimitProblem(fee, feeNetworks, feeMaxRwf))}
+            networks={feeNetworks}
+            orgId={summary?.orgId ?? null}
+            attempt={feeAttempt}
+            endedReason={feeEnded}
+            onSettled={takeFeeAttempt}
+            onEnded={takeFeeAttempt}
           />
         ) : null}
       </StepFrame>

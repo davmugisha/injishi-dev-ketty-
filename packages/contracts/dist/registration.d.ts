@@ -949,6 +949,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         };
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
+    domain: "hospitality";
     address: {
         country: "RW";
         provinceId: number;
@@ -968,7 +969,6 @@ export declare const HospitalityBusiness: z.ZodObject<{
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
-    domain: "hospitality";
     entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     tin: string;
@@ -1021,6 +1021,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
     } | undefined;
     eacStarGrade?: number | undefined;
 }, {
+    domain: "hospitality";
     address: {
         country: "RW";
         provinceId: number;
@@ -1031,7 +1032,6 @@ export declare const HospitalityBusiness: z.ZodObject<{
         street?: string | undefined;
     };
     legalName: string;
-    domain: "hospitality";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     tin: string;
     certificates?: {
@@ -1169,6 +1169,7 @@ export declare const ResidenceBusiness: z.ZodObject<{
     psfApplication: z.ZodOptional<z.ZodNever>;
     psfMembershipNumber: z.ZodOptional<z.ZodNever>;
 }, "strip", z.ZodTypeAny, {
+    domain: "residence";
     address: {
         country: "RW";
         provinceId: number;
@@ -1188,13 +1189,13 @@ export declare const ResidenceBusiness: z.ZodObject<{
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
-    domain: "residence";
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
     psfMembershipNumber?: undefined;
     psfApplication?: undefined;
     branches?: unknown[] | undefined;
 }, {
+    domain: "residence";
     address: {
         country: "RW";
         provinceId: number;
@@ -1205,7 +1206,6 @@ export declare const ResidenceBusiness: z.ZodObject<{
         street?: string | undefined;
     };
     legalName: string;
-    domain: "residence";
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
     certificates?: {
@@ -1516,6 +1516,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         };
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
+    domain: "hospitality";
     address: {
         country: "RW";
         provinceId: number;
@@ -1535,7 +1536,6 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
-    domain: "hospitality";
     entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     tin: string;
@@ -1588,6 +1588,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     } | undefined;
     eacStarGrade?: number | undefined;
 }, {
+    domain: "hospitality";
     address: {
         country: "RW";
         provinceId: number;
@@ -1598,7 +1599,6 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         street?: string | undefined;
     };
     legalName: string;
-    domain: "hospitality";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     tin: string;
     certificates?: {
@@ -1734,6 +1734,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     psfApplication: z.ZodOptional<z.ZodNever>;
     psfMembershipNumber: z.ZodOptional<z.ZodNever>;
 }, "strip", z.ZodTypeAny, {
+    domain: "residence";
     address: {
         country: "RW";
         provinceId: number;
@@ -1753,13 +1754,13 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
-    domain: "residence";
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
     psfMembershipNumber?: undefined;
     psfApplication?: undefined;
     branches?: unknown[] | undefined;
 }, {
+    domain: "residence";
     address: {
         country: "RW";
         provinceId: number;
@@ -1770,7 +1771,6 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         street?: string | undefined;
     };
     legalName: string;
-    domain: "residence";
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
     certificates?: {
@@ -1786,6 +1786,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     psfApplication?: undefined;
     branches?: unknown[] | undefined;
 }>]>, {
+    domain: "hospitality";
     address: {
         country: "RW";
         provinceId: number;
@@ -1805,7 +1806,6 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
-    domain: "hospitality";
     entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     tin: string;
@@ -1858,6 +1858,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     } | undefined;
     eacStarGrade?: number | undefined;
 } | {
+    domain: "residence";
     address: {
         country: "RW";
         provinceId: number;
@@ -1877,13 +1878,13 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
-    domain: "residence";
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
     psfMembershipNumber?: undefined;
     psfApplication?: undefined;
     branches?: unknown[] | undefined;
 }, {
+    domain: "hospitality";
     address: {
         country: "RW";
         provinceId: number;
@@ -1894,7 +1895,6 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         street?: string | undefined;
     };
     legalName: string;
-    domain: "hospitality";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     tin: string;
     certificates?: {
@@ -1956,6 +1956,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         };
     }[] | undefined;
 } | {
+    domain: "residence";
     address: {
         country: "RW";
         provinceId: number;
@@ -1966,7 +1967,6 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         street?: string | undefined;
     };
     legalName: string;
-    domain: "residence";
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
     certificates?: {
@@ -2440,6 +2440,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             };
         }>, "many">>;
     }, "strip", z.ZodTypeAny, {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -2459,7 +2460,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "hospitality";
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
@@ -2512,6 +2512,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         } | undefined;
         eacStarGrade?: number | undefined;
     }, {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -2522,7 +2523,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "hospitality";
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
         certificates?: {
@@ -2658,6 +2658,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfApplication: z.ZodOptional<z.ZodNever>;
         psfMembershipNumber: z.ZodOptional<z.ZodNever>;
     }, "strip", z.ZodTypeAny, {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -2677,13 +2678,13 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
     }, {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -2694,7 +2695,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
         certificates?: {
@@ -2710,6 +2710,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
     }>]>, {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -2729,7 +2730,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "hospitality";
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
@@ -2782,6 +2782,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         } | undefined;
         eacStarGrade?: number | undefined;
     } | {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -2801,13 +2802,13 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
     }, {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -2818,7 +2819,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "hospitality";
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
         certificates?: {
@@ -2880,6 +2880,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             };
         }[] | undefined;
     } | {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -2890,7 +2891,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
         certificates?: {
@@ -2922,6 +2922,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     business: {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -2941,7 +2942,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "hospitality";
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
@@ -2994,6 +2994,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         } | undefined;
         eacStarGrade?: number | undefined;
     } | {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -3013,15 +3014,14 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
     };
-    role: "broker" | "host" | "landlord";
     capacity: "owner" | "on_behalf_of";
+    role: "broker" | "host" | "landlord";
     personal?: {
         fullName: string;
         dateOfBirth: string;
@@ -3056,6 +3056,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     } | undefined;
 }, {
     business: {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -3066,7 +3067,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "hospitality";
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
         certificates?: {
@@ -3128,6 +3128,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             };
         }[] | undefined;
     } | {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -3138,7 +3139,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
         certificates?: {
@@ -3190,6 +3190,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     } | undefined;
 }>, {
     business: {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -3209,7 +3210,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "hospitality";
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
@@ -3262,6 +3262,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         } | undefined;
         eacStarGrade?: number | undefined;
     } | {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -3281,15 +3282,14 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
     };
-    role: "broker" | "host" | "landlord";
     capacity: "owner" | "on_behalf_of";
+    role: "broker" | "host" | "landlord";
     personal?: {
         fullName: string;
         dateOfBirth: string;
@@ -3324,6 +3324,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     } | undefined;
 }, {
     business: {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -3334,7 +3335,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "hospitality";
         accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
         certificates?: {
@@ -3396,6 +3396,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             };
         }[] | undefined;
     } | {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -3406,7 +3407,6 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
         certificates?: {
@@ -3564,28 +3564,28 @@ export declare const OversightDocument: z.ZodObject<{
     checkedAt: z.ZodNullable<z.ZodString>;
     checkedByName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    expired: boolean;
+    id: string;
     kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
     kindOther: string | null;
     certificateNumber: string | null;
     issuedBy: string | null;
     issuedOn: string | null;
     expiresOn: string | null;
-    id: string;
-    expired: boolean;
     mime: string | null;
     sizeBytes: number | null;
     url: string | null;
     checkedAt: string | null;
     checkedByName: string | null;
 }, {
+    expired: boolean;
+    id: string;
     kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
     kindOther: string | null;
     certificateNumber: string | null;
     issuedBy: string | null;
     issuedOn: string | null;
     expiresOn: string | null;
-    id: string;
-    expired: boolean;
     mime: string | null;
     sizeBytes: number | null;
     url: string | null;
@@ -3621,28 +3621,28 @@ export declare const OversightDocumentList: z.ZodObject<{
         checkedAt: z.ZodNullable<z.ZodString>;
         checkedByName: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        expired: boolean;
+        id: string;
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         kindOther: string | null;
         certificateNumber: string | null;
         issuedBy: string | null;
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
-        expired: boolean;
         mime: string | null;
         sizeBytes: number | null;
         url: string | null;
         checkedAt: string | null;
         checkedByName: string | null;
     }, {
+        expired: boolean;
+        id: string;
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         kindOther: string | null;
         certificateNumber: string | null;
         issuedBy: string | null;
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
-        expired: boolean;
         mime: string | null;
         sizeBytes: number | null;
         url: string | null;
@@ -3654,14 +3654,14 @@ export declare const OversightDocumentList: z.ZodObject<{
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     legalName: string;
     documents: {
+        expired: boolean;
+        id: string;
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         kindOther: string | null;
         certificateNumber: string | null;
         issuedBy: string | null;
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
-        expired: boolean;
         mime: string | null;
         sizeBytes: number | null;
         url: string | null;
@@ -3674,14 +3674,14 @@ export declare const OversightDocumentList: z.ZodObject<{
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     legalName: string;
     documents: {
+        expired: boolean;
+        id: string;
         kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
         kindOther: string | null;
         certificateNumber: string | null;
         issuedBy: string | null;
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
-        expired: boolean;
         mime: string | null;
         sizeBytes: number | null;
         url: string | null;
@@ -3795,6 +3795,8 @@ export declare const OversightQueueItem: z.ZodObject<{
     intendedOwnerName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+    domain: "hospitality" | "residence";
+    districtName: string | null;
     districtId: number | null;
     addressText: string | null;
     legalName: string;
@@ -3803,7 +3805,6 @@ export declare const OversightQueueItem: z.ZodObject<{
         kindOther: string | null;
         certificateNumber: string | null;
     }[];
-    domain: "hospitality" | "residence";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     tin: string | null;
     upi: string | null;
@@ -3814,7 +3815,6 @@ export declare const OversightQueueItem: z.ZodObject<{
         isHeadOffice: boolean;
     }[];
     orgId: string;
-    districtName: string | null;
     sectorName: string | null;
     waitingSince: string;
     blockedBySeparationOfDuties: boolean;
@@ -3830,6 +3830,8 @@ export declare const OversightQueueItem: z.ZodObject<{
     intendedOwnerName: string | null;
 }, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+    domain: "hospitality" | "residence";
+    districtName: string | null;
     districtId: number | null;
     addressText: string | null;
     legalName: string;
@@ -3838,7 +3840,6 @@ export declare const OversightQueueItem: z.ZodObject<{
         kindOther: string | null;
         certificateNumber: string | null;
     }[];
-    domain: "hospitality" | "residence";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     tin: string | null;
     upi: string | null;
@@ -3849,7 +3850,6 @@ export declare const OversightQueueItem: z.ZodObject<{
         isHeadOffice: boolean;
     }[];
     orgId: string;
-    districtName: string | null;
     sectorName: string | null;
     waitingSince: string;
     blockedBySeparationOfDuties: boolean;
@@ -4020,8 +4020,8 @@ export declare const RegistrationSummary: z.ZodObject<{
     payoutLocked: z.ZodNullable<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    legalName: string;
     domain: "hospitality" | "residence";
+    legalName: string;
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     orgId: string;
     workspaceId: string;
@@ -4035,8 +4035,8 @@ export declare const RegistrationSummary: z.ZodObject<{
     payoutLocked: boolean | null;
 }, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    legalName: string;
     domain: "hospitality" | "residence";
+    legalName: string;
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     orgId: string;
     workspaceId: string;
@@ -4145,12 +4145,12 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         lastName: string;
         middleName: string;
     };
+    capacity: "owner" | "on_behalf_of";
     kind: string | null;
     branches: {
         name: string;
         address: Record<string, string>;
     }[];
-    capacity: "owner" | "on_behalf_of";
     intendedOwner: {
         name: string;
         email: string;
@@ -4171,12 +4171,12 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         lastName: string;
         middleName: string;
     };
+    capacity: "owner" | "on_behalf_of";
     kind: string | null;
     branches: {
         name: string;
         address: Record<string, string>;
     }[];
-    capacity: "owner" | "on_behalf_of";
     intendedOwner: {
         name: string;
         email: string;
@@ -4197,12 +4197,12 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         lastName: string;
         middleName: string;
     };
+    capacity: "owner" | "on_behalf_of";
     kind: string | null;
     branches: {
         name: string;
         address: Record<string, string>;
     }[];
-    capacity: "owner" | "on_behalf_of";
     intendedOwner: {
         name: string;
         email: string;
@@ -4223,12 +4223,12 @@ export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
         lastName: string;
         middleName: string;
     };
+    capacity: "owner" | "on_behalf_of";
     kind: string | null;
     branches: {
         name: string;
         address: Record<string, string>;
     }[];
-    capacity: "owner" | "on_behalf_of";
     intendedOwner: {
         name: string;
         email: string;
@@ -4468,15 +4468,15 @@ export declare const ClaimPreview: z.ZodObject<{
     registrationStatus: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
     registrantName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    districtName: string | null;
     legalName: string;
     orgId: string;
-    districtName: string | null;
     registrantName: string | null;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
 }, {
+    districtName: string | null;
     legalName: string;
     orgId: string;
-    districtName: string | null;
     registrantName: string | null;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
 }>;
@@ -4487,15 +4487,471 @@ export declare const RegistrationFeeQuote: z.ZodObject<{
     amountRwf: z.ZodNumber;
     currency: z.ZodLiteral<"RWF">;
 }, "strip", z.ZodTypeAny, {
-    businessType: "hospitality" | "residence" | "broker";
     amountRwf: number;
+    businessType: "hospitality" | "residence" | "broker";
     currency: "RWF";
 }, {
-    businessType: "hospitality" | "residence" | "broker";
     amountRwf: number;
+    businessType: "hospitality" | "residence" | "broker";
     currency: "RWF";
 }>;
 export type RegistrationFeeQuote = z.infer<typeof RegistrationFeeQuote>;
+/**
+ * One press of pay. Both fields are optional because the fee settles free
+ * while payments are off (call 9), and then there is nothing to prompt; when
+ * money is taken, the server refuses a body missing either with a 422.
+ */
+export declare const RegistrationPayRequest: z.ZodObject<{
+    /** Minted once per press and reused on every retry of that press. */
+    attemptToken: z.ZodOptional<z.ZodString>;
+    /** The registrant's mobile money number. A card is refused. */
+    instrument: z.ZodOptional<z.ZodDiscriminatedUnion<"kind", [z.ZodObject<{
+        kind: z.ZodLiteral<"mobile_money">;
+        network: z.ZodEnum<["mtn_momo", "airtel_money"]>;
+        msisdn: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        network: "mtn_momo" | "airtel_money";
+        kind: "mobile_money";
+        msisdn: string;
+    }, {
+        network: "mtn_momo" | "airtel_money";
+        kind: "mobile_money";
+        msisdn: string;
+    }>, z.ZodObject<{
+        kind: z.ZodLiteral<"card">;
+        token: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        kind: "card";
+        token: string;
+    }, {
+        kind: "card";
+        token: string;
+    }>]>>;
+}, "strip", z.ZodTypeAny, {
+    attemptToken?: string | undefined;
+    instrument?: {
+        network: "mtn_momo" | "airtel_money";
+        kind: "mobile_money";
+        msisdn: string;
+    } | {
+        kind: "card";
+        token: string;
+    } | undefined;
+}, {
+    attemptToken?: string | undefined;
+    instrument?: {
+        network: "mtn_momo" | "airtel_money";
+        kind: "mobile_money";
+        msisdn: string;
+    } | {
+        kind: "card";
+        token: string;
+    } | undefined;
+}>;
+export type RegistrationPayRequest = z.infer<typeof RegistrationPayRequest>;
+/** A fee payment waiting on the registrant's handset, as the wizard watches it. */
+export declare const RegistrationFeeAttemptStatus: z.ZodObject<{
+    attemptToken: z.ZodString;
+    state: z.ZodEnum<["prompting", "confirmed", "refused", "expired"]>;
+    network: z.ZodNullable<z.ZodEnum<["mtn_momo", "airtel_money"]>>;
+    /** Masked: enough to recognise, never enough to charge. */
+    payerMasked: z.ZodNullable<z.ZodString>;
+    amountRwf: z.ZodNullable<z.ZodNumber>;
+    expiresAt: z.ZodString;
+    failureReason: z.ZodNullable<z.ZodString>;
+    /** The registration as it stands now: `submitted` once the fee settled. */
+    registration: z.ZodObject<{
+        orgId: z.ZodString;
+        workspaceId: z.ZodString;
+        legalName: z.ZodString;
+        domain: z.ZodEnum<["hospitality", "residence"]>;
+        accommodationClass: z.ZodNullable<z.ZodUnion<[z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>, z.ZodEnum<["town_hotel", "vacation_hotel_resort", "serviced_apartment", "cottage"]>]>>;
+        status: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
+        /** Set only while `status` is `pending_payment`. */
+        amountDueRwf: z.ZodNullable<z.ZodNumber>;
+        /** The invoice to settle, when one is outstanding. */
+        invoiceId: z.ZodNullable<z.ZodString>;
+        /** Reason code from the rejecting stage, when `status` is `rejected`. */
+        rejectionReason: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
+        /** The reviewing officer's own words, when they left any. */
+        rejectionNotes: z.ZodNullable<z.ZodString>;
+        submittedAt: z.ZodNullable<z.ZodString>;
+        /**
+         * The operator contract this business accepted, and when (ADR-053, AC-R8).
+         *
+         * Read from the server so a registrant who comes back to the wizard resumes
+         * at the right step, never from the browser. Both null until accepted, and
+         * both stay null for a business that paid before acceptance was recorded.
+         */
+        contractVersion: z.ZodNullable<z.ZodString>;
+        contractAcceptedAt: z.ZodNullable<z.ZodString>;
+        /**
+         * Whether payouts wait on the owner's identity being verified (ADR-053,
+         * AC-R1). Null for a business nobody registered on behalf of anyone else.
+         */
+        payoutLocked: z.ZodNullable<z.ZodBoolean>;
+    }, "strip", z.ZodTypeAny, {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    }, {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    network: "mtn_momo" | "airtel_money" | null;
+    attemptToken: string;
+    state: "confirmed" | "expired" | "prompting" | "refused";
+    payerMasked: string | null;
+    amountRwf: number | null;
+    expiresAt: string;
+    failureReason: string | null;
+    registration: {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    };
+}, {
+    network: "mtn_momo" | "airtel_money" | null;
+    attemptToken: string;
+    state: "confirmed" | "expired" | "prompting" | "refused";
+    payerMasked: string | null;
+    amountRwf: number | null;
+    expiresAt: string;
+    failureReason: string | null;
+    registration: {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    };
+}>;
+export type RegistrationFeeAttemptStatus = z.infer<typeof RegistrationFeeAttemptStatus>;
+/**
+ * What the pay press answers: settled at once (the free path, or an
+ * instrument that settled inside the call), or an attempt to wait on.
+ */
+export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.ZodObject<{
+    kind: z.ZodLiteral<"settled">;
+    registration: z.ZodObject<{
+        orgId: z.ZodString;
+        workspaceId: z.ZodString;
+        legalName: z.ZodString;
+        domain: z.ZodEnum<["hospitality", "residence"]>;
+        accommodationClass: z.ZodNullable<z.ZodUnion<[z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>, z.ZodEnum<["town_hotel", "vacation_hotel_resort", "serviced_apartment", "cottage"]>]>>;
+        status: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
+        /** Set only while `status` is `pending_payment`. */
+        amountDueRwf: z.ZodNullable<z.ZodNumber>;
+        /** The invoice to settle, when one is outstanding. */
+        invoiceId: z.ZodNullable<z.ZodString>;
+        /** Reason code from the rejecting stage, when `status` is `rejected`. */
+        rejectionReason: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
+        /** The reviewing officer's own words, when they left any. */
+        rejectionNotes: z.ZodNullable<z.ZodString>;
+        submittedAt: z.ZodNullable<z.ZodString>;
+        /**
+         * The operator contract this business accepted, and when (ADR-053, AC-R8).
+         *
+         * Read from the server so a registrant who comes back to the wizard resumes
+         * at the right step, never from the browser. Both null until accepted, and
+         * both stay null for a business that paid before acceptance was recorded.
+         */
+        contractVersion: z.ZodNullable<z.ZodString>;
+        contractAcceptedAt: z.ZodNullable<z.ZodString>;
+        /**
+         * Whether payouts wait on the owner's identity being verified (ADR-053,
+         * AC-R1). Null for a business nobody registered on behalf of anyone else.
+         */
+        payoutLocked: z.ZodNullable<z.ZodBoolean>;
+    }, "strip", z.ZodTypeAny, {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    }, {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    kind: "settled";
+    registration: {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    };
+}, {
+    kind: "settled";
+    registration: {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    };
+}>, z.ZodObject<{
+    kind: z.ZodLiteral<"attempt">;
+    attempt: z.ZodObject<{
+        attemptToken: z.ZodString;
+        state: z.ZodEnum<["prompting", "confirmed", "refused", "expired"]>;
+        network: z.ZodNullable<z.ZodEnum<["mtn_momo", "airtel_money"]>>;
+        /** Masked: enough to recognise, never enough to charge. */
+        payerMasked: z.ZodNullable<z.ZodString>;
+        amountRwf: z.ZodNullable<z.ZodNumber>;
+        expiresAt: z.ZodString;
+        failureReason: z.ZodNullable<z.ZodString>;
+        /** The registration as it stands now: `submitted` once the fee settled. */
+        registration: z.ZodObject<{
+            orgId: z.ZodString;
+            workspaceId: z.ZodString;
+            legalName: z.ZodString;
+            domain: z.ZodEnum<["hospitality", "residence"]>;
+            accommodationClass: z.ZodNullable<z.ZodUnion<[z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>, z.ZodEnum<["town_hotel", "vacation_hotel_resort", "serviced_apartment", "cottage"]>]>>;
+            status: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
+            /** Set only while `status` is `pending_payment`. */
+            amountDueRwf: z.ZodNullable<z.ZodNumber>;
+            /** The invoice to settle, when one is outstanding. */
+            invoiceId: z.ZodNullable<z.ZodString>;
+            /** Reason code from the rejecting stage, when `status` is `rejected`. */
+            rejectionReason: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
+            /** The reviewing officer's own words, when they left any. */
+            rejectionNotes: z.ZodNullable<z.ZodString>;
+            submittedAt: z.ZodNullable<z.ZodString>;
+            /**
+             * The operator contract this business accepted, and when (ADR-053, AC-R8).
+             *
+             * Read from the server so a registrant who comes back to the wizard resumes
+             * at the right step, never from the browser. Both null until accepted, and
+             * both stay null for a business that paid before acceptance was recorded.
+             */
+            contractVersion: z.ZodNullable<z.ZodString>;
+            contractAcceptedAt: z.ZodNullable<z.ZodString>;
+            /**
+             * Whether payouts wait on the owner's identity being verified (ADR-053,
+             * AC-R1). Null for a business nobody registered on behalf of anyone else.
+             */
+            payoutLocked: z.ZodNullable<z.ZodBoolean>;
+        }, "strip", z.ZodTypeAny, {
+            status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+            domain: "hospitality" | "residence";
+            legalName: string;
+            accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+            orgId: string;
+            workspaceId: string;
+            amountDueRwf: number | null;
+            invoiceId: string | null;
+            rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+            rejectionNotes: string | null;
+            submittedAt: string | null;
+            contractVersion: string | null;
+            contractAcceptedAt: string | null;
+            payoutLocked: boolean | null;
+        }, {
+            status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+            domain: "hospitality" | "residence";
+            legalName: string;
+            accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+            orgId: string;
+            workspaceId: string;
+            amountDueRwf: number | null;
+            invoiceId: string | null;
+            rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+            rejectionNotes: string | null;
+            submittedAt: string | null;
+            contractVersion: string | null;
+            contractAcceptedAt: string | null;
+            payoutLocked: boolean | null;
+        }>;
+    }, "strip", z.ZodTypeAny, {
+        network: "mtn_momo" | "airtel_money" | null;
+        attemptToken: string;
+        state: "confirmed" | "expired" | "prompting" | "refused";
+        payerMasked: string | null;
+        amountRwf: number | null;
+        expiresAt: string;
+        failureReason: string | null;
+        registration: {
+            status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+            domain: "hospitality" | "residence";
+            legalName: string;
+            accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+            orgId: string;
+            workspaceId: string;
+            amountDueRwf: number | null;
+            invoiceId: string | null;
+            rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+            rejectionNotes: string | null;
+            submittedAt: string | null;
+            contractVersion: string | null;
+            contractAcceptedAt: string | null;
+            payoutLocked: boolean | null;
+        };
+    }, {
+        network: "mtn_momo" | "airtel_money" | null;
+        attemptToken: string;
+        state: "confirmed" | "expired" | "prompting" | "refused";
+        payerMasked: string | null;
+        amountRwf: number | null;
+        expiresAt: string;
+        failureReason: string | null;
+        registration: {
+            status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+            domain: "hospitality" | "residence";
+            legalName: string;
+            accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+            orgId: string;
+            workspaceId: string;
+            amountDueRwf: number | null;
+            invoiceId: string | null;
+            rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+            rejectionNotes: string | null;
+            submittedAt: string | null;
+            contractVersion: string | null;
+            contractAcceptedAt: string | null;
+            payoutLocked: boolean | null;
+        };
+    }>;
+}, "strip", z.ZodTypeAny, {
+    kind: "attempt";
+    attempt: {
+        network: "mtn_momo" | "airtel_money" | null;
+        attemptToken: string;
+        state: "confirmed" | "expired" | "prompting" | "refused";
+        payerMasked: string | null;
+        amountRwf: number | null;
+        expiresAt: string;
+        failureReason: string | null;
+        registration: {
+            status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+            domain: "hospitality" | "residence";
+            legalName: string;
+            accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+            orgId: string;
+            workspaceId: string;
+            amountDueRwf: number | null;
+            invoiceId: string | null;
+            rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+            rejectionNotes: string | null;
+            submittedAt: string | null;
+            contractVersion: string | null;
+            contractAcceptedAt: string | null;
+            payoutLocked: boolean | null;
+        };
+    };
+}, {
+    kind: "attempt";
+    attempt: {
+        network: "mtn_momo" | "airtel_money" | null;
+        attemptToken: string;
+        state: "confirmed" | "expired" | "prompting" | "refused";
+        payerMasked: string | null;
+        amountRwf: number | null;
+        expiresAt: string;
+        failureReason: string | null;
+        registration: {
+            status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+            domain: "hospitality" | "residence";
+            legalName: string;
+            accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+            orgId: string;
+            workspaceId: string;
+            amountDueRwf: number | null;
+            invoiceId: string | null;
+            rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+            rejectionNotes: string | null;
+            submittedAt: string | null;
+            contractVersion: string | null;
+            contractAcceptedAt: string | null;
+            payoutLocked: boolean | null;
+        };
+    };
+}>]>;
+export type RegistrationPayResult = z.infer<typeof RegistrationPayResult>;
 /**
  * What the wizard shows a registrant who already has an account (FL01 §1).
  *

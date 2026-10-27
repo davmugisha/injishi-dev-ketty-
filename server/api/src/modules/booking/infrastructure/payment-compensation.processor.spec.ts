@@ -1,3 +1,5 @@
+import type { PayerNumberPurgeRepository } from './payer-number-purge.repository';
+import type { PaymentSeam } from '../../payments/domain/payment-seam';
 import type { Job, Queue } from 'bullmq';
 
 import type { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
@@ -7,6 +9,8 @@ import {
 } from '../../payments/domain/payment-port';
 import type { BookingRepository } from './booking.repository';
 import { PaymentCompensationProcessor } from './payment-compensation.processor';
+import type { BookingRefunds } from '../application/booking-refunds';
+import type { DisbursementDispatcher } from '../../payments/application/disbursement-dispatcher.service';
 
 /**
  * The referee between a late-settling capture and the retry the guest was
@@ -56,11 +60,18 @@ describe('PaymentCompensationProcessor · void-pending', () => {
       drain: jest.fn().mockResolvedValue(0),
     };
     const queue = { upsertJobScheduler: jest.fn() };
+    const payerNumbers = { run: jest.fn().mockResolvedValue({ stamped: 0, purged: 0 }) };
+    const seam = { settings: { refundWindowDays: 30 } };
     const processor = new PaymentCompensationProcessor(
       queue as unknown as Queue,
       payments as unknown as PaymentPort,
       bookings as unknown as BookingRepository,
       compensations as unknown as PaymentCompensationService,
+      payerNumbers as unknown as PayerNumberPurgeRepository,
+      seam as unknown as PaymentSeam,
+      { tick: jest.fn() } as unknown as DisbursementDispatcher,
+      // 073 AC-13: no bank record behind these payments, so the provider path runs.
+      { plan: jest.fn().mockResolvedValue(null) } as unknown as BookingRefunds,
     );
     const job = { name: 'void-pending', data: voidJob } as unknown as Job;
     return { payments, bookings, compensations, processor, job };
