@@ -8,30 +8,29 @@ import type { ConfigContext, ExpoConfig } from "expo/config";
 
 type Variant = "development" | "preview" | "production";
 
-const VARIANTS: Record<Variant, { id: string; name: string; scheme: string; icon: string; adaptiveIcon: string }> =
-  {
-    development: {
-      id: "com.injishi.app.dev",
-      name: "Injishi Dev",
-      scheme: "injishi-dev",
-      icon: "./assets/icon-dev.png",
-      adaptiveIcon: "./assets/adaptive-icon-dev.png",
-    },
-    preview: {
-      id: "com.injishi.app.preview",
-      name: "Injishi Preview",
-      scheme: "injishi-preview",
-      icon: "./assets/icon-preview.png",
-      adaptiveIcon: "./assets/adaptive-icon-preview.png",
-    },
-    production: {
-      id: "com.injishi.app",
-      name: "Injishi",
-      scheme: "injishi",
-      icon: "./assets/icon.png",
-      adaptiveIcon: "./assets/icon.png",
-    },
-  };
+const VARIANTS: Record<Variant, { id: string; name: string; scheme: string; icon: string; adaptiveIcon: string }> = {
+  development: {
+    id: "com.injishi.app.dev",
+    name: "Injishi Dev",
+    scheme: "injishi-dev",
+    icon: "./assets/icon-dev.png",
+    adaptiveIcon: "./assets/adaptive-icon-dev.png",
+  },
+  preview: {
+    id: "com.injishi.app.preview",
+    name: "Injishi Preview",
+    scheme: "injishi-preview",
+    icon: "./assets/icon-preview.png",
+    adaptiveIcon: "./assets/adaptive-icon-preview.png",
+  },
+  production: {
+    id: "com.injishi.app",
+    name: "Injishi",
+    scheme: "injishi",
+    icon: "./assets/icon.png",
+    adaptiveIcon: "./assets/icon.png",
+  },
+};
 
 function variant(): Variant {
   const value = process.env.APP_VARIANT || "development";
