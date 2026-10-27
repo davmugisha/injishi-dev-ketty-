@@ -55,11 +55,27 @@ const cookie = jar(signIn);
 
 const kigali = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kigali' }).format(new Date());
 const day = (n) => new Date(Date.parse(`${kigali}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
-const offset = 150 + Math.floor(Math.random() * 250);
+/**
+ * Two free nights, asked of the availability route rather than guessed: the suite is one unit, and the
+ * walks that run before this one leave confirmed bookings across these months, so a random pair is sold
+ * out often enough to answer 409 and fail the accepted press for a reason that is not the token.
+ */
+async function freeTwoNights() {
+  for (let offset = 150 + Math.floor(Math.random() * 250), block = 0; block < 4; block++, offset += 81) {
+    const res = await fetch(`${API}/api/v1/room-types/${SUITE}/availability?from=${day(offset)}&to=${day(offset + 80)}`);
+    const nights = (await res.json()).nights ?? [];
+    for (let i = 0; i + 1 < nights.length; i++) {
+      if (nights[i].freeUnits >= 1 && nights[i + 1].freeUnits >= 1) return nights[i].night;
+    }
+  }
+  console.error(`No two free nights for room type ${SUITE}.`);
+  process.exit(2);
+}
+const checkIn = await freeTwoNights();
 const body = {
   roomTypeId: SUITE,
-  checkIn: day(offset),
-  checkOut: day(offset + 2),
+  checkIn,
+  checkOut: new Date(Date.parse(`${checkIn}T00:00:00Z`) + 2 * 86_400_000).toISOString().slice(0, 10),
   guests: 1,
   nonRefundable: false,
   instrument: { kind: 'mobile_money', network: 'mtn_momo', msisdn: '788123456' },

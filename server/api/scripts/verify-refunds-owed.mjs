@@ -141,10 +141,21 @@ async function mailBody(id) {
   const res = await fetch(`${MAILPIT}/api/v1/message/${id}`);
   return (await res.json().catch(() => ({}))).Text ?? '';
 }
-async function waitForMail(address, needle, ms = 45_000) {
+/** The mails `mails` finds whose text names `reference`: one booking's, not an earlier run's. */
+async function mailsAbout(address, needle, reference) {
+  const found = [];
+  for (const m of await mails(address, needle)) if ((await mailBody(m.ID)).includes(reference)) found.push(m);
+  return found;
+}
+/**
+ * Waits for this booking's mail. Any mail with the subject would do too soon: the inbox keeps earlier
+ * runs' mail, and the walk would then supply the payer's details before the worker sent this one, so the
+ * worker would rightly skip it as moved on.
+ */
+async function waitForMail(address, needle, reference, ms = 45_000) {
   const until = Date.now() + ms;
   while (Date.now() < until) {
-    const found = await mails(address, needle);
+    const found = await mailsAbout(address, needle, reference);
     if (found.length > 0) return found;
     await sleep(2_000);
   }
@@ -307,7 +318,7 @@ check(
   detailsRefund?.status === 'queued' && detailsRefund?.queue_reason === 'payee_details_missing' && detailsRefund?.payee_full_name === null,
   JSON.stringify(detailsRefund && { status: detailsRefund.status, reason: detailsRefund.queue_reason }),
 );
-const asked = await waitForMail(UNVERIFIED, 'We need your details to send your refund');
+const asked = await waitForMail(UNVERIFIED, 'We need your details to send your refund', booked.details.reference);
 check('details-mail', 'the payer is mailed refund_details_needed, linking to /account/refunds', asked.length > 0 && (await mailBody(asked[0].ID)).includes('/account/refunds'), `${asked.length} mails`);
 const list = await call(unverified, 'GET', '/me/refunds');
 const listed = list.json?.refunds?.find((r) => r.id === detailsRefund?.id);
@@ -421,7 +432,7 @@ check(
   refusedRow?.status === 'failed' && refusedRow?.provider_status === 'name_mismatch' && refusedMoney?.payment_status === 'refund_pending',
   `${JSON.stringify(refusedRow)} ${refusedMoney?.payment_status}`,
 );
-const delayedMail = await waitForMail(VERIFIED, 'Your refund is delayed');
+const delayedMail = await waitForMail(VERIFIED, 'Your refund is delayed', booked.refused.reference);
 check('delayed-mail', 'the payer is mailed that the refund is delayed', delayedMail.length > 0);
 const agnesList = await call(verified, 'GET', '/me/refunds');
 const words = Object.fromEntries((agnesList.json?.refunds ?? []).map((r) => [r.bookingReference, r.status]));
@@ -431,9 +442,7 @@ check(
   words[full.reference] === 'paid' && words[booked.refused.reference] === 'delayed',
   JSON.stringify(words),
 );
-const askedOnce = await mails(UNVERIFIED, 'We need your details to send your refund');
-const forThisBooking = [];
-for (const m of askedOnce) if ((await mailBody(m.ID)).includes(booked.details.reference)) forThisBooking.push(m);
+const forThisBooking = await mailsAbout(UNVERIFIED, 'We need your details to send your refund', booked.details.reference);
 check('asked-once', 'the payer was asked for their details exactly once (AC-6a)', forThisBooking.length === 1, `${forThisBooking.length}`);
 
 console.log('\n6. Never more than was paid (AC-11)');
