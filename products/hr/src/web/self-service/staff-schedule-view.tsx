@@ -31,7 +31,10 @@ import {
   toast,
 } from "@heroui/react";
 import { EmptyState, ListView, RadioButtonGroup, Segment } from "@heroui-pro/react";
-import type { Persona } from "@injishi/data";
+import { GateChip, Icon, KeyValueList, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
+import { PhoneSheet, PhoneTitle, PhoneToasts, renderArticle, renderSection } from "@injishi/ui/phone";
+import { type ReactNode, useState, useTransition } from "react";
+import type { Persona } from "../../model/shared.ts";
 import type {
   LeaveApprover,
   LeaveBalance,
@@ -41,12 +44,9 @@ import type {
   StaffProfile,
   StaffRequest,
   SwapColleague,
-} from "@injishi/data/fixtures/staff";
-import { GateChip, Icon, KeyValueList, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
-import { type ReactNode, useState, useTransition } from "react";
-import { reported } from "../operations/shared";
-import { askLeaveAction, cancelRequestAction } from "./actions";
-import { PhoneSheet, PhoneTitle, PhoneToasts, renderArticle, renderSection } from "./parts";
+} from "../../model/staff.ts";
+import { useHrActions } from "../mount.tsx";
+import { reported } from "../reported.ts";
 
 interface StaffScheduleData {
   /** The caller's own profile; null when none is on file (never another person's). */
@@ -138,6 +138,7 @@ function weekdaysBetween(from: string, to: string): number | null {
 
 /** Shifts, leave and requests of a staff member (artifact: StaffSchedule). */
 export function StaffScheduleView({ persona, data }: { persona: Persona; data: StaffScheduleData }) {
+  const { askLeaveAction, cancelRequestAction } = useHrActions();
   const { profile, shifts, colleagues, leaveTypes, balance, approvers } = data;
   // The line manager the API names as the first approver, or plain words when it names nobody.
   const manager = approvers.find((a) => a.role === "Your line manager")?.name.split(" ")[0] ?? "";

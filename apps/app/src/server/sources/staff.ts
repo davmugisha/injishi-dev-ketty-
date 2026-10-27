@@ -11,6 +11,7 @@
  * assignee the API returns, never by a name. Each read is fetched once per source context (a page render)
  * and forgotten by every staff mutation (`forgetStaff`).
  */
+
 import type {
   ChecklistSection,
   CleaningRoom,
@@ -18,23 +19,25 @@ import type {
   FoundItem,
   InspectionCheck,
   InspectionRoom,
-  LeaveApprover,
-  LeaveBalance,
-  LeaveType,
   MinibarItem,
   ProblemReport,
   ReportPlace,
-  RequestStatus,
-  Shift,
-  StaffDocument,
   StaffProfile,
-  StaffRequest,
-  StaffTone,
   WorkOrder,
   WorkOrderBlock,
   WorkOrderPart,
 } from "@injishi/data/fixtures/staff";
 import { type StockKey, stock } from "@injishi/data/media";
+import type {
+  LeaveApprover,
+  StaffLeaveBalance as LeaveBalance,
+  StaffLeaveType as LeaveType,
+  RequestStatus,
+  Shift,
+  StaffDocument,
+  StaffRequest,
+  StaffTone,
+} from "@injishi/product-hr";
 import { ApiError } from "../api";
 import { clock, dayMonth, dayMonthYear, kigaliDate } from "../format";
 import { type ApiBoard, type ApiBoardTask, type ApiWorkOrder, readBoard, readWorkOrders } from "./operations";

@@ -24,7 +24,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { HrWorkforceService } from '../../../modules/people/application/hr-workforce.service';
+import { HrWorkforceService } from '../../../modules/hr/application/hr-workforce.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import {

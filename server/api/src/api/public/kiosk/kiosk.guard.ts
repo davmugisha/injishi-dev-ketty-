@@ -6,7 +6,7 @@ import {
   type ExecutionContext,
 } from '@nestjs/common';
 
-import { KioskService, type KioskContext } from '../../../modules/people/application/kiosk.service';
+import { KioskService, type KioskContext } from '../../../modules/hr/application/kiosk.service';
 
 /** The device cookie a paired kiosk carries. HttpOnly, so the page never holds the token. */
 export const KIOSK_COOKIE = 'injishi_kiosk';

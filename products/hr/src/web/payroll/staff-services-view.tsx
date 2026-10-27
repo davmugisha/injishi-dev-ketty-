@@ -3,11 +3,12 @@
 import { CircleCheck, EyeSlash, Lock, PaperPlane, TriangleExclamation } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Label, Switch, Table, Tag, TagGroup, TextArea, TextField } from "@heroui/react";
 import { ChatMessage, ItemCard, ItemCardGroup, ListView } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
-import type { HelpdeskTicket, HrAutomation, HrReport, StaffAsset, TicketMessage } from "@injishi/data/fixtures/payroll";
 import { Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useState } from "react";
-import { PressableItemCard } from "./parts";
+import type { HelpdeskTicket, HrAutomation, HrReport, StaffAsset, TicketMessage } from "../../model/payroll.ts";
+import type { Persona } from "../../model/shared.ts";
+import { useBoardHref } from "../mount.tsx";
+import { PressableItemCard } from "./parts.tsx";
 
 interface StaffServicesData {
   tickets: HelpdeskTicket[];
@@ -55,6 +56,7 @@ function Message({ message }: { message: TicketMessage }) {
 }
 
 export function StaffServicesView({ persona, data }: { persona: Persona; data: StaffServicesData }) {
+  const screenHref = useBoardHref();
   const [selectedId, setSelectedId] = useState(() => data.tickets.find((t) => !t.resolved)?.id ?? "");
   const [resolved, setResolved] = useState<Record<string, boolean>>({});
   const [replies, setReplies] = useState<Record<string, string[]>>({});

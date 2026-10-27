@@ -26,14 +26,6 @@ import {
   toast,
 } from "@heroui/react";
 import { EmptyState, Segment, Stepper, Widget } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
-import type {
-  LeaveBalance,
-  LeaveCalendarEntry,
-  LeaveRequest,
-  LeaveStep,
-  LeaveType,
-} from "@injishi/data/fixtures/people";
 import {
   formatNumber,
   GateChip,
@@ -46,9 +38,11 @@ import {
   toneColor,
 } from "@injishi/ui";
 import { type CSSProperties, useOptimistic, useState, useTransition } from "react";
-import { decideLeave } from "./actions";
-import { addDays, dayOfMonth, rangeLong, weekdayIndex } from "./days";
-import { firstName, initials } from "./parts";
+import type { LeaveBalance, LeaveCalendarEntry, LeaveRequest, LeaveStep, LeaveType } from "../../model/people.ts";
+import type { Persona } from "../../model/shared.ts";
+import { useBoardHref, useHrActions } from "../mount.tsx";
+import { addDays, dayOfMonth, rangeLong, weekdayIndex } from "./days.ts";
+import { firstName, initials } from "./parts.tsx";
 
 interface LeaveData {
   requests: LeaveRequest[];
@@ -107,6 +101,8 @@ export function LeaveView({
   /** Today in Kigali ("2026-10-15"): the calendar's first day. */
   today: string;
 }) {
+  const screenHref = useBoardHref();
+  const { decideLeave } = useHrActions();
   const [tab, setTab] = useState<Group>(initial.tab);
   const [sel, setSel] = useState(initial.request);
   const [declining, setDeclining] = useState(false);

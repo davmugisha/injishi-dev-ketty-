@@ -13,17 +13,6 @@ import {
 import { Avatar, AvatarGroup, Button, Chip, Toast, toast } from "@heroui/react";
 import { EmptyState, ItemCard, ItemCardGroup, KPIGroup, ListView, Segment, Stepper, Timeline } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import { type BoardId, type Persona, screenHref } from "@injishi/data";
-import type {
-  DeptPresence,
-  ExpiringItem,
-  HelpdeskTicket,
-  LeaveRequest,
-  PayRunSummary,
-  PeopleProperty,
-  PropertyId,
-  RosterGap,
-} from "@injishi/data/fixtures/people";
 import {
   formatRwf,
   GateChip,
@@ -37,9 +26,20 @@ import {
 } from "@injishi/ui";
 import NextLink from "next/link";
 import { Fragment, useOptimistic, useState, useTransition } from "react";
-import { decideLeave } from "./actions";
-import { addDays, fullDay, rangeShort } from "./days";
-import { firstName, initials, PanelCard } from "./parts";
+import type {
+  DeptPresence,
+  ExpiringItem,
+  HelpdeskTicket,
+  LeaveRequest,
+  PayRunSummary,
+  PeopleProperty,
+  PropertyId,
+  RosterGap,
+} from "../../model/people.ts";
+import type { BoardId, Persona } from "../../model/shared.ts";
+import { useBoardHref, useHrActions } from "../mount.tsx";
+import { addDays, fullDay, rangeShort } from "./days.ts";
+import { firstName, initials, PanelCard } from "./parts.tsx";
 
 interface PeopleHomeData {
   properties: PeopleProperty[];
@@ -74,6 +74,8 @@ export function PeopleHomeView({
   today: string;
   now: string;
 }) {
+  const screenHref = useBoardHref();
+  const { decideLeave } = useHrActions();
   const [property, setProperty] = useState<PropertyFilter>("all");
   const [open, setOpen] = useState<Record<string, boolean>>({ hk: true });
   const [pending, startTransition] = useTransition();
@@ -513,6 +515,7 @@ export function PeopleHomeView({
 }
 
 function PayRunCard({ run }: { run: PayRunSummary }) {
+  const screenHref = useBoardHref();
   return (
     <PanelCard
       id="pay-h"

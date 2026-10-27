@@ -41,7 +41,7 @@ import type {
   ShiftSwap,
   Tone,
   WeekId,
-} from "@injishi/data/fixtures/people";
+} from "@injishi/product-hr";
 import { ApiError } from "../api";
 import type { Workspace } from "../auth";
 import { clock, dayMonth, dayMonthYear, kigaliDate } from "../format";

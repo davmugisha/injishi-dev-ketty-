@@ -10,7 +10,7 @@ import { MarketplaceModule } from '../../modules/marketplace/marketplace.module'
 import { OperationsModule } from '../../modules/operations/operations.module';
 import { OrganizationModule } from '../../modules/organization/organization.module';
 import { ListsModule } from '../../modules/lists/lists.module';
-import { PeopleModule } from '../../modules/people/people.module';
+import { PeopleModule } from '../../modules/hr/people.module';
 import { StorageModule } from '../../modules/storage/storage.module';
 import { UserModule } from '../../modules/user/user.module';
 import { TwoFactorService } from '../../shared/auth/two-factor.service';

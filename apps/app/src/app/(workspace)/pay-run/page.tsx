@@ -12,9 +12,10 @@ import type {
   PayRunStep,
   PayRunTotal,
 } from "@injishi/data/fixtures/payroll";
+import { PayRunView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { PayRunView } from "@/features/payroll/PayRunView";
+import { HrMount } from "@/features/hr/hr-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -41,21 +42,23 @@ export default async function PayRunPage({ searchParams }: { searchParams: Promi
   const { stage } = await searchParams;
   const initialStage = STAGES.find((s) => s === stage) ?? "submitted";
   return (
-    <PayRunView
-      key={initialStage}
-      initialStage={initialStage}
-      data={{
-        rates: snapshot,
-        lines,
-        steps,
-        exceptions,
-        rules,
-        totals,
-        settlement: settlements[0] ?? null,
-        files,
-        outputs,
-        history,
-      }}
-    />
+    <HrMount>
+      <PayRunView
+        key={initialStage}
+        initialStage={initialStage}
+        data={{
+          rates: snapshot,
+          lines,
+          steps,
+          exceptions,
+          rules,
+          totals,
+          settlement: settlements[0] ?? null,
+          files,
+          outputs,
+          history,
+        }}
+      />
+    </HrMount>
   );
 }

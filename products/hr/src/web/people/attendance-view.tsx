@@ -29,7 +29,8 @@ import {
 } from "@heroui/react";
 import { ItemCard, ItemCardGroup, KPIGroup, NativeSelect, Segment } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import { type Persona, screenHref } from "@injishi/data";
+import { Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
+import { Fragment, type ReactNode, useOptimistic, useState, useTransition } from "react";
 import type {
   AttendanceException,
   AttendanceSummary,
@@ -37,12 +38,11 @@ import type {
   ClockRecord,
   ClockSource,
   DeskEmployee,
-} from "@injishi/data/fixtures/people";
-import { Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
-import { Fragment, type ReactNode, useOptimistic, useState, useTransition } from "react";
-import { decideCorrection, saveDeskEntry } from "./actions";
-import { dayMonthYear, fullDay } from "./days";
-import { PanelCard } from "./parts";
+} from "../../model/people.ts";
+import type { Persona } from "../../model/shared.ts";
+import { useBoardHref, useHrActions } from "../mount.tsx";
+import { dayMonthYear, fullDay } from "./days.ts";
+import { PanelCard } from "./parts.tsx";
 
 interface AttendanceData {
   records: ClockRecord[];
@@ -79,6 +79,8 @@ export function AttendanceView({
   today: string;
   now: string;
 }) {
+  const screenHref = useBoardHref();
+  const { decideCorrection, saveDeskEntry } = useHrActions();
   const { summary } = data;
   const [day, setDay] = useState<Day>(initial.day);
   const [tab, setTab] = useState<View>(initial.tab);

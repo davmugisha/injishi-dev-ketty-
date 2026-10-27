@@ -34,7 +34,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { MyWorkService } from '../../../modules/people/application/my-work.service';
+import { MyWorkService } from '../../../modules/hr/application/my-work.service';
 import {
   CurrentUser,
   SessionGuard,

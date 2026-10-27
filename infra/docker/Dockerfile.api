@@ -42,13 +42,14 @@ COPY packages/db/package.json ./packages/db/
 COPY packages/utils/package.json ./packages/utils/
 COPY packages/web-ui/package.json ./packages/web-ui/
 COPY packages/ui-contract/package.json ./packages/ui-contract/
-# ADR-074 stage 1. products/* is globbed too; each product adds its own line
-# here, in all three Dockerfiles, in the change that creates it; the first one
-# also adds `COPY products ./products` to the build stage, which would fail on
-# a folder that does not exist yet.
+# ADR-074. products/* is globbed too; each product adds its own line here, in
+# all three Dockerfiles, in the change that creates it. A build stage needs the
+# product source only where its app mounts the product: Dockerfile.app copies the
+# whole tree; web and api add `COPY products ./products` when they first do.
 COPY packages/product-contract/package.json ./packages/product-contract/
 COPY packages/api-client/package.json ./packages/api-client/
 COPY packages/i18n/package.json ./packages/i18n/
+COPY products/hr/package.json ./products/hr/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @injishi/api...
 

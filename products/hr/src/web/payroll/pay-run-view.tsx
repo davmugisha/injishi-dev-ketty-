@@ -13,7 +13,9 @@ import {
 import { Alert, Button, Card, Chip, Label, Modal, Table, TextArea, TextField } from "@heroui/react";
 import { KPIGroup, ListView, Segment, Stepper } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import { screenHref } from "@injishi/data";
+import { GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
+import NextLink from "next/link";
+import { Fragment, useMemo, useState } from "react";
 import type {
   FinalSettlement,
   PayLine,
@@ -26,12 +28,10 @@ import type {
   PayRunStage,
   PayRunStep,
   PayRunTotal,
-} from "@injishi/data/fixtures/payroll";
-import { GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
-import NextLink from "next/link";
-import { Fragment, useMemo, useState } from "react";
-import { AmountList, type AmountRow } from "./parts";
-import { amount, payLineFigures, pct, rwf, signedRwf } from "./payCalc";
+} from "../../model/payroll.ts";
+import { useBoardHref } from "../mount.tsx";
+import { AmountList, type AmountRow } from "./parts.tsx";
+import { amount, payLineFigures, pct, rwf, signedRwf } from "./pay-calc.ts";
 
 interface PayRunData {
   rates: PayRates;
@@ -70,6 +70,7 @@ function totalFoot(t: PayRunTotal) {
 }
 
 export function PayRunView({ data, initialStage }: { data: PayRunData; initialStage: PayRunStage }) {
+  const screenHref = useBoardHref();
   const { rates, lines, exceptions } = data;
   const [stage, setStage] = useState<PayRunStage>(initialStage);
   const [dialogOpen, setDialogOpen] = useState(false);

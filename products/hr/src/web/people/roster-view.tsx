@@ -26,7 +26,8 @@ import {
   toast,
 } from "@heroui/react";
 import { ListView, NativeSelect, Segment } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
+import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
+import { Fragment, useState, useTransition } from "react";
 import type {
   PublicHoliday,
   RosterGroup,
@@ -36,13 +37,10 @@ import type {
   ShiftCode,
   ShiftSwap,
   WeekId,
-} from "@injishi/data/fixtures/people";
-import { GateChip, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
-import { Fragment, useState, useTransition } from "react";
-import { TopbarStatus } from "@/components/shell/TopbarStatus";
-import { decideShiftSwap, publishRosterWeek, setRosterLent, setRosterShift } from "./actions";
-import { addDays, longDay, shortDay, weekdayLong } from "./days";
-import { PanelCard } from "./parts";
+} from "../../model/people.ts";
+import { useBoardHref, useHrActions, useHrShell } from "../mount.tsx";
+import { addDays, longDay, shortDay, weekdayLong } from "./days.ts";
+import { PanelCard } from "./parts.tsx";
 
 interface RosterData {
   groups: RosterGroup[];
@@ -97,6 +95,9 @@ export function RosterView({
   branchName: string;
   otherBranchName: string;
 }) {
+  const screenHref = useBoardHref();
+  const { decideShiftSwap, publishRosterWeek, setRosterLent, setRosterShift } = useHrActions();
+  const { TopbarStatus } = useHrShell();
   const { groups, staff, rotations, holidays } = data;
   // A lent shift's cell names the branch it is lent to, shortened to its first word ("Ishyamba").
   const lentShort = otherBranchName.trim().split(" ")[0] || otherBranchName;
