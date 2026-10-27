@@ -22,6 +22,7 @@
     "@injishi/contracts": "workspace:*",
     "@injishi/data": "workspace:*",
     "@injishi/db": "workspace:*",
+    "@injishi/product-hr": "workspace:*",
     "@injishi/ui": "workspace:*",
     "@internationalized/date": "3.12.4",
     "@number-flow/react": "0.6.2",

@@ -463,8 +463,8 @@ export declare const RentalPropertyView: z.ZodObject<{
     units: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    street: string | null;
     id: string;
+    street: string | null;
     place: {
         province: {
             name: string;
@@ -491,8 +491,8 @@ export declare const RentalPropertyView: z.ZodObject<{
     units: number;
 }, {
     name: string;
-    street: string | null;
     id: string;
+    street: string | null;
     place: {
         province: {
             name: string;
@@ -626,8 +626,8 @@ export declare const RentalPropertyList: z.ZodObject<{
         units: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        street: string | null;
         id: string;
+        street: string | null;
         place: {
             province: {
                 name: string;
@@ -654,8 +654,8 @@ export declare const RentalPropertyList: z.ZodObject<{
         units: number;
     }, {
         name: string;
-        street: string | null;
         id: string;
+        street: string | null;
         place: {
             province: {
                 name: string;
@@ -684,8 +684,8 @@ export declare const RentalPropertyList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     properties: {
         name: string;
-        street: string | null;
         id: string;
+        street: string | null;
         place: {
             province: {
                 name: string;
@@ -714,8 +714,8 @@ export declare const RentalPropertyList: z.ZodObject<{
 }, {
     properties: {
         name: string;
-        street: string | null;
         id: string;
+        street: string | null;
         place: {
             province: {
                 name: string;

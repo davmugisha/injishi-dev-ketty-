@@ -28,6 +28,7 @@ import {
   type CancellableBooking,
 } from '../infrastructure/booking.repository';
 import { BookingNotificationsService } from './booking-notifications.service';
+import { BookingRefunds, type OwedRefundPlan } from './booking-refunds';
 
 /** A reference as it is printed: `BK-XXXX-XXXX`. Anything else is not a booking. */
 const REFERENCE = /^BK-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
@@ -46,15 +47,21 @@ const DEFAULT_CHECK_IN_TIME = '14:00:00';
  * choice, the captured total) are the only ones read; today's listing is never
  * consulted.
  *
- * ## Provider first, ledger second (ADR-020 D-h)
+ * ## Cancel now, refund owed (073-gtbank-payments AC-13)
  *
- * Exactly the order a host decline uses. The refund is instructed on a key
- * derived from the capture's, so a retried cancellation replays rather than
- * pays twice. If the provider does not confirm, nothing is recorded and the
- * booking stands, which is the truthful state; the guest is told to try again.
- * A full refund ends the hold with the guest as beneficiary; a partial one
- * refunds that amount against the capture and leaves the rest held for the
- * host; a forfeit moves no money at all.
+ * The booking is cancelled, the room freed and the refund written OWED in one
+ * transaction; the money reads `refund_pending` until the bank pays it, and the
+ * disbursement dispatcher sends it when the account can cover it. The amount
+ * is the rule's, shrunk to what remains of the payment, so a cancel is never
+ * refused for lack of room. The key is derived from the capture's, so a
+ * retried cancellation lands on the same refund. A full refund ends the hold
+ * with the guest as beneficiary; a partial one refunds that amount against the
+ * capture and leaves the rest held for the host; a forfeit moves no money.
+ *
+ * A payment taken before the bank record existed has no row to owe against.
+ * It keeps the old order, provider first and ledger second (ADR-020 D-h): if
+ * the provider does not confirm, nothing is recorded and the guest is told to
+ * try again.
  *
  * ## What is refused
  *
@@ -75,6 +82,7 @@ export class BookingCancellationService {
     private readonly bookings: BookingRepository,
     @Inject(PAYMENT_PORT) private readonly payments: PaymentPort,
     private readonly notifications: BookingNotificationsService,
+    private readonly refunds: BookingRefunds,
   ) {}
 
   /** What cancelling would refund, before anything is committed. Guest scoped. */
@@ -181,7 +189,8 @@ export class BookingCancellationService {
     const outcome =
       refund.percent === 100 ? 'refunded_full' : refund.refundRwf > 0 ? 'refunded_partial' : 'forfeited';
 
-    if (row.escrowId) {
+    const plan = await this.planRefund(row, refund, outcome);
+    if (row.escrowId && !plan) {
       await this.instructRefund(row, refund, outcome, {
         full: `No-show ${row.reference}: full refund`,
         partial: `No-show ${row.reference}: ${refund.percent}% refund`,
@@ -198,12 +207,43 @@ export class BookingCancellationService {
       refundRwf: row.escrowId ? refund.refundRwf : null,
       reason: input.reason,
       byUserId: input.byUserId,
+      owe: plan?.oweTx,
     });
     if (!recorded) {
       throw new ConflictException('This booking was just changed. Refresh to see where it stands.');
     }
-    this.log.log(`${row.reference} recorded as a no-show: ${refund.refundRwf} RWF refunded, ${refund.forfeitRwf} RWF kept.`);
-    return { refundRwf: refund.refundRwf, forfeitRwf: refund.forfeitRwf, rule: refund.rule };
+    await plan?.announce();
+    const refundRwf = recorded.refundRwf ?? refund.refundRwf;
+    this.log.log(
+      `${row.reference} recorded as a no-show: ${refundRwf} RWF ${plan ? 'owed back' : 'refunded'}, ${refund.forfeitRwf} RWF kept.`,
+    );
+    return { refundRwf, forfeitRwf: refund.forfeitRwf, rule: refund.rule };
+  }
+
+  /**
+   * The refund this booking change owes, written with it, or null when the
+   * payment predates the bank record (or nothing is refunded). The keys are the
+   * ones the provider path has always used, so a cancellation retried across
+   * the change still lands on one refund.
+   */
+  private planRefund(
+    row: CancellableBooking,
+    refund: CancellationRefund,
+    outcome: 'refunded_full' | 'refunded_partial' | 'forfeited',
+  ): Promise<OwedRefundPlan | null> {
+    if (refund.refundRwf <= 0 || !row.escrowId || !row.adapterRef) return Promise.resolve(null);
+    const captureKey = row.idempotencyKey ?? `${row.workspaceId}:booking:${row.bookingId}`;
+    const full = outcome === 'refunded_full';
+    return this.refunds.plan({
+      reference: row.reference,
+      bookingId: row.bookingId,
+      workspaceId: row.workspaceId,
+      adapterRef: row.adapterRef,
+      idempotencyKey: full
+        ? releaseKeyFor({ idempotencyKey: row.idempotencyKey, workspaceId: row.workspaceId, escrowId: row.escrowId })
+        : `cancel-refund:${captureKey}`,
+      operation: full ? 'escrow_release_guest' : 'refund',
+    });
   }
 
   /**
@@ -297,28 +337,34 @@ export class BookingCancellationService {
     const outcome =
       refund.percent === 100 ? 'refunded_full' : refund.refundRwf > 0 ? 'refunded_partial' : 'forfeited';
 
-    // --- 1. The provider, first. -------------------------------------------
-    await this.instructRefund(row, refund, outcome, {
+    // --- 1. A refund owed, written with the booking change (073 AC-13); or,
+    // for a payment from before the bank record, the provider first. --------
+    const plan = await this.planRefund(row, refund, outcome);
+    if (!plan) await this.instructRefund(row, refund, outcome, {
       full: `${party === 'host' ? 'Host' : 'Guest'} cancelled ${row.reference}: full refund`,
       partial: `Guest cancelled ${row.reference}: ${refund.percent}% refund`,
       keyPrefix: 'cancel-refund',
       what: 'cancelled',
     });
 
-    // --- 2. The ledger, recording what the provider confirmed. -------------
+    // --- 2. The ledger: the booking, its escrow, and any refund owed. -------
     const recorded = await this.bookings.recordCancellation({
       bookingId: row.bookingId,
       party,
       refundRwf: refund.refundRwf,
       outcome,
       reason,
+      owe: plan?.oweTx,
     });
     if (!recorded) {
       // Resolved by someone else between the read and here. The refund key is
       // derived, so a second instruction for the same booking was a replay.
       throw new ConflictException('This booking was just changed. Refresh to see where it stands.');
     }
-    this.log.log(`${row.reference} cancelled by ${party}: ${refund.percent}% (${refund.refundRwf} RWF) refunded.`);
+    await plan?.announce();
+    this.log.log(
+      `${row.reference} cancelled by ${party}: ${refund.percent}% (${recorded.refundRwf} RWF) ${plan ? 'owed back' : 'refunded'}.`,
+    );
 
     // --- 3. Tell both sides. Queued; never throws. ---------------------------
     await this.notifications.notify(row.bookingId, 'cancelled');
@@ -329,9 +375,9 @@ export class BookingCancellationService {
       reference: row.reference,
       status: 'cancelled',
       cancelledBy: party,
-      paymentStatus: outcome,
-      escrowStatus: row.escrowId ? outcome : null,
-      refundRwf: refund.refundRwf,
+      paymentStatus: recorded.paymentStatus,
+      escrowStatus: row.escrowId ? recorded.paymentStatus : null,
+      refundRwf: recorded.refundRwf,
       forfeitRwf: refund.forfeitRwf,
       rule: refund.rule,
     };

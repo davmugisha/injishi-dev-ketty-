@@ -9,6 +9,7 @@ import type {
 } from '../infrastructure/booking.repository';
 import { BookingLifecycleService } from './booking-lifecycle.service';
 import { BookingNotificationsService } from './booking-notifications.service';
+import type { BookingRefunds } from './booking-refunds';
 
 /**
  * Unit scope: the ORDER the sweep does things in (ADR-020 D-h) around a mocked
@@ -76,6 +77,8 @@ describe('BookingLifecycleService', () => {
       // ADR-047: the guest is told what happened. A recording double rather
       // than a no-op, so a test can assert WHICH event was raised.
       { notify: jest.fn().mockResolvedValue(undefined) } as unknown as BookingNotificationsService,
+      // 073 AC-13: no bank record behind these payments, so the provider path runs.
+      { plan: jest.fn().mockResolvedValue(null) } as unknown as BookingRefunds,
     );
     return { repo, payments, compensations, service };
   }

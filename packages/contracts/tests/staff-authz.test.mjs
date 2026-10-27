@@ -226,8 +226,8 @@ describe("labels", () => {
 const UNENFORCED = [
   // `property.switch` left this list by leaving `Permission` (ADR-054 AC-S4).
   "admin.user.impersonate",
-  "admin.payout.release",
-  "admin.money.override",
+  // `admin.payout.release` and `admin.money.override` left this list when the
+  // money queue's routes declared them (073-gtbank-payments AC-15, AC-21).
   "admin.dsr.action",
   "admin.environment.manage",
   "admin.announcement.publish",

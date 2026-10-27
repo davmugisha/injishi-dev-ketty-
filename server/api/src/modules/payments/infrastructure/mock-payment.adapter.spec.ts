@@ -1,6 +1,7 @@
 import {
   type CaptureEscrowCommand,
   PaymentDeclinedError,
+  type RefundCommand,
 } from '../domain/payment-port';
 import { MockPaymentAdapter } from './mock-payment.adapter';
 
@@ -18,6 +19,7 @@ describe('MockPaymentAdapter', () => {
   ): CaptureEscrowCommand {
     return {
       kind: 'escrow_capture',
+      purpose: 'booking',
       idempotencyKey: 'booking-capture:abc',
       amountRwf: 50_000,
       currency: 'RWF',
@@ -248,5 +250,51 @@ describe('MockPaymentAdapter', () => {
         captured.adapterRef,
       ),
     ).resolves.toBeNull();
+  });
+
+  describe('its disbursement script (073-gtbank-payments, the mock)', () => {
+    const refund = (msisdn: string, key = 'cancel-refund:' + msisdn): RefundCommand => ({
+      kind: 'refund',
+      idempotencyKey: key,
+      originalRef: 'mock_escrow_capture_x',
+      amountRwf: 50_000,
+      currency: 'RWF',
+      workspaceId: WORKSPACE,
+      payee: {
+        fullName: 'Aline Uwase',
+        idType: 'national_id',
+        idNumber: '1199880012345678',
+        phone: '+250' + msisdn,
+        destination: { kind: 'mobile_money', network: 'mtn_momo', msisdn },
+      },
+    });
+
+    it('pays an ordinary wallet at once', async () => {
+      await expect(new MockPaymentAdapter().refund(refund('788123456'))).resolves.toMatchObject({ settlement: 'settled' });
+    });
+
+    it('refuses 0000 plainly and 3333 as a name mismatch', async () => {
+      const adapter = new MockPaymentAdapter();
+      const plain = await adapter.refund(refund('788120000')).catch((e: unknown) => e);
+      expect(plain).toBeInstanceOf(PaymentDeclinedError);
+      expect((plain as PaymentDeclinedError).code).toBeUndefined();
+      const mismatch = await adapter.refund(refund('788123333')).catch((e: unknown) => e);
+      expect((mismatch as PaymentDeclinedError).code).toBe('name_mismatch');
+    });
+
+    it('is short of funds for 2222 the first time only, as though topped up in between', async () => {
+      const adapter = new MockPaymentAdapter();
+      const first = await adapter.refund(refund('788122222')).catch((e: unknown) => e);
+      expect((first as PaymentDeclinedError).code).toBe('insufficient_funds');
+      await expect(adapter.refund(refund('788122222'))).resolves.toMatchObject({ settlement: 'settled' });
+    });
+
+    it('leaves 1111 pending, readable from its reference by any process', async () => {
+      const sent = await new MockPaymentAdapter().refund(refund('788121111'));
+      expect(sent.settlement).toBe('pending');
+      await expect(new MockPaymentAdapter().fetchTransaction(WORKSPACE, sent.adapterRef)).resolves.toMatchObject({
+        settlement: 'pending',
+      });
+    });
   });
 });

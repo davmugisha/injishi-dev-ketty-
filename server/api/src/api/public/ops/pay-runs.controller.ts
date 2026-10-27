@@ -22,9 +22,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { PayFilesService } from '../../../modules/people/application/pay-files.service';
-import { PayRunsService } from '../../../modules/people/application/pay-runs.service';
-import { PayslipsService } from '../../../modules/people/application/payslips.service';
+import { PayFilesService } from '../../../modules/hr/application/pay-files.service';
+import { PayRunsService } from '../../../modules/hr/application/pay-runs.service';
+import { PayslipsService } from '../../../modules/hr/application/payslips.service';
 import {
   CurrentUser,
   SessionGuard,

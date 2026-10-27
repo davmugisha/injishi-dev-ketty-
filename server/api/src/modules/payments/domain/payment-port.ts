@@ -31,13 +31,20 @@
  * booking path uses: pre-check, capture, commit, compensate.
  */
 
-import type { PaymentInstrument } from '@injishi/contracts';
+import type { MobileMoneyNetwork, PaymentInstrument } from '@injishi/contracts';
 
 /** Which side of the seam is live. Mirrors the Postgres `adapter_mode` enum. */
 export type AdapterMode = 'mock' | 'live';
 
 /** Nest injection token. Everything depends on the interface, not a class. */
 export const PAYMENT_PORT = 'PAYMENT_PORT';
+
+/**
+ * The guarded adapter beneath the bank record's writer, for the disbursement
+ * dispatcher alone (073-gtbank-payments AC-9): it sends rows already written,
+ * so going through `PAYMENT_PORT` would write them a second time.
+ */
+export const GUARDED_PAYMENT_PORT = 'GUARDED_PAYMENT_PORT';
 
 /**
  * What every money operation needs, whichever operation it is.
@@ -68,6 +75,27 @@ export interface MoneyCommand {
 }
 
 /**
+ * What a collection pays for (073-gtbank-payments AC-2). Every collection
+ * names one, because live money goes live one purpose at a time
+ * (`PAYMENT_LIVE_PURPOSES`): a purpose that is not listed is refused exactly as
+ * the `off` seam refuses, before any provider call.
+ */
+export type PaymentPurpose =
+  | 'booking'
+  | 'service_order'
+  | 'registration_fee'
+  | 'rent'
+  | 'subscription';
+
+export const PAYMENT_PURPOSES: readonly PaymentPurpose[] = [
+  'booking',
+  'service_order',
+  'registration_fee',
+  'rent',
+  'subscription',
+];
+
+/**
  * Capture a guest payment into escrow at booking time (F-B05 / FL07 §4.5).
  *
  * `instrument` is REQUIRED, and adding it is what made a live adapter writable
@@ -85,6 +113,8 @@ export interface MoneyCommand {
  */
 export interface CaptureEscrowCommand extends MoneyCommand {
   kind: 'escrow_capture';
+  /** A booking's escrow, or a pay now order's capture. */
+  purpose: 'booking' | 'service_order';
   /** Whom to charge and how. Never a card number — see `PaymentInstrument`. */
   instrument: PaymentInstrument;
 }
@@ -109,8 +139,20 @@ export type ReleaseEscrowCommand = MoneyCommand & {
   /** The capture being released, so a provider can match its own record. */
   originalRef: string;
 } & (
-    | { beneficiary: 'guest'; destinationRef?: never }
-    | { beneficiary: 'host'; destinationRef: string }
+    | {
+        beneficiary: 'guest';
+        /**
+         * Filled in by the payments module's dispatcher, never by a caller: the
+         * wallet is copied from the collection that paid (073-gtbank-payments
+         * AC-11), and the name and ID from the payer's verified identity.
+         */
+        payee?: Beneficiary;
+      }
+    | {
+        beneficiary: 'host';
+        /** Where the host is paid. Where F-B12 stores it is F-B12's. */
+        payee: Beneficiary;
+      }
   );
 
 /**
@@ -123,6 +165,27 @@ export interface RefundCommand extends MoneyCommand {
   kind: 'refund';
   /** The capture being reversed, so a provider can match it to its own record. */
   originalRef: string;
+  /**
+   * Filled in by the payments module's dispatcher, never by a caller
+   * (073-gtbank-payments AC-11, AC-12): a refund only ever goes back to the
+   * wallet that paid.
+   */
+  payee?: Beneficiary;
+}
+
+/**
+ * Who a disbursement pays, as GTBank requires it for every one
+ * (073-gtbank-payments): full name, ID or passport number, the wallet or
+ * account, and a phone. Never logged; see `describeForLog`.
+ */
+export interface Beneficiary {
+  fullName: string;
+  idType: 'national_id' | 'passport';
+  idNumber: string;
+  destination:
+    | { kind: 'mobile_money'; network: MobileMoneyNetwork; msisdn: string }
+    | { kind: 'bank'; bankCode: string; accountNumber: string };
+  phone: string;
 }
 
 /**
@@ -143,14 +206,24 @@ export interface VoidPendingCommand extends MoneyCommand {
 /** Pay a host, landlord or broker out of released escrow (F-B12 / FL10). */
 export interface PayoutCommand extends MoneyCommand {
   kind: 'payout';
-  /** `momo_pay` is a MoMo Pay merchant code (rentals blueprint 2.7). */
-  destination: 'momo' | 'bank' | 'momo_pay';
   /**
-   * The MoMo number or bank account to push to.
-   *
-   * MoMo numbers are deliberately NOT tokenized (F-S08 §6): each payout is a
-   * fresh push, so nothing here is a stored instrument to be leaked later.
+   * Who is paid, with what GTBank needs for every disbursement
+   * (073-gtbank-payments). MoMo numbers are deliberately NOT tokenized
+   * (F-S08 §6): each payout is a fresh push.
    */
+  payee: Beneficiary;
+}
+
+/**
+ * Pay a landlord their collected rent (rentals blueprint 2.7, WP 1.6b), to the
+ * payout account they chose: a MoMo number, a MoMo Pay merchant code or a bank
+ * account. Apart from `payout` because a landlord's account is the business's
+ * own, kept by rentals, not a verified person's wallet (073-gtbank-payments).
+ */
+export interface LandlordPayoutCommand extends MoneyCommand {
+  kind: 'landlord_payout';
+  destination: 'momo' | 'bank' | 'momo_pay';
+  /** The MoMo number (E.164), merchant code or bank account number. */
   destinationRef: string;
 }
 
@@ -197,31 +270,43 @@ export interface SubscriptionChargeCommand extends MoneyCommand {
   subscriptionRef: string;
 }
 
-/** A recurring charge: subscription billing (F-S14) or rent collection (F-R05). */
+/**
+ * A recurring charge: subscription billing (F-S14) or rent collection (F-R05).
+ *
+ * Carries its payer, as a capture does (073-gtbank-payments): every instalment
+ * is a fresh Request to Pay a person approves, because mobile money numbers are
+ * never stored as an instrument to charge again (F-S08 §6).
+ */
 export interface RecurringChargeCommand extends MoneyCommand {
   kind: 'recurring_charge';
+  purpose: 'rent' | 'subscription';
   /** The subscription or lease this instalment belongs to. */
   scheduleRef: string;
+  instrument: PaymentInstrument;
 }
 
-/** A one-time fee: registration (F-S03 / D23), placement, or a folio settle. */
+/**
+ * A one-time fee: registration (F-S03 / D23), placement, or a folio settle.
+ *
+ * Carries its payer (073-gtbank-payments AC-16): the registration fee is a
+ * Request to Pay to the registrant's phone, which a provider cannot send to
+ * nobody.
+ */
 export interface OneTimeFeeCommand extends MoneyCommand {
   kind: 'one_time_fee';
+  purpose: 'registration_fee';
   feeCode: string;
-  /**
-   * Who pays and on which rail, when the payer is asked on their handset (a
-   * broker's registration fee, 2026-10-25). Without one the fee is recorded.
-   */
-  instrument?: PaymentInstrument;
+  instrument: PaymentInstrument;
 }
 
 export type PaymentCommand =
   | CaptureEscrowCommand
-  | RentCollectCommand
   | ReleaseEscrowCommand
   | RefundCommand
   | VoidPendingCommand
   | PayoutCommand
+  | LandlordPayoutCommand
+  | RentCollectCommand
   | VendorPayoutCommand
   | SubscriptionChargeCommand
   | RecurringChargeCommand
@@ -259,6 +344,11 @@ export interface PaymentReceipt {
   occurredAt: Date;
   /** Whether the money has landed, or is still out on a handset (D-b). */
   settlement: SettlementStatus;
+  /**
+   * Set when the provider later reversed or refunded a transaction it had
+   * reported successful (073-gtbank-payments AC-18). Absent otherwise.
+   */
+  providerStatus?: 'reversed' | 'refunded';
   /** A card checkout: the provider's page to send the payer to (rentals blueprint 2.7). */
   checkoutUrl?: string;
   /** A card the provider saved at checkout, for the next charge. A token, never a number. */
@@ -284,6 +374,13 @@ export class PaymentDeclinedError extends Error {
   constructor(
     readonly reason: string,
     readonly idempotencyKey: string,
+    /**
+     * Two refusals the bank record treats differently from a plain decline
+     * (073-gtbank-payments AC-5, AC-21): Hangaa's account was short, so the
+     * disbursement waits for funds instead of failing; or the payee's name did
+     * not match the wallet, so it waits for corrected details.
+     */
+    readonly code?: 'insufficient_funds' | 'name_mismatch',
   ) {
     super(`Payment declined: ${reason}`);
     this.name = 'PaymentDeclinedError';
@@ -296,11 +393,18 @@ export class PaymentDeclinedError extends Error {
  * Distinct from a decline because the outcome is UNKNOWN: the money may or may
  * not have moved. Retrying on the same idempotency key is the correct response,
  * and is safe precisely because the key is required.
+ *
+ * `delivered` says how unknown (073-gtbank-payments AC-7, ADR-073 D-f): `no`
+ * when nothing reached the provider (the seam is off, the breaker is open, the
+ * connection was refused), so the instruction never happened and may be sent
+ * again; `maybe` when a request may have arrived (a timeout after sending), so
+ * the bank record parks it and nothing resends it blindly. Unsure is `maybe`.
  */
 export class PaymentUnavailableError extends Error {
   constructor(
     readonly detail: string,
     readonly idempotencyKey: string,
+    readonly delivered: 'no' | 'maybe' = 'maybe',
   ) {
     super(`Payment provider unavailable: ${detail}`);
     this.name = 'PaymentUnavailableError';
@@ -325,8 +429,9 @@ export interface PaymentPort {
   payout(command: PayoutCommand): Promise<PaymentReceipt>;
   chargeRecurring(command: RecurringChargeCommand): Promise<PaymentReceipt>;
   chargeOneTimeFee(command: OneTimeFeeCommand): Promise<PaymentReceipt>;
-  /** Rentals (blueprint 2.7): a tenant's rent, a landlord paying a fixer, a broker's plan. */
+  /** Rentals (blueprint 2.7): a tenant's rent, a landlord paid, a landlord paying a fixer, a broker's plan. */
   collectRent(command: RentCollectCommand): Promise<PaymentReceipt>;
+  payLandlord(command: LandlordPayoutCommand): Promise<PaymentReceipt>;
   payVendor(command: VendorPayoutCommand): Promise<PaymentReceipt>;
   chargeSubscription(command: SubscriptionChargeCommand): Promise<PaymentReceipt>;
 
@@ -372,7 +477,8 @@ export class PaymentRateLimitedError extends PaymentUnavailableError {
     readonly retryAfterMs: number,
     idempotencyKey: string,
   ) {
-    super(`rate limited, retry after ${retryAfterMs}ms`, idempotencyKey);
+    // The provider answered and took nothing: not delivered (073 AC-7).
+    super(`rate limited, retry after ${retryAfterMs}ms`, idempotencyKey, 'no');
     this.name = 'PaymentRateLimitedError';
   }
 }
@@ -393,13 +499,19 @@ export function maskDestination(ref: string): string {
  */
 export function describeForLog(c: PaymentCommand): string {
   const base = `${c.kind} ${c.amountRwf} ${c.currency} key=${c.idempotencyKey} ws=${c.workspaceId}`;
-  if ('destinationRef' in c && typeof c.destinationRef === 'string') {
-    return `${base} dest=${maskDestination(c.destinationRef)}`;
+  // A payee is a person: only the masked account is ever printed, never the
+  // name or the ID (073-gtbank-payments, key invariants).
+  if ('payee' in c && c.payee) {
+    const d = c.payee.destination;
+    return `${base} payee=${maskDestination(d.kind === 'mobile_money' ? d.msisdn : d.accountNumber)}`;
   }
   // An instrument is a payer. The rail is safe to log and identifies nobody;
   // the handset is masked by the same rule a payout destination is, and a card
   // token is never printed at all — it is a bearer credential for that charge.
-  if ('instrument' in c && c.instrument) {
+  if ('destinationRef' in c && !('instrument' in c)) {
+    return `${base} to=${c.destination} ${maskDestination(c.destinationRef)}`;
+  }
+  if ('instrument' in c) {
     const i = c.instrument;
     return i.kind === 'mobile_money'
       ? `${base} via=${i.network} payer=${maskDestination(i.msisdn)}`

@@ -81,8 +81,8 @@ export declare const LeasePremises: z.ZodObject<{
     sector: string | null;
     cell: string | null;
     village: string | null;
-    street: string | null;
     property: string;
+    street: string | null;
     unit: string | null;
     block: string | null;
 }, {
@@ -91,8 +91,8 @@ export declare const LeasePremises: z.ZodObject<{
     sector: string | null;
     cell: string | null;
     village: string | null;
-    street: string | null;
     property: string;
+    street: string | null;
     unit: string | null;
     block: string | null;
 }>;
@@ -245,8 +245,8 @@ export declare const LeaseContract: z.ZodObject<{
         sector: string | null;
         cell: string | null;
         village: string | null;
-        street: string | null;
         property: string;
+        street: string | null;
         unit: string | null;
         block: string | null;
     }, {
@@ -255,8 +255,8 @@ export declare const LeaseContract: z.ZodObject<{
         sector: string | null;
         cell: string | null;
         village: string | null;
-        street: string | null;
         property: string;
+        street: string | null;
         unit: string | null;
         block: string | null;
     }>;
@@ -352,8 +352,8 @@ export declare const LeaseContract: z.ZodObject<{
         sector: string | null;
         cell: string | null;
         village: string | null;
-        street: string | null;
         property: string;
+        street: string | null;
         unit: string | null;
         block: string | null;
     };
@@ -401,8 +401,8 @@ export declare const LeaseContract: z.ZodObject<{
         sector: string | null;
         cell: string | null;
         village: string | null;
-        street: string | null;
         property: string;
+        street: string | null;
         unit: string | null;
         block: string | null;
     };

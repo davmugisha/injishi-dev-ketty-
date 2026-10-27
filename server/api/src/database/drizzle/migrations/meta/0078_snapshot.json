@@ -1,6 +1,6 @@
 {
-  "id": "85ec8931-b1dd-48f3-b459-e52b9310a737",
-  "prevId": "815b1136-23dc-4c30-a3f1-beba0d451d30",
+  "id": "815b1136-23dc-4c30-a3f1-beba0d451d30",
+  "prevId": "a8e5d571-e740-4019-a373-d5684b921f88",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -9595,164 +9595,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.lease_contract_versions": {
-      "name": "lease_contract_versions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "lease_id": {
-          "name": "lease_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "template_version": {
-          "name": "template_version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content_hash": {
-          "name": "content_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "pdf_object_id": {
-          "name": "pdf_object_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "signed_pdf_object_id": {
-          "name": "signed_pdf_object_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "lease_contract_versions_lease_id_leases_id_fk": {
-          "name": "lease_contract_versions_lease_id_leases_id_fk",
-          "tableFrom": "lease_contract_versions",
-          "tableTo": "leases",
-          "columnsFrom": [
-            "lease_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "lease_contract_versions_pdf_object_id_stored_objects_id_fk": {
-          "name": "lease_contract_versions_pdf_object_id_stored_objects_id_fk",
-          "tableFrom": "lease_contract_versions",
-          "tableTo": "stored_objects",
-          "columnsFrom": [
-            "pdf_object_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "lease_contract_versions_created_by_user_id_users_id_fk": {
-          "name": "lease_contract_versions_created_by_user_id_users_id_fk",
-          "tableFrom": "lease_contract_versions",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "lease_contract_versions_signed_pdf_fk": {
-          "name": "lease_contract_versions_signed_pdf_fk",
-          "tableFrom": "lease_contract_versions",
-          "tableTo": "stored_objects",
-          "columnsFrom": [
-            "signed_pdf_object_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "lease_contract_versions_lease_version_uk": {
-          "name": "lease_contract_versions_lease_version_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "lease_id",
-            "version"
-          ]
-        },
-        "lease_contract_versions_id_hash_uk": {
-          "name": "lease_contract_versions_id_hash_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "id",
-            "content_hash"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "lease_contract_versions_version_positive": {
-          "name": "lease_contract_versions_version_positive",
-          "value": "\"lease_contract_versions\".\"version\" >= 1"
-        },
-        "lease_contract_versions_template_known": {
-          "name": "lease_contract_versions_template_known",
-          "value": "\"lease_contract_versions\".\"template_version\" >= 0"
-        },
-        "lease_contract_versions_hash_shape": {
-          "name": "lease_contract_versions_hash_shape",
-          "value": "\"lease_contract_versions\".\"content_hash\" ~ '^[a-f0-9]{64}$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.lease_invitations": {
       "name": "lease_invitations",
       "schema": "",
@@ -9770,20 +9612,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "email": {
           "name": "email",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "token_hash": {
-          "name": "token_hash",
+        "token": {
+          "name": "token",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -9796,47 +9632,14 @@
           "notNull": true,
           "default": "'sent'"
         },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "last_sent_at": {
-          "name": "last_sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "send_count": {
-          "name": "send_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "accepted_at": {
-          "name": "accepted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "accepted_by_user_id": {
           "name": "accepted_by_user_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "revoked_at": {
-          "name": "revoked_at",
+        "expires_at": {
+          "name": "expires_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
@@ -9856,24 +9659,7 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "lease_invitations_live_uk": {
-          "name": "lease_invitations_live_uk",
-          "columns": [
-            {
-              "expression": "lease_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"lease_invitations\".\"status\" = 'sent'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "lease_invitations_lease_id_leases_id_fk": {
           "name": "lease_invitations_lease_id_leases_id_fk",
@@ -9886,19 +9672,6 @@
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "lease_invitations_tenant_id_tenants_id_fk": {
-          "name": "lease_invitations_tenant_id_tenants_id_fk",
-          "tableFrom": "lease_invitations",
-          "tableTo": "tenants",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
           "onUpdate": "no action"
         },
         "lease_invitations_accepted_by_user_id_users_id_fk": {
@@ -9917,37 +9690,16 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "lease_invitations_token_hash_uk": {
-          "name": "lease_invitations_token_hash_uk",
+        "lease_invitations_token_uk": {
+          "name": "lease_invitations_token_uk",
           "nullsNotDistinct": false,
           "columns": [
-            "token_hash"
+            "token"
           ]
         }
       },
       "policies": {},
-      "checkConstraints": {
-        "lease_invitations_token_hash_shape": {
-          "name": "lease_invitations_token_hash_shape",
-          "value": "\"lease_invitations\".\"token_hash\" ~ '^[a-f0-9]{64}$'"
-        },
-        "lease_invitations_email_lower": {
-          "name": "lease_invitations_email_lower",
-          "value": "\"lease_invitations\".\"email\" = lower(\"lease_invitations\".\"email\")"
-        },
-        "lease_invitations_send_count_positive": {
-          "name": "lease_invitations_send_count_positive",
-          "value": "\"lease_invitations\".\"send_count\" >= 1"
-        },
-        "lease_invitations_accepted_shape": {
-          "name": "lease_invitations_accepted_shape",
-          "value": "(\"lease_invitations\".\"status\" = 'accepted') = (\"lease_invitations\".\"accepted_at\" IS NOT NULL)"
-        },
-        "lease_invitations_revoked_shape": {
-          "name": "lease_invitations_revoked_shape",
-          "value": "(\"lease_invitations\".\"status\" = 'revoked') = (\"lease_invitations\".\"revoked_at\" IS NOT NULL)"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.lease_renewals": {
@@ -10183,12 +9935,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "version_id": {
-          "name": "version_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "signer_role": {
           "name": "signer_role",
           "type": "signer_role",
@@ -10208,46 +9954,9 @@
           "primaryKey": false,
           "notNull": false
         },
-        "typed_name": {
-          "name": "typed_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "signature_object_id": {
-          "name": "signature_object_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "document_hash": {
-          "name": "document_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "method": {
-          "name": "method",
-          "type": "lease_signing_method",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "verified_at": {
-          "name": "verified_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "ip_address": {
           "name": "ip_address",
           "type": "inet",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "user_agent": {
-          "name": "user_agent",
-          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -10257,18 +9966,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "voided_at": {
-          "name": "voided_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -10283,28 +9980,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "lease_signatures_live_uk": {
-          "name": "lease_signatures_live_uk",
-          "columns": [
-            {
-              "expression": "version_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "signer_role",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"lease_signatures\".\"voided_at\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -10336,206 +10011,12 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "lease_signatures_signature_object_id_stored_objects_id_fk": {
-          "name": "lease_signatures_signature_object_id_stored_objects_id_fk",
-          "tableFrom": "lease_signatures",
-          "tableTo": "stored_objects",
-          "columnsFrom": [
-            "signature_object_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "lease_signatures_version_hash_fk": {
-          "name": "lease_signatures_version_hash_fk",
-          "tableFrom": "lease_signatures",
-          "tableTo": "lease_contract_versions",
-          "columnsFrom": [
-            "version_id",
-            "document_hash"
-          ],
-          "columnsTo": [
-            "id",
-            "content_hash"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "lease_signatures_evidence": {
-          "name": "lease_signatures_evidence",
-          "value": "\"lease_signatures\".\"method\" = 'legacy' OR (\"lease_signatures\".\"signer_user_id\" IS NOT NULL AND \"lease_signatures\".\"typed_name\" IS NOT NULL AND \"lease_signatures\".\"verified_at\" IS NOT NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.lease_signing_codes": {
-      "name": "lease_signing_codes",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "lease_id": {
-          "name": "lease_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version_id": {
-          "name": "version_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "signer_role": {
-          "name": "signer_role",
-          "type": "signer_role",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code_hash": {
-          "name": "code_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "attempts": {
-          "name": "attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "consumed_at": {
-          "name": "consumed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "lease_signing_codes_live_uk": {
-          "name": "lease_signing_codes_live_uk",
-          "columns": [
-            {
-              "expression": "lease_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "signer_role",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"lease_signing_codes\".\"consumed_at\" IS NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "lease_signing_codes_lease_id_leases_id_fk": {
-          "name": "lease_signing_codes_lease_id_leases_id_fk",
-          "tableFrom": "lease_signing_codes",
-          "tableTo": "leases",
-          "columnsFrom": [
-            "lease_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "lease_signing_codes_version_id_lease_contract_versions_id_fk": {
-          "name": "lease_signing_codes_version_id_lease_contract_versions_id_fk",
-          "tableFrom": "lease_signing_codes",
-          "tableTo": "lease_contract_versions",
-          "columnsFrom": [
-            "version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "lease_signing_codes_user_id_users_id_fk": {
-          "name": "lease_signing_codes_user_id_users_id_fk",
-          "tableFrom": "lease_signing_codes",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "lease_signing_codes_attempts_range": {
-          "name": "lease_signing_codes_attempts_range",
-          "value": "\"lease_signing_codes\".\"attempts\" BETWEEN 0 AND 5"
-        },
-        "lease_signing_codes_email_lower": {
-          "name": "lease_signing_codes_email_lower",
-          "value": "\"lease_signing_codes\".\"email\" = lower(\"lease_signing_codes\".\"email\")"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.leases": {
@@ -10549,6 +10030,12 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+        "room_id": {
+          "name": "room_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "org_id": {
           "name": "org_id",
           "type": "uuid",
@@ -10561,29 +10048,11 @@
           "primaryKey": false,
           "notNull": true
         },
-        "reference": {
-          "name": "reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "property_id": {
-          "name": "property_id",
+        "tenant_user_id": {
+          "name": "tenant_user_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
-        },
-        "unit_id": {
-          "name": "unit_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "broker_id": {
           "name": "broker_id",
@@ -10591,9 +10060,34 @@
           "primaryKey": false,
           "notNull": false
         },
-        "placement_id": {
-          "name": "placement_id",
-          "type": "uuid",
+        "monthly_rent_rwf": {
+          "name": "monthly_rent_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "caution_rwf": {
+          "name": "caution_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "char(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'RWF'"
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
           "primaryKey": false,
           "notNull": false
         },
@@ -10604,155 +10098,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'draft'"
-        },
-        "start_date": {
-          "name": "start_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "end_date": {
-          "name": "end_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "billing_starts_on": {
-          "name": "billing_starts_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "monthly_rent_rwf": {
-          "name": "monthly_rent_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency": {
-          "name": "currency",
-          "type": "char(3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'RWF'"
-        },
-        "deposit_rwf": {
-          "name": "deposit_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rent_due_day": {
-          "name": "rent_due_day",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "grace_days": {
-          "name": "grace_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 5
-        },
-        "notice_days": {
-          "name": "notice_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 15
-        },
-        "occupants": {
-          "name": "occupants",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::text[]"
-        },
-        "other_terms": {
-          "name": "other_terms",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "supersedes_lease_id": {
-          "name": "supersedes_lease_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "current_version_id": {
-          "name": "current_version_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "signed_at": {
-          "name": "signed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "activated_at": {
-          "name": "activated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ending_since": {
-          "name": "ending_since",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ended_on": {
-          "name": "ended_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "end_reason": {
-          "name": "end_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancelled_at": {
-          "name": "cancelled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancel_reason": {
-          "name": "cancel_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "room_id": {
-          "name": "room_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tenant_user_id": {
-          "name": "tenant_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "caution_rwf": {
-          "name": "caution_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
         },
         "contract_content": {
           "name": "contract_content",
@@ -10775,6 +10120,12 @@
         "tenant_signed_at": {
           "name": "tenant_signed_at",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supersedes_lease_id": {
+          "name": "supersedes_lease_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -10802,6 +10153,73 @@
           "primaryKey": false,
           "notNull": false
         },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "property_id": {
+          "name": "property_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_id": {
+          "name": "unit_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "billing_starts_on": {
+          "name": "billing_starts_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deposit_rwf": {
+          "name": "deposit_rwf",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rent_due_day": {
+          "name": "rent_due_day",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "grace_days": {
+          "name": "grace_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notice_period_days": {
+          "name": "notice_period_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "occupants": {
+          "name": "occupants",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -10818,6 +10236,22 @@
         }
       },
       "indexes": {
+        "leases_active_room_uk": {
+          "name": "leases_active_room_uk",
+          "columns": [
+            {
+              "expression": "room_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"leases\".\"status\" = 'active'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "leases_org_idx": {
           "name": "leases_org_idx",
           "columns": [
@@ -10916,12 +10350,26 @@
             }
           ],
           "isUnique": true,
+          "where": "\"leases\".\"reference\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
         }
       },
       "foreignKeys": {
+        "leases_room_id_rooms_id_fk": {
+          "name": "leases_room_id_rooms_id_fk",
+          "tableFrom": "leases",
+          "tableTo": "rooms",
+          "columnsFrom": [
+            "room_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "leases_org_id_orgs_id_fk": {
           "name": "leases_org_id_orgs_id_fk",
           "tableFrom": "leases",
@@ -10941,6 +10389,58 @@
           "tableTo": "workspaces",
           "columnsFrom": [
             "workspace_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "leases_tenant_user_id_users_id_fk": {
+          "name": "leases_tenant_user_id_users_id_fk",
+          "tableFrom": "leases",
+          "tableTo": "users",
+          "columnsFrom": [
+            "tenant_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "leases_broker_id_brokers_id_fk": {
+          "name": "leases_broker_id_brokers_id_fk",
+          "tableFrom": "leases",
+          "tableTo": "brokers",
+          "columnsFrom": [
+            "broker_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "leases_contract_object_id_stored_objects_id_fk": {
+          "name": "leases_contract_object_id_stored_objects_id_fk",
+          "tableFrom": "leases",
+          "tableTo": "stored_objects",
+          "columnsFrom": [
+            "contract_object_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "leases_supersedes_lease_id_leases_id_fk": {
+          "name": "leases_supersedes_lease_id_leases_id_fk",
+          "tableFrom": "leases",
+          "tableTo": "leases",
+          "columnsFrom": [
+            "supersedes_lease_id"
           ],
           "columnsTo": [
             "id"
@@ -10986,158 +10486,19 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "leases_broker_id_brokers_id_fk": {
-          "name": "leases_broker_id_brokers_id_fk",
-          "tableFrom": "leases",
-          "tableTo": "brokers",
-          "columnsFrom": [
-            "broker_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "leases_placement_id_tenant_placements_id_fk": {
-          "name": "leases_placement_id_tenant_placements_id_fk",
-          "tableFrom": "leases",
-          "tableTo": "tenant_placements",
-          "columnsFrom": [
-            "placement_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "leases_supersedes_lease_id_leases_id_fk": {
-          "name": "leases_supersedes_lease_id_leases_id_fk",
-          "tableFrom": "leases",
-          "tableTo": "leases",
-          "columnsFrom": [
-            "supersedes_lease_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "leases_current_version_id_lease_contract_versions_id_fk": {
-          "name": "leases_current_version_id_lease_contract_versions_id_fk",
-          "tableFrom": "leases",
-          "tableTo": "lease_contract_versions",
-          "columnsFrom": [
-            "current_version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "leases_room_id_rooms_id_fk": {
-          "name": "leases_room_id_rooms_id_fk",
-          "tableFrom": "leases",
-          "tableTo": "rooms",
-          "columnsFrom": [
-            "room_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "leases_tenant_user_id_users_id_fk": {
-          "name": "leases_tenant_user_id_users_id_fk",
-          "tableFrom": "leases",
-          "tableTo": "users",
-          "columnsFrom": [
-            "tenant_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "leases_contract_object_id_stored_objects_id_fk": {
-          "name": "leases_contract_object_id_stored_objects_id_fk",
-          "tableFrom": "leases",
-          "tableTo": "stored_objects",
-          "columnsFrom": [
-            "contract_object_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "leases_dates_order": {
-          "name": "leases_dates_order",
-          "value": "\"leases\".\"end_date\" > \"leases\".\"start_date\""
-        },
-        "leases_billing_window": {
-          "name": "leases_billing_window",
-          "value": "\"leases\".\"billing_starts_on\" >= \"leases\".\"start_date\" AND \"leases\".\"billing_starts_on\" <= \"leases\".\"end_date\""
-        },
-        "leases_rent_positive": {
-          "name": "leases_rent_positive",
-          "value": "\"leases\".\"monthly_rent_rwf\" > 0"
-        },
-        "leases_deposit_not_negative": {
-          "name": "leases_deposit_not_negative",
-          "value": "\"leases\".\"deposit_rwf\" >= 0"
-        },
         "leases_rent_due_day_in_month": {
           "name": "leases_rent_due_day_in_month",
-          "value": "\"leases\".\"rent_due_day\" BETWEEN 1 AND 28"
+          "value": "\"leases\".\"rent_due_day\" IS NULL OR \"leases\".\"rent_due_day\" BETWEEN 1 AND 28"
         },
-        "leases_terms_range": {
-          "name": "leases_terms_range",
-          "value": "\"leases\".\"grace_days\" BETWEEN 0 AND 31 AND \"leases\".\"notice_days\" BETWEEN 15 AND 180"
-        },
-        "leases_occupants_limit": {
-          "name": "leases_occupants_limit",
-          "value": "cardinality(\"leases\".\"occupants\") <= 12"
-        },
-        "leases_reference_present": {
-          "name": "leases_reference_present",
-          "value": "length(btrim(\"leases\".\"reference\")) > 0"
-        },
-        "leases_ended_after_start": {
-          "name": "leases_ended_after_start",
-          "value": "\"leases\".\"ended_on\" IS NULL OR \"leases\".\"ended_on\" >= \"leases\".\"start_date\""
-        },
-        "leases_signed_shape": {
-          "name": "leases_signed_shape",
-          "value": "\"leases\".\"status\" NOT IN ('signed', 'active', 'ending', 'ended') OR \"leases\".\"signed_at\" IS NOT NULL"
-        },
-        "leases_activated_shape": {
-          "name": "leases_activated_shape",
-          "value": "\"leases\".\"status\" NOT IN ('active', 'ending', 'ended') OR \"leases\".\"activated_at\" IS NOT NULL"
-        },
-        "leases_ending_shape": {
-          "name": "leases_ending_shape",
-          "value": "\"leases\".\"status\" <> 'ending' OR \"leases\".\"ending_since\" IS NOT NULL"
-        },
-        "leases_ended_shape": {
-          "name": "leases_ended_shape",
-          "value": "(\"leases\".\"status\" = 'ended') = (\"leases\".\"ended_on\" IS NOT NULL)"
-        },
-        "leases_cancelled_shape": {
-          "name": "leases_cancelled_shape",
-          "value": "(\"leases\".\"status\" = 'cancelled') = (\"leases\".\"cancelled_at\" IS NOT NULL)"
+        "leases_terms_not_negative": {
+          "name": "leases_terms_not_negative",
+          "value": "(\"leases\".\"grace_days\" IS NULL OR \"leases\".\"grace_days\" >= 0) AND (\"leases\".\"notice_period_days\" IS NULL OR \"leases\".\"notice_period_days\" >= 0)"
         }
       },
       "isRLSEnabled": false
@@ -39532,167 +38893,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.lease_events": {
-      "name": "lease_events",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "lease_id": {
-          "name": "lease_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "lease_event_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "actor_user_id": {
-          "name": "actor_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "actor_role": {
-          "name": "actor_role",
-          "type": "lease_actor_role",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "visible_to_tenant": {
-          "name": "visible_to_tenant",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "payload": {
-          "name": "payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "occurred_at": {
-          "name": "occurred_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "lease_events_lease_idx": {
-          "name": "lease_events_lease_idx",
-          "columns": [
-            {
-              "expression": "lease_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "lease_events_scope_idx": {
-          "name": "lease_events_scope_idx",
-          "columns": [
-            {
-              "expression": "workspace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "occurred_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "lease_events_lease_id_leases_id_fk": {
-          "name": "lease_events_lease_id_leases_id_fk",
-          "tableFrom": "lease_events",
-          "tableTo": "leases",
-          "columnsFrom": [
-            "lease_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "lease_events_workspace_id_workspaces_id_fk": {
-          "name": "lease_events_workspace_id_workspaces_id_fk",
-          "tableFrom": "lease_events",
-          "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "lease_events_actor_user_id_users_id_fk": {
-          "name": "lease_events_actor_user_id_users_id_fk",
-          "tableFrom": "lease_events",
-          "tableTo": "users",
-          "columnsFrom": [
-            "actor_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "lease_events_actor_shape": {
-          "name": "lease_events_actor_shape",
-          "value": "\"lease_events\".\"actor_role\" = 'system' OR \"lease_events\".\"actor_user_id\" IS NOT NULL"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.rent_payments": {
       "name": "rent_payments",
       "schema": "",
@@ -41968,7 +41168,6 @@
       "values": [
         "draft",
         "pending_signature",
-        "signed",
         "active",
         "ending",
         "ended",

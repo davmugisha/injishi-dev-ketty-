@@ -38,13 +38,14 @@ COPY packages/ui-contract/package.json ./packages/ui-contract/
 COPY packages/data/package.json ./packages/data/
 COPY packages/db/package.json ./packages/db/
 COPY packages/utils/package.json ./packages/utils/
-# ADR-074 stage 1. products/* is globbed too; each product adds its own line
-# here, in all three Dockerfiles, in the change that creates it; the first one
-# also adds `COPY products ./products` to the build stage, which would fail on
-# a folder that does not exist yet.
+# ADR-074. products/* is globbed too; each product adds its own line here, in
+# all three Dockerfiles, in the change that creates it. A build stage needs the
+# product source only where its app mounts the product: Dockerfile.app copies the
+# whole tree; web and api add `COPY products ./products` when they first do.
 COPY packages/product-contract/package.json ./packages/product-contract/
 COPY packages/api-client/package.json ./packages/api-client/
 COPY packages/i18n/package.json ./packages/i18n/
+COPY products/hr/package.json ./products/hr/
 # HeroUI Pro (a paid licence) ships a stub on npm; its postinstall downloads
 # the real code with HEROUI_AUTH_TOKEN, the team's CI/CD token (never a
 # personal one). It arrives as a BuildKit secret, so it is never written into

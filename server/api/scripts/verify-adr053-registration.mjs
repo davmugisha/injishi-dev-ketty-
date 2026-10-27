@@ -41,6 +41,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { apiEnvFile } from "./env-file.mjs";
 
@@ -172,6 +173,33 @@ async function call(session, method, path, body, extraHeaders = {}) {
   return { status: res.status, json, text };
 }
 
+/**
+ * Pay the registration fee the way a registrant does now (073-gtbank-payments
+ * AC-16): press pay with a mobile money number, then poll the attempt until
+ * the prompt settles. Answers the registration summary in `json`, the shape the
+ * bare `/pay` used to answer, so the checks read it unchanged; `attempt` is set
+ * when money was taken. A stack where payments are off answers `settled` at
+ * once. A refusal (409 contract_not_accepted) comes back as it is.
+ */
+async function payFee(session, orgId) {
+  const attemptToken = randomUUID();
+  const pressed = await call(session, "POST", `/api/v1/registrations/${orgId}/pay`, {
+    attemptToken,
+    instrument: { kind: "mobile_money", network: "mtn_momo", msisdn: "788123456" },
+  });
+  if (pressed.status !== 200 && pressed.status !== 201) return pressed;
+  if (pressed.json?.kind === "settled") return { ...pressed, json: pressed.json.registration, attempt: null };
+  for (let i = 0; i < 60; i += 1) {
+    await new Promise((r) => setTimeout(r, 1_000));
+    const polled = await call(session, "GET", `/api/v1/registrations/${orgId}/pay/attempts/${attemptToken}`);
+    if (polled.status !== 200) return polled;
+    if (polled.json?.state !== "prompting") {
+      return { status: pressed.status, json: polled.json.registration, text: polled.text, attempt: polled.json };
+    }
+  }
+  return { status: 504, json: null, text: "the fee prompt never settled", attempt: null };
+}
+
 async function signIn(email) {
   const cached = JARS[email];
   if (cached) {
@@ -298,12 +326,22 @@ const main = async () => {
   // changes no status, so it writes no event row and the walk below is unchanged.
   const accepted = await call(host, "POST", `/api/v1/registrations/${orgId}/contract`, { contractVersion: "2026-09-12" });
   check("accept the operator contract", accepted.status === 200, `status ${accepted.status} ${accepted.text.slice(0, 160)}`);
-  const paid = await call(host, "POST", `/api/v1/registrations/${orgId}/pay`);
+  const paid = await payFee(host, orgId);
   check("pay", paid.status === 200 || paid.status === 201, `status ${paid.status} ${paid.text.slice(0, 160)}`);
   rows = await events(orgId);
+  // Free (payments off): the registrant's press moved it. Paid (mock or live):
+  // the money settling moved it, as a SYSTEM move with no actor
+  // (073-gtbank-payments AC-16).
+  const paidByMoney = paid.attempt != null;
   check(
-    "paying is a registrant move from pending_payment to submitted",
-    rows[1]?.from_status === "pending_payment" && rows[1]?.to_status === "submitted" && rows[1]?.trigger === "registrant" && rows[1]?.actor_user_id === hostId,
+    paidByMoney
+      ? "paying is a system move from pending_payment to submitted once the money settles"
+      : "paying is a registrant move from pending_payment to submitted",
+    rows[1]?.from_status === "pending_payment" &&
+      rows[1]?.to_status === "submitted" &&
+      (paidByMoney
+        ? rows[1]?.trigger === "system" && rows[1]?.actor_user_id === null
+        : rows[1]?.trigger === "registrant" && rows[1]?.actor_user_id === hostId),
     JSON.stringify(rows[1]),
   );
   check(
@@ -336,7 +374,8 @@ const main = async () => {
   const shape = rows.map((r) => `${r.from_status ?? "∅"}>${r.to_status}:${r.trigger}`);
   const expected = [
     "∅>pending_payment:registrant",
-    "pending_payment>submitted:registrant",
+    // A system move once money settled it (073-gtbank-payments AC-16).
+    `pending_payment>submitted:${paidByMoney ? "system" : "registrant"}`,
     "submitted>tin_verified:system",
     "tin_verified>field_verified:officer",
     "field_verified>rejected:officer",

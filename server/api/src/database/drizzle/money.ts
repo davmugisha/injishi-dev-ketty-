@@ -27,11 +27,11 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
-import { adapterModeEnum, brokerFeeKindEnum, ebmConnectionStatusEnum, momoNetworkEnum, payoutAccountKindEnum, payoutAccountStatusEnum, ebmReceiptTypeEnum, ebmSourceEnum, ebmStatusEnum, ebmTransactionTypeEnum, invoiceKindEnum, ledgerAccountTypeEnum, ledgerTxnKindEnum, moneyOverrideActionEnum, moneyOverrideStateEnum, payoutDestinationEnum, payoutPayeeTypeEnum, payoutSourceEnum, payoutStatusEnum, placementFeeStatusEnum, planBillingPeriodEnum, reconciliationStatusEnum, registrationBusinessTypeEnum, subscriptionInvoiceStatusEnum, subscriptionStatusEnum, taxCodeEnum, tinTypeEnum } from './enums';
+import { adapterModeEnum, brokerFeeKindEnum, ebmConnectionStatusEnum, ebmReceiptTypeEnum, ebmSourceEnum, ebmStatusEnum, ebmTransactionTypeEnum, invoiceKindEnum, ledgerAccountTypeEnum, ledgerTxnKindEnum, momoNetworkEnum, moneyOverrideActionEnum, moneyOverrideStateEnum, paymentDirectionEnum, paymentTransactionStatusEnum, payoutAccountKindEnum, payoutAccountStatusEnum, payoutDestinationEnum, payoutPayeeTypeEnum, payoutSourceEnum, payoutStatusEnum, placementFeeStatusEnum, planBillingPeriodEnum, reconciliationStatusEnum, registrationBusinessTypeEnum, subscriptionInvoiceStatusEnum, subscriptionStatusEnum, taxCodeEnum, tinTypeEnum } from './enums';
 import { bookings } from './hospitality';
 import { folioCharges, folios, outlets, serviceOrderItems, serviceOrders } from './operations';
 import { orgs, workspaces } from './org';
-import { brokers, leases } from './residence';
+import { brokers, leases, paymentAttempts } from './residence';
 
 export const ledgerAccounts = pgTable(
   'ledger_accounts',
@@ -198,6 +198,198 @@ export const payouts = pgTable(
     unique('payouts_idempotency_key_uk').on(t.idempotencyKey),
     index('payouts_workspace_status_idx').on(t.workspaceId, t.status),
     index('payouts_account_idx').on(t.payoutAccountId),
+  ],
+);
+
+/**
+ * Every instruction Injishi sends a payment provider, and every treasury
+ * movement two people approved (073-gtbank-payments, the bank record).
+ *
+ * Hangaa holds every collection in one GTBank account (call 3), so this table
+ * is what reconciliation, the available balance, reversals and the admin money
+ * queue all read. A row is written BEFORE its call (`sending`, or `queued` when
+ * it cannot go yet), so a crash between the call and the update leaves a row to
+ * pull by `reference`, never a charge with no record (AC-9).
+ *
+ * `reference` is derived from `idempotency_key` (AC-6), so the same key always
+ * sends the same reference. `payer_msisdn` and the `payee_*` columns sit in
+ * plain columns on the encrypted volume (ADR-073 D-s), are read only by the
+ * payments module, and never reach a log or a response unmasked. The available
+ * balance is a sum over these rows, never a stored column (AC-14).
+ */
+export const paymentTransactions = pgTable(
+  'payment_transactions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Null only for an adjustment, which belongs to Hangaa's account, not a business. */
+    workspaceId: uuid('workspace_id').references(() => workspaces.id),
+    /** The registry provider key: `gtbank`, or `mock` for the mock adapter. */
+    provider: text('provider').notNull(),
+    /** Written from the bound adapter, never defaulted (ADR-020 AC-9). */
+    adapterMode: adapterModeEnum('adapter_mode').notNull(),
+    direction: paymentDirectionEnum('direction').notNull(),
+    operation: text('operation').notNull(),
+
+    paymentAttemptId: uuid('payment_attempt_id').references(
+      (): AnyPgColumn => paymentAttempts.id,
+    ),
+    /** The collection a refund or guest release goes back to. */
+    originalTransactionId: uuid('original_transaction_id').references(
+      (): AnyPgColumn => paymentTransactions.id,
+    ),
+    payoutId: uuid('payout_id').references(() => payouts.id),
+    bookingId: uuid('booking_id').references(() => bookings.id),
+    /** The approved override a resend or an adjustment was written under. */
+    moneyOverrideId: uuid('money_override_id').references(
+      (): AnyPgColumn => moneyOverrides.id,
+    ),
+
+    idempotencyKey: text('idempotency_key').notNull(),
+    reference: text('reference').notNull(),
+    /** The provider's own transaction reference; an adjustment's bank reference. */
+    providerReference: text('provider_reference'),
+
+    amountRwf: amount('amount_rwf').notNull(),
+    currency: currency(),
+    /** The estimate at insert, then the provider's figure (`fee_reported`). */
+    feeRwf: amount('fee_rwf').notNull().default(0),
+    feeReported: boolean('fee_reported').notNull().default(false),
+
+    status: paymentTransactionStatusEnum('status').notNull(),
+    queueReason: text('queue_reason'),
+    /** The provider's raw status word or code, for support. */
+    providerStatus: text('provider_status'),
+    failureReason: text('failure_reason'),
+
+    // --- the payer, collections only (AC-10) ---
+    payerMsisdn: text('payer_msisdn'),
+    payerNetwork: text('payer_network'),
+    payerPurgeAfter: timestamp('payer_purge_after', { withTimezone: true }),
+
+    // --- the payee, disbursements only (AC-12) ---
+    payeeFullName: text('payee_full_name'),
+    payeeIdType: text('payee_id_type'),
+    payeeIdNumber: text('payee_id_number'),
+    payeeDestination: text('payee_destination'),
+    payeeNetworkOrBank: text('payee_network_or_bank'),
+    payeeAccount: text('payee_account'),
+    payeePhone: text('payee_phone'),
+
+    reversalFlaggedAt: timestamp('reversal_flagged_at', { withTimezone: true }),
+    reversalKind: text('reversal_kind'),
+
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    finalAt: timestamp('final_at', { withTimezone: true }),
+    lastPulledAt: timestamp('last_pulled_at', { withTimezone: true }),
+
+    resolvedByUserId: uuid('resolved_by_user_id').references(() => users.id),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    resolutionOutcome: text('resolution_outcome'),
+    resolutionNote: text('resolution_note'),
+    writtenOffAt: timestamp('written_off_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    unique('payment_transactions_idempotency_key_uk').on(t.idempotencyKey),
+    unique('payment_transactions_reference_uk').on(t.reference),
+    uniqueIndex('payment_transactions_provider_reference_uk')
+      .on(t.provider, t.providerReference)
+      .where(sql`${t.providerReference} IS NOT NULL`),
+    // One collection per attempt: the attempt's capture key is this row's key.
+    uniqueIndex('payment_transactions_attempt_uk')
+      .on(t.paymentAttemptId)
+      .where(sql`${t.paymentAttemptId} IS NOT NULL`),
+    // The dispatcher and the sweep read only what is still moving.
+    index('payment_transactions_due_idx')
+      .on(t.status, t.nextAttemptAt)
+      .where(sql`${t.status} IN ('queued', 'sending', 'pending', 'unknown')`),
+    index('payment_transactions_original_idx').on(t.originalTransactionId),
+    index('payment_transactions_booking_idx').on(t.bookingId),
+    index('payment_transactions_workspace_idx').on(t.workspaceId),
+    index('payment_transactions_balance_idx').on(
+      t.provider,
+      t.adapterMode,
+      t.status,
+    ),
+    // Every IN on a nullable column below is guarded by IS NOT NULL: a CHECK
+    // that evaluates to NULL passes, so a bare `x IN (...)` lets a null x in.
+    check(
+      'payment_transactions_operation_shape',
+      sql`(${t.direction} = 'collection'
+            AND ${t.operation} IN ('escrow_capture', 'one_time_fee', 'recurring_charge'))
+        OR (${t.direction} = 'disbursement'
+            AND ${t.operation} IN ('refund', 'escrow_release_guest', 'escrow_release_host', 'payout'))
+        OR (${t.direction} = 'adjustment' AND ${t.operation} = 'adjustment')`,
+    ),
+    check(
+      'payment_transactions_amount_shape',
+      sql`(${t.direction} = 'adjustment' AND ${t.amountRwf} <> 0)
+        OR (${t.direction} <> 'adjustment' AND ${t.amountRwf} > 0)`,
+    ),
+    check('payment_transactions_fee_non_negative', sql`${t.feeRwf} >= 0`),
+    check(
+      'payment_transactions_workspace_shape',
+      sql`${t.workspaceId} IS NOT NULL OR ${t.direction} = 'adjustment'`,
+    ),
+    // An adjustment is written only once approved, so it never moves again.
+    check(
+      'payment_transactions_adjustment_shape',
+      sql`${t.direction} <> 'adjustment'
+        OR (${t.status} = 'successful' AND ${t.moneyOverrideId} IS NOT NULL)`,
+    ),
+    check(
+      'payment_transactions_queue_shape',
+      sql`(${t.status} = 'queued' AND ${t.queueReason} IS NOT NULL
+            AND ${t.queueReason} IN ('awaiting_dispatch', 'insufficient_funds', 'payee_details_missing',
+             'provider_unavailable', 'over_limit'))
+        OR (${t.status} <> 'queued' AND ${t.queueReason} IS NULL)`,
+    ),
+    check(
+      'payment_transactions_payer_shape',
+      sql`${t.direction} = 'collection'
+        OR (${t.payerMsisdn} IS NULL AND ${t.payerNetwork} IS NULL
+            AND ${t.payerPurgeAfter} IS NULL)`,
+    ),
+    // A disbursement always knows where it goes; its payee's name and ID may be
+    // missing only while it waits for them, or on one refused before it was
+    // ever sent (a collection another provider or mode took, AC-11).
+    check(
+      'payment_transactions_payee_shape',
+      sql`(${t.direction} <> 'disbursement'
+            AND ${t.payeeFullName} IS NULL AND ${t.payeeIdType} IS NULL
+            AND ${t.payeeIdNumber} IS NULL AND ${t.payeeDestination} IS NULL
+            AND ${t.payeeNetworkOrBank} IS NULL AND ${t.payeeAccount} IS NULL
+            AND ${t.payeePhone} IS NULL)
+        OR (${t.direction} = 'disbursement'
+            AND ${t.payeeAccount} IS NOT NULL
+            AND ${t.payeeDestination} IS NOT NULL
+            AND ${t.payeeDestination} IN ('momo', 'bank')
+            AND ((${t.status} = 'queued' AND ${t.queueReason} IS NOT NULL
+                  AND ${t.queueReason} = 'payee_details_missing')
+              OR (${t.status} = 'failed' AND ${t.sentAt} IS NULL)
+              OR (${t.payeeFullName} IS NOT NULL
+                  AND ${t.payeeIdType} IS NOT NULL
+                  AND ${t.payeeIdType} IN ('national_id', 'passport')
+                  AND ${t.payeeIdNumber} IS NOT NULL
+                  AND ${t.payeePhone} IS NOT NULL)))`,
+    ),
+    check(
+      'payment_transactions_reversal_shape',
+      sql`(${t.reversalFlaggedAt} IS NULL AND ${t.reversalKind} IS NULL)
+        OR (${t.reversalFlaggedAt} IS NOT NULL AND ${t.reversalKind} IS NOT NULL
+            AND ${t.reversalKind} IN ('reversal', 'double_refund'))`,
+    ),
+    check(
+      'payment_transactions_resolution_shape',
+      sql`(${t.resolvedAt} IS NULL AND ${t.resolutionOutcome} IS NULL
+            AND ${t.resolvedByUserId} IS NULL)
+        OR (${t.resolvedAt} IS NOT NULL AND ${t.resolvedByUserId} IS NOT NULL
+            AND ${t.resolutionOutcome} IS NOT NULL
+            AND ${t.resolutionOutcome} IN ('failed', 'successful', 'stands', 'cancel_service')
+            AND ${t.resolutionNote} IS NOT NULL)`,
+    ),
   ],
 );
 
@@ -767,6 +959,12 @@ export const moneyOverrides = pgTable(
     state: moneyOverrideStateEnum('state').notNull().default('initiated'),
     reversible: boolean('reversible').notNull().default(false),
     idempotencyKey: text('idempotency_key'),
+    /**
+     * What the request asks for beyond its subject, read at approval: a
+     * treasury adjustment's signed amount and bank reference
+     * (073-gtbank-payments AC-15). Never a payee's number, name or ID.
+     */
+    details: jsonb('details'),
     ledgerTransactionId: uuid('ledger_transaction_id').references(
       () => ledgerTransactions.id,
     ),

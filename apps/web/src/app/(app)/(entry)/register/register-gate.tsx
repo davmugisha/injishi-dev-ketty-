@@ -3,7 +3,8 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@injishi/web-ui";
 
-import { fetchPlatform, isDemo, offersGoogle } from "@/data/platform";
+import { fetchPlatform, isDemo, offersGoogle, registrationFeeMode, type RegistrationFeeMode } from "@/data/platform";
+import type { MobileMoneyNetwork } from "@injishi/contracts";
 import { useSessionUser } from "@/lib/session";
 import { gateView, nextReconnectDelay } from "@/lib/session-reconnect";
 
@@ -69,12 +70,21 @@ export default function RegisterGate({
   // Google is offered only where the API says its provider is mounted.
   const [demo, setDemo] = useState<boolean | null>(null);
   const [google, setGoogle] = useState(false);
+  // How the registration fee is taken here, and on which networks (073 AC-17).
+  const [feeMode, setFeeMode] = useState<RegistrationFeeMode>("unknown");
+  const [feeNetworks, setFeeNetworks] = useState<MobileMoneyNetwork[]>(["mtn_momo", "airtel_money"]);
+  const [feeMaxRwf, setFeeMaxRwf] = useState<number | null>(null);
   useEffect(() => {
     let live = true;
     void fetchPlatform().then((p) => {
       if (!live) return;
       setDemo(isDemo(p));
       setGoogle(offersGoogle(p));
+      setFeeMode(registrationFeeMode(p));
+      if (p?.paymentRules) {
+        setFeeNetworks(p.paymentRules.networks);
+        setFeeMaxRwf(p.paymentRules.maxCollectionRwf);
+      }
     });
     return () => {
       live = false;
@@ -130,7 +140,16 @@ export default function RegisterGate({
   const view = gateView(status, failedRetries, online);
 
   if (view === "authenticated") {
-    return <RegisterWizard initialKind={initialKind} user={session.user} demo={demo === true} />;
+    return (
+      <RegisterWizard
+        initialKind={initialKind}
+        user={session.user}
+        demo={demo === true}
+        feeMode={feeMode}
+        feeNetworks={feeNetworks}
+        feeMaxRwf={feeMaxRwf}
+      />
+    );
   }
 
   // Not signed in (yet): the shell with the kind they chose on `/host`, which

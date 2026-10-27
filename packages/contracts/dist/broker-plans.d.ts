@@ -71,13 +71,13 @@ export declare const BrokerPlanPayment: z.ZodObject<{
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     status: "pending" | "failed" | "paid";
-    kind: "start" | "renewal";
     id: string;
+    kind: "start" | "renewal";
     amountRwf: number;
+    failureReason: string | null;
     createdAt: string;
     periodStart: string;
     periodEnd: string;
-    failureReason: string | null;
     paidAt: string | null;
     method: "mtn_momo" | "airtel_money" | "card";
     planCode: "country" | "province" | "district";
@@ -85,13 +85,13 @@ export declare const BrokerPlanPayment: z.ZodObject<{
     checkoutUrl: string | null;
 }, {
     status: "pending" | "failed" | "paid";
-    kind: "start" | "renewal";
     id: string;
+    kind: "start" | "renewal";
     amountRwf: number;
+    failureReason: string | null;
     createdAt: string;
     periodStart: string;
     periodEnd: string;
-    failureReason: string | null;
     paidAt: string | null;
     method: "mtn_momo" | "airtel_money" | "card";
     planCode: "country" | "province" | "district";
@@ -129,15 +129,15 @@ export declare const BrokerPlanOverview: z.ZodObject<{
         /** On the free plan, the first day the home district may change again; null when it may now. */
         changeFrom: z.ZodNullable<z.ZodEffects<z.ZodString, string, string>>;
     }, "strip", z.ZodTypeAny, {
+        districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
-        districtName: string | null;
         provinceName: string | null;
         changeFrom: string | null;
     }, {
+        districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
-        districtName: string | null;
         provinceName: string | null;
         changeFrom: string | null;
     }>;
@@ -158,7 +158,7 @@ export declare const BrokerPlanOverview: z.ZodObject<{
         graceUntil: z.ZodNullable<z.ZodEffects<z.ZodString, string, string>>;
         method: z.ZodNullable<z.ZodEnum<["mtn_momo", "airtel_money", "card"]>>;
     }, "strip", z.ZodTypeAny, {
-        status: "pending_payment" | "active" | "expired" | "past_due" | "cancelled";
+        status: "pending_payment" | "active" | "cancelled" | "expired" | "past_due";
         provinceId: number | null;
         periodStart: string | null;
         periodEnd: string | null;
@@ -170,7 +170,7 @@ export declare const BrokerPlanOverview: z.ZodObject<{
         endsInto: "country" | "province" | "district" | null;
         graceUntil: string | null;
     }, {
-        status: "pending_payment" | "active" | "expired" | "past_due" | "cancelled";
+        status: "pending_payment" | "active" | "cancelled" | "expired" | "past_due";
         provinceId: number | null;
         periodStart: string | null;
         periodEnd: string | null;
@@ -212,13 +212,13 @@ export declare const BrokerPlanOverview: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "failed" | "paid";
-        kind: "start" | "renewal";
         id: string;
+        kind: "start" | "renewal";
         amountRwf: number;
+        failureReason: string | null;
         createdAt: string;
         periodStart: string;
         periodEnd: string;
-        failureReason: string | null;
         paidAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card";
         planCode: "country" | "province" | "district";
@@ -226,13 +226,13 @@ export declare const BrokerPlanOverview: z.ZodObject<{
         checkoutUrl: string | null;
     }, {
         status: "pending" | "failed" | "paid";
-        kind: "start" | "renewal";
         id: string;
+        kind: "start" | "renewal";
         amountRwf: number;
+        failureReason: string | null;
         createdAt: string;
         periodStart: string;
         periodEnd: string;
-        failureReason: string | null;
         paidAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card";
         planCode: "country" | "province" | "district";
@@ -257,13 +257,13 @@ export declare const BrokerPlanOverview: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "failed" | "paid";
-        kind: "start" | "renewal";
         id: string;
+        kind: "start" | "renewal";
         amountRwf: number;
+        failureReason: string | null;
         createdAt: string;
         periodStart: string;
         periodEnd: string;
-        failureReason: string | null;
         paidAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card";
         planCode: "country" | "province" | "district";
@@ -271,13 +271,13 @@ export declare const BrokerPlanOverview: z.ZodObject<{
         checkoutUrl: string | null;
     }, {
         status: "pending" | "failed" | "paid";
-        kind: "start" | "renewal";
         id: string;
+        kind: "start" | "renewal";
         amountRwf: number;
+        failureReason: string | null;
         createdAt: string;
         periodStart: string;
         periodEnd: string;
-        failureReason: string | null;
         paidAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card";
         planCode: "country" | "province" | "district";
@@ -301,13 +301,13 @@ export declare const BrokerPlanOverview: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     pending: {
         status: "pending" | "failed" | "paid";
-        kind: "start" | "renewal";
         id: string;
+        kind: "start" | "renewal";
         amountRwf: number;
+        failureReason: string | null;
         createdAt: string;
         periodStart: string;
         periodEnd: string;
-        failureReason: string | null;
         paidAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card";
         planCode: "country" | "province" | "district";
@@ -315,7 +315,7 @@ export declare const BrokerPlanOverview: z.ZodObject<{
         checkoutUrl: string | null;
     } | null;
     current: {
-        status: "pending_payment" | "active" | "expired" | "past_due" | "cancelled";
+        status: "pending_payment" | "active" | "cancelled" | "expired" | "past_due";
         provinceId: number | null;
         periodStart: string | null;
         periodEnd: string | null;
@@ -329,13 +329,13 @@ export declare const BrokerPlanOverview: z.ZodObject<{
     };
     payments: {
         status: "pending" | "failed" | "paid";
-        kind: "start" | "renewal";
         id: string;
+        kind: "start" | "renewal";
         amountRwf: number;
+        failureReason: string | null;
         createdAt: string;
         periodStart: string;
         periodEnd: string;
-        failureReason: string | null;
         paidAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card";
         planCode: "country" | "province" | "district";
@@ -350,9 +350,9 @@ export declare const BrokerPlanOverview: z.ZodObject<{
         priceRwf: number;
     }[];
     home: {
+        districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
-        districtName: string | null;
         provinceName: string | null;
         changeFrom: string | null;
     };
@@ -368,13 +368,13 @@ export declare const BrokerPlanOverview: z.ZodObject<{
 }, {
     pending: {
         status: "pending" | "failed" | "paid";
-        kind: "start" | "renewal";
         id: string;
+        kind: "start" | "renewal";
         amountRwf: number;
+        failureReason: string | null;
         createdAt: string;
         periodStart: string;
         periodEnd: string;
-        failureReason: string | null;
         paidAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card";
         planCode: "country" | "province" | "district";
@@ -382,7 +382,7 @@ export declare const BrokerPlanOverview: z.ZodObject<{
         checkoutUrl: string | null;
     } | null;
     current: {
-        status: "pending_payment" | "active" | "expired" | "past_due" | "cancelled";
+        status: "pending_payment" | "active" | "cancelled" | "expired" | "past_due";
         provinceId: number | null;
         periodStart: string | null;
         periodEnd: string | null;
@@ -396,13 +396,13 @@ export declare const BrokerPlanOverview: z.ZodObject<{
     };
     payments: {
         status: "pending" | "failed" | "paid";
-        kind: "start" | "renewal";
         id: string;
+        kind: "start" | "renewal";
         amountRwf: number;
+        failureReason: string | null;
         createdAt: string;
         periodStart: string;
         periodEnd: string;
-        failureReason: string | null;
         paidAt: string | null;
         method: "mtn_momo" | "airtel_money" | "card";
         planCode: "country" | "province" | "district";
@@ -417,9 +417,9 @@ export declare const BrokerPlanOverview: z.ZodObject<{
         priceRwf: number;
     }[];
     home: {
+        districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
-        districtName: string | null;
         provinceName: string | null;
         changeFrom: string | null;
     };
@@ -604,7 +604,7 @@ export declare const AdminBrokerSubscription: z.ZodObject<{
     paidRwf: z.ZodNumber;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    status: "pending_payment" | "active" | "expired" | "past_due" | "cancelled";
+    status: "pending_payment" | "active" | "cancelled" | "expired" | "past_due";
     id: string;
     brokerId: string;
     createdAt: string;
@@ -617,7 +617,7 @@ export declare const AdminBrokerSubscription: z.ZodObject<{
     plan: "country" | "province" | "district";
     cancelAtPeriodEnd: boolean;
 }, {
-    status: "pending_payment" | "active" | "expired" | "past_due" | "cancelled";
+    status: "pending_payment" | "active" | "cancelled" | "expired" | "past_due";
     id: string;
     brokerId: string;
     createdAt: string;
@@ -646,7 +646,7 @@ export declare const AdminBrokerSubscriptionList: z.ZodObject<{
         paidRwf: z.ZodNumber;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        status: "pending_payment" | "active" | "expired" | "past_due" | "cancelled";
+        status: "pending_payment" | "active" | "cancelled" | "expired" | "past_due";
         id: string;
         brokerId: string;
         createdAt: string;
@@ -659,7 +659,7 @@ export declare const AdminBrokerSubscriptionList: z.ZodObject<{
         plan: "country" | "province" | "district";
         cancelAtPeriodEnd: boolean;
     }, {
-        status: "pending_payment" | "active" | "expired" | "past_due" | "cancelled";
+        status: "pending_payment" | "active" | "cancelled" | "expired" | "past_due";
         id: string;
         brokerId: string;
         createdAt: string;
@@ -687,7 +687,7 @@ export declare const AdminBrokerSubscriptionList: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        status: "pending_payment" | "active" | "expired" | "past_due" | "cancelled";
+        status: "pending_payment" | "active" | "cancelled" | "expired" | "past_due";
         id: string;
         brokerId: string;
         createdAt: string;
@@ -707,7 +707,7 @@ export declare const AdminBrokerSubscriptionList: z.ZodObject<{
     };
 }, {
     items: {
-        status: "pending_payment" | "active" | "expired" | "past_due" | "cancelled";
+        status: "pending_payment" | "active" | "cancelled" | "expired" | "past_due";
         id: string;
         brokerId: string;
         createdAt: string;

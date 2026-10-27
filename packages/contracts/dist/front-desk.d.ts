@@ -48,13 +48,13 @@ export declare const FrontDeskFolio: z.ZodObject<{
     balanceRwf: z.ZodNullable<z.ZodNumber>;
     lockedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "open" | "closed" | "settled" | "disputed";
+    status: "settled" | "open" | "closed" | "disputed";
     id: string;
     folioNumber: string;
     balanceRwf: number | null;
     lockedAt: string | null;
 }, {
-    status: "open" | "closed" | "settled" | "disputed";
+    status: "settled" | "open" | "closed" | "disputed";
     id: string;
     folioNumber: string;
     balanceRwf: number | null;
@@ -109,7 +109,7 @@ export declare const FrontDeskBooking: z.ZodObject<{
     lockedNightlyRateRwf: z.ZodNumber;
     /** Money already taken and still held or paid out (the escrow). Zero when none. */
     paidRwf: z.ZodNumber;
-    paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out"]>>;
+    paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out", "refund_pending"]>>;
     approvalExpiresAt: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
     confirmedAt: z.ZodNullable<z.ZodString>;
@@ -161,13 +161,13 @@ export declare const FrontDeskBooking: z.ZodObject<{
         balanceRwf: z.ZodNullable<z.ZodNumber>;
         lockedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "open" | "closed" | "settled" | "disputed";
+        status: "settled" | "open" | "closed" | "disputed";
         id: string;
         folioNumber: string;
         balanceRwf: number | null;
         lockedAt: string | null;
     }, {
-        status: "open" | "closed" | "settled" | "disputed";
+        status: "settled" | "open" | "closed" | "disputed";
         id: string;
         folioNumber: string;
         balanceRwf: number | null;
@@ -206,24 +206,24 @@ export declare const FrontDeskBooking: z.ZodObject<{
         keptRwf: number;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+    status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
     id: string;
-    createdAt: string;
-    reference: string;
-    guestName: string | null;
-    paidRwf: number;
-    state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
     bookingMode: "instant_book" | "request_to_book";
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
     roomTypeId: string;
     nights: number;
     checkIn: string;
     checkOut: string;
-    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
+    reference: string;
+    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
     approvalExpiresAt: string | null;
+    state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
     confirmedAt: string | null;
     refundRwf: number | null;
     cancelledBy: string | null;
+    createdAt: string;
+    guestName: string | null;
+    paidRwf: number;
     guestCount: number;
     roomTypeName: string;
     totalRwf: number;
@@ -251,7 +251,7 @@ export declare const FrontDeskBooking: z.ZodObject<{
     }[];
     preArrivalIdentity: boolean;
     folio: {
-        status: "open" | "closed" | "settled" | "disputed";
+        status: "settled" | "open" | "closed" | "disputed";
         id: string;
         folioNumber: string;
         balanceRwf: number | null;
@@ -269,24 +269,24 @@ export declare const FrontDeskBooking: z.ZodObject<{
         keptRwf: number;
     } | null;
 }, {
-    status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+    status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
     id: string;
-    createdAt: string;
-    reference: string;
-    guestName: string | null;
-    paidRwf: number;
-    state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
     bookingMode: "instant_book" | "request_to_book";
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
     roomTypeId: string;
     nights: number;
     checkIn: string;
     checkOut: string;
-    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
+    reference: string;
+    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
     approvalExpiresAt: string | null;
+    state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
     confirmedAt: string | null;
     refundRwf: number | null;
     cancelledBy: string | null;
+    createdAt: string;
+    guestName: string | null;
+    paidRwf: number;
     guestCount: number;
     roomTypeName: string;
     totalRwf: number;
@@ -314,7 +314,7 @@ export declare const FrontDeskBooking: z.ZodObject<{
     }[];
     preArrivalIdentity: boolean;
     folio: {
-        status: "open" | "closed" | "settled" | "disputed";
+        status: "settled" | "open" | "closed" | "disputed";
         id: string;
         folioNumber: string;
         balanceRwf: number | null;
@@ -362,13 +362,13 @@ export declare const FrontDeskStay: z.ZodObject<{
         balanceRwf: z.ZodNullable<z.ZodNumber>;
         lockedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "open" | "closed" | "settled" | "disputed";
+        status: "settled" | "open" | "closed" | "disputed";
         id: string;
         folioNumber: string;
         balanceRwf: number | null;
         lockedAt: string | null;
     }, {
-        status: "open" | "closed" | "settled" | "disputed";
+        status: "settled" | "open" | "closed" | "disputed";
         id: string;
         folioNumber: string;
         balanceRwf: number | null;
@@ -376,11 +376,11 @@ export declare const FrontDeskStay: z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     id: string;
+    checkIn: string | null;
+    checkOut: string | null;
     reference: string | null;
     guestName: string | null;
     priceRwf: number | null;
-    checkIn: string | null;
-    checkOut: string | null;
     roomTypeName: string;
     bookingId: string | null;
     roomId: string;
@@ -393,7 +393,7 @@ export declare const FrontDeskStay: z.ZodObject<{
     bookingReference: string | null;
     deskNote: string | null;
     folio: {
-        status: "open" | "closed" | "settled" | "disputed";
+        status: "settled" | "open" | "closed" | "disputed";
         id: string;
         folioNumber: string;
         balanceRwf: number | null;
@@ -402,11 +402,11 @@ export declare const FrontDeskStay: z.ZodObject<{
     departureNote: string | null;
 }, {
     id: string;
+    checkIn: string | null;
+    checkOut: string | null;
     reference: string | null;
     guestName: string | null;
     priceRwf: number | null;
-    checkIn: string | null;
-    checkOut: string | null;
     roomTypeName: string;
     bookingId: string | null;
     roomId: string;
@@ -419,7 +419,7 @@ export declare const FrontDeskStay: z.ZodObject<{
     bookingReference: string | null;
     deskNote: string | null;
     folio: {
-        status: "open" | "closed" | "settled" | "disputed";
+        status: "settled" | "open" | "closed" | "disputed";
         id: string;
         folioNumber: string;
         balanceRwf: number | null;
@@ -467,8 +467,8 @@ export declare const FrontDeskRoom: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "available" | "maintenance" | "out_of_service";
     id: string;
-    label: string | null;
     roomTypeId: string;
+    label: string | null;
     roomTypeName: string;
     housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
     housekeepingUpdatedAt: string | null;
@@ -485,8 +485,8 @@ export declare const FrontDeskRoom: z.ZodObject<{
 }, {
     status: "available" | "maintenance" | "out_of_service";
     id: string;
-    label: string | null;
     roomTypeId: string;
+    label: string | null;
     roomTypeName: string;
     housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
     housekeepingUpdatedAt: string | null;
@@ -589,7 +589,7 @@ export declare const FrontDeskBoard: z.ZodObject<{
         lockedNightlyRateRwf: z.ZodNumber;
         /** Money already taken and still held or paid out (the escrow). Zero when none. */
         paidRwf: z.ZodNumber;
-        paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out"]>>;
+        paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out", "refund_pending"]>>;
         approvalExpiresAt: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
         confirmedAt: z.ZodNullable<z.ZodString>;
@@ -641,13 +641,13 @@ export declare const FrontDeskBoard: z.ZodObject<{
             balanceRwf: z.ZodNullable<z.ZodNumber>;
             lockedAt: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            status: "open" | "closed" | "settled" | "disputed";
+            status: "settled" | "open" | "closed" | "disputed";
             id: string;
             folioNumber: string;
             balanceRwf: number | null;
             lockedAt: string | null;
         }, {
-            status: "open" | "closed" | "settled" | "disputed";
+            status: "settled" | "open" | "closed" | "disputed";
             id: string;
             folioNumber: string;
             balanceRwf: number | null;
@@ -686,24 +686,24 @@ export declare const FrontDeskBoard: z.ZodObject<{
             keptRwf: number;
         }>>;
     }, "strip", z.ZodTypeAny, {
-        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
         id: string;
-        createdAt: string;
-        reference: string;
-        guestName: string | null;
-        paidRwf: number;
-        state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         bookingMode: "instant_book" | "request_to_book";
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         roomTypeId: string;
         nights: number;
         checkIn: string;
         checkOut: string;
-        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
+        reference: string;
+        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
         approvalExpiresAt: string | null;
+        state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         confirmedAt: string | null;
         refundRwf: number | null;
         cancelledBy: string | null;
+        createdAt: string;
+        guestName: string | null;
+        paidRwf: number;
         guestCount: number;
         roomTypeName: string;
         totalRwf: number;
@@ -731,7 +731,7 @@ export declare const FrontDeskBoard: z.ZodObject<{
         }[];
         preArrivalIdentity: boolean;
         folio: {
-            status: "open" | "closed" | "settled" | "disputed";
+            status: "settled" | "open" | "closed" | "disputed";
             id: string;
             folioNumber: string;
             balanceRwf: number | null;
@@ -749,24 +749,24 @@ export declare const FrontDeskBoard: z.ZodObject<{
             keptRwf: number;
         } | null;
     }, {
-        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
         id: string;
-        createdAt: string;
-        reference: string;
-        guestName: string | null;
-        paidRwf: number;
-        state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         bookingMode: "instant_book" | "request_to_book";
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         roomTypeId: string;
         nights: number;
         checkIn: string;
         checkOut: string;
-        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
+        reference: string;
+        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
         approvalExpiresAt: string | null;
+        state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         confirmedAt: string | null;
         refundRwf: number | null;
         cancelledBy: string | null;
+        createdAt: string;
+        guestName: string | null;
+        paidRwf: number;
         guestCount: number;
         roomTypeName: string;
         totalRwf: number;
@@ -794,7 +794,7 @@ export declare const FrontDeskBoard: z.ZodObject<{
         }[];
         preArrivalIdentity: boolean;
         folio: {
-            status: "open" | "closed" | "settled" | "disputed";
+            status: "settled" | "open" | "closed" | "disputed";
             id: string;
             folioNumber: string;
             balanceRwf: number | null;
@@ -841,13 +841,13 @@ export declare const FrontDeskBoard: z.ZodObject<{
             balanceRwf: z.ZodNullable<z.ZodNumber>;
             lockedAt: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            status: "open" | "closed" | "settled" | "disputed";
+            status: "settled" | "open" | "closed" | "disputed";
             id: string;
             folioNumber: string;
             balanceRwf: number | null;
             lockedAt: string | null;
         }, {
-            status: "open" | "closed" | "settled" | "disputed";
+            status: "settled" | "open" | "closed" | "disputed";
             id: string;
             folioNumber: string;
             balanceRwf: number | null;
@@ -855,11 +855,11 @@ export declare const FrontDeskBoard: z.ZodObject<{
         }>>;
     }, "strip", z.ZodTypeAny, {
         id: string;
+        checkIn: string | null;
+        checkOut: string | null;
         reference: string | null;
         guestName: string | null;
         priceRwf: number | null;
-        checkIn: string | null;
-        checkOut: string | null;
         roomTypeName: string;
         bookingId: string | null;
         roomId: string;
@@ -872,7 +872,7 @@ export declare const FrontDeskBoard: z.ZodObject<{
         bookingReference: string | null;
         deskNote: string | null;
         folio: {
-            status: "open" | "closed" | "settled" | "disputed";
+            status: "settled" | "open" | "closed" | "disputed";
             id: string;
             folioNumber: string;
             balanceRwf: number | null;
@@ -881,11 +881,11 @@ export declare const FrontDeskBoard: z.ZodObject<{
         departureNote: string | null;
     }, {
         id: string;
+        checkIn: string | null;
+        checkOut: string | null;
         reference: string | null;
         guestName: string | null;
         priceRwf: number | null;
-        checkIn: string | null;
-        checkOut: string | null;
         roomTypeName: string;
         bookingId: string | null;
         roomId: string;
@@ -898,7 +898,7 @@ export declare const FrontDeskBoard: z.ZodObject<{
         bookingReference: string | null;
         deskNote: string | null;
         folio: {
-            status: "open" | "closed" | "settled" | "disputed";
+            status: "settled" | "open" | "closed" | "disputed";
             id: string;
             folioNumber: string;
             balanceRwf: number | null;
@@ -945,8 +945,8 @@ export declare const FrontDeskBoard: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "available" | "maintenance" | "out_of_service";
         id: string;
-        label: string | null;
         roomTypeId: string;
+        label: string | null;
         roomTypeName: string;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
         housekeepingUpdatedAt: string | null;
@@ -963,8 +963,8 @@ export declare const FrontDeskBoard: z.ZodObject<{
     }, {
         status: "available" | "maintenance" | "out_of_service";
         id: string;
-        label: string | null;
         roomTypeId: string;
+        label: string | null;
         roomTypeName: string;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
         housekeepingUpdatedAt: string | null;
@@ -1034,8 +1034,8 @@ export declare const FrontDeskBoard: z.ZodObject<{
     rooms: {
         status: "available" | "maintenance" | "out_of_service";
         id: string;
-        label: string | null;
         roomTypeId: string;
+        label: string | null;
         roomTypeName: string;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
         housekeepingUpdatedAt: string | null;
@@ -1052,11 +1052,11 @@ export declare const FrontDeskBoard: z.ZodObject<{
     }[];
     stays: {
         id: string;
+        checkIn: string | null;
+        checkOut: string | null;
         reference: string | null;
         guestName: string | null;
         priceRwf: number | null;
-        checkIn: string | null;
-        checkOut: string | null;
         roomTypeName: string;
         bookingId: string | null;
         roomId: string;
@@ -1069,7 +1069,7 @@ export declare const FrontDeskBoard: z.ZodObject<{
         bookingReference: string | null;
         deskNote: string | null;
         folio: {
-            status: "open" | "closed" | "settled" | "disputed";
+            status: "settled" | "open" | "closed" | "disputed";
             id: string;
             folioNumber: string;
             balanceRwf: number | null;
@@ -1081,24 +1081,24 @@ export declare const FrontDeskBoard: z.ZodObject<{
     generatedAt: string;
     canReadBills: boolean;
     bookings: {
-        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
         id: string;
-        createdAt: string;
-        reference: string;
-        guestName: string | null;
-        paidRwf: number;
-        state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         bookingMode: "instant_book" | "request_to_book";
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         roomTypeId: string;
         nights: number;
         checkIn: string;
         checkOut: string;
-        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
+        reference: string;
+        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
         approvalExpiresAt: string | null;
+        state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         confirmedAt: string | null;
         refundRwf: number | null;
         cancelledBy: string | null;
+        createdAt: string;
+        guestName: string | null;
+        paidRwf: number;
         guestCount: number;
         roomTypeName: string;
         totalRwf: number;
@@ -1126,7 +1126,7 @@ export declare const FrontDeskBoard: z.ZodObject<{
         }[];
         preArrivalIdentity: boolean;
         folio: {
-            status: "open" | "closed" | "settled" | "disputed";
+            status: "settled" | "open" | "closed" | "disputed";
             id: string;
             folioNumber: string;
             balanceRwf: number | null;
@@ -1164,8 +1164,8 @@ export declare const FrontDeskBoard: z.ZodObject<{
     rooms: {
         status: "available" | "maintenance" | "out_of_service";
         id: string;
-        label: string | null;
         roomTypeId: string;
+        label: string | null;
         roomTypeName: string;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
         housekeepingUpdatedAt: string | null;
@@ -1182,11 +1182,11 @@ export declare const FrontDeskBoard: z.ZodObject<{
     }[];
     stays: {
         id: string;
+        checkIn: string | null;
+        checkOut: string | null;
         reference: string | null;
         guestName: string | null;
         priceRwf: number | null;
-        checkIn: string | null;
-        checkOut: string | null;
         roomTypeName: string;
         bookingId: string | null;
         roomId: string;
@@ -1199,7 +1199,7 @@ export declare const FrontDeskBoard: z.ZodObject<{
         bookingReference: string | null;
         deskNote: string | null;
         folio: {
-            status: "open" | "closed" | "settled" | "disputed";
+            status: "settled" | "open" | "closed" | "disputed";
             id: string;
             folioNumber: string;
             balanceRwf: number | null;
@@ -1211,24 +1211,24 @@ export declare const FrontDeskBoard: z.ZodObject<{
     generatedAt: string;
     canReadBills: boolean;
     bookings: {
-        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
         id: string;
-        createdAt: string;
-        reference: string;
-        guestName: string | null;
-        paidRwf: number;
-        state: "pending" | "declined" | "confirmed" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         bookingMode: "instant_book" | "request_to_book";
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         roomTypeId: string;
         nights: number;
         checkIn: string;
         checkOut: string;
-        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
+        reference: string;
+        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
         approvalExpiresAt: string | null;
+        state: "pending" | "confirmed" | "declined" | "cancelled" | "no_show" | "inhouse" | "checked_out";
         confirmedAt: string | null;
         refundRwf: number | null;
         cancelledBy: string | null;
+        createdAt: string;
+        guestName: string | null;
+        paidRwf: number;
         guestCount: number;
         roomTypeName: string;
         totalRwf: number;
@@ -1256,7 +1256,7 @@ export declare const FrontDeskBoard: z.ZodObject<{
         }[];
         preArrivalIdentity: boolean;
         folio: {
-            status: "open" | "closed" | "settled" | "disputed";
+            status: "settled" | "open" | "closed" | "disputed";
             id: string;
             folioNumber: string;
             balanceRwf: number | null;

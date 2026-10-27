@@ -42,12 +42,12 @@ export declare const HousekeepingBoardRoom: z.ZodObject<{
         bookingReference: z.ZodNullable<z.ZodString>;
         checkInTime: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        guestName: string | null;
         checkInTime: string | null;
+        guestName: string | null;
         bookingReference: string | null;
     }, {
-        guestName: string | null;
         checkInTime: string | null;
+        guestName: string | null;
         bookingReference: string | null;
     }>>;
     /** The open out-of-order block on the room (requested or active). */
@@ -88,8 +88,8 @@ export declare const HousekeepingBoardRoom: z.ZodObject<{
     floor: number | null;
     serviceFlag: "dnd" | "make_up_room" | null;
     arrival: {
-        guestName: string | null;
         checkInTime: string | null;
+        guestName: string | null;
         bookingReference: string | null;
     } | null;
     block: {
@@ -115,8 +115,8 @@ export declare const HousekeepingBoardRoom: z.ZodObject<{
     floor: number | null;
     serviceFlag: "dnd" | "make_up_room" | null;
     arrival: {
-        guestName: string | null;
         checkInTime: string | null;
+        guestName: string | null;
         bookingReference: string | null;
     } | null;
     block: {
@@ -208,8 +208,8 @@ export declare const HousekeepingBoardStaff: z.ZodObject<{
     shiftEndsAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    role: "supervisor" | "attendant";
     id: string;
+    role: "supervisor" | "attendant";
     userId: string;
     section: string;
     floors: number[];
@@ -217,8 +217,8 @@ export declare const HousekeepingBoardStaff: z.ZodObject<{
     shiftEndsAt: string;
 }, {
     name: string;
-    role: "supervisor" | "attendant";
     id: string;
+    role: "supervisor" | "attendant";
     userId: string;
     section: string;
     floors: number[];
@@ -242,8 +242,8 @@ export declare const HousekeepingBoardEscalation: z.ZodObject<{
     remindedAt: z.ZodNullable<z.ZodString>;
     remindedByName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    kind: "not_started" | "awaiting_inspection";
     id: string;
+    kind: "not_started" | "awaiting_inspection";
     level: "manager" | "supervisor";
     taskId: string;
     escalatedToUserId: string | null;
@@ -252,8 +252,8 @@ export declare const HousekeepingBoardEscalation: z.ZodObject<{
     remindedAt: string | null;
     remindedByName: string | null;
 }, {
-    kind: "not_started" | "awaiting_inspection";
     id: string;
+    kind: "not_started" | "awaiting_inspection";
     level: "manager" | "supervisor";
     taskId: string;
     escalatedToUserId: string | null;
@@ -309,8 +309,8 @@ export declare const RoomStatusEvent: z.ZodObject<{
     detail: z.ZodNullable<z.ZodString>;
     occurredAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
     id: string;
+    kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
     detail: string | null;
     occurredAt: string;
     actorName: string | null;
@@ -319,8 +319,8 @@ export declare const RoomStatusEvent: z.ZodObject<{
     fromValue: string | null;
     toValue: string | null;
 }, {
-    kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
     id: string;
+    kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
     detail: string | null;
     occurredAt: string;
     actorName: string | null;
@@ -364,12 +364,12 @@ export declare const HousekeepingBoard: z.ZodObject<{
             bookingReference: z.ZodNullable<z.ZodString>;
             checkInTime: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            guestName: string | null;
             checkInTime: string | null;
+            guestName: string | null;
             bookingReference: string | null;
         }, {
-            guestName: string | null;
             checkInTime: string | null;
+            guestName: string | null;
             bookingReference: string | null;
         }>>;
         /** The open out-of-order block on the room (requested or active). */
@@ -410,8 +410,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
         floor: number | null;
         serviceFlag: "dnd" | "make_up_room" | null;
         arrival: {
-            guestName: string | null;
             checkInTime: string | null;
+            guestName: string | null;
             bookingReference: string | null;
         } | null;
         block: {
@@ -437,8 +437,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
         floor: number | null;
         serviceFlag: "dnd" | "make_up_room" | null;
         arrival: {
-            guestName: string | null;
             checkInTime: string | null;
+            guestName: string | null;
             bookingReference: string | null;
         } | null;
         block: {
@@ -525,8 +525,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
         shiftEndsAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        role: "supervisor" | "attendant";
         id: string;
+        role: "supervisor" | "attendant";
         userId: string;
         section: string;
         floors: number[];
@@ -534,8 +534,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
         shiftEndsAt: string;
     }, {
         name: string;
-        role: "supervisor" | "attendant";
         id: string;
+        role: "supervisor" | "attendant";
         userId: string;
         section: string;
         floors: number[];
@@ -553,8 +553,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
         remindedAt: z.ZodNullable<z.ZodString>;
         remindedByName: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "not_started" | "awaiting_inspection";
         id: string;
+        kind: "not_started" | "awaiting_inspection";
         level: "manager" | "supervisor";
         taskId: string;
         escalatedToUserId: string | null;
@@ -563,8 +563,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
         remindedAt: string | null;
         remindedByName: string | null;
     }, {
-        kind: "not_started" | "awaiting_inspection";
         id: string;
+        kind: "not_started" | "awaiting_inspection";
         level: "manager" | "supervisor";
         taskId: string;
         escalatedToUserId: string | null;
@@ -614,8 +614,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
         detail: z.ZodNullable<z.ZodString>;
         occurredAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
         id: string;
+        kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
         detail: string | null;
         occurredAt: string;
         actorName: string | null;
@@ -624,8 +624,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
         fromValue: string | null;
         toValue: string | null;
     }, {
-        kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
         id: string;
+        kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
         detail: string | null;
         occurredAt: string;
         actorName: string | null;
@@ -636,8 +636,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     history: {
-        kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
         id: string;
+        kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
         detail: string | null;
         occurredAt: string;
         actorName: string | null;
@@ -648,8 +648,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
     }[];
     propertyName: string;
     escalations: {
-        kind: "not_started" | "awaiting_inspection";
         id: string;
+        kind: "not_started" | "awaiting_inspection";
         level: "manager" | "supervisor";
         taskId: string;
         escalatedToUserId: string | null;
@@ -660,8 +660,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
     }[];
     staff: {
         name: string;
-        role: "supervisor" | "attendant";
         id: string;
+        role: "supervisor" | "attendant";
         userId: string;
         section: string;
         floors: number[];
@@ -683,8 +683,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
         floor: number | null;
         serviceFlag: "dnd" | "make_up_room" | null;
         arrival: {
-            guestName: string | null;
             checkInTime: string | null;
+            guestName: string | null;
             bookingReference: string | null;
         } | null;
         block: {
@@ -729,8 +729,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
     }[];
 }, {
     history: {
-        kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
         id: string;
+        kind: "escalation" | "housekeeping" | "block" | "inventory" | "occupancy" | "task_assigned" | "task_created" | "inspection_failed" | "fault_reported";
         detail: string | null;
         occurredAt: string;
         actorName: string | null;
@@ -741,8 +741,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
     }[];
     propertyName: string;
     escalations: {
-        kind: "not_started" | "awaiting_inspection";
         id: string;
+        kind: "not_started" | "awaiting_inspection";
         level: "manager" | "supervisor";
         taskId: string;
         escalatedToUserId: string | null;
@@ -753,8 +753,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
     }[];
     staff: {
         name: string;
-        role: "supervisor" | "attendant";
         id: string;
+        role: "supervisor" | "attendant";
         userId: string;
         section: string;
         floors: number[];
@@ -776,8 +776,8 @@ export declare const HousekeepingBoard: z.ZodObject<{
         floor: number | null;
         serviceFlag: "dnd" | "make_up_room" | null;
         arrival: {
-            guestName: string | null;
             checkInTime: string | null;
+            guestName: string | null;
             bookingReference: string | null;
         } | null;
         block: {

@@ -120,7 +120,7 @@ describe('PayoutsService', () => {
   it('sends a queued payout and marks it paid with the rail reference', async () => {
     const h = harness({ payout: {} });
     expect(await h.service.send(PAYOUT)).toBe('paid');
-    expect(h.row()).toMatchObject({ status: 'paid', adapterRef: expect.stringContaining('mock_payout_'), settledAt: expect.any(Date) });
+    expect(h.row()).toMatchObject({ status: 'paid', adapterRef: expect.stringContaining('mock_landlord_payout_'), settledAt: expect.any(Date) });
     expect(h.calls.audit?.[0]?.[0]).toMatchObject({ subjectType: 'payment', subjectId: PAYMENT, eventType: 'payout.paid' });
   });
 

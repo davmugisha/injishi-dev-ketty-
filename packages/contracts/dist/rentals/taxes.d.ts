@@ -144,8 +144,8 @@ export declare const LeaseFilingView: z.ZodObject<{
     proofUrl: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: "pending" | "filed";
-    kind: "new_lease" | "change" | "termination";
     id: string;
+    kind: "new_lease" | "change" | "termination";
     reference: string | null;
     propertyName: string;
     leaseId: string;
@@ -160,8 +160,8 @@ export declare const LeaseFilingView: z.ZodObject<{
     proofUrl: string | null;
 }, {
     status: "pending" | "filed";
-    kind: "new_lease" | "change" | "termination";
     id: string;
+    kind: "new_lease" | "change" | "termination";
     reference: string | null;
     propertyName: string;
     leaseId: string;
@@ -210,8 +210,8 @@ export declare const LeaseFilingList: z.ZodObject<{
         proofUrl: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "filed";
-        kind: "new_lease" | "change" | "termination";
         id: string;
+        kind: "new_lease" | "change" | "termination";
         reference: string | null;
         propertyName: string;
         leaseId: string;
@@ -226,8 +226,8 @@ export declare const LeaseFilingList: z.ZodObject<{
         proofUrl: string | null;
     }, {
         status: "pending" | "filed";
-        kind: "new_lease" | "change" | "termination";
         id: string;
+        kind: "new_lease" | "change" | "termination";
         reference: string | null;
         propertyName: string;
         leaseId: string;
@@ -244,8 +244,8 @@ export declare const LeaseFilingList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: {
         status: "pending" | "filed";
-        kind: "new_lease" | "change" | "termination";
         id: string;
+        kind: "new_lease" | "change" | "termination";
         reference: string | null;
         propertyName: string;
         leaseId: string;
@@ -262,8 +262,8 @@ export declare const LeaseFilingList: z.ZodObject<{
 }, {
     items: {
         status: "pending" | "filed";
-        kind: "new_lease" | "change" | "termination";
         id: string;
+        kind: "new_lease" | "change" | "termination";
         reference: string | null;
         propertyName: string;
         leaseId: string;
@@ -618,8 +618,8 @@ export declare const TaxYearView: z.ZodObject<{
         proofUrl: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "filed";
-        kind: "new_lease" | "change" | "termination";
         id: string;
+        kind: "new_lease" | "change" | "termination";
         reference: string | null;
         propertyName: string;
         leaseId: string;
@@ -634,8 +634,8 @@ export declare const TaxYearView: z.ZodObject<{
         proofUrl: string | null;
     }, {
         status: "pending" | "filed";
-        kind: "new_lease" | "change" | "termination";
         id: string;
+        kind: "new_lease" | "change" | "termination";
         reference: string | null;
         propertyName: string;
         leaseId: string;
@@ -652,8 +652,8 @@ export declare const TaxYearView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     filings: {
         status: "pending" | "filed";
-        kind: "new_lease" | "change" | "termination";
         id: string;
+        kind: "new_lease" | "change" | "termination";
         reference: string | null;
         propertyName: string;
         leaseId: string;
@@ -758,8 +758,8 @@ export declare const TaxYearView: z.ZodObject<{
 }, {
     filings: {
         status: "pending" | "filed";
-        kind: "new_lease" | "change" | "termination";
         id: string;
+        kind: "new_lease" | "change" | "termination";
         reference: string | null;
         propertyName: string;
         leaseId: string;

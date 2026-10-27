@@ -1435,6 +1435,7 @@ export declare const BrokerReviews: z.ZodObject<{
         raterName: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
+    breakdown: number[];
     count: number;
     reviews: {
         propertyName: string | null;
@@ -1444,10 +1445,10 @@ export declare const BrokerReviews: z.ZodObject<{
         ratedAt: string;
         raterName: string | null;
     }[];
-    breakdown: number[];
     average: number | null;
     placedCount: number;
 }, {
+    breakdown: number[];
     count: number;
     reviews: {
         propertyName: string | null;
@@ -1457,7 +1458,6 @@ export declare const BrokerReviews: z.ZodObject<{
         ratedAt: string;
         raterName: string | null;
     }[];
-    breakdown: number[];
     average: number | null;
     placedCount: number;
 }>;

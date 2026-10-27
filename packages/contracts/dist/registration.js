@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OPERATOR_CONTRACT_VERSION = exports.RegistrationSummary = exports.OversightDecisionQuery = exports.OversightDecisionPage = exports.OversightDecision = exports.OversightQueueItem = exports.OversightDocumentList = exports.OversightDocument = exports.RejectRegistrationRequest = exports.PassGateRequest = exports.RegistrationReview = exports.RegistrationReviewDecision = exports.RegistrationReviewStage = exports.REJECTION_REASON_LABEL = exports.RegistrationRejectionReason = exports.CreateRegistrationRequest = exports.IntendedOwner = exports.BusinessDetails = exports.ResidenceBusiness = exports.HospitalityBusiness = exports.PsfMembershipNumber = exports.PsfApplicationInput = exports.PsfIdDocument = exports.PSF_CONSENT_TEXT = exports.PSF_CONSENT_VERSION = exports.PsfGender = exports.PsfContactRole = exports.PsfTradeDirection = exports.PsfOwnership = exports.PsfCompanyType = exports.RegistrationBranch = exports.MAX_REGISTRATION_BRANCHES = exports.CertificateInput = exports.ORG_CERTIFICATE_KIND_LABEL = exports.OrgCertificateKind = exports.PersonalDetails = exports.Upi = exports.Tin = exports.Address = exports.InternationalAddress = exports.RwandanAddress = exports.IdentityDocumentInput = exports.PassportNumber = exports.RwandanNationalId = exports.CountryCode = exports.AccountDocumentType = exports.Gender = exports.RegistrantCapacity = exports.RegistrationBusinessType = exports.RegistrantRole = void 0;
-exports.CERTIFICATE_KIND_LABEL = exports.UploadedObject = exports.BrokerRegistrationSummary = exports.BrokerStatus = exports.CreateBrokerRegistrationRequest = exports.MyProfile = exports.MyProfileDocument = exports.RegistrationFeeQuote = exports.ClaimPreview = exports.ClaimOrgRequest = exports.TinCheckResult = exports.RegistryBusiness = exports.TinCheckRequest = exports.RegistrationConflictCode = exports.RegistrationDraft = exports.REGISTRATION_DRAFT_PHASES = exports.AcceptContractRequest = void 0;
+exports.CERTIFICATE_KIND_LABEL = exports.UploadedObject = exports.BrokerRegistrationSummary = exports.BrokerStatus = exports.CreateBrokerRegistrationRequest = exports.MyProfile = exports.MyProfileDocument = exports.RegistrationPayResult = exports.RegistrationFeeAttemptStatus = exports.RegistrationPayRequest = exports.RegistrationFeeQuote = exports.ClaimPreview = exports.ClaimOrgRequest = exports.TinCheckResult = exports.RegistryBusiness = exports.TinCheckRequest = exports.RegistrationConflictCode = exports.RegistrationDraft = exports.REGISTRATION_DRAFT_PHASES = exports.AcceptContractRequest = void 0;
 exports.businessTypeFor = businessTypeFor;
 exports.isRwandanAddress = isRwandanAddress;
 exports.branchNameKey = branchNameKey;
@@ -10,6 +10,7 @@ const zod_1 = require("zod");
 const countries_1 = require("./countries");
 const rdb_1 = require("./rdb");
 const primitives_1 = require("./primitives");
+const booking_1 = require("./booking");
 /**
  * Business registration (F-S03 / FL01), governed by D20, D23 and D24.
  *
@@ -1068,6 +1069,41 @@ exports.RegistrationFeeQuote = zod_1.z.object({
     amountRwf: primitives_1.RwfAmount,
     currency: zod_1.z.literal("RWF"),
 });
+// ---------------------------------------------------------------------------
+// Paying the fee — POST /api/v1/registrations/:id/pay (073-gtbank-payments AC-16)
+// ---------------------------------------------------------------------------
+/**
+ * One press of pay. Both fields are optional because the fee settles free
+ * while payments are off (call 9), and then there is nothing to prompt; when
+ * money is taken, the server refuses a body missing either with a 422.
+ */
+exports.RegistrationPayRequest = zod_1.z.object({
+    /** Minted once per press and reused on every retry of that press. */
+    attemptToken: primitives_1.Uuid.optional(),
+    /** The registrant's mobile money number. A card is refused. */
+    instrument: booking_1.PaymentInstrument.optional(),
+});
+/** A fee payment waiting on the registrant's handset, as the wizard watches it. */
+exports.RegistrationFeeAttemptStatus = zod_1.z.object({
+    attemptToken: zod_1.z.string(),
+    state: booking_1.PaymentAttemptState,
+    network: booking_1.MobileMoneyNetwork.nullable(),
+    /** Masked: enough to recognise, never enough to charge. */
+    payerMasked: zod_1.z.string().nullable(),
+    amountRwf: primitives_1.RwfAmount.nullable(),
+    expiresAt: zod_1.z.string(),
+    failureReason: zod_1.z.string().nullable(),
+    /** The registration as it stands now: `submitted` once the fee settled. */
+    registration: exports.RegistrationSummary,
+});
+/**
+ * What the pay press answers: settled at once (the free path, or an
+ * instrument that settled inside the call), or an attempt to wait on.
+ */
+exports.RegistrationPayResult = zod_1.z.discriminatedUnion("kind", [
+    zod_1.z.object({ kind: zod_1.z.literal("settled"), registration: exports.RegistrationSummary }),
+    zod_1.z.object({ kind: zod_1.z.literal("attempt"), attempt: exports.RegistrationFeeAttemptStatus }),
+]);
 // ---------------------------------------------------------------------------
 // Step 1, read back — GET /api/v1/me/profile
 // ---------------------------------------------------------------------------

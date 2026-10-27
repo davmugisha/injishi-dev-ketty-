@@ -29,6 +29,7 @@ import {
 } from '../../../shared/auth/branch-scope';
 import {
   PAYMENT_PORT,
+  PaymentDeclinedError,
   type PaymentPort,
 } from '../../payments/domain/payment-port';
 import { FolioRepository } from '../infrastructure/folio.repository';
@@ -360,6 +361,13 @@ export class StayRefundService {
         });
         return receipt.adapterRef ?? null;
       } catch (error) {
+        if (error instanceof PaymentDeclinedError) {
+          // Refunds of one payment never exceed it (073-gtbank-payments AC-11).
+          // Nothing was written; the request stays open for a smaller amount.
+          throw new ConflictException(
+            'That is more than remains of what this guest paid, after earlier refunds. Approve a smaller amount.',
+          );
+        }
         this.log.warn(
           `Refund for ${row.reference} was not confirmed; nothing recorded. ` +
             (error instanceof Error ? error.message : String(error)),

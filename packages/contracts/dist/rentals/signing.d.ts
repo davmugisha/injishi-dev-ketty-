@@ -93,9 +93,9 @@ export declare const LeaseInvitationPreview: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     message: string | null;
     district: string | null;
-    propertyName: string;
     state: "expired" | "open" | "accepted" | "revoked";
     expiresAt: string;
+    propertyName: string;
     unitLabel: string;
     monthlyRentRwf: number;
     startDate: string;
@@ -106,9 +106,9 @@ export declare const LeaseInvitationPreview: z.ZodObject<{
 }, {
     message: string | null;
     district: string | null;
-    propertyName: string;
     state: "expired" | "open" | "accepted" | "revoked";
     expiresAt: string;
+    propertyName: string;
     unitLabel: string;
     monthlyRentRwf: number;
     startDate: string;

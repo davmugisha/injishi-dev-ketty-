@@ -39,13 +39,13 @@ export declare const CreateSupportTicketInput: z.ZodObject<{
 }, "strict", z.ZodTypeAny, {
     message: string;
     email: string;
-    topic: "other" | "payment" | "booking" | "listing";
+    topic: "other" | "booking" | "payment" | "listing";
     name?: string | undefined;
     phone?: string | undefined;
 }, {
     message: string;
     email: string;
-    topic: "other" | "payment" | "booking" | "listing";
+    topic: "other" | "booking" | "payment" | "listing";
     name?: string | undefined;
     phone?: string | undefined;
 }>;

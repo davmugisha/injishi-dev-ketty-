@@ -292,8 +292,8 @@ export declare const MoveOutNoticeView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     message: string | null;
     status: "submitted" | "withdrawn" | "acknowledged";
-    reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
     id: string;
+    reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
     withdrawnAt: string | null;
     channel: "email" | "app" | "letter" | "in_person";
     noticeDays: number;
@@ -306,8 +306,8 @@ export declare const MoveOutNoticeView: z.ZodObject<{
 }, {
     message: string | null;
     status: "submitted" | "withdrawn" | "acknowledged";
-    reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
     id: string;
+    reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
     withdrawnAt: string | null;
     channel: "email" | "app" | "letter" | "in_person";
     noticeDays: number;
@@ -422,8 +422,8 @@ export declare const MoveOutRow: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         message: string | null;
         status: "submitted" | "withdrawn" | "acknowledged";
-        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         id: string;
+        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         withdrawnAt: string | null;
         channel: "email" | "app" | "letter" | "in_person";
         noticeDays: number;
@@ -436,8 +436,8 @@ export declare const MoveOutRow: z.ZodObject<{
     }, {
         message: string | null;
         status: "submitted" | "withdrawn" | "acknowledged";
-        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         id: string;
+        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         withdrawnAt: string | null;
         channel: "email" | "app" | "letter" | "in_person";
         noticeDays: number;
@@ -524,6 +524,7 @@ export declare const MoveOutRow: z.ZodObject<{
     }>>;
     tab: z.ZodEnum<["to_acknowledge", "moving_soon", "moved_out", "settled"]>;
 }, "strip", z.ZodTypeAny, {
+    reference: string;
     deposit: {
         status: "held" | "settled" | "awaiting";
         id: string;
@@ -545,21 +546,20 @@ export declare const MoveOutRow: z.ZodObject<{
         tenantDisputedAt: string | null;
         disputeNote: string | null;
     } | null;
-    reference: string;
     propertyName: string;
     leaseId: string;
     unitLabel: string;
     tenantName: string;
     startDate: string;
     endDate: string;
-    leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     noticeDays: number;
     tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
     notice: {
         message: string | null;
         status: "submitted" | "withdrawn" | "acknowledged";
-        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         id: string;
+        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         withdrawnAt: string | null;
         channel: "email" | "app" | "letter" | "in_person";
         noticeDays: number;
@@ -574,6 +574,7 @@ export declare const MoveOutRow: z.ZodObject<{
     daysLeft: number | null;
     endedOn: string | null;
 }, {
+    reference: string;
     deposit: {
         status: "held" | "settled" | "awaiting";
         id: string;
@@ -595,21 +596,20 @@ export declare const MoveOutRow: z.ZodObject<{
         tenantDisputedAt: string | null;
         disputeNote: string | null;
     } | null;
-    reference: string;
     propertyName: string;
     leaseId: string;
     unitLabel: string;
     tenantName: string;
     startDate: string;
     endDate: string;
-    leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     noticeDays: number;
     tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
     notice: {
         message: string | null;
         status: "submitted" | "withdrawn" | "acknowledged";
-        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         id: string;
+        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         withdrawnAt: string | null;
         channel: "email" | "app" | "letter" | "in_person";
         noticeDays: number;
@@ -654,8 +654,8 @@ export declare const MoveOutList: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             message: string | null;
             status: "submitted" | "withdrawn" | "acknowledged";
-            reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
             id: string;
+            reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
             withdrawnAt: string | null;
             channel: "email" | "app" | "letter" | "in_person";
             noticeDays: number;
@@ -668,8 +668,8 @@ export declare const MoveOutList: z.ZodObject<{
         }, {
             message: string | null;
             status: "submitted" | "withdrawn" | "acknowledged";
-            reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
             id: string;
+            reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
             withdrawnAt: string | null;
             channel: "email" | "app" | "letter" | "in_person";
             noticeDays: number;
@@ -756,6 +756,7 @@ export declare const MoveOutList: z.ZodObject<{
         }>>;
         tab: z.ZodEnum<["to_acknowledge", "moving_soon", "moved_out", "settled"]>;
     }, "strip", z.ZodTypeAny, {
+        reference: string;
         deposit: {
             status: "held" | "settled" | "awaiting";
             id: string;
@@ -777,21 +778,20 @@ export declare const MoveOutList: z.ZodObject<{
             tenantDisputedAt: string | null;
             disputeNote: string | null;
         } | null;
-        reference: string;
         propertyName: string;
         leaseId: string;
         unitLabel: string;
         tenantName: string;
         startDate: string;
         endDate: string;
-        leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         noticeDays: number;
         tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
         notice: {
             message: string | null;
             status: "submitted" | "withdrawn" | "acknowledged";
-            reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
             id: string;
+            reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
             withdrawnAt: string | null;
             channel: "email" | "app" | "letter" | "in_person";
             noticeDays: number;
@@ -806,6 +806,7 @@ export declare const MoveOutList: z.ZodObject<{
         daysLeft: number | null;
         endedOn: string | null;
     }, {
+        reference: string;
         deposit: {
             status: "held" | "settled" | "awaiting";
             id: string;
@@ -827,21 +828,20 @@ export declare const MoveOutList: z.ZodObject<{
             tenantDisputedAt: string | null;
             disputeNote: string | null;
         } | null;
-        reference: string;
         propertyName: string;
         leaseId: string;
         unitLabel: string;
         tenantName: string;
         startDate: string;
         endDate: string;
-        leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         noticeDays: number;
         tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
         notice: {
             message: string | null;
             status: "submitted" | "withdrawn" | "acknowledged";
-            reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
             id: string;
+            reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
             withdrawnAt: string | null;
             channel: "email" | "app" | "letter" | "in_person";
             noticeDays: number;
@@ -859,6 +859,7 @@ export declare const MoveOutList: z.ZodObject<{
     counts: z.ZodRecord<z.ZodEnum<["to_acknowledge", "moving_soon", "moved_out", "settled"]>, z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     items: {
+        reference: string;
         deposit: {
             status: "held" | "settled" | "awaiting";
             id: string;
@@ -880,21 +881,20 @@ export declare const MoveOutList: z.ZodObject<{
             tenantDisputedAt: string | null;
             disputeNote: string | null;
         } | null;
-        reference: string;
         propertyName: string;
         leaseId: string;
         unitLabel: string;
         tenantName: string;
         startDate: string;
         endDate: string;
-        leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         noticeDays: number;
         tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
         notice: {
             message: string | null;
             status: "submitted" | "withdrawn" | "acknowledged";
-            reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
             id: string;
+            reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
             withdrawnAt: string | null;
             channel: "email" | "app" | "letter" | "in_person";
             noticeDays: number;
@@ -913,6 +913,7 @@ export declare const MoveOutList: z.ZodObject<{
     counts: Partial<Record<"settled" | "moved_out" | "to_acknowledge" | "moving_soon", number>>;
 }, {
     items: {
+        reference: string;
         deposit: {
             status: "held" | "settled" | "awaiting";
             id: string;
@@ -934,21 +935,20 @@ export declare const MoveOutList: z.ZodObject<{
             tenantDisputedAt: string | null;
             disputeNote: string | null;
         } | null;
-        reference: string;
         propertyName: string;
         leaseId: string;
         unitLabel: string;
         tenantName: string;
         startDate: string;
         endDate: string;
-        leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         noticeDays: number;
         tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
         notice: {
             message: string | null;
             status: "submitted" | "withdrawn" | "acknowledged";
-            reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
             id: string;
+            reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
             withdrawnAt: string | null;
             channel: "email" | "app" | "letter" | "in_person";
             noticeDays: number;
@@ -1006,14 +1006,14 @@ export declare const DepositListItem: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "held" | "settled" | "awaiting";
     id: string;
-    settledAt: string | null;
     reference: string;
+    settledAt: string | null;
     propertyName: string;
     paidRwf: number;
     leaseId: string;
     unitLabel: string;
     tenantName: string;
-    leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     refundedRwf: number | null;
     keptRwf: number | null;
     deductions: {
@@ -1032,14 +1032,14 @@ export declare const DepositListItem: z.ZodObject<{
 }, {
     status: "held" | "settled" | "awaiting";
     id: string;
-    settledAt: string | null;
     reference: string;
+    settledAt: string | null;
     propertyName: string;
     paidRwf: number;
     leaseId: string;
     unitLabel: string;
     tenantName: string;
-    leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     refundedRwf: number | null;
     keptRwf: number | null;
     deductions: {
@@ -1096,14 +1096,14 @@ export declare const DepositList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         reference: string;
+        settledAt: string | null;
         propertyName: string;
         paidRwf: number;
         leaseId: string;
         unitLabel: string;
         tenantName: string;
-        leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         refundedRwf: number | null;
         keptRwf: number | null;
         deductions: {
@@ -1122,14 +1122,14 @@ export declare const DepositList: z.ZodObject<{
     }, {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         reference: string;
+        settledAt: string | null;
         propertyName: string;
         paidRwf: number;
         leaseId: string;
         unitLabel: string;
         tenantName: string;
-        leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         refundedRwf: number | null;
         keptRwf: number | null;
         deductions: {
@@ -1150,14 +1150,14 @@ export declare const DepositList: z.ZodObject<{
     items: {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         reference: string;
+        settledAt: string | null;
         propertyName: string;
         paidRwf: number;
         leaseId: string;
         unitLabel: string;
         tenantName: string;
-        leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         refundedRwf: number | null;
         keptRwf: number | null;
         deductions: {
@@ -1178,14 +1178,14 @@ export declare const DepositList: z.ZodObject<{
     items: {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         reference: string;
+        settledAt: string | null;
         propertyName: string;
         paidRwf: number;
         leaseId: string;
         unitLabel: string;
         tenantName: string;
-        leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         refundedRwf: number | null;
         keptRwf: number | null;
         deductions: {
@@ -1243,8 +1243,8 @@ export declare const TenancyMoveOut: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         message: string | null;
         status: "submitted" | "withdrawn" | "acknowledged";
-        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         id: string;
+        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         withdrawnAt: string | null;
         channel: "email" | "app" | "letter" | "in_person";
         noticeDays: number;
@@ -1257,8 +1257,8 @@ export declare const TenancyMoveOut: z.ZodObject<{
     }, {
         message: string | null;
         status: "submitted" | "withdrawn" | "acknowledged";
-        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         id: string;
+        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         withdrawnAt: string | null;
         channel: "email" | "app" | "letter" | "in_person";
         noticeDays: number;
@@ -1342,7 +1342,7 @@ export declare const TenancyMoveOut: z.ZodObject<{
     }>>;
     canDispute: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    stage: "submitted" | "acknowledged" | "settled" | "moved_out" | null;
+    stage: "submitted" | "settled" | "acknowledged" | "moved_out" | null;
     deposit: {
         status: "held" | "settled" | "awaiting";
         id: string;
@@ -1367,7 +1367,7 @@ export declare const TenancyMoveOut: z.ZodObject<{
     leaseId: string;
     startDate: string;
     endDate: string;
-    leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     noticeDays: number;
     window: {
         min: string;
@@ -1376,8 +1376,8 @@ export declare const TenancyMoveOut: z.ZodObject<{
     notice: {
         message: string | null;
         status: "submitted" | "withdrawn" | "acknowledged";
-        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         id: string;
+        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         withdrawnAt: string | null;
         channel: "email" | "app" | "letter" | "in_person";
         noticeDays: number;
@@ -1394,7 +1394,7 @@ export declare const TenancyMoveOut: z.ZodObject<{
     canWithdraw: boolean;
     canDispute: boolean;
 }, {
-    stage: "submitted" | "acknowledged" | "settled" | "moved_out" | null;
+    stage: "submitted" | "settled" | "acknowledged" | "moved_out" | null;
     deposit: {
         status: "held" | "settled" | "awaiting";
         id: string;
@@ -1419,7 +1419,7 @@ export declare const TenancyMoveOut: z.ZodObject<{
     leaseId: string;
     startDate: string;
     endDate: string;
-    leaseStatus: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    leaseStatus: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     noticeDays: number;
     window: {
         min: string;
@@ -1428,8 +1428,8 @@ export declare const TenancyMoveOut: z.ZodObject<{
     notice: {
         message: string | null;
         status: "submitted" | "withdrawn" | "acknowledged";
-        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         id: string;
+        reasonCode: "other" | "moving_in_kigali" | "leaving_kigali" | "own_home" | "cost" | "terms" | "landlord_use" | "tenant_breach";
         withdrawnAt: string | null;
         channel: "email" | "app" | "letter" | "in_person";
         noticeDays: number;

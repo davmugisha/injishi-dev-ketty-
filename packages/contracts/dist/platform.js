@@ -1,7 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.STAFF_ROLE_LABEL = exports.OVERSIGHT_ROLE_LABEL = exports.DemoPersona = exports.DemoStory = exports.DemoStoryStep = exports.DemoSeat = exports.DemoSurface = exports.PlatformInfo = exports.PlatformEnvironmentName = void 0;
+exports.STAFF_ROLE_LABEL = exports.OVERSIGHT_ROLE_LABEL = exports.DemoPersona = exports.DemoStory = exports.DemoStoryStep = exports.DemoSeat = exports.DemoSurface = exports.PlatformInfo = exports.PaymentRules = exports.PaymentPurposeName = exports.IntegrationMode = exports.PlatformEnvironmentName = void 0;
+exports.paymentRuleProblem = paymentRuleProblem;
 const zod_1 = require("zod");
+const booking_1 = require("./booking");
 /**
  * `GET /api/v1/platform`: which platform a deployment is (ADR-043, AC-16).
  *
@@ -15,6 +17,15 @@ const zod_1 = require("zod");
  * `@injishi/auth/client`, because the demo publishes it.
  */
 exports.PlatformEnvironmentName = zod_1.z.enum(["production", "demo"]);
+/** A seam's effective mode (ADR-073 D-b): switched off, a test, or real. */
+exports.IntegrationMode = zod_1.z.enum(["off", "mock", "live"]);
+/** What a collection pays for (073-gtbank-payments AC-2). */
+exports.PaymentPurposeName = zod_1.z.enum(["booking", "service_order", "registration_fee", "rent", "subscription"]);
+exports.PaymentRules = zod_1.z.object({
+    networks: zod_1.z.array(booking_1.MobileMoneyNetwork),
+    maxCollectionRwf: zod_1.z.number().int().positive().nullable(),
+    livePurposes: zod_1.z.array(exports.PaymentPurposeName),
+});
 exports.PlatformInfo = zod_1.z.object({
     /** The API process's one environment. Staging reports `production`. */
     environment: exports.PlatformEnvironmentName,
@@ -58,6 +69,23 @@ exports.PlatformInfo = zod_1.z.object({
      * does not send it, and a client reads a missing key as "not offered".
      */
     googleSignIn: zod_1.z.boolean().nullish(),
+    /**
+     * The effective mode of every client facing seam (ADR-073 AC-5; today
+     * `payments` and `card_payments`, from 073-gtbank-payments). A screen
+     * labels `mock` as a test, hides an action whose seam is `off`, and never
+     * decides on its own whether money is real (AC-17).
+     *
+     * `nullish` for the reason `commit` gives. A client reads a missing key as
+     * "unknown", and offers no money action it cannot label.
+     */
+    integrations: zod_1.z.record(zod_1.z.string(), exports.IntegrationMode).nullish(),
+    /**
+     * What a payment screen must know before the payer presses pay
+     * (073-gtbank-payments AC-2, AC-23): the networks a Request to Pay may go
+     * to, the largest amount one prompt may ask for (null: no limit), and the
+     * purposes that take money on this stack. `nullish` as above.
+     */
+    paymentRules: exports.PaymentRules.nullish(),
 });
 /**
  * `GET /api/v1/demo/personas`: the demo roster for the sign in picker (ADR-038
@@ -160,4 +188,41 @@ exports.STAFF_ROLE_LABEL = {
     finance: "Finance",
     trainer: "Trainer",
 };
+const NETWORK_NAME = {
+    mtn_momo: "MTN MoMo",
+    airtel_money: "Airtel Money",
+};
+/**
+ * Why a payment cannot be taken under the rules this stack publishes, or null
+ * (073-gtbank-payments AC-23, AC-24).
+ *
+ * ONE function for the API and every form, the way `instrumentProblem` is, so
+ * the checkout and the register wizard say exactly what the API would refuse,
+ * before the payer presses pay, and the two cannot drift:
+ * - a card, while the card seam is not `live`;
+ * - a mobile money network the bank does not prompt on this stack;
+ * - an amount above the bank's collection limit.
+ *
+ * Every sentence names the network or the limit, because "this payment
+ * cannot be taken" sends a payer to try again with nothing to change.
+ */
+function paymentRuleProblem(terms, amountRwf, instrument) {
+    if (instrument.kind === "card") {
+        return terms.cardPayments === "live" ? null : "Card payments are not taken yet. Pay by mobile money.";
+    }
+    const rules = terms.rules;
+    if (!rules)
+        return null;
+    if (!rules.networks.includes(instrument.network)) {
+        const others = rules.networks.map((n) => NETWORK_NAME[n]);
+        return others.length > 0
+            ? `${NETWORK_NAME[instrument.network]} payments are not taken yet. Pay with ${others.join(" or ")}.`
+            : "Mobile money payments are not taken yet.";
+    }
+    if (rules.maxCollectionRwf !== null && amountRwf > rules.maxCollectionRwf) {
+        return (`A mobile money payment here can be at most RWF ${rules.maxCollectionRwf.toLocaleString("en-RW")}, ` +
+            `and this one is RWF ${amountRwf.toLocaleString("en-RW")}.`);
+    }
+    return null;
+}
 //# sourceMappingURL=platform.js.map

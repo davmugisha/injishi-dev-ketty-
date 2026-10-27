@@ -159,10 +159,10 @@ export declare const PayoutsQuery: z.ZodObject<{
     month: z.ZodOptional<z.ZodString>;
     status: z.ZodOptional<z.ZodEnum<["scheduled", "queued", "paid", "held", "failed"]>>;
 }, "strip", z.ZodTypeAny, {
-    status?: "failed" | "paid" | "scheduled" | "queued" | "held" | undefined;
+    status?: "held" | "failed" | "paid" | "scheduled" | "queued" | undefined;
     month?: string | undefined;
 }, {
-    status?: "failed" | "paid" | "scheduled" | "queued" | "held" | undefined;
+    status?: "held" | "failed" | "paid" | "scheduled" | "queued" | undefined;
     month?: string | undefined;
 }>;
 export type PayoutsQuery = z.infer<typeof PayoutsQuery>;
@@ -216,8 +216,8 @@ export declare const LeaseChargeView: z.ZodObject<{
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     status: "open" | "paid" | "waived";
-    kind: "deposit" | "rent";
     id: string;
+    kind: "deposit" | "rent";
     amountRwf: number;
     label: string;
     createdAt: string;
@@ -233,8 +233,8 @@ export declare const LeaseChargeView: z.ZodObject<{
     waivedReason: string | null;
 }, {
     status: "open" | "paid" | "waived";
-    kind: "deposit" | "rent";
     id: string;
+    kind: "deposit" | "rent";
     amountRwf: number;
     label: string;
     createdAt: string;
@@ -283,13 +283,13 @@ export declare const PaymentPayoutView: z.ZodObject<{
     settledAt: z.ZodNullable<z.ZodString>;
     failureReason: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "failed" | "paid" | "scheduled" | "queued" | "held";
+    status: "held" | "failed" | "paid" | "scheduled" | "queued";
     id: string;
     failureReason: string | null;
     settledAt: string | null;
     destination: string | null;
 }, {
-    status: "failed" | "paid" | "scheduled" | "queued" | "held";
+    status: "held" | "failed" | "paid" | "scheduled" | "queued";
     id: string;
     failureReason: string | null;
     settledAt: string | null;
@@ -305,11 +305,11 @@ export declare const LeasePaymentView: z.ZodObject<{
         id: z.ZodString;
         fullName: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        fullName: string;
         id: string;
+        fullName: string;
     }, {
-        fullName: string;
         id: string;
+        fullName: string;
     }>;
     unit: z.ZodObject<{
         id: z.ZodString;
@@ -376,13 +376,13 @@ export declare const LeasePaymentView: z.ZodObject<{
         settledAt: z.ZodNullable<z.ZodString>;
         failureReason: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "failed" | "paid" | "scheduled" | "queued" | "held";
+        status: "held" | "failed" | "paid" | "scheduled" | "queued";
         id: string;
         failureReason: string | null;
         settledAt: string | null;
         destination: string | null;
     }, {
-        status: "failed" | "paid" | "scheduled" | "queued" | "held";
+        status: "held" | "failed" | "paid" | "scheduled" | "queued";
         id: string;
         failureReason: string | null;
         settledAt: string | null;
@@ -392,14 +392,18 @@ export declare const LeasePaymentView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "pending" | "expired" | "failed" | "succeeded" | "reversed";
     id: string;
+    reference: string | null;
+    payerMasked: string | null;
     amountRwf: number;
+    expiresAt: string | null;
+    failureReason: string | null;
     note: string | null;
     tenant: {
-        fullName: string;
         id: string;
+        fullName: string;
     };
     payout: {
-        status: "failed" | "paid" | "scheduled" | "queued" | "held";
+        status: "held" | "failed" | "paid" | "scheduled" | "queued";
         id: string;
         failureReason: string | null;
         settledAt: string | null;
@@ -411,10 +415,6 @@ export declare const LeasePaymentView: z.ZodObject<{
         propertyName: string;
     };
     createdAt: string;
-    failureReason: string | null;
-    reference: string | null;
-    expiresAt: string | null;
-    payerMasked: string | null;
     leaseId: string;
     method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
     channel: "gateway" | "recorded";
@@ -440,14 +440,18 @@ export declare const LeasePaymentView: z.ZodObject<{
 }, {
     status: "pending" | "expired" | "failed" | "succeeded" | "reversed";
     id: string;
+    reference: string | null;
+    payerMasked: string | null;
     amountRwf: number;
+    expiresAt: string | null;
+    failureReason: string | null;
     note: string | null;
     tenant: {
-        fullName: string;
         id: string;
+        fullName: string;
     };
     payout: {
-        status: "failed" | "paid" | "scheduled" | "queued" | "held";
+        status: "held" | "failed" | "paid" | "scheduled" | "queued";
         id: string;
         failureReason: string | null;
         settledAt: string | null;
@@ -459,10 +463,6 @@ export declare const LeasePaymentView: z.ZodObject<{
         propertyName: string;
     };
     createdAt: string;
-    failureReason: string | null;
-    reference: string | null;
-    expiresAt: string | null;
-    payerMasked: string | null;
     leaseId: string;
     method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
     channel: "gateway" | "recorded";
@@ -496,11 +496,11 @@ export declare const LeasePaymentList: z.ZodObject<{
             id: z.ZodString;
             fullName: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            fullName: string;
             id: string;
+            fullName: string;
         }, {
-            fullName: string;
             id: string;
+            fullName: string;
         }>;
         unit: z.ZodObject<{
             id: z.ZodString;
@@ -567,13 +567,13 @@ export declare const LeasePaymentList: z.ZodObject<{
             settledAt: z.ZodNullable<z.ZodString>;
             failureReason: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            status: "failed" | "paid" | "scheduled" | "queued" | "held";
+            status: "held" | "failed" | "paid" | "scheduled" | "queued";
             id: string;
             failureReason: string | null;
             settledAt: string | null;
             destination: string | null;
         }, {
-            status: "failed" | "paid" | "scheduled" | "queued" | "held";
+            status: "held" | "failed" | "paid" | "scheduled" | "queued";
             id: string;
             failureReason: string | null;
             settledAt: string | null;
@@ -583,14 +583,18 @@ export declare const LeasePaymentList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "expired" | "failed" | "succeeded" | "reversed";
         id: string;
+        reference: string | null;
+        payerMasked: string | null;
         amountRwf: number;
+        expiresAt: string | null;
+        failureReason: string | null;
         note: string | null;
         tenant: {
-            fullName: string;
             id: string;
+            fullName: string;
         };
         payout: {
-            status: "failed" | "paid" | "scheduled" | "queued" | "held";
+            status: "held" | "failed" | "paid" | "scheduled" | "queued";
             id: string;
             failureReason: string | null;
             settledAt: string | null;
@@ -602,10 +606,6 @@ export declare const LeasePaymentList: z.ZodObject<{
             propertyName: string;
         };
         createdAt: string;
-        failureReason: string | null;
-        reference: string | null;
-        expiresAt: string | null;
-        payerMasked: string | null;
         leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
         channel: "gateway" | "recorded";
@@ -631,14 +631,18 @@ export declare const LeasePaymentList: z.ZodObject<{
     }, {
         status: "pending" | "expired" | "failed" | "succeeded" | "reversed";
         id: string;
+        reference: string | null;
+        payerMasked: string | null;
         amountRwf: number;
+        expiresAt: string | null;
+        failureReason: string | null;
         note: string | null;
         tenant: {
-            fullName: string;
             id: string;
+            fullName: string;
         };
         payout: {
-            status: "failed" | "paid" | "scheduled" | "queued" | "held";
+            status: "held" | "failed" | "paid" | "scheduled" | "queued";
             id: string;
             failureReason: string | null;
             settledAt: string | null;
@@ -650,10 +654,6 @@ export declare const LeasePaymentList: z.ZodObject<{
             propertyName: string;
         };
         createdAt: string;
-        failureReason: string | null;
-        reference: string | null;
-        expiresAt: string | null;
-        payerMasked: string | null;
         leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
         channel: "gateway" | "recorded";
@@ -681,14 +681,18 @@ export declare const LeasePaymentList: z.ZodObject<{
     payments: {
         status: "pending" | "expired" | "failed" | "succeeded" | "reversed";
         id: string;
+        reference: string | null;
+        payerMasked: string | null;
         amountRwf: number;
+        expiresAt: string | null;
+        failureReason: string | null;
         note: string | null;
         tenant: {
-            fullName: string;
             id: string;
+            fullName: string;
         };
         payout: {
-            status: "failed" | "paid" | "scheduled" | "queued" | "held";
+            status: "held" | "failed" | "paid" | "scheduled" | "queued";
             id: string;
             failureReason: string | null;
             settledAt: string | null;
@@ -700,10 +704,6 @@ export declare const LeasePaymentList: z.ZodObject<{
             propertyName: string;
         };
         createdAt: string;
-        failureReason: string | null;
-        reference: string | null;
-        expiresAt: string | null;
-        payerMasked: string | null;
         leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
         channel: "gateway" | "recorded";
@@ -731,14 +731,18 @@ export declare const LeasePaymentList: z.ZodObject<{
     payments: {
         status: "pending" | "expired" | "failed" | "succeeded" | "reversed";
         id: string;
+        reference: string | null;
+        payerMasked: string | null;
         amountRwf: number;
+        expiresAt: string | null;
+        failureReason: string | null;
         note: string | null;
         tenant: {
-            fullName: string;
             id: string;
+            fullName: string;
         };
         payout: {
-            status: "failed" | "paid" | "scheduled" | "queued" | "held";
+            status: "held" | "failed" | "paid" | "scheduled" | "queued";
             id: string;
             failureReason: string | null;
             settledAt: string | null;
@@ -750,10 +754,6 @@ export declare const LeasePaymentList: z.ZodObject<{
             propertyName: string;
         };
         createdAt: string;
-        failureReason: string | null;
-        reference: string | null;
-        expiresAt: string | null;
-        payerMasked: string | null;
         leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
         channel: "gateway" | "recorded";
@@ -802,8 +802,8 @@ export declare const LeaseChargeList: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "open" | "paid" | "waived";
-        kind: "deposit" | "rent";
         id: string;
+        kind: "deposit" | "rent";
         amountRwf: number;
         label: string;
         createdAt: string;
@@ -819,8 +819,8 @@ export declare const LeaseChargeList: z.ZodObject<{
         waivedReason: string | null;
     }, {
         status: "open" | "paid" | "waived";
-        kind: "deposit" | "rent";
         id: string;
+        kind: "deposit" | "rent";
         amountRwf: number;
         label: string;
         createdAt: string;
@@ -838,8 +838,8 @@ export declare const LeaseChargeList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     charges: {
         status: "open" | "paid" | "waived";
-        kind: "deposit" | "rent";
         id: string;
+        kind: "deposit" | "rent";
         amountRwf: number;
         label: string;
         createdAt: string;
@@ -857,8 +857,8 @@ export declare const LeaseChargeList: z.ZodObject<{
 }, {
     charges: {
         status: "open" | "paid" | "waived";
-        kind: "deposit" | "rent";
         id: string;
+        kind: "deposit" | "rent";
         amountRwf: number;
         label: string;
         createdAt: string;
@@ -888,13 +888,13 @@ export declare const RentRollRow: z.ZodObject<{
         graceDays: z.ZodNumber;
         monthlyRentRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
         reference: string;
         monthlyRentRwf: number;
         graceDays: number;
     }, {
-        status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
         reference: string;
         monthlyRentRwf: number;
@@ -906,14 +906,14 @@ export declare const RentRollRow: z.ZodObject<{
         email: z.ZodNullable<z.ZodString>;
         phone: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        id: string;
         fullName: string;
         email: string | null;
-        id: string;
         phone: string | null;
     }, {
+        id: string;
         fullName: string;
         email: string | null;
-        id: string;
         phone: string | null;
     }>;
     unit: z.ZodObject<{
@@ -955,8 +955,8 @@ export declare const RentRollRow: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "open" | "paid" | "waived";
-        kind: "deposit" | "rent";
         id: string;
+        kind: "deposit" | "rent";
         amountRwf: number;
         label: string;
         createdAt: string;
@@ -972,8 +972,8 @@ export declare const RentRollRow: z.ZodObject<{
         waivedReason: string | null;
     }, {
         status: "open" | "paid" | "waived";
-        kind: "deposit" | "rent";
         id: string;
+        kind: "deposit" | "rent";
         amountRwf: number;
         label: string;
         createdAt: string;
@@ -1022,16 +1022,16 @@ export declare const RentRollRow: z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     lease: {
-        status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
         reference: string;
         monthlyRentRwf: number;
         graceDays: number;
     };
     tenant: {
+        id: string;
         fullName: string;
         email: string | null;
-        id: string;
         phone: string | null;
     };
     unit: {
@@ -1046,8 +1046,8 @@ export declare const RentRollRow: z.ZodObject<{
     daysOverdue: number;
     charge: {
         status: "open" | "paid" | "waived";
-        kind: "deposit" | "rent";
         id: string;
+        kind: "deposit" | "rent";
         amountRwf: number;
         label: string;
         createdAt: string;
@@ -1075,16 +1075,16 @@ export declare const RentRollRow: z.ZodObject<{
     } | null;
 }, {
     lease: {
-        status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
         reference: string;
         monthlyRentRwf: number;
         graceDays: number;
     };
     tenant: {
+        id: string;
         fullName: string;
         email: string | null;
-        id: string;
         phone: string | null;
     };
     unit: {
@@ -1099,8 +1099,8 @@ export declare const RentRollRow: z.ZodObject<{
     daysOverdue: number;
     charge: {
         status: "open" | "paid" | "waived";
-        kind: "deposit" | "rent";
         id: string;
+        kind: "deposit" | "rent";
         amountRwf: number;
         label: string;
         createdAt: string;
@@ -1140,13 +1140,13 @@ export declare const RentRoll: z.ZodObject<{
             graceDays: z.ZodNumber;
             monthlyRentRwf: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
-            status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+            status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
             reference: string;
             monthlyRentRwf: number;
             graceDays: number;
         }, {
-            status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+            status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
             reference: string;
             monthlyRentRwf: number;
@@ -1158,14 +1158,14 @@ export declare const RentRoll: z.ZodObject<{
             email: z.ZodNullable<z.ZodString>;
             phone: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
+            id: string;
             fullName: string;
             email: string | null;
-            id: string;
             phone: string | null;
         }, {
+            id: string;
             fullName: string;
             email: string | null;
-            id: string;
             phone: string | null;
         }>;
         unit: z.ZodObject<{
@@ -1207,8 +1207,8 @@ export declare const RentRoll: z.ZodObject<{
             createdAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
             status: "open" | "paid" | "waived";
-            kind: "deposit" | "rent";
             id: string;
+            kind: "deposit" | "rent";
             amountRwf: number;
             label: string;
             createdAt: string;
@@ -1224,8 +1224,8 @@ export declare const RentRoll: z.ZodObject<{
             waivedReason: string | null;
         }, {
             status: "open" | "paid" | "waived";
-            kind: "deposit" | "rent";
             id: string;
+            kind: "deposit" | "rent";
             amountRwf: number;
             label: string;
             createdAt: string;
@@ -1274,16 +1274,16 @@ export declare const RentRoll: z.ZodObject<{
         }>>;
     }, "strip", z.ZodTypeAny, {
         lease: {
-            status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+            status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
             reference: string;
             monthlyRentRwf: number;
             graceDays: number;
         };
         tenant: {
+            id: string;
             fullName: string;
             email: string | null;
-            id: string;
             phone: string | null;
         };
         unit: {
@@ -1298,8 +1298,8 @@ export declare const RentRoll: z.ZodObject<{
         daysOverdue: number;
         charge: {
             status: "open" | "paid" | "waived";
-            kind: "deposit" | "rent";
             id: string;
+            kind: "deposit" | "rent";
             amountRwf: number;
             label: string;
             createdAt: string;
@@ -1327,16 +1327,16 @@ export declare const RentRoll: z.ZodObject<{
         } | null;
     }, {
         lease: {
-            status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+            status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
             reference: string;
             monthlyRentRwf: number;
             graceDays: number;
         };
         tenant: {
+            id: string;
             fullName: string;
             email: string | null;
-            id: string;
             phone: string | null;
         };
         unit: {
@@ -1351,8 +1351,8 @@ export declare const RentRoll: z.ZodObject<{
         daysOverdue: number;
         charge: {
             status: "open" | "paid" | "waived";
-            kind: "deposit" | "rent";
             id: string;
+            kind: "deposit" | "rent";
             amountRwf: number;
             label: string;
             createdAt: string;
@@ -1414,16 +1414,16 @@ export declare const RentRoll: z.ZodObject<{
     today: string;
     rows: {
         lease: {
-            status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+            status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
             reference: string;
             monthlyRentRwf: number;
             graceDays: number;
         };
         tenant: {
+            id: string;
             fullName: string;
             email: string | null;
-            id: string;
             phone: string | null;
         };
         unit: {
@@ -1438,8 +1438,8 @@ export declare const RentRoll: z.ZodObject<{
         daysOverdue: number;
         charge: {
             status: "open" | "paid" | "waived";
-            kind: "deposit" | "rent";
             id: string;
+            kind: "deposit" | "rent";
             amountRwf: number;
             label: string;
             createdAt: string;
@@ -1479,16 +1479,16 @@ export declare const RentRoll: z.ZodObject<{
     today: string;
     rows: {
         lease: {
-            status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+            status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
             reference: string;
             monthlyRentRwf: number;
             graceDays: number;
         };
         tenant: {
+            id: string;
             fullName: string;
             email: string | null;
-            id: string;
             phone: string | null;
         };
         unit: {
@@ -1503,8 +1503,8 @@ export declare const RentRoll: z.ZodObject<{
         daysOverdue: number;
         charge: {
             status: "open" | "paid" | "waived";
-            kind: "deposit" | "rent";
             id: string;
+            kind: "deposit" | "rent";
             amountRwf: number;
             label: string;
             createdAt: string;
@@ -1598,9 +1598,9 @@ export declare const LeaseReminderView: z.ZodObject<{
     sentBy: z.ZodNullable<z.ZodString>;
     sentAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    id: string;
     kind: "due" | "overdue" | "upcoming" | "manual";
     stage: number;
-    id: string;
     note: string;
     leaseId: string;
     tenantName: string;
@@ -1611,9 +1611,9 @@ export declare const LeaseReminderView: z.ZodObject<{
     chargeLabel: string | null;
     sentBy: string | null;
 }, {
+    id: string;
     kind: "due" | "overdue" | "upcoming" | "manual";
     stage: number;
-    id: string;
     note: string;
     leaseId: string;
     tenantName: string;
@@ -1640,9 +1640,9 @@ export declare const LeaseReminderList: z.ZodObject<{
         sentBy: z.ZodNullable<z.ZodString>;
         sentAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
+        id: string;
         kind: "due" | "overdue" | "upcoming" | "manual";
         stage: number;
-        id: string;
         note: string;
         leaseId: string;
         tenantName: string;
@@ -1653,9 +1653,9 @@ export declare const LeaseReminderList: z.ZodObject<{
         chargeLabel: string | null;
         sentBy: string | null;
     }, {
+        id: string;
         kind: "due" | "overdue" | "upcoming" | "manual";
         stage: number;
-        id: string;
         note: string;
         leaseId: string;
         tenantName: string;
@@ -1668,9 +1668,9 @@ export declare const LeaseReminderList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     reminders: {
+        id: string;
         kind: "due" | "overdue" | "upcoming" | "manual";
         stage: number;
-        id: string;
         note: string;
         leaseId: string;
         tenantName: string;
@@ -1683,9 +1683,9 @@ export declare const LeaseReminderList: z.ZodObject<{
     }[];
 }, {
     reminders: {
+        id: string;
         kind: "due" | "overdue" | "upcoming" | "manual";
         stage: number;
-        id: string;
         note: string;
         leaseId: string;
         tenantName: string;
@@ -1778,9 +1778,10 @@ export declare const PayoutView: z.ZodObject<{
     createdAt: z.ZodString;
     settledAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "failed" | "paid" | "scheduled" | "queued" | "held";
+    status: "held" | "failed" | "paid" | "scheduled" | "queued";
     id: string;
     amountRwf: number;
+    failureReason: string | null;
     payment: {
         id: string;
         leaseId: string;
@@ -1789,16 +1790,16 @@ export declare const PayoutView: z.ZodObject<{
         leaseReference: string;
     } | null;
     createdAt: string;
-    failureReason: string | null;
     settledAt: string | null;
     destination: string | null;
     statusLabel: string;
     accountKind: "bank" | "momo" | "momo_pay" | null;
     payeeName: string | null;
 }, {
-    status: "failed" | "paid" | "scheduled" | "queued" | "held";
+    status: "held" | "failed" | "paid" | "scheduled" | "queued";
     id: string;
     amountRwf: number;
+    failureReason: string | null;
     payment: {
         id: string;
         leaseId: string;
@@ -1807,7 +1808,6 @@ export declare const PayoutView: z.ZodObject<{
         leaseReference: string;
     } | null;
     createdAt: string;
-    failureReason: string | null;
     settledAt: string | null;
     destination: string | null;
     statusLabel: string;
@@ -1848,9 +1848,10 @@ export declare const PayoutList: z.ZodObject<{
         createdAt: z.ZodString;
         settledAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "failed" | "paid" | "scheduled" | "queued" | "held";
+        status: "held" | "failed" | "paid" | "scheduled" | "queued";
         id: string;
         amountRwf: number;
+        failureReason: string | null;
         payment: {
             id: string;
             leaseId: string;
@@ -1859,16 +1860,16 @@ export declare const PayoutList: z.ZodObject<{
             leaseReference: string;
         } | null;
         createdAt: string;
-        failureReason: string | null;
         settledAt: string | null;
         destination: string | null;
         statusLabel: string;
         accountKind: "bank" | "momo" | "momo_pay" | null;
         payeeName: string | null;
     }, {
-        status: "failed" | "paid" | "scheduled" | "queued" | "held";
+        status: "held" | "failed" | "paid" | "scheduled" | "queued";
         id: string;
         amountRwf: number;
+        failureReason: string | null;
         payment: {
             id: string;
             leaseId: string;
@@ -1877,7 +1878,6 @@ export declare const PayoutList: z.ZodObject<{
             leaseReference: string;
         } | null;
         createdAt: string;
-        failureReason: string | null;
         settledAt: string | null;
         destination: string | null;
         statusLabel: string;
@@ -1891,20 +1891,21 @@ export declare const PayoutList: z.ZodObject<{
         failedRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         paidRwf: number;
-        heldRwf: number;
         queuedRwf: number;
+        heldRwf: number;
         failedRwf: number;
     }, {
         paidRwf: number;
-        heldRwf: number;
         queuedRwf: number;
+        heldRwf: number;
         failedRwf: number;
     }>;
 }, "strip", z.ZodTypeAny, {
     payouts: {
-        status: "failed" | "paid" | "scheduled" | "queued" | "held";
+        status: "held" | "failed" | "paid" | "scheduled" | "queued";
         id: string;
         amountRwf: number;
+        failureReason: string | null;
         payment: {
             id: string;
             leaseId: string;
@@ -1913,7 +1914,6 @@ export declare const PayoutList: z.ZodObject<{
             leaseReference: string;
         } | null;
         createdAt: string;
-        failureReason: string | null;
         settledAt: string | null;
         destination: string | null;
         statusLabel: string;
@@ -1922,15 +1922,16 @@ export declare const PayoutList: z.ZodObject<{
     }[];
     totals: {
         paidRwf: number;
-        heldRwf: number;
         queuedRwf: number;
+        heldRwf: number;
         failedRwf: number;
     };
 }, {
     payouts: {
-        status: "failed" | "paid" | "scheduled" | "queued" | "held";
+        status: "held" | "failed" | "paid" | "scheduled" | "queued";
         id: string;
         amountRwf: number;
+        failureReason: string | null;
         payment: {
             id: string;
             leaseId: string;
@@ -1939,7 +1940,6 @@ export declare const PayoutList: z.ZodObject<{
             leaseReference: string;
         } | null;
         createdAt: string;
-        failureReason: string | null;
         settledAt: string | null;
         destination: string | null;
         statusLabel: string;
@@ -1948,8 +1948,8 @@ export declare const PayoutList: z.ZodObject<{
     }[];
     totals: {
         paidRwf: number;
-        heldRwf: number;
         queuedRwf: number;
+        heldRwf: number;
         failedRwf: number;
     };
 }>;
@@ -1978,8 +1978,8 @@ export declare const TenantChargeList: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "open" | "paid" | "waived";
-        kind: "deposit" | "rent";
         id: string;
+        kind: "deposit" | "rent";
         amountRwf: number;
         label: string;
         createdAt: string;
@@ -1995,8 +1995,8 @@ export declare const TenantChargeList: z.ZodObject<{
         waivedReason: string | null;
     }, {
         status: "open" | "paid" | "waived";
-        kind: "deposit" | "rent";
         id: string;
+        kind: "deposit" | "rent";
         amountRwf: number;
         label: string;
         createdAt: string;
@@ -2022,8 +2022,8 @@ export declare const TenantChargeList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     charges: {
         status: "open" | "paid" | "waived";
-        kind: "deposit" | "rent";
         id: string;
+        kind: "deposit" | "rent";
         amountRwf: number;
         label: string;
         createdAt: string;
@@ -2046,8 +2046,8 @@ export declare const TenantChargeList: z.ZodObject<{
 }, {
     charges: {
         status: "open" | "paid" | "waived";
-        kind: "deposit" | "rent";
         id: string;
+        kind: "deposit" | "rent";
         amountRwf: number;
         label: string;
         createdAt: string;
@@ -2114,12 +2114,12 @@ export declare const TenantPaymentView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "pending" | "expired" | "failed" | "succeeded" | "reversed";
     id: string;
-    amountRwf: number;
-    createdAt: string;
-    failureReason: string | null;
     reference: string | null;
-    expiresAt: string | null;
     payerMasked: string | null;
+    amountRwf: number;
+    expiresAt: string | null;
+    failureReason: string | null;
+    createdAt: string;
     leaseId: string;
     method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
     channel: "gateway" | "recorded";
@@ -2140,12 +2140,12 @@ export declare const TenantPaymentView: z.ZodObject<{
 }, {
     status: "pending" | "expired" | "failed" | "succeeded" | "reversed";
     id: string;
-    amountRwf: number;
-    createdAt: string;
-    failureReason: string | null;
     reference: string | null;
-    expiresAt: string | null;
     payerMasked: string | null;
+    amountRwf: number;
+    expiresAt: string | null;
+    failureReason: string | null;
+    createdAt: string;
     leaseId: string;
     method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
     channel: "gateway" | "recorded";
@@ -2210,12 +2210,12 @@ export declare const TenantPaymentList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "expired" | "failed" | "succeeded" | "reversed";
         id: string;
-        amountRwf: number;
-        createdAt: string;
-        failureReason: string | null;
         reference: string | null;
-        expiresAt: string | null;
         payerMasked: string | null;
+        amountRwf: number;
+        expiresAt: string | null;
+        failureReason: string | null;
+        createdAt: string;
         leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
         channel: "gateway" | "recorded";
@@ -2236,12 +2236,12 @@ export declare const TenantPaymentList: z.ZodObject<{
     }, {
         status: "pending" | "expired" | "failed" | "succeeded" | "reversed";
         id: string;
-        amountRwf: number;
-        createdAt: string;
-        failureReason: string | null;
         reference: string | null;
-        expiresAt: string | null;
         payerMasked: string | null;
+        amountRwf: number;
+        expiresAt: string | null;
+        failureReason: string | null;
+        createdAt: string;
         leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
         channel: "gateway" | "recorded";
@@ -2264,12 +2264,12 @@ export declare const TenantPaymentList: z.ZodObject<{
     payments: {
         status: "pending" | "expired" | "failed" | "succeeded" | "reversed";
         id: string;
-        amountRwf: number;
-        createdAt: string;
-        failureReason: string | null;
         reference: string | null;
-        expiresAt: string | null;
         payerMasked: string | null;
+        amountRwf: number;
+        expiresAt: string | null;
+        failureReason: string | null;
+        createdAt: string;
         leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
         channel: "gateway" | "recorded";
@@ -2292,12 +2292,12 @@ export declare const TenantPaymentList: z.ZodObject<{
     payments: {
         status: "pending" | "expired" | "failed" | "succeeded" | "reversed";
         id: string;
-        amountRwf: number;
-        createdAt: string;
-        failureReason: string | null;
         reference: string | null;
-        expiresAt: string | null;
         payerMasked: string | null;
+        amountRwf: number;
+        expiresAt: string | null;
+        failureReason: string | null;
+        createdAt: string;
         leaseId: string;
         method: "other" | "mtn_momo" | "airtel_money" | "card" | "cash" | "bank_transfer";
         channel: "gateway" | "recorded";

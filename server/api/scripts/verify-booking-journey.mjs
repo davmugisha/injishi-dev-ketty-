@@ -24,7 +24,10 @@
  *   late-settled-becomes-booking  (long test) a payment approved in time but polled
  *                            late was voided and the guest told nothing was charged
  * Added with the fixes: the closed tab and the lapsed hold (long test), and the
- * cancellation checks in section 9b. A payer number ending 9999 approves after
+ * cancellation checks in section 9b. Since 073-gtbank-payments AC-13 a cancel
+ * or a decline reads `refund_pending` at once, with its refund OWED; the
+ * dispatcher paying it, and the booking then reading refunded, is proven by
+ * `verify-refunds-owed.mjs`. A payer number ending 9999 approves after
  * the prompt window, which is what the lapsed hold uses.
  *
  * WHAT IT WRITES: a handful of bookings on far-future nights, on the seeded
@@ -296,7 +299,12 @@ if (pending?.id) {
   const decline = await call(operator, 'POST', `/bookings/${pending.id}/decline`, {});
   check('host-decline', 'the host declines it', decline.status < 300, `${decline.status} ${decline.text}`);
   const after = sql(`select status||'|'||payment_status from bookings where id='${pending.id}'`);
-  check('host-decline-refunded', 'DB: declined and refunded_full', after === 'declined|refunded_full', after);
+  // Decline now, refund owed (073-gtbank-payments AC-13): the money reads
+  // refund_pending until the dispatcher's payment lands, and a refund is owed
+  // back to the collection that paid, written with the decline.
+  check('host-decline-refunded', 'DB: declined and refund_pending', after === 'declined|refund_pending', after);
+  const owed = sql(`select count(*) from payment_transactions where booking_id='${pending.id}' and direction='disbursement'`);
+  check('host-decline-refund-owed', 'DB: the decline wrote one refund owed', owed === '1', owed);
 }
 
 console.log('\n8. The payment poll at the rate the checkout uses');
@@ -368,8 +376,8 @@ console.log('\n9b. Cancellation and refund tiers (F-B11, ADR-051)');
     const cancelled = await call(canceller, 'POST', `/bookings/${flexB.reference}/cancel`);
     check(
       'guest-cancel-flexible-full',
-      'the guest cancels a flexible booking and is refunded in full (DB: cancelled, refunded_full, escrow refunded_full)',
-      cancelled.status < 300 && cancelled.json?.refundRwf === gross && row(flexB.id) === `cancelled|refunded_full|refunded_full|guest|${gross}`,
+      'the guest cancels a flexible booking and the full refund is owed (DB: cancelled, refund_pending, escrow refund_pending)',
+      cancelled.status < 300 && cancelled.json?.refundRwf === gross && row(flexB.id) === `cancelled|refund_pending|refund_pending|guest|${gross}`,
       `${cancelled.status} ${cancelled.text} DB=${row(flexB.id)}`,
     );
     const twice = await call(canceller, 'POST', `/bookings/${flexB.reference}/cancel`);
@@ -395,8 +403,8 @@ console.log('\n9b. Cancellation and refund tiers (F-B11, ADR-051)');
     const cancelled = await call(operator, 'POST', `/bookings/${hostB.id}/host-cancel`);
     check(
       'host-cancel-full-refund',
-      'the host cancels a booking and the guest is refunded in full (DB: cancelled by host, refunded_full)',
-      cancelled.status < 300 && cancelled.json?.refundRwf === gross && row(hostB.id) === `cancelled|refunded_full|refunded_full|host|${gross}`,
+      'the host cancels a booking and the full refund is owed to the guest (DB: cancelled by host, refund_pending)',
+      cancelled.status < 300 && cancelled.json?.refundRwf === gross && row(hostB.id) === `cancelled|refund_pending|refund_pending|host|${gross}`,
       `${cancelled.status} ${cancelled.text} DB=${row(hostB.id)}`,
     );
   } else {

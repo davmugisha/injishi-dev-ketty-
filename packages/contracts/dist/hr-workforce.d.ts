@@ -642,8 +642,8 @@ export declare const EmployeeDependant: z.ZodObject<{
     beneficiaryPercent: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    dateOfBirth: string | null;
     id: string;
+    dateOfBirth: string | null;
     phone: string | null;
     employeeId: string;
     sex: "female" | "male" | null;
@@ -653,8 +653,8 @@ export declare const EmployeeDependant: z.ZodObject<{
     beneficiaryPercent: number | null;
 }, {
     name: string;
-    dateOfBirth: string | null;
     id: string;
+    dateOfBirth: string | null;
     phone: string | null;
     employeeId: string;
     sex: "female" | "male" | null;
@@ -679,8 +679,8 @@ export declare const EmployeeDependantList: z.ZodObject<{
         beneficiaryPercent: z.ZodNullable<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        dateOfBirth: string | null;
         id: string;
+        dateOfBirth: string | null;
         phone: string | null;
         employeeId: string;
         sex: "female" | "male" | null;
@@ -690,8 +690,8 @@ export declare const EmployeeDependantList: z.ZodObject<{
         beneficiaryPercent: number | null;
     }, {
         name: string;
-        dateOfBirth: string | null;
         id: string;
+        dateOfBirth: string | null;
         phone: string | null;
         employeeId: string;
         sex: "female" | "male" | null;
@@ -703,8 +703,8 @@ export declare const EmployeeDependantList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     dependants: {
         name: string;
-        dateOfBirth: string | null;
         id: string;
+        dateOfBirth: string | null;
         phone: string | null;
         employeeId: string;
         sex: "female" | "male" | null;
@@ -716,8 +716,8 @@ export declare const EmployeeDependantList: z.ZodObject<{
 }, {
     dependants: {
         name: string;
-        dateOfBirth: string | null;
         id: string;
+        dateOfBirth: string | null;
         phone: string | null;
         employeeId: string;
         sex: "female" | "male" | null;

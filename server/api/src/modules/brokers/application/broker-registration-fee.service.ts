@@ -91,6 +91,7 @@ export class BrokerRegistrationFeeService {
     try {
       const receipt = await this.payments.chargeOneTimeFee({
         kind: 'one_time_fee',
+        purpose: 'registration_fee',
         feeCode: 'broker_registration',
         idempotencyKey: key,
         amountRwf,

@@ -1,7 +1,7 @@
 import type { OrgChart } from '@injishi/contracts';
 import { Controller, Get, UseGuards } from '@nestjs/common';
 
-import { HrContentService } from '../../../modules/people/application/hr-content.service';
+import { HrContentService } from '../../../modules/hr/application/hr-content.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {

@@ -15,6 +15,7 @@ import { OperatorReservationsService } from './operator-reservations.service';
 import { everyBranch } from '../../../shared/auth/branch-scope.fixture';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import type { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
+import type { BookingRefunds } from './booking-refunds';
 
 /**
  * The operator desk's approve/decline (review 3.1).
@@ -120,6 +121,8 @@ describe('OperatorReservationsService', () => {
       // ADR-047: the guest is told what happened. A recording double rather
       // than a no-op, so a test can assert WHICH event was raised.
       { notify: jest.fn().mockResolvedValue(undefined) } as unknown as BookingNotificationsService,
+      // 073 AC-13: no bank record behind these payments, so the provider path runs.
+      { plan: jest.fn().mockResolvedValue(null) } as unknown as BookingRefunds,
     );
     const service = new OperatorReservationsService(
       repo as unknown as BookingRepository,

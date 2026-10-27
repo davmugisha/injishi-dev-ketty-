@@ -112,8 +112,8 @@ export class PayoutsService {
     }
     const target = targetOf(account, account.kind === 'bank' ? this.accounts.openAccountNumber(account) : null);
     try {
-      const receipt = await this.payments.payout({
-        kind: 'payout',
+      const receipt = await this.payments.payLandlord({
+        kind: 'landlord_payout',
         idempotencyKey: row.idempotencyKey ?? `${row.workspaceId}:payout:${payoutId}`,
         amountRwf: row.amountRwf ?? 0,
         currency: 'RWF',

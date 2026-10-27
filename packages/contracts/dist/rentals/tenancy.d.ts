@@ -99,7 +99,7 @@ export declare const TenancyListItem: z.ZodObject<{
     /** What is owed now: open charges already due. */
     balanceRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     id: string;
     reference: string;
     propertyName: string;
@@ -115,7 +115,7 @@ export declare const TenancyListItem: z.ZodObject<{
     } | null;
     needsMySignature: boolean;
 }, {
-    status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     id: string;
     reference: string;
     propertyName: string;
@@ -145,8 +145,8 @@ export declare const TenancyInvitationItem: z.ZodObject<{
     sentAt: z.ZodString;
     expiresAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    propertyName: string;
     expiresAt: string;
+    propertyName: string;
     leaseId: string;
     unitLabel: string;
     monthlyRentRwf: number;
@@ -156,8 +156,8 @@ export declare const TenancyInvitationItem: z.ZodObject<{
     sentAt: string;
     invitationId: string;
 }, {
-    propertyName: string;
     expiresAt: string;
+    propertyName: string;
     leaseId: string;
     unitLabel: string;
     monthlyRentRwf: number;
@@ -196,7 +196,7 @@ export declare const TenancyList: z.ZodObject<{
         /** What is owed now: open charges already due. */
         balanceRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
         reference: string;
         propertyName: string;
@@ -212,7 +212,7 @@ export declare const TenancyList: z.ZodObject<{
         } | null;
         needsMySignature: boolean;
     }, {
-        status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
         reference: string;
         propertyName: string;
@@ -240,8 +240,8 @@ export declare const TenancyList: z.ZodObject<{
         sentAt: z.ZodString;
         expiresAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        propertyName: string;
         expiresAt: string;
+        propertyName: string;
         leaseId: string;
         unitLabel: string;
         monthlyRentRwf: number;
@@ -251,8 +251,8 @@ export declare const TenancyList: z.ZodObject<{
         sentAt: string;
         invitationId: string;
     }, {
-        propertyName: string;
         expiresAt: string;
+        propertyName: string;
         leaseId: string;
         unitLabel: string;
         monthlyRentRwf: number;
@@ -264,8 +264,8 @@ export declare const TenancyList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     invitations: {
-        propertyName: string;
         expiresAt: string;
+        propertyName: string;
         leaseId: string;
         unitLabel: string;
         monthlyRentRwf: number;
@@ -276,7 +276,7 @@ export declare const TenancyList: z.ZodObject<{
         invitationId: string;
     }[];
     tenancies: {
-        status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
         reference: string;
         propertyName: string;
@@ -294,8 +294,8 @@ export declare const TenancyList: z.ZodObject<{
     }[];
 }, {
     invitations: {
-        propertyName: string;
         expiresAt: string;
+        propertyName: string;
         leaseId: string;
         unitLabel: string;
         monthlyRentRwf: number;
@@ -306,7 +306,7 @@ export declare const TenancyList: z.ZodObject<{
         invitationId: string;
     }[];
     tenancies: {
-        status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
         reference: string;
         propertyName: string;
@@ -550,7 +550,7 @@ export declare const TenancyDetail: z.ZodObject<{
     createdAt: z.ZodString;
     updatedAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     broker: {
         name: string | null;
         rating: {
@@ -560,13 +560,14 @@ export declare const TenancyDetail: z.ZodObject<{
         } | null;
         canRate: boolean;
     } | null;
+    id: string;
+    reference: string;
     landlord: {
         name: string;
         email: string | null;
         phone: string | null;
         signatoryName: string | null;
     };
-    id: string;
     place: {
         province: string | null;
         district: string | null;
@@ -584,7 +585,6 @@ export declare const TenancyDetail: z.ZodObject<{
         phone: string | null;
     };
     createdAt: string;
-    reference: string;
     charges: {
         balanceRwf: number;
         rentChargedRwf: number;
@@ -633,7 +633,7 @@ export declare const TenancyDetail: z.ZodObject<{
     signedCopyReady: boolean;
     coverPhotoUrl?: string | null | undefined;
 }, {
-    status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     broker: {
         name: string | null;
         rating: {
@@ -643,13 +643,14 @@ export declare const TenancyDetail: z.ZodObject<{
         } | null;
         canRate: boolean;
     } | null;
+    id: string;
+    reference: string;
     landlord: {
         name: string;
         email: string | null;
         phone: string | null;
         signatoryName: string | null;
     };
-    id: string;
     place: {
         province: string | null;
         district: string | null;
@@ -667,7 +668,6 @@ export declare const TenancyDetail: z.ZodObject<{
         phone: string | null;
     };
     createdAt: string;
-    reference: string;
     charges: {
         balanceRwf: number;
         rentChargedRwf: number;

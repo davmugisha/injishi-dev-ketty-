@@ -268,7 +268,21 @@ function compose(
           '',
           f.grossRwf !== null && (f.refundRwf ?? 0) < f.grossRwf
             ? `Under the booking's cancellation terms, ${money(f.grossRwf - (f.refundRwf ?? 0))} stays in escrow for the property.`
-            : 'The guest was refunded in full under the booking\'s cancellation terms.',
+            : 'The guest is being refunded in full under the booking\'s cancellation terms.',
+        ].join('\n'),
+      };
+
+    case 'host_payment_reversed':
+      return {
+        subject: `Payment reversed, booking cancelled — ${f.reference}`,
+        body: [
+          hi,
+          '',
+          `The bank reversed ${guestName ? `${guestName}'s` : 'the guest\'s'} payment for this booking at ${f.propertyName}, so the booking is cancelled. The room is available again for those dates.`,
+          '',
+          stay,
+          '',
+          'Nothing is paid out to the property for this booking, and nothing is refunded: the guest already has the money back through the reversal.',
         ].join('\n'),
       };
   }

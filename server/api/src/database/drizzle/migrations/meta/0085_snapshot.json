@@ -1,6 +1,6 @@
 {
-  "id": "a50bb8b0-b1c0-4c85-bc33-17a8194c0dee",
-  "prevId": "ea3443c3-2452-4a35-ae72-699b489e5544",
+  "id": "ea3443c3-2452-4a35-ae72-699b489e5544",
+  "prevId": "fddaa137-69c4-42e9-b68c-66c154eac33a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -25599,24 +25599,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "sector_id": {
-          "name": "sector_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cell_id": {
-          "name": "cell_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "village_id": {
-          "name": "village_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "assigned_by_user_id": {
           "name": "assigned_by_user_id",
           "type": "uuid",
@@ -25700,67 +25682,9 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last"
-            },
-            {
-              "expression": "sector_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "cell_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "village_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
             }
           ],
           "isUnique": true,
-          "where": "\"oversight_assignments\".\"revoked_at\" IS NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "oversight_assignments_area_idx": {
-          "name": "oversight_assignments_area_idx",
-          "columns": [
-            {
-              "expression": "oversight_role",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "district_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "sector_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "cell_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "village_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
           "where": "\"oversight_assignments\".\"revoked_at\" IS NULL",
           "concurrently": false,
           "method": "btree",
@@ -25820,45 +25744,6 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "oversight_assignments_sector_id_sectors_id_fk": {
-          "name": "oversight_assignments_sector_id_sectors_id_fk",
-          "tableFrom": "oversight_assignments",
-          "tableTo": "sectors",
-          "columnsFrom": [
-            "sector_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "oversight_assignments_cell_id_cells_id_fk": {
-          "name": "oversight_assignments_cell_id_cells_id_fk",
-          "tableFrom": "oversight_assignments",
-          "tableTo": "cells",
-          "columnsFrom": [
-            "cell_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "oversight_assignments_village_id_villages_id_fk": {
-          "name": "oversight_assignments_village_id_villages_id_fk",
-          "tableFrom": "oversight_assignments",
-          "tableTo": "villages",
-          "columnsFrom": [
-            "village_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "oversight_assignments_assigned_by_user_id_users_id_fk": {
           "name": "oversight_assignments_assigned_by_user_id_users_id_fk",
           "tableFrom": "oversight_assignments",
@@ -25879,11 +25764,7 @@
       "checkConstraints": {
         "oversight_assignments_scope_shape": {
           "name": "oversight_assignments_scope_shape",
-          "value": "(\"oversight_assignments\".\"scope_level\"::text = 'country' AND \"oversight_assignments\".\"province_id\" IS NULL AND \"oversight_assignments\".\"district_id\" IS NULL AND \"oversight_assignments\".\"sector_id\" IS NULL AND \"oversight_assignments\".\"cell_id\" IS NULL AND \"oversight_assignments\".\"village_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\"::text = 'province' AND \"oversight_assignments\".\"province_id\" IS NOT NULL AND \"oversight_assignments\".\"district_id\" IS NULL AND \"oversight_assignments\".\"sector_id\" IS NULL AND \"oversight_assignments\".\"cell_id\" IS NULL AND \"oversight_assignments\".\"village_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\"::text = 'district' AND \"oversight_assignments\".\"district_id\" IS NOT NULL AND \"oversight_assignments\".\"sector_id\" IS NULL AND \"oversight_assignments\".\"cell_id\" IS NULL AND \"oversight_assignments\".\"village_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\"::text = 'sector' AND \"oversight_assignments\".\"district_id\" IS NOT NULL AND \"oversight_assignments\".\"sector_id\" IS NOT NULL AND \"oversight_assignments\".\"cell_id\" IS NULL AND \"oversight_assignments\".\"village_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\"::text = 'cell' AND \"oversight_assignments\".\"district_id\" IS NOT NULL AND \"oversight_assignments\".\"sector_id\" IS NOT NULL AND \"oversight_assignments\".\"cell_id\" IS NOT NULL AND \"oversight_assignments\".\"village_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\"::text = 'village' AND \"oversight_assignments\".\"district_id\" IS NOT NULL AND \"oversight_assignments\".\"sector_id\" IS NOT NULL AND \"oversight_assignments\".\"cell_id\" IS NOT NULL AND \"oversight_assignments\".\"village_id\" IS NOT NULL)"
-        },
-        "oversight_assignments_role_scope": {
-          "name": "oversight_assignments_role_scope",
-          "value": "(\"oversight_assignments\".\"oversight_role\"::text = 'village_leader' AND \"oversight_assignments\".\"scope_level\"::text = 'village')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'dasso' AND \"oversight_assignments\".\"scope_level\"::text = 'sector')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'cell_executive' AND \"oversight_assignments\".\"scope_level\"::text = 'cell')\n          OR (\"oversight_assignments\".\"oversight_role\"::text IN ('district_officer', 'district_immigration') AND \"oversight_assignments\".\"scope_level\"::text = 'district')\n          OR (\"oversight_assignments\".\"oversight_role\"::text IN ('business_field_verifier', 'business_approver', 'tax_compliance_officer', 'psf_membership_officer')\n              AND \"oversight_assignments\".\"scope_level\"::text IN ('country', 'province', 'district'))"
+          "value": "(\"oversight_assignments\".\"scope_level\" = 'country' AND \"oversight_assignments\".\"province_id\" IS NULL AND \"oversight_assignments\".\"district_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\" = 'province' AND \"oversight_assignments\".\"province_id\" IS NOT NULL AND \"oversight_assignments\".\"district_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\" = 'district' AND \"oversight_assignments\".\"district_id\" IS NOT NULL)"
         }
       },
       "isRLSEnabled": false
@@ -42756,8 +42637,7 @@
         "tenant",
         "rental_unit",
         "payout_account",
-        "deposit",
-        "guest_registration"
+        "deposit"
       ]
     },
     "public.booking_channel": {
@@ -43045,9 +42925,7 @@
         "payout.failed",
         "notice.filed",
         "notice.acknowledged",
-        "deposit.settled",
-        "guest.registered",
-        "guest.flagged"
+        "deposit.settled"
       ]
     },
     "public.domain_kind": {
@@ -44476,12 +44354,7 @@
         "tax_compliance_officer",
         "business_field_verifier",
         "business_approver",
-        "psf_membership_officer",
-        "village_leader",
-        "dasso",
-        "cell_executive",
-        "district_officer",
-        "district_immigration"
+        "psf_membership_officer"
       ]
     },
     "public.oversight_scope_level": {
@@ -44490,10 +44363,7 @@
       "values": [
         "country",
         "province",
-        "district",
-        "sector",
-        "cell",
-        "village"
+        "district"
       ]
     },
     "public.payment_attempt_purpose": {

@@ -68,15 +68,15 @@ export declare const LeaseMessageAttachment: z.ZodObject<{
     sizeBytes: z.ZodNullable<z.ZodNumber>;
     filename: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    kind: "image" | "file" | "audio";
     id: string;
+    kind: "image" | "file" | "audio";
     mime: string;
     sizeBytes: number | null;
     url: string;
     filename: string | null;
 }, {
-    kind: "image" | "file" | "audio";
     id: string;
+    kind: "image" | "file" | "audio";
     mime: string;
     sizeBytes: number | null;
     url: string;
@@ -92,13 +92,13 @@ export declare const LeaseMessageFault: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: string;
     id: string;
-    title: string;
     reference: string | null;
+    title: string;
 }, {
     status: string;
     id: string;
-    title: string;
     reference: string | null;
+    title: string;
 }>;
 export type LeaseMessageFault = z.infer<typeof LeaseMessageFault>;
 export declare const LeaseMessage: z.ZodObject<{
@@ -116,15 +116,15 @@ export declare const LeaseMessage: z.ZodObject<{
         sizeBytes: z.ZodNullable<z.ZodNumber>;
         filename: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "image" | "file" | "audio";
         id: string;
+        kind: "image" | "file" | "audio";
         mime: string;
         sizeBytes: number | null;
         url: string;
         filename: string | null;
     }, {
-        kind: "image" | "file" | "audio";
         id: string;
+        kind: "image" | "file" | "audio";
         mime: string;
         sizeBytes: number | null;
         url: string;
@@ -139,13 +139,13 @@ export declare const LeaseMessage: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: string;
         id: string;
-        title: string;
         reference: string | null;
+        title: string;
     }, {
         status: string;
         id: string;
-        title: string;
         reference: string | null;
+        title: string;
     }>>;
     createdAt: z.ZodString;
     /**
@@ -163,8 +163,8 @@ export declare const LeaseMessage: z.ZodObject<{
     side: "broker" | "landlord" | "tenant" | "system";
     fromMe: boolean;
     attachments: {
-        kind: "image" | "file" | "audio";
         id: string;
+        kind: "image" | "file" | "audio";
         mime: string;
         sizeBytes: number | null;
         url: string;
@@ -173,8 +173,8 @@ export declare const LeaseMessage: z.ZodObject<{
     fault: {
         status: string;
         id: string;
-        title: string;
         reference: string | null;
+        title: string;
     } | null;
     receipt: "delivered" | "read" | null;
 }, {
@@ -187,8 +187,8 @@ export declare const LeaseMessage: z.ZodObject<{
     side: "broker" | "landlord" | "tenant" | "system";
     fromMe: boolean;
     attachments: {
-        kind: "image" | "file" | "audio";
         id: string;
+        kind: "image" | "file" | "audio";
         mime: string;
         sizeBytes: number | null;
         url: string;
@@ -197,8 +197,8 @@ export declare const LeaseMessage: z.ZodObject<{
     fault: {
         status: string;
         id: string;
-        title: string;
         reference: string | null;
+        title: string;
     } | null;
     receipt: "delivered" | "read" | null;
 }>;
@@ -234,15 +234,15 @@ export declare const LeaseThreadView: z.ZodObject<{
             sizeBytes: z.ZodNullable<z.ZodNumber>;
             filename: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            kind: "image" | "file" | "audio";
             id: string;
+            kind: "image" | "file" | "audio";
             mime: string;
             sizeBytes: number | null;
             url: string;
             filename: string | null;
         }, {
-            kind: "image" | "file" | "audio";
             id: string;
+            kind: "image" | "file" | "audio";
             mime: string;
             sizeBytes: number | null;
             url: string;
@@ -257,13 +257,13 @@ export declare const LeaseThreadView: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             status: string;
             id: string;
-            title: string;
             reference: string | null;
+            title: string;
         }, {
             status: string;
             id: string;
-            title: string;
             reference: string | null;
+            title: string;
         }>>;
         createdAt: z.ZodString;
         /**
@@ -281,8 +281,8 @@ export declare const LeaseThreadView: z.ZodObject<{
         side: "broker" | "landlord" | "tenant" | "system";
         fromMe: boolean;
         attachments: {
-            kind: "image" | "file" | "audio";
             id: string;
+            kind: "image" | "file" | "audio";
             mime: string;
             sizeBytes: number | null;
             url: string;
@@ -291,8 +291,8 @@ export declare const LeaseThreadView: z.ZodObject<{
         fault: {
             status: string;
             id: string;
-            title: string;
             reference: string | null;
+            title: string;
         } | null;
         receipt: "delivered" | "read" | null;
     }, {
@@ -305,8 +305,8 @@ export declare const LeaseThreadView: z.ZodObject<{
         side: "broker" | "landlord" | "tenant" | "system";
         fromMe: boolean;
         attachments: {
-            kind: "image" | "file" | "audio";
             id: string;
+            kind: "image" | "file" | "audio";
             mime: string;
             sizeBytes: number | null;
             url: string;
@@ -315,8 +315,8 @@ export declare const LeaseThreadView: z.ZodObject<{
         fault: {
             status: string;
             id: string;
-            title: string;
             reference: string | null;
+            title: string;
         } | null;
         receipt: "delivered" | "read" | null;
     }>, "many">;
@@ -335,8 +335,8 @@ export declare const LeaseThreadView: z.ZodObject<{
         side: "broker" | "landlord" | "tenant" | "system";
         fromMe: boolean;
         attachments: {
-            kind: "image" | "file" | "audio";
             id: string;
+            kind: "image" | "file" | "audio";
             mime: string;
             sizeBytes: number | null;
             url: string;
@@ -345,8 +345,8 @@ export declare const LeaseThreadView: z.ZodObject<{
         fault: {
             status: string;
             id: string;
-            title: string;
             reference: string | null;
+            title: string;
         } | null;
         receipt: "delivered" | "read" | null;
     }[];
@@ -372,8 +372,8 @@ export declare const LeaseThreadView: z.ZodObject<{
         side: "broker" | "landlord" | "tenant" | "system";
         fromMe: boolean;
         attachments: {
-            kind: "image" | "file" | "audio";
             id: string;
+            kind: "image" | "file" | "audio";
             mime: string;
             sizeBytes: number | null;
             url: string;
@@ -382,8 +382,8 @@ export declare const LeaseThreadView: z.ZodObject<{
         fault: {
             status: string;
             id: string;
-            title: string;
             reference: string | null;
+            title: string;
         } | null;
         receipt: "delivered" | "read" | null;
     }[];
@@ -589,15 +589,15 @@ export declare const PlacementThreadView: z.ZodObject<{
             sizeBytes: z.ZodNullable<z.ZodNumber>;
             filename: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            kind: "image" | "file" | "audio";
             id: string;
+            kind: "image" | "file" | "audio";
             mime: string;
             sizeBytes: number | null;
             url: string;
             filename: string | null;
         }, {
-            kind: "image" | "file" | "audio";
             id: string;
+            kind: "image" | "file" | "audio";
             mime: string;
             sizeBytes: number | null;
             url: string;
@@ -612,13 +612,13 @@ export declare const PlacementThreadView: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             status: string;
             id: string;
-            title: string;
             reference: string | null;
+            title: string;
         }, {
             status: string;
             id: string;
-            title: string;
             reference: string | null;
+            title: string;
         }>>;
         createdAt: z.ZodString;
         /**
@@ -636,8 +636,8 @@ export declare const PlacementThreadView: z.ZodObject<{
         side: "broker" | "landlord" | "tenant" | "system";
         fromMe: boolean;
         attachments: {
-            kind: "image" | "file" | "audio";
             id: string;
+            kind: "image" | "file" | "audio";
             mime: string;
             sizeBytes: number | null;
             url: string;
@@ -646,8 +646,8 @@ export declare const PlacementThreadView: z.ZodObject<{
         fault: {
             status: string;
             id: string;
-            title: string;
             reference: string | null;
+            title: string;
         } | null;
         receipt: "delivered" | "read" | null;
     }, {
@@ -660,8 +660,8 @@ export declare const PlacementThreadView: z.ZodObject<{
         side: "broker" | "landlord" | "tenant" | "system";
         fromMe: boolean;
         attachments: {
-            kind: "image" | "file" | "audio";
             id: string;
+            kind: "image" | "file" | "audio";
             mime: string;
             sizeBytes: number | null;
             url: string;
@@ -670,8 +670,8 @@ export declare const PlacementThreadView: z.ZodObject<{
         fault: {
             status: string;
             id: string;
-            title: string;
             reference: string | null;
+            title: string;
         } | null;
         receipt: "delivered" | "read" | null;
     }>, "many">;
@@ -688,8 +688,8 @@ export declare const PlacementThreadView: z.ZodObject<{
         side: "broker" | "landlord" | "tenant" | "system";
         fromMe: boolean;
         attachments: {
-            kind: "image" | "file" | "audio";
             id: string;
+            kind: "image" | "file" | "audio";
             mime: string;
             sizeBytes: number | null;
             url: string;
@@ -698,8 +698,8 @@ export declare const PlacementThreadView: z.ZodObject<{
         fault: {
             status: string;
             id: string;
-            title: string;
             reference: string | null;
+            title: string;
         } | null;
         receipt: "delivered" | "read" | null;
     }[];
@@ -725,8 +725,8 @@ export declare const PlacementThreadView: z.ZodObject<{
         side: "broker" | "landlord" | "tenant" | "system";
         fromMe: boolean;
         attachments: {
-            kind: "image" | "file" | "audio";
             id: string;
+            kind: "image" | "file" | "audio";
             mime: string;
             sizeBytes: number | null;
             url: string;
@@ -735,8 +735,8 @@ export declare const PlacementThreadView: z.ZodObject<{
         fault: {
             status: string;
             id: string;
-            title: string;
             reference: string | null;
+            title: string;
         } | null;
         receipt: "delivered" | "read" | null;
     }[];

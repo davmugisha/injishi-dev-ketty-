@@ -1,6 +1,6 @@
 {
-  "id": "337873d3-6957-4775-ad98-e1036a80d22b",
-  "prevId": "47674296-fe1e-4951-892f-37dd4f0a1f9a",
+  "id": "47674296-fe1e-4951-892f-37dd4f0a1f9a",
+  "prevId": "38f6e8da-197c-4875-ab5e-2197211fa6c5",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -41209,13 +41209,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "reminders_sent": {
-          "name": "reminders_sent",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -41316,10 +41309,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "lease_filings_reminders_range": {
-          "name": "lease_filings_reminders_range",
-          "value": "\"lease_filings\".\"reminders_sent\" BETWEEN 0 AND 2"
-        },
         "lease_filings_filed_shape": {
           "name": "lease_filings_filed_shape",
           "value": "(\"lease_filings\".\"status\" = 'filed') = (\"lease_filings\".\"filed_on\" IS NOT NULL)"
@@ -42464,196 +42453,6 @@
         "residence_units_asking_rent_positive": {
           "name": "residence_units_asking_rent_positive",
           "value": "\"residence_units\".\"asking_rent_rwf\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.tax_declarations": {
-      "name": "tax_declarations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "year": {
-          "name": "year",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "tax_declaration_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'not_started'"
-        },
-        "declared_on": {
-          "name": "declared_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "paid_on": {
-          "name": "paid_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "amount_paid_rwf": {
-          "name": "amount_paid_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rra_reference": {
-          "name": "rra_reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "receipt_object_id": {
-          "name": "receipt_object_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "nudges_sent": {
-          "name": "nudges_sent",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "updated_by_user_id": {
-          "name": "updated_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "tax_declarations_org_id_orgs_id_fk": {
-          "name": "tax_declarations_org_id_orgs_id_fk",
-          "tableFrom": "tax_declarations",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "tax_declarations_workspace_id_workspaces_id_fk": {
-          "name": "tax_declarations_workspace_id_workspaces_id_fk",
-          "tableFrom": "tax_declarations",
-          "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "tax_declarations_receipt_object_id_stored_objects_id_fk": {
-          "name": "tax_declarations_receipt_object_id_stored_objects_id_fk",
-          "tableFrom": "tax_declarations",
-          "tableTo": "stored_objects",
-          "columnsFrom": [
-            "receipt_object_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "tax_declarations_updated_by_user_id_users_id_fk": {
-          "name": "tax_declarations_updated_by_user_id_users_id_fk",
-          "tableFrom": "tax_declarations",
-          "tableTo": "users",
-          "columnsFrom": [
-            "updated_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "tax_declarations_org_year_uk": {
-          "name": "tax_declarations_org_year_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "org_id",
-            "year"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "tax_declarations_year_range": {
-          "name": "tax_declarations_year_range",
-          "value": "\"tax_declarations\".\"year\" BETWEEN 2020 AND 2100"
-        },
-        "tax_declarations_shape": {
-          "name": "tax_declarations_shape",
-          "value": "(\"tax_declarations\".\"status\" = 'not_started' AND \"tax_declarations\".\"declared_on\" IS NULL AND \"tax_declarations\".\"paid_on\" IS NULL AND \"tax_declarations\".\"amount_paid_rwf\" IS NULL)\n        OR (\"tax_declarations\".\"status\" = 'declared' AND \"tax_declarations\".\"declared_on\" IS NOT NULL AND \"tax_declarations\".\"paid_on\" IS NULL AND \"tax_declarations\".\"amount_paid_rwf\" IS NULL)\n        OR (\"tax_declarations\".\"status\" = 'paid' AND \"tax_declarations\".\"declared_on\" IS NOT NULL AND \"tax_declarations\".\"paid_on\" IS NOT NULL AND \"tax_declarations\".\"amount_paid_rwf\" IS NOT NULL)"
-        },
-        "tax_declarations_declared_after_year": {
-          "name": "tax_declarations_declared_after_year",
-          "value": "\"tax_declarations\".\"declared_on\" IS NULL OR \"tax_declarations\".\"declared_on\" >= make_date(\"tax_declarations\".\"year\" + 1, 1, 1)"
-        },
-        "tax_declarations_paid_after_declared": {
-          "name": "tax_declarations_paid_after_declared",
-          "value": "\"tax_declarations\".\"paid_on\" IS NULL OR \"tax_declarations\".\"paid_on\" >= \"tax_declarations\".\"declared_on\""
-        },
-        "tax_declarations_amount_positive": {
-          "name": "tax_declarations_amount_positive",
-          "value": "\"tax_declarations\".\"amount_paid_rwf\" IS NULL OR (\"tax_declarations\".\"amount_paid_rwf\" > 0 AND \"tax_declarations\".\"amount_paid_rwf\" <= 2000000000)"
-        },
-        "tax_declarations_nudges_range": {
-          "name": "tax_declarations_nudges_range",
-          "value": "\"tax_declarations\".\"nudges_sent\" BETWEEN 0 AND 3"
         }
       },
       "isRLSEnabled": false
@@ -47456,15 +47255,6 @@
       "values": [
         "build",
         "buy"
-      ]
-    },
-    "public.tax_declaration_status": {
-      "name": "tax_declaration_status",
-      "schema": "public",
-      "values": [
-        "not_started",
-        "declared",
-        "paid"
       ]
     },
     "public.guest_host_kind": {

@@ -1,6 +1,6 @@
 {
-  "id": "96b333fb-9fe2-4591-90b8-91eac9424cdf",
-  "prevId": "ad964063-07f5-409f-80da-1390b1e9a09e",
+  "id": "ad964063-07f5-409f-80da-1390b1e9a09e",
+  "prevId": "cab2941a-fadb-4697-8b0a-4c7bbb9faf57",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -14438,7 +14438,7 @@
       "checkConstraints": {
         "thread_digests_side": {
           "name": "thread_digests_side",
-          "value": "\"thread_digests\".\"side\" IN ('landlord', 'tenant', 'broker')"
+          "value": "\"thread_digests\".\"side\" IN ('landlord', 'tenant')"
         }
       },
       "isRLSEnabled": false
@@ -14540,12 +14540,6 @@
         },
         "lease_id": {
           "name": "lease_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "placement_id": {
-          "name": "placement_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -14710,22 +14704,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "threads_placement_uk": {
-          "name": "threads_placement_uk",
-          "columns": [
-            {
-              "expression": "placement_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"threads\".\"placement_id\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -14781,19 +14759,6 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "threads_placement_id_tenant_placements_id_fk": {
-          "name": "threads_placement_id_tenant_placements_id_fk",
-          "tableFrom": "threads",
-          "tableTo": "tenant_placements",
-          "columnsFrom": [
-            "placement_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "threads_department_id_departments_id_fk": {
           "name": "threads_department_id_departments_id_fk",
           "tableFrom": "threads",
@@ -14840,7 +14805,7 @@
       "checkConstraints": {
         "threads_scope_exactly_one": {
           "name": "threads_scope_exactly_one",
-          "value": "(CASE WHEN \"threads\".\"booking_id\" IS NOT NULL THEN 1 ELSE 0 END\n           + CASE WHEN \"threads\".\"guest_stay_id\" IS NOT NULL THEN 1 ELSE 0 END\n           + CASE WHEN \"threads\".\"lease_id\" IS NOT NULL THEN 1 ELSE 0 END\n           + CASE WHEN \"threads\".\"placement_id\" IS NOT NULL THEN 1 ELSE 0 END) = 1"
+          "value": "(CASE WHEN \"threads\".\"booking_id\" IS NOT NULL THEN 1 ELSE 0 END\n           + CASE WHEN \"threads\".\"guest_stay_id\" IS NOT NULL THEN 1 ELSE 0 END\n           + CASE WHEN \"threads\".\"lease_id\" IS NOT NULL THEN 1 ELSE 0 END) = 1"
         }
       },
       "isRLSEnabled": false
@@ -47612,8 +47577,7 @@
       "values": [
         "reservation",
         "department_request",
-        "dispute",
-        "placement"
+        "dispute"
       ]
     },
     "public.thread_status": {

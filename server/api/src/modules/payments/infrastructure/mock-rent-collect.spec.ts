@@ -54,8 +54,8 @@ describe('MockPaymentAdapter: rent, vendors and callbacks', () => {
 
   it('refuses a payout or a vendor transfer to a destination ending 0000, and pays others at once', async () => {
     const adapter = new MockPaymentAdapter();
-    await expect(adapter.payout({ kind: 'payout', idempotencyKey: 'po-1', amountRwf: 1000, currency: 'RWF', workspaceId: WORKSPACE, destination: 'momo', destinationRef: '+250788120000' })).rejects.toBeInstanceOf(PaymentDeclinedError);
-    const paid = await adapter.payout({ kind: 'payout', idempotencyKey: 'po-2', amountRwf: 1000, currency: 'RWF', workspaceId: WORKSPACE, destination: 'momo_pay', destinationRef: '123456' });
+    await expect(adapter.payLandlord({ kind: 'landlord_payout', idempotencyKey: 'po-1', amountRwf: 1000, currency: 'RWF', workspaceId: WORKSPACE, destination: 'momo', destinationRef: '+250788120000' })).rejects.toBeInstanceOf(PaymentDeclinedError);
+    const paid = await adapter.payLandlord({ kind: 'landlord_payout', idempotencyKey: 'po-2', amountRwf: 1000, currency: 'RWF', workspaceId: WORKSPACE, destination: 'momo_pay', destinationRef: '123456' });
     expect(paid.settlement).toBe('settled');
     const vendor: VendorPayoutCommand = {
       kind: 'vendor_payout',

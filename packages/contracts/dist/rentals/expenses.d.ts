@@ -558,9 +558,9 @@ export declare const FaultPaymentView: z.ZodObject<{
     status: "failed" | "paid" | "waiting" | "voided";
     id: string;
     amountRwf: number;
+    failureReason: string | null;
     source: "gateway" | "recorded";
     createdAt: string;
-    failureReason: string | null;
     method: "other" | "cash" | "bank" | "momo" | null;
     paidOn: string | null;
     destination: string | null;
@@ -571,9 +571,9 @@ export declare const FaultPaymentView: z.ZodObject<{
     status: "failed" | "paid" | "waiting" | "voided";
     id: string;
     amountRwf: number;
+    failureReason: string | null;
     source: "gateway" | "recorded";
     createdAt: string;
-    failureReason: string | null;
     method: "other" | "cash" | "bank" | "momo" | null;
     paidOn: string | null;
     destination: string | null;

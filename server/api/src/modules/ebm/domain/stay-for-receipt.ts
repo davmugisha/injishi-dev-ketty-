@@ -12,8 +12,11 @@ import type { StayForReceipt } from './receipt-builder';
 /** Payment states in which the money stayed with the seller — a sale happened. */
 export const SETTLED: readonly PaymentStatus[] = ['captured', 'forfeited', 'paid_out'];
 
-/** Payment states in which money went back. Clause 14 territory, not 13. */
-const REFUNDED: readonly PaymentStatus[] = ['refunded_full', 'refunded_partial'];
+/**
+ * Payment states in which money went back, or is owed back and on its way
+ * (073-gtbank-payments AC-13). Clause 14 territory, not 13.
+ */
+const REFUNDED: readonly PaymentStatus[] = ['refunded_full', 'refunded_partial', 'refund_pending'];
 
 /**
  * Why a booking cannot be invoiced as a sale. Carries the wording a person is

@@ -31,8 +31,8 @@ const dist = resolve(here, '..', process.env.API_DIST_DIR || 'dist');
 require('reflect-metadata');
 const { NestFactory } = require('@nestjs/core');
 const { AppModule } = require(resolve(dist, 'app.module.js'));
-const { HrDailyService } = require(resolve(dist, 'modules/people/application/hr-daily.service.js'));
-const { AttendanceSweepService } = require(resolve(dist, 'modules/people/application/attendance-sweep.service.js'));
+const { HrDailyService } = require(resolve(dist, 'modules/hr/application/hr-daily.service.js'));
+const { AttendanceSweepService } = require(resolve(dist, 'modules/hr/application/attendance-sweep.service.js'));
 
 const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
 try {

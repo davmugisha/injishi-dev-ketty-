@@ -49,7 +49,7 @@ export declare const MeContextTenancy: z.ZodObject<{
     startDate: z.ZodEffects<z.ZodString, string, string>;
     endDate: z.ZodEffects<z.ZodString, string, string>;
 }, "strip", z.ZodTypeAny, {
-    status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     reference: string;
     propertyName: string;
     leaseId: string;
@@ -59,7 +59,7 @@ export declare const MeContextTenancy: z.ZodObject<{
     endDate: string;
     landlordName: string;
 }, {
-    status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+    status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
     reference: string;
     propertyName: string;
     leaseId: string;
@@ -77,12 +77,12 @@ export declare const MeContext: z.ZodObject<{
         email: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         name: string | null;
-        email: string;
         id: string;
+        email: string;
     }, {
         name: string | null;
-        email: string;
         id: string;
+        email: string;
     }>;
     businesses: z.ZodArray<z.ZodObject<{
         workspaceId: z.ZodString;
@@ -130,7 +130,7 @@ export declare const MeContext: z.ZodObject<{
         startDate: z.ZodEffects<z.ZodString, string, string>;
         endDate: z.ZodEffects<z.ZodString, string, string>;
     }, "strip", z.ZodTypeAny, {
-        status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         reference: string;
         propertyName: string;
         leaseId: string;
@@ -140,7 +140,7 @@ export declare const MeContext: z.ZodObject<{
         endDate: string;
         landlordName: string;
     }, {
-        status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         reference: string;
         propertyName: string;
         leaseId: string;
@@ -227,8 +227,8 @@ export declare const MeContext: z.ZodObject<{
     } | null;
     user: {
         name: string | null;
-        email: string;
         id: string;
+        email: string;
     };
     oversight: {
         provinceId: number | null;
@@ -258,7 +258,7 @@ export declare const MeContext: z.ZodObject<{
         operational: boolean;
     }[];
     tenancies: {
-        status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         reference: string;
         propertyName: string;
         leaseId: string;
@@ -281,8 +281,8 @@ export declare const MeContext: z.ZodObject<{
     } | null;
     user: {
         name: string | null;
-        email: string;
         id: string;
+        email: string;
     };
     oversight: {
         provinceId: number | null;
@@ -312,7 +312,7 @@ export declare const MeContext: z.ZodObject<{
         operational: boolean;
     }[];
     tenancies: {
-        status: "active" | "draft" | "cancelled" | "pending_signature" | "ending" | "ended" | "signed";
+        status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         reference: string;
         propertyName: string;
         leaseId: string;

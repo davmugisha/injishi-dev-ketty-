@@ -8,9 +8,11 @@ import {
 } from '../../payments/domain/payment-port';
 import {
   BookingRepository,
+  type ExpiredRequest,
   type HeldEscrow,
 } from '../infrastructure/booking.repository';
 import { BookingNotificationsService } from './booking-notifications.service';
+import { BookingRefunds } from './booking-refunds';
 
 /** How many releases are in flight toward the provider at once (review 2.4). */
 const RELEASE_CONCURRENCY = 4;
@@ -23,9 +25,12 @@ const RELEASE_CONCURRENCY = 4;
  * run a few at a time rather than one after another: the provider is the slow
  * part, and a serial loop made a sweep of fifty holds a fifty-round-trip job.
  *
- * ORDER IS UNCHANGED. Provider first, ledger second (ADR-020 D-h): a release
- * the provider did not confirm leaves the hold standing and is queued, never
- * recorded on optimism.
+ * Declined now, released owed (073-gtbank-payments AC-13): a payment the bank
+ * record holds is declined with its release written in one transaction, and
+ * the disbursement dispatcher sends it. A payment from before the bank record
+ * keeps the old order, provider first and ledger second (ADR-020 D-h): a
+ * release the provider did not confirm leaves the hold standing and is queued,
+ * never recorded on optimism.
  */
 @Injectable()
 export class BookingLifecycleService {
@@ -36,6 +41,7 @@ export class BookingLifecycleService {
     @Inject(PAYMENT_PORT) private readonly payments: PaymentPort,
     private readonly compensations: PaymentCompensationService,
     private readonly notifications: BookingNotificationsService,
+    private readonly refunds: BookingRefunds,
   ) {}
 
   async expireStaleRequests(now: Date = new Date()): Promise<number> {
@@ -43,11 +49,37 @@ export class BookingLifecycleService {
     if (candidates.length === 0) return 0;
 
     const confirmed: string[] = [];
+    const owed: ExpiredRequest[] = [];
     await forEachLimited(candidates, RELEASE_CONCURRENCY, async (escrow) => {
+      // Declined now, released owed (073-gtbank-payments AC-13), one booking
+      // per transaction. A payment from before the bank record is released
+      // through the provider first and recorded with the batch below.
+      const plan =
+        escrow.amountRwf == null
+          ? null
+          : await this.refunds.plan({
+              reference: escrow.reference,
+              bookingId: escrow.bookingId,
+              workspaceId: escrow.workspaceId,
+              adapterRef: escrow.adapterRef,
+              idempotencyKey: releaseKeyFor(escrow),
+              operation: 'escrow_release_guest',
+            });
+      if (plan && escrow.amountRwf != null) {
+        const declined = await this.bookings.recordExpiredDecline(escrow.bookingId, {
+          owe: plan.oweTx,
+          amountRwf: escrow.amountRwf,
+        });
+        if (declined) {
+          owed.push(declined);
+          await plan.announce();
+        }
+        return;
+      }
       if (await this.release(escrow)) confirmed.push(escrow.bookingId);
     });
 
-    const expired = await this.bookings.recordExpiredDeclines(confirmed);
+    const expired = [...owed, ...(await this.bookings.recordExpiredDeclines(confirmed))];
     if (expired.length > 0) {
       const refs = expired.map((row) => row.reference).join(', ');
       this.logger.log(

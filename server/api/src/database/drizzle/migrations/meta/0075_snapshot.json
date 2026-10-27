@@ -1,6 +1,6 @@
 {
-  "id": "b7037720-cd44-439b-adac-a528d2e01aff",
-  "prevId": "33b783e1-db23-4968-812f-636019c060cb",
+  "id": "33b783e1-db23-4968-812f-636019c060cb",
+  "prevId": "d32f1c95-1307-4191-9894-dd66cd8312d4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -37287,172 +37287,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.landlord_profiles": {
-      "name": "landlord_profiles",
-      "schema": "",
-      "columns": {
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "taxpayer_kind": {
-          "name": "taxpayer_kind",
-          "type": "taxpayer_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "signatory_name": {
-          "name": "signatory_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "signatory_id_kind": {
-          "name": "signatory_id_kind",
-          "type": "id_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "signatory_id_number": {
-          "name": "signatory_id_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contact_phone": {
-          "name": "contact_phone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contact_email": {
-          "name": "contact_email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "default_grace_days": {
-          "name": "default_grace_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 5
-        },
-        "default_notice_days": {
-          "name": "default_notice_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 15
-        },
-        "broker_fee_percent": {
-          "name": "broker_fee_percent",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "auto_start_leases": {
-          "name": "auto_start_leases",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "setup_completed_at": {
-          "name": "setup_completed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "landlord_profiles_org_id_orgs_id_fk": {
-          "name": "landlord_profiles_org_id_orgs_id_fk",
-          "tableFrom": "landlord_profiles",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "landlord_profiles_workspace_id_workspaces_id_fk": {
-          "name": "landlord_profiles_workspace_id_workspaces_id_fk",
-          "tableFrom": "landlord_profiles",
-          "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "landlord_profiles_workspace_uk": {
-          "name": "landlord_profiles_workspace_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "workspace_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "landlord_profiles_grace_days_range": {
-          "name": "landlord_profiles_grace_days_range",
-          "value": "\"landlord_profiles\".\"default_grace_days\" BETWEEN 0 AND 31"
-        },
-        "landlord_profiles_notice_days_range": {
-          "name": "landlord_profiles_notice_days_range",
-          "value": "\"landlord_profiles\".\"default_notice_days\" BETWEEN 15 AND 180"
-        },
-        "landlord_profiles_broker_fee_range": {
-          "name": "landlord_profiles_broker_fee_range",
-          "value": "\"landlord_profiles\".\"broker_fee_percent\" IS NULL OR \"landlord_profiles\".\"broker_fee_percent\" BETWEEN 0 AND 200"
-        },
-        "landlord_profiles_signatory_id_shape": {
-          "name": "landlord_profiles_signatory_id_shape",
-          "value": "(\"landlord_profiles\".\"signatory_id_kind\" IS NULL AND \"landlord_profiles\".\"signatory_id_number\" IS NULL)\n        OR (\"landlord_profiles\".\"signatory_id_kind\" = 'national_id' AND \"landlord_profiles\".\"signatory_id_number\" ~ '^[0-9]{16}$')\n        OR (\"landlord_profiles\".\"signatory_id_kind\" = 'passport' AND \"landlord_profiles\".\"signatory_id_number\" ~ '^[A-Z0-9]{5,20}$')"
-        },
-        "landlord_profiles_contact_shape": {
-          "name": "landlord_profiles_contact_shape",
-          "value": "(\"landlord_profiles\".\"contact_email\" IS NULL OR \"landlord_profiles\".\"contact_email\" = lower(\"landlord_profiles\".\"contact_email\"))\n        AND (\"landlord_profiles\".\"contact_phone\" IS NULL OR \"landlord_profiles\".\"contact_phone\" ~ '^[+][1-9][0-9]{7,14}$')"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.lease_application_documents": {
       "name": "lease_application_documents",
       "schema": "",
@@ -39767,15 +39601,6 @@
         "expired"
       ]
     },
-    "public.deposit_refund_method": {
-      "name": "deposit_refund_method",
-      "schema": "public",
-      "values": [
-        "gateway",
-        "recorded",
-        "none"
-      ]
-    },
     "public.document_type": {
       "name": "document_type",
       "schema": "public",
@@ -40027,14 +39852,6 @@
         "out_of_order"
       ]
     },
-    "public.id_kind": {
-      "name": "id_kind",
-      "schema": "public",
-      "values": [
-        "national_id",
-        "passport"
-      ]
-    },
     "public.identity_document_status": {
       "name": "identity_document_status",
       "schema": "public",
@@ -40077,141 +39894,6 @@
         "pending",
         "verified",
         "rejected"
-      ]
-    },
-    "public.lease_actor_role": {
-      "name": "lease_actor_role",
-      "schema": "public",
-      "values": [
-        "landlord",
-        "tenant",
-        "system",
-        "broker"
-      ]
-    },
-    "public.lease_charge_kind": {
-      "name": "lease_charge_kind",
-      "schema": "public",
-      "values": [
-        "rent",
-        "deposit"
-      ]
-    },
-    "public.lease_charge_status": {
-      "name": "lease_charge_status",
-      "schema": "public",
-      "values": [
-        "open",
-        "paid",
-        "waived"
-      ]
-    },
-    "public.lease_deposit_status": {
-      "name": "lease_deposit_status",
-      "schema": "public",
-      "values": [
-        "awaiting",
-        "held",
-        "settled"
-      ]
-    },
-    "public.lease_event_kind": {
-      "name": "lease_event_kind",
-      "schema": "public",
-      "values": [
-        "created",
-        "terms_edited",
-        "tenant_updated",
-        "landlord_signed",
-        "landlord_signature_voided",
-        "invitation_sent",
-        "invitation_resent",
-        "invitation_accepted",
-        "tenant_signed",
-        "signed_copy_ready",
-        "started",
-        "cancelled",
-        "charge_raised",
-        "charge_waived",
-        "payment_received",
-        "payment_recorded",
-        "payment_failed",
-        "payment_reversed",
-        "reminder_sent",
-        "deposit_received",
-        "deposit_settled",
-        "deposit_disputed",
-        "notice_filed",
-        "notice_acknowledged",
-        "notice_withdrawn",
-        "ending",
-        "moved_out",
-        "filing_due",
-        "filed",
-        "renewed",
-        "broker_rated"
-      ]
-    },
-    "public.lease_payment_channel": {
-      "name": "lease_payment_channel",
-      "schema": "public",
-      "values": [
-        "gateway",
-        "recorded"
-      ]
-    },
-    "public.lease_payment_method": {
-      "name": "lease_payment_method",
-      "schema": "public",
-      "values": [
-        "mtn_momo",
-        "airtel_money",
-        "card",
-        "bank_transfer",
-        "cash",
-        "other"
-      ]
-    },
-    "public.lease_payment_status": {
-      "name": "lease_payment_status",
-      "schema": "public",
-      "values": [
-        "pending",
-        "succeeded",
-        "failed",
-        "expired",
-        "reversed"
-      ]
-    },
-    "public.lease_reminder_channel": {
-      "name": "lease_reminder_channel",
-      "schema": "public",
-      "values": [
-        "in_app",
-        "email",
-        "in_app_email",
-        "sms",
-        "call",
-        "letter"
-      ]
-    },
-    "public.lease_reminder_kind": {
-      "name": "lease_reminder_kind",
-      "schema": "public",
-      "values": [
-        "upcoming",
-        "due",
-        "overdue",
-        "manual"
-      ]
-    },
-    "public.lease_signing_method": {
-      "name": "lease_signing_method",
-      "schema": "public",
-      "values": [
-        "email_code",
-        "password",
-        "legacy"
       ]
     },
     "public.lease_status": {
@@ -40819,15 +40501,6 @@
         "overdue"
       ]
     },
-    "public.rental_unit_state": {
-      "name": "rental_unit_state",
-      "schema": "public",
-      "values": [
-        "active",
-        "off_market",
-        "retired"
-      ]
-    },
     "public.review_side": {
       "name": "review_side",
       "schema": "public",
@@ -40985,14 +40658,6 @@
         "TAX_D"
       ]
     },
-    "public.taxpayer_kind": {
-      "name": "taxpayer_kind",
-      "schema": "public",
-      "values": [
-        "individual",
-        "company"
-      ]
-    },
     "public.thread_kind": {
       "name": "thread_kind",
       "schema": "public",
@@ -41071,15 +40736,6 @@
         "translated",
         "missing",
         "needs_review"
-      ]
-    },
-    "public.unit_kitchen": {
-      "name": "unit_kitchen",
-      "schema": "public",
-      "values": [
-        "own",
-        "shared",
-        "none"
       ]
     },
     "public.workspace_kind": {

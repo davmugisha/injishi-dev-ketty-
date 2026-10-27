@@ -6,6 +6,7 @@ import {
   type AdapterMode,
   type CallbackEvent,
   type CaptureEscrowCommand,
+  type LandlordPayoutCommand,
   type OneTimeFeeCommand,
   type PaymentPort,
   type PaymentReceipt,
@@ -79,6 +80,8 @@ export class GuardedPaymentPort implements PaymentPort {
       throw new PaymentUnavailableError(
         'payment circuit is open after repeated failures',
         key,
+        // The breaker refused before calling: nothing was sent (073 AC-7).
+        'no',
       );
     }
 
@@ -145,6 +148,9 @@ export class GuardedPaymentPort implements PaymentPort {
   }
   collectRent(c: RentCollectCommand): Promise<PaymentReceipt> {
     return this.guard(c.idempotencyKey, () => this.inner.collectRent(c));
+  }
+  payLandlord(c: LandlordPayoutCommand): Promise<PaymentReceipt> {
+    return this.guard(c.idempotencyKey, () => this.inner.payLandlord(c));
   }
   payVendor(c: VendorPayoutCommand): Promise<PaymentReceipt> {
     return this.guard(c.idempotencyKey, () => this.inner.payVendor(c));

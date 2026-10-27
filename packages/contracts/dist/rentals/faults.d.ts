@@ -135,16 +135,16 @@ export declare const MoveFaultRequest: z.ZodEffects<z.ZodObject<{
     to: z.ZodEnum<["open", "acknowledged", "assigned", "in_progress", "resolved", "closed", "wont_fix", "cancelled"]>;
     note: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, string | undefined>;
 }, "strip", z.ZodTypeAny, {
-    to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+    to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     note?: string | undefined;
 }, {
-    to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+    to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     note?: string | undefined;
 }>, {
-    to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+    to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     note?: string | undefined;
 }, {
-    to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+    to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     note?: string | undefined;
 }>;
 export type MoveFaultRequest = z.infer<typeof MoveFaultRequest>;
@@ -258,10 +258,10 @@ export declare const FaultListItem: z.ZodObject<{
     /** A short-lived read of the first photo (the report's first), for the list's thumbnail; null without photos. */
     thumbUrl: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+    status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
-    title: string;
     reference: string | null;
+    title: string;
     propertyName: string | null;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     leaseId: string | null;
@@ -279,10 +279,10 @@ export declare const FaultListItem: z.ZodObject<{
     assigneeName: string | null;
     thumbUrl: string | null;
 }, {
-    status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+    status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
-    title: string;
     reference: string | null;
+    title: string;
     propertyName: string | null;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     leaseId: string | null;
@@ -328,10 +328,10 @@ export declare const FaultListPage: z.ZodObject<{
         /** A short-lived read of the first photo (the report's first), for the list's thumbnail; null without photos. */
         thumbUrl: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
-        title: string;
         reference: string | null;
+        title: string;
         propertyName: string | null;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         leaseId: string | null;
@@ -349,10 +349,10 @@ export declare const FaultListPage: z.ZodObject<{
         assigneeName: string | null;
         thumbUrl: string | null;
     }, {
-        status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
-        title: string;
         reference: string | null;
+        title: string;
         propertyName: string | null;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         leaseId: string | null;
@@ -377,10 +377,10 @@ export declare const FaultListPage: z.ZodObject<{
     counts: z.ZodRecord<z.ZodEnum<["open", "in_hand", "fixed", "closed"]>, z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
-        title: string;
         reference: string | null;
+        title: string;
         propertyName: string | null;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         leaseId: string | null;
@@ -405,10 +405,10 @@ export declare const FaultListPage: z.ZodObject<{
     counts: Partial<Record<"fixed" | "open" | "closed" | "in_hand", number>>;
 }, {
     items: {
-        status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
-        title: string;
         reference: string | null;
+        title: string;
         propertyName: string | null;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         leaseId: string | null;
@@ -469,24 +469,24 @@ export declare const FaultEventView: z.ZodObject<{
     visibleToTenant: z.ZodBoolean;
     at: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    kind: string;
     id: string;
+    kind: string;
     note: string | null;
     actorName: string | null;
     at: string;
-    from: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
-    to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+    from: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+    to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
     actorRole: "landlord" | "tenant" | "system";
     visibleToTenant: boolean;
     words: string;
 }, {
-    kind: string;
     id: string;
+    kind: string;
     note: string | null;
     actorName: string | null;
     at: string;
-    from: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
-    to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+    from: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+    to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
     actorRole: "landlord" | "tenant" | "system";
     visibleToTenant: boolean;
     words: string;
@@ -579,24 +579,24 @@ export declare const FaultDetail: z.ZodObject<{
         visibleToTenant: z.ZodBoolean;
         at: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        kind: string;
         id: string;
+        kind: string;
         note: string | null;
         actorName: string | null;
         at: string;
-        from: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
-        to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        from: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
         actorRole: "landlord" | "tenant" | "system";
         visibleToTenant: boolean;
         words: string;
     }, {
-        kind: string;
         id: string;
+        kind: string;
         note: string | null;
         actorName: string | null;
         at: string;
-        from: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
-        to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        from: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
         actorRole: "landlord" | "tenant" | "system";
         visibleToTenant: boolean;
         words: string;
@@ -619,9 +619,9 @@ export declare const FaultDetail: z.ZodObject<{
         status: "failed" | "paid" | "waiting" | "voided";
         id: string;
         amountRwf: number;
+        failureReason: string | null;
         source: "gateway" | "recorded";
         createdAt: string;
-        failureReason: string | null;
         method: "other" | "cash" | "bank" | "momo" | null;
         paidOn: string | null;
         destination: string | null;
@@ -632,9 +632,9 @@ export declare const FaultDetail: z.ZodObject<{
         status: "failed" | "paid" | "waiting" | "voided";
         id: string;
         amountRwf: number;
+        failureReason: string | null;
         source: "gateway" | "recorded";
         createdAt: string;
-        failureReason: string | null;
         method: "other" | "cash" | "bank" | "momo" | null;
         paidOn: string | null;
         destination: string | null;
@@ -645,31 +645,31 @@ export declare const FaultDetail: z.ZodObject<{
     /** The fix's cost so far: paid and recorded, not voided. Null with `payments`. */
     paidRwf: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
-    status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+    status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
+    reference: string | null;
     title: string;
     events: {
-        kind: string;
         id: string;
+        kind: string;
         note: string | null;
         actorName: string | null;
         at: string;
-        from: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
-        to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        from: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
         actorRole: "landlord" | "tenant" | "system";
         visibleToTenant: boolean;
         words: string;
     }[];
-    reference: string | null;
     propertyName: string | null;
     paidRwf: number | null;
     payments: {
         status: "failed" | "paid" | "waiting" | "voided";
         id: string;
         amountRwf: number;
+        failureReason: string | null;
         source: "gateway" | "recorded";
         createdAt: string;
-        failureReason: string | null;
         method: "other" | "cash" | "bank" | "momo" | null;
         paidOn: string | null;
         destination: string | null;
@@ -713,34 +713,34 @@ export declare const FaultDetail: z.ZodObject<{
     wontFixReason: string | null;
     reopenedCount: number;
     reopenUntil: string | null;
-    allowedMoves: ("open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix")[];
+    allowedMoves: ("cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix")[];
     reportedOn: string;
 }, {
-    status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+    status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
+    reference: string | null;
     title: string;
     events: {
-        kind: string;
         id: string;
+        kind: string;
         note: string | null;
         actorName: string | null;
         at: string;
-        from: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
-        to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        from: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
         actorRole: "landlord" | "tenant" | "system";
         visibleToTenant: boolean;
         words: string;
     }[];
-    reference: string | null;
     propertyName: string | null;
     paidRwf: number | null;
     payments: {
         status: "failed" | "paid" | "waiting" | "voided";
         id: string;
         amountRwf: number;
+        failureReason: string | null;
         source: "gateway" | "recorded";
         createdAt: string;
-        failureReason: string | null;
         method: "other" | "cash" | "bank" | "momo" | null;
         paidOn: string | null;
         destination: string | null;
@@ -784,7 +784,7 @@ export declare const FaultDetail: z.ZodObject<{
     wontFixReason: string | null;
     reopenedCount: number;
     reopenUntil: string | null;
-    allowedMoves: ("open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix")[];
+    allowedMoves: ("cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix")[];
     reportedOn: string;
 }>;
 export type FaultDetail = z.infer<typeof FaultDetail>;
@@ -803,10 +803,10 @@ export declare const TenantFaultItem: z.ZodObject<{
     photoCount: z.ZodNumber;
     reopenUntil: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+    status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
-    title: string;
     reference: string | null;
+    title: string;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     photoCount: number;
     updatedAt: string;
@@ -816,10 +816,10 @@ export declare const TenantFaultItem: z.ZodObject<{
     assigneeName: string | null;
     reopenUntil: string | null;
 }, {
-    status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+    status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
-    title: string;
     reference: string | null;
+    title: string;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     photoCount: number;
     updatedAt: string;
@@ -845,10 +845,10 @@ export declare const TenantFaultList: z.ZodObject<{
         photoCount: z.ZodNumber;
         reopenUntil: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
-        title: string;
         reference: string | null;
+        title: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         photoCount: number;
         updatedAt: string;
@@ -858,10 +858,10 @@ export declare const TenantFaultList: z.ZodObject<{
         assigneeName: string | null;
         reopenUntil: string | null;
     }, {
-        status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
-        title: string;
         reference: string | null;
+        title: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         photoCount: number;
         updatedAt: string;
@@ -873,10 +873,10 @@ export declare const TenantFaultList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     items: {
-        status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
-        title: string;
         reference: string | null;
+        title: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         photoCount: number;
         updatedAt: string;
@@ -888,10 +888,10 @@ export declare const TenantFaultList: z.ZodObject<{
     }[];
 }, {
     items: {
-        status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
-        title: string;
         reference: string | null;
+        title: string;
         category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
         photoCount: number;
         updatedAt: string;
@@ -956,45 +956,45 @@ export declare const TenantFaultDetail: z.ZodObject<{
         visibleToTenant: z.ZodBoolean;
         at: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        kind: string;
         id: string;
+        kind: string;
         note: string | null;
         actorName: string | null;
         at: string;
-        from: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
-        to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        from: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
         actorRole: "landlord" | "tenant" | "system";
         visibleToTenant: boolean;
         words: string;
     }, {
-        kind: string;
         id: string;
+        kind: string;
         note: string | null;
         actorName: string | null;
         at: string;
-        from: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
-        to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        from: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
         actorRole: "landlord" | "tenant" | "system";
         visibleToTenant: boolean;
         words: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+    status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
+    reference: string | null;
     title: string;
     events: {
-        kind: string;
         id: string;
+        kind: string;
         note: string | null;
         actorName: string | null;
         at: string;
-        from: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
-        to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        from: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
         actorRole: "landlord" | "tenant" | "system";
         visibleToTenant: boolean;
         words: string;
     }[];
-    reference: string | null;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     description: string | null;
     photos: {
@@ -1016,22 +1016,22 @@ export declare const TenantFaultDetail: z.ZodObject<{
     reopenUntil: string | null;
     canReopen: boolean;
 }, {
-    status: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
+    status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
+    reference: string | null;
     title: string;
     events: {
-        kind: string;
         id: string;
+        kind: string;
         note: string | null;
         actorName: string | null;
         at: string;
-        from: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
-        to: "open" | "resolved" | "closed" | "cancelled" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        from: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
+        to: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix" | null;
         actorRole: "landlord" | "tenant" | "system";
         visibleToTenant: boolean;
         words: string;
     }[];
-    reference: string | null;
     category: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | null;
     description: string | null;
     photos: {

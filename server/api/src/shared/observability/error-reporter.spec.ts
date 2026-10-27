@@ -38,6 +38,7 @@ import {
   type Alarm,
   type ErrorReporter,
 } from './error-reporter';
+import type { PaymentSeam } from '../../modules/payments/domain/payment-seam';
 
 const sentry = Sentry as unknown as {
   init: jest.Mock;
@@ -112,6 +113,8 @@ describe('the money alarms, from their call sites', () => {
   function compensationService(opts: { insertRejects?: boolean; queueRejects?: boolean }): PaymentCompensationService {
     const queue = {
       add: opts.queueRejects ? jest.fn().mockRejectedValue(new Error('Custom Id cannot contain :')) : jest.fn(),
+      // The drain asks for a spent job under the same id first (073 AC-25); none here.
+      getJob: jest.fn().mockResolvedValue(undefined),
     };
     const db = {
       insert: jest.fn(() => ({
@@ -191,6 +194,9 @@ describe('the money alarms, from their call sites', () => {
         markRefunded: jest.fn(),
         markBooked: jest.fn(),
       } as unknown as PaymentAttemptService,
+      // A seam that admits the card this test settles with: it is about the
+      // alarm after a failed refund, not the rules (073-gtbank-payments AC-24).
+      { ruleProblem: () => null } as unknown as PaymentSeam,
     );
 
     const checkIn = new Date(Date.now() + 40 * 86_400_000).toISOString().slice(0, 10);
@@ -203,6 +209,7 @@ describe('the money alarms, from their call sites', () => {
           checkOut,
           guests: 2,
           nonRefundable: false,
+          attemptToken: '7a2d3c4b-5e6f-4a1b-9c8d-0e1f2a3b4c5d',
           instrument: { kind: 'card', token: 'tok_test' },
         },
         '66666666-6666-6666-6666-666666666666',

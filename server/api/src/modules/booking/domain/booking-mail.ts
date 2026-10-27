@@ -53,10 +53,19 @@ export const BOOKING_MAIL_EVENTS = [
   'host_request',
   /** To the property: the guest cancelled. */
   'host_guest_cancelled',
+  /**
+   * To the property: the bank reversed the guest's payment and the booking is
+   * cancelled with no refund (073-gtbank-payments AC-20, `cancel_service`).
+   */
+  'host_payment_reversed',
 ] as const;
 
 /** Events addressed to the property's managers rather than to the guest. */
-export const HOST_MAIL_EVENTS: ReadonlySet<BookingMailEvent> = new Set(['host_request', 'host_guest_cancelled']);
+export const HOST_MAIL_EVENTS: ReadonlySet<BookingMailEvent> = new Set([
+  'host_request',
+  'host_guest_cancelled',
+  'host_payment_reversed',
+]);
 
 export type BookingMailEvent = (typeof BOOKING_MAIL_EVENTS)[number];
 

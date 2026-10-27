@@ -295,8 +295,8 @@ export declare const PsfMembership: z.ZodObject<{
     expiresOn: z.ZodNullable<z.ZodString>;
     endedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    expiresOn: string | null;
     id: string;
+    expiresOn: string | null;
     annualFeeRwf: number | null;
     source: "psf_confirmed" | "self_declared";
     tierCode: string | null;
@@ -305,8 +305,8 @@ export declare const PsfMembership: z.ZodObject<{
     startsOn: string | null;
     endedAt: string | null;
 }, {
-    expiresOn: string | null;
     id: string;
+    expiresOn: string | null;
     annualFeeRwf: number | null;
     source: "psf_confirmed" | "self_declared";
     tierCode: string | null;
@@ -471,10 +471,11 @@ export declare const PsfApplication: z.ZodObject<{
         idDocumentNumber: string;
     }>;
 }, "strip", z.ZodTypeAny, {
-    status: "submitted" | "member" | "declined" | "withdrawn";
+    status: "submitted" | "declined" | "member" | "withdrawn";
+    id: string;
+    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     requestedTierCode: string;
     decidedAt: string | null;
-    id: string;
     submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -484,7 +485,6 @@ export declare const PsfApplication: z.ZodObject<{
     submittedCapacity: "owner" | "on_behalf_of";
     submittedByName: string | null;
     queuedAt: string | null;
-    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     decisionNote: string | null;
     withdrawnAt: string | null;
     form: {
@@ -511,10 +511,11 @@ export declare const PsfApplication: z.ZodObject<{
         idDocumentNumber: string;
     };
 }, {
-    status: "submitted" | "member" | "declined" | "withdrawn";
+    status: "submitted" | "declined" | "member" | "withdrawn";
+    id: string;
+    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     requestedTierCode: string;
     decidedAt: string | null;
-    id: string;
     submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -524,7 +525,6 @@ export declare const PsfApplication: z.ZodObject<{
     submittedCapacity: "owner" | "on_behalf_of";
     submittedByName: string | null;
     queuedAt: string | null;
-    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     decisionNote: string | null;
     withdrawnAt: string | null;
     form: {
@@ -636,8 +636,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         expiresOn: z.ZodNullable<z.ZodString>;
         endedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -646,8 +646,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         startsOn: string | null;
         endedAt: string | null;
     }, {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -744,11 +744,12 @@ export declare const PsfMembershipOverview: z.ZodObject<{
     } & {
         stage: z.ZodEnum<["waiting_tin_check", "with_psf"]>;
     }, "strip", z.ZodTypeAny, {
-        status: "submitted" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         stage: "waiting_tin_check" | "with_psf";
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -758,7 +759,6 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         withdrawnAt: string | null;
         form: {
@@ -785,11 +785,12 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             idDocumentNumber: string;
         };
     }, {
-        status: "submitted" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         stage: "waiting_tin_check" | "with_psf";
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -799,7 +800,6 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         withdrawnAt: string | null;
         form: {
@@ -913,10 +913,11 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             idDocumentNumber: string;
         }>;
     }, "strip", z.ZodTypeAny, {
-        status: "submitted" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -926,7 +927,6 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         withdrawnAt: string | null;
         form: {
@@ -953,10 +953,11 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             idDocumentNumber: string;
         };
     }, {
-        status: "submitted" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -966,7 +967,6 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         withdrawnAt: string | null;
         form: {
@@ -1059,8 +1059,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
     orgId: string;
     registrationNumber: string;
     current: {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -1070,11 +1070,12 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         endedAt: string | null;
     } | null;
     open: {
-        status: "submitted" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         stage: "waiting_tin_check" | "with_psf";
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -1084,7 +1085,6 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         withdrawnAt: string | null;
         form: {
@@ -1112,10 +1112,11 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         };
     } | null;
     history: {
-        status: "submitted" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -1125,7 +1126,6 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         withdrawnAt: string | null;
         form: {
@@ -1178,8 +1178,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
     orgId: string;
     registrationNumber: string;
     current: {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -1189,11 +1189,12 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         endedAt: string | null;
     } | null;
     open: {
-        status: "submitted" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         stage: "waiting_tin_check" | "with_psf";
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -1203,7 +1204,6 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         withdrawnAt: string | null;
         form: {
@@ -1231,10 +1231,11 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         };
     } | null;
     history: {
-        status: "submitted" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -1244,7 +1245,6 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         withdrawnAt: string | null;
         form: {
@@ -1386,10 +1386,11 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
         idDocumentNumber: string;
     }>;
 }, "form">, "strip", z.ZodTypeAny, {
-    status: "submitted" | "member" | "declined" | "withdrawn";
+    status: "submitted" | "declined" | "member" | "withdrawn";
+    id: string;
+    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     requestedTierCode: string;
     decidedAt: string | null;
-    id: string;
     submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -1399,14 +1400,14 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
     submittedCapacity: "owner" | "on_behalf_of";
     submittedByName: string | null;
     queuedAt: string | null;
-    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     decisionNote: string | null;
     withdrawnAt: string | null;
 }, {
-    status: "submitted" | "member" | "declined" | "withdrawn";
+    status: "submitted" | "declined" | "member" | "withdrawn";
+    id: string;
+    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     requestedTierCode: string;
     decidedAt: string | null;
-    id: string;
     submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -1416,7 +1417,6 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
     submittedCapacity: "owner" | "on_behalf_of";
     submittedByName: string | null;
     queuedAt: string | null;
-    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     decisionNote: string | null;
     withdrawnAt: string | null;
 }>;
@@ -1434,8 +1434,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         expiresOn: z.ZodNullable<z.ZodString>;
         endedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -1444,8 +1444,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         startsOn: string | null;
         endedAt: string | null;
     }, {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -1540,10 +1540,11 @@ export declare const AdminOrgPsf: z.ZodObject<{
             idDocumentNumber: string;
         }>;
     }, "form">, "strip", z.ZodTypeAny, {
-        status: "submitted" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -1553,14 +1554,14 @@ export declare const AdminOrgPsf: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         withdrawnAt: string | null;
     }, {
-        status: "submitted" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -1570,14 +1571,13 @@ export declare const AdminOrgPsf: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         withdrawnAt: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     membership: {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -1587,10 +1587,11 @@ export declare const AdminOrgPsf: z.ZodObject<{
         endedAt: string | null;
     } | null;
     applications: {
-        status: "submitted" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -1600,14 +1601,13 @@ export declare const AdminOrgPsf: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         withdrawnAt: string | null;
     }[];
 }, {
     membership: {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -1617,10 +1617,11 @@ export declare const AdminOrgPsf: z.ZodObject<{
         endedAt: string | null;
     } | null;
     applications: {
-        status: "submitted" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "fixed" | "range" | "set_by_psf";
@@ -1630,7 +1631,6 @@ export declare const AdminOrgPsf: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         withdrawnAt: string | null;
     }[];
@@ -1803,8 +1803,8 @@ export declare const PsfQueueItem: z.ZodObject<{
     /** False when the officer holds a stake in the business (AC-14). */
     canDecide: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    orgId: string;
     districtName: string | null;
+    orgId: string;
     submittedAt: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     requestedTierName: string;
@@ -1813,8 +1813,8 @@ export declare const PsfQueueItem: z.ZodObject<{
     businessName: string;
     canDecide: boolean;
 }, {
-    orgId: string;
     districtName: string | null;
+    orgId: string;
     submittedAt: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     requestedTierName: string;
@@ -1837,8 +1837,8 @@ export declare const PsfQueuePage: z.ZodObject<{
         /** False when the officer holds a stake in the business (AC-14). */
         canDecide: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        orgId: string;
         districtName: string | null;
+        orgId: string;
         submittedAt: string;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
         requestedTierName: string;
@@ -1847,8 +1847,8 @@ export declare const PsfQueuePage: z.ZodObject<{
         businessName: string;
         canDecide: boolean;
     }, {
-        orgId: string;
         districtName: string | null;
+        orgId: string;
         submittedAt: string;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
         requestedTierName: string;
@@ -1860,8 +1860,8 @@ export declare const PsfQueuePage: z.ZodObject<{
     nextCursor: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        orgId: string;
         districtName: string | null;
+        orgId: string;
         submittedAt: string;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
         requestedTierName: string;
@@ -1873,8 +1873,8 @@ export declare const PsfQueuePage: z.ZodObject<{
     nextCursor: string | null;
 }, {
     items: {
-        orgId: string;
         districtName: string | null;
+        orgId: string;
         submittedAt: string;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
         requestedTierName: string;
@@ -1987,12 +1987,13 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     registrationStatus: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
     canDecide: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    status: "submitted" | "member" | "declined" | "withdrawn";
+    status: "submitted" | "declined" | "member" | "withdrawn";
+    id: string;
+    districtName: string | null;
+    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     requestedTierCode: string;
     decidedAt: string | null;
-    id: string;
     orgId: string;
-    districtName: string | null;
     submittedAt: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     requestedTierName: string;
@@ -2003,7 +2004,6 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     submittedCapacity: "owner" | "on_behalf_of";
     submittedByName: string | null;
     queuedAt: string | null;
-    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     decisionNote: string | null;
     withdrawnAt: string | null;
     form: {
@@ -2032,12 +2032,13 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     businessName: string;
     canDecide: boolean;
 }, {
-    status: "submitted" | "member" | "declined" | "withdrawn";
+    status: "submitted" | "declined" | "member" | "withdrawn";
+    id: string;
+    districtName: string | null;
+    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     requestedTierCode: string;
     decidedAt: string | null;
-    id: string;
     orgId: string;
-    districtName: string | null;
     submittedAt: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     requestedTierName: string;
@@ -2048,7 +2049,6 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     submittedCapacity: "owner" | "on_behalf_of";
     submittedByName: string | null;
     queuedAt: string | null;
-    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     decisionNote: string | null;
     withdrawnAt: string | null;
     form: {

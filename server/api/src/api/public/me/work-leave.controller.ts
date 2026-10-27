@@ -23,7 +23,7 @@ import {
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 
-import { MyLeaveService } from '../../../modules/people/application/my-leave.service';
+import { MyLeaveService } from '../../../modules/hr/application/my-leave.service';
 import { MAX_HR_FILE_BYTES } from '../../../modules/storage/application/storage.service';
 import {
   CurrentUser,

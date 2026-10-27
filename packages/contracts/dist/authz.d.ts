@@ -478,8 +478,8 @@ export declare const WorkspaceAccess: z.ZodObject<{
         canManage: boolean;
     }>>>;
 }, "strip", z.ZodTypeAny, {
-    kind: "business" | "broker" | "personal";
     domain: "hospitality" | "residence" | null;
+    kind: "business" | "broker" | "personal";
     branches: {
         name: string;
         id: string;
@@ -499,8 +499,8 @@ export declare const WorkspaceAccess: z.ZodObject<{
         canManage: boolean;
     } | null;
 }, {
-    kind: "business" | "broker" | "personal";
     domain: "hospitality" | "residence" | null;
+    kind: "business" | "broker" | "personal";
     branches: {
         name: string;
         id: string;
@@ -658,7 +658,7 @@ export declare const OversightConsoleGrant: z.ZodObject<{
     scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     scopeLabel: string;
     assignmentId: string;
-    console: "membership" | "guests" | "tax" | "verification" | "approval";
+    console: "guests" | "membership" | "tax" | "verification" | "approval";
     bodyCode: string;
     bodyName: string | null;
 }, {
@@ -672,7 +672,7 @@ export declare const OversightConsoleGrant: z.ZodObject<{
     scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
     scopeLabel: string;
     assignmentId: string;
-    console: "membership" | "guests" | "tax" | "verification" | "approval";
+    console: "guests" | "membership" | "tax" | "verification" | "approval";
     bodyCode: string;
     bodyName: string | null;
 }>;

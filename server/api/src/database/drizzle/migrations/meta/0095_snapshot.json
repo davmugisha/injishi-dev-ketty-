@@ -1,6 +1,6 @@
 {
-  "id": "f1f046ff-db2f-403b-80d4-1de30c7a91df",
-  "prevId": "96b333fb-9fe2-4591-90b8-91eac9424cdf",
+  "id": "96b333fb-9fe2-4591-90b8-91eac9424cdf",
+  "prevId": "ad964063-07f5-409f-80da-1390b1e9a09e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2998,7 +2998,7 @@
         },
         "oversight_assignments_role_scope": {
           "name": "oversight_assignments_role_scope",
-          "value": "(\"oversight_assignments\".\"oversight_role\"::text = 'village_leader' AND \"oversight_assignments\".\"scope_level\"::text = 'village')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'dasso' AND \"oversight_assignments\".\"scope_level\"::text = 'sector')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'cell_executive' AND \"oversight_assignments\".\"scope_level\"::text = 'cell')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'sector_executive' AND \"oversight_assignments\".\"scope_level\"::text = 'sector')\n          OR (\"oversight_assignments\".\"oversight_role\"::text IN ('district_officer', 'district_immigration') AND \"oversight_assignments\".\"scope_level\"::text = 'district')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'dgie_province' AND \"oversight_assignments\".\"scope_level\"::text = 'province')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'dgie_national' AND \"oversight_assignments\".\"scope_level\"::text = 'country')\n          OR (\"oversight_assignments\".\"oversight_role\"::text IN ('business_field_verifier', 'business_approver', 'tax_compliance_officer', 'psf_membership_officer')\n              AND \"oversight_assignments\".\"scope_level\"::text IN ('country', 'province', 'district'))"
+          "value": "(\"oversight_assignments\".\"oversight_role\"::text = 'village_leader' AND \"oversight_assignments\".\"scope_level\"::text = 'village')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'dasso' AND \"oversight_assignments\".\"scope_level\"::text = 'sector')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'cell_executive' AND \"oversight_assignments\".\"scope_level\"::text = 'cell')\n          OR (\"oversight_assignments\".\"oversight_role\"::text IN ('district_officer', 'district_immigration') AND \"oversight_assignments\".\"scope_level\"::text = 'district')\n          OR (\"oversight_assignments\".\"oversight_role\"::text IN ('business_field_verifier', 'business_approver', 'tax_compliance_officer', 'psf_membership_officer')\n              AND \"oversight_assignments\".\"scope_level\"::text IN ('country', 'province', 'district'))"
         }
       },
       "isRLSEnabled": false
@@ -44295,12 +44295,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "province_id": {
-          "name": "province_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "assignment_id": {
           "name": "assignment_id",
           "type": "uuid",
@@ -44501,19 +44495,6 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "guest_registration_routes_province_id_provinces_id_fk": {
-          "name": "guest_registration_routes_province_id_provinces_id_fk",
-          "tableFrom": "guest_registration_routes",
-          "tableTo": "provinces",
-          "columnsFrom": [
-            "province_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "guest_registration_routes_assignment_id_oversight_assignments_id_fk": {
           "name": "guest_registration_routes_assignment_id_oversight_assignments_id_fk",
           "tableFrom": "guest_registration_routes",
@@ -44560,11 +44541,11 @@
       "checkConstraints": {
         "guest_registration_routes_role": {
           "name": "guest_registration_routes_role",
-          "value": "\"guest_registration_routes\".\"recipient_role\"::text IN ('village_leader', 'dasso', 'cell_executive', 'sector_executive', 'district_officer', 'district_immigration', 'dgie_province', 'dgie_national')"
+          "value": "\"guest_registration_routes\".\"recipient_role\"::text IN ('village_leader', 'dasso', 'cell_executive', 'district_officer', 'district_immigration')"
         },
         "guest_registration_routes_step": {
           "name": "guest_registration_routes_step",
-          "value": "\"guest_registration_routes\".\"step\" BETWEEN 1 AND 8"
+          "value": "\"guest_registration_routes\".\"step\" BETWEEN 1 AND 4"
         },
         "guest_registration_routes_delivered": {
           "name": "guest_registration_routes_delivered",
@@ -47117,10 +47098,7 @@
         "dasso",
         "cell_executive",
         "district_officer",
-        "district_immigration",
-        "sector_executive",
-        "dgie_province",
-        "dgie_national"
+        "district_immigration"
       ]
     },
     "public.oversight_scope_level": {

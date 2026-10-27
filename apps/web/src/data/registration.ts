@@ -9,7 +9,10 @@ import {
   MyProfile,
   PsfTier,
   RegistrationDraft,
+  RegistrationFeeAttemptStatus,
   RegistrationFeeQuote,
+  type RegistrationPayRequest,
+  RegistrationPayResult,
   RegistrationSummary,
   type RegistrationBusinessType,
   TinCheckResult,
@@ -195,18 +198,38 @@ export async function acceptRegistrationContract(
 }
 
 /**
- * Settle the registration fee, which is what enqueues the RRA check.
+ * Pay the registration fee (073-gtbank-payments AC-16, AC-17).
  *
- * Stands in for the payment provider callback until F-S08 lands a real one, so
- * this is the whole "pay" step today. It is idempotent server-side: pressing it
- * twice advances nothing twice and bills nothing twice.
+ * Answers `settled` when the fee settled at once (payments are off for it, so
+ * it is recorded free; or it was already paid), or the `attempt` waiting on
+ * the registrant's phone, which `fetchRegistrationFeeAttempt` then polls. One
+ * press is one `attemptToken`, reused on every retry of that press, so a
+ * retry never prompts twice.
  *
- * Refused with 409 `contract_not_accepted` while the contract is open.
+ * Refused with 409 `contract_not_accepted` while the contract is open, and
+ * with 422 when money is taken and no mobile money number was given.
  */
 export async function payRegistrationFee(
   orgId: string,
-): Promise<ApiResult<RegistrationSummary>> {
-  return summaryCall(`/api/v1/registrations/${orgId}/pay`, "POST");
+  body: RegistrationPayRequest,
+): Promise<ApiResult<RegistrationPayResult>> {
+  const res = await apiFetch<unknown>(`/api/v1/registrations/${orgId}/pay`, { method: "POST", body });
+  if (res.status !== "ok") return res;
+  const parsed = RegistrationPayResult.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/** One poll of a fee payment waiting on the registrant's phone. */
+export async function fetchRegistrationFeeAttempt(
+  orgId: string,
+  attemptToken: string,
+): Promise<ApiResult<RegistrationFeeAttemptStatus>> {
+  const res = await apiFetch<unknown>(
+    `/api/v1/registrations/${orgId}/pay/attempts/${encodeURIComponent(attemptToken)}`,
+  );
+  if (res.status !== "ok") return res;
+  const parsed = RegistrationFeeAttemptStatus.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }
 
 /** Where this registration got to — what the pending workspace renders. */
