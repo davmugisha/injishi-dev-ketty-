@@ -16,10 +16,9 @@ export type FeeMover = { trigger: 'registrant'; actorUserId: string } | { trigge
 export interface RegistrationFees {
   /** Refuses (404) a caller who does not own the registration. */
   assertOwns(orgId: string, userId: string): Promise<void>;
-  /** Where the registration stands, its contract and its pending invoice; null when absent. */
+  /** Where the registration stands and its pending invoice; null when absent. */
   feeFacts(orgId: string): Promise<{
     status: OrgRegistrationStatus;
-    contractVersion: string | null;
     workspaceId: string | null;
     invoiceId: string | null;
     amountDueRwf: number | null;

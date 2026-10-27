@@ -15,7 +15,7 @@
  */
 import { approve, fieldVerify } from "../src/server/mutations/oversight";
 import { check, contextForEmail, cookieForEmail, main } from "./lib/harness";
-import { GASABO, OFFICERS, registerBusiness } from "./lib/registration";
+import { checkEveryDocument, GASABO, OFFICERS, registerBusiness } from "./lib/registration";
 
 const APP = (process.env.APP_URL ?? "http://localhost:3002").replace(/\/$/, "");
 
@@ -93,7 +93,9 @@ void main(async () => {
   expect(elsewhere.status === 404, `an out-of-district verifier's case page answered ${elsewhere.status}, not 404`);
 
   // ── The approver ─────────────────────────────────────────────────────────────────────────────────
-  await fieldVerify(await contextForEmail(OFFICERS.gasaboVerifier), business.orgId);
+  const verifier = await contextForEmail(OFFICERS.gasaboVerifier);
+  await checkEveryDocument(verifier, business.orgId);
+  await fieldVerify(verifier, business.orgId);
   const approverCase = await page(caseUrl, OFFICERS.gasaboApprover);
   expect(approverCase.status === 200, `the approver's case page answered ${approverCase.status}`);
   const approverText = visible(approverCase.html);

@@ -227,13 +227,13 @@ export declare const EbmCisBlock: z.ZodObject<{
     mrc: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     date: string;
-    time: string;
     receiptNumber: number;
+    time: string;
     mrc: string;
 }, {
     date: string;
-    time: string;
     receiptNumber: number;
+    time: string;
     mrc: string;
 }>;
 export type EbmCisBlock = z.infer<typeof EbmCisBlock>;
@@ -438,13 +438,13 @@ export declare const EbmReceipt: z.ZodObject<{
         mrc: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         date: string;
-        time: string;
         receiptNumber: number;
+        time: string;
         mrc: string;
     }, {
         date: string;
-        time: string;
         receiptNumber: number;
+        time: string;
         mrc: string;
     }>;
     /** Closing commercial message, one entry per printed line. */
@@ -496,8 +496,8 @@ export declare const EbmReceipt: z.ZodObject<{
     };
     cis: {
         date: string;
-        time: string;
         receiptNumber: number;
+        time: string;
         mrc: string;
     };
     closingMessage: string[];
@@ -548,8 +548,8 @@ export declare const EbmReceipt: z.ZodObject<{
     };
     cis: {
         date: string;
-        time: string;
         receiptNumber: number;
+        time: string;
         mrc: string;
     };
     closingMessage: string[];

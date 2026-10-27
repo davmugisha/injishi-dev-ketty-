@@ -1,11 +1,13 @@
+import { registerPerson } from '../../../shared/registry/demo-registers';
 import { RraTinAdapter } from '../../organization/infrastructure/rra-tin.adapter';
 import { resolveIdentityMode } from '../domain/identity-ports';
-import { buildDocumentVerifier, buildIdentityRegistry } from './identity-adapters.provider';
-import { MockDocumentVerifier, MockIdentityRegistry } from './mock-identity-adapters';
+import { buildDocumentVerifier } from './identity-adapters.provider';
+import { MockDocumentVerifier } from './mock-identity-adapters';
 
 /**
- * The identity seams (ADR-060): which side of each runs, decided once at boot,
- * and the demo rules the two mocks promise in `shared/registry/demo-registers.ts`.
+ * The document verifier seam (ADR-060, ADR-075): which side runs, decided once
+ * at boot, and the demo rules the mock promises in
+ * `shared/registry/demo-registers.ts`.
  */
 
 const SAMPLE = { sampleData: true };
@@ -16,14 +18,14 @@ describe('resolveIdentityMode', () => {
     expect(resolveIdentityMode('X', undefined, true)).toBe('mock');
   });
 
-  it('runs off over a real database when unset, so production boots as before', () => {
+  it('runs off over a real database when unset, so production keeps photos and reads nothing', () => {
     expect(resolveIdentityMode('X', undefined, false)).toBe('off');
     expect(resolveIdentityMode('X', '  ', false)).toBe('off');
   });
 
   it('refuses the mock over a real database, naming the variable', () => {
-    expect(() => resolveIdentityMode('IDENTITY_REGISTRY_MODE', 'mock', false)).toThrow(
-      /IDENTITY_REGISTRY_MODE=mock is refused/,
+    expect(() => resolveIdentityMode('DOCUMENT_VERIFIER_MODE', 'mock', false)).toThrow(
+      /DOCUMENT_VERIFIER_MODE=mock is refused/,
     );
   });
 
@@ -34,59 +36,24 @@ describe('resolveIdentityMode', () => {
   });
 });
 
-describe('building the adapters', () => {
-  it('refuses to boot on live with no provider registered, for both seams', () => {
-    expect(() => buildIdentityRegistry({ IDENTITY_REGISTRY_MODE: 'live' }, SAMPLE)).toThrow(
-      /no live identity registry is registered/,
-    );
+describe('building the adapter', () => {
+  it('refuses to boot on live with no provider registered', () => {
     expect(() => buildDocumentVerifier({ DOCUMENT_VERIFIER_MODE: 'live' }, REAL)).toThrow(
       /no live document verifier is registered/,
     );
   });
 
-  it('binds the mocks over a sample database and off over a real one', () => {
-    expect(buildIdentityRegistry({}, SAMPLE).mode).toBe('mock');
+  it('binds the mock over a sample database and off over a real one', () => {
     expect(buildDocumentVerifier({}, SAMPLE).mode).toBe('mock');
-    expect(buildIdentityRegistry({}, REAL).mode).toBe('off');
     expect(buildDocumentVerifier({}, REAL).mode).toBe('off');
   });
 
   it('answers unavailable when off, never a person', async () => {
-    const off = buildIdentityRegistry({}, REAL);
-    expect((await off.lookupNationalId('1199080123456789')).status).toBe('unavailable');
-  });
-});
-
-describe('MockIdentityRegistry', () => {
-  const registry = new MockIdentityRegistry();
-
-  it('finds a demo register person by their number', async () => {
-    const found = await registry.lookupNationalId('1198870034567812');
-    expect(found).toMatchObject({
-      status: 'found',
-      generated: true,
-      person: { fullName: 'Aline Uwase', gender: 'female', dateOfBirth: '1988-07-21' },
-    });
-  });
-
-  it('invents anyone else from the number: its birth year and gender marker, the same every time', async () => {
-    const first = await registry.lookupNationalId('1197580099887766');
-    const again = await registry.lookupNationalId('1197580099887766');
-    expect(first).toEqual(again);
-    expect(first.status).toBe('found');
-    if (first.status !== 'found') return;
-    expect(first.person.dateOfBirth.startsWith('1975-')).toBe(true);
-    expect(first.person.gender).toBe('male');
-    expect(first.person.phoneE164).toMatch(/^\+25078\d{7}$/);
-  });
-
-  it('does not find a number whose sequence is all zeros', async () => {
-    expect((await registry.lookupNationalId('1199080000000012')).status).toBe('not_found');
-  });
-
-  it('finds a number whose sequence is all ones, with no phone to bind', async () => {
-    const found = await registry.lookupNationalId('1199081111111012');
-    expect(found.status === 'found' && found.person.phoneE164).toBeNull();
+    const off = buildDocumentVerifier({}, REAL);
+    const photo = { mime: 'image/jpeg', bytes: Buffer.alloc(4096, 1) };
+    expect(
+      (await off.verifyDocument({ documentType: 'national_id', front: photo, selfie: photo })).status,
+    ).toBe('unavailable');
   });
 });
 
@@ -96,29 +63,74 @@ describe('MockDocumentVerifier', () => {
     mime: 'image/jpeg',
     bytes: Buffer.alloc(size, fill),
   });
-
-  it('calls an image too small to be a photo unreadable', async () => {
-    expect(await verifier.verifyPassport({ document: photo(1, 100), selfie: photo(2) })).toEqual({
-      status: 'rejected',
-      reason: 'unreadable',
-    });
+  const demoCard = (number: string): { mime: string; bytes: Buffer } => ({
+    mime: 'image/jpeg',
+    bytes: Buffer.concat([Buffer.alloc(4096, 7), Buffer.from(`INJISHI-DEMO-NID:${number}`, 'latin1')]),
   });
 
-  it('calls a selfie that is the passport photo itself a face mismatch', async () => {
-    expect(await verifier.verifyPassport({ document: photo(1), selfie: photo(1) })).toEqual({
+  it('calls an image too small to be a photo unreadable', async () => {
+    for (const documentType of ['national_id', 'passport'] as const) {
+      expect(await verifier.verifyDocument({ documentType, front: photo(1, 100), selfie: photo(2) })).toEqual({
+        status: 'rejected',
+        reason: 'unreadable',
+      });
+    }
+  });
+
+  it('calls a selfie that is the document photo itself a face mismatch', async () => {
+    expect(await verifier.verifyDocument({ documentType: 'national_id', front: photo(1), selfie: photo(1) })).toEqual({
       status: 'rejected',
       reason: 'face_mismatch',
     });
   });
 
-  it('verifies two different photos, the same holder for the same page every time', async () => {
-    const first = await verifier.verifyPassport({ document: photo(3), selfie: photo(4) });
-    const again = await verifier.verifyPassport({ document: photo(3), selfie: photo(5) });
+  it('reads a passport page as a passport, the same holder for the same page every time', async () => {
+    const first = await verifier.verifyDocument({ documentType: 'passport', front: photo(3), selfie: photo(4) });
+    const again = await verifier.verifyDocument({ documentType: 'passport', front: photo(3), selfie: photo(5) });
     expect(first.status).toBe('verified');
     expect(first).toEqual(again);
     if (first.status !== 'verified') return;
     expect(first.holder.documentNumber).toMatch(/^P\d{8}$/);
+    expect(first.holder.expiresOn).not.toBeNull();
     expect(first.generated).toBe(true);
+  });
+
+  it('reads a National ID front as a Rwandan National ID the register knows, with no expiry', async () => {
+    const first = await verifier.verifyDocument({ documentType: 'national_id', front: photo(6), selfie: photo(4) });
+    const again = await verifier.verifyDocument({ documentType: 'national_id', front: photo(6), selfie: photo(5) });
+    expect(first).toEqual(again);
+    if (first.status !== 'verified') throw new Error(first.status);
+    expect(first.holder.documentNumber).toMatch(/^\d{16}$/);
+    expect(first.holder.issuingCountry).toBe('RW');
+    expect(first.holder.expiresOn).toBeNull();
+    // The register agrees with the card: the same person, by the same number.
+    expect(registerPerson(first.holder.documentNumber)?.fullName).toBe(first.holder.fullName);
+  });
+
+  it('reads a demo card as its number, so a demo scans as a named director', async () => {
+    const found = await verifier.verifyDocument({
+      documentType: 'national_id',
+      front: demoCard('1198870034567812'),
+      selfie: photo(4),
+    });
+    expect(found).toMatchObject({
+      status: 'verified',
+      generated: true,
+      holder: { fullName: 'Aline Uwase', documentNumber: '1198870034567812', dateOfBirth: '1988-07-21' },
+    });
+  });
+});
+
+describe('the demo population register', () => {
+  it('does not find a number whose sequence is all zeros', () => {
+    expect(registerPerson('1199080000000012')).toBeNull();
+  });
+
+  it('invents anyone else from the number: its birth year and gender marker, the same every time', () => {
+    const first = registerPerson('1197580099887766');
+    expect(first).toEqual(registerPerson('1197580099887766'));
+    expect(first?.dateOfBirth.startsWith('1975-')).toBe(true);
+    expect(first?.gender).toBe('male');
   });
 });
 

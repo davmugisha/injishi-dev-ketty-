@@ -38,7 +38,6 @@ import { apiEnvFile } from "./env-file.mjs";
 const BASE = process.env.API_BASE || "http://127.0.0.1:8000";
 const WEB_ORIGIN = "http://localhost:3000";
 const REASON = "ADR-053 slice 5 verification";
-const CONTRACT = "2026-09-12";
 const PLACES = {
   gasabo: { country: "RW", provinceId: 1, districtId: 102, sectorId: 10201 },
   nyanza: { country: "RW", provinceId: 2, districtId: 201, sectorId: 20101 },
@@ -139,7 +138,7 @@ async function call(session, method, path, body, extraHeaders = {}) {
  * the prompt settles. Answers the registration summary in `json`, the shape the
  * bare `/pay` used to answer, so the checks read it unchanged; `attempt` is set
  * when money was taken. A stack where payments are off answers `settled` at
- * once. A refusal (409 contract_not_accepted) comes back as it is.
+ * once. A refusal comes back as it is.
  */
 async function payFee(session, orgId) {
   const attemptToken = randomUUID();
@@ -197,7 +196,38 @@ async function revoke(g) {
   return res;
 }
 
-/** A registration taken to `tin_verified` in a place: create, accept, pay. */
+/**
+ * Upload a small PDF as this session's RDB certificate. ADR-075 AC-11: create refuses a stay or a venue without
+ * one, and only takes a certificate the registrant uploaded. Uploaded once per person per run and reused for each
+ * of their registrations, because the certificate route allows 10 per person in 10 minutes.
+ */
+const uploadedCertificates = new WeakMap();
+async function rdbCertificate(session) {
+  if (uploadedCertificates.has(session)) return uploadedCertificates.get(session);
+  const form = new FormData();
+  form.append("file", new Blob([CERTIFICATE_PDF], { type: "application/pdf" }), "rdb-certificate.pdf");
+  const res = await fetch(`${BASE}/api/v1/uploads/certificate`, { method: "POST", headers: { cookie: session.cookie() }, body: form });
+  session.absorb(res);
+  const json = await res.json().catch(() => null);
+  if (!json?.objectKey) throw new Error(`certificate upload: ${res.status} ${JSON.stringify(json)}`);
+  const certificates = [{ kind: "rdb_certificate", objectKey: json.objectKey }];
+  uploadedCertificates.set(session, certificates);
+  return certificates;
+}
+const CERTIFICATE_PDF = "%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n";
+
+/**
+ * Mark every document on a registration checked, as the field verifier does before verifying (F-S03 §5: the gate
+ * refuses while one is unread). Every registration carries its RDB certificate since ADR-075 AC-11.
+ */
+async function checkEveryDocument(officer, orgId) {
+  const list = await call(officer, "GET", `/api/v1/oversight/registrations/${orgId}/documents`);
+  for (const d of list.json?.documents ?? []) {
+    await call(officer, "POST", `/api/v1/oversight/registrations/${orgId}/documents/${d.id}/check`, {});
+  }
+}
+
+/** A registration taken to `tin_verified` in a place: create and pay (ADR-075: no contract before paying). */
 async function registrationAt(host, place, name) {
   const created = await call(host, "POST", "/api/v1/registrations", {
     role: "host",
@@ -208,12 +238,11 @@ async function registrationAt(host, place, name) {
       address: PLACES[place],
       accommodationClass: "guest_house",
       tin: String(100000000 + Math.floor(Math.random() * 899999999)),
-      certificates: [],
+      certificates: await rdbCertificate(host),
     },
   });
   const id = created.json?.orgId;
   if (!id) throw new Error(`could not create a registration in ${place}: ${created.status} ${created.text.slice(0, 160)}`);
-  await call(host, "POST", `/api/v1/registrations/${id}/contract`, { contractVersion: CONTRACT });
   await payFee(host, id);
   const [{ registration_status: status }] = await q(`select registration_status from orgs where id = $1`, [id]);
   if (status !== "tin_verified") throw new Error(`${place} registration is at ${status}, expected tin_verified`);
@@ -272,6 +301,8 @@ const main = async () => {
 
   // -------------------------------------------------------------------------
   console.log("\n=== B. The decision log (AC-G6, AC-G7) ===");
+  await checkEveryDocument(country, rubavu);
+  await checkEveryDocument(dist, nyanza);
   const v1 = await call(country, "POST", `/api/v1/registrations/${rubavu}/field-verify`, { notes: "Premises seen" });
   const r1 = await call(country, "POST", `/api/v1/registrations/${gasabo}/field-reject`, { reasonCode: "documents_invalid", notes: "Certificate expired" });
   const d1 = await call(dist, "POST", `/api/v1/registrations/${nyanza}/field-verify`, {});

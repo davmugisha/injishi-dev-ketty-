@@ -666,6 +666,15 @@ export function warnAboutEnv(cfg) {
   if (cfg.redis.hasPassword) {
     warnings.push(`${cfg.envRel} gives Redis a password; the dev stack Redis has none.`);
   }
+  // A worktree's stack is usually wanted empty (mobile spec 0001, D-ac), and
+  // unset means `on`, so say it before the database is marked and seeded.
+  if (!cfg.env.INJISHI_SAMPLE_DATA?.trim() && isLinkedWorktree()) {
+    warnings.push(
+      `This checkout is a git worktree, and ${cfg.envRel} leaves INJISHI_SAMPLE_DATA unset,\n` +
+        '  so its database will be marked sample and seeded. For an empty, migrated\n' +
+        '  database set INJISHI_SAMPLE_DATA=off, with INJISHI_ENVIRONMENT=production beside it.',
+    );
+  }
   // INJISHI_SAMPLE_DATA=off asks for exactly this, so it is no surprise.
   if (isProductionProcess(cfg) && cfg.sampleData) {
     warnings.push(

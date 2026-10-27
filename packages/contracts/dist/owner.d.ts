@@ -656,7 +656,7 @@ export type OrgCertificateStatus = z.infer<typeof OrgCertificateStatus>;
 /** One document the business keeps about itself or one of its branches. */
 export declare const OperatorCertificate: z.ZodObject<{
     id: z.ZodString;
-    kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+    kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
     /** What an `other` document is ("EAC grade"); null for the named kinds. */
     kindOther: z.ZodNullable<z.ZodString>;
     /** The branch it is about, or null when it is about the business. */
@@ -675,7 +675,7 @@ export declare const OperatorCertificate: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "requested" | "on_file";
     id: string;
-    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
     kindOther: string | null;
     certificateNumber: string | null;
     issuedBy: string | null;
@@ -690,7 +690,7 @@ export declare const OperatorCertificate: z.ZodObject<{
 }, {
     status: "requested" | "on_file";
     id: string;
-    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
     kindOther: string | null;
     certificateNumber: string | null;
     issuedBy: string | null;
@@ -716,7 +716,7 @@ export declare const OperatorCertificateList: z.ZodObject<{
     chamberOfTourismMember: z.ZodBoolean;
     certificates: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
         /** What an `other` document is ("EAC grade"); null for the named kinds. */
         kindOther: z.ZodNullable<z.ZodString>;
         /** The branch it is about, or null when it is about the business. */
@@ -735,7 +735,7 @@ export declare const OperatorCertificateList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "requested" | "on_file";
         id: string;
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         kindOther: string | null;
         certificateNumber: string | null;
         issuedBy: string | null;
@@ -750,7 +750,7 @@ export declare const OperatorCertificateList: z.ZodObject<{
     }, {
         status: "requested" | "on_file";
         id: string;
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         kindOther: string | null;
         certificateNumber: string | null;
         issuedBy: string | null;
@@ -768,7 +768,7 @@ export declare const OperatorCertificateList: z.ZodObject<{
     certificates: {
         status: "requested" | "on_file";
         id: string;
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         kindOther: string | null;
         certificateNumber: string | null;
         issuedBy: string | null;
@@ -788,7 +788,7 @@ export declare const OperatorCertificateList: z.ZodObject<{
     certificates: {
         status: "requested" | "on_file";
         id: string;
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         kindOther: string | null;
         certificateNumber: string | null;
         issuedBy: string | null;

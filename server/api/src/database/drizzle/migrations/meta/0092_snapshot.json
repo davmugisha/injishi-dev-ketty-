@@ -1,6 +1,6 @@
 {
-  "id": "1e89832a-d5a9-40cb-8ad4-bb87a9ff928c",
-  "prevId": "337873d3-6957-4775-ad98-e1036a80d22b",
+  "id": "d80abb3a-f180-40ab-8132-0fdbbebba607",
+  "prevId": "84b078da-07c8-4dba-a8a1-65b6d388b2cb",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -11376,13 +11376,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "author_role": {
-          "name": "author_role",
-          "type": "maintenance_raised_by_role",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
         "kind": {
           "name": "kind",
           "type": "maintenance_event_kind",
@@ -11403,27 +11396,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "from_status": {
-          "name": "from_status",
-          "type": "maintenance_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "to_status": {
-          "name": "to_status",
-          "type": "maintenance_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "visible_to_tenant": {
-          "name": "visible_to_tenant",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -11432,29 +11404,7 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "maintenance_events_ticket_idx": {
-          "name": "maintenance_events_ticket_idx",
-          "columns": [
-            {
-              "expression": "ticket_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "maintenance_events_ticket_id_maintenance_tickets_id_fk": {
           "name": "maintenance_events_ticket_id_maintenance_tickets_id_fk",
@@ -11500,166 +11450,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.maintenance_photos": {
-      "name": "maintenance_photos",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "ticket_id": {
-          "name": "ticket_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "stored_object_id": {
-          "name": "stored_object_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "phase": {
-          "name": "phase",
-          "type": "maintenance_photo_phase",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'report'"
-        },
-        "caption": {
-          "name": "caption",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "uploaded_by_user_id": {
-          "name": "uploaded_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "maintenance_photos_object_uk": {
-          "name": "maintenance_photos_object_uk",
-          "columns": [
-            {
-              "expression": "ticket_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "stored_object_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "maintenance_photos_ticket_idx": {
-          "name": "maintenance_photos_ticket_idx",
-          "columns": [
-            {
-              "expression": "ticket_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "phase",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "position",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "maintenance_photos_ticket_id_maintenance_tickets_id_fk": {
-          "name": "maintenance_photos_ticket_id_maintenance_tickets_id_fk",
-          "tableFrom": "maintenance_photos",
-          "tableTo": "maintenance_tickets",
-          "columnsFrom": [
-            "ticket_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "maintenance_photos_stored_object_id_stored_objects_id_fk": {
-          "name": "maintenance_photos_stored_object_id_stored_objects_id_fk",
-          "tableFrom": "maintenance_photos",
-          "tableTo": "stored_objects",
-          "columnsFrom": [
-            "stored_object_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "maintenance_photos_uploaded_by_user_id_users_id_fk": {
-          "name": "maintenance_photos_uploaded_by_user_id_users_id_fk",
-          "tableFrom": "maintenance_photos",
-          "tableTo": "users",
-          "columnsFrom": [
-            "uploaded_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "maintenance_photos_position_range": {
-          "name": "maintenance_photos_position_range",
-          "value": "\"maintenance_photos\".\"position\" BETWEEN 0 AND 99"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.maintenance_tickets": {
@@ -11865,44 +11655,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "unit_id": {
-          "name": "unit_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "assignee_kind": {
-          "name": "assignee_kind",
-          "type": "maintenance_assignee_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "assigned_contractor_phone": {
-          "name": "assigned_contractor_phone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "acknowledged_at": {
-          "name": "acknowledged_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "wont_fix_reason": {
-          "name": "wont_fix_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reopened_count": {
-          "name": "reopened_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -11997,21 +11749,6 @@
           "columns": [
             {
               "expression": "lease_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "maintenance_tickets_unit_idx": {
-          "name": "maintenance_tickets_unit_idx",
-          "columns": [
-            {
-              "expression": "unit_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -12179,19 +11916,6 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "maintenance_tickets_unit_id_rental_units_id_fk": {
-          "name": "maintenance_tickets_unit_id_rental_units_id_fk",
-          "tableFrom": "maintenance_tickets",
-          "tableTo": "rental_units",
-          "columnsFrom": [
-            "unit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -12204,27 +11928,7 @@
         },
         "maintenance_tickets_subject_at_least_one": {
           "name": "maintenance_tickets_subject_at_least_one",
-          "value": "\"maintenance_tickets\".\"room_id\" IS NOT NULL OR \"maintenance_tickets\".\"space_id\" IS NOT NULL OR \"maintenance_tickets\".\"lease_id\" IS NOT NULL OR \"maintenance_tickets\".\"unit_id\" IS NOT NULL"
-        },
-        "maintenance_tickets_assignee_shape": {
-          "name": "maintenance_tickets_assignee_shape",
-          "value": "\"maintenance_tickets\".\"assignee_kind\" IS NULL\n        OR (\"maintenance_tickets\".\"assignee_kind\" = 'member' AND \"maintenance_tickets\".\"assigned_to_user_id\" IS NOT NULL AND \"maintenance_tickets\".\"assigned_contractor\" IS NULL)\n        OR (\"maintenance_tickets\".\"assignee_kind\" = 'contractor' AND \"maintenance_tickets\".\"assigned_contractor\" IS NOT NULL AND \"maintenance_tickets\".\"assigned_to_user_id\" IS NULL)"
-        },
-        "maintenance_tickets_contractor_phone_shape": {
-          "name": "maintenance_tickets_contractor_phone_shape",
-          "value": "\"maintenance_tickets\".\"assigned_contractor_phone\" IS NULL\n        OR (\"maintenance_tickets\".\"assignee_kind\" = 'contractor' AND \"maintenance_tickets\".\"assigned_contractor_phone\" ~ '^[+][1-9][0-9]{7,14}$')"
-        },
-        "maintenance_tickets_wont_fix_reason": {
-          "name": "maintenance_tickets_wont_fix_reason",
-          "value": "(\"maintenance_tickets\".\"status\" = 'wont_fix') = (\"maintenance_tickets\".\"wont_fix_reason\" IS NOT NULL)"
-        },
-        "maintenance_tickets_acknowledged_shape": {
-          "name": "maintenance_tickets_acknowledged_shape",
-          "value": "\"maintenance_tickets\".\"status\" <> 'acknowledged' OR \"maintenance_tickets\".\"acknowledged_at\" IS NOT NULL"
-        },
-        "maintenance_tickets_reopened_count_range": {
-          "name": "maintenance_tickets_reopened_count_range",
-          "value": "\"maintenance_tickets\".\"reopened_count\" >= 0"
+          "value": "\"maintenance_tickets\".\"room_id\" IS NOT NULL OR \"maintenance_tickets\".\"space_id\" IS NOT NULL OR \"maintenance_tickets\".\"lease_id\" IS NOT NULL"
         }
       },
       "isRLSEnabled": false
@@ -13884,19 +13588,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         }
       },
       "indexes": {
@@ -13999,12 +13690,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "maintenance_ticket_id": {
-          "name": "maintenance_ticket_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -14019,27 +13704,6 @@
           "columns": [
             {
               "expression": "thread_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "messages_thread_created_idx": {
-          "name": "messages_thread_created_idx",
-          "columns": [
-            {
-              "expression": "thread_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -14090,19 +13754,6 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "messages_maintenance_ticket_id_maintenance_tickets_id_fk": {
-          "name": "messages_maintenance_ticket_id_maintenance_tickets_id_fk",
-          "tableFrom": "messages",
-          "tableTo": "maintenance_tickets",
-          "columnsFrom": [
-            "maintenance_ticket_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -14111,71 +13762,7 @@
       "checkConstraints": {
         "messages_voice_duration_cap": {
           "name": "messages_voice_duration_cap",
-          "value": "\"messages\".\"voice_duration_s\" IS NULL OR \"messages\".\"voice_duration_s\" BETWEEN 1 AND 120"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.thread_digests": {
-      "name": "thread_digests",
-      "schema": "",
-      "columns": {
-        "thread_id": {
-          "name": "thread_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "side": {
-          "name": "side",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "notified_through": {
-          "name": "notified_through",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "thread_digests_thread_id_threads_id_fk": {
-          "name": "thread_digests_thread_id_threads_id_fk",
-          "tableFrom": "thread_digests",
-          "tableTo": "threads",
-          "columnsFrom": [
-            "thread_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "thread_digests_thread_id_side_pk": {
-          "name": "thread_digests_thread_id_side_pk",
-          "columns": [
-            "thread_id",
-            "side"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "thread_digests_side": {
-          "name": "thread_digests_side",
-          "value": "\"thread_digests\".\"side\" IN ('landlord', 'tenant')"
+          "value": "\"messages\".\"voice_duration_s\" IS NULL OR \"messages\".\"voice_duration_s\" <= 60"
         }
       },
       "isRLSEnabled": false
@@ -14422,22 +14009,6 @@
           ],
           "isUnique": true,
           "where": "\"threads\".\"thread_kind\" = 'department_request'\n             AND \"threads\".\"guest_stay_id\" IS NULL\n             AND \"threads\".\"booking_id\" IS NOT NULL\n             AND \"threads\".\"department_id\" IS NOT NULL\n             AND \"threads\".\"status\" = 'active'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "threads_lease_uk": {
-          "name": "threads_lease_uk",
-          "columns": [
-            {
-              "expression": "lease_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"threads\".\"lease_id\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -39777,393 +39348,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.expenses": {
-      "name": "expenses",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "property_id": {
-          "name": "property_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "unit_id": {
-          "name": "unit_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ticket_id": {
-          "name": "ticket_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "category": {
-          "name": "category",
-          "type": "expense_category",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount_rwf": {
-          "name": "amount_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency": {
-          "name": "currency",
-          "type": "char(3)",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'RWF'"
-        },
-        "paid_on": {
-          "name": "paid_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "method": {
-          "name": "method",
-          "type": "expense_method",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payee_name": {
-          "name": "payee_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "payee_phone": {
-          "name": "payee_phone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "receipt_object_id": {
-          "name": "receipt_object_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source": {
-          "name": "source",
-          "type": "expense_source",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payout_id": {
-          "name": "payout_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "loan_purpose": {
-          "name": "loan_purpose",
-          "type": "loan_purpose",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "voided_at": {
-          "name": "voided_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "voided_by_user_id": {
-          "name": "voided_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "void_reason": {
-          "name": "void_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "expenses_payout_uk": {
-          "name": "expenses_payout_uk",
-          "columns": [
-            {
-              "expression": "payout_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"expenses\".\"payout_id\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "expenses_org_paid_on_idx": {
-          "name": "expenses_org_paid_on_idx",
-          "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "paid_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "expenses_workspace_paid_on_idx": {
-          "name": "expenses_workspace_paid_on_idx",
-          "columns": [
-            {
-              "expression": "workspace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "paid_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "expenses_ticket_idx": {
-          "name": "expenses_ticket_idx",
-          "columns": [
-            {
-              "expression": "ticket_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"expenses\".\"ticket_id\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "expenses_org_id_orgs_id_fk": {
-          "name": "expenses_org_id_orgs_id_fk",
-          "tableFrom": "expenses",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "expenses_workspace_id_workspaces_id_fk": {
-          "name": "expenses_workspace_id_workspaces_id_fk",
-          "tableFrom": "expenses",
-          "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "expenses_property_id_properties_id_fk": {
-          "name": "expenses_property_id_properties_id_fk",
-          "tableFrom": "expenses",
-          "tableTo": "properties",
-          "columnsFrom": [
-            "property_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "expenses_unit_id_rental_units_id_fk": {
-          "name": "expenses_unit_id_rental_units_id_fk",
-          "tableFrom": "expenses",
-          "tableTo": "rental_units",
-          "columnsFrom": [
-            "unit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "expenses_ticket_id_maintenance_tickets_id_fk": {
-          "name": "expenses_ticket_id_maintenance_tickets_id_fk",
-          "tableFrom": "expenses",
-          "tableTo": "maintenance_tickets",
-          "columnsFrom": [
-            "ticket_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "expenses_receipt_object_id_stored_objects_id_fk": {
-          "name": "expenses_receipt_object_id_stored_objects_id_fk",
-          "tableFrom": "expenses",
-          "tableTo": "stored_objects",
-          "columnsFrom": [
-            "receipt_object_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "expenses_payout_id_payouts_id_fk": {
-          "name": "expenses_payout_id_payouts_id_fk",
-          "tableFrom": "expenses",
-          "tableTo": "payouts",
-          "columnsFrom": [
-            "payout_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "expenses_created_by_user_id_users_id_fk": {
-          "name": "expenses_created_by_user_id_users_id_fk",
-          "tableFrom": "expenses",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "expenses_voided_by_user_id_users_id_fk": {
-          "name": "expenses_voided_by_user_id_users_id_fk",
-          "tableFrom": "expenses",
-          "tableTo": "users",
-          "columnsFrom": [
-            "voided_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "expenses_amount_positive": {
-          "name": "expenses_amount_positive",
-          "value": "\"expenses\".\"amount_rwf\" > 0 AND \"expenses\".\"amount_rwf\" <= 10000000000"
-        },
-        "expenses_paid_on_floor": {
-          "name": "expenses_paid_on_floor",
-          "value": "\"expenses\".\"paid_on\" >= DATE '2000-01-01'"
-        },
-        "expenses_gateway_payout": {
-          "name": "expenses_gateway_payout",
-          "value": "(\"expenses\".\"source\" = 'gateway') = (\"expenses\".\"payout_id\" IS NOT NULL)"
-        },
-        "expenses_gateway_not_voided": {
-          "name": "expenses_gateway_not_voided",
-          "value": "\"expenses\".\"source\" <> 'gateway' OR \"expenses\".\"voided_at\" IS NULL"
-        },
-        "expenses_void_shape": {
-          "name": "expenses_void_shape",
-          "value": "(\"expenses\".\"voided_at\" IS NULL AND \"expenses\".\"voided_by_user_id\" IS NULL AND \"expenses\".\"void_reason\" IS NULL)\n        OR (\"expenses\".\"voided_at\" IS NOT NULL AND \"expenses\".\"void_reason\" IS NOT NULL AND length(btrim(\"expenses\".\"void_reason\")) > 0)"
-        },
-        "expenses_loan_purpose": {
-          "name": "expenses_loan_purpose",
-          "value": "(\"expenses\".\"category\" = 'loan_interest') = (\"expenses\".\"loan_purpose\" IS NOT NULL)"
-        },
-        "expenses_payee_phone_shape": {
-          "name": "expenses_payee_phone_shape",
-          "value": "\"expenses\".\"payee_phone\" IS NULL OR \"expenses\".\"payee_phone\" ~ '^[+][1-9][0-9]{7,14}$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.landlord_profiles": {
       "name": "landlord_profiles",
       "schema": "",
@@ -41342,13 +40526,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "reminders_sent": {
-          "name": "reminders_sent",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -41449,10 +40626,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "lease_filings_reminders_range": {
-          "name": "lease_filings_reminders_range",
-          "value": "\"lease_filings\".\"reminders_sent\" BETWEEN 0 AND 2"
-        },
         "lease_filings_filed_shape": {
           "name": "lease_filings_filed_shape",
           "value": "(\"lease_filings\".\"status\" = 'filed') = (\"lease_filings\".\"filed_on\" IS NOT NULL)"
@@ -42292,151 +41465,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.maintenance_payouts": {
-      "name": "maintenance_payouts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ticket_id": {
-          "name": "ticket_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payout_id": {
-          "name": "payout_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payer_masked": {
-          "name": "payer_masked",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payee_phone": {
-          "name": "payee_phone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "maintenance_payouts_ticket_idx": {
-          "name": "maintenance_payouts_ticket_idx",
-          "columns": [
-            {
-              "expression": "ticket_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "maintenance_payouts_workspace_id_workspaces_id_fk": {
-          "name": "maintenance_payouts_workspace_id_workspaces_id_fk",
-          "tableFrom": "maintenance_payouts",
-          "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "maintenance_payouts_ticket_id_maintenance_tickets_id_fk": {
-          "name": "maintenance_payouts_ticket_id_maintenance_tickets_id_fk",
-          "tableFrom": "maintenance_payouts",
-          "tableTo": "maintenance_tickets",
-          "columnsFrom": [
-            "ticket_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "maintenance_payouts_payout_id_payouts_id_fk": {
-          "name": "maintenance_payouts_payout_id_payouts_id_fk",
-          "tableFrom": "maintenance_payouts",
-          "tableTo": "payouts",
-          "columnsFrom": [
-            "payout_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "maintenance_payouts_created_by_user_id_users_id_fk": {
-          "name": "maintenance_payouts_created_by_user_id_users_id_fk",
-          "tableFrom": "maintenance_payouts",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "maintenance_payouts_payout_uk": {
-          "name": "maintenance_payouts_payout_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "payout_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "maintenance_payouts_payee_phone_shape": {
-          "name": "maintenance_payouts_payee_phone_shape",
-          "value": "\"maintenance_payouts\".\"payee_phone\" IS NULL OR \"maintenance_payouts\".\"payee_phone\" ~ '^[+][1-9][0-9]{7,14}$'"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.residence_units": {
       "name": "residence_units",
       "schema": "",
@@ -42597,196 +41625,6 @@
         "residence_units_asking_rent_positive": {
           "name": "residence_units_asking_rent_positive",
           "value": "\"residence_units\".\"asking_rent_rwf\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.tax_declarations": {
-      "name": "tax_declarations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "year": {
-          "name": "year",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "tax_declaration_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'not_started'"
-        },
-        "declared_on": {
-          "name": "declared_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "paid_on": {
-          "name": "paid_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "amount_paid_rwf": {
-          "name": "amount_paid_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rra_reference": {
-          "name": "rra_reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "receipt_object_id": {
-          "name": "receipt_object_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "nudges_sent": {
-          "name": "nudges_sent",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "updated_by_user_id": {
-          "name": "updated_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "tax_declarations_org_id_orgs_id_fk": {
-          "name": "tax_declarations_org_id_orgs_id_fk",
-          "tableFrom": "tax_declarations",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "tax_declarations_workspace_id_workspaces_id_fk": {
-          "name": "tax_declarations_workspace_id_workspaces_id_fk",
-          "tableFrom": "tax_declarations",
-          "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "tax_declarations_receipt_object_id_stored_objects_id_fk": {
-          "name": "tax_declarations_receipt_object_id_stored_objects_id_fk",
-          "tableFrom": "tax_declarations",
-          "tableTo": "stored_objects",
-          "columnsFrom": [
-            "receipt_object_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "tax_declarations_updated_by_user_id_users_id_fk": {
-          "name": "tax_declarations_updated_by_user_id_users_id_fk",
-          "tableFrom": "tax_declarations",
-          "tableTo": "users",
-          "columnsFrom": [
-            "updated_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "tax_declarations_org_year_uk": {
-          "name": "tax_declarations_org_year_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "org_id",
-            "year"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "tax_declarations_year_range": {
-          "name": "tax_declarations_year_range",
-          "value": "\"tax_declarations\".\"year\" BETWEEN 2020 AND 2100"
-        },
-        "tax_declarations_shape": {
-          "name": "tax_declarations_shape",
-          "value": "(\"tax_declarations\".\"status\" = 'not_started' AND \"tax_declarations\".\"declared_on\" IS NULL AND \"tax_declarations\".\"paid_on\" IS NULL AND \"tax_declarations\".\"amount_paid_rwf\" IS NULL)\n        OR (\"tax_declarations\".\"status\" = 'declared' AND \"tax_declarations\".\"declared_on\" IS NOT NULL AND \"tax_declarations\".\"paid_on\" IS NULL AND \"tax_declarations\".\"amount_paid_rwf\" IS NULL)\n        OR (\"tax_declarations\".\"status\" = 'paid' AND \"tax_declarations\".\"declared_on\" IS NOT NULL AND \"tax_declarations\".\"paid_on\" IS NOT NULL AND \"tax_declarations\".\"amount_paid_rwf\" IS NOT NULL)"
-        },
-        "tax_declarations_declared_after_year": {
-          "name": "tax_declarations_declared_after_year",
-          "value": "\"tax_declarations\".\"declared_on\" IS NULL OR \"tax_declarations\".\"declared_on\" >= make_date(\"tax_declarations\".\"year\" + 1, 1, 1)"
-        },
-        "tax_declarations_paid_after_declared": {
-          "name": "tax_declarations_paid_after_declared",
-          "value": "\"tax_declarations\".\"paid_on\" IS NULL OR \"tax_declarations\".\"paid_on\" >= \"tax_declarations\".\"declared_on\""
-        },
-        "tax_declarations_amount_positive": {
-          "name": "tax_declarations_amount_positive",
-          "value": "\"tax_declarations\".\"amount_paid_rwf\" IS NULL OR (\"tax_declarations\".\"amount_paid_rwf\" > 0 AND \"tax_declarations\".\"amount_paid_rwf\" <= 2000000000)"
-        },
-        "tax_declarations_nudges_range": {
-          "name": "tax_declarations_nudges_range",
-          "value": "\"tax_declarations\".\"nudges_sent\" BETWEEN 0 AND 3"
         }
       },
       "isRLSEnabled": false
@@ -45092,10 +43930,7 @@
         "rental_unit",
         "payout_account",
         "deposit",
-        "guest_registration",
-        "maintenance_ticket",
-        "expense",
-        "tax_declaration"
+        "guest_registration"
       ]
     },
     "public.booking_mode": {
@@ -45703,14 +44538,6 @@
         "published"
       ]
     },
-    "public.maintenance_assignee_kind": {
-      "name": "maintenance_assignee_kind",
-      "schema": "public",
-      "values": [
-        "member",
-        "contractor"
-      ]
-    },
     "public.maintenance_category": {
       "name": "maintenance_category",
       "schema": "public",
@@ -45725,15 +44552,6 @@
         "other",
         "doors_windows",
         "decoration"
-      ]
-    },
-    "public.maintenance_photo_phase": {
-      "name": "maintenance_photo_phase",
-      "schema": "public",
-      "values": [
-        "report",
-        "progress",
-        "fixed"
       ]
     },
     "public.maintenance_priority": {
@@ -45761,12 +44579,10 @@
       "schema": "public",
       "values": [
         "open",
-        "acknowledged",
         "assigned",
         "in_progress",
         "resolved",
         "closed",
-        "wont_fix",
         "cancelled"
       ]
     },
@@ -46459,10 +45275,7 @@
         "lease_signature",
         "lease_contract",
         "payment_receipt",
-        "filing_proof",
-        "fault_photo",
-        "expense_receipt",
-        "tax_receipt"
+        "filing_proof"
       ]
     },
     "public.subscription_invoice_status": {
@@ -46650,13 +45463,7 @@
         "fixed",
         "verified",
         "from_signal",
-        "planned",
-        "acknowledged",
-        "wont_fix",
-        "reopened",
-        "paid",
-        "closed",
-        "cancelled"
+        "planned"
       ]
     },
     "public.charge_type": {
@@ -47550,54 +46357,6 @@
         "escalation",
         "fault_reported",
         "block"
-      ]
-    },
-    "public.expense_category": {
-      "name": "expense_category",
-      "schema": "public",
-      "values": [
-        "repairs",
-        "utilities",
-        "security",
-        "cleaning",
-        "insurance",
-        "loan_interest",
-        "other"
-      ]
-    },
-    "public.expense_method": {
-      "name": "expense_method",
-      "schema": "public",
-      "values": [
-        "cash",
-        "momo",
-        "bank",
-        "other"
-      ]
-    },
-    "public.expense_source": {
-      "name": "expense_source",
-      "schema": "public",
-      "values": [
-        "gateway",
-        "recorded"
-      ]
-    },
-    "public.loan_purpose": {
-      "name": "loan_purpose",
-      "schema": "public",
-      "values": [
-        "build",
-        "buy"
-      ]
-    },
-    "public.tax_declaration_status": {
-      "name": "tax_declaration_status",
-      "schema": "public",
-      "values": [
-        "not_started",
-        "declared",
-        "paid"
       ]
     },
     "public.guest_host_kind": {

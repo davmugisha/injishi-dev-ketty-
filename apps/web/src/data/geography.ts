@@ -7,9 +7,11 @@ import { apiFetch, type ApiResult } from "@/lib/api";
  * Cell → Village (D24).
  *
  * Reference data that never changes within a session, so each level is fetched
- * once and kept. The cascade is five requests rather than one nested payload
- * because that is the shape the picker actually asks for: nobody needs all
- * 14,835 villages, they need the ones in the cell just chosen.
+ * once and kept (`kept`, below): a picker opened again, or a registration
+ * carried on with no connection (ADR-075 S9), lists what it already listed. The
+ * cascade is five requests rather than one nested payload because that is the
+ * shape the picker actually asks for: nobody needs all 14,835 villages, they
+ * need the ones in the cell just chosen.
  *
  * Responses are parsed against the same contracts the API validates its own
  * answers with, so a drift fails here rather than rendering a half-empty list.
@@ -17,38 +19,25 @@ import { apiFetch, type ApiResult } from "@/lib/api";
 
 export type GeographyList<T> = ApiResult<T[]>;
 
-export async function fetchProvinces(): Promise<GeographyList<Province>> {
-  const res = await apiFetch<unknown>("/api/v1/geography/provinces");
-  return parseList(res, Province);
+export function fetchProvinces(): Promise<GeographyList<Province>> {
+  return list("/api/v1/geography/provinces", Province);
 }
 
-export async function fetchDistricts(
-  provinceId?: number,
-): Promise<GeographyList<District>> {
+export function fetchDistricts(provinceId?: number): Promise<GeographyList<District>> {
   // The province filter is optional on the endpoint and optional here; the
   // registration wizard always narrows by province.
-  const res = await apiFetch<unknown>(
-    provinceId === undefined
-      ? `/api/v1/geography/districts`
-      : `/api/v1/geography/districts?provinceId=${provinceId}`,
+  return list(
+    provinceId === undefined ? `/api/v1/geography/districts` : `/api/v1/geography/districts?provinceId=${provinceId}`,
+    District,
   );
-  return parseList(res, District);
 }
 
-export async function fetchSectors(
-  districtId: number,
-): Promise<GeographyList<Sector>> {
-  const res = await apiFetch<unknown>(
-    `/api/v1/geography/sectors?districtId=${districtId}`,
-  );
-  return parseList(res, Sector);
+export function fetchSectors(districtId: number): Promise<GeographyList<Sector>> {
+  return list(`/api/v1/geography/sectors?districtId=${districtId}`, Sector);
 }
 
-export async function fetchCells(sectorId: number): Promise<GeographyList<Cell>> {
-  const res = await apiFetch<unknown>(
-    `/api/v1/geography/cells?sectorId=${sectorId}`,
-  );
-  return parseList(res, Cell);
+export function fetchCells(sectorId: number): Promise<GeographyList<Cell>> {
+  return list(`/api/v1/geography/cells?sectorId=${sectorId}`, Cell);
 }
 
 /**
@@ -57,13 +46,23 @@ export async function fetchCells(sectorId: number): Promise<GeographyList<Cell>>
  * The scope is not optional here, unlike on the endpoint: the unscoped list is
  * every village in Rwanda, and no screen this app owns wants that.
  */
-export async function fetchVillages(
-  cellId: number,
-): Promise<GeographyList<Village>> {
-  const res = await apiFetch<unknown>(
-    `/api/v1/geography/villages?cellId=${cellId}`,
-  );
-  return parseList(res, Village);
+export function fetchVillages(cellId: number): Promise<GeographyList<Village>> {
+  return list(`/api/v1/geography/villages?cellId=${cellId}`, Village);
+}
+
+/** Every list that came back whole, by its path, for the rest of the page's life. A failure is never kept. */
+const kept = new Map<string, unknown[]>();
+
+async function list<T>(
+  path: string,
+  schema: { array: () => { safeParse: (v: unknown) => { success: boolean; data?: T[] } } },
+): Promise<GeographyList<T>> {
+  const known = kept.get(path);
+  if (known) return { status: "ok", data: known as T[] };
+  const res = await apiFetch<unknown>(path);
+  const parsed = parseList(res, schema);
+  if (parsed.status === "ok") kept.set(path, parsed.data);
+  return parsed;
 }
 
 /**

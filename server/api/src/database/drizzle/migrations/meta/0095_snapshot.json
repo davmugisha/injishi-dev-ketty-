@@ -1,6 +1,6 @@
 {
-  "id": "96b333fb-9fe2-4591-90b8-91eac9424cdf",
-  "prevId": "ad964063-07f5-409f-80da-1390b1e9a09e",
+  "id": "337873d3-6957-4775-ad98-e1036a80d22b",
+  "prevId": "47674296-fe1e-4951-892f-37dd4f0a1f9a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -5605,32 +5605,6 @@
           "notNull": true,
           "default": false
         },
-        "broker_offer": {
-          "name": "broker_offer",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "broker_fee_kind": {
-          "name": "broker_fee_kind",
-          "type": "broker_fee_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "broker_fee_percent": {
-          "name": "broker_fee_percent",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "broker_fee_rwf": {
-          "name": "broker_fee_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
         "available_from": {
           "name": "available_from",
           "type": "date",
@@ -5721,22 +5695,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "rental_units_broker_offer_idx": {
-          "name": "rental_units_broker_offer_idx",
-          "columns": [
-            {
-              "expression": "workspace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"rental_units\".\"broker_offer\"",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -5811,14 +5769,6 @@
         "rental_units_retired_shape": {
           "name": "rental_units_retired_shape",
           "value": "(\"rental_units\".\"state\" = 'retired') = (\"rental_units\".\"retired_at\" IS NOT NULL)"
-        },
-        "rental_units_broker_fee_shape": {
-          "name": "rental_units_broker_fee_shape",
-          "value": "(\"rental_units\".\"broker_fee_kind\" IS NULL AND \"rental_units\".\"broker_fee_percent\" IS NULL AND \"rental_units\".\"broker_fee_rwf\" IS NULL)\n          OR (\"rental_units\".\"broker_fee_kind\" = 'percent' AND \"rental_units\".\"broker_fee_percent\" BETWEEN 1 AND 200 AND \"rental_units\".\"broker_fee_rwf\" IS NULL)\n          OR (\"rental_units\".\"broker_fee_kind\" = 'fixed' AND \"rental_units\".\"broker_fee_rwf\" > 0 AND \"rental_units\".\"broker_fee_percent\" IS NULL)"
-        },
-        "rental_units_broker_offer_shape": {
-          "name": "rental_units_broker_offer_shape",
-          "value": "NOT \"rental_units\".\"broker_offer\" OR (\"rental_units\".\"state\" = 'active' AND \"rental_units\".\"asking_rent_rwf\" IS NOT NULL AND \"rental_units\".\"broker_fee_kind\" IS NOT NULL)"
         }
       },
       "isRLSEnabled": false
@@ -9069,18 +9019,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "home_district_id": {
-          "name": "home_district_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "home_district_changed_at": {
-          "name": "home_district_changed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -9104,19 +9042,6 @@
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "brokers_home_district_id_districts_id_fk": {
-          "name": "brokers_home_district_id_districts_id_fk",
-          "tableFrom": "brokers",
-          "tableTo": "districts",
-          "columnsFrom": [
-            "home_district_id"
           ],
           "columnsTo": [
             "id"
@@ -9409,18 +9334,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "unit_id": {
-          "name": "unit_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "revealed_name": {
-          "name": "revealed_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "revealed_phone": {
           "name": "revealed_phone",
           "type": "text",
@@ -9441,30 +9354,7 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "contact_reveals_broker_org_uk": {
-          "name": "contact_reveals_broker_org_uk",
-          "columns": [
-            {
-              "expression": "broker_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "landlord_org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"contact_reveals\".\"landlord_org_id\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "contact_reveals_broker_id_brokers_id_fk": {
           "name": "contact_reveals_broker_id_brokers_id_fk",
@@ -9498,19 +9388,6 @@
           "tableTo": "orgs",
           "columnsFrom": [
             "landlord_org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "contact_reveals_unit_id_rental_units_id_fk": {
-          "name": "contact_reveals_unit_id_rental_units_id_fk",
-          "tableFrom": "contact_reveals",
-          "tableTo": "rental_units",
-          "columnsFrom": [
-            "unit_id"
           ],
           "columnsTo": [
             "id"
@@ -12459,12 +12336,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "nudged_at": {
-          "name": "nudged_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -13044,49 +12915,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "unit_id": {
-          "name": "unit_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tenant_name": {
-          "name": "tenant_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fee_kind": {
-          "name": "fee_kind",
-          "type": "broker_fee_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fee_percent": {
-          "name": "fee_percent",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fee_rwf": {
-          "name": "fee_rwf",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
         "initiated_at": {
           "name": "initiated_at",
           "type": "timestamp with time zone",
@@ -13109,72 +12937,7 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "tenant_placements_broker_idx": {
-          "name": "tenant_placements_broker_idx",
-          "columns": [
-            {
-              "expression": "broker_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "initiated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "tenant_placements_workspace_idx": {
-          "name": "tenant_placements_workspace_idx",
-          "columns": [
-            {
-              "expression": "workspace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "initiated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "tenant_placements_open_unit_uk": {
-          "name": "tenant_placements_open_unit_uk",
-          "columns": [
-            {
-              "expression": "broker_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "unit_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"tenant_placements\".\"status\" = 'initiated' AND \"tenant_placements\".\"unit_id\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "tenant_placements_broker_id_brokers_id_fk": {
           "name": "tenant_placements_broker_id_brokers_id_fk",
@@ -13221,32 +12984,6 @@
           "tableTo": "leases",
           "columnsFrom": [
             "lease_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "tenant_placements_unit_id_rental_units_id_fk": {
-          "name": "tenant_placements_unit_id_rental_units_id_fk",
-          "tableFrom": "tenant_placements",
-          "tableTo": "rental_units",
-          "columnsFrom": [
-            "unit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "tenant_placements_workspace_id_workspaces_id_fk": {
-          "name": "tenant_placements_workspace_id_workspaces_id_fk",
-          "tableFrom": "tenant_placements",
-          "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
           ],
           "columnsTo": [
             "id"
@@ -14147,19 +13884,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         }
       },
       "indexes": {
@@ -14262,12 +13986,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "maintenance_ticket_id": {
-          "name": "maintenance_ticket_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -14282,27 +14000,6 @@
           "columns": [
             {
               "expression": "thread_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "messages_thread_created_idx": {
-          "name": "messages_thread_created_idx",
-          "columns": [
-            {
-              "expression": "thread_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -14353,19 +14050,6 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "messages_maintenance_ticket_id_maintenance_tickets_id_fk": {
-          "name": "messages_maintenance_ticket_id_maintenance_tickets_id_fk",
-          "tableFrom": "messages",
-          "tableTo": "maintenance_tickets",
-          "columnsFrom": [
-            "maintenance_ticket_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -14374,71 +14058,7 @@
       "checkConstraints": {
         "messages_voice_duration_cap": {
           "name": "messages_voice_duration_cap",
-          "value": "\"messages\".\"voice_duration_s\" IS NULL OR \"messages\".\"voice_duration_s\" BETWEEN 1 AND 120"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.thread_digests": {
-      "name": "thread_digests",
-      "schema": "",
-      "columns": {
-        "thread_id": {
-          "name": "thread_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "side": {
-          "name": "side",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "notified_through": {
-          "name": "notified_through",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "thread_digests_thread_id_threads_id_fk": {
-          "name": "thread_digests_thread_id_threads_id_fk",
-          "tableFrom": "thread_digests",
-          "tableTo": "threads",
-          "columnsFrom": [
-            "thread_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "thread_digests_thread_id_side_pk": {
-          "name": "thread_digests_thread_id_side_pk",
-          "columns": [
-            "thread_id",
-            "side"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "thread_digests_side": {
-          "name": "thread_digests_side",
-          "value": "\"thread_digests\".\"side\" IN ('landlord', 'tenant', 'broker')"
+          "value": "\"messages\".\"voice_duration_s\" IS NULL OR \"messages\".\"voice_duration_s\" <= 60"
         }
       },
       "isRLSEnabled": false
@@ -14540,12 +14160,6 @@
         },
         "lease_id": {
           "name": "lease_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "placement_id": {
-          "name": "placement_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -14694,38 +14308,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "threads_lease_uk": {
-          "name": "threads_lease_uk",
-          "columns": [
-            {
-              "expression": "lease_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"threads\".\"lease_id\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "threads_placement_uk": {
-          "name": "threads_placement_uk",
-          "columns": [
-            {
-              "expression": "placement_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"threads\".\"placement_id\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -14781,19 +14363,6 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "threads_placement_id_tenant_placements_id_fk": {
-          "name": "threads_placement_id_tenant_placements_id_fk",
-          "tableFrom": "threads",
-          "tableTo": "tenant_placements",
-          "columnsFrom": [
-            "placement_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "threads_department_id_departments_id_fk": {
           "name": "threads_department_id_departments_id_fk",
           "tableFrom": "threads",
@@ -14840,7 +14409,7 @@
       "checkConstraints": {
         "threads_scope_exactly_one": {
           "name": "threads_scope_exactly_one",
-          "value": "(CASE WHEN \"threads\".\"booking_id\" IS NOT NULL THEN 1 ELSE 0 END\n           + CASE WHEN \"threads\".\"guest_stay_id\" IS NOT NULL THEN 1 ELSE 0 END\n           + CASE WHEN \"threads\".\"lease_id\" IS NOT NULL THEN 1 ELSE 0 END\n           + CASE WHEN \"threads\".\"placement_id\" IS NOT NULL THEN 1 ELSE 0 END) = 1"
+          "value": "(CASE WHEN \"threads\".\"booking_id\" IS NOT NULL THEN 1 ELSE 0 END\n           + CASE WHEN \"threads\".\"guest_stay_id\" IS NOT NULL THEN 1 ELSE 0 END\n           + CASE WHEN \"threads\".\"lease_id\" IS NOT NULL THEN 1 ELSE 0 END) = 1"
         }
       },
       "isRLSEnabled": false
@@ -16893,31 +16462,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "fee_kind": {
-          "name": "fee_kind",
-          "type": "broker_fee_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "percent": {
-          "name": "percent",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "disbursed_at": {
-          "name": "disbursed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "disbursed_by_user_id": {
-          "name": "disbursed_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -16986,19 +16530,6 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "placement_fees_disbursed_by_user_id_users_id_fk": {
-          "name": "placement_fees_disbursed_by_user_id_users_id_fk",
-          "tableFrom": "placement_fees",
-          "tableTo": "users",
-          "columnsFrom": [
-            "disbursed_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -17012,16 +16543,7 @@
         }
       },
       "policies": {},
-      "checkConstraints": {
-        "placement_fees_disbursed_shape": {
-          "name": "placement_fees_disbursed_shape",
-          "value": "(\"placement_fees\".\"status\" = 'disbursed') = (\"placement_fees\".\"disbursed_at\" IS NOT NULL)"
-        },
-        "placement_fees_terms_shape": {
-          "name": "placement_fees_terms_shape",
-          "value": "\"placement_fees\".\"fee_kind\" IS NULL OR (\"placement_fees\".\"fee_kind\" = 'percent' AND \"placement_fees\".\"percent\" BETWEEN 1 AND 200) OR (\"placement_fees\".\"fee_kind\" = 'fixed' AND \"placement_fees\".\"percent\" IS NULL)"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.reconciliation_runs": {
@@ -40589,22 +40111,9 @@
           "primaryKey": false,
           "notNull": false
         },
-        "broker_fee_kind": {
-          "name": "broker_fee_kind",
-          "type": "broker_fee_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
         "broker_fee_percent": {
           "name": "broker_fee_percent",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "broker_fee_rwf": {
-          "name": "broker_fee_rwf",
-          "type": "bigint",
           "primaryKey": false,
           "notNull": false
         },
@@ -40692,10 +40201,6 @@
         "landlord_profiles_broker_fee_range": {
           "name": "landlord_profiles_broker_fee_range",
           "value": "\"landlord_profiles\".\"broker_fee_percent\" IS NULL OR \"landlord_profiles\".\"broker_fee_percent\" BETWEEN 0 AND 200"
-        },
-        "landlord_profiles_broker_fee_shape": {
-          "name": "landlord_profiles_broker_fee_shape",
-          "value": "\"landlord_profiles\".\"broker_fee_kind\" IS NULL\n          OR (\"landlord_profiles\".\"broker_fee_kind\" = 'percent' AND \"landlord_profiles\".\"broker_fee_percent\" IS NOT NULL AND \"landlord_profiles\".\"broker_fee_rwf\" IS NULL)\n          OR (\"landlord_profiles\".\"broker_fee_kind\" = 'fixed' AND \"landlord_profiles\".\"broker_fee_rwf\" > 0 AND \"landlord_profiles\".\"broker_fee_percent\" IS NULL)"
         },
         "landlord_profiles_signatory_id_shape": {
           "name": "landlord_profiles_signatory_id_shape",
@@ -45192,8 +44697,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.broker_plans": {
-      "name": "broker_plans",
+    "public.waitlist_signups": {
+      "name": "waitlist_signups",
       "schema": "",
       "columns": {
         "id": {
@@ -45203,754 +44708,80 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "code": {
-          "name": "code",
-          "type": "broker_plan_code",
+        "audience": {
+          "name": "audience",
+          "type": "waitlist_audience",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
-        "name": {
-          "name": "name",
+        "email": {
+          "name": "email",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "price_rwf": {
-          "name": "price_rwf",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "sort": {
-          "name": "sort",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "broker_plans_code_uk": {
-          "name": "broker_plans_code_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "code"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "broker_plans_price_ck": {
-          "name": "broker_plans_price_ck",
-          "value": "\"broker_plans\".\"price_rwf\" BETWEEN 0 AND 10000000"
-        },
-        "broker_plans_district_free_ck": {
-          "name": "broker_plans_district_free_ck",
-          "value": "\"broker_plans\".\"code\" <> 'district' OR \"broker_plans\".\"price_rwf\" = 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.broker_ratings": {
-      "name": "broker_ratings",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "broker_id": {
-          "name": "broker_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "lease_id": {
-          "name": "lease_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rater_user_id": {
-          "name": "rater_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rater_role": {
-          "name": "rater_role",
-          "type": "broker_rater_role",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "stars": {
-          "name": "stars",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "comment": {
-          "name": "comment",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "broker_ratings_broker_idx": {
-          "name": "broker_ratings_broker_idx",
-          "columns": [
-            {
-              "expression": "broker_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "broker_ratings_broker_id_brokers_id_fk": {
-          "name": "broker_ratings_broker_id_brokers_id_fk",
-          "tableFrom": "broker_ratings",
-          "tableTo": "brokers",
-          "columnsFrom": [
-            "broker_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "broker_ratings_lease_id_leases_id_fk": {
-          "name": "broker_ratings_lease_id_leases_id_fk",
-          "tableFrom": "broker_ratings",
-          "tableTo": "leases",
-          "columnsFrom": [
-            "lease_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "broker_ratings_rater_user_id_users_id_fk": {
-          "name": "broker_ratings_rater_user_id_users_id_fk",
-          "tableFrom": "broker_ratings",
-          "tableTo": "users",
-          "columnsFrom": [
-            "rater_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "broker_ratings_lease_role_uk": {
-          "name": "broker_ratings_lease_role_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "lease_id",
-            "rater_role"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "broker_ratings_stars_ck": {
-          "name": "broker_ratings_stars_ck",
-          "value": "\"broker_ratings\".\"stars\" BETWEEN 1 AND 5"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.broker_registration_payments": {
-      "name": "broker_registration_payments",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "broker_id": {
-          "name": "broker_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "amount_rwf": {
-          "name": "amount_rwf",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "method": {
-          "name": "method",
-          "type": "broker_fee_method",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "msisdn_masked": {
-          "name": "msisdn_masked",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "adapter_mode": {
-          "name": "adapter_mode",
-          "type": "adapter_mode",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gateway_ref": {
-          "name": "gateway_ref",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "broker_payment_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "failure_reason": {
-          "name": "failure_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "idempotency_key": {
-          "name": "idempotency_key",
+        "full_name": {
+          "name": "full_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "paid_at": {
-          "name": "paid_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "broker_registration_payments_user_idx": {
-          "name": "broker_registration_payments_user_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "broker_registration_payments_broker_uk": {
-          "name": "broker_registration_payments_broker_uk",
-          "columns": [
-            {
-              "expression": "broker_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"broker_registration_payments\".\"broker_id\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "broker_registration_payments_user_id_users_id_fk": {
-          "name": "broker_registration_payments_user_id_users_id_fk",
-          "tableFrom": "broker_registration_payments",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "broker_registration_payments_broker_id_brokers_id_fk": {
-          "name": "broker_registration_payments_broker_id_brokers_id_fk",
-          "tableFrom": "broker_registration_payments",
-          "tableTo": "brokers",
-          "columnsFrom": [
-            "broker_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "broker_registration_payments_key_uk": {
-          "name": "broker_registration_payments_key_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "idempotency_key"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "broker_registration_payments_amount_ck": {
-          "name": "broker_registration_payments_amount_ck",
-          "value": "\"broker_registration_payments\".\"amount_rwf\" > 0"
-        },
-        "broker_registration_payments_paid_ck": {
-          "name": "broker_registration_payments_paid_ck",
-          "value": "(\"broker_registration_payments\".\"status\" = 'paid') = (\"broker_registration_payments\".\"paid_at\" IS NOT NULL)"
-        },
-        "broker_registration_payments_failed_ck": {
-          "name": "broker_registration_payments_failed_ck",
-          "value": "\"broker_registration_payments\".\"status\" <> 'failed' OR \"broker_registration_payments\".\"failure_reason\" IS NOT NULL"
-        },
-        "broker_registration_payments_broker_paid_ck": {
-          "name": "broker_registration_payments_broker_paid_ck",
-          "value": "\"broker_registration_payments\".\"broker_id\" IS NULL OR \"broker_registration_payments\".\"status\" = 'paid'"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.broker_subscription_payments": {
-      "name": "broker_subscription_payments",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "subscription_id": {
-          "name": "subscription_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "broker_id": {
-          "name": "broker_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "plan_id": {
-          "name": "plan_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "broker_payment_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "period_start": {
-          "name": "period_start",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "period_end": {
-          "name": "period_end",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount_rwf": {
-          "name": "amount_rwf",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "method": {
-          "name": "method",
-          "type": "broker_pay_method",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "msisdn_masked": {
-          "name": "msisdn_masked",
+        "phone": {
+          "name": "phone",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "adapter_mode": {
-          "name": "adapter_mode",
-          "type": "adapter_mode",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gateway_ref": {
-          "name": "gateway_ref",
+        "business_name": {
+          "name": "business_name",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "checkout_url": {
-          "name": "checkout_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "broker_payment_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "failure_reason": {
-          "name": "failure_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "idempotency_key": {
-          "name": "idempotency_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "paid_at": {
-          "name": "paid_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "receipt_sent_at": {
-          "name": "receipt_sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "broker_subscription_payments_broker_idx": {
-          "name": "broker_subscription_payments_broker_idx",
-          "columns": [
-            {
-              "expression": "broker_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "broker_subscription_payments_pending_idx": {
-          "name": "broker_subscription_payments_pending_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"broker_subscription_payments\".\"status\" = 'pending'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "broker_subscription_payments_subscription_id_broker_subscriptions_id_fk": {
-          "name": "broker_subscription_payments_subscription_id_broker_subscriptions_id_fk",
-          "tableFrom": "broker_subscription_payments",
-          "tableTo": "broker_subscriptions",
-          "columnsFrom": [
-            "subscription_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "broker_subscription_payments_broker_id_brokers_id_fk": {
-          "name": "broker_subscription_payments_broker_id_brokers_id_fk",
-          "tableFrom": "broker_subscription_payments",
-          "tableTo": "brokers",
-          "columnsFrom": [
-            "broker_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "broker_subscription_payments_plan_id_broker_plans_id_fk": {
-          "name": "broker_subscription_payments_plan_id_broker_plans_id_fk",
-          "tableFrom": "broker_subscription_payments",
-          "tableTo": "broker_plans",
-          "columnsFrom": [
-            "plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "broker_subscription_payments_key_uk": {
-          "name": "broker_subscription_payments_key_uk",
-          "nullsNotDistinct": false,
-          "columns": [
-            "idempotency_key"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "broker_subscription_payments_amount_ck": {
-          "name": "broker_subscription_payments_amount_ck",
-          "value": "\"broker_subscription_payments\".\"amount_rwf\" > 0 AND \"broker_subscription_payments\".\"amount_rwf\" <= 10000000"
-        },
-        "broker_subscription_payments_period_ck": {
-          "name": "broker_subscription_payments_period_ck",
-          "value": "\"broker_subscription_payments\".\"period_end\" > \"broker_subscription_payments\".\"period_start\""
-        },
-        "broker_subscription_payments_paid_ck": {
-          "name": "broker_subscription_payments_paid_ck",
-          "value": "(\"broker_subscription_payments\".\"status\" = 'paid') = (\"broker_subscription_payments\".\"paid_at\" IS NOT NULL)"
-        },
-        "broker_subscription_payments_failed_ck": {
-          "name": "broker_subscription_payments_failed_ck",
-          "value": "\"broker_subscription_payments\".\"status\" <> 'failed' OR \"broker_subscription_payments\".\"failure_reason\" IS NOT NULL"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.broker_subscriptions": {
-      "name": "broker_subscriptions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "broker_id": {
-          "name": "broker_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "plan_id": {
-          "name": "plan_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scope_province_id": {
-          "name": "scope_province_id",
+        "district_id": {
+          "name": "district_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "scope_changed_at": {
-          "name": "scope_changed_at",
-          "type": "timestamp with time zone",
+        "property_type": {
+          "name": "property_type",
+          "type": "waitlist_property_type",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
         },
-        "status": {
-          "name": "status",
-          "type": "broker_subscription_status",
+        "size_band": {
+          "name": "size_band",
+          "type": "waitlist_size_band",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'pending_payment'"
+          "notNull": false
         },
-        "current_period_start": {
-          "name": "current_period_start",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "current_period_end": {
-          "name": "current_period_end",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cancel_at_period_end": {
-          "name": "cancel_at_period_end",
+        "marketing_opt_in": {
+          "name": "marketing_opt_in",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
           "default": false
         },
-        "next_plan_id": {
-          "name": "next_plan_id",
+        "unsubscribe_token": {
+          "name": "unsubscribe_token",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": "gen_random_uuid()"
         },
-        "next_scope_province_id": {
-          "name": "next_scope_province_id",
-          "type": "integer",
+        "invited_at": {
+          "name": "invited_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
-        "pay_method": {
-          "name": "pay_method",
-          "type": "broker_pay_method",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "pay_msisdn": {
-          "name": "pay_msisdn",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "card_token": {
-          "name": "card_token",
-          "type": "text",
+        "unsubscribed_at": {
+          "name": "unsubscribed_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -45970,17 +44801,56 @@
         }
       },
       "indexes": {
-        "broker_subscriptions_broker_idx": {
-          "name": "broker_subscriptions_broker_idx",
+        "waitlist_signups_email_uk": {
+          "name": "waitlist_signups_email_uk",
           "columns": [
             {
-              "expression": "broker_id",
+              "expression": "lower(\"email\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "waitlist_signups_unsubscribe_token_uk": {
+          "name": "waitlist_signups_unsubscribe_token_uk",
+          "columns": [
+            {
+              "expression": "unsubscribe_token",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
-            },
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "waitlist_signups_created_at_idx": {
+          "name": "waitlist_signups_created_at_idx",
+          "columns": [
             {
               "expression": "created_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "waitlist_signups_district_idx": {
+          "name": "waitlist_signups_district_idx",
+          "columns": [
+            {
+              "expression": "district_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -45990,99 +44860,15 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "broker_subscriptions_one_live_uk": {
-          "name": "broker_subscriptions_one_live_uk",
-          "columns": [
-            {
-              "expression": "broker_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"broker_subscriptions\".\"status\" IN ('active', 'past_due')",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "broker_subscriptions_one_pending_uk": {
-          "name": "broker_subscriptions_one_pending_uk",
-          "columns": [
-            {
-              "expression": "broker_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"broker_subscriptions\".\"status\" = 'pending_payment'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
-        "broker_subscriptions_broker_id_brokers_id_fk": {
-          "name": "broker_subscriptions_broker_id_brokers_id_fk",
-          "tableFrom": "broker_subscriptions",
-          "tableTo": "brokers",
+        "waitlist_signups_district_id_districts_id_fk": {
+          "name": "waitlist_signups_district_id_districts_id_fk",
+          "tableFrom": "waitlist_signups",
+          "tableTo": "districts",
           "columnsFrom": [
-            "broker_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "broker_subscriptions_plan_id_broker_plans_id_fk": {
-          "name": "broker_subscriptions_plan_id_broker_plans_id_fk",
-          "tableFrom": "broker_subscriptions",
-          "tableTo": "broker_plans",
-          "columnsFrom": [
-            "plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "broker_subscriptions_scope_province_id_provinces_id_fk": {
-          "name": "broker_subscriptions_scope_province_id_provinces_id_fk",
-          "tableFrom": "broker_subscriptions",
-          "tableTo": "provinces",
-          "columnsFrom": [
-            "scope_province_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "broker_subscriptions_next_plan_id_broker_plans_id_fk": {
-          "name": "broker_subscriptions_next_plan_id_broker_plans_id_fk",
-          "tableFrom": "broker_subscriptions",
-          "tableTo": "broker_plans",
-          "columnsFrom": [
-            "next_plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "broker_subscriptions_next_scope_province_id_provinces_id_fk": {
-          "name": "broker_subscriptions_next_scope_province_id_provinces_id_fk",
-          "tableFrom": "broker_subscriptions",
-          "tableTo": "provinces",
-          "columnsFrom": [
-            "next_scope_province_id"
+            "district_id"
           ],
           "columnsTo": [
             "id"
@@ -46095,17 +44881,13 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "broker_subscriptions_period_ck": {
-          "name": "broker_subscriptions_period_ck",
-          "value": "\"broker_subscriptions\".\"current_period_end\" > \"broker_subscriptions\".\"current_period_start\""
+        "waitlist_owner_complete": {
+          "name": "waitlist_owner_complete",
+          "value": "(\"waitlist_signups\".\"audience\" <> 'owner') OR (\n        \"waitlist_signups\".\"phone\" IS NOT NULL\n        AND \"waitlist_signups\".\"business_name\" IS NOT NULL\n        AND \"waitlist_signups\".\"district_id\" IS NOT NULL\n        AND \"waitlist_signups\".\"property_type\" IS NOT NULL\n        AND \"waitlist_signups\".\"size_band\" IS NOT NULL\n      )"
         },
-        "broker_subscriptions_msisdn_ck": {
-          "name": "broker_subscriptions_msisdn_ck",
-          "value": "\"broker_subscriptions\".\"pay_msisdn\" IS NULL OR \"broker_subscriptions\".\"pay_msisdn\" ~ '^[0-9]{9}$'"
-        },
-        "broker_subscriptions_cancel_ck": {
-          "name": "broker_subscriptions_cancel_ck",
-          "value": "NOT (\"broker_subscriptions\".\"cancel_at_period_end\" AND \"broker_subscriptions\".\"next_plan_id\" IS NOT NULL)"
+        "waitlist_owner_phone_rw": {
+          "name": "waitlist_owner_phone_rw",
+          "value": "(\"waitlist_signups\".\"audience\" <> 'owner') OR (\"waitlist_signups\".\"phone\" ~ '^[+]250(72|73|78|79)[0-9]{7}$')"
         }
       },
       "isRLSEnabled": false
@@ -46200,14 +44982,6 @@
         "declined",
         "cancelled",
         "no_show"
-      ]
-    },
-    "public.broker_fee_kind": {
-      "name": "broker_fee_kind",
-      "schema": "public",
-      "values": [
-        "percent",
-        "fixed"
       ]
     },
     "public.broker_status": {
@@ -47612,8 +46386,7 @@
       "values": [
         "reservation",
         "department_request",
-        "dispute",
-        "placement"
+        "dispute"
       ]
     },
     "public.thread_status": {
@@ -48710,66 +47483,36 @@
         "cancelled"
       ]
     },
-    "public.broker_fee_method": {
-      "name": "broker_fee_method",
+    "public.waitlist_audience": {
+      "name": "waitlist_audience",
       "schema": "public",
       "values": [
-        "mtn_momo",
-        "airtel_money"
+        "traveller",
+        "owner"
       ]
     },
-    "public.broker_pay_method": {
-      "name": "broker_pay_method",
+    "public.waitlist_property_type": {
+      "name": "waitlist_property_type",
       "schema": "public",
       "values": [
-        "mtn_momo",
-        "airtel_money",
-        "card"
+        "hotel",
+        "guest_house",
+        "apartment",
+        "lodge",
+        "villa",
+        "hostel",
+        "homestay",
+        "campsite"
       ]
     },
-    "public.broker_payment_kind": {
-      "name": "broker_payment_kind",
+    "public.waitlist_size_band": {
+      "name": "waitlist_size_band",
       "schema": "public",
       "values": [
-        "start",
-        "renewal"
-      ]
-    },
-    "public.broker_payment_status": {
-      "name": "broker_payment_status",
-      "schema": "public",
-      "values": [
-        "pending",
-        "paid",
-        "failed"
-      ]
-    },
-    "public.broker_plan_code": {
-      "name": "broker_plan_code",
-      "schema": "public",
-      "values": [
-        "district",
-        "province",
-        "country"
-      ]
-    },
-    "public.broker_rater_role": {
-      "name": "broker_rater_role",
-      "schema": "public",
-      "values": [
-        "tenant",
-        "landlord"
-      ]
-    },
-    "public.broker_subscription_status": {
-      "name": "broker_subscription_status",
-      "schema": "public",
-      "values": [
-        "active",
-        "pending_payment",
-        "past_due",
-        "cancelled",
-        "expired"
+        "1_5",
+        "6_20",
+        "21_50",
+        "50_plus"
       ]
     }
   },

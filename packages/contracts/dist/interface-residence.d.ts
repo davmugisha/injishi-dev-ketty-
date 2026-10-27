@@ -624,10 +624,10 @@ export declare const ResidenceVisitorLogRow: z.ZodObject<{
     departureAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     id: string;
-    place: string | null;
     roomId: string | null;
     leaseId: string | null;
     unitLabel: string | null;
+    place: string | null;
     visitorName: string;
     visitorPhone: string | null;
     admittedHow: string | null;
@@ -636,10 +636,10 @@ export declare const ResidenceVisitorLogRow: z.ZodObject<{
     departureAt: string | null;
 }, {
     id: string;
-    place: string | null;
     roomId: string | null;
     leaseId: string | null;
     unitLabel: string | null;
+    place: string | null;
     visitorName: string;
     visitorPhone: string | null;
     admittedHow: string | null;
@@ -700,11 +700,11 @@ export declare const ResidenceApplicationRow: z.ZodObject<{
         state: z.ZodEnum<["requested", "waiting", "uploaded", "checked"]>;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        state: "waiting" | "requested" | "uploaded" | "checked";
+        state: "waiting" | "requested" | "checked" | "uploaded";
         note: string;
     }, {
         name: string;
-        state: "waiting" | "requested" | "uploaded" | "checked";
+        state: "waiting" | "requested" | "checked" | "uploaded";
         note: string;
     }>, "many">;
     createdAt: z.ZodString;
@@ -721,7 +721,7 @@ export declare const ResidenceApplicationRow: z.ZodObject<{
     email: string | null;
     documents: {
         name: string;
-        state: "waiting" | "requested" | "uploaded" | "checked";
+        state: "waiting" | "requested" | "checked" | "uploaded";
         note: string;
     }[];
     stage: "declined" | "converted" | "ready" | "invited" | "screening";
@@ -749,7 +749,7 @@ export declare const ResidenceApplicationRow: z.ZodObject<{
     email: string | null;
     documents: {
         name: string;
-        state: "waiting" | "requested" | "uploaded" | "checked";
+        state: "waiting" | "requested" | "checked" | "uploaded";
         note: string;
     }[];
     stage: "declined" | "converted" | "ready" | "invited" | "screening";
@@ -1390,10 +1390,10 @@ export declare const ResidenceView: z.ZodObject<{
         departureAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        place: string | null;
         roomId: string | null;
         leaseId: string | null;
         unitLabel: string | null;
+        place: string | null;
         visitorName: string;
         visitorPhone: string | null;
         admittedHow: string | null;
@@ -1402,10 +1402,10 @@ export declare const ResidenceView: z.ZodObject<{
         departureAt: string | null;
     }, {
         id: string;
-        place: string | null;
         roomId: string | null;
         leaseId: string | null;
         unitLabel: string | null;
+        place: string | null;
         visitorName: string;
         visitorPhone: string | null;
         admittedHow: string | null;
@@ -1466,11 +1466,11 @@ export declare const ResidenceView: z.ZodObject<{
             state: z.ZodEnum<["requested", "waiting", "uploaded", "checked"]>;
         }, "strip", z.ZodTypeAny, {
             name: string;
-            state: "waiting" | "requested" | "uploaded" | "checked";
+            state: "waiting" | "requested" | "checked" | "uploaded";
             note: string;
         }, {
             name: string;
-            state: "waiting" | "requested" | "uploaded" | "checked";
+            state: "waiting" | "requested" | "checked" | "uploaded";
             note: string;
         }>, "many">;
         createdAt: z.ZodString;
@@ -1487,7 +1487,7 @@ export declare const ResidenceView: z.ZodObject<{
         email: string | null;
         documents: {
             name: string;
-            state: "waiting" | "requested" | "uploaded" | "checked";
+            state: "waiting" | "requested" | "checked" | "uploaded";
             note: string;
         }[];
         stage: "declined" | "converted" | "ready" | "invited" | "screening";
@@ -1515,7 +1515,7 @@ export declare const ResidenceView: z.ZodObject<{
         email: string | null;
         documents: {
             name: string;
-            state: "waiting" | "requested" | "uploaded" | "checked";
+            state: "waiting" | "requested" | "checked" | "uploaded";
             note: string;
         }[];
         stage: "declined" | "converted" | "ready" | "invited" | "screening";
@@ -1603,7 +1603,7 @@ export declare const ResidenceView: z.ZodObject<{
         email: string | null;
         documents: {
             name: string;
-            state: "waiting" | "requested" | "uploaded" | "checked";
+            state: "waiting" | "requested" | "checked" | "uploaded";
             note: string;
         }[];
         stage: "declined" | "converted" | "ready" | "invited" | "screening";
@@ -1814,10 +1814,10 @@ export declare const ResidenceView: z.ZodObject<{
     }[];
     visitorLog: {
         id: string;
-        place: string | null;
         roomId: string | null;
         leaseId: string | null;
         unitLabel: string | null;
+        place: string | null;
         visitorName: string;
         visitorPhone: string | null;
         admittedHow: string | null;
@@ -1859,7 +1859,7 @@ export declare const ResidenceView: z.ZodObject<{
         email: string | null;
         documents: {
             name: string;
-            state: "waiting" | "requested" | "uploaded" | "checked";
+            state: "waiting" | "requested" | "checked" | "uploaded";
             note: string;
         }[];
         stage: "declined" | "converted" | "ready" | "invited" | "screening";
@@ -2070,10 +2070,10 @@ export declare const ResidenceView: z.ZodObject<{
     }[];
     visitorLog: {
         id: string;
-        place: string | null;
         roomId: string | null;
         leaseId: string | null;
         unitLabel: string | null;
+        place: string | null;
         visitorName: string;
         visitorPhone: string | null;
         admittedHow: string | null;

@@ -1,103 +1,107 @@
 import { z } from "zod";
-import { KycStatus, Uuid } from "./primitives";
-import { AccountDocumentType, CountryCode, Gender, RwandanNationalId } from "./registration";
+import { KycStatus } from "./primitives";
+import { AccountDocumentType, CountryCode, Gender, IdentityDocumentInput, PersonalDetails } from "./registration";
 // ---------------------------------------------------------------------------
-// Identity verification (ADR-060): a National ID looked up in the population
-// register, or a passport read and checked by a document verifier.
+// Identity (ADR-060, rebuilt by ADR-075 A1): the ID is scanned, front then a
+// selfie, for a National ID and a passport alike. No code is sent to any phone
+// (AC-4); where no checker runs, the photos are kept and a PSF officer compares
+// them before approving (D-a, O-6).
 // ---------------------------------------------------------------------------
 /**
- * Which side of each seam a deployment runs. `off` is a real answer, not a
- * missing one: it is what a real database runs until a provider is signed, and
- * it is the only mode in which a business registration is not held to a
- * verified identity, because a check nobody can run cannot be required.
+ * Which side of the document verifier seam a deployment runs. `off` is a real
+ * answer, not a missing one: it is what a real database runs until a provider
+ * is signed, and there the scan stores the photos for PSF and reads nothing.
  */
 export const IdentityAdapterMode = z.enum(["mock", "live", "off"]);
 export type IdentityAdapterMode = z.infer<typeof IdentityAdapterMode>;
+/** How many tries a draft gets before the person may continue and PSF checks the ID by eye (AC-5). */
+export const SCAN_ATTEMPTS_BEFORE_CONTINUE = 3;
 /**
- * The person as the register or the document states them. The document number
+ * One scan's outcome (D-n). `machine_passed` is the only one that reads
+ * "Checked" (AC-6); `manual_needed` is a deployment with no checker, where the
+ * photos wait for PSF; `machine_failed` is a checker that refused the photos.
+ */
+export const IdentityScanOutcome = z.enum(["machine_passed", "machine_failed", "manual_needed"]);
+export type IdentityScanOutcome = z.infer<typeof IdentityScanOutcome>;
+/** Why a checker refused a scan. Each has its own fix, worded by the server. */
+export const IdentityScanReason = z.enum(["not_authentic", "face_mismatch", "unreadable", "expired", "unavailable"]);
+export type IdentityScanReason = z.infer<typeof IdentityScanReason>;
+/**
+ * The person on file, as the scan read them or as they typed them. The number
  * comes back MASKED, like every other read of it (§10); the server keeps the
  * full number on `identity_documents`.
  */
-export const VerifiedPerson = z.object({
+export const IdentityOnFile = z.object({
     fullName: z.string().min(1),
     /** `YYYY-MM-DD`. */
     dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     gender: Gender.nullable(),
-    /**
-     * The phone the register holds, in full. Returned only to the person who
-     * just proved they hold it by typing the code sent there, so it prefills
-     * their phone field. Null for a passport, which carries no phone.
-     */
-    phoneE164: z.string().nullable(),
     documentType: AccountDocumentType,
     documentNumberMasked: z.string(),
     issuingCountry: CountryCode,
     /**
-     * True when a MOCK adapter made this person up. A demo must be able to say
-     * "these details are generated" rather than pass them off as a register's.
+     * True when a MOCK verifier made this person up. A demo must be able to say
+     * "these details are generated" rather than pass them off as a document's.
      */
     generated: z.boolean(),
+    /**
+     * True once a machine check passed, or PSF verified the identity on
+     * approval (D-o). False while the details are typed and PSF has still to
+     * compare the photos: the status reads "PSF will check your ID" (AC-6).
+     */
+    checked: z.boolean(),
 });
-export type VerifiedPerson = z.infer<typeof VerifiedPerson>;
-/** `GET /api/v1/me/identity`: where the caller stands, and what can be run here. */
+export type IdentityOnFile = z.infer<typeof IdentityOnFile>;
+/** The caller's latest scan, and how many tries this draft has used. */
+export const IdentityScanState = z.object({
+    outcome: IdentityScanOutcome,
+    documentType: AccountDocumentType,
+    /** Tries on this draft (`checks.scan.attempts`, D-m), reset with the draft. */
+    attempts: z.number().int().nonnegative(),
+    /** Whether the person may type their details and carry on, for PSF to check (AC-5). */
+    mayContinue: z.boolean(),
+});
+export type IdentityScanState = z.infer<typeof IdentityScanState>;
+/** `GET /api/v1/me/identity`: where the caller stands, and whether a machine reads the ID here. */
 export const IdentityStatus = z.object({
     kycStatus: KycStatus,
-    /** `registry`, `document_scan` or `manual`, once verified. */
+    /** `document_scan`, `psf_review` or another earlier method, once verified. */
     method: z.string().nullable(),
-    verified: VerifiedPerson.omit({ phoneE164: true }).nullable(),
-    /** Which verification paths this deployment can run at all. */
-    available: z.object({ nationalId: z.boolean(), passport: z.boolean() }),
-    /**
-     * Whether registering a business here requires a verified identity. True
-     * whenever either path is available: a check that can run is enforced.
-     */
-    required: z.boolean(),
-    modes: z.object({ registry: IdentityAdapterMode, documents: IdentityAdapterMode }),
+    onFile: IdentityOnFile.nullable(),
+    scan: IdentityScanState.nullable(),
+    /** False where the seam is `off`: the scan keeps the photos and reads nothing, so the person types what is printed. */
+    machineCheck: z.boolean(),
+    mode: IdentityAdapterMode,
 });
 export type IdentityStatus = z.infer<typeof IdentityStatus>;
-/** `POST /api/v1/me/identity/national-id/lookup`. */
-export const NationalIdLookupRequest = z.object({ documentNumber: RwandanNationalId });
-export type NationalIdLookupRequest = z.infer<typeof NationalIdLookupRequest>;
+const PhotoKey = z.string().trim().min(1).max(300);
+/** `POST /api/v1/me/identity/scan`: the front of the card or the photo page, then a selfie, both uploaded first as `id_photo`. */
+export const IdentityScanRequest = z.object({
+    documentType: AccountDocumentType,
+    frontKey: PhotoKey,
+    selfieKey: PhotoKey,
+});
+export type IdentityScanRequest = z.infer<typeof IdentityScanRequest>;
+export const IdentityScanResult = z.object({
+    outcome: IdentityScanOutcome,
+    reason: IdentityScanReason.nullable(),
+    /** What went wrong and how to fix it, or what happens next. Null when the check passed. */
+    message: z.string().nullable(),
+    /** What the checker read, or null when it read nothing. */
+    fields: IdentityOnFile.nullable(),
+    /** This try's number on the draft. */
+    attempt: z.number().int().positive(),
+    mayContinue: z.boolean(),
+});
+export type IdentityScanResult = z.infer<typeof IdentityScanResult>;
 /**
- * The lookup NEVER returns the person. Whoever types an ID number might not be
- * its holder, so a lookup that answered with a name and a date of birth would
- * be a directory of strangers. It sends a code to the phone the register holds
- * and says where, masked; the person is revealed by `confirm`, to whoever can
- * read that code.
+ * `PUT /api/v1/me/identity/document`: the details as printed, typed after a
+ * scan that read nothing (no checker here) or after the tries ran out. Stored
+ * with `kyc_status` `pending`, for PSF to hold against the photos.
  */
-export const NationalIdLookupResult = z.discriminatedUnion("status", [
-    z.object({
-        status: z.literal("code_sent"),
-        challengeId: Uuid,
-        /** The register's phone, masked: `+250·····123`. */
-        sentTo: z.string(),
-        expiresInSeconds: z.number().int().positive(),
-    }),
-    z.object({ status: z.literal("not_found"), message: z.string() }),
-    /** The register holds no phone for this person, so nothing can bind them. */
-    z.object({ status: z.literal("no_phone"), message: z.string() }),
-    z.object({ status: z.literal("unavailable"), message: z.string() }),
-]);
-export type NationalIdLookupResult = z.infer<typeof NationalIdLookupResult>;
-/** `POST /api/v1/me/identity/national-id/confirm`. */
-export const NationalIdConfirmRequest = z.object({
-    challengeId: Uuid,
-    code: z.string().trim().regex(/^\d{6}$/, "The code is 6 digits."),
+export const TypedIdentityRequest = z.object({
+    fullName: PersonalDetails.shape.fullName,
+    dateOfBirth: PersonalDetails.shape.dateOfBirth,
+    document: IdentityDocumentInput,
 });
-export type NationalIdConfirmRequest = z.infer<typeof NationalIdConfirmRequest>;
-/** `POST /api/v1/me/identity/passport`: two uploads, `id_photo` kind, the caller's own. */
-export const PassportVerifyRequest = z.object({
-    /** The passport's photo page. */
-    documentObjectKey: z.string().trim().min(1).max(300),
-    /** A selfie, matched against the passport's portrait. */
-    selfieObjectKey: z.string().trim().min(1).max(300),
-});
-export type PassportVerifyRequest = z.infer<typeof PassportVerifyRequest>;
-export const PassportRejectionReason = z.enum(["not_authentic", "face_mismatch", "unreadable", "expired"]);
-export type PassportRejectionReason = z.infer<typeof PassportRejectionReason>;
-export const PassportVerifyResult = z.discriminatedUnion("status", [
-    z.object({ status: z.literal("verified"), person: VerifiedPerson }),
-    z.object({ status: z.literal("rejected"), reason: PassportRejectionReason, message: z.string() }),
-    z.object({ status: z.literal("unavailable"), message: z.string() }),
-]);
-export type PassportVerifyResult = z.infer<typeof PassportVerifyResult>;
+export type TypedIdentityRequest = z.infer<typeof TypedIdentityRequest>;

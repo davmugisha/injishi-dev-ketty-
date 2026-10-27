@@ -3,6 +3,7 @@ import { DEMO_OTP, personaByEmail } from "@injishi/data/personas";
 import type { Doc, PersonaId } from "@injishi/data/types";
 import { and, asc, eq, gt, isNull, sql } from "drizzle-orm";
 import { getDb } from "./client.ts";
+import { assertFixtureWrite } from "./guard.ts";
 import { documents, otpChallenges, sessions, users } from "./schema.ts";
 
 // ── Documents ────────────────────────────────────────────────────────────────
@@ -38,6 +39,7 @@ export async function getDocument<T extends Doc>(collection: string, id: string)
 
 /** Insert or replace a document (appended at the end of its collection when new). */
 export async function saveDocument<T extends Doc>(collection: string, doc: T): Promise<void> {
+  assertFixtureWrite();
   const db = await getDb();
   const [{ next }] = await db
     .select({ next: sql<number>`coalesce(max(${documents.position}), -1) + 1` })
@@ -55,6 +57,7 @@ export async function updateDocument<T extends Doc>(
   id: string,
   patch: Partial<T>,
 ): Promise<T | undefined> {
+  assertFixtureWrite();
   const current = await getDocument<T>(collection, id);
   if (!current) return undefined;
   const next = { ...current, ...patch, id } as T;
@@ -63,6 +66,7 @@ export async function updateDocument<T extends Doc>(
 }
 
 export async function deleteDocument(collection: string, id: string): Promise<void> {
+  assertFixtureWrite();
   const db = await getDb();
   await db.delete(documents).where(and(eq(documents.collection, collection), eq(documents.id, id)));
 }
@@ -86,6 +90,7 @@ export type OtpStart =
 
 /** Start a sign-in: the code is always the demo code (no message is sent). */
 export async function startOtp(email: string): Promise<OtpStart> {
+  assertFixtureWrite();
   const persona = personaByEmail(email);
   if (!persona) return { ok: false, reason: "unknown-email" };
   const db = await getDb();
@@ -109,6 +114,7 @@ export type OtpCheck =
   | { ok: false; reason: "expired" | "locked" | "not-found" };
 
 export async function verifyOtp(challengeId: string, code: string): Promise<OtpCheck> {
+  assertFixtureWrite();
   const db = await getDb();
   const [challenge] = await db.select().from(otpChallenges).where(eq(otpChallenges.id, challengeId)).limit(1);
   if (!challenge || challenge.consumedAt) return { ok: false, reason: "not-found" };
@@ -143,6 +149,7 @@ export async function getOtpChallenge(challengeId: string) {
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export async function createSession(personaId: PersonaId): Promise<{ token: string; expiresAt: Date }> {
+  assertFixtureWrite();
   const db = await getDb();
   const now = new Date();
   const token = randomBytes(24).toString("base64url");
@@ -165,6 +172,7 @@ export async function getSession(
 }
 
 export async function deleteSession(token: string): Promise<void> {
+  assertFixtureWrite();
   const db = await getDb();
   await db.delete(sessions).where(eq(sessions.id, token));
 }

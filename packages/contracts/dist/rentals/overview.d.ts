@@ -465,6 +465,8 @@ export declare const RentalPropertyView: z.ZodObject<{
     name: string;
     id: string;
     street: string | null;
+    located: boolean;
+    units: number;
     place: {
         province: {
             name: string;
@@ -487,12 +489,12 @@ export declare const RentalPropertyView: z.ZodObject<{
             id: number;
         } | null;
     };
-    located: boolean;
-    units: number;
 }, {
     name: string;
     id: string;
     street: string | null;
+    located: boolean;
+    units: number;
     place: {
         province: {
             name: string;
@@ -515,8 +517,6 @@ export declare const RentalPropertyView: z.ZodObject<{
             id: number;
         } | null;
     };
-    located: boolean;
-    units: number;
 }>;
 export type RentalPropertyView = z.infer<typeof RentalPropertyView>;
 /** `GET /ops/properties`: the business's buildings, the first made from the registration when there is none. */
@@ -628,6 +628,8 @@ export declare const RentalPropertyList: z.ZodObject<{
         name: string;
         id: string;
         street: string | null;
+        located: boolean;
+        units: number;
         place: {
             province: {
                 name: string;
@@ -650,12 +652,12 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
-        located: boolean;
-        units: number;
     }, {
         name: string;
         id: string;
         street: string | null;
+        located: boolean;
+        units: number;
         place: {
             province: {
                 name: string;
@@ -678,14 +680,14 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
-        located: boolean;
-        units: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     properties: {
         name: string;
         id: string;
         street: string | null;
+        located: boolean;
+        units: number;
         place: {
             province: {
                 name: string;
@@ -708,14 +710,14 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
-        located: boolean;
-        units: number;
     }[];
 }, {
     properties: {
         name: string;
         id: string;
         street: string | null;
+        located: boolean;
+        units: number;
         place: {
             province: {
                 name: string;
@@ -738,8 +740,6 @@ export declare const RentalPropertyList: z.ZodObject<{
                 id: number;
             } | null;
         };
-        located: boolean;
-        units: number;
     }[];
 }>;
 export type RentalPropertyList = z.infer<typeof RentalPropertyList>;

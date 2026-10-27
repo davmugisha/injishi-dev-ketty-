@@ -195,13 +195,13 @@ jobs:
       - run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
       - run: pnpm --filter @injishi/api build
 
-  # AC-6. Mobile is NOT in the root `build` filter and has no `build` script:
-  # it is an Expo export, not a `next build`, so these checks are what standing
-  # behind a mobile change means. ADR-052 settles that deliberately. The Expo
-  # app (apps/mobile) has no palette check, no typed routes (`experiments.
-  # typedRoutes` is off in app.json) and no test suite yet: its `test` script
-  # says so out loud (scripts/no-tests.mjs), and runs here so the day it gains
-  # a suite, this job runs it.
+  # Mobile spec 0001 owns this job (it took over ADR-052 AC-6). Mobile is NOT
+  # in the root `build` filter and has no `build` script: it is an Expo export,
+  # not a `next build`. What standing behind a mobile change means is one
+  # script, `check:ci`, which you can also run locally: it builds the packages
+  # the app depends on, generates the typed routes, runs palette:check,
+  # typecheck, lint and test, bundles both platforms, guards the fingerprint
+  # config and prints a fingerprint verdict. Read a failure from its headings.
   mobile:
     name: mobile
     needs: changes
@@ -210,13 +210,12 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
+        with:
+          # The fingerprint verdict compares against the merge base with origin/main.
+          fetch-depth: 0
       - uses: ./.github/actions/pnpm-setup
-      # The compiled packages, as every other job builds them: consumers read
-      # dist/, so a source change is checked against what it produces.
-      - run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
-      - run: pnpm --filter @injishi/mobile typecheck
-      - run: pnpm --filter @injishi/mobile lint
-      - run: pnpm --filter @injishi/mobile test
+      - name: check:ci
+        run: pnpm --filter @injishi/mobile check:ci
 
   # AC-4. Fails when dist/ or a generated stylesheet disagrees with src/.
   tokens:

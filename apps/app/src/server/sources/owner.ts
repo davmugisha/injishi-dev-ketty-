@@ -128,7 +128,8 @@ interface ApiCertificates {
       | "other"
       | "rdb_certificate"
       | "psf_certificate"
-      | "land_title";
+      | "land_title"
+      | "franchise_agreement";
     kindOther: string | null;
     propertyId: string | null;
     propertyName: string | null;
@@ -591,6 +592,7 @@ const KIND_NAME: Record<ApiCertificates["certificates"][number]["kind"], string>
   rdb_certificate: "RDB certificate",
   psf_certificate: "PSF certificate",
   land_title: "Land title",
+  franchise_agreement: "Franchise agreement",
 };
 
 /** Every business's documents, each with the business it belongs to. */

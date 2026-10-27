@@ -140,6 +140,7 @@ const DOCUMENT_KIND: Record<string, string> = {
   rdb_certificate: "RDB certificate",
   psf_certificate: "PSF certificate",
   land_title: "Land title",
+  franchise_agreement: "Franchise agreement",
 };
 
 /** ACCOMMODATION_CLASS_LABEL, plus the residence classes. */

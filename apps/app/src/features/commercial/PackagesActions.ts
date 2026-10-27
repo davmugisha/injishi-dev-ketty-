@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { screenHref } from "@injishi/data";
 import type { PackagesItem } from "@injishi/data/fixtures/commercial";
-import { deleteDocument, getCollection, getDocument, saveDocument } from "@injishi/db";
+import { deleteDocument, FixtureWriteRefused, getCollection, getDocument, saveDocument } from "@injishi/db";
 import { revalidatePath } from "next/cache";
 import { requirePersona } from "@/lib/session";
 
@@ -65,7 +65,13 @@ export async function createPackagesDraft(input: PackagesDraftInput): Promise<Pa
     discountFrom: "Not set until components are added",
     components: [],
   };
-  await saveDocument<PackagesItem>("commercial.packagesItems", draft);
+  try {
+    await saveDocument<PackagesItem>("commercial.packagesItems", draft);
+  } catch (error) {
+    // Outside the demo the sample store refuses every write (ADR-075 D-s); say so rather than fail the page.
+    if (error instanceof FixtureWriteRefused) return { ok: false, error: error.message };
+    throw error;
+  }
   revalidatePath(screenHref("Packages"));
   return { ok: true, id: draft.id };
 }

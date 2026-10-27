@@ -1,25 +1,10 @@
 "use client";
 
-import {
-  type IdentityStatus,
-  type VerifiedPerson,
-} from "@injishi/contracts";
-
 import { nationalIdError, nationalIdFacts } from "@/lib/rwanda-id";
 
-import {
-  AddressPicker,
-  type AddressDraft,
-} from "./address-picker";
+import { type AddressDraft } from "./address-picker";
 import { COUNTRY_OPTIONS } from "./country-options";
 import {
-  NationalIdVerifier,
-  PassportScanner,
-  VerifiedIdentityCard,
-} from "./identity-verifier";
-import { PhoneInput } from "./phone-input";
-import {
-  ChoiceCard,
   Field,
   Fieldset,
   SelectField,
@@ -27,18 +12,15 @@ import {
 } from "./wizard-ui";
 
 /**
- * The person registering: their draft, their name, and the typed fallback form
- * (F-S03 §6). The step itself is `step-you.tsx` (RegisterIA board).
+ * The person registering: their draft, their name, and the details typed as
+ * printed when the ID scan read nothing (F-S03 §6, ADR-075 S4). The step is
+ * `section-identity.tsx`.
  *
  * Formerly Step 1, About you.
  *
- * Two shapes, decided by whether this account already has a profile. A new
- * registrant fills the form; a returning one is SHOWN their details to confirm
- * rather than made to retype them, and is then asked the question that only
- * applies to them: are they the owner, or acting on behalf of one (FL02)?
- *
- * The identity document is never shown in full on the returning path — the API
- * masks it, and this renders what it was given. Nothing here needs the number.
+ * The identity document is never shown in full once it is on file: the API
+ * masks it, and the step renders what it was given. Nothing here needs the
+ * number after it is typed once.
  */
 
 /**
@@ -118,20 +100,6 @@ export function splitFullName(fullName: string): {
 /** One space between words, none at the ends. */
 function collapse(value: string): string {
   return value.trim().replace(/\s+/g, " ");
-}
-
-/**
- * What the wizard knows about verifying this person (ADR-060): which paths the
- * deployment can run, who they are once verified, and how the form learns of a
- * verification. Null when neither path can run here, which keeps the typed form.
- */
-interface IdentityVerification {
-  available: IdentityStatus["available"];
-  verified: NonNullable<IdentityStatus["verified"]> | null;
-  method: string | null;
-  /** True when registering is held to a verified identity here. */
-  required: boolean;
-  onVerified: (person: VerifiedPerson) => void;
 }
 
 /**
@@ -215,25 +183,24 @@ export function IntendedOwnerFields({
 }
 
 /**
- * The typed form, for a deployment where no identity check can run (ADR-060
- * keeps it: a check nobody can run cannot be required). `step-you.tsx` is the
- * step; this is its fallback.
+ * The details as printed on the ID, typed after a scan that read nothing: no
+ * checker here (ADR-075 D-a), or the tries ran out (AC-5). Only what the ID
+ * shows; the phone and the home address are asked beside it by the step. The
+ * document type is the one scanned, so it is not asked again.
  */
-export function PersonalForm({
+export function TypedIdentityFields({
   draft,
   onChange,
   errors,
-  verification,
 }: {
   draft: PersonalDraft;
   onChange: (next: PersonalDraft) => void;
   errors: Record<string, string>;
-  verification: IdentityVerification | null;
 }) {
   const isPassport = draft.documentType === "passport";
 
   /**
-   * The National ID rule, applied as it is typed rather than on Continue.
+   * The National ID rule, applied as it is typed rather than on Confirm.
    *
    * Only once something has been typed: an empty field is not yet a mistake,
    * and a form that turns red before it has been touched reads as broken. The
@@ -252,239 +219,96 @@ export function PersonalForm({
     /^\d{4}-/.test(draft.dateOfBirth) &&
     Number(draft.dateOfBirth.slice(0, 4)) !== idFacts.birthYear;
 
-  const path = verification && !verification.verified
-    ? isPassport
-      ? verification.available.passport
-        ? "passport"
-        : null
-      : verification.available.nationalId
-        ? "national_id"
-        : null
-    : null;
-
   return (
     <div className="space-y-4">
-      {verification?.verified ? (
-        <VerifiedIdentityCard person={verification.verified} method={verification.method} />
-      ) : (
-        <>
-          <Fieldset legend="Which document do you have?" error={errors["document"]}>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <ChoiceCard
-                name="documentType"
-                value="national_id"
-                checked={!isPassport}
-                title="Rwandan National ID"
-                description="16 digits."
-                onSelect={() =>
-                  onChange({
-                    ...draft,
-                    documentType: "national_id",
-                    documentNumber: "",
-                    issuingCountry: "RW",
-                  })
-                }
-              />
-              <ChoiceCard
-                name="documentType"
-                value="passport"
-                checked={isPassport}
-                title="Passport"
-                description="Any country."
-                onSelect={() =>
-                  onChange({
-                    ...draft,
-                    documentType: "passport",
-                    documentNumber: "",
-                  })
-                }
-              />
-            </div>
-          </Fieldset>
-          {path === "national_id" ? (
-            <NationalIdVerifier
-              documentNumber={draft.documentNumber}
-              onDocumentNumberChange={(documentNumber) => onChange({ ...draft, documentNumber })}
-              onVerified={verification!.onVerified}
-              error={errors["document.documentNumber"]}
+      {/* One legend over three inputs, because they are one question. The
+          fieldset also carries `errors["fullName"]` — the contract validates
+          the composed name and reports against that one path, and hanging its
+          message on the first name box alone would blame the wrong field. */}
+      <Fieldset
+        legend="Your name"
+        hint="Exactly as printed on your ID, in the same order."
+        error={errors["fullName"]}
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="First name" required error={errors["firstName"]}>
+            <TextInput
+              id="you-first-name"
+              autoComplete="given-name"
+              value={draft.firstName}
+              onChange={(e) => onChange({ ...draft, firstName: e.target.value })}
             />
-          ) : path === "passport" ? (
-            <PassportScanner onVerified={verification!.onVerified} />
-          ) : (
-            <>
-              {/* One legend over three inputs, because they are one question. The
-                  fieldset also carries `errors["fullName"]` — the contract validates
-                  the composed name and reports against that one path, and hanging its
-                  message on the first name box alone would blame the wrong field. */}
-              <Fieldset
-                legend="Your name"
-                hint="Exactly as written on your ID or passport, in the same order."
-                error={errors["fullName"]}
-              >
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <Field label="First name" required error={errors["firstName"]}>
-                    <TextInput
-                      id="you-first-name"
-                      autoComplete="given-name"
-                      value={draft.firstName}
-                      onChange={(e) => onChange({ ...draft, firstName: e.target.value })}
-                    />
-                  </Field>
-                  <Field
-                    label="Middle name"
-                    hint="Leave blank if you have none."
-                    error={errors["middleName"]}
-                  >
-                    <TextInput
-                      id="you-middle-name"
-                      autoComplete="additional-name"
-                      value={draft.middleName}
-                      onChange={(e) =>
-                        onChange({ ...draft, middleName: e.target.value })
-                      }
-                    />
-                  </Field>
-                  <Field label="Last name" required error={errors["lastName"]}>
-                    <TextInput
-                      id="you-last-name"
-                      autoComplete="family-name"
-                      value={draft.lastName}
-                      onChange={(e) => onChange({ ...draft, lastName: e.target.value })}
-                    />
-                  </Field>
-                </div>
-              </Fieldset>
-
-
-              <Field
-                label={isPassport ? "Passport number" : "National ID number"}
-                required
-                hint={
-                  isPassport
-                    ? "6 to 12 letters or digits."
-                    : "16 digits, as printed on the card. Type it in groups if you like — 1 1995 8 0012345 12 3 — the spaces are ignored."
-                }
-                error={errors["document.documentNumber"] ?? liveIdError ?? undefined}
-              >
-                <TextInput
-                  id="you-document-number"
-                  inputMode={isPassport ? "text" : "numeric"}
-                  autoComplete="off"
-                  placeholder={isPassport ? "PC1234567" : "1 1995 8 0012345 12 3"}
-                  maxLength={isPassport ? 12 : 24}
-                  aria-invalid={
-                    errors["document.documentNumber"] ?? liveIdError ? true : undefined
-                  }
-                  value={draft.documentNumber}
-                  onChange={(e) => {
-                    const documentNumber = e.target.value;
-                    // The moment the ID becomes whole, a gender still unanswered is
-                    // read off it (Phase 0). Only then, and only into a blank: a gender
-                    // the person chose is theirs, and so is changing this one.
-                    const facts = isPassport ? null : nationalIdFacts(documentNumber);
-                    const becameWhole =
-                      facts !== null && nationalIdFacts(draft.documentNumber) === null;
-                    onChange({
-                      ...draft,
-                      documentNumber,
-                      ...(becameWhole && facts.gender && draft.gender === ""
-                        ? { gender: facts.gender }
-                        : {}),
-                    });
-                  }}
-                />
-              </Field>
-
-              {isPassport ? (
-                <Field
-                  label="Issuing country"
-                  required
-                  error={errors["document.issuingCountry"]}
-                >
-                  <SelectField
-                    value={draft.issuingCountry}
-                    options={COUNTRY_OPTIONS}
-                    placeholder="Choose a country"
-                    invalid={Boolean(errors["document.issuingCountry"])}
-                    onChange={(issuingCountry) =>
-                      onChange({ ...draft, issuingCountry })
-                    }
-                  />
-                </Field>
-              ) : null}
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field
-                  label="Date of birth"
-                  required
-                  hint={
-                    birthYearClash
-                      ? `Your National ID says you were born in ${idFacts?.birthYear}. Check the year.`
-                      : "You must be 18 or over to register a business."
-                  }
-                  error={errors["dateOfBirth"]}
-                >
-                  <TextInput
-                    type="date"
-                    value={draft.dateOfBirth}
-                    onChange={(e) => onChange({ ...draft, dateOfBirth: e.target.value })}
-                  />
-                </Field>
-
-                <Field label="Gender" hint="Optional." error={errors["gender"]}>
-                  {/* "Rather not say now" is an answer, not an absence, so it stays
-                      an option. See the sentinel note on `SelectField`. */}
-                  <SelectField
-                    value={draft.gender}
-                    options={[
-                      { value: "", label: "Rather not say now" },
-                      { value: "female", label: "Female" },
-                      { value: "male", label: "Male" },
-                      { value: "other", label: "Other" },
-                      { value: "prefer_not_to_say", label: "Prefer not to say" },
-                    ]}
-                    invalid={Boolean(errors["gender"])}
-                    onChange={(gender) => onChange({ ...draft, gender })}
-                  />
-                </Field>
-              </div>
-
-            </>
-          )}
-        </>
-      )}
+          </Field>
+          <Field label="Middle name" hint="Leave blank if you have none." error={errors["middleName"]}>
+            <TextInput
+              id="you-middle-name"
+              autoComplete="additional-name"
+              value={draft.middleName}
+              onChange={(e) => onChange({ ...draft, middleName: e.target.value })}
+            />
+          </Field>
+          <Field label="Last name" required error={errors["lastName"]}>
+            <TextInput
+              id="you-last-name"
+              autoComplete="family-name"
+              value={draft.lastName}
+              onChange={(e) => onChange({ ...draft, lastName: e.target.value })}
+            />
+          </Field>
+        </div>
+      </Fieldset>
 
       <Field
-        label="Phone"
+        label={isPassport ? "Passport number" : "National ID number"}
         required
-        composite
-        hint="Pick your country, then the number as you would dial it at home. Leave off the leading 0."
-        error={errors["phoneE164"]}
+        hint={
+          isPassport
+            ? "6 to 12 letters or digits."
+            : "16 digits, as printed on the card. Spaces are ignored."
+        }
+        error={errors["document.documentNumber"] ?? liveIdError ?? undefined}
       >
-        <PhoneInput
-          id="you-phone"
-          value={draft.phoneE164}
-          invalid={Boolean(errors["phoneE164"])}
-          onChange={(phoneE164) => onChange({ ...draft, phoneE164 })}
+        <TextInput
+          id="you-document-number"
+          inputMode={isPassport ? "text" : "numeric"}
+          autoComplete="off"
+          placeholder={isPassport ? "PC1234567" : "1 1995 8 0012345 12 3"}
+          maxLength={isPassport ? 12 : 24}
+          aria-invalid={errors["document.documentNumber"] ?? liveIdError ? true : undefined}
+          value={draft.documentNumber}
+          onChange={(e) => onChange({ ...draft, documentNumber: e.target.value })}
         />
       </Field>
 
-      <div className="rounded-card border border-border p-4">
-        <p className="text-sm font-semibold">Where you live</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Rwanda uses Province, District, Sector, Cell and Village — the last two
-          are optional. Anywhere else, just write the address.
-        </p>
-        <div className="mt-4">
-          <AddressPicker
-            idPrefix="you"
-            collectVillage
-            draft={draft.address}
-            onChange={(address) => onChange({ ...draft, address })}
-            errors={errors}
+      {isPassport ? (
+        <Field label="Issuing country" required error={errors["document.issuingCountry"]}>
+          <SelectField
+            value={draft.issuingCountry}
+            options={COUNTRY_OPTIONS}
+            placeholder="Choose a country"
+            invalid={Boolean(errors["document.issuingCountry"])}
+            onChange={(issuingCountry) => onChange({ ...draft, issuingCountry })}
           />
-        </div>
-      </div>
+        </Field>
+      ) : null}
+
+      <Field
+        label="Date of birth"
+        required
+        hint={
+          birthYearClash
+            ? `Your National ID says you were born in ${idFacts?.birthYear}. Check the year.`
+            : "As printed on your ID. You must be 18 or over to register a business."
+        }
+        error={errors["dateOfBirth"]}
+      >
+        <TextInput
+          type="date"
+          className="w-full max-w-form"
+          value={draft.dateOfBirth}
+          onChange={(e) => onChange({ ...draft, dateOfBirth: e.target.value })}
+        />
+      </Field>
     </div>
   );
 }
