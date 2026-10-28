@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, ne, sql, type SQL } from 'drizzle-orm';
 
 import {
-  identityChallenges,
   identityDocuments,
+  identityScans,
+  registrationDrafts,
   userProfiles,
   users,
   verifiedIdentities,
@@ -37,13 +38,13 @@ export interface VerifiedIdentityInput {
   documentType: 'national_id' | 'passport';
   documentNumber: string;
   issuingCountry: string;
-  /** `registry` or `document_scan` (ADR-060); free text on the column. */
+  /** `document_scan` (ADR-060) or `psf_review` (ADR-075 D-o); free text on the column. */
   method: string;
 }
 
 /**
- * Identity verification's rows (ADR-060): the challenge a National ID lookup
- * waits on, and the verified identity it produces.
+ * Identity verification's rows (ADR-060, ADR-075): every scan attempt, the try
+ * count on the draft, and the identity a scan or typed details produce.
  *
  * Writing a verified identity touches the same three places a profile save
  * does (`verified_identities`, `identity_documents`, `user_profiles`), in one
@@ -144,51 +145,155 @@ export class IdentityRepository {
   }
 
   /**
-   * A new challenge for this person, replacing any they already had: the
-   * newest code is the only one that works, as a resend does for the step-up.
+   * Write one scan attempt (ADR-075 D-n) and count it on the draft (D-m), in one
+   * transaction, so the try count and the rows can never disagree. The draft row
+   * is created when there is none yet, holding only its `checks`; the client's
+   * `payload` is left exactly as it was. Answers this try's number.
    */
-  async replaceChallenge(input: {
+  async recordScan(input: {
     userId: string;
-    documentNumber: string;
-    codeHash: string;
-    expiresAt: Date;
-  }): Promise<string> {
+    documentType: 'national_id' | 'passport';
+    frontObjectKey: string;
+    selfieObjectKey: string;
+    outcome: 'machine_passed' | 'machine_failed' | 'manual_needed';
+    reason: string | null;
+    adapterMode: 'mock' | 'live' | 'off';
+  }): Promise<number> {
     return this.db.transaction(async (tx) => {
-      await tx.delete(identityChallenges).where(eq(identityChallenges.userId, input.userId));
+      await tx.insert(identityScans).values(input);
+      const scan = (attempts: SQL): SQL =>
+        sql`jsonb_build_object('attempts', ${attempts}, 'documentType', ${input.documentType}::text, 'outcome', ${input.outcome}::text)`;
       const [row] = await tx
-        .insert(identityChallenges)
-        .values({ ...input, attempts: 0 })
-        .returning({ id: identityChallenges.id });
-      return row!.id;
+        .insert(registrationDrafts)
+        .values({ userId: input.userId, checks: sql`jsonb_build_object('scan', ${scan(sql`1`)})` })
+        .onConflictDoUpdate({
+          target: registrationDrafts.userId,
+          set: {
+            checks: sql`jsonb_set(${registrationDrafts.checks}, '{scan}', ${scan(
+              sql`coalesce((${registrationDrafts.checks} #>> '{scan,attempts}')::int, 0) + 1`,
+            )})`,
+          },
+        })
+        .returning({ attempts: sql<number>`(${registrationDrafts.checks} #>> '{scan,attempts}')::int` });
+      return row!.attempts;
     });
   }
 
-  async findChallenge(
-    id: string,
-    userId: string,
-  ): Promise<{ documentNumber: string; codeHash: string; expiresAt: Date; attempts: number } | null> {
+  /** The caller's latest scan, on any draft, or null when they never scanned. */
+  async latestScan(userId: string): Promise<{
+    outcome: 'machine_passed' | 'machine_failed' | 'manual_needed';
+    documentType: 'national_id' | 'passport';
+  } | null> {
     const [row] = await this.db
-      .select({
-        documentNumber: identityChallenges.documentNumber,
-        codeHash: identityChallenges.codeHash,
-        expiresAt: identityChallenges.expiresAt,
-        attempts: identityChallenges.attempts,
-      })
-      .from(identityChallenges)
-      .where(and(eq(identityChallenges.id, id), eq(identityChallenges.userId, userId)))
+      .select({ outcome: identityScans.outcome, documentType: identityScans.documentType })
+      .from(identityScans)
+      .where(eq(identityScans.userId, userId))
+      .orderBy(desc(identityScans.createdAt))
       .limit(1);
-    return row ?? null;
+    if (!row) return null;
+    return { outcome: row.outcome, documentType: row.documentType === 'passport' ? 'passport' : 'national_id' };
   }
 
-  async countWrongAttempt(id: string): Promise<void> {
-    await this.db
-      .update(identityChallenges)
-      .set({ attempts: sql`${identityChallenges.attempts} + 1`, updatedAt: new Date() })
-      .where(eq(identityChallenges.id, id));
+  /** Tries on the current draft (`checks.scan.attempts`), 0 with no draft. */
+  async scanAttempts(userId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ attempts: sql<number | null>`(${registrationDrafts.checks} #>> '{scan,attempts}')::int` })
+      .from(registrationDrafts)
+      .where(eq(registrationDrafts.userId, userId))
+      .limit(1);
+    return row?.attempts ?? 0;
   }
 
-  async deleteChallenge(id: string): Promise<void> {
-    await this.db.delete(identityChallenges).where(eq(identityChallenges.id, id));
+  /**
+   * Record details typed as printed, after a scan that read nothing (ADR-075
+   * S4): the KYC row at `pending`, for PSF to hold against the photos, the
+   * document as the active primary one and unverified, and the profile's name,
+   * birth date and ID mirror, in one transaction. The same "one human, one
+   * account" refusal as every other write of a document.
+   */
+  async recordTyped(
+    userId: string,
+    input: {
+      fullName: string;
+      dateOfBirth: string;
+      documentType: 'national_id' | 'passport';
+      documentNumber: string;
+      issuingCountry: string;
+    },
+  ): Promise<void> {
+    const now = new Date();
+    await this.db.transaction(async (tx) => {
+      const [held] = await tx
+        .select({ identityId: identityDocuments.identityId })
+        .from(identityDocuments)
+        .where(
+          and(
+            eq(identityDocuments.documentType, input.documentType),
+            eq(identityDocuments.documentNumber, input.documentNumber),
+            eq(identityDocuments.issuingCountry, input.issuingCountry),
+          ),
+        )
+        .limit(1);
+      if (held && held.identityId !== userId) {
+        throw new DuplicateIdentityDocumentError();
+      }
+
+      const identity = {
+        kycStatus: 'pending' as const,
+        legalFullName: input.fullName,
+        dob: input.dateOfBirth,
+        verifiedMethod: null,
+        verifiedAt: null,
+      };
+      await tx
+        .insert(verifiedIdentities)
+        .values({ userId, ...identity })
+        .onConflictDoUpdate({
+          target: verifiedIdentities.userId,
+          set: { ...identity, verifiedByUserId: null, updatedAt: now },
+        });
+
+      await tx
+        .update(identityDocuments)
+        .set({ isPrimary: false, status: 'superseded', updatedAt: now })
+        .where(
+          and(
+            eq(identityDocuments.identityId, userId),
+            eq(identityDocuments.isPrimary, true),
+            ne(identityDocuments.documentNumber, input.documentNumber),
+          ),
+        );
+      if (held) {
+        await tx
+          .update(identityDocuments)
+          .set({ isPrimary: true, status: 'active', verifiedAt: null, updatedAt: now })
+          .where(
+            and(
+              eq(identityDocuments.documentType, input.documentType),
+              eq(identityDocuments.documentNumber, input.documentNumber),
+              eq(identityDocuments.issuingCountry, input.issuingCountry),
+            ),
+          );
+      } else {
+        await tx.insert(identityDocuments).values({
+          identityId: userId,
+          documentType: input.documentType,
+          documentNumber: input.documentNumber,
+          issuingCountry: input.issuingCountry,
+          status: 'active',
+          isPrimary: true,
+        });
+      }
+
+      const nationalId = input.documentType === 'national_id' ? input.documentNumber : null;
+      await tx
+        .insert(userProfiles)
+        .values({ userId, displayName: input.fullName, dob: input.dateOfBirth, nationalId })
+        .onConflictDoUpdate({
+          target: userProfiles.userId,
+          set: { displayName: input.fullName, dob: input.dateOfBirth, nationalId, updatedAt: now },
+        });
+    });
   }
 
   /**

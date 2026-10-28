@@ -12,7 +12,7 @@ import { guestHostKindEnum, guestRegistrationStatusEnum } from './guests';
  * exactly contracts' countries (the kit's country picker shows the same) and
  * guest relationships.
  */
-const MIGRATION = readFileSync(path.join(__dirname, 'migrations', '0087_guest_registrations.sql'), 'utf8');
+const MIGRATION = readFileSync(path.join(__dirname, 'migrations', '0091_guest_registrations.sql'), 'utf8');
 
 describe('guests schema and reference data', () => {
   it('builds the guest enums from the contracts vocabulary', () => {

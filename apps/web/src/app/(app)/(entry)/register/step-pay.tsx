@@ -8,7 +8,7 @@ import {
   type PaymentInstrument,
   type RegistrationFeeAttemptStatus,
 } from "@injishi/contracts";
-import { Button } from "@injishi/web-ui";
+import { Button, Checkbox } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
 import { PaymentPrompt } from "@/components/book/payment-prompt";
@@ -76,17 +76,22 @@ export function feeLimitProblem(
 }
 
 /**
- * Step 6, Pay (073-gtbank-payments AC-17).
+ * Step 5, Pay (ADR-075 S7, 073-gtbank-payments AC-17).
+ *
+ * The first press of Pay creates the registration from the answers (D-l), with
+ * an \`Idempotency-Key\` minted once for that press, so a double press, a retry
+ * or a second tab land on one registration (AC-14); then it pays. The press
+ * needs one checkbox: the fee is not refundable.
  *
  * The fee is a mobile money Request to Pay: the registrant types the number the
  * prompt should go to, approves it on that phone, and this step waits for the
- * money to settle before the registration goes for review. Only the server's
+ * money to settle before the registration goes to PSF review. Only the server's
  * answer moves it on.
  *
  * - `free`: payments are off for the fee on this stack, so no number is asked
  *   for and pressing the primary action records the fee with no money moving.
- * - `test`: the mock; the same flow, labelled as a test, so imaginary money is
- *   never mistaken for real.
+ * - `test`: the mock, which every demo stack runs; the same flow, labelled as a
+ *   test, so imaginary money is never mistaken for real.
  * - `live` and `unknown`: the number form. The server always decides, and
  *   ignores the number if the fee turns out to be free.
  *
@@ -97,6 +102,8 @@ export function StepPay({
   fee,
   paid,
   paidOn,
+  understood,
+  onUnderstood,
   onSeeStatus,
   feeMode,
   phone,
@@ -114,6 +121,9 @@ export function StepPay({
   paid: boolean;
   /** When the fee was recorded, as a person reads it, once it is. */
   paidOn: string | null;
+  /** "I understand the registration fee is not refundable." */
+  understood: boolean;
+  onUnderstood: (next: boolean) => void;
   onSeeStatus: () => void;
   feeMode: RegistrationFeeMode;
   /** The number as typed. */
@@ -136,6 +146,17 @@ export function StepPay({
   })();
   const DetectedMark = detected ? NETWORK_MARK[detected] : Smartphone;
   const waiting = attempt?.state === "prompting" && orgId !== null;
+  // The one box the press needs (ADR-075 S7), under whichever way the fee is taken here.
+  const notRefundable = (
+    <Checkbox
+      isSelected={understood}
+      onChange={(on: boolean) => onUnderstood(on)}
+      className="items-start gap-3"
+      controlClassName="mt-0.5"
+    >
+      <span className="text-sm">I understand the registration fee is not refundable.</span>
+    </Checkbox>
+  );
 
   return (
     <>
@@ -154,15 +175,15 @@ export function StepPay({
               paid ? "bg-success/15 text-success" : "bg-card text-muted-foreground",
             )}
           >
-            {paid ? "Paid" : waiting ? "Waiting for your approval" : "Not paid yet"}
+            {paid ? "Paid" : waiting ? "Waiting for your approval" : "Not paid"}
           </span>
         </div>
       </div>
 
       {paid ? (
         <>
-          <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title="Paid. Your registration is with Injishi for review">
-            {paidOn ? `The fee was recorded on ${paidOn}. ` : ""}An officer reviews it next, and we email you either way.
+          <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title="Paid. PSF reviews it next">
+            {paidOn ? `The fee was recorded on ${paidOn}. ` : ""}We email you when PSF has decided.
           </Callout>
           <div>
             <Button onClick={onSeeStatus}>
@@ -180,10 +201,13 @@ export function StepPay({
           onEnded={onEnded}
         />
       ) : feeMode === "free" ? (
-        <Callout tone="info" icon={<Landmark size={16} aria-hidden />} title="No payment is taken yet">
-          Payments are not switched on for registrations yet, so no money moves. Pressing Submit records the fee against
-          this registration and sends it to Injishi for review.
-        </Callout>
+        <>
+          <Callout tone="info" icon={<Landmark size={16} aria-hidden />} title="No payment is taken yet">
+            Payments are not switched on for registrations yet, so no money moves. Pressing Submit records the fee against
+            this registration and sends it to PSF for review.
+          </Callout>
+          {notRefundable}
+        </>
       ) : (
         <>
           {endedReason ? (
@@ -221,6 +245,7 @@ export function StepPay({
               Accepted: {networks.map((n) => NETWORK_LABEL[n]).join(" or ")}. Nothing is taken until you approve the prompt.
             </p>
           </div>
+          {notRefundable}
         </>
       )}
     </>

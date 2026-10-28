@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto';
 
 /**
- * The made-up registers the MOCK identity and TIN adapters answer from
- * (ADR-060). Shared because the two must agree: a person's National ID is what
- * makes them a director of a business, and that agreement is the whole of the
- * owner-or-on-behalf demonstration.
+ * The made-up registers the MOCK document verifier and TIN adapter answer from
+ * (ADR-060, ADR-075). Shared because the two must agree: a person's National ID
+ * is what makes them a director of a business, and that agreement is the whole
+ * of the owner-or-on-behalf demonstration. The mock reads a National ID front
+ * as one of these people; a demo card names one by number
+ * (`mock-identity-adapters.ts`).
  *
  * Every name, number, phone and company here is fictional. The mocks run only
  * over a sample database (`resolveIdentityMode`; the TIN mock returns details

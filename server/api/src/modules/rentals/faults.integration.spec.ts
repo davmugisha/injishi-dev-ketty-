@@ -177,6 +177,7 @@ maybe('faults and the ticket lifecycle against Postgres (RENTALS_IT_DATABASE_URL
       .values({
         legalName: `Fault Court ${tag}`,
         domain: 'residence',
+        businessKind: 'residence',
         residenceClass: 'residential_landlord',
         upi: `1/02/03/04/${Math.floor(1000 + Math.random() * 8999)}`,
         registrationStatus: 'active',
@@ -355,7 +356,7 @@ maybe('faults and the ticket lifecycle against Postgres (RENTALS_IT_DATABASE_URL
     const tag = randomUUID().slice(0, 6);
     const [org] = await db
       .insert(schema.orgs)
-      .values({ legalName: `Lake Hotel ${tag}`, domain: 'hospitality', accommodationClass: 'hotel', tin: String(100_000_000 + Math.floor(Math.random() * 899_999_999)), registrationStatus: 'active' })
+      .values({ legalName: `Lake Hotel ${tag}`, domain: 'hospitality', businessKind: 'hotel', accommodationClass: 'hotel', tin: String(100_000_000 + Math.floor(Math.random() * 899_999_999)), registrationStatus: 'active' })
       .returning();
     const [workspace] = await db.insert(schema.workspaces).values({ kind: 'business', orgId: org!.id }).returning();
     const [property] = await db.insert(schema.properties).values({ orgId: org!.id, workspaceId: workspace!.id, name: `Lake Hotel ${tag}` }).returning();

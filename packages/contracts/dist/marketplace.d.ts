@@ -975,10 +975,10 @@ export declare const SavedPlace: z.ZodObject<{
     available: boolean;
     propertyId: string;
     availableFrom: string | null;
+    savedAt: string;
     where: string;
     stockPhoto: string | null;
     savedPriceRwf: number | null;
-    savedAt: string;
 }, {
     name: string;
     domain: "hospitality" | "residence";
@@ -989,10 +989,10 @@ export declare const SavedPlace: z.ZodObject<{
     available: boolean;
     propertyId: string;
     availableFrom: string | null;
+    savedAt: string;
     where: string;
     stockPhoto: string | null;
     savedPriceRwf: number | null;
-    savedAt: string;
 }>;
 export type SavedPlace = z.infer<typeof SavedPlace>;
 /** `GET /me/saved`: everything the person saved, newest first, across every list. */
@@ -1024,10 +1024,10 @@ export declare const MySaved: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
+        savedAt: string;
         where: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
-        savedAt: string;
     }, {
         name: string;
         domain: "hospitality" | "residence";
@@ -1038,10 +1038,10 @@ export declare const MySaved: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
+        savedAt: string;
         where: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
-        savedAt: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     saved: {
@@ -1054,10 +1054,10 @@ export declare const MySaved: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
+        savedAt: string;
         where: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
-        savedAt: string;
     }[];
 }, {
     saved: {
@@ -1070,10 +1070,10 @@ export declare const MySaved: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
+        savedAt: string;
         where: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
-        savedAt: string;
     }[];
 }>;
 export type MySaved = z.infer<typeof MySaved>;
@@ -1112,10 +1112,10 @@ export declare const GuestCollection: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
+        savedAt: string;
         where: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
-        savedAt: string;
     }, {
         name: string;
         domain: "hospitality" | "residence";
@@ -1126,10 +1126,10 @@ export declare const GuestCollection: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
+        savedAt: string;
         where: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
-        savedAt: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     name: string;
@@ -1144,10 +1144,10 @@ export declare const GuestCollection: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
+        savedAt: string;
         where: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
-        savedAt: string;
     }[];
     createdAt: string;
     isDefault: boolean;
@@ -1165,10 +1165,10 @@ export declare const GuestCollection: z.ZodObject<{
         available: boolean;
         propertyId: string;
         availableFrom: string | null;
+        savedAt: string;
         where: string;
         stockPhoto: string | null;
         savedPriceRwf: number | null;
-        savedAt: string;
     }[];
     createdAt: string;
     isDefault: boolean;
@@ -1210,10 +1210,10 @@ export declare const MyCollections: z.ZodObject<{
             available: boolean;
             propertyId: string;
             availableFrom: string | null;
+            savedAt: string;
             where: string;
             stockPhoto: string | null;
             savedPriceRwf: number | null;
-            savedAt: string;
         }, {
             name: string;
             domain: "hospitality" | "residence";
@@ -1224,10 +1224,10 @@ export declare const MyCollections: z.ZodObject<{
             available: boolean;
             propertyId: string;
             availableFrom: string | null;
+            savedAt: string;
             where: string;
             stockPhoto: string | null;
             savedPriceRwf: number | null;
-            savedAt: string;
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         name: string;
@@ -1242,10 +1242,10 @@ export declare const MyCollections: z.ZodObject<{
             available: boolean;
             propertyId: string;
             availableFrom: string | null;
+            savedAt: string;
             where: string;
             stockPhoto: string | null;
             savedPriceRwf: number | null;
-            savedAt: string;
         }[];
         createdAt: string;
         isDefault: boolean;
@@ -1263,10 +1263,10 @@ export declare const MyCollections: z.ZodObject<{
             available: boolean;
             propertyId: string;
             availableFrom: string | null;
+            savedAt: string;
             where: string;
             stockPhoto: string | null;
             savedPriceRwf: number | null;
-            savedAt: string;
         }[];
         createdAt: string;
         isDefault: boolean;
@@ -1286,10 +1286,10 @@ export declare const MyCollections: z.ZodObject<{
             available: boolean;
             propertyId: string;
             availableFrom: string | null;
+            savedAt: string;
             where: string;
             stockPhoto: string | null;
             savedPriceRwf: number | null;
-            savedAt: string;
         }[];
         createdAt: string;
         isDefault: boolean;
@@ -1309,10 +1309,10 @@ export declare const MyCollections: z.ZodObject<{
             available: boolean;
             propertyId: string;
             availableFrom: string | null;
+            savedAt: string;
             where: string;
             stockPhoto: string | null;
             savedPriceRwf: number | null;
-            savedAt: string;
         }[];
         createdAt: string;
         isDefault: boolean;
@@ -1672,14 +1672,14 @@ export declare const MyBusinessPlace: z.ZodObject<{
     orgId: z.ZodString;
     role: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    legalName: string;
     role: string;
+    legalName: string;
     orgId: string;
     propertyName: string;
     propertyId: string;
 }, {
-    legalName: string;
     role: string;
+    legalName: string;
     orgId: string;
     propertyName: string;
     propertyId: string;
@@ -1693,30 +1693,30 @@ export declare const MyBusinesses: z.ZodObject<{
         orgId: z.ZodString;
         role: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        legalName: string;
         role: string;
+        legalName: string;
         orgId: string;
         propertyName: string;
         propertyId: string;
     }, {
-        legalName: string;
         role: string;
+        legalName: string;
         orgId: string;
         propertyName: string;
         propertyId: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     businesses: {
-        legalName: string;
         role: string;
+        legalName: string;
         orgId: string;
         propertyName: string;
         propertyId: string;
     }[];
 }, {
     businesses: {
-        legalName: string;
         role: string;
+        legalName: string;
         orgId: string;
         propertyName: string;
         propertyId: string;

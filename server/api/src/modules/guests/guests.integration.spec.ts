@@ -169,6 +169,7 @@ maybe('guests and local leaders against Postgres (GUESTS_IT_DATABASE_URL)', () =
       .values({
         legalName: `Guest Court ${tag}`,
         domain: 'residence',
+        businessKind: 'residence',
         residenceClass: 'residential_landlord',
         upi: `1/02/03/04/${Math.floor(1000 + Math.random() * 8999)}`,
         registrationStatus: 'active',

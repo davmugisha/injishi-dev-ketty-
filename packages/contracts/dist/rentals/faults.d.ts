@@ -443,15 +443,15 @@ export declare const FaultPhotoView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     id: string;
     url: string;
-    phase: "fixed" | "report" | "progress";
     position: number;
+    phase: "fixed" | "report" | "progress";
     uploadedAt: string;
     byTenant: boolean;
 }, {
     id: string;
     url: string;
-    phase: "fixed" | "report" | "progress";
     position: number;
+    phase: "fixed" | "report" | "progress";
     uploadedAt: string;
     byTenant: boolean;
 }>;
@@ -555,15 +555,15 @@ export declare const FaultDetail: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         url: string;
-        phase: "fixed" | "report" | "progress";
         position: number;
+        phase: "fixed" | "report" | "progress";
         uploadedAt: string;
         byTenant: boolean;
     }, {
         id: string;
         url: string;
-        phase: "fixed" | "report" | "progress";
         position: number;
+        phase: "fixed" | "report" | "progress";
         uploadedAt: string;
         byTenant: boolean;
     }>, "many">;
@@ -688,8 +688,8 @@ export declare const FaultDetail: z.ZodObject<{
     photos: {
         id: string;
         url: string;
-        phase: "fixed" | "report" | "progress";
         position: number;
+        phase: "fixed" | "report" | "progress";
         uploadedAt: string;
         byTenant: boolean;
     }[];
@@ -759,8 +759,8 @@ export declare const FaultDetail: z.ZodObject<{
     photos: {
         id: string;
         url: string;
-        phase: "fixed" | "report" | "progress";
         position: number;
+        phase: "fixed" | "report" | "progress";
         uploadedAt: string;
         byTenant: boolean;
     }[];
@@ -931,15 +931,15 @@ export declare const TenantFaultDetail: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         url: string;
-        phase: "fixed" | "report" | "progress";
         position: number;
+        phase: "fixed" | "report" | "progress";
         uploadedAt: string;
         byTenant: boolean;
     }, {
         id: string;
         url: string;
-        phase: "fixed" | "report" | "progress";
         position: number;
+        phase: "fixed" | "report" | "progress";
         uploadedAt: string;
         byTenant: boolean;
     }>, "many">;
@@ -1000,8 +1000,8 @@ export declare const TenantFaultDetail: z.ZodObject<{
     photos: {
         id: string;
         url: string;
-        phase: "fixed" | "report" | "progress";
         position: number;
+        phase: "fixed" | "report" | "progress";
         uploadedAt: string;
         byTenant: boolean;
     }[];
@@ -1037,8 +1037,8 @@ export declare const TenantFaultDetail: z.ZodObject<{
     photos: {
         id: string;
         url: string;
-        phase: "fixed" | "report" | "progress";
         position: number;
+        phase: "fixed" | "report" | "progress";
         uploadedAt: string;
         byTenant: boolean;
     }[];

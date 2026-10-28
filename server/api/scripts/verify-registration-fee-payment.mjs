@@ -22,7 +22,6 @@ import pg from "pg";
 const BASE = process.env.API_BASE || "http://127.0.0.1:8000";
 const WEB_ORIGIN = process.env.WEB_ORIGIN || "http://localhost:3000";
 const GASABO = { country: "RW", provinceId: 1, districtId: 102, sectorId: 10201 };
-const CONTRACT = "2026-09-12";
 const GOOD_NUMBER = "788123456";
 const DECLINED_NUMBER = "788120000";
 
@@ -104,6 +103,21 @@ async function newRegistrant(label) {
   return { session, email, userId: user.id, nationalId };
 }
 
+/**
+ * Upload a small PDF as this session's RDB certificate. ADR-075 AC-11: create refuses a stay or a venue without
+ * one, and only takes a certificate the registrant uploaded.
+ */
+async function rdbCertificate(session) {
+  const form = new FormData();
+  form.append("file", new Blob([CERTIFICATE_PDF], { type: "application/pdf" }), "rdb-certificate.pdf");
+  const res = await fetch(`${BASE}/api/v1/uploads/certificate`, { method: "POST", headers: { cookie: session.cookie() }, body: form });
+  session.absorb(res);
+  const json = await res.json().catch(() => null);
+  if (!json?.objectKey) throw new Error(`certificate upload: ${res.status} ${JSON.stringify(json)}`);
+  return [{ kind: "rdb_certificate", objectKey: json.objectKey }];
+}
+const CERTIFICATE_PDF = "%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n";
+
 async function newRegistration(registrant, label) {
   const created = await call(registrant.session, "POST", "/api/v1/registrations", {
     role: "host",
@@ -121,7 +135,7 @@ async function newRegistration(registrant, label) {
       address: GASABO,
       accommodationClass: "guest_house",
       tin: String(100_000_000 + randomInt(0, 899_999_999)),
-      certificates: [],
+      certificates: await rdbCertificate(registrant.session),
     },
   });
   if (!created.json?.orgId) throw new Error(`could not create a registration: ${created.status} ${created.text.slice(0, 200)}`);
@@ -173,18 +187,8 @@ const main = async () => {
   const orgA = regA.orgId;
   const wsA = regA.workspaceId;
 
-  const early = await call(a.session, "POST", `/api/v1/registrations/${orgA}/pay`, {
-    attemptToken: randomUUID(),
-    instrument: mm(GOOD_NUMBER),
-  });
-  check(
-    "paying before the contract is accepted is 409 contract_not_accepted",
-    early.status === 409 && early.json?.code === "contract_not_accepted",
-    `${early.status} ${early.text.slice(0, 160)}`,
-  );
-  const accepted = await call(a.session, "POST", `/api/v1/registrations/${orgA}/contract`, { contractVersion: CONTRACT });
-  check("accept the operator contract", accepted.status === 200 || accepted.status === 201, `${accepted.status}`);
-
+  // No contract is accepted first: ADR-075 moved the agreement to after approval (AC-12), so the pay below is the
+  // first thing a registrant does after create.
   const noNumber = await call(a.session, "POST", `/api/v1/registrations/${orgA}/pay`, {});
   check("paying with no number is 422", noNumber.status === 422, `${noNumber.status} ${noNumber.text.slice(0, 160)}`);
   const card = await call(a.session, "POST", `/api/v1/registrations/${orgA}/pay`, {
@@ -312,7 +316,6 @@ const main = async () => {
   console.log("\n=== Two presses that both settle: the second is refunded (AC-6a, AC-16) ===");
   const b = await newRegistrant("b");
   const regB = await newRegistration(b, "B");
-  await call(b.session, "POST", `/api/v1/registrations/${regB.orgId}/contract`, { contractVersion: CONTRACT });
   const first = randomUUID();
   const second = randomUUID();
   const p1 = await call(b.session, "POST", `/api/v1/registrations/${regB.orgId}/pay`, { attemptToken: first, instrument: mm(GOOD_NUMBER) });

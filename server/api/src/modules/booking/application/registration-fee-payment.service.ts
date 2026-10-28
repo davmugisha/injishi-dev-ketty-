@@ -1,12 +1,10 @@
 import {
   instrumentProblem,
-  type RegistrationConflictCode,
   type RegistrationFeeAttemptStatus,
   type RegistrationPayRequest,
   type RegistrationPayResult,
 } from '@injishi/contracts';
 import {
-  ConflictException,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -52,16 +50,10 @@ export class RegistrationFeePaymentService {
 
     const facts = await this.registrations.feeFacts(orgId);
     if (!facts) throw new NotFoundException('Registration not found.');
-    // Already past the fee: nothing to charge, and nothing is.
+    // Already past the fee: nothing to charge, and nothing is. No contract is asked for first: ADR-075 moved the
+    // agreement to after approval (AC-12).
     if (!awaitsRegistrationFee(facts.status)) {
       return { kind: 'settled', registration: await this.registrations.summary(orgId) };
-    }
-    // The contract comes before the money (ADR-053, AC-R13).
-    if (facts.contractVersion === null) {
-      throw new ConflictException({
-        code: 'contract_not_accepted' satisfies RegistrationConflictCode,
-        message: 'Accept the operator contract before paying the registration fee.',
-      });
     }
     if (!facts.invoiceId || facts.amountDueRwf == null || !facts.workspaceId) {
       // A registration awaiting its fee always has its invoice and workspace;

@@ -27,7 +27,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { timestamps } from './columns';
-import { adapterModeEnum, documentTypeEnum, domainKindEnum, genderEnum, globalRoleEnum, identityDocumentStatusEnum, invitationPurposeEnum, invitationStatusEnum, kycStatusEnum, oboClaimStatusEnum, orgCertificateKindEnum, orgCertificateStatusEnum, orgMembershipStatusEnum, orgRegistrationStatusEnum, orgRoleEnum, oversightRoleEnum, oversightScopeLevelEnum, rdbClassificationKindEnum, registrationRejectionReasonEnum, registrationReviewDecisionEnum, registrationTransitionTriggerEnum, tinVerificationResultEnum, workspaceKindEnum } from './enums';
+import { adapterModeEnum, businessKindEnum, documentTypeEnum, domainKindEnum, franchiseRoleEnum, genderEnum, globalRoleEnum, identityAdapterModeEnum, identityDocumentStatusEnum, identityScanOutcomeEnum, invitationPurposeEnum, invitationStatusEnum, kycStatusEnum, oboClaimStatusEnum, orgCertificateKindEnum, orgCertificateStatusEnum, orgMembershipStatusEnum, orgRegistrationStatusEnum, orgRoleEnum, oversightRoleEnum, oversightScopeLevelEnum, rdbClassificationKindEnum, registrationRejectionReasonEnum, registrationReviewDecisionEnum, registrationTransitionTriggerEnum, tinVerificationResultEnum, workspaceKindEnum } from './enums';
 import { cells, districts, provinces, sectors, villages } from './geography';
 import { storedObjects } from './hospitality';
 import { properties } from './inventory';
@@ -50,6 +50,12 @@ export const orgs = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     legalName: text('legal_name').notNull(),
     domain: domainKindEnum('domain').notNull(),
+    /**
+     * What kind of business it is (ADR-075 D-h, AC-31): the noun the register,
+     * the PSF case and setup say. Backfilled from `domain` and the class by
+     * migration 0075, where Bar & Restaurant left the free text `other`.
+     */
+    businessKind: businessKindEnum('business_kind').notNull(),
     rdbEntityGroup: text('rdb_entity_group').references(
       () => rdbClassifications.code,
     ),
@@ -92,6 +98,13 @@ export const orgs = pgTable(
     villageId: integer('village_id').references(() => villages.id),
     addressText: text('address_text'),
     /**
+     * The `Idempotency-Key` of the Pay press that created this registration
+     * (ADR-075 AC-14). Unique, so a retried press, a double press or two tabs
+     * pressing at once land on the one registration the first created. Null
+     * for a registration made before ADR-075 and for a seeded one.
+     */
+    creationKey: text('creation_key'),
+    /**
      * The operator contract this business accepted (ADR-053, AC-R8).
      *
      * A date string from `OPERATOR_CONTRACT_VERSION`, because the document is
@@ -109,12 +122,16 @@ export const orgs = pgTable(
   },
   (t) => [
     unique('orgs_tin_uk').on(t.tin),
+    unique('orgs_creation_key_uk').on(t.creationKey),
     index('orgs_district_idx').on(t.districtId),
     index('orgs_registration_status_idx').on(t.registrationStatus),
     check(
       'orgs_domain_shape',
-      sql`(${t.domain} = 'hospitality' AND ${t.accommodationClass} IS NOT NULL)
-          OR (${t.domain} = 'residence' AND ${t.residenceClass} IS NOT NULL AND ${t.tourismLicenseNumber} IS NULL AND NOT ${t.psfMember})`,
+      // ADR-075 D-h: a venue (bar & restaurant, coffee shop) has no
+      // accommodation class; every other hospitality kind is a stay and has one.
+      sql`(${t.domain} = 'hospitality' AND ${t.businessKind} IN ('bar_restaurant', 'coffee_shop') AND ${t.accommodationClass} IS NULL)
+          OR (${t.domain} = 'hospitality' AND ${t.businessKind} IN ('hotel', 'motel', 'tented_camp', 'guest_house', 'apartment', 'lodge', 'villa', 'other') AND ${t.accommodationClass} IS NOT NULL)
+          OR (${t.domain} = 'residence' AND ${t.businessKind} = 'residence' AND ${t.residenceClass} IS NOT NULL AND ${t.tourismLicenseNumber} IS NULL AND NOT ${t.psfMember})`,
     ),
     // D24: TIN for businesses, UPI for residences. The identifier a registration
     // is checked against differs by domain, so requiring both would block half
@@ -241,41 +258,56 @@ export const verifiedIdentities = pgTable('verified_identities', {
 
 
 /**
- * A National ID lookup waiting for its code (ADR-060).
+ * One ID scan attempt (ADR-075 D-n): the front of the card or the passport's
+ * photo page, a selfie, and what the document verifier made of them. Written
+ * on every attempt and in every mode, so the PSF officer has the photos to
+ * compare where no checker runs (O-6) and the case shows the latest.
  *
- * The register answered with a person and a phone; the code went to that phone
- * and the person is revealed only to whoever types it back. `codeHash` is the
- * SHA-256 of the six digits, as `two_factor_challenges` does, so a read of this
- * table is not a working verification. The row is deleted when it is spent,
- * and dies at its expiry or its attempts cap. The document number is kept only
- * so the confirm can bind the SAME number the code was sent for.
+ * Append only. The object keys live here and nowhere else; a `/me/*` response
+ * never carries one, and links are minted only by the oversight identity route.
+ * When the objects are deleted after the case's final decision the row stays,
+ * keys and all, as the record that a scan happened.
  */
-export const identityChallenges = pgTable(
-  'identity_challenges',
+export const identityScans = pgTable(
+  'identity_scans',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    documentNumber: text('document_number').notNull(),
-    codeHash: text('code_hash').notNull(),
-    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-    attempts: integer('attempts').notNull().default(0),
-    ...timestamps,
+    documentType: documentTypeEnum('document_type').notNull(),
+    frontObjectKey: text('front_object_key').notNull(),
+    selfieObjectKey: text('selfie_object_key').notNull(),
+    outcome: identityScanOutcomeEnum('outcome').notNull(),
+    /** Why a checker refused it; set exactly when the outcome is `machine_failed`. */
+    reason: text('reason'),
+    adapterMode: identityAdapterModeEnum('adapter_mode').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('identity_challenges_user_id_idx').on(t.userId)],
+  (t) => [
+    index('identity_scans_user_created_idx').on(t.userId, t.createdAt),
+    check('identity_scans_document_type_ck', sql`${t.documentType} in ('national_id', 'passport')`),
+    check(
+      'identity_scans_reason_shape',
+      sql`(${t.outcome} = 'machine_failed') = (${t.reason} is not null)`,
+    ),
+  ],
 );
 
 /**
  * The registration wizard's answers between steps, one row per person
  * (ADR-060). `payload` is a `RegistrationDraft`, which by its contract never
- * holds an ID number. Deleted when the registration is created.
+ * holds an ID number; it is null on a row that so far holds only `checks`.
+ * `checks` is written by the server alone (ADR-075 D-m): today the ID scan's
+ * tries (`checks.scan`). Deleted when the registration is created, which is
+ * what resets the tries.
  */
 export const registrationDrafts = pgTable('registration_drafts', {
   userId: uuid('user_id')
     .primaryKey()
     .references(() => users.id, { onDelete: 'cascade' }),
-  payload: jsonb('payload').notNull(),
+  payload: jsonb('payload'),
+  checks: jsonb('checks').notNull().default(sql`'{}'::jsonb`),
   ...timestamps,
 });
 
@@ -548,6 +580,40 @@ export const orgCertificates = pgTable(
       'org_certificates_kind_other_shape',
       sql`(${t.kind} = 'other' AND ${t.kindOther} IS NOT NULL)
           OR (${t.kind} <> 'other' AND ${t.kindOther} IS NULL)`,
+    ),
+  ],
+);
+
+/**
+ * Whether a business is part of a franchise, and how (ADR-075 O-7, AC-8): one
+ * row per franchised org, written with the registration. No row means No.
+ *
+ * A franchisee runs another company's brand: it names the franchisor (its
+ * registered name and country) and may point at its agreement, the
+ * `franchise_agreement` document it uploaded. A franchisor owns the brand and
+ * says how many locations run under it. The CHECK holds each role to its own
+ * fields, so neither can carry the other's.
+ */
+export const orgFranchises = pgTable(
+  'org_franchises',
+  {
+    orgId: uuid('org_id')
+      .primaryKey()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    role: franchiseRoleEnum('role').notNull(),
+    brandName: text('brand_name').notNull(),
+    franchisorLegalName: text('franchisor_legal_name'),
+    franchisorCountry: char('franchisor_country', { length: 2 }),
+    /** The franchisee's uploaded agreement, when it sent one; the same object its `franchise_agreement` row names. */
+    agreementObjectId: uuid('agreement_object_id').references((): AnyPgColumn => storedObjects.id),
+    franchisedLocations: integer('franchised_locations'),
+    ...timestamps,
+  },
+  (t) => [
+    check(
+      'org_franchises_role_shape',
+      sql`(${t.role} = 'franchisee' AND ${t.franchisorLegalName} IS NOT NULL AND ${t.franchisorCountry} IS NOT NULL AND ${t.franchisedLocations} IS NULL)
+          OR (${t.role} = 'franchisor' AND ${t.franchisorLegalName} IS NULL AND ${t.franchisorCountry} IS NULL AND ${t.agreementObjectId} IS NULL AND ${t.franchisedLocations} > 0)`,
     ),
   ],
 );

@@ -1,4 +1,4 @@
-import { ConflictException, UnprocessableEntityException } from '@nestjs/common';
+import { UnprocessableEntityException } from '@nestjs/common';
 
 import type { RegistrationFees } from '../domain/registration-fees';
 import { PaymentSeam, resolvePaymentSeam } from '../../payments/domain/payment-seam';
@@ -16,14 +16,12 @@ describe('RegistrationFeePaymentService', () => {
   const summary = { orgId: ORG, status: 'submitted' };
   const owed: {
     status: string;
-    contractVersion: string | null;
     workspaceId: string;
     invoiceId: string;
     amountDueRwf: number;
     legalName: string;
   } = {
     status: 'pending_payment',
-    contractVersion: '2026-09-12',
     workspaceId: 'ws-1',
     invoiceId: 'invoice-1',
     amountDueRwf: 250_000,
@@ -74,12 +72,6 @@ describe('RegistrationFeePaymentService', () => {
     const { service, attempts } = build({ PAYMENT_ADAPTER_MODE: 'live', PAYMENT_LIVE_PURPOSES: 'booking' });
     const result = await service.pay(ORG, USER, good);
     expect(result.kind).toBe('settled');
-    expect(attempts.beginForRegistrationFee).not.toHaveBeenCalled();
-  });
-
-  it('refuses an open contract with 409 before any prompt', async () => {
-    const { service, attempts } = build({}, { contractVersion: null });
-    await expect(service.pay(ORG, USER, good)).rejects.toBeInstanceOf(ConflictException);
     expect(attempts.beginForRegistrationFee).not.toHaveBeenCalled();
   });
 

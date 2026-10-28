@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, isValidElement, useContext, useId, type ReactNode } from "react";
+import { CloudOff } from "lucide-react";
 import {
   Input,
   ListBox,
@@ -305,6 +306,20 @@ export function Notice({
     <div className={`rounded-card border p-4 text-sm ${toneClass}`} role="status">
       {children}
     </div>
+  );
+}
+
+/**
+ * Said beside the one thing that cannot be done offline (ADR-075 S9): the TIN
+ * check, an upload, the ID scan, paying. Everything else carries on, and the
+ * answers are kept on this phone meanwhile, which the header already says.
+ */
+export function Offline({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <p id={id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <CloudOff size={14} aria-hidden className="shrink-0" />
+      {children}
+    </p>
   );
 }
 

@@ -568,17 +568,6 @@ export declare const TenancyDetail: z.ZodObject<{
         phone: string | null;
         signatoryName: string | null;
     };
-    place: {
-        province: string | null;
-        district: string | null;
-        sector: string | null;
-        cell: string | null;
-        village: string | null;
-        line: string;
-        propertyName: string;
-        unitLabel: string;
-        blockCode: string | null;
-    };
     tenant: {
         fullName: string;
         email: string | null;
@@ -613,6 +602,17 @@ export declare const TenancyDetail: z.ZodObject<{
     cancelledAt: string | null;
     updatedAt: string;
     cancelReason: string | null;
+    place: {
+        province: string | null;
+        district: string | null;
+        sector: string | null;
+        cell: string | null;
+        village: string | null;
+        line: string;
+        propertyName: string;
+        unitLabel: string;
+        blockCode: string | null;
+    };
     endedOn: string | null;
     currentVersion: {
         id: string;
@@ -651,17 +651,6 @@ export declare const TenancyDetail: z.ZodObject<{
         phone: string | null;
         signatoryName: string | null;
     };
-    place: {
-        province: string | null;
-        district: string | null;
-        sector: string | null;
-        cell: string | null;
-        village: string | null;
-        line: string;
-        propertyName: string;
-        unitLabel: string;
-        blockCode: string | null;
-    };
     tenant: {
         fullName: string;
         email: string | null;
@@ -696,6 +685,17 @@ export declare const TenancyDetail: z.ZodObject<{
     cancelledAt: string | null;
     updatedAt: string;
     cancelReason: string | null;
+    place: {
+        province: string | null;
+        district: string | null;
+        sector: string | null;
+        cell: string | null;
+        village: string | null;
+        line: string;
+        propertyName: string;
+        unitLabel: string;
+        blockCode: string | null;
+    };
     endedOn: string | null;
     currentVersion: {
         id: string;

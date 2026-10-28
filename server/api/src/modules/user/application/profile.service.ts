@@ -66,7 +66,9 @@ export class ProfileService {
    * because "RAYAN  Iraguha" is the same person typed differently. A verified
    * person may leave the document out entirely, and keeps the verified one;
    * that is what lets the wizard save after a reload, when it no longer holds
-   * the full number (the draft never does).
+   * the full number (the draft never does). So may a person whose details were
+   * typed after a scan and wait for PSF (`pending`, ADR-075 S4): the wizard
+   * never holds that number either.
    */
   private async resolveDocument(
     userId: string,
@@ -103,13 +105,19 @@ export class ProfileService {
           message: 'That is not the birth date your identity was verified with.',
         });
       }
-      if (issues.length === 0 && !details.document && held) {
-        return {
-          documentType: held.documentType,
-          documentNumber: held.documentNumber,
-          issuingCountry: held.issuingCountry,
-        } as IdentityDocumentInput;
-      }
+    }
+    const held = identity.document;
+    if (
+      issues.length === 0 &&
+      !details.document &&
+      held &&
+      (identity.kycStatus === 'verified' || identity.kycStatus === 'pending')
+    ) {
+      return {
+        documentType: held.documentType,
+        documentNumber: held.documentNumber,
+        issuingCountry: held.issuingCountry,
+      } as IdentityDocumentInput;
     }
     if (issues.length === 0 && !details.document) {
       issues.push({

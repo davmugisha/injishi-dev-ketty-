@@ -14,7 +14,9 @@
     "lint": "pnpm run --silent lint:biome && pnpm run --silent lint:eslint",
     "lint:biome": "biome lint .",
     "lint:eslint": "eslint \"src/**/*.{ts,tsx}\"",
-    "test": "node ../../scripts/no-tests.mjs",
+    "test": "node --test \"scripts/*.test.mjs\"",
+    "palette:check": "node scripts/palette-pending.mjs",
+    "check:ci": "node scripts/check-ci.mjs",
     "update:publish": "node scripts/publish-update.mjs",
     "eas-build-post-install": "pnpm --filter \"@injishi/mobile^...\" run --if-present build"
   },

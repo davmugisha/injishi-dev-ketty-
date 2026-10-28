@@ -1,6 +1,6 @@
 {
-  "id": "84b078da-07c8-4dba-a8a1-65b6d388b2cb",
-  "prevId": "a50bb8b0-b1c0-4c85-bc33-17a8194c0dee",
+  "id": "f949015f-7252-422e-8862-e90f778a11c1",
+  "prevId": "41367a76-2897-4395-91d7-7ed6dd505196",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -4879,48 +4879,126 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.countries": {
-      "name": "countries",
+    "public.contract_filings": {
+      "name": "contract_filings",
       "schema": "",
       "columns": {
-        "code": {
-          "name": "code",
-          "type": "text",
+        "id": {
+          "name": "id",
+          "type": "uuid",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "default": "gen_random_uuid()"
         },
-        "name": {
-          "name": "name",
-          "type": "text",
+        "lease_id": {
+          "name": "lease_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "sort_order": {
-          "name": "sort_order",
+        "status": {
+          "name": "status",
+          "type": "filing_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "clock_start_at": {
+          "name": "clock_start_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "due_by": {
+          "name": "due_by",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filing_copy_object_id": {
+          "name": "filing_copy_object_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "attempts": {
+          "name": "attempts",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "default": 100
+          "default": 0
         },
-        "active": {
-          "name": "active",
-          "type": "boolean",
+        "failure_reason": {
+          "name": "failure_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "adapter_mode": {
+          "name": "adapter_mode",
+          "type": "adapter_mode",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": true
+          "default": "'mock'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
       "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "countries_code_shape": {
-          "name": "countries_code_shape",
-          "value": "\"countries\".\"code\" ~ '^[A-Z]{2}$'"
+      "foreignKeys": {
+        "contract_filings_lease_id_leases_id_fk": {
+          "name": "contract_filings_lease_id_leases_id_fk",
+          "tableFrom": "contract_filings",
+          "tableTo": "leases",
+          "columnsFrom": [
+            "lease_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "contract_filings_filing_copy_object_id_stored_objects_id_fk": {
+          "name": "contract_filings_filing_copy_object_id_stored_objects_id_fk",
+          "tableFrom": "contract_filings",
+          "tableTo": "stored_objects",
+          "columnsFrom": [
+            "filing_copy_object_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "contract_filings_lease_uk": {
+          "name": "contract_filings_lease_uk",
+          "nullsNotDistinct": false,
+          "columns": [
+            "lease_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.data_subject_requests": {
@@ -11087,1112 +11165,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.guest_purge_tallies": {
-      "name": "guest_purge_tallies",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "purged_at": {
-          "name": "purged_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "arrival_month": {
-          "name": "arrival_month",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "village_id": {
-          "name": "village_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cell_id": {
-          "name": "cell_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sector_id": {
-          "name": "sector_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "district_id": {
-          "name": "district_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "from_abroad": {
-          "name": "from_abroad",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "registrations": {
-          "name": "registrations",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "flagged": {
-          "name": "flagged",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "guest_purge_tallies_district_idx": {
-          "name": "guest_purge_tallies_district_idx",
-          "columns": [
-            {
-              "expression": "district_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "arrival_month",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "guest_purge_tallies_village_id_villages_id_fk": {
-          "name": "guest_purge_tallies_village_id_villages_id_fk",
-          "tableFrom": "guest_purge_tallies",
-          "tableTo": "villages",
-          "columnsFrom": [
-            "village_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_purge_tallies_cell_id_cells_id_fk": {
-          "name": "guest_purge_tallies_cell_id_cells_id_fk",
-          "tableFrom": "guest_purge_tallies",
-          "tableTo": "cells",
-          "columnsFrom": [
-            "cell_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_purge_tallies_sector_id_sectors_id_fk": {
-          "name": "guest_purge_tallies_sector_id_sectors_id_fk",
-          "tableFrom": "guest_purge_tallies",
-          "tableTo": "sectors",
-          "columnsFrom": [
-            "sector_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_purge_tallies_district_id_districts_id_fk": {
-          "name": "guest_purge_tallies_district_id_districts_id_fk",
-          "tableFrom": "guest_purge_tallies",
-          "tableTo": "districts",
-          "columnsFrom": [
-            "district_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "guest_purge_tallies_counts": {
-          "name": "guest_purge_tallies_counts",
-          "value": "\"guest_purge_tallies\".\"registrations\" > 0 AND \"guest_purge_tallies\".\"flagged\" BETWEEN 0 AND \"guest_purge_tallies\".\"registrations\""
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.guest_registration_routes": {
-      "name": "guest_registration_routes",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "registration_id": {
-          "name": "registration_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "step": {
-          "name": "step",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recipient_role": {
-          "name": "recipient_role",
-          "type": "oversight_role",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "village_id": {
-          "name": "village_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cell_id": {
-          "name": "cell_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sector_id": {
-          "name": "sector_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "district_id": {
-          "name": "district_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "assignment_id": {
-          "name": "assignment_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "delivered_at": {
-          "name": "delivered_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "notified_at": {
-          "name": "notified_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "seen_at": {
-          "name": "seen_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "seen_by_user_id": {
-          "name": "seen_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "flagged_at": {
-          "name": "flagged_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "flagged_by_user_id": {
-          "name": "flagged_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "flag_note": {
-          "name": "flag_note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "guest_registration_routes_role_uk": {
-          "name": "guest_registration_routes_role_uk",
-          "columns": [
-            {
-              "expression": "registration_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "recipient_role",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "guest_registration_routes_waiting_idx": {
-          "name": "guest_registration_routes_waiting_idx",
-          "columns": [
-            {
-              "expression": "recipient_role",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "district_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "sector_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "cell_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "village_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"guest_registration_routes\".\"assignment_id\" IS NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "guest_registration_routes_assignment_idx": {
-          "name": "guest_registration_routes_assignment_idx",
-          "columns": [
-            {
-              "expression": "assignment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "guest_registration_routes_registration_id_guest_registrations_id_fk": {
-          "name": "guest_registration_routes_registration_id_guest_registrations_id_fk",
-          "tableFrom": "guest_registration_routes",
-          "tableTo": "guest_registrations",
-          "columnsFrom": [
-            "registration_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "guest_registration_routes_village_id_villages_id_fk": {
-          "name": "guest_registration_routes_village_id_villages_id_fk",
-          "tableFrom": "guest_registration_routes",
-          "tableTo": "villages",
-          "columnsFrom": [
-            "village_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registration_routes_cell_id_cells_id_fk": {
-          "name": "guest_registration_routes_cell_id_cells_id_fk",
-          "tableFrom": "guest_registration_routes",
-          "tableTo": "cells",
-          "columnsFrom": [
-            "cell_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registration_routes_sector_id_sectors_id_fk": {
-          "name": "guest_registration_routes_sector_id_sectors_id_fk",
-          "tableFrom": "guest_registration_routes",
-          "tableTo": "sectors",
-          "columnsFrom": [
-            "sector_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registration_routes_district_id_districts_id_fk": {
-          "name": "guest_registration_routes_district_id_districts_id_fk",
-          "tableFrom": "guest_registration_routes",
-          "tableTo": "districts",
-          "columnsFrom": [
-            "district_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registration_routes_assignment_id_oversight_assignments_id_fk": {
-          "name": "guest_registration_routes_assignment_id_oversight_assignments_id_fk",
-          "tableFrom": "guest_registration_routes",
-          "tableTo": "oversight_assignments",
-          "columnsFrom": [
-            "assignment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registration_routes_seen_by_user_id_users_id_fk": {
-          "name": "guest_registration_routes_seen_by_user_id_users_id_fk",
-          "tableFrom": "guest_registration_routes",
-          "tableTo": "users",
-          "columnsFrom": [
-            "seen_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registration_routes_flagged_by_user_id_users_id_fk": {
-          "name": "guest_registration_routes_flagged_by_user_id_users_id_fk",
-          "tableFrom": "guest_registration_routes",
-          "tableTo": "users",
-          "columnsFrom": [
-            "flagged_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "guest_registration_routes_role": {
-          "name": "guest_registration_routes_role",
-          "value": "\"guest_registration_routes\".\"recipient_role\"::text IN ('village_leader', 'dasso', 'cell_executive', 'district_officer', 'district_immigration')"
-        },
-        "guest_registration_routes_step": {
-          "name": "guest_registration_routes_step",
-          "value": "\"guest_registration_routes\".\"step\" BETWEEN 1 AND 4"
-        },
-        "guest_registration_routes_delivered": {
-          "name": "guest_registration_routes_delivered",
-          "value": "(\"guest_registration_routes\".\"assignment_id\" IS NULL) = (\"guest_registration_routes\".\"delivered_at\" IS NULL)"
-        },
-        "guest_registration_routes_seen": {
-          "name": "guest_registration_routes_seen",
-          "value": "(\"guest_registration_routes\".\"seen_at\" IS NULL) = (\"guest_registration_routes\".\"seen_by_user_id\" IS NULL)"
-        },
-        "guest_registration_routes_flag": {
-          "name": "guest_registration_routes_flag",
-          "value": "(\"guest_registration_routes\".\"flagged_at\" IS NULL) = (\"guest_registration_routes\".\"flag_note\" IS NULL) AND (\"guest_registration_routes\".\"flagged_at\" IS NULL) = (\"guest_registration_routes\".\"flagged_by_user_id\" IS NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.guest_registrations": {
-      "name": "guest_registrations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "org_id": {
-          "name": "org_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "workspace_id": {
-          "name": "workspace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "host_kind": {
-          "name": "host_kind",
-          "type": "guest_host_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "lease_id": {
-          "name": "lease_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "property_id": {
-          "name": "property_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "unit_id": {
-          "name": "unit_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "registered_by_user_id": {
-          "name": "registered_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "village_id": {
-          "name": "village_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cell_id": {
-          "name": "cell_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sector_id": {
-          "name": "sector_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "district_id": {
-          "name": "district_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "full_name": {
-          "name": "full_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "phone": {
-          "name": "phone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "nationality": {
-          "name": "nationality",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "id_kind": {
-          "name": "id_kind",
-          "type": "id_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "id_number": {
-          "name": "id_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "relationship": {
-          "name": "relationship",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "relationship_other": {
-          "name": "relationship_other",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "origin_country": {
-          "name": "origin_country",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "origin_village_id": {
-          "name": "origin_village_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "arrival_on": {
-          "name": "arrival_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "departure_on": {
-          "name": "departure_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "guest_registration_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'submitted'"
-        },
-        "changed_at": {
-          "name": "changed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancelled_at": {
-          "name": "cancelled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancelled_by_user_id": {
-          "name": "cancelled_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "guest_registrations_host_idx": {
-          "name": "guest_registrations_host_idx",
-          "columns": [
-            {
-              "expression": "workspace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "host_kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "arrival_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "guest_registrations_lease_idx": {
-          "name": "guest_registrations_lease_idx",
-          "columns": [
-            {
-              "expression": "lease_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"guest_registrations\".\"lease_id\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "guest_registrations_property_idx": {
-          "name": "guest_registrations_property_idx",
-          "columns": [
-            {
-              "expression": "property_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "guest_registrations_district_idx": {
-          "name": "guest_registrations_district_idx",
-          "columns": [
-            {
-              "expression": "district_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "arrival_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "guest_registrations_sector_idx": {
-          "name": "guest_registrations_sector_idx",
-          "columns": [
-            {
-              "expression": "sector_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "arrival_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "guest_registrations_cell_idx": {
-          "name": "guest_registrations_cell_idx",
-          "columns": [
-            {
-              "expression": "cell_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "arrival_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "guest_registrations_village_idx": {
-          "name": "guest_registrations_village_idx",
-          "columns": [
-            {
-              "expression": "village_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "arrival_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "guest_registrations_departure_idx": {
-          "name": "guest_registrations_departure_idx",
-          "columns": [
-            {
-              "expression": "departure_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "guest_registrations_org_id_orgs_id_fk": {
-          "name": "guest_registrations_org_id_orgs_id_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "orgs",
-          "columnsFrom": [
-            "org_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_workspace_id_workspaces_id_fk": {
-          "name": "guest_registrations_workspace_id_workspaces_id_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "workspaces",
-          "columnsFrom": [
-            "workspace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_lease_id_leases_id_fk": {
-          "name": "guest_registrations_lease_id_leases_id_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "leases",
-          "columnsFrom": [
-            "lease_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_property_id_properties_id_fk": {
-          "name": "guest_registrations_property_id_properties_id_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "properties",
-          "columnsFrom": [
-            "property_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_unit_id_rental_units_id_fk": {
-          "name": "guest_registrations_unit_id_rental_units_id_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "rental_units",
-          "columnsFrom": [
-            "unit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_registered_by_user_id_users_id_fk": {
-          "name": "guest_registrations_registered_by_user_id_users_id_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "users",
-          "columnsFrom": [
-            "registered_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_village_id_villages_id_fk": {
-          "name": "guest_registrations_village_id_villages_id_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "villages",
-          "columnsFrom": [
-            "village_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_cell_id_cells_id_fk": {
-          "name": "guest_registrations_cell_id_cells_id_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "cells",
-          "columnsFrom": [
-            "cell_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_sector_id_sectors_id_fk": {
-          "name": "guest_registrations_sector_id_sectors_id_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "sectors",
-          "columnsFrom": [
-            "sector_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_district_id_districts_id_fk": {
-          "name": "guest_registrations_district_id_districts_id_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "districts",
-          "columnsFrom": [
-            "district_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_nationality_countries_code_fk": {
-          "name": "guest_registrations_nationality_countries_code_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "countries",
-          "columnsFrom": [
-            "nationality"
-          ],
-          "columnsTo": [
-            "code"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_relationship_guest_relationships_code_fk": {
-          "name": "guest_registrations_relationship_guest_relationships_code_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "guest_relationships",
-          "columnsFrom": [
-            "relationship"
-          ],
-          "columnsTo": [
-            "code"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_origin_country_countries_code_fk": {
-          "name": "guest_registrations_origin_country_countries_code_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "countries",
-          "columnsFrom": [
-            "origin_country"
-          ],
-          "columnsTo": [
-            "code"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_origin_village_id_villages_id_fk": {
-          "name": "guest_registrations_origin_village_id_villages_id_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "villages",
-          "columnsFrom": [
-            "origin_village_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "guest_registrations_cancelled_by_user_id_users_id_fk": {
-          "name": "guest_registrations_cancelled_by_user_id_users_id_fk",
-          "tableFrom": "guest_registrations",
-          "tableTo": "users",
-          "columnsFrom": [
-            "cancelled_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "guest_registrations_host_shape": {
-          "name": "guest_registrations_host_shape",
-          "value": "(\"guest_registrations\".\"host_kind\" = 'tenant' AND \"guest_registrations\".\"lease_id\" IS NOT NULL) OR (\"guest_registrations\".\"host_kind\" = 'landlord' AND \"guest_registrations\".\"lease_id\" IS NULL)"
-        },
-        "guest_registrations_area_shape": {
-          "name": "guest_registrations_area_shape",
-          "value": "(\"guest_registrations\".\"village_id\" IS NULL OR \"guest_registrations\".\"cell_id\" IS NOT NULL)\n          AND (\"guest_registrations\".\"cell_id\" IS NULL OR \"guest_registrations\".\"sector_id\" IS NOT NULL)\n          AND (\"guest_registrations\".\"sector_id\" IS NULL OR \"guest_registrations\".\"district_id\" IS NOT NULL)"
-        },
-        "guest_registrations_name_present": {
-          "name": "guest_registrations_name_present",
-          "value": "length(btrim(\"guest_registrations\".\"full_name\")) > 1"
-        },
-        "guest_registrations_phone_e164": {
-          "name": "guest_registrations_phone_e164",
-          "value": "\"guest_registrations\".\"phone\" ~ '^[+][1-9][0-9]{7,14}$'"
-        },
-        "guest_registrations_id_shape": {
-          "name": "guest_registrations_id_shape",
-          "value": "(\"guest_registrations\".\"id_kind\" IS NULL AND \"guest_registrations\".\"id_number\" IS NULL)\n          OR (\"guest_registrations\".\"id_kind\" = 'national_id' AND \"guest_registrations\".\"id_number\" ~ '^[0-9]{16}$')\n          OR (\"guest_registrations\".\"id_kind\" = 'passport' AND \"guest_registrations\".\"id_number\" ~ '^[A-Z0-9]{5,20}$')"
-        },
-        "guest_registrations_relationship_other": {
-          "name": "guest_registrations_relationship_other",
-          "value": "\"guest_registrations\".\"relationship_other\" IS NULL OR length(btrim(\"guest_registrations\".\"relationship_other\")) >= 2"
-        },
-        "guest_registrations_origin_shape": {
-          "name": "guest_registrations_origin_shape",
-          "value": "(\"guest_registrations\".\"origin_country\" = 'RW') = (\"guest_registrations\".\"origin_village_id\" IS NOT NULL)"
-        },
-        "guest_registrations_dates": {
-          "name": "guest_registrations_dates",
-          "value": "\"guest_registrations\".\"departure_on\" >= \"guest_registrations\".\"arrival_on\" AND \"guest_registrations\".\"departure_on\" - \"guest_registrations\".\"arrival_on\" <= 90"
-        },
-        "guest_registrations_cancelled_shape": {
-          "name": "guest_registrations_cancelled_shape",
-          "value": "(\"guest_registrations\".\"status\" = 'cancelled') = (\"guest_registrations\".\"cancelled_at\" IS NOT NULL)"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.guest_relationships": {
-      "name": "guest_relationships",
-      "schema": "",
-      "columns": {
-        "code": {
-          "name": "code",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "needs_detail": {
-          "name": "needs_detail",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.guest_stays": {
       "name": "guest_stays",
       "schema": "",
@@ -15252,18 +14224,6 @@
           "notNull": true,
           "default": 15
         },
-        "default_rent_due_day": {
-          "name": "default_rent_due_day",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lease_defaults_set_at": {
-          "name": "lease_defaults_set_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "broker_fee_percent": {
           "name": "broker_fee_percent",
           "type": "integer",
@@ -15346,10 +14306,6 @@
         "landlord_profiles_notice_days_range": {
           "name": "landlord_profiles_notice_days_range",
           "value": "\"landlord_profiles\".\"default_notice_days\" BETWEEN 15 AND 180"
-        },
-        "landlord_profiles_due_day_range": {
-          "name": "landlord_profiles_due_day_range",
-          "value": "\"landlord_profiles\".\"default_rent_due_day\" IS NULL OR \"landlord_profiles\".\"default_rent_due_day\" BETWEEN 1 AND 28"
         },
         "landlord_profiles_broker_fee_range": {
           "name": "landlord_profiles_broker_fee_range",
@@ -16667,176 +15623,6 @@
         "lease_events_actor_shape": {
           "name": "lease_events_actor_shape",
           "value": "\"lease_events\".\"actor_role\" = 'system' OR \"lease_events\".\"actor_user_id\" IS NOT NULL"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.lease_filings": {
-      "name": "lease_filings",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "lease_id": {
-          "name": "lease_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "lease_filing_kind",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'new_lease'"
-        },
-        "due_on": {
-          "name": "due_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "filing_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "filed_on": {
-          "name": "filed_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reference": {
-          "name": "reference",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "proof_object_id": {
-          "name": "proof_object_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "filed_by_user_id": {
-          "name": "filed_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "lease_filings_lease_kind_uk": {
-          "name": "lease_filings_lease_kind_uk",
-          "columns": [
-            {
-              "expression": "lease_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"lease_filings\".\"kind\" <> 'change'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "lease_filings_due_idx": {
-          "name": "lease_filings_due_idx",
-          "columns": [
-            {
-              "expression": "due_on",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"lease_filings\".\"status\" = 'pending'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "lease_filings_lease_id_leases_id_fk": {
-          "name": "lease_filings_lease_id_leases_id_fk",
-          "tableFrom": "lease_filings",
-          "tableTo": "leases",
-          "columnsFrom": [
-            "lease_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "lease_filings_proof_object_id_stored_objects_id_fk": {
-          "name": "lease_filings_proof_object_id_stored_objects_id_fk",
-          "tableFrom": "lease_filings",
-          "tableTo": "stored_objects",
-          "columnsFrom": [
-            "proof_object_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "lease_filings_filed_by_user_id_users_id_fk": {
-          "name": "lease_filings_filed_by_user_id_users_id_fk",
-          "tableFrom": "lease_filings",
-          "tableTo": "users",
-          "columnsFrom": [
-            "filed_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "lease_filings_filed_shape": {
-          "name": "lease_filings_filed_shape",
-          "value": "(\"lease_filings\".\"status\" = 'filed') = (\"lease_filings\".\"filed_on\" IS NOT NULL)"
         }
       },
       "isRLSEnabled": false
@@ -18637,7 +17423,7 @@
           "name": "room_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "tenant_user_id": {
           "name": "tenant_user_id",
@@ -23289,42 +22075,15 @@
           "primaryKey": false,
           "notNull": true
         },
-        "filed_by_role": {
-          "name": "filed_by_role",
-          "type": "signer_role",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
         "filed_by_user_id": {
           "name": "filed_by_user_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "channel": {
-          "name": "channel",
-          "type": "move_out_notice_channel",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "filed_on": {
-          "name": "filed_on",
+        "move_out_date": {
+          "name": "move_out_date",
           "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "move_out_on": {
-          "name": "move_out_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reason_code": {
-          "name": "reason_code",
-          "type": "move_out_reason",
-          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -23334,11 +22093,11 @@
           "primaryKey": false,
           "notNull": false
         },
-        "notice_days": {
-          "name": "notice_days",
+        "notice_given_days": {
+          "name": "notice_given_days",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "is_short_notice": {
           "name": "is_short_notice",
@@ -23347,58 +22106,27 @@
           "notNull": true,
           "default": false
         },
-        "status": {
-          "name": "status",
-          "type": "move_out_notice_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'submitted'"
-        },
-        "acknowledged_at": {
-          "name": "acknowledged_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "acknowledged_by_user_id": {
-          "name": "acknowledged_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "withdrawn_at": {
-          "name": "withdrawn_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "filed_at": {
           "name": "filed_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "reason_code": {
+          "name": "reason_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filed_via": {
+          "name": "filed_via",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
-      "indexes": {
-        "move_out_notices_live_uk": {
-          "name": "move_out_notices_live_uk",
-          "columns": [
-            {
-              "expression": "lease_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"move_out_notices\".\"status\" <> 'withdrawn'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "move_out_notices_lease_id_leases_id_fk": {
           "name": "move_out_notices_lease_id_leases_id_fk",
@@ -23425,40 +22153,19 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "move_out_notices_acknowledged_by_user_id_users_id_fk": {
-          "name": "move_out_notices_acknowledged_by_user_id_users_id_fk",
-          "tableFrom": "move_out_notices",
-          "tableTo": "users",
-          "columnsFrom": [
-            "acknowledged_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "move_out_notices_dates_order": {
-          "name": "move_out_notices_dates_order",
-          "value": "\"move_out_notices\".\"move_out_on\" > \"move_out_notices\".\"filed_on\""
+        "move_out_notices_reason_known": {
+          "name": "move_out_notices_reason_known",
+          "value": "\"move_out_notices\".\"reason_code\" IS NULL OR \"move_out_notices\".\"reason_code\" IN ('kigali', 'leaving', 'own-home', 'terms', 'other')"
         },
-        "move_out_notices_days_shape": {
-          "name": "move_out_notices_days_shape",
-          "value": "\"move_out_notices\".\"notice_days\" = \"move_out_notices\".\"move_out_on\" - \"move_out_notices\".\"filed_on\""
-        },
-        "move_out_notices_acknowledged_shape": {
-          "name": "move_out_notices_acknowledged_shape",
-          "value": "\"move_out_notices\".\"status\" <> 'acknowledged' OR \"move_out_notices\".\"acknowledged_at\" IS NOT NULL"
-        },
-        "move_out_notices_withdrawn_shape": {
-          "name": "move_out_notices_withdrawn_shape",
-          "value": "(\"move_out_notices\".\"status\" = 'withdrawn') = (\"move_out_notices\".\"withdrawn_at\" IS NOT NULL)"
+        "move_out_notices_channel_known": {
+          "name": "move_out_notices_channel_known",
+          "value": "\"move_out_notices\".\"filed_via\" IS NULL OR \"move_out_notices\".\"filed_via\" IN ('app', 'letter', 'email', 'in_person')"
         }
       },
       "isRLSEnabled": false
@@ -26749,24 +25456,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "sector_id": {
-          "name": "sector_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cell_id": {
-          "name": "cell_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "village_id": {
-          "name": "village_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "assigned_by_user_id": {
           "name": "assigned_by_user_id",
           "type": "uuid",
@@ -26850,67 +25539,9 @@
               "isExpression": false,
               "asc": true,
               "nulls": "last"
-            },
-            {
-              "expression": "sector_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "cell_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "village_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
             }
           ],
           "isUnique": true,
-          "where": "\"oversight_assignments\".\"revoked_at\" IS NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "oversight_assignments_area_idx": {
-          "name": "oversight_assignments_area_idx",
-          "columns": [
-            {
-              "expression": "oversight_role",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "district_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "sector_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "cell_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "village_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
           "where": "\"oversight_assignments\".\"revoked_at\" IS NULL",
           "concurrently": false,
           "method": "btree",
@@ -26970,45 +25601,6 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "oversight_assignments_sector_id_sectors_id_fk": {
-          "name": "oversight_assignments_sector_id_sectors_id_fk",
-          "tableFrom": "oversight_assignments",
-          "tableTo": "sectors",
-          "columnsFrom": [
-            "sector_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "oversight_assignments_cell_id_cells_id_fk": {
-          "name": "oversight_assignments_cell_id_cells_id_fk",
-          "tableFrom": "oversight_assignments",
-          "tableTo": "cells",
-          "columnsFrom": [
-            "cell_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "oversight_assignments_village_id_villages_id_fk": {
-          "name": "oversight_assignments_village_id_villages_id_fk",
-          "tableFrom": "oversight_assignments",
-          "tableTo": "villages",
-          "columnsFrom": [
-            "village_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "oversight_assignments_assigned_by_user_id_users_id_fk": {
           "name": "oversight_assignments_assigned_by_user_id_users_id_fk",
           "tableFrom": "oversight_assignments",
@@ -27029,11 +25621,7 @@
       "checkConstraints": {
         "oversight_assignments_scope_shape": {
           "name": "oversight_assignments_scope_shape",
-          "value": "(\"oversight_assignments\".\"scope_level\"::text = 'country' AND \"oversight_assignments\".\"province_id\" IS NULL AND \"oversight_assignments\".\"district_id\" IS NULL AND \"oversight_assignments\".\"sector_id\" IS NULL AND \"oversight_assignments\".\"cell_id\" IS NULL AND \"oversight_assignments\".\"village_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\"::text = 'province' AND \"oversight_assignments\".\"province_id\" IS NOT NULL AND \"oversight_assignments\".\"district_id\" IS NULL AND \"oversight_assignments\".\"sector_id\" IS NULL AND \"oversight_assignments\".\"cell_id\" IS NULL AND \"oversight_assignments\".\"village_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\"::text = 'district' AND \"oversight_assignments\".\"district_id\" IS NOT NULL AND \"oversight_assignments\".\"sector_id\" IS NULL AND \"oversight_assignments\".\"cell_id\" IS NULL AND \"oversight_assignments\".\"village_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\"::text = 'sector' AND \"oversight_assignments\".\"district_id\" IS NOT NULL AND \"oversight_assignments\".\"sector_id\" IS NOT NULL AND \"oversight_assignments\".\"cell_id\" IS NULL AND \"oversight_assignments\".\"village_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\"::text = 'cell' AND \"oversight_assignments\".\"district_id\" IS NOT NULL AND \"oversight_assignments\".\"sector_id\" IS NOT NULL AND \"oversight_assignments\".\"cell_id\" IS NOT NULL AND \"oversight_assignments\".\"village_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\"::text = 'village' AND \"oversight_assignments\".\"district_id\" IS NOT NULL AND \"oversight_assignments\".\"sector_id\" IS NOT NULL AND \"oversight_assignments\".\"cell_id\" IS NOT NULL AND \"oversight_assignments\".\"village_id\" IS NOT NULL)"
-        },
-        "oversight_assignments_role_scope": {
-          "name": "oversight_assignments_role_scope",
-          "value": "(\"oversight_assignments\".\"oversight_role\"::text = 'village_leader' AND \"oversight_assignments\".\"scope_level\"::text = 'village')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'dasso' AND \"oversight_assignments\".\"scope_level\"::text = 'sector')\n          OR (\"oversight_assignments\".\"oversight_role\"::text = 'cell_executive' AND \"oversight_assignments\".\"scope_level\"::text = 'cell')\n          OR (\"oversight_assignments\".\"oversight_role\"::text IN ('district_officer', 'district_immigration') AND \"oversight_assignments\".\"scope_level\"::text = 'district')\n          OR (\"oversight_assignments\".\"oversight_role\"::text IN ('business_field_verifier', 'business_approver', 'tax_compliance_officer', 'psf_membership_officer')\n              AND \"oversight_assignments\".\"scope_level\"::text IN ('country', 'province', 'district'))"
+          "value": "(\"oversight_assignments\".\"scope_level\" = 'country' AND \"oversight_assignments\".\"province_id\" IS NULL AND \"oversight_assignments\".\"district_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\" = 'province' AND \"oversight_assignments\".\"province_id\" IS NOT NULL AND \"oversight_assignments\".\"district_id\" IS NULL)\n          OR (\"oversight_assignments\".\"scope_level\" = 'district' AND \"oversight_assignments\".\"district_id\" IS NOT NULL)"
         }
       },
       "isRLSEnabled": false
@@ -43906,8 +42494,7 @@
         "tenant",
         "rental_unit",
         "payout_account",
-        "deposit",
-        "guest_registration"
+        "deposit"
       ]
     },
     "public.booking_channel": {
@@ -44195,9 +42782,7 @@
         "payout.failed",
         "notice.filed",
         "notice.acknowledged",
-        "deposit.settled",
-        "guest.registered",
-        "guest.flagged"
+        "deposit.settled"
       ]
     },
     "public.domain_kind": {
@@ -44326,7 +42911,8 @@
       "schema": "public",
       "values": [
         "pending",
-        "filed"
+        "filed",
+        "failed"
       ]
     },
     "public.flag_scope": {
@@ -44436,22 +43022,6 @@
         "guest",
         "broker",
         "gov_oversight"
-      ]
-    },
-    "public.guest_host_kind": {
-      "name": "guest_host_kind",
-      "schema": "public",
-      "values": [
-        "tenant",
-        "landlord"
-      ]
-    },
-    "public.guest_registration_status": {
-      "name": "guest_registration_status",
-      "schema": "public",
-      "values": [
-        "submitted",
-        "cancelled"
       ]
     },
     "public.housekeeping_allocation_role": {
@@ -45155,15 +43725,6 @@
         "broker_rated"
       ]
     },
-    "public.lease_filing_kind": {
-      "name": "lease_filing_kind",
-      "schema": "public",
-      "values": [
-        "new_lease",
-        "change",
-        "termination"
-      ]
-    },
     "public.lease_payment_channel": {
       "name": "lease_payment_channel",
       "schema": "public",
@@ -45393,39 +43954,6 @@
         "applied"
       ]
     },
-    "public.move_out_notice_channel": {
-      "name": "move_out_notice_channel",
-      "schema": "public",
-      "values": [
-        "app",
-        "letter",
-        "email",
-        "in_person"
-      ]
-    },
-    "public.move_out_notice_status": {
-      "name": "move_out_notice_status",
-      "schema": "public",
-      "values": [
-        "submitted",
-        "acknowledged",
-        "withdrawn"
-      ]
-    },
-    "public.move_out_reason": {
-      "name": "move_out_reason",
-      "schema": "public",
-      "values": [
-        "moving_in_kigali",
-        "leaving_kigali",
-        "own_home",
-        "cost",
-        "terms",
-        "landlord_use",
-        "tenant_breach",
-        "other"
-      ]
-    },
     "public.notification_category": {
       "name": "notification_category",
       "schema": "public",
@@ -45642,12 +44170,7 @@
         "tax_compliance_officer",
         "business_field_verifier",
         "business_approver",
-        "psf_membership_officer",
-        "village_leader",
-        "dasso",
-        "cell_executive",
-        "district_officer",
-        "district_immigration"
+        "psf_membership_officer"
       ]
     },
     "public.oversight_scope_level": {
@@ -45656,10 +44179,7 @@
       "values": [
         "country",
         "province",
-        "district",
-        "sector",
-        "cell",
-        "village"
+        "district"
       ]
     },
     "public.payment_attempt_purpose": {

@@ -35,6 +35,25 @@ function jar(res) {
   return (res.headers.getSetCookie?.() ?? []).map((c) => c.split(';')[0]).join('; ');
 }
 
+/**
+ * Upload a small PDF as this person's RDB certificate. ADR-075 AC-11: create refuses a stay or a venue without
+ * one, and only takes a certificate the registrant uploaded. Uploaded once per person per run and reused for each
+ * of their registrations, because the certificate route allows 10 per person in 10 minutes.
+ */
+const uploadedCertificates = new Map();
+async function rdbCertificate(cookie) {
+  if (uploadedCertificates.has(cookie)) return uploadedCertificates.get(cookie);
+  const form = new FormData();
+  form.append('file', new Blob([CERTIFICATE_PDF], { type: 'application/pdf' }), 'rdb-certificate.pdf');
+  const res = await fetch(`${API}/api/v1/uploads/certificate`, { method: 'POST', headers: { cookie }, body: form });
+  const json = await res.json().catch(() => null);
+  if (!json?.objectKey) throw new Error(`certificate upload: ${res.status} ${JSON.stringify(json)}`);
+  const certificates = [{ kind: 'rdb_certificate', objectKey: json.objectKey }];
+  uploadedCertificates.set(cookie, certificates);
+  return certificates;
+}
+const CERTIFICATE_PDF = '%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n';
+
 async function sessionFor(email) {
   await fetch(`${API}/api/auth/email-otp/send-verification-otp`, {
     method: 'POST',
@@ -133,6 +152,7 @@ try {
     ...extra,
   });
   const register = async (tinValue, application, extraBusiness = {}) => {
+    const certificates = await rdbCertificate(rayan);
     const res = await fetch(`${API}/api/v1/registrations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', cookie: rayan },
@@ -155,6 +175,7 @@ try {
           tin: tinValue,
           chamberOfTourismMember: false,
           psfMember: false,
+          certificates,
           ...(application ? { psfApplication: application } : {}),
           ...extraBusiness,
         },
@@ -198,9 +219,8 @@ try {
       headers: body === undefined ? { cookie: rayan } : { 'Content-Type': 'application/json', cookie: rayan },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-  await post('contract', { contractVersion: '2026-09-12' });
   const paid = await post('pay');
-  check('created, signed and paid', paid.status === 200 || paid.status === 201, String(paid.status));
+  check('created and paid (ADR-075: no contract before paying)', paid.status === 200 || paid.status === 201, String(paid.status));
   const verifier = await sessionFor('jeanbosco@demo.injishi.com');
   const queue = await (
     await fetch(`${API}/api/v1/oversight/verification-queue`, { headers: { cookie: verifier } })
@@ -209,7 +229,11 @@ try {
   check('the business is in the verifier queue', row !== undefined, JSON.stringify(queue).slice(0, 160));
   check('it carries the tourism licence', row?.tourismLicenseNumber === licence, JSON.stringify(row));
   check('and says it was not registered on someone\'s behalf', row?.onBehalfOf === false);
-  check('and lists its certificates, none here', Array.isArray(row?.certificates) && row.certificates.length === 0);
+  check(
+    'and lists its one certificate, the RDB certificate (ADR-075 AC-11)',
+    Array.isArray(row?.certificates) && row.certificates.length === 1 && row.certificates[0]?.kind === 'rdb_certificate',
+    JSON.stringify(row?.certificates),
+  );
   check(
     'and carries the RRA answer with the side of the seam that gave it',
     row?.tinCheck?.result === 'verified' && row?.tinCheck?.adapterMode === 'mock' && Boolean(row?.tinCheck?.checkedAt),
@@ -241,18 +265,37 @@ try {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   const saved = await draftCall('PUT', draftBody);
+  const savedJson = await saved.json().catch(() => null);
   const readBack = await draftCall('GET');
   const readJson = await readBack.json().catch(() => null);
-  check('saved, and read back as it was', saved.status === 204 && readJson?.draft?.business?.legalName === 'Draft Hotel' && readJson?.draft?.phase === 'business', `${saved.status} ${readBack.status}`);
+  check(
+    'saved, and read back as it was, with when it was saved',
+    saved.status === 200 &&
+      readJson?.draft?.business?.legalName === 'Draft Hotel' &&
+      readJson?.draft?.phase === 'business' &&
+      typeof savedJson?.savedAt === 'string' &&
+      readJson?.savedAt === savedJson.savedAt,
+    `${saved.status} ${readBack.status}`,
+  );
+  // ADR-075's API row: a payload holding an ID number is a 422 (S9).
   const smuggled = await draftCall('PUT', { ...draftBody, business: { ...draftBody.business, note: 'id 1199080123456789' } });
-  check('a draft carrying an ID number anywhere is refused', smuggled.status === 400, String(smuggled.status));
+  check('a draft carrying an ID number anywhere is refused', smuggled.status === 422, String(smuggled.status));
   const withNumber = await draftCall('PUT', { ...draftBody, personal: { ...draftBody.personal, documentNumber: '1199080123456789' } });
-  check('a draft with a document number field is refused', withNumber.status === 400, String(withNumber.status));
+  check('a draft with a document number field is refused', withNumber.status === 422, String(withNumber.status));
   await draftCall('PUT', draftBody);
   const clearTin = await newTin();
-  await register(clearTin, null);
-  const afterCreate = await draftCall('GET');
-  check('creating the registration clears the draft', afterCreate.status === 404, String(afterCreate.status));
+  const made = await register(clearTin, null);
+  const madeId = made.status === 201 ? JSON.parse(made.text).orgId : null;
+  const afterCreate = await (await draftCall('GET')).json().catch(() => null);
+  // ADR-075 D-l and D-m: the draft outlives the registration it became, until that registration's fee settles.
+  check(
+    'creating the registration marks the draft with it, and keeps it',
+    madeId !== null && afterCreate?.checks?.registrationId === madeId && afterCreate?.draft?.business?.legalName === 'Draft Hotel',
+    `${made.status} ${JSON.stringify(afterCreate?.checks)}`,
+  );
+  const paidDraft = await fetch(`${API}/api/v1/registrations/${madeId}/pay`, { method: 'POST', headers: { cookie: rayan } });
+  const afterPay = await (await draftCall('GET')).json().catch(() => null);
+  check('paying the fee clears it', paidDraft.ok && afterPay?.draft === null && afterPay?.checks?.registrationId === undefined, `${paidDraft.status} ${JSON.stringify(afterPay)}`);
 } finally {
   await db.end();
 }

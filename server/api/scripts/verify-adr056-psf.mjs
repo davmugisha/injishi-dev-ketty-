@@ -78,6 +78,26 @@ function makeSession(seed) {
   };
 }
 
+/**
+ * Upload a small PDF as this session's RDB certificate. ADR-075 AC-11: create refuses a stay or a venue without
+ * one, and only takes a certificate the registrant uploaded. Uploaded once per person per run and reused for each
+ * of their registrations, because the certificate route allows 10 per person in 10 minutes.
+ */
+const uploadedCertificates = new WeakMap();
+async function rdbCertificate(session) {
+  if (uploadedCertificates.has(session)) return uploadedCertificates.get(session);
+  const form = new FormData();
+  form.append('file', new Blob([CERTIFICATE_PDF], { type: 'application/pdf' }), 'rdb-certificate.pdf');
+  const res = await fetch(`${BASE}/api/v1/uploads/certificate`, { method: 'POST', headers: { cookie: session.cookie() }, body: form });
+  session.absorb(res);
+  const json = await res.json().catch(() => null);
+  if (!json?.objectKey) throw new Error(`certificate upload: ${res.status} ${JSON.stringify(json)}`);
+  const certificates = [{ kind: 'rdb_certificate', objectKey: json.objectKey }];
+  uploadedCertificates.set(session, certificates);
+  return certificates;
+}
+const CERTIFICATE_PDF = '%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n';
+
 async function call(session, method, path, body, extraHeaders = {}) {
   const headers = { ...extraHeaders };
   if (session) headers.cookie = session.cookie();
@@ -361,6 +381,7 @@ const main = async () => {
 
   const applyTin = tin();
   const reg = await call(rayan, 'POST', '/api/v1/registrations', hotel(applyTin, {
+    certificates: await rdbCertificate(rayan),
     psfMember: false,
     psfApplication: form({ requestedTierCode: 'ordinary_100k', companyName: `ADR-056 Verify Hotel ${applyTin}`, email: 'rayan@demo.injishi.com', firstName: 'Rayan', lastName: 'Iraguha', idDocument: { documentType: 'national_id', documentNumber: '1199080123456789' } }),
   }));
@@ -378,7 +399,7 @@ const main = async () => {
   check('the registrant sees it waiting for the TIN check', view.json?.open?.stage === 'waiting_tin_check', view.json?.open?.stage);
 
   const yesTin = tin();
-  const yes = await call(rayan, 'POST', '/api/v1/registrations', hotel(yesTin, { psfMember: true, psfMembershipNumber: 'PSF/VERIFY/YES' }));
+  const yes = await call(rayan, 'POST', '/api/v1/registrations', hotel(yesTin, { certificates: await rdbCertificate(rayan), psfMember: true, psfMembershipNumber: 'PSF/VERIFY/YES' }));
   check('a Yes with a number is created', yes.status === 201 || yes.status === 200, `${yes.status} ${yes.text.slice(0, 200)}`);
   const declared = (await db.query(
     `SELECT m.source, m.membership_number FROM psf_memberships m JOIN orgs o ON o.id = m.org_id WHERE o.tin = $1`,

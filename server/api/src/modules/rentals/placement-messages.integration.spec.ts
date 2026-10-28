@@ -83,7 +83,7 @@ maybe('broker conversations against Postgres (MESSAGES_IT_DATABASE_URL)', () => 
     owner = await user(`powner-${tag}@msg.test`, 'Amani Owner');
     brokerUser = await user(`pbroker-${tag}@msg.test`, 'Didier Broker');
     tenantUser = await user(`ptenant-${tag}@msg.test`, 'Grace Tenant');
-    const org = (await one(`insert into orgs (legal_name, domain, residence_class, registration_status, upi) values ($1, 'residence', 'residential_landlord', 'active', $2) returning id`, [`Broker Court ${tag}`, `1/02/03/05/${Math.floor(1000 + Math.random() * 8999)}`])).id as string;
+    const org = (await one(`insert into orgs (legal_name, domain, business_kind, residence_class, registration_status, upi) values ($1, 'residence', 'residence', 'residential_landlord', 'active', $2) returning id`, [`Broker Court ${tag}`, `1/02/03/05/${Math.floor(1000 + Math.random() * 8999)}`])).id as string;
     const wsId = (await one(`insert into workspaces (kind, org_id) values ('business', $1) returning id`, [org])).id as string;
     await q(`insert into org_memberships (org_id, user_id, org_role) values ($1, $2, 'owner')`, [org, owner]);
     const prop = (await one(`insert into properties (org_id, workspace_id, name) values ($1, $2, 'Broker Court') returning id`, [org, wsId])).id as string;

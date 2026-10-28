@@ -1,19 +1,15 @@
 name: mobile-release
 
-# ADR-052 AC-21. An EAS build starts on a `mobile-v*` tag and on nothing else.
+# ADR-052 AC-21, now owned by mobile spec 0001 (AC-16). An EAS build starts on
+# a `mobile-v*` tag and on nothing else.
 #
 # EAS build minutes are metered and a build is slow, so this belongs on a
 # deliberate release rather than on every merge. Tagging is the deliberate act.
 #
 # Mobile is outside `pnpm build` and has no `build` script: it is an Expo
-# export, not a `next build`. What standing behind a mobile change means on a
-# pull request is the checks in `ci.yml`'s `mobile` job (typecheck, lint and
-# test), and this workflow is what turns a tagged commit into an artifact.
-#
-# NOT SET UP YET: apps/mobile has no eas.json (no build profiles, no project
-# id). Until one is committed, a tag runs the checks and then stops with a
-# notice instead of failing inside `eas build`. Adding eas.json (with a
-# `production` profile) and the EXPO_TOKEN secret is what turns the build on.
+# export, not a `next build`. What standing behind a mobile change means is
+# `check:ci`, the one script `ci.yml`'s `mobile` job runs, and this workflow is
+# what turns a tagged commit into an artifact.
 
 on:
   push:
@@ -32,21 +28,12 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/pnpm-setup
 
-      # Mobile consumes the tokens, the vocabulary contract and
-      # @injishi/contracts. The tokens and contracts are compiled (consumers read
-      # dist/), so both are built before anything reads them.
-      - name: Build the compiled packages
-        run: pnpm --filter @injishi/contracts --filter @injishi/design-tokens build
-
-      # Fail here rather than 20 minutes into an EAS build. These are the same
-      # checks ci.yml runs; a tag can point at any commit, including one that
-      # never went through a pull request.
+      # Fail here rather than 20 minutes into an EAS build. The same script
+      # ci.yml runs; a tag can point at any commit, including one that never
+      # went through a pull request. Its fingerprint verdict needs origin/main,
+      # which this shallow checkout lacks, so it prints none; it never fails.
       - name: Check before spending build minutes
-        run: |
-          set -euo pipefail
-          pnpm --filter @injishi/mobile typecheck
-          pnpm --filter @injishi/mobile lint
-          pnpm --filter @injishi/mobile test
+        run: pnpm --filter @injishi/mobile check:ci
 
       - name: Is EAS set up
         id: eas
