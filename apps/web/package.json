@@ -8,7 +8,9 @@
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
-    "test": "node --test \"tests/*.test.mjs\"",
+    "test": "node --test \"tests/*.test.mjs\" && vitest run",
+    "test:unit": "vitest run",
+    "test:watch": "vitest",
     "clean": "rimraf .next",
     "tokens:sync": "node scripts/sync-theme-tokens.mjs",
     "css:app": "node scripts/gen-app-css.mjs",
@@ -44,14 +46,21 @@
     "@next/eslint-plugin-next": "^16.3.3",
     "@serwist/next": "^9.5.11",
     "@tailwindcss/postcss": "4.3.2",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.8",
     "@types/node": "22.15.29",
     "@types/react": "19.1.17",
     "@types/react-dom": "19.1.11",
     "@typescript-eslint/parser": "^8.68.0",
     "eslint": "^10.9.1",
+    "jsdom": "30.1.3",
     "serwist": "^9.5.11",
     "sharp": "^0.35.3",
     "tailwindcss": "4.3.2",
-    "typescript": "5.8.3"
+    "typescript": "5.8.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
   }
 }
