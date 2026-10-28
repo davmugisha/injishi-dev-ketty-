@@ -104,6 +104,7 @@ export declare const herouiFixed: {
     readonly canvas: "oklch(95.51% 0.0123 178.40)";
     readonly controlWash: "oklch(49.50% 0.0317 176.00)";
     readonly placeholderDim: "oklch(49.50% 0.0317 176.00)";
+    readonly accentInk: "oklch(47.02% 0.0911 172.11)";
 };
 /** HeroUI roles, light theme. */
 export declare const herouiLight: {

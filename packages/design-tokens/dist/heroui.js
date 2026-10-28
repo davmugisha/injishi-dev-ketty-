@@ -119,6 +119,11 @@ exports.herouiFixed = {
     canvas: "oklch(95.51% 0.0123 178.40)",
     controlWash: "oklch(49.50% 0.0317 176.00)",
     placeholderDim: "oklch(49.50% 0.0317 176.00)",
+    // The fixed twin of the light `accentText`: the accent as ink on a plate
+    // that never goes dark (`bg-white/95` over a photograph), where
+    // `accent-text` would carry its dark twin onto white. Move it with
+    // `herouiLight.accentText`.
+    accentInk: "oklch(47.02% 0.0911 172.11)",
 };
 /** HeroUI roles, light theme. */
 exports.herouiLight = {

@@ -330,6 +330,7 @@
   --canvas: oklch(95.51% 0.0123 178.40);
   --control-wash: oklch(49.50% 0.0317 176.00);
   --placeholder-dim: oklch(49.50% 0.0317 176.00);
+  --accent-ink: oklch(47.02% 0.0911 172.11);
 
   /* HeroUI roles (light) */
   --accent: oklch(47.02% 0.0911 172.11);
@@ -441,6 +442,7 @@
   --canvas: oklch(95.51% 0.0123 178.40);
   --control-wash: oklch(49.50% 0.0317 176.00);
   --placeholder-dim: oklch(49.50% 0.0317 176.00);
+  --accent-ink: oklch(47.02% 0.0911 172.11);
 
   /* HeroUI roles (dark) */
   --accent: oklch(73.29% 0.1934 150.84);
@@ -861,6 +863,7 @@ html {
   --color-canvas: var(--canvas);
   --color-control-wash: var(--control-wash);
   --color-placeholder-dim: var(--placeholder-dim);
+  --color-accent-ink: var(--accent-ink);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-background: var(--background);
