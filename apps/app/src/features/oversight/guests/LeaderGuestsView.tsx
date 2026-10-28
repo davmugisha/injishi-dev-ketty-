@@ -5,6 +5,7 @@ import { type LeaderGuest, type LeaderGuestPage, tidyPlaceName } from "@injishi/
 import {
   ActionButton,
   ActionLink,
+  CountDonut,
   DataTable,
   EmptyBlock,
   FilterMenu,
@@ -81,6 +82,8 @@ export function LeaderGuestsView({
   const origin = params.get("origin");
   const nationality = params.get("nationality");
   const nationalities = filters.nationalities ?? [];
+  // DGIE reads guests from abroad only, so its ring is by nationality.
+  const immigration = page.scopes.some((x) => x.role.startsWith("dgie") || x.role === "district_immigration");
   // The area the figures cover: the place chosen under Area, else the leader's own post.
   const chosen =
     filters.villages.find((v) => String(v.id) === villageId)?.name ??
@@ -162,171 +165,198 @@ export function LeaderGuestsView({
         ]}
       />
 
-      <Card className="min-w-0 gap-4 p-4">
-        {/* The lists, then their filters, in one card. Reports have their own page in the sidebar. */}
-        <GuestFilters
-          params={params}
-          go={go}
-          scopes={page.scopes}
-          filters={filters}
-          nationalities={nationalities}
-          leading={
-            <FilterMenu
-              label="Which guests"
-              name="Show"
-              icon="ListUl"
-              value={page.tab === "arriving" && page.when === "later" ? "later" : page.tab}
-              options={[
-                { id: "arriving", label: "Arriving in 7 days", count: counts.arriving },
-                { id: "later", label: "Arriving later", count: counts.later },
-                { id: "staying", label: TAB_LABEL.staying, count: counts.staying },
-                { id: "left", label: TAB_LABEL.left, count: counts.left },
-                { id: "flagged", label: TAB_LABEL.flagged, count: counts.flagged },
-              ]}
-              onChange={(key) =>
-                key === "later" ? go({ tab: "arriving", when: "later" }) : go({ tab: key, when: null })
-              }
-            />
-          }
-          trailing={
-            <SearchBar
-              label="Search guests"
-              placeholder="Name, phone or ID"
-              defaultValue={params.get("q") ?? ""}
-              onSubmit={(q) => go({ q: q.trim() || null })}
-            />
-          }
-        />
+      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-3">
+        <Card className="min-w-0 gap-4 p-4 lg:col-span-2">
+          {/* The lists, then their filters, in one card. Reports have their own page in the sidebar. */}
+          <GuestFilters
+            params={params}
+            go={go}
+            scopes={page.scopes}
+            filters={filters}
+            nationalities={nationalities}
+            leading={
+              <FilterMenu
+                label="Which guests"
+                name="Show"
+                icon="ListUl"
+                value={page.tab === "arriving" && page.when === "later" ? "later" : page.tab}
+                options={[
+                  { id: "arriving", label: "Arriving in 7 days", count: counts.arriving },
+                  { id: "later", label: "Arriving later", count: counts.later },
+                  { id: "staying", label: TAB_LABEL.staying, count: counts.staying },
+                  { id: "left", label: TAB_LABEL.left, count: counts.left },
+                  { id: "flagged", label: TAB_LABEL.flagged, count: counts.flagged },
+                ]}
+                onChange={(key) =>
+                  key === "later" ? go({ tab: "arriving", when: "later" }) : go({ tab: key, when: null })
+                }
+              />
+            }
+            trailing={
+              <SearchBar
+                label="Search guests"
+                placeholder="Name, phone or ID"
+                defaultValue={params.get("q") ?? ""}
+                onSubmit={(q) => go({ q: q.trim() || null })}
+              />
+            }
+          />
 
-        <DataTable<LeaderGuest>
-          label={TAB_LABEL[page.tab]}
-          rows={guests}
-          rowKey={(g) => g.id}
-          onRowAction={setOpen}
-          empty={
-            <EmptyBlock
-              icon={page.tab === "flagged" ? "Flag" : "PersonPlus"}
-              title={narrowed ? "No guests match" : EMPTY[emptyKey].title}
-              description={
-                narrowed ? "Clear the search or the place to see everyone in your area." : EMPTY[emptyKey].description
-              }
-              action={
-                narrowed ? (
-                  <ActionButton
-                    icon="Xmark"
-                    onPress={() =>
-                      go({ q: null, sectorId: null, cellId: null, villageId: null, origin: null, nationality: null })
-                    }
-                  >
-                    Clear filters
-                  </ActionButton>
-                ) : undefined
-              }
-            />
-          }
-          columns={[
-            {
-              id: "guest",
-              header: "Guest",
-              isRowHeader: true,
-              sortValue: (g) => g.fullName,
-              cell: (g) => (
-                <div className="flex min-w-0 items-center gap-2">
-                  {g.seenByMe ? null : <StatusDot tone="accent" className="shrink-0" />}
-                  <PersonCell name={g.fullName} secondary={`${g.nationalityName} · ${phoneWords(g.phone)}`} />
-                </div>
-              ),
-            },
-            {
-              id: "dates",
-              header: page.tab === "left" ? "Stayed" : "Dates",
-              sortValue: (g) => g.arrivalOn,
-              cell: (g) => (
-                <div className="flex flex-col text-sm">
-                  <span className="whitespace-nowrap tabular">{stayRange(g.arrivalOn, g.departureOn)}</span>
-                  <span className="text-xs text-muted">
-                    {g.nights === 0 ? "Same day" : g.nights === 1 ? "1 night" : `${g.nights} nights`}
-                  </span>
-                </div>
-              ),
-            },
-            {
-              id: "host",
-              header: "Staying with",
-              sortValue: (g) => g.host.name,
-              cell: (g) => (
-                <div className="flex min-w-0 flex-col text-sm">
-                  <span className="truncate">{g.host.name}</span>
-                  <span className="truncate text-xs text-muted">
-                    {g.home.unitLabel ? `Unit ${g.home.unitLabel}, ${g.home.propertyName}` : g.home.propertyName}
-                  </span>
-                </div>
-              ),
-            },
-            ...(wide
-              ? [
-                  {
-                    id: "area",
-                    header: "Village",
-                    hideBelow: "lg" as const,
-                    sortValue: (g: LeaderGuest) => g.home.villageName ?? "",
-                    cell: (g: LeaderGuest) => (
-                      <div className="flex min-w-0 flex-col text-sm">
-                        <span className="truncate">
-                          {g.home.villageName ? tidyPlaceName(g.home.villageName) : "No village on record"}
-                        </span>
-                        {g.home.cellName ? (
-                          <span className="truncate text-xs text-muted">{tidyPlaceName(g.home.cellName)} cell</span>
-                        ) : null}
-                      </div>
-                    ),
-                  },
-                ]
-              : []),
-            {
-              id: "chain",
-              header: "Chain",
-              hideBelow: "xl",
-              cell: (g) => <ChainDots chain={g.chain} />,
-            },
-            { id: "status", header: "Status", cell: (g) => <GuestStatusChip guest={g} /> },
-          ]}
-          rowActions={(g) => <IconAction icon="Eye" label={`Open ${g.fullName}`} onPress={() => setOpen(g)} />}
-          mobile={{
-            title: (g) => g.fullName,
-            description: (g) => `${stayRange(g.arrivalOn, g.departureOn)} · ${g.host.name}`,
-            trailing: (g) => <GuestStatusChip guest={g} />,
-          }}
-        />
+          <DataTable<LeaderGuest>
+            label={TAB_LABEL[page.tab]}
+            rows={guests}
+            rowKey={(g) => g.id}
+            onRowAction={setOpen}
+            empty={
+              <EmptyBlock
+                icon={page.tab === "flagged" ? "Flag" : "PersonPlus"}
+                title={narrowed ? "No guests match" : EMPTY[emptyKey].title}
+                description={
+                  narrowed ? "Clear the search or the place to see everyone in your area." : EMPTY[emptyKey].description
+                }
+                action={
+                  narrowed ? (
+                    <ActionButton
+                      icon="Xmark"
+                      onPress={() =>
+                        go({ q: null, sectorId: null, cellId: null, villageId: null, origin: null, nationality: null })
+                      }
+                    >
+                      Clear filters
+                    </ActionButton>
+                  ) : undefined
+                }
+              />
+            }
+            columns={[
+              {
+                id: "guest",
+                header: "Guest",
+                isRowHeader: true,
+                sortValue: (g) => g.fullName,
+                cell: (g) => (
+                  <div className="flex min-w-0 items-center gap-2">
+                    {g.seenByMe ? null : <StatusDot tone="accent" className="shrink-0" />}
+                    <PersonCell name={g.fullName} secondary={`${g.nationalityName} · ${phoneWords(g.phone)}`} />
+                  </div>
+                ),
+              },
+              {
+                id: "dates",
+                header: page.tab === "left" ? "Stayed" : "Dates",
+                sortValue: (g) => g.arrivalOn,
+                cell: (g) => (
+                  <div className="flex flex-col text-sm">
+                    <span className="whitespace-nowrap tabular">{stayRange(g.arrivalOn, g.departureOn)}</span>
+                    <span className="text-xs text-muted">
+                      {g.nights === 0 ? "Same day" : g.nights === 1 ? "1 night" : `${g.nights} nights`}
+                    </span>
+                  </div>
+                ),
+              },
+              {
+                id: "host",
+                header: "Staying with",
+                sortValue: (g) => g.host.name,
+                cell: (g) => (
+                  <div className="flex min-w-0 flex-col text-sm">
+                    <span className="truncate">{g.host.name}</span>
+                    <span className="truncate text-xs text-muted">
+                      {g.home.unitLabel ? `Unit ${g.home.unitLabel}, ${g.home.propertyName}` : g.home.propertyName}
+                    </span>
+                  </div>
+                ),
+              },
+              ...(wide
+                ? [
+                    {
+                      id: "area",
+                      header: "Village",
+                      hideBelow: "lg" as const,
+                      sortValue: (g: LeaderGuest) => g.home.villageName ?? "",
+                      cell: (g: LeaderGuest) => (
+                        <div className="flex min-w-0 flex-col text-sm">
+                          <span className="truncate">
+                            {g.home.villageName ? tidyPlaceName(g.home.villageName) : "No village on record"}
+                          </span>
+                          {g.home.cellName ? (
+                            <span className="truncate text-xs text-muted">{tidyPlaceName(g.home.cellName)} cell</span>
+                          ) : null}
+                        </div>
+                      ),
+                    },
+                  ]
+                : []),
+              {
+                id: "chain",
+                header: "Chain",
+                hideBelow: "xl",
+                cell: (g) => <ChainDots chain={g.chain} />,
+              },
+              { id: "status", header: "Status", cell: (g) => <GuestStatusChip guest={g} /> },
+            ]}
+            rowActions={(g) => <IconAction icon="Eye" label={`Open ${g.fullName}`} onPress={() => setOpen(g)} />}
+            mobile={{
+              title: (g) => g.fullName,
+              description: (g) => `${stayRange(g.arrivalOn, g.departureOn)} · ${g.host.name}`,
+              trailing: (g) => <GuestStatusChip guest={g} />,
+            }}
+          />
 
-        {pages > 1 ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
-            <span className="tabular">
-              {formatNumber((page.page - 1) * page.pageSize + 1)} to{" "}
-              {formatNumber(Math.min(page.total, page.page * page.pageSize))} of {formatNumber(page.total)}
-            </span>
-            <div className="flex gap-2">
-              <ActionButton
-                size="sm"
-                icon="ChevronLeft"
-                isDisabled={page.page <= 1}
-                onPress={() => go({ page: String(page.page - 1) })}
-              >
-                Previous
-              </ActionButton>
-              <ActionButton
-                size="sm"
-                icon="ChevronRight"
-                iconPlacement="end"
-                isDisabled={page.page >= pages}
-                onPress={() => go({ page: String(page.page + 1) })}
-              >
-                Next
-              </ActionButton>
+          {pages > 1 ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
+              <span className="tabular">
+                {formatNumber((page.page - 1) * page.pageSize + 1)} to{" "}
+                {formatNumber(Math.min(page.total, page.page * page.pageSize))} of {formatNumber(page.total)}
+              </span>
+              <div className="flex gap-2">
+                <ActionButton
+                  size="sm"
+                  icon="ChevronLeft"
+                  isDisabled={page.page <= 1}
+                  onPress={() => go({ page: String(page.page - 1) })}
+                >
+                  Previous
+                </ActionButton>
+                <ActionButton
+                  size="sm"
+                  icon="ChevronRight"
+                  iconPlacement="end"
+                  isDisabled={page.page >= pages}
+                  onPress={() => go({ page: String(page.page + 1) })}
+                >
+                  Next
+                </ActionButton>
+              </div>
             </div>
-          </div>
-        ) : null}
-      </Card>
+          ) : null}
+        </Card>
+        {/* Who is in the area now: local government reads Rwandan and foreign guests; DGIE only foreign ones, by nationality. */}
+        {immigration ? (
+          <CountDonut
+            title="Where they come from"
+            description="Guests from abroad in your area. Press one to see only them."
+            totalLabel="Guests"
+            selected={nationality}
+            onPick={(code) => go({ nationality: code, origin: null })}
+            data={nationalities.map((n) => ({ key: n.code, label: n.name, count: n.count }))}
+            empty={{ icon: "Globe", title: "No guests from abroad here" }}
+          />
+        ) : (
+          <CountDonut
+            title="Staying now"
+            description={`Rwandan or foreign, in ${areaShort}. Press one to see only them.`}
+            totalLabel="Guests"
+            selected={origin}
+            onPick={(key) => go({ origin: key, nationality: null, tab: "staying", when: null })}
+            data={[
+              { key: "nationals", label: "Rwandan", count: Math.max(0, counts.staying - (counts.stayingForeign ?? 0)) },
+              { key: "international", label: "Foreign", count: counts.stayingForeign ?? 0 },
+            ]}
+            empty={{ icon: "Globe", title: `Nobody staying in ${areaShort} today` }}
+          />
+        )}
+      </div>
 
       {open ? <GuestPanel guest={open} onClose={() => setOpen(null)} /> : null}
     </PageContent>
