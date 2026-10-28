@@ -86,8 +86,8 @@ describe("safeRedirect still lets the real destinations through", () => {
   test("the operator app, by exact origin", () => {
     assert.equal(safeRedirect("http://localhost:3002/host/today"), "http://localhost:3002/host/today");
   });
-  test("the admin console, by exact origin", () => {
-    assert.equal(safeRedirect("http://localhost:3001/overview"), "http://localhost:3001/overview");
+  test("the old admin console's origin is no longer trusted (apps/admin is gone; /admin is in the app)", () => {
+    assert.equal(safeRedirect("http://localhost:3001/overview"), HOME);
   });
   test("nothing at all falls back to HOME", () => {
     assert.equal(safeRedirect(undefined), HOME);

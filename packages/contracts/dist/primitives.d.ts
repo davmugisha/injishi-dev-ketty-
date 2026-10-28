@@ -60,10 +60,14 @@ export type DocumentType = z.infer<typeof DocumentType>;
  * registration/approval pipeline branches on it. The government BODY is a
  * separate admin-managed catalog (add one without a migration).
  */
-export declare const OversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
+export declare const OversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
 export type OversightRole = z.infer<typeof OversightRole>;
-/** Region scope of an oversight assignment (Decision B). */
-export declare const OversightScopeLevel: z.ZodEnum<["country", "province", "district"]>;
+/**
+ * Region scope of an oversight assignment (Decision B). Sector, cell and
+ * village are the local leaders' levels; business reviewers stay on country,
+ * province or district.
+ */
+export declare const OversightScopeLevel: z.ZodEnum<["country", "province", "district", "sector", "cell", "village"]>;
 export type OversightScopeLevel = z.infer<typeof OversightScopeLevel>;
 /**
  * RWF money as an integer number of francs (never float). Mirrors the

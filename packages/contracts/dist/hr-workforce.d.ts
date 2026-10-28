@@ -647,7 +647,7 @@ export declare const EmployeeDependant: z.ZodObject<{
     phone: string | null;
     employeeId: string;
     sex: "female" | "male" | null;
-    relation: "other" | "spouse" | "child" | "parent" | "sibling";
+    relation: "other" | "sibling" | "spouse" | "child" | "parent";
     isEmergencyContact: boolean;
     medicalDependant: boolean;
     beneficiaryPercent: number | null;
@@ -658,7 +658,7 @@ export declare const EmployeeDependant: z.ZodObject<{
     phone: string | null;
     employeeId: string;
     sex: "female" | "male" | null;
-    relation: "other" | "spouse" | "child" | "parent" | "sibling";
+    relation: "other" | "sibling" | "spouse" | "child" | "parent";
     isEmergencyContact: boolean;
     medicalDependant: boolean;
     beneficiaryPercent: number | null;
@@ -684,7 +684,7 @@ export declare const EmployeeDependantList: z.ZodObject<{
         phone: string | null;
         employeeId: string;
         sex: "female" | "male" | null;
-        relation: "other" | "spouse" | "child" | "parent" | "sibling";
+        relation: "other" | "sibling" | "spouse" | "child" | "parent";
         isEmergencyContact: boolean;
         medicalDependant: boolean;
         beneficiaryPercent: number | null;
@@ -695,7 +695,7 @@ export declare const EmployeeDependantList: z.ZodObject<{
         phone: string | null;
         employeeId: string;
         sex: "female" | "male" | null;
-        relation: "other" | "spouse" | "child" | "parent" | "sibling";
+        relation: "other" | "sibling" | "spouse" | "child" | "parent";
         isEmergencyContact: boolean;
         medicalDependant: boolean;
         beneficiaryPercent: number | null;
@@ -708,7 +708,7 @@ export declare const EmployeeDependantList: z.ZodObject<{
         phone: string | null;
         employeeId: string;
         sex: "female" | "male" | null;
-        relation: "other" | "spouse" | "child" | "parent" | "sibling";
+        relation: "other" | "sibling" | "spouse" | "child" | "parent";
         isEmergencyContact: boolean;
         medicalDependant: boolean;
         beneficiaryPercent: number | null;
@@ -721,7 +721,7 @@ export declare const EmployeeDependantList: z.ZodObject<{
         phone: string | null;
         employeeId: string;
         sex: "female" | "male" | null;
-        relation: "other" | "spouse" | "child" | "parent" | "sibling";
+        relation: "other" | "sibling" | "spouse" | "child" | "parent";
         isEmergencyContact: boolean;
         medicalDependant: boolean;
         beneficiaryPercent: number | null;

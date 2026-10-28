@@ -15,9 +15,10 @@ import { defineConfig } from "vitest/config";
  *   (`tests/unit/setup-dom.ts`).
  *
  * `@/` resolves from tsconfig.json's own `paths`, so the alias keeps one definition. JSX is compiled with
- * React's automatic runtime because tsconfig.json says `jsx: preserve` (Next compiles JSX itself), and a
- * component left as JSX cannot run. Vitest renders client components only: an `async` Server Component
- * is a browser test's job.
+ * React's automatic runtime, pinned here rather than read from tsconfig.json: that file's `jsx` is Next's
+ * setting (`preserve` when this was written, `react-jsx` since main's Next 16 move), and a component left
+ * as JSX cannot run. Vitest renders client components only: an `async` Server Component is a browser
+ * test's job.
  */
 export default defineConfig({
   resolve: { tsconfigPaths: true },

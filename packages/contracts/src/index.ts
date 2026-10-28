@@ -26,6 +26,7 @@ export * from "./offers";
 export * from "./inbox";
 export * from "./ops";
 export * from "./broker";
+export * from "./broker-plans";
 export * from "./ordering";
 export * from "./outlets";
 export * from "./property-detail";
@@ -59,5 +60,11 @@ export * from "./marketplace";
 // The residence screens of the new interface (real-data 1.3.1).
 export * from "./interface-residence";
 export * from "./staff-phone";
+// Rentals, rebuilt (blueprint WP 1.1): vocabulary, Kigali dates, the lease
+// state machine, the rent schedule, allocation, the contract, tax and payouts.
+export * from "./rentals";
+// Who am I, in one call (blueprint 2.5): where a person lands.
+export * from "./me-context";
+export * from "./guests";
 // The bar and restaurant point of sale (POS spec, phase 1).
 export * from "./pos";

@@ -1,0 +1,78 @@
+/**
+ * The broker's reads (2026-10-25): typed calls over the API client, in the person's broker workspace
+ * (kind `broker`, one per person). Each is cached for the request. Server side only. A unit outside the
+ * broker's plan, or one its landlord did not switch on, is not found (404), and reads back as null.
+ */
+import type {
+  BrokerEarnings,
+  BrokerHome,
+  BrokerHomes,
+  BrokerHomesQuery,
+  BrokerPlacementList,
+  BrokerPlanOverview,
+  BrokerPlanPayment,
+  BrokerReviews,
+  BrokerSummary,
+} from "@injishi/contracts";
+import { cache } from "react";
+import { currentAccount, currentApi } from "@/lib/session";
+import { type ApiClient, ApiError } from "../api";
+import { brokerWorkspace, type Workspace } from "../auth";
+
+export interface BrokerScope {
+  api: ApiClient;
+  workspace: Workspace;
+}
+
+/** The broker workspace this request acts in, or null for someone who is not a broker. */
+export const brokerScope = cache(async (): Promise<BrokerScope | null> => {
+  const [account, api] = await Promise.all([currentAccount(), currentApi()]);
+  if (!account) return null;
+  const workspace = brokerWorkspace(account);
+  return workspace ? { api, workspace } : null;
+});
+
+export class NotABrokerError extends Error {
+  constructor() {
+    super("There is no broker registration here.");
+    this.name = "NotABrokerError";
+  }
+}
+
+async function get<T>(path: string, query?: Record<string, string | undefined>): Promise<T> {
+  const s = await brokerScope();
+  if (!s) throw new NotABrokerError();
+  return s.api.get<T>(path, { workspaceId: s.workspace.workspaceId, query });
+}
+
+/** A unit that is not there for this broker (404) comes back null; anything else throws. */
+export async function orMissing<T>(read: Promise<T>): Promise<T | null> {
+  try {
+    return await read;
+  } catch (error) {
+    if (error instanceof ApiError && error.notFound) return null;
+    throw error;
+  }
+}
+
+const q = (v: number | string | undefined): string | undefined => (v === undefined || v === "" ? undefined : String(v));
+
+export const brokerSummary = cache(() => get<BrokerSummary>("/api/v1/ops/broker/summary"));
+export const brokerHomes = cache((query: BrokerHomesQuery) =>
+  get<BrokerHomes>("/api/v1/ops/broker/homes", {
+    district: q(query.district),
+    minRent: q(query.minRent),
+    maxRent: q(query.maxRent),
+    bedrooms: q(query.bedrooms),
+    q: q(query.q),
+    sort: q(query.sort),
+  }),
+);
+export const brokerHome = cache((unitId: string) => get<BrokerHome>(`/api/v1/ops/broker/homes/${unitId}`));
+export const brokerPlacements = cache(() => get<BrokerPlacementList>("/api/v1/ops/broker/placements"));
+export const brokerEarnings = cache(() => get<BrokerEarnings>("/api/v1/ops/broker/earnings"));
+export const brokerReviews = cache(() => get<BrokerReviews>("/api/v1/ops/broker/reviews"));
+export const brokerPlan = cache(() => get<BrokerPlanOverview>("/api/v1/ops/broker/plan"));
+export const brokerPlanPayment = cache((id: string) =>
+  get<BrokerPlanPayment>(`/api/v1/ops/broker/plan/payments/${id}`),
+);

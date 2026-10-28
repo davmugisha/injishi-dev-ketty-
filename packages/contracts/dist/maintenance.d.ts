@@ -11,7 +11,7 @@ import { z } from "zod";
 /** A room's out-of-order block: requested by whoever works the order, decided by a manager. */
 export declare const RoomBlockStatus: z.ZodEnum<["requested", "active", "declined", "released"]>;
 export type RoomBlockStatus = z.infer<typeof RoomBlockStatus>;
-export declare const WorkOrderEventKind: z.ZodEnum<["reported", "assigned", "block_requested", "block_approved", "block_declined", "block_released", "parts", "scheduled", "started", "note", "next_step", "fixed", "verified", "from_signal", "planned"]>;
+export declare const WorkOrderEventKind: z.ZodEnum<["reported", "assigned", "block_requested", "block_approved", "block_declined", "block_released", "parts", "scheduled", "started", "note", "next_step", "fixed", "verified", "from_signal", "planned", "acknowledged", "wont_fix", "reopened", "paid", "closed", "cancelled"]>;
 export type WorkOrderEventKind = z.infer<typeof WorkOrderEventKind>;
 export declare const WorkOrderPartState: z.ZodEnum<["requested", "ordered", "issued", "contractor"]>;
 export type WorkOrderPartState = z.infer<typeof WorkOrderPartState>;
@@ -41,19 +41,19 @@ export declare const WorkOrderPart: z.ZodObject<{
 export type WorkOrderPart = z.infer<typeof WorkOrderPart>;
 export declare const WorkOrderEvent: z.ZodObject<{
     id: z.ZodString;
-    kind: z.ZodEnum<["reported", "assigned", "block_requested", "block_approved", "block_declined", "block_released", "parts", "scheduled", "started", "note", "next_step", "fixed", "verified", "from_signal", "planned"]>;
+    kind: z.ZodEnum<["reported", "assigned", "block_requested", "block_approved", "block_declined", "block_released", "parts", "scheduled", "started", "note", "next_step", "fixed", "verified", "from_signal", "planned", "acknowledged", "wont_fix", "reopened", "paid", "closed", "cancelled"]>;
     note: z.ZodNullable<z.ZodString>;
     actorName: z.ZodNullable<z.ZodString>;
     occurredAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     id: string;
-    kind: "verified" | "fixed" | "note" | "scheduled" | "assigned" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "started" | "next_step" | "from_signal" | "planned";
+    kind: "verified" | "cancelled" | "fixed" | "note" | "paid" | "scheduled" | "reopened" | "closed" | "acknowledged" | "assigned" | "wont_fix" | "started" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "next_step" | "from_signal" | "planned";
     note: string | null;
     occurredAt: string;
     actorName: string | null;
 }, {
     id: string;
-    kind: "verified" | "fixed" | "note" | "scheduled" | "assigned" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "started" | "next_step" | "from_signal" | "planned";
+    kind: "verified" | "cancelled" | "fixed" | "note" | "paid" | "scheduled" | "reopened" | "closed" | "acknowledged" | "assigned" | "wont_fix" | "started" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "next_step" | "from_signal" | "planned";
     note: string | null;
     occurredAt: string;
     actorName: string | null;
@@ -133,7 +133,7 @@ export declare const WorkOrder: z.ZodObject<{
     description: z.ZodNullable<z.ZodString>;
     category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
     priority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
-    status: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
+    status: z.ZodEnum<["open", "acknowledged", "assigned", "in_progress", "resolved", "closed", "wont_fix", "cancelled"]>;
     assignedToUserId: z.ZodNullable<z.ZodString>;
     assignedToName: z.ZodNullable<z.ZodString>;
     /** An outside firm doing the work, when no staff member is. */
@@ -183,19 +183,19 @@ export declare const WorkOrder: z.ZodObject<{
     /** Oldest first. */
     events: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        kind: z.ZodEnum<["reported", "assigned", "block_requested", "block_approved", "block_declined", "block_released", "parts", "scheduled", "started", "note", "next_step", "fixed", "verified", "from_signal", "planned"]>;
+        kind: z.ZodEnum<["reported", "assigned", "block_requested", "block_approved", "block_declined", "block_released", "parts", "scheduled", "started", "note", "next_step", "fixed", "verified", "from_signal", "planned", "acknowledged", "wont_fix", "reopened", "paid", "closed", "cancelled"]>;
         note: z.ZodNullable<z.ZodString>;
         actorName: z.ZodNullable<z.ZodString>;
         occurredAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         id: string;
-        kind: "verified" | "fixed" | "note" | "scheduled" | "assigned" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "started" | "next_step" | "from_signal" | "planned";
+        kind: "verified" | "cancelled" | "fixed" | "note" | "paid" | "scheduled" | "reopened" | "closed" | "acknowledged" | "assigned" | "wont_fix" | "started" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "next_step" | "from_signal" | "planned";
         note: string | null;
         occurredAt: string;
         actorName: string | null;
     }, {
         id: string;
-        kind: "verified" | "fixed" | "note" | "scheduled" | "assigned" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "started" | "next_step" | "from_signal" | "planned";
+        kind: "verified" | "cancelled" | "fixed" | "note" | "paid" | "scheduled" | "reopened" | "closed" | "acknowledged" | "assigned" | "wont_fix" | "started" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "next_step" | "from_signal" | "planned";
         note: string | null;
         occurredAt: string;
         actorName: string | null;
@@ -249,13 +249,13 @@ export declare const WorkOrder: z.ZodObject<{
     resolvedAt: z.ZodNullable<z.ZodString>;
     verifiedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "cancelled" | "open" | "resolved" | "closed" | "assigned" | "in_progress";
+    status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
     reference: string;
     title: string;
     events: {
         id: string;
-        kind: "verified" | "fixed" | "note" | "scheduled" | "assigned" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "started" | "next_step" | "from_signal" | "planned";
+        kind: "verified" | "cancelled" | "fixed" | "note" | "paid" | "scheduled" | "reopened" | "closed" | "acknowledged" | "assigned" | "wont_fix" | "started" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "next_step" | "from_signal" | "planned";
         note: string | null;
         occurredAt: string;
         actorName: string | null;
@@ -271,6 +271,10 @@ export declare const WorkOrder: z.ZodObject<{
     propertyId: string | null;
     assignedToUserId: string | null;
     assignedToName: string | null;
+    photos: {
+        key: string;
+        caption: string;
+    }[];
     spaceId: string | null;
     floor: number | null;
     block: {
@@ -290,10 +294,6 @@ export declare const WorkOrder: z.ZodObject<{
     } | null;
     raisedAt: string;
     verifiedAt: string | null;
-    photos: {
-        key: string;
-        caption: string;
-    }[];
     parts: {
         name: string;
         id: string;
@@ -311,13 +311,13 @@ export declare const WorkOrder: z.ZodObject<{
     impactNote: string | null;
     releaseNote: string | null;
 }, {
-    status: "cancelled" | "open" | "resolved" | "closed" | "assigned" | "in_progress";
+    status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
     reference: string;
     title: string;
     events: {
         id: string;
-        kind: "verified" | "fixed" | "note" | "scheduled" | "assigned" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "started" | "next_step" | "from_signal" | "planned";
+        kind: "verified" | "cancelled" | "fixed" | "note" | "paid" | "scheduled" | "reopened" | "closed" | "acknowledged" | "assigned" | "wont_fix" | "started" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "next_step" | "from_signal" | "planned";
         note: string | null;
         occurredAt: string;
         actorName: string | null;
@@ -333,6 +333,10 @@ export declare const WorkOrder: z.ZodObject<{
     propertyId: string | null;
     assignedToUserId: string | null;
     assignedToName: string | null;
+    photos: {
+        key: string;
+        caption: string;
+    }[];
     spaceId: string | null;
     floor: number | null;
     block: {
@@ -352,10 +356,6 @@ export declare const WorkOrder: z.ZodObject<{
     } | null;
     raisedAt: string;
     verifiedAt: string | null;
-    photos: {
-        key: string;
-        caption: string;
-    }[];
     parts: {
         name: string;
         id: string;
@@ -403,7 +403,7 @@ export declare const WorkOrderList: z.ZodObject<{
         description: z.ZodNullable<z.ZodString>;
         category: z.ZodNullable<z.ZodEnum<["plumbing", "electrical", "hvac", "appliance", "furniture", "it_tech", "safety", "other", "doors_windows", "decoration"]>>;
         priority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
-        status: z.ZodEnum<["open", "assigned", "in_progress", "resolved", "closed", "cancelled"]>;
+        status: z.ZodEnum<["open", "acknowledged", "assigned", "in_progress", "resolved", "closed", "wont_fix", "cancelled"]>;
         assignedToUserId: z.ZodNullable<z.ZodString>;
         assignedToName: z.ZodNullable<z.ZodString>;
         /** An outside firm doing the work, when no staff member is. */
@@ -453,19 +453,19 @@ export declare const WorkOrderList: z.ZodObject<{
         /** Oldest first. */
         events: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
-            kind: z.ZodEnum<["reported", "assigned", "block_requested", "block_approved", "block_declined", "block_released", "parts", "scheduled", "started", "note", "next_step", "fixed", "verified", "from_signal", "planned"]>;
+            kind: z.ZodEnum<["reported", "assigned", "block_requested", "block_approved", "block_declined", "block_released", "parts", "scheduled", "started", "note", "next_step", "fixed", "verified", "from_signal", "planned", "acknowledged", "wont_fix", "reopened", "paid", "closed", "cancelled"]>;
             note: z.ZodNullable<z.ZodString>;
             actorName: z.ZodNullable<z.ZodString>;
             occurredAt: z.ZodString;
         }, "strip", z.ZodTypeAny, {
             id: string;
-            kind: "verified" | "fixed" | "note" | "scheduled" | "assigned" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "started" | "next_step" | "from_signal" | "planned";
+            kind: "verified" | "cancelled" | "fixed" | "note" | "paid" | "scheduled" | "reopened" | "closed" | "acknowledged" | "assigned" | "wont_fix" | "started" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "next_step" | "from_signal" | "planned";
             note: string | null;
             occurredAt: string;
             actorName: string | null;
         }, {
             id: string;
-            kind: "verified" | "fixed" | "note" | "scheduled" | "assigned" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "started" | "next_step" | "from_signal" | "planned";
+            kind: "verified" | "cancelled" | "fixed" | "note" | "paid" | "scheduled" | "reopened" | "closed" | "acknowledged" | "assigned" | "wont_fix" | "started" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "next_step" | "from_signal" | "planned";
             note: string | null;
             occurredAt: string;
             actorName: string | null;
@@ -519,13 +519,13 @@ export declare const WorkOrderList: z.ZodObject<{
         resolvedAt: z.ZodNullable<z.ZodString>;
         verifiedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "cancelled" | "open" | "resolved" | "closed" | "assigned" | "in_progress";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         reference: string;
         title: string;
         events: {
             id: string;
-            kind: "verified" | "fixed" | "note" | "scheduled" | "assigned" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "started" | "next_step" | "from_signal" | "planned";
+            kind: "verified" | "cancelled" | "fixed" | "note" | "paid" | "scheduled" | "reopened" | "closed" | "acknowledged" | "assigned" | "wont_fix" | "started" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "next_step" | "from_signal" | "planned";
             note: string | null;
             occurredAt: string;
             actorName: string | null;
@@ -541,6 +541,10 @@ export declare const WorkOrderList: z.ZodObject<{
         propertyId: string | null;
         assignedToUserId: string | null;
         assignedToName: string | null;
+        photos: {
+            key: string;
+            caption: string;
+        }[];
         spaceId: string | null;
         floor: number | null;
         block: {
@@ -560,10 +564,6 @@ export declare const WorkOrderList: z.ZodObject<{
         } | null;
         raisedAt: string;
         verifiedAt: string | null;
-        photos: {
-            key: string;
-            caption: string;
-        }[];
         parts: {
             name: string;
             id: string;
@@ -581,13 +581,13 @@ export declare const WorkOrderList: z.ZodObject<{
         impactNote: string | null;
         releaseNote: string | null;
     }, {
-        status: "cancelled" | "open" | "resolved" | "closed" | "assigned" | "in_progress";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         reference: string;
         title: string;
         events: {
             id: string;
-            kind: "verified" | "fixed" | "note" | "scheduled" | "assigned" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "started" | "next_step" | "from_signal" | "planned";
+            kind: "verified" | "cancelled" | "fixed" | "note" | "paid" | "scheduled" | "reopened" | "closed" | "acknowledged" | "assigned" | "wont_fix" | "started" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "next_step" | "from_signal" | "planned";
             note: string | null;
             occurredAt: string;
             actorName: string | null;
@@ -603,6 +603,10 @@ export declare const WorkOrderList: z.ZodObject<{
         propertyId: string | null;
         assignedToUserId: string | null;
         assignedToName: string | null;
+        photos: {
+            key: string;
+            caption: string;
+        }[];
         spaceId: string | null;
         floor: number | null;
         block: {
@@ -622,10 +626,6 @@ export declare const WorkOrderList: z.ZodObject<{
         } | null;
         raisedAt: string;
         verifiedAt: string | null;
-        photos: {
-            key: string;
-            caption: string;
-        }[];
         parts: {
             name: string;
             id: string;
@@ -669,13 +669,13 @@ export declare const WorkOrderList: z.ZodObject<{
     medianHoursToClose: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     workOrders: {
-        status: "cancelled" | "open" | "resolved" | "closed" | "assigned" | "in_progress";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         reference: string;
         title: string;
         events: {
             id: string;
-            kind: "verified" | "fixed" | "note" | "scheduled" | "assigned" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "started" | "next_step" | "from_signal" | "planned";
+            kind: "verified" | "cancelled" | "fixed" | "note" | "paid" | "scheduled" | "reopened" | "closed" | "acknowledged" | "assigned" | "wont_fix" | "started" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "next_step" | "from_signal" | "planned";
             note: string | null;
             occurredAt: string;
             actorName: string | null;
@@ -691,6 +691,10 @@ export declare const WorkOrderList: z.ZodObject<{
         propertyId: string | null;
         assignedToUserId: string | null;
         assignedToName: string | null;
+        photos: {
+            key: string;
+            caption: string;
+        }[];
         spaceId: string | null;
         floor: number | null;
         block: {
@@ -710,10 +714,6 @@ export declare const WorkOrderList: z.ZodObject<{
         } | null;
         raisedAt: string;
         verifiedAt: string | null;
-        photos: {
-            key: string;
-            caption: string;
-        }[];
         parts: {
             name: string;
             id: string;
@@ -742,13 +742,13 @@ export declare const WorkOrderList: z.ZodObject<{
     medianHoursToClose: number | null;
 }, {
     workOrders: {
-        status: "cancelled" | "open" | "resolved" | "closed" | "assigned" | "in_progress";
+        status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         reference: string;
         title: string;
         events: {
             id: string;
-            kind: "verified" | "fixed" | "note" | "scheduled" | "assigned" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "started" | "next_step" | "from_signal" | "planned";
+            kind: "verified" | "cancelled" | "fixed" | "note" | "paid" | "scheduled" | "reopened" | "closed" | "acknowledged" | "assigned" | "wont_fix" | "started" | "reported" | "block_requested" | "block_approved" | "block_declined" | "block_released" | "parts" | "next_step" | "from_signal" | "planned";
             note: string | null;
             occurredAt: string;
             actorName: string | null;
@@ -764,6 +764,10 @@ export declare const WorkOrderList: z.ZodObject<{
         propertyId: string | null;
         assignedToUserId: string | null;
         assignedToName: string | null;
+        photos: {
+            key: string;
+            caption: string;
+        }[];
         spaceId: string | null;
         floor: number | null;
         block: {
@@ -783,10 +787,6 @@ export declare const WorkOrderList: z.ZodObject<{
         } | null;
         raisedAt: string;
         verifiedAt: string | null;
-        photos: {
-            key: string;
-            caption: string;
-        }[];
         parts: {
             name: string;
             id: string;

@@ -2257,17 +2257,17 @@ export declare const CreateContractRequest: z.ZodObject<{
     contractType: "permanent" | "fixed_term" | "casual";
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
+    noticeDays?: number | null | undefined;
     endsOn?: string | null | undefined;
     payStructureId?: string | null | undefined;
-    noticeDays?: number | null | undefined;
 }, {
     startsOn: string;
     contractType: "permanent" | "fixed_term" | "casual";
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
+    noticeDays?: number | null | undefined;
     endsOn?: string | null | undefined;
     payStructureId?: string | null | undefined;
-    noticeDays?: number | null | undefined;
 }>;
 export type CreateContractRequest = z.infer<typeof CreateContractRequest>;
 /** The new contract, and the one it shortened, if any. */

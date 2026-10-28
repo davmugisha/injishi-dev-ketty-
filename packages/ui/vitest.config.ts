@@ -1,8 +1,11 @@
 import { defineConfig } from "vitest/config";
 
 /**
- * Vitest for the shared web library (2026-10-27). Two projects, chosen by extension, so a test file says
- * what it needs by its name:
+ * Vitest for the shared web library (2026-10-27), beside the kit's `node --test` suite.
+ *
+ * The two runners stay apart by folder. `node --test "tests/*.test.ts"` reads only the files directly in
+ * `tests/`, and Vitest reads only `tests/unit/`, so no file is run by both. Two projects, chosen by
+ * extension, so a test file says what it needs by its name:
  *
  * - `unit`: the `.test.ts` files under `tests/unit/`, in Node. Logic, never a render.
  * - `dom`: the `.test.tsx` files under `tests/unit/`, in jsdom with Testing Library

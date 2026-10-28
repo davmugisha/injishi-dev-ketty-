@@ -422,6 +422,10 @@ export declare const HousekeepingPhone: z.ZodObject<{
         name: string;
         userId: string;
     } | null;
+    arrivals: {
+        guests: number;
+        roomId: string;
+    }[];
     checklist: {
         code: string;
         id: string;
@@ -454,10 +458,6 @@ export declare const HousekeepingPhone: z.ZodObject<{
         used: number;
         countedByName: string | null;
         countedAt: string;
-    }[];
-    arrivals: {
-        guests: number;
-        roomId: string;
     }[];
     myFloors: number[];
     places: {
@@ -484,6 +484,10 @@ export declare const HousekeepingPhone: z.ZodObject<{
         name: string;
         userId: string;
     } | null;
+    arrivals: {
+        guests: number;
+        roomId: string;
+    }[];
     checklist: {
         code: string;
         id: string;
@@ -516,10 +520,6 @@ export declare const HousekeepingPhone: z.ZodObject<{
         used: number;
         countedByName: string | null;
         countedAt: string;
-    }[];
-    arrivals: {
-        guests: number;
-        roomId: string;
     }[];
     myFloors: number[];
     places: {

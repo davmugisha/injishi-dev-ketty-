@@ -11,8 +11,9 @@ const config: NextConfig = {
   // Traced server bundle for Dockerfile.app. Opt-in: on Windows the trace
   // needs Developer Mode, so local `pnpm build` stays without it.
   output: process.env.BUILD_STANDALONE === "1" ? "standalone" : undefined,
-  // Zone under web's origin: `/operator-static` keeps this build's `/_next`
-  // apart from web's. Opened directly on :3002 it still serves itself.
+  // This app has its own origin (app.injishi.com, :3002 locally) and serves its
+  // assets itself under this prefix. It dates from when web forwarded the app as
+  // a zone and kept the two `/_next` folders apart; web forwards nothing now.
   assetPrefix: process.env.OPERATOR_ASSET_PREFIX ?? "/operator-static",
   // Workspace packages ship TypeScript source.
   transpilePackages: ["@injishi/ui", "@injishi/product-hr", "@injishi/data", "@injishi/db"],

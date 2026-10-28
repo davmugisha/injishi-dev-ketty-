@@ -27,7 +27,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
-import { adapterModeEnum, ebmConnectionStatusEnum, ebmReceiptTypeEnum, ebmSourceEnum, ebmStatusEnum, ebmTransactionTypeEnum, invoiceKindEnum, ledgerAccountTypeEnum, ledgerTxnKindEnum, moneyOverrideActionEnum, moneyOverrideStateEnum, paymentDirectionEnum, paymentTransactionStatusEnum, payoutDestinationEnum, payoutPayeeTypeEnum, payoutSourceEnum, payoutStatusEnum, placementFeeStatusEnum, planBillingPeriodEnum, reconciliationStatusEnum, registrationBusinessTypeEnum, subscriptionInvoiceStatusEnum, subscriptionStatusEnum, taxCodeEnum, tinTypeEnum } from './enums';
+import { adapterModeEnum, brokerFeeKindEnum, ebmConnectionStatusEnum, ebmReceiptTypeEnum, ebmSourceEnum, ebmStatusEnum, ebmTransactionTypeEnum, invoiceKindEnum, ledgerAccountTypeEnum, ledgerTxnKindEnum, momoNetworkEnum, moneyOverrideActionEnum, moneyOverrideStateEnum, paymentDirectionEnum, paymentTransactionStatusEnum, payoutAccountKindEnum, payoutAccountStatusEnum, payoutDestinationEnum, payoutPayeeTypeEnum, payoutSourceEnum, payoutStatusEnum, placementFeeStatusEnum, planBillingPeriodEnum, reconciliationStatusEnum, registrationBusinessTypeEnum, subscriptionInvoiceStatusEnum, subscriptionStatusEnum, taxCodeEnum, tinTypeEnum } from './enums';
 import { bookings } from './hospitality';
 import { folioCharges, folios, outlets, serviceOrderItems, serviceOrders } from './operations';
 import { orgs, workspaces } from './org';
@@ -92,6 +92,70 @@ export const ledgerEntries = pgTable(
 );
 
 
+/**
+ * Where a landlord's rent is paid out (blueprint 1.2, migration 0081): a bank
+ * account, a MoMo number, or a MoMo Pay merchant code. Ported from
+ * feat/rentals' `org_payout_accounts`.
+ *
+ * A bank account number is never stored as text: `account_number_ciphertext`
+ * is AES-256-GCM under `PAYOUT_ACCOUNT_ENCRYPTION_KEY` (the EBM token cipher,
+ * bound to the org and the row), and `account_last4` is what every screen
+ * shows. One active primary account per org (`payout_accounts_primary_uk`):
+ * every gateway payment is paid out to it, and with none it is held. An
+ * account is retired, never deleted, so a payout can always say where it went.
+ */
+export const payoutAccounts = pgTable(
+  'payout_accounts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    kind: payoutAccountKindEnum('kind').notNull(),
+    /** The name the account is in, as the bank or network holds it. */
+    accountName: text('account_name').notNull(),
+    bankName: text('bank_name'),
+    accountNumberCiphertext: text('account_number_ciphertext'),
+    accountLast4: text('account_last4'),
+    momoNetwork: momoNetworkEnum('momo_network'),
+    /** E.164, `+2507…`. */
+    momoPhone: text('momo_phone'),
+    merchantCode: text('merchant_code'),
+    isPrimary: boolean('is_primary').notNull().default(false),
+    status: payoutAccountStatusEnum('status').notNull().default('active'),
+    /** The name the rail reported for the account, once a provider checks it. */
+    verifiedName: text('verified_name'),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id),
+    retiredAt: timestamp('retired_at', { withTimezone: true }),
+    retiredByUserId: uuid('retired_by_user_id').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('payout_accounts_primary_uk')
+      .on(t.orgId)
+      .where(sql`${t.isPrimary} AND ${t.status} = 'active'`),
+    index('payout_accounts_org_idx').on(t.orgId, t.status),
+    check('payout_accounts_name_present', sql`length(btrim(${t.accountName})) > 0`),
+    check(
+      'payout_accounts_kind_shape',
+      sql`(${t.kind} = 'bank' AND ${t.bankName} IS NOT NULL AND ${t.accountNumberCiphertext} IS NOT NULL
+            AND ${t.accountLast4} ~ '^[0-9]{4}$'
+            AND ${t.momoNetwork} IS NULL AND ${t.momoPhone} IS NULL AND ${t.merchantCode} IS NULL)
+        OR (${t.kind} = 'momo' AND ${t.momoNetwork} IS NOT NULL AND ${t.momoPhone} ~ '^[+]250(72|73|78|79)[0-9]{7}$'
+            AND ${t.bankName} IS NULL AND ${t.accountNumberCiphertext} IS NULL AND ${t.accountLast4} IS NULL
+            AND ${t.merchantCode} IS NULL)
+        OR (${t.kind} = 'momo_pay' AND ${t.merchantCode} ~ '^[0-9]{4,10}$'
+            AND ${t.bankName} IS NULL AND ${t.accountNumberCiphertext} IS NULL AND ${t.accountLast4} IS NULL
+            AND ${t.momoNetwork} IS NULL AND ${t.momoPhone} IS NULL)`,
+    ),
+    check('payout_accounts_primary_active', sql`NOT (${t.isPrimary} AND ${t.status} = 'retired')`),
+    check('payout_accounts_retired_shape', sql`(${t.status} = 'retired') = (${t.retiredAt} IS NOT NULL)`),
+  ],
+);
+
 export const payouts = pgTable(
   'payouts',
   {
@@ -118,11 +182,22 @@ export const payouts = pgTable(
     settledAt: timestamp('settled_at', { withTimezone: true }),
     failureReason: text('failure_reason'),
     idempotencyKey: text('idempotency_key'),
+    // Rentals (migration 0081): which payout account it went to, and what the
+    // landlord and the payee are shown without decrypting anything.
+    payoutAccountId: uuid('payout_account_id').references(() => payoutAccounts.id),
+    payeeName: text('payee_name'),
+    /** "Bank of Kigali ••••5678": where it went, masked. */
+    destinationMasked: text('destination_masked'),
+    /** The rail's own reference for the transfer. */
+    adapterRef: text('adapter_ref'),
+    note: text('note'),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id),
     ...timestamps,
   },
   (t) => [
     unique('payouts_idempotency_key_uk').on(t.idempotencyKey),
     index('payouts_workspace_status_idx').on(t.workspaceId, t.status),
+    index('payouts_account_idx').on(t.payoutAccountId),
   ],
 );
 
@@ -453,9 +528,24 @@ export const placementFees = pgTable(
     currency: currency(),
     status: placementFeeStatusEnum('status').notNull().default('pending'),
     payoutId: uuid('payout_id').references(() => payouts.id),
+    /**
+     * What was agreed (2026-10-25): a percent of the first month or fixed francs. A RECORD only:
+     * the money moves outside Injishi, and `disbursed` is the landlord marking it paid.
+     */
+    feeKind: brokerFeeKindEnum('fee_kind'),
+    percent: integer('percent'),
+    disbursedAt: timestamp('disbursed_at', { withTimezone: true }),
+    disbursedByUserId: uuid('disbursed_by_user_id').references(() => users.id),
     ...timestamps,
   },
-  (t) => [unique('placement_fees_lease_uk').on(t.leaseId)],
+  (t) => [
+    unique('placement_fees_lease_uk').on(t.leaseId),
+    check('placement_fees_disbursed_shape', sql`(${t.status} = 'disbursed') = (${t.disbursedAt} IS NOT NULL)`),
+    check(
+      'placement_fees_terms_shape',
+      sql`${t.feeKind} IS NULL OR (${t.feeKind} = 'percent' AND ${t.percent} BETWEEN 1 AND 200) OR (${t.feeKind} = 'fixed' AND ${t.percent} IS NULL)`,
+    ),
+  ],
 );
 
 

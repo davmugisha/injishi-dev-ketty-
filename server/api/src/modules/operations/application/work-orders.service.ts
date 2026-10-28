@@ -10,7 +10,6 @@ import type {
   ReleaseRoomRequest,
   WorkOrder,
   WorkOrderList,
-  WorkOrderPhoto,
 } from '@injishi/contracts';
 import {
   ConflictException,
@@ -33,6 +32,7 @@ import {
   WorkOrdersRepository,
 } from '../infrastructure/work-orders.repository';
 import { iso } from './housekeeping-board.service';
+import { TicketLifecycle } from './ticket-lifecycle';
 
 /**
  * The hotel's maintenance board (real-data 1.2.3): work orders against a room, a space or a piece of
@@ -48,7 +48,10 @@ import { iso } from './housekeeping-board.service';
  */
 @Injectable()
 export class WorkOrdersService {
-  constructor(private readonly repo: WorkOrdersRepository) {}
+  constructor(
+    private readonly repo: WorkOrdersRepository,
+    private readonly lifecycle: TicketLifecycle,
+  ) {}
 
   async list(ws: ScopedWorkspace): Promise<WorkOrderList> {
     const rows = await this.repo.list(ws.workspaceId, ws.branchScope);
@@ -91,12 +94,13 @@ export class WorkOrdersService {
         insert into maintenance_tickets
           (room_id, space_id, asset_id, property_id, org_id, workspace_id, department_id, raised_by_user_id,
            raised_by_role, raised_via, title, description, category, priority, status, reference,
-           assigned_to_user_id, assigned_contractor)
+           assigned_to_user_id, assigned_contractor, assignee_kind)
         values (${place.roomId}, ${place.spaceId}, ${place.assetId}, ${place.propertyId}, ${ws.orgId},
                 ${ws.workspaceId}, ${department}, ${actorUserId}, 'staff', 'maintenance board', ${body.title},
                 ${body.description ?? null}, ${body.category ?? null}, ${body.priority},
                 ${assignee ? 'assigned' : 'open'}, ${reference}, ${assignee?.userId ?? null},
-                ${assignee?.contractor ?? null})
+                ${assignee?.contractor ?? null},
+                ${assignee ? (assignee.userId ? 'member' : 'contractor') : null}::maintenance_assignee_kind)
         returning id
       `);
       const ticketId = inserted.rows[0]?.id as string;
@@ -131,6 +135,12 @@ export class WorkOrdersService {
     return this.get(ws, id);
   }
 
+  /**
+   * Hand the order to a technician or a contractor, through the shared ticket
+   * lifecycle (WP 4.1): an open order moves to assigned, one already being
+   * worked changes hands and keeps its state, the same person again is no
+   * change. A closed or cancelled order is refused.
+   */
   async assign(ws: ScopedWorkspace, id: string, body: AssignWorkOrderRequest, actorUserId: string): Promise<WorkOrder> {
     const db = this.repo.database;
     await db.transaction(async (tx) => {
@@ -138,20 +148,15 @@ export class WorkOrdersService {
       this.assertOpen(order);
       const assignee = await this.resolveAssignee(ws, order.property_id, body);
       if (!assignee) throw new UnprocessableEntityException('Name who takes the work.');
-      if (
-        (assignee.userId && assignee.userId === order.assigned_to_user_id) ||
-        (assignee.contractor && assignee.contractor === order.assigned_contractor)
-      ) {
-        return;
-      }
-      await tx.execute(sql`
-        update maintenance_tickets
-           set assigned_to_user_id = ${assignee.userId ?? null}, assigned_contractor = ${assignee.contractor ?? null},
-               status = case when status = 'open' then 'assigned'::maintenance_status else status end,
-               updated_at = now()
-         where id = ${order.id}
-      `);
-      await this.repo.addEvent(tx, { ticketId: order.id, kind: 'assigned', note: `Assigned to ${assignee.name}`, actorUserId });
+      await this.lifecycle.assign(tx, {
+        ticketId: order.id,
+        assignee: assignee.userId
+          ? { kind: 'member', userId: assignee.userId, name: assignee.name }
+          : { kind: 'contractor', name: assignee.contractor as string, phone: null },
+        actorUserId,
+        actorRole: 'staff',
+        visibleToTenant: false,
+      });
     });
     return this.get(ws, id);
   }
@@ -430,7 +435,7 @@ export class WorkOrdersService {
   }
 
   private assertOpen(order: WorkOrderRow): void {
-    if (order.status === 'closed' || order.status === 'cancelled') {
+    if (order.status === 'closed' || order.status === 'cancelled' || order.status === 'wont_fix') {
       throw new ConflictException('This work order is closed.');
     }
   }
@@ -471,7 +476,13 @@ export class WorkOrdersService {
 
   private async present(db: Db, rows: WorkOrderRow[]): Promise<WorkOrder[]> {
     const ids = rows.map((r) => r.id);
-    const [parts, events, blocks] = await Promise.all([this.repo.parts(ids), this.repo.events(ids), this.repo.blocks(db, ids)]);
+    const [parts, events, blocks, photos] = await Promise.all([
+      this.repo.parts(ids),
+      this.repo.events(ids),
+      this.repo.blocks(db, ids),
+      this.repo.photos(ids),
+    ]);
+    const photosOf = group(photos, (p) => p.ticket_id);
     const partsOf = group(parts, (p) => p.ticket_id);
     const eventsOf = group(events, (e) => e.ticket_id);
     const blockOf = new Map(blocks.map((b) => [b.maintenance_ticket_id as string, b]));
@@ -501,7 +512,8 @@ export class WorkOrdersService {
       raisedAt: iso(r.created_at) as string,
       impactNote: r.impact_note,
       releaseNote: r.release_note,
-      photos: photosOf(r.photo_object_keys),
+      // `maintenance_photos` since WP 4.1 (migration 0087 copied the jsonb in).
+      photos: (photosOf.get(r.id) ?? []).map((p) => ({ key: p.object_key, caption: p.caption ?? '' })),
       parts: (partsOf.get(r.id) ?? []).map((p: PartRow) => ({
         id: p.id,
         name: p.name,
@@ -533,18 +545,6 @@ function group<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
     out.set(k, list);
   }
   return out;
-}
-
-function photosOf(value: unknown): WorkOrderPhoto[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((v) => {
-    if (typeof v === 'string') return [{ key: v, caption: '' }];
-    if (v && typeof v === 'object' && typeof (v as { key?: unknown }).key === 'string') {
-      const o = v as { key: string; caption?: unknown };
-      return [{ key: o.key, caption: typeof o.caption === 'string' ? o.caption : '' }];
-    }
-    return [];
-  });
 }
 
 function presentBlock(b: BlockRow | undefined): WorkOrder['block'] {

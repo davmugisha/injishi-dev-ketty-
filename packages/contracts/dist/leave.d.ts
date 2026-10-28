@@ -579,6 +579,12 @@ export declare const LeaveDashboard: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     today: string;
+    waiting: {
+        requests: number;
+        routedToMe: number;
+        atStepTwo: number;
+        allocations: number;
+    };
     onLeaveToday: {
         startsOn: string;
         employee: {
@@ -601,14 +607,14 @@ export declare const LeaveDashboard: z.ZodObject<{
         requestId: string;
         leaveTypeName: string;
     }[];
-    waiting: {
-        requests: number;
-        routedToMe: number;
-        atStepTwo: number;
-        allocations: number;
-    };
 }, {
     today: string;
+    waiting: {
+        requests: number;
+        routedToMe: number;
+        atStepTwo: number;
+        allocations: number;
+    };
     onLeaveToday: {
         startsOn: string;
         employee: {
@@ -631,12 +637,6 @@ export declare const LeaveDashboard: z.ZodObject<{
         requestId: string;
         leaveTypeName: string;
     }[];
-    waiting: {
-        requests: number;
-        routedToMe: number;
-        atStepTwo: number;
-        allocations: number;
-    };
 }>;
 export type LeaveDashboard = z.infer<typeof LeaveDashboard>;
 export declare const LeaveDefaultsDiff: z.ZodObject<{

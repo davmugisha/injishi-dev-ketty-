@@ -8,6 +8,37 @@
  * one schema at one path.
  */
 import {
+  BrokerFeeKind,
+  DepositRefundMethod,
+  FaultAssigneeKind,
+  FaultPhotoPhase,
+  IdKind,
+  LeaseActorRole,
+  LeaseChargeKind,
+  LeaseChargeStatus,
+  LeaseDepositStatus,
+  LeaseEventKind,
+  LeaseFilingKind,
+  LeaseFilingStatus,
+  LeasePaymentChannel,
+  LeasePaymentMethod,
+  LeasePaymentStatus,
+  LeaseReminderChannel,
+  LeaseReminderKind,
+  LeaseSigningMethod,
+  LeaseStatus,
+  MaintenanceStatus,
+  MomoNetwork,
+  MoveOutNoticeChannel,
+  MoveOutNoticeStatus,
+  MoveOutReasonCode,
+  PayoutAccountKind,
+  PayoutAccountStatus,
+  RentalUnitState,
+  TaxpayerKind,
+  UnitKitchen,
+} from '@injishi/contracts';
+import {
   pgEnum,
 } from 'drizzle-orm/pg-core';
 
@@ -348,12 +379,32 @@ export const oversightRoleEnum = pgEnum('oversight_role', [
   // ADR-056: decides PSF membership applications. Posted at the PSF body with
   // country scope only (OVERSIGHT_ROLE_POSTING in @injishi/contracts).
   'psf_membership_officer',
+  // P5 (the guests migration): the local leaders a guest staying in a rented
+  // home is reported to. Each covers one level of the map; the table's
+  // `oversight_assignments_role_scope` check holds the pairing.
+  'village_leader',
+  'dasso',
+  'cell_executive',
+  'district_officer',
+  'district_immigration',
+  // The sector executive secretary (local government) and DGIE's province and
+  // headquarters levels (guests from abroad only).
+  'sector_executive',
+  'dgie_province',
+  'dgie_national',
+  // The chains settled as village, cell, district for both bodies: DGIE's village and cell officers.
+  'dgie_village',
+  'dgie_cell',
 ]);
 
 export const oversightScopeLevelEnum = pgEnum('oversight_scope_level', [
   'country',
   'province',
   'district',
+  // P5: the local leaders' levels.
+  'sector',
+  'cell',
+  'village',
 ]);
 
 
@@ -489,6 +540,8 @@ export const threadKindEnum = pgEnum('thread_kind', [
   'reservation',
   'department_request',
   'dispute',
+  // A broker and a landlord about a placement (migration 0093).
+  'placement',
 ]);
 
 
@@ -501,6 +554,8 @@ export const messageBodyTypeEnum = pgEnum('message_body_type', [
   // ADR-050 D-s: a line the platform writes, such as an order's status change.
   // It has no sender and never counts as a staff reply.
   'system',
+  // Rentals (migration 0073): a document sent in a lease or placement thread.
+  'file',
 ]);
 
 export const storedObjectKindEnum = pgEnum('stored_object_kind', [
@@ -530,22 +585,31 @@ export const storedObjectKindEnum = pgEnum('stored_object_kind', [
   // 058-payroll: a bank or MoMo file, or a PAYE or RSSB declaration. Wages and
   // account numbers: `payroll.run` only, never shown to the person.
   'hr_pay_file',
+  // Rentals (migration 0073). A unit's photos and video tour; a signer's drawn
+  // signature; a lease's contract PDF (plain and signed, under legal hold); a
+  // recorded payment's slip; the proof a lease was filed with RRA.
+  'unit_photo',
+  'unit_video',
+  'lease_signature',
+  'lease_contract',
+  'payment_receipt',
+  'filing_proof',
+  // Rentals P4 (migration 0087): a fault's photos, an expense's receipt, and
+  // the receipt RRA gives for rental income tax paid.
+  'fault_photo',
+  'expense_receipt',
+  'tax_receipt',
 ]);
 
 
 // §7 residence
-export const leaseStatusEnum = pgEnum('lease_status', [
-  'draft',
-  'pending_signature',
-  'active',
-  'ending',
-  'ended',
-  'cancelled',
-]);
+/**
+ * Where a lease stands: `LeaseStatus` in contracts (rentals vocab). Migration
+ * 0077 swapped the type to add `signed` (both sides signed, not started yet).
+ */
+export const leaseStatusEnum = pgEnum('lease_status', LeaseStatus.options);
 
 export const signerRoleEnum = pgEnum('signer_role', ['landlord', 'tenant']);
-
-export const rentStatusEnum = pgEnum('rent_status', ['paid', 'due', 'overdue']);
 
 export const cautionStatusEnum = pgEnum('caution_status', [
   'held',
@@ -560,17 +624,20 @@ export const renewalStatusEnum = pgEnum('renewal_status', [
 ]);
 
 /**
- * ADR-016 D16. Widened from , which could not express a ticket
+ * ADR-016 D16. Widened from `open | resolved`, which could not express a ticket
  * somebody had picked up, and had no way to say a ticket was raised in error.
+ * Rentals P4 (migration 0087, a type swap) added `acknowledged` (Seen) and
+ * `wont_fix`; the list is `MaintenanceStatus` in contracts, which the shared
+ * ticket lifecycle (`TICKET_MOVES`) moves between.
  */
-export const maintenanceStatusEnum = pgEnum('maintenance_status', [
-  'open',
-  'assigned',
-  'in_progress',
-  'resolved',
-  'closed',
-  'cancelled',
-]);
+export const maintenanceStatusEnum = pgEnum('maintenance_status', MaintenanceStatus.options);
+
+/**
+ * Rentals P4 (migration 0087): whom a ticket is handed to, someone on the
+ * team or an outside fixer, and when a fault photo was taken.
+ */
+export const maintenanceAssigneeKindEnum = pgEnum('maintenance_assignee_kind', FaultAssigneeKind.options);
+export const maintenancePhotoPhaseEnum = pgEnum('maintenance_photo_phase', FaultPhotoPhase.options);
 
 export const maintenanceCategoryEnum = pgEnum('maintenance_category', [
   'plumbing',
@@ -613,11 +680,46 @@ export const placementStatusEnum = pgEnum('placement_status', [
   'unavailable',
 ]);
 
-export const filingStatusEnum = pgEnum('filing_status', [
-  'pending',
-  'filed',
-  'failed',
-]);
+/**
+ * Where a lease filing stands (`LeaseFilingStatus` in contracts): pending
+ * (due) or filed. Migration 0082 swapped the type to drop `failed`, which only
+ * the mock filing adapter of the first residence screens ever wrote.
+ */
+export const filingStatusEnum = pgEnum('filing_status', LeaseFilingStatus.options);
+
+
+// §7b rentals (blueprint 1.1, migrations 0074-0082).
+//
+// Every rentals status and kind is a zod enum in
+// `packages/contracts/src/rentals/vocab.ts`, and the database type is built
+// from its `.options`, so the API, the apps and Postgres hold one list.
+// `rentals-vocab.spec.ts` fails the build if a type and its zod list drift.
+// To add a value: add it to vocab.ts, then a migration (ADD VALUE when nothing
+// in the same run uses it; otherwise swap the type, see migration 0077).
+export const rentalUnitStateEnum = pgEnum('rental_unit_state', RentalUnitState.options);
+export const unitKitchenEnum = pgEnum('unit_kitchen', UnitKitchen.options);
+export const idKindEnum = pgEnum('id_kind', IdKind.options);
+export const taxpayerKindEnum = pgEnum('taxpayer_kind', TaxpayerKind.options);
+export const leaseSigningMethodEnum = pgEnum('lease_signing_method', LeaseSigningMethod.options);
+export const leaseActorRoleEnum = pgEnum('lease_actor_role', LeaseActorRole.options);
+export const leaseEventKindEnum = pgEnum('lease_event_kind', LeaseEventKind.options);
+export const leaseChargeKindEnum = pgEnum('lease_charge_kind', LeaseChargeKind.options);
+export const leaseChargeStatusEnum = pgEnum('lease_charge_status', LeaseChargeStatus.options);
+export const leasePaymentChannelEnum = pgEnum('lease_payment_channel', LeasePaymentChannel.options);
+export const leasePaymentMethodEnum = pgEnum('lease_payment_method', LeasePaymentMethod.options);
+export const leasePaymentStatusEnum = pgEnum('lease_payment_status', LeasePaymentStatus.options);
+export const leaseDepositStatusEnum = pgEnum('lease_deposit_status', LeaseDepositStatus.options);
+export const depositRefundMethodEnum = pgEnum('deposit_refund_method', DepositRefundMethod.options);
+export const leaseReminderKindEnum = pgEnum('lease_reminder_kind', LeaseReminderKind.options);
+export const leaseReminderChannelEnum = pgEnum('lease_reminder_channel', LeaseReminderChannel.options);
+// Migrations 0081 (getting paid) and 0082 (notices and filings).
+export const payoutAccountKindEnum = pgEnum('payout_account_kind', PayoutAccountKind.options);
+export const payoutAccountStatusEnum = pgEnum('payout_account_status', PayoutAccountStatus.options);
+export const momoNetworkEnum = pgEnum('momo_network', MomoNetwork.options);
+export const moveOutNoticeStatusEnum = pgEnum('move_out_notice_status', MoveOutNoticeStatus.options);
+export const moveOutNoticeChannelEnum = pgEnum('move_out_notice_channel', MoveOutNoticeChannel.options);
+export const moveOutReasonEnum = pgEnum('move_out_reason', MoveOutReasonCode.options);
+export const leaseFilingKindEnum = pgEnum('lease_filing_kind', LeaseFilingKind.options);
 
 
 // §8 money
@@ -670,17 +772,25 @@ export const payoutPayeeTypeEnum = pgEnum('payout_payee_type', [
   'host',
   'landlord',
   'broker',
+  // Rentals (migration 0073): a deposit refunded to a tenant, a fixer paid by a landlord.
+  'tenant',
+  'vendor',
 ]);
 
 export const payoutDestinationEnum = pgEnum('payout_destination', [
   'momo',
   'bank',
+  // Rentals (migration 0073): a landlord's MoMo Pay merchant code.
+  'momo_pay',
 ]);
 
 export const payoutSourceEnum = pgEnum('payout_source', [
   'booking',
   'rent',
   'placement_fee',
+  // Rentals (migration 0073).
+  'deposit_refund',
+  'repair',
 ]);
 
 export const payoutStatusEnum = pgEnum('payout_status', [
@@ -688,6 +798,8 @@ export const payoutStatusEnum = pgEnum('payout_status', [
   'queued',
   'paid',
   'held',
+  // Rentals (migration 0073): the rail refused the transfer.
+  'failed',
 ]);
 
 export const planBillingPeriodEnum = pgEnum('plan_billing_period', ['monthly']);
@@ -726,6 +838,9 @@ export const placementFeeStatusEnum = pgEnum('placement_fee_status', [
   'pending',
   'disbursed',
 ]);
+
+/** How a landlord sets a broker's fee (2026-10-25): a percent of the first month, or fixed francs. */
+export const brokerFeeKindEnum = pgEnum('broker_fee_kind', BrokerFeeKind.options);
 
 /**
  * Where a fiscal document comes from (ADR-050 D-a).
@@ -889,6 +1004,28 @@ export const domainEventTypeEnum = pgEnum('domain_event_type', [
   'feedback.requested',
   'exit_task.assigned',
   'onboarding_task.assigned',
+  /**
+   * Rentals (migration 0073, blueprint 2.8): written to the outbox in the same
+   * transaction as the change, fanned out to in-app, email and the live
+   * connection. Faults, guests and broker plans add theirs with their phases.
+   */
+  'lease.sent',
+  'lease.signed',
+  'lease.activated',
+  'lease.ending',
+  'lease.ended',
+  'rent.charged',
+  'rent.reminder',
+  'rent.paid',
+  'rent.payment_failed',
+  'payout.paid',
+  'payout.failed',
+  'notice.filed',
+  'notice.acknowledged',
+  'deposit.settled',
+  // P5: a guest registration filed, and a leader flagging one.
+  'guest.registered',
+  'guest.flagged',
 ]);
 
 export const notificationCategoryEnum = pgEnum('notification_category', [
@@ -965,6 +1102,19 @@ export const auditSubjectTypeEnum = pgEnum('audit_subject_type', [
   // file it touched, and a bulk pay run action against the run.
   'employee',
   'pay_run',
+  // Rentals (migration 0073): a tenant record, a unit, where rent is paid out,
+  // and a deposit settlement are each audited against themselves.
+  'tenant',
+  'rental_unit',
+  'payout_account',
+  'deposit',
+  // P5: a guest registration (filed, changed, cancelled, flagged).
+  'guest_registration',
+  // Rentals P4 (migration 0087): a fault's moves and payments, an expense,
+  // and a year's rental income tax declaration.
+  'maintenance_ticket',
+  'expense',
+  'tax_declaration',
 ]);
 
 export const recordDataClassEnum = pgEnum('record_data_class', [

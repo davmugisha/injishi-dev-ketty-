@@ -134,9 +134,9 @@ export class RegistrationsController {
    * registration status, so `RegistrationSummary` could only describe one by
    * nulling six fields and showing a status it can never hold.
    *
-   * There is no `/pay` companion. A broker registration is free and instant
-   * while ADR-026 assumption 2 stands; if that is ratified into a paid path,
-   * the fee row is already in the catalog waiting.
+   * The registration fee (2026-10-25) is paid first, by mobile money, on
+   * `POST /registrations/broker/fee` (`RegistrationBrokerFeeController`); this
+   * call names the paid payment and the district the broker works in.
    */
   @Post('broker')
   @UseGuards(SessionGuard)

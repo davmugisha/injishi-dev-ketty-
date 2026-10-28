@@ -55,6 +55,7 @@ export function SectionIdentity({
   onPrepareForOwner,
   onEditProfile,
   onNext,
+  hideNext = false,
   online = true,
 }: {
   path: RegisterPath;
@@ -74,6 +75,8 @@ export function SectionIdentity({
   /** Open a complete profile to change what it holds. */
   onEditProfile: () => void;
   onNext: () => void;
+  /** The step after this one is already open below (the broker form): no Next to press again. */
+  hideNext?: boolean;
   /**
    * The device has a network. The scan and typed ID details go only to the
    * server, which alone may hold an ID number, so each says when it cannot
@@ -124,9 +127,11 @@ export function SectionIdentity({
             ) : needsExtras ? (
               <Extras draft={draft} onDraftChange={onDraftChange} errors={errors} />
             ) : null}
-            <div>
-              <Button onClick={onNext}>Next</Button>
-            </div>
+            {hideNext ? null : (
+              <div>
+                <Button onClick={onNext}>Next</Button>
+              </div>
+            )}
           </>
         )}
       </>

@@ -169,6 +169,16 @@ exports.OVERSIGHT_ROLE_LABEL = {
     business_field_verifier: "Field verifier",
     tax_compliance_officer: "Tax compliance officer",
     psf_membership_officer: "PSF membership officer",
+    village_leader: "Village leader",
+    dasso: "Sector DASSO",
+    cell_executive: "Cell executive secretary",
+    district_officer: "District officer",
+    district_immigration: "DGIE district officer",
+    sector_executive: "Sector executive secretary",
+    dgie_province: "DGIE province officer",
+    dgie_national: "DGIE headquarters",
+    dgie_village: "DGIE village officer",
+    dgie_cell: "DGIE cell officer",
 };
 /** The short words a platform staff role is read in. */
 exports.STAFF_ROLE_LABEL = {

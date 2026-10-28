@@ -67,6 +67,12 @@ export type EventRow = {
   created_at: Date;
 }
 
+export type PhotoRow = {
+  ticket_id: string;
+  object_key: string;
+  caption: string | null;
+}
+
 export type BlockRow = {
   id: string;
   workspace_id: string;
@@ -158,9 +164,9 @@ export class WorkOrdersRepository {
   async list(workspaceId: string, scope: BranchScope): Promise<WorkOrderRow[]> {
     const found = await this.db.execute<WorkOrderRow>(sql`
       ${this.select}
-       where t.workspace_id = ${workspaceId} and t.lease_id is null
+       where t.workspace_id = ${workspaceId} and t.lease_id is null and t.unit_id is null
          and ${inScope(sql`coalesce(t.property_id, r.property_id, s.property_id)`, scope)}
-       order by (t.status in ('resolved', 'closed', 'cancelled')),
+       order by (t.status in ('resolved', 'closed', 'wont_fix', 'cancelled')),
                 case t.priority when 'urgent' then 0 when 'high' then 1 when 'normal' then 2 else 3 end,
                 t.created_at desc
     `);
@@ -199,6 +205,22 @@ export class WorkOrdersRepository {
          sql`, `,
        )})
        order by e.created_at, e.id
+    `);
+    return found.rows;
+  }
+
+  /** The photos of each ticket (`maintenance_photos`, WP 4.1), by phase and position. */
+  async photos(ticketIds: string[]): Promise<PhotoRow[]> {
+    if (ticketIds.length === 0) return [];
+    const found = await this.db.execute<PhotoRow>(sql`
+      select p.ticket_id, so.object_key, p.caption
+        from maintenance_photos p
+        join stored_objects so on so.id = p.stored_object_id
+       where p.ticket_id in (${sql.join(
+         ticketIds.map((id) => sql`${id}::uuid`),
+         sql`, `,
+       )})
+       order by p.phase, p.position, p.created_at
     `);
     return found.rows;
   }
@@ -310,9 +332,12 @@ export class WorkOrdersRepository {
     db: Db,
     input: { ticketId: string; kind: WorkOrderEventKind; note: string | null; actorUserId: string | null },
   ): Promise<void> {
+    // The wall clock, not the transaction's start: a report and its assignment written in one
+    // transaction keep their order on the timeline.
     await db.execute(sql`
-      insert into maintenance_events (ticket_id, author_user_id, kind, note)
-      values (${input.ticketId}, ${input.actorUserId}, ${input.kind}, ${input.note})
+      insert into maintenance_events (ticket_id, author_user_id, author_role, kind, note, created_at)
+      values (${input.ticketId}, ${input.actorUserId}, ${input.actorUserId ? 'staff' : null}::maintenance_raised_by_role,
+              ${input.kind}, ${input.note}, clock_timestamp())
     `);
   }
 
@@ -321,7 +346,7 @@ export class WorkOrdersRepository {
     const found = await this.db.execute<{ user_id: string; name: string }>(sql`
       select t.assigned_to_user_id as user_id, coalesce(u.name, u.email) as name
         from maintenance_tickets t join users u on u.id = t.assigned_to_user_id
-       where t.workspace_id = ${workspaceId} and t.lease_id is null
+       where t.workspace_id = ${workspaceId} and t.lease_id is null and t.unit_id is null
          and t.created_at > now() - interval '30 days'
        group by t.assigned_to_user_id, u.name, u.email
        order by count(*) desc, u.name
@@ -336,7 +361,7 @@ export class WorkOrdersRepository {
       select percentile_cont(0.5) within group (
                order by extract(epoch from (resolved_at - created_at)) / 3600.0) as median
         from maintenance_tickets
-       where workspace_id = ${workspaceId} and lease_id is null and resolved_at is not null
+       where workspace_id = ${workspaceId} and lease_id is null and unit_id is null and resolved_at is not null
          and resolved_at > now() - interval '30 days'
     `);
     const m = found.rows[0]?.median;

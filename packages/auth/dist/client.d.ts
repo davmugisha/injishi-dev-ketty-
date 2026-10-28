@@ -19,7 +19,9 @@ import { type OtpType } from "./options.js";
  * the mount point a second owner, and the two would drift the first time it
  * moved.
  */
-export { AUTH_BASE_PATH, DEMO_OTP_CODE, OTP_EXPIRY_SECONDS, OTP_LENGTH, OTP_MAX_ATTEMPTS, } from "./options.js";
+export { AUTH_BASE_PATH, DEMO_OTP_CODE, OTP_EXPIRY_SECONDS, OTP_LENGTH, OTP_MAX_ATTEMPTS, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, } from "./options.js";
+export { PASSWORD_MESSAGES, PASSWORD_STRENGTH_LABEL, newPasswordProblem, passwordFailure, passwordStrength, } from "./password.js";
+export type { PasswordError, PasswordStrength } from "./password.js";
 export type { OtpType } from "./options.js";
 /** Standard `{ data, error }` envelope Better Auth client methods resolve to. */
 export interface AuthResult<T = unknown> {

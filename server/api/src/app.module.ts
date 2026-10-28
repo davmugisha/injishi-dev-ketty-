@@ -1,4 +1,5 @@
 import fastifyCookie from '@fastify/cookie';
+import { RealtimeAdapter } from './shared/realtime/realtime.adapter';
 import fastifyHelmet from '@fastify/helmet';
 import fastifyMultipart from '@fastify/multipart';
 import {
@@ -29,6 +30,7 @@ import { registerAuthRoutes } from './modules/auth/infrastructure/auth-http';
 import { BookingModule } from './modules/booking/booking.module';
 import { GeographyModule } from './modules/geography/geography.module';
 import { ListingModule } from './modules/listing/listing.module';
+import { envFilesFor } from './shared/config/env-files';
 import {
   resolveAllowedOrigins,
   resolveCookieSecret,
@@ -40,7 +42,8 @@ import { ReportingExceptionFilter } from './shared/observability/reporting-excep
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // One env file per environment, picked by APP_ENV (shared/config/env-files.ts).
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: envFilesFor() }),
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL ?? 'info',
@@ -92,7 +95,9 @@ export class AppModule {
       new FastifyAdapter({
         trustProxy: resolveTrustProxy(process.env.TRUST_PROXY),
       }),
-      { bufferLogs: true },
+      // `rawBody`: a payment provider's callback is checked against the bytes
+      // it signed (`/payments/webhooks/:provider`, rentals blueprint 2.5).
+      { bufferLogs: true, rawBody: true },
     );
     app.useLogger(app.get(Logger));
     const config = app.get(ConfigService);
@@ -165,6 +170,8 @@ export class AppModule {
       credentials: true,
       methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
     });
+    // Live updates to open message screens (rentals P3.4), on this port, same origins.
+    app.useWebSocketAdapter(new RealtimeAdapter(app, allowedOrigins));
     app.enableShutdownHooks();
 
     const port = Number(config.get<string>('PORT') ?? 8000);

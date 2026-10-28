@@ -36,6 +36,11 @@
  *   seed-ui2.mjs              LAST: Amahoro's finance and hr personas and what
  *                             the role homes show, from seed-ui2/NN-*.mjs
  *
+ * On a database past the rentals rebuild (migrations 0073-0080) every step
+ * skips its leases, rent, deposits, notices and placements and says so: those
+ * rows only come through the app now. The residence businesses, buildings and
+ * units are still written, and each residence room gets its rental unit below.
+ *
  * then gives every property the seeds wrote the USALI department set (ADR-016
  * AC-14), which they skip by INSERTing properties directly, and records the
  * finish in `database_identity.seeded_at`, which
@@ -59,6 +64,7 @@ import {
   propertiesWithoutDepartments,
   seedMissingDepartments,
 } from './property-departments.mjs';
+import { rentalsRebuilt, syncRentalUnits } from './rentals-rebuilt.mjs';
 import { assertSampleDatabase, describeDatabase } from './sample-database.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -186,6 +192,17 @@ if (filled.missing > 0) {
   fail(
     `${filled.missing} propert(ies) still hold no department, so a guest there has nobody to message.`,
   );
+}
+
+// The rentals rebuild (migrations 0073-0080): the seeds above still write the
+// residence businesses, buildings and rooms, but no longer their leases, rent,
+// deposits or notices (scripts/rentals-rebuilt.mjs). Each residence room gets
+// its `rental_units` row here, the unit record the rentals screens read.
+const units = await withClient(async (client) =>
+  (await rentalsRebuilt(client)) ? await syncRentalUnits(client) : null,
+);
+if (units !== null) {
+  console.log(`Rental units: ${units} written for residence rooms that had none (no leases are seeded).`);
 }
 
 // Only a complete run is a reset. The update trigger allows `seeded_at` alone.

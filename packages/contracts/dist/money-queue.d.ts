@@ -62,8 +62,8 @@ export declare const MoneyQueueRow: z.ZodObject<{
     createdAt: string;
     direction: "adjustment" | "collection" | "disbursement";
     bookingReference: string | null;
+    bucket: "owed" | "parked" | "reversals" | "short" | "over_limit" | "waiting_on_payer";
     provider: string;
-    bucket: "parked" | "reversals" | "owed" | "short" | "over_limit" | "waiting_on_payer";
     providerReference: string | null;
     operation: string;
     party: string | null;
@@ -82,8 +82,8 @@ export declare const MoneyQueueRow: z.ZodObject<{
     createdAt: string;
     direction: "adjustment" | "collection" | "disbursement";
     bookingReference: string | null;
+    bucket: "owed" | "parked" | "reversals" | "short" | "over_limit" | "waiting_on_payer";
     provider: string;
-    bucket: "parked" | "reversals" | "owed" | "short" | "over_limit" | "waiting_on_payer";
     providerReference: string | null;
     operation: string;
     party: string | null;
@@ -137,8 +137,8 @@ export declare const MoneyQueue: z.ZodObject<{
         createdAt: string;
         direction: "adjustment" | "collection" | "disbursement";
         bookingReference: string | null;
+        bucket: "owed" | "parked" | "reversals" | "short" | "over_limit" | "waiting_on_payer";
         provider: string;
-        bucket: "parked" | "reversals" | "owed" | "short" | "over_limit" | "waiting_on_payer";
         providerReference: string | null;
         operation: string;
         party: string | null;
@@ -157,8 +157,8 @@ export declare const MoneyQueue: z.ZodObject<{
         createdAt: string;
         direction: "adjustment" | "collection" | "disbursement";
         bookingReference: string | null;
+        bucket: "owed" | "parked" | "reversals" | "short" | "over_limit" | "waiting_on_payer";
         provider: string;
-        bucket: "parked" | "reversals" | "owed" | "short" | "over_limit" | "waiting_on_payer";
         providerReference: string | null;
         operation: string;
         party: string | null;
@@ -170,7 +170,7 @@ export declare const MoneyQueue: z.ZodObject<{
     }>, "many">;
     counts: z.ZodRecord<z.ZodEnum<["parked", "reversals", "owed", "short", "over_limit", "waiting_on_payer"]>, z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
-    counts: Partial<Record<"parked" | "reversals" | "owed" | "short" | "over_limit" | "waiting_on_payer", number>>;
+    counts: Partial<Record<"owed" | "parked" | "reversals" | "short" | "over_limit" | "waiting_on_payer", number>>;
     rows: {
         status: string;
         id: string;
@@ -181,8 +181,8 @@ export declare const MoneyQueue: z.ZodObject<{
         createdAt: string;
         direction: "adjustment" | "collection" | "disbursement";
         bookingReference: string | null;
+        bucket: "owed" | "parked" | "reversals" | "short" | "over_limit" | "waiting_on_payer";
         provider: string;
-        bucket: "parked" | "reversals" | "owed" | "short" | "over_limit" | "waiting_on_payer";
         providerReference: string | null;
         operation: string;
         party: string | null;
@@ -193,7 +193,7 @@ export declare const MoneyQueue: z.ZodObject<{
         } | null;
     }[];
 }, {
-    counts: Partial<Record<"parked" | "reversals" | "owed" | "short" | "over_limit" | "waiting_on_payer", number>>;
+    counts: Partial<Record<"owed" | "parked" | "reversals" | "short" | "over_limit" | "waiting_on_payer", number>>;
     rows: {
         status: string;
         id: string;
@@ -204,8 +204,8 @@ export declare const MoneyQueue: z.ZodObject<{
         createdAt: string;
         direction: "adjustment" | "collection" | "disbursement";
         bookingReference: string | null;
+        bucket: "owed" | "parked" | "reversals" | "short" | "over_limit" | "waiting_on_payer";
         provider: string;
-        bucket: "parked" | "reversals" | "owed" | "short" | "over_limit" | "waiting_on_payer";
         providerReference: string | null;
         operation: string;
         party: string | null;
@@ -428,14 +428,14 @@ export declare const MoneyPullResult: z.ZodObject<{
     reversalFlagged: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     id: string;
-    changed: boolean;
     before: string;
+    changed: boolean;
     after: string;
     reversalFlagged: boolean;
 }, {
     id: string;
-    changed: boolean;
     before: string;
+    changed: boolean;
     after: string;
     reversalFlagged: boolean;
 }>;

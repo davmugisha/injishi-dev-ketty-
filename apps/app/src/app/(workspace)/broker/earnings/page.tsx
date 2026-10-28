@@ -1,0 +1,18 @@
+import { kigaliToday } from "@injishi/contracts";
+import { screens } from "@injishi/data";
+import type { Metadata } from "next";
+import { EarningsView } from "@/features/broker/EarningsView";
+import { NotABroker } from "@/features/broker/shared";
+import { requirePersona } from "@/lib/session";
+import { brokerEarnings, brokerReviews, brokerScope } from "@/server/broker/client";
+
+export const metadata: Metadata = { title: screens.BrokerEarnings.pageTitle };
+
+export default async function BrokerEarningsPage() {
+  await requirePersona("BrokerEarnings");
+  if (!(await brokerScope())) return <NotABroker title="Earnings and reviews" />;
+  const [data, reviews] = await Promise.all([brokerEarnings(), brokerReviews()]);
+  return <EarningsView data={data} reviews={reviews} today={kigaliToday()} />;
+}
+
+export const dynamic = "force-dynamic";

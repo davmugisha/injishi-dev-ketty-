@@ -7,11 +7,10 @@
  * production boot.
  */
 
-/** Origins the dev stack runs on (web :3000, admin :3001). */
+/** Origins the dev stack runs on (web :3000, the app :3002, whose /admin is the console). */
 const DEV_ORIGINS = [
   'http://localhost:3000', // web
-  'http://localhost:3001', // admin
-  'http://localhost:3002', // pms
+  'http://localhost:3002', // app
 ];
 
 /** Cookie signing secret used when COOKIE_SECRET is unset outside production. */

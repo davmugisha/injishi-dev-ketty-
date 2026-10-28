@@ -32,7 +32,7 @@ import { WEB_URL } from "@/lib/web-url";
  * routes. Do not move `<AppShell>` back up here.
  *
  * The route group is invisible in the URL, so these pages are `/trips` and
- * `/sign-in`, not `/(app)/trips`. That matters to `middleware.ts`, whose
+ * `/sign-in`, not `/(app)/trips`. That matters to `proxy.ts`, whose
  * allowlist has to name the real paths, and it is why this change moves eleven
  * folders without moving a single URL.
  *
@@ -48,7 +48,7 @@ import { WEB_URL } from "@/lib/web-url";
  *
  * ROBOTS. Ten of the eleven routes here are private surfaces a crawler must
  * never index, so the directive is set once, at the top, for all of them.
- * `middleware.ts` already refuses the gated ones without a session, but a
+ * `proxy.ts` already refuses the gated ones without a session, but a
  * directive costs nothing and does not depend on the gate. `/register` is the
  * single exception and overrides this on its own page metadata, because Next
  * merges segment metadata deepest-last.

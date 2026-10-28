@@ -26,6 +26,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import pg from 'pg';
+import { apiEnvFile } from './env-file.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -35,7 +36,7 @@ const monthArg = args.find((a) => !a.startsWith('--'));
 /** A value from the environment, else from server/api/.env, else undefined. */
 function setting(name) {
   if (process.env[name] !== undefined) return process.env[name];
-  const envFile = path.join(here, '..', '.env');
+  const envFile = apiEnvFile() ?? path.join(here, '..', '.env');
   if (!existsSync(envFile)) return undefined;
   const line = readFileSync(envFile, 'utf8')
     .split(/\r?\n/)

@@ -88,6 +88,7 @@ import {
 } from "./register-steps";
 import { fromServerDraft, toServerDraft, type WizardAnswers } from "./register-draft";
 import { REGISTRATION_KINDS, findRegistrationKind, registrationForKind, type RegistrationKind } from "./registration-kinds";
+import { BrokerSignup } from "./broker-signup";
 import { SectionIdentity } from "./section-identity";
 import { SectionLocation, missingLevels } from "./section-location";
 import { SectionProperty } from "./section-property";
@@ -229,6 +230,8 @@ export default function RegisterWizard({
   const [quote, setQuote] = useState<RegistrationFeeQuote | null>(null);
   const [summary, setSummary] = useState<RegistrationSummary | null>(null);
   const [broker, setBroker] = useState<BrokerRegistrationSummary | null>(null);
+  /** The broker's details checked: the district and the fee come next (2026-10-25). */
+  const [brokerDetailsOk, setBrokerDetailsOk] = useState(false);
   const [pending, setPending] = useState<LabelledWorkspace[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
@@ -958,7 +961,8 @@ export default function RegisterWizard({
   };
 
   // --- broker ------------------------------------------------------------------
-  const submitBroker = async () => {
+  /** Step 1 of the broker form: the person's details, checked before the district and the fee. */
+  const checkBrokerDetails = () => {
     setErrors({});
     setFormError("");
     const sendPersonal = !(profile?.complete === true && !editingProfile);
@@ -967,13 +971,32 @@ export default function RegisterWizard({
       if (!parsed.success) {
         setErrors(issuesToErrors(parsed.error.issues));
         setFormError("Some of your details need fixing.");
+        setBrokerDetailsOk(false);
+        return;
+      }
+    }
+    setBrokerDetailsOk(true);
+  };
+
+  const submitBroker = async (homeDistrictId: number, feePaymentId: string) => {
+    setErrors({});
+    setFormError("");
+    const sendPersonal = !(profile?.complete === true && !editingProfile);
+    if (sendPersonal) {
+      const parsed = PersonalDetails.safeParse(personalCandidate(personal, identityOnFile !== null));
+      if (!parsed.success) {
+        setErrors(issuesToErrors(parsed.error.issues));
+        setFormError("Some of your details need fixing.");
+        setBrokerDetailsOk(false);
         return;
       }
     }
     setBusy(true);
-    const res = await registerAsBroker(
-      sendPersonal ? { personal: PersonalDetails.parse(personalCandidate(personal, identityOnFile !== null)) } : {},
-    );
+    const res = await registerAsBroker({
+      ...(sendPersonal ? { personal: PersonalDetails.parse(personalCandidate(personal, identityOnFile !== null)) } : {}),
+      homeDistrictId,
+      feePaymentId,
+    });
     setBusy(false);
     if (res.status !== "ok") {
       setFormError(apiResultMessage(res));
@@ -1395,7 +1418,7 @@ export default function RegisterWizard({
       <StepCard
         id="register-broker"
         title="Register as a broker"
-        lead="Your ID, checked once, and you are registered. A broker lists no property, so there is no TIN, no document and no fee."
+        lead="Your ID, the district you work in, and the registration fee. No TIN and no documents."
         footer={
           <Button variant="ghost" onClick={changeKind}>
             Back to business type
@@ -1414,9 +1437,13 @@ export default function RegisterWizard({
           errors={errors}
           onPrepareForOwner={() => undefined}
           onEditProfile={editStoredProfile}
-          onNext={() => void submitBroker()}
+          onNext={checkBrokerDetails}
+          hideNext={brokerDetailsOk}
           online={online}
         />
+        {brokerDetailsOk ? (
+          <BrokerSignup busy={busy} onRegister={(districtId, paymentId) => void submitBroker(districtId, paymentId)} />
+        ) : null}
         {formError ? (
           <Callout tone="danger" icon={<CircleAlert size={16} aria-hidden />} title="That did not go through">
             {formError}
@@ -1578,7 +1605,7 @@ export default function RegisterWizard({
 // Screens small enough to live here
 // ---------------------------------------------------------------------------
 
-/** Where a broker lands (F-R09): no fee and no waiting, and a way on. */
+/** Where a broker lands (F-R09): registered and paid, and a way on. */
 function BrokerDone({ broker, onOwnPlace }: { broker: BrokerRegistrationSummary; onOwnPlace: () => void }) {
   return (
     <StepCard
@@ -1589,7 +1616,7 @@ function BrokerDone({ broker, onOwnPlace }: { broker: BrokerRegistrationSummary;
         </Badge>
       }
       title="You are registered as a broker"
-      lead={`${broker.name ? `${broker.name}, n` : "N"}o fee and no waiting. Landlords can now add you to the residences you place tenants in.`}
+      lead={`${broker.name ? `${broker.name}, y` : "Y"}our fee is paid. Open your broker home to see the homes you can offer.`}
       footer={
         <div className="flex flex-wrap gap-2.5">
           <Button asChild>

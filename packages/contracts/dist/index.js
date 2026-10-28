@@ -42,6 +42,7 @@ __exportStar(require("./offers"), exports);
 __exportStar(require("./inbox"), exports);
 __exportStar(require("./ops"), exports);
 __exportStar(require("./broker"), exports);
+__exportStar(require("./broker-plans"), exports);
 __exportStar(require("./ordering"), exports);
 __exportStar(require("./outlets"), exports);
 __exportStar(require("./property-detail"), exports);
@@ -75,6 +76,12 @@ __exportStar(require("./marketplace"), exports);
 // The residence screens of the new interface (real-data 1.3.1).
 __exportStar(require("./interface-residence"), exports);
 __exportStar(require("./staff-phone"), exports);
+// Rentals, rebuilt (blueprint WP 1.1): vocabulary, Kigali dates, the lease
+// state machine, the rent schedule, allocation, the contract, tax and payouts.
+__exportStar(require("./rentals"), exports);
+// Who am I, in one call (blueprint 2.5): where a person lands.
+__exportStar(require("./me-context"), exports);
+__exportStar(require("./guests"), exports);
 // The bar and restaurant point of sale (POS spec, phase 1).
 __exportStar(require("./pos"), exports);
 //# sourceMappingURL=index.js.map

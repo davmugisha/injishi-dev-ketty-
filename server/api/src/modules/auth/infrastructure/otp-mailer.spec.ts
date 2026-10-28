@@ -83,6 +83,18 @@ describe('OtpMailer · delivery through the port', () => {
     });
     expect(port.sent[0].subject).toBe('Your Injishi verification code');
   });
+
+  it('words a forget-password code as a password code', async () => {
+    const port = recorder();
+    await new OtpMailer(port, configFrom({})).send({
+      email: EMAIL,
+      otp: OTP,
+      type: 'forget-password',
+    });
+    expect(port.sent[0].subject).toBe('Your Injishi password code');
+    expect(port.sent[0].html).toContain('set your Injishi password');
+    expect(port.sent[0].html).toContain(`>${OTP}</div>`);
+  });
 });
 
 describe('OtpMailer · a failed send', () => {

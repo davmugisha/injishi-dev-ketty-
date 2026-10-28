@@ -3805,7 +3805,7 @@ export type RegistrationReviewDecision = z.infer<typeof RegistrationReviewDecisi
 export declare const RegistrationReview: z.ZodObject<{
     stage: z.ZodEnum<["tin_verified", "field_verified"]>;
     decision: z.ZodEnum<["passed", "rejected"]>;
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
     /** The body and title AS OF the decision, never re-resolved (F-S03 §9). */
     governmentBodyCode: z.ZodString;
     governmentTitle: z.ZodNullable<z.ZodString>;
@@ -3815,7 +3815,7 @@ export declare const RegistrationReview: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     stage: "tin_verified" | "field_verified";
     decision: "rejected" | "passed";
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
     governmentBodyCode: string;
     governmentTitle: string | null;
     reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
@@ -3824,7 +3824,7 @@ export declare const RegistrationReview: z.ZodObject<{
 }, {
     stage: "tin_verified" | "field_verified";
     decision: "rejected" | "passed";
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
     governmentBodyCode: string;
     governmentTitle: string | null;
     reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
@@ -5408,7 +5408,13 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
         } | undefined;
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     }>>;
+    /** The district the broker works in: the free plan shows the homes there (2026-10-25). */
+    homeDistrictId: z.ZodNumber;
+    /** The registration fee, paid first by mobile money (`POST /registrations/broker/fee`). */
+    feePaymentId: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    homeDistrictId: number;
+    feePaymentId: string;
     personal?: {
         fullName: string;
         dateOfBirth: string;
@@ -5437,6 +5443,8 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     } | undefined;
 }, {
+    homeDistrictId: number;
+    feePaymentId: string;
     personal?: {
         fullName: string;
         dateOfBirth: string;

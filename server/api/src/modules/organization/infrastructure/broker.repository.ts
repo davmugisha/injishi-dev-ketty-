@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { brokers, workspaces } from '../../../database/drizzle/schema';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
@@ -17,6 +17,17 @@ export interface CreateBrokerRow {
   name: string | null;
   phone: string | null;
   email: string | null;
+  /** The district the free plan shows (2026-10-25). */
+  homeDistrictId: number;
+  /** The paid registration fee this registration uses; tied to the broker in the same transaction. */
+  feePaymentId: string;
+}
+
+/** The registration fee named is not this person's paid, unused one. */
+export class FeeNotPaidError extends Error {
+  constructor(readonly waiting: boolean) {
+    super(waiting ? 'Your payment is still waiting. Approve the prompt on your phone, then try again.' : 'Pay the registration fee first.');
+  }
 }
 
 export interface CreatedBroker {
@@ -73,6 +84,10 @@ export class BrokerRepository {
    * workspace with no broker is a row pointing at nothing — so the pair is one
    * act, the same reasoning `createRegistration` runs on.
    */
+  async districtExists(districtId: number): Promise<boolean> {
+    return districtExists(this.db, districtId);
+  }
+
   async create(input: CreateBrokerRow): Promise<CreatedBroker> {
     // Checked before the transaction so the clash is reported as its own
     // sentence. `brokers_national_id_uk` still enforces it; this only decides
@@ -93,11 +108,24 @@ export class BrokerRepository {
           name: input.name,
           phone: input.phone,
           email: input.email,
+          homeDistrictId: input.homeDistrictId,
           // `active` takes its default. A broker passes no government gate, so
           // there is no stage to hold them at (ADR-026 assumption 2).
         })
         .returning({ id: brokers.id, name: brokers.name });
       if (!broker) throw new Error('Broker insert returned no row.');
+
+      const claimed = await tx.execute<{ id: string }>(sql`
+        update broker_registration_payments set broker_id = ${broker.id}, updated_at = now()
+         where id = ${input.feePaymentId} and user_id = ${input.userId} and status = 'paid' and broker_id is null
+        returning id
+      `);
+      if (claimed.rows.length === 0) {
+        const waiting = await tx.execute(sql`
+          select 1 from broker_registration_payments where id = ${input.feePaymentId} and user_id = ${input.userId} and status = 'pending'
+        `);
+        throw new FeeNotPaidError(waiting.rows.length > 0);
+      }
 
       const [workspace] = await tx
         .insert(workspaces)
@@ -112,4 +140,10 @@ export class BrokerRepository {
       };
     });
   }
+}
+
+/** Whether a district id names a district. */
+export async function districtExists(db: Database, districtId: number): Promise<boolean> {
+  const result = await db.execute(sql`select 1 from districts where id = ${districtId}`);
+  return result.rows.length > 0;
 }
