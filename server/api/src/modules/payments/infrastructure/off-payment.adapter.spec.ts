@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { PaymentUnavailableError } from '../domain/payment-port';
 import { resolveMode } from '../payments.module';
 import { OffPaymentAdapter } from './off-payment.adapter';

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { randomBytes } from 'node:crypto';
 
 import { TokenCipher, TokenCipherError, decodeTokenKey } from './token-cipher';

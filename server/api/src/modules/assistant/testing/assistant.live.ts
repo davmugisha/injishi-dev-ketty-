@@ -1,10 +1,11 @@
 /**
  * The live smoke run (ADR-061 root gate R3): the real service, the real tools
  * over the in memory fakes, and the LIVE Anthropic adapter. It spends money,
- * so it is never part of a suite: Jest only picks up `*.spec.ts`, and this
- * runs only when asked for by name:
+ * so it is never part of a suite: the unit suite collects only `*.spec.ts`,
+ * and this runs only when asked for by name, through the config for such
+ * suites:
  *
- *   pnpm --filter @injishi/api exec jest --testRegex "assistant\.live\.ts$"
+ *   pnpm --filter @injishi/api exec vitest run --config vitest.manual.config.mts assistant.live
  *
  * The key comes from the environment or from `server/api/.env`; it is never
  * printed. Both questions are explanations, so the request router (D-q) hands
@@ -17,6 +18,8 @@
  * "couldn't finish" reply. This is the evaluation the output ceiling
  * (ASSISTANT_MAX_OUTPUT_TOKENS) is tuned against.
  */
+import { describe, expect, it } from 'vitest';
+
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 

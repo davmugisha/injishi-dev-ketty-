@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   MAX_ITEM_SERIAL,
   itemCode,

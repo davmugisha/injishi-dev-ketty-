@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import type { GuestTripRow } from '../infrastructure/guest-trips.repository';
 import { GuestTripsRepository } from '../infrastructure/guest-trips.repository';
 import { GuestTripsService, tripStage } from './guest-trips.service';
@@ -68,9 +70,9 @@ describe('GuestTripsService', () => {
   describe('forGuest', () => {
     function harness(rows: GuestTripRow[]): {
       service: GuestTripsService;
-      findForGuest: jest.Mock;
+      findForGuest: Mock;
     } {
-      const findForGuest = jest.fn().mockResolvedValue(rows);
+      const findForGuest = vi.fn().mockResolvedValue(rows);
       const repo = { findForGuest } as unknown as GuestTripsRepository;
       return { service: new GuestTripsService(repo), findForGuest };
     }

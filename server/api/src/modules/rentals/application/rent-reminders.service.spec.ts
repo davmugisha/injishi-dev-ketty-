@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { ConflictException } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -68,17 +70,17 @@ function harness(opts: Opts = {}) {
   const withdrawn: string[] = [];
   const db = { transaction: async <T>(cb: (t: unknown) => Promise<T>): Promise<T> => cb({}) };
   const reminders = {
-    remindable: jest.fn(async () => opts.charges ?? [remindable()]),
-    claim: jest.fn(async (_db: unknown, input: { kind: string; stage: number }) => {
+    remindable: vi.fn(async () => opts.charges ?? [remindable()]),
+    claim: vi.fn(async (_db: unknown, input: { kind: string; stage: number }) => {
       if (opts.claimed) return null;
       claims.push({ kind: input.kind, stage: input.stage });
       return `rem-${claims.length}`;
     }),
-    withdraw: jest.fn(async (_db: unknown, id: string) => {
+    withdraw: vi.fn(async (_db: unknown, id: string) => {
       withdrawn.push(id);
     }),
-    manualCountSince: jest.fn(async () => opts.manualToday ?? 0),
-    insertManual: jest.fn(async () => 'manual-1'),
+    manualCountSince: vi.fn(async () => opts.manualToday ?? 0),
+    insertManual: vi.fn(async () => 'manual-1'),
   };
   const record = {
     lease: { id: LEASE, workspaceId: WS, orgId: ws.orgId, propertyId: PROPERTY, graceDays: 5, reference: 'L-0001' },
@@ -86,18 +88,18 @@ function harness(opts: Opts = {}) {
     unitLabel: 'A-01',
     propertyName: 'Amani Residences',
   } as unknown as LeaseRecord;
-  const leases = { find: jest.fn(async () => record) };
+  const leases = { find: vi.fn(async () => record) };
   const payments = {
-    charges: jest.fn(async (ids: string[]) =>
+    charges: vi.fn(async (ids: string[]) =>
       ids.map((id) => ({ id, leaseId: LEASE, kind: 'rent', periodStart: '2026-11-01', dueOn: '2026-11-05', amountRwf: 350_000, paidRwf: 0, status: 'open', ...opts.chargeRow }) as ChargeRow),
     ),
   };
-  const context = { org: jest.fn(async () => ({ legalName: 'Amani Residences' })) };
-  const signing = { accountEmail: jest.fn(async () => null) };
-  const eventsWriter = { write: jest.fn(async (_tx: unknown, e: { kind: string; payload: Record<string, unknown> }) => events.push(e)) };
+  const context = { org: vi.fn(async () => ({ legalName: 'Amani Residences' })) };
+  const signing = { accountEmail: vi.fn(async () => null) };
+  const eventsWriter = { write: vi.fn(async (_tx: unknown, e: { kind: string; payload: Record<string, unknown> }) => events.push(e)) };
   const mailer = {
     appUrl: 'http://localhost:3002',
-    send: jest.fn(async (_ref: string, to: string, mail: { subject: string; lines: string[] }) => {
+    send: vi.fn(async (_ref: string, to: string, mail: { subject: string; lines: string[] }) => {
       sent.push({ to, subject: mail.subject, lines: mail.lines });
       return opts.mailOk ?? true;
     }),

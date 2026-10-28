@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { RETENTION_BATCH, type StaleApprovalOutcome, type StaleApprovalRow } from '../infrastructure/retention-queries';
 import type { RetentionRepository } from '../infrastructure/retention.repository';
 import { AssistantRetentionService } from './retention.service';

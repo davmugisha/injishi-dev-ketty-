@@ -1,10 +1,4 @@
-// The service's import chain reaches Better Auth, which ships as ESM Jest does
-// not transform. Stood in the way the admin controller specs do it.
-jest.mock('@injishi/auth', () => ({
-  DEMO_OTP_CODE: '123456',
-  DEMO_COOKIE_PREFIX: 'injishi-demo',
-  createAuth: (config: unknown) => ({ config }),
-}));
+import { describe, expect, it, vi } from 'vitest';
 
 import { DemoPersona, type OversightConsoleGrant, type WorkspaceAccess } from '@injishi/contracts';
 import { NotFoundException } from '@nestjs/common';
@@ -116,7 +110,7 @@ function controller(environment: 'demo' | 'production' = 'demo'): DemoPersonasCo
     ],
   };
 
-  const select = jest
+  const select = vi
     .fn()
     .mockReturnValueOnce(query(ROSTER))
     // Samuel's department positions: head of front office at the guesthouse.
@@ -126,9 +120,9 @@ function controller(environment: 'demo' | 'production' = 'demo'): DemoPersonasCo
   const db = { select } as unknown as Database;
 
   const workspaces = {
-    listForUser: jest.fn((id: string) => Promise.resolve(held[id] ?? [])),
-    oversightConsoleGrantsForUser: jest.fn((id: string) => Promise.resolve(grants[id] ?? [])),
-    staffAccessForUser: jest.fn((id: string) =>
+    listForUser: vi.fn((id: string) => Promise.resolve(held[id] ?? [])),
+    oversightConsoleGrantsForUser: vi.fn((id: string) => Promise.resolve(grants[id] ?? [])),
+    staffAccessForUser: vi.fn((id: string) =>
       Promise.resolve(
         id === 'u-ops'
           ? { isStaff: true, roles: ['ops'], permissions: [] }

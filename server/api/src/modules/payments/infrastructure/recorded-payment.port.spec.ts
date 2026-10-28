@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { PaymentSeam, resolvePaymentSeam } from '../domain/payment-seam';
 import {
   PaymentDeclinedError,
@@ -82,40 +84,40 @@ describe('RecordedPaymentPort', () => {
     oweRejects?: Error;
   } = {}): {
     port: RecordedPaymentPort;
-    record: Record<string, jest.Mock>;
-    refunds: Record<string, jest.Mock>;
-    inner: { mode: string; chargeOneTimeFee: jest.Mock; fetchTransaction: jest.Mock; refund: jest.Mock };
+    record: Record<string, Mock>;
+    refunds: Record<string, Mock>;
+    inner: { mode: string; chargeOneTimeFee: Mock; fetchTransaction: Mock; refund: Mock };
     calls: string[];
   } {
     const calls: string[] = [];
     const record = {
-      recordCollection: jest.fn(async () => {
+      recordCollection: vi.fn(async () => {
         calls.push('record');
         return opts.existingRow
           ? { row: opts.existingRow, created: false }
           : { row: existing({}), created: true };
       }),
-      markAnswered: jest.fn().mockResolvedValue(undefined),
-      markUnanswered: jest.fn().mockResolvedValue(undefined),
-      resend: jest.fn().mockResolvedValue(opts.resendWins ?? true),
-      findByProviderReference: jest.fn().mockResolvedValue(null),
-      findByReference: jest.fn().mockResolvedValue(null),
-      applyPulled: jest.fn().mockResolvedValue(true),
-      flagCollectionReversal: jest.fn().mockResolvedValue(true),
+      markAnswered: vi.fn().mockResolvedValue(undefined),
+      markUnanswered: vi.fn().mockResolvedValue(undefined),
+      resend: vi.fn().mockResolvedValue(opts.resendWins ?? true),
+      findByProviderReference: vi.fn().mockResolvedValue(null),
+      findByReference: vi.fn().mockResolvedValue(null),
+      applyPulled: vi.fn().mockResolvedValue(true),
+      flagCollectionReversal: vi.fn().mockResolvedValue(true),
     };
     const inner = {
       mode: 'mock',
-      chargeOneTimeFee: jest.fn(async () => {
+      chargeOneTimeFee: vi.fn(async () => {
         calls.push('call');
         if (opts.callRejects) throw opts.callRejects;
         return receipt;
       }),
-      fetchTransaction: jest.fn().mockResolvedValue({ ...receipt, settlement: 'settled' }),
-      refund: jest.fn().mockResolvedValue({ ...receipt, adapterRef: 'legacy-refund', settlement: 'settled' }),
+      fetchTransaction: vi.fn().mockResolvedValue({ ...receipt, settlement: 'settled' }),
+      refund: vi.fn().mockResolvedValue({ ...receipt, adapterRef: 'legacy-refund', settlement: 'settled' }),
     };
     const refunds = {
-      prepare: jest.fn().mockResolvedValue(opts.prepared ?? null),
-      owe: jest.fn(async (_prepared: unknown, request: { idempotencyKey: string; amountRwf: number }) => {
+      prepare: vi.fn().mockResolvedValue(opts.prepared ?? null),
+      owe: vi.fn(async (_prepared: unknown, request: { idempotencyKey: string; amountRwf: number }) => {
         if (opts.oweRejects) throw opts.oweRejects;
         return {
           row: existing({

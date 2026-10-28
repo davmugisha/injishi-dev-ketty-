@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { CreateLeaseRequest, addDays, addMonths, kigaliToday, type LeaseStatus } from '@injishi/contracts';
 
@@ -130,8 +132,8 @@ function harness(opts: { lease?: LeaseRow; existingTenant?: TenantRow | null; si
   const tx = {};
   const db = { transaction: async <T>(cb: (t: unknown) => Promise<T>): Promise<T> => cb(tx) };
   const leases = {
-    lock: jest.fn(async () => opts.lease ?? null),
-    find: jest.fn(async (): Promise<LeaseRecord> => ({
+    lock: vi.fn(async () => opts.lease ?? null),
+    find: vi.fn(async (): Promise<LeaseRecord> => ({
       lease: opts.lease ?? leaseRow(),
       tenant: tenantRow(),
       unitLabel: 'B-07',
@@ -141,46 +143,46 @@ function harness(opts: { lease?: LeaseRow; existingTenant?: TenantRow | null; si
       propertyName: 'Kacyiru Court',
       brokerName: null,
     })),
-    liveOverlap: jest.fn(async () =>
+    liveOverlap: vi.fn(async () =>
       opts.overlap
         ? { id: 'x', reference: 'L-0003', status: 'active', tenantName: 'Eric Nkusi', startDate: '2026-01-01', endsOn: addDays(start, 30) }
         : null,
     ),
-    references: jest.fn(async () => ['L-0001', 'L-0002']),
-    insert: jest.fn(async (_tx: unknown, values: Record<string, unknown>) => {
+    references: vi.fn(async () => ['L-0001', 'L-0002']),
+    insert: vi.fn(async (_tx: unknown, values: Record<string, unknown>) => {
       record('insertLease')(values);
       return LEASE;
     }),
-    update: jest.fn(async (_tx: unknown, id: string, values: Record<string, unknown>) => {
+    update: vi.fn(async (_tx: unknown, id: string, values: Record<string, unknown>) => {
       record('updateLease')(id, values);
     }),
-    voidLandlordSignatures: jest.fn(async () => ['sig-1']),
-    revokeLiveInvitation: jest.fn(async () => 'inv-1'),
+    voidLandlordSignatures: vi.fn(async () => ['sig-1']),
+    revokeLiveInvitation: vi.fn(async () => 'inv-1'),
   };
   const tenants = {
-    find: jest.fn(async () => opts.existingTenant ?? tenantRow()),
-    findByEmail: jest.fn(async () => (opts.existingTenant === undefined ? null : opts.existingTenant)),
-    insert: jest.fn(async (_tx: unknown, values: Record<string, unknown>) => {
+    find: vi.fn(async () => opts.existingTenant ?? tenantRow()),
+    findByEmail: vi.fn(async () => (opts.existingTenant === undefined ? null : opts.existingTenant)),
+    insert: vi.fn(async (_tx: unknown, values: Record<string, unknown>) => {
       record('insertTenant')(values);
       return TENANT;
     }),
-    update: jest.fn(async (_tx: unknown, id: string, values: Record<string, unknown>) => {
+    update: vi.fn(async (_tx: unknown, id: string, values: Record<string, unknown>) => {
       record('updateTenant')(id, values);
     }),
-    signedTenantIds: jest.fn(async () => new Set(opts.signed ? [TENANT] : [])),
-    draftLeaseIds: jest.fn(async () => []),
+    signedTenantIds: vi.fn(async () => new Set(opts.signed ? [TENANT] : [])),
+    draftLeaseIds: vi.fn(async () => []),
   };
-  const units = { find: jest.fn(async () => unit) };
+  const units = { find: vi.fn(async () => unit) };
   const context = {
-    ensureProfile: jest.fn(async () => ({ defaultGraceDays: 7, defaultNoticeDays: 30, defaultRentDueDay: 1 })),
+    ensureProfile: vi.fn(async () => ({ defaultGraceDays: 7, defaultNoticeDays: 30, defaultRentDueDay: 1 })),
   };
   const contracts = {
-    freeze: jest.fn(async () => ({ versionId: 'v-2', version: 2, hash: 'h', created: true })),
-    refreshDrafts: jest.fn(async () => 0),
+    freeze: vi.fn(async () => ({ versionId: 'v-2', version: 2, hash: 'h', created: true })),
+    refreshDrafts: vi.fn(async () => 0),
   };
-  const events = { write: jest.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
-  const audit = { write: jest.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
-  const reads = { detail: jest.fn(async () => ({ id: LEASE }) as never) };
+  const events = { write: vi.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
+  const audit = { write: vi.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
+  const reads = { detail: vi.fn(async () => ({ id: LEASE }) as never) };
   const service = new LeaseDraftingService(
     db as never,
     leases as unknown as LeasesRepository,
@@ -268,7 +270,7 @@ describe('LeaseDraftingService.create', () => {
 
   it('answers 404 for a unit of another business', async () => {
     const h = harness();
-    (h.service as unknown as { units: { find: jest.Mock } }).units.find.mockResolvedValueOnce({ ...unit, workspaceId: 'other' });
+    (h.service as unknown as { units: { find: Mock } }).units.find.mockResolvedValueOnce({ ...unit, workspaceId: 'other' });
     await expect(h.service.create(ws, USER, draft())).rejects.toThrow('Unit not found.');
   });
 });

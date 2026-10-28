@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { AdminClaimCode } from '@injishi/contracts';
 
 import { mintClaimCode } from './stay-claim';

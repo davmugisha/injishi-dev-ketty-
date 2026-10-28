@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { buildFacilities, type AmenityFact, type OutletFact } from './facilities';
 
 const pool: AmenityFact = { code: 'pool', label: 'Swimming pool', category: 'leisure' };

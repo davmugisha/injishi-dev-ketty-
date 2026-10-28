@@ -1,3 +1,5 @@
+import { afterAll, beforeAll, describe, expect, it, type MockInstance, vi } from 'vitest';
+
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,9 +14,9 @@ const FIXED_UUID = '0b7d2a3c-1111-4222-8333-944455556666';
 
 // Both adapters mint through `mintObjectKey`, which reaches `randomUUID` from
 // here. Pinning it is what lets two adapters' keys be compared byte for byte.
-jest.mock('node:crypto', () => ({
-  ...jest.requireActual<typeof import('node:crypto')>('node:crypto'),
-  randomUUID: jest.fn(() => FIXED_UUID),
+vi.mock('node:crypto', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:crypto')>()),
+  randomUUID: vi.fn(() => FIXED_UUID),
 }));
 
 /**
@@ -131,14 +133,14 @@ describe('both adapters mint the same key for the same upload', () => {
   beforeAll(() => {
     process.env.STORAGE_LOCAL_ROOT = root;
     // Only the clock is faked; the local adapter's disk I/O keeps real timers.
-    jest.useFakeTimers({
+    vi.useFakeTimers({
       now: new Date('2026-09-30T23:59:00Z'),
-      doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'queueMicrotask'],
+      toNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'queueMicrotask'],
     });
   });
 
   afterAll(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
     if (previousRoot === undefined) delete process.env.STORAGE_LOCAL_ROOT;
     else process.env.STORAGE_LOCAL_ROOT = previousRoot;
     rmSync(root, { recursive: true, force: true });
@@ -165,7 +167,7 @@ describe('both adapters mint the same key for the same upload', () => {
 
   it.each(uploads)('$kind $mime hint=$keyHint', async (upload) => {
     const sent: Array<{ Key?: string }> = [];
-    (jest.spyOn(clients.client, 'send') as unknown as jest.SpyInstance).mockImplementation(
+    (vi.spyOn(clients.client, 'send') as unknown as MockInstance).mockImplementation(
       (command: { input: { Key?: string } }) => {
         sent.push(command.input);
         return Promise.resolve({});

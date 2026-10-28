@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { ConflictException, NotFoundException } from '@nestjs/common';
 
 import { FakeProposals, FakeRoomTypes, fakeActionReads } from '../testing/fake-actions';

@@ -1,3 +1,5 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
 import { randomUUID } from 'node:crypto';
 
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
@@ -49,7 +51,7 @@ import { UnitsRepository } from './infrastructure/units.repository';
  * suite needs no database.
  *
  *   RENTALS_IT_DATABASE_URL=postgres://injishi:injishi@127.0.0.1:5434/injishi_migtest \
- *     npx jest src/modules/rentals/rentals.integration.spec.ts
+ *     npx vitest run src/modules/rentals/rentals.integration.spec.ts
  */
 const url = process.env.RENTALS_IT_DATABASE_URL;
 const maybe = url ? describe : describe.skip;

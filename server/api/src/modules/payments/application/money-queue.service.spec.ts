@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import type { StaffAccess } from '@injishi/contracts';
 
@@ -67,26 +69,26 @@ describe('MoneyQueueService', () => {
 
   function build(found: TransactionRow | null, initiatedBy = 'u-finance'): {
     service: MoneyQueueService;
-    queue: Record<string, jest.Mock>;
-    port: Record<string, jest.Mock>;
-    dispatcher: Record<string, jest.Mock>;
+    queue: Record<string, Mock>;
+    port: Record<string, Mock>;
+    dispatcher: Record<string, Mock>;
   } {
     const queue = {
-      findOverride: jest.fn().mockResolvedValue({ id: 'o-1', initiatedByUserId: initiatedBy, state: 'initiated', action: 'write_off', reason: 'r', subjectId: 't-1', subjectReference: null, details: null, initiatedBy: 'F', approvedByUserId: null, decidedBy: null, createdAt: new Date() }),
-      decide: jest.fn().mockResolvedValue(null),
-      resolve: jest.fn().mockResolvedValue(true),
+      findOverride: vi.fn().mockResolvedValue({ id: 'o-1', initiatedByUserId: initiatedBy, state: 'initiated', action: 'write_off', reason: 'r', subjectId: 't-1', subjectReference: null, details: null, initiatedBy: 'F', approvedByUserId: null, decidedBy: null, createdAt: new Date() }),
+      decide: vi.fn().mockResolvedValue(null),
+      resolve: vi.fn().mockResolvedValue(true),
     };
-    const record = { findById: jest.fn().mockResolvedValue(found), hasLiveResend: jest.fn().mockResolvedValue(false) };
-    const port = { fetchTransaction: jest.fn().mockResolvedValue(null) };
-    const dispatcher = { pullOne: jest.fn().mockResolvedValue(undefined) };
+    const record = { findById: vi.fn().mockResolvedValue(found), hasLiveResend: vi.fn().mockResolvedValue(false) };
+    const port = { fetchTransaction: vi.fn().mockResolvedValue(null) };
+    const dispatcher = { pullOne: vi.fn().mockResolvedValue(undefined) };
     const service = new MoneyQueueService(
       queue as unknown as MoneyQueueRepository,
       record as unknown as PaymentTransactionsRepository,
       new PaymentSeam(resolvePaymentSeam({})),
       port as unknown as PaymentPort,
       dispatcher as unknown as DisbursementDispatcher,
-      { disbursement: jest.fn(), collection: jest.fn() } as unknown as PaymentOutcomes,
-      { payerOf: jest.fn().mockResolvedValue({ userId: null, bookingId: null }) } as unknown as PayeeIdentityRepository,
+      { disbursement: vi.fn(), collection: vi.fn() } as unknown as PaymentOutcomes,
+      { payerOf: vi.fn().mockResolvedValue({ userId: null, bookingId: null }) } as unknown as PayeeIdentityRepository,
     );
     return { service, queue, port, dispatcher };
   }

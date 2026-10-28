@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { cleanName, sniffMessageMime } from './message-files-storage';
 
 const bytes = (...b: number[]): Buffer => Buffer.from([...b, ...new Array(16).fill(0x20)]);

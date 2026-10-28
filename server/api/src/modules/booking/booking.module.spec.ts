@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { getQueueToken } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
@@ -35,7 +37,7 @@ describe('BookingModule wiring', () => {
       { provide: DRIZZLE, useValue: {} },
       {
         provide: getQueueToken(QUEUES.email),
-        useValue: { add: jest.fn().mockResolvedValue({}) },
+        useValue: { add: vi.fn().mockResolvedValue({}) },
       },
     ],
     exports: [DRIZZLE, getQueueToken(QUEUES.email)],
@@ -89,7 +91,7 @@ describe('BookingModule wiring', () => {
     })
       .overrideProvider(getQueueToken(QUEUES.email))
       .useValue({
-        add: jest.fn().mockRejectedValue(new Error('redis is down')),
+        add: vi.fn().mockRejectedValue(new Error('redis is down')),
       })
       .compile();
 
@@ -101,7 +103,7 @@ describe('BookingModule wiring', () => {
 
   it('deduplicates by booking and event, so one booking sends one mail', async () => {
     const moduleRef = await build();
-    const queue = moduleRef.get<{ add: jest.Mock }>(getQueueToken(QUEUES.email));
+    const queue = moduleRef.get<{ add: Mock }>(getQueueToken(QUEUES.email));
     const notifications = moduleRef.get(BookingNotificationsService);
 
     await notifications.notify('booking-1', 'confirmed');

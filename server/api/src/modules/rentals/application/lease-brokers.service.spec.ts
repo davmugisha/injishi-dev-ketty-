@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { BrokerRatingRequest, brokerFeeAmount, brokerFeeWords, type BrokerFeeTerms } from '@injishi/contracts';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 

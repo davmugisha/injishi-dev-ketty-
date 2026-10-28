@@ -1,18 +1,20 @@
+import { afterAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+
 import type { Queue } from 'bullmq';
 
-jest.mock('@sentry/node', () => {
+vi.mock('@sentry/node', () => {
   const scope = {
-    setLevel: jest.fn(),
-    setTag: jest.fn(),
-    setContext: jest.fn(),
-    setFingerprint: jest.fn(),
-    setExtra: jest.fn(),
+    setLevel: vi.fn(),
+    setTag: vi.fn(),
+    setContext: vi.fn(),
+    setFingerprint: vi.fn(),
+    setExtra: vi.fn(),
   };
   return {
-    init: jest.fn(),
-    captureMessage: jest.fn(),
-    captureException: jest.fn(),
-    withScope: jest.fn((fn: (s: typeof scope) => void) => fn(scope)),
+    init: vi.fn(),
+    captureMessage: vi.fn(),
+    captureException: vi.fn(),
+    withScope: vi.fn((fn: (s: typeof scope) => void) => fn(scope)),
     __scope: scope,
   };
 });
@@ -41,10 +43,10 @@ import {
 import type { PaymentSeam } from '../../modules/payments/domain/payment-seam';
 
 const sentry = Sentry as unknown as {
-  init: jest.Mock;
-  captureMessage: jest.Mock;
-  captureException: jest.Mock;
-  __scope: { setTag: jest.Mock; setLevel: jest.Mock };
+  init: Mock;
+  captureMessage: Mock;
+  captureException: Mock;
+  __scope: { setTag: Mock; setLevel: Mock };
 };
 
 /**
@@ -60,7 +62,7 @@ const PRODUCTION = {
 };
 
 describe('createErrorReporter', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('is inert without a DSN: nothing is initialised and nothing is sent', () => {
     const reporter = createErrorReporter({ SENTRY_DSN: '  ' });
@@ -112,16 +114,16 @@ describe('the money alarms, from their call sites', () => {
 
   function compensationService(opts: { insertRejects?: boolean; queueRejects?: boolean }): PaymentCompensationService {
     const queue = {
-      add: opts.queueRejects ? jest.fn().mockRejectedValue(new Error('Custom Id cannot contain :')) : jest.fn(),
+      add: opts.queueRejects ? vi.fn().mockRejectedValue(new Error('Custom Id cannot contain :')) : vi.fn(),
       // The drain asks for a spent job under the same id first (073 AC-25); none here.
-      getJob: jest.fn().mockResolvedValue(undefined),
+      getJob: vi.fn().mockResolvedValue(undefined),
     };
     const db = {
-      insert: jest.fn(() => ({
-        values: jest.fn(() => ({
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
           onConflictDoNothing: opts.insertRejects
-            ? jest.fn().mockRejectedValue(new Error('connection terminated'))
-            : jest.fn().mockResolvedValue(undefined),
+            ? vi.fn().mockRejectedValue(new Error('connection terminated'))
+            : vi.fn().mockResolvedValue(undefined),
         })),
       })),
     };
@@ -164,11 +166,11 @@ describe('the money alarms, from their call sites', () => {
     const hold = { id: 'hold-1', adapterRef: null };
     const service = new BookingService(
       {
-        findByAttemptKey: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockRejectedValue(new NoAvailabilityError()),
+        findByAttemptKey: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockRejectedValue(new NoAvailabilityError()),
       } as unknown as BookingRepository,
       {
-        findBookableRoomType: jest.fn().mockResolvedValue({
+        findBookableRoomType: vi.fn().mockResolvedValue({
           id: '44444444-4444-4444-4444-444444444444',
           workspaceId: 'ws',
           domain: 'hospitality',
@@ -181,18 +183,18 @@ describe('the money alarms, from their call sites', () => {
         }),
       } as unknown as ListingService,
       {
-        captureEscrow: jest.fn().mockResolvedValue(receipt),
-        refund: jest.fn().mockRejectedValue(new Error('refund endpoint down')),
+        captureEscrow: vi.fn().mockResolvedValue(receipt),
+        refund: vi.fn().mockRejectedValue(new Error('refund endpoint down')),
       } as unknown as PaymentPort,
-      { enqueue: jest.fn().mockResolvedValue(undefined), cancel: jest.fn() } as unknown as PaymentCompensationService,
-      { saleConfirmed: jest.fn() } as unknown as EbmSaleTrigger,
-      { notify: jest.fn() } as unknown as BookingNotificationsService,
+      { enqueue: vi.fn().mockResolvedValue(undefined), cancel: vi.fn() } as unknown as PaymentCompensationService,
+      { saleConfirmed: vi.fn() } as unknown as EbmSaleTrigger,
+      { notify: vi.fn() } as unknown as BookingNotificationsService,
       {
-        claimHold: jest.fn().mockResolvedValue({ kind: 'held', row: hold }),
-        attachCapture: jest.fn(async (row: object) => ({ ...row, adapterRef: receipt.adapterRef })),
-        releaseHold: jest.fn(),
-        markRefunded: jest.fn(),
-        markBooked: jest.fn(),
+        claimHold: vi.fn().mockResolvedValue({ kind: 'held', row: hold }),
+        attachCapture: vi.fn(async (row: object) => ({ ...row, adapterRef: receipt.adapterRef })),
+        releaseHold: vi.fn(),
+        markRefunded: vi.fn(),
+        markBooked: vi.fn(),
       } as unknown as PaymentAttemptService,
       // A seam that admits the card this test settles with: it is about the
       // alarm after a failed refund, not the rules (073-gtbank-payments AC-24).

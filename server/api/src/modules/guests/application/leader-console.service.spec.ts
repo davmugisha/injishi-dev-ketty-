@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { OversightGrant } from '@injishi/contracts';
 import { PgDialect } from 'drizzle-orm/pg-core';
@@ -85,17 +87,17 @@ function guest(over: Partial<RegistrationRow> = {}): RegistrationRow {
   };
 }
 
-type RepoMocks = Record<'leaderFind' | 'routesFor' | 'markSeen' | 'transaction' | 'flag' | 'audit' | 'outbox', jest.Mock>;
+type RepoMocks = Record<'leaderFind' | 'routesFor' | 'markSeen' | 'transaction' | 'flag' | 'audit' | 'outbox', Mock>;
 
 function setup(found: RegistrationRow | null): { repo: RepoMocks; service: LeaderConsoleService } {
   const repo: RepoMocks = {
-    leaderFind: jest.fn(async () => found),
-    routesFor: jest.fn(async () => []),
-    markSeen: jest.fn(async () => 1),
-    transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn({ tx: true })),
-    flag: jest.fn(async () => 'route-1'),
-    audit: jest.fn(async () => undefined),
-    outbox: jest.fn(async () => undefined),
+    leaderFind: vi.fn(async () => found),
+    routesFor: vi.fn(async () => []),
+    markSeen: vi.fn(async () => 1),
+    transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({ tx: true })),
+    flag: vi.fn(async () => 'route-1'),
+    audit: vi.fn(async () => undefined),
+    outbox: vi.fn(async () => undefined),
   };
   return { repo, service: new Pinned(repo as unknown as GuestRegistryRepository) };
 }
@@ -174,7 +176,7 @@ describe('LeaderConsoleService · opening and flagging', () => {
 
 describe('GuestHousekeepingService · the 12 month purge', () => {
   it('purges what left more than 12 months ago and reports the counts kept', async () => {
-    const repo = { purge: jest.fn(async () => ({ purged: 3, tallies: 2 })) };
+    const repo = { purge: vi.fn(async () => ({ purged: 3, tallies: 2 })) };
     class PinnedHousekeeping extends GuestHousekeepingService {
       protected override now(): Date {
         return NOW;

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { getQueueToken } from '@nestjs/bullmq';
 import { Global, Injectable, Module, type Provider } from '@nestjs/common';
 import { Test } from '@nestjs/testing';

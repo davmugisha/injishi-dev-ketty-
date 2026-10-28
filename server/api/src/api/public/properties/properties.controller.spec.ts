@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+
+import fastifyCookie from '@fastify/cookie';
 import fastifyHelmet from '@fastify/helmet';
 import { NotFoundException, VersioningType } from '@nestjs/common';
 import {
@@ -12,16 +15,12 @@ import { PropertiesController } from './properties.controller';
 /**
  * The public photo route over real HTTP.
  *
- * Booted on the Fastify adapter with helmet registered as `app.module.ts`
- * registers it, because what this route promises only exists once a reply goes
- * through Nest and the plugins' hooks: one response per request, the status the
- * handler chose, and the cross-origin header that overrides helmet's. Fastify's
- * own log is captured so a second send, which it reports rather than throws,
- * fails the test instead of passing silently.
- *
- * @fastify/cookie is the other plugin with a hook on every reply, but it loads
- * `cookie` through a dynamic import that Jest's CommonJS runtime refuses. Its
- * hook is a pass-through `onSend` with a callback, so one of those stands in.
+ * Booted on the Fastify adapter with helmet and @fastify/cookie registered as
+ * `app.module.ts` registers them, because what this route promises only exists
+ * once a reply goes through Nest and the plugins' hooks: one response per
+ * request, the status the handler chose, and the cross-origin header that
+ * overrides helmet's. Fastify's own log is captured so a second send, which it
+ * reports rather than throws, fails the test instead of passing silently.
  */
 
 const PHOTO = '/api/v1/properties/photos/7b0c6b9e-3f53-4a47-9f0a-6a0a3b5f1c11';
@@ -30,11 +29,11 @@ const SIGNED = 'https://storage.example.com/property-photos/abc.jpg?X-Amz-Signat
 
 describe('PropertiesController photo route', () => {
   let app: NestFastifyApplication;
-  let publicPhotoUrl: jest.Mock;
+  let publicPhotoUrl: Mock;
   let fastifyLog: string[];
 
   beforeEach(async () => {
-    publicPhotoUrl = jest.fn();
+    publicPhotoUrl = vi.fn();
     fastifyLog = [];
 
     const moduleRef = await Test.createTestingModule({
@@ -50,10 +49,7 @@ describe('PropertiesController photo route', () => {
     app.setGlobalPrefix('api');
     app.enableVersioning({ type: VersioningType.URI });
     await app.register(fastifyHelmet);
-    app
-      .getHttpAdapter()
-      .getInstance()
-      .addHook('onSend', (_request, _reply, payload, done) => done(null, payload));
+    await app.register(fastifyCookie, { secret: 'properties-spec-cookie-secret' });
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
   });

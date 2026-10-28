@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { applyRate, computePayslip, dayRatePay, dayUnits, overtimePay, payeOn, percentOf, wageForDays, type PayComponentInput } from './pay-computation';
 import type { PayeRule, RssbRule } from './hr-rules';
 

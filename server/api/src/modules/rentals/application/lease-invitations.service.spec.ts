@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { ConflictException, ForbiddenException, HttpException, NotFoundException } from '@nestjs/common';
 import { addDays, addMonths, kigaliToday, type LeaseStatus } from '@injishi/contracts';
 
@@ -120,39 +122,39 @@ function harness(opts: Opts = {}) {
   };
   const db = { transaction: async <T>(cb: (t: unknown) => Promise<T>): Promise<T> => cb({}) };
   const leases = {
-    find: jest.fn(async () => leaseRecord),
-    lock: jest.fn(async () => lease),
+    find: vi.fn(async () => leaseRecord),
+    lock: vi.fn(async () => lease),
   };
   const signing = {
-    liveInvitation: jest.fn(async () => (inv?.status === 'sent' ? inv : null)),
-    latestInvitation: jest.fn(async () => inv),
-    invitationByTokenHash: jest.fn(async (hash: string) => (inv && inv.tokenHash === hash ? inv : null)),
-    invitationById: jest.fn(async (id: string) => (inv && inv.id === id ? inv : null)),
-    lockInvitation: jest.fn(async () => inv),
-    insertInvitation: jest.fn(async (_tx: unknown, values: unknown) => {
+    liveInvitation: vi.fn(async () => (inv?.status === 'sent' ? inv : null)),
+    latestInvitation: vi.fn(async () => inv),
+    invitationByTokenHash: vi.fn(async (hash: string) => (inv && inv.tokenHash === hash ? inv : null)),
+    invitationById: vi.fn(async (id: string) => (inv && inv.id === id ? inv : null)),
+    lockInvitation: vi.fn(async () => inv),
+    insertInvitation: vi.fn(async (_tx: unknown, values: unknown) => {
       record('insertInvitation')(values);
       return 'inv-new';
     }),
-    refreshInvitation: jest.fn(async (_tx: unknown, id: string, values: unknown) => record('refresh')(id, values)),
-    revokeInvitation: jest.fn(async (_tx: unknown, id: string) => record('revoke')(id)),
-    touchInvitation: jest.fn(async (_tx: unknown, id: string) => record('touch')(id)),
-    markAccepted: jest.fn(async (_tx: unknown, id: string, userId: string) => record('accepted')(id, userId)),
-    nameUserIfNameless: jest.fn(async () => undefined),
-    linkTenant: jest.fn(async (_tx: unknown, tenantId: string, userId: string) => (record('link')(tenantId, userId), opts.linked ?? true)),
-    accountEmail: jest.fn(async () => 'aimee.account@example.rw'),
+    refreshInvitation: vi.fn(async (_tx: unknown, id: string, values: unknown) => record('refresh')(id, values)),
+    revokeInvitation: vi.fn(async (_tx: unknown, id: string) => record('revoke')(id)),
+    touchInvitation: vi.fn(async (_tx: unknown, id: string) => record('touch')(id)),
+    markAccepted: vi.fn(async (_tx: unknown, id: string, userId: string) => record('accepted')(id, userId)),
+    nameUserIfNameless: vi.fn(async () => undefined),
+    linkTenant: vi.fn(async (_tx: unknown, tenantId: string, userId: string) => (record('link')(tenantId, userId), opts.linked ?? true)),
+    accountEmail: vi.fn(async () => 'aimee.account@example.rw'),
   };
   const context = {
-    org: jest.fn(async () => ({ legalName: 'Amani Residences' })),
-    buildingPlace: jest.fn(async () => ({ district: 'Gasabo' })),
+    org: vi.fn(async () => ({ legalName: 'Amani Residences' })),
+    buildingPlace: vi.fn(async () => ({ district: 'Gasabo' })),
   };
-  const events = { write: jest.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
-  const audit = { write: jest.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
-  const reads = { detail: jest.fn(async () => ({ id: LEASE }) as never) };
-  const drafting = { edit: jest.fn(async (...args: unknown[]) => (record('edit')(...args), { id: LEASE, status: 'draft' }) as never) };
-  const tenancies = { detail: jest.fn(async () => ({ id: LEASE }) as never) };
+  const events = { write: vi.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
+  const audit = { write: vi.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
+  const reads = { detail: vi.fn(async () => ({ id: LEASE }) as never) };
+  const drafting = { edit: vi.fn(async (...args: unknown[]) => (record('edit')(...args), { id: LEASE, status: 'draft' }) as never) };
+  const tenancies = { detail: vi.fn(async () => ({ id: LEASE }) as never) };
   const mailer = {
     appUrl: 'http://localhost:3002',
-    send: jest.fn(async (_ref: string, to: string, mail: { subject: string; action: { url: string } }) => (record('mail')(to, mail), true)),
+    send: vi.fn(async (_ref: string, to: string, mail: { subject: string; action: { url: string } }) => (record('mail')(to, mail), true)),
   };
   const service = new LeaseInvitationsService(
     db as never,

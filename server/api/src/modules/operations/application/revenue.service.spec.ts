@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 
 import type {

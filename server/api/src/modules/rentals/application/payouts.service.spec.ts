@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { ConflictException } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -58,28 +60,28 @@ function harness(opts: Opts = {}) {
     : null;
   const db = {};
   const payouts = {
-    primaryAccount: jest.fn(async () => primary),
-    account: jest.fn(async (id: string) => (primary && primary.id === id ? primary : id === 'retired' ? momo({ id: 'retired', status: 'retired', isPrimary: false }) : null)),
-    insert: jest.fn(async (_tx: unknown, values: Partial<PayoutRow>) => {
+    primaryAccount: vi.fn(async () => primary),
+    account: vi.fn(async (id: string) => (primary && primary.id === id ? primary : id === 'retired' ? momo({ id: 'retired', status: 'retired', isPrimary: false }) : null)),
+    insert: vi.fn(async (_tx: unknown, values: Partial<PayoutRow>) => {
       record('insert')(values);
       row = { id: PAYOUT, createdAt: new Date(), updatedAt: new Date(), ...values } as PayoutRow;
       return row;
     }),
-    find: jest.fn(async () => row),
-    update: jest.fn(async (_tx: unknown, id: string, values: Partial<PayoutRow>) => {
+    find: vi.fn(async () => row),
+    update: vi.fn(async (_tx: unknown, id: string, values: Partial<PayoutRow>) => {
       record('update')(id, values);
       if (row) row = { ...row, ...values };
     }),
-    orgOf: jest.fn(async () => ORG),
-    held: jest.fn(async () => (opts.held && row ? [{ ...row, orgId: ORG }] : [])),
-    queuedBefore: jest.fn(async () => []),
-    listRow: jest.fn(async () => (row ? { payout: row, accountKind: 'momo', payment: null } : null)),
-    list: jest.fn(async () => []),
+    orgOf: vi.fn(async () => ORG),
+    held: vi.fn(async () => (opts.held && row ? [{ ...row, orgId: ORG }] : [])),
+    queuedBefore: vi.fn(async () => []),
+    listRow: vi.fn(async () => (row ? { payout: row, accountKind: 'momo', payment: null } : null)),
+    list: vi.fn(async () => []),
   };
-  const accounts = { openAccountNumber: jest.fn(() => '000123456789') };
-  const context = { org: jest.fn(async () => ({ legalName: 'Amani Residences' })) };
-  const queue = { sendPayout: jest.fn(async (id: string) => (record('send')(id), true)) };
-  const audit = { write: jest.fn(async (_db: unknown, e: unknown) => record('audit')(e)) };
+  const accounts = { openAccountNumber: vi.fn(() => '000123456789') };
+  const context = { org: vi.fn(async () => ({ legalName: 'Amani Residences' })) };
+  const queue = { sendPayout: vi.fn(async (id: string) => (record('send')(id), true)) };
+  const audit = { write: vi.fn(async (_db: unknown, e: unknown) => record('audit')(e)) };
   const service = new PayoutsService(
     db as never,
     payouts as unknown as PayoutsRepository,

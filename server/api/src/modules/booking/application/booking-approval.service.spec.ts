@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { everyBranch } from '../../../shared/auth/branch-scope.fixture';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ConflictException, NotFoundException } from '@nestjs/common';
@@ -50,13 +52,13 @@ describe('BookingApprovalService', () => {
 
   interface Harness {
     repo: {
-      findReservationOwner: jest.Mock;
-      findHeldEscrow: jest.Mock;
-      approve: jest.Mock;
-      decline: jest.Mock;
+      findReservationOwner: Mock;
+      findHeldEscrow: Mock;
+      approve: Mock;
+      decline: Mock;
     };
-    payments: { mode: 'mock'; releaseEscrow: jest.Mock };
-    ebm: { saleConfirmed: jest.Mock };
+    payments: { mode: 'mock'; releaseEscrow: Mock };
+    ebm: { saleConfirmed: Mock };
     service: BookingApprovalService;
   }
 
@@ -68,39 +70,39 @@ describe('BookingApprovalService', () => {
     releaseRejects?: Error;
   }): Harness {
     const repo = {
-      findReservationOwner: jest
+      findReservationOwner: vi
         .fn()
         .mockResolvedValue(overrides.owner ?? null),
-      findHeldEscrow: jest
+      findHeldEscrow: vi
         .fn()
         .mockResolvedValue(
           overrides.heldEscrow === undefined
             ? heldEscrow
             : overrides.heldEscrow,
         ),
-      approve: jest.fn().mockResolvedValue(overrides.approveOutcome ?? null),
-      decline: jest.fn().mockResolvedValue(overrides.declineOutcome ?? null),
+      approve: vi.fn().mockResolvedValue(overrides.approveOutcome ?? null),
+      decline: vi.fn().mockResolvedValue(overrides.declineOutcome ?? null),
       // The shared decision service reads these on approve; a null property
       // means no folio to open, which keeps these cases about the transition.
-      propertyForBooking: jest.fn().mockResolvedValue(null),
+      propertyForBooking: vi.fn().mockResolvedValue(null),
     };
     const payments = {
       mode: 'mock' as const,
       releaseEscrow: overrides.releaseRejects
-        ? jest.fn().mockRejectedValue(overrides.releaseRejects)
-        : jest.fn().mockResolvedValue({ replayed: false }),
+        ? vi.fn().mockRejectedValue(overrides.releaseRejects)
+        : vi.fn().mockResolvedValue({ replayed: false }),
     };
-    const ebm = { saleConfirmed: jest.fn().mockResolvedValue(undefined) };
+    const ebm = { saleConfirmed: vi.fn().mockResolvedValue(undefined) };
     const decisions = new BookingDecisionService(
       repo as unknown as BookingRepository,
       payments as unknown as PaymentPort,
-      { openForBooking: jest.fn() } as unknown as FolioService,
+      { openForBooking: vi.fn() } as unknown as FolioService,
       ebm as unknown as EbmSaleTrigger,
       // ADR-047: the guest is told what happened. A recording double rather
       // than a no-op, so a test can assert WHICH event was raised.
-      { notify: jest.fn().mockResolvedValue(undefined) } as unknown as BookingNotificationsService,
+      { notify: vi.fn().mockResolvedValue(undefined) } as unknown as BookingNotificationsService,
       // 073 AC-13: no bank record behind these payments, so the provider path runs.
-      { plan: jest.fn().mockResolvedValue(null) } as unknown as BookingRefunds,
+      { plan: vi.fn().mockResolvedValue(null) } as unknown as BookingRefunds,
     );
     const service = new BookingApprovalService(
       repo as unknown as BookingRepository,

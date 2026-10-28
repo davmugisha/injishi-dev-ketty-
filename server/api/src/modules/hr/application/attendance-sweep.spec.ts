@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { sweepClose } from './attendance-sweep.service';
 import { summarize } from './attendance-insights.service';
 import type { AttendanceRow } from '../infrastructure/time.repository';

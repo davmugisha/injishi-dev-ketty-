@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import type { ListingService } from '../../listing/application/listing.service';
@@ -32,15 +34,15 @@ describe('AvailabilityService', () => {
     } = {},
   ): {
     service: AvailabilityService;
-    freeUnitsByNight: jest.Mock;
-    listings: { getBookableRoom: jest.Mock };
+    freeUnitsByNight: Mock;
+    listings: { getBookableRoom: Mock };
   } {
-    const freeUnitsByNight = jest
+    const freeUnitsByNight = vi
       .fn()
       .mockResolvedValue(overrides.nights ?? []);
 
     const listings = {
-      getBookableRoom: jest.fn().mockResolvedValue({
+      getBookableRoom: vi.fn().mockResolvedValue({
         property: { id: 'p1', slug: 'x', name: 'X', districtName: null, checkInTime: null, checkOutTime: null, photo: null },
         roomType: {
           id: ROOM_TYPE,

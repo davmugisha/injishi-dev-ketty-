@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { Test } from '@nestjs/testing';
 
 import { GeographyService } from './geography.service';
@@ -5,11 +7,11 @@ import { GeographyRepository } from '../infrastructure/geography.repository';
 
 describe('GeographyService', () => {
   const repo = {
-    findProvinces: jest.fn(),
-    findDistricts: jest.fn(),
-    findCells: jest.fn(),
-    findVillages: jest.fn(),
-    findVillagePlacement: jest.fn(),
+    findProvinces: vi.fn(),
+    findDistricts: vi.fn(),
+    findCells: vi.fn(),
+    findVillages: vi.fn(),
+    findVillagePlacement: vi.fn(),
   };
 
   const build = async (): Promise<GeographyService> => {
@@ -22,7 +24,7 @@ describe('GeographyService', () => {
     return moduleRef.get(GeographyService);
   };
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('returns provinces validated against the contract', async () => {
     repo.findProvinces.mockResolvedValue([

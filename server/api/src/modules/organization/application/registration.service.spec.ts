@@ -1,6 +1,4 @@
-// The ESM-only auth package cannot load under jest; every spec whose imports
-// may reach it mocks it the same way.
-jest.mock('@injishi/auth', () => ({ DEMO_OTP_CODE: '123456' }));
+import { describe, expect, it, type Mock, vi } from 'vitest';
 
 import { BadRequestException, UnprocessableEntityException } from '@nestjs/common';
 import type { CreateRegistrationRequest } from '@injishi/contracts';
@@ -48,12 +46,12 @@ function withDirectors(): TinCheckOutcome {
 }
 
 /** The draft service, standing in: what a check keeps and what a registration marks (ADR-075 D-m). */
-type DraftsStandIn = { recordTinCheck: jest.Mock; markRegistered: jest.Mock; clear: jest.Mock };
+type DraftsStandIn = { recordTinCheck: Mock; markRegistered: Mock; clear: Mock };
 function draftsStandIn(): DraftsStandIn {
   return {
-    recordTinCheck: jest.fn(async () => undefined),
-    markRegistered: jest.fn(async () => undefined),
-    clear: jest.fn(async () => undefined),
+    recordTinCheck: vi.fn(async () => undefined),
+    markRegistered: vi.fn(async () => undefined),
+    clear: vi.fn(async () => undefined),
   };
 }
 
@@ -61,23 +59,23 @@ function service(opts: {
   taken?: boolean;
   verify?: () => Promise<TinCheckOutcome>;
   document?: { documentType: 'national_id' | 'passport'; documentNumber: string } | null;
-}): { svc: RegistrationService; createRegistration: jest.Mock; drafts: DraftsStandIn } {
-  const createRegistration = jest.fn();
+}): { svc: RegistrationService; createRegistration: Mock; drafts: DraftsStandIn } {
+  const createRegistration = vi.fn();
   const drafts = draftsStandIn();
   const orgs = {
-    tinTaken: jest.fn(async () => opts.taken ?? false),
+    tinTaken: vi.fn(async () => opts.taken ?? false),
     createRegistration,
   } as unknown as OrganizationRepository;
   const tin = {
-    verify: jest.fn(opts.verify ?? (async () => outcome('verified'))),
+    verify: vi.fn(opts.verify ?? (async () => outcome('verified'))),
   } as unknown as RraTinAdapter;
   const profiles = {
-    save: jest.fn(),
-    isComplete: jest.fn(async () => true),
-    documentFor: jest.fn(async () => opts.document ?? null),
+    save: vi.fn(),
+    isComplete: vi.fn(async () => true),
+    documentFor: vi.fn(async () => opts.document ?? null),
   } as unknown as ProfileService;
   const identity = {
-    assertMayRegister: jest.fn(async () => undefined),
+    assertMayRegister: vi.fn(async () => undefined),
   } as unknown as IdentityService;
   const svc = new RegistrationService(
     orgs,
@@ -106,7 +104,7 @@ describe('RegistrationService.checkTin', () => {
   });
 
   it('says taken before asking RRA when another business holds it', async () => {
-    const verify = jest.fn(async () => outcome('verified'));
+    const verify = vi.fn(async () => outcome('verified'));
     const { svc } = service({ taken: true, verify });
     expect((await svc.checkTin(TIN, 'user-1')).result).toBe('taken');
     expect(verify).not.toHaveBeenCalled();
@@ -184,9 +182,9 @@ describe('RegistrationService.create, the document a kind requires (ADR-075 AC-1
   const ADDRESS = { country: 'RW', provinceId: 1, districtId: 102, sectorId: 10201 };
   type Stored = Record<string, { kind: string; uploadedByUserId: string | null }>;
 
-  function harness(stored: Stored): { svc: RegistrationService; createRegistration: jest.Mock; drafts: DraftsStandIn } {
+  function harness(stored: Stored): { svc: RegistrationService; createRegistration: Mock; drafts: DraftsStandIn } {
     const drafts = draftsStandIn();
-    const createRegistration = jest.fn(async () => ({
+    const createRegistration = vi.fn(async () => ({
       orgId: 'org-1',
       workspaceId: 'ws-1',
       amountDueRwf: 50000,
@@ -195,29 +193,29 @@ describe('RegistrationService.create, the document a kind requires (ADR-075 AC-1
       claimInvitation: null,
     }));
     const orgs = {
-      tinTaken: jest.fn(async () => false),
+      tinTaken: vi.fn(async () => false),
       createRegistration,
-      districtsForSectors: jest.fn(async () => new Map([[10201, 102]])),
+      districtsForSectors: vi.fn(async () => new Map([[10201, 102]])),
     } as unknown as OrganizationRepository;
-    const tin = { verify: jest.fn(async () => outcome('verified')) } as unknown as RraTinAdapter;
+    const tin = { verify: vi.fn(async () => outcome('verified')) } as unknown as RraTinAdapter;
     const profiles = {
-      save: jest.fn(),
-      isComplete: jest.fn(async () => true),
-      documentFor: jest.fn(async () => null),
+      save: vi.fn(),
+      isComplete: vi.fn(async () => true),
+      documentFor: vi.fn(async () => null),
     } as unknown as ProfileService;
     const storage = {
-      describe: jest.fn(async (objectKey: string) =>
+      describe: vi.fn(async (objectKey: string) =>
         stored[objectKey] ? { objectKey, mime: 'application/pdf', sizeBytes: 10, workspaceId: null, ...stored[objectKey] } : null,
       ),
     };
-    const identity = { assertMayRegister: jest.fn(async () => undefined) } as unknown as IdentityService;
+    const identity = { assertMayRegister: vi.fn(async () => undefined) } as unknown as IdentityService;
     const svc = new RegistrationService(
       orgs,
       tin,
       profiles,
       {} as never,
       {} as never,
-      { received: jest.fn(async () => undefined) } as never,
+      { received: vi.fn(async () => undefined) } as never,
       storage as never,
       {} as never,
       identity,
@@ -322,8 +320,8 @@ describe('RegistrationService.create, the document a kind requires (ADR-075 AC-1
 
 describe('RegistrationService.create, the franchise answer (ADR-075 AC-8)', () => {
   const ADDRESS = { country: 'RW', provinceId: 1, districtId: 102, sectorId: 10201 };
-  function harness(): { svc: RegistrationService; createRegistration: jest.Mock } {
-    const createRegistration = jest.fn(async () => ({
+  function harness(): { svc: RegistrationService; createRegistration: Mock } {
+    const createRegistration = vi.fn(async () => ({
       orgId: 'org-1',
       workspaceId: 'ws-1',
       amountDueRwf: 50000,
@@ -332,23 +330,23 @@ describe('RegistrationService.create, the franchise answer (ADR-075 AC-8)', () =
       claimInvitation: null,
     }));
     const orgs = {
-      tinTaken: jest.fn(async () => false),
+      tinTaken: vi.fn(async () => false),
       createRegistration,
-      districtsForSectors: jest.fn(async () => new Map([[10201, 102]])),
+      districtsForSectors: vi.fn(async () => new Map([[10201, 102]])),
     } as unknown as OrganizationRepository;
     const svc = new RegistrationService(
       orgs,
-      { verify: jest.fn(async () => outcome('verified')) } as unknown as RraTinAdapter,
+      { verify: vi.fn(async () => outcome('verified')) } as unknown as RraTinAdapter,
       {
-        save: jest.fn(),
-        isComplete: jest.fn(async () => true),
-        documentFor: jest.fn(async () => null),
+        save: vi.fn(),
+        isComplete: vi.fn(async () => true),
+        documentFor: vi.fn(async () => null),
       } as unknown as ProfileService,
       {} as never,
       {} as never,
-      { received: jest.fn(async () => undefined) } as never,
+      { received: vi.fn(async () => undefined) } as never,
       {
-        describe: jest.fn(async (objectKey: string) => ({
+        describe: vi.fn(async (objectKey: string) => ({
           objectKey,
           kind: 'certificate',
           uploadedByUserId: 'user-1',
@@ -358,7 +356,7 @@ describe('RegistrationService.create, the franchise answer (ADR-075 AC-8)', () =
         })),
       } as never,
       {} as never,
-      { assertMayRegister: jest.fn(async () => undefined) } as unknown as IdentityService,
+      { assertMayRegister: vi.fn(async () => undefined) } as unknown as IdentityService,
       draftsStandIn() as never,
     );
     return { svc, createRegistration };
@@ -379,7 +377,7 @@ describe('RegistrationService.create, the franchise answer (ADR-075 AC-8)', () =
         ...business,
       },
     }) as unknown as CreateRegistrationRequest;
-  const written = (createRegistration: jest.Mock): unknown =>
+  const written = (createRegistration: Mock): unknown =>
     (createRegistration.mock.calls[0] as unknown as [{ franchise: unknown }])[0].franchise;
 
   it("writes a franchisee's answer, with the agreement document it sent", async () => {

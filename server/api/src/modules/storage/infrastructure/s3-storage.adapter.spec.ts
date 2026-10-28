@@ -1,3 +1,5 @@
+import { afterAll, afterEach, beforeAll, describe, expect, it, type MockInstance, vi } from 'vitest';
+
 import { createServer, type Server, type Socket } from 'node:net';
 
 import {
@@ -34,7 +36,7 @@ interface Sent {
 
 function stubSend(clients: S3Clients, answer: (sent: Sent) => unknown = () => ({})): Sent[] {
   const sent: Sent[] = [];
-  (jest.spyOn(clients.client, 'send') as unknown as jest.SpyInstance).mockImplementation(
+  (vi.spyOn(clients.client, 'send') as unknown as MockInstance).mockImplementation(
     async (command: { input: Record<string, unknown> }, options?: { abortSignal?: AbortSignal }) => {
       const record = { command, input: command.input, signal: options?.abortSignal };
       sent.push(record);
@@ -56,7 +58,7 @@ function clientsFor(env: StorageEnv = ENV, timeouts?: Parameters<typeof createS3
   return clients;
 }
 afterEach(() => {
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
 });
 afterAll(() => {
   for (const clients of open) {
@@ -127,7 +129,7 @@ describe('S3StorageAdapter.signedUrl', () => {
   it('signs a GET against the public endpoint, path-style, without sending anything', async () => {
     const clients = clientsFor();
     const sent = stubSend(clients);
-    const signerSend = jest.spyOn(clients.signer, 'send');
+    const signerSend = vi.spyOn(clients.signer, 'send');
 
     const url = new URL(await new S3StorageAdapter(clients, 'injishi').signedUrl(KEY, 300));
 
@@ -221,7 +223,7 @@ describe('S3StorageAdapter.remove', () => {
 });
 
 describe('S3Storage', () => {
-  const quiet = { log: jest.fn(), warn: jest.fn() };
+  const quiet = { log: vi.fn(), warn: vi.fn() };
   const allPresent = (): unknown => ({
     ServerSideEncryptionConfiguration: {
       Rules: [{ ApplyServerSideEncryptionByDefault: { SSEAlgorithm: 'AES256' } }],
@@ -240,7 +242,7 @@ describe('S3Storage', () => {
   it('refuses to open, and releases its clients, when verification fails', async () => {
     const clients = clientsFor();
     stubSend(clients, () => s3Error('NotFound', 404));
-    const destroyed = jest.spyOn(clients.client, 'destroy');
+    const destroyed = vi.spyOn(clients.client, 'destroy');
     await expect(S3Storage.open(resolveS3StorageConfig(ENV), clients, quiet)).rejects.toThrow(
       /Bucket "injishi" does not exist/,
     );
@@ -251,8 +253,8 @@ describe('S3Storage', () => {
     const clients = clientsFor();
     stubSend(clients, allPresent);
     const storage = await S3Storage.open(resolveS3StorageConfig(ENV), clients, quiet);
-    const destroyed = jest.spyOn(clients.client, 'destroy');
-    const signerDestroyed = jest.spyOn(clients.signer, 'destroy');
+    const destroyed = vi.spyOn(clients.client, 'destroy');
+    const signerDestroyed = vi.spyOn(clients.signer, 'destroy');
     storage.onApplicationShutdown();
     expect(destroyed).toHaveBeenCalled();
     expect(signerDestroyed).toHaveBeenCalled();
@@ -267,7 +269,7 @@ describe('S3Storage', () => {
     };
     const clients = clientsFor(env);
     stubSend(clients, allPresent);
-    const log = { log: jest.fn(), warn: jest.fn() };
+    const log = { log: vi.fn(), warn: vi.fn() };
     await S3Storage.open(resolveS3StorageConfig(env), clients, log);
     expect(log.warn).toHaveBeenCalledWith(expect.stringMatching(/STORAGE_REQUIRE_ENCRYPTION=false/));
     expect(log.warn).toHaveBeenCalledWith(expect.stringMatching(/plain http/));
@@ -333,8 +335,8 @@ describe('every S3 call is time-bounded', () => {
     const clients = stalled({ connectMs: 1_000, requestMs: 60_000, operationMs: 800 });
     await expect(
       S3Storage.open(resolveS3StorageConfig({ ...ENV, STORAGE_S3_ENDPOINT: endpoint }), clients, {
-        log: jest.fn(),
-        warn: jest.fn(),
+        log: vi.fn(),
+        warn: vi.fn(),
       }),
     ).rejects.toThrow(/Timed out trying to reach bucket "injishi"/);
   });

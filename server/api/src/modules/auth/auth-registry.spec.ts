@@ -1,9 +1,10 @@
-// `@injishi/auth` is ESM and outside what ts-jest transforms, so `createAuth`
-// is stood in for by a recorder: this spec checks what the registry ASKS for
-// (secret, base URL, cookie prefix, database, demo code) per instance. The G2
-// gate of the environments ledger compares the constants below with the
+import { describe, expect, it, vi } from 'vitest';
+
+// `createAuth` is stood in for by a recorder: this spec checks what the registry
+// ASKS for (secret, base URL, cookie prefix, database, demo code) per instance.
+// The G2 gate of the environments ledger compares the constants below with the
 // package's real exports.
-jest.mock('@injishi/auth', () => ({
+vi.mock('@injishi/auth', () => ({
   DEMO_OTP_CODE: '123456',
   DEMO_COOKIE_PREFIX: 'injishi-demo',
   createAuth: (config: unknown) => ({ config }),
@@ -27,7 +28,7 @@ const SECRET = 'p'.repeat(40);
 const OVERSIGHT_SECRET = 'o'.repeat(40);
 
 const db = { name: 'the one database' } as unknown as Database;
-const mailer = { send: jest.fn() };
+const mailer = { send: vi.fn() };
 
 const PRODUCTION: Platform = { environment: 'production', sampleData: false, commit: null };
 const STAGING: Platform = { environment: 'production', sampleData: true, commit: null };

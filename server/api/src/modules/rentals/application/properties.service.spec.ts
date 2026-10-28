@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PropertyLocationRequest } from '@injishi/contracts';
 
@@ -43,16 +45,16 @@ function harness(buildings: { id: string; name: string }[] = [{ id: PROPERTY, na
     units: 3,
   };
   const properties = {
-    list: jest.fn(async () => [row]),
-    villageChain: jest.fn(async () => CHAIN),
-    setLocation: jest.fn(async () => undefined),
-    draftLeaseIds: jest.fn(async () => ['lease-1']),
+    list: vi.fn(async () => [row]),
+    villageChain: vi.fn(async () => CHAIN),
+    setLocation: vi.fn(async () => undefined),
+    draftLeaseIds: vi.fn(async () => ['lease-1']),
   };
   const context = {
-    buildings: jest.fn(async () => buildings),
-    ensureBuilding: jest.fn(async () => ({ id: PROPERTY, name: 'Amani Residences' })),
+    buildings: vi.fn(async () => buildings),
+    ensureBuilding: vi.fn(async () => ({ id: PROPERTY, name: 'Amani Residences' })),
   };
-  const contracts = { refreshDrafts: jest.fn(async () => 1) };
+  const contracts = { refreshDrafts: vi.fn(async () => 1) };
   const service = new PropertiesService(
     properties as unknown as PropertiesRepository,
     context as unknown as RentalsContextRepository,

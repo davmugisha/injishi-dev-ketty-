@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import {
   BadRequestException,
   ConflictException,
@@ -64,39 +66,39 @@ describe('MessagingService (guest)', () => {
   interface Harness {
     service: MessagingService;
     repo: {
-      listThreadsForGuest: jest.Mock;
-      findThreadForGuest: jest.Mock;
-      summarise: jest.Mock;
-      unreadCounts: jest.Mock;
-      messagePage: jest.Mock;
-      sendMessage: jest.Mock;
-      findMessage: jest.Mock;
-      markRead: jest.Mock;
-      openStaysForGuest: jest.Mock;
-      liveBookingsForGuest: jest.Mock;
-      requestableDepartments: jest.Mock;
-      deskThreadsFor: jest.Mock;
-      findGuestRequestableDepartment: jest.Mock;
-      openDepartmentThread: jest.Mock;
+      listThreadsForGuest: Mock;
+      findThreadForGuest: Mock;
+      summarise: Mock;
+      unreadCounts: Mock;
+      messagePage: Mock;
+      sendMessage: Mock;
+      findMessage: Mock;
+      markRead: Mock;
+      openStaysForGuest: Mock;
+      liveBookingsForGuest: Mock;
+      requestableDepartments: Mock;
+      deskThreadsFor: Mock;
+      findGuestRequestableDepartment: Mock;
+      openDepartmentThread: Mock;
     };
   }
 
   function harness(over: Partial<Harness['repo']> = {}): Harness {
     const repo = {
-      listThreadsForGuest: jest.fn().mockResolvedValue([thread()]),
-      findThreadForGuest: jest.fn().mockResolvedValue(thread()),
-      summarise: jest.fn().mockResolvedValue(new Map()),
-      unreadCounts: jest.fn().mockResolvedValue(new Map()),
-      messagePage: jest.fn().mockResolvedValue([]),
-      sendMessage: jest.fn().mockResolvedValue(message().id),
-      findMessage: jest.fn().mockResolvedValue(message()),
-      markRead: jest.fn().mockResolvedValue(undefined),
-      openStaysForGuest: jest.fn().mockResolvedValue([]),
-      liveBookingsForGuest: jest.fn().mockResolvedValue([]),
-      requestableDepartments: jest.fn().mockResolvedValue([]),
-      deskThreadsFor: jest.fn().mockResolvedValue([]),
-      findGuestRequestableDepartment: jest.fn().mockResolvedValue(null),
-      openDepartmentThread: jest
+      listThreadsForGuest: vi.fn().mockResolvedValue([thread()]),
+      findThreadForGuest: vi.fn().mockResolvedValue(thread()),
+      summarise: vi.fn().mockResolvedValue(new Map()),
+      unreadCounts: vi.fn().mockResolvedValue(new Map()),
+      messagePage: vi.fn().mockResolvedValue([]),
+      sendMessage: vi.fn().mockResolvedValue(message().id),
+      findMessage: vi.fn().mockResolvedValue(message()),
+      markRead: vi.fn().mockResolvedValue(undefined),
+      openStaysForGuest: vi.fn().mockResolvedValue([]),
+      liveBookingsForGuest: vi.fn().mockResolvedValue([]),
+      requestableDepartments: vi.fn().mockResolvedValue([]),
+      deskThreadsFor: vi.fn().mockResolvedValue([]),
+      findGuestRequestableDepartment: vi.fn().mockResolvedValue(null),
+      openDepartmentThread: vi
         .fn()
         .mockResolvedValue({ threadId: THREAD, created: true }),
       ...over,
@@ -111,7 +113,7 @@ describe('MessagingService (guest)', () => {
     /** The security property of the whole surface. */
     it("answers 404, not 403, for a thread that is not the caller's", async () => {
       const { service } = harness({
-        findThreadForGuest: jest.fn().mockResolvedValue(null),
+        findThreadForGuest: vi.fn().mockResolvedValue(null),
       });
 
       await expect(service.listGuestMessages(GUEST, THREAD)).rejects.toThrow(
@@ -126,9 +128,9 @@ describe('MessagingService (guest)', () => {
     });
 
     it('proves the thread BEFORE reading a single message', async () => {
-      const messagePage = jest.fn().mockResolvedValue([]);
+      const messagePage = vi.fn().mockResolvedValue([]);
       const { service } = harness({
-        findThreadForGuest: jest.fn().mockResolvedValue(null),
+        findThreadForGuest: vi.fn().mockResolvedValue(null),
         messagePage,
       });
 
@@ -150,12 +152,12 @@ describe('MessagingService (guest)', () => {
   describe('listGuestThreads', () => {
     it('carries the property and the department the conversation is with', async () => {
       const { service } = harness({
-        listThreadsForGuest: jest
+        listThreadsForGuest: vi
           .fn()
           .mockResolvedValue([
             thread({ kind: 'department_request', departmentName: 'Housekeeping' }),
           ]),
-        unreadCounts: jest.fn().mockResolvedValue(new Map([[THREAD, 3]])),
+        unreadCounts: vi.fn().mockResolvedValue(new Map([[THREAD, 3]])),
       });
 
       const threads = await service.listGuestThreads(GUEST);
@@ -173,7 +175,7 @@ describe('MessagingService (guest)', () => {
       // A number in the last line would otherwise show verbatim on the row —
       // F-S06 says a phone number is never exposed, and a preview is a body.
       const { service } = harness({
-        summarise: jest.fn().mockResolvedValue(
+        summarise: vi.fn().mockResolvedValue(
           new Map([
             [
               THREAD,
@@ -204,7 +206,7 @@ describe('MessagingService (guest)', () => {
   describe('listGuestMessages', () => {
     it('sides the bubble from the sender against the reader', async () => {
       const { service } = harness({
-        messagePage: jest
+        messagePage: vi
           .fn()
           .mockResolvedValue([
             message({ id: 'a', senderUserId: OPERATOR }),
@@ -219,7 +221,7 @@ describe('MessagingService (guest)', () => {
 
     it('redacts every body on the way out, leaving the stored row alone', async () => {
       const { service } = harness({
-        messagePage: jest
+        messagePage: vi
           .fn()
           .mockResolvedValue([message({ body: 'ring +250 788 123 456' })]),
       });
@@ -234,7 +236,7 @@ describe('MessagingService (guest)', () => {
       const page = Array.from({ length: 31 }, (_, i) =>
         message({ id: `m${i}`, createdAt: new Date(2026, 8, 12, 9, 0, 31 - i) }),
       );
-      const { service } = harness({ messagePage: jest.fn().mockResolvedValue(page) });
+      const { service } = harness({ messagePage: vi.fn().mockResolvedValue(page) });
 
       const first = await service.listGuestMessages(GUEST, THREAD);
 
@@ -243,14 +245,14 @@ describe('MessagingService (guest)', () => {
       expect(first.nextCursor).not.toBeNull();
 
       const { service: short } = harness({
-        messagePage: jest.fn().mockResolvedValue(page.slice(0, 5)),
+        messagePage: vi.fn().mockResolvedValue(page.slice(0, 5)),
       });
       const last = await short.listGuestMessages(GUEST, THREAD);
       expect(last.nextCursor).toBeNull();
     });
 
     it('round-trips its own cursor, and ignores one it did not mint', async () => {
-      const messagePage = jest
+      const messagePage = vi
         .fn()
         .mockResolvedValue(
           Array.from({ length: 31 }, (_, i) =>
@@ -271,7 +273,7 @@ describe('MessagingService (guest)', () => {
     });
 
     it('never serves more than the ceiling, whatever is asked for', async () => {
-      const messagePage = jest.fn().mockResolvedValue([]);
+      const messagePage = vi.fn().mockResolvedValue([]);
       const { service } = harness({ messagePage });
 
       await service.listGuestMessages(GUEST, THREAD, { limit: 5000 });
@@ -284,7 +286,7 @@ describe('MessagingService (guest)', () => {
     it('refuses an archived thread with 409, not 403', async () => {
       // The caller may well be allowed to write here; the conversation is closed.
       const { service } = harness({
-        findThreadForGuest: jest.fn().mockResolvedValue(thread({ status: 'archived' })),
+        findThreadForGuest: vi.fn().mockResolvedValue(thread({ status: 'archived' })),
       });
 
       await expect(
@@ -294,7 +296,7 @@ describe('MessagingService (guest)', () => {
 
     it('sends as the session user and returns it sided as ours', async () => {
       const { service, repo } = harness({
-        findMessage: jest.fn().mockResolvedValue(message({ senderUserId: GUEST })),
+        findMessage: vi.fn().mockResolvedValue(message({ senderUserId: GUEST })),
       });
 
       const sent = await service.sendGuestMessage(GUEST, THREAD, { body: 'hello' });
@@ -309,10 +311,10 @@ describe('MessagingService (guest)', () => {
 
     it('signs a staff reply with the department, never the staffer', async () => {
       const { service } = harness({
-        findThreadForGuest: jest
+        findThreadForGuest: vi
           .fn()
           .mockResolvedValue(thread({ kind: 'department_request', departmentName: 'Housekeeping' })),
-        messagePage: jest.fn().mockResolvedValue([
+        messagePage: vi.fn().mockResolvedValue([
           message({ id: 'a', senderUserId: OPERATOR, senderName: 'Solange Uwera' }),
           message({ id: 'b', senderUserId: GUEST, senderName: 'Samuel' }),
           message({ id: 'c', senderUserId: null, senderName: null, bodyType: 'system', body: 'Order A1 is ready.', serviceOrderId: '99999999-9999-4999-8999-999999999999' }),
@@ -325,7 +327,7 @@ describe('MessagingService (guest)', () => {
 
     it('keeps the staffer name on a reservation thread with no department', async () => {
       const { service } = harness({
-        messagePage: jest.fn().mockResolvedValue([message({ senderName: 'Solange Uwera' })]),
+        messagePage: vi.fn().mockResolvedValue([message({ senderName: 'Solange Uwera' })]),
       });
       const { messages } = await service.listGuestMessages(GUEST, THREAD);
       expect(messages[0]?.senderName).toBe('Solange Uwera');
@@ -341,10 +343,10 @@ describe('MessagingService (guest)', () => {
         harness().service.assertOrderableThread(GUEST, THREAD, 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'),
       ).rejects.toThrow(BadRequestException);
       await expect(
-        harness({ findThreadForGuest: jest.fn().mockResolvedValue(thread({ status: 'archived' })) }).service.assertOrderableThread(GUEST, THREAD, PROPERTY),
+        harness({ findThreadForGuest: vi.fn().mockResolvedValue(thread({ status: 'archived' })) }).service.assertOrderableThread(GUEST, THREAD, PROPERTY),
       ).rejects.toThrow(ConflictException);
       await expect(
-        harness({ findThreadForGuest: jest.fn().mockResolvedValue(null) }).service.assertOrderableThread(GUEST, THREAD, PROPERTY),
+        harness({ findThreadForGuest: vi.fn().mockResolvedValue(null) }).service.assertOrderableThread(GUEST, THREAD, PROPERTY),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -391,14 +393,14 @@ describe('MessagingService (guest)', () => {
 
     function opening(over: Partial<Harness['repo']> = {}): Harness {
       return harness({
-        findGuestRequestableDepartment: jest.fn().mockResolvedValue(desk),
+        findGuestRequestableDepartment: vi.fn().mockResolvedValue(desk),
         ...over,
       });
     }
 
     it('hangs the conversation off a live booking when the guest is not in house', async () => {
       const { service, repo } = opening({
-        liveBookingsForGuest: jest.fn().mockResolvedValue([place()]),
+        liveBookingsForGuest: vi.fn().mockResolvedValue([place()]),
       });
 
       const opened = await service.openThreadWithDepartment(GUEST, ask);
@@ -412,10 +414,10 @@ describe('MessagingService (guest)', () => {
     it('prefers the stay when the guest is in house at that property', async () => {
       // They are HERE. The desk is working the stay, not a booking for next month.
       const { service, repo } = opening({
-        openStaysForGuest: jest
+        openStaysForGuest: vi
           .fn()
           .mockResolvedValue([place({ subjectId: STAY, bookingReference: null })]),
-        liveBookingsForGuest: jest.fn().mockResolvedValue([place()]),
+        liveBookingsForGuest: vi.fn().mockResolvedValue([place()]),
       });
 
       await service.openThreadWithDepartment(GUEST, ask);
@@ -429,7 +431,7 @@ describe('MessagingService (guest)', () => {
       // "Exists but refuses you" maps the property's internal structure for
       // anybody who asks.
       const { service, repo } = harness({
-        findGuestRequestableDepartment: jest.fn().mockResolvedValue(null),
+        findGuestRequestableDepartment: vi.fn().mockResolvedValue(null),
       });
 
       await expect(service.openThreadWithDepartment(GUEST, ask)).rejects.toThrow(
@@ -440,8 +442,8 @@ describe('MessagingService (guest)', () => {
 
     it('answers 403 when the caller holds nothing at that property', async () => {
       const { service, repo } = opening({
-        openStaysForGuest: jest.fn().mockResolvedValue([place({ propertyId: OTHER_PROPERTY })]),
-        liveBookingsForGuest: jest.fn().mockResolvedValue([place({ propertyId: OTHER_PROPERTY })]),
+        openStaysForGuest: vi.fn().mockResolvedValue([place({ propertyId: OTHER_PROPERTY })]),
+        liveBookingsForGuest: vi.fn().mockResolvedValue([place({ propertyId: OTHER_PROPERTY })]),
       });
 
       await expect(service.openThreadWithDepartment(GUEST, ask)).rejects.toThrow(
@@ -452,8 +454,8 @@ describe('MessagingService (guest)', () => {
 
     it('refuses to write into a conversation the property archived', async () => {
       const { service } = opening({
-        liveBookingsForGuest: jest.fn().mockResolvedValue([place()]),
-        openDepartmentThread: jest.fn().mockResolvedValue(null),
+        liveBookingsForGuest: vi.fn().mockResolvedValue([place()]),
+        openDepartmentThread: vi.fn().mockResolvedValue(null),
       });
 
       await expect(service.openThreadWithDepartment(GUEST, ask)).rejects.toThrow(
@@ -463,19 +465,19 @@ describe('MessagingService (guest)', () => {
 
     it('lists one place per property, in house first, with its desks', async () => {
       const { service } = opening({
-        openStaysForGuest: jest.fn().mockResolvedValue([place({ subjectId: STAY })]),
+        openStaysForGuest: vi.fn().mockResolvedValue([place({ subjectId: STAY })]),
         // The same property again as a booking, plus one the guest only booked.
-        liveBookingsForGuest: jest
+        liveBookingsForGuest: vi
           .fn()
           .mockResolvedValue([place(), place({ propertyId: OTHER_PROPERTY, subjectId: 'ffffffff-ffff-4fff-8fff-ffffffffffff' })]),
-        requestableDepartments: jest.fn().mockResolvedValue([
+        requestableDepartments: vi.fn().mockResolvedValue([
           { id: DEPARTMENT, propertyId: PROPERTY, name: 'Housekeeping', departmentCategory: 'rooms', phone: null },
           { id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', propertyId: OTHER_PROPERTY, name: 'Front Office', departmentCategory: 'rooms', phone: '0788000000' },
         ]),
-        deskThreadsFor: jest.fn().mockResolvedValue([
+        deskThreadsFor: vi.fn().mockResolvedValue([
           { threadId: THREAD, departmentId: DEPARTMENT, guestStayId: STAY, bookingId: null, updatedAt: new Date('2026-09-16T08:00:00.000Z') },
         ]),
-        unreadCounts: jest.fn().mockResolvedValue(new Map([[THREAD, 2]])),
+        unreadCounts: vi.fn().mockResolvedValue(new Map([[THREAD, 2]])),
       });
 
       const { places } = await service.myDepartments(GUEST);
@@ -503,12 +505,12 @@ describe('MessagingService (guest)', () => {
       // Two bookings, same department id impossible — but the same PROPERTY is
       // the shape that catches a stitch keyed on the department alone.
       const { service } = opening({
-        liveBookingsForGuest: jest.fn().mockResolvedValue([place({ subjectId: BOOKING })]),
-        openStaysForGuest: jest.fn().mockResolvedValue([place({ propertyId: OTHER_PROPERTY, subjectId: STAY })]),
-        requestableDepartments: jest.fn().mockResolvedValue([
+        liveBookingsForGuest: vi.fn().mockResolvedValue([place({ subjectId: BOOKING })]),
+        openStaysForGuest: vi.fn().mockResolvedValue([place({ propertyId: OTHER_PROPERTY, subjectId: STAY })]),
+        requestableDepartments: vi.fn().mockResolvedValue([
           { id: DEPARTMENT, propertyId: PROPERTY, name: 'Housekeeping', departmentCategory: 'rooms', phone: null },
         ]),
-        deskThreadsFor: jest.fn().mockResolvedValue([
+        deskThreadsFor: vi.fn().mockResolvedValue([
           { threadId: THREAD, departmentId: DEPARTMENT, guestStayId: null, bookingId: BOOKING, updatedAt: new Date('2026-09-16T08:00:00.000Z') },
         ]),
       });
@@ -525,11 +527,11 @@ describe('MessagingService (guest)', () => {
   describe('the desk inbox filter (ADR-050 D-q)', () => {
     it('passes the department to the query rather than filtering the answer', async () => {
       const DEPARTMENT = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-      const listThreads = jest.fn().mockResolvedValue([]);
+      const listThreads = vi.fn().mockResolvedValue([]);
       const repo = {
         listThreads,
-        summarise: jest.fn().mockResolvedValue(new Map()),
-        counterparts: jest.fn().mockResolvedValue(new Map()),
+        summarise: vi.fn().mockResolvedValue(new Map()),
+        counterparts: vi.fn().mockResolvedValue(new Map()),
       };
       const service = new MessagingService(repo as unknown as MessagingRepository);
       const ws = {
@@ -603,9 +605,9 @@ describe('MessagingService (desk)', () => {
   function desk(
     counterpart: string | null,
     rows: MessageRow[],
-  ): { service: MessagingService; repo: Record<string, jest.Mock> } {
+  ): { service: MessagingService; repo: Record<string, Mock> } {
     const repo = {
-      findThread: jest.fn().mockResolvedValue({
+      findThread: vi.fn().mockResolvedValue({
         id: THREAD,
         workspaceId: WORKSPACE,
         bookingId: '66666666-6666-6666-6666-666666666666',
@@ -614,10 +616,10 @@ describe('MessagingService (desk)', () => {
         branchPropertyId: BRANCH,
         status: 'active',
       }),
-      listMessages: jest.fn().mockResolvedValue(rows),
-      counterpartUserId: jest.fn().mockResolvedValue(counterpart),
-      sendMessage: jest.fn().mockResolvedValue(rows[0]?.id),
-      findMessage: jest.fn().mockResolvedValue(rows[0]),
+      listMessages: vi.fn().mockResolvedValue(rows),
+      counterpartUserId: vi.fn().mockResolvedValue(counterpart),
+      sendMessage: vi.fn().mockResolvedValue(rows[0]?.id),
+      findMessage: vi.fn().mockResolvedValue(rows[0]),
     };
     return { service: new MessagingService(repo as unknown as MessagingRepository), repo };
   }

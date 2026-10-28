@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { randomBytes } from 'node:crypto';
 
 import type { EbmLive } from '../domain/ebm-live';
@@ -46,8 +48,8 @@ describe('EbmConnectionService', () => {
 
   interface Harness {
     service: EbmConnectionService;
-    repo: Record<string, jest.Mock>;
-    client: Record<string, jest.Mock>;
+    repo: Record<string, Mock>;
+    client: Record<string, Mock>;
     states: StoredState[];
     saved: Array<Parameters<EbmConnectionRepository['saveConnected']>[0]>;
   }
@@ -80,13 +82,13 @@ describe('EbmConnectionService', () => {
     const saved: Array<Parameters<EbmConnectionRepository['saveConnected']>[0]> = [];
 
     const repo = {
-      orgIdentity: jest.fn(async () =>
+      orgIdentity: vi.fn(async () =>
         opts.orgTin === null ? { tin: null, legalName: 'X' } : { tin: opts.orgTin ?? '102938475', legalName: 'Umurage Ltd' },
       ),
-      saveState: jest.fn(async (input: Omit<StoredState, 'consumedAt'>) => {
+      saveState: vi.fn(async (input: Omit<StoredState, 'consumedAt'>) => {
         states.push({ ...input, consumedAt: null });
       }),
-      consumeState: jest.fn(async (hash: string, now: Date) => {
+      consumeState: vi.fn(async (hash: string, now: Date) => {
         const row = states.find(
           (s) => s.stateHash === hash && s.consumedAt === null && s.expiresAt > now,
         );
@@ -94,23 +96,23 @@ describe('EbmConnectionService', () => {
         row.consumedAt = now;
         return { orgId: row.orgId, userId: row.userId, codeVerifierCiphertext: row.codeVerifierCiphertext };
       }),
-      saveConnected: jest.fn(async (input: Parameters<EbmConnectionRepository['saveConnected']>[0]) => {
+      saveConnected: vi.fn(async (input: Parameters<EbmConnectionRepository['saveConnected']>[0]) => {
         saved.push(input);
       }),
-      findByOrg: jest.fn(async () => connection),
-      businessWorkspaceOf: jest.fn(async () => 'ws-1'),
-      heldSaleCount: jest.fn(async () => 0),
-      rearmHeld: jest.fn(async () => 0),
-      saveTokens: jest.fn(async () => undefined),
-      revoke: jest.fn(async () => {
+      findByOrg: vi.fn(async () => connection),
+      businessWorkspaceOf: vi.fn(async () => 'ws-1'),
+      heldSaleCount: vi.fn(async () => 0),
+      rearmHeld: vi.fn(async () => 0),
+      saveTokens: vi.fn(async () => undefined),
+      revoke: vi.fn(async () => {
         if (connection) connection = { ...connection, status: 'revoked' };
       }),
-      saveMapping: jest.fn(async () => true),
-      saveAccountStatus: jest.fn(async () => undefined),
+      saveMapping: vi.fn(async () => true),
+      saveAccountStatus: vi.fn(async () => undefined),
     };
 
     const client = {
-      authorizeUrl: jest.fn((input: { state: string; codeChallenge: string }) =>
+      authorizeUrl: vi.fn((input: { state: string; codeChallenge: string }) =>
         new EbmApiClient({
           baseUrl: 'https://ebm.test',
           clientId: 'c',
@@ -119,23 +121,23 @@ describe('EbmConnectionService', () => {
           timeoutMs: 1000,
         }).authorizeUrl(input),
       ),
-      exchangeCode: jest.fn(async () => ({
+      exchangeCode: vi.fn(async () => ({
         accessToken: 'at-new',
         refreshToken: 'rt-new',
         expiresAt: new Date(NOW.getTime() + 3_600_000),
         scopes: ['ebm:read', 'invoices:create'],
       })),
-      account: jest.fn(async () => ({
+      account: vi.fn(async () => ({
         name: 'Umurage Ltd',
         tin: opts.accountTin ?? '102938475',
         branchId: '00',
         status: opts.accountStatus ?? 'approved',
         vatRegistered: true,
       })),
-      revoke: jest.fn(async () => undefined),
-      refresh: jest.fn(),
-      items: jest.fn(),
-      customers: jest.fn(),
+      revoke: vi.fn(async () => undefined),
+      refresh: vi.fn(),
+      items: vi.fn(),
+      customers: vi.fn(),
     };
 
     const live = {

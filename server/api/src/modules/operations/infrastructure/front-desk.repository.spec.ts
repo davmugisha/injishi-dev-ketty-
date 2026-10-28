@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { isOpenStayCollision } from './front-desk.repository';
 
 describe('isOpenStayCollision', () => {

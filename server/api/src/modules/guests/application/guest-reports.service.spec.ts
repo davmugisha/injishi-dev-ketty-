@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import type { OversightGrant } from '@injishi/contracts';
 
 import type { GuestRegistryRepository, ReportRowRaw } from '../infrastructure/guest-registry.repository';
@@ -33,20 +35,20 @@ const ROWS: ReportRowRaw[] = [
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function harness() {
   const guests = {
-    reportRows: jest.fn(async () => ROWS),
-    reportChain: jest.fn(async () => [
+    reportRows: vi.fn(async () => ROWS),
+    reportChain: vi.fn(async () => [
       { role: 'village_leader', step: 1, guests: 3, delivered: 3, opened: 2, flagged: 1, waiting: 0 },
       { role: 'cell_executive', step: 3, guests: 3, delivered: 0, opened: 0, flagged: 0, waiting: 3 },
     ]),
-    stayingNow: jest.fn(async () => 0),
-    purgedCounts: jest.fn(async () => ({ registered: 0, fromAbroad: 0, flagged: 0 })),
-    leader: jest.fn(async () => ({ name: 'Jeanne', email: 'leader@injishi.test' })),
-    placeIn: jest.fn(async () => null),
-    areaNames: jest.fn(async () => ({})),
+    stayingNow: vi.fn(async () => 0),
+    purgedCounts: vi.fn(async () => ({ registered: 0, fromAbroad: 0, flagged: 0 })),
+    leader: vi.fn(async () => ({ name: 'Jeanne', email: 'leader@injishi.test' })),
+    placeIn: vi.fn(async () => null),
+    areaNames: vi.fn(async () => ({})),
   };
   const console = {
-    posts: jest.fn(() => [{ oversightRole: 'village_leader', scopeLevel: 'village', villageId: 102070111 }]),
-    scopes: jest.fn(async () => []),
+    posts: vi.fn(() => [{ oversightRole: 'village_leader', scopeLevel: 'village', villageId: 102070111 }]),
+    scopes: vi.fn(async () => []),
   };
   const service = new GuestReportsService(guests as unknown as GuestRegistryRepository, console as unknown as LeaderConsoleService);
   return { service, guests };
