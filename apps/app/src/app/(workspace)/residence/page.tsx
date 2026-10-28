@@ -7,6 +7,7 @@ import {
   can,
   landlordScope,
   orNull,
+  rentalsMoney,
   rentalsOverview,
   rentalsProfile,
   rentalsSetup,
@@ -29,9 +30,10 @@ export default async function LandlordHomePage() {
   await requirePersona("ResidenceHome");
   const scope = await landlordScope();
   if (!scope) return <NoRentalsBusiness title="Home" />;
-  const [account, overview, summary, setup, profile, vacant] = await Promise.all([
+  const [account, overview, money, summary, setup, profile, vacant] = await Promise.all([
     currentAccount(),
     orNull(rentalsOverview()),
+    orNull(rentalsMoney()),
     orNull(rentalsSummary()),
     orNull(rentalsSetup()),
     orNull(rentalsProfile()),
@@ -50,6 +52,7 @@ export default async function LandlordHomePage() {
       businessName={scope.workspace.orgName ?? account?.persona.workspace?.name ?? "Your business"}
       today={overview?.today ?? today()}
       overview={overview}
+      money={money}
       summary={summary}
       setup={setup}
       // Units that can be let now, the longest empty first: the Units card's quick links to a new lease.

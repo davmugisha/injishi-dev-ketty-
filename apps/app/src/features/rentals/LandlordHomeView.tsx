@@ -4,6 +4,7 @@ import { Avatar, Chip } from "@heroui/react";
 import type {
   RentalsAttentionItem,
   RentalsAttentionKind,
+  RentalsMoney,
   RentalsOverview,
   RentalsSetupView,
   RentalsSummary,
@@ -12,9 +13,8 @@ import type {
 import { screenHref } from "@injishi/data";
 import {
   ActionLink,
-  CashFlowArea,
   CHART_COLOR,
-  CollectedVsExpectedArea,
+  type DashboardPeriod,
   EmptyBlock,
   formatDay,
   formatMoney,
@@ -22,19 +22,24 @@ import {
   Icon,
   type KpiItem,
   KpiStrip,
+  MoneyCalendar,
+  type MoneyDay,
   PageContent,
   PageHeader,
+  PeriodMenu,
+  type PeriodRange,
+  periodRange,
   SectionCard,
+  sumByBucket,
+  TrendArea,
   toneColor,
 } from "@injishi/ui";
 import NextLink from "next/link";
+import { useMemo, useState } from "react";
 import { SetupChecklist } from "./SetupChecklist";
 import { ATTENTION_HREF, ATTENTION_ICON } from "./shared";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
-
-const MONTH = new Intl.DateTimeFormat("en-GB", { month: "long", timeZone: "UTC" });
-const monthName = (key: string): string => MONTH.format(new Date(`${key}-15T12:00:00Z`));
 
 const UNITS = screenHref("Units");
 const LEASES = screenHref("Leases");
@@ -62,27 +67,34 @@ function tenantsLine(o: RentalsOverview, s: RentalsSummary | null): string {
   return `In ${formatNumber(o.occupiedUnits)} ${o.occupiedUnits === 1 ? "unit" : "units"}`;
 }
 
-function kpis(o: RentalsOverview, s: RentalsSummary | null): KpiItem[] {
-  const last = o.months.at(-2);
-  const now = o.months.at(-1);
-  const change = o.rent.collectedChangePercent;
-  const expected = o.rent.expectedThisMonthRwf;
-  const rate = expected > 0 ? Math.min(100, Math.round((o.rent.collectedThisMonthRwf / expected) * 100)) : null;
+/** The period's money, from the day by day figures: what came in, what was due, what went out. */
+function periodTotals(money: RentalsMoney | null, range: PeriodRange) {
+  const inRange = (day: string) => day >= range.from && day <= range.to;
+  const rent = (money?.charges ?? []).filter((c) => c.kind === "rent" && inRange(c.dueOn));
+  return {
+    collected: (money?.payments ?? []).filter((p) => inRange(p.day)).reduce((t, p) => t + p.amountRwf, 0),
+    expected: rent.reduce((t, c) => t + c.amountRwf, 0),
+    spent: (money?.spent ?? []).filter((e) => inRange(e.day)).reduce((t, e) => t + e.amountRwf, 0),
+  };
+}
+
+function kpis(o: RentalsOverview, s: RentalsSummary | null, money: RentalsMoney | null, range: PeriodRange): KpiItem[] {
+  const t = periodTotals(money, range);
+  const rate = t.expected > 0 ? Math.min(100, Math.round((t.collected / t.expected) * 100)) : null;
   return [
     {
       id: "collected",
       label: "Collected",
-      value: o.rent.collectedThisMonthRwf,
+      value: t.collected,
       icon: "Wallet",
       href: `${LEASES}?tab=active`,
       ...(rate !== null
-        ? { progress: rate, footnote: `${rate}% of ${formatMoney(expected)}` }
-        : { footnote: "No rent due" }),
-      ...(change !== null && last ? { trend: { percent: change, versus: `vs ${monthName(last.month)}` } } : {}),
+        ? { progress: rate, footnote: `${rate}% of ${formatMoney(t.expected)} due` }
+        : { footnote: `In ${range.words}` }),
     },
     {
       id: "overdue",
-      label: "Overdue",
+      label: "Overdue now",
       value: o.overdue.amountRwf,
       icon: "TriangleExclamation",
       status: o.overdue.amountRwf > 0 ? "danger" : undefined,
@@ -95,10 +107,10 @@ function kpis(o: RentalsOverview, s: RentalsSummary | null): KpiItem[] {
     {
       id: "spent",
       label: "Spent",
-      value: now?.spentRwf ?? 0,
+      value: t.spent,
       icon: "Receipt",
       href: screenHref("Expenses"),
-      footnote: `Expenses in ${monthName(o.month)}`,
+      footnote: `Expenses in ${range.words}`,
     },
     {
       id: "occupancy",
@@ -122,6 +134,32 @@ function kpis(o: RentalsOverview, s: RentalsSummary | null): KpiItem[] {
       href: `${LEASES}?tab=active`,
       footnote: tenantsLine(o, s),
     },
+  ];
+}
+
+/** What falls due and what arrived, day by day, for the payments calendar. */
+function calendarDays(money: RentalsMoney | null): MoneyDay[] {
+  if (!money) return [];
+  const short = (n: number) => formatMoney(n, { compact: true });
+  return [
+    ...money.charges
+      .filter((c) => c.status !== "paid")
+      .map((c) => ({
+        id: `c-${c.id}`,
+        day: c.dueOn,
+        title: `${c.unitLabel} ${short(c.amountRwf - c.paidRwf)}`,
+        detail: `${c.kind === "deposit" ? "Deposit" : "Rent"} of ${formatMoney(c.amountRwf - c.paidRwf)} ${
+          c.status === "overdue" ? "overdue" : "due"
+        } from ${c.tenantName}, ${c.unitLabel}`,
+        tone: c.status === "overdue" ? ("overdue" as const) : ("due" as const),
+      })),
+    ...money.payments.map((p) => ({
+      id: `p-${p.id}`,
+      day: p.day,
+      title: `${p.unitLabel} ${short(p.amountRwf)}`,
+      detail: `${formatMoney(p.amountRwf)} paid by ${p.tenantName}, ${p.unitLabel}`,
+      tone: "paid" as const,
+    })),
   ];
 }
 
@@ -295,6 +333,7 @@ export function LandlordHomeView({
   businessName,
   today,
   overview,
+  money,
   summary,
   setup,
   vacantUnits,
@@ -305,6 +344,8 @@ export function LandlordHomeView({
   businessName: string;
   today: string;
   overview: RentalsOverview | null;
+  /** The money by the day, for the period filter, the chart and the calendar. */
+  money: RentalsMoney | null;
   summary: RentalsSummary | null;
   setup: RentalsSetupView | null;
   vacantUnits: RentalUnitView[];
@@ -322,6 +363,32 @@ export function LandlordHomeView({
       Add unit
     </ActionLink>
   ) : undefined;
+  const [period, setPeriod] = useState<DashboardPeriod>("this_month");
+  const range = useMemo(() => periodRange(period, today), [period, today]);
+  const series = useMemo(() => {
+    const charges = (money?.charges ?? []).filter((c) => c.kind === "rent");
+    return [
+      sumByBucket(
+        range,
+        money?.payments ?? [],
+        (p) => p.day,
+        (p) => p.amountRwf,
+      ),
+      sumByBucket(
+        range,
+        charges,
+        (c) => c.dueOn,
+        (c) => c.amountRwf,
+      ),
+      sumByBucket(
+        range,
+        money?.spent ?? [],
+        (e) => e.day,
+        (e) => e.amountRwf,
+      ),
+    ];
+  }, [money, range]);
+  const days = useMemo(() => calendarDays(money), [money]);
   return (
     <PageContent>
       <PageHeader
@@ -334,6 +401,7 @@ export function LandlordHomeView({
         title={firstName ? `Welcome back, ${firstName}` : "Welcome back"}
         actions={
           <>
+            {money ? <PeriodMenu value={period} onChange={setPeriod} /> : null}
             <ActionLink href={`${LEASES}/new`} icon="FileText">
               New lease
             </ActionLink>
@@ -347,7 +415,7 @@ export function LandlordHomeView({
       />
 
       {overview ? (
-        <KpiStrip label={`Your homes in ${monthName(overview.month)}`} items={kpis(overview, summary)} />
+        <KpiStrip label={`Your homes in ${range.words}`} items={kpis(overview, summary, money, range)} />
       ) : (
         <EmptyBlock
           icon="Wallet"
@@ -356,36 +424,43 @@ export function LandlordHomeView({
         />
       )}
 
-      <div className="grid min-w-0 gap-5 lg:grid-cols-3">
-        {overview ? (
-          <CollectedVsExpectedArea
-            className="lg:col-span-2"
-            data={overview.months.map((m) => ({ month: m.month, expected: m.expectedRwf, collected: m.collectedRwf }))}
-            emptyAction={noUnits ? addUnit : undefined}
+      {money ? (
+        <div className="grid min-w-0 gap-5 lg:grid-cols-5">
+          <TrendArea
+            className="lg:col-span-3"
+            title="Money in and out"
+            description={`Rent collected against rent due, and expenses, in ${range.words}`}
+            range={range}
+            series={[
+              { key: "collected", label: "Collected", color: CHART_COLOR.cat(1) },
+              { key: "due", label: "Rent due", color: "var(--chart-other)", dashed: true },
+              { key: "spent", label: "Spent", color: CHART_COLOR.cat(5) },
+            ]}
+            values={series}
+            height={230}
+            empty={{
+              icon: "Wallet",
+              title: `No money moved in ${range.words}`,
+              action: noUnits ? addUnit : undefined,
+            }}
           />
-        ) : null}
-        {/* On a phone, setup and what needs attention come before the charts. */}
-        <div
-          className={cx(
-            "order-first flex min-w-0 flex-col gap-5 *:last:flex-1 lg:order-none",
-            !overview && "lg:col-span-3",
-          )}
-        >
-          {setupOpen ? <SetupChecklist setup={setup} /> : null}
-          {summary ? <NeedsAttention items={attention} /> : null}
-        </div>
-      </div>
-
-      {overview ? (
-        <div className="grid min-w-0 gap-5 lg:grid-cols-3">
-          <CashFlowArea
-            className="lg:col-span-2"
-            data={overview.months.map((m) => ({ month: m.month, moneyIn: m.collectedRwf, moneyOut: m.spentRwf }))}
-            emptyAction={noUnits ? addUnit : undefined}
-          />
-          <UnitsCard o={overview} vacant={vacantUnits} canLease={canLease} canAddUnits={canAddUnits} />
+          <SectionCard title="Payments calendar" className="lg:col-span-2" contentClassName="min-h-0 flex-1">
+            <MoneyCalendar days={days} today={today} className="h-[300px]" />
+          </SectionCard>
         </div>
       ) : null}
+
+      <div className="grid min-w-0 gap-5 lg:grid-cols-3">
+        {setupOpen ? <SetupChecklist setup={setup} /> : null}
+        {summary ? (
+          <div className={cx("min-w-0", setupOpen ? "" : "lg:col-span-2")}>
+            <NeedsAttention items={attention} />
+          </div>
+        ) : null}
+        {overview ? (
+          <UnitsCard o={overview} vacant={vacantUnits} canLease={canLease} canAddUnits={canAddUnits} />
+        ) : null}
+      </div>
     </PageContent>
   );
 }
