@@ -1,10 +1,4 @@
-// The guards' import chain reaches Better Auth, which ships as ESM Jest does not
-// transform, so it is stood in here.
-jest.mock('@injishi/auth', () => ({
-  DEMO_OTP_CODE: '123456',
-  DEMO_COOKIE_PREFIX: 'injishi-demo',
-  createAuth: (config: unknown) => ({ config }),
-}));
+import { describe, expect, it, vi } from 'vitest';
 
 import { BadRequestException, ForbiddenException, type ExecutionContext, UnprocessableEntityException } from '@nestjs/common';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
@@ -42,10 +36,10 @@ function access(roles: StaffRole[]): StaffAccess {
 }
 
 function guardFor(resolved: StaffAccess, steppedUp = true): StaffGuard {
-  const workspaces = { staffAccessForUser: jest.fn().mockResolvedValue(resolved) } as unknown as WorkspaceService;
+  const workspaces = { staffAccessForUser: vi.fn().mockResolvedValue(resolved) } as unknown as WorkspaceService;
   const twoFactor = {
-    assertSatisfied: jest.fn().mockResolvedValue(undefined),
-    stateFor: jest.fn().mockResolvedValue({ verified: steppedUp }),
+    assertSatisfied: vi.fn().mockResolvedValue(undefined),
+    stateFor: vi.fn().mockResolvedValue({ verified: steppedUp }),
   } as unknown as TwoFactorService;
   return new StaffGuard(workspaces, twoFactor, new Reflector());
 }
@@ -133,8 +127,8 @@ describe('AppointOfficerRequest · the form’s rules', () => {
 
 describe('LocalLeadersService · before anything is written', () => {
   function setup(resolved: Record<string, unknown> | null): { db: Database; service: LocalLeadersService } {
-    const db = { transaction: jest.fn() } as unknown as Database;
-    const repo = { resolve: jest.fn(async () => resolved) } as unknown as LocalLeadersRepository;
+    const db = { transaction: vi.fn() } as unknown as Database;
+    const repo = { resolve: vi.fn(async () => resolved) } as unknown as LocalLeadersRepository;
     const service = new LocalLeadersService(db, repo, {} as OversightGrantsService, {} as GuestRoutingService, {} as GuestNotifier);
     return { db, service };
   }

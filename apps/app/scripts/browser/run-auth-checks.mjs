@@ -17,7 +17,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../.
 
 const checks = [
   ["auth package tests", "pnpm --filter @injishi/auth test"],
-  ["API auth specs", "pnpm --filter @injishi/api exec jest src/modules/auth"],
+  ["API auth specs", "pnpm --filter @injishi/api exec vitest run src/modules/auth"],
   ["app sign-in unit tests", "pnpm --filter @injishi/app exec tsx --test tests/*.test.ts"],
   ["web tests", "pnpm --filter @injishi/web test"],
   ["app typecheck", "pnpm --filter @injishi/app typecheck"],

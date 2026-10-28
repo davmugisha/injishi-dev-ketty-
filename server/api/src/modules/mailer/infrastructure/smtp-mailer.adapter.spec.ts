@@ -1,14 +1,16 @@
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+
 // Nodemailer is stood in for by a recorder: this spec pins what the adapter
 // ASKS the transport for (URL, bounds, message fields) and what it lets out of
 // a failure. Delivery to a real server, and the bounds actually firing, are
 // the integration spec's job (`smtp-mailer.integration-spec.ts`).
-const mockSendMail = jest.fn();
-const mockClose = jest.fn();
-const mockCreateTransport = jest.fn<
-  { sendMail: jest.Mock; close: jest.Mock },
-  unknown[]
->(() => ({ sendMail: mockSendMail, close: mockClose }));
-jest.mock('nodemailer', () => ({
+const mockSendMail = vi.fn();
+const mockClose = vi.fn();
+const mockCreateTransport = vi.fn<(...args: unknown[]) => { sendMail: Mock; close: Mock }>(() => ({
+  sendMail: mockSendMail,
+  close: mockClose,
+}));
+vi.mock('nodemailer', () => ({
   createTransport: (...args: unknown[]) => mockCreateTransport(...args),
 }));
 

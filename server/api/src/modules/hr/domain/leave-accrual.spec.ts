@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { dueAccruals } from './leave-accrual';
 
 describe('leave accrual (ADR-058 AC-L2)', () => {

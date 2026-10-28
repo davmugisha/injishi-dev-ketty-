@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   GUESTHOUSE_ID,
   KIGALI_ID,

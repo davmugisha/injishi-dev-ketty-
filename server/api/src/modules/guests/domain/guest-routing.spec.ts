@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { type OversightGrant } from '@injishi/contracts';
 
 import { type LeaderGrant, grantCovers, grantsCovering, leaderGrants, planRoutes, postKey, reportAreaLevel, routeArea } from './guest-routing';

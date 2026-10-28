@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import type { Queue } from 'bullmq';
 
 import type { Database } from '../../../shared/database/database.module';
@@ -28,25 +30,25 @@ describe('PaymentCompensationService', () => {
 
   function build(): {
     service: PaymentCompensationService;
-    queue: { add: jest.Mock; getJob: jest.Mock };
+    queue: { add: Mock; getJob: Mock };
     order: string[];
   } {
     const order: string[] = [];
     const queue = {
-      add: jest.fn(async () => {
+      add: vi.fn(async () => {
         order.push('queued');
       }),
-      getJob: jest.fn().mockResolvedValue(undefined),
+      getJob: vi.fn().mockResolvedValue(undefined),
     };
     const db = {
-      insert: jest.fn(() => ({
-        values: jest.fn(() => {
+      insert: vi.fn(() => ({
+        values: vi.fn(() => {
           order.push('recorded');
-          return { onConflictDoNothing: jest.fn().mockResolvedValue(undefined) };
+          return { onConflictDoNothing: vi.fn().mockResolvedValue(undefined) };
         }),
       })),
-      update: jest.fn(() => ({
-        set: jest.fn(() => ({ where: jest.fn().mockResolvedValue(undefined) })),
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })),
       })),
     };
     const service = new PaymentCompensationService(
@@ -85,15 +87,15 @@ describe('PaymentCompensationService', () => {
    * because we keep failures (`removeOnFail: false`).
    */
   function bullLikeQueue(initial: Record<string, string> = {}): {
-    queue: Record<string, jest.Mock>;
+    queue: Record<string, Mock>;
     states: Map<string, string>;
   } {
     const states = new Map(Object.entries(initial));
     const queue = {
-      add: jest.fn(async (_name: string, _data: unknown, opts: { jobId: string }) => {
+      add: vi.fn(async (_name: string, _data: unknown, opts: { jobId: string }) => {
         if (!states.has(opts.jobId)) states.set(opts.jobId, 'waiting');
       }),
-      getJob: jest.fn(async (id: string) =>
+      getJob: vi.fn(async (id: string) =>
         states.has(id)
           ? { getState: async () => states.get(id), remove: async () => void states.delete(id) }
           : undefined,
@@ -102,7 +104,7 @@ describe('PaymentCompensationService', () => {
     return { queue, states };
   }
 
-  function drainingService(queue: Record<string, jest.Mock>): PaymentCompensationService {
+  function drainingService(queue: Record<string, Mock>): PaymentCompensationService {
     const due = [
       {
         kind: 'refund',
@@ -115,7 +117,7 @@ describe('PaymentCompensationService', () => {
       },
     ];
     const db = {
-      select: jest.fn(() => ({
+      select: vi.fn(() => ({
         from: () => ({ where: () => ({ orderBy: () => ({ limit: async () => due }) }) }),
       })),
     };

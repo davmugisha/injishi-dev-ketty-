@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { BadRequestException, ConflictException } from '@nestjs/common';
 
 import type {
@@ -78,36 +80,36 @@ describe('BookingService money ordering', () => {
 
   /**
    * The doubles, typed so the assertions can read `.mock.calls` off them.
-   * `jest.Mock` rather than the real interfaces: what these tests check is what
+   * `Mock` rather than the real interfaces: what these tests check is what
    * was called, in what order, with which key.
    */
   interface Harness {
     service: BookingService;
-    ebm: { saleConfirmed: jest.Mock };
+    ebm: { saleConfirmed: Mock };
     repo: {
-      create: jest.Mock;
-      findByAttemptKey: jest.Mock;
+      create: Mock;
+      findByAttemptKey: Mock;
     };
     payments: {
       mode: 'mock';
-      captureEscrow: jest.Mock;
-      releaseEscrow: jest.Mock;
-      refund: jest.Mock;
-      voidPending: jest.Mock;
-      payout: jest.Mock;
-      chargeRecurring: jest.Mock;
-      chargeOneTimeFee: jest.Mock;
-      fetchTransaction: jest.Mock;
+      captureEscrow: Mock;
+      releaseEscrow: Mock;
+      refund: Mock;
+      voidPending: Mock;
+      payout: Mock;
+      chargeRecurring: Mock;
+      chargeOneTimeFee: Mock;
+      fetchTransaction: Mock;
     };
-    listings: { findBookableRoomType: jest.Mock };
-    compensations: { enqueue: jest.Mock };
+    listings: { findBookableRoomType: Mock };
+    compensations: { enqueue: Mock };
     attempts: {
-      claimHold: jest.Mock;
-      attachCapture: jest.Mock;
-      releaseHold: jest.Mock;
-      markBooked: jest.Mock;
-      markRefunded: jest.Mock;
-      statusOf: jest.Mock;
+      claimHold: Mock;
+      attachCapture: Mock;
+      releaseHold: Mock;
+      markBooked: Mock;
+      markRefunded: Mock;
+      statusOf: Mock;
     };
     order: string[];
   }
@@ -116,15 +118,15 @@ describe('BookingService money ordering', () => {
   function holdDouble(soldOut: boolean, order: string[]): Harness['attempts'] {
     const hold = { id: 'hold-1', attemptToken: 'tok', adapterRef: null };
     return {
-      claimHold: jest.fn(async () => {
+      claimHold: vi.fn(async () => {
         order.push('hold');
         return soldOut ? { kind: 'sold_out' } : { kind: 'held', row: hold };
       }),
-      attachCapture: jest.fn(async (row: object, r: PaymentReceipt) => ({ ...row, adapterRef: r.adapterRef })),
-      releaseHold: jest.fn().mockResolvedValue(undefined),
-      markBooked: jest.fn().mockResolvedValue(undefined),
-      markRefunded: jest.fn().mockResolvedValue(undefined),
-      statusOf: jest.fn(() => ({ state: 'prompting' })),
+      attachCapture: vi.fn(async (row: object, r: PaymentReceipt) => ({ ...row, adapterRef: r.adapterRef })),
+      releaseHold: vi.fn().mockResolvedValue(undefined),
+      markBooked: vi.fn().mockResolvedValue(undefined),
+      markRefunded: vi.fn().mockResolvedValue(undefined),
+      statusOf: vi.fn(() => ({ state: 'prompting' })),
     };
   }
 
@@ -141,26 +143,26 @@ describe('BookingService money ordering', () => {
     const payments = {
       mode: 'mock' as const,
       captureEscrow: overrides.captureRejects
-        ? jest.fn().mockRejectedValue(overrides.captureRejects)
-        : jest.fn().mockResolvedValue(overrides.captureReceipt ?? receipt),
-      releaseEscrow: jest.fn().mockResolvedValue(receipt),
+        ? vi.fn().mockRejectedValue(overrides.captureRejects)
+        : vi.fn().mockResolvedValue(overrides.captureReceipt ?? receipt),
+      releaseEscrow: vi.fn().mockResolvedValue(receipt),
       refund: overrides.refundRejects
-        ? jest.fn().mockRejectedValue(overrides.refundRejects)
-        : jest.fn().mockResolvedValue({ ...receipt, replayed: true }),
-      voidPending: jest.fn().mockResolvedValue(receipt),
-      payout: jest.fn(),
-      chargeRecurring: jest.fn(),
-      chargeOneTimeFee: jest.fn(),
-      fetchTransaction: jest.fn().mockResolvedValue(null),
+        ? vi.fn().mockRejectedValue(overrides.refundRejects)
+        : vi.fn().mockResolvedValue({ ...receipt, replayed: true }),
+      voidPending: vi.fn().mockResolvedValue(receipt),
+      payout: vi.fn(),
+      chargeRecurring: vi.fn(),
+      chargeOneTimeFee: vi.fn(),
+      fetchTransaction: vi.fn().mockResolvedValue(null),
     };
 
     const repo = {
-      findByAttemptKey: jest
+      findByAttemptKey: vi
         .fn()
         .mockResolvedValue(overrides.settledAttempt ?? null),
       create: overrides.createRejects
-        ? jest.fn().mockRejectedValue(overrides.createRejects)
-        : jest.fn().mockResolvedValue({
+        ? vi.fn().mockRejectedValue(overrides.createRejects)
+        : vi.fn().mockResolvedValue({
             id: '88888888-8888-8888-8888-888888888888',
             reference: 'BK-ABC123',
             status: overrides.createdStatus ?? 'confirmed',
@@ -171,15 +173,15 @@ describe('BookingService money ordering', () => {
     };
 
     const listings = {
-      findBookableRoomType: jest.fn().mockResolvedValue(roomType),
+      findBookableRoomType: vi.fn().mockResolvedValue(roomType),
     };
 
     const compensations = {
-      enqueue: jest.fn().mockResolvedValue(undefined),
-      cancel: jest.fn().mockResolvedValue(undefined),
+      enqueue: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn().mockResolvedValue(undefined),
     };
 
-    const ebm = { saleConfirmed: jest.fn().mockResolvedValue(undefined) };
+    const ebm = { saleConfirmed: vi.fn().mockResolvedValue(undefined) };
 
     // ADR-047 D-j: where a pending capture goes. A recording double, so a test
     // can assert the wait was BEGUN rather than the charge voided.
@@ -198,7 +200,7 @@ describe('BookingService money ordering', () => {
       ebm as unknown as EbmSaleTrigger,
       // ADR-047: the guest is told what happened. A recording double rather
       // than a no-op, so a test can assert WHICH event was raised.
-      { notify: jest.fn().mockResolvedValue(undefined) } as unknown as BookingNotificationsService,
+      { notify: vi.fn().mockResolvedValue(undefined) } as unknown as BookingNotificationsService,
       // ADR-047 D-j: where a pending capture goes. These tests are about the
       // money ORDERING and every one of them settles inside the request, so
       // this is never reached — it is here so the graph is complete.
@@ -414,7 +416,7 @@ describe('BookingService money ordering', () => {
    * logged operator problem (ADR-020 A3).
    */
   /**
-   * Against the REAL adapter, not a jest double.
+   * Against the REAL adapter, not a test double.
    *
    * This is the test that was missing, and its absence hid a shipped bug. Every
    * other test here asserts `payments.refund` was CALLED, which a mock happily
@@ -429,27 +431,27 @@ describe('BookingService money ordering', () => {
    */
   it('really reverses the capture, against the actual adapter', async () => {
     const adapter = new MockPaymentAdapter();
-    const captureSpy = jest.spyOn(adapter, 'captureEscrow');
-    const refundSpy = jest.spyOn(adapter, 'refund');
+    const captureSpy = vi.spyOn(adapter, 'captureEscrow');
+    const refundSpy = vi.spyOn(adapter, 'refund');
 
     const repo = {
-      findByAttemptKey: jest.fn().mockResolvedValue(null),
-      create: jest.fn().mockRejectedValue(new Error('database is on fire')),
+      findByAttemptKey: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockRejectedValue(new Error('database is on fire')),
     };
-    const listings = { findBookableRoomType: jest.fn().mockResolvedValue(roomType) };
+    const listings = { findBookableRoomType: vi.fn().mockResolvedValue(roomType) };
     const compensations = {
-      enqueue: jest.fn().mockResolvedValue(undefined),
-      cancel: jest.fn().mockResolvedValue(undefined),
+      enqueue: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn().mockResolvedValue(undefined),
     };
     const service = new BookingService(
       repo as unknown as BookingRepository,
       listings as unknown as ListingService,
       adapter,
       compensations as unknown as PaymentCompensationService,
-      { saleConfirmed: jest.fn() } as unknown as EbmSaleTrigger,
+      { saleConfirmed: vi.fn() } as unknown as EbmSaleTrigger,
       // ADR-047: the guest is told what happened. A recording double rather
       // than a no-op, so a test can assert WHICH event was raised.
-      { notify: jest.fn().mockResolvedValue(undefined) } as unknown as BookingNotificationsService,
+      { notify: vi.fn().mockResolvedValue(undefined) } as unknown as BookingNotificationsService,
       // ADR-047 D-j: where a pending capture goes. These tests are about the
       // money ORDERING and every one of them settles inside the request, so
       // this is never reached — it is here so the graph is complete.

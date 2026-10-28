@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { ConflictException } from '@nestjs/common';
 import { addDays, type LeaseStatus } from '@injishi/contracts';
 
@@ -79,38 +81,38 @@ function harness(opts: Opts = {}) {
   } as unknown as LeaseRecord;
   const db = { transaction: async <T>(cb: (t: unknown) => Promise<T>): Promise<T> => cb({}) };
   const leases = {
-    find: jest.fn(async () => leaseRecord),
-    lock: jest.fn(async () => lease),
-    update: jest.fn(async (_tx: unknown, id: string, values: unknown) => record('updateLease')(id, values)),
-    revokeLiveInvitation: jest.fn(async () => 'inv-1'),
+    find: vi.fn(async () => leaseRecord),
+    lock: vi.fn(async () => lease),
+    update: vi.fn(async (_tx: unknown, id: string, values: unknown) => record('updateLease')(id, values)),
+    revokeLiveInvitation: vi.fn(async () => 'inv-1'),
   };
   const signing = {
-    voidLiveSignatures: jest.fn(async (_tx: unknown, id: string, note: string) => (record('void')(id, note), ['sig-1', 'sig-2'])),
-    consumeLiveCodes: jest.fn(async () => 1),
-    accountEmail: jest.fn(async () => 'aimee@example.rw'),
+    voidLiveSignatures: vi.fn(async (_tx: unknown, id: string, note: string) => (record('void')(id, note), ['sig-1', 'sig-2'])),
+    consumeLiveCodes: vi.fn(async () => 1),
+    accountEmail: vi.fn(async () => 'aimee@example.rw'),
   };
   const charges = {
-    rentPeriodsRaised: jest.fn(async () => opts.raised ?? []),
-    raiseRent: jest.fn(async (_tx: unknown, input: { periodStart: string; dueOn: string; amountRwf: number }) => {
+    rentPeriodsRaised: vi.fn(async () => opts.raised ?? []),
+    raiseRent: vi.fn(async (_tx: unknown, input: { periodStart: string; dueOn: string; amountRwf: number }) => {
       record('rent')(input);
       return { id: `charge-${input.periodStart}`, kind: 'rent', periodEnd: null, ...input };
     }),
-    openCharges: jest.fn(async () => [
+    openCharges: vi.fn(async () => [
       { kind: 'deposit', periodStart: null, dueOn: TODAY, amountRwf: 620_000, paidRwf: 0 },
       { kind: 'rent', periodStart: TODAY, dueOn: TODAY, amountRwf: 80_000, paidRwf: 0 },
     ]),
-    voidUnpaidDeposit: jest.fn(async () => opts.deposit ?? 'voided'),
+    voidUnpaidDeposit: vi.fn(async () => opts.deposit ?? 'voided'),
   };
   const context = {
-    ensureProfile: jest.fn(async () => ({ autoStartLeases: opts.autoStart ?? true })),
-    org: jest.fn(async () => ({ legalName: 'Amani Residences' })),
+    ensureProfile: vi.fn(async () => ({ autoStartLeases: opts.autoStart ?? true })),
+    org: vi.fn(async () => ({ legalName: 'Amani Residences' })),
   };
-  const events = { write: jest.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
-  const audit = { write: jest.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
-  const reads = { detail: jest.fn(async () => ({ id: LEASE }) as never) };
+  const events = { write: vi.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
+  const audit = { write: vi.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
+  const reads = { detail: vi.fn(async () => ({ id: LEASE }) as never) };
   const mailer = {
     appUrl: 'http://localhost:3002',
-    send: jest.fn(async (_ref: string, to: string, mail: { subject: string; lines: string[] }) => (record('mail')(to, mail), true)),
+    send: vi.fn(async (_ref: string, to: string, mail: { subject: string; lines: string[] }) => (record('mail')(to, mail), true)),
   };
   class Pinned extends LeaseLifecycleService {
     protected override today(): string {

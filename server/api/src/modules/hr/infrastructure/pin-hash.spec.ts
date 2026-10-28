@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { hashPin, newDeviceToken, newPairingCode, sha256Hex, verifyPin } from './pin-hash';
 
 describe('kiosk PIN hashing (058-time AC-TM11)', () => {

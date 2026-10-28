@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 
 import type { StorageService } from '../../storage/application/storage.service';
@@ -52,11 +54,11 @@ describe('ListingService, public photographs', () => {
     facilities: [],
   };
 
-  function build(repo: Partial<Record<keyof ListingRepository, jest.Mock>>): {
+  function build(repo: Partial<Record<keyof ListingRepository, Mock>>): {
     service: ListingService;
-    signedUrl: jest.Mock;
+    signedUrl: Mock;
   } {
-    const signedUrl = jest.fn().mockResolvedValue('https://storage.test/signed?X-Amz-Signature=abc');
+    const signedUrl = vi.fn().mockResolvedValue('https://storage.test/signed?X-Amz-Signature=abc');
     const service = new ListingService(
       repo as unknown as ListingRepository,
       { signedUrl } as unknown as StorageService,
@@ -66,7 +68,7 @@ describe('ListingService, public photographs', () => {
   }
 
   it('puts a photo route URL on the property read for each photo, in order, and no key', async () => {
-    const { service } = build({ findPublishedPropertyBySlug: jest.fn().mockResolvedValue(record) });
+    const { service } = build({ findPublishedPropertyBySlug: vi.fn().mockResolvedValue(record) });
     const detail = await service.getPublishedPropertyBySlug('umurage-guesthouse');
     expect(detail.photos).toEqual([
       `${ORIGIN}/api/v1/properties/photos/${PHOTO_A}`,
@@ -90,7 +92,7 @@ describe('ListingService, public photographs', () => {
       maxGuests: 2,
       roomTypeCount: 1,
     };
-    const { service } = build({ findPublishedCards: jest.fn().mockResolvedValue([card]) });
+    const { service } = build({ findPublishedCards: vi.fn().mockResolvedValue([card]) });
     const [listed] = await service.listPublishedProperties();
     expect(listed.photos).toEqual([photoRouteUrl(ORIGIN, PHOTO_B)]);
     expect(listed).not.toHaveProperty('photoIds');
@@ -123,17 +125,17 @@ describe('ListingService, public photographs', () => {
         minStay: null,
       },
     });
-    const withCover = build({ findBookableRoom: jest.fn().mockResolvedValue(room(PHOTO_A)) });
+    const withCover = build({ findBookableRoom: vi.fn().mockResolvedValue(room(PHOTO_A)) });
     const bookable = await withCover.service.getBookableRoom('44444444-4444-4444-8444-444444444444');
     expect(bookable.property.photo).toBe(photoRouteUrl(ORIGIN, PHOTO_A));
     expect(bookable.property).not.toHaveProperty('coverPhotoId');
 
-    const without = build({ findBookableRoom: jest.fn().mockResolvedValue(room(null)) });
+    const without = build({ findBookableRoom: vi.fn().mockResolvedValue(room(null)) });
     expect((await without.service.getBookableRoom('x')).property.photo).toBeNull();
   });
 
   it('signs a visible photo for a few minutes', async () => {
-    const findPublicPhotoKey = jest.fn().mockResolvedValue(KEY_A);
+    const findPublicPhotoKey = vi.fn().mockResolvedValue(KEY_A);
     const { service, signedUrl } = build({ findPublicPhotoKey });
     await expect(service.publicPhotoUrl(PHOTO_A)).resolves.toContain('X-Amz-Signature');
     expect(findPublicPhotoKey).toHaveBeenCalledWith(PHOTO_A);
@@ -142,7 +144,7 @@ describe('ListingService, public photographs', () => {
   });
 
   it('refuses a photo the visibility rule does not return with a bare 404, signing nothing', async () => {
-    const { service, signedUrl } = build({ findPublicPhotoKey: jest.fn().mockResolvedValue(null) });
+    const { service, signedUrl } = build({ findPublicPhotoKey: vi.fn().mockResolvedValue(null) });
     const refusal = service.publicPhotoUrl(PHOTO_B);
     await expect(refusal).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.publicPhotoUrl(PHOTO_B)).rejects.toThrow('Not Found');
@@ -150,7 +152,7 @@ describe('ListingService, public photographs', () => {
   });
 
   it('refuses a photo id that is not a uuid with the same 404, without querying', async () => {
-    const findPublicPhotoKey = jest.fn();
+    const findPublicPhotoKey = vi.fn();
     const { service, signedUrl } = build({ findPublicPhotoKey });
     for (const id of ['not-a-uuid', '../../etc/passwd', KEY_A, '']) {
       await expect(service.publicPhotoUrl(id)).rejects.toBeInstanceOf(NotFoundException);
@@ -215,16 +217,16 @@ describe('ListingService, what counts as bookable', () => {
     };
   }
 
-  function build(findBookableRoom: jest.Mock): ListingService {
+  function build(findBookableRoom: Mock): ListingService {
     return new ListingService(
       { findBookableRoom } as unknown as ListingRepository,
-      { signedUrl: jest.fn() } as unknown as StorageService,
+      { signedUrl: vi.fn() } as unknown as StorageService,
       ORIGIN,
     );
   }
 
   it('refuses a residence room type with the same 404 as an unknown one', async () => {
-    const service = build(jest.fn().mockResolvedValue(roomRecord('residence')));
+    const service = build(vi.fn().mockResolvedValue(roomRecord('residence')));
     await expect(
       service.getBookableRoom('55555555-5555-4555-8555-555555555555'),
     ).rejects.toBeInstanceOf(NotFoundException);
@@ -236,14 +238,14 @@ describe('ListingService, what counts as bookable', () => {
     // unmigrated row is refused rather than sold.
     const record = roomRecord('residence');
     expect(record.roomType.bookingMode).toBe('request_to_book');
-    const service = build(jest.fn().mockResolvedValue(record));
+    const service = build(vi.fn().mockResolvedValue(record));
     await expect(
       service.getBookableRoom(record.roomType.id),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('still answers a hospitality room type, so the guard refuses only residence', async () => {
-    const service = build(jest.fn().mockResolvedValue(roomRecord('hospitality')));
+    const service = build(vi.fn().mockResolvedValue(roomRecord('hospitality')));
     const room = await service.getBookableRoom('55555555-5555-4555-8555-555555555555');
     expect(room.roomType.domain).toBe('hospitality');
     expect(room.property.photo).toBeNull();

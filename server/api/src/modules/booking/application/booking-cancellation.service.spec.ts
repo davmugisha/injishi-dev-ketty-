@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 
 import { PaymentUnavailableError, type PaymentPort } from '../../payments/domain/payment-port';
@@ -51,34 +53,34 @@ describe('BookingCancellationService', () => {
 
   function build(
     row: CancellableBooking | null,
-    opts: { providerDown?: boolean; recorded?: boolean; plan?: { oweTx: jest.Mock; announce: jest.Mock } } = {},
+    opts: { providerDown?: boolean; recorded?: boolean; plan?: { oweTx: Mock; announce: Mock } } = {},
   ): {
     service: BookingCancellationService;
-    repo: { findForCancellation: jest.Mock; recordCancellation: jest.Mock; recordNoShow: jest.Mock };
-    payments: { releaseEscrow: jest.Mock; refund: jest.Mock };
-    notifications: { notify: jest.Mock };
-    refunds: { plan: jest.Mock };
+    repo: { findForCancellation: Mock; recordCancellation: Mock; recordNoShow: Mock };
+    payments: { releaseEscrow: Mock; refund: Mock };
+    notifications: { notify: Mock };
+    refunds: { plan: Mock };
   } {
     const repo = {
-      findForCancellation: jest.fn().mockResolvedValue(row),
+      findForCancellation: vi.fn().mockResolvedValue(row),
       // The ledger echoes what it was asked to record, as the real one does
       // when no refund is owed (a payment from before the bank record).
-      recordCancellation: jest.fn(async (input: { outcome: string; refundRwf: number }) =>
+      recordCancellation: vi.fn(async (input: { outcome: string; refundRwf: number }) =>
         opts.recorded === false ? null : recorded(input),
       ),
-      recordNoShow: jest.fn(async (input: { outcome: string | null; refundRwf: number | null }) =>
+      recordNoShow: vi.fn(async (input: { outcome: string | null; refundRwf: number | null }) =>
         opts.recorded === false ? null : recorded(input),
       ),
     };
     const fail = (): Promise<never> => Promise.reject(new PaymentUnavailableError('down', 'k'));
     const payments = {
-      releaseEscrow: jest.fn(opts.providerDown ? fail : () => Promise.resolve({})),
-      refund: jest.fn(opts.providerDown ? fail : () => Promise.resolve({})),
+      releaseEscrow: vi.fn(opts.providerDown ? fail : () => Promise.resolve({})),
+      refund: vi.fn(opts.providerDown ? fail : () => Promise.resolve({})),
     };
-    const notifications = { notify: jest.fn().mockResolvedValue(undefined) };
+    const notifications = { notify: vi.fn().mockResolvedValue(undefined) };
     // 073 AC-13: by default no bank record stands behind these payments, so the
     // provider path runs; `plan` makes the refund owed instead.
-    const refunds = { plan: jest.fn().mockResolvedValue(opts.plan ?? null) };
+    const refunds = { plan: vi.fn().mockResolvedValue(opts.plan ?? null) };
     const service = new BookingCancellationService(
       repo as unknown as BookingRepository,
       payments as unknown as PaymentPort,
@@ -223,7 +225,7 @@ describe('BookingCancellationService', () => {
   });
 
   it('cancels now with the refund owed in the same write, and never calls the provider (073 AC-13)', async () => {
-    const plan = { oweTx: jest.fn(), announce: jest.fn().mockResolvedValue(undefined) };
+    const plan = { oweTx: vi.fn(), announce: vi.fn().mockResolvedValue(undefined) };
     const { service, repo, payments, refunds } = build(booking(), { plan });
     repo.recordCancellation.mockResolvedValue({ id: 'b', reference: 'r', paymentStatus: 'refund_pending', refundRwf: 100_000 });
 

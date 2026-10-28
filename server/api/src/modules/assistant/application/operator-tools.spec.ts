@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { KIGALI, MUSANZE, scoped } from '../testing/fake-operator';
 import { fakeReads } from '../testing/fake-listings';
 import { ToolSet } from './assistant-tools';

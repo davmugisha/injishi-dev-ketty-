@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { Global, Module, type Type } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
@@ -90,11 +92,10 @@ describe('SmsModule under NODE_ENV=production', () => {
     return ref.get<SmsPort>(SMS_PORT);
   }
 
-  it('loads without running anything: the file itself never throws', () => {
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- a fresh load is the thing under test
-      expect(() => require('./sms.module')).not.toThrow();
-    });
+  it('loads without running anything: the file itself never throws', async () => {
+    // A fresh load is the thing under test, so the copy imported above must not be reused.
+    vi.resetModules();
+    await expect(import('./sms.module')).resolves.toHaveProperty('SmsModule');
   });
 
   it('boots the demo (production NODE_ENV, sample database) on the mock', async () => {

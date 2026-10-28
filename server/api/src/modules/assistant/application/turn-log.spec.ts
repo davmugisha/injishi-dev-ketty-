@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { AssistantModelPort, ModelTurn } from '../domain/model-port';
 import { MockAssistantModel } from '../infrastructure/mock-model.adapter';
 import { defaultProposals } from '../testing/fake-actions';

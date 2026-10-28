@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
 import { MockPaymentAdapter, mockCallbackSignature } from '../../payments/infrastructure/mock-payment.adapter';
@@ -56,8 +58,8 @@ function harness(opts: Opts = {}) {
     unitLabel: 'A-01',
     propertyName: 'Amani Residences',
   } as unknown as LeaseRecord;
-  const tenancies = { record: jest.fn(async () => leaseRecord) };
-  const leases = { lock: jest.fn(async () => leaseRecord.lease), find: jest.fn(async () => leaseRecord) };
+  const tenancies = { record: vi.fn(async () => leaseRecord) };
+  const leases = { lock: vi.fn(async () => leaseRecord.lease), find: vi.fn(async () => leaseRecord) };
   const asRecord = (p: PaymentRow): PaymentRecord => ({
     payment: p,
     allocations: ((calls.allocate ?? []) as unknown[][]).filter((c) => (c[0] as { paymentId: string }).paymentId === p.id).map(() => ({ amountRwf: Math.min(p.amountRwf, 90_323), charge: charges[0]! }) as never),
@@ -65,51 +67,51 @@ function harness(opts: Opts = {}) {
     recordedByName: null,
   });
   const payments = {
-    findByKey: jest.fn(async (key: string) => [...rows.values()].find((r) => r.idempotencyKey === key) ?? null),
-    find: jest.fn(async (id: string) => rows.get(id) ?? null),
-    findByAdapterRef: jest.fn(async (adapterRef: string) => [...rows.values()].find((r) => r.adapterRef === adapterRef) ?? null),
-    lock: jest.fn(async (_tx: unknown, id: string) => rows.get(id) ?? null),
-    record: jest.fn(async (id: string) => (rows.has(id) ? asRecord(rows.get(id)!) : null)),
-    records: jest.fn(async (list: PaymentRow[]) => list.map(asRecord)),
-    forLease: jest.fn(async () => [...rows.values()]),
-    pendingForLease: jest.fn(async () => [...rows.values()].find((r) => r.status === 'pending') ?? null),
-    pending: jest.fn(async () => [...rows.values()].filter((r) => r.status === 'pending')),
-    chargesOf: jest.fn(async () => charges),
-    credits: jest.fn(async () => []),
-    insert: jest.fn(async (_tx: unknown, values: Partial<PaymentRow>) => {
+    findByKey: vi.fn(async (key: string) => [...rows.values()].find((r) => r.idempotencyKey === key) ?? null),
+    find: vi.fn(async (id: string) => rows.get(id) ?? null),
+    findByAdapterRef: vi.fn(async (adapterRef: string) => [...rows.values()].find((r) => r.adapterRef === adapterRef) ?? null),
+    lock: vi.fn(async (_tx: unknown, id: string) => rows.get(id) ?? null),
+    record: vi.fn(async (id: string) => (rows.has(id) ? asRecord(rows.get(id)!) : null)),
+    records: vi.fn(async (list: PaymentRow[]) => list.map(asRecord)),
+    forLease: vi.fn(async () => [...rows.values()]),
+    pendingForLease: vi.fn(async () => [...rows.values()].find((r) => r.status === 'pending') ?? null),
+    pending: vi.fn(async () => [...rows.values()].filter((r) => r.status === 'pending')),
+    chargesOf: vi.fn(async () => charges),
+    credits: vi.fn(async () => []),
+    insert: vi.fn(async (_tx: unknown, values: Partial<PaymentRow>) => {
       const row = { id: `p-${rows.size + 1}`, createdAt: new Date(), ...values } as PaymentRow;
       rows.set(row.id, row);
       record('insert')(values);
       return row;
     }),
-    update: jest.fn(async (_tx: unknown, id: string, values: Partial<PaymentRow>) => {
+    update: vi.fn(async (_tx: unknown, id: string, values: Partial<PaymentRow>) => {
       record('update')(id, values);
       rows.set(id, { ...rows.get(id)!, ...values });
     }),
-    allocate: jest.fn(async (_tx: unknown, input: { paymentId: string; amountRwf: number }) => {
+    allocate: vi.fn(async (_tx: unknown, input: { paymentId: string; amountRwf: number }) => {
       record('allocate')(input);
       const take = Math.min(input.amountRwf, 90_323);
       charges = charges.map((c) => (c.id === CHARGE ? { ...c, paidRwf: take, status: take === c.amountRwf ? 'paid' : 'open' } : c));
       return { allocations: [{ chargeId: CHARGE, amountRwf: take }], allocatedRwf: take, creditRwf: input.amountRwf - take, paidChargeIds: take === 90_323 ? [CHARGE] : [], depositPaid: false };
     }),
-    nextReceiptNumber: jest.fn(async () => 'R-2026-0003'),
+    nextReceiptNumber: vi.fn(async () => 'R-2026-0003'),
   };
   const payouts = {
-    createForPayment: jest.fn(async (_tx: unknown, p: PaymentRow) => (record('payout')(p.id), { id: 'payout-1', status: 'queued', destinationMasked: 'MTN MoMo 078•••••111' })),
-    payoutWords: jest.fn(() => 'It is on its way to MTN MoMo 078•••••111.'),
+    createForPayment: vi.fn(async (_tx: unknown, p: PaymentRow) => (record('payout')(p.id), { id: 'payout-1', status: 'queued', destinationMasked: 'MTN MoMo 078•••••111' })),
+    payoutWords: vi.fn(() => 'It is on its way to MTN MoMo 078•••••111.'),
   };
   const receipts = {
-    mailTenantReceipt: jest.fn(async (id: string) => (record('tenantMail')(id), true)),
-    mailLandlordReceived: jest.fn(async (id: string, words: string) => (record('landlordMail')(id, words), true)),
-    pdf: jest.fn(async () => ({ body: Buffer.from('%PDF-1.4'), filename: 'receipt.pdf', objectId: 'obj' })),
+    mailTenantReceipt: vi.fn(async (id: string) => (record('tenantMail')(id), true)),
+    mailLandlordReceived: vi.fn(async (id: string, words: string) => (record('landlordMail')(id, words), true)),
+    pdf: vi.fn(async () => ({ body: Buffer.from('%PDF-1.4'), filename: 'receipt.pdf', objectId: 'obj' })),
   };
   const queue = {
-    settleLater: jest.fn(async (id: string, delay: number) => (record('settleLater')(id, delay), true)),
-    sendPayout: jest.fn(async (id: string) => (record('sendPayout')(id), true)),
-    webhook: jest.fn(async () => true),
+    settleLater: vi.fn(async (id: string, delay: number) => (record('settleLater')(id, delay), true)),
+    sendPayout: vi.fn(async (id: string) => (record('sendPayout')(id), true)),
+    webhook: vi.fn(async () => true),
   };
-  const events = { write: jest.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
-  const audit = { write: jest.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
+  const events = { write: vi.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
+  const audit = { write: vi.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
   const settlement = new PaymentSettlementService(
     db as never,
     payments as unknown as LeasePaymentsRepository,

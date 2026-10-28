@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import type { SQL } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
@@ -74,22 +76,22 @@ function harness(row: WorkOrderRow) {
   const database = { transaction: async <T>(cb: (t: unknown) => Promise<T>): Promise<T> => cb(tx) };
   const repo = {
     database,
-    find: jest.fn(async () => row),
-    parts: jest.fn(async () => []),
-    events: jest.fn(async () => []),
-    blocks: jest.fn(async () => []),
-    photos: jest.fn(async () => [{ ticket_id: ORDER, object_key: 'fault_photo/a.jpg', caption: null }]),
-    openBlockForTicket: jest.fn(async () => null),
-    addEvent: jest.fn(async () => undefined),
+    find: vi.fn(async () => row),
+    parts: vi.fn(async () => []),
+    events: vi.fn(async () => []),
+    blocks: vi.fn(async () => []),
+    photos: vi.fn(async () => [{ ticket_id: ORDER, object_key: 'fault_photo/a.jpg', caption: null }]),
+    openBlockForTicket: vi.fn(async () => null),
+    addEvent: vi.fn(async () => undefined),
   };
   const lifecycle = {
-    move: jest.fn(async () => ({ moved: true })),
-    assign: jest.fn(async () => ({ moved: true })),
+    move: vi.fn(async () => ({ moved: true })),
+    assign: vi.fn(async () => ({ moved: true })),
   };
   const phone = {
-    stopLogs: jest.fn(async () => undefined),
-    runningLog: jest.fn(async () => null),
-    startLog: jest.fn(async () => undefined),
+    stopLogs: vi.fn(async () => undefined),
+    runningLog: vi.fn(async () => null),
+    startLog: vi.fn(async () => undefined),
   };
   const orders = new WorkOrdersService(repo as unknown as WorkOrdersRepository, lifecycle as unknown as TicketLifecycle);
   const time = new WorkOrderTimeService(

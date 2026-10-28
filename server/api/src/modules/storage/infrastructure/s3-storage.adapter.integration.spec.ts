@@ -1,3 +1,5 @@
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
 import { randomBytes } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 
@@ -60,7 +62,7 @@ if (present.length === 0) {
 }
 
 function liveSuite(): void {
-  jest.setTimeout(60_000);
+  vi.setConfig({ testTimeout: 60_000 });
 
   const it_ = {
     endpoint: process.env.STORAGE_IT_ENDPOINT as string,
@@ -160,8 +162,8 @@ function liveSuite(): void {
     port.put({ body, mime: 'image/png', filename: 'photo.png', kind: 'property_photo' });
 
   beforeAll(() => {
-    jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
   });
 
   afterAll(async () => {

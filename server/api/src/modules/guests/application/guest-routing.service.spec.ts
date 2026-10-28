@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import type { LeaderRole } from '@injishi/contracts';
 
 import type { GuestMail } from '../domain/guest-mail';
@@ -43,19 +45,19 @@ function route(role: LeaderRole, over: Partial<RouteRow> = {}): RouteRow {
 type RepoMocks = Record<
   | 'holders' | 'find' | 'routesFor' | 'markNotified' | 'waitingRoutes' | 'currentWithRoles' | 'transaction' | 'relocate' | 'deliverWaiting'
   | 'handOverWaiting' | 'areaNames' | 'releaseEnded',
-  jest.Mock
+  Mock
 >;
 
 function setup(posts: Partial<Record<LeaderRole, Holder[]>>): {
   repo: RepoMocks;
-  notifier: { appUrl: string; send: jest.Mock };
+  notifier: { appUrl: string; send: Mock };
   service: GuestRoutingService;
   sent: { to: string; mail: GuestMail; what: string }[];
 } {
   const sent: { to: string; mail: GuestMail; what: string }[] = [];
   const repo: RepoMocks = {
-    holders: jest.fn(async (role: LeaderRole, key: number | null) => (key === null ? [] : (posts[role] ?? []))),
-    find: jest.fn(async () => ({
+    holders: vi.fn(async (role: LeaderRole, key: number | null) => (key === null ? [] : (posts[role] ?? []))),
+    find: vi.fn(async () => ({
       id: REG,
       status: 'submitted',
       fullName: 'Grace Mutoni',
@@ -69,20 +71,20 @@ function setup(posts: Partial<Record<LeaderRole, Holder[]>>): {
       sectorName: 'Kacyiru',
       districtName: 'Gasabo',
     }) as unknown as RegistrationRow),
-    routesFor: jest.fn(async () => [] as RouteRow[]),
-    markNotified: jest.fn(async () => undefined),
-    waitingRoutes: jest.fn(async () => [] as WaitingRouteRow[]),
-    currentWithRoles: jest.fn(async () => []),
-    transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn({})),
-    relocate: jest.fn(async () => undefined),
-    deliverWaiting: jest.fn(async (_tx: unknown, _id: string, _area: unknown, assignmentId: string | null) => assignmentId !== null),
-    handOverWaiting: jest.fn(async () => [REG]),
-    areaNames: jest.fn(async () => ({ villageName: 'Urugwiro', cellName: 'Kamatamu', sectorName: 'Kacyiru', districtName: 'Gasabo' })),
-    releaseEnded: jest.fn(async () => 2),
+    routesFor: vi.fn(async () => [] as RouteRow[]),
+    markNotified: vi.fn(async () => undefined),
+    waitingRoutes: vi.fn(async () => [] as WaitingRouteRow[]),
+    currentWithRoles: vi.fn(async () => []),
+    transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({})),
+    relocate: vi.fn(async () => undefined),
+    deliverWaiting: vi.fn(async (_tx: unknown, _id: string, _area: unknown, assignmentId: string | null) => assignmentId !== null),
+    handOverWaiting: vi.fn(async () => [REG]),
+    areaNames: vi.fn(async () => ({ villageName: 'Urugwiro', cellName: 'Kamatamu', sectorName: 'Kacyiru', districtName: 'Gasabo' })),
+    releaseEnded: vi.fn(async () => 2),
   };
   const notifier = {
     appUrl: 'http://localhost:3002',
-    send: jest.fn(async (to: string, mail: GuestMail, what: string) => {
+    send: vi.fn(async (to: string, mail: GuestMail, what: string) => {
       sent.push({ to, mail, what });
       return true;
     }),

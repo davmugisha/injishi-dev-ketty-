@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -70,35 +72,35 @@ function harness(opts: Opts = {}) {
     unitLabel: 'A-01',
     propertyName: 'Amani Residences',
   } as unknown as LeaseRecord;
-  const leases = { find: jest.fn(async () => leaseRecord), lock: jest.fn(async () => leaseRecord.lease) };
+  const leases = { find: vi.fn(async () => leaseRecord), lock: vi.fn(async () => leaseRecord.lease) };
   let stored: PaymentRow | null = opts.existing ?? null;
   const asRecord = (p: PaymentRow): PaymentRecord => ({ payment: p, allocations: [], payout: null, recordedByName: 'Emmanuel' });
   const chargeRow = opts.charge === null ? null : ({ id: CHARGE, leaseId: LEASE, kind: 'rent', periodStart: '2026-10-24', dueOn: '2026-10-24', amountRwf: 90_323, paidRwf: 0, status: 'open', createdAt: new Date(), ...opts.charge } as ChargeRow);
   const payments = {
-    findByKey: jest.fn(async () => opts.replay ?? null),
-    find: jest.fn(async () => stored),
-    lock: jest.fn(async () => stored),
-    record: jest.fn(async () => (stored ? asRecord(stored) : null)),
-    nextReceiptNumber: jest.fn(async () => 'R-2026-0007'),
-    insert: jest.fn(async (_tx: unknown, values: Partial<PaymentRow>) => {
+    findByKey: vi.fn(async () => opts.replay ?? null),
+    find: vi.fn(async () => stored),
+    lock: vi.fn(async () => stored),
+    record: vi.fn(async () => (stored ? asRecord(stored) : null)),
+    nextReceiptNumber: vi.fn(async () => 'R-2026-0007'),
+    insert: vi.fn(async (_tx: unknown, values: Partial<PaymentRow>) => {
       record('insert')(values);
       stored = paymentRow(values);
       return stored;
     }),
-    allocate: jest.fn(async (_tx: unknown, input: unknown): Promise<AllocationOutcome> => {
+    allocate: vi.fn(async (_tx: unknown, input: unknown): Promise<AllocationOutcome> => {
       record('allocate')(input);
       return { allocations: [{ chargeId: CHARGE, amountRwf: 50_000 }], allocatedRwf: 50_000, creditRwf: 0, paidChargeIds: [], depositPaid: false };
     }),
-    update: jest.fn(async (_tx: unknown, id: string, values: Partial<PaymentRow>) => {
+    update: vi.fn(async (_tx: unknown, id: string, values: Partial<PaymentRow>) => {
       record('update')(id, values);
       if (stored) stored = { ...stored, ...values };
     }),
-    release: jest.fn(async () => (record('release')(), { releasedRwf: 50_000, chargeIds: [CHARGE] })),
-    charge: jest.fn(async () => chargeRow),
-    waive: jest.fn(async (_tx: unknown, _id: string, reason: string) => (record('waive')(reason), chargeRow)),
+    release: vi.fn(async () => (record('release')(), { releasedRwf: 50_000, chargeIds: [CHARGE] })),
+    charge: vi.fn(async () => chargeRow),
+    waive: vi.fn(async (_tx: unknown, _id: string, reason: string) => (record('waive')(reason), chargeRow)),
   };
-  const events = { write: jest.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
-  const audit = { write: jest.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
+  const events = { write: vi.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
+  const audit = { write: vi.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
   class Pinned extends RentPaymentsService {
     protected override today(): string {
       return TODAY;

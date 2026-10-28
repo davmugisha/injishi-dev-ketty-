@@ -269,13 +269,13 @@ importers:
         version: 8.3.5(@types/node@22.20.5)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0)
       vitest:
         specifier: 5.0.5
-        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@22.20.5)(jiti@2.7.0))
+        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0))
 
   apps/mobile:
     dependencies:
       '@better-auth/expo':
         specifier: 1.6.11
-        version: 1.6.11(c02bc5e1621a200b61106ea71c19b09d)
+        version: 1.6.11(11fcc52733daa5e1684b286c2ece157d)
       '@expo-google-fonts/figtree':
         specifier: 0.4.1
         version: 0.4.1
@@ -290,7 +290,7 @@ importers:
         version: link:../../packages/db
       better-auth:
         specifier: 1.6.11
-        version: 1.6.11(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(kysely@0.28.17)(pg@8.23.0))(next@16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        version: 1.6.11(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(kysely@0.28.17)(pg@8.23.0))(next@16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       drizzle-orm:
         specifier: 0.45.4
         version: 0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(kysely@0.28.17)(pg@8.23.0)
@@ -317,7 +317,7 @@ importers:
         version: 57.0.3(expo@57.0.28)(react@19.2.3)
       expo-router:
         specifier: ~57.0.26
-        version: 57.0.26(0be84b7e8d54e4745c1a9dfdab167c64)
+        version: 57.0.26(884014e1141ca932982c7fdcc96743ff)
       expo-secure-store:
         specifier: ~57.0.4
         version: 57.0.4(expo@57.0.28)
@@ -783,7 +783,7 @@ importers:
         version: 8.3.5(@types/node@22.20.5)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0)
       vitest:
         specifier: 5.0.5
-        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@22.20.5)(jiti@2.7.0))
+        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0))
 
   packages/web-ui:
     dependencies:
@@ -1010,7 +1010,7 @@ importers:
         version: 10.74.0(@opentelemetry/core@2.11.0(@opentelemetry/api@1.9.1))(supports-color@8.1.1)
       better-auth:
         specifier: 1.6.11
-        version: 1.6.11(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.8)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.8)(supports-color@8.1.1))(react@19.2.8))(kysely@0.28.17)(pg@8.23.0))(next@15.5.24(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.23.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 1.6.11(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.8)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.8)(supports-color@8.1.1))(react@19.2.8))(kysely@0.28.17)(pg@8.23.0))(next@15.5.24(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.23.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@22.15.29)(esbuild@0.28.1)(jiti@2.7.0)))
       bullmq:
         specifier: ^5.56.0
         version: 5.81.4(supports-color@8.1.1)
@@ -1069,9 +1069,6 @@ importers:
       '@nestjs/testing':
         specifier: ^11.1.0
         version: 11.2.3(@nestjs/common@11.2.3(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.3)
-      '@types/jest':
-        specifier: ^29.5.14
-        version: 29.5.14
       '@types/node':
         specifier: ^22.15.0
         version: 22.15.29
@@ -1093,24 +1090,24 @@ importers:
       eslint:
         specifier: ^9.28.0
         version: 9.39.5(jiti@2.7.0)(supports-color@8.1.1)
-      jest:
-        specifier: ^29.7.0
-        version: 29.7.0(@types/node@22.15.29)(supports-color@8.1.1)
       madge:
         specifier: ^8.0.0
         version: 8.0.0(supports-color@8.1.1)(typescript@5.9.3)
       pino-pretty:
         specifier: ^13.0.0
         version: 13.1.3
-      ts-jest:
-        specifier: ^29.3.0
-        version: 29.4.12(@babel/core@7.29.7(supports-color@8.1.1))(@jest/transform@29.7.0(supports-color@8.1.1))(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(esbuild@0.28.1)(jest-util@29.7.0)(jest@29.7.0(@types/node@22.15.29)(supports-color@8.1.1))(typescript@5.9.3)
       typescript:
         specifier: ^5.8.0
         version: 5.9.3
       typescript-eslint:
         specifier: ^8.33.0
         version: 8.66.0(eslint@9.39.5(jiti@2.7.0)(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3)
+      vite:
+        specifier: 8.3.5
+        version: 8.3.5(@types/node@22.15.29)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0)
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@22.15.29)(esbuild@0.28.1)(jiti@2.7.0))
 
 packages:
 
@@ -5101,9 +5098,6 @@ packages:
   '@types/istanbul-reports@3.0.4':
     resolution: {integrity: sha512-pk2B1NWalF9toCRu6gjBzR69syFjP4Od8WRAX+0mmf9lAjCRicLOWc+ZrxZHx/0XRjotgkF9t6iaMJ+aXcOdZQ==}
 
-  '@types/jest@29.5.14':
-    resolution: {integrity: sha512-ZN+4sdnLUbo8EVvVc2ao0GFW6oVrQRPn4K2lglySj7APvSrgzxHiNNK99us4WDMi57xxA2yggblIAMNhXOotLQ==}
-
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
@@ -5764,10 +5758,6 @@ packages:
     resolution: {integrity: sha512-V2NpofLblG64mfOtSgDhOJESZEGogzDMBv/q+W6oc4LXWP/q75eOXoOaaOu1EOadB9U4Bwx/e0yzbvwKH8zalA==}
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
-
-  bs-logger@0.2.6:
-    resolution: {integrity: sha512-pd8DCoxmbgc7hyPKOvxtqNcjYoOsABPQdcCUjGp3d42VR2CX1ORhk2A87oqqu5R1kk+76nsxZupkmyd+MVtCog==}
-    engines: {node: '>= 6'}
 
   bser@2.1.1:
     resolution: {integrity: sha512-gQxTNE/GAfIIrmHLUE3oJyp5FO6HRBfhjnw4/wMmA63ZGDJnWBmgY/lyQBpnDUkGmAhbSe39tx2d/iTOAfglwQ==}
@@ -7368,11 +7358,6 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
-  handlebars@4.7.9:
-    resolution: {integrity: sha512-4E71E0rpOaQuJR2A3xDZ+GM1HyWYv1clR58tC8emQNeQe3RH7MAzSbat+V0wG78LQBo6m6bzSG/L4pBuCsgnUQ==}
-    engines: {node: '>=0.4.7'}
-    hasBin: true
-
   has-bigints@1.1.0:
     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
     engines: {node: '>= 0.4'}
@@ -8279,9 +8264,6 @@ packages:
   lodash.debounce@4.0.8:
     resolution: {integrity: sha512-FT1yDzDYEoYWhnSGnpE/4Kj1fLZkDFyqRb7fNt6FdYOSxlUWAtp42Eh6Wb0rGIv/m9Bgo7x4GhQbm5Ys4SG5ow==}
 
-  lodash.memoize@4.1.2:
-    resolution: {integrity: sha512-t7j+NzmgnQzTAYXcsHYLgimltOV1MXHtlOWf6GjL9Kj8GK5FInw5JotxvbOs+IvV1/Dzo04/fCGfLVs7aXb4Ag==}
-
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
 
@@ -8352,9 +8334,6 @@ packages:
   make-dir@4.0.0:
     resolution: {integrity: sha512-hXdUTZYIVOt1Ex//jAQi+wTZZpUpwBj/0QsOzqegb3rGMMeJiSEu5xLHnYfBrRV4RH2+OCSOO95Is/7x1WJ4bw==}
     engines: {node: '>=10'}
-
-  make-error@1.3.6:
-    resolution: {integrity: sha512-s8UhlNe7vPKomQhC1qFelMokr/Sc3AgNbso3n74mVPA5LTZwkB9NlXf4XPamLxJE8h0gh73rM94xvwRT2CVInw==}
 
   makeerror@1.0.12:
     resolution: {integrity: sha512-JmqCvUhmt43madlpFzG4BQzG2Z3m6tvQDNKdClZnO3VbIudJYmxsT0FNJMeiB2+JTSlTQTSbU8QdesVmwJcmLg==}
@@ -10301,33 +10280,6 @@ packages:
     resolution: {integrity: sha512-XyLVuhBVvdJTJr2FJJV2L1pc4MwSjMhcunRVgDE9k4wbb2ee7ORYnPewxMWUav12vxyfUM686MSGsqnVRIInuw==}
     engines: {node: '>=18'}
 
-  ts-jest@29.4.12:
-    resolution: {integrity: sha512-Ov6ClY53Fflh6BGAnY2DlTq1hYDrTycz2PVTXBWFW2CU+9zrEqAp9fWdGXl42EXO5RLSFAcAZ2JFKbP+zBTFfw==}
-    engines: {node: ^14.15.0 || ^16.10.0 || ^18.0.0 || >=20.0.0}
-    hasBin: true
-    peerDependencies:
-      '@babel/core': '>=7.0.0-beta.0 <8'
-      '@jest/transform': ^29.0.0 || ^30.0.0
-      '@jest/types': ^29.0.0 || ^30.0.0
-      babel-jest: ^29.0.0 || ^30.0.0
-      esbuild: '*'
-      jest: ^29.0.0 || ^30.0.0
-      jest-util: ^29.0.0 || ^30.0.0
-      typescript: '>=4.3 <7'
-    peerDependenciesMeta:
-      '@babel/core':
-        optional: true
-      '@jest/transform':
-        optional: true
-      '@jest/types':
-        optional: true
-      babel-jest:
-        optional: true
-      esbuild:
-        optional: true
-      jest-util:
-        optional: true
-
   tsconfig-paths-webpack-plugin@4.2.0:
     resolution: {integrity: sha512-zbem3rfRS8BgeNK50Zz5SIQgXzLafiHjOwUAvk/38/o1jHn/V5QAgVUcz884or7WYcPaH3N2CIfUc2u0ul7UcA==}
     engines: {node: '>=10.13.0'}
@@ -10374,10 +10326,6 @@ packages:
   type-fest@0.7.1:
     resolution: {integrity: sha512-Ne2YiiGN8bmrmJJEuTWTLJR32nh/JdL1+PSicowtNb0WFpn59GK8/lfD61bVtzguz7b3PBt74nxpv/Pw5po5Rg==}
     engines: {node: '>=8'}
-
-  type-fest@4.41.0:
-    resolution: {integrity: sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA==}
-    engines: {node: '>=16'}
 
   type-fest@5.8.0:
     resolution: {integrity: sha512-YGYEVz3Fm5iy/AybuA0oyNFq7H4CgQNfRp/qfe8nurE1kuCeNm3/vfm9X4Mtl+qLyaKJUh5xrFZwogr41SMjYA==}
@@ -10741,9 +10689,6 @@ packages:
   word-wrap@1.2.5:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
     engines: {node: '>=0.10.0'}
-
-  wordwrap@1.0.0:
-    resolution: {integrity: sha512-gvVzJFlPycKc5dZN4yPkP8w7Dc37BtP1yczEneOb4uq34pXZcvrtRTmWV8W+Ume+XCxKgbjM+nevkyFPMybd4Q==}
 
   wrap-ansi@6.2.0:
     resolution: {integrity: sha512-r6lPcBGxZXlIcymEu7InxDMhdW0KDxpLgoFLcguasxCaJ/SOIZwINatK9KY/tf+ZrlywOKU0UDj3ATXUBfxJXA==}
@@ -11368,21 +11313,25 @@ snapshots:
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
+    optional: true
 
   '@babel/plugin-syntax-bigint@7.8.3(@babel/core@7.29.7(supports-color@8.1.1))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
+    optional: true
 
   '@babel/plugin-syntax-class-properties@7.12.13(@babel/core@7.29.7(supports-color@8.1.1))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
+    optional: true
 
   '@babel/plugin-syntax-class-static-block@7.14.5(@babel/core@7.29.7(supports-color@8.1.1))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
+    optional: true
 
   '@babel/plugin-syntax-decorators@7.29.7(@babel/core@7.29.7(supports-color@8.1.1))':
     dependencies:
@@ -11408,16 +11357,19 @@ snapshots:
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
+    optional: true
 
   '@babel/plugin-syntax-import-meta@7.10.4(@babel/core@7.29.7(supports-color@8.1.1))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
+    optional: true
 
   '@babel/plugin-syntax-json-strings@7.8.3(@babel/core@7.29.7(supports-color@8.1.1))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
+    optional: true
 
   '@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@8.1.1))':
     dependencies:
@@ -11428,6 +11380,7 @@ snapshots:
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
+    optional: true
 
   '@babel/plugin-syntax-nullish-coalescing-operator@7.8.3(@babel/core@7.29.7(supports-color@8.1.1))':
     dependencies:
@@ -11438,16 +11391,19 @@ snapshots:
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
+    optional: true
 
   '@babel/plugin-syntax-object-rest-spread@7.8.3(@babel/core@7.29.7(supports-color@8.1.1))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
+    optional: true
 
   '@babel/plugin-syntax-optional-catch-binding@7.8.3(@babel/core@7.29.7(supports-color@8.1.1))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
+    optional: true
 
   '@babel/plugin-syntax-optional-chaining@7.8.3(@babel/core@7.29.7(supports-color@8.1.1))':
     dependencies:
@@ -11458,11 +11414,13 @@ snapshots:
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
+    optional: true
 
   '@babel/plugin-syntax-top-level-await@7.14.5(@babel/core@7.29.7(supports-color@8.1.1))':
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
+    optional: true
 
   '@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7(supports-color@8.1.1))':
     dependencies:
@@ -11741,7 +11699,8 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@bcoe/v8-coverage@0.2.3': {}
+  '@bcoe/v8-coverage@0.2.3':
+    optional: true
 
   '@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.6.7))(jose@6.2.10)(kysely@0.28.17)(nanostores@1.5.2)':
     dependencies:
@@ -11778,11 +11737,11 @@ snapshots:
     optionalDependencies:
       drizzle-orm: 0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.8)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.8)(supports-color@8.1.1))(react@19.2.8))(kysely@0.28.17)(pg@8.23.0)
 
-  '@better-auth/expo@1.6.11(c02bc5e1621a200b61106ea71c19b09d)':
+  '@better-auth/expo@1.6.11(11fcc52733daa5e1684b286c2ece157d)':
     dependencies:
       '@better-auth/core': 1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.6.7))(jose@6.2.10)(kysely@0.28.17)(nanostores@1.5.2)
       '@better-fetch/fetch': 1.1.21
-      better-auth: 1.6.11(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(kysely@0.28.17)(pg@8.23.0))(next@16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      better-auth: 1.6.11(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(kysely@0.28.17)(pg@8.23.0))(next@16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       better-call: 1.3.5(zod@4.6.7)
       zod: 4.6.7
     optionalDependencies:
@@ -12340,7 +12299,7 @@ snapshots:
       ws: 8.21.3
       zod: 3.25.76
     optionalDependencies:
-      expo-router: 57.0.26(0be84b7e8d54e4745c1a9dfdab167c64)
+      expo-router: 57.0.26(884014e1141ca932982c7fdcc96743ff)
       react-native: 0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1)
     transitivePeerDependencies:
       - '@expo/dom-webview'
@@ -13062,7 +13021,7 @@ snapshots:
       react: 19.2.3
     optionalDependencies:
       '@expo/metro-runtime': 57.0.16(@expo/log-box@57.0.4)(expo@57.0.28)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
-      expo-router: 57.0.26(0be84b7e8d54e4745c1a9dfdab167c64)
+      expo-router: 57.0.26(884014e1141ca932982c7fdcc96743ff)
       react-dom: 19.2.3(react@19.2.3)
     transitivePeerDependencies:
       - supports-color
@@ -13765,17 +13724,20 @@ snapshots:
       get-package-type: 0.1.0
       js-yaml: 3.15.2
       resolve-from: 5.0.0
+    optional: true
 
-  '@istanbuljs/schema@0.1.6': {}
+  '@istanbuljs/schema@0.1.6':
+    optional: true
 
   '@jest/console@29.7.0':
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
       chalk: 4.1.2
       jest-message-util: 29.7.0
       jest-util: 29.7.0
       slash: 3.0.0
+    optional: true
 
   '@jest/core@29.7.0(supports-color@8.1.1)':
     dependencies:
@@ -13784,14 +13746,14 @@ snapshots:
       '@jest/test-result': 29.7.0
       '@jest/transform': 29.7.0(supports-color@8.1.1)
       '@jest/types': 29.6.3
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       ci-info: 3.9.0
       exit: 0.1.2
       graceful-fs: 4.2.11
       jest-changed-files: 29.7.0
-      jest-config: 29.7.0(@types/node@22.15.29)(supports-color@8.1.1)
+      jest-config: 29.7.0(@types/node@22.20.5)(supports-color@8.1.1)
       jest-haste-map: 29.7.0
       jest-message-util: 29.7.0
       jest-regex-util: 29.6.3
@@ -13811,6 +13773,7 @@ snapshots:
       - babel-plugin-macros
       - supports-color
       - ts-node
+    optional: true
 
   '@jest/create-cache-key-function@29.7.0':
     dependencies:
@@ -13824,12 +13787,14 @@ snapshots:
     dependencies:
       '@jest/fake-timers': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
       jest-mock: 29.7.0
+    optional: true
 
   '@jest/expect-utils@29.7.0':
     dependencies:
       jest-get-type: 29.6.3
+    optional: true
 
   '@jest/expect@29.7.0(supports-color@8.1.1)':
     dependencies:
@@ -13837,15 +13802,17 @@ snapshots:
       jest-snapshot: 29.7.0(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@jest/fake-timers@29.7.0':
     dependencies:
       '@jest/types': 29.6.3
       '@sinonjs/fake-timers': 10.3.0
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
       jest-message-util: 29.7.0
       jest-mock: 29.7.0
       jest-util: 29.7.0
+    optional: true
 
   '@jest/get-type@30.5.0':
     optional: true
@@ -13858,6 +13825,7 @@ snapshots:
       jest-mock: 29.7.0
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@jest/reporters@29.7.0(supports-color@8.1.1)':
     dependencies:
@@ -13867,7 +13835,7 @@ snapshots:
       '@jest/transform': 29.7.0(supports-color@8.1.1)
       '@jest/types': 29.6.3
       '@jridgewell/trace-mapping': 0.3.31
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
       chalk: 4.1.2
       collect-v8-coverage: 1.0.3
       exit: 0.1.2
@@ -13887,6 +13855,7 @@ snapshots:
       v8-to-istanbul: 9.3.0
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@jest/schemas@29.6.3':
     dependencies:
@@ -13902,6 +13871,7 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.31
       callsites: 3.1.0
       graceful-fs: 4.2.11
+    optional: true
 
   '@jest/test-result@29.7.0':
     dependencies:
@@ -13909,6 +13879,7 @@ snapshots:
       '@jest/types': 29.6.3
       '@types/istanbul-lib-coverage': 2.0.6
       collect-v8-coverage: 1.0.3
+    optional: true
 
   '@jest/test-sequencer@29.7.0':
     dependencies:
@@ -13916,6 +13887,7 @@ snapshots:
       graceful-fs: 4.2.11
       jest-haste-map: 29.7.0
       slash: 3.0.0
+    optional: true
 
   '@jest/transform@29.7.0(supports-color@8.1.1)':
     dependencies:
@@ -13936,6 +13908,7 @@ snapshots:
       write-file-atomic: 4.0.2
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@jest/types@29.6.3':
     dependencies:
@@ -15573,10 +15546,12 @@ snapshots:
   '@sinonjs/commons@3.0.1':
     dependencies:
       type-detect: 4.0.8
+    optional: true
 
   '@sinonjs/fake-timers@10.3.0':
     dependencies:
       '@sinonjs/commons': 3.0.1
+    optional: true
 
   '@smithy/core@3.33.3':
     dependencies:
@@ -15859,9 +15834,9 @@ snapshots:
       picocolors: 1.1.1
       redent: 3.0.0
     optionalDependencies:
-      vitest: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@22.20.5)(jiti@2.7.0))
+      vitest: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0))
 
-  '@testing-library/react-native@13.3.3(jest@29.7.0(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react-test-renderer@19.2.3(react@19.2.3))(react@19.2.3)':
+  '@testing-library/react-native@13.3.3(jest@29.7.0(@types/node@22.20.5)(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react-test-renderer@19.2.3(react@19.2.3))(react@19.2.3)':
     dependencies:
       jest-matcher-utils: 30.5.1
       picocolors: 1.1.1
@@ -15871,7 +15846,7 @@ snapshots:
       react-test-renderer: 19.2.3(react@19.2.3)
       redent: 3.0.0
     optionalDependencies:
-      jest: 29.7.0(@types/node@22.15.29)(supports-color@8.1.1)
+      jest: 29.7.0(@types/node@22.20.5)(supports-color@8.1.1)
     optional: true
 
   '@testing-library/react@16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
@@ -15939,19 +15914,23 @@ snapshots:
       '@types/babel__generator': 7.27.0
       '@types/babel__template': 7.4.4
       '@types/babel__traverse': 7.28.0
+    optional: true
 
   '@types/babel__generator@7.27.0':
     dependencies:
       '@babel/types': 7.29.8
+    optional: true
 
   '@types/babel__template@7.4.4':
     dependencies:
       '@babel/parser': 7.29.8
       '@babel/types': 7.29.8
+    optional: true
 
   '@types/babel__traverse@7.28.0':
     dependencies:
       '@babel/types': 7.29.8
+    optional: true
 
   '@types/chai@5.2.3':
     dependencies:
@@ -16006,7 +15985,8 @@ snapshots:
 
   '@types/graceful-fs@4.1.9':
     dependencies:
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
+    optional: true
 
   '@types/hammerjs@2.0.46': {}
 
@@ -16019,11 +15999,6 @@ snapshots:
   '@types/istanbul-reports@3.0.4':
     dependencies:
       '@types/istanbul-lib-report': 3.0.3
-
-  '@types/jest@29.5.14':
-    dependencies:
-      expect: 29.7.0
-      pretty-format: 29.7.0
 
   '@types/json-schema@7.0.15': {}
 
@@ -16061,7 +16036,8 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
-  '@types/stack-utils@2.0.3': {}
+  '@types/stack-utils@2.0.3':
+    optional: true
 
   '@types/trusted-types@2.0.7': {}
 
@@ -16338,7 +16314,16 @@ snapshots:
     optionalDependencies:
       vite: 8.3.5(@types/node@22.15.29)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0)
 
-  '@vitest/mocker@5.0.5(vite@8.3.5(@types/node@22.20.5)(jiti@2.7.0))':
+  '@vitest/mocker@5.0.5(vite@8.3.5(@types/node@22.15.29)(esbuild@0.28.1)(jiti@2.7.0))':
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      '@vitest/spy': 5.0.5
+      estree-walker: 3.0.3
+      magic-string: 1.4.4
+    optionalDependencies:
+      vite: 8.3.5(@types/node@22.15.29)(esbuild@0.28.1)(jiti@2.7.0)
+
+  '@vitest/mocker@5.0.5(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@vitest/spy': 5.0.5
@@ -16570,6 +16555,7 @@ snapshots:
     dependencies:
       normalize-path: 3.0.0
       picomatch: 2.3.2
+    optional: true
 
   app-module-path@2.2.0: {}
 
@@ -16580,6 +16566,7 @@ snapshots:
   argparse@1.0.10:
     dependencies:
       sprintf-js: 1.0.3
+    optional: true
 
   argparse@2.0.1: {}
 
@@ -16635,6 +16622,7 @@ snapshots:
       slash: 3.0.0
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   babel-plugin-istanbul@6.1.1(supports-color@8.1.1):
     dependencies:
@@ -16645,6 +16633,7 @@ snapshots:
       test-exclude: 6.0.0
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   babel-plugin-jest-hoist@29.6.3:
     dependencies:
@@ -16652,6 +16641,7 @@ snapshots:
       '@babel/types': 7.29.8
       '@types/babel__core': 7.20.5
       '@types/babel__traverse': 7.28.0
+    optional: true
 
   babel-plugin-polyfill-corejs2@0.4.17(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1):
     dependencies:
@@ -16715,6 +16705,7 @@ snapshots:
       '@babel/plugin-syntax-optional-chaining': 7.8.3(@babel/core@7.29.7(supports-color@8.1.1))
       '@babel/plugin-syntax-private-property-in-object': 7.14.5(@babel/core@7.29.7(supports-color@8.1.1))
       '@babel/plugin-syntax-top-level-await': 7.14.5(@babel/core@7.29.7(supports-color@8.1.1))
+    optional: true
 
   babel-preset-expo@57.0.15(@babel/core@7.29.7(supports-color@8.1.1))(@babel/runtime@7.29.7)(expo@57.0.28)(react-refresh@0.14.2)(supports-color@8.1.1):
     dependencies:
@@ -16773,6 +16764,7 @@ snapshots:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       babel-plugin-jest-hoist: 29.6.3
       babel-preset-current-node-syntax: 1.2.0(@babel/core@7.29.7(supports-color@8.1.1))
+    optional: true
 
   balanced-match@1.0.2: {}
 
@@ -16816,7 +16808,7 @@ snapshots:
       - '@cloudflare/workers-types'
       - '@opentelemetry/api'
 
-  better-auth@1.6.11(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.8)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.8)(supports-color@8.1.1))(react@19.2.8))(kysely@0.28.17)(pg@8.23.0))(next@15.5.24(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.23.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  better-auth@1.6.11(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.8)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.8)(supports-color@8.1.1))(react@19.2.8))(kysely@0.28.17)(pg@8.23.0))(next@15.5.24(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.23.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@22.15.29)(esbuild@0.28.1)(jiti@2.7.0))):
     dependencies:
       '@better-auth/core': 1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.6.7))(jose@6.2.10)(kysely@0.28.17)(nanostores@1.5.2)
       '@better-auth/drizzle-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.6.7))(jose@6.2.10)(kysely@0.28.17)(nanostores@1.5.2))(@better-auth/utils@0.4.0)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.8)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.8)(supports-color@8.1.1))(react@19.2.8))(kysely@0.28.17)(pg@8.23.0))
@@ -16842,11 +16834,12 @@ snapshots:
       pg: 8.23.0
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
+      vitest: 5.0.5(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@22.15.29)(esbuild@0.28.1)(jiti@2.7.0))
     transitivePeerDependencies:
       - '@cloudflare/workers-types'
       - '@opentelemetry/api'
 
-  better-auth@1.6.11(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(kysely@0.28.17)(pg@8.23.0))(next@16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  better-auth@1.6.11(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(kysely@0.28.17)(pg@8.23.0))(next@16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(pg@8.23.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
       '@better-auth/core': 1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.6.7))(jose@6.2.10)(kysely@0.28.17)(nanostores@1.5.2)
       '@better-auth/drizzle-adapter': 1.6.11(@better-auth/core@1.6.11(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.6.7))(jose@6.2.10)(kysely@0.28.17)(nanostores@1.5.2))(@better-auth/utils@0.4.0)(drizzle-orm@0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(kysely@0.28.17)(pg@8.23.0))
@@ -16868,7 +16861,7 @@ snapshots:
     optionalDependencies:
       drizzle-kit: 0.31.11
       drizzle-orm: 0.45.4(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(expo-sqlite@57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(kysely@0.28.17)(pg@8.23.0)
-      next: 16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      next: 16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       pg: 8.23.0
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
@@ -16950,10 +16943,6 @@ snapshots:
       node-releases: 2.0.54
       update-browserslist-db: 1.3.2(browserslist@4.28.8)
 
-  bs-logger@0.2.6:
-    dependencies:
-      fast-json-stable-stringify: 2.1.0
-
   bser@2.1.1:
     dependencies:
       node-int64: 0.4.0
@@ -17010,7 +16999,8 @@ snapshots:
 
   callsites@3.1.0: {}
 
-  camelcase@5.3.1: {}
+  camelcase@5.3.1:
+    optional: true
 
   camelcase@6.3.0: {}
 
@@ -17031,7 +17021,8 @@ snapshots:
 
   chalk@5.6.2: {}
 
-  char-regex@1.0.2: {}
+  char-regex@1.0.2:
+    optional: true
 
   chardet@2.2.0: {}
 
@@ -17066,7 +17057,8 @@ snapshots:
 
   ci-info@3.9.0: {}
 
-  cjs-module-lexer@1.4.3: {}
+  cjs-module-lexer@1.4.3:
+    optional: true
 
   cjs-module-lexer@2.2.1: {}
 
@@ -17116,9 +17108,11 @@ snapshots:
 
   cluster-key-slot@1.1.1: {}
 
-  co@4.6.0: {}
+  co@4.6.0:
+    optional: true
 
-  collect-v8-coverage@1.0.3: {}
+  collect-v8-coverage@1.0.3:
+    optional: true
 
   color-convert@1.9.3:
     dependencies:
@@ -17219,13 +17213,13 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
-  create-jest@29.7.0(@types/node@22.15.29)(supports-color@8.1.1):
+  create-jest@29.7.0(@types/node@22.20.5)(supports-color@8.1.1):
     dependencies:
       '@jest/types': 29.6.3
       chalk: 4.1.2
       exit: 0.1.2
       graceful-fs: 4.2.11
-      jest-config: 29.7.0(@types/node@22.15.29)(supports-color@8.1.1)
+      jest-config: 29.7.0(@types/node@22.20.5)(supports-color@8.1.1)
       jest-util: 29.7.0
       prompts: 2.4.2
     transitivePeerDependencies:
@@ -17233,6 +17227,7 @@ snapshots:
       - babel-plugin-macros
       - supports-color
       - ts-node
+    optional: true
 
   cron-parser@4.9.0:
     dependencies:
@@ -17361,7 +17356,8 @@ snapshots:
 
   decode-uri-component@0.2.2: {}
 
-  dedent@1.7.2: {}
+  dedent@1.7.2:
+    optional: true
 
   deep-equal@2.2.3:
     dependencies:
@@ -17439,7 +17435,8 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
-  detect-newline@3.1.0: {}
+  detect-newline@3.1.0:
+    optional: true
 
   detect-node-es@1.1.0: {}
 
@@ -17501,7 +17498,8 @@ snapshots:
 
   dfa@1.2.0: {}
 
-  diff-sequences@29.6.3: {}
+  diff-sequences@29.6.3:
+    optional: true
 
   dnssd-advertise@1.1.6: {}
 
@@ -17616,7 +17614,8 @@ snapshots:
 
   embla-carousel@8.6.0: {}
 
-  emittery@0.13.1: {}
+  emittery@0.13.1:
+    optional: true
 
   emoji-regex@8.0.0: {}
 
@@ -17797,7 +17796,8 @@ snapshots:
 
   escape-string-regexp@1.0.5: {}
 
-  escape-string-regexp@2.0.0: {}
+  escape-string-regexp@2.0.0:
+    optional: true
 
   escape-string-regexp@4.0.0: {}
 
@@ -18006,8 +18006,10 @@ snapshots:
       onetime: 5.1.2
       signal-exit: 3.0.7
       strip-final-newline: 2.0.0
+    optional: true
 
-  exit@0.1.2: {}
+  exit@0.1.2:
+    optional: true
 
   expect-type@1.4.0: {}
 
@@ -18018,6 +18020,7 @@ snapshots:
       jest-matcher-utils: 29.7.0
       jest-message-util: 29.7.0
       jest-util: 29.7.0
+    optional: true
 
   expo-asset@57.0.19(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1)(typescript@5.9.3):
     dependencies:
@@ -18248,6 +18251,14 @@ snapshots:
     optionalDependencies:
       react-native-worklets: 0.10.1(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1)
 
+  expo-modules-core@57.0.22(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3):
+    dependencies:
+      '@expo/expo-modules-macros-plugin': 0.6.1
+      expo-modules-jsi: 57.1.2(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))
+      invariant: 2.2.4
+      react: 19.2.3
+      react-native: 0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1)
+
   expo-modules-core@57.0.22(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.8)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.8)(supports-color@8.1.1))(react@19.2.8):
     dependencies:
       '@expo/expo-modules-macros-plugin': 0.6.1
@@ -18285,7 +18296,7 @@ snapshots:
       expo: 57.0.28(9b6d06ba41977ecf8be16d2a13cf53c4)
       react: 19.2.3
 
-  expo-router@57.0.26(0be84b7e8d54e4745c1a9dfdab167c64):
+  expo-router@57.0.26(884014e1141ca932982c7fdcc96743ff):
     dependencies:
       '@expo/log-box': 57.0.4(@expo/dom-webview@57.0.1)(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
       '@expo/metro-runtime': 57.0.16(@expo/log-box@57.0.4)(expo@57.0.28)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
@@ -18321,7 +18332,7 @@ snapshots:
       standard-navigation: 0.0.5
       vaul: 1.1.2(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
     optionalDependencies:
-      '@testing-library/react-native': 13.3.3(jest@29.7.0(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react-test-renderer@19.2.3(react@19.2.3))(react@19.2.3)
+      '@testing-library/react-native': 13.3.3(jest@29.7.0(@types/node@22.20.5)(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react-test-renderer@19.2.3(react@19.2.3))(react@19.2.3)
       react-dom: 19.2.3(react@19.2.3)
       react-native-gesture-handler: 2.32.0(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
       react-native-reanimated: 4.5.1(react-native-worklets@0.10.1(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
@@ -18497,7 +18508,7 @@ snapshots:
       expo-font: 57.0.4(expo@57.0.28)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
       expo-keep-awake: 57.0.2(expo@57.0.28)(react@19.2.3)
       expo-modules-autolinking: 57.0.15(supports-color@8.1.1)(typescript@6.0.3)
-      expo-modules-core: 57.0.22(react-native-worklets@0.10.1(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
+      expo-modules-core: 57.0.22(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
       pretty-format: 29.7.0
       react: 19.2.3
       react-native: 0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.2.3)(supports-color@8.1.1)
@@ -18766,6 +18777,7 @@ snapshots:
     dependencies:
       locate-path: 5.0.0
       path-exists: 4.0.0
+    optional: true
 
   find-up@5.0.0:
     dependencies:
@@ -18850,7 +18862,8 @@ snapshots:
 
   fs-monkey@1.1.0: {}
 
-  fs.realpath@1.0.0: {}
+  fs.realpath@1.0.0:
+    optional: true
 
   fsevents@2.3.3:
     optional: true
@@ -18885,14 +18898,16 @@ snapshots:
 
   get-own-enumerable-property-symbols@3.0.2: {}
 
-  get-package-type@0.1.0: {}
+  get-package-type@0.1.0:
+    optional: true
 
   get-proto@1.0.1:
     dependencies:
       dunder-proto: 1.0.1
       es-object-atoms: 1.1.2
 
-  get-stream@6.0.1: {}
+  get-stream@6.0.1:
+    optional: true
 
   get-tsconfig@4.14.1:
     dependencies:
@@ -18928,6 +18943,7 @@ snapshots:
       minimatch: 3.1.5
       once: 1.4.0
       path-is-absolute: 1.0.1
+    optional: true
 
   globals@14.0.0: {}
 
@@ -18938,15 +18954,6 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
-
-  handlebars@4.7.9:
-    dependencies:
-      minimist: 1.2.8
-      neo-async: 2.6.2
-      source-map: 0.6.1
-      wordwrap: 1.0.0
-    optionalDependencies:
-      uglify-js: 3.19.3
 
   has-bigints@1.1.0: {}
 
@@ -19038,7 +19045,8 @@ snapshots:
     transitivePeerDependencies:
       - '@noble/hashes'
 
-  html-escaper@2.0.2: {}
+  html-escaper@2.0.2:
+    optional: true
 
   http-errors@2.0.1:
     dependencies:
@@ -19055,7 +19063,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  human-signals@2.1.0: {}
+  human-signals@2.1.0:
+    optional: true
 
   hyphenate-style-name@1.1.0: {}
 
@@ -19088,6 +19097,7 @@ snapshots:
     dependencies:
       pkg-dir: 4.2.0
       resolve-cwd: 3.0.0
+    optional: true
 
   imurmurhash@0.1.4: {}
 
@@ -19097,6 +19107,7 @@ snapshots:
     dependencies:
       once: 1.4.0
       wrappy: 1.0.2
+    optional: true
 
   inherits@2.0.4: {}
 
@@ -19191,7 +19202,8 @@ snapshots:
 
   is-fullwidth-code-point@3.0.0: {}
 
-  is-generator-fn@2.1.0: {}
+  is-generator-fn@2.1.0:
+    optional: true
 
   is-glob@4.0.3:
     dependencies:
@@ -19237,7 +19249,8 @@ snapshots:
     dependencies:
       call-bound: 1.0.4
 
-  is-stream@2.0.1: {}
+  is-stream@2.0.1:
+    optional: true
 
   is-string@1.1.1:
     dependencies:
@@ -19275,7 +19288,8 @@ snapshots:
 
   isobject@3.0.1: {}
 
-  istanbul-lib-coverage@3.2.2: {}
+  istanbul-lib-coverage@3.2.2:
+    optional: true
 
   istanbul-lib-instrument@5.2.1(supports-color@8.1.1):
     dependencies:
@@ -19286,6 +19300,7 @@ snapshots:
       semver: 6.3.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   istanbul-lib-instrument@6.0.3(supports-color@8.1.1):
     dependencies:
@@ -19296,12 +19311,14 @@ snapshots:
       semver: 7.8.5
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   istanbul-lib-report@3.0.1:
     dependencies:
       istanbul-lib-coverage: 3.2.2
       make-dir: 4.0.0
       supports-color: 7.2.0
+    optional: true
 
   istanbul-lib-source-maps@4.0.1(supports-color@8.1.1):
     dependencies:
@@ -19310,11 +19327,13 @@ snapshots:
       source-map: 0.6.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   istanbul-reports@3.2.0:
     dependencies:
       html-escaper: 2.0.2
       istanbul-lib-report: 3.0.1
+    optional: true
 
   iterare@1.2.1: {}
 
@@ -19323,6 +19342,7 @@ snapshots:
       execa: 5.1.1
       jest-util: 29.7.0
       p-limit: 3.1.0
+    optional: true
 
   jest-circus@29.7.0(supports-color@8.1.1):
     dependencies:
@@ -19330,7 +19350,7 @@ snapshots:
       '@jest/expect': 29.7.0(supports-color@8.1.1)
       '@jest/test-result': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
       chalk: 4.1.2
       co: 4.6.0
       dedent: 1.7.2
@@ -19349,17 +19369,18 @@ snapshots:
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
+    optional: true
 
-  jest-cli@29.7.0(@types/node@22.15.29)(supports-color@8.1.1):
+  jest-cli@29.7.0(@types/node@22.20.5)(supports-color@8.1.1):
     dependencies:
       '@jest/core': 29.7.0(supports-color@8.1.1)
       '@jest/test-result': 29.7.0
       '@jest/types': 29.6.3
       chalk: 4.1.2
-      create-jest: 29.7.0(@types/node@22.15.29)(supports-color@8.1.1)
+      create-jest: 29.7.0(@types/node@22.20.5)(supports-color@8.1.1)
       exit: 0.1.2
       import-local: 3.2.0
-      jest-config: 29.7.0(@types/node@22.15.29)(supports-color@8.1.1)
+      jest-config: 29.7.0(@types/node@22.20.5)(supports-color@8.1.1)
       jest-util: 29.7.0
       jest-validate: 29.7.0
       yargs: 17.7.3
@@ -19368,8 +19389,9 @@ snapshots:
       - babel-plugin-macros
       - supports-color
       - ts-node
+    optional: true
 
-  jest-config@29.7.0(@types/node@22.15.29)(supports-color@8.1.1):
+  jest-config@29.7.0(@types/node@22.20.5)(supports-color@8.1.1):
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@jest/test-sequencer': 29.7.0
@@ -19394,10 +19416,11 @@ snapshots:
       slash: 3.0.0
       strip-json-comments: 3.1.1
     optionalDependencies:
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
+    optional: true
 
   jest-diff@29.7.0:
     dependencies:
@@ -19405,6 +19428,7 @@ snapshots:
       diff-sequences: 29.6.3
       jest-get-type: 29.6.3
       pretty-format: 29.7.0
+    optional: true
 
   jest-diff@30.5.1:
     dependencies:
@@ -19417,6 +19441,7 @@ snapshots:
   jest-docblock@29.7.0:
     dependencies:
       detect-newline: 3.1.0
+    optional: true
 
   jest-each@29.7.0:
     dependencies:
@@ -19425,15 +19450,17 @@ snapshots:
       jest-get-type: 29.6.3
       jest-util: 29.7.0
       pretty-format: 29.7.0
+    optional: true
 
   jest-environment-node@29.7.0:
     dependencies:
       '@jest/environment': 29.7.0
       '@jest/fake-timers': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
       jest-mock: 29.7.0
       jest-util: 29.7.0
+    optional: true
 
   jest-get-type@29.6.3: {}
 
@@ -19441,7 +19468,7 @@ snapshots:
     dependencies:
       '@jest/types': 29.6.3
       '@types/graceful-fs': 4.1.9
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
       anymatch: 3.1.3
       fb-watchman: 2.0.2
       graceful-fs: 4.2.11
@@ -19452,11 +19479,13 @@ snapshots:
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.3
+    optional: true
 
   jest-leak-detector@29.7.0:
     dependencies:
       jest-get-type: 29.6.3
       pretty-format: 29.7.0
+    optional: true
 
   jest-matcher-utils@29.7.0:
     dependencies:
@@ -19464,6 +19493,7 @@ snapshots:
       jest-diff: 29.7.0
       jest-get-type: 29.6.3
       pretty-format: 29.7.0
+    optional: true
 
   jest-matcher-utils@30.5.1:
     dependencies:
@@ -19484,18 +19514,22 @@ snapshots:
       pretty-format: 29.7.0
       slash: 3.0.0
       stack-utils: 2.0.6
+    optional: true
 
   jest-mock@29.7.0:
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
       jest-util: 29.7.0
+    optional: true
 
   jest-pnp-resolver@1.2.3(jest-resolve@29.7.0):
     optionalDependencies:
       jest-resolve: 29.7.0
+    optional: true
 
-  jest-regex-util@29.6.3: {}
+  jest-regex-util@29.6.3:
+    optional: true
 
   jest-resolve-dependencies@29.7.0(supports-color@8.1.1):
     dependencies:
@@ -19503,6 +19537,7 @@ snapshots:
       jest-snapshot: 29.7.0(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   jest-resolve@29.7.0:
     dependencies:
@@ -19515,6 +19550,7 @@ snapshots:
       resolve: 1.22.12
       resolve.exports: 2.0.3
       slash: 3.0.0
+    optional: true
 
   jest-runner@29.7.0(supports-color@8.1.1):
     dependencies:
@@ -19523,7 +19559,7 @@ snapshots:
       '@jest/test-result': 29.7.0
       '@jest/transform': 29.7.0(supports-color@8.1.1)
       '@jest/types': 29.6.3
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
       chalk: 4.1.2
       emittery: 0.13.1
       graceful-fs: 4.2.11
@@ -19541,6 +19577,7 @@ snapshots:
       source-map-support: 0.5.13
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   jest-runtime@29.7.0(supports-color@8.1.1):
     dependencies:
@@ -19551,7 +19588,7 @@ snapshots:
       '@jest/test-result': 29.7.0
       '@jest/transform': 29.7.0(supports-color@8.1.1)
       '@jest/types': 29.6.3
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
       chalk: 4.1.2
       cjs-module-lexer: 1.4.3
       collect-v8-coverage: 1.0.3
@@ -19568,6 +19605,7 @@ snapshots:
       strip-bom: 4.0.0
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   jest-snapshot@29.7.0(supports-color@8.1.1):
     dependencies:
@@ -19593,6 +19631,7 @@ snapshots:
       semver: 7.8.5
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   jest-util@29.7.0:
     dependencies:
@@ -19616,12 +19655,13 @@ snapshots:
     dependencies:
       '@jest/test-result': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 22.15.29
+      '@types/node': 22.20.5
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       emittery: 0.13.1
       jest-util: 29.7.0
       string-length: 4.0.2
+    optional: true
 
   jest-worker@27.5.1:
     dependencies:
@@ -19636,17 +19676,18 @@ snapshots:
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
-  jest@29.7.0(@types/node@22.15.29)(supports-color@8.1.1):
+  jest@29.7.0(@types/node@22.20.5)(supports-color@8.1.1):
     dependencies:
       '@jest/core': 29.7.0(supports-color@8.1.1)
       '@jest/types': 29.6.3
       import-local: 3.2.0
-      jest-cli: 29.7.0(@types/node@22.15.29)(supports-color@8.1.1)
+      jest-cli: 29.7.0(@types/node@22.20.5)(supports-color@8.1.1)
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
       - supports-color
       - ts-node
+    optional: true
 
   jimp-compact@0.16.1: {}
 
@@ -19666,6 +19707,7 @@ snapshots:
     dependencies:
       argparse: 1.0.10
       esprima: 4.0.1
+    optional: true
 
   js-yaml@4.3.1:
     dependencies:
@@ -19943,6 +19985,7 @@ snapshots:
   locate-path@5.0.0:
     dependencies:
       p-locate: 4.1.0
+    optional: true
 
   locate-path@6.0.0:
     dependencies:
@@ -19953,8 +19996,6 @@ snapshots:
       p-locate: 6.0.0
 
   lodash.debounce@4.0.8: {}
-
-  lodash.memoize@4.1.2: {}
 
   lodash.merge@4.6.2: {}
 
@@ -20027,8 +20068,7 @@ snapshots:
   make-dir@4.0.0:
     dependencies:
       semver: 7.8.5
-
-  make-error@1.3.6: {}
+    optional: true
 
   makeerror@1.0.12:
     dependencies:
@@ -20613,34 +20653,7 @@ snapshots:
       - babel-plugin-macros
     optional: true
 
-  next@16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
-    dependencies:
-      '@next/env': 16.3.5
-      '@swc/helpers': 0.5.23
-      baseline-browser-mapping: 2.11.20
-      caniuse-lite: 1.0.30001809
-      postcss: 8.5.23
-      react: 19.3.0
-      react-dom: 19.3.0(react@19.3.0)
-      styled-jsx: 5.1.6(@babel/core@7.29.7(supports-color@8.1.1))(react@19.3.0)
-    optionalDependencies:
-      '@next/swc-darwin-arm64': 16.3.5
-      '@next/swc-darwin-x64': 16.3.5
-      '@next/swc-linux-arm64-gnu': 16.3.5
-      '@next/swc-linux-arm64-musl': 16.3.5
-      '@next/swc-linux-x64-gnu': 16.3.5
-      '@next/swc-linux-x64-musl': 16.3.5
-      '@next/swc-win32-arm64-msvc': 16.3.5
-      '@next/swc-win32-x64-msvc': 16.3.5
-      '@opentelemetry/api': 1.9.1
-      babel-plugin-react-compiler: 1.0.0
-      sharp: 0.35.5(@types/node@22.20.5)
-    transitivePeerDependencies:
-      - '@babel/core'
-      - '@types/node'
-      - babel-plugin-macros
-
-  next@16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  next@16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
       '@next/env': 16.3.5
       '@swc/helpers': 0.5.23
@@ -20667,6 +20680,33 @@ snapshots:
       - '@types/node'
       - babel-plugin-macros
     optional: true
+
+  next@16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
+    dependencies:
+      '@next/env': 16.3.5
+      '@swc/helpers': 0.5.23
+      baseline-browser-mapping: 2.11.20
+      caniuse-lite: 1.0.30001809
+      postcss: 8.5.23
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
+      styled-jsx: 5.1.6(@babel/core@7.29.7(supports-color@8.1.1))(react@19.3.0)
+    optionalDependencies:
+      '@next/swc-darwin-arm64': 16.3.5
+      '@next/swc-darwin-x64': 16.3.5
+      '@next/swc-linux-arm64-gnu': 16.3.5
+      '@next/swc-linux-arm64-musl': 16.3.5
+      '@next/swc-linux-x64-gnu': 16.3.5
+      '@next/swc-linux-x64-musl': 16.3.5
+      '@next/swc-win32-arm64-msvc': 16.3.5
+      '@next/swc-win32-x64-msvc': 16.3.5
+      '@opentelemetry/api': 1.9.1
+      babel-plugin-react-compiler: 1.0.0
+      sharp: 0.35.5(@types/node@22.20.5)
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@types/node'
+      - babel-plugin-macros
 
   next@16.4.3(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
@@ -20749,7 +20789,8 @@ snapshots:
 
   nodemailer@10.0.3: {}
 
-  normalize-path@3.0.0: {}
+  normalize-path@3.0.0:
+    optional: true
 
   npm-package-arg@11.0.3:
     dependencies:
@@ -20761,6 +20802,7 @@ snapshots:
   npm-run-path@4.0.1:
     dependencies:
       path-key: 3.1.1
+    optional: true
 
   nth-check@2.1.1:
     dependencies:
@@ -20882,6 +20924,7 @@ snapshots:
   p-limit@2.3.0:
     dependencies:
       p-try: 2.2.0
+    optional: true
 
   p-limit@3.1.0:
     dependencies:
@@ -20894,6 +20937,7 @@ snapshots:
   p-locate@4.1.0:
     dependencies:
       p-limit: 2.3.0
+    optional: true
 
   p-locate@5.0.0:
     dependencies:
@@ -20903,7 +20947,8 @@ snapshots:
     dependencies:
       p-limit: 4.0.0
 
-  p-try@2.2.0: {}
+  p-try@2.2.0:
+    optional: true
 
   pako@0.2.9: {}
 
@@ -20936,7 +20981,8 @@ snapshots:
 
   path-exists@5.0.0: {}
 
-  path-is-absolute@1.0.1: {}
+  path-is-absolute@1.0.1:
+    optional: true
 
   path-key@3.1.1: {}
 
@@ -21060,11 +21106,13 @@ snapshots:
       sonic-boom: 4.2.1
       thread-stream: 3.2.0
 
-  pirates@4.0.7: {}
+  pirates@4.0.7:
+    optional: true
 
   pkg-dir@4.2.0:
     dependencies:
       find-up: 4.1.0
+    optional: true
 
   plist@3.1.1:
     dependencies:
@@ -21093,9 +21141,9 @@ snapshots:
 
   postcss@8.4.31:
     dependencies:
-      nanoid: 3.3.19
+      nanoid: 3.3.20
       picocolors: 1.1.1
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
     optional: true
 
   postcss@8.5.23:
@@ -21225,7 +21273,8 @@ snapshots:
 
   punycode@2.3.1: {}
 
-  pure-rand@6.1.0: {}
+  pure-rand@6.1.0:
+    optional: true
 
   query-string@7.1.3:
     dependencies:
@@ -21985,6 +22034,7 @@ snapshots:
   resolve-cwd@3.0.0:
     dependencies:
       resolve-from: 5.0.0
+    optional: true
 
   resolve-dependency-path@4.0.1: {}
 
@@ -22000,7 +22050,8 @@ snapshots:
 
   resolve-workspace-root@2.0.1: {}
 
-  resolve.exports@2.0.3: {}
+  resolve.exports@2.0.3:
+    optional: true
 
   resolve@1.22.12:
     dependencies:
@@ -22347,7 +22398,8 @@ snapshots:
 
   sisteransi@1.0.5: {}
 
-  slash@3.0.0: {}
+  slash@3.0.0:
+    optional: true
 
   slugify@1.6.9: {}
 
@@ -22430,6 +22482,7 @@ snapshots:
     dependencies:
       buffer-from: 1.1.2
       source-map: 0.6.1
+    optional: true
 
   source-map-support@0.5.21:
     dependencies:
@@ -22452,11 +22505,13 @@ snapshots:
 
   split2@4.2.0: {}
 
-  sprintf-js@1.0.3: {}
+  sprintf-js@1.0.3:
+    optional: true
 
   stack-utils@2.0.6:
     dependencies:
       escape-string-regexp: 2.0.0
+    optional: true
 
   stackframe@1.3.4: {}
 
@@ -22496,6 +22551,7 @@ snapshots:
     dependencies:
       char-regex: 1.0.2
       strip-ansi: 6.0.1
+    optional: true
 
   string-width@4.2.3:
     dependencies:
@@ -22523,9 +22579,11 @@ snapshots:
 
   strip-bom@3.0.0: {}
 
-  strip-bom@4.0.0: {}
+  strip-bom@4.0.0:
+    optional: true
 
-  strip-final-newline@2.0.0: {}
+  strip-final-newline@2.0.0:
+    optional: true
 
   strip-indent@3.0.0:
     dependencies:
@@ -22668,6 +22726,7 @@ snapshots:
       '@istanbuljs/schema': 0.1.6
       glob: 7.2.3
       minimatch: 3.1.5
+    optional: true
 
   thread-stream@3.2.0:
     dependencies:
@@ -22745,27 +22804,6 @@ snapshots:
       '@ts-graphviz/common': 2.1.5
       '@ts-graphviz/core': 2.0.7
 
-  ts-jest@29.4.12(@babel/core@7.29.7(supports-color@8.1.1))(@jest/transform@29.7.0(supports-color@8.1.1))(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(esbuild@0.28.1)(jest-util@29.7.0)(jest@29.7.0(@types/node@22.15.29)(supports-color@8.1.1))(typescript@5.9.3):
-    dependencies:
-      bs-logger: 0.2.6
-      fast-json-stable-stringify: 2.1.0
-      handlebars: 4.7.9
-      jest: 29.7.0(@types/node@22.15.29)(supports-color@8.1.1)
-      json5: 2.2.3
-      lodash.memoize: 4.1.2
-      make-error: 1.3.6
-      semver: 7.8.5
-      type-fest: 4.41.0
-      typescript: 5.9.3
-      yargs-parser: 21.1.1
-    optionalDependencies:
-      '@babel/core': 7.29.7(supports-color@8.1.1)
-      '@jest/transform': 29.7.0(supports-color@8.1.1)
-      '@jest/types': 29.6.3
-      babel-jest: 29.7.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1)
-      esbuild: 0.28.1
-      jest-util: 29.7.0
-
   tsconfig-paths-webpack-plugin@4.2.0:
     dependencies:
       chalk: 4.1.2
@@ -22810,13 +22848,12 @@ snapshots:
     dependencies:
       prelude-ls: 1.2.1
 
-  type-detect@4.0.8: {}
+  type-detect@4.0.8:
+    optional: true
 
   type-fest@0.21.3: {}
 
   type-fest@0.7.1: {}
-
-  type-fest@4.41.0: {}
 
   type-fest@5.8.0:
     dependencies:
@@ -22978,6 +23015,7 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.31
       '@types/istanbul-lib-coverage': 2.0.6
       convert-source-map: 2.0.0
+    optional: true
 
   validate-npm-package-name@5.0.1: {}
 
@@ -23010,6 +23048,19 @@ snapshots:
       d3-shape: 3.2.0
       d3-time: 3.1.0
       d3-timer: 3.0.1
+
+  vite@8.3.5(@types/node@22.15.29)(esbuild@0.28.1)(jiti@2.7.0):
+    dependencies:
+      lightningcss: 1.33.0
+      picomatch: 4.0.7
+      postcss: 8.5.32
+      rolldown: 1.2.15
+      tinyglobby: 0.2.17
+    optionalDependencies:
+      '@types/node': 22.15.29
+      esbuild: 0.28.1
+      fsevents: 2.3.3
+      jiti: 2.7.0
 
   vite@8.3.5(@types/node@22.15.29)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0):
     dependencies:
@@ -23066,10 +23117,33 @@ snapshots:
     transitivePeerDependencies:
       - msw
 
-  vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@22.20.5)(jiti@2.7.0)):
+  vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@22.15.29)(esbuild@0.28.1)(jiti@2.7.0)):
     dependencies:
       '@types/chai': 5.2.3
-      '@vitest/mocker': 5.0.5(vite@8.3.5(@types/node@22.20.5)(jiti@2.7.0))
+      '@vitest/mocker': 5.0.5(vite@8.3.5(@types/node@22.15.29)(esbuild@0.28.1)(jiti@2.7.0))
+      chai: 6.3.0
+      es-module-lexer: 2.3.2
+      expect-type: 1.4.0
+      magic-string: 1.4.4
+      obug: 3.0.0
+      picomatch: 4.0.7
+      std-env: 4.3.0
+      tinybench: 6.2.2
+      tinyexec: 1.3.1
+      tinyglobby: 0.2.17
+      vite: 8.3.5(@types/node@22.15.29)(esbuild@0.28.1)(jiti@2.7.0)
+      why-is-node-running: 3.2.1
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
+      '@types/node': 22.15.29
+      jsdom: 30.1.3(@noble/hashes@2.4.0)
+    transitivePeerDependencies:
+      - msw
+
+  vitest@5.0.5(@opentelemetry/api@1.9.1)(@types/node@22.20.5)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0)):
+    dependencies:
+      '@types/chai': 5.2.3
+      '@vitest/mocker': 5.0.5(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0))
       chai: 6.3.0
       es-module-lexer: 2.3.2
       expect-type: 1.4.0
@@ -23211,8 +23285,6 @@ snapshots:
 
   word-wrap@1.2.5: {}
 
-  wordwrap@1.0.0: {}
-
   wrap-ansi@6.2.0:
     dependencies:
       ansi-styles: 4.3.0
@@ -23231,6 +23303,7 @@ snapshots:
     dependencies:
       imurmurhash: 0.1.4
       signal-exit: 3.0.7
+    optional: true
 
   ws@7.5.13: {}
 

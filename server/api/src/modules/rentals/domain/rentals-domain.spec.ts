@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 
 import { TokenCipher } from '../../ebm/infrastructure/token-cipher';

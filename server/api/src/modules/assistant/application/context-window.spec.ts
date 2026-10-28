@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { MessageRow } from '../infrastructure/conversation.repository';
 import { RECENT_EXCHANGES, SIDE_LIMIT, modelInputFor } from './context-window';
 

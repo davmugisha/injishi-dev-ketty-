@@ -62,7 +62,7 @@ COPY packages ./packages
 COPY server/api ./server/api
 RUN pnpm --filter @injishi/api build
 # Flatten the workspace into a standalone tree with production deps only. This
-# is what keeps @nestjs/cli, typescript and jest out of the runtime image.
+# is what keeps @nestjs/cli, typescript and vitest out of the runtime image.
 # `--legacy` is required on pnpm 10 outside inject-workspace-packages mode.
 RUN pnpm --filter @injishi/api --prod --legacy deploy /out
 

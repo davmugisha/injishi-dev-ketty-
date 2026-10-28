@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { sniffVideoMime } from './sniff-video';
 
 const ftyp = (brand: string): Buffer =>

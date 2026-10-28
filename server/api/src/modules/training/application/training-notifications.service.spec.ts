@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+
 import type { Queue } from 'bullmq';
 import type { SQL } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
@@ -30,7 +32,7 @@ const MOVED = new Date('2026-10-06T07:00:00Z');
 
 interface Harness {
   service: TrainingNotificationsService;
-  queue: { add: jest.Mock; addBulk: jest.Mock; remove: jest.Mock };
+  queue: { add: Mock; addBulk: Mock; remove: Mock };
   rosterQueries: SQL[];
   calls: string[];
 }
@@ -42,21 +44,21 @@ function harness(
   const calls: string[] = [];
   const rosterQueries: SQL[] = [];
   const queue = {
-    add: jest.fn(async (name: string) => {
+    add: vi.fn(async (name: string) => {
       calls.push(`add:${name}`);
       if (opts.addFails) throw new Error('redis is down');
     }),
-    addBulk: jest.fn(async () => {
+    addBulk: vi.fn(async () => {
       calls.push('addBulk');
       if (opts.addBulkFails) throw new Error('redis is down');
     }),
-    remove: jest.fn(async () => {
+    remove: vi.fn(async () => {
       calls.push('remove');
       if (opts.removeFails) throw new Error('redis is down');
     }),
   };
   const db = {
-    select: jest.fn(() => ({
+    select: vi.fn(() => ({
       from: () => ({
         where: async (where: SQL) => {
           rosterQueries.push(where);
@@ -77,10 +79,10 @@ function rendered(where: SQL): { sql: string; params: unknown[] } {
 }
 
 beforeEach(() => {
-  jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate'] });
+  vi.useFakeTimers({ now: NOW, toNotFake: ['nextTick', 'setImmediate'] });
 });
 afterEach(() => {
-  jest.useRealTimers();
+  vi.useRealTimers();
 });
 
 describe('TrainingNotificationsService, one mail to one person', () => {

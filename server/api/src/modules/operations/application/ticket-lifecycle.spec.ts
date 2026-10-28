@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { TICKET_MOVES, addDays, kigaliToday, type MaintenanceStatus } from '@injishi/contracts';
 import { PgDialect } from 'drizzle-orm/pg-core';

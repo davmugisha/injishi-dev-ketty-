@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { PaymentPort } from '../../payments/domain/payment-port';
 import type { FolioRepository } from '../infrastructure/folio.repository';
 import type { MyStayRow } from '../infrastructure/stay-claim.repository';

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { inflateSync } from 'node:zlib';
 
 import { buildLeaseContract, contractHash, type LeaseContractInput } from '@injishi/contracts';

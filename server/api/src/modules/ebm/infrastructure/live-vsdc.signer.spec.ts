@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { ConflictException } from '@nestjs/common';
 
 import type { VsdcSignRequest } from '../domain/vsdc-port';
@@ -50,9 +52,9 @@ describe('LiveVsdcSigner', () => {
     environment: 'production' | 'demo' = 'production',
   ): {
     signer: LiveVsdcSigner;
-    findForBookingReference: jest.Mock;
+    findForBookingReference: Mock;
   } {
-    const findForBookingReference = jest.fn(async () =>
+    const findForBookingReference = vi.fn(async () =>
       row ? ({ status: 'emitted', emittedAt: EMITTED_AT, payload, ...row } as EbmEmissionRow) : null,
     );
     const signer = new LiveVsdcSigner(

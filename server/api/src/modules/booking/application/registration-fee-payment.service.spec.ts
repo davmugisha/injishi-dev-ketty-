@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { UnprocessableEntityException } from '@nestjs/common';
 
 import type { RegistrationFees } from '../domain/registration-fees';
@@ -37,18 +39,18 @@ describe('RegistrationFeePaymentService', () => {
     facts: Partial<typeof owed> | null = owed,
   ): {
     service: RegistrationFeePaymentService;
-    registrations: Record<string, jest.Mock>;
-    attempts: { beginForRegistrationFee: jest.Mock };
+    registrations: Record<string, Mock>;
+    attempts: { beginForRegistrationFee: Mock };
   } {
     const registrations = {
-      assertOwns: jest.fn().mockResolvedValue(undefined),
-      settleFeeAndVerify: jest.fn().mockResolvedValue(summary),
-      feeFacts: jest.fn().mockResolvedValue(facts ? { ...owed, ...facts } : null),
-      summary: jest.fn().mockResolvedValue(summary),
-      orgOfRegistrationInvoice: jest.fn().mockResolvedValue(ORG),
+      assertOwns: vi.fn().mockResolvedValue(undefined),
+      settleFeeAndVerify: vi.fn().mockResolvedValue(summary),
+      feeFacts: vi.fn().mockResolvedValue(facts ? { ...owed, ...facts } : null),
+      summary: vi.fn().mockResolvedValue(summary),
+      orgOfRegistrationInvoice: vi.fn().mockResolvedValue(ORG),
     };
     const attempts = {
-      beginForRegistrationFee: jest.fn().mockResolvedValue({ attemptToken: good.attemptToken, state: 'prompting' }),
+      beginForRegistrationFee: vi.fn().mockResolvedValue({ attemptToken: good.attemptToken, state: 'prompting' }),
     };
     const service = new RegistrationFeePaymentService(
       registrations as unknown as RegistrationFees,

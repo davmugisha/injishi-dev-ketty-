@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { DEV_APP_URL, resolveAppUrl } from './app-url';
 
 describe('resolveAppUrl', () => {

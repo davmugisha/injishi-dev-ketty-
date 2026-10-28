@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, type MockInstance, vi } from 'vitest';
+
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { coversProperty } from '../../../shared/auth/branch-scope';
 import type { BranchesRepository } from '../infrastructure/branches.repository';
@@ -20,19 +22,19 @@ describe('InventoryService.createProperty', () => {
 
   function build(): {
     service: InventoryService;
-    repo: { districtForSector: jest.Mock; createProperty: jest.Mock };
-    readBack: jest.SpyInstance;
+    repo: { districtForSector: Mock; createProperty: Mock };
+    readBack: MockInstance;
   } {
     const repo = {
-      districtForSector: jest.fn().mockResolvedValue(303),
-      createProperty: jest.fn().mockResolvedValue(CREATED),
+      districtForSector: vi.fn().mockResolvedValue(303),
+      createProperty: vi.fn().mockResolvedValue(CREATED),
     };
     const service = new InventoryService(
       repo as unknown as InventoryRepository,
       {} as BranchesRepository,
       {} as PropertyPhotosService,
     );
-    const readBack = jest.spyOn(service, 'getProperty').mockResolvedValue({} as never);
+    const readBack = vi.spyOn(service, 'getProperty').mockResolvedValue({} as never);
     return { service, repo, readBack };
   }
 

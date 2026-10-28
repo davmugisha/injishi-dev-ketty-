@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { ConfigService } from '@nestjs/config';
 
 import { readTrainingConfig } from './training-config';

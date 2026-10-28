@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import type { WorkspaceAccess } from '@injishi/contracts';
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 
@@ -69,28 +71,28 @@ const BROKERS: Record<string, { brokerId: string; userId: string; status: string
 function build(placement: PlacementThreadContext | null) {
   const emitted: string[] = [];
   const messages = {
-    summaries: jest.fn(async () => new Map()),
-    page: jest.fn(async () => [
+    summaries: vi.fn(async () => new Map()),
+    page: vi.fn(async () => [
       { id: 'm1', threadId: THREAD, senderUserId: BROKER_USER, senderName: 'Didier', bodyType: 'text', body: 'I have a tenant', voiceDurationS: null, createdAt: new Date('2026-10-26T09:00:00Z'), faultId: null, faultReference: null, faultTitle: null, faultStatus: null },
     ]),
-    reads: jest.fn(async () => []),
-    attachments: jest.fn(async () => []),
-    attachment: jest.fn(async () => null),
-    insertMessage: jest.fn(async () => ({ id: 'm1', createdAt: new Date('2026-10-26T09:00:00Z') })),
-    markRead: jest.fn(async () => new Date('2026-10-26T09:01:00Z')),
+    reads: vi.fn(async () => []),
+    attachments: vi.fn(async () => []),
+    attachment: vi.fn(async () => null),
+    insertMessage: vi.fn(async () => ({ id: 'm1', createdAt: new Date('2026-10-26T09:00:00Z') })),
+    markRead: vi.fn(async () => new Date('2026-10-26T09:01:00Z')),
   } as unknown as LeaseMessagesRepository;
   const repo = {
-    context: jest.fn(async () => placement),
-    brokerOfWorkspace: jest.fn(async (ws: string) => BROKERS[ws] ?? null),
-    forBroker: jest.fn(async (brokerId: string) => (placement && placement.brokerId === brokerId ? [placement] : [])),
-    forWorkspace: jest.fn(async (ws: string) => (placement && placement.workspaceId === ws ? [placement] : [])),
-    ensureThread: jest.fn(async () => THREAD),
+    context: vi.fn(async () => placement),
+    brokerOfWorkspace: vi.fn(async (ws: string) => BROKERS[ws] ?? null),
+    forBroker: vi.fn(async (brokerId: string) => (placement && placement.brokerId === brokerId ? [placement] : [])),
+    forWorkspace: vi.fn(async (ws: string) => (placement && placement.workspaceId === ws ? [placement] : [])),
+    ensureThread: vi.fn(async () => THREAD),
   } as unknown as PlacementMessagesRepository;
-  const db = { transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn({})) } as unknown as Database;
-  const files = { put: jest.fn(), read: jest.fn() } as unknown as MessageFilesStorage;
+  const db = { transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({})) } as unknown as Database;
+  const files = { put: vi.fn(), read: vi.fn() } as unknown as MessageFilesStorage;
   const events = {
-    placementMessageNew: jest.fn(() => emitted.push('new')),
-    placementThreadRead: jest.fn(() => emitted.push('read')),
+    placementMessageNew: vi.fn(() => emitted.push('new')),
+    placementThreadRead: vi.fn(() => emitted.push('read')),
   } as unknown as MessageEvents;
   return { service: new PlacementMessagesService(db, messages, repo, files, events), repo, messages, emitted };
 }

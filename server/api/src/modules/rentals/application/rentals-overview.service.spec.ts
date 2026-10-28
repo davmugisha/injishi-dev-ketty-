@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 import type { RentalsSetupView } from '@injishi/contracts';
 
@@ -40,24 +42,24 @@ function setupView(done: Record<string, boolean>): RentalsSetupView {
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function harness(opts: { setup?: Record<string, boolean> } = {}) {
   const reads = {
-    unitCounts: jest.fn(async () => ({ units: 10, occupied: 6, reserved: 1, vacant: 2, offMarket: 1 })),
-    buildingCount: jest.fn(async () => 2),
-    liveTenants: jest.fn(async () => 5),
-    leaseStatusCounts: jest.fn(async () => ({ draft: 2, pending_signature: 1, signed: 1, active: 5, ending: 1, ended: 3 })),
-    overdue: jest.fn(async () => ({ charges: 3, leases: 2, amountRwf: 450_000 })),
-    expectedByMonth: jest.fn(async () => [
+    unitCounts: vi.fn(async () => ({ units: 10, occupied: 6, reserved: 1, vacant: 2, offMarket: 1 })),
+    buildingCount: vi.fn(async () => 2),
+    liveTenants: vi.fn(async () => 5),
+    leaseStatusCounts: vi.fn(async () => ({ draft: 2, pending_signature: 1, signed: 1, active: 5, ending: 1, ended: 3 })),
+    overdue: vi.fn(async () => ({ charges: 3, leases: 2, amountRwf: 450_000 })),
+    expectedByMonth: vi.fn(async () => [
       { month: '2026-09', amountRwf: 1_000_000 },
       { month: '2026-10', amountRwf: 1_200_000 },
     ]),
-    collectedByMonth: jest.fn(async () => [
+    collectedByMonth: vi.fn(async () => [
       { month: '2026-09', amountRwf: 800_000 },
       { month: '2026-10', amountRwf: 1_000_000 },
     ]),
-    spentByMonth: jest.fn(async () => [{ month: '2026-10', amountRwf: 150_000 }]),
-    noticesToAcknowledge: jest.fn(async () => 1),
-    filingsDue: jest.fn(async () => ({ due: 2, late: 1 })),
+    spentByMonth: vi.fn(async () => [{ month: '2026-10', amountRwf: 150_000 }]),
+    noticesToAcknowledge: vi.fn(async () => 1),
+    filingsDue: vi.fn(async () => ({ due: 2, late: 1 })),
   };
-  const profiles = { setup: jest.fn(async () => setupView(opts.setup ?? {})) };
+  const profiles = { setup: vi.fn(async () => setupView(opts.setup ?? {})) };
   const service = new RentalsOverviewService(
     reads as unknown as RentalsOverviewRepository,
     profiles as unknown as RentalsProfileService,

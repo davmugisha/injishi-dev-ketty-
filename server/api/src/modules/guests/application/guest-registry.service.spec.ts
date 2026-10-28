@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { type LandlordGuestRequest, type TenantGuestRequest, normaliseGuestPhone } from '@injishi/contracts';
 
@@ -62,44 +64,44 @@ function body(over: Partial<TenantGuestRequest> = {}): TenantGuestRequest {
 type RepoMocks = Record<
   | 'tenancyHome' | 'countryName' | 'relationship' | 'villagePath' | 'transaction' | 'insertRegistration' | 'insertRoutes'
   | 'audit' | 'outbox' | 'find' | 'routesFor' | 'hostList' | 'cancel' | 'updateRegistration' | 'buildingHome' | 'buildings',
-  jest.Mock
+  Mock
 >;
 
 function setup(home: TenancyHome | null = HOME): {
   repo: RepoMocks;
-  routing: { plan: jest.Mock; notify: jest.Mock };
+  routing: { plan: Mock; notify: Mock };
   service: GuestRegistryService;
   tx: { tag: string };
 } {
   const tx = { tag: 'tx' };
   const repo: RepoMocks = {
-    tenancyHome: jest.fn(async () => home),
-    countryName: jest.fn(async (code: string) => ({ RW: 'Rwanda', KE: 'Kenya', UG: 'Uganda' })[code] ?? null),
-    relationship: jest.fn(async (code: string) =>
+    tenancyHome: vi.fn(async () => home),
+    countryName: vi.fn(async (code: string) => ({ RW: 'Rwanda', KE: 'Kenya', UG: 'Uganda' })[code] ?? null),
+    relationship: vi.fn(async (code: string) =>
       code === 'friend' ? { code, label: 'Friend', needsDetail: false } : code === 'other' ? { code, label: 'Other', needsDetail: true } : null,
     ),
-    villagePath: jest.fn(async (id: number) => (id === 2202 ? 'Rugando, Kimihurura, Kimihurura, Gasabo' : null)),
-    transaction: jest.fn(async (fn: (t: unknown) => unknown) => fn(tx)),
-    insertRegistration: jest.fn(async () => REG),
-    insertRoutes: jest.fn(async () => undefined),
-    audit: jest.fn(async () => undefined),
-    outbox: jest.fn(async () => undefined),
-    find: jest.fn(async () => null as RegistrationRow | null),
-    routesFor: jest.fn(async () => []),
-    hostList: jest.fn(async () => [] as RegistrationRow[]),
-    cancel: jest.fn(async () => true),
-    updateRegistration: jest.fn(async () => undefined),
-    buildingHome: jest.fn(async () => ({ ...HOME, unitId: null, unitLabel: null })),
-    buildings: jest.fn(async () => []),
+    villagePath: vi.fn(async (id: number) => (id === 2202 ? 'Rugando, Kimihurura, Kimihurura, Gasabo' : null)),
+    transaction: vi.fn(async (fn: (t: unknown) => unknown) => fn(tx)),
+    insertRegistration: vi.fn(async () => REG),
+    insertRoutes: vi.fn(async () => undefined),
+    audit: vi.fn(async () => undefined),
+    outbox: vi.fn(async () => undefined),
+    find: vi.fn(async () => null as RegistrationRow | null),
+    routesFor: vi.fn(async () => []),
+    hostList: vi.fn(async () => [] as RegistrationRow[]),
+    cancel: vi.fn(async () => true),
+    updateRegistration: vi.fn(async () => undefined),
+    buildingHome: vi.fn(async () => ({ ...HOME, unitId: null, unitLabel: null })),
+    buildings: vi.fn(async () => []),
   };
   const routing = {
-    plan: jest.fn(async () => [
+    plan: vi.fn(async () => [
       { role: 'village_leader', step: 1, area: HOME, assignmentId: 'v' },
       { role: 'dasso', step: 2, area: HOME, assignmentId: null },
       { role: 'cell_executive', step: 3, area: HOME, assignmentId: null },
       { role: 'district_immigration', step: 4, area: HOME, assignmentId: null },
     ]),
-    notify: jest.fn(async () => 1),
+    notify: vi.fn(async () => 1),
   };
   const service = new Pinned(repo as unknown as GuestRegistryRepository, routing as unknown as GuestRoutingService);
   return { repo, routing, service, tx };

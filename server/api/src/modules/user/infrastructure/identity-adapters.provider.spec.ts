@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { registerPerson } from '../../../shared/registry/demo-registers';
 import { RraTinAdapter } from '../../organization/infrastructure/rra-tin.adapter';
 import { resolveIdentityMode } from '../domain/identity-ports';

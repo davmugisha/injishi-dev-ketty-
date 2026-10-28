@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { ENDED_BOOKING_STATUSES, isLiveBooking } from './live-booking';
 
 /**

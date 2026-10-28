@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { auditDiff } from '../infrastructure/hr-audit';
 import { HR_RULE, missingRuleMessage, parseHrRule } from './hr-rules';
 

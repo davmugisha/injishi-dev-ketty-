@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { BadRequestException, ConflictException } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -90,16 +92,16 @@ function harness(opts: { leaseStatus?: string; port?: Partial<PaymentPort>; depo
     transaction: async <T>(cb: (t: unknown) => Promise<T>): Promise<T> => cb({ execute: async (q: unknown) => (record('sql')(q), { rows: [] }) }),
     execute: async () => ({ rows: [] }),
   };
-  const leases = { find: jest.fn(async () => leaseRecord) };
+  const leases = { find: vi.fn(async () => leaseRecord) };
   const moveOuts = {
-    deposit: jest.fn(async () => dep),
-    depositOfLease: jest.fn(async () => dep),
-    updateDeposit: jest.fn(async (_tx: unknown, _id: string, v: Partial<DepositRow>) => {
+    deposit: vi.fn(async () => dep),
+    depositOfLease: vi.fn(async () => dep),
+    updateDeposit: vi.fn(async (_tx: unknown, _id: string, v: Partial<DepositRow>) => {
       record('updateDeposit')(v);
       dep = { ...dep, ...v };
       if (payout && v.refundPayoutId === payout.payoutId) dep = { ...dep, payoutStatus: payout.status, payoutDestination: payout.destinationMasked };
     }),
-    claimRefundPayout: jest.fn(async (_tx: unknown, v: { amountRwf: number; destinationMasked: string; idempotencyKey: string }) => {
+    claimRefundPayout: vi.fn(async (_tx: unknown, v: { amountRwf: number; destinationMasked: string; idempotencyKey: string }) => {
       record('claim')(v);
       payout = {
         payoutId: 'payout-1',
@@ -115,29 +117,29 @@ function harness(opts: { leaseStatus?: string; port?: Partial<PaymentPort>; depo
       };
       return 'payout-1';
     }),
-    refundPayout: jest.fn(async () => payout),
-    updatePayout: jest.fn(async (_db: unknown, _id: string, v: { status?: RefundPayoutRow['status']; adapterRef?: string; failureReason?: string | null }) => {
+    refundPayout: vi.fn(async () => payout),
+    updatePayout: vi.fn(async (_db: unknown, _id: string, v: { status?: RefundPayoutRow['status']; adapterRef?: string; failureReason?: string | null }) => {
       record('updatePayout')(v);
       if (payout) {
         payout = { ...payout, ...(v.status ? { status: v.status } : {}), ...(v.adapterRef ? { adapterRef: v.adapterRef } : {}) };
         dep = { ...dep, payoutStatus: payout.status, payoutFailureReason: v.failureReason ?? dep.payoutFailureReason };
       }
     }),
-    waitingRefunds: jest.fn(async () => (payout && payout.status === 'queued' ? [payout.payoutId] : [])),
+    waitingRefunds: vi.fn(async () => (payout && payout.status === 'queued' ? [payout.payoutId] : [])),
   };
   const context = {
-    org: jest.fn(async () => ({ legalName: 'Amani Residences' })),
-    ensureProfile: jest.fn(async () => ({ contactEmail: 'amani@example.rw' })),
-    ownerContact: jest.fn(async () => null),
+    org: vi.fn(async () => ({ legalName: 'Amani Residences' })),
+    ensureProfile: vi.fn(async () => ({ contactEmail: 'amani@example.rw' })),
+    ownerContact: vi.fn(async () => null),
   };
-  const signing = { accountEmail: jest.fn(async () => 'aimee@example.rw') };
-  const events = { write: jest.fn(async (_tx: unknown, e: { kind: string }) => record('event')(e)) };
-  const audit = { write: jest.fn(async (_tx: unknown, e: { eventType: string }) => record('audit')(e)) };
+  const signing = { accountEmail: vi.fn(async () => 'aimee@example.rw') };
+  const events = { write: vi.fn(async (_tx: unknown, e: { kind: string }) => record('event')(e)) };
+  const audit = { write: vi.fn(async (_tx: unknown, e: { eventType: string }) => record('audit')(e)) };
   const mailer = {
     appUrl: 'http://localhost:3002',
-    send: jest.fn(async (_ref: string, to: string, mail: { subject: string; lines: string[] }) => (record('mail')(to, mail), true)),
+    send: vi.fn(async (_ref: string, to: string, mail: { subject: string; lines: string[] }) => (record('mail')(to, mail), true)),
   };
-  const queue = { settleVendorPayoutLater: jest.fn(async (id: string, ms: number) => (record('queue')(id, ms), true)) };
+  const queue = { settleVendorPayoutLater: vi.fn(async (id: string, ms: number) => (record('queue')(id, ms), true)) };
   const port = (opts.port ?? new MockPaymentAdapter()) as PaymentPort;
   const service = new DepositsService(
     db as never,
@@ -225,8 +227,8 @@ describe('DepositsService.settle: recorded and none', () => {
 describe('DepositsService.settle: a refund through Injishi', () => {
   it('waits on the landlord phone, then settles when the gateway says so', async () => {
     const pending = {
-      payVendor: jest.fn(async () => ({ adapterRef: 'ref-1', settlement: 'pending' })),
-      fetchTransaction: jest.fn(async () => ({ adapterRef: 'ref-1', settlement: 'settled' })),
+      payVendor: vi.fn(async () => ({ adapterRef: 'ref-1', settlement: 'pending' })),
+      fetchTransaction: vi.fn(async () => ({ adapterRef: 'ref-1', settlement: 'settled' })),
     } as unknown as PaymentPort;
     const h = harness({ port: pending });
     const view = await h.service.settle(
@@ -269,7 +271,7 @@ describe('DepositsService.settle: a refund through Injishi', () => {
 
   it('a declined prompt fails the refund', async () => {
     const declining = {
-      payVendor: jest.fn(async () => {
+      payVendor: vi.fn(async () => {
         throw new PaymentDeclinedError('the customer declined the request on their handset', 'k');
       }),
     } as unknown as PaymentPort;
