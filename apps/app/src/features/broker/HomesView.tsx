@@ -188,8 +188,8 @@ export function HomesView({
             // One screen on a laptop: the filters and the list on the left (the list scrolls inside),
             // the map filling the right side from top to bottom. The page itself never scrolls.
             showMap
-              ? "grid min-h-0 gap-x-5 gap-y-4 lg:h-[calc(100dvh-10rem)] lg:min-h-[28rem] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]"
-              : "grid min-h-0 gap-y-4 lg:h-[calc(100dvh-10rem)] lg:min-h-[28rem]"
+              ? "grid min-h-0 gap-x-5 gap-y-4 lg:h-[calc(100dvh-11rem)] lg:min-h-[28rem] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]"
+              : "grid min-h-0 gap-y-4 lg:h-[calc(100dvh-11rem)] lg:min-h-[28rem]"
           }
           aria-busy={pending}
         >

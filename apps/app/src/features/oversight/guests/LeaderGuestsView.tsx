@@ -194,6 +194,7 @@ export function LeaderGuestsView({
             }
             trailing={
               <SearchBar
+                className="md:w-48"
                 label="Search guests"
                 placeholder="Name, phone or ID"
                 defaultValue={params.get("q") ?? ""}
