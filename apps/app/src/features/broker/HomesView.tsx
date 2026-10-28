@@ -27,26 +27,26 @@ const HomesMap = dynamic(() => import("./HomesMap").then((m) => m.HomesMap), {
 
 const ANY = "any";
 const BEDROOMS = [
-  { id: ANY, label: "Any" },
-  { id: "0", label: "Studio+" },
-  { id: "1", label: "1+" },
-  { id: "2", label: "2+" },
-  { id: "3", label: "3+" },
+  { id: ANY, label: "Any bedrooms" },
+  { id: "0", label: "Studio or more" },
+  { id: "1", label: "1+ bedrooms" },
+  { id: "2", label: "2+ bedrooms" },
+  { id: "3", label: "3+ bedrooms" },
 ];
 const MAX_RENT = [
-  { id: ANY, label: "Any" },
-  { id: "150000", label: "RWF 150K" },
-  { id: "250000", label: "RWF 250K" },
-  { id: "400000", label: "RWF 400K" },
-  { id: "600000", label: "RWF 600K" },
-  { id: "1000000", label: "RWF 1M" },
+  { id: ANY, label: "Any top rent" },
+  { id: "150000", label: "Up to RWF 150K" },
+  { id: "250000", label: "Up to RWF 250K" },
+  { id: "400000", label: "Up to RWF 400K" },
+  { id: "600000", label: "Up to RWF 600K" },
+  { id: "1000000", label: "Up to RWF 1M" },
 ];
 const MIN_RENT = [
-  { id: ANY, label: "Any" },
-  { id: "100000", label: "RWF 100K" },
-  { id: "200000", label: "RWF 200K" },
-  { id: "350000", label: "RWF 350K" },
-  { id: "500000", label: "RWF 500K" },
+  { id: ANY, label: "No minimum" },
+  { id: "100000", label: "From RWF 100K" },
+  { id: "200000", label: "From RWF 200K" },
+  { id: "350000", label: "From RWF 350K" },
+  { id: "500000", label: "From RWF 500K" },
 ];
 const SORTS: { id: BrokerHomesSort; label: string }[] = [
   { id: "newest", label: "Newest" },
@@ -188,95 +188,35 @@ export function HomesView({
             // One screen on a laptop: the filters and the list on the left (the list scrolls inside),
             // the map filling the right side from top to bottom. The page itself never scrolls.
             showMap
-              ? "grid min-h-0 gap-x-5 gap-y-4 lg:h-[calc(100dvh-11rem)] lg:min-h-[28rem] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]"
-              : "grid min-h-0 gap-y-4 lg:h-[calc(100dvh-11rem)] lg:min-h-[28rem]"
+              ? "grid min-h-0 gap-x-5 gap-y-4 lg:h-[calc(100dvh-10rem)] lg:min-h-[28rem] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]"
+              : "grid min-h-0 gap-y-4 lg:h-[calc(100dvh-10rem)] lg:min-h-[28rem]"
           }
           aria-busy={pending}
         >
           <div className="flex min-h-0 min-w-0 flex-col gap-3">
-            {/* The filters, as one wrapping row of dropdowns after the search. */}
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <SearchBar
-                label="Search homes"
-                value={search}
-                onChange={setSearch}
-                placeholder="Building or area"
-                className="w-full sm:w-56"
-              />
-              <FilterMenu
-                label="Availability"
-                name="Show"
-                icon="ListUl"
-                options={[
-                  { id: "all", label: "All homes", count: counts.all },
-                  { id: "now", label: "Available now", count: counts.now },
-                  { id: "soon", label: "On notice", count: counts.soon },
-                ]}
-                value={status}
-                onChange={(k) => setStatus(k as StatusTab)}
-              />
-              <FilterMenu
-                label="District"
-                name="District"
-                icon="MapPin"
-                options={[
-                  { id: ANY, label: scope.plan === "district" ? scope.area : "All districts" },
-                  ...data.districts.map((d) => ({ id: String(d.id), label: d.name, count: d.count })),
-                ]}
-                value={data.districtId ? String(data.districtId) : ANY}
-                onChange={(v) => go({ district: v })}
-              />
-              <FilterMenu
-                label="Bedrooms"
-                name="Bedrooms"
-                icon="House"
-                options={BEDROOMS}
-                value={params.get("bedrooms") ?? ANY}
-                onChange={(v) => go({ bedrooms: v })}
-              />
-              <FilterMenu
-                label="Lowest rent"
-                name="Rent from"
-                icon="Wallet"
-                options={MIN_RENT}
-                value={params.get("minRent") ?? ANY}
-                onChange={(v) => go({ minRent: v })}
-              />
-              <FilterMenu
-                label="Highest rent"
-                name="Rent up to"
-                icon="Wallet"
-                options={MAX_RENT}
-                value={params.get("maxRent") ?? ANY}
-                onChange={(v) => go({ maxRent: v })}
-              />
-              <FilterMenu
-                label="Sort"
-                name="Sort"
-                icon="ArrowsRotateRight"
-                options={SORTS}
-                value={params.get("sort") ?? "newest"}
-                onChange={(v) => go({ sort: v === "newest" ? null : v })}
-              />
-              {filterActive || status !== "all" ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onPress={() => {
-                    setSearch("");
-                    setStatus("all");
-                    start(() => router.replace(pathname, { scroll: false }));
-                  }}
-                >
-                  <Icon name="Xmark" />
-                  Clear
-                </Button>
-              ) : null}
-              <span className="ml-auto flex items-center gap-2">
+            {/* Search with sort and the map switch, then the filters as one row of compact dropdowns. */}
+            <div className="flex min-w-0 flex-col gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <SearchBar
+                  label="Search homes"
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Building or area"
+                  className="min-w-0 flex-1 md:w-auto"
+                />
+                <FilterMenu
+                  label="Sort"
+                  name="Sort"
+                  icon="ArrowsRotateRight"
+                  compact
+                  options={SORTS}
+                  value={params.get("sort") ?? "newest"}
+                  onChange={(v) => go({ sort: v === "newest" ? null : v })}
+                />
                 <Button
                   variant="secondary"
                   size="sm"
-                  className="hidden lg:inline-flex"
+                  className="hidden shrink-0 lg:inline-flex"
                   onPress={() => setShowMap((v) => !v)}
                 >
                   <Icon name={showMap ? "LayoutCells" : "MapPin"} />
@@ -287,12 +227,80 @@ export function HomesView({
                   size="sm"
                   selectedKey={mobileView}
                   onSelectionChange={(k) => setMobileView(k as "list" | "map")}
-                  className="lg:hidden"
+                  className="shrink-0 lg:hidden"
                 >
                   <Segment.Item id="list">List</Segment.Item>
                   <Segment.Item id="map">Map</Segment.Item>
                 </Segment>
-              </span>
+              </div>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <FilterMenu
+                  label="Availability"
+                  name="Show"
+                  icon="ListUl"
+                  compact
+                  options={[
+                    { id: "all", label: "All homes", count: counts.all },
+                    { id: "now", label: "Available now", count: counts.now },
+                    { id: "soon", label: "On notice", count: counts.soon },
+                  ]}
+                  value={status}
+                  onChange={(k) => setStatus(k as StatusTab)}
+                />
+                <FilterMenu
+                  label="District"
+                  name="District"
+                  icon="MapPin"
+                  compact
+                  options={[
+                    { id: ANY, label: scope.plan === "district" ? scope.area : "All districts" },
+                    ...data.districts.map((d) => ({ id: String(d.id), label: d.name, count: d.count })),
+                  ]}
+                  value={data.districtId ? String(data.districtId) : ANY}
+                  onChange={(v) => go({ district: v })}
+                />
+                <FilterMenu
+                  label="Bedrooms"
+                  name="Bedrooms"
+                  icon="House"
+                  compact
+                  options={BEDROOMS}
+                  value={params.get("bedrooms") ?? ANY}
+                  onChange={(v) => go({ bedrooms: v })}
+                />
+                <FilterMenu
+                  label="Lowest rent"
+                  name="Rent from"
+                  icon="Wallet"
+                  compact
+                  options={MIN_RENT}
+                  value={params.get("minRent") ?? ANY}
+                  onChange={(v) => go({ minRent: v })}
+                />
+                <FilterMenu
+                  label="Highest rent"
+                  name="Rent up to"
+                  icon="Wallet"
+                  compact
+                  options={MAX_RENT}
+                  value={params.get("maxRent") ?? ANY}
+                  onChange={(v) => go({ maxRent: v })}
+                />
+                {filterActive || status !== "all" ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onPress={() => {
+                      setSearch("");
+                      setStatus("all");
+                      start(() => router.replace(pathname, { scroll: false }));
+                    }}
+                  >
+                    <Icon name="Xmark" />
+                    Clear
+                  </Button>
+                ) : null}
+              </div>
             </div>
 
             <section

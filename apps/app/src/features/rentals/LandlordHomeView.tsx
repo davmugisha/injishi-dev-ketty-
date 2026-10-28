@@ -89,7 +89,7 @@ function kpis(o: RentalsOverview, s: RentalsSummary | null, money: RentalsMoney 
       icon: "Wallet",
       href: `${LEASES}?tab=active`,
       ...(rate !== null
-        ? { progress: rate, footnote: `${rate}% of ${formatMoney(t.expected)} due` }
+        ? { ...(rate < 100 ? { progress: rate } : {}), footnote: `${formatMoney(t.expected)} rent fell due` }
         : { footnote: `In ${range.words}` }),
     },
     {
@@ -363,7 +363,7 @@ export function LandlordHomeView({
       Add unit
     </ActionLink>
   ) : undefined;
-  const [period, setPeriod] = useState<DashboardPeriod>("this_month");
+  const [period, setPeriod] = useState<DashboardPeriod>("last_6");
   const range = useMemo(() => periodRange(period, today), [period, today]);
   const series = useMemo(() => {
     const charges = (money?.charges ?? []).filter((c) => c.kind === "rent");

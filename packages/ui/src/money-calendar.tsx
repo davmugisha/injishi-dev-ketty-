@@ -75,8 +75,8 @@ export function MoneyCalendar({
   const chosen = days.find((d) => d.id === agenda.selectedEventId) ?? null;
   return (
     <section aria-label={label} className={cx("flex min-w-0 flex-col gap-2", className)}>
-      <Agenda {...agenda} className="min-h-0 flex-1">
-        <Agenda.Header>
+      <Agenda {...agenda} className="min-h-0 flex-1 overflow-hidden">
+        <Agenda.Header className="py-1">
           <Agenda.Heading className="text-sm" />
           <Agenda.Navigation>
             <Agenda.NavButton slot="previous" />
@@ -89,7 +89,12 @@ export function MoneyCalendar({
             {agenda.visibleWeeks.map((week) => {
               const layout = agenda.getMonthRowLayout(week);
               return (
-                <Agenda.MonthRow key={week[0]?.toString()} spanningRowCount={layout.rowCount}>
+                <Agenda.MonthRow
+                  key={week[0]?.toString()}
+                  spanningRowCount={layout.rowCount}
+                  // Compact rows: the month shares the card with its legend, the weeks share the height.
+                  className="!min-h-0"
+                >
                   {layout.items.map((item) => (
                     <Agenda.MonthSpanningEvent
                       key={item.event.id}
@@ -103,7 +108,7 @@ export function MoneyCalendar({
                     <Agenda.MonthCell
                       key={day.toString()}
                       date={day}
-                      maxEvents={2}
+                      maxEvents={1}
                       spanningRowCount={layout.rowCountPerCol[col] ?? 0}
                     >
                       {agenda.getPerCellEvents(day, week).map((event) => (

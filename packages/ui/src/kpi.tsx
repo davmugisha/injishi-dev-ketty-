@@ -47,11 +47,11 @@ export interface KpiItem {
   isCurrent?: boolean;
 }
 
-function valueText(k: KpiItem, exact: boolean): string {
+function valueText(k: KpiItem, exact: boolean, compactFrom = 1_000_000): string {
   const format = k.format ?? "money";
   if (format === "percent") return `${formatNumber(k.value, { maximumFractionDigits: 1 })}%`;
   if (format === "count") return formatNumber(k.value);
-  const compact = !exact && k.compact !== false && Math.abs(k.value) >= 1_000_000;
+  const compact = !exact && k.compact !== false && Math.abs(k.value) >= compactFrom;
   return formatMoney(k.value, { compact });
 }
 
@@ -122,7 +122,8 @@ export function KpiStrip({ label, items, className }: { label: string; items: Kp
         className={cx("grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-separator bg-separator", cols)}
       >
         {items.map((k, i) => {
-          const shown = valueText(k, false);
+          // Five or more to a row leave a cell too narrow for "RWF 183,000": compact from 100K there.
+          const shown = valueText(k, false, items.length >= 5 ? 100_000 : 1_000_000);
           const exact = valueText(k, true);
           const showSpark = k.spark && k.spark.length > 1 && k.spark.some((v) => v > 0) && k.progress == null;
           const showProgress = k.progress != null && k.progress > 0 && k.progress < 100;

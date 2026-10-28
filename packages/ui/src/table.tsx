@@ -365,6 +365,7 @@ export function FilterMenu({
   options,
   value,
   onChange,
+  compact = false,
   className,
 }: {
   /** What it filters, for screen readers ("Lease stage"). */
@@ -375,6 +376,8 @@ export function FilterMenu({
   options: readonly { id: string; label: string; count?: number }[];
   value: string;
   onChange: (value: string) => void;
+  /** Icon and choice only, the name for screen readers: for a crowded row. */
+  compact?: boolean;
   className?: string;
 }) {
   const isSet = options.length > 0 && value !== options[0]?.id;
@@ -392,7 +395,9 @@ export function FilterMenu({
         )}
       >
         <Icon name={icon} className={cx("size-4 shrink-0", isSet ? "text-accent" : "text-muted")} />
-        <span className={cx("shrink-0 text-sm", isSet ? "text-accent" : "text-muted")}>{name}</span>
+        <span className={cx("shrink-0 text-sm", isSet ? "text-accent" : "text-muted", compact && "sr-only")}>
+          {name}
+        </span>
         {/* Only the words: the count is for the list. */}
         <Select.Value className="truncate text-sm font-medium">{({ selectedText }) => selectedText}</Select.Value>
         <Select.Indicator />
