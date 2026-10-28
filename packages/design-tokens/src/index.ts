@@ -10,6 +10,9 @@
  *    "@injishi/design-tokens", plus the scales — { rnSpace, rnRadius,
  *    rnFontSize, rnLineHeight } — which ADR-034 task 6 made this package the
  *    single owner of
+ *  - mobile (HeroUI Native): import "@injishi/design-tokens/native.css" in
+ *    global.css after HeroUI Native's own sheets; read
+ *    "@injishi/design-tokens/native.json" for a colour as a value
  *  - any surface laying out a page: import { typeSteps, typeScale, containers,
  *    rhythm } from "@injishi/design-tokens" (ADR-027's layout scale, emitted
  *    into injishi-heroui.css as @theme keys)
@@ -18,7 +21,8 @@
  *    utilities, and read as numbers by apps/mobile
  *
  * There is exactly one place any token value is authored (src/ramps.ts +
- * src/semantic.ts). Everything else is generated or resolved from here.
+ * src/semantic.ts + src/heroui.ts). Everything else is generated or resolved
+ * from here.
  */
 export { ink, green } from "./ramps";
 export type { Ramp, RampStep } from "./ramps";
@@ -41,6 +45,7 @@ export {
   herouiAliases,
   herouiElevation,
   herouiMixes,
+  herouiSoftLabels,
   herouiRadius,
   herouiFieldRadius,
   herouiFieldBorderWidth,

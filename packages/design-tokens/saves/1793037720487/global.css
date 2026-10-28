@@ -1,0 +1,78 @@
+/*
+ * HeroUI Native Theme
+ * Paste into global.css after your HeroUI Native imports.
+ * @see https://heroui.com/docs/native/getting-started/theming
+ */
+/*
+ * Note: "mouve" is a web-only design theme.
+ * Native export includes compatible semantic tokens only.
+ */
+
+@import "tailwindcss";
+@import "uniwind";
+@import "heroui-native/styles";
+@import "heroui-native/styles/vibrant";
+@import "heroui-native-pro/styles";
+
+@source "./node_modules/heroui-native/lib";
+@source "./node_modules/heroui-native-pro/lib";
+
+@theme {
+  --radius: 0.5rem;
+  --field-radius: 0.25rem;
+  --field-border-width: 0.8488516842015111px;
+  --font-bold: Figtree-Bold;
+  --font-medium: Figtree-Medium;
+  --font-normal: Figtree-Regular;
+  --font-semibold: Figtree-SemiBold;
+}
+
+@layer theme {
+@variant light {
+  /* Theme Colors */
+  --background: oklch(95.51% 0.0123 178.40);
+  --foreground: oklch(25.05% 0.0201 179.83);
+  --muted: oklch(49.50% 0.0317 176.00);
+  --surface: oklch(97.50% 0.0083 172.11);
+  --surface-secondary: oklch(95.00% 0.0125 172.11);
+  --surface-tertiary: oklch(93.50% 0.0166 172.11);
+  --overlay: oklch(97.50% 0.0083 172.11);
+  --default: oklch(92.00% 0.0125 172.11);
+  --accent: oklch(47.02% 0.0911 172.11);
+  --success: oklch(73.29% 0.1934 150.84);
+  --warning: oklch(78.19% 0.1584 72.32);
+  --danger: oklch(53.86% 0.1937 26.72);
+  --field-background: oklch(97.00% 0.0062 172.11);
+  --border: oklch(88.00% 0.0156 172.11);
+  --separator: oklch(92.00% 0.0104 172.11);
+}
+
+@variant dark {
+  /* Theme Colors */
+  --background: oklch(15.95% 0.0203 177.41);
+  --foreground: oklch(99.11% 0.0001 263.28);
+  --muted: oklch(78.73% 0.0285 173.63);
+  --surface: oklch(20.00% 0.0208 150.84);
+  --surface-secondary: oklch(24.00% 0.0208 150.84);
+  --surface-tertiary: oklch(27.00% 0.0208 150.84);
+  --overlay: oklch(20.00% 0.0208 150.84);
+  --default: oklch(26.00% 0.0208 150.84);
+  --accent: oklch(73.29% 0.1934 150.84);
+  --accent-foreground: oklch(15.00% 0.0208 150.84);
+  --success: oklch(73.29% 0.1934 150.84);
+  --warning: oklch(78.19% 0.1584 72.32);
+  --danger: oklch(65.32% 0.2328 25.73);
+  --field-background: oklch(22.00% 0.0187 150.84);
+  --segment: oklch(28.00% 0.0260 150.84);
+  --border: oklch(30.00% 0.0208 150.84);
+  --separator: oklch(28.00% 0.0187 150.84);
+}
+}
+
+@theme inline static {
+  --color-chart-1: oklch(42.00% 0.1400 172.11);
+  --color-chart-2: oklch(50.00% 0.1600 172.11);
+  --color-chart-3: oklch(55.00% 0.1800 172.11);
+  --color-chart-4: oklch(65.00% 0.1400 172.11);
+  --color-chart-5: oklch(75.00% 0.1000 172.11);
+}
