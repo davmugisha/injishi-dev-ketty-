@@ -4,7 +4,6 @@ import { Alert, Card, Toast } from "@heroui/react";
 import { ListView } from "@heroui-pro/react";
 import {
   daysBetween,
-  LEASE_PAYMENT_METHOD_LABEL,
   type LeaseChargeView,
   type TenancyDetail,
   type TenantChargeList,
@@ -13,6 +12,8 @@ import {
 import {
   ActionButton,
   ActionLink,
+  CHART_COLOR,
+  type DashboardPeriod,
   DateText,
   EmptyBlock,
   formatDay,
@@ -21,14 +22,20 @@ import {
   Icon,
   KeyValueList,
   Money,
+  MoneyCalendar,
+  type MoneyDay,
   PageContent,
   PageHeader,
+  PeriodMenu,
   PersonCell,
+  periodRange,
   SectionCard,
   StatusChip,
+  sumByBucket,
+  TrendArea,
 } from "@injishi/ui";
 import { usePathname, useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { dueDayWords, placeWords, tenantGuestsHref, tenantLeaseHref, tenantRentHref } from "../leases/shared";
 import { HomeCoverImage } from "../rentals/home-cover";
 import { nextRent } from "./format";
@@ -36,6 +43,62 @@ import { PayPanel } from "./PayPanel";
 import { RateBrokerDialog } from "./TenantBrokerCard";
 
 /** What is owed now, in one sentence and a tone. */
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * The tenant's payments calendar (2026-10-28): every charge still to pay on its due day, every payment
+ * on the day it arrived, and the rent days ahead the landlord has not raised a charge for yet, until the
+ * lease ends, so the next months can be planned.
+ */
+function tenantCalendar(
+  charges: LeaseChargeView[],
+  payments: TenantPaymentView[],
+  terms: { monthlyRentRwf: number; rentDueDay: number; endDate: string },
+  today: string,
+): MoneyDay[] {
+  const short = (n: number) => formatMoney(n, { compact: true });
+  const out: MoneyDay[] = [];
+  for (const c of charges) {
+    if (c.status === "waived") continue;
+    if (c.status === "paid") continue;
+    out.push({
+      id: `c-${c.id}`,
+      day: c.dueOn,
+      title: `${c.kind === "deposit" ? "Deposit" : "Rent"} ${short(c.outstandingRwf)}`,
+      detail: `${c.label}: ${formatMoney(c.outstandingRwf)} ${c.overdue ? "overdue" : "to pay"}`,
+      tone: c.overdue ? "overdue" : "due",
+    });
+  }
+  for (const p of payments) {
+    if (p.status !== "succeeded") continue;
+    const day = p.paidOn ?? p.succeededAt?.slice(0, 10) ?? p.createdAt.slice(0, 10);
+    out.push({
+      id: `p-${p.id}`,
+      day,
+      title: `Paid ${short(p.amountRwf)}`,
+      detail: `You paid ${formatMoney(p.amountRwf)}`,
+      tone: "paid",
+    });
+  }
+  const months = new Set(charges.filter((c) => c.kind === "rent").map((c) => c.dueOn.slice(0, 7)));
+  const [y, m] = today.split("-").map(Number) as [number, number];
+  for (let i = 0; i < 6; i++) {
+    const index = y * 12 + (m - 1) + i;
+    const key = `${Math.floor(index / 12)}-${pad2((index % 12) + 1)}`;
+    const last = new Date(Date.UTC(Math.floor(index / 12), (index % 12) + 1, 0)).getUTCDate();
+    const day = `${key}-${pad2(Math.min(terms.rentDueDay, last))}`;
+    if (months.has(key) || day < today || day > terms.endDate) continue;
+    out.push({
+      id: `r-${key}`,
+      day,
+      title: `Rent ${short(terms.monthlyRentRwf)}`,
+      detail: `Rent of ${formatMoney(terms.monthlyRentRwf)} falls due`,
+      tone: "info",
+    });
+  }
+  return out;
+}
+
 export function owedWords(charges: TenantChargeList): { title: string; tone: "danger" | "warning" | "success" } {
   if (charges.overdueRwf > 0) return { title: `${formatMoney(charges.overdueRwf)} is overdue`, tone: "danger" };
   if (charges.outstandingRwf > 0) {
@@ -89,6 +152,30 @@ export function TenantOverviewView({
   const owed = charges ? owedWords(charges) : null;
   const upcoming = charges ? nextRent(t, charges.charges, today) : null;
   const [rating, setRating] = useState(false);
+  const [period, setPeriod] = useState<DashboardPeriod>("last_6");
+  const range = useMemo(() => periodRange(period, today), [period, today]);
+  const paidSeries = useMemo(() => {
+    const ok = payments.filter((p) => p.status === "succeeded");
+    const dueRent = (charges?.charges ?? []).filter((c) => c.status !== "waived");
+    return [
+      sumByBucket(
+        range,
+        ok,
+        (p) => p.paidOn ?? p.succeededAt?.slice(0, 10) ?? p.createdAt.slice(0, 10),
+        (p) => p.amountRwf,
+      ),
+      sumByBucket(
+        range,
+        dueRent,
+        (c) => c.dueOn,
+        (c) => c.amountRwf,
+      ),
+    ];
+  }, [payments, charges, range]);
+  const calendar = useMemo(
+    () => tenantCalendar(charges?.charges ?? [], payments, tenancy.terms, today),
+    [charges, payments, tenancy.terms, today],
+  );
   const todo: {
     id: string;
     title: string;
@@ -235,6 +322,25 @@ export function TenantOverviewView({
           </div>
         </Card>
 
+        <SectionCard title="Payments calendar" className="h-full" contentClassName="min-h-0 flex-1">
+          <MoneyCalendar days={calendar} today={today} className="h-[300px]" label="Your payments calendar" />
+        </SectionCard>
+
+        <TrendArea
+          className="lg:col-span-2"
+          title="Your payments"
+          description={`What you paid against what fell due, in ${range.words}`}
+          range={range}
+          actions={<PeriodMenu value={period} onChange={setPeriod} />}
+          series={[
+            { key: "paid", label: "Paid", color: CHART_COLOR.cat(1) },
+            { key: "due", label: "Due", color: "var(--chart-other)", dashed: true },
+          ]}
+          values={paidSeries}
+          height={200}
+          empty={{ icon: "Receipt", title: `Nothing paid or due in ${range.words}` }}
+        />
+
         <SectionCard title="Your landlord" className="h-full" contentClassName="flex-1">
           <PersonCell
             size="md"
@@ -321,47 +427,6 @@ export function TenantOverviewView({
               { label: "Started", value: <DateText value={t.startDate} /> },
             ]}
           />
-        </SectionCard>
-
-        <SectionCard
-          title="Latest payments"
-          className="lg:col-span-3"
-          actions={
-            payments.length > 0 ? (
-              <ActionLink href={tenantRentHref(tenancy.id)} size="sm" intent="ghost" icon="ArrowRight">
-                All payments
-              </ActionLink>
-            ) : null
-          }
-        >
-          {payments.length === 0 ? (
-            <EmptyBlock
-              size="sm"
-              icon="Receipt"
-              title="No payments yet"
-              description={canPay ? "When you pay rent or a deposit, it will show here." : undefined}
-            />
-          ) : (
-            <ul className="flex flex-col divide-y divide-separator">
-              {payments.slice(0, 3).map((p) => (
-                <li key={p.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-medium">{LEASE_PAYMENT_METHOD_LABEL[p.method]}</span>
-                    <span className="truncate text-xs text-muted">
-                      {formatDay(p.paidOn ?? p.createdAt)}
-                      {p.receiptNumber ? ` · ${p.receiptNumber}` : ""}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-0">
-                    <Money value={p.amountRwf} className="font-medium sm:inline-block sm:w-36 sm:text-right" />
-                    <span className="flex sm:w-24 sm:justify-end">
-                      <StatusChip kind="payment" status={p.status} />
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
         </SectionCard>
       </div>
 
