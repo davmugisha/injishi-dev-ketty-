@@ -273,3 +273,44 @@ export const UnitVideoFields = z.object({
   height: z.coerce.number().int().min(1).max(10_000).optional(),
 });
 export type UnitVideoFields = z.infer<typeof UnitVideoFields>;
+
+/** A rent or deposit charge on the landlord's calendar (2026-10-28). */
+export const RentalsMoneyCharge = z.object({
+  id: Uuid,
+  leaseId: Uuid,
+  kind: z.enum(["rent", "deposit"]),
+  dueOn: CalendarDay,
+  amountRwf: z.number().int().min(0),
+  paidRwf: z.number().int().min(0),
+  /** `overdue` is open and past its due day. */
+  status: z.enum(["paid", "open", "overdue"]),
+  tenantName: z.string(),
+  unitLabel: z.string(),
+});
+export type RentalsMoneyCharge = z.infer<typeof RentalsMoneyCharge>;
+
+/** A payment that arrived, on the day it arrived in Kigali. */
+export const RentalsMoneyPayment = z.object({
+  id: Uuid,
+  leaseId: Uuid,
+  day: CalendarDay,
+  amountRwf: z.number().int().min(0),
+  tenantName: z.string(),
+  unitLabel: z.string(),
+});
+export type RentalsMoneyPayment = z.infer<typeof RentalsMoneyPayment>;
+
+/**
+ * `GET /ops/rentals/money?from=&to=`: the landlord's money by the day (2026-10-28), for the home's
+ * period filter, area charts and payments calendar. At most two years and two months.
+ */
+export const RentalsMoney = z.object({
+  from: CalendarDay,
+  to: CalendarDay,
+  today: CalendarDay,
+  charges: z.array(RentalsMoneyCharge),
+  payments: z.array(RentalsMoneyPayment),
+  /** Expenses paid, summed per day. */
+  spent: z.array(z.object({ day: CalendarDay, amountRwf: z.number().int().min(0) })),
+});
+export type RentalsMoney = z.infer<typeof RentalsMoney>;

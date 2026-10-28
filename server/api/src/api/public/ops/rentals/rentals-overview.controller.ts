@@ -1,5 +1,5 @@
-import type { RentalsOverview, RentalsSummary } from '@injishi/contracts';
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import type { RentalsMoney, RentalsOverview, RentalsSummary } from '@injishi/contracts';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
 import { RentalsOverviewService } from '../../../../modules/rentals/application/rentals-overview.service';
 import type { ScopedWorkspace } from '../../../../shared/auth/branch-scope';
@@ -30,5 +30,16 @@ export class OpsRentalsOverviewController {
   @RequireAnyPermission('money.view', 'rent.record', 'lease.manage')
   figures(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<RentalsOverview> {
     return this.overview.overview(workspace);
+  }
+
+  /** The money by the day for the home's period filter, charts and payments calendar (2026-10-28). */
+  @Get('money')
+  @RequireAnyPermission('money.view', 'rent.record', 'lease.manage')
+  money(
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ): Promise<RentalsMoney> {
+    return this.overview.money(workspace, { from, to });
   }
 }
