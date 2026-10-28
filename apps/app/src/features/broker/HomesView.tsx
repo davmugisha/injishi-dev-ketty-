@@ -6,7 +6,7 @@ import type { BrokerHome, BrokerHomes, BrokerHomesSort } from "@injishi/contract
 import {
   ActionLink,
   EmptyBlock,
-  FilterSelect,
+  FilterMenu,
   formatNumber,
   Icon,
   PageContent,
@@ -27,26 +27,26 @@ const HomesMap = dynamic(() => import("./HomesMap").then((m) => m.HomesMap), {
 
 const ANY = "any";
 const BEDROOMS = [
-  { id: ANY, label: "Any bedrooms" },
+  { id: ANY, label: "Any" },
   { id: "0", label: "Studio+" },
   { id: "1", label: "1+" },
   { id: "2", label: "2+" },
   { id: "3", label: "3+" },
 ];
 const MAX_RENT = [
-  { id: ANY, label: "Any rent" },
-  { id: "150000", label: "Up to 150K" },
-  { id: "250000", label: "Up to 250K" },
-  { id: "400000", label: "Up to 400K" },
-  { id: "600000", label: "Up to 600K" },
-  { id: "1000000", label: "Up to 1M" },
+  { id: ANY, label: "Any" },
+  { id: "150000", label: "RWF 150K" },
+  { id: "250000", label: "RWF 250K" },
+  { id: "400000", label: "RWF 400K" },
+  { id: "600000", label: "RWF 600K" },
+  { id: "1000000", label: "RWF 1M" },
 ];
 const MIN_RENT = [
-  { id: ANY, label: "No minimum" },
-  { id: "100000", label: "From 100K" },
-  { id: "200000", label: "From 200K" },
-  { id: "350000", label: "From 350K" },
-  { id: "500000", label: "From 500K" },
+  { id: ANY, label: "Any" },
+  { id: "100000", label: "RWF 100K" },
+  { id: "200000", label: "RWF 200K" },
+  { id: "350000", label: "RWF 350K" },
+  { id: "500000", label: "RWF 500K" },
 ];
 const SORTS: { id: BrokerHomesSort; label: string }[] = [
   { id: "newest", label: "Newest" },
@@ -185,55 +185,86 @@ export function HomesView({
       ) : (
         <div
           className={
+            // One screen on a laptop: the filters and the list on the left (the list scrolls inside),
+            // the map filling the right side from top to bottom. The page itself never scrolls.
             showMap
-              ? "grid items-start gap-x-6 gap-y-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.62fr)]"
-              : "grid items-start gap-x-6 gap-y-4"
+              ? "grid min-h-0 gap-x-5 gap-y-4 lg:h-[calc(100dvh-11rem)] lg:min-h-[28rem] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]"
+              : "grid min-h-0 gap-y-4 lg:h-[calc(100dvh-11rem)] lg:min-h-[28rem]"
           }
           aria-busy={pending}
         >
-          {/* One toolbar over both columns: what to look for on the left, how to show it on the right. */}
-          <div className={showMap ? "flex min-w-0 flex-col gap-2.5 lg:col-span-2" : "flex min-w-0 flex-col gap-2.5"}>
+          <div className="flex min-h-0 min-w-0 flex-col gap-3">
+            {/* The filters, as one wrapping row of dropdowns after the search. */}
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <SearchBar
                 label="Search homes"
                 value={search}
                 onChange={setSearch}
                 placeholder="Building or area"
-                className="w-full sm:w-64"
+                className="w-full sm:w-56"
               />
-              <FilterSelect
+              <FilterMenu
+                label="Availability"
+                name="Show"
+                icon="ListUl"
+                options={[
+                  { id: "all", label: "All homes", count: counts.all },
+                  { id: "now", label: "Available now", count: counts.now },
+                  { id: "soon", label: "On notice", count: counts.soon },
+                ]}
+                value={status}
+                onChange={(k) => setStatus(k as StatusTab)}
+              />
+              <FilterMenu
                 label="District"
+                name="District"
+                icon="MapPin"
                 options={[
                   { id: ANY, label: scope.plan === "district" ? scope.area : "All districts" },
-                  ...data.districts.map((d) => ({ id: String(d.id), label: `${d.name} (${formatNumber(d.count)})` })),
+                  ...data.districts.map((d) => ({ id: String(d.id), label: d.name, count: d.count })),
                 ]}
                 value={data.districtId ? String(data.districtId) : ANY}
                 onChange={(v) => go({ district: v })}
               />
-              <FilterSelect
+              <FilterMenu
                 label="Bedrooms"
+                name="Bedrooms"
+                icon="House"
                 options={BEDROOMS}
                 value={params.get("bedrooms") ?? ANY}
                 onChange={(v) => go({ bedrooms: v })}
               />
-              <FilterSelect
+              <FilterMenu
                 label="Lowest rent"
+                name="Rent from"
+                icon="Wallet"
                 options={MIN_RENT}
                 value={params.get("minRent") ?? ANY}
                 onChange={(v) => go({ minRent: v })}
               />
-              <FilterSelect
+              <FilterMenu
                 label="Highest rent"
+                name="Rent up to"
+                icon="Wallet"
                 options={MAX_RENT}
                 value={params.get("maxRent") ?? ANY}
                 onChange={(v) => go({ maxRent: v })}
               />
-              {filterActive ? (
+              <FilterMenu
+                label="Sort"
+                name="Sort"
+                icon="ArrowsRotateRight"
+                options={SORTS}
+                value={params.get("sort") ?? "newest"}
+                onChange={(v) => go({ sort: v === "newest" ? null : v })}
+              />
+              {filterActive || status !== "all" ? (
                 <Button
                   variant="ghost"
                   size="sm"
                   onPress={() => {
                     setSearch("");
+                    setStatus("all");
                     start(() => router.replace(pathname, { scroll: false }));
                   }}
                 >
@@ -241,31 +272,7 @@ export function HomesView({
                   Clear
                 </Button>
               ) : null}
-            </div>
-            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-separator pt-2.5">
-              <Segment
-                aria-label="Availability"
-                size="sm"
-                selectedKey={status}
-                onSelectionChange={(k) => setStatus(k as StatusTab)}
-              >
-                <Segment.Item id="all">
-                  All <span className="ml-1 text-xs tabular text-muted">{formatNumber(counts.all)}</span>
-                </Segment.Item>
-                <Segment.Item id="now">
-                  Available <span className="ml-1 text-xs tabular text-muted">{formatNumber(counts.now)}</span>
-                </Segment.Item>
-                <Segment.Item id="soon">
-                  On notice <span className="ml-1 text-xs tabular text-muted">{formatNumber(counts.soon)}</span>
-                </Segment.Item>
-              </Segment>
-              <span className="flex items-center gap-2">
-                <FilterSelect
-                  label="Sort"
-                  options={SORTS}
-                  value={params.get("sort") ?? "newest"}
-                  onChange={(v) => go({ sort: v === "newest" ? null : v })}
-                />
+              <span className="ml-auto flex items-center gap-2">
                 <Button
                   variant="secondary"
                   size="sm"
@@ -287,75 +294,72 @@ export function HomesView({
                 </Segment>
               </span>
             </div>
-          </div>
 
-          <section
-            aria-label="Homes"
-            className={
-              mobileView === "map"
-                ? "hidden min-w-0 flex-col gap-4 lg:flex"
-                : showMap
-                  ? "flex min-w-0 flex-col gap-4"
-                  : "flex min-w-0 flex-col gap-4 lg:col-span-2"
-            }
-          >
-            {shown.length === 0 ? (
-              <Card className="border-dashed p-6 shadow-none">
-                <EmptyBlock
-                  icon="FolderHouse"
-                  title={
-                    filterActive || status !== "all" ? "No homes match these filters" : "No homes on offer here yet"
+            <section
+              aria-label="Homes"
+              className={
+                mobileView === "map"
+                  ? "hidden min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto pr-1 lg:flex"
+                  : "flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto pr-1"
+              }
+            >
+              {shown.length === 0 ? (
+                <Card className="border-dashed p-6 shadow-none">
+                  <EmptyBlock
+                    icon="FolderHouse"
+                    title={
+                      filterActive || status !== "all" ? "No homes match these filters" : "No homes on offer here yet"
+                    }
+                    description={
+                      filterActive || status !== "all"
+                        ? "Try fewer filters, or clear them."
+                        : scope.upgrade
+                          ? `Landlords in ${scope.area} have not offered a home to brokers yet.`
+                          : undefined
+                    }
+                    action={
+                      filterActive || status !== "all" ? (
+                        <ActionLink href={pathname} icon="ArrowRotateLeft">
+                          Clear filters
+                        </ActionLink>
+                      ) : scope.upgrade ? (
+                        <ActionLink href="/account?plan=1" icon="ArrowUpRight">
+                          See {scope.upgrade.area.replace(/^All of /, "")}
+                        </ActionLink>
+                      ) : undefined
+                    }
+                  />
+                </Card>
+              ) : (
+                <ul
+                  className={
+                    showMap
+                      ? "grid gap-x-4 gap-y-5 pb-2 sm:grid-cols-2"
+                      : "grid gap-x-5 gap-y-6 pb-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                   }
-                  description={
-                    filterActive || status !== "all"
-                      ? "Try fewer filters, or clear them."
-                      : scope.upgrade
-                        ? `Landlords in ${scope.area} have not offered a home to brokers yet.`
-                        : undefined
-                  }
-                  action={
-                    filterActive || status !== "all" ? (
-                      <ActionLink href={pathname} icon="ArrowRotateLeft">
-                        Clear filters
-                      </ActionLink>
-                    ) : scope.upgrade ? (
-                      <ActionLink href="/account?plan=1" icon="ArrowUpRight">
-                        See {scope.upgrade.area.replace(/^All of /, "")}
-                      </ActionLink>
-                    ) : undefined
-                  }
-                />
-              </Card>
-            ) : (
-              <ul
-                className={
-                  showMap
-                    ? "grid gap-x-5 gap-y-6 sm:grid-cols-2 2xl:grid-cols-3"
-                    : "grid gap-x-5 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                }
-              >
-                {shown.map((h) => (
-                  <li
-                    key={h.unitId}
-                    className="flex"
-                    onMouseEnter={() => setHovered(h.unitId)}
-                    onMouseLeave={() => setHovered(null)}
-                  >
-                    <HomeCard home={h} onOpen={() => setOpen(h.unitId)} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+                >
+                  {shown.map((h) => (
+                    <li
+                      key={h.unitId}
+                      className="flex"
+                      onMouseEnter={() => setHovered(h.unitId)}
+                      onMouseLeave={() => setHovered(null)}
+                    >
+                      <HomeCard home={h} onOpen={() => setOpen(h.unitId)} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
 
           {showMap ? (
             <aside
               aria-label="Map"
               className={
-                // Fills the screen beside the list and stays put while the list scrolls; never scrolls itself.
                 mobileView === "list"
-                  ? "sticky top-4 hidden h-[calc(100dvh-2rem)] min-h-96 overflow-hidden rounded-xl border border-border lg:block"
-                  : "h-[calc(100dvh-12rem)] min-h-80 overflow-hidden rounded-xl border border-border lg:sticky lg:top-4 lg:h-[calc(100dvh-2rem)] lg:min-h-96"
+                  ? "hidden h-full min-h-0 overflow-hidden rounded-xl border border-border lg:block"
+                  : "h-[calc(100dvh-12rem)] min-h-80 overflow-hidden rounded-xl border border-border lg:h-full"
               }
             >
               {mapHomes.length > 0 ? (

@@ -147,42 +147,7 @@ export function BrokerHomeView({
         ]}
       />
       <div className="grid items-stretch gap-4 lg:grid-cols-3">
-        <SectionCard
-          title="Newest homes"
-          className="lg:col-span-2"
-          actions={
-            <ActionLink href={findHomes} size="sm" icon="ArrowRight">
-              All homes
-            </ActionLink>
-          }
-        >
-          {newest.length === 0 ? (
-            <EmptyBlock
-              size="sm"
-              icon="FolderHouse"
-              title={
-                summary.scope.needsDistrict
-                  ? "Choose the district you work in"
-                  : `No homes on offer in ${summary.scope.area} yet`
-              }
-              action={
-                summary.scope.needsDistrict || summary.scope.upgrade ? (
-                  <ActionLink href="/account?plan=1" icon={summary.scope.needsDistrict ? "MapPin" : "ArrowUpRight"}>
-                    {summary.scope.needsDistrict ? "Choose a district" : "See more of Rwanda"}
-                  </ActionLink>
-                ) : undefined
-              }
-            />
-          ) : (
-            <ul className="grid gap-4 sm:grid-cols-2">
-              {newest.map((h) => (
-                <li key={h.unitId} className="flex">
-                  <HomeCard home={h} href={`${findHomes}&home=${h.unitId}`} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </SectionCard>
+        <FeesChart fees={earnings.fees} today={today} className="lg:col-span-2" />
         <SectionCard
           title="Your plan"
           className="h-full"
@@ -226,7 +191,42 @@ export function BrokerHomeView({
             </NextLink>
           ) : null}
         </SectionCard>
-        <FeesChart fees={earnings.fees} today={today} className="lg:col-span-2" />
+        <SectionCard
+          title="Newest homes"
+          className="lg:col-span-2"
+          actions={
+            <ActionLink href={findHomes} size="sm" icon="ArrowRight">
+              All homes
+            </ActionLink>
+          }
+        >
+          {newest.length === 0 ? (
+            <EmptyBlock
+              size="sm"
+              icon="FolderHouse"
+              title={
+                summary.scope.needsDistrict
+                  ? "Choose the district you work in"
+                  : `No homes on offer in ${summary.scope.area} yet`
+              }
+              action={
+                summary.scope.needsDistrict || summary.scope.upgrade ? (
+                  <ActionLink href="/account?plan=1" icon={summary.scope.needsDistrict ? "MapPin" : "ArrowUpRight"}>
+                    {summary.scope.needsDistrict ? "Choose a district" : "See more of Rwanda"}
+                  </ActionLink>
+                ) : undefined
+              }
+            />
+          ) : (
+            <ul className="grid gap-4 sm:grid-cols-2">
+              {newest.map((h) => (
+                <li key={h.unitId} className="flex">
+                  <HomeCard home={h} href={`${findHomes}&home=${h.unitId}`} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
         <SectionCard
           title="Latest placements"
           className="h-full"
