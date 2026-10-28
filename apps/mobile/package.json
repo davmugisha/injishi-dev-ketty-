@@ -16,6 +16,8 @@
     "lint:eslint": "eslint \"src/**/*.{ts,tsx}\"",
     "test": "node --test \"scripts/*.test.mjs\"",
     "palette:check": "node scripts/palette-check.mjs",
+    "icons:gen": "node scripts/gen-icons.mjs",
+    "icons:check": "node scripts/gen-icons.mjs --check",
     "check:ci": "node scripts/check-ci.mjs",
     "update:publish": "node scripts/publish-update.mjs",
     "eas-build-post-install": "pnpm --filter \"@injishi/mobile^...\" run --if-present build"
@@ -33,6 +35,7 @@
     "expo-constants": "~57.0.21",
     "expo-dev-client": "~57.0.20",
     "expo-font": "~57.0.4",
+    "expo-haptics": "~57.0.3",
     "expo-image": "~57.0.5",
     "expo-linking": "~57.0.12",
     "expo-network": "~57.0.3",
@@ -62,6 +65,7 @@
   },
   "devDependencies": {
     "@expo/fingerprint": "~0.20.14",
+    "@gravity-ui/icons": "2.22.1",
     "@types/react": "19.3.0",
     "@typescript-eslint/parser": "^8.68.0",
     "eslint": "^10.9.1",

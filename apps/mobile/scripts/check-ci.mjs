@@ -137,6 +137,7 @@ const STEPS = [
   ],
   ["generate the typed route declarations", typedRoutes],
   ["palette:check", () => run("pnpm", ["run", "palette:check"])],
+  ["icons:check", () => run("pnpm", ["run", "icons:check"])],
   ["typecheck", () => run("pnpm", ["run", "typecheck"])],
   ["lint", () => run("pnpm", ["run", "lint"])],
   ["test", () => run("pnpm", ["run", "test"])],
