@@ -8,11 +8,13 @@ import { PieChart } from "@heroui-pro/react/pie-chart";
 import { RadialChart } from "@heroui-pro/react/radial-chart";
 import { type ReactNode, useId, useMemo, useState } from "react";
 import { IconAction } from "./buttons.tsx";
+import { DASHBOARD_PERIODS, type DashboardPeriod, isDashboardPeriod, type PeriodRange } from "./dashboard-period.ts";
 import { formatNumber } from "./format.tsx";
 import { useElementWidth, useNoFocusInside, useReducedMotion } from "./hooks.ts";
 import type { IconKey } from "./icon.tsx";
 import { formatMoney, formatMoneyAxis } from "./money.tsx";
 import { EmptyBlock } from "./states.tsx";
+import { FilterMenu } from "./table.tsx";
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
@@ -1421,6 +1423,129 @@ export function ProgressRadial({
           {caption ? <span className="text-xs text-muted">{caption}</span> : null}
         </div>
       </div>
+    </ChartCard>
+  );
+}
+
+/** The dashboard's period, as a filter in the page's filter row or a chart's header (2026-10-28). */
+export function PeriodMenu({
+  value,
+  onChange,
+  className,
+}: {
+  value: DashboardPeriod;
+  onChange: (period: DashboardPeriod) => void;
+  className?: string;
+}) {
+  return (
+    <FilterMenu
+      label="Period"
+      name="Period"
+      icon="Calendar"
+      options={DASHBOARD_PERIODS}
+      value={value}
+      onChange={(v) => (isDashboardPeriod(v) ? onChange(v) : undefined)}
+      className={className}
+    />
+  );
+}
+
+export interface TrendSeries {
+  key: string;
+  label: string;
+  color: string;
+  /** A reference line (what was expected), drawn dashed with no fill. */
+  dashed?: boolean;
+}
+
+/**
+ * Money over the dashboard's period as areas (2026-10-28): day by day for this month, month by month
+ * otherwise. Hover a day or month for every series in francs; the numbers view lists them exactly.
+ * Always an area, even with one month of figures, because this month is drawn by the day.
+ */
+export function TrendArea({
+  title,
+  description,
+  range,
+  series,
+  values,
+  actions,
+  height = 220,
+  empty,
+  className,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  range: PeriodRange;
+  series: TrendSeries[];
+  /** One array per series, in the order of `series`, one number per bucket of `range`. */
+  values: number[][];
+  actions?: ReactNode;
+  height?: number;
+  empty?: { icon?: IconKey; title: string; description?: ReactNode; action?: ReactNode };
+  className?: string;
+}) {
+  const motion = !useReducedMotion();
+  const base = useId().replace(/:/g, "");
+  const rows = range.buckets.map((b, i) => {
+    const row: Record<string, string | number> = { label: b.label, long: b.long };
+    series.forEach((s, j) => {
+      row[s.key] = values[j]?.[i] ?? 0;
+    });
+    return row;
+  });
+  const totals = series.map((_, j) => (values[j] ?? []).reduce((a, v) => a + v, 0));
+  const isEmpty = totals.every((t) => t === 0);
+  const longOf = (label: string | number) => rows.find((r) => r.label === label)?.long ?? String(label);
+  return (
+    <ChartCard
+      title={title}
+      description={description}
+      actions={actions}
+      className={className}
+      legend={series.map((s) => ({ label: s.label, color: s.color, line: s.dashed }))}
+      isEmpty={isEmpty}
+      empty={empty ?? { icon: "Wallet", title: `Nothing in ${range.words}` }}
+      summary={series.map((s, j) => `${s.label} ${formatMoney(totals[j] ?? 0)}`).join(", ") + ` in ${range.words}.`}
+      table={{
+        columns: [range.unit === "day" ? "Day" : "Month", ...series.map((s) => `${s.label} (RWF)`)],
+        rows: range.buckets.map((b, i) => [b.long, ...series.map((_, j) => bare(values[j]?.[i] ?? 0))]),
+      }}
+    >
+      <AreaChart data={rows} height={height} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <defs>
+          {series.map((s, j) => (
+            <Gradient key={s.key} id={`${base}-${j}`} color={s.color} />
+          ))}
+        </defs>
+        <AreaChart.Grid vertical={false} />
+        <AreaChart.XAxis
+          dataKey="label"
+          {...axisProps}
+          tickMargin={8}
+          interval={range.unit === "day" ? 4 : "preserveStartEnd"}
+          padding={{ left: 8, right: 8 }}
+        />
+        <AreaChart.YAxis {...axisProps} width={44} tickFormatter={(v: number) => formatMoneyAxis(v)} />
+        <AreaChart.Tooltip
+          cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+          content={<AreaChart.TooltipContent {...moneyTooltip(longOf)} />}
+        />
+        {series.map((s, j) => (
+          <AreaChart.Area
+            key={s.key}
+            dataKey={s.key}
+            name={s.label}
+            type="monotone"
+            stroke={s.color}
+            strokeWidth={s.dashed ? 1.5 : 2}
+            strokeDasharray={s.dashed ? "4 4" : undefined}
+            fill={s.dashed ? "transparent" : `url(#${base}-${j})`}
+            activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
+            isAnimationActive={motion}
+          />
+        ))}
+      </AreaChart>
     </ChartCard>
   );
 }
