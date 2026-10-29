@@ -20,7 +20,9 @@ function seed(hash: string): void {
   const now = new Date();
   db.transaction((tx) => {
     tx.delete(documents).run();
-    for (const p of Object.values(personas)) {
+    // Only demo people get a row, as in @injishi/db's seed: the landlord, tenant and broker personas
+    // are shells for real accounts with no email, and empty emails collide on UNIQUE(email).
+    for (const p of Object.values(personas).filter((p) => p.email.trim() !== "")) {
       const row = {
         id: p.id,
         name: p.name,
