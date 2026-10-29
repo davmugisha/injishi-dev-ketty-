@@ -41,6 +41,18 @@ export const textTones = {
 
 export type TextTone = keyof typeof textTones;
 
+/** Each tone's palette role, for a part that needs the colour itself (an icon's fill). */
+export const toneRoles = {
+  default: "foreground",
+  muted: "muted",
+  accent: "accent-text",
+  success: "success-text",
+  warning: "warning-text",
+  danger: "danger-text",
+  info: "info",
+  onAccent: "accent-foreground",
+} as const satisfies Record<TextTone, string>;
+
 const weightClass = {
   normal: "font-normal",
   medium: "font-medium",
@@ -66,24 +78,34 @@ export type TextProps = Omit<NativeTextProps, "maxFontSizeMultiplier" | "role"> 
   className?: string;
 };
 
-export function Text({ role, tone = "default", caps = false, maxScale, className, style, ...rest }: TextProps) {
+/**
+ * A role's family class, size, leading, tracking and growth cap, for a kit part that draws its
+ * label on HeroUI's own text (`Button`, `Chip`) and keeps HeroUI's colour for it.
+ */
+export function roleText(role: TextRole, caps = false) {
   const spec = textRoles[role];
   const fontSize = rnFontSize[spec.step];
+  return {
+    className: weightClass[spec.weight],
+    maxFontSizeMultiplier: spec.maxScale as number,
+    style: {
+      fontSize,
+      lineHeight: rnLineHeight[spec.step],
+      letterSpacing: spec.tracking + (caps ? fontSize * CAPS_TRACKING : 0),
+      textTransform: caps ? ("uppercase" as const) : undefined,
+    },
+  };
+}
+
+export function Text({ role, tone = "default", caps = false, maxScale, className, style, ...rest }: TextProps) {
+  const type = roleText(role, caps);
   return (
     <NativeText
       accessibilityRole={HEADER_ROLES.has(role) ? "header" : undefined}
       {...rest}
-      maxFontSizeMultiplier={maxScale ?? spec.maxScale}
-      className={[weightClass[spec.weight], textTones[tone], className].filter(Boolean).join(" ")}
-      style={[
-        {
-          fontSize,
-          lineHeight: rnLineHeight[spec.step],
-          letterSpacing: spec.tracking + (caps ? fontSize * CAPS_TRACKING : 0),
-          textTransform: caps ? "uppercase" : undefined,
-        },
-        style,
-      ]}
+      maxFontSizeMultiplier={maxScale ?? type.maxFontSizeMultiplier}
+      className={[type.className, textTones[tone], className].filter(Boolean).join(" ")}
+      style={[type.style, style]}
     />
   );
 }
