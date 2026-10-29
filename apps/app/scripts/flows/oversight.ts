@@ -11,7 +11,7 @@ import type { CaseFile, QueueCase } from "@injishi/data/fixtures/oversight";
 import { approve, fieldVerify, OversightRefusal, reject } from "../../src/server/mutations/oversight";
 import { sources } from "../../src/server/sources/oversight";
 import type { SourceContext } from "../../src/server/sources/types";
-import { GASABO, OFFICERS, registerBusiness, registrationOf } from "../lib/registration";
+import { checkEveryDocument, GASABO, OFFICERS, registerBusiness, registrationOf } from "../lib/registration";
 import type { Flow } from "./types";
 
 const cases = async (ctx: SourceContext) => (await sources["oversight.cases"].list(ctx)) as QueueCase[];
@@ -71,6 +71,11 @@ export const flows: Flow[] = [
       await refused(403, () => approve(verifier, business.orgId), "a field verifier approving");
       await refused(403, () => fieldVerify(elsewhere, business.orgId), "an out-of-district verifier verifying");
       step("the registry refuses the wrong officer and the wrong order");
+
+      // The RDB certificate came with the registration (ADR-075 AC-11), and an unread document holds the gate.
+      await refused(409, () => fieldVerify(verifier, business.orgId), "verifying before the RDB certificate is read");
+      await checkEveryDocument(verifier, business.orgId);
+      step("the verifier reads the RDB certificate the registration carries");
 
       const verified = await fieldVerify(verifier, business.orgId, "Visited on site; premises as declared.");
       check(verified.status === "field_verified", `field verification left it at ${verified.status}`);

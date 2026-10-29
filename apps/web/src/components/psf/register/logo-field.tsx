@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Trash2 } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { Field } from "@/app/(app)/(entry)/register/wizard-ui";
 import { apiResultMessage } from "@/lib/api";

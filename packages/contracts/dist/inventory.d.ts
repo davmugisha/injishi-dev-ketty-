@@ -57,24 +57,24 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     name: string;
     sectorId: number;
     workspaceId: string;
+    checkInTime?: string | undefined;
+    checkOutTime?: string | undefined;
     street?: string | undefined;
     description?: string | undefined;
     contactEmail?: string | null | undefined;
     contactPhone?: string | null | undefined;
-    checkInTime?: string | undefined;
-    checkOutTime?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
 }, {
     name: string;
     sectorId: number;
     workspaceId: string;
+    checkInTime?: string | undefined;
+    checkOutTime?: string | undefined;
     street?: string | undefined;
     description?: string | undefined;
     contactEmail?: string | null | undefined;
     contactPhone?: string | null | undefined;
-    checkInTime?: string | undefined;
-    checkOutTime?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
 }>;
@@ -109,27 +109,27 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     workspaceId: string;
     name?: string | undefined;
+    checkInTime?: string | undefined;
+    checkOutTime?: string | undefined;
     sectorId?: number | undefined;
     street?: string | undefined;
     description?: string | undefined;
     rraBranchId?: string | null | undefined;
     contactEmail?: string | null | undefined;
     contactPhone?: string | null | undefined;
-    checkInTime?: string | undefined;
-    checkOutTime?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
 }, {
     workspaceId: string;
     name?: string | undefined;
+    checkInTime?: string | undefined;
+    checkOutTime?: string | undefined;
     sectorId?: number | undefined;
     street?: string | undefined;
     description?: string | undefined;
     rraBranchId?: string | null | undefined;
     contactEmail?: string | null | undefined;
     contactPhone?: string | null | undefined;
-    checkInTime?: string | undefined;
-    checkOutTime?: string | undefined;
     houseRules?: string | undefined;
     locationPrivacy?: boolean | undefined;
 }>;
@@ -201,19 +201,19 @@ export declare const PropertyAddress: z.ZodObject<{
     sectorName: z.ZodNullable<z.ZodString>;
     street: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    districtName: string | null;
     provinceId: number | null;
     districtId: number | null;
     sectorId: number | null;
     street: string | null;
-    districtName: string | null;
     sectorName: string | null;
     provinceName: string | null;
 }, {
+    districtName: string | null;
     provinceId: number | null;
     districtId: number | null;
     sectorId: number | null;
     street: string | null;
-    districtName: string | null;
     sectorName: string | null;
     provinceName: string | null;
 }>;
@@ -239,19 +239,19 @@ export declare const OperatorPropertySummary: z.ZodObject<{
         sectorName: z.ZodNullable<z.ZodString>;
         street: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
         street: string | null;
-        districtName: string | null;
         sectorName: string | null;
         provinceName: string | null;
     }, {
+        districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
         street: string | null;
-        districtName: string | null;
         sectorName: string | null;
         provinceName: string | null;
     }>;
@@ -270,43 +270,43 @@ export declare const OperatorPropertySummary: z.ZodObject<{
     archivedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     name: string;
+    id: string;
+    slug: string | null;
+    publishedAt: string | null;
     address: {
+        districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
         street: string | null;
-        districtName: string | null;
         sectorName: string | null;
         provinceName: string | null;
     };
-    id: string;
     isHeadOffice: boolean;
     roomTypeCount: number;
     rraBranchId: string | null;
     archivedAt: string | null;
-    slug: string | null;
-    publishedAt: string | null;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
     branchCode: string | null;
 }, {
     name: string;
+    id: string;
+    slug: string | null;
+    publishedAt: string | null;
     address: {
+        districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
         street: string | null;
-        districtName: string | null;
         sectorName: string | null;
         provinceName: string | null;
     };
-    id: string;
     isHeadOffice: boolean;
     roomTypeCount: number;
     rraBranchId: string | null;
     archivedAt: string | null;
-    slug: string | null;
-    publishedAt: string | null;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
     branchCode: string | null;
@@ -334,15 +334,15 @@ export declare const PropertyPhoto: z.ZodObject<{
     caption: z.ZodNullable<z.ZodString>;
     url: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    objectKey: string;
     id: string;
+    objectKey: string;
     url: string;
     position: number;
     isCover: boolean;
     caption: string | null;
 }, {
-    objectKey: string;
     id: string;
+    objectKey: string;
     url: string;
     position: number;
     isCover: boolean;
@@ -377,19 +377,19 @@ export declare const OperatorProperty: z.ZodObject<{
         sectorName: z.ZodNullable<z.ZodString>;
         street: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
         street: string | null;
-        districtName: string | null;
         sectorName: string | null;
         provinceName: string | null;
     }, {
+        districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
         street: string | null;
-        districtName: string | null;
         sectorName: string | null;
         provinceName: string | null;
     }>;
@@ -425,15 +425,15 @@ export declare const OperatorProperty: z.ZodObject<{
         caption: z.ZodNullable<z.ZodString>;
         url: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        objectKey: string;
         id: string;
+        objectKey: string;
         url: string;
         position: number;
         isCover: boolean;
         caption: string | null;
     }, {
-        objectKey: string;
         id: string;
+        objectKey: string;
         url: string;
         position: number;
         isCover: boolean;
@@ -454,30 +454,34 @@ export declare const OperatorProperty: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence" | "enterprise";
         id: string;
+        domain: "hospitality" | "residence" | "enterprise";
         sellableRoomCount: number;
         basePriceRwf: number | null;
     }, {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence" | "enterprise";
         id: string;
+        domain: "hospitality" | "residence" | "enterprise";
         sellableRoomCount: number;
         basePriceRwf: number | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     name: string;
+    id: string;
+    slug: string | null;
+    publishedAt: string | null;
+    checkInTime: string | null;
+    checkOutTime: string | null;
     address: {
+        districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
         street: string | null;
-        districtName: string | null;
         sectorName: string | null;
         provinceName: string | null;
     };
-    id: string;
     isHeadOffice: boolean;
     description: string | null;
     roomTypeCount: number;
@@ -488,41 +492,41 @@ export declare const OperatorProperty: z.ZodObject<{
     roomTypes: {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence" | "enterprise";
         id: string;
+        domain: "hospitality" | "residence" | "enterprise";
         sellableRoomCount: number;
         basePriceRwf: number | null;
     }[];
-    slug: string | null;
-    publishedAt: string | null;
-    checkInTime: string | null;
-    checkOutTime: string | null;
+    photos: {
+        id: string;
+        objectKey: string;
+        url: string;
+        position: number;
+        isCover: boolean;
+        caption: string | null;
+    }[];
     houseRules: string | null;
     locationPrivacy: boolean;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
     branchCode: string | null;
     timezone: string;
-    photos: {
-        objectKey: string;
-        id: string;
-        url: string;
-        position: number;
-        isCover: boolean;
-        caption: string | null;
-    }[];
 }, {
     name: string;
+    id: string;
+    slug: string | null;
+    publishedAt: string | null;
+    checkInTime: string | null;
+    checkOutTime: string | null;
     address: {
+        districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
         street: string | null;
-        districtName: string | null;
         sectorName: string | null;
         provinceName: string | null;
     };
-    id: string;
     isHeadOffice: boolean;
     description: string | null;
     roomTypeCount: number;
@@ -533,29 +537,25 @@ export declare const OperatorProperty: z.ZodObject<{
     roomTypes: {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence" | "enterprise";
         id: string;
+        domain: "hospitality" | "residence" | "enterprise";
         sellableRoomCount: number;
         basePriceRwf: number | null;
     }[];
-    slug: string | null;
-    publishedAt: string | null;
-    checkInTime: string | null;
-    checkOutTime: string | null;
+    photos: {
+        id: string;
+        objectKey: string;
+        url: string;
+        position: number;
+        isCover: boolean;
+        caption: string | null;
+    }[];
     houseRules: string | null;
     locationPrivacy: boolean;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
     branchCode: string | null;
     timezone: string;
-    photos: {
-        objectKey: string;
-        id: string;
-        url: string;
-        position: number;
-        isCover: boolean;
-        caption: string | null;
-    }[];
 }>;
 export type OperatorProperty = z.infer<typeof OperatorProperty>;
 /**
@@ -776,19 +776,19 @@ export declare const OperatorPropertyList: z.ZodObject<{
             sectorName: z.ZodNullable<z.ZodString>;
             street: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
+            districtName: string | null;
             provinceId: number | null;
             districtId: number | null;
             sectorId: number | null;
             street: string | null;
-            districtName: string | null;
             sectorName: string | null;
             provinceName: string | null;
         }, {
+            districtName: string | null;
             provinceId: number | null;
             districtId: number | null;
             sectorId: number | null;
             street: string | null;
-            districtName: string | null;
             sectorName: string | null;
             provinceName: string | null;
         }>;
@@ -807,43 +807,43 @@ export declare const OperatorPropertyList: z.ZodObject<{
         archivedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         name: string;
+        id: string;
+        slug: string | null;
+        publishedAt: string | null;
         address: {
+            districtName: string | null;
             provinceId: number | null;
             districtId: number | null;
             sectorId: number | null;
             street: string | null;
-            districtName: string | null;
             sectorName: string | null;
             provinceName: string | null;
         };
-        id: string;
         isHeadOffice: boolean;
         roomTypeCount: number;
         rraBranchId: string | null;
         archivedAt: string | null;
-        slug: string | null;
-        publishedAt: string | null;
         listingStatus: "draft" | "published";
         sellableRoomCount: number;
         branchCode: string | null;
     }, {
         name: string;
+        id: string;
+        slug: string | null;
+        publishedAt: string | null;
         address: {
+            districtName: string | null;
             provinceId: number | null;
             districtId: number | null;
             sectorId: number | null;
             street: string | null;
-            districtName: string | null;
             sectorName: string | null;
             provinceName: string | null;
         };
-        id: string;
         isHeadOffice: boolean;
         roomTypeCount: number;
         rraBranchId: string | null;
         archivedAt: string | null;
-        slug: string | null;
-        publishedAt: string | null;
         listingStatus: "draft" | "published";
         sellableRoomCount: number;
         branchCode: string | null;
@@ -851,22 +851,22 @@ export declare const OperatorPropertyList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     properties: {
         name: string;
+        id: string;
+        slug: string | null;
+        publishedAt: string | null;
         address: {
+            districtName: string | null;
             provinceId: number | null;
             districtId: number | null;
             sectorId: number | null;
             street: string | null;
-            districtName: string | null;
             sectorName: string | null;
             provinceName: string | null;
         };
-        id: string;
         isHeadOffice: boolean;
         roomTypeCount: number;
         rraBranchId: string | null;
         archivedAt: string | null;
-        slug: string | null;
-        publishedAt: string | null;
         listingStatus: "draft" | "published";
         sellableRoomCount: number;
         branchCode: string | null;
@@ -874,22 +874,22 @@ export declare const OperatorPropertyList: z.ZodObject<{
 }, {
     properties: {
         name: string;
+        id: string;
+        slug: string | null;
+        publishedAt: string | null;
         address: {
+            districtName: string | null;
             provinceId: number | null;
             districtId: number | null;
             sectorId: number | null;
             street: string | null;
-            districtName: string | null;
             sectorName: string | null;
             provinceName: string | null;
         };
-        id: string;
         isHeadOffice: boolean;
         roomTypeCount: number;
         rraBranchId: string | null;
         archivedAt: string | null;
-        slug: string | null;
-        publishedAt: string | null;
         listingStatus: "draft" | "published";
         sellableRoomCount: number;
         branchCode: string | null;
@@ -983,18 +983,18 @@ export declare const UpdateRoomTypeRequest: z.ZodObject<{
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
     roomCount?: number | undefined;
-    maxGuests?: number | undefined;
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    maxGuests?: number | undefined;
     basePriceRwf?: number | null | undefined;
 }, {
     workspaceId: string;
     status?: "active" | "archived" | undefined;
     name?: string | undefined;
     roomCount?: number | undefined;
-    maxGuests?: number | undefined;
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    maxGuests?: number | undefined;
     basePriceRwf?: number | null | undefined;
 }>;
 export type UpdateRoomTypeRequest = z.infer<typeof UpdateRoomTypeRequest>;
@@ -1016,12 +1016,12 @@ export declare const OperatorRoomType: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "active" | "archived";
     name: string;
-    domain: "hospitality" | "residence" | "enterprise";
     id: string;
+    domain: "hospitality" | "residence" | "enterprise";
     roomCount: number;
-    maxGuests: number | null;
     bookingMode: "instant_book" | "request_to_book" | null;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+    maxGuests: number | null;
     propertyId: string;
     sellableRoomCount: number;
     basePriceRwf: number | null;
@@ -1029,12 +1029,12 @@ export declare const OperatorRoomType: z.ZodObject<{
 }, {
     status: "active" | "archived";
     name: string;
-    domain: "hospitality" | "residence" | "enterprise";
     id: string;
+    domain: "hospitality" | "residence" | "enterprise";
     roomCount: number;
-    maxGuests: number | null;
     bookingMode: "instant_book" | "request_to_book" | null;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+    maxGuests: number | null;
     propertyId: string;
     sellableRoomCount: number;
     basePriceRwf: number | null;
@@ -1059,12 +1059,12 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence" | "enterprise";
         id: string;
+        domain: "hospitality" | "residence" | "enterprise";
         roomCount: number;
-        maxGuests: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+        maxGuests: number | null;
         propertyId: string;
         sellableRoomCount: number;
         basePriceRwf: number | null;
@@ -1072,12 +1072,12 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
     }, {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence" | "enterprise";
         id: string;
+        domain: "hospitality" | "residence" | "enterprise";
         roomCount: number;
-        maxGuests: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+        maxGuests: number | null;
         propertyId: string;
         sellableRoomCount: number;
         basePriceRwf: number | null;
@@ -1087,12 +1087,12 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
     roomTypes: {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence" | "enterprise";
         id: string;
+        domain: "hospitality" | "residence" | "enterprise";
         roomCount: number;
-        maxGuests: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+        maxGuests: number | null;
         propertyId: string;
         sellableRoomCount: number;
         basePriceRwf: number | null;
@@ -1102,12 +1102,12 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
     roomTypes: {
         status: "active" | "archived";
         name: string;
-        domain: "hospitality" | "residence" | "enterprise";
         id: string;
+        domain: "hospitality" | "residence" | "enterprise";
         roomCount: number;
-        maxGuests: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+        maxGuests: number | null;
         propertyId: string;
         sellableRoomCount: number;
         basePriceRwf: number | null;
@@ -1265,15 +1265,15 @@ export declare const PropertyPhotoList: z.ZodObject<{
         caption: z.ZodNullable<z.ZodString>;
         url: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        objectKey: string;
         id: string;
+        objectKey: string;
         url: string;
         position: number;
         isCover: boolean;
         caption: string | null;
     }, {
-        objectKey: string;
         id: string;
+        objectKey: string;
         url: string;
         position: number;
         isCover: boolean;
@@ -1281,8 +1281,8 @@ export declare const PropertyPhotoList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     photos: {
-        objectKey: string;
         id: string;
+        objectKey: string;
         url: string;
         position: number;
         isCover: boolean;
@@ -1290,8 +1290,8 @@ export declare const PropertyPhotoList: z.ZodObject<{
     }[];
 }, {
     photos: {
-        objectKey: string;
         id: string;
+        objectKey: string;
         url: string;
         position: number;
         isCover: boolean;
@@ -1351,14 +1351,14 @@ export declare const InventoryRoom: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "available" | "maintenance" | "out_of_service";
     id: string;
-    label: string | null;
     roomTypeId: string;
+    label: string | null;
     housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
 }, {
     status: "available" | "maintenance" | "out_of_service";
     id: string;
-    label: string | null;
     roomTypeId: string;
+    label: string | null;
     housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
 }>;
 export type InventoryRoom = z.infer<typeof InventoryRoom>;
@@ -1373,30 +1373,30 @@ export declare const InventoryRoomList: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "available" | "maintenance" | "out_of_service";
         id: string;
-        label: string | null;
         roomTypeId: string;
+        label: string | null;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
     }, {
         status: "available" | "maintenance" | "out_of_service";
         id: string;
-        label: string | null;
         roomTypeId: string;
+        label: string | null;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     rooms: {
         status: "available" | "maintenance" | "out_of_service";
         id: string;
-        label: string | null;
         roomTypeId: string;
+        label: string | null;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
     }[];
 }, {
     rooms: {
         status: "available" | "maintenance" | "out_of_service";
         id: string;
-        label: string | null;
         roomTypeId: string;
+        label: string | null;
         housekeeping: "dirty" | "clean" | "inspected" | "out_of_order";
     }[];
 }>;
@@ -1537,8 +1537,8 @@ export declare const PropertySetupProgress: z.ZodObject<{
         outlets: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    legalName: string;
     domain: "hospitality" | "residence" | "enterprise";
+    legalName: string;
     accommodationClass: string | null;
     orgId: string;
     propertyName: string | null;
@@ -1558,8 +1558,8 @@ export declare const PropertySetupProgress: z.ZodObject<{
         outlets: number;
     };
 }, {
-    legalName: string;
     domain: "hospitality" | "residence" | "enterprise";
+    legalName: string;
     accommodationClass: string | null;
     orgId: string;
     propertyName: string | null;

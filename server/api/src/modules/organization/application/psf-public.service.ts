@@ -1,3 +1,4 @@
+import { PSF_NO_INSTRUMENT_MESSAGE, psfInstrument } from './psf-instrument';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 
 import {
@@ -347,7 +348,7 @@ export class PsfPublicService {
       throw error;
     }
 
-    const charged = await this.chargeAtSubmit(created.orgId, created.applicationId, declared);
+    const charged = await this.chargeAtSubmit(created.orgId, created.applicationId, declared, contact.phoneE164);
     const facts = await this.psfRepo.orgFacts(created.orgId);
     return {
       docId: created.docId,
@@ -374,12 +375,17 @@ export class PsfPublicService {
     orgId: string,
     applicationId: string,
     membershipFeeRwf: number,
+    phoneE164: string | null,
   ): Promise<{ paid: boolean; problem: string | null }> {
+    const instrument = psfInstrument(phoneE164);
+    if (!instrument) return { paid: false, problem: PSF_NO_INSTRUMENT_MESSAGE };
     let receipt;
     try {
       receipt = await this.payments.chargeOneTimeFee({
         kind: 'one_time_fee',
+        purpose: 'psf_membership',
         feeCode: 'psf_membership',
+        instrument,
         // No workspace on this path: the business itself scopes the money.
         idempotencyKey: `${orgId}:psf-submit:${applicationId}`,
         amountRwf: membershipFeeRwf,
@@ -517,7 +523,12 @@ export class PsfPublicService {
       return { status: 'paid', message: null, view: await this.view(row) };
     }
     // The payment at submit, again: the membership fee, under the same key.
-    const charged = await this.chargeAtSubmit(row.orgId, row.applicationId, row.declaredFeeRwf ?? 0);
+    const charged = await this.chargeAtSubmit(
+      row.orgId,
+      row.applicationId,
+      row.declaredFeeRwf ?? 0,
+      row.applicantPhoneE164 ?? row.phoneE164,
+    );
     return {
       status: charged.paid ? 'paid' : charged.problem?.startsWith('Approve') ? 'pending' : 'declined',
       message: charged.problem,
@@ -539,6 +550,7 @@ export class PsfPublicService {
         scopeId: row.orgId,
         // The approval is what the membership stands on: the officer who gave it.
         recordedByUserId: app.decidedByUserId,
+        phoneE164: row.applicantPhoneE164 ?? row.phoneE164,
       });
     } catch (error) {
       if (error instanceof HttpException) {

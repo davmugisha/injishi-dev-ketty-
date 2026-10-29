@@ -7,8 +7,8 @@ import type {
   FoundItemSpot,
   MinibarItem,
 } from "@injishi/data/fixtures/staff";
+import { NothingYet } from "@injishi/ui/phone";
 import type { Metadata } from "next";
-import { NothingYet } from "@/features/staff/parts";
 import { StaffTaskView } from "@/features/staff/StaffTaskView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";

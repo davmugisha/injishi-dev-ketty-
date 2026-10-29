@@ -48,3 +48,17 @@ export function maskOptionalIdentifier(value: string | null): string | null {
   if (trimmed.length === 0) return null;
   return maskIdentifier(trimmed);
 }
+
+/**
+ * An email address with most of its name hidden, for "we sent a code to …"
+ * and an invitation page: `samuel@injishi.com` → `sa••••@injishi.com`. The
+ * domain stays readable, so the person can tell which mailbox to open.
+ */
+export function maskEmail(email: string): string {
+  const at = email.lastIndexOf('@');
+  if (at <= 0) return email;
+  const name = email.slice(0, at);
+  const domain = email.slice(at);
+  if (name.length <= 2) return `${name[0] ?? ''}••${domain}`;
+  return `${name.slice(0, 2)}${HIDDEN.repeat(Math.min(name.length - 2, 6))}${domain}`;
+}

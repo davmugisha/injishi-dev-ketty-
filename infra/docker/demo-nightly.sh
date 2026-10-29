@@ -138,7 +138,7 @@ fi
 [[ -d $STAGING_SRC/.git ]] || die "$STAGING_SRC is not staging's checkout"
 
 # ── the HeroUI Pro build token ────────────────────────────────────────────────
-# The web, app and admin builds need HeroUI Pro's CI/CD token (DOKPLOY.md,
+# The web and app builds need HeroUI Pro's CI/CD token (DOKPLOY.md,
 # Required secrets with no default), which the compose file hands them as a
 # BuildKit secret sourced from HEROUI_AUTH_TOKEN. Compose before v2.40 reads
 # that variable from its own process environment only, never from --env-file

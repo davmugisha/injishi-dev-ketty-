@@ -5,8 +5,9 @@
  * `injishi.managed` repo; its exact output did not, so this script is proved
  * against the three committed stylesheets rather than trusted:
  *
- *   node scripts/emit-css.mjs           # write generated/*.css
+ *   node scripts/emit-css.mjs           # write generated/*
  *   node scripts/emit-css.mjs --check   # fail if any file would change
+ *   node scripts/emit-css.mjs --report  # also print every contrast pair
  *
  * `--check` is the second half of `pnpm -F @injishi/design-tokens check`, so a
  * token edited in `src/` without regenerating fails the same way a hand-edited
@@ -19,7 +20,7 @@
  * comments. That is why a value change is reviewable as a one-line diff in
  * `src/` plus its mechanical consequence here.
  *
- * Three sheets, three audiences:
+ * Five files, four audiences:
  *
  *   injishi-ramps.css   the 22 ramp hexes only, for a consumer keeping its own
  *                       semantic layer
@@ -27,6 +28,15 @@
  *                       set, the theme-following light/dark pair
  *   injishi-heroui.css  the HeroUI 3 vocabulary — the teal theme, its legacy
  *                       aliases, the document scrollbar opt-in
+ *   injishi-native.css  the same palette for HeroUI Native on the phone, as
+ *   injishi-native.json gamut mapped hex: the CSS for Uniwind, the JSON for
+ *                       code that needs a colour as a value (spec 0002 D-e)
+ *
+ * NOTHING IS WRITTEN PAST A BROKEN FLOOR. Before any file is written (or
+ * checked), the palette is measured against the contrast table
+ * (`contrast-table.mjs`), and a pair under its floor stops the run, named
+ * with its ratio. A correction belongs in `src/heroui.ts`, marked CORRECTED
+ * with its measurement, never in a generated file.
  *
  * A NOTE ON `--radius`. Both sheets emit `--radius: 0.5rem`, and both read it
  * from `herouiRadius`. There is exactly one base corner in the product and
@@ -39,6 +49,8 @@ import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { toHex } from './color.mjs';
+import { formatRow, measure, softDerivation, softTint } from './contrast-table.mjs';
 
 const require = createRequire(import.meta.url);
 const tokens = require('../dist');
@@ -264,6 +276,31 @@ const SCROLLBAR_NOTE = [
   ' * source: retheme the bar by moving the token, never by editing this rule. */',
 ].join(NL);
 
+/**
+ * The soft labels `herouiSoftLabels` authors, for one theme block.
+ *
+ * Light declares the overrides. Dark declares every light key again, as the
+ * platform's own dark derivation unless dark authors one too: the light block
+ * sits on `:root` unlayered and HeroUI's dark derivation in a layer, so a light
+ * key with no dark twin would leak into dark (the cascade note in heroui.ts).
+ */
+function softLabelDecls(theme, platform) {
+  const { herouiSoftLabels, herouiDark } = tokens;
+  const keys = Object.keys({ ...herouiSoftLabels.light, ...herouiSoftLabels[theme] });
+  if (keys.length === 0) return [];
+  const lines = keys.map((key) => {
+    const authored = herouiSoftLabels[theme][key];
+    if (authored) return decl(kebab(key), authored);
+    const tone = key.replace(/SoftForeground$/, '');
+    return decl(kebab(key), softDerivation(platform, theme, tone, herouiDark).css);
+  });
+  const note =
+    theme === 'light'
+      ? "  /* soft labels HeroUI's derivation leaves under 4.5:1, authored instead */"
+      : "  /* soft labels: HeroUI's own dark derivation, restated so light's cannot leak */";
+  return ['', note, ...lines];
+}
+
 /* ------------------------------------------------------------ the sheets */
 
 function rampsSheet() {
@@ -334,7 +371,10 @@ function herouiSheet() {
     herouiFixedGrounds,
     herouiRadius,
     herouiFieldRadius,
+    herouiFieldBorderWidth,
     herouiSpacing,
+    herouiTracking,
+    herouiTypeScale,
     radiusCard,
     shadowControl,
   } = tokens;
@@ -356,6 +396,7 @@ function herouiSheet() {
     '',
     "  /* the design system's own mixes for roles HeroUI derives (ADR-068) */",
     ...roles(herouiMixes.light),
+    ...softLabelDecls('light', 'web'),
     '',
     '  /* legacy Injishi role names, aliased onto the HeroUI roles */',
     ...aliasDecls(herouiAliases),
@@ -363,6 +404,9 @@ function herouiSheet() {
     '  /* non-color */',
     decl('radius', herouiRadius),
     decl('field-radius', herouiFieldRadius),
+    "  /* HeroUI reads the field border width under both names (ADR-068) */",
+    decl('field-border-width', herouiFieldBorderWidth),
+    decl('border-width-field', herouiFieldBorderWidth),
     '}',
     '',
     '.dark,',
@@ -380,6 +424,7 @@ function herouiSheet() {
     '',
     "  /* the design system's own mixes for roles HeroUI derives (ADR-068) */",
     ...roles(herouiMixes.dark),
+    ...softLabelDecls('dark', 'web'),
     '',
     '  /* legacy Injishi role names, aliased onto the HeroUI roles */',
     ...aliasDecls(herouiAliases),
@@ -421,10 +466,142 @@ function herouiSheet() {
     decl('spacing', herouiSpacing),
     '}',
     '',
+    "/* The design system's letter spacing and text scale (ADR-068): Tailwind's",
+    '   own names at the values it saves. ADR-027\'s four authored steps follow',
+    '   in their own block and share no name with these. */',
+    '@theme {',
+    ...Object.entries(herouiTracking).map(([name, value]) => decl(`tracking-${name}`, value)),
+    '',
+    ...Object.entries(herouiTypeScale).flatMap(([name, step]) => [
+      decl(`text-${name}`, step.size),
+      ...(step.lineHeight ? [decl(`text-${name}--line-height`, step.lineHeight)] : []),
+    ]),
+    '}',
+    '',
     ...layoutTheme(),
     ...motionTheme(),
   ].join(NL);
 }
+
+/* --------------------------------------------------------- the phone's */
+
+/**
+ * The roles HeroUI Native reads (heroui-native 1.0 `styles/variables.css`),
+ * then the ones Injishi adds for the phone's text tones and press feedback.
+ * Shadows are not here: the phone keeps HeroUI's own (spec 0002 D-aa).
+ */
+const NATIVE_ROLES = [
+  'background', 'foreground',
+  'surface', 'surfaceForeground', 'surfaceSecondary', 'surfaceSecondaryForeground',
+  'surfaceTertiary', 'surfaceTertiaryForeground', 'overlay', 'overlayForeground', 'backdrop',
+  'muted', 'default', 'defaultForeground', 'accent', 'accentForeground',
+  'fieldBackground', 'fieldForeground', 'fieldPlaceholder', 'fieldBorder',
+  'success', 'successForeground', 'warning', 'warningForeground', 'danger', 'dangerForeground',
+  'segment', 'segmentForeground', 'border', 'separator', 'focus',
+];
+const NATIVE_EXTRA = ['accentText', 'dangerText', 'successText', 'warningText', 'info', 'pressed'];
+
+/**
+ * One theme of the phone's palette, `kebab-role -> hex`, in a fixed order.
+ *
+ * Hex, not OKLCH: what Uniwind and React Native draw is sRGB, so the emitter
+ * does the gamut mapping once, here, rather than leaving each library to do
+ * it its own way. A translucent role keeps its alpha as `#RRGGBBAA`.
+ *
+ * `info` has no soft set in HeroUI, so it is added at HeroUI Native's own
+ * ratios (15% fill, 92/8 label). A soft label `herouiSoftLabels` authors
+ * replaces the vibrant derivation in the theme that authors it; in the other
+ * theme the derivation is resolved to its hex, so the one `--color-*` mapping
+ * below serves both.
+ */
+function nativePalette(theme) {
+  const { herouiLight, herouiDark, herouiSoftLabels } = tokens;
+  const p = theme === 'light' ? herouiLight : herouiDark;
+  const out = {};
+  for (const role of [...NATIVE_ROLES, ...NATIVE_EXTRA]) out[kebab(role)] = toHex(p[role]);
+  out['info-soft'] = toHex(softTint('native', theme, 'info', p));
+  const softKeys = ['infoSoftForeground', ...Object.keys({ ...herouiSoftLabels.light, ...herouiSoftLabels.dark })];
+  for (const key of new Set(softKeys)) {
+    const tone = key.replace(/SoftForeground$/, '');
+    out[kebab(key)] = toHex(herouiSoftLabels[theme][key] ?? softDerivation('native', theme, tone, p).value);
+  }
+  return out;
+}
+
+/** The phone's `--color-*` utilities HeroUI Native does not already map. */
+const nativeOwnKeys = () => Object.keys(nativePalette('light')).filter((k) => !NATIVE_ROLES.map(kebab).includes(k));
+
+const NATIVE_HEADER = [
+  '/* AUTO-GENERATED from @injishi/design-tokens — do not edit by hand.',
+  ' * Regenerate: pnpm --filter @injishi/design-tokens generate:css',
+  ' * Single source: packages/design-tokens/src/heroui.ts, as gamut mapped hex.',
+  ' * The phone imports this after heroui-native/styles and its vibrant sheet. */',
+  '',
+];
+
+function nativeSheet() {
+  const { herouiRadius, herouiFieldRadius, herouiFieldBorderWidth } = tokens;
+  const variant = (theme) => [
+    `    @variant ${theme} {`,
+    ...Object.entries(nativePalette(theme)).map(([k, v]) => `      --${k}: ${v};`),
+    '    }',
+  ];
+  return [
+    ...NATIVE_HEADER,
+    '@theme {',
+    decl('radius', herouiRadius),
+    decl('field-radius', herouiFieldRadius),
+    decl('field-border-width', herouiFieldBorderWidth),
+    '}',
+    '',
+    "/* HeroUI Native's own form: the variants inside :root, inside the theme layer. */",
+    '@layer theme {',
+    '  :root {',
+    ...variant('light'),
+    '',
+    ...variant('dark'),
+    '  }',
+    '}',
+    '',
+    "/* Utilities for the roles HeroUI Native has no name for, and the soft labels",
+    '   that replace its vibrant derivation. */',
+    '@theme inline static {',
+    ...themeKeys(nativeOwnKeys()),
+    '}',
+    '',
+  ].join(NL);
+}
+
+function nativeJson() {
+  const doc = {
+    $comment:
+      'AUTO-GENERATED from @injishi/design-tokens (src/heroui.ts). Regenerate: pnpm --filter @injishi/design-tokens generate:css',
+    light: nativePalette('light'),
+    dark: nativePalette('dark'),
+  };
+  return `${JSON.stringify(doc, null, 2)}\n`.replace(/\n/g, NL);
+}
+
+/* ---------------------------------------------------------------- floors */
+
+const rows = measure({
+  light: tokens.herouiLight,
+  dark: tokens.herouiDark,
+  softLabels: tokens.herouiSoftLabels,
+});
+if (process.argv.includes('--report')) for (const row of rows) console.log(formatRow(row));
+const breaches = rows.filter((row) => !row.ok);
+if (breaches.length) {
+  console.error(`FAIL  contrast table: ${breaches.length} of ${rows.length} pairs under their floor`);
+  for (const row of breaches) console.error(`      ${formatRow(row)}`);
+  console.error('');
+  console.error('      Nothing was written. Correct the role in src/heroui.ts by ADR-025\'s');
+  console.error('      rule (hue and chroma held, lightness moved), mark it CORRECTED with');
+  console.error('      its measurement, then build and run this again.');
+  console.error('');
+  process.exit(1);
+}
+console.log(`ok    contrast table: all ${rows.length} pairs clear their floors`);
 
 /* ------------------------------------------------------------------- run */
 
@@ -432,6 +609,8 @@ const SHEETS = {
   'injishi-ramps.css': rampsSheet(),
   'injishi-tokens.css': tokensSheet(),
   'injishi-heroui.css': herouiSheet(),
+  'injishi-native.css': nativeSheet(),
+  'injishi-native.json': nativeJson(),
 };
 
 const check = process.argv.includes('--check');
@@ -458,7 +637,7 @@ for (const [name, body] of Object.entries(SHEETS)) {
 
 if (stale) {
   console.error('');
-  console.error('      A token in src/ moved without regenerating the stylesheets. Run:');
+  console.error('      A token in src/ moved without regenerating the generated files. Run:');
   console.error('');
   console.error('        pnpm -F @injishi/design-tokens generate:css');
   console.error('');

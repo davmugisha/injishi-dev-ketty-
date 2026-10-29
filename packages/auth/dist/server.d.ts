@@ -1,6 +1,8 @@
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { type OtpType } from "./options.js";
 import { type SendPhoneRemovedNotice, type SendSms } from "./phone.js";
+import { type MayHoldPassword } from "./password-gate.js";
+export { PASSWORD_CODE_RESET_PATH, PASSWORD_CODE_SEND_PATHS, PASSWORD_NOT_OFFERED, type MayHoldPassword, } from "./password-gate.js";
 /** Delivers an OTP to the user. The backend plugs in its mailer seam's sender (SMTP through nodemailer). */
 export type SendOtp = (args: {
     email: string;
@@ -133,14 +135,46 @@ export interface CreateAuthConfig {
      * still written first, exactly as it would have been without the hook.
      */
     onServerError?: (error: unknown) => void;
+    /**
+     * Whether this user may hold a password: a tenant (a `tenants.user_id`
+     * link, or an open or accepted lease invitation to their address).
+     * Passwords are for tenants only (2026-10-23); everybody else signs in
+     * with an emailed code.
+     *
+     * Omit it and nobody can set a first password. A person who already has
+     * one can still sign in with it, change it and reset it.
+     */
+    mayHoldPassword?: MayHoldPassword;
 }
+/**
+ * The routes whose new session is marked stepped up (F-S02) as it is made.
+ *
+ * Each one proved a secret only the person holds, on this request:
+ *
+ * - `/sign-in/email-otp`: a code read out of the mailbox.
+ * - `/sign-in/email`: the password. Only a tenant can hold one
+ *   (`password-gate.ts`), and only on an account whose mailbox was proved
+ *   first: accounts are made by an email code (`disableSignUp`). So a
+ *   password session is no weaker than a code session. Landlords, brokers,
+ *   admins and leaders never have a password, so for them nothing changes.
+ * - `/change-password`: the current password again. With "sign out of other
+ *   devices" Better Auth replaces this session with a new one, and without
+ *   the mark the person who just proved their password would be asked for a
+ *   code on their next screen.
+ *
+ * Google and phone sign-in are deliberately absent: Google never proved the
+ * mailbox with a code, and ADR-039 AC-11 forbids a phone session from skipping
+ * the emailed step-up.
+ */
+export declare const STEPPED_UP_PATHS: ReadonlySet<string>;
 /**
  * The single Injishi Better Auth instance (F-S01, D7).
  *
- * Passwordless by default: email-OTP (primary) + Google OAuth, both issuing a
- * session that resolves to one User by verified email. Passwords are never
- * prompted. Apple is intentionally NOT configured here — the UI shows it as a
- * disabled placeholder until Sign in with Apple is provisioned.
+ * Email OTP (primary) + Google OAuth, both issuing a session that resolves to
+ * one User by verified email. A tenant may add a password when they accept a
+ * lease invitation (2026-10-23); nobody else is offered one. Apple is
+ * intentionally NOT configured here: the UI shows it as a disabled
+ * placeholder until Sign in with Apple is provisioned.
  *
  * IDs are left to the database (`generateId: false`) so Postgres'
  * `gen_random_uuid()` default fills the uuid PKs the schema already declares.

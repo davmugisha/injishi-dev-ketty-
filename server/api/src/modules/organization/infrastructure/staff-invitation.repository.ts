@@ -16,7 +16,7 @@ import {
   DRIZZLE,
   type Database,
 } from '../../../shared/database/database.module';
-import { ensureStaffFileTx } from '../../people/infrastructure/staff-file';
+import { ensureStaffFileTx } from '../../hr/infrastructure/staff-file';
 
 /** Any reason an acceptance writes nothing. Rolls the transaction back. */
 export class StaffInvitationRefused extends Error {

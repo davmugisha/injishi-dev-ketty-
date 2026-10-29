@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { SectionHeading } from "@/components/shared/section-heading";
 
 /**

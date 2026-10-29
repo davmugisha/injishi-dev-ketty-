@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { LifebuoyIcon } from "@/components/icons";
 import { PROMO_BAR } from "@/data/promotions";
 import { SEARCH_DISTRICTS } from "@/data/search-options";

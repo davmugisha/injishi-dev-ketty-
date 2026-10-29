@@ -4,6 +4,7 @@ import {
   CellListQuery,
   District,
   DistrictListQuery,
+  tidyPlaceName,
   Province,
   Sector,
   SectorListQuery,
@@ -12,6 +13,10 @@ import {
 } from '@injishi/contracts';
 
 import { GeographyRepository } from '../infrastructure/geography.repository';
+
+/** Names as people write them ("Eastern Province", "Gatumba", "Nyakabanda II"), not as the reference dump holds them. */
+const named = <T extends { name: string }>(rows: T[]): T[] =>
+  rows.map((row) => ({ ...row, name: tidyPlaceName(row.name) }));
 
 /**
  * Application service (use cases) for the Geography module. This is the ONLY
@@ -25,27 +30,27 @@ export class GeographyService {
 
   async listProvinces(): Promise<Province[]> {
     const rows = await this.repo.findProvinces();
-    return Province.array().parse(rows);
+    return Province.array().parse(named(rows));
   }
 
   async listDistricts(query: DistrictListQuery): Promise<District[]> {
     const rows = await this.repo.findDistricts(query.provinceId);
-    return District.array().parse(rows);
+    return District.array().parse(named(rows));
   }
 
   async listSectors(query: SectorListQuery): Promise<Sector[]> {
     const rows = await this.repo.findSectors(query.districtId);
-    return Sector.array().parse(rows);
+    return Sector.array().parse(named(rows));
   }
 
   async listCells(query: CellListQuery): Promise<Cell[]> {
     const rows = await this.repo.findCells(query.sectorId);
-    return Cell.array().parse(rows);
+    return Cell.array().parse(named(rows));
   }
 
   async listVillages(query: VillageListQuery): Promise<Village[]> {
     const rows = await this.repo.findVillages(query.cellId);
-    return Village.array().parse(rows);
+    return Village.array().parse(named(rows));
   }
 
   /**

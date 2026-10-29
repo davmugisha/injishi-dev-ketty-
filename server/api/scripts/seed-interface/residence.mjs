@@ -25,6 +25,7 @@
  * names them. Everything written here is in the residences workspace and converges on a re-run.
  */
 import { day, iid, kigaliAt, parseFixtureDate, shiftDate, TODAY, userId } from './lib.mjs';
+import { rentalsRebuilt, skipRentalsNote } from '../rentals-rebuilt.mjs';
 import { ORG, PROPERTY, roomId, roomTypeId, WORKSPACE } from './world.mjs';
 
 const WS = WORKSPACE.residences;
@@ -275,6 +276,13 @@ export async function seed(ctx) {
     };
   });
   kept('residence_units', await upsert(c, 'residence_units', unitRows));
+
+  // The lease register, rent, deposits, notices, filings, repairs and gate codes are the old shape:
+  // skipped after the rentals rebuild (../rentals-rebuilt.mjs). The blocks and units above stay.
+  if (await rentalsRebuilt(c)) {
+    log(skipRentalsNote('residence', `Kacyiru Court's ${register.length} leases, rent roll, deposits, notices, filings, repairs and gate codes`));
+    return;
+  }
 
   // ── The lease register ───────────────────────────────────────────────────────────────────────────
   const occupants = { 'L-KC-014': 'Ines Habineza' };

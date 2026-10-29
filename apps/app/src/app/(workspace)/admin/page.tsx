@@ -1,20 +1,15 @@
 import { screens } from "@injishi/data";
-import type { AdminKpi, Deploy, OnCallShift, TriageItem, ViewAsSession } from "@injishi/data/fixtures/admin";
 import type { Metadata } from "next";
-import { AdminHomeView } from "@/features/admin/AdminHomeView";
+import { redirect } from "next/navigation";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
 
 export const metadata: Metadata = { title: screens.AdminHome.pageTitle };
 
+/**
+ * Staff land on the registrations: the control tower's figures were sample data, and staff screens show
+ * only records from the database.
+ */
 export default async function AdminHomePage() {
-  const persona = await requirePersona("AdminHome");
-  const [kpis, items, deploys, onCall, sessions] = await Promise.all([
-    getCollection<AdminKpi>("admin.homeKpis"),
-    getCollection<TriageItem>("admin.triageItems"),
-    getCollection<Deploy>("admin.deploys"),
-    getCollection<OnCallShift>("admin.onCall"),
-    getCollection<ViewAsSession>("admin.viewAsSessions"),
-  ]);
-  return <AdminHomeView persona={persona} data={{ kpis, items, deploys, onCall, sessions }} />;
+  await requirePersona("AdminHome");
+  redirect("/admin/businesses");
 }

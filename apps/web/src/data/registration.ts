@@ -1,23 +1,27 @@
 import {
+  BrokerFeePayment,
+  BrokerFeeQuote,
+  type BrokerFeeCheckoutRequest,
+  type BusinessKind,
   BrokerRegistrationSummary,
   ClaimPreview,
   type CreateBrokerRegistrationRequest,
   type CreateRegistrationRequest,
   MyProfile,
   PsfTier,
-  RegistrationDraft,
+  type RegistrantCapacity,
+  type RegistrationDraft,
+  RegistrationDraftRead,
+  RegistrationDraftSaved,
+  RegistrationFeeAttemptStatus,
   RegistrationFeeQuote,
+  type RegistrationPayRequest,
+  RegistrationPayResult,
   RegistrationSummary,
-  type RegistrationBusinessType,
   TinCheckResult,
 } from "@injishi/contracts";
 
-import {
-  registrationFeeFor,
-  type RegistrationFee,
-  type RegistrationFeeOverrides,
-} from "@/data/registration-fees";
-import { apiFetch, type ApiResult } from "@/lib/api";
+import { apiFetch, apiFetchParsed, retryWhileFailed, type ApiResult } from "@/lib/api";
 
 /**
  * The web client for business registration — `/api/v1/me/profile` and
@@ -39,111 +43,51 @@ export async function fetchMyProfile(): Promise<ApiResult<MyProfile>> {
 }
 
 /**
- * What this kind of registration costs right now.
+ * What this kind of business pays to register right now (ADR-075 AC-13): read
+ * from `registration_fees` by its kind, 50,000 RWF for every business PSF
+ * reviews.
  *
- * Public on purpose — a price nobody can see before signing in is a price
- * nobody trusts — so this is asked before the wizard has an identity.
+ * Public on purpose: a price nobody can see before signing in is a price
+ * nobody trusts, so this is asked before the wizard has an identity.
  */
-export async function fetchRegistrationFee(
-  businessType: RegistrationBusinessType,
-): Promise<ApiResult<RegistrationFeeQuote>> {
-  const res = await apiFetch<unknown>(
-    `/api/v1/registrations/fee?businessType=${businessType}`,
-  );
+export async function fetchRegistrationFee(kind: BusinessKind): Promise<ApiResult<RegistrationFeeQuote>> {
+  const res = await apiFetch<unknown>(`/api/v1/registrations/fee?kind=${encodeURIComponent(kind)}`);
   if (res.status !== "ok") return res;
   const parsed = RegistrationFeeQuote.safeParse(res.data);
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }
 
-/** Where the figure on the pay step came from, in order of authority. */
-type RegistrationFeeSource = "invoice" | "quote" | "configured" | "none";
-
-interface ResolvedRegistrationFee {
-  /** What to print. Null only when nothing anywhere could name an amount. */
-  amountRwf: number | null;
-  source: RegistrationFeeSource;
-  /**
-   * The configured row this landed on — the schedule the console edits.
-   * Present whenever the accommodation type is known, even when the server
-   * answered, because the screen still names the type it is quoting for.
-   */
-  configured: RegistrationFee | null;
-}
-
 /**
- * The one place the pay step's figure is decided, and the order is the point.
- *
- * 1. **The invoice.** Once a registration exists the amount is LOCKED onto it
- *    (D8), so the bill is the only figure worth showing — a quote fetched
- *    before it was raised is allowed to differ and showing that difference is
- *    how a registrant is told one price and charged another.
- * 2. **The server's quote.** `fetchRegistrationFee` reads `registration_fees`,
- *    which is the real price list. When the API answers, it wins over anything
- *    this app carries.
- * 3. **The configured schedule** in `data/registration-fees.ts` — the demo's
- *    admin-set, per-accommodation-type fee. This is a FALLBACK and never an
- *    override: it is what a demo laptop with no API quotes, so the wizard
- *    always names a price instead of stopping on an em dash and a "we couldn't
- *    load the fee" refusal that a stakeholder reads as a broken screen.
- *
- * THE ORDER OF 2 AND 3 WAS TRIED THE OTHER WAY ROUND AND PUT BACK. The case for
- * swapping them is real: the quote endpoint is keyed by BUSINESS TYPE and there
- * are only three of those (`hospitality`, `residence`, `broker`), it answers a
- * flat RWF 5,000 to all three, and it therefore cannot express what a hotel pays
- * against what a guest house pays — which is the whole of the per-accommodation
- * -type feature. Putting the schedule first does make that feature visible: the
- * review step then reads "RWF 250,000, the Hotel rate".
- *
- * It also breaks D8, and that is decisive. Walking the wizard to the end with
- * the schedule first quotes RWF 250,000 on the review step and then, the moment
- * `POST /registrations` raises the real bill, the same screen's button reads
- * "Pay RWF 5,000". Being told one price and charged another is the exact defect
- * rule 1 exists to prevent, and a demo that does it in front of a stakeholder is
- * worse than a demo where the per-type schedule is quieter. Verified in a
- * browser on 2026-09-09, both orderings.
- *
- * So the per-type schedule is demonstrated on the admin console screen that
- * edits it, and in the wizard on a machine where the API is not answering. If
- * the API ever prices by accommodation type, this note and the fallback can go.
- *
- * The caller passes the overrides it read from the cookie rather than this
- * reading them, so the function stays pure and hydration-safe — see
- * `registrationFeeFor`.
+ * The figure the fee is shown as, and the order is the point. Once a
+ * registration exists its invoice is the bill, so its amount wins (D8); before
+ * that, the server's quote. The amount quoted, charged and stored is the same
+ * number (AC-13), so there is no third source: web's own per kind price list
+ * (`data/registration-fees.ts`, invented amounts up to 250,000) is deleted
+ * (ADR-075 D-j).
  */
 export function resolveRegistrationFee({
   summary,
   quote,
-  accommodationType,
-  overrides,
 }: {
   summary: RegistrationSummary | null;
   quote: RegistrationFeeQuote | null;
-  accommodationType: string | null;
-  overrides?: RegistrationFeeOverrides;
-}): ResolvedRegistrationFee {
-  const configured = registrationFeeFor(accommodationType, overrides ?? {});
-  // `amountDueRwf` is set only while the registration is `pending_payment`, so
-  // a summary can exist and still name no amount — a resubmitted registration
-  // is past its bill and is never shown a second one (D23). That case falls
-  // through to the quote rather than blanking the figure, which is what the
-  // `??` chain this replaced already did and what the Pay button label needs.
-  if (summary !== null && summary.amountDueRwf !== null)
-    return { amountRwf: summary.amountDueRwf, source: "invoice", configured };
-  if (quote !== null)
-    return { amountRwf: quote.amountRwf, source: "quote", configured };
-  if (configured !== null)
-    return { amountRwf: configured.amountRwf, source: "configured", configured };
-  return { amountRwf: null, source: "none", configured: null };
+}): number | null {
+  // `amountDueRwf` is set only while the registration is `pending_payment`: a
+  // resubmitted registration is past its bill and is never shown a second one.
+  if (summary !== null && summary.amountDueRwf !== null) return summary.amountDueRwf;
+  return quote?.amountRwf ?? null;
 }
 
 /**
  * Ask RRA about a TIN at the Business step, before anything is billed
- * (registration Phase 0). Writes nothing.
+ * (registration Phase 0). Writes nothing. The directors come back by name only
+ * when the capacity is the helper's (ADR-075 AC-7); an owner learns listed or
+ * not, once their ID is on file.
  */
-export async function checkTin(tin: string): Promise<ApiResult<TinCheckResult>> {
+export async function checkTin(tin: string, capacity?: RegistrantCapacity): Promise<ApiResult<TinCheckResult>> {
   const res = await apiFetch<unknown>("/api/v1/registrations/tin-check", {
     method: "POST",
-    body: { tin },
+    body: capacity ? { tin, capacity } : { tin },
   });
   if (res.status !== "ok") return res;
   const parsed = TinCheckResult.safeParse(res.data);
@@ -151,59 +95,76 @@ export async function checkTin(tin: string): Promise<ApiResult<TinCheckResult>> 
 }
 
 /**
- * The wizard's answers kept on the server between steps (ADR-060), or null
- * when there are none. A draft is never allowed to hold an ID number; the
- * contract refuses one, so the wizard must never send one either.
+ * The wizard's answers kept on the server (ADR-060), the checks the server
+ * wrote beside them (ADR-075 D-m), and when the answers were saved; nulls and
+ * no checks when there are none. Asked again quietly when it could not be asked
+ * at all, because a wizard that opened without it would save over it.
  */
-export async function fetchRegistrationDraft(): Promise<ApiResult<RegistrationDraft | null>> {
-  const res = await apiFetch<unknown>("/api/v1/me/registration-draft");
-  if (res.status === "refused" && res.httpStatus === 404) return { status: "ok", data: null };
-  if (res.status !== "ok") return res;
-  const parsed = RegistrationDraft.safeParse((res.data as { draft?: unknown } | null)?.draft);
-  return parsed.success ? { status: "ok", data: parsed.data } : { status: "ok", data: null };
+export function fetchRegistrationDraft(): Promise<ApiResult<RegistrationDraftRead>> {
+  return retryWhileFailed(() => apiFetchParsed(RegistrationDraftRead, "/api/v1/me/registration-draft"));
 }
 
-export async function saveRegistrationDraft(draft: RegistrationDraft): Promise<ApiResult<null>> {
-  const res = await apiFetch<unknown>("/api/v1/me/registration-draft", { method: "PUT", body: draft });
+/**
+ * Save the answers as they are typed (ADR-075 S9). A draft is never allowed to
+ * hold an ID number: the contract refuses one (422), so the wizard never sends
+ * one either.
+ */
+export function saveRegistrationDraft(draft: RegistrationDraft): Promise<ApiResult<RegistrationDraftSaved>> {
+  return apiFetchParsed(RegistrationDraftSaved, "/api/v1/me/registration-draft", { method: "PUT", body: draft });
+}
+
+/** Forget the answers and their checks: a fresh registration beside one already made. */
+export async function clearRegistrationDraft(): Promise<ApiResult<null>> {
+  const res = await apiFetch<unknown>("/api/v1/me/registration-draft", { method: "DELETE" });
   return res.status === "ok" ? { status: "ok", data: null } : res;
 }
 
-/** Create the registration at `pending_payment`, with its bill (D23). */
+/**
+ * Create the registration at `pending_payment`, with its bill, at the first Pay
+ * press (ADR-075 D-l). `idempotencyKey` is minted once for that press at the
+ * call site, never inside a retry, so a double press or a retry answers the one
+ * registration the press created (AC-14).
+ */
 export async function createRegistration(
   request: CreateRegistrationRequest,
+  idempotencyKey: string,
 ): Promise<ApiResult<RegistrationSummary>> {
-  return summaryCall("/api/v1/registrations", "POST", request);
+  return summaryCall("/api/v1/registrations", "POST", request, idempotencyKey);
 }
 
 /**
- * Accept the operator contract, between creating and paying (ADR-053, AC-R8).
+ * Pay the registration fee (073-gtbank-payments AC-16, AC-17).
  *
- * `contractVersion` is the version the page rendered. The server refuses one
- * that is not current (409 `contract_version_stale`) and stores its own
- * constant, never this value. Accepting twice returns the first acceptance.
- */
-export async function acceptRegistrationContract(
-  orgId: string,
-  contractVersion: string,
-): Promise<ApiResult<RegistrationSummary>> {
-  return summaryCall(`/api/v1/registrations/${orgId}/contract`, "POST", {
-    contractVersion,
-  });
-}
-
-/**
- * Settle the registration fee, which is what enqueues the RRA check.
+ * Answers `settled` when the fee settled at once (payments are off for it, so
+ * it is recorded free; or it was already paid), or the `attempt` waiting on
+ * the registrant's phone, which `fetchRegistrationFeeAttempt` then polls. One
+ * press is one `attemptToken`, reused on every retry of that press, so a
+ * retry never prompts twice.
  *
- * Stands in for the payment provider callback until F-S08 lands a real one, so
- * this is the whole "pay" step today. It is idempotent server-side: pressing it
- * twice advances nothing twice and bills nothing twice.
- *
- * Refused with 409 `contract_not_accepted` while the contract is open.
+ * It needs no accepted contract any more (ADR-075 AC-12). Refused with 422
+ * when money is taken and no mobile money number was given.
  */
 export async function payRegistrationFee(
   orgId: string,
-): Promise<ApiResult<RegistrationSummary>> {
-  return summaryCall(`/api/v1/registrations/${orgId}/pay`, "POST");
+  body: RegistrationPayRequest,
+): Promise<ApiResult<RegistrationPayResult>> {
+  const res = await apiFetch<unknown>(`/api/v1/registrations/${orgId}/pay`, { method: "POST", body });
+  if (res.status !== "ok") return res;
+  const parsed = RegistrationPayResult.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/** One poll of a fee payment waiting on the registrant's phone. */
+export async function fetchRegistrationFeeAttempt(
+  orgId: string,
+  attemptToken: string,
+): Promise<ApiResult<RegistrationFeeAttemptStatus>> {
+  const res = await apiFetch<unknown>(
+    `/api/v1/registrations/${orgId}/pay/attempts/${encodeURIComponent(attemptToken)}`,
+  );
+  if (res.status !== "ok") return res;
+  const parsed = RegistrationFeeAttemptStatus.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }
 
 /** Where this registration got to — what the pending workspace renders. */
@@ -265,8 +226,9 @@ async function summaryCall(
   path: string,
   method: string,
   body?: unknown,
+  idempotencyKey?: string,
 ): Promise<ApiResult<RegistrationSummary>> {
-  const res = await apiFetch<unknown>(path, { method, body });
+  const res = await apiFetch<unknown>(path, { method, body, ...(idempotencyKey ? { idempotencyKey } : {}) });
   if (res.status !== "ok") return res;
   const parsed = RegistrationSummary.safeParse(res.data);
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
@@ -280,8 +242,8 @@ async function summaryCall(
  * registration status, so `RegistrationSummary` could only describe one by
  * nulling six fields and showing a status it can never hold.
  *
- * There is no pay companion. Broker registration is free and instant while
- * ADR-026 assumption 2 stands.
+ * It names the district the broker works in and the registration fee they
+ * paid first (`payBrokerFee`, then `fetchBrokerFeePayment` until it is paid).
  */
 export async function registerAsBroker(
   request: CreateBrokerRegistrationRequest,
@@ -292,6 +254,40 @@ export async function registerAsBroker(
   });
   if (res.status !== "ok") return res;
   const parsed = BrokerRegistrationSummary.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/** What registering as a broker costs, and a fee this person already paid. */
+export async function fetchBrokerFee(): Promise<ApiResult<BrokerFeeQuote>> {
+  const res = await apiFetch<unknown>("/api/v1/registrations/broker/fee");
+  if (res.status !== "ok") return res;
+  const parsed = BrokerFeeQuote.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/**
+ * Ask for the broker registration fee on the payer's phone. `idempotencyKey`
+ * is minted once per press, so a retried request is the same payment.
+ */
+export async function payBrokerFee(
+  request: BrokerFeeCheckoutRequest,
+  idempotencyKey: string,
+): Promise<ApiResult<BrokerFeePayment>> {
+  const res = await apiFetch<unknown>("/api/v1/registrations/broker/fee", {
+    method: "POST",
+    body: request,
+    idempotencyKey,
+  });
+  if (res.status !== "ok") return res;
+  const parsed = BrokerFeePayment.safeParse(res.data);
+  return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
+}
+
+/** Where a registration fee payment stands; polled while the prompt waits. */
+export async function fetchBrokerFeePayment(id: string): Promise<ApiResult<BrokerFeePayment>> {
+  const res = await apiFetch<unknown>(`/api/v1/registrations/broker/fee/${encodeURIComponent(id)}`);
+  if (res.status !== "ok") return res;
+  const parsed = BrokerFeePayment.safeParse(res.data);
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }
 

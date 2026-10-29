@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   Skeleton,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
 import { Icon } from "@/components/app/icon";
 import {
@@ -130,8 +130,12 @@ export function CancelBooking({
                 <p className="text-sm text-muted-foreground">{done.rule}</p>
                 {done.refundRwf > 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    The refund goes back the way you paid. Your trips list now
-                    shows this stay as cancelled.
+                    The refund goes back to the number you paid from, once the
+                    bank sends it. Follow it under{" "}
+                    <a href="/account/refunds" className="font-semibold underline">
+                      Refunds
+                    </a>
+                    . Your trips list now shows this stay as cancelled.
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground">

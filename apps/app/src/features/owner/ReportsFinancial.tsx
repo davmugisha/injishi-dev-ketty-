@@ -244,8 +244,8 @@ export function ReportsResidencePanel({
           title="Vacant Units · Sample"
           className="items-center"
           action={
-            <LinkButton href={screenHref("Leases")} size="sm" variant="ghost">
-              Leases
+            <LinkButton href={screenHref("Units")} size="sm" variant="ghost">
+              Units
             </LinkButton>
           }
         />
@@ -293,8 +293,8 @@ export function ReportsResidencePanel({
           title="Arrears · Sample"
           className="items-center"
           action={
-            <LinkButton href={screenHref("RentRoll")} size="sm" variant="ghost">
-              Rent roll
+            <LinkButton href={screenHref("ResidenceHome")} size="sm" variant="ghost">
+              Rentals
             </LinkButton>
           }
         />

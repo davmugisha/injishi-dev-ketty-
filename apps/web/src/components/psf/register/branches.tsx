@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { MAX_PSF_BRANCHES, provinceDisplayName, type District, type Province, type Sector } from "@injishi/contracts";
 
 import { Field, SelectField, TextInput } from "@/app/(app)/(entry)/register/wizard-ui";

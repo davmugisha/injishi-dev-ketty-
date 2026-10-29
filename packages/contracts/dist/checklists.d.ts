@@ -93,8 +93,8 @@ export declare const ChecklistTemplate: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    kind: "onboarding" | "offboarding";
     id: string;
+    kind: "onboarding" | "offboarding";
     items: {
         id: string;
         label: string;
@@ -108,8 +108,8 @@ export declare const ChecklistTemplate: z.ZodObject<{
     isDefault: boolean;
 }, {
     name: string;
-    kind: "onboarding" | "offboarding";
     id: string;
+    kind: "onboarding" | "offboarding";
     items: {
         id: string;
         label: string;
@@ -173,8 +173,8 @@ export declare const ChecklistTemplateList: z.ZodObject<{
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        kind: "onboarding" | "offboarding";
         id: string;
+        kind: "onboarding" | "offboarding";
         items: {
             id: string;
             label: string;
@@ -188,8 +188,8 @@ export declare const ChecklistTemplateList: z.ZodObject<{
         isDefault: boolean;
     }, {
         name: string;
-        kind: "onboarding" | "offboarding";
         id: string;
+        kind: "onboarding" | "offboarding";
         items: {
             id: string;
             label: string;
@@ -205,8 +205,8 @@ export declare const ChecklistTemplateList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     templates: {
         name: string;
-        kind: "onboarding" | "offboarding";
         id: string;
+        kind: "onboarding" | "offboarding";
         items: {
             id: string;
             label: string;
@@ -222,8 +222,8 @@ export declare const ChecklistTemplateList: z.ZodObject<{
 }, {
     templates: {
         name: string;
-        kind: "onboarding" | "offboarding";
         id: string;
+        kind: "onboarding" | "offboarding";
         items: {
             id: string;
             label: string;
@@ -398,8 +398,8 @@ export declare const EmployeeChecklist: z.ZodObject<{
     /** Tasks not done whose day has passed, today in Kigali. Computed at read, never stored. */
     overdueCount: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    kind: "onboarding" | "offboarding";
     id: string;
+    kind: "onboarding" | "offboarding";
     employee: {
         employeeId: string;
         displayName: string;
@@ -420,8 +420,8 @@ export declare const EmployeeChecklist: z.ZodObject<{
     doneCount: number;
     overdueCount: number;
 }, {
-    kind: "onboarding" | "offboarding";
     id: string;
+    kind: "onboarding" | "offboarding";
     employee: {
         employeeId: string;
         displayName: string;
@@ -498,8 +498,8 @@ export declare const ChecklistBoard: z.ZodObject<{
         /** Tasks not done whose day has passed, today in Kigali. Computed at read, never stored. */
         overdueCount: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        kind: "onboarding" | "offboarding";
         id: string;
+        kind: "onboarding" | "offboarding";
         employee: {
             employeeId: string;
             displayName: string;
@@ -520,8 +520,8 @@ export declare const ChecklistBoard: z.ZodObject<{
         doneCount: number;
         overdueCount: number;
     }, {
-        kind: "onboarding" | "offboarding";
         id: string;
+        kind: "onboarding" | "offboarding";
         employee: {
             employeeId: string;
             displayName: string;
@@ -579,8 +579,8 @@ export declare const ChecklistBoard: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     today: string;
     checklists: {
-        kind: "onboarding" | "offboarding";
         id: string;
+        kind: "onboarding" | "offboarding";
         employee: {
             employeeId: string;
             displayName: string;
@@ -613,8 +613,8 @@ export declare const ChecklistBoard: z.ZodObject<{
 }, {
     today: string;
     checklists: {
-        kind: "onboarding" | "offboarding";
         id: string;
+        kind: "onboarding" | "offboarding";
         employee: {
             employeeId: string;
             displayName: string;
@@ -713,8 +713,8 @@ export declare const MyChecklists: z.ZodObject<{
         /** Tasks not done whose day has passed, today in Kigali. Computed at read, never stored. */
         overdueCount: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        kind: "onboarding" | "offboarding";
         id: string;
+        kind: "onboarding" | "offboarding";
         employee: {
             employeeId: string;
             displayName: string;
@@ -735,8 +735,8 @@ export declare const MyChecklists: z.ZodObject<{
         doneCount: number;
         overdueCount: number;
     }, {
-        kind: "onboarding" | "offboarding";
         id: string;
+        kind: "onboarding" | "offboarding";
         employee: {
             employeeId: string;
             displayName: string;
@@ -760,8 +760,8 @@ export declare const MyChecklists: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     today: string;
     checklists: {
-        kind: "onboarding" | "offboarding";
         id: string;
+        kind: "onboarding" | "offboarding";
         employee: {
             employeeId: string;
             displayName: string;
@@ -785,8 +785,8 @@ export declare const MyChecklists: z.ZodObject<{
 }, {
     today: string;
     checklists: {
-        kind: "onboarding" | "offboarding";
         id: string;
+        kind: "onboarding" | "offboarding";
         employee: {
             employeeId: string;
             displayName: string;

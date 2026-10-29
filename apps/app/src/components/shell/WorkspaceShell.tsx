@@ -2,14 +2,25 @@
 
 import { Bars, BellDot, CircleQuestion, Comments, Magnifier } from "@gravity-ui/icons";
 import { Kbd } from "@heroui/react";
-import { AppLayout, Navbar, Sidebar } from "@heroui-pro/react";
-import { type NavGroup, type Persona, screenByPath, screenHref, type TopbarStatus } from "@injishi/data";
-import { Icon, LinkButton } from "@injishi/ui";
+import { AppLayout, Navbar, Sidebar, useSidebar } from "@heroui-pro/react";
+import {
+  homeHref,
+  type NavGroup,
+  navHref,
+  type Persona,
+  RENTALS_SEARCH,
+  screenByPath,
+  screenHref,
+  type TopbarStatus,
+} from "@injishi/data";
+import { ActionLink, EmptyBlock, Icon, IconAction, LinkButton, PageContent } from "@injishi/ui";
 import NextLink from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
 import { BrandMark } from "../brand";
 import { BusinessSwitcher } from "./BusinessSwitcher";
+import { QuickSearch } from "./QuickSearch";
 import { SampleDataPill } from "./SampleData";
 import { TopbarStatusPill, TopbarStatusProvider } from "./TopbarStatus";
 import { UserMenu } from "./UserMenu";
@@ -17,10 +28,12 @@ import { UserMenu } from "./UserMenu";
 function NavMenu({
   groups,
   current,
+  pathname,
   idPrefix = "",
 }: {
   groups: NavGroup[];
   current: string | undefined;
+  pathname: string;
   idPrefix?: string;
 }) {
   return (
@@ -33,9 +46,10 @@ function NavMenu({
               <Sidebar.MenuItem
                 key={item.id}
                 id={`${idPrefix}${item.id}`}
-                href={screenHref(item.board)}
+                href={navHref(item.board, pathname)}
                 isCurrent={current === item.board}
                 textValue={item.label}
+                tooltip={item.chip ? `${item.label} · ${item.chip}` : item.label}
               >
                 <Sidebar.MenuIcon>
                   <Icon name={item.icon} />
@@ -58,9 +72,83 @@ function NavMenu({
   );
 }
 
+/**
+ * People whose every screen reads their own records from the API (landlords, tenants, brokers, local
+ * leaders and officers). Their top bar shows only what is real for them: no sample pills, no hotel search,
+ * no assistant or notification counts drawn from the prototype's fixtures.
+ */
+const LIVE_PERSONAS = new Set<string>(["landlord", "tenant", "broker", "officer", "ops"]);
+/** Personas whose screens must never draw sample data: a fixture-backed screen says it is not ready. */
+const REAL_DATA_ONLY = new Set<string>(["officer", "ops"]);
+const LIVE_SECTIONS = new Set<string>(["rentals", "tenant"]);
+
+const SIDEBAR_KEY = "injishi.sidebar";
+
+/** The sidebar's open state, remembered in this browser. */
+function useRememberedSidebar(): [boolean, (open: boolean) => void] {
+  const [open, setOpen] = useState(true);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(SIDEBAR_KEY) === "collapsed") setOpen(false);
+    } catch {
+      // Storage can be blocked; the sidebar then starts open.
+    }
+  }, []);
+  const change = useCallback((next: boolean) => {
+    setOpen(next);
+    try {
+      window.localStorage.setItem(SIDEBAR_KEY, next ? "open" : "collapsed");
+    } catch {
+      // Not remembered, still toggled.
+    }
+  }, []);
+  return [open, change];
+}
+
+/**
+ * Collapse to an icon rail, or expand again: one icon button that always sits at the top of the sidebar
+ * (beside the logo, or alone at the top of the rail), with ⌘B / Ctrl+B from anywhere. Not on a phone,
+ * where the sidebar is a sheet.
+ */
+function CollapseToggle() {
+  const { isOpen, toggleSidebar, isMobile } = useSidebar();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleSidebar]);
+  if (isMobile) return null;
+  return (
+    <IconAction
+      icon="LayoutSideContentLeft"
+      label={isOpen ? "Collapse sidebar (⌘B)" : "Expand sidebar (⌘B)"}
+      onPress={toggleSidebar}
+      size="md"
+      className="sidebar__collapse-btn size-9 shrink-0"
+    />
+  );
+}
+
 /** Desktop app shell for operator, institution and Injishi staff workspaces (artifact: .ij-app). */
-export function WorkspaceShell({ persona, nav, children }: { persona: Persona; nav: NavGroup[]; children: ReactNode }) {
+export function WorkspaceShell({
+  persona,
+  nav,
+  altNav,
+  children,
+}: {
+  persona: Persona;
+  nav: NavGroup[];
+  /** Another sidebar for the pages under `prefix` (a landlord reading their own home as a tenant). */
+  altNav?: { prefix: string; nav: NavGroup[] } | null;
+  children: ReactNode;
+}) {
   const pathname = usePathname();
+  const groups = altNav && (pathname === altNav.prefix || pathname.startsWith(`${altNav.prefix}/`)) ? altNav.nav : nav;
   const router = useRouter();
   const screen = screenByPath(pathname);
   const topbar = screen?.topbar;
@@ -75,10 +163,17 @@ export function WorkspaceShell({ persona, nav, children }: { persona: Persona; n
       return next;
     });
   }, []);
-  const pills = (topbar?.pills ?? []).map((p, i) => overrides[i] ?? p);
+  const live = LIVE_PERSONAS.has(persona.id) || LIVE_SECTIONS.has(screen?.section ?? "");
+  // A live screen shows only the pills it sets itself (<TopbarStatus>), never the registry's samples.
+  const pills = live ? Object.values(overrides) : (topbar?.pills ?? []).map((p, i) => overrides[i] ?? p);
+  // The lists a live workspace can search: only its own, through its own sidebar.
+  const searchable = live && groups.some((g) => g.items.some((i) => ["Leases", "Units", "Faults"].includes(i.board)));
+  const [sidebarOpen, setSidebarOpen] = useRememberedSidebar();
 
-  // ⌘K / Ctrl+K opens global search, as the artifact's search field advertises.
+  // ⌘K / Ctrl+K opens global search, as the artifact's search field advertises. A live workspace's
+  // quick search listens for it itself.
   useEffect(() => {
+    if (live) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -87,20 +182,24 @@ export function WorkspaceShell({ persona, nav, children }: { persona: Persona; n
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router]);
+  }, [router, live]);
 
   const header = (
     <Sidebar.Header className="gap-2">
-      <NextLink
-        href="/"
-        className="flex items-center gap-2.5 px-1.5 py-1 text-foreground no-underline"
-        aria-label="Injishi home"
-      >
-        <BrandMark size={28} />
-        <span className="text-[15px] font-semibold" data-sidebar="label">
-          Injishi
-        </span>
-      </NextLink>
+      <div className="flex items-center gap-1 in-[.sidebar[data-state=collapsed]]:flex-col-reverse in-[.sidebar[data-state=collapsed]]:gap-2">
+        <NextLink
+          // The person's own home: `/` is the marketplace on another host.
+          href={homeHref(persona.id)}
+          className="flex min-w-0 flex-1 items-center gap-2.5 px-1.5 py-1 text-foreground no-underline in-[.sidebar[data-state=collapsed]]:flex-none"
+          aria-label="Injishi home"
+        >
+          <BrandMark size={28} />
+          <span className="text-base font-semibold" data-sidebar="label">
+            Injishi
+          </span>
+        </NextLink>
+        <CollapseToggle />
+      </div>
       <BusinessSwitcher persona={persona} />
     </Sidebar.Header>
   );
@@ -110,16 +209,28 @@ export function WorkspaceShell({ persona, nav, children }: { persona: Persona; n
       <Sidebar aria-label="Workspace navigation">
         {header}
         <Sidebar.Content>
-          <NavMenu groups={nav} current={current} />
+          <NavMenu groups={groups} current={current} pathname={pathname} />
         </Sidebar.Content>
-        <Sidebar.Footer>
+        <Sidebar.Footer className="gap-1">
+          {/* Help is hidden for brokers for now (2026-10-27). */}
+          {live && !searchable && persona.id !== "broker" ? (
+            <LinkButton
+              href={screenHref("PublicHelp")}
+              variant="ghost"
+              aria-label="Help"
+              className="w-full justify-start gap-2.5 px-2.5 text-sm font-normal text-muted"
+            >
+              <Icon name="LifeRing" className="size-4 shrink-0" />
+              <span data-sidebar="label">Help</span>
+            </LinkButton>
+          ) : null}
           <UserMenu persona={persona} />
         </Sidebar.Footer>
       </Sidebar>
       <Sidebar.Mobile>
         {header}
         <Sidebar.Content>
-          <NavMenu groups={nav} current={current} idPrefix="m-" />
+          <NavMenu groups={groups} current={current} pathname={pathname} idPrefix="m-" />
         </Sidebar.Content>
         <Sidebar.Footer>
           <UserMenu persona={persona} />
@@ -129,29 +240,38 @@ export function WorkspaceShell({ persona, nav, children }: { persona: Persona; n
   );
 
   const navbar = (
-    <Navbar maxWidth="full" className="border-b border-separator">
+    // A live workspace with nothing to search has nothing for a top bar on a wide screen: the page starts
+    // at the top and Help sits in the sidebar. Phones keep it for the menu button.
+    <Navbar
+      maxWidth="full"
+      className={live && !searchable ? "border-b border-separator lg:hidden" : "border-b border-separator"}
+    >
       <Navbar.Header className="gap-2 px-3 sm:px-5">
         <AppLayout.MenuToggle aria-label="Open navigation">
           <Bars className="size-4" />
         </AppLayout.MenuToggle>
-        <LinkButton
-          href={screenHref("GlobalSearch")}
-          variant="tertiary"
-          className="h-9 min-w-0 max-w-[420px] flex-[1_1_260px] justify-start gap-2 rounded-xl px-3 text-[13px] font-normal text-muted"
-          aria-label={topbar?.search ?? "Search"}
-        >
-          <Magnifier className="size-4 shrink-0" aria-hidden="true" />
-          <span className="truncate">{topbar?.search ?? "Search…"}</span>
-          <Kbd className="ml-auto hidden sm:inline-flex">⌘K</Kbd>
-        </LinkButton>
+        {searchable ? (
+          <QuickSearch groups={groups} placeholder={RENTALS_SEARCH.replace(/…$/, "")} />
+        ) : live ? null : (
+          <LinkButton
+            href={screenHref("GlobalSearch")}
+            variant="tertiary"
+            className="h-9 min-w-0 max-w-md flex-[1_1_260px] justify-start gap-2 rounded-xl px-3 text-sm font-normal text-muted"
+            aria-label={topbar?.search ?? "Search"}
+          >
+            <Magnifier className="size-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">{topbar?.search ?? "Search…"}</span>
+            <Kbd className="ml-auto hidden sm:inline-flex">⌘K</Kbd>
+          </LinkButton>
+        )}
         <Navbar.Spacer />
-        <SampleDataPill board={current} />
+        {live ? null : <SampleDataPill board={current} />}
         <div className="hidden items-center gap-2 lg:flex" data-topbar-status="">
           {pills.map((p, i) => (
             <TopbarStatusPill key={`${i}-${p.label}`} status={p} />
           ))}
         </div>
-        {topbar?.assistant !== false ? (
+        {!live && topbar?.assistant !== false ? (
           <LinkButton
             href={screenHref("Assistant")}
             variant="ghost"
@@ -162,15 +282,17 @@ export function WorkspaceShell({ persona, nav, children }: { persona: Persona; n
             <Comments className="size-4" />
           </LinkButton>
         ) : null}
-        <LinkButton
-          href={screenHref("Notifications")}
-          variant="ghost"
-          isIconOnly
-          aria-label={`Notifications, ${topbar?.notifications ?? 0} unread`}
-          title={`Notifications, ${topbar?.notifications ?? 0} unread`}
-        >
-          <BellDot className="size-4" />
-        </LinkButton>
+        {live ? null : (
+          <LinkButton
+            href={screenHref("Notifications")}
+            variant="ghost"
+            isIconOnly
+            aria-label={`Notifications, ${topbar?.notifications ?? 0} unread`}
+            title={`Notifications, ${topbar?.notifications ?? 0} unread`}
+          >
+            <BellDot className="size-4" />
+          </LinkButton>
+        )}
         <LinkButton href={screenHref("PublicHelp")} variant="ghost" isIconOnly aria-label="Help" title="Help">
           <CircleQuestion className="size-4" />
         </LinkButton>
@@ -183,12 +305,31 @@ export function WorkspaceShell({ persona, nav, children }: { persona: Persona; n
       sidebar={sidebar}
       navbar={navbar}
       sidebarVariant="inset"
-      sidebarCollapsible="offcanvas"
+      sidebarCollapsible="icon"
+      sidebarOpen={sidebarOpen}
+      onSidebarOpenChange={setSidebarOpen}
       scrollMode="page"
       className="workspace-shell"
     >
       <div className="min-w-0">
-        <TopbarStatusProvider value={setOverride}>{children}</TopbarStatusProvider>
+        <TopbarStatusProvider value={setOverride}>
+          {REAL_DATA_ONLY.has(persona.id) && current && (sampleCollectionsByBoard[current] ?? 0) > 0 ? (
+            <PageContent>
+              <EmptyBlock
+                icon="Database"
+                title="This screen is not connected to Injishi's records yet"
+                description="It would show sample figures, so it is closed until it reads real data."
+                action={
+                  <ActionLink href={homeHref(persona.id)} icon="ArrowLeft">
+                    Back
+                  </ActionLink>
+                }
+              />
+            </PageContent>
+          ) : (
+            children
+          )}
+        </TopbarStatusProvider>
       </div>
     </AppLayout>
   );

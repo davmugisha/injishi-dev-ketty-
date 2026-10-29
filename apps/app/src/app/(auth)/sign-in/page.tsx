@@ -26,7 +26,8 @@ export default async function SignInPage({
   const options = await signInOptions();
   return (
     <SignInView
-      personas={PERSONA_IDS.map((id) => personas[id])}
+      // The demo's people only: the landlord and tenant shells are real people's, with no demo account.
+      personas={PERSONA_IDS.map((id) => personas[id]).filter((p) => p.email)}
       next={returnTargetFrom({ next, redirect }) ?? ""}
       highlight={highlight}
       demo={options.demo}

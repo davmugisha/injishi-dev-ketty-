@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowDown, ArrowRight } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { PsfHeroVisual } from "./psf-hero-visual";
 import styles from "./psf-hero.module.css";

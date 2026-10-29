@@ -1,33 +1,45 @@
-# What EAS Build uploads from this repo.
+# What EAS Build uploads from this repo (mobile spec 0001).
 #
 # When this file exists EAS reads it INSTEAD of .gitignore, so every rule that
-# keeps a secret out of git has to be repeated here or the secret goes up with
-# the archive. The secrets block below is copied from .gitignore verbatim; keep
-# the two in step.
+# keeps a secret or personal data out of git has to be repeated here, or it goes
+# up with the archive. The blocks below are copied from .gitignore; keep the two
+# in step.
 #
-# The only build that runs from this repo is the apps/mobile client. It needs
-# apps/mobile, packages/* (where its workspace:* deps live) and the root manifests
-# so pnpm can resolve every importer in the lockfile. Everything heavy in the
-# other workspaces is dead weight: the first upload was 296 MB and failed
-# mid-transfer, almost all of it apps/web/.next and apps/web/public.
+# The only build that runs from this repo is apps/mobile. It needs apps/mobile,
+# packages/* (where its workspace:* deps live), tools/ and the root manifests and
+# lockfile. Never ignore those. Everything else is dead weight: the old app's
+# first upload was 296 MB and failed mid-transfer, almost all of it apps/web.
 
-# ── Secrets (verbatim from .gitignore) ───────────────────────────────────────
+# ── Secrets (from .gitignore) ────────────────────────────────────────────────
 .env
 .env.*
 !.env.example
+.npmrc.local
+
+# ── Personal data and local databases (from .gitignore) ─────────────────────
+.storage/
+.data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 
 # ── Build output and caches (from .gitignore) ────────────────────────────────
 node_modules/
 .pnpm-store/
+.turbo/
 apps/*/dist/
 apps/*/.next/
-apps/*/.next-prod/
-apps/*/.next-build/
+apps/*/.next-*/
 apps/*/.turbo/
-apps/*/.expo/
+apps/**/.expo/
 apps/*/out/
 apps/*/build/
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/dist-*/
 server/*/dist/
+server/*/dist-worker/
 server/*/.turbo/
 server/*/build/
 tools/*/dist/
@@ -39,15 +51,30 @@ playwright-report/
 *.log
 
 # ── Not needed for a mobile build ────────────────────────────────────────────
-# 148 MB of web assets. Keep the web workspace's package.json so the lockfile
-# importer still resolves; drop only the payload.
-apps/web/public/
+# The other workspaces' payload goes. Each keeps its package.json, because pnpm
+# installs from the lockfile and needs every importer it lists.
+apps/web/*
+!apps/web/package.json
+apps/app/*
+!apps/app/package.json
+# Except the stock photos apps/mobile/src/lib/stock.ts bundles, until feature 7 (remove all demo
+# data) takes that file out.
+!apps/app/public/
+apps/app/public/*
+!apps/app/public/stock/
+server/*/*
+!server/*/package.json
+infra/
 
-# ── Editor, OS, AI context ───────────────────────────────────────────────────
+# ── Editor, OS, AI context (from .gitignore) ─────────────────────────────────
 .git/
 .idea/
 .vscode/
 .claude/
+.unlazy/
+dox/
+CLAUDE.md
+AGENTS.md
 .DS_Store
 Thumbs.db
 desktop.ini

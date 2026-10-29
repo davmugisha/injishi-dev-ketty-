@@ -199,8 +199,11 @@ describe("labels", () => {
  * THE DECLARED BUT UNENFORCED PERMISSIONS, named so the gap is loud.
  *
  * A permission counts as IN USE when the API declares it on a route
- * (`@RequirePermission` / `@RequireStaffPermission`) or a nav leaf declares it
- * (`permission: "…"` in the operator or admin nav). Everything else is design
+ * (`@RequirePermission` / `@RequireStaffPermission` / `@RequireAnyPermission`).
+ * Nav leaves used to count too, from `apps/app/src/pms/lib/nav.ts` and
+ * `apps/admin/src/lib/nav.ts`; both apps are gone, and the new interface's
+ * navigation (`packages/data/src/navigation.ts`) declares no permissions, so the
+ * API is the one place a permission is enforced. Everything else is design
  * intent with nothing behind it. The list below must equal what the code says,
  * so wiring one up fails this test until it leaves the list, and a new orphan
  * fails it until it joins. That is the idiom this repository uses for a backlog:
@@ -222,9 +225,8 @@ describe("labels", () => {
 const UNENFORCED = [
   // `property.switch` left this list by leaving `Permission` (ADR-054 AC-S4).
   "admin.user.impersonate",
-  // `admin.payout.release` left this list when finance's PSF refund release
-  // declared it (2026-10-20): `POST /admin/psf/refunds/:applicationId/release`.
-  "admin.money.override",
+  // `admin.payout.release` and `admin.money.override` left this list when the
+  // money queue's routes declared them (073-gtbank-payments AC-15, AC-21).
   "admin.dsr.action",
   "admin.environment.manage",
   "admin.announcement.publish",
@@ -234,6 +236,11 @@ const UNENFORCED = [
   // later slice. `guest-ordering.service.ts` names it as the power that route will
   // require.
   "ebm.refund",
+  // Rentals blueprint 2.1 declared `expense.manage` and `tax.manage` ahead of
+  // their routes (WP 1.1); both left this list with expenses and taxes (WP 4.3,
+  // 4.4), as `lease.manage`, `lease.sign`, `payout.manage`, `rent.record` and
+  // `deposit.return` did with the rentals module's first routes (WP 1.4 and
+  // 1.5a), and `guest.register` with the landlord's own guests (P5).
   // `payroll.draft` left this list when its draft routes declared it (ADR-069
   // D-e): `@RequireAnyPermission('payroll.draft', 'payroll.run')` on the pay
   // run's list, create, read, recompute and hold, the payroll dashboard and the
@@ -266,21 +273,12 @@ describe("the unenforced permissions", () => {
     // of them, so `people.view`, which is only ever one of several, counts.
     for (const m of text.matchAll(/@RequireAnyPermission\(([^)]*)\)/g)) for (const p of names(m[1])) inUse.add(p);
   }
-  for (const nav of [
-    join(repo, "apps", "app", "src", "pms", "lib", "nav.ts"),
-    join(repo, "apps", "admin", "src", "lib", "nav.ts"),
-  ]) {
-    const text = readFileSync(nav, "utf8");
-    for (const m of text.matchAll(/permission:\s*"([a-z_.]+)"/g)) inUse.add(m[1]);
-    for (const m of text.matchAll(/anyPermission:\s*\[([^\]]*)\]/g)) for (const p of names(m[1])) inUse.add(p);
-  }
-
-  test("the scan found the API and both navs", () => {
+  test("the scan found the API's org and staff decorators", () => {
     // A path that moved would otherwise make EVERY permission look unenforced
     // and fail the test below with a misleading list.
     assert.ok(inUse.has("listing.manage"), "API decorators were not found");
-    assert.ok(inUse.has("admin.config.view"), "the admin nav was not found");
-    assert.ok(inUse.has("team.manage"), "the operator nav was not found");
+    assert.ok(inUse.has("admin.config.view"), "the API's staff decorators were not found");
+    assert.ok(inUse.has("team.manage"), "the API's team decorators were not found");
   });
 
   test("exactly the named permissions are declared and unenforced", () => {
@@ -289,7 +287,7 @@ describe("the unenforced permissions", () => {
     assert.deepEqual(unenforced.sort(), [...UNENFORCED].sort());
   });
 
-  test("unit.manage is enforced now, by the residence nav leaves it was written for", () => {
+  test("unit.manage is enforced now, by the residence routes it was written for", () => {
     assert.ok(inUse.has("unit.manage"));
   });
 });

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { OversightRole, StaffRole } from "./primitives";
+import { MobileMoneyNetwork } from "./booking";
 /**
  * `GET /api/v1/platform`: which platform a deployment is (ADR-043, AC-16).
  *
@@ -14,6 +15,26 @@ import type { OversightRole, StaffRole } from "./primitives";
  */
 export declare const PlatformEnvironmentName: z.ZodEnum<["production", "demo"]>;
 export type PlatformEnvironmentName = z.infer<typeof PlatformEnvironmentName>;
+/** A seam's effective mode (ADR-073 D-b): switched off, a test, or real. */
+export declare const IntegrationMode: z.ZodEnum<["off", "mock", "live"]>;
+export type IntegrationMode = z.infer<typeof IntegrationMode>;
+/** What a collection pays for (073-gtbank-payments AC-2). */
+export declare const PaymentPurposeName: z.ZodEnum<["booking", "service_order", "registration_fee", "rent", "subscription", "psf_membership"]>;
+export type PaymentPurposeName = z.infer<typeof PaymentPurposeName>;
+export declare const PaymentRules: z.ZodObject<{
+    networks: z.ZodArray<z.ZodEnum<["mtn_momo", "airtel_money"]>, "many">;
+    maxCollectionRwf: z.ZodNullable<z.ZodNumber>;
+    livePurposes: z.ZodArray<z.ZodEnum<["booking", "service_order", "registration_fee", "rent", "subscription", "psf_membership"]>, "many">;
+}, "strip", z.ZodTypeAny, {
+    networks: ("mtn_momo" | "airtel_money")[];
+    maxCollectionRwf: number | null;
+    livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent" | "psf_membership")[];
+}, {
+    networks: ("mtn_momo" | "airtel_money")[];
+    maxCollectionRwf: number | null;
+    livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent" | "psf_membership")[];
+}>;
+export type PaymentRules = z.infer<typeof PaymentRules>;
 export declare const PlatformInfo: z.ZodObject<{
     /** The API process's one environment. Staging reports `production`. */
     environment: z.ZodEnum<["production", "demo"]>;
@@ -57,18 +78,59 @@ export declare const PlatformInfo: z.ZodObject<{
      * does not send it, and a client reads a missing key as "not offered".
      */
     googleSignIn: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+    /**
+     * The effective mode of every client facing seam (ADR-073 AC-5; today
+     * `payments` and `card_payments`, from 073-gtbank-payments). A screen
+     * labels `mock` as a test, hides an action whose seam is `off`, and never
+     * decides on its own whether money is real (AC-17).
+     *
+     * `nullish` for the reason `commit` gives. A client reads a missing key as
+     * "unknown", and offers no money action it cannot label.
+     */
+    integrations: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodEnum<["off", "mock", "live"]>>>>;
+    /**
+     * What a payment screen must know before the payer presses pay
+     * (073-gtbank-payments AC-2, AC-23): the networks a Request to Pay may go
+     * to, the largest amount one prompt may ask for (null: no limit), and the
+     * purposes that take money on this stack. `nullish` as above.
+     */
+    paymentRules: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        networks: z.ZodArray<z.ZodEnum<["mtn_momo", "airtel_money"]>, "many">;
+        maxCollectionRwf: z.ZodNullable<z.ZodNumber>;
+        livePurposes: z.ZodArray<z.ZodEnum<["booking", "service_order", "registration_fee", "rent", "subscription", "psf_membership"]>, "many">;
+    }, "strip", z.ZodTypeAny, {
+        networks: ("mtn_momo" | "airtel_money")[];
+        maxCollectionRwf: number | null;
+        livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent" | "psf_membership")[];
+    }, {
+        networks: ("mtn_momo" | "airtel_money")[];
+        maxCollectionRwf: number | null;
+        livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent" | "psf_membership")[];
+    }>>>;
 }, "strip", z.ZodTypeAny, {
     environment: "production" | "demo";
     sampleData: boolean;
     seededAt: string | null;
     commit?: string | null | undefined;
     googleSignIn?: boolean | null | undefined;
+    integrations?: Record<string, "mock" | "live" | "off"> | null | undefined;
+    paymentRules?: {
+        networks: ("mtn_momo" | "airtel_money")[];
+        maxCollectionRwf: number | null;
+        livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent" | "psf_membership")[];
+    } | null | undefined;
 }, {
     environment: "production" | "demo";
     sampleData: boolean;
     seededAt: string | null;
     commit?: string | null | undefined;
     googleSignIn?: boolean | null | undefined;
+    integrations?: Record<string, "mock" | "live" | "off"> | null | undefined;
+    paymentRules?: {
+        networks: ("mtn_momo" | "airtel_money")[];
+        maxCollectionRwf: number | null;
+        livePurposes: ("booking" | "registration_fee" | "subscription" | "service_order" | "rent" | "psf_membership")[];
+    } | null | undefined;
 }>;
 export type PlatformInfo = z.infer<typeof PlatformInfo>;
 /**
@@ -312,4 +374,27 @@ export type DemoPersona = z.infer<typeof DemoPersona>;
 export declare const OVERSIGHT_ROLE_LABEL: Readonly<Record<OversightRole, string>>;
 /** The short words a platform staff role is read in. */
 export declare const STAFF_ROLE_LABEL: Readonly<Record<StaffRole, string>>;
+/**
+ * Why a payment cannot be taken under the rules this stack publishes, or null
+ * (073-gtbank-payments AC-23, AC-24).
+ *
+ * ONE function for the API and every form, the way `instrumentProblem` is, so
+ * the checkout and the register wizard say exactly what the API would refuse,
+ * before the payer presses pay, and the two cannot drift:
+ * - a card, while the card seam is not `live`;
+ * - a mobile money network the bank does not prompt on this stack;
+ * - an amount above the bank's collection limit.
+ *
+ * Every sentence names the network or the limit, because "this payment
+ * cannot be taken" sends a payer to try again with nothing to change.
+ */
+export declare function paymentRuleProblem(terms: {
+    rules: PaymentRules | null | undefined;
+    cardPayments: IntegrationMode | null | undefined;
+}, amountRwf: number, instrument: {
+    kind: "card";
+} | {
+    kind: "mobile_money";
+    network: MobileMoneyNetwork;
+}): string | null;
 //# sourceMappingURL=platform.d.ts.map

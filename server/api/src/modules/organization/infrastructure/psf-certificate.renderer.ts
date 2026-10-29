@@ -2,8 +2,8 @@ import fontkit from '@pdf-lib/fontkit';
 import { encodeQr } from '@injishi/qr';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from 'pdf-lib';
 
-import { FIGTREE_BOLD_BASE64 } from '../../people/infrastructure/fonts/figtree-bold';
-import { FIGTREE_REGULAR_BASE64 } from '../../people/infrastructure/fonts/figtree-regular';
+import { FIGTREE_BOLD_BASE64 } from '../../hr/infrastructure/fonts/figtree-bold';
+import { FIGTREE_REGULAR_BASE64 } from '../../hr/infrastructure/fonts/figtree-regular';
 import { PSF_LOGO_PNG_BASE64 } from './assets/psf-logo';
 
 /**

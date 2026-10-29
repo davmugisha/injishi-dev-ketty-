@@ -11,6 +11,7 @@ import {
 import {
   BrokerRepository,
   DuplicateBrokerError,
+  FeeNotPaidError,
 } from '../infrastructure/broker.repository';
 import { IdentityService } from '../../user/application/identity.service';
 import { RegistrationDraftService } from './registration-draft.service';
@@ -21,11 +22,13 @@ import { ProfileService } from '../../user/application/profile.service';
  *
  * The third arm of the registration funnel and the shortest one: a broker is a
  * person who places tenants, not a business that takes money from the public,
- * so none of the apparatus D20 built for orgs applies. No fee, no invoice, no
- * RRA call, no field verification and no approver. What a broker does need is
- * the same KYC'd identity every registrant needs, which is why Step 1 runs
- * unchanged and this service refuses an incomplete profile the same way the
- * business path does.
+ * so none of the apparatus D20 built for orgs applies: no invoice, no RRA call,
+ * no field verification and no approver. What a broker does need is the same
+ * KYC'd identity every registrant needs, which is why Step 1 runs unchanged and
+ * this service refuses an incomplete profile the same way the business path
+ * does; the district they work in (the free plan shows its homes); and the
+ * registration fee (2026-10-25, `registration_fees` broker row), paid by mobile
+ * money first and tied to the new broker in the same transaction.
  *
  * Held in the organization module rather than a module of its own, because it
  * shares Step 1 with `RegistrationService` and shares nothing with anything
@@ -74,6 +77,12 @@ export class BrokerRegistrationService {
       );
     }
     await this.identity.assertMayRegister(userId);
+    if (!(await this.brokers.districtExists(request.homeDistrictId))) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        issues: [{ code: 'custom', path: ['homeDistrictId'], message: 'Choose the district you work in from the list.' }],
+      });
+    }
 
     // The full number, from the STORED document rather than from the request.
     // A returning registrant sends no `personal` block at all — their profile
@@ -93,6 +102,8 @@ export class BrokerRegistrationService {
         name: profile.fullName,
         phone: profile.phoneE164,
         email: null,
+        homeDistrictId: request.homeDistrictId,
+        feePaymentId: request.feePaymentId,
       });
       // A broker's registration ends here, so the wizard's draft does too (ADR-060).
       await this.drafts.clear(userId);
@@ -105,6 +116,9 @@ export class BrokerRegistrationService {
     } catch (err) {
       if (err instanceof DuplicateBrokerError) {
         throw new ConflictException(err.message);
+      }
+      if (err instanceof FeeNotPaidError) {
+        throw new ConflictException({ code: err.waiting ? 'fee_waiting' : 'fee_not_paid', message: err.message });
       }
       throw err;
     }

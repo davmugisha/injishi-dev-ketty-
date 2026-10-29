@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
 import { useHostStanding, type HostStanding } from "@/hooks/use-host-standing";
+import { appHome } from "@/lib/redirect";
 
 /**
  * The host-side action in the site header — one slot, three renderings.
@@ -21,11 +22,12 @@ import { useHostStanding, type HostStanding } from "@/hooks/use-host-standing";
  * loudest thing in the marketplace bar a button for the one person who does not
  * need selling. `outline` keeps the route one click away without shouting.
  *
- * `/w/<id>` IS SAME-ORIGIN. The operator app is a zone rewritten under web's
- * origin (`next.config.mjs`, `beforeFiles`), so this is a plain `Link` and the
- * session cookie travels because the browser only ever sees one origin. Do not
- * "fix" it into an absolute `NEXT_PUBLIC_PMS_URL` link; that config says why the
- * zone exists, and an absolute URL would leave the origin the cookie is set on.
+ * HOSTING OPENS THE APP, ON ITS OWN ORIGIN (2026-10-24). The operator app has
+ * its own host (`NEXT_PUBLIC_PMS_URL`), and its `/auth/continue` opens the
+ * person's own home there (`appHome()`). The session cookie is shared: the API
+ * writes it on the parent domain in a deployed stack, and on `localhost`, which
+ * every port shares, on a laptop. This used to be `/w/<id>` on web's origin,
+ * forwarded to the app as a zone; the app has no page there, so it 404ed.
  */
 interface Copy {
   label: string;
@@ -38,7 +40,7 @@ function copyFor(standing: HostStanding): Copy {
     case "hosting":
       return {
         label: "Switch to hosting",
-        href: `/w/${standing.workspace.workspaceId}`,
+        href: appHome(),
         variant: "outline",
       };
     case "registering":

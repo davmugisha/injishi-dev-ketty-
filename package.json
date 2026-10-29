@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "turbo run dev --filter=@injishi/web --filter=@injishi/app",
     "dev:mobile": "turbo run dev --filter=@injishi/mobile",
+    "dev:all": "node scripts/dev-all.mjs",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "biome check . && pnpm -r lint",
@@ -26,17 +27,24 @@
     "app:build": "pnpm --filter @injishi/app build",
     "app:start": "pnpm --filter @injishi/app start",
     "api:dev": "pnpm --filter @injishi/api dev",
+    "api:dev:test": "pnpm --filter @injishi/api dev:test",
     "api:build": "pnpm --filter @injishi/api build",
     "api:start": "pnpm --filter @injishi/api start",
     "api:worker": "pnpm --filter @injishi/api worker",
     "api:worker:dev": "pnpm --filter @injishi/api worker:dev",
+    "api:worker:dev:test": "pnpm --filter @injishi/api worker:dev:test",
     "db:seed": "pnpm --filter @injishi/api db:seed",
     "fixtures:seed": "pnpm --filter @injishi/db seed",
     "fixtures:reset": "pnpm --filter @injishi/db reset",
     "dev:all": "node scripts/dev-all.mjs",
     "dev:stack": "node scripts/dev-stack.mjs",
     "dev:stack:down": "node scripts/dev-stack.mjs --down",
-    "dev:stack:reset": "node scripts/dev-stack.mjs --reset"
+    "dev:stack:reset": "node scripts/dev-stack.mjs --reset",
+    "docker:up": "node scripts/docker-stack.mjs up",
+    "docker:down": "node scripts/docker-stack.mjs down",
+    "docker:rebuild": "node scripts/docker-stack.mjs rebuild",
+    "docker:logs": "node scripts/docker-stack.mjs logs",
+    "docker:ps": "node scripts/docker-stack.mjs ps"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

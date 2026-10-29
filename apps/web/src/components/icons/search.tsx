@@ -5,6 +5,7 @@ import {
   Building2,
   Castle,
   BedDouble,
+  Coffee,
   Hotel,
   House,
   KeyRound,
@@ -151,6 +152,11 @@ export function PsfIcon({ size = 24, ...props }: MarkProps) {
   return <Briefcase width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
 }
 
+/** A coffee shop (ADR-075 AC-1): the second venue with no rooms, drawn as a cup beside Bar & Restaurant's cutlery. */
+function CoffeeShopIcon({ size = 24, ...props }: MarkProps) {
+  return <Coffee width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
+}
+
 export const HostKindIcons: Record<
   HostKind,
   (props: MarkProps) => React.JSX.Element
@@ -159,4 +165,5 @@ export const HostKindIcons: Record<
   residence: ResidenceIcon,
   bar_restaurant: BarRestaurantIcon,
   psf: PsfIcon,
+  coffee_shop: CoffeeShopIcon,
 };

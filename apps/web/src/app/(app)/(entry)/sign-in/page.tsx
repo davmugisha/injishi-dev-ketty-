@@ -4,7 +4,7 @@ import SignInForm from "@/components/auth/sign-in-form";
 import GoogleButton from "@/components/auth/google-button";
 import ThemeToggleButton from "@/components/app/theme-toggle-button";
 import { AppleMark, InjishiGlyph } from "@/components/icons/marks";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { fetchDemoPersonas, fetchPlatform, isDemo, offersGoogle } from "@/data/platform";
 import { sendCodeAction } from "@/lib/otp.server";
 import { safeRedirect } from "@/lib/redirect";

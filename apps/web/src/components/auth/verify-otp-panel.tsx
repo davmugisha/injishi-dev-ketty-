@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Button, Input } from "@injishi/ui";
+import { Button, Input } from "@injishi/web-ui";
 import { Icon } from "@/components/app/icon";
 import {
   ACKNOWLEDGE_MS,

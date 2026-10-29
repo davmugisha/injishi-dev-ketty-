@@ -159,14 +159,23 @@ export type HousekeepingStatus = z.infer<typeof HousekeepingStatus>;
  */
 export const MaintenanceStatus = z.enum([
     "open",
+    // Rentals P4 (migration 0087 swapped the type): the landlord has seen a
+    // tenant's report, and a fault the landlord will not fix, with the reason.
+    "acknowledged",
     "assigned",
     "in_progress",
     "resolved",
     "closed",
+    "wont_fix",
     "cancelled",
 ]);
 export type MaintenanceStatus = z.infer<typeof MaintenanceStatus>;
-export const LeaseStatus = z.enum([
+/**
+ * The OLD lease statuses (no `signed`), read by the residence code the rentals
+ * rebuild replaces. The rentals `LeaseStatus` (`rentals/vocab.ts`) is the one
+ * to use; this goes with that code.
+ */
+export const LegacyLeaseStatus = z.enum([
     "draft",
     "pending_signature",
     "active",
@@ -174,7 +183,7 @@ export const LeaseStatus = z.enum([
     "ended",
     "cancelled",
 ]);
-export type LeaseStatus = z.infer<typeof LeaseStatus>;
+export type LegacyLeaseStatus = z.infer<typeof LegacyLeaseStatus>;
 export const RentStatus = z.enum(["paid", "due", "overdue"]);
 export type RentStatus = z.infer<typeof RentStatus>;
 export const CautionStatus = z.enum(["held", "refunded", "forfeited"]);
@@ -462,8 +471,8 @@ export const OperatorMessage = z.object({
     senderName: z.string().nullable(),
     /** True when this workspace sent it, so a screen can side the bubble. */
     fromUs: z.boolean(),
-    /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s). */
-    bodyType: z.enum(["text", "image", "voice", "system"]),
+    /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s); `file` a document sent in a lease thread (migration 0073). */
+    bodyType: z.enum(["text", "image", "voice", "system", "file"]),
     body: z.string().nullable(),
     /** The order a `system` line reports on, so a screen can draw its card. */
     serviceOrderId: Uuid.nullable(),
@@ -573,7 +582,7 @@ export const OperatorLease = z.object({
     cautionRwf: z.number().int().nullable(),
     startDate: z.string().nullable(),
     endDate: z.string().nullable(),
-    status: LeaseStatus,
+    status: LegacyLeaseStatus,
     /** Whether both signatures are in, which is what gates going active. */
     landlordSignedAt: z.string().nullable(),
     tenantSignedAt: z.string().nullable(),
@@ -589,7 +598,7 @@ export type OperatorLeaseList = z.infer<typeof OperatorLeaseList>;
  * activated: the server would have no way to tell the second call from a
  * legitimate second step.
  */
-export const AdvanceLeaseRequest = z.object({ to: LeaseStatus });
+export const AdvanceLeaseRequest = z.object({ to: LegacyLeaseStatus });
 export type AdvanceLeaseRequest = z.infer<typeof AdvanceLeaseRequest>;
 /** One month's rent on one lease. */
 export const OperatorRentCharge = z.object({
@@ -645,7 +654,7 @@ export const OperatorContractFiling = z.object({
     leaseId: Uuid,
     unitLabel: z.string().nullable(),
     tenantName: z.string().nullable(),
-    leaseStatus: LeaseStatus,
+    leaseStatus: LegacyLeaseStatus,
     /** Null when no filing has been raised for this lease at all. */
     status: FilingStatus.nullable(),
     /** When the fifteen days started. The signature, or the amendment that reset it. */
@@ -1261,6 +1270,11 @@ export const ORG_ROLE_LABEL: Readonly<Record<OrgRole, string>> = {
     finance: "Finance",
     hr: "HR",
     housekeeper: "Housekeeper",
+    cashier: "Cashier",
+    waiter: "Waiter",
+    bartender: "Bartender",
+    kitchen: "Kitchen",
+    stock_controller: "Stock controller",
 };
 export const InviteStaffRequest = z.object({
     /** The person's name as the inviter typed it, shown on the Team screen until they accept. */

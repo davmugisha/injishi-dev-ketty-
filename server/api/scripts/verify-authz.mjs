@@ -57,14 +57,19 @@ const OWNER_ALL = permissionsForRole('owner').length;
 const MANAGER_ALL = permissionsForRole('manager').length;
 
 /** ADR-069 D-b, exactly. Sorted, so a comparison reads the same either way round. */
+// The seven ADR-069 D-b named, and since rentals blueprint 2.1 the rentals money:
+// rent.record, expense.manage and tax.manage.
 const FINANCE_SET = [
   'ebm.manage',
   'ebm.refund',
+  'expense.manage',
   'folio.charge',
   'folio.close',
   'folio.payment',
   'money.view',
   'refund.decide',
+  'rent.record',
+  'tax.manage',
 ];
 const HR_SET = [
   'attendance.approve',
@@ -188,23 +193,25 @@ async function main() {
     // (OWNER_ONLY) and, since ADR-058, minus the HR disclosures an owner holds
     // by default and may grant (OWNER_BY_DEFAULT): the full file, and since
     // ADR-069 D-e both halves of the pay run, drafting it and confirming it.
+    // Rentals blueprint 2.1 added signing a lease and choosing the payout account.
     check('owner is the whole permission enum', OWNER_ALL, Permission.options.length);
     const managerLacks = forRole('owner').filter((p) => !forRole('manager').includes(p)).sort();
     check(
-      'manager is the owner minus team.manage, people.manage, payroll.draft and payroll.run',
+      'manager is the owner minus team.manage, people.manage, payroll.draft, payroll.run, lease.sign and payout.manage',
       managerLacks,
-      ['payroll.draft', 'payroll.run', 'people.manage', 'team.manage'],
+      ['lease.sign', 'payout.manage', 'payroll.draft', 'payroll.run', 'people.manage', 'team.manage'],
     );
     // 9 until ADR-058, which gave the desk attendance.record: the desk is who is
     // at the door when the night shift arrives. 11 since ADR-072, which gave it
     // lostfound.manage: the desk takes the claim calls and does the hand-back.
-    check('receptionist holds 11', forRole('receptionist').length, 11);
+    // 12 since rentals blueprint 2.1, which gave it guest.register.
+    check('receptionist holds 12', forRole('receptionist').length, 12);
     check('receptionist may clock staff in (ADR-058)', can('receptionist', 'attendance.record'), true);
     check('receptionist keeps the lost and found register (ADR-072)', can('receptionist', 'lostfound.manage'), true);
     check('housekeeper holds 2', forRole('housekeeper').length, 2);
 
     console.log('\n=== finance and hr: a job each, and nothing beside it (ADR-069 D-b) ===');
-    check('finance holds exactly its seven', [...forRole('finance')].sort(), FINANCE_SET);
+    check('finance holds exactly its ten', [...forRole('finance')].sort(), FINANCE_SET);
     check('hr holds exactly its seven', [...forRole('hr')].sort(), HR_SET);
     // The lock on the door stays the owner's (OWNER_ONLY, LOCKED_PERMISSIONS).
     check('finance may NOT manage the team', can('finance', 'team.manage'), false);

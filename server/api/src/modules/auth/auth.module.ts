@@ -25,7 +25,9 @@ import { DRIZZLE, type Database } from '../../shared/database/database.module';
 import { reportException } from '../../shared/observability/error-reporter';
 import { isWorkerProcess } from '../../shared/process/process-role';
 import { MailerModule } from '../mailer/mailer.module';
+import { PasswordSetupService } from './application/password-setup.service';
 import { OtpMailer } from './infrastructure/otp-mailer';
+import { PasswordHolders } from './infrastructure/password-holders';
 
 /** DI token for the Better Auth instance matching THIS request's surface. */
 export const AUTH_INSTANCE = Symbol('AUTH_INSTANCE');
@@ -73,16 +75,52 @@ export function googleCredentials(
  * The phone app signs in through `@better-auth/expo`. Its requests carry the
  * app's scheme as their origin, and a Google sign in comes back to it through a
  * deep link (`injishi://`), which Better Auth refuses as a callback unless the
- * origin is trusted. Expo Go in development speaks `exp://` instead, so that is
- * trusted outside production only: a production API has no development client
- * to serve.
+ * origin is trusted. Expo Go in development speaks `exp://` instead, and a
+ * development build speaks `injishi-dev://`, so those are trusted outside
+ * production only: a production API has no development client to serve.
+ *
+ * Any other build of the app (the internal test build, `injishi-preview`) is
+ * trusted only where its deploy lists it in `MOBILE_EXTRA_SCHEMES` (staging
+ * does; production sets nothing). Mobile spec 0001, AC-7.
  */
 export const MOBILE_APP_SCHEME = 'injishi';
+export const MOBILE_DEV_SCHEME = 'injishi-dev';
 
-export function mobileTrustedOrigins(nodeEnv: string | undefined): string[] {
+/** One of the app's own builds, never a wildcard or another app's scheme. */
+const MOBILE_EXTRA_SCHEME = /^injishi-[a-z]+$/;
+
+/**
+ * `MOBILE_EXTRA_SCHEMES`, read once at boot: comma separated, each entry
+ * trimmed, empty meaning unset. An entry that is not one of the app's own
+ * schemes refuses the boot, because a typo here would trust nothing and a
+ * pattern would trust too much, and neither shows until a sign in fails.
+ */
+export function mobileExtraSchemes(raw: string | undefined): string[] {
+  const schemes = (raw ?? '')
+    .split(',')
+    .map((scheme) => scheme.trim())
+    .filter(Boolean);
+  const refused = schemes.filter((scheme) => !MOBILE_EXTRA_SCHEME.test(scheme));
+  if (refused.length > 0) {
+    throw new Error(
+      `MOBILE_EXTRA_SCHEMES may list only the app's own schemes, such as injishi-preview; refused: ${refused.join(', ')}.`,
+    );
+  }
+  return schemes;
+}
+
+export function mobileTrustedOrigins(
+  nodeEnv: string | undefined,
+  extraSchemes?: string,
+): string[] {
   const origins = [`${MOBILE_APP_SCHEME}://`];
-  if (!isProduction(nodeEnv)) origins.push('exp://', 'exp://**');
-  return origins;
+  if (!isProduction(nodeEnv)) {
+    origins.push(`${MOBILE_DEV_SCHEME}://`, 'exp://', 'exp://**');
+  }
+  for (const scheme of mobileExtraSchemes(extraSchemes)) {
+    origins.push(`${scheme}://`);
+  }
+  return [...new Set(origins)];
 }
 
 /**
@@ -102,6 +140,10 @@ export function createAuthRegistry(
   const port = config.get<string>('PORT') ?? '8000';
   const nodeEnv = config.get<string>('NODE_ENV');
   const google = googleCredentials(config);
+  const mobileOrigins = mobileTrustedOrigins(
+    nodeEnv,
+    config.get<string>('MOBILE_EXTRA_SCHEMES'),
+  );
 
   // Always required; in production it must also be strong enough to sign
   // sessions with (the .env.example placeholder is not).
@@ -155,6 +197,10 @@ export function createAuthRegistry(
 
   const demo = platform.environment === 'demo';
 
+  // Passwords are for tenants only (2026-10-23): Better Auth asks this before
+  // it writes any password row.
+  const holders = new PasswordHolders(db);
+
   const build = (surface: AuthSurface): AuthInstance => {
     const oversight = surface === 'oversight';
     const secretName = oversight ? 'OVERSIGHT_AUTH_SECRET' : 'BETTER_AUTH_SECRET';
@@ -198,7 +244,7 @@ export function createAuthRegistry(
           nodeEnv,
           corsOrigins: config.get<string>('CORS_ORIGINS'),
         }),
-        ...mobileTrustedOrigins(nodeEnv),
+        ...mobileOrigins,
       ],
       google,
       // THE security boundary (AC-12). Only a demo process hands its
@@ -217,6 +263,7 @@ export function createAuthRegistry(
       // mail cannot reach a stranger's inbox, and locally Mailpit shows
       // exactly what production would send.
       sendOtp: mailer.send,
+      mayHoldPassword: holders.isTenant,
     });
   };
 
@@ -263,6 +310,12 @@ export function createAuthRegistry(
   providers: [
     OtpMailer,
     {
+      provide: PasswordHolders,
+      inject: [DRIZZLE],
+      useFactory: (db: Database) => new PasswordHolders(db),
+    },
+    PasswordSetupService,
+    {
       provide: AUTH_REGISTRY,
       inject: [PLATFORM, DRIZZLE, ConfigService, OtpMailer],
       useFactory: createAuthRegistry,
@@ -298,6 +351,6 @@ export function createAuthRegistry(
   // OtpMailer is exported because the emailed step-up (F-S02) sends through
   // the same transport as sign-in: one place that knows how a code reaches a
   // person, one debug-log rule, one timeout.
-  exports: [AUTH_INSTANCE, AUTH_REGISTRY, OtpMailer],
+  exports: [AUTH_INSTANCE, AUTH_REGISTRY, OtpMailer, PasswordSetupService],
 })
 export class AuthModule {}

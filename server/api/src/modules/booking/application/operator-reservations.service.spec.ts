@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import {
   ConflictException,
   NotFoundException,
@@ -15,6 +17,7 @@ import { OperatorReservationsService } from './operator-reservations.service';
 import { everyBranch } from '../../../shared/auth/branch-scope.fixture';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import type { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
+import type { BookingRefunds } from './booking-refunds';
 
 /**
  * The operator desk's approve/decline (review 3.1).
@@ -60,21 +63,21 @@ describe('OperatorReservationsService', () => {
   };
 
   function build(overrides: { releaseRejects?: Error; heldEscrow?: null } = {}): {
-    repo: Record<string, jest.Mock>;
-    payments: { mode: 'mock'; releaseEscrow: jest.Mock };
-    folios: { openForBooking: jest.Mock };
+    repo: Record<string, Mock>;
+    payments: { mode: 'mock'; releaseEscrow: Mock };
+    folios: { openForBooking: Mock };
     service: OperatorReservationsService;
     calls: string[];
   } {
     const calls: string[] = [];
     const repo = {
-      findReservationOwner: jest
+      findReservationOwner: vi
         .fn()
         .mockResolvedValue({ id: 'bk-1', workspaceId: 'ws-1', propertyId: 'prop-1', status: 'pending_approval' }),
-      findHeldEscrow: jest
+      findHeldEscrow: vi
         .fn()
         .mockResolvedValue(overrides.heldEscrow === null ? null : heldEscrow),
-      decline: jest.fn().mockImplementation(async () => {
+      decline: vi.fn().mockImplementation(async () => {
         calls.push('decline');
         return {
           id: 'bk-1',
@@ -86,7 +89,7 @@ describe('OperatorReservationsService', () => {
           confirmedAt: null,
         };
       }),
-      approve: jest.fn().mockResolvedValue({
+      approve: vi.fn().mockResolvedValue({
         id: 'bk-1',
         reference: 'BK-TEST-0001',
         status: 'confirmed',
@@ -95,38 +98,40 @@ describe('OperatorReservationsService', () => {
         escrowStatus: 'held',
         confirmedAt: new Date('2026-09-05T10:00:00Z'),
       }),
-      propertyForBooking: jest
+      propertyForBooking: vi
         .fn()
         .mockResolvedValue({ propertyId: 'prop-1', guestUserId: 'user-1' }),
-      findOperatorReservation: jest.fn().mockResolvedValue(deskRow),
+      findOperatorReservation: vi.fn().mockResolvedValue(deskRow),
       // Present so a record read that wrongly went through the desk list shows
       // up as a call rather than as an undefined crash.
-      listOperatorReservations: jest.fn().mockResolvedValue([deskRow]),
+      listOperatorReservations: vi.fn().mockResolvedValue([deskRow]),
     };
     const payments = {
       mode: 'mock' as const,
-      releaseEscrow: jest.fn().mockImplementation(async () => {
+      releaseEscrow: vi.fn().mockImplementation(async () => {
         calls.push('release');
         if (overrides.releaseRejects) throw overrides.releaseRejects;
         return { replayed: false };
       }),
     };
-    const folios = { openForBooking: jest.fn().mockResolvedValue('folio-1') };
+    const folios = { openForBooking: vi.fn().mockResolvedValue('folio-1') };
     const decisions = new BookingDecisionService(
       repo as unknown as BookingRepository,
       payments as unknown as PaymentPort,
       folios as unknown as FolioService,
-      { saleConfirmed: jest.fn() } as unknown as EbmSaleTrigger,
+      { saleConfirmed: vi.fn() } as unknown as EbmSaleTrigger,
       // ADR-047: the guest is told what happened. A recording double rather
       // than a no-op, so a test can assert WHICH event was raised.
-      { notify: jest.fn().mockResolvedValue(undefined) } as unknown as BookingNotificationsService,
+      { notify: vi.fn().mockResolvedValue(undefined) } as unknown as BookingNotificationsService,
+      // 073 AC-13: no bank record behind these payments, so the provider path runs.
+      { plan: vi.fn().mockResolvedValue(null) } as unknown as BookingRefunds,
     );
     const service = new OperatorReservationsService(
       repo as unknown as BookingRepository,
       decisions,
       // The no-show command's collaborators; nothing here exercises it.
       {} as unknown as BookingCancellationService,
-      { releaseForBooking: jest.fn() } as unknown as RoomAssignmentService,
+      { releaseForBooking: vi.fn() } as unknown as RoomAssignmentService,
     );
     return { repo, payments, folios, service, calls };
   }

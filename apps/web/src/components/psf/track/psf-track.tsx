@@ -33,7 +33,7 @@ import {
   type PsfTrackStage,
   type PsfTrackView,
 } from "@injishi/contracts";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { emailPsfCertificate, fetchPsfTrack, payPsfMembership, payPsfRegistration, psfCertificateUrl, psfLogoSrc } from "@/data/psf";
 import { apiResultMessage, retryWhileFailed } from "@/lib/api";

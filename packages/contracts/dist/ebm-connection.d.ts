@@ -87,12 +87,12 @@ export declare const EbmCustomerOption: z.ZodObject<{
     tin: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    tin: string | null;
     id: number;
+    tin: string | null;
 }, {
     name: string;
-    tin: string | null;
     id: number;
+    tin: string | null;
 }>;
 export type EbmCustomerOption = z.infer<typeof EbmCustomerOption>;
 /** What `GET /api/v1/ops/ebm/items` answers. */
@@ -143,24 +143,24 @@ export declare const EbmCustomerOptionList: z.ZodObject<{
         tin: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        tin: string | null;
         id: number;
+        tin: string | null;
     }, {
         name: string;
-        tin: string | null;
         id: number;
+        tin: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     customers: {
         name: string;
-        tin: string | null;
         id: number;
+        tin: string | null;
     }[];
 }, {
     customers: {
         name: string;
-        tin: string | null;
         id: number;
+        tin: string | null;
     }[];
 }>;
 export type EbmCustomerOptionList = z.infer<typeof EbmCustomerOptionList>;
@@ -303,8 +303,8 @@ export declare const EbmConnection: z.ZodObject<{
     status: "revoked" | "not_connected" | "connected";
     tin: string | null;
     mode: "mock" | "live";
-    branchId: string | null;
     accountName: string | null;
+    branchId: string | null;
     accountStatus: "submitted" | "approved" | "disabled" | null;
     vatRegistered: boolean | null;
     scopes: string[];
@@ -320,8 +320,8 @@ export declare const EbmConnection: z.ZodObject<{
     status: "revoked" | "not_connected" | "connected";
     tin: string | null;
     mode: "mock" | "live";
-    branchId: string | null;
     accountName: string | null;
+    branchId: string | null;
     accountStatus: "submitted" | "approved" | "disabled" | null;
     vatRegistered: boolean | null;
     scopes: string[];
@@ -371,7 +371,7 @@ export declare const EbmEmission: z.ZodObject<{
     receiptNumber: z.ZodNullable<z.ZodNumber>;
     totalRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    status: "failed" | "held" | "emitted";
+    status: "held" | "failed" | "emitted";
     id: string;
     totalRwf: number;
     attempts: number;
@@ -380,7 +380,7 @@ export declare const EbmEmission: z.ZodObject<{
     emittedAt: string | null;
     receiptNumber: number | null;
 }, {
-    status: "failed" | "held" | "emitted";
+    status: "held" | "failed" | "emitted";
     id: string;
     totalRwf: number;
     attempts: number;

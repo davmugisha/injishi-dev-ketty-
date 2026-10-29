@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { ThemePill } from "@/components/layout/theme-pill";
 
 /** PSF's three destinations: the page's own sections, then tracking. */

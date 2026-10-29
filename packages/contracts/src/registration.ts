@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { isKnownCountry } from "./countries";
+import { BusinessKind, HospitalityKind, hospitalityKindOf, isVenueKind } from "./business-kind";
 import { AccommodationClass, RdbEntityGroup, ResidenceClass, StoredAccommodationClass } from "./rdb";
 import { Domain, OrgRegistrationStatus, OversightRole, RwfAmount, Uuid } from "./primitives";
+import { MobileMoneyNetwork, PaymentAttemptState, PaymentInstrument } from "./booking";
 /**
  * Business registration (F-S03 / FL01), governed by D20, D23 and D24.
  *
@@ -271,6 +273,9 @@ export const OrgCertificateKind = z.enum([
     "rdb_certificate",
     "psf_certificate",
     "land_title",
+    // A franchisee's agreement with its franchisor (ADR-075 O-7, AC-8), optional
+    // and asked only of a franchisee (`registrationDocumentRows`).
+    "franchise_agreement",
 ]);
 export type OrgCertificateKind = z.infer<typeof OrgCertificateKind>;
 /** What each kind is called on screen, wherever a document is listed. */
@@ -284,6 +289,7 @@ export const ORG_CERTIFICATE_KIND_LABEL: Readonly<Record<OrgCertificateKind, str
     rdb_certificate: "RDB certificate",
     psf_certificate: "PSF certificate",
     land_title: "Land title",
+    franchise_agreement: "Franchise agreement",
 };
 export const CertificateInput = z.object({
     kind: OrgCertificateKind,
@@ -503,6 +509,50 @@ export const PsfMembershipNumber = z
     .trim()
     .min(1, "Give the number, or leave it empty.")
     .max(40, "That number is too long.");
+/**
+ * Whether the business is part of a franchise (ADR-075 O-7, AC-8). No block
+ * means No, as no `org_franchises` row does. A franchisee runs another
+ * company's brand and names that company; a franchisor owns the brand and says
+ * how many locations run under it. The franchisee's agreement, when it has one
+ * to hand, is a `franchise_agreement` document on the Documents step.
+ */
+export const FranchiseRole = z.enum(["franchisee", "franchisor"]);
+export type FranchiseRole = z.infer<typeof FranchiseRole>;
+const BrandName = z
+    .string()
+    .trim()
+    .min(1, "Give the brand name.")
+    .max(120, "That brand name is too long for our records.");
+export const FranchiseDeclaration = z.discriminatedUnion("role", [
+    z
+        .object({
+        role: z.literal("franchisee"),
+        brandName: BrandName,
+        franchisorLegalName: z
+            .string()
+            .trim()
+            .min(2, "Give the franchisor's registered name.")
+            .max(200, "That name is too long for our records."),
+        franchisorCountry: z
+            .string({ required_error: "Pick the franchisor's country." })
+            .trim()
+            .min(1, "Pick the franchisor's country.")
+            .pipe(CountryCode),
+    })
+        .strict(),
+    z
+        .object({
+        role: z.literal("franchisor"),
+        brandName: BrandName,
+        franchisedLocations: z
+            .number({ invalid_type_error: "Say how many locations run under your brand." })
+            .int("Give a whole number of locations.")
+            .min(1, "At least one location runs under your brand.")
+            .max(100000, "That is more locations than we can record."),
+    })
+        .strict(),
+]);
+export type FranchiseDeclaration = z.infer<typeof FranchiseDeclaration>;
 const businessBase = z.object({
     legalName: z
         .string()
@@ -519,7 +569,14 @@ const businessBase = z.object({
 export const HospitalityBusiness = businessBase.extend({
     domain: z.literal("hospitality"),
     entityGroup: RdbEntityGroup.default("accommodation"),
-    accommodationClass: AccommodationClass,
+    /**
+     * What kind of business it is (ADR-075 D-h, AC-31). A stay's kind is its accommodation class; a venue (Bar &
+     * Restaurant, Coffee Shop) has a kind and no class. Optional only so a request built before ADR-075 still
+     * reads: its kind is then derived from the class (`hospitalityKindOf`).
+     */
+    businessKind: HospitalityKind.optional(),
+    /** A stay's RDB class. Required for a stay, forbidden for a venue, which has no rooms (ADR-075 O-14). */
+    accommodationClass: AccommodationClass.optional(),
     /** Required when the class is `other`, forbidden otherwise (D24). */
     accommodationClassOther: z.string().trim().min(1).max(120).optional(),
     tin: Tin,
@@ -539,6 +596,8 @@ export const HospitalityBusiness = businessBase.extend({
      */
     psfApplication: PsfApplicationInput.optional(),
     eacStarGrade: z.number().int().min(1).max(5).optional(),
+    /** Part of a franchise, and how (ADR-075 AC-8). Absent means No. */
+    franchise: FranchiseDeclaration.optional(),
     /** The locations beyond the head office (ADR-054). Empty for a single site business. */
     branches: z
         .array(RegistrationBranch)
@@ -569,6 +628,10 @@ export const ResidenceBusiness = businessBase.extend({
         .optional(),
     psfMembershipNumber: z
         .never({ errorMap: () => ({ message: "A residence cannot hold a PSF membership here." }) })
+        .optional(),
+    /** Refused, not stripped, for the same reason: a franchise is a hospitality business's brand (ADR-075 O-7). */
+    franchise: z
+        .never({ errorMap: () => ({ message: "A residence registers without a franchise." }) })
         .optional(),
 });
 /**
@@ -624,8 +687,52 @@ export const BusinessDetails = z
         }
         return;
     }
+    // ADR-075 AC-8: a franchise agreement goes with a franchisee's answer, and with nothing else.
+    const franchisee = value.domain === "hospitality" && value.franchise?.role === "franchisee";
+    value.certificates.forEach((certificate, index) => {
+        if (certificate.kind === "franchise_agreement" && !franchisee) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["certificates", index, "kind"],
+                message: "A franchise agreement goes with a business that runs another company's brand.",
+            });
+        }
+    });
     if (value.domain !== "hospitality")
         return;
+    // ADR-075 D-h: a venue has a kind and no accommodation class; a stay's class is its kind. Mirrors
+    // `orgs_domain_shape`, so the wizard can say which field is wrong instead of surfacing a constraint name.
+    const kind = hospitalityKindOf(value);
+    if (kind === null) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["businessKind"],
+            message: "Choose what kind of business it is.",
+        });
+    }
+    else if (isVenueKind(kind)) {
+        if (value.accommodationClass !== undefined && value.businessKind !== undefined) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["accommodationClass"],
+                message: "A bar & restaurant or a coffee shop has no accommodation class.",
+            });
+        }
+    }
+    else if (value.accommodationClass === undefined) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["accommodationClass"],
+            message: "Choose what kind of place it is.",
+        });
+    }
+    else if (value.businessKind !== undefined && value.accommodationClass !== value.businessKind) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["accommodationClass"],
+            message: "The accommodation class must be the kind you chose.",
+        });
+    }
     // Mirrors `orgs_accommodation_class_other_shape`. Enforced here too so the
     // wizard can say which field is wrong instead of surfacing a constraint name.
     const isOther = value.accommodationClass === "other";
@@ -1016,6 +1123,11 @@ export const RegistrationSummary = z.object({
     workspaceId: Uuid,
     legalName: z.string(),
     domain: Domain,
+    /**
+     * What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say.
+     * Null for a PSF business (`enterprise`), which is not a place.
+     */
+    businessKind: BusinessKind.nullable(),
     accommodationClass: StoredAccommodationClass.nullable(),
     status: OrgRegistrationStatus,
     /** Set only while `status` is `pending_payment`. */
@@ -1028,11 +1140,9 @@ export const RegistrationSummary = z.object({
     rejectionNotes: z.string().nullable(),
     submittedAt: z.string().nullable(),
     /**
-     * The operator contract this business accepted, and when (ADR-053, AC-R8).
-     *
-     * Read from the server so a registrant who comes back to the wizard resumes
-     * at the right step, never from the browser. Both null until accepted, and
-     * both stay null for a business that paid before acceptance was recorded.
+     * The operator contract a business accepted before paying, and when (ADR-053, AC-R8), kept readable for the
+     * businesses that did. ADR-075 removed that step: a registration made since carries neither, and its
+     * agreement is signed after approval (A3).
      */
     contractVersion: z.string().nullable(),
     contractAcceptedAt: z.string().nullable(),
@@ -1057,72 +1167,14 @@ export type RegistrationSummary = z.infer<typeof RegistrationSummary>;
  * this in the same commit as the clause copy, and only then.
  */
 export const OPERATOR_CONTRACT_VERSION = "2026-09-12";
+// The wizard's draft moved to `registration-draft.ts` (ADR-075 S9), beside the checks the server writes for it.
 /**
- * `POST /api/v1/registrations/:id/contract`. The version the page rendered.
- *
- * The server refuses anything but `OPERATOR_CONTRACT_VERSION` and stores the
- * constant, never this value, so a stale tab cannot bind anyone to old terms.
+ * Why a registrant action was refused, sent as `code` on the error body so a page can word the refusal without
+ * matching on English. The contract codes went with the contract before payment (ADR-075, AC-12).
  */
-export const AcceptContractRequest = z.object({
-    contractVersion: z.string().trim().min(1).max(40),
-});
-export type AcceptContractRequest = z.infer<typeof AcceptContractRequest>;
-/**
- * Why a registrant action on the contract or the fee was refused (409).
- *
- * `contract_not_accepted` is pay's refusal, `contract_not_open` and
- * `contract_version_stale` are accept's. Sent as `code` on the error body so a
- * page can word the refusal without matching on English.
- */
-/**
- * The wizard's answers, kept on the server between steps (ADR-059 call 5,
- * moved server side by ADR-060) at `GET|PUT|DELETE /api/v1/me/registration-draft`.
- *
- * It NEVER holds an ID number, and that is structural rather than promised:
- * the personal block has no document number field and is strict, the intended
- * owner carries no National ID, and the whole draft is refused if a run of
- * sixteen digits appears anywhere in it. A verified identity lives in
- * `verified_identities`; the draft only has to remember what was typed around it.
- */
-const DraftText = z.string().max(300);
-const DraftAddress = z.record(z.string().max(40), DraftText);
-export const REGISTRATION_DRAFT_PHASES = ["place", "about", "business", "documents"] as const;
-export const RegistrationDraft = z
-    .object({
-    v: z.literal(1),
-    phase: z.enum(REGISTRATION_DRAFT_PHASES),
-    kind: z.string().max(40).nullable(),
-    capacity: RegistrantCapacity,
-    /** False when the stored profile answered About you. */
-    typedPersonal: z.boolean(),
-    personal: z
-        .object({
-        firstName: DraftText,
-        middleName: DraftText,
-        lastName: DraftText,
-        documentType: AccountDocumentType,
-        issuingCountry: DraftText,
-        gender: DraftText,
-        dateOfBirth: DraftText,
-        phoneE164: DraftText,
-        address: DraftAddress,
-    })
-        .strict(),
-    intendedOwner: z.object({ name: DraftText, email: DraftText }).strict(),
-    business: z.record(z.string().max(60), z.union([DraftText, z.boolean(), z.null(), DraftAddress])),
-    branches: z.array(z.object({ name: DraftText, address: DraftAddress }).strict()).max(50),
-})
-    .strict()
-    .refine((draft) => !/\d{16}/.test(JSON.stringify(draft)), {
-    message: "A registration draft never holds an ID number.",
-});
-export type RegistrationDraft = z.infer<typeof RegistrationDraft>;
 export const RegistrationConflictCode = z.enum([
     /** 403: registering a business needs a verified identity here (ADR-060). */
     "identity_not_verified",
-    "contract_not_accepted",
-    "contract_not_open",
-    "contract_version_stale",
 ]);
 export type RegistrationConflictCode = z.infer<typeof RegistrationConflictCode>;
 // ---------------------------------------------------------------------------
@@ -1133,7 +1185,16 @@ export type RegistrationConflictCode = z.infer<typeof RegistrationConflictCode>;
  * anything is created or billed, so a TIN RRA will refuse is found while the
  * registrant can still change it rather than after a non-refundable fee.
  */
-export const TinCheckRequest = z.object({ tin: Tin });
+export const TinCheckRequest = z.object({
+    tin: Tin,
+    /**
+     * Who is asking (ADR-075 AC-7). The directors' NAMES come back only for the
+     * helper ("For the owner"), who picks the owner from them. On the owner path
+     * they do not: the name matched there may be typed, and showing the names
+     * first would let anyone type one. The owner learns only listed or not.
+     */
+    capacity: RegistrantCapacity.optional(),
+});
 export type TinCheckRequest = z.infer<typeof TinCheckRequest>;
 /**
  * A business as the company register states it (ADR-060). Directors are NAMES
@@ -1153,6 +1214,7 @@ export const RegistryBusiness = z.object({
         street: z.string().nullable(),
     })
         .nullable(),
+    /** Empty unless the request named the helper capacity (ADR-075 AC-7). */
     directors: z.array(z.object({ name: z.string().min(1) })),
     /** True when a MOCK adapter made this business up. */
     generated: z.boolean(),
@@ -1176,9 +1238,10 @@ export const TinCheckResult = z.object({
      */
     business: RegistryBusiness.nullable(),
     /**
-     * Whether the caller's own verified document is among the directors. Null
-     * when the register lists no directors, or the caller holds no document to
-     * compare. `false` is what moves a registrant to the on behalf path.
+     * Whether the caller's own document, scanned or typed, is among the
+     * directors. Null when the register lists no directors, or the caller holds
+     * no document yet. `false` is what moves a registrant to the on behalf
+     * path. The wizard's answer is never the record: create matches again.
      */
     registrantIsDirector: z.boolean().nullable(),
 });
@@ -1216,6 +1279,44 @@ export const RegistrationFeeQuote = z.object({
     currency: z.literal("RWF"),
 });
 export type RegistrationFeeQuote = z.infer<typeof RegistrationFeeQuote>;
+// ---------------------------------------------------------------------------
+// Paying the fee — POST /api/v1/registrations/:id/pay (073-gtbank-payments AC-16)
+// ---------------------------------------------------------------------------
+/**
+ * One press of pay. Both fields are optional because the fee settles free
+ * while payments are off (call 9), and then there is nothing to prompt; when
+ * money is taken, the server refuses a body missing either with a 422.
+ */
+export const RegistrationPayRequest = z.object({
+    /** Minted once per press and reused on every retry of that press. */
+    attemptToken: Uuid.optional(),
+    /** The registrant's mobile money number. A card is refused. */
+    instrument: PaymentInstrument.optional(),
+});
+export type RegistrationPayRequest = z.infer<typeof RegistrationPayRequest>;
+/** A fee payment waiting on the registrant's handset, as the wizard watches it. */
+export const RegistrationFeeAttemptStatus = z.object({
+    attemptToken: z.string(),
+    state: PaymentAttemptState,
+    network: MobileMoneyNetwork.nullable(),
+    /** Masked: enough to recognise, never enough to charge. */
+    payerMasked: z.string().nullable(),
+    amountRwf: RwfAmount.nullable(),
+    expiresAt: z.string(),
+    failureReason: z.string().nullable(),
+    /** The registration as it stands now: `submitted` once the fee settled. */
+    registration: RegistrationSummary,
+});
+export type RegistrationFeeAttemptStatus = z.infer<typeof RegistrationFeeAttemptStatus>;
+/**
+ * What the pay press answers: settled at once (the free path, or an
+ * instrument that settled inside the call), or an attempt to wait on.
+ */
+export const RegistrationPayResult = z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("settled"), registration: RegistrationSummary }),
+    z.object({ kind: z.literal("attempt"), attempt: RegistrationFeeAttemptStatus }),
+]);
+export type RegistrationPayResult = z.infer<typeof RegistrationPayResult>;
 // ---------------------------------------------------------------------------
 // Step 1, read back — GET /api/v1/me/profile
 // ---------------------------------------------------------------------------
@@ -1273,6 +1374,10 @@ export type MyProfile = z.infer<typeof MyProfile>;
  */
 export const CreateBrokerRegistrationRequest = z.object({
     personal: PersonalDetails.optional(),
+    /** The district the broker works in: the free plan shows the homes there (2026-10-25). */
+    homeDistrictId: z.number({ required_error: "Choose the district you work in.", invalid_type_error: "Choose the district you work in." }).int().positive("Choose the district you work in."),
+    /** The registration fee, paid first by mobile money (`POST /registrations/broker/fee`). */
+    feePaymentId: Uuid,
 });
 export type CreateBrokerRegistrationRequest = z.infer<typeof CreateBrokerRegistrationRequest>;
 /** A broker's own status. Two values, and no government pipeline (F-R09 §8). */
@@ -1314,7 +1419,7 @@ export const UploadedObject = z.object({
     filename: z.string(),
 });
 export type UploadedObject = z.infer<typeof UploadedObject>;
-/** The six kinds `org_certificates.kind` accepts, in the order the form asks. */
+/** Every kind `org_certificates.kind` accepts, worded for a list of what was sent. */
 export const CERTIFICATE_KIND_LABEL: Readonly<Record<CertificateInput["kind"], string>> = {
     rdb_grade: "RDB grade certificate",
     tourism_license: "Tourism licence",
@@ -1325,4 +1430,5 @@ export const CERTIFICATE_KIND_LABEL: Readonly<Record<CertificateInput["kind"], s
     rdb_certificate: "RDB certificate",
     psf_certificate: "PSF certificate",
     land_title: "Land title",
+    franchise_agreement: "Franchise agreement",
 };

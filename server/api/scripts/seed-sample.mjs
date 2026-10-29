@@ -11,6 +11,8 @@
  *   seed-content.mjs          reference data, the hospitality org and its hotel
  *   seed-users.mjs            the @injishi.com sign in accounts and their grants,
  *                             and the residence org their landlord owns
+ *   seed-payments-float.mjs   the mock payment provider's opening float, so a
+ *                             sample database can pay the refunds it owes
  *   seed-content.mjs (again)  the residence side (building, units, leases). It
  *                             skips that block while the residence org does not
  *                             exist, and seed-users is what creates it. Every
@@ -33,6 +35,11 @@
  *   seed-hr-files.mjs         a staff file per account
  *   seed-ui2.mjs              LAST: Amahoro's finance and hr personas and what
  *                             the role homes show, from seed-ui2/NN-*.mjs
+ *
+ * On a database past the rentals rebuild (migrations 0073-0080) every step
+ * skips its leases, rent, deposits, notices and placements and says so: those
+ * rows only come through the app now. The residence businesses, buildings and
+ * units are still written, and each residence room gets its rental unit below.
  *
  * then gives every property the seeds wrote the USALI department set (ADR-016
  * AC-14), which they skip by INSERTing properties directly, and records the
@@ -57,6 +64,7 @@ import {
   propertiesWithoutDepartments,
   seedMissingDepartments,
 } from './property-departments.mjs';
+import { rentalsRebuilt, syncRentalUnits } from './rentals-rebuilt.mjs';
 import { assertSampleDatabase, describeDatabase } from './sample-database.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -74,6 +82,8 @@ const STEPS = [
   // DATA, so pay and leave compute on a sample database (ADR-058 slice 1).
   { script: 'seed-hr-rules.mjs', what: 'HR rules: placeholder PAYE, RSSB, leave and holidays (ADR-058)' },
   { script: 'seed-users.mjs', what: 'sign in accounts and their grants' },
+  // Reads two staff accounts seed-users.mjs writes, as requester and approver.
+  { script: 'seed-payments-float.mjs', what: 'the mock payment provider\'s opening float, so refunds can be paid (073 AC-15)' },
   { script: 'seed-content.mjs', what: 'second pass: the residence side seed-users unlocked' },
   { script: 'seed-demo.mjs', what: 'the demo roster and the rows it trades on' },
   {
@@ -105,6 +115,8 @@ const STEPS = [
   // department passes below, so a property a ui2 file adds is covered by both.
   { script: 'seed-ui2.mjs', what: 'ui2: the finance and hr personas, and what the six role homes show (ADR-069)' },
   { script: 'seed-interface.mjs', what: 'the new interface: its world and screens, from the packages/data fixtures (ADR-072)' },
+  // Its own fictional restaurant group, so it reads only geography and tax rates from the steps above.
+  { script: 'seed-demo-pos.mjs', what: 'the point of sale: a restaurant group, its floor, menu, staff and two days of simulated trade' },
 ];
 
 function fail(message) {
@@ -180,6 +192,17 @@ if (filled.missing > 0) {
   fail(
     `${filled.missing} propert(ies) still hold no department, so a guest there has nobody to message.`,
   );
+}
+
+// The rentals rebuild (migrations 0073-0080): the seeds above still write the
+// residence businesses, buildings and rooms, but no longer their leases, rent,
+// deposits or notices (scripts/rentals-rebuilt.mjs). Each residence room gets
+// its `rental_units` row here, the unit record the rentals screens read.
+const units = await withClient(async (client) =>
+  (await rentalsRebuilt(client)) ? await syncRentalUnits(client) : null,
+);
+if (units !== null) {
+  console.log(`Rental units: ${units} written for residence rooms that had none (no leases are seeded).`);
 }
 
 // Only a complete run is a reset. The update trigger allows `seeded_at` alone.

@@ -53,7 +53,18 @@ exports.Permission = zod_1.z.enum([
     // `property.switch` was here. Seeing a branch is coverage, not a capability:
     // the switcher reads `branches` from the grant (ADR-054 AC-S4).
     "rent.record",
-    "lease.advance",
+    /**
+     * Run the business's leases (rentals blueprint 2.1): draft, edit, send,
+     * cancel and start them, record notices and move outs, and keep the tenant
+     * records. Was `lease.advance`, which only moved a lease along a board;
+     * migration 0083 renames stored overrides.
+     */
+    "lease.manage",
+    /**
+     * Sign a lease AS THE LANDLORD, which binds the business to it. Owner by
+     * default (`OWNER_BY_DEFAULT`); an owner may grant it to a manager.
+     */
+    "lease.sign",
     "deposit.return",
     "unit.manage",
     "listing.manage",
@@ -206,6 +217,54 @@ exports.Permission = zod_1.z.enum([
      * proposer, which the service refuses whatever permissions either holds.
      */
     "lostfound.manage",
+    /**
+     * Decide where the business's rent is paid out: add, change, retire and
+     * make primary a bank account, MoMo number or MoMo Pay code (rentals
+     * blueprint 2.1). Owner by default, because whoever holds it decides whose
+     * account the tenants' money lands in; an owner may grant it.
+     */
+    "payout.manage",
+    /** Record and void the business's expenses, and pay a fixer. Owner, manager and finance. */
+    "expense.manage",
+    /** Keep the tax side: the taxpayer kind, the year's declaration, and lease filings with RRA. Owner, manager and finance. */
+    "tax.manage",
+    /** Register the landlord's own guests, which go to the local leaders. Owner, manager and receptionist. */
+    "guest.register",
+    /**
+     * The bar and restaurant point of sale (POS spec, phase 1). Nine permissions
+     * in the `services` area, each moveable per role under ADR-055.
+     *
+     * `pos.sell` takes an order: open a draft, add and change lines, send it to
+     * the kitchen and bar. The waiter's, the cashier's and the bartender's.
+     */
+    "pos.sell",
+    /** Take payment on an order and settle its bill. The cashier's. */
+    "pos.checkout",
+    /**
+     * Discount a line or an order UP TO the outlet's configured limit. Above
+     * the limit the discount waits for `pos.override`, so a cashier can never
+     * give a bill away alone.
+     */
+    "pos.discount",
+    /**
+     * The manager's override: approve a discount above the limit, void a line
+     * already sent to the kitchen, cancel an order. Every use is audited with a
+     * reason.
+     */
+    "pos.override",
+    /**
+     * Refund a settled POS payment. Owner and manager by default; finance keeps
+     * its ADR-069 D-b seven, and a business may grant it this (ADR-055).
+     */
+    "pos.refund",
+    /** Open, close, transfer and merge table sessions. Front of house. */
+    "table.manage",
+    /** Move kitchen and bar tickets through their stations. Kitchen and bar staff. */
+    "kitchen.work",
+    /** Open and close one's own cashier shift, record cash paid in and out. */
+    "register.operate",
+    /** Review a closed shift's cash variance and approve a paid out. Owner and manager. */
+    "shift.review",
 ]);
 const ALL = exports.Permission.options;
 /**
@@ -247,21 +306,31 @@ const OWNER_ONLY = ["team.manage"];
  * holds. `hr` holds `people.manage` and `payroll.draft` by its own set, not by
  * inheriting from here, and `payroll.run` stays the owner's alone.
  */
-const OWNER_BY_DEFAULT = ["people.manage", "payroll.draft", "payroll.run"];
+const OWNER_BY_DEFAULT = [
+    "people.manage",
+    "payroll.draft",
+    "payroll.run",
+    // Rentals (blueprint 2.1): signing binds the business to a lease, and the
+    // payout account decides where the rent goes.
+    "lease.sign",
+    "payout.manage",
+];
 /**
  * Role to permissions, inside a business workspace.
  *
  * owner runs and OWNS the property: everything, the roster included.
  * manager runs the property: everything operational, money and the fiscal
  * account included — but does not decide who works here (`OWNER_ONLY`), and by
- * default neither reads HR files in full nor drafts or confirms payroll
- * (`OWNER_BY_DEFAULT`).
+ * default neither reads HR files in full nor drafts or confirms payroll, nor
+ * signs leases or decides where rent is paid out (`OWNER_BY_DEFAULT`).
  * receptionist works the front desk and takes service orders: no money, no
- * team, no housekeeping board, no menu editing. Clocks staff in and out.
+ * team, no housekeeping board, no menu editing. Clocks staff in and out, and
+ * registers the landlord's guests.
  * finance is the accountant (ADR-069 D-b): reads the money, posts and voids
  * charges, records payments, closes bills, keeps the EBM account, withdraws a
- * signed sale and answers refund requests. No rooms, no reservations to
- * write, no rates, no staff files, no guest inbox.
+ * signed sale and answers refund requests; on a residence it records rent,
+ * keeps the expenses and the tax side (rentals blueprint 2.1). No rooms, no
+ * reservations to write, no rates, no staff files, no guest inbox.
  * hr is the HR officer (ADR-069 D-b): reads and keeps the staff files, the
  * roster, attendance and leave, and DRAFTS the pay run; the owner confirms it.
  * No money, no folios, no reservations, no guest inbox.
@@ -286,6 +355,7 @@ const ROLE_PERMISSIONS = {
         "message.send",
         "attendance.record",
         "lostfound.manage",
+        "guest.register",
     ]),
     finance: new Set([
         "money.view",
@@ -295,6 +365,9 @@ const ROLE_PERMISSIONS = {
         "ebm.manage",
         "ebm.refund",
         "refund.decide",
+        "rent.record",
+        "expense.manage",
+        "tax.manage",
     ]),
     hr: new Set([
         "people.view",
@@ -306,6 +379,19 @@ const ROLE_PERMISSIONS = {
         "payroll.draft",
     ]),
     housekeeper: new Set(["housekeeping.set", "ticket.advance"]),
+    cashier: new Set([
+        "pos.sell",
+        "pos.checkout",
+        "pos.discount",
+        "table.manage",
+        "register.operate",
+    ]),
+    waiter: new Set(["pos.sell", "table.manage"]),
+    bartender: new Set(["pos.sell", "table.manage", "kitchen.work"]),
+    kitchen: new Set(["kitchen.work"]),
+    // The stock permissions arrive with the inventory phase; until then the
+    // role signs in and holds nothing.
+    stock_controller: new Set([]),
 };
 /** Does this role hold this permission? The single predicate both sides use. */
 function can(role, permission) {
@@ -330,7 +416,8 @@ exports.PERMISSION_LABEL = {
     "team.manage": "manage the team",
     "money.view": "view money",
     "rent.record": "record rent",
-    "lease.advance": "advance leases",
+    "lease.manage": "manage leases and tenants",
+    "lease.sign": "sign leases for the business",
     "deposit.return": "return deposits",
     "unit.manage": "change unit rents",
     "listing.manage": "manage listings and inventory",
@@ -353,6 +440,19 @@ exports.PERMISSION_LABEL = {
     "payroll.draft": "draft the pay run",
     "payroll.run": "confirm the pay run",
     "lostfound.manage": "keep the lost and found register",
+    "payout.manage": "choose where rent is paid out",
+    "expense.manage": "record expenses",
+    "tax.manage": "keep tax declarations and lease filings",
+    "guest.register": "register guests",
+    "pos.sell": "take orders at the point of sale",
+    "pos.checkout": "take payment and settle bills",
+    "pos.discount": "give discounts within the limit",
+    "pos.override": "approve discounts over the limit, voids and cancellations",
+    "pos.refund": "refund point of sale payments",
+    "table.manage": "open, transfer and close tables",
+    "kitchen.work": "work kitchen and bar tickets",
+    "register.operate": "run a cashier shift",
+    "shift.review": "review cashier shifts and paid outs",
 };
 // ---------------------------------------------------------------------------
 // A business's own role customisation
@@ -522,7 +622,12 @@ exports.PERMISSION_AREA_OF = {
     "ebm.refund": "money",
     "refund.decide": "money",
     "rent.record": "money",
-    "lease.advance": "property",
+    "payout.manage": "money",
+    "expense.manage": "money",
+    "tax.manage": "money",
+    "lease.manage": "property",
+    "lease.sign": "property",
+    "guest.register": "property",
     "deposit.return": "property",
     "unit.manage": "property",
     "listing.manage": "property",
@@ -539,6 +644,15 @@ exports.PERMISSION_AREA_OF = {
     "payroll.draft": "people",
     "payroll.run": "people",
     "lostfound.manage": "front_desk",
+    "pos.sell": "services",
+    "pos.checkout": "services",
+    "pos.discount": "services",
+    "pos.override": "services",
+    "pos.refund": "money",
+    "table.manage": "services",
+    "kitchen.work": "services",
+    "register.operate": "money",
+    "shift.review": "money",
 };
 // ---------------------------------------------------------------------------
 // What each role may do, at THIS business
@@ -783,12 +897,18 @@ function workspaceAllows(access, permission) {
  * "no assignment" and "no console" are the same thing.
  */
 exports.OversightGrant = zod_1.z.object({
+    /** The assignment row: a local leader's seen marks and flags name it. */
+    assignmentId: primitives_1.Uuid,
     oversightRole: primitives_1.OversightRole,
     governmentBodyCode: zod_1.z.string(),
     governmentTitle: zod_1.z.string().nullable(),
     scopeLevel: primitives_1.OversightScopeLevel,
     provinceId: zod_1.z.number().int().nullable(),
     districtId: zod_1.z.number().int().nullable(),
+    /** A local leader's sector, cell and village (P5); null for a business reviewer. */
+    sectorId: zod_1.z.number().int().nullable(),
+    cellId: zod_1.z.number().int().nullable(),
+    villageId: zod_1.z.number().int().nullable(),
 });
 /**
  * A grant as the OFFICER'S OWN CONSOLE renders it (ADR-053, AC-G5).
@@ -813,7 +933,7 @@ exports.OversightGrant = zod_1.z.object({
 exports.OversightConsoleGrant = zod_1.z.object({
     /** The assignment row, so a console can name the seat it is rendering. */
     assignmentId: primitives_1.Uuid,
-    console: zod_1.z.enum(["verification", "approval", "tax", "membership"]),
+    console: zod_1.z.enum(["verification", "approval", "tax", "membership", "guests"]),
     oversightRole: primitives_1.OversightRole,
     bodyCode: zod_1.z.string(),
     bodyName: zod_1.z.string().nullable(),
@@ -821,6 +941,9 @@ exports.OversightConsoleGrant = zod_1.z.object({
     scopeLevel: primitives_1.OversightScopeLevel,
     provinceId: zod_1.z.number().int().nullable(),
     districtId: zod_1.z.number().int().nullable(),
+    sectorId: zod_1.z.number().int().nullable(),
+    cellId: zod_1.z.number().int().nullable(),
+    villageId: zod_1.z.number().int().nullable(),
     scopeLabel: zod_1.z.string(),
 });
 /** How a country-level scope reads on the officer's own console. */
@@ -838,6 +961,18 @@ exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = "Your appointment is recorded, and
 /** Which console a function opens. */
 function oversightConsoleFor(role) {
     switch (role) {
+        // The local leaders (P5) all read guests staying in their area.
+        case "village_leader":
+        case "dasso":
+        case "cell_executive":
+        case "district_officer":
+        case "district_immigration":
+        case "sector_executive":
+        case "dgie_province":
+        case "dgie_national":
+        case "dgie_village":
+        case "dgie_cell":
+            return "guests";
         case "business_field_verifier":
             return "verification";
         case "business_approver":
@@ -906,6 +1041,14 @@ function oversightScopesOverlap(a, b) {
     // A country grant covers the whole map, so it meets everything.
     if (a.scopeLevel === "country" || b.scopeLevel === "country")
         return true;
+    // A local leader's sector, cell or village sits inside one district, which is
+    // all this business-gate question can tell about it (the leader roles gate
+    // nothing, so nothing should ask; this keeps a wrong caller conservative).
+    const local = (s) => s.scopeLevel === "sector" || s.scopeLevel === "cell" || s.scopeLevel === "village";
+    if (local(a) || local(b)) {
+        const fold = (s) => (local(s) ? { scopeLevel: "district", provinceId: s.provinceId, districtId: s.districtId } : s);
+        return oversightScopesOverlap(fold(a), fold(b));
+    }
     if (a.scopeLevel === "province" && b.scopeLevel === "province")
         return a.provinceId !== null && a.provinceId === b.provinceId;
     if (a.scopeLevel === "district" && b.scopeLevel === "district")
@@ -929,6 +1072,18 @@ function opposingGateRole(role) {
         // Membership is not a registration gate either (ADR-056), so a PSF
         // field verifier may also hold it: they decide different things.
         case "psf_membership_officer":
+            return null;
+        // A local leader reads guests; they gate no business at all.
+        case "village_leader":
+        case "dasso":
+        case "cell_executive":
+        case "district_officer":
+        case "district_immigration":
+        case "sector_executive":
+        case "dgie_province":
+        case "dgie_national":
+        case "dgie_village":
+        case "dgie_cell":
             return null;
     }
 }
@@ -959,5 +1114,5 @@ exports.SEPARATION_OF_DUTIES_MESSAGE = "You field-verified this business — a d
 function mayElevate(identity) {
     return identity.kycStatus === "verified" && identity.activeDocumentCount > 0;
 }
-exports.ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Validate your National ID or scan your passport on the About you step, then try again.";
+exports.ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Scan your ID on the You step of registration, then try again.";
 //# sourceMappingURL=authz.js.map

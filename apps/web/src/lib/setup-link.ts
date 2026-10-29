@@ -6,10 +6,9 @@
  * used to say "While you wait, prepare your listing" and link to a setup no one could use. So the link exists only
  * once the registration is active; before that the page says when setup opens.
  *
- * THE PAGE LIVES IN THE OPERATOR APP, at `/w/<workspaceId>/setup`. Web forwards `/w/*` to it (next.config.ts), so
- * in a deployed stack, where the app is a zone under web's origin, the path alone is right. On a laptop the app is
- * its own origin (:3002) with its own sign-in, and the zone's rewrite does not carry that session, so the link
- * goes to the app's origin directly, where signing in returns to the setup page.
+ * THE PAGE LIVES IN THE OPERATOR APP, at `/w/<workspaceId>/setup`, on the app's own origin (app.injishi.com, :3002
+ * on a laptop), so the link goes there directly; signing in on the app returns to the setup page. The path alone is
+ * kept only for a build whose app shares web's origin, where web redirects it on (`app-handoff.ts`).
  *
  * NO IMPORTS: `tests/setup-link.test.mjs` loads this file bare.
  */

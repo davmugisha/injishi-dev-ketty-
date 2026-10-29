@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { PageHero } from "@/components/shared/page-hero";
 import { WhyBook } from "@/components/home/why-book";
 import { shareMetadata } from "@/lib/share-metadata";

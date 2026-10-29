@@ -24,7 +24,7 @@ export interface NavGroup {
  * you go looking for; the bar's three slots name things you come here to do.
  *
  * **`/saved` IS GATED, and this is the one link here that is.** It is in
- * `PROTECTED_PREFIXES` in `middleware.ts`, so an anonymous visitor who presses
+ * `PROTECTED_PREFIXES` in `proxy.ts`, so an anonymous visitor who presses
  * it lands on `/sign-in` rather than on a screen. That is a working flow — the
  * gate carries `?redirect=` straight back — but it means one of the three
  * always-visible links is a sign-in wall for everybody who has not signed in.

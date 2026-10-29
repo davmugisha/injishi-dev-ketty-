@@ -41,7 +41,9 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import pg from "pg";
+import { apiEnvFile } from "./env-file.mjs";
 
 const BASE = process.env.API_BASE || "http://127.0.0.1:8000";
 const WEB_ORIGIN = process.env.WEB_ORIGIN || "http://localhost:3000";
@@ -94,11 +96,11 @@ function skip(label, why) {
 // ---------------------------------------------------------------------------
 function databaseUrl() {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  const env = new URL("../.env", import.meta.url);
+  const env = apiEnvFile() ?? new URL("../.env", import.meta.url);
   const line = readFileSync(env, "utf8")
     .split(/\r?\n/)
     .find((l) => l.startsWith("DATABASE_URL="));
-  if (!line) throw new Error("DATABASE_URL is not set and not in server/api/.env");
+  if (!line) throw new Error("DATABASE_URL is not set and not in server/api/.env.test (or the APP_ENV file)");
   return line.slice("DATABASE_URL=".length).trim();
 }
 const db = new pg.Pool({ connectionString: databaseUrl() });
@@ -171,6 +173,33 @@ async function call(session, method, path, body, extraHeaders = {}) {
   return { status: res.status, json, text };
 }
 
+/**
+ * Pay the registration fee the way a registrant does now (073-gtbank-payments
+ * AC-16): press pay with a mobile money number, then poll the attempt until
+ * the prompt settles. Answers the registration summary in `json`, the shape the
+ * bare `/pay` used to answer, so the checks read it unchanged; `attempt` is set
+ * when money was taken. A stack where payments are off answers `settled` at
+ * once. A refusal comes back as it is.
+ */
+async function payFee(session, orgId) {
+  const attemptToken = randomUUID();
+  const pressed = await call(session, "POST", `/api/v1/registrations/${orgId}/pay`, {
+    attemptToken,
+    instrument: { kind: "mobile_money", network: "mtn_momo", msisdn: "788123456" },
+  });
+  if (pressed.status !== 200 && pressed.status !== 201) return pressed;
+  if (pressed.json?.kind === "settled") return { ...pressed, json: pressed.json.registration, attempt: null };
+  for (let i = 0; i < 60; i += 1) {
+    await new Promise((r) => setTimeout(r, 1_000));
+    const polled = await call(session, "GET", `/api/v1/registrations/${orgId}/pay/attempts/${attemptToken}`);
+    if (polled.status !== 200) return polled;
+    if (polled.json?.state !== "prompting") {
+      return { status: pressed.status, json: polled.json.registration, text: polled.text, attempt: polled.json };
+    }
+  }
+  return { status: 504, json: null, text: "the fee prompt never settled", attempt: null };
+}
+
 async function signIn(email) {
   const cached = JARS[email];
   if (cached) {
@@ -190,7 +219,38 @@ async function signIn(email) {
 
 const randomTin = () => String(100000000 + Math.floor(Math.random() * 899999999));
 
-function registrationBody(name) {
+/**
+ * Upload a small PDF as this session's RDB certificate. ADR-075 AC-11: create refuses a stay or a venue without
+ * one, and only takes a certificate the registrant uploaded. Uploaded once per person per run and reused for each
+ * of their registrations, because the certificate route allows 10 per person in 10 minutes.
+ */
+const uploadedCertificates = new WeakMap();
+async function rdbCertificate(session) {
+  if (uploadedCertificates.has(session)) return uploadedCertificates.get(session);
+  const form = new FormData();
+  form.append("file", new Blob([CERTIFICATE_PDF], { type: "application/pdf" }), "rdb-certificate.pdf");
+  const res = await fetch(`${BASE}/api/v1/uploads/certificate`, { method: "POST", headers: { cookie: session.cookie() }, body: form });
+  session.absorb(res);
+  const json = await res.json().catch(() => null);
+  if (!json?.objectKey) throw new Error(`certificate upload: ${res.status} ${JSON.stringify(json)}`);
+  const certificates = [{ kind: "rdb_certificate", objectKey: json.objectKey }];
+  uploadedCertificates.set(session, certificates);
+  return certificates;
+}
+const CERTIFICATE_PDF = "%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n";
+
+/**
+ * Mark every document on a registration checked, as the field verifier does before verifying (F-S03 §5: the gate
+ * refuses while one is unread). Every registration carries its RDB certificate since ADR-075 AC-11.
+ */
+async function checkEveryDocument(officer, orgId) {
+  const list = await call(officer, "GET", `/api/v1/oversight/registrations/${orgId}/documents`);
+  for (const d of list.json?.documents ?? []) {
+    await call(officer, "POST", `/api/v1/oversight/registrations/${orgId}/documents/${d.id}/check`, {});
+  }
+}
+
+async function registrationBody(session, name) {
   return {
     role: "host",
     capacity: "owner",
@@ -201,7 +261,7 @@ function registrationBody(name) {
       address: GASABO,
       accommodationClass: "guest_house",
       tin: randomTin(),
-      certificates: [],
+      certificates: await rdbCertificate(session),
     },
   };
 }
@@ -267,7 +327,7 @@ const main = async () => {
 
   // -------------------------------------------------------------------------
   console.log("\n=== B. One event row per status change (AC-R6) ===");
-  const created = await call(host, "POST", "/api/v1/registrations", registrationBody("Pipeline"));
+  const created = await call(host, "POST", "/api/v1/registrations", await registrationBody(host, "Pipeline"));
   check("create a registration", created.status === 201 || created.status === 200, `status ${created.status} ${created.text.slice(0, 200)}`);
   const orgId = created.json?.orgId;
   if (!orgId) return;
@@ -292,17 +352,25 @@ const main = async () => {
     `status ${detail.status} ${JSON.stringify({ s: detail.json?.registrationStatus, at: detail.json?.stageEnteredAt })}`,
   );
 
-  console.log("\n--- accept the contract, pay, and the TIN check that follows ---");
-  // Paying refuses an unaccepted contract since task 11 (AC-R13). Accepting
-  // changes no status, so it writes no event row and the walk below is unchanged.
-  const accepted = await call(host, "POST", `/api/v1/registrations/${orgId}/contract`, { contractVersion: "2026-09-12" });
-  check("accept the operator contract", accepted.status === 200, `status ${accepted.status} ${accepted.text.slice(0, 160)}`);
-  const paid = await call(host, "POST", `/api/v1/registrations/${orgId}/pay`);
+  console.log("\n--- pay, and the TIN check that follows ---");
+  // ADR-075 AC-12: paying needs no contract any more (AC-R13 superseded); the
+  // agreement is signed after approval, and only that makes a business active (A3).
+  const paid = await payFee(host, orgId);
   check("pay", paid.status === 200 || paid.status === 201, `status ${paid.status} ${paid.text.slice(0, 160)}`);
   rows = await events(orgId);
+  // Free (payments off): the registrant's press moved it. Paid (mock or live):
+  // the money settling moved it, as a SYSTEM move with no actor
+  // (073-gtbank-payments AC-16).
+  const paidByMoney = paid.attempt != null;
   check(
-    "paying is a registrant move from pending_payment to submitted",
-    rows[1]?.from_status === "pending_payment" && rows[1]?.to_status === "submitted" && rows[1]?.trigger === "registrant" && rows[1]?.actor_user_id === hostId,
+    paidByMoney
+      ? "paying is a system move from pending_payment to submitted once the money settles"
+      : "paying is a registrant move from pending_payment to submitted",
+    rows[1]?.from_status === "pending_payment" &&
+      rows[1]?.to_status === "submitted" &&
+      (paidByMoney
+        ? rows[1]?.trigger === "system" && rows[1]?.actor_user_id === null
+        : rows[1]?.trigger === "registrant" && rows[1]?.actor_user_id === hostId),
     JSON.stringify(rows[1]),
   );
   check(
@@ -320,6 +388,7 @@ const main = async () => {
   );
 
   console.log("\n--- both gates, a rejection, a resubmit, and an approval ---");
+  await checkEveryDocument(verifier, orgId);
   const fv1 = await call(verifier, "POST", `/api/v1/registrations/${orgId}/field-verify`, {});
   check("field verify", fv1.status === 200 || fv1.status === 201, `status ${fv1.status} ${fv1.text.slice(0, 160)}`);
   const rej = await call(approver, "POST", `/api/v1/registrations/${orgId}/reject`, { reasonCode: "documents_invalid" });
@@ -335,7 +404,8 @@ const main = async () => {
   const shape = rows.map((r) => `${r.from_status ?? "∅"}>${r.to_status}:${r.trigger}`);
   const expected = [
     "∅>pending_payment:registrant",
-    "pending_payment>submitted:registrant",
+    // A system move once money settled it (073-gtbank-payments AC-16).
+    `pending_payment>submitted:${paidByMoney ? "system" : "registrant"}`,
     "submitted>tin_verified:system",
     "tin_verified>field_verified:officer",
     "field_verified>rejected:officer",
@@ -401,7 +471,7 @@ const main = async () => {
   // A second, unpaid registration, moved by hand to where an RRA outage leaves a
   // business: at `submitted`, its newest check `pending`. The mock adapter always
   // verifies, so an outage has to be staged in the database to be observed.
-  const second = await call(host, "POST", "/api/v1/registrations", registrationBody("Outage"));
+  const second = await call(host, "POST", "/api/v1/registrations", await registrationBody(host, "Outage"));
   const outageId = second.json?.orgId;
   check("create a second registration to stage an outage on", Boolean(outageId), `status ${second.status}`);
   if (!outageId) return;

@@ -8,6 +8,7 @@ import {
 
 import { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
 import { BookingNotificationsService } from './booking-notifications.service';
+import { BookingRefunds } from './booking-refunds';
 import { FolioService } from '../../operations/application/folio.service';
 import { releaseKeyFor } from '../../payments/domain/keys';
 import {
@@ -56,6 +57,7 @@ export class BookingDecisionService {
     private readonly folios: FolioService,
     private readonly ebm: EbmSaleTrigger,
     private readonly notifications: BookingNotificationsService,
+    private readonly refunds: BookingRefunds,
   ) {}
 
   async approve(
@@ -125,6 +127,26 @@ export class BookingDecisionService {
     }
 
     const releaseKey = releaseKeyFor(escrow);
+
+    // Decline now, refund owed (073-gtbank-payments AC-13): the booking is
+    // declined and the release written in one transaction, and the dispatcher
+    // sends it. A payment from before the bank record keeps the provider first.
+    const plan = await this.refunds.plan({
+      reference: escrow.reference,
+      bookingId,
+      workspaceId: escrow.workspaceId,
+      adapterRef: escrow.adapterRef,
+      idempotencyKey: releaseKey,
+      operation: 'escrow_release_guest',
+    });
+    if (plan) {
+      const owed = await this.bookings.decline(bookingId, { owe: plan.oweTx, amountRwf: escrow.amountRwf });
+      if (!owed) throw raceLost();
+      await plan.announce();
+      await this.notifications.notify(bookingId, 'declined');
+      return owed;
+    }
+
     try {
       await this.payments.releaseEscrow({
         kind: 'escrow_release',

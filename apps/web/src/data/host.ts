@@ -35,7 +35,7 @@ import {
  * The union is widened HERE, at the one screen that asks all three questions in
  * one card, so the contract keeps saying the true thing.
  */
-export type HostKind = AccommodationClass | "residence" | "bar_restaurant" | "psf";
+export type HostKind = AccommodationClass | "residence" | "bar_restaurant" | "coffee_shop" | "psf";
 
 interface HostPropertyKind {
   value: HostKind;
@@ -70,6 +70,7 @@ const BAR_RESTAURANT_LABEL = "Bar & Restaurant";
  * Sector Federation. Named PSF on the card, as the owner asked (2026-10-15).
  */
 const PSF_LABEL = "PSF";
+const COFFEE_SHOP_LABEL = "Coffee Shop";
 
 const CHOOSER: ReadonlyArray<{ value: HostKind; blurb: string }> = [
   { value: "hotel", blurb: "Serviced rooms, front desk" },
@@ -80,6 +81,7 @@ const CHOOSER: ReadonlyArray<{ value: HostKind; blurb: string }> = [
   { value: "lodge", blurb: "Built for stays, with grounds" },
   { value: "villa", blurb: "A whole house, one party" },
   { value: "bar_restaurant", blurb: "Food and drink, no rooms" },
+  { value: "coffee_shop", blurb: "Coffee and a bite, no rooms" },
   { value: "residence", blurb: "Let on a lease, not nightly" },
   { value: "psf", blurb: "Any business: join the Private Sector Federation" },
 ];
@@ -94,6 +96,8 @@ export const HOST_PROPERTY_KINDS: HostPropertyKind[] = CHOOSER.map(
           ? BAR_RESTAURANT_LABEL
           : value === "psf"
             ? PSF_LABEL
+          : value === "coffee_shop"
+            ? COFFEE_SHOP_LABEL
             : ACCOMMODATION_CLASS_LABEL[value],
     blurb,
   }),

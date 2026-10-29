@@ -78,9 +78,19 @@ export * from './interface-people';
 // The new interface's marketplace and guest account (real-data 1.3.2): marketplace cards for
 // properties and room types, and the append-only consent history.
 export * from './interface-market';
-// The new interface's residence (real-data 1.3.1): blocks, units, rent payments and reminders, gate
-// codes, lease clauses, applications.
-export * from './interface-residence';
+// Rentals (blueprint 1.1): the leaf over residence, inventory, money and org. Landlord settings,
+// lease payments and their allocations, deposits, reminders, the lease timeline, and the legacy
+// residence tables migration 0089 drops.
+export * from './rentals';
 // The new interface's staff phone (real-data 1.3.3): checklists and their results, minibar counts,
 // time on a work order.
 export * from './interface-staff';
+// Guests and local leaders (P5): the reference lists, guest registrations, their routes to the
+// leaders, and what the 12 month purge leaves as counts. A leaf over org, inventory and residence.
+export * from './guests';
+// Brokers (P5, 2026-10-25): plans and their payments, the registration fee, ratings. A leaf over
+// residence, geography and auth.
+export * from './brokers';
+// The bar and restaurant point of sale (POS spec, phase 1): tables, orders, kitchen tickets,
+// simulated payments, registers and cashier shifts. A leaf: nothing imports it back.
+export * from './pos';

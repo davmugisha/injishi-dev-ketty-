@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import {
   ConflictException,
   ForbiddenException,
@@ -123,24 +125,24 @@ const APPROVED = {
 };
 
 function setup(env: Record<string, string> = {}): {
-  repo: Record<string, jest.Mock>;
-  mail: Record<string, jest.Mock>;
-  payments: Record<string, jest.Mock>;
+  repo: Record<string, Mock>;
+  mail: Record<string, Mock>;
+  payments: Record<string, Mock>;
   service: PsfMembershipService;
 } {
   const repo = {
-    orgFacts: jest.fn().mockResolvedValue(facts()),
-    activeRole: jest.fn().mockResolvedValue('owner'),
-    tier: jest.fn().mockResolvedValue(TIER),
-    tiers: jest.fn().mockResolvedValue([TIER]),
-    insertApplication: jest.fn().mockResolvedValue({ id: APP }),
-    currentMembership: jest.fn().mockResolvedValue(null),
-    applications: jest.fn().mockResolvedValue([]),
-    personFacts: jest.fn().mockResolvedValue(null),
-    withdraw: jest.fn().mockResolvedValue(true),
-    applicationById: jest.fn().mockResolvedValue({ id: APP, orgId: ORG, status: 'submitted', requestedTierName: 'Indatwa' }),
-    markQueued: jest.fn().mockResolvedValue([]),
-    officerApplication: jest.fn().mockResolvedValue({
+    orgFacts: vi.fn().mockResolvedValue(facts()),
+    activeRole: vi.fn().mockResolvedValue('owner'),
+    tier: vi.fn().mockResolvedValue(TIER),
+    tiers: vi.fn().mockResolvedValue([TIER]),
+    insertApplication: vi.fn().mockResolvedValue({ id: APP }),
+    currentMembership: vi.fn().mockResolvedValue(null),
+    applications: vi.fn().mockResolvedValue([]),
+    personFacts: vi.fn().mockResolvedValue(null),
+    withdraw: vi.fn().mockResolvedValue(true),
+    applicationById: vi.fn().mockResolvedValue({ id: APP, orgId: ORG, status: 'submitted', requestedTierName: 'Indatwa' }),
+    markQueued: vi.fn().mockResolvedValue([]),
+    officerApplication: vi.fn().mockResolvedValue({
       id: APP,
       orgId: ORG,
       districtId: 103,
@@ -151,25 +153,25 @@ function setup(env: Record<string, string> = {}): {
       quotedFeeRwf: null,
       declaredFeeRwf: 150000,
     }),
-    approve: jest.fn().mockResolvedValue({ orgId: ORG }),
-    decline: jest.fn().mockResolvedValue({ orgId: ORG }),
-    workspaceIdFor: jest.fn().mockResolvedValue(WS),
-    recordPayment: jest.fn().mockResolvedValue({ tierCode: TIER.code, membershipNumber: 'PSF/GAS/0042' }),
-    recordRemittance: jest.fn().mockResolvedValue(undefined),
-    districtsByProvince: jest.fn().mockResolvedValue(new Map([[1, [101, 102, 103]]])),
-    queuePage: jest.fn().mockResolvedValue({ rows: [], more: false }),
-    endExpired: jest.fn().mockResolvedValue([]),
-    claimExpiryReminders: jest.fn().mockResolvedValue([]),
-    unstampedQueuedOrgs: jest.fn().mockResolvedValue([]),
+    approve: vi.fn().mockResolvedValue({ orgId: ORG }),
+    decline: vi.fn().mockResolvedValue({ orgId: ORG }),
+    workspaceIdFor: vi.fn().mockResolvedValue(WS),
+    recordPayment: vi.fn().mockResolvedValue({ tierCode: TIER.code, membershipNumber: 'PSF/GAS/0042' }),
+    recordRemittance: vi.fn().mockResolvedValue(undefined),
+    districtsByProvince: vi.fn().mockResolvedValue(new Map([[1, [101, 102, 103]]])),
+    queuePage: vi.fn().mockResolvedValue({ rows: [], more: false }),
+    endExpired: vi.fn().mockResolvedValue([]),
+    claimExpiryReminders: vi.fn().mockResolvedValue([]),
+    unstampedQueuedOrgs: vi.fn().mockResolvedValue([]),
   };
   const mail = {
-    received: jest.fn().mockResolvedValue(undefined),
-    queueEntered: jest.fn().mockResolvedValue(undefined),
-    approved: jest.fn().mockResolvedValue(undefined),
-    member: jest.fn().mockResolvedValue(undefined),
-    declined: jest.fn().mockResolvedValue(undefined),
-    expiring: jest.fn().mockResolvedValue(undefined),
-    expired: jest.fn().mockResolvedValue(undefined),
+    received: vi.fn().mockResolvedValue(undefined),
+    queueEntered: vi.fn().mockResolvedValue(undefined),
+    approved: vi.fn().mockResolvedValue(undefined),
+    member: vi.fn().mockResolvedValue(undefined),
+    declined: vi.fn().mockResolvedValue(undefined),
+    expiring: vi.fn().mockResolvedValue(undefined),
+    expired: vi.fn().mockResolvedValue(undefined),
   };
   const receipt = (over = {}) => ({
     adapterRef: 'mock_ref_1',
@@ -182,22 +184,22 @@ function setup(env: Record<string, string> = {}): {
     ...over,
   });
   const payments = {
-    chargeOneTimeFee: jest.fn().mockResolvedValue(receipt()),
-    payout: jest.fn().mockResolvedValue(receipt({ adapterRef: 'mock_payout_1' })),
+    chargeOneTimeFee: vi.fn().mockResolvedValue(receipt()),
+    payout: vi.fn().mockResolvedValue(receipt({ adapterRef: 'mock_payout_1' })),
   };
   const service = new PsfMembershipService(
     repo as unknown as PsfMembershipRepository,
     mail as unknown as PsfMembershipMailer,
-    { documentFor: jest.fn().mockResolvedValue(null) } as unknown as ProfileService,
+    { documentFor: vi.fn().mockResolvedValue(null) } as unknown as ProfileService,
     payments as unknown as PaymentPort,
     { get: (key: string) => env[key] } as unknown as ConfigService,
-    { lastMembershipNumber: jest.fn().mockResolvedValue(0), membershipNumberTaken: jest.fn().mockResolvedValue(false) } as unknown as PsfReportRepository,
+    { lastMembershipNumber: vi.fn().mockResolvedValue(0), membershipNumberTaken: vi.fn().mockResolvedValue(false) } as unknown as PsfReportRepository,
   );
   // A decided application is read back for the officer; its detail is not under test here.
-  jest
+  vi
     .spyOn(service as unknown as { decidedView: () => Promise<unknown> }, 'decidedView')
     .mockResolvedValue({});
-  jest.spyOn(service, 'officerApplication').mockResolvedValue({} as never);
+  vi.spyOn(service, 'officerApplication').mockResolvedValue({} as never);
   return { repo, mail, payments, service };
 }
 
@@ -308,7 +310,7 @@ describe('PsfMembershipService · applying (AC-6, AC-8, AC-9, AC-16)', () => {
 
 describe('PsfMembershipService · deciding (AC-11 to AC-14, the PSF path)', () => {
   const country = [
-    { oversightRole: 'psf_membership_officer' as const, governmentBodyCode: 'PSF', governmentTitle: null, scopeLevel: 'country' as const, provinceId: null, districtId: null },
+    { assignmentId: '7a1f5b9e-2c4d-4e8f-9a1b-3c5d7e9f1a01', sectorId: null, cellId: null, villageId: null, oversightRole: 'psf_membership_officer' as const, governmentBodyCode: 'PSF', governmentTitle: null, scopeLevel: 'country' as const, provinceId: null, districtId: null },
   ];
   const kicukiro = [{ ...country[0], scopeLevel: 'district' as const, provinceId: 1, districtId: 103 }];
 
@@ -359,7 +361,7 @@ describe('PsfMembershipService · deciding (AC-11 to AC-14, the PSF path)', () =
       id: APP, orgId: ORG, districtId: 103, status: 'submitted', officerHasStake: false, requestedTierName: 'Indatwa',
       quotedPriceKind: 'range', quotedFeeRwf: null, declaredFeeRwf: 150000, paidAt: new Date('2026-10-18T08:00:00Z'), paymentRef: 'mock_ref_paid',
     });
-    repo.approvePaid = jest.fn().mockResolvedValue({ orgId: ORG, amountRwf: 150000 });
+    repo.approvePaid = vi.fn().mockResolvedValue({ orgId: ORG, amountRwf: 150000 });
     await service.approve('u-officer', kicukiro, APP, { membershipNumber: 'PSF/GAS/0042' });
     expect(repo.approvePaid).toHaveBeenCalledWith(expect.objectContaining({ applicationId: APP, membershipNumber: 'PSF/GAS/0042' }));
     expect(repo.approve).not.toHaveBeenCalled();
@@ -369,7 +371,7 @@ describe('PsfMembershipService · deciding (AC-11 to AC-14, the PSF path)', () =
   });
 
   it('declining a paid application keeps its fee and passes it on to PSF: nothing is refunded', async () => {
-    const { repo, mail, payments, service } = setup({ PSF_PAYOUT_DESTINATION: 'bank', PSF_PAYOUT_REF: '000400012345' });
+    const { repo, mail, payments, service } = setup({ PSF_PAYOUT_DESTINATION: 'bank', PSF_PAYOUT_REF: '000400012345', PSF_PAYOUT_BANK_CODE: '040', PSF_PAYOUT_NAME: 'Private Sector Federation', PSF_PAYOUT_ID_NUMBER: '1198080012345678', PSF_PAYOUT_PHONE: '+250788000100' });
     repo.applicationById.mockResolvedValue({ id: APP, orgId: ORG, status: 'declined', paidAt: new Date(), paidAmountRwf: 150000 });
     await service.decline('u-officer', kicukiro, APP, { reason: 'details_incomplete' });
     expect(payments.payout).toHaveBeenCalledWith(expect.objectContaining({ amountRwf: 150000, memo: 'PSF membership fee' }));
@@ -456,10 +458,10 @@ describe('PsfMembershipService · paying (the PSF path)', () => {
     await held.service.pay(ORG, 'u-owner', APP, PHONE);
     expect(held.payments.payout).not.toHaveBeenCalled();
 
-    const sent = setup({ PSF_PAYOUT_DESTINATION: 'bank', PSF_PAYOUT_REF: '000400012345' });
+    const sent = setup({ PSF_PAYOUT_DESTINATION: 'bank', PSF_PAYOUT_REF: '000400012345', PSF_PAYOUT_BANK_CODE: '040', PSF_PAYOUT_NAME: 'Private Sector Federation', PSF_PAYOUT_ID_NUMBER: '1198080012345678', PSF_PAYOUT_PHONE: '+250788000100' });
     sent.repo.applicationById.mockResolvedValue(APPROVED);
     await sent.service.pay(ORG, 'u-owner', APP, PHONE);
-    expect(sent.payments.payout).toHaveBeenCalledWith(expect.objectContaining({ destination: 'bank', amountRwf: 150000 }));
+    expect(sent.payments.payout).toHaveBeenCalledWith(expect.objectContaining({ payee: expect.objectContaining({ destination: { kind: 'bank', bankCode: '040', accountNumber: '000400012345' } }), amountRwf: 150000 }));
     expect(sent.repo.recordRemittance).toHaveBeenCalledWith(APP, 'mock_payout_1');
   });
 });

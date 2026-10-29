@@ -14,15 +14,23 @@ import type { LegalContent } from "./types";
  *   database and no live SMS adapter is registered (`sms.module.ts`).
  * - Payer number: masked to `078••••456` on `payment_attempts`, the full
  *   number only ever passed to the payment port; production pins payments off.
- * - Identity checks: `identity-adapters.provider.ts` has no live registry or
- *   document reader, so both are off on a real database.
+ * - Identity: the ID scan (ADR-075 A1) uploads a photo of the ID and a selfie
+ *   as `id_photo` and keeps every try in `identity_scans`, in every mode.
+ *   `identity-adapters.provider.ts` has no live document reader, so on a real
+ *   database nothing reads the photos and the person types the details. The
+ *   population register lookup and its SMS code are gone (AC-4). ADR-075 D-n
+ *   deletes the photos 90 days after the case's final decision; that deletion
+ *   is not built, which is why the period below is marked to confirm.
  * - Ask Injishi: `modules/assistant/domain/retention.ts` (7 and 90 days),
  *   `redaction.ts` (what is removed before Anthropic sees it), usage rows
  *   anonymised at 90 days (`retention.service.ts`).
  * - Sentry: `shared/observability/error-reporter.ts` strips the request and the
  *   user; DOKPLOY.md keeps the DSN empty until the NCSA registration names it.
  * - The signed registration agreement: only its version, the account and the
- *   time reach the server (`step-contract.tsx`, `orgs.contract_*`).
+ *   time reached the server (`orgs.contract_*`), for the businesses that
+ *   accepted it before paying. ADR-075 took it out of registration (AC-12);
+ *   its A3 agreement after approval records a typed name, the device and the
+ *   IP, so this policy's line on the agreement changes when A3 ships.
  */
 export const PRIVACY: LegalContent = {
   title: "Privacy Policy",
@@ -87,6 +95,7 @@ export const PRIVACY: LegalContent = {
         {
           list: [
             "About you: your full name as written on your ID, the document's type and number, gender, date of birth, phone number and address, and your role in the business.",
+            "Each time you scan your ID: a photo of the front of your National ID or of your passport's photo page, and a selfie. We keep them so the PSF officer reviewing your registration can compare them with your details [TO CONFIRM: how long the ID photos are kept].",
             "About the business: its name, its RRA TIN (or, for a home, its UPI), its classification, its branches, and its address down to the village. If you register it for its owner, the owner's name, National ID number and email address, so the owner can be matched when they claim it.",
             "The documents you upload, such as certificates, licences and land titles.",
             "That you accepted the registration agreement, which version, and when. The signature you draw stays in your browser, in the copy you download. We never receive it.",
@@ -94,7 +103,7 @@ export const PRIVACY: LegalContent = {
           ],
         },
         "Your answers are saved as a draft between steps, so you can finish another day. A draft never holds an ID number, and it is deleted when the registration is created.",
-        "We have built checks of National IDs against the population register, and of passports by a document reader, but neither is switched on. Before one is, we will name its provider here [TO CONFIRM: identity verification provider].",
+        "No machine reads your ID photos yet: you type your details as printed, and a PSF officer compares them with the photos before approving. Before an identity checking service is switched on, we will name its provider here [TO CONFIRM: identity verification provider]. No code is sent to your phone to check your ID.",
       ],
     },
     {

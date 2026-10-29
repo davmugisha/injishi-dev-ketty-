@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   isProduction,
   requireStrongSecret,
@@ -44,7 +46,6 @@ describe('resolveAllowedOrigins', () => {
   it('falls back to the local dev origins outside production', () => {
     expect(resolveAllowedOrigins({ nodeEnv: 'development' })).toEqual([
       'http://localhost:3000',
-      'http://localhost:3001',
       'http://localhost:3002',
     ]);
   });

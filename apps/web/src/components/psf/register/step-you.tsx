@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { BadgeCheck, MessageSquareText, ShieldCheck } from "lucide-react";
 import { PSF_CONTACT_ROLE_LABEL, type PsfContactRole } from "@injishi/contracts";
-import { Button, Checkbox } from "@injishi/ui";
+import { Button, Checkbox } from "@injishi/web-ui";
 
 import { PhoneInput } from "@/app/(app)/(entry)/register/phone-input";
 import { Field, Notice, SelectField, TextInput } from "@/app/(app)/(entry)/register/wizard-ui";

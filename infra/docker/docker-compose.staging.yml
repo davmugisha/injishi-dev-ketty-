@@ -55,12 +55,18 @@ x-api-env: &api-env
   # The kiosk PIN pepper (058-time AC-TM11). Staging runs the production
   # platform, so it refuses to boot without one. Never production's.
   HR_PIN_PEPPER: "${HR_PIN_PEPPER:?set HR_PIN_PEPPER to a kiosk PIN pepper via openssl rand -base64 32}"
+  # Seals landlords' bank account numbers (rentals payout accounts). Staging
+  # runs the production platform, so it refuses to boot without one.
+  PAYOUT_ACCOUNT_ENCRYPTION_KEY: "${PAYOUT_ACCOUNT_ENCRYPTION_KEY:?set PAYOUT_ACCOUNT_ENCRYPTION_KEY via openssl rand -base64 32}"
   BETTER_AUTH_URL: https://${API_HOST:-api-staging.injishi.com}
   # Empty: a host only cookie on the API's host. A cookie on `.injishi.com`
   # would reach production. The app keeps its session in its own cookie.
   AUTH_COOKIE_DOMAIN: ""
   # The app's origin, which its server side calls send as their Origin.
   CORS_ORIGINS: https://${APP_HOST:-app-staging.injishi.com}
+  # The phone app's internal test build (`injishi-preview://`) signs in here,
+  # and only here: production lists no extra scheme (mobile spec 0001, AC-7).
+  MOBILE_EXTRA_SCHEMES: injishi-preview
   GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
   # The support assistant (ADR-061). Off unless the host env file turns it on. `live` needs ANTHROPIC_API_KEY from the host env file, never from this file, and the API refuses to boot on `live` without it.
@@ -97,6 +103,9 @@ x-api-env: &api-env
   # API refuses to boot without one. Staging has no web, so its mail names the
   # app's origin, and a link to a page only web has answers 404 there.
   WEB_URL: https://${APP_HOST:-app-staging.injishi.com}
+  # The app's public origin, for a mail that opens a page in the app (a lease
+  # invitation, a tenant's lease). The API refuses to boot without one.
+  APP_URL: https://${APP_HOST:-app-staging.injishi.com}
   LOG_LEVEL: ${LOG_LEVEL:-debug}
 
 x-staging-public: &staging-public

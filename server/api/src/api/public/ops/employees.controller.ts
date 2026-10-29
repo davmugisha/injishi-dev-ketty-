@@ -38,10 +38,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { ChecklistsService } from '../../../modules/people/application/checklists.service';
-import { EmployeesService } from '../../../modules/people/application/employees.service';
-import { LeaveService } from '../../../modules/people/application/leave.service';
-import { PeopleFileService } from '../../../modules/people/application/people-file.service';
+import { ChecklistsService } from '../../../modules/hr/application/checklists.service';
+import { EmployeesService } from '../../../modules/hr/application/employees.service';
+import { LeaveService } from '../../../modules/hr/application/leave.service';
+import { PeopleFileService } from '../../../modules/hr/application/people-file.service';
 import {
   CurrentUser,
   SessionGuard,

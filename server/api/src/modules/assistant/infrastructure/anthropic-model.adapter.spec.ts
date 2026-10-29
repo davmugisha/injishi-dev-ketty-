@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type Anthropic from '@anthropic-ai/sdk';
 
 import { ModelUnavailableError } from '../domain/model-port';

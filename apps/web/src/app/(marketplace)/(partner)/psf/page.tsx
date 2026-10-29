@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, Briefcase, Factory, Plus, ShoppingBag, Sprout, Users, type LucideIcon } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { PsfHero } from "@/components/psf/psf-hero";
 import { PsfMemberships } from "@/components/psf/psf-memberships";

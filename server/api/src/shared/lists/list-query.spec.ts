@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { defineListSpec, ListQuery, type ListReader } from '@injishi/contracts';
 import { BadRequestException, UnprocessableEntityException } from '@nestjs/common';
 import { sql } from 'drizzle-orm';

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, Lock } from "lucide-react";
 import type { PsfCatalogue, PsfFeesView, PsfPublicSubmitResult, PsfTier } from "@injishi/contracts";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { Notice } from "@/app/(app)/(entry)/register/wizard-ui";
 import { fetchPsfCatalogue, fetchPsfFees, fetchPsfTiers, submitPsfApplication } from "@/data/psf";

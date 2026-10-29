@@ -58,11 +58,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { AttendanceInsightsService } from '../../../modules/people/application/attendance-insights.service';
-import { KioskService } from '../../../modules/people/application/kiosk.service';
-import { RotationService } from '../../../modules/people/application/rotation.service';
-import { TimeRequestsService } from '../../../modules/people/application/time-requests.service';
-import { TimeSettingsService } from '../../../modules/people/application/time-settings.service';
+import { AttendanceInsightsService } from '../../../modules/hr/application/attendance-insights.service';
+import { KioskService } from '../../../modules/hr/application/kiosk.service';
+import { RotationService } from '../../../modules/hr/application/rotation.service';
+import { TimeRequestsService } from '../../../modules/hr/application/time-requests.service';
+import { TimeSettingsService } from '../../../modules/hr/application/time-settings.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import {
   CurrentUser,

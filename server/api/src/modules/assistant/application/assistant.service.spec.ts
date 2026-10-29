@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   ASSISTANT_TURN_LIMIT,
   type SendAssistantMessageInput,

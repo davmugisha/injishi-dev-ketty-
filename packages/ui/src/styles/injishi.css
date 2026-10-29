@@ -1,6 +1,11 @@
 /*
  * Injishi design system — HeroUI Pro "mouve" theme + the saved Injishi overrides
- * (heroui.pro/ds/de231dfa-8a53-40c9-ba3b-cd9d5a93685b, updatedAt 1791883604103).
+ * (heroui.pro/ds/de231dfa-8a53-40c9-ba3b-cd9d5a93685b, updatedAt 1793037720487,
+ * read 2026-10-28). Every colour the save's CSS export defines is pasted below
+ * from @injishi/design-tokens' src/heroui.ts, so it carries that palette's
+ * contrast corrections, and `pnpm --filter @injishi/design-tokens check` fails
+ * when one drifts. Change a colour there first, then paste it here. --eclipse,
+ * which the export does not set, is its DESIGN.md's.
  * Figtree (body) and Instrument Sans (headings) are loaded with next/font as
  * --font-figtree and --font-instrument-sans. Activate with
  * data-theme="mouve-light|mouve-dark" (and data-vibrant-palette="true" where the
@@ -18,9 +23,21 @@
 [data-theme="mouve-light"],
 .mouve-dark,
 [data-theme="mouve-dark"] {
+  /* Ink. The CSS export leaves --eclipse to the mouve theme, whose own is at
+     hue 300, so light-theme text was a violet near-black. The save's DESIGN.md
+     resolves eclipse at the saved hue (#172520), and default-foreground and the
+     light status labels read it. */
+  --eclipse: oklch(24.98% 0.0215 170.32);
+
   /* Border radius */
   --radius: 0.5rem;
-  --field-radius: 0.25rem;
+  --field-radius: 0.5rem;
+  /* One corner for every card-like surface (cards, widgets, tables, lists, figure strips), one for what
+     sits inside them, one for buttons. See "Surfaces and controls" below. */
+  --surface-radius: 0.75rem;
+  --inner-radius: 0.5rem;
+  /* Pill controls — match the rest of the product's round buttons. */
+  --control-radius: 9999px;
 
   /* Border width */
   --border-width-field: 0.8488516842015111px;
@@ -70,54 +87,108 @@
 
 .mouve-light,
 [data-theme="mouve-light"] {
-  --background: oklch(95.5% 0.0125 177.9);
-  --muted: oklch(58% 0.0312 177.9);
-  --scrollbar: oklch(82% 0.0208 177.9);
-  --surface: oklch(97.5% 0.0083 177.9);
-  --surface-secondary: oklch(95% 0.0125 177.9);
-  --surface-tertiary: oklch(93.5% 0.0166 177.9);
-  --overlay: oklch(97.5% 0.0083 177.9);
-  --default: oklch(92% 0.0125 177.9);
-  --accent: oklch(55% 0.18 177.9);
-  --field-background: oklch(97% 0.0062 177.9);
-  --field-border: oklch(88% 0.0208 177.9);
-  --border: oklch(88% 0.0156 177.9);
-  --separator: oklch(92% 0.0104 177.9);
-  --backdrop: oklch(50% 0.0416 177.9 / 0.4);
+  --background: oklch(95.51% 0.0123 178.4);
+  --foreground: oklch(25.05% 0.0201 179.83);
+  --muted: oklch(49.5% 0.0317 176);
+  --scrollbar: oklch(82% 0.0208 172.11);
+  --surface: oklch(97.5% 0.0083 172.11);
+  --surface-secondary: oklch(95% 0.0125 172.11);
+  --surface-tertiary: oklch(93.5% 0.0166 172.11);
+  --overlay: oklch(97.5% 0.0083 172.11);
+  --default: oklch(92% 0.0125 172.11);
+  --accent: oklch(47.02% 0.0911 172.11);
+  --success: oklch(73.29% 0.1934 150.84);
+  --warning: oklch(78.19% 0.1584 72.32);
+  --danger: oklch(53.86% 0.1937 26.72);
+  --field-background: oklch(97% 0.0062 172.11);
+  /* Corrected to 3:1 in src/heroui.ts: a field's border is its boundary. */
+  --field-border: oklch(63% 0.0208 172.11);
+  --border: oklch(88% 0.0156 172.11);
+  --separator: oklch(92% 0.0104 172.11);
+  --backdrop: oklch(50% 0.0416 172.11 / 0.4);
 
-  --chart-1: oklch(42% 0.14 177.9);
-  --chart-2: oklch(50% 0.16 177.9);
-  --chart-3: oklch(55% 0.18 177.9);
-  --chart-4: oklch(65% 0.14 177.9);
-  --chart-5: oklch(75% 0.1 177.9);
+  --chart-1: oklch(42% 0.14 172.11);
+  --chart-2: oklch(50% 0.16 172.11);
+  --chart-3: oklch(55% 0.18 172.11);
+  --chart-4: oklch(65% 0.14 172.11);
+  --chart-5: oklch(75% 0.1 172.11);
+
+  /* Injishi chart roles (charts.tsx). Categories in this fixed order, checked with the dataviz
+     validator on this surface: slot 1 is the accent's teal. */
+  --chart-cat-1: oklch(58.1% 0.114 170.6);
+  --chart-cat-2: oklch(43.3% 0.167 283.6);
+  --chart-cat-3: oklch(67.1% 0.175 40.6);
+  --chart-cat-4: oklch(57.5% 0.163 255.5);
+  --chart-cat-5: oklch(76.4% 0.161 75.1);
+  --chart-cat-6: oklch(71.6% 0.141 357.4);
+  /* "Other" and reference series (what was expected): neutral greys. */
+  --chart-other: oklch(72% 0.015 177.9);
+  --chart-neutral: oklch(84% 0.016 177.9);
+  /* How overdue: one hue, mild (light) to severe (dark). */
+  --chart-age-1: oklch(74% 0.12 45);
+  --chart-age-2: oklch(64% 0.16 38);
+  --chart-age-3: oklch(54% 0.18 32);
+  --chart-age-4: oklch(43% 0.15 28);
+
+  /* Status chip text (status-chip.tsx): darker than the tint, at least 4.5:1 on it. */
+  --status-success-fg: oklch(44% 0.12 150);
+  --status-warning-fg: oklch(47% 0.11 62);
+  /* L 48 since the 18:02 save: its darker red tint took L 49 to 4.38:1 on --default. Now 4.58:1. */
+  --status-danger-fg: oklch(48% 0.19 27);
+  --status-info-fg: oklch(42% 0.09 177.9);
 }
 
 .mouve-dark,
 [data-theme="mouve-dark"] {
   color-scheme: dark;
-  --background: oklch(16% 0.0208 177.9);
-  --muted: oklch(65% 0.0208 177.9);
-  --scrollbar: oklch(35% 0.0208 177.9);
-  --surface: oklch(20% 0.0208 177.9);
-  --surface-secondary: oklch(24% 0.0208 177.9);
-  --surface-tertiary: oklch(27% 0.0208 177.9);
-  --overlay: oklch(20% 0.0208 177.9);
-  --default: oklch(26% 0.0208 177.9);
-  --accent: oklch(70% 0.16 177.9);
-  --accent-foreground: oklch(15% 0.0208 177.9);
-  --success-foreground: oklch(20% 0.0208 177.9);
-  --warning-foreground: oklch(20% 0.0208 177.9);
-  --field-background: oklch(22% 0.0187 177.9);
-  --field-border: oklch(32% 0.026 177.9);
-  --segment: oklch(28% 0.026 177.9);
-  --border: oklch(30% 0.0208 177.9);
-  --separator: oklch(28% 0.0187 177.9);
+  --background: oklch(15.95% 0.0203 177.41);
+  --foreground: oklch(99.11% 0.0001 263.28);
+  --muted: oklch(78.73% 0.0285 173.63);
+  --scrollbar: oklch(35% 0.0208 150.84);
+  --surface: oklch(20% 0.0208 150.84);
+  --surface-secondary: oklch(24% 0.0208 150.84);
+  --surface-tertiary: oklch(27% 0.0208 150.84);
+  --overlay: oklch(20% 0.0208 150.84);
+  --default: oklch(26% 0.0208 150.84);
+  --accent: oklch(73.29% 0.1934 150.84);
+  --accent-foreground: oklch(15% 0.0208 150.84);
+  --success: oklch(73.29% 0.1934 150.84);
+  --success-foreground: oklch(20% 0.0208 150.84);
+  --warning: oklch(78.19% 0.1584 72.32);
+  --warning-foreground: oklch(20% 0.0208 150.84);
+  /* Corrected in src/heroui.ts: the saved red carries its white label at 3.48:1. */
+  --danger: oklch(59% 0.2328 25.73);
+  --field-background: oklch(22% 0.0187 150.84);
+  /* Corrected to 3:1 in src/heroui.ts, as light. */
+  --field-border: oklch(50% 0.026 150.84);
+  --segment: oklch(28% 0.026 150.84);
+  --border: oklch(30% 0.0208 150.84);
+  --separator: oklch(28% 0.0187 150.84);
 
-  --chart-1: oklch(50% 0.12 177.9);
-  --chart-2: oklch(60% 0.14 177.9);
-  --chart-3: oklch(70% 0.16 177.9);
-  --chart-4: oklch(78% 0.12 177.9);
-  --chart-5: oklch(85% 0.08 177.9);
+  /* chart-1 is corrected in src/heroui.ts to 3:1 on the lightest dark surface. */
+  --chart-1: oklch(53.5% 0.12 150.84);
+  --chart-2: oklch(60% 0.14 150.84);
+  --chart-3: oklch(70% 0.16 150.84);
+  --chart-4: oklch(78% 0.12 150.84);
+  --chart-5: oklch(85% 0.08 150.84);
+
+  --chart-cat-1: oklch(63.7% 0.124 171.6);
+  --chart-cat-2: oklch(67% 0.145 286.8);
+  --chart-cat-3: oklch(62.2% 0.173 40.1);
+  --chart-cat-4: oklch(62.2% 0.161 255.1);
+  --chart-cat-5: oklch(67% 0.143 73.2);
+  --chart-cat-6: oklch(62.2% 0.171 0.8);
+  --chart-other: oklch(50% 0.02 177.9);
+  --chart-neutral: oklch(36% 0.022 177.9);
+  --chart-age-1: oklch(80% 0.11 46);
+  --chart-age-2: oklch(70% 0.15 40);
+  --chart-age-3: oklch(60% 0.17 34);
+  --chart-age-4: oklch(50% 0.15 30);
+
+  --status-success-fg: oklch(84% 0.14 150);
+  --status-warning-fg: oklch(86% 0.12 80);
+  --status-danger-fg: oklch(80% 0.12 25);
+  --status-info-fg: oklch(84% 0.09 177.9);
 }
 
 @layer base {
@@ -197,7 +268,145 @@
   }
 }
 
+/*
+ * Surfaces and controls (polish, 2026-10-26): tighter, product-like corners, one value per role, and
+ * buttons with a comfortable hit area (36 px from md up, 40 px on phones) and more room either side of
+ * their words. In the components layer after HeroUI's own rules, so they win over HeroUI while a
+ * screen's utility classes (h-*, rounded-*) still win over them.
+ */
+@layer components {
+  .card,
+  .widget,
+  .table-root,
+  .list-view--primary,
+  .kpi-group,
+  .empty-state,
+  .item-card {
+    border-radius: var(--surface-radius);
+  }
+  .widget__content,
+  .sidebar__menu-item-content,
+  .sidebar__menu-button {
+    border-radius: var(--inner-radius);
+  }
+  /* A table rounds its header and its corner cells with --radius-2xl; a list its first and last rows. */
+  .table-root {
+    --radius-2xl: var(--surface-radius);
+  }
+  .list-view--primary:not([data-virtualized]) .list-view__item:first-child {
+    border-top-left-radius: var(--surface-radius);
+    border-top-right-radius: var(--surface-radius);
+  }
+  .list-view--primary:not([data-virtualized]) .list-view__item:last-child {
+    border-bottom-left-radius: var(--surface-radius);
+    border-bottom-right-radius: var(--surface-radius);
+  }
+  .button {
+    border-radius: var(--control-radius);
+    height: 2.5rem;
+    padding-inline: 1.125rem;
+  }
+  .button--sm {
+    height: 2.25rem;
+    padding-inline: 0.875rem;
+  }
+  .button--lg {
+    height: 2.75rem;
+    padding-inline: 1.375rem;
+  }
+  .button--icon-only {
+    padding-inline: 0;
+    width: 2.5rem;
+  }
+  .button--icon-only.button--sm {
+    width: 2.25rem;
+  }
+  /* Fields as tall as a button beside them. */
+  .search-field__group,
+  .date-input-group {
+    height: 2.5rem;
+  }
+  .select__trigger,
+  .input-group,
+  input.input {
+    min-height: 2.5rem;
+  }
+  @media (min-width: 768px) {
+    .search-field__group,
+    .date-input-group {
+      height: 2.25rem;
+    }
+    .select__trigger,
+    .input-group,
+    input.input {
+      min-height: 2.25rem;
+    }
+    .button {
+      height: 2.25rem;
+    }
+    .button--sm {
+      height: 2rem;
+    }
+    .button--lg {
+      height: 2.5rem;
+    }
+    .button--icon-only {
+      width: 2.25rem;
+    }
+    .button--icon-only.button--sm {
+      width: 2rem;
+    }
+  }
+
+  /* The list toolbar (ListToolbar in table.tsx): the tabs' own underline gives way to the row's, and
+     the tabs are as tall as the search beside them. */
+  .ij-toolbar .tabs--secondary > .tabs__list-container {
+    border-bottom-width: 0;
+  }
+  .ij-toolbar .tabs__tab {
+    height: 2.5rem;
+  }
+}
+
 /* Tabular numbers for figures, as in the artifact (.ij-num). */
 @utility tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Charts (charts.tsx): axis ticks on the type scale with tabular figures. Unlayered, after the Pro
+   chart sheets, so it wins over their 10px ticks. */
+.ij-chart .recharts-cartesian-axis-tick-value {
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Trend chips (kpi.tsx): a soft tint of the tone with darker text (light)
+   or lighter text (dark), never the raw tone, so the words keep 4.5:1. */
+.chip[data-tone="success"] {
+  --chip-bg: var(--success-soft);
+  --chip-fg: var(--status-success-fg);
+}
+.chip[data-tone="warning"] {
+  --chip-bg: var(--warning-soft);
+  --chip-fg: var(--status-warning-fg);
+}
+.chip[data-tone="danger"] {
+  --chip-bg: var(--danger-soft);
+  --chip-fg: var(--status-danger-fg);
+}
+.chip[data-tone="info"] {
+  --chip-bg: var(--accent-soft);
+  --chip-fg: var(--status-info-fg);
+}
+
+/* Skeletons stop shimmering for people who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::before,
+  .skeleton::after {
+    animation: none;
+    content: none;
+  }
+  .skeleton--pulse {
+    animation: none;
+  }
 }

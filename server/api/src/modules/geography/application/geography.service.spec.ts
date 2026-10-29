@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { Test } from '@nestjs/testing';
 
 import { GeographyService } from './geography.service';
@@ -5,11 +7,11 @@ import { GeographyRepository } from '../infrastructure/geography.repository';
 
 describe('GeographyService', () => {
   const repo = {
-    findProvinces: jest.fn(),
-    findDistricts: jest.fn(),
-    findCells: jest.fn(),
-    findVillages: jest.fn(),
-    findVillagePlacement: jest.fn(),
+    findProvinces: vi.fn(),
+    findDistricts: vi.fn(),
+    findCells: vi.fn(),
+    findVillages: vi.fn(),
+    findVillagePlacement: vi.fn(),
   };
 
   const build = async (): Promise<GeographyService> => {
@@ -22,7 +24,7 @@ describe('GeographyService', () => {
     return moduleRef.get(GeographyService);
   };
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => vi.clearAllMocks());
 
   it('returns provinces validated against the contract', async () => {
     repo.findProvinces.mockResolvedValue([
@@ -34,6 +36,23 @@ describe('GeographyService', () => {
     await expect(service.listProvinces()).resolves.toEqual([
       { id: 1, name: 'Kigali City' },
       { id: 2, name: 'Eastern' },
+    ]);
+  });
+
+  it('names places as people write them, not as the reference dump holds them', async () => {
+    repo.findProvinces.mockResolvedValue([{ id: 5, name: 'EAST' }]);
+    repo.findCells.mockResolvedValue([
+      { id: 1, name: 'Nyakabanda Ii', sectorId: 10201 },
+      { id: 2, name: 'GATUMBA', sectorId: 10201 },
+    ]);
+    const service = await build();
+
+    await expect(service.listProvinces()).resolves.toEqual([
+      { id: 5, name: 'Eastern Province' },
+    ]);
+    await expect(service.listCells({ sectorId: 10201 })).resolves.toEqual([
+      { id: 1, name: 'Nyakabanda II', sectorId: 10201 },
+      { id: 2, name: 'Gatumba', sectorId: 10201 },
     ]);
   });
 

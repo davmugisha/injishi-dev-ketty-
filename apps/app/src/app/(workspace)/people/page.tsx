@@ -8,8 +8,9 @@ import type {
   PeopleProperty,
   RosterGap,
 } from "@injishi/data/fixtures/people";
+import { PeopleHomeView } from "@injishi/product-hr/web";
 import type { Metadata } from "next";
-import { PeopleHomeView } from "@/features/people/PeopleHomeView";
+import { HrMount } from "@/features/hr/hr-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { clock } from "@/server/format";
@@ -29,11 +30,13 @@ export default async function PeopleHomePage() {
   ]);
   const { today } = await requestContext();
   return (
-    <PeopleHomeView
-      persona={persona}
-      data={{ properties, presence, leave, gaps, payRun: payRuns[0], expiring, tickets }}
-      today={today.iso}
-      now={clock(new Date())}
-    />
+    <HrMount>
+      <PeopleHomeView
+        persona={persona}
+        data={{ properties, presence, leave, gaps, payRun: payRuns[0], expiring, tickets }}
+        today={today.iso}
+        now={clock(new Date())}
+      />
+    </HrMount>
   );
 }

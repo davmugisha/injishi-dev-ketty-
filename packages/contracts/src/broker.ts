@@ -1,151 +1,182 @@
 import { z } from "zod";
-import { AdminPlacementStatus } from "./admin";
+import { BrokerScope } from "./broker-plans";
 import { Uuid } from "./primitives";
 import { BrokerStatus } from "./registration";
+import { BrokerFeeRecord, BrokerFeeTerms, PlacementStatus } from "./rentals/brokers";
+import { CalendarDay } from "./rentals/dates";
+
 /**
- * The broker's own surface (ADR-038 child 6, `/api/v1/ops/broker/*`).
+ * The broker's own surface (`/api/v1/ops/broker/*`).
  *
- * A broker workspace belongs to one person and runs no departments, so none of
- * these shapes carries a permission. What they carry instead is the answer to
- * the three questions the broker screens ask: which residence units can I place
- * a tenant in, what did revealing a landlord cost me, and what has the work
- * earned.
- *
- * Two departures from the child 6 spec, both the schema's call:
- *
- *   - A placement is `initiated | converted | abandoned | unavailable`
- *     (`placement_status`), not the spec's `viewing -> offer -> placed`. A
- *     placement converts when the landlord records the broker on a lease
- *     (FL19); the broker has no step to advance in between.
- *   - A reveal buys a LISTING's contact, not a unit's. `contact_reveals` keys on
- *     `listing_id`, and a property has one contact however many unit types it
- *     lets, so every unit card on that listing opens together.
+ * A broker sees only the units a landlord switched on for brokers, inside the
+ * area their plan covers (District, Province or Country). A unit outside that
+ * is not there at all: every read and command answers 404. Revealing a
+ * landlord's contact is free and logged; a placement says "I have a tenant for
+ * this unit" and becomes the lease's broker record when the landlord names the
+ * broker on the lease. Fees are recorded, never collected by Injishi.
  */
-// ---------------------------------------------------------------------------
-// Directory
-// ---------------------------------------------------------------------------
-/**
- * The landlord contact a broker paid for, as it stood when they paid.
- *
- * A snapshot, never a join: a landlord who changes their number later has not
- * changed what the broker was sold. Absent entirely until revealed; the server
- * sends no masked string for a client to unmask.
- */
+
+/** The landlord contact a broker revealed, as it stood when they revealed it. */
 export const BrokerContact = z.object({
-    phone: z.string().nullable(),
-    email: z.string().nullable(),
-    revealedAt: z.string(),
+  name: z.string().nullable(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  revealedAt: z.string(),
 });
 export type BrokerContact = z.infer<typeof BrokerContact>;
-/** One unit type on a listing, and how many of its rooms have no active lease. */
-export const BrokerDirectoryUnit = z.object({
-    roomTypeId: Uuid,
-    name: z.string(),
-    monthlyRentRwf: z.number().int().nullable(),
-    cautionRwf: z.number().int().nullable(),
-    vacantUnits: z.number().int(),
-    totalUnits: z.number().int(),
+
+/** The broker's placement on a unit, when they started one. */
+export const BrokerHomePlacement = z.object({ id: Uuid, status: PlacementStatus });
+export type BrokerHomePlacement = z.infer<typeof BrokerHomePlacement>;
+
+/** One opted-in vacant unit a broker may offer. */
+export const BrokerHome = z.object({
+  unitId: Uuid,
+  unitLabel: z.string(),
+  propertyName: z.string(),
+  landlordName: z.string(),
+  districtId: z.number().int().nullable(),
+  district: z.string().nullable(),
+  sector: z.string().nullable(),
+  bedrooms: z.number().int().nullable(),
+  bathrooms: z.number().int().nullable(),
+  kitchen: z.enum(["own", "shared", "none"]).nullable(),
+  furnished: z.boolean(),
+  sizeSqm: z.number().int().nullable(),
+  rentRwf: z.number().int(),
+  depositRwf: z.number().int().nullable(),
+  /** What the landlord pays the broker who brings the tenant. */
+  fee: BrokerFeeTerms,
+  /** The fee in francs on this unit's asking rent. */
+  feeRwf: z.number().int(),
+  /** Signed, short-lived photo URLs, cover first. */
+  photos: z.array(z.string()),
+  video: z.object({ url: z.string(), posterUrl: z.string().nullable(), durationS: z.number().int() }).nullable(),
+  /** Null when it is free now. */
+  availableFrom: CalendarDay.nullable(),
+  latitude: z.number().nullable(),
+  longitude: z.number().nullable(),
+  /** Null until this broker reveals the landlord. */
+  contact: BrokerContact.nullable(),
+  placement: BrokerHomePlacement.nullable(),
 });
-export type BrokerDirectoryUnit = z.infer<typeof BrokerDirectoryUnit>;
-export const BrokerDirectoryListing = z.object({
-    listingId: Uuid,
-    propertyName: z.string(),
-    landlordName: z.string(),
-    district: z.string().nullable(),
-    units: z.array(BrokerDirectoryUnit),
-    /** Null until this broker reveals the listing. */
-    contact: BrokerContact.nullable(),
-    /** The broker's open (`initiated`) placement on this listing, if any. */
-    openPlacementId: Uuid.nullable(),
+export type BrokerHome = z.infer<typeof BrokerHome>;
+
+export const BrokerHomesSort = z.enum(["newest", "price_asc", "price_desc", "fee_desc"]);
+export type BrokerHomesSort = z.infer<typeof BrokerHomesSort>;
+
+/** `GET /ops/broker/homes`. A district outside the plan shows nothing. */
+export const BrokerHomesQuery = z.object({
+  district: z.coerce.number().int().positive().optional(),
+  minRent: z.coerce.number().int().nonnegative().optional(),
+  maxRent: z.coerce.number().int().positive().optional(),
+  /** At least this many bedrooms. */
+  bedrooms: z.coerce.number().int().min(0).max(20).optional(),
+  q: z.string().trim().max(80).optional(),
+  sort: BrokerHomesSort.optional(),
 });
-export type BrokerDirectoryListing = z.infer<typeof BrokerDirectoryListing>;
-export const BrokerDirectory = z.object({
-    brokerStatus: BrokerStatus,
-    /** `sum(delta)` over the credit ledger. Never stored. */
-    balance: z.number().int(),
-    /** What one reveal spends. The product's number, sent so a screen can say it. */
-    revealCost: z.number().int(),
-    listings: z.array(BrokerDirectoryListing),
+export type BrokerHomesQuery = z.infer<typeof BrokerHomesQuery>;
+
+export const BrokerHomes = z.object({
+  brokerStatus: BrokerStatus,
+  /** The district filter applied, or null for the whole plan area. */
+  districtId: z.number().int().nullable(),
+  /** Every district inside the plan with a home on offer, with how many. */
+  districts: z.array(z.object({ id: z.number().int(), name: z.string(), count: z.number().int() })),
+  homes: z.array(BrokerHome),
+  scope: BrokerScope,
 });
-export type BrokerDirectory = z.infer<typeof BrokerDirectory>;
-/** The answer to a reveal. `charged` is false when the listing was already revealed. */
-export const BrokerReveal = z.object({
-    listingId: Uuid,
-    contact: BrokerContact,
-    balance: z.number().int(),
-    charged: z.boolean(),
-});
+export type BrokerHomes = z.infer<typeof BrokerHomes>;
+
+/** `POST /ops/broker/homes/:unitId/reveal`. `first` is false when it was revealed before. */
+export const BrokerReveal = z.object({ unitId: Uuid, contact: BrokerContact, first: z.boolean() });
 export type BrokerReveal = z.infer<typeof BrokerReveal>;
-// ---------------------------------------------------------------------------
-// Credits
-// ---------------------------------------------------------------------------
-export const BrokerCreditEntry = z.object({
-    id: Uuid,
-    /** Positive grants, negative spends. Credits, not money. */
-    delta: z.number().int(),
-    /** `plan_grant | reveal | refund | correction`. */
-    reason: z.string(),
-    note: z.string().nullable(),
-    /** The listing a spend revealed, resolved through `reveal_id`. */
-    propertyName: z.string().nullable(),
-    createdAt: z.string(),
+
+/** `POST /ops/broker/homes/:unitId/placements`: "I have a tenant for this unit". */
+export const StartPlacementRequest = z.object({
+  tenantName: z.string().trim().max(120, "Keep the name under 120 characters.").nullable().optional(),
+  note: z.string().trim().max(500, "Keep the note under 500 characters.").nullable().optional(),
 });
-export type BrokerCreditEntry = z.infer<typeof BrokerCreditEntry>;
-export const BrokerCredits = z.object({
-    balance: z.number().int(),
-    entries: z.array(BrokerCreditEntry),
-});
-export type BrokerCredits = z.infer<typeof BrokerCredits>;
-// ---------------------------------------------------------------------------
-// Placements and earnings
-// ---------------------------------------------------------------------------
-export const BrokerPlacementFeeStatus = z.enum(["pending", "disbursed"]);
-export type BrokerPlacementFeeStatus = z.infer<typeof BrokerPlacementFeeStatus>;
+export type StartPlacementRequest = z.infer<typeof StartPlacementRequest>;
+
 export const BrokerPlacement = z.object({
-    id: Uuid,
-    listingId: Uuid.nullable(),
-    propertyName: z.string().nullable(),
-    landlordName: z.string().nullable(),
-    status: AdminPlacementStatus,
-    initiatedAt: z.string(),
-    /** The lease the placement became. Null until the landlord records one. */
-    lease: z
-        .object({
-        id: Uuid,
-        unitLabel: z.string().nullable(),
-        tenantName: z.string().nullable(),
-        status: z.string(),
-        startDate: z.string().nullable(),
-    })
-        .nullable(),
-    /** The fee that lease raised. Earned when the lease activates (F-R08). */
-    fee: z
-        .object({
-        amountRwf: z.number().int().nullable(),
-        status: BrokerPlacementFeeStatus,
-    })
-        .nullable(),
+  id: Uuid,
+  status: PlacementStatus,
+  startedAt: z.string(),
+  unit: z.object({ id: Uuid, label: z.string(), propertyName: z.string(), district: z.string().nullable() }).nullable(),
+  landlordName: z.string().nullable(),
+  tenantName: z.string().nullable(),
+  note: z.string().nullable(),
+  /** The unit's fee when the placement started. */
+  terms: BrokerFeeTerms.nullable(),
+  /** The lease the landlord wrote naming this broker. */
+  lease: z
+    .object({ id: Uuid, reference: z.string(), tenantName: z.string(), status: z.string(), startDate: CalendarDay })
+    .nullable(),
+  fee: BrokerFeeRecord.nullable(),
 });
 export type BrokerPlacement = z.infer<typeof BrokerPlacement>;
+
 export const BrokerPlacementList = z.object({ placements: z.array(BrokerPlacement) });
 export type BrokerPlacementList = z.infer<typeof BrokerPlacementList>;
-export const BrokerFee = z.object({
-    id: Uuid,
-    leaseId: Uuid,
-    tenantName: z.string().nullable(),
-    unitLabel: z.string().nullable(),
-    landlordName: z.string().nullable(),
-    amountRwf: z.number().int().nullable(),
-    status: BrokerPlacementFeeStatus,
-    /** When the fee last moved: raised, or disbursed. */
-    updatedAt: z.string(),
+
+/** One fee a lease records for this broker. */
+export const BrokerFeeLine = z.object({
+  leaseId: Uuid,
+  reference: z.string(),
+  tenantName: z.string(),
+  unitLabel: z.string(),
+  propertyName: z.string(),
+  landlordName: z.string(),
+  startDate: CalendarDay,
+  fee: BrokerFeeRecord,
 });
-export type BrokerFee = z.infer<typeof BrokerFee>;
+export type BrokerFeeLine = z.infer<typeof BrokerFeeLine>;
+
+/** `GET /ops/broker/earnings`: what landlords recorded as owed and paid. Injishi moves none of it. */
 export const BrokerEarnings = z.object({
-    /** Disbursed since 1 January, in the server's clock. */
-    disbursedThisYearRwf: z.number().int(),
-    pendingRwf: z.number().int(),
-    balance: z.number().int(),
-    fees: z.array(BrokerFee),
+  owedRwf: z.number().int(),
+  paidRwf: z.number().int(),
+  paidThisYearRwf: z.number().int(),
+  /** Recorded by the month the lease starts, the last 12 months, oldest first (`yyyy-mm`). */
+  byMonth: z.array(z.object({ month: z.string(), paidRwf: z.number().int(), owedRwf: z.number().int() })),
+  fees: z.array(BrokerFeeLine),
 });
 export type BrokerEarnings = z.infer<typeof BrokerEarnings>;
+
+export const BrokerReview = z.object({
+  stars: z.number().int(),
+  comment: z.string().nullable(),
+  from: z.enum(["tenant", "landlord"]),
+  /** A tenant by first name; a landlord by their business. */
+  raterName: z.string().nullable(),
+  propertyName: z.string().nullable(),
+  ratedAt: z.string(),
+});
+export type BrokerReview = z.infer<typeof BrokerReview>;
+
+/** `GET /ops/broker/reviews`. */
+export const BrokerReviews = z.object({
+  average: z.number().nullable(),
+  count: z.number().int(),
+  /** How many ratings gave 5, 4, 3, 2 and 1 stars, in that order. */
+  breakdown: z.array(z.number().int()).length(5),
+  /** Leases they brought a tenant to that started. */
+  placedCount: z.number().int(),
+  reviews: z.array(BrokerReview),
+});
+export type BrokerReviews = z.infer<typeof BrokerReviews>;
+
+/** `GET /ops/broker/summary`: the figures the broker home opens on. */
+export const BrokerSummary = z.object({
+  name: z.string().nullable(),
+  status: BrokerStatus,
+  scope: BrokerScope,
+  homesInScope: z.number().int(),
+  openPlacements: z.number().int(),
+  owedRwf: z.number().int(),
+  paidRwf: z.number().int(),
+  ratingAverage: z.number().nullable(),
+  ratingCount: z.number().int(),
+});
+export type BrokerSummary = z.infer<typeof BrokerSummary>;

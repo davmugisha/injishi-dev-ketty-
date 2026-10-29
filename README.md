@@ -1,276 +1,122 @@
 # Injishi
 
 Hospitality and property platform for Rwanda: a public marketplace where guests
-find and book a stay, and the backend that serves it.
+find and book a stay, the operator app hotels, landlords, officers and Injishi
+staff work in, and the API behind both.
 
-This repository holds three deployable things and the shared code they use:
+| Path          | Package           | What it is |
+| ------------- | ----------------- | ---------- |
+| `apps/web`    | `@injishi/web`    | Next.js 16 marketplace and the signed-in guest pages (`/trips`, `/account`, ...) |
+| `apps/app`    | `@injishi/app`    | Next.js 16 operator app (HeroUI v3 and Pro): sign-in, every persona's screens, the admin console at `/admin` |
+| `apps/mobile` | `@injishi/mobile` | Expo app (no build in CI; see `.github/workflows/mobile-release.yml`) |
+| `server/api`  | `@injishi/api`    | NestJS 11 modular monolith on Fastify, plus its BullMQ worker |
+| `packages/*`  | `@injishi/*`      | Shared packages: auth, contracts, data, db, design-tokens, qr, ui, ui-contract, utils, web-ui |
 
-| Path           | Package        | What it is                                          |
-| -------------- | -------------- | --------------------------------------------------- |
-| `apps/web`     | `@injishi/web` | Next.js 15 marketplace + signed-in guest app        |
-| `apps/app`     | `@injishi/app` | Next.js 15 operator app, served as a zone under web |
-| `server/api` | `@injishi/api` | NestJS 11 modular monolith on Fastify, plus worker  |
-| `packages/*`   | `@injishi/*`   | The five shared packages. Source, not a mirror (ADR-034) |
+## Web and the app are two origins
 
-> **Scope note.** The wider product also has an admin console and a mobile app.
-> They are not in this repository. Do not add an `apps/admin` or `apps/mobile`
-> here on the assumption that they belong; they are tracked elsewhere.
-
-## The operator app is a zone, not a second origin
-
-`apps/app` runs on its own port (`:3002`) and has its own build and deploy, but
-the browser never sees that origin. `apps/web/next.config.ts` rewrites `/w`,
-`/oversight`, `/host`, `/landlord` and `/broker` — plus `/operator-static/*`
-for its chunks — to `OPERATOR_APP_URL`. One product, one sign-in, one cookie
-jar, two code bases. `assetPrefix` is what keeps the two `/_next` trees apart on
-the shared origin.
-
-In development the zone's hot-reload socket does not cross the rewrite. Open
-<http://localhost:3002> directly when you are editing the operator app.
-
----
+The app has its own origin in every stack: `app.injishi.com` in production,
+<http://localhost:3002> locally. Web (`www.injishi.com`, <http://localhost:3000>)
+hands `/sign-in` to it, and the app sends each person to their own home
+(`apps/app/src/lib/return-to.ts`); a guest goes back to web's `/trips`. Web's
+`/start` sends anyone holding a business, broker, oversight or staff role to
+the app's `/auth/continue`, which does the same. Web serves none of the app's
+pages. The session cookie is shared: the API sets it on the parent domain when
+deployed, and on `localhost`, which every port shares, on a laptop.
 
 ## Requirements
 
-- **Node** `>=20.19` (CI runs 22)
-- **pnpm** `10.33.2` — the version is pinned in `package.json` via `packageManager`
-- **PostgreSQL 17** — local, or the container in `infra/docker/docker-compose.yml`
-- **Redis** — only if you run the BullMQ worker
-- **MinIO and Mailpit** — `server/api/.env.example` stores uploads on a local
-  MinIO (`STORAGE_ADAPTER_MODE=live`) and sends mail to a local Mailpit
-  (`SMTP_URL=smtp://localhost:1025`, inbox at <http://localhost:8025>). Both run
-  from `infra/docker/docker-compose.yml`. `STORAGE_ADAPTER_MODE=local` and an
-  unset `SMTP_URL` with `OTP_DEBUG_LOG=true` run the API without either
+- **Node** `>=22.13` (`mise.toml` pins the version CI uses) and **pnpm** `12.3.4`
+  (`packageManager` in `package.json`)
+- **Docker**: Colima or Docker Desktop (`infra/docker/README.md`)
+- **`HEROUI_AUTH_TOKEN`** in a root `.env` (copy `.env.example`): the HeroUI Pro
+  package downloads its code with it at install time
 
 ## Quick start
 
 ```bash
-pnpm install                                  # always from the repository root
-cp server/api/.env.example server/api/.env    # once: the API's settings, local-ready
-pnpm dev:all                                  # the whole product, in this terminal
+pnpm install          # from the repository root, with the root .env in place
+pnpm docker:up        # Postgres, Redis, Mailpit, then the API, worker, web and app
 ```
 
-`pnpm dev:all` starts Docker Desktop when it is not running, brings up
-Postgres, Redis, MinIO and Mailpit, migrates (seeding only a database that was
-never seeded), then runs every app with each line labelled by its app: web on
-:3000, the operator app on :3002, the API on :8000 with its queue worker, and
-mobile for Expo Go, with a QR code to scan on your phone. The
-API runs as the demo, so every sign-in code is `123456`. Ctrl+C stops the apps;
-Docker keeps running until `pnpm dev:stack:down`. `pnpm dev:all --skip mobile`
-or `--only web,api` start fewer. Installing Docker, and what the stack does, is
-`infra/docker/README.md`.
+Open <http://localhost:3000> (marketplace) or <http://localhost:3002/sign-in>.
+The local database is a TESTING database: reference data (geography, classes,
+amenities, tax rates) and test settings, no demo people or businesses. Sign in
+as `admin@injishi.test` (the first Injishi admin) or any new email to create an
+account; codes are real and land in Mailpit at <http://localhost:8025>. Set
+`STACK_SEED=sample` and `INJISHI_ENVIRONMENT=demo` in `server/api/.env.test`
+for the old demo world (fixed code `123456`). For hot
+reload, run the apps on your machine with `pnpm dev:all` instead.
+`infra/docker/README.md` has the details.
 
-Open <http://localhost:3000>. The operator surfaces are reached through that
-same origin — `/w`, `/oversight`, `/host`, `/landlord`, `/broker`. Health check
-for the API is <http://localhost:8000/api/v1/health>.
-
-`pnpm dev` starts web and the operator app only: no API, worker or Docker
-services.
-
-`infra/docker/docker-compose.yml` holds the backing services only. The apps run
-on the host, with hot reload; the header of that file says why. The stack built
-from the production images is `docker-compose.staging.yml`.
-
----
+Environment files (one per environment, per package) are explained at the top
+of `.env.example`; every API variable is in `server/api/.env.example`.
 
 ## Repository layout
 
 ```text
-apps/web/               Next.js app router, React 19, Tailwind 4, HeroUI 3
-  src/app/(marketplace) public surfaces — no session required
-    (site)              home, property pages, guides, host, legal, support
-    (results)           explore / search results
-    (checkout)          booking flow
-  src/app/(app)         session surfaces
-    (entry)             sign-in, verify-otp, register, activate, claim-org
-    (shell)             account, inbox, trips, saved, lease
-  src/middleware.ts     edge gate: verifies the session cookie, bounces to /sign-in
-  src/data/             API clients and fixture data per domain
-  src/lib/              session, otp, redirect allowlist and other helpers
-
-apps/app/               Operator app. Same stack, served as a zone under web.
-  src/app/w/            the operator workspace shell
-  src/app/oversight/    the government oversight console
-  src/app/host|landlord|broker/  legacy kind roots, kept as redirect targets
-  src/pms/              store (one reducer per domain), nav, client-side authz
-  src/middleware.ts     edge gate, same contract as web's
-
-server/api/
-  src/main.ts           one entry point; --worker flips it to the queue process
-  src/api/public/       HTTP controllers: health, properties, inventory, bookings,
-                        geography, me, ops, oversight, registrations, uploads
-  src/api/admin/        staff-facing controllers
-  src/modules/          domain modules: auth, booking, ebm, geography, listing,
-                        listing-setup, mailer, operations, organization,
-                        payments, sms, storage, user
-  src/database/drizzle/ schema by domain + SQL migrations
-  src/shared/           guards, config, http, queues, validation, process role
-
-packages/               SOURCE of @injishi/auth, contracts, design-tokens,
-                        ui, utils. Edit directly.
-tools/eslint-rules/     flat-config ESLint plugin, no build step
-infra/docker/           Dockerfile.api, Dockerfile.web, docker-compose.yml
-scripts/                content and image generation utilities
+apps/web/            marketplace: src/app/(marketplace) public pages, src/app/(app) sign-in
+                     steps, registration and the guest's own pages; src/proxy.ts gates
+                     the private ones; src/lib/access.ts and app-handoff.ts send people to the app
+apps/app/            operator app: src/app route groups ((workspace), (phone), (device),
+                     (public), (auth)), src/features per domain, src/server (API client,
+                     reads and server actions), src/proxy.ts route guard
+apps/mobile/         Expo Router app
+server/api/          src/main.ts (one entry; INJISHI_PROCESS=worker runs the queues),
+                     src/api (controllers), src/modules (domains), src/database/drizzle
+                     (schema and SQL migrations), src/shared (guards, config, queues)
+packages/            shared packages, source (see below)
+tools/eslint-rules/  the ESLint plugin web and the API lint with
+infra/docker/        Dockerfiles, compose files (local, staging, demo, production), DOKPLOY.md
+scripts/             CI checks, the local stack scripts, content and image generators
 ```
 
-### About `packages/`
+### packages
 
-`packages/*` holds the five shared packages and **is their source**.
-`pnpm-workspace.yaml` globs it, which is what lets the apps keep `workspace:*`
-dependencies.
-
-It was called `vendor/` and it was a build-output mirror of a second repository,
-`injishi.managed`, kept here so this one could build standalone. That repository
-is deleted; these are the only copies. [ADR-034](../injishi.context/dox/adrs/034-vendor-becomes-source.md)
-records the change and renamed the directory to say so — a directory called
-`vendor` is a directory nobody edits, which is the wrong instruction to leave on
-the only copy of a design system.
-
-**Edit them directly.** Two carry a build:
-
-- `@injishi/design-tokens` — edit `src/*.ts`, then
-  `pnpm -F @injishi/design-tokens build && pnpm -F @injishi/design-tokens generate:css`.
-  `pnpm -F @injishi/design-tokens check` fails if `dist/` or `generated/` drifts
-  from `src/`, which is the local replacement for the deleted `pnpm vendor:check`.
-- `@injishi/auth` and `@injishi/contracts` ship only `dist/` and carry source
-  debt until ADR-034 task 8 reconstructs them by the same method. Until then a
-  change there is a hand edit to compiled JS **and** its `.d.ts`.
-
-`@injishi/ui` and `@injishi/utils` are TypeScript source, compiled by the
-consuming Next app through `transpilePackages` (ADR-008).
-
----
-
-## Configuration
-
-Copy `.env.example` to `.env`. Nothing in `.env` is committed.
-
-### Read by the browser (public)
-
-| Variable                    | Purpose                                     |
-| --------------------------- | ------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`      | Canonical origin of the web app             |
-| `NEXT_PUBLIC_API_URL`       | Where the browser reaches the API           |
-| `NEXT_PUBLIC_WEB_URL`       | Web origin, for the sign-in redirect allowlist |
-| `NEXT_PUBLIC_PMS_URL`       | Operator origin, same allowlist             |
-| `NEXT_PUBLIC_ADMIN_URL`     | Admin origin, same allowlist                |
-| `NEXT_PUBLIC_DEMO_LISTING`  | Optional listing id used by demo surfaces   |
-
-The three `*_URL` allowlist values are matched by **exact origin**. Suffix
-matching is deliberately not used — `injishi.rw.evil.com` would pass it, and an
-open redirect on the sign-in screen hands a phishing page a live session.
-
-### Read by the server only
-
-| Variable                                | Purpose                                          |
-| --------------------------------------- | ------------------------------------------------ |
-| `NODE_ENV`                              | `development` / `production`                     |
-| `PORT`                                  | API listen port (default 4000)                   |
-| `DATABASE_URL`                          | Postgres connection string                       |
-| `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | Session signing and issuer for the main instance  |
-| `COOKIE_SECRET`, `AUTH_COOKIE_DOMAIN`   | Cookie signing and scope                         |
-| `CORS_ORIGINS`                          | Comma-separated allowed origins                  |
-| `GOOGLE_CLIENT_ID` / `_SECRET`          | Google sign-in                                   |
-| `SMTP_URL`, `MAIL_FROM`                 | Outgoing email through the mailer seam (nodemailer over SMTP): Mailpit locally, a relay deployed. Required in production |
-| `OVERSIGHT_AUTH_SECRET`, `_BASE_URL`, `_COOKIE_NAME`, `OVERSIGHT_HOSTNAMES` | Second auth instance for the government oversight surface |
-| `INJISHI_ENVIRONMENT`, `INJISHI_DATABASE_KIND` | Which platform this process is (`production` or `demo`) and what its database must be (`real` or `sample`). Unset locally, so a laptop runs as the demo; pinned in each deploy compose file (ADR-043) |
-| `PAYMENT_ADAPTER_MODE`, `STORAGE_ADAPTER_MODE`, `RRA_TIN_ADAPTER_MODE`, `STORAGE_LOCAL_ROOT` | Swap external integrations for local stubs |
-| `STORAGE_S3_ENDPOINT`, `_PUBLIC_ENDPOINT`, `_REGION`, `_ACCESS_KEY`, `_SECRET_KEY`, `STORAGE_BUCKET`, `STORAGE_REQUIRE_ENCRYPTION`, `STORAGE_CREATE_BUCKETS` | Object storage on MinIO when `STORAGE_ADAPTER_MODE=live`; `server/api/.env.example` explains each |
-| `LOG_LEVEL`, `OTP_DEBUG_LOG`            | Logging                                          |
-| `INJISHI_PROCESS`                       | `worker` runs the queue process instead of HTTP  |
-| `MIGRATIONS_DIR`                        | Overrides where the migrator looks for SQL       |
-| `OPERATOR_APP_URL`                      | Where web forwards the operator zone (default `http://localhost:3002`) |
-| `OPERATOR_ASSET_PREFIX`                 | The zone's `assetPrefix` (default `/operator-static`) |
-
-The API **fails at boot** rather than starting half-configured when a required
-value is missing or malformed. Two boot refusals are security controls, not
-convenience checks:
-
-- `OVERSIGHT_AUTH_SECRET` must not equal `BETTER_AUTH_SECRET`. Two trust
-  boundaries mean two signing keys.
-- The fixed demo OTP code is a constructor argument to the demo auth instance,
-  never a runtime flag, so a fixed code cannot be reached in production.
-
----
+`packages/*` is source; edit it directly. Four are compiled and consumers read
+their committed `dist/`: `@injishi/auth`, `@injishi/contracts`,
+`@injishi/design-tokens` and `@injishi/qr`. Rebuild after editing
+(`pnpm --filter <name> build`), commit `dist/` with `src/`, and revert a rebuild
+that changes only line endings. `pnpm --filter @injishi/design-tokens check`
+fails when its `dist/` or `generated/` drifts from `src/`. The rest ship
+TypeScript the Next apps compile through `transpilePackages`. `@injishi/ui` is
+the app's kit; web imports `@injishi/web-ui` under the name `@injishi/ui`.
 
 ## Authorization
 
-Read this before touching a route, because each piece covers less than its name
-suggests.
+The boundary is the API (`server/api/src/shared/auth/README.md`):
+`@UseGuards(SessionGuard, WorkspaceGuard)` with `@RequirePermission(...)` on
+workspace routes, `StaffGuard` for staff, `OversightGuard` for officers. The
+permission model lives once in `@injishi/contracts` (`src/authz.ts`). A business
+still in registration holds its role and none of its powers: the permission set
+is empty until the org is `active`.
 
-**Authentication** is Better Auth (email OTP plus Google), configured once in
-`@injishi/auth`. OTP codes are stored **hashed** — Better Auth stores them in
-plaintext by default, which turns any read of the `verifications` table into
-account takeover.
-
-**The boundary is on the API**, and it is two guards composed in this order:
-
-```ts
-@UseGuards(SessionGuard, WorkspaceGuard)
-```
-
-- `SessionGuard` (`src/shared/auth/session.guard.ts`) resolves the session from
-  request cookies and attaches the user. Pair it with `@CurrentUser()`, which
-  throws when a route forgot the guard.
-- `WorkspaceGuard` (`src/shared/auth/workspace.guard.ts`) refuses a request that
-  names a workspace the caller does not hold, or that lacks the permission the
-  route declares via `@RequirePermission(...)`. It throws a 500 rather than
-  treating the request as anonymous when `SessionGuard` did not run first.
-
-The permission model itself lives in `@injishi/contracts` (`authz.ts`) — one
-definition that both sides import, so client and server cannot drift.
-
-**The registration gate** lives in the model, not in a guard.
-`permissionsForWorkspace` returns an **empty set** unless the org is `active`,
-so the owner of a business still in the registration pipeline holds the role and
-none of its powers. The workspace is still listed at every stage on purpose: the
-registrant opens it to watch the pipeline.
-
-**The web app's middleware is a routing control, not the boundary.**
-`src/middleware.ts` verifies the session cookie against the API (a cookie
-outlives the session it names, so presence alone is not enough) and bounces to
-`/sign-in`. `PROTECTED_PREFIXES` is an **allowlist** — `/trips`, `/saved`,
-`/lease`, `/inbox`, `/account`, `/claim-org` — because the marketplace is meant
-to be read by strangers. `/register`, `/verify-otp` and `/activate` are ungated
-on purpose: they are steps of signing in, and gating them locks the door from
-the inside. Broker screens are deliberately absent: they are a supply-side job
-and live in the operator app, behind its own gate.
-
-**Client-side capability is an affordance, never the boundary.**
-`src/data/me.ts` is the client for `/api/v1/me/*`; what it returns shapes the UI
-and words a refusal. Resolving a permission *from a role* in the browser is
-forbidden, and the `injishi/no-client-authz` ESLint rule fails the build on an
-import or re-export of `can` / `permissionsForRole` in `apps/web` and
-`apps/app`.
-
-**The operator app holds no model of its own.** `apps/app/src/pms/authz.ts`
-re-exports the permission table from `@injishi/contracts`, so the app words a
-refusal from the same table the API refuses from and the two cannot drift.
-`authorize()` in `src/pms/store/helpers.ts` is the one choke point for guarded
-mutations, and `app-shell.tsx` builds the allowed screen set from `navFor`
-(`src/pms/lib/nav.ts`) — one mechanism for screen access, not two. All of it
-runs in the browser: it is product correctness, not a security boundary.
-
----
+Web's and the app's `proxy.ts` only route: web verifies the session cookie on
+its private prefixes (`/trips`, `/account`, `/start`, ...) and bounces to
+sign-in; the app sends a visitor without a session to `/sign-in`, and each page
+checks the persona with `requireScreen`. Neither is a security boundary. The
+`injishi/no-client-authz` ESLint rule stops web resolving a permission from a
+role in the browser.
 
 ## Commands
 
-Run everything from the repository root.
+Run from the repository root.
 
 ```bash
-pnpm install              # install
-pnpm dev:all              # everything: Docker services, migrations, then api,
-                          # worker, web, app and mobile in one terminal
-pnpm dev                  # web on :3000 and the operator app on :3002
-pnpm app:dev              # operator app on :3002
-pnpm api:dev              # api on :8000, watch mode
-pnpm api:worker           # queue worker (needs the api built)
-pnpm build                # build web + app + api (not mobile)
-pnpm typecheck            # tsc --noEmit across the workspace
-pnpm lint                 # eslint across the workspace
+pnpm docker:up            # the whole stack in Docker (docker:rebuild, :logs, :ps, :down)
+pnpm dev:all              # the stack's services, then every app as a dev server
+pnpm web:dev              # web on :3000 (webpack, for its service worker)
+pnpm app:dev              # the app on :3002
+pnpm api:dev:test         # the API on the local stack (.env.test), :8000
+pnpm build                # build every package and app except mobile
+pnpm typecheck            # tsc across the workspace
+pnpm lint                 # Biome (app, mobile, data, db, ui) and every member's lint
+pnpm test                 # every suite
 ```
 
-Database, from `server/api`:
+Database: `pnpm --filter @injishi/api db:migrate` applies pending migrations
+(drizzle-orm's migrator, so it works in the runtime image), `drizzle:generate`
+writes one from the schema, and `db:seed` runs the sample recipe on a database
+marked as sample.
 
 ```bash
 pnpm --filter @injishi/api drizzle:generate   # write a migration from the schema
@@ -291,68 +137,30 @@ drizzle-kit is a devDependency and is not in the runtime image, so a release
 step that shells out to it works on a laptop and fails on the platform. The
 script is idempotent — running it on every deploy is the intended use.
 
-Web asset generation, from `apps/web`:
-
-```bash
-pnpm --filter @injishi/web regen   # app CSS, AVIF twins, image sizes, PWA icons
-```
-
-Tests:
-
-```bash
-pnpm --filter @injishi/api test    # jest, *.spec.ts under src/
-pnpm --filter @injishi/web test    # node:test, tests/*.test.mjs
-pnpm --filter @injishi/api madge   # fail on circular imports
-```
-
----
+Tests: `pnpm --filter @injishi/api test` (Vitest), `@injishi/web test` and
+`@injishi/contracts test` (node:test), `@injishi/app test` (tsx). CI is
+`.github/workflows/ci.yml`; `pnpm check:manifests`, `pnpm lint:ratchet` and
+`node scripts/api-cycles-ratchet.mjs` are its checks you can run locally.
 
 ## Conventions
 
-These are enforced, not suggested. The plugin lives in `tools/eslint-rules/`.
-
-- **Every file name is kebab-case.** Only the file name — the exported symbol
-  stays PascalCase, so `app-shell.tsx` exports `AppShell`. Enforced by
-  `injishi/kebab-case-filenames`.
-- **No hardcoded hex values and no raw Tailwind colour classes.** Colour comes
-  from `@injishi/design-tokens` as CSS variables. There is no exception.
-- **Never resolve a permission from a role in browser code.** Enforced by
-  `injishi/no-client-authz`.
-- **A guarded route must declare its permission.** Enforced on the service by
-  `injishi/require-permission-on-guarded-route`.
-- **Schema first in contracts.** Zod schema, then the type inferred from it —
-  never a type declared alongside a schema.
-- **`packages/*` IS the source.** Edit it directly; for `@injishi/design-tokens`,
-  rebuild and regenerate, and `pnpm -F @injishi/design-tokens check` proves it.
-
----
+- Colour comes from tokens, never hex values or raw Tailwind colour classes.
+- Never resolve a permission from a role in browser code.
+- A guarded API route declares its permission
+  (`injishi/require-permission-on-guarded-route`).
+- Contracts are schema first: the zod schema, then the type inferred from it.
+- Web and the API lint with ESLint (`tools/eslint-rules`, kebab-case file
+  names in web); the app, mobile and their packages with Biome (`biome.json`).
 
 ## Deployment
 
-Three stacks run on one VPS: production, staging and demo. Every deploy fact —
-hosts, process order, cookie and CORS values, DNS, the cutover — lives in
-[`infra/docker/DOKPLOY.md`](infra/docker/DOKPLOY.md), and the container images
-are in [`infra/docker/`](infra/docker/).
-
-The pipeline is in [`.github/workflows/`](.github/workflows/):
-
-- **Every pull request** runs `ci`: typecheck, lint with a warning ratchet, unit
-  tests and a build for each workspace member the change touches, plus
-  `integration` against a real Postgres and Redis when it touches the API. One
-  aggregating status, `ci-complete`, is what branch protection requires.
-- **Every green commit on `main`** builds one API image, pushed to GHCR tagged
-  with its short sha, and deploys itself to staging. The three frontends are
-  built on the host, because they bake per stack values and cannot be promoted.
-- **Production is a button**: a `workflow_dispatch` naming a commit, refused
-  unless staging is already running that commit and a recent backup succeeded,
-  and rolled back automatically if the new release does not become healthy.
-
-Railway and Vercel are retired as deployment paths. Public DNS still points at
-them until the cutover; `server/api/RAILWAY.md` keeps the historical record.
-
----
+Production, staging and the demo run on one VPS; hosts, process order, cookie
+and CORS values and DNS are in [`infra/docker/DOKPLOY.md`](infra/docker/DOKPLOY.md).
+Every pull request runs `ci` (one required status, `ci-complete`). Every green
+commit on `main` builds the API image and deploys staging; the frontends are
+built on the host because they bake per stack values. Production is a manual
+`workflow_dispatch` that needs staging on the same commit and a recent backup.
 
 ## License
 
-No license is declared in this repository. Treat it as proprietary and
-all rights reserved unless the owner says otherwise.
+No license is declared. Treat it as proprietary, all rights reserved.

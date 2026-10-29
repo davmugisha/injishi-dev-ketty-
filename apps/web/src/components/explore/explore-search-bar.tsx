@@ -3,7 +3,7 @@
 import { CalendarDays, ChevronDown, MapPin, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { forwardRef, useEffect, useRef, useState } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "@injishi/ui";
+import { Popover, PopoverContent, PopoverTrigger } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { SearchIcon } from "@/components/icons";
 import { DestinationField } from "@/components/search/destination-field";

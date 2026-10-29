@@ -6,9 +6,12 @@
 @import "@heroui-pro/react/css";
 @import "@heroui-pro/react/themes/mouve";
 @import "@injishi/ui/styles/injishi.css";
-
-/* Scan the shared UI kit for Tailwind classes. */
-@source "../../../../packages/ui/src";
+/* Scans the shared UI kit for Tailwind classes: the package's own `@source "./"`,
+   resolved from the package wherever it is installed (ADR-074), rather than a
+   path into it typed here. */
+@import "@injishi/ui/styles.css";
+/* HR's views (ADR-074 stage 3): the product's own `@source "./"`, for the same reason. */
+@import "@injishi/product-hr/styles.css";
 
 @custom-variant dark (&:where([data-theme="mouve-dark"], [data-theme="mouve-dark"] *));
 
@@ -17,17 +20,51 @@
   .workspace-shell .app-layout__body {
     margin: 8px 8px 8px 0;
     min-height: calc(100dvh - 16px);
-    border-radius: 20px;
+    border-radius: var(--surface-radius);
     background: var(--surface);
     box-shadow: var(--surface-shadow);
   }
   .workspace-shell .app-layout__header {
-    border-radius: 20px 20px 0 0;
+    border-radius: var(--surface-radius) var(--surface-radius) 0 0;
     background: var(--surface);
   }
+  /* The current page: a light accent tint and accent text, not a raised white pill. */
   .workspace-shell .sidebar__menu-item[data-current="true"] .sidebar__menu-item-content {
-    background-color: var(--surface);
-    box-shadow: var(--surface-shadow);
+    background-color: color-mix(in oklab, var(--accent) 10%, transparent);
+    color: var(--accent);
+    box-shadow: none;
+    font-weight: 600;
+  }
+  .workspace-shell .sidebar__menu-item[data-current="true"] .sidebar__menu-icon {
+    color: var(--accent);
+  }
+  /* Collapsed rail: keep icons comfortable (Pro default 48px is too tight). */
+  /* The rail's width lives on .sidebar itself in Pro, so it is set there. */
+  .workspace-shell .sidebar {
+    --sidebar-width-collapsed: 4.5rem;
+  }
+  /* A slimmer top bar: the page starts close under it. */
+  .workspace-shell .navbar {
+    --navbar-height: 3.5rem;
+  }
+  .workspace-shell .sidebar[data-state="collapsed"]:not([data-collapsible="offcanvas"]) {
+    width: var(--sidebar-width-collapsed);
+  }
+  .workspace-shell .sidebar[data-state="collapsed"] .sidebar__menu-item-content {
+    justify-content: center;
+    padding-inline: 0.5rem;
+    min-height: 2.5rem;
+  }
+  .workspace-shell .sidebar[data-state="collapsed"] .sidebar__menu-icon {
+    margin-inline: 0;
+  }
+  /* Collapse / expand: one icon button at the top of the sidebar, beside the logo or alone on the rail. */
+  .workspace-shell .sidebar__collapse-btn {
+    color: var(--muted);
+  }
+  .workspace-shell .sidebar__collapse-btn:hover {
+    color: var(--foreground);
+    background: var(--default);
   }
   @media (max-width: 768px) {
     .workspace-shell .app-layout__body {

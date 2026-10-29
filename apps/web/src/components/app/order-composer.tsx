@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { GuestThread, OrderableList, PlaceOrderResult } from "@injishi/contracts";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
 import { Icon } from "@/components/app/icon";
 import { useOrderDraft } from "@/components/app/order-draft";

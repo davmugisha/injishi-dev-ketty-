@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { Job, type Queue } from 'bullmq';
 
 import { BOOKING_MAIL_EVENTS, bookingMailJobId } from '../../modules/booking/domain/booking-mail';

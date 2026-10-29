@@ -47,9 +47,9 @@ export declare const PropertyDetail: z.ZodObject<{
         minStay: z.ZodNullable<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         name: string;
+        id: string;
         domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
-        id: string;
         roomCount: number;
         nightlyRateRwf: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
@@ -59,9 +59,9 @@ export declare const PropertyDetail: z.ZodObject<{
         minStay: number | null;
     }, {
         name: string;
+        id: string;
         domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
-        id: string;
         roomCount: number;
         nightlyRateRwf: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
@@ -177,13 +177,16 @@ export declare const PropertyDetail: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
+    slug: string | null;
     districtName: string | null;
+    checkInTime: string | null;
+    checkOutTime: string | null;
     description: string | null;
     roomTypes: {
         name: string;
+        id: string;
         domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
-        id: string;
         roomCount: number;
         nightlyRateRwf: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
@@ -192,14 +195,11 @@ export declare const PropertyDetail: z.ZodObject<{
         nonrefundableEligible: boolean;
         minStay: number | null;
     }[];
-    slug: string | null;
-    checkInTime: string | null;
-    checkOutTime: string | null;
-    houseRules: string | null;
-    locationPrivacy: boolean;
     photos: string[];
     latitude: number | null;
     longitude: number | null;
+    houseRules: string | null;
+    locationPrivacy: boolean;
     facilities: {
         key: string;
         amenity: {
@@ -219,13 +219,16 @@ export declare const PropertyDetail: z.ZodObject<{
 }, {
     name: string;
     id: string;
+    slug: string | null;
     districtName: string | null;
+    checkInTime: string | null;
+    checkOutTime: string | null;
     description: string | null;
     roomTypes: {
         name: string;
+        id: string;
         domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
-        id: string;
         roomCount: number;
         nightlyRateRwf: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
@@ -234,14 +237,11 @@ export declare const PropertyDetail: z.ZodObject<{
         nonrefundableEligible: boolean;
         minStay: number | null;
     }[];
-    slug: string | null;
-    checkInTime: string | null;
-    checkOutTime: string | null;
-    houseRules: string | null;
-    locationPrivacy: boolean;
     photos: string[];
     latitude: number | null;
     longitude: number | null;
+    houseRules: string | null;
+    locationPrivacy: boolean;
     facilities: {
         key: string;
         amenity: {
@@ -296,24 +296,24 @@ export declare const PropertyCard: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
+    slug: string;
     districtName: string | null;
     description: string | null;
     roomTypeCount: number;
     fromNightlyRateRwf: number | null;
     maxGuests: number | null;
-    slug: string;
     photos: string[];
     latitude: number | null;
     longitude: number | null;
 }, {
     name: string;
     id: string;
+    slug: string;
     districtName: string | null;
     description: string | null;
     roomTypeCount: number;
     fromNightlyRateRwf: number | null;
     maxGuests: number | null;
-    slug: string;
     photos: string[];
     latitude: number | null;
     longitude: number | null;

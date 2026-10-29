@@ -1,11 +1,4 @@
-// The session guard's import chain reaches Better Auth, which ships as ESM Jest
-// does not transform. The guard itself is overridden below, so the auth package
-// is stood in the way `training-admin.controller.spec.ts` does it.
-jest.mock('@injishi/auth', () => ({
-  DEMO_OTP_CODE: '123456',
-  DEMO_COOKIE_PREFIX: 'injishi-demo',
-  createAuth: (config: unknown) => ({ config }),
-}));
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import fastifyMultipart from '@fastify/multipart';
 import { VersioningType, type ExecutionContext } from '@nestjs/common';
@@ -80,14 +73,14 @@ describe('upload throttle limits', () => {
 
 describe('UploadsController, throttled', () => {
   let app: NestFastifyApplication;
-  let storage: Record<string, jest.Mock>;
+  let storage: Record<string, Mock>;
 
   beforeEach(async () => {
     storage = {
-      putAttachment: jest.fn(async () => ({ objectKey: 'attachments/x' })),
-      putCertificate: jest.fn(async () => ({ objectKey: 'certificates/x' })),
-      putPropertyPhoto: jest.fn(async () => ({ objectKey: 'photos/x' })),
-      removeOwnUnattached: jest.fn(async () => true),
+      putAttachment: vi.fn(async () => ({ objectKey: 'attachments/x' })),
+      putCertificate: vi.fn(async () => ({ objectKey: 'certificates/x' })),
+      putPropertyPhoto: vi.fn(async () => ({ objectKey: 'photos/x' })),
+      removeOwnUnattached: vi.fn(async () => true),
     };
 
     const moduleRef = await Test.createTestingModule({

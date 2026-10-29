@@ -1,9 +1,12 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 
 import type { ListingService } from '../../listing/application/listing.service';
 import type { GuestOrderingService } from '../../operations/application/guest-ordering.service';
 import type { OrderPaymentService } from '../../operations/application/order-payment.service';
 import type { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
+import type { PaymentTransactionsRepository } from '../../payments/infrastructure/payment-transactions.repository';
 import {
   PaymentUnavailableError,
   type PaymentPort,
@@ -15,6 +18,7 @@ import type {
 } from '../infrastructure/payment-attempt.repository';
 import { SoldOutAfterCaptureError, type BookingService } from './booking.service';
 import { PaymentAttemptService } from './payment-attempt.service';
+import type { RegistrationFees } from '../domain/registration-fees';
 
 /**
  * The wait between "we asked" and "they paid" (ADR-047 D-j).
@@ -36,6 +40,7 @@ describe('PaymentAttemptService', () => {
     state: 'prompting',
     purpose: 'booking',
     serviceOrderId: null,
+    subscriptionInvoiceId: null,
     roomTypeId: '44444444-4444-4444-4444-444444444444',
     checkIn: '2026-11-02',
     checkOut: '2026-11-05',
@@ -69,37 +74,48 @@ describe('PaymentAttemptService', () => {
       fetch?: PaymentReceipt | null;
       fetchThrows?: Error;
       roomTypeMissing?: boolean;
+      claimWins?: boolean;
+      feeOutcome?: 'settled' | 'already_settled' | 'not_payable';
+      unsettledFees?: PaymentAttemptRow[];
     } = {},
   ): {
     service: PaymentAttemptService;
     attempts: {
-      findForGuest: jest.Mock;
-      findByKey: jest.Mock;
-      markConfirmed: jest.Mock;
-      markEnded: jest.Mock;
-      findPrompting: jest.Mock;
+      findForGuest: Mock;
+      findByKey: Mock;
+      markConfirmed: Mock;
+      markEnded: Mock;
+      findPrompting: Mock;
+      claimConfirmed: Mock;
+      markDuplicateFee: Mock;
+      findUnsettledFees: Mock;
     };
-    compensations: { enqueue: jest.Mock };
-    bookings: { writeBooking: jest.Mock; settledForAttempt: jest.Mock };
-    orderPayments: { settle: jest.Mock; fail: jest.Mock; attach: jest.Mock };
-    payments: { fetchTransaction: jest.Mock };
+    compensations: { enqueue: Mock };
+    bookings: { writeBooking: Mock; settledForAttempt: Mock };
+    orderPayments: { settle: Mock; fail: Mock; attach: Mock };
+    payments: { fetchTransaction: Mock };
+    transactions: { linkAttempt: Mock; markExpired: Mock; markParked: Mock };
+    registrations: { orgOfRegistrationInvoice: Mock; settleFeeFromPayment: Mock };
   } {
     const attempts = {
-      findForGuest: jest
+      findForGuest: vi
         .fn()
         .mockResolvedValue(overrides.row === undefined ? row : overrides.row),
-      findByKey: jest.fn().mockResolvedValue(null),
-      markConfirmed: jest.fn().mockResolvedValue(undefined),
+      findByKey: vi.fn().mockResolvedValue(null),
+      markConfirmed: vi.fn().mockResolvedValue(undefined),
       // True: this caller's guarded update ended the attempt.
-      markEnded: jest.fn().mockResolvedValue(true),
-      findPrompting: jest.fn().mockResolvedValue([]),
-      record: jest.fn().mockResolvedValue(undefined),
+      markEnded: vi.fn().mockResolvedValue(true),
+      findPrompting: vi.fn().mockResolvedValue([]),
+      record: vi.fn().mockResolvedValue(undefined),
+      claimConfirmed: vi.fn().mockResolvedValue(overrides.claimWins ?? true),
+      markDuplicateFee: vi.fn().mockResolvedValue(true),
+      findUnsettledFees: vi.fn().mockResolvedValue(overrides.unsettledFees ?? []),
     };
 
     const payments = {
       fetchTransaction: overrides.fetchThrows
-        ? jest.fn().mockRejectedValue(overrides.fetchThrows)
-        : jest
+        ? vi.fn().mockRejectedValue(overrides.fetchThrows)
+        : vi
             .fn()
             .mockResolvedValue(
               overrides.fetch === undefined ? settled : overrides.fetch,
@@ -107,7 +123,7 @@ describe('PaymentAttemptService', () => {
     };
 
     const listings = {
-      findBookableRoomType: jest.fn().mockResolvedValue(
+      findBookableRoomType: vi.fn().mockResolvedValue(
         overrides.roomTypeMissing
           ? null
           : {
@@ -129,21 +145,30 @@ describe('PaymentAttemptService', () => {
     };
 
     const bookings = {
-      writeBooking: jest
+      writeBooking: vi
         .fn()
         .mockResolvedValue({ id: 'booking-1', reference: 'BK-ABC123' }),
-      settledForAttempt: jest
+      settledForAttempt: vi
         .fn()
         .mockResolvedValue({ id: 'booking-1', reference: 'BK-ABC123' }),
     };
 
-    const compensations = { enqueue: jest.fn().mockResolvedValue(undefined) };
+    const compensations = { enqueue: vi.fn().mockResolvedValue(undefined) };
     const orderPayments = {
-      settle: jest.fn().mockResolvedValue({ kind: 'settled', replayed: false, emissionId: null, wake: false }),
-      fail: jest.fn().mockResolvedValue(true),
-      attach: jest.fn().mockResolvedValue(undefined),
+      settle: vi.fn().mockResolvedValue({ kind: 'settled', replayed: false, emissionId: null, wake: false }),
+      fail: vi.fn().mockResolvedValue(true),
+      attach: vi.fn().mockResolvedValue(undefined),
     };
-    const guestOrders = { detail: jest.fn() };
+    const guestOrders = { detail: vi.fn() };
+    const transactions = {
+      linkAttempt: vi.fn().mockResolvedValue(undefined),
+      markExpired: vi.fn().mockResolvedValue(undefined),
+      markParked: vi.fn().mockResolvedValue(undefined),
+    };
+    const registrations = {
+      orgOfRegistrationInvoice: vi.fn().mockResolvedValue('org-1'),
+      settleFeeFromPayment: vi.fn().mockResolvedValue(overrides.feeOutcome ?? 'settled'),
+    };
 
     const service = new PaymentAttemptService(
       attempts as unknown as PaymentAttemptRepository,
@@ -153,9 +178,11 @@ describe('PaymentAttemptService', () => {
       payments as unknown as PaymentPort,
       orderPayments as unknown as OrderPaymentService,
       guestOrders as unknown as GuestOrderingService,
+      transactions as unknown as PaymentTransactionsRepository,
+      registrations as unknown as RegistrationFees,
     );
 
-    return { service, attempts, compensations, bookings, orderPayments, payments };
+    return { service, attempts, compensations, bookings, orderPayments, payments, transactions, registrations };
   }
 
   it('refuses an attempt token that is not the caller’s', async () => {
@@ -481,6 +508,90 @@ describe('PaymentAttemptService', () => {
       const { service, attempts } = build({ row: null });
       await expect(service.pollOrder('tok-1', GUEST)).rejects.toBeInstanceOf(NotFoundException);
       expect(attempts.findForGuest).toHaveBeenCalledWith('tok-1', GUEST, 'service_order');
+    });
+  });
+
+  /**
+   * The registration fee (073-gtbank-payments AC-6a, AC-9a, AC-16). The fee is
+   * a payment attempt like a booking's; what differs is what a settled one
+   * completes, and that it is claimed BEFORE the registration is settled.
+   */
+  describe('registration fee', () => {
+    const feeRow: PaymentAttemptRow = {
+      ...row,
+      purpose: 'registration_fee',
+      idempotencyKey: `${WORKSPACE}:registration-fee:tok-fee`,
+      attemptToken: 'tok-fee',
+      subscriptionInvoiceId: 'invoice-1',
+      roomTypeId: null,
+      checkIn: null,
+      checkOut: null,
+      guests: null,
+    };
+
+    it('settles the registration once a settled fee is claimed', async () => {
+      const { service, attempts, registrations, compensations } = build({ row: feeRow });
+
+      const { status } = await service.pollRegistrationFee('tok-fee', GUEST);
+
+      expect(status.state).toBe('confirmed');
+      expect(attempts.claimConfirmed).toHaveBeenCalledWith('attempt-1');
+      expect(registrations.orgOfRegistrationInvoice).toHaveBeenCalledWith('invoice-1');
+      expect(registrations.settleFeeFromPayment).toHaveBeenCalledWith('org-1');
+      expect(compensations.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('lets only the caller that claimed the attempt settle the registration', async () => {
+      const { service, attempts, registrations } = build({ row: feeRow, claimWins: false });
+      attempts.findByKey.mockResolvedValue({ ...feeRow, state: 'confirmed' });
+
+      const { status } = await service.pollRegistrationFee('tok-fee', GUEST);
+
+      // The loser reads the winner's answer and settles nothing, so it can
+      // never mistake the registration it watched settle for a second payment.
+      expect(status.state).toBe('confirmed');
+      expect(registrations.settleFeeFromPayment).not.toHaveBeenCalled();
+    });
+
+    it('refunds a fee that paid for an invoice already paid, on its own derived key', async () => {
+      const { service, attempts, compensations } = build({ row: feeRow, feeOutcome: 'already_settled' });
+
+      const { status } = await service.pollRegistrationFee('tok-fee', GUEST);
+
+      expect(status.state).toBe('refused');
+      expect(status.failureReason).toMatch(/already paid/);
+      expect(attempts.markDuplicateFee).toHaveBeenCalledWith('attempt-1', expect.stringMatching(/already paid/));
+      const [job] = compensations.enqueue.mock.calls[0];
+      expect(job.kind).toBe('refund');
+      expect(job.idempotencyKey).toBe(`fee-duplicate:${feeRow.idempotencyKey}`);
+      expect(job.idempotencyKey).not.toBe(feeRow.idempotencyKey);
+      expect(job.amountRwf).toBe(feeRow.amountRwf);
+    });
+
+    it('marks the bank row expired when a fee prompt goes unanswered', async () => {
+      const { service, transactions } = build({
+        row: { ...feeRow, expiresAt: new Date(Date.now() - 1_000) },
+        fetch: { ...settled, settlement: 'pending' },
+      });
+
+      const { status } = await service.pollRegistrationFee('tok-fee', GUEST);
+
+      expect(status.state).toBe('expired');
+      expect(transactions.markExpired).toHaveBeenCalledWith(feeRow.idempotencyKey);
+    });
+
+    it('settles again a fee claimed but interrupted before its registration settled', async () => {
+      const claimed = { ...feeRow, state: 'confirmed' as const };
+      const { service, registrations } = build({ unsettledFees: [claimed] });
+
+      await service.sweep();
+
+      expect(registrations.settleFeeFromPayment).toHaveBeenCalledWith('org-1');
+    });
+
+    it('answers 404 for a token that is not the registrant’s', async () => {
+      const { service } = build({ row: null });
+      await expect(service.pollRegistrationFee('tok-fee', GUEST)).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

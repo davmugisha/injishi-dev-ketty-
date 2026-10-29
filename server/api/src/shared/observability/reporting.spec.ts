@@ -1,7 +1,8 @@
-// `@injishi/auth` is ESM and outside what ts-jest transforms, so `createAuth`
-// is a recorder here, as in `auth-registry.spec.ts`: this spec reads the
-// `onServerError` callback the registry hands Better Auth and calls it.
-jest.mock('@injishi/auth', () => ({
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// `createAuth` is a recorder here, as in `auth-registry.spec.ts`: this spec reads
+// the `onServerError` callback the registry hands Better Auth and calls it.
+vi.mock('@injishi/auth', () => ({
   DEMO_OTP_CODE: '123456',
   DEMO_COOKIE_PREFIX: 'injishi-demo',
   createAuth: (config: unknown) => ({ config }),
@@ -57,7 +58,7 @@ type Envelope = [Record<string, unknown>, Array<[{ type: string }, unknown]>];
 const sent: Sentry.ErrorEvent[] = [];
 
 /**
- * The real SDK, minus what must not run in a jest worker (the process exit
+ * The real SDK, minus what must not run in a test worker (the process exit
  * handlers) and minus ContextLines: it attaches the source line that threw, and
  * here that line is in this file and spells the very values the leak checks
  * look for. In production it is application source, never runtime data.
@@ -218,7 +219,7 @@ describe('a request that fails (AC-12)', () => {
     // The cap reads only the clock, so only the clock moves: fake timers would
     // also stall the SDK's own flush.
     const start = Date.now();
-    const clock = jest.spyOn(Date, 'now').mockReturnValue(start);
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(start);
     try {
       for (let i = 0; i < 50; i += 1) await get(`/api/v1/x/${i}`);
       expect(await flushed()).toHaveLength(1);
@@ -248,11 +249,11 @@ describe('a request that fails (AC-12)', () => {
       switchToHttp: () => ({ getRequest: () => ({ method: 'POST' }) }),
     };
     // The base filter's answer needs an adapter; only the report is under test.
-    jest.spyOn(Object.getPrototypeOf(ReportingExceptionFilter.prototype), 'catch').mockImplementation(() => undefined);
+    vi.spyOn(Object.getPrototypeOf(ReportingExceptionFilter.prototype), 'catch').mockImplementation(() => undefined);
     filter.catch(new Error('no route'), host as never);
     const [event] = await flushed();
     expect(event.transaction).toBe('POST unmatched');
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 });
 
@@ -269,7 +270,7 @@ describe('a fault inside Better Auth (AC-12)', () => {
         })[key] as T | undefined,
       getOrThrow: <T>(key: string) => ({ BETTER_AUTH_SECRET: 'p'.repeat(40) })[key] as T,
     };
-    const registry = createAuthRegistry(production, {} as Database, config, { send: jest.fn() });
+    const registry = createAuthRegistry(production, {} as Database, config, { send: vi.fn() });
     const requested = (registry.for('marketplace') as unknown as { config: { onServerError: (e: unknown) => void } })
       .config;
 

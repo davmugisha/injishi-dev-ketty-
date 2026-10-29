@@ -27,8 +27,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { timestamps } from './columns';
-import { adapterModeEnum, documentTypeEnum, domainKindEnum, enterpriseRegistrationKindEnum, genderEnum, globalRoleEnum, identityDocumentStatusEnum, invitationPurposeEnum, invitationStatusEnum, kycStatusEnum, oboClaimStatusEnum, orgCertificateKindEnum, orgCertificateStatusEnum, orgMembershipStatusEnum, orgRegistrationStatusEnum, orgRoleEnum, oversightRoleEnum, oversightScopeLevelEnum, psfOwnerGroupEnum, rdbClassificationKindEnum, registrationRejectionReasonEnum, registrationReviewDecisionEnum, registrationTransitionTriggerEnum, tinVerificationResultEnum, workspaceKindEnum } from './enums';
-import { districts, provinces, sectors, villages } from './geography';
+import { adapterModeEnum, businessKindEnum, documentTypeEnum, domainKindEnum, enterpriseRegistrationKindEnum, franchiseRoleEnum, genderEnum, globalRoleEnum, identityAdapterModeEnum, identityDocumentStatusEnum, identityScanOutcomeEnum, invitationPurposeEnum, invitationStatusEnum, kycStatusEnum, oboClaimStatusEnum, orgCertificateKindEnum, orgCertificateStatusEnum, orgMembershipStatusEnum, orgRegistrationStatusEnum, orgRoleEnum, oversightRoleEnum, oversightScopeLevelEnum, psfOwnerGroupEnum, rdbClassificationKindEnum, registrationRejectionReasonEnum, registrationReviewDecisionEnum, registrationTransitionTriggerEnum, tinVerificationResultEnum, workspaceKindEnum } from './enums';
+import { cells, districts, provinces, sectors, villages } from './geography';
 import { storedObjects } from './hospitality';
 import { psfAssociations, psfSubsectors } from './psf-catalogue';
 import { properties } from './inventory';
@@ -51,6 +51,12 @@ export const orgs = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     legalName: text('legal_name').notNull(),
     domain: domainKindEnum('domain').notNull(),
+    /**
+     * What kind of business it is (ADR-075 D-h, AC-31): the noun the register,
+     * the PSF case and setup say. Backfilled from `domain` and the class by
+     * migration 0075, where Bar & Restaurant left the free text `other`.
+     */
+    businessKind: businessKindEnum('business_kind'),
     rdbEntityGroup: text('rdb_entity_group').references(
       () => rdbClassifications.code,
     ),
@@ -95,6 +101,13 @@ export const orgs = pgTable(
     // 2026-10-23: the business's own logo, optional, given on the public PSF
     // form and printed on its membership certificate (`org_logo` objects).
     logoObjectKey: text('logo_object_key').references((): AnyPgColumn => storedObjects.objectKey),
+    /**
+     * The `Idempotency-Key` of the Pay press that created this registration
+     * (ADR-075 AC-14). Unique, so a retried press, a double press or two tabs
+     * pressing at once land on the one registration the first created. Null
+     * for a registration made before ADR-075 and for a seeded one.
+     */
+    creationKey: text('creation_key'),
     /**
      * The operator contract this business accepted (ADR-053, AC-R8).
      *
@@ -151,6 +164,7 @@ export const orgs = pgTable(
     unique('orgs_tin_uk').on(t.tin),
     unique('orgs_business_code_uk').on(t.businessCode),
     index('orgs_psf_association_idx').on(t.psfAssociationCode),
+    unique('orgs_creation_key_uk').on(t.creationKey),
     index('orgs_district_idx').on(t.districtId),
     index('orgs_registration_status_idx').on(t.registrationStatus),
     // `enterprise` is named by the two values it is NOT: it joined `domain_kind`
@@ -158,9 +172,14 @@ export const orgs = pgTable(
     // enum value until that batch commits (see 0065). The three are all there is.
     check(
       'orgs_domain_shape',
-      sql`(${t.domain} = 'hospitality' AND ${t.accommodationClass} IS NOT NULL)
-          OR (${t.domain} = 'residence' AND ${t.residenceClass} IS NOT NULL AND ${t.tourismLicenseNumber} IS NULL AND NOT ${t.psfMember})
-          OR (${t.domain} NOT IN ('hospitality', 'residence') AND ${t.accommodationClass} IS NULL AND ${t.residenceClass} IS NULL
+      // ADR-075 D-h: a venue (bar & restaurant, coffee shop) has no
+      // accommodation class; every other hospitality kind is a stay and has one.
+      // A PSF business (`enterprise`) is not a place, so it carries no kind and
+      // no class, and names its PSF association instead.
+      sql`(${t.domain} = 'hospitality' AND ${t.businessKind} IN ('bar_restaurant', 'coffee_shop') AND ${t.accommodationClass} IS NULL)
+          OR (${t.domain} = 'hospitality' AND ${t.businessKind} IN ('hotel', 'motel', 'tented_camp', 'guest_house', 'apartment', 'lodge', 'villa', 'other') AND ${t.accommodationClass} IS NOT NULL)
+          OR (${t.domain} = 'residence' AND ${t.businessKind} = 'residence' AND ${t.residenceClass} IS NOT NULL AND ${t.tourismLicenseNumber} IS NULL AND NOT ${t.psfMember})
+          OR (${t.domain} NOT IN ('hospitality', 'residence') AND ${t.businessKind} IS NULL AND ${t.accommodationClass} IS NULL AND ${t.residenceClass} IS NULL
               AND ${t.tourismLicenseNumber} IS NULL AND ${t.psfAssociationCode} IS NOT NULL)`,
     ),
     // D24: TIN for businesses, UPI for residences. The identifier a registration
@@ -301,41 +320,56 @@ export const verifiedIdentities = pgTable('verified_identities', {
 
 
 /**
- * A National ID lookup waiting for its code (ADR-060).
+ * One ID scan attempt (ADR-075 D-n): the front of the card or the passport's
+ * photo page, a selfie, and what the document verifier made of them. Written
+ * on every attempt and in every mode, so the PSF officer has the photos to
+ * compare where no checker runs (O-6) and the case shows the latest.
  *
- * The register answered with a person and a phone; the code went to that phone
- * and the person is revealed only to whoever types it back. `codeHash` is the
- * SHA-256 of the six digits, as `two_factor_challenges` does, so a read of this
- * table is not a working verification. The row is deleted when it is spent,
- * and dies at its expiry or its attempts cap. The document number is kept only
- * so the confirm can bind the SAME number the code was sent for.
+ * Append only. The object keys live here and nowhere else; a `/me/*` response
+ * never carries one, and links are minted only by the oversight identity route.
+ * When the objects are deleted after the case's final decision the row stays,
+ * keys and all, as the record that a scan happened.
  */
-export const identityChallenges = pgTable(
-  'identity_challenges',
+export const identityScans = pgTable(
+  'identity_scans',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    documentNumber: text('document_number').notNull(),
-    codeHash: text('code_hash').notNull(),
-    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-    attempts: integer('attempts').notNull().default(0),
-    ...timestamps,
+    documentType: documentTypeEnum('document_type').notNull(),
+    frontObjectKey: text('front_object_key').notNull(),
+    selfieObjectKey: text('selfie_object_key').notNull(),
+    outcome: identityScanOutcomeEnum('outcome').notNull(),
+    /** Why a checker refused it; set exactly when the outcome is `machine_failed`. */
+    reason: text('reason'),
+    adapterMode: identityAdapterModeEnum('adapter_mode').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('identity_challenges_user_id_idx').on(t.userId)],
+  (t) => [
+    index('identity_scans_user_created_idx').on(t.userId, t.createdAt),
+    check('identity_scans_document_type_ck', sql`${t.documentType} in ('national_id', 'passport')`),
+    check(
+      'identity_scans_reason_shape',
+      sql`(${t.outcome} = 'machine_failed') = (${t.reason} is not null)`,
+    ),
+  ],
 );
 
 /**
  * The registration wizard's answers between steps, one row per person
  * (ADR-060). `payload` is a `RegistrationDraft`, which by its contract never
- * holds an ID number. Deleted when the registration is created.
+ * holds an ID number; it is null on a row that so far holds only `checks`.
+ * `checks` is written by the server alone (ADR-075 D-m): today the ID scan's
+ * tries (`checks.scan`). Deleted when the registration is created, which is
+ * what resets the tries.
  */
 export const registrationDrafts = pgTable('registration_drafts', {
   userId: uuid('user_id')
     .primaryKey()
     .references(() => users.id, { onDelete: 'cascade' }),
-  payload: jsonb('payload').notNull(),
+  payload: jsonb('payload'),
+  checks: jsonb('checks').notNull().default(sql`'{}'::jsonb`),
   ...timestamps,
 });
 
@@ -612,6 +646,40 @@ export const orgCertificates = pgTable(
   ],
 );
 
+/**
+ * Whether a business is part of a franchise, and how (ADR-075 O-7, AC-8): one
+ * row per franchised org, written with the registration. No row means No.
+ *
+ * A franchisee runs another company's brand: it names the franchisor (its
+ * registered name and country) and may point at its agreement, the
+ * `franchise_agreement` document it uploaded. A franchisor owns the brand and
+ * says how many locations run under it. The CHECK holds each role to its own
+ * fields, so neither can carry the other's.
+ */
+export const orgFranchises = pgTable(
+  'org_franchises',
+  {
+    orgId: uuid('org_id')
+      .primaryKey()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    role: franchiseRoleEnum('role').notNull(),
+    brandName: text('brand_name').notNull(),
+    franchisorLegalName: text('franchisor_legal_name'),
+    franchisorCountry: char('franchisor_country', { length: 2 }),
+    /** The franchisee's uploaded agreement, when it sent one; the same object its `franchise_agreement` row names. */
+    agreementObjectId: uuid('agreement_object_id').references((): AnyPgColumn => storedObjects.id),
+    franchisedLocations: integer('franchised_locations'),
+    ...timestamps,
+  },
+  (t) => [
+    check(
+      'org_franchises_role_shape',
+      sql`(${t.role} = 'franchisee' AND ${t.franchisorLegalName} IS NOT NULL AND ${t.franchisorCountry} IS NOT NULL AND ${t.franchisedLocations} IS NULL)
+          OR (${t.role} = 'franchisor' AND ${t.franchisorLegalName} IS NULL AND ${t.franchisorCountry} IS NULL AND ${t.agreementObjectId} IS NULL AND ${t.franchisedLocations} > 0)`,
+    ),
+  ],
+);
+
 // ---------------------------------------------------------------------------
 // §4.4  GOVERNMENT OVERSIGHT  (Decision B — configurable oversight layer)
 //
@@ -654,6 +722,12 @@ export const oversightAssignments = pgTable(
     scopeLevel: oversightScopeLevelEnum('scope_level').notNull(),
     provinceId: integer('province_id').references(() => provinces.id),
     districtId: integer('district_id').references(() => districts.id),
+    // P5: a local leader's sector, cell and village. Every level above the one
+    // the post covers is filled in too (a village leader's row names the cell,
+    // sector and district), so "who covers this district" is one column.
+    sectorId: integer('sector_id').references(() => sectors.id),
+    cellId: integer('cell_id').references(() => cells.id),
+    villageId: integer('village_id').references(() => villages.id),
     assignedByUserId: uuid('assigned_by_user_id').references(() => users.id),
     grantedAt: timestamp('granted_at', { withTimezone: true })
       .notNull()
@@ -664,17 +738,42 @@ export const oversightAssignments = pgTable(
     index('oversight_assignments_user_idx').on(t.userId),
     index('oversight_assignments_body_idx').on(t.governmentBodyCode),
     // One active grant per (user, role, exact scope). Scope is the
-    // (province, district) pair - both NULL == country.
+    // (province, district, sector, cell, village) path - all NULL == country.
     uniqueIndex('oversight_assignments_active_uk')
-      .on(t.userId, t.oversightRole, t.scopeLevel, t.provinceId, t.districtId)
+      .on(t.userId, t.oversightRole, t.scopeLevel, t.provinceId, t.districtId, t.sectorId, t.cellId, t.villageId)
       .where(sql`${t.revokedAt} IS NULL`),
-    // Scope shape: country -> neither id; province -> province only;
-    // district -> district (province optional as a denormalized parent).
+    // Who holds a post in an area: guest routing reads this on every filing.
+    index('oversight_assignments_area_idx')
+      .on(t.oversightRole, t.districtId, t.sectorId, t.cellId, t.villageId)
+      .where(sql`${t.revokedAt} IS NULL`),
+    // Scope shape: country -> no ids; province -> province only; district ->
+    // district (province optional as a denormalized parent) and nothing below;
+    // sector, cell and village -> their own id and every level above it down
+    // to the district. Compared as text: the three new levels are added in the
+    // same migration run that writes this check (blueprint 1.1).
     check(
       'oversight_assignments_scope_shape',
-      sql`(${t.scopeLevel} = 'country' AND ${t.provinceId} IS NULL AND ${t.districtId} IS NULL)
-          OR (${t.scopeLevel} = 'province' AND ${t.provinceId} IS NOT NULL AND ${t.districtId} IS NULL)
-          OR (${t.scopeLevel} = 'district' AND ${t.districtId} IS NOT NULL)`,
+      sql`(${t.scopeLevel}::text = 'country' AND ${t.provinceId} IS NULL AND ${t.districtId} IS NULL AND ${t.sectorId} IS NULL AND ${t.cellId} IS NULL AND ${t.villageId} IS NULL)
+          OR (${t.scopeLevel}::text = 'province' AND ${t.provinceId} IS NOT NULL AND ${t.districtId} IS NULL AND ${t.sectorId} IS NULL AND ${t.cellId} IS NULL AND ${t.villageId} IS NULL)
+          OR (${t.scopeLevel}::text = 'district' AND ${t.districtId} IS NOT NULL AND ${t.sectorId} IS NULL AND ${t.cellId} IS NULL AND ${t.villageId} IS NULL)
+          OR (${t.scopeLevel}::text = 'sector' AND ${t.districtId} IS NOT NULL AND ${t.sectorId} IS NOT NULL AND ${t.cellId} IS NULL AND ${t.villageId} IS NULL)
+          OR (${t.scopeLevel}::text = 'cell' AND ${t.districtId} IS NOT NULL AND ${t.sectorId} IS NOT NULL AND ${t.cellId} IS NOT NULL AND ${t.villageId} IS NULL)
+          OR (${t.scopeLevel}::text = 'village' AND ${t.districtId} IS NOT NULL AND ${t.sectorId} IS NOT NULL AND ${t.cellId} IS NOT NULL AND ${t.villageId} IS NOT NULL)`,
+    ),
+    // Which level each role is appointed at (P5): a local leader covers exactly
+    // one level, a business reviewer or tax officer the country, a province or
+    // a district. The same pairs as `OVERSIGHT_ROLE_SCOPES` in contracts.
+    check(
+      'oversight_assignments_role_scope',
+      sql`(${t.oversightRole}::text IN ('village_leader', 'dgie_village') AND ${t.scopeLevel}::text = 'village')
+          OR (${t.oversightRole}::text = 'dasso' AND ${t.scopeLevel}::text = 'sector')
+          OR (${t.oversightRole}::text IN ('cell_executive', 'dgie_cell') AND ${t.scopeLevel}::text = 'cell')
+          OR (${t.oversightRole}::text = 'sector_executive' AND ${t.scopeLevel}::text = 'sector')
+          OR (${t.oversightRole}::text IN ('district_officer', 'district_immigration') AND ${t.scopeLevel}::text = 'district')
+          OR (${t.oversightRole}::text = 'dgie_province' AND ${t.scopeLevel}::text = 'province')
+          OR (${t.oversightRole}::text = 'dgie_national' AND ${t.scopeLevel}::text = 'country')
+          OR (${t.oversightRole}::text IN ('business_field_verifier', 'business_approver', 'tax_compliance_officer', 'psf_membership_officer')
+              AND ${t.scopeLevel}::text IN ('country', 'province', 'district'))`,
     ),
     // NOTE: Separation of duties (same user must not be both
     // `business_field_verifier` and `business_approver` in one scope) is a

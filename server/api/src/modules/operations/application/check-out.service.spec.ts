@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import type { FolioRepository } from '../infrastructure/folio.repository';
 import type { StayRow } from '../infrastructure/front-desk.repository';
@@ -85,23 +87,23 @@ describe('FrontDeskService.checkOut: the departure note and the balance', () => 
     balanceRwf?: number | null;
   }): {
     service: FrontDeskService;
-    closeStay: jest.Mock;
-    findFolioForStay: jest.Mock;
-    close: jest.Mock;
-    releaseForBooking: jest.Mock;
+    closeStay: Mock;
+    findFolioForStay: Mock;
+    close: Mock;
+    releaseForBooking: Mock;
   } {
     const reads = [...options.stays];
-    const closeStay = jest.fn().mockResolvedValue(options.closed);
-    const findFolioForStay = jest.fn().mockResolvedValue(
+    const closeStay = vi.fn().mockResolvedValue(options.closed);
+    const findFolioForStay = vi.fn().mockResolvedValue(
       options.balanceRwf === null || options.balanceRwf === undefined
         ? null
         : { id: 'folio-1', status: 'open', balanceRwf: options.balanceRwf },
     );
-    const close = jest.fn().mockResolvedValue(undefined);
-    const releaseForBooking = jest.fn().mockResolvedValue(undefined);
+    const close = vi.fn().mockResolvedValue(undefined);
+    const releaseForBooking = vi.fn().mockResolvedValue(undefined);
 
     const rooms = {
-      findStay: jest.fn(() => Promise.resolve(reads.shift() ?? null)),
+      findStay: vi.fn(() => Promise.resolve(reads.shift() ?? null)),
       closeStay,
     } as unknown as FrontDeskRepository;
 

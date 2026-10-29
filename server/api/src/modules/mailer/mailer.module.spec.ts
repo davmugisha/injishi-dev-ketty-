@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { Global, Logger, Module, type Type } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
@@ -24,10 +26,10 @@ const PASSWORD = 'hunter2-relay-password';
 const RELAY = `smtps://mailer:${PASSWORD}@relay.example.com:465`;
 
 beforeEach(() => {
-  jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-  jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+  vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+  vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks());
 
 describe('resolveMailerConfig · transport choice', () => {
   it('chooses SMTP when SMTP_URL is set', () => {
@@ -120,7 +122,7 @@ describe('resolveMailerConfig · refusals', () => {
 
 describe('createMailer', () => {
   it('builds the SMTP adapter and logs the target, never the password', () => {
-    const log = jest.spyOn(Logger.prototype, 'log');
+    const log = vi.spyOn(Logger.prototype, 'log');
     const mailer = createMailer({ smtpUrl: RELAY, nodeEnv: 'production' });
     expect(mailer).toBeInstanceOf(SmtpMailerAdapter);
     const lines = log.mock.calls.map((call) => String(call[0])).join('\n');

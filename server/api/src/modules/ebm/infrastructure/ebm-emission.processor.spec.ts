@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import type { Job, Queue } from 'bullmq';
 
 import type { EbmEmissionService } from '../application/ebm-emission.service';
@@ -17,21 +19,21 @@ describe('EbmEmissionProcessor', () => {
 
   interface Harness {
     processor: EbmEmissionProcessor;
-    emissions: { confirmedSalesWithoutEmission: jest.Mock; findDue: jest.Mock };
-    connections: { pruneStates: jest.Mock };
-    trigger: { record: jest.Mock; wake: jest.Mock };
-    emitter: { emit: jest.Mock };
+    emissions: { confirmedSalesWithoutEmission: Mock; findDue: Mock };
+    connections: { pruneStates: Mock };
+    trigger: { record: Mock; wake: Mock };
+    emitter: { emit: Mock };
     order: string[];
   }
 
   function harness(opts: { environment?: 'production' | 'demo'; live?: boolean; pruneFails?: boolean } = {}): Harness {
     const order: string[] = [];
     const emissions = {
-      confirmedSalesWithoutEmission: jest.fn(async () => {
+      confirmedSalesWithoutEmission: vi.fn(async () => {
         order.push('reconcile');
         return [{ bookingId: 'b-1' }, { bookingId: 'b-2' }];
       }),
-      findDue: jest.fn(async () => {
+      findDue: vi.fn(async () => {
         order.push('findDue');
         return [
           { id: 'e-1', attempts: 0 },
@@ -40,19 +42,19 @@ describe('EbmEmissionProcessor', () => {
       }),
     };
     const connections = {
-      pruneStates: jest.fn(async () => {
+      pruneStates: vi.fn(async () => {
         if (opts.pruneFails) throw new Error('prune broke');
         return 0;
       }),
     };
     const trigger = {
-      record: jest.fn(async (bookingId: string) => ({ id: `row-${bookingId}`, created: bookingId === 'b-1' })),
-      wake: jest.fn(async () => true),
+      record: vi.fn(async (bookingId: string) => ({ id: `row-${bookingId}`, created: bookingId === 'b-1' })),
+      wake: vi.fn(async () => true),
     };
-    const emitter = { emit: jest.fn(async () => 'emitted') };
+    const emitter = { emit: vi.fn(async () => 'emitted') };
     const live = opts.live === false ? null : ({ config: { liveSince: LIVE_SINCE } } as EbmLive);
     const processor = new EbmEmissionProcessor(
-      { upsertJobScheduler: jest.fn() } as unknown as Queue,
+      { upsertJobScheduler: vi.fn() } as unknown as Queue,
       emissions as unknown as EbmEmissionRepository,
       connections as unknown as EbmConnectionRepository,
       emitter as unknown as EbmEmissionService,

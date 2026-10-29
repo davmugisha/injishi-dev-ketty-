@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { BadgeCheck, CheckCircle2, ClipboardCheck, MessageSquareText, Printer, XCircle } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { DocIdTicket } from "../doc-id-ticket";
 

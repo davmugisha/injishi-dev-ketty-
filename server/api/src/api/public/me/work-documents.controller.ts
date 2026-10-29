@@ -17,7 +17,7 @@ import {
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 
-import { MyDocumentsService } from '../../../modules/people/application/my-documents.service';
+import { MyDocumentsService } from '../../../modules/hr/application/my-documents.service';
 import { MAX_HR_FILE_BYTES } from '../../../modules/storage/application/storage.service';
 import {
   CurrentUser,

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { DOUBLE_ROOM, FakeProposals, FakeRoomTypes, fakeActionReads } from '../testing/fake-actions';
 import { fakeReads } from '../testing/fake-listings';
 import { KIGALI, scoped } from '../testing/fake-operator';

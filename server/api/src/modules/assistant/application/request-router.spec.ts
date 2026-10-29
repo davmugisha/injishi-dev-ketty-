@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { SendAssistantMessageInput } from '@injishi/contracts';
 
 import type { AssistantModelPort, ModelTurn, ModelTurnRequest } from '../domain/model-port';

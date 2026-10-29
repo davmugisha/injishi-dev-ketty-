@@ -12,6 +12,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   inet,
   integer,
@@ -26,12 +27,15 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
+import { districts } from './geography';
 import { amount, currency, timestamps } from './columns';
 // Lazy only (inside `references`): interface-operations imports this module back.
-// Lazy only too: interface-residence imports this module back.
-import { adapterModeEnum, brokerStatusEnum, paymentAttemptPurposeEnum, paymentAttemptStateEnum, cautionStatusEnum, escrowSourceEnum, escrowStatusEnum, filingStatusEnum, invitationStatusEnum, leaseStatusEnum, maintenanceCategoryEnum, maintenancePriorityEnum, maintenanceRaisedByRoleEnum, maintenanceStatusEnum, placementStatusEnum, renewalStatusEnum, rentStatusEnum, signerRoleEnum } from './enums';
+// Lazy only too: rentals.ts (the rentals leaf) imports this module back.
+import { WorkOrderEventKind } from '@injishi/contracts';
+
+import { adapterModeEnum, brokerFeeKindEnum, brokerStatusEnum, idKindEnum, moveOutNoticeChannelEnum, moveOutNoticeStatusEnum, moveOutReasonEnum, leaseChargeKindEnum, leaseChargeStatusEnum, leaseSigningMethodEnum, paymentAttemptPurposeEnum, paymentAttemptStateEnum, cautionStatusEnum, escrowSourceEnum, escrowStatusEnum, invitationStatusEnum, leaseStatusEnum, maintenanceAssigneeKindEnum, maintenanceCategoryEnum, maintenancePhotoPhaseEnum, maintenancePriorityEnum, maintenanceRaisedByRoleEnum, maintenanceStatusEnum, placementStatusEnum, renewalStatusEnum, signerRoleEnum } from './enums';
 import { bookings, guestStays, storedObjects } from './hospitality';
-import { listings, properties, rooms, spaces } from './inventory';
+import { listings, properties, rentalUnits, rooms, spaces } from './inventory';
 import { departments, serviceOrders } from './operations';
 import { orgs, workspaces } from './org';
 
@@ -48,6 +52,10 @@ export const brokers = pgTable(
     email: text('email'),
     status: brokerStatusEnum('status').notNull().default('active'),
     licenseInfo: jsonb('license_info'),
+    /** The district the broker works in: the free District plan shows the homes there. */
+    homeDistrictId: integer('home_district_id').references(() => districts.id),
+    /** The last move of the home district; on the free plan it may move once per 30 days. */
+    homeDistrictChangedAt: timestamp('home_district_changed_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
@@ -57,80 +65,274 @@ export const brokers = pgTable(
 );
 
 
+/**
+ * A tenant, as one landlord business knows them: a real record, not text on a
+ * lease (blueprint 1.2). One per person per business, found again by email
+ * when the same person rents a second time.
+ *
+ * `user_id` is null until the person accepts the lease invitation and signs
+ * in; then it links their account, and their own pages read through it. A
+ * tenant is reached by email or phone, so at least one is required (rows
+ * carried over from the old lease text by migration 0076 may predate that
+ * rule; see the migration). The email is stored lower case; the phone in
+ * E.164; an ID number with no spaces or dashes, letters upper case.
+ */
+export const tenants = pgTable(
+  'tenants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id),
+    userId: uuid('user_id').references(() => users.id),
+    fullName: text('full_name').notNull(),
+    email: text('email'),
+    phone: text('phone'),
+    idKind: idKindEnum('id_kind'),
+    idNumber: text('id_number'),
+    /** ISO 3166-1 alpha-2 ("RW"). */
+    nationality: text('nationality'),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('tenants_workspace_email_uk')
+      .on(t.workspaceId, sql`lower(${t.email})`)
+      .where(sql`${t.email} IS NOT NULL`),
+    uniqueIndex('tenants_workspace_user_uk')
+      .on(t.workspaceId, t.userId)
+      .where(sql`${t.userId} IS NOT NULL`),
+    index('tenants_user_idx').on(t.userId),
+    check('tenants_name_present', sql`length(btrim(${t.fullName})) > 0`),
+    check('tenants_contact_present', sql`${t.email} IS NOT NULL OR ${t.phone} IS NOT NULL`),
+    check('tenants_email_lower', sql`${t.email} IS NULL OR ${t.email} = lower(${t.email})`),
+    check('tenants_phone_e164', sql`${t.phone} IS NULL OR ${t.phone} ~ '^[+][1-9][0-9]{7,14}$'`),
+    check(
+      'tenants_id_shape',
+      sql`(${t.idKind} IS NULL AND ${t.idNumber} IS NULL)
+        OR (${t.idKind} = 'national_id' AND ${t.idNumber} ~ '^[0-9]{16}$')
+        OR (${t.idKind} = 'passport' AND ${t.idNumber} ~ '^[A-Z0-9]{5,20}$')`,
+    ),
+    check('tenants_nationality_shape', sql`${t.nationality} IS NULL OR ${t.nationality} ~ '^[A-Z]{2}$'`),
+  ],
+);
+
+/**
+ * A lease: one tenant, one unit, the terms both signed (blueprint 1.2).
+ *
+ * Where it stands is `status` (`LEASE_TRANSITIONS` in contracts; the API is
+ * the only thing that moves it), and each status carries its moment: signed,
+ * activated, ending since, ended on, cancelled. The money terms are the
+ * lease's own copy (rent, deposit, due day 1 to 28, grace and notice days), so
+ * changing a landlord's defaults never changes a signed lease. Rent is charged
+ * by calendar month from `billing_starts_on` (`rentSchedule` in contracts).
+ *
+ * Two live leases (out for signature, signed, active, ending) can never hold
+ * one unit over overlapping days: `leases_unit_no_overlap`, an EXCLUDE
+ * constraint over `btree_gist` added by hand in migration 0077, because
+ * drizzle-kit has no EXCLUDE. It is
+ *   EXCLUDE USING gist (unit_id WITH =,
+ *     daterange(start_date, coalesce(ended_on, end_date), '[]') WITH &&)
+ *   WHERE (status IN ('pending_signature', 'signed', 'active', 'ending'))
+ *
+ * The columns under LEGACY are the first residence screens' and migration 0089
+ * drops them; nothing new may read or write them.
+ */
 export const leases = pgTable(
   'leases',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    roomId: uuid('room_id')
-      .notNull()
-      .references(() => rooms.id),
     orgId: uuid('org_id')
       .notNull()
       .references(() => orgs.id),
     workspaceId: uuid('workspace_id')
       .notNull()
       .references(() => workspaces.id),
-    tenantUserId: uuid('tenant_user_id').references(() => users.id),
+    /** "L-KC-014": the number on the contract and in every conversation about it. Unique per workspace. */
+    reference: text('reference').notNull(),
+    /** The property the unit stands in. */
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id),
+    /** The unit let. Migration 0076 set it to `room_id`: units kept their room's id. */
+    unitId: uuid('unit_id')
+      .notNull()
+      .references(() => rentalUnits.id),
+    /** The one signing tenant. Other people living there are `occupants`. */
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
     brokerId: uuid('broker_id').references(() => brokers.id),
-    monthlyRentRwf: amount('monthly_rent_rwf'),
-    cautionRwf: amount('caution_rwf'),
-    currency: currency(),
-    startDate: date('start_date'),
-    endDate: date('end_date'),
+    /** The broker's placement that brought this tenant, when there was one. */
+    placementId: uuid('placement_id').references((): AnyPgColumn => tenantPlacements.id),
     status: leaseStatusEnum('status').notNull().default('draft'),
-    contractContent: jsonb('contract_content'),
-    contractObjectId: uuid('contract_object_id').references(
-      () => storedObjects.id,
-    ),
-    landlordSignedAt: timestamp('landlord_signed_at', { withTimezone: true }),
-    tenantSignedAt: timestamp('tenant_signed_at', { withTimezone: true }),
+    startDate: date('start_date').notNull(),
+    /** The last day of the lease, inclusive. */
+    endDate: date('end_date').notNull(),
+    /**
+     * The first day rent is charged here: the start date, or later for a
+     * tenancy that began before it came onto Injishi.
+     */
+    billingStartsOn: date('billing_starts_on').notNull(),
+    monthlyRentRwf: amount('monthly_rent_rwf').notNull(),
+    currency: currency(),
+    /** The deposit agreed; 0 when the lease takes none. */
+    depositRwf: amount('deposit_rwf').notNull(),
+    /** The day of the month rent falls due (1 to 28, so it exists in every month). */
+    rentDueDay: integer('rent_due_day').notNull(),
+    /** Days after the due day before rent counts as late. */
+    graceDays: integer('grace_days').notNull().default(5),
+    /** Written notice either party owes before the tenancy ends; at least 15 days. */
+    noticeDays: integer('notice_days').notNull().default(15),
+    /** The people who live there with the tenant and do not sign ("Ines Habineza"). */
+    occupants: text('occupants')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    otherTerms: text('other_terms'),
+    /** The lease this one renews: a renewal is a new lease. */
     supersedesLeaseId: uuid('supersedes_lease_id').references(
       (): AnyPgColumn => leases.id,
     ),
-    tenantName: text('tenant_name'),
-    tenantNationalId: text('tenant_national_id'),
-    tenantEmail: text('tenant_email'),
-    tenantPhone: text('tenant_phone'),
+    /** The contract version out for signature, or signed. */
+    currentVersionId: uuid('current_version_id').references(
+      (): AnyPgColumn => leaseContractVersions.id,
+    ),
+    signedAt: timestamp('signed_at', { withTimezone: true }),
+    activatedAt: timestamp('activated_at', { withTimezone: true }),
+    endingSince: timestamp('ending_since', { withTimezone: true }),
+    /** The day the tenant moved out: the lease's real last day. */
+    endedOn: date('ended_on'),
+    endReason: text('end_reason'),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    cancelReason: text('cancel_reason'),
     version: integer('version').notNull().default(0),
-    // --- The lease register of the new interface (real-data 1.3.1) ---
-    /** "L-KC-014": the number on the contract and in every conversation about it. Unique per workspace. */
-    reference: text('reference'),
-    /** The day of the month rent falls due (1 to 28, so it exists in every month). */
-    rentDueDay: integer('rent_due_day'),
-    /** Days after the due day before rent counts as late. */
-    graceDays: integer('grace_days'),
-    /** Written notice either party owes before the tenancy ends. */
-    noticePeriodDays: integer('notice_period_days'),
-    /** Named occupants who are not signatories, comma separated ("Ines Habineza"). */
-    occupants: text('occupants'),
+    // --- LEGACY, dropped by migration 0089 ---
+    /**
+     * @deprecated the unit is `unit_id` (same id). Nullable since migration
+     * 0082: a lease on a unit made after the rebuild has no room behind it.
+     */
+    roomId: uuid('room_id').references(() => rooms.id),
+    /** @deprecated the tenant's account is `tenants.user_id`. */
+    tenantUserId: uuid('tenant_user_id').references(() => users.id),
+    /** @deprecated `deposit_rwf`. */
+    cautionRwf: amount('caution_rwf'),
+    /** @deprecated `lease_contract_versions`. */
+    contractContent: jsonb('contract_content'),
+    /** @deprecated `lease_contract_versions.pdf_object_id`. */
+    contractObjectId: uuid('contract_object_id').references(
+      () => storedObjects.id,
+    ),
+    /** @deprecated `lease_signatures`. */
+    landlordSignedAt: timestamp('landlord_signed_at', { withTimezone: true }),
+    /** @deprecated `lease_signatures`. */
+    tenantSignedAt: timestamp('tenant_signed_at', { withTimezone: true }),
+    /** @deprecated `tenants`. */
+    tenantName: text('tenant_name'),
+    /** @deprecated `tenants`. */
+    tenantNationalId: text('tenant_national_id'),
+    /** @deprecated `tenants`. */
+    tenantEmail: text('tenant_email'),
+    /** @deprecated `tenants`. */
+    tenantPhone: text('tenant_phone'),
     ...timestamps,
   },
   (t) => [
-    uniqueIndex('leases_active_room_uk')
-      .on(t.roomId)
-      .where(sql`${t.status} = 'active'`),
     index('leases_org_idx').on(t.orgId),
+    index('leases_unit_idx').on(t.unitId),
+    index('leases_tenant_id_idx').on(t.tenantId),
     index('leases_tenant_idx').on(t.tenantUserId),
     index('leases_workspace_status_idx').on(t.workspaceId, t.status),
-    uniqueIndex('leases_workspace_reference_uk')
-      .on(t.workspaceId, t.reference)
-      .where(sql`${t.reference} IS NOT NULL`),
+    uniqueIndex('leases_workspace_reference_uk').on(t.workspaceId, t.reference),
+    check('leases_dates_order', sql`${t.endDate} > ${t.startDate}`),
     check(
-      'leases_rent_due_day_in_month',
-      sql`${t.rentDueDay} IS NULL OR ${t.rentDueDay} BETWEEN 1 AND 28`,
+      'leases_billing_window',
+      sql`${t.billingStartsOn} >= ${t.startDate} AND ${t.billingStartsOn} <= ${t.endDate}`,
+    ),
+    check('leases_rent_positive', sql`${t.monthlyRentRwf} > 0`),
+    check('leases_deposit_not_negative', sql`${t.depositRwf} >= 0`),
+    check('leases_rent_due_day_in_month', sql`${t.rentDueDay} BETWEEN 1 AND 28`),
+    check(
+      'leases_terms_range',
+      sql`${t.graceDays} BETWEEN 0 AND 31 AND ${t.noticeDays} BETWEEN 15 AND 180`,
+    ),
+    check('leases_occupants_limit', sql`cardinality(${t.occupants}) <= 12`),
+    check('leases_reference_present', sql`length(btrim(${t.reference})) > 0`),
+    check('leases_ended_after_start', sql`${t.endedOn} IS NULL OR ${t.endedOn} >= ${t.startDate}`),
+    check(
+      'leases_signed_shape',
+      sql`${t.status} NOT IN ('signed', 'active', 'ending', 'ended') OR ${t.signedAt} IS NOT NULL`,
     ),
     check(
-      'leases_terms_not_negative',
-      sql`(${t.graceDays} IS NULL OR ${t.graceDays} >= 0) AND (${t.noticePeriodDays} IS NULL OR ${t.noticePeriodDays} >= 0)`,
+      'leases_activated_shape',
+      sql`${t.status} NOT IN ('active', 'ending', 'ended') OR ${t.activatedAt} IS NOT NULL`,
     ),
+    check('leases_ending_shape', sql`${t.status} <> 'ending' OR ${t.endingSince} IS NOT NULL`),
+    check('leases_ended_shape', sql`(${t.status} = 'ended') = (${t.endedOn} IS NOT NULL)`),
+    check('leases_cancelled_shape', sql`(${t.status} = 'cancelled') = (${t.cancelledAt} IS NOT NULL)`),
   ],
 );
 
+/**
+ * Each version of a lease's contract: what was shown and signed (blueprint 1.2).
+ *
+ * `content` is the LeaseContract JSON (template version 3: parties, premises,
+ * terms, clauses) and `content_hash` its SHA-256 over the canonical JSON
+ * (`contractHash` in contracts), which every signature repeats. Editing terms
+ * after the landlord signed makes a new version. Template version 0 marks a
+ * version migration 0077 carried over from before versions existed: its
+ * content is the old `contract_content` with the lease terms of that day, and
+ * its hash is SHA-256 of that JSON as Postgres prints it.
+ */
+export const leaseContractVersions = pgTable(
+  'lease_contract_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    leaseId: uuid('lease_id')
+      .notNull()
+      .references(() => leases.id),
+    version: integer('version').notNull(),
+    templateVersion: integer('template_version').notNull(),
+    content: jsonb('content').notNull(),
+    contentHash: text('content_hash').notNull(),
+    /** The contract as a PDF, before signatures. */
+    pdfObjectId: uuid('pdf_object_id').references(() => storedObjects.id),
+    /** The signed copy with its audit trail page, made after the second signature. */
+    signedPdfObjectId: uuid('signed_pdf_object_id'),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('lease_contract_versions_lease_version_uk').on(t.leaseId, t.version),
+    // Named: the generated name is longer than Postgres's 63 characters.
+    foreignKey({
+      name: 'lease_contract_versions_signed_pdf_fk',
+      columns: [t.signedPdfObjectId],
+      foreignColumns: [storedObjects.id],
+    }),
+    // What `lease_signatures` points its (version, hash) pair at.
+    unique('lease_contract_versions_id_hash_uk').on(t.id, t.contentHash),
+    check('lease_contract_versions_version_positive', sql`${t.version} >= 1`),
+    check('lease_contract_versions_template_known', sql`${t.templateVersion} >= 0`),
+    check('lease_contract_versions_hash_shape', sql`${t.contentHash} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
 
 /**
- * Append only. The key to `leases` is NO ACTION (it never cascaded, whatever
- * the platform audit's list assumed), so deleting a signed lease is already
- * refused; it is left as it is.
+ * A signature on one version of a lease. Rows are only ever added; a signature
+ * that no longer stands (terms edited after the landlord signed) gets
+ * `voided_at`, and a new one is added on the new version.
+ *
+ * `(version_id, document_hash)` points at the version's `(id, content_hash)`,
+ * so a signature can only repeat the hash of the contract it signs. The
+ * evidence is the typed name, the drawn signature (optional), how the signer
+ * proved it was them (`method`) and when, their IP and browser. A `legacy`
+ * signature was carried over by migration 0077 from the old signed-at times:
+ * it may have no account and no evidence, and nothing new is ever `legacy`.
+ *
+ * The key to `leases` is NO ACTION, so deleting a signed lease is refused.
  */
 export const leaseSignatures = pgTable(
   'lease_signatures',
@@ -139,50 +341,136 @@ export const leaseSignatures = pgTable(
     leaseId: uuid('lease_id')
       .notNull()
       .references(() => leases.id),
+    versionId: uuid('version_id').notNull(),
     signerRole: signerRoleEnum('signer_role').notNull(),
     signerUserId: uuid('signer_user_id').references(() => users.id),
     signerEmail: text('signer_email'),
+    typedName: text('typed_name'),
+    /** The drawn signature, a PNG. */
+    signatureObjectId: uuid('signature_object_id').references(() => storedObjects.id),
+    documentHash: text('document_hash').notNull(),
+    method: leaseSigningMethodEnum('method').notNull(),
+    /** When the emailed code or the password was checked. */
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
     ipAddress: inet('ip_address'),
+    userAgent: text('user_agent'),
     signedAt: timestamp('signed_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
+    voidedAt: timestamp('voided_at', { withTimezone: true }),
+    /** Why a legacy signature exists, or why one was voided. */
+    note: text('note'),
   },
-  (t) => [index('lease_signatures_lease_idx').on(t.leaseId)],
+  (t) => [
+    index('lease_signatures_lease_idx').on(t.leaseId),
+    foreignKey({
+      name: 'lease_signatures_version_hash_fk',
+      columns: [t.versionId, t.documentHash],
+      foreignColumns: [leaseContractVersions.id, leaseContractVersions.contentHash],
+    }),
+    uniqueIndex('lease_signatures_live_uk')
+      .on(t.versionId, t.signerRole)
+      .where(sql`${t.voidedAt} IS NULL`),
+    check(
+      'lease_signatures_evidence',
+      sql`${t.method} = 'legacy' OR (${t.signerUserId} IS NOT NULL AND ${t.typedName} IS NOT NULL AND ${t.verifiedAt} IS NOT NULL)`,
+    ),
+  ],
 );
 
-
-export const rentCharges = pgTable(
-  'rent_charges',
+/**
+ * A one-time code emailed to a signer, typed back to sign (10 minutes, at most
+ * 5 tries). Only its hash is kept. One live (unconsumed) code per signer per
+ * lease: asking again replaces it.
+ */
+export const leaseSigningCodes = pgTable(
+  'lease_signing_codes',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     leaseId: uuid('lease_id')
       .notNull()
       .references(() => leases.id, { onDelete: 'cascade' }),
-    periodMonth: date('period_month').notNull(),
-    amountRwf: amount('amount_rwf'),
-    paidAmountRwf: amount('paid_amount_rwf').default(0),
+    versionId: uuid('version_id')
+      .notNull()
+      .references(() => leaseContractVersions.id),
+    signerRole: signerRoleEnum('signer_role').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    email: text('email').notNull(),
+    codeHash: text('code_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('lease_signing_codes_live_uk')
+      .on(t.leaseId, t.signerRole, t.userId)
+      .where(sql`${t.consumedAt} IS NULL`),
+    check('lease_signing_codes_attempts_range', sql`${t.attempts} BETWEEN 0 AND 5`),
+    check('lease_signing_codes_email_lower', sql`${t.email} = lower(${t.email})`),
+  ],
+);
+
+
+/**
+ * What a lease asks the tenant to pay: a calendar month's rent, or the deposit
+ * (blueprint 1.2; `rent_charges` renamed by migration 0078).
+ *
+ * A rent charge covers `period_start` to `period_end` inside one calendar
+ * month (the first and last months of a lease may be partial, prorated by
+ * day; `rentSchedule` in contracts) and falls due on `due_on`. It is raised 7
+ * days ahead. The deposit charge has no period and is due on the start date.
+ * `paid_rwf` is always the sum of the live allocations to the charge
+ * (`lease_payment_allocations`); overdue is worked out (open, and past
+ * `due_on` plus the lease's grace days), never stored.
+ */
+export const leaseCharges = pgTable(
+  'lease_charges',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    leaseId: uuid('lease_id')
+      .notNull()
+      .references(() => leases.id, { onDelete: 'cascade' }),
+    kind: leaseChargeKindEnum('kind').notNull().default('rent'),
+    periodStart: date('period_start'),
+    periodEnd: date('period_end'),
+    dueOn: date('due_on').notNull(),
+    amountRwf: amount('amount_rwf').notNull(),
+    paidRwf: amount('paid_rwf').notNull().default(0),
     currency: currency(),
-    status: rentStatusEnum('status').notNull().default('due'),
-    dueDate: date('due_date'),
+    status: leaseChargeStatusEnum('status').notNull().default('open'),
+    waivedReason: text('waived_reason'),
+    /** When the last franc arrived. */
     paidAt: timestamp('paid_at', { withTimezone: true }),
-    /**
-     * Recording a rent payment moves money, so it carries a client key
-     * (ADR-012, AC-14; the idempotency rule in architecture-schema.md).
-     *
-     * The lease+period unique already stops a SECOND charge for one month. It
-     * does not stop a retried PAYMENT from adding to `paid_amount_rwf` twice,
-     * which is the failure that matters: a front desk on a property network
-     * retries, and the tenant is then shown as having paid what they did not.
-     */
+    /** @deprecated LEGACY, dropped by migration 0089: a payment carries the client key now. */
     idempotencyKey: text('idempotency_key'),
     ...timestamps,
   },
   (t) => [
-    uniqueIndex('rent_charges_lease_period_uk').on(t.leaseId, t.periodMonth),
-    unique('rent_charges_idempotency_key_uk').on(t.idempotencyKey),
+    uniqueIndex('lease_charges_rent_period_uk')
+      .on(t.leaseId, t.periodStart)
+      .where(sql`${t.kind} = 'rent'`),
+    uniqueIndex('lease_charges_deposit_uk')
+      .on(t.leaseId)
+      .where(sql`${t.kind} = 'deposit'`),
+    unique('lease_charges_idempotency_key_uk').on(t.idempotencyKey),
+    index('lease_charges_open_due_idx')
+      .on(t.dueOn)
+      .where(sql`${t.status} = 'open'`),
+    check('lease_charges_amount_positive', sql`${t.amountRwf} > 0`),
+    check(
+      'lease_charges_period_shape',
+      sql`(${t.kind} = 'rent' AND ${t.periodStart} IS NOT NULL AND ${t.periodEnd} IS NOT NULL AND ${t.periodEnd} >= ${t.periodStart})
+        OR (${t.kind} = 'deposit' AND ${t.periodStart} IS NULL AND ${t.periodEnd} IS NULL)`,
+    ),
+    check('lease_charges_waived_shape', sql`(${t.status} = 'waived') = (${t.waivedReason} IS NOT NULL)`),
+    check('lease_charges_paid_range', sql`${t.paidRwf} BETWEEN 0 AND ${t.amountRwf}`),
+    check('lease_charges_paid_shape', sql`(${t.status} = 'paid') = (${t.paidRwf} = ${t.amountRwf})`),
+    check('lease_charges_paid_at_shape', sql`${t.status} <> 'paid' OR ${t.paidAt} IS NOT NULL`),
   ],
 );
-
 
 export const escrows = pgTable(
   'escrows',
@@ -334,6 +622,14 @@ export const paymentAttempts = pgTable(
     serviceOrderId: uuid('service_order_id').references(
       (): AnyPgColumn => serviceOrders.id,
     ),
+    /**
+     * The org's pending registration invoice a `registration_fee` attempt pays
+     * (073-gtbank-payments AC-16). A refused or expired attempt leaves the
+     * invoice payable, so one invoice may have several attempts. Its foreign
+     * key to `subscription_invoices` is hand written in migration 0073
+     * (money.ts imports this file).
+     */
+    subscriptionInvoiceId: uuid('subscription_invoice_id'),
 
     // --- the stay this attempt is for, because no booking exists yet ---
     // Null on a `service_order` attempt, which has no stay.
@@ -384,15 +680,22 @@ export const paymentAttempts = pgTable(
     index('payment_attempts_expiry_idx')
       .on(t.expiresAt)
       .where(sql`${t.state} = 'prompting'`),
+    index('payment_attempts_subscription_invoice_idx').on(t.subscriptionInvoiceId),
     /** Each purpose carries its own inputs and none of the other's. */
     check(
       'payment_attempts_purpose_shape',
       sql`(${t.purpose} = 'booking'
             AND ${t.roomTypeId} IS NOT NULL AND ${t.checkIn} IS NOT NULL
             AND ${t.checkOut} IS NOT NULL AND ${t.guestCount} IS NOT NULL
-            AND ${t.serviceOrderId} IS NULL)
+            AND ${t.serviceOrderId} IS NULL AND ${t.subscriptionInvoiceId} IS NULL)
         OR (${t.purpose} = 'service_order'
             AND ${t.serviceOrderId} IS NOT NULL
+            AND ${t.roomTypeId} IS NULL AND ${t.checkIn} IS NULL
+            AND ${t.checkOut} IS NULL AND ${t.guestCount} IS NULL
+            AND ${t.subscriptionInvoiceId} IS NULL)
+        OR (${t.purpose} = 'registration_fee'
+            AND ${t.subscriptionInvoiceId} IS NOT NULL
+            AND ${t.serviceOrderId} IS NULL
             AND ${t.roomTypeId} IS NULL AND ${t.checkIn} IS NULL
             AND ${t.checkOut} IS NULL AND ${t.guestCount} IS NULL)`,
     ),
@@ -455,6 +758,17 @@ export const cautionSettlements = pgTable(
 );
 
 
+/**
+ * Notice that a tenancy will end early (blueprint 1.2, reshaped by migration
+ * 0082): given by the tenant (on Injishi, or by letter or in person, which the
+ * landlord records) or by the landlord. One live (not withdrawn) notice per
+ * lease. The landlord acknowledges it, which moves the lease to `ending`; the
+ * tenant may withdraw it, which moves an ending lease back to `active`. The
+ * day the tenant actually left is `leases.ended_on`, never stored here.
+ *
+ * `notice_days` is how far ahead it was given (`move_out_on - filed_on`), and
+ * `is_short_notice` whether that was less than the lease asks for.
+ */
 export const moveOutNotices = pgTable(
   'move_out_notices',
   {
@@ -462,27 +776,35 @@ export const moveOutNotices = pgTable(
     leaseId: uuid('lease_id')
       .notNull()
       .references(() => leases.id, { onDelete: 'cascade' }),
+    filedByRole: signerRoleEnum('filed_by_role').notNull(),
     filedByUserId: uuid('filed_by_user_id').references(() => users.id),
-    moveOutDate: date('move_out_date').notNull(),
+    channel: moveOutNoticeChannelEnum('channel').notNull(),
+    /** The Kigali day it was given. */
+    filedOn: date('filed_on').notNull(),
+    moveOutOn: date('move_out_on').notNull(),
+    reasonCode: moveOutReasonEnum('reason_code').notNull(),
     message: text('message'),
-    noticeGivenDays: integer('notice_given_days'),
+    noticeDays: integer('notice_days').notNull(),
     isShortNotice: boolean('is_short_notice').notNull().default(false),
+    status: moveOutNoticeStatusEnum('status').notNull().default('submitted'),
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+    acknowledgedByUserId: uuid('acknowledged_by_user_id').references(() => users.id),
+    withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
     filedAt: timestamp('filed_at', { withTimezone: true }).notNull().defaultNow(),
-    // --- real-data 1.3.1 ---
-    /** Why the resident is leaving, as the notice form offers it. */
-    reasonCode: text('reason_code'),
-    /** How the notice arrived: in the app (written notice), by letter, by email, in person. */
-    filedVia: text('filed_via'),
+    /** When the landlord was nudged about a notice still to acknowledge (WP 1.7, migration 0092): once. */
+    nudgedAt: timestamp('nudged_at', { withTimezone: true }),
   },
   (t) => [
+    uniqueIndex('move_out_notices_live_uk')
+      .on(t.leaseId)
+      .where(sql`${t.status} <> 'withdrawn'`),
+    check('move_out_notices_dates_order', sql`${t.moveOutOn} > ${t.filedOn}`),
+    check('move_out_notices_days_shape', sql`${t.noticeDays} = ${t.moveOutOn} - ${t.filedOn}`),
     check(
-      'move_out_notices_reason_known',
-      sql`${t.reasonCode} IS NULL OR ${t.reasonCode} IN ('kigali', 'leaving', 'own-home', 'terms', 'other')`,
+      'move_out_notices_acknowledged_shape',
+      sql`${t.status} <> 'acknowledged' OR ${t.acknowledgedAt} IS NOT NULL`,
     ),
-    check(
-      'move_out_notices_channel_known',
-      sql`${t.filedVia} IS NULL OR ${t.filedVia} IN ('app', 'letter', 'email', 'in_person')`,
-    ),
+    check('move_out_notices_withdrawn_shape', sql`(${t.status} = 'withdrawn') = (${t.withdrawnAt} IS NOT NULL)`),
   ],
 );
 
@@ -600,6 +922,19 @@ export const maintenanceTickets = pgTable(
     /** Who pays: the landlord, the tenant (misuse), or not decided yet. */
     costBearer: text('cost_bearer'),
     costNote: text('cost_note'),
+    // --- The shared ticket lifecycle (rentals P4, migration 0087) ---
+    /** The rented unit a fault is in. A tenant's fault names its lease too. */
+    unitId: uuid('unit_id').references(() => rentalUnits.id),
+    /** Who it is handed to: `member` (assigned_to_user_id) or `contractor` (assigned_contractor). */
+    assigneeKind: maintenanceAssigneeKindEnum('assignee_kind'),
+    /** The outside fixer's phone, E.164, so the landlord can call or pay them. */
+    assignedContractorPhone: text('assigned_contractor_phone'),
+    /** When the landlord marked a tenant's report seen. */
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+    /** Why it will not be fixed, as the tenant is told. Set exactly while the status is `wont_fix`. */
+    wontFixReason: text('wont_fix_reason'),
+    /** How many times it went back to open after being settled. */
+    reopenedCount: integer('reopened_count').notNull().default(0),
     ...timestamps,
   },
   (t) => [
@@ -617,51 +952,95 @@ export const maintenanceTickets = pgTable(
     index('maintenance_tickets_property_idx').on(t.propertyId),
     index('maintenance_tickets_room_idx').on(t.roomId),
     index('maintenance_tickets_lease_idx').on(t.leaseId),
+    index('maintenance_tickets_unit_idx').on(t.unitId),
     /**
      * A ticket has to be ABOUT something. With `lease_id` now nullable, nothing
      * else would stop a row that names no subject at all, and a work order
-     * nobody can locate is worse than no work order.
+     * nobody can locate is worse than no work order. A rented unit counts
+     * (rentals P4): a landlord's fault on a vacant unit has no lease.
      */
     check(
       'maintenance_tickets_subject_at_least_one',
-      sql`${t.roomId} IS NOT NULL OR ${t.spaceId} IS NOT NULL OR ${t.leaseId} IS NOT NULL`,
+      sql`${t.roomId} IS NOT NULL OR ${t.spaceId} IS NOT NULL OR ${t.leaseId} IS NOT NULL OR ${t.unitId} IS NOT NULL`,
     ),
+    check(
+      'maintenance_tickets_assignee_shape',
+      sql`${t.assigneeKind} IS NULL
+        OR (${t.assigneeKind} = 'member' AND ${t.assignedToUserId} IS NOT NULL AND ${t.assignedContractor} IS NULL)
+        OR (${t.assigneeKind} = 'contractor' AND ${t.assignedContractor} IS NOT NULL AND ${t.assignedToUserId} IS NULL)`,
+    ),
+    check(
+      'maintenance_tickets_contractor_phone_shape',
+      sql`${t.assignedContractorPhone} IS NULL
+        OR (${t.assigneeKind} = 'contractor' AND ${t.assignedContractorPhone} ~ '^[+][1-9][0-9]{7,14}$')`,
+    ),
+    check('maintenance_tickets_wont_fix_reason', sql`(${t.status} = 'wont_fix') = (${t.wontFixReason} IS NOT NULL)`),
+    check('maintenance_tickets_acknowledged_shape', sql`${t.status} <> 'acknowledged' OR ${t.acknowledgedAt} IS NOT NULL`),
+    check('maintenance_tickets_reopened_count_range', sql`${t.reopenedCount} >= 0`),
   ],
 );
 
 
-/** What a step on a work order's timeline was (real-data 1.2.3). A plain note is `note`. */
-export const maintenanceEventKindEnum = pgEnum('maintenance_event_kind', [
-  'reported',
-  'assigned',
-  'block_requested',
-  'block_approved',
-  'block_declined',
-  'block_released',
-  'parts',
-  'scheduled',
-  'started',
-  'note',
-  'next_step',
-  'fixed',
-  'verified',
-  'from_signal',
-  'planned',
-]);
+/**
+ * What a step on a work order's timeline was (real-data 1.2.3). A plain note is `note`.
+ * The list is `WorkOrderEventKind` in contracts; rentals P4 (migration 0087)
+ * added the shared lifecycle's steps a hotel order never takes and `paid`.
+ */
+export const maintenanceEventKindEnum = pgEnum('maintenance_event_kind', WorkOrderEventKind.options);
 
-export const maintenanceEvents = pgTable('maintenance_events', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  ticketId: uuid('ticket_id')
-    .notNull()
-    .references(() => maintenanceTickets.id, { onDelete: 'cascade' }),
-  authorUserId: uuid('author_user_id').references(() => users.id),
-  kind: maintenanceEventKindEnum('kind').notNull().default('note'),
-  note: text('note'),
-  photoObjectId: uuid('photo_object_id').references(() => storedObjects.id),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const maintenanceEvents = pgTable(
+  'maintenance_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ticketId: uuid('ticket_id')
+      .notNull()
+      .references(() => maintenanceTickets.id, { onDelete: 'cascade' }),
+    authorUserId: uuid('author_user_id').references(() => users.id),
+    /** Who wrote it, which is not the same question as what role they hold (rentals P4). */
+    authorRole: maintenanceRaisedByRoleEnum('author_role'),
+    kind: maintenanceEventKindEnum('kind').notNull().default('note'),
+    note: text('note'),
+    photoObjectId: uuid('photo_object_id').references(() => storedObjects.id),
+    /** A move along the lifecycle says where it went from and to (rentals P4). */
+    fromStatus: maintenanceStatusEnum('from_status'),
+    toStatus: maintenanceStatusEnum('to_status'),
+    /** Whether the tenant's own timeline shows it. Team notes and payments never are. */
+    visibleToTenant: boolean('visible_to_tenant').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('maintenance_events_ticket_idx').on(t.ticketId, t.createdAt)],
+);
+
+/**
+ * A ticket's photos (rentals P4, migration 0087): what the tenant saw when
+ * they reported it, the work as it went, and the fix. At most four in each
+ * phase (the service checks, under the ticket's lock). Replaces the
+ * `photo_object_keys` jsonb, which 0087 copied in.
+ */
+export const maintenancePhotos = pgTable(
+  'maintenance_photos',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ticketId: uuid('ticket_id')
+      .notNull()
+      .references(() => maintenanceTickets.id, { onDelete: 'cascade' }),
+    storedObjectId: uuid('stored_object_id')
+      .notNull()
+      .references(() => storedObjects.id),
+    position: integer('position').notNull().default(0),
+    phase: maintenancePhotoPhaseEnum('phase').notNull().default('report'),
+    caption: text('caption'),
+    uploadedByUserId: uuid('uploaded_by_user_id').references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('maintenance_photos_object_uk').on(t.ticketId, t.storedObjectId),
+    index('maintenance_photos_ticket_idx').on(t.ticketId, t.phase, t.position),
+    check('maintenance_photos_position_range', sql`${t.position} BETWEEN 0 AND 99`),
+  ],
+);
 
 
 /**
@@ -746,6 +1125,12 @@ export const visitorAccessRequests = pgTable(
 );
 
 
+/**
+ * The invitation to the tenant to read and sign (blueprint 1.2). The link
+ * carries a random token; only its SHA-256 is kept (`token_hash`). It lasts 14
+ * days and can be sent again (`last_sent_at`, `send_count`). One `sent`
+ * invitation per lease at a time.
+ */
 export const leaseInvitations = pgTable(
   'lease_invitations',
   {
@@ -753,14 +1138,32 @@ export const leaseInvitations = pgTable(
     leaseId: uuid('lease_id')
       .notNull()
       .references(() => leases.id, { onDelete: 'cascade' }),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
     email: text('email').notNull(),
-    token: text('token').notNull(),
+    tokenHash: text('token_hash').notNull(),
     status: invitationStatusEnum('status').notNull().default('sent'),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+    lastSentAt: timestamp('last_sent_at', { withTimezone: true }).notNull().defaultNow(),
+    sendCount: integer('send_count').notNull().default(1),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
     acceptedByUserId: uuid('accepted_by_user_id').references(() => users.id),
-    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
     ...timestamps,
   },
-  (t) => [unique('lease_invitations_token_uk').on(t.token)],
+  (t) => [
+    unique('lease_invitations_token_hash_uk').on(t.tokenHash),
+    uniqueIndex('lease_invitations_live_uk')
+      .on(t.leaseId)
+      .where(sql`${t.status} = 'sent'`),
+    check('lease_invitations_token_hash_shape', sql`${t.tokenHash} ~ '^[a-f0-9]{64}$'`),
+    check('lease_invitations_email_lower', sql`${t.email} = lower(${t.email})`),
+    check('lease_invitations_send_count_positive', sql`${t.sendCount} >= 1`),
+    check('lease_invitations_accepted_shape', sql`(${t.status} = 'accepted') = (${t.acceptedAt} IS NOT NULL)`),
+    check('lease_invitations_revoked_shape', sql`(${t.status} = 'revoked') = (${t.revokedAt} IS NOT NULL)`),
+  ],
 );
 
 
@@ -771,12 +1174,18 @@ export const contactReveals = pgTable('contact_reveals', {
     .references(() => brokers.id),
   listingId: uuid('listing_id').references(() => listings.id),
   landlordOrgId: uuid('landlord_org_id').references(() => orgs.id),
+  /** The opted-in unit the broker revealed the landlord from (2026-10-25). */
+  unitId: uuid('unit_id').references(() => rentalUnits.id),
+  revealedName: text('revealed_name'),
   revealedPhone: text('revealed_phone'),
   revealedEmail: text('revealed_email'),
   revealedAt: timestamp('revealed_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => [
+  // One reveal per broker and landlord: a landlord's contact is the same on every unit.
+  uniqueIndex('contact_reveals_broker_org_uk').on(t.brokerId, t.landlordOrgId).where(sql`${t.landlordOrgId} IS NOT NULL`),
+]);
 
 
 /**
@@ -828,33 +1237,27 @@ export const tenantPlacements = pgTable('tenant_placements', {
   landlordOrgId: uuid('landlord_org_id').references(() => orgs.id),
   status: placementStatusEnum('status').notNull().default('initiated'),
   leaseId: uuid('lease_id').references(() => leases.id),
+  /** The unit the broker has a tenant for (2026-10-25), and the landlord's business it is in. */
+  unitId: uuid('unit_id').references(() => rentalUnits.id),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id),
+  /** Who the broker says they bring, and a word to the landlord. */
+  tenantName: text('tenant_name'),
+  note: text('note'),
+  /** The unit's broker fee when the placement started. */
+  feeKind: brokerFeeKindEnum('fee_kind'),
+  feePercent: integer('fee_percent'),
+  feeRwf: amount('fee_rwf'),
   initiatedAt: timestamp('initiated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
   ...timestamps,
-});
+}, (t) => [
+  index('tenant_placements_broker_idx').on(t.brokerId, t.initiatedAt),
+  index('tenant_placements_workspace_idx').on(t.workspaceId, t.initiatedAt),
+  // One open placement per broker and unit: a second press finds the first.
+  uniqueIndex('tenant_placements_open_unit_uk').on(t.brokerId, t.unitId).where(sql`${t.status} = 'initiated' AND ${t.unitId} IS NOT NULL`),
+]);
 
-
-export const contractFilings = pgTable(
-  'contract_filings',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    leaseId: uuid('lease_id')
-      .notNull()
-      .references(() => leases.id),
-    status: filingStatusEnum('status').notNull().default('pending'),
-    clockStartAt: timestamp('clock_start_at', { withTimezone: true }),
-    dueBy: timestamp('due_by', { withTimezone: true }),
-    filingCopyObjectId: uuid('filing_copy_object_id').references(
-      () => storedObjects.id,
-    ),
-    attempts: integer('attempts').notNull().default(0),
-    failureReason: text('failure_reason'),
-    adapterMode: adapterModeEnum('adapter_mode').notNull().default('mock'),
-    ...timestamps,
-  },
-  (t) => [unique('contract_filings_lease_uk').on(t.leaseId)],
-);
 
 // ===========================================================================
 // Shared: MESSAGING (§6.7)

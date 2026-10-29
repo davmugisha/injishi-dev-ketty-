@@ -10,6 +10,8 @@
  * real rates come from the accountant's sheet into a production migration (ADR-058).
  */
 
+import { COUNTRY_NAMES, GUEST_RELATIONSHIPS } from '@injishi/contracts';
+
 /** §1 entity groups + §2 accommodation classes + §3 residence classes
  *  (dox_context/rdb-classification.md). The catalog table is empty on a fresh
  *  DB; orgs.accommodation_class FKs into it, so it must exist first. */
@@ -99,10 +101,11 @@ export const AMENITY_CATALOGUE = [
   ['firstaid', "Safety", "First-aid kit", "Agasanduku k'ubutabazi"],
 ];
 
-/** The government bodies an oversight assignment can name. */
+/** The government bodies an oversight assignment can name. DGIE is the district immigration officer's (P5). */
 export const GOVERNMENT_BODIES = [
   ['PSF', 'Private Sector Federation', 'Ihuriro ry’Abikorera', 'PSF'],
   ['MINALOC', 'Ministry of Local Government', 'Minisiteri y’Ubutegetsi bw’Igihugu', 'MINALOC'],
+  ['DGIE', 'Directorate General of Immigration and Emigration', 'Ubuyobozi Bukuru bw’Abinjira n’Abasohoka', 'DGIE'],
 ];
 
 /**
@@ -157,6 +160,37 @@ export async function upsertGovernmentBodies(client) {
     );
   }
   return GOVERNMENT_BODIES.length;
+}
+
+/**
+ * The countries a guest's nationality and origin are picked from (P5): contracts' `COUNTRY_NAMES`, the
+ * same list the kit's country picker offers, Rwanda first. Migration 0085 inserts them; this keeps the
+ * names current when the list changes.
+ */
+export async function upsertCountries(client) {
+  const entries = Object.entries(COUNTRY_NAMES);
+  for (const [code, name] of entries) {
+    await client.query(
+      `insert into countries (code, name, sort_order, active) values ($1, $2, $3, true)
+       on conflict (code) do update set name = excluded.name, sort_order = excluded.sort_order`,
+      [code, name, code === 'RW' ? 0 : 100],
+    );
+  }
+  return entries.length;
+}
+
+/** Who a guest is to the host, in the order the form offers them (contracts `GUEST_RELATIONSHIPS`). */
+export async function upsertGuestRelationships(client) {
+  let order = 0;
+  for (const { code, label, needsDetail } of GUEST_RELATIONSHIPS) {
+    order += 10;
+    await client.query(
+      `insert into guest_relationships (code, label, sort_order, needs_detail, active) values ($1, $2, $3, $4, true)
+       on conflict (code) do update set label = excluded.label, sort_order = excluded.sort_order, needs_detail = excluded.needs_detail`,
+      [code, label, order, needsDetail],
+    );
+  }
+  return GUEST_RELATIONSHIPS.length;
 }
 
 /** Writes the first tax_rates row when there is none. A later rate is a new effective-dated row, never an edit. */

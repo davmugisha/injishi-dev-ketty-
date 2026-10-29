@@ -1,12 +1,15 @@
 import {
-  AcceptContractRequest,
+  BusinessKind,
   type BrokerRegistrationSummary,
   CreateBrokerRegistrationRequest,
   CreateRegistrationRequest,
   type OversightGrant,
   PassGateRequest,
   RegistrationBusinessType,
+  type RegistrationFeeAttemptStatus,
   type RegistrationFeeQuote,
+  RegistrationPayRequest,
+  type RegistrationPayResult,
   type RegistrationSummary,
   RejectRegistrationRequest,
   TinCheckRequest,
@@ -19,6 +22,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
@@ -26,6 +30,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { RegistrationFeePaymentService } from '../../../modules/booking/application/registration-fee-payment.service';
+import { POLL_LIMIT_PER_MINUTE } from '../bookings/bookings.controller';
 import { BrokerRegistrationService } from '../../../modules/organization/application/broker-registration.service';
 import { RegistrationService } from '../../../modules/organization/application/registration.service';
 import {
@@ -38,6 +44,7 @@ import {
   OversightGuard,
   RequireOversight,
 } from '../../../shared/auth/oversight.guard';
+import { OptionalIdempotencyKey } from '../../../shared/http/idempotency-key';
 import { UserThrottlerGuard } from '../../../shared/http/user-throttler.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
@@ -58,13 +65,21 @@ export class RegistrationsController {
   constructor(
     private readonly registrations: RegistrationService,
     private readonly brokerRegistrations: BrokerRegistrationService,
+    private readonly feePayments: RegistrationFeePaymentService,
   ) {}
 
   /** What a registration of this kind costs right now. */
   @Get('fee')
   fee(
     @Query('businessType') businessType: string,
+    @Query('kind') kind?: string,
   ): Promise<RegistrationFeeQuote> {
+    // ADR-075: asked by kind ("coffee_shop"), which decides the fee's business type (D-j).
+    if (kind !== undefined) {
+      const k = BusinessKind.safeParse(kind);
+      if (!k.success) throw new NotFoundException('Registration for this kind of business is not open.');
+      return this.registrations.quoteForKind(k.data);
+    }
     const parsed = RegistrationBusinessType.safeParse(businessType);
     if (!parsed.success) {
       throw new BadRequestException(
@@ -91,18 +106,24 @@ export class RegistrationsController {
     @CurrentUser() user: SessionUser,
   ): Promise<TinCheckResult> {
     // The caller, because "are you one of its directors?" is asked of them.
-    return this.registrations.checkTin(body.tin, user.id);
+    return this.registrations.checkTin(body.tin, user.id, body.capacity);
   }
 
-  /** Create the registration at `pending_payment`, with its bill. */
+  /**
+   * Create the registration at `pending_payment`, with its bill, at the first Pay press (ADR-075 D-l).
+   *
+   * The press's `Idempotency-Key` makes a double press, a retry or a second tab land on the one registration the
+   * first press created (AC-14); a replay with a lost key is answered by the caller's own registration of the TIN.
+   */
   @Post()
   @UseGuards(SessionGuard)
   create(
     @Body(new ZodValidationPipe(CreateRegistrationRequest))
     body: CreateRegistrationRequest,
     @CurrentUser() user: SessionUser,
+    @OptionalIdempotencyKey() key: string | null,
   ): Promise<RegistrationSummary> {
-    return this.registrations.create(body, user.id);
+    return this.registrations.create(body, user.id, key);
   }
 
   /**
@@ -113,9 +134,9 @@ export class RegistrationsController {
    * registration status, so `RegistrationSummary` could only describe one by
    * nulling six fields and showing a status it can never hold.
    *
-   * There is no `/pay` companion. A broker registration is free and instant
-   * while ADR-026 assumption 2 stands; if that is ratified into a paid path,
-   * the fee row is already in the catalog waiting.
+   * The registration fee (2026-10-25) is paid first, by mobile money, on
+   * `POST /registrations/broker/fee` (`RegistrationBrokerFeeController`); this
+   * call names the paid payment and the district the broker works in.
    */
   @Post('broker')
   @UseGuards(SessionGuard)
@@ -128,49 +149,45 @@ export class RegistrationsController {
   }
 
   /**
-   * Accept the operator contract, after creating and before paying (ADR-053,
-   * AC-R8).
+   * Pay the registration fee, which is what enqueues the RRA check
+   * (073-gtbank-payments AC-16).
    *
-   * Its own call because the contract quotes the registration reference and
-   * the invoiced amount, and neither exists until the business does. The wizard
-   * puts the step between create and pay; `/pay` refusing without it is the
-   * control. Membership and the refusal order are the service's.
-   */
-  @Post(':id/contract')
-  @HttpCode(200)
-  @UseGuards(SessionGuard)
-  acceptContract(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(AcceptContractRequest))
-    body: AcceptContractRequest,
-    @CurrentUser() user: SessionUser,
-  ): Promise<RegistrationSummary> {
-    return this.registrations.acceptContract(id, user.id, body.contractVersion);
-  }
-
-  /**
-   * Settle the registration fee, which is what enqueues the RRA check.
+   * While payments are off for the registration fee, this settles the fee free,
+   * exactly as the stand in always did (call 9), and answers `settled`.
+   * Otherwise it sends a mobile money Request to Pay to the registrant's number
+   * and answers the `attempt` to poll; the registration moves to `submitted`
+   * only when the money settles.
    *
-   * A stand-in for the payment provider callback until F-S08 lands a real one.
-   * It is idempotent by construction: the repository's conditional update means
-   * a second call advances nothing and bills nothing.
-   *
-   * Refused with 409 `contract_not_accepted` while the operator contract is
-   * open (ADR-053, AC-R13). Settling is the only door into `submitted`, so this
-   * is what keeps a business without an accepted contract out of every
-   * officer's queue.
+   * It no longer waits on an operator contract: ADR-075 moved the agreement to
+   * after approval (AC-12), so `POST /registrations/:id/contract` and its 409
+   * `contract_not_accepted` are gone. Settling is still the only door into
+   * `submitted`. Ownership, not just a session: a stranger must not learn that
+   * a registration exists.
    */
   @Post(':id/pay')
   @UseGuards(SessionGuard)
-  async pay(
+  pay(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: SessionUser,
-  ): Promise<RegistrationSummary> {
-    // Ownership, not just a session. Settling is idempotent, so a stranger
-    // could not double-charge anyone — but they could confirm that a given
-    // registration exists, and that is not theirs to learn.
-    await this.registrations.assertOwns(id, user.id);
-    return this.registrations.settleFeeAndVerify(id, user.id);
+    @Body(new ZodValidationPipe(RegistrationPayRequest)) body: RegistrationPayRequest,
+  ): Promise<RegistrationPayResult> {
+    return this.feePayments.pay(id, user.id, body ?? {});
+  }
+
+  /**
+   * Where did my registration fee get to? The checkout poll's rules: the
+   * provider first, an outage is not an answer. Its own throttle, as the
+   * booking poll has, because the wizard polls every two seconds.
+   */
+  @Get(':id/pay/attempts/:attemptToken')
+  @UseGuards(SessionGuard, UserThrottlerGuard)
+  @Throttle({ money: { limit: POLL_LIMIT_PER_MINUTE, ttl: 60_000 } })
+  payAttempt(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('attemptToken') attemptToken: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<RegistrationFeeAttemptStatus> {
+    return this.feePayments.poll(id, user.id, attemptToken);
   }
 
   /**

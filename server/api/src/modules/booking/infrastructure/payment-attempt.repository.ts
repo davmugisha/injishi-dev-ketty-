@@ -1,10 +1,13 @@
 import type { MobileMoneyNetwork, PaymentAttemptState } from '@injishi/contracts';
+
+/** Mirrors the Postgres `payment_attempt_purpose` enum. */
+export type PaymentAttemptPurpose = 'booking' | 'service_order' | 'registration_fee' | 'psf_membership';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, isNull, lt, sql } from 'drizzle-orm';
 
 import { hasFreeUnitEveryNight } from '../domain/sellable-capacity';
 
-import { paymentAttempts, roomTypes } from '../../../database/drizzle/schema';
+import { paymentAttempts, roomTypes, subscriptionInvoices } from '../../../database/drizzle/schema';
 import {
   DRIZZLE,
   type Database,
@@ -33,9 +36,11 @@ export interface PaymentAttemptRow {
   workspaceId: string;
   state: PaymentAttemptState;
   /** What it pays for (ADR-050 catalog child, amended). Completion branches on it. */
-  purpose: 'booking' | 'service_order';
+  purpose: PaymentAttemptPurpose;
   /** Set on a `service_order` attempt: the pay now order it settles. */
   serviceOrderId: string | null;
+  /** Set on a `registration_fee` attempt: the registration invoice it pays (073-gtbank-payments AC-16). */
+  subscriptionInvoiceId: string | null;
   /** The stay, on a `booking` attempt only; null on an order's. */
   roomTypeId: string | null;
   checkIn: string | null;
@@ -85,6 +90,7 @@ export type RecordAttemptInput = RecordAttemptCommon &
         nonRefundable: boolean;
       }
     | { purpose: 'service_order'; serviceOrderId: string }
+    | { purpose: 'registration_fee'; subscriptionInvoiceId: string }
   );
 
 @Injectable()
@@ -104,14 +110,19 @@ export class PaymentAttemptRepository {
     const subject =
       input.purpose === 'service_order'
         ? { purpose: 'service_order' as const, serviceOrderId: input.serviceOrderId }
-        : {
-            purpose: 'booking' as const,
-            roomTypeId: input.roomTypeId,
-            checkIn: input.checkIn,
-            checkOut: input.checkOut,
-            guestCount: input.guests,
-            nonrefundable: input.nonRefundable,
-          };
+        : input.purpose === 'registration_fee'
+          ? {
+              purpose: 'registration_fee' as const,
+              subscriptionInvoiceId: input.subscriptionInvoiceId,
+            }
+          : {
+              purpose: 'booking' as const,
+              roomTypeId: input.roomTypeId,
+              checkIn: input.checkIn,
+              checkOut: input.checkOut,
+              guestCount: input.guests,
+              nonrefundable: input.nonRefundable,
+            };
     const [row] = await this.db
       .insert(paymentAttempts)
       .values({
@@ -173,7 +184,7 @@ export class PaymentAttemptRepository {
   async findForGuest(
     attemptToken: string,
     guestUserId: string,
-    purpose: 'booking' | 'service_order' = 'booking',
+    purpose: PaymentAttemptPurpose = 'booking',
   ): Promise<PaymentAttemptRow | null> {
     const [row] = await this.db
       .select()
@@ -201,6 +212,67 @@ export class PaymentAttemptRepository {
       .update(paymentAttempts)
       .set({ state: 'confirmed', bookingId, settledAt: new Date(), updatedAt: new Date() })
       .where(eq(paymentAttempts.id, id));
+  }
+
+  /**
+   * Claim a settled attempt for completion, once (073-gtbank-payments AC-6a).
+   *
+   * Guarded on `prompting`: a poll and the sweep can both find the same settled
+   * prompt, and only the one whose update moved the row may complete it. A
+   * registration fee is claimed BEFORE the org is settled, so a second caller
+   * can never read the org it just watched settle as a duplicate payment.
+   */
+  async claimConfirmed(id: string): Promise<boolean> {
+    const moved = await this.db
+      .update(paymentAttempts)
+      .set({ state: 'confirmed', settledAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(paymentAttempts.id, id), eq(paymentAttempts.state, 'prompting')))
+      .returning({ id: paymentAttempts.id });
+    return moved.length > 0;
+  }
+
+  /**
+   * A confirmed registration fee that paid for nothing: the invoice was already
+   * paid by another attempt. The money goes back (073 AC-16), and the attempt
+   * says so. Guarded on `confirmed`, so it happens once.
+   */
+  async markDuplicateFee(id: string, failureReason: string): Promise<boolean> {
+    const moved = await this.db
+      .update(paymentAttempts)
+      .set({ state: 'refused', failureReason, updatedAt: new Date() })
+      .where(
+        and(
+          eq(paymentAttempts.id, id),
+          eq(paymentAttempts.state, 'confirmed'),
+          eq(paymentAttempts.purpose, 'registration_fee'),
+        ),
+      )
+      .returning({ id: paymentAttempts.id });
+    return moved.length > 0;
+  }
+
+  /**
+   * Registration fee attempts claimed as confirmed whose invoice is still
+   * unpaid: a completion interrupted between the claim and the settle. The
+   * sweep settles them again (settling is idempotent).
+   */
+  async findUnsettledFees(limit = 50): Promise<PaymentAttemptRow[]> {
+    const rows = await this.db
+      .select({ attempt: paymentAttempts })
+      .from(paymentAttempts)
+      .innerJoin(
+        subscriptionInvoices,
+        eq(subscriptionInvoices.id, paymentAttempts.subscriptionInvoiceId),
+      )
+      .where(
+        and(
+          eq(paymentAttempts.purpose, 'registration_fee'),
+          eq(paymentAttempts.state, 'confirmed'),
+          eq(subscriptionInvoices.status, 'pending'),
+        ),
+      )
+      .limit(limit);
+    return rows.map((r) => shape(r.attempt));
   }
 
   /**
@@ -390,6 +462,7 @@ function shape(row: typeof paymentAttempts.$inferSelect): PaymentAttemptRow {
     state: row.state,
     purpose: row.purpose,
     serviceOrderId: row.serviceOrderId ?? null,
+    subscriptionInvoiceId: row.subscriptionInvoiceId ?? null,
     roomTypeId: row.roomTypeId ?? null,
     checkIn: row.checkIn ?? null,
     checkOut: row.checkOut ?? null,

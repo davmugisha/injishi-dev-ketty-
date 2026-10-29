@@ -10,18 +10,23 @@ export * from "./phone";
 export * from "./authz";
 export * from "./staff-authz";
 export * from "./rdb";
+export * from "./business-kind";
 export * from "./countries";
 export * from "./geography";
 export * from "./registration";
+export * from "./registration-documents";
 export * from "./inventory";
 export * from "./setup-steps";
 export * from "./booking";
 export * from "./trips";
+export * from "./refunds";
+export * from "./money-queue";
 export * from "./stay";
 export * from "./offers";
 export * from "./inbox";
 export * from "./ops";
 export * from "./broker";
+export * from "./broker-plans";
 export * from "./ordering";
 export * from "./outlets";
 export * from "./property-detail";
@@ -36,6 +41,7 @@ export * from "./psf";
 export * from "./psf-public";
 export * from "./business-code";
 export * from "./identity";
+export * from "./registration-draft";
 export * from "./people";
 export * from "./people-file";
 export * from "./time";
@@ -58,3 +64,11 @@ export * from "./marketplace";
 // The residence screens of the new interface (real-data 1.3.1).
 export * from "./interface-residence";
 export * from "./staff-phone";
+// Rentals, rebuilt (blueprint WP 1.1): vocabulary, Kigali dates, the lease
+// state machine, the rent schedule, allocation, the contract, tax and payouts.
+export * from "./rentals";
+// Who am I, in one call (blueprint 2.5): where a person lands.
+export * from "./me-context";
+export * from "./guests";
+// The bar and restaurant point of sale (POS spec, phase 1).
+export * from "./pos";

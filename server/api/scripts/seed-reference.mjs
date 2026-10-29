@@ -20,7 +20,9 @@ import pg from 'pg';
 import {
   ensureTaxRates,
   upsertAmenities,
+  upsertCountries,
   upsertGovernmentBodies,
+  upsertGuestRelationships,
   upsertRdbClassifications,
 } from './reference-data.mjs';
 import { describeDatabase } from './sample-database.mjs';
@@ -32,7 +34,16 @@ if (!url) {
   process.exit(1);
 }
 
-const NEEDED = ['provinces', 'villages', 'rdb_classifications', 'amenities', 'government_bodies', 'config_entries'];
+const NEEDED = [
+  'provinces',
+  'villages',
+  'rdb_classifications',
+  'amenities',
+  'government_bodies',
+  'config_entries',
+  'countries',
+  'guest_relationships',
+];
 
 const client = new pg.Client({ connectionString: url });
 await client.connect();
@@ -50,10 +61,12 @@ try {
   const rdb = await upsertRdbClassifications(client);
   const amenities = await upsertAmenities(client);
   const bodies = await upsertGovernmentBodies(client);
+  const countries = await upsertCountries(client);
+  const relationships = await upsertGuestRelationships(client);
   const taxRows = await ensureTaxRates(client);
   await client.query('COMMIT');
   console.log(
-    `  rdb_classifications ${rdb} · amenities ${amenities} · government_bodies ${bodies} · tax_rates ${taxRows ? 'written' : 'already set'}`,
+    `  rdb_classifications ${rdb} · amenities ${amenities} · government_bodies ${bodies} · countries ${countries} · guest_relationships ${relationships} · tax_rates ${taxRows ? 'written' : 'already set'}`,
   );
   console.log('REFERENCE SEED DONE');
 } catch (error) {

@@ -1,16 +1,43 @@
 # Local stack: the backing services local development leans on (Postgres,
-# Redis, MinIO, Mailpit). Local only — docker-compose.dokploy.yml is production
-# and demo, docker-compose.staging.yml is staging.
+# Redis, MinIO, Mailpit), and behind the `apps` profile the API, the worker,
+# web and the operator app built from the release Dockerfiles. Local only:
+# docker-compose.dokploy.yml is production, docker-compose.demo.yml the demo,
+# docker-compose.staging.yml staging.
 #
-# One command, from `injishi/`, brings up Postgres and Redis on the ports the
-# API's own .env names, migrates, and seeds:
+# EVERYTHING IN DOCKER, one command from `injishi/` (scripts/docker-stack.mjs):
+#
+#   pnpm docker:up                  db, redis, mailpit (migrated, seeded once),
+#                                   then api, worker, web, app; builds any image
+#                                   that does not exist yet
+#   pnpm docker:up --build          the same, rebuilding every image first
+#   pnpm docker:rebuild web [app]   rebuild images after a code change and
+#                                   restart them (api, worker, web, app)
+#   pnpm docker:logs [api]          follow the logs
+#   pnpm docker:ps                  what is running
+#   pnpm docker:down                stop everything, keep the data
+#   pnpm docker:down --apps         stop api, worker, web, app; keep db, redis, mailpit
+#
+#   web       http://localhost:3000   marketplace; /sign-in hands off to the app
+#   app       http://localhost:3002   the app: sign-in, operator screens (/residence,
+#                                     /owner, ...), the admin console at /admin
+#   API       http://localhost:8000   health: /api/v1/health
+#   Mailpit   http://localhost:8025   every mail, sign-in codes included
+#
+# Use the script rather than a bare `docker compose --profile apps up`: it
+# passes the ports from server/api/.env.test (below), the HeroUI token from the
+# root .env, and builds one image at a time (two `next build`s at once do not
+# fit in a 4 GB Docker VM).
+#
+# ONLY THE BACKING SERVICES, with the API and the apps on the host:
 #
 #   pnpm dev:stack           # up + migrate + seed (idempotent)
 #   pnpm dev:stack:down      # stop, keep the data
 #   pnpm dev:stack:reset     # drop the volumes, then up + migrate + seed
 #
-# See README.md beside this file. The API and the apps run ON THE HOST
-# (`pnpm api:dev`, `pnpm web:dev`, ...), not in here.
+# Then `pnpm api:dev:test`, `pnpm web:dev`, ... on the host. See README.md
+# beside this file. The `apps` containers survive all three: their profile is
+# off for dev-stack.mjs, so it never treats them as orphans (after a reset,
+# `pnpm docker:down --apps && pnpm docker:up` boots them on the new database).
 #
 # WHY THE PORTS ARE VARIABLES. They used to be hard-coded to 5432 and 6379
 # while server/api/.env pointed at 5434 and 6381, so `up db redis` followed by
@@ -22,20 +49,63 @@
 # Every port is bound to 127.0.0.1: a database with password `injishi` has no
 # business listening on the office network.
 #
-# WHY THERE IS NO `api` OR `web` SERVICE ANY MORE. They built the production
-# images (Dockerfile.api / Dockerfile.web) and were wrong for local dev in ways
-# that cannot be fixed with environment variables alone:
-#   - the image bakes NODE_ENV=production and ships production dependencies
-#     only. Under production, OTP_DEBUG_LOG is forced off and no demo host
-#     exists, so nobody can sign in without a live mail provider; SmsModule
-#     refuses to boot on its mock adapter the moment it is wired in; and
-#     switching to NODE_ENV=development crashes the logger, because pino-pretty
-#     is a devDependency the image does not carry;
-#   - it published 4000 while the API listens on PORT (8000), and passed
-#     SESSION_SECRET, which the API never reads (it reads BETTER_AUTH_SECRET and
-#     COOKIE_SECRET), and gave it no Redis at all.
-# The image-built stack is docker-compose.staging.yml. Local development runs
-# the API on the host with hot reload against the db and redis below.
+# THE `apps` PROFILE (2026-10-24). The release images, unchanged, with local
+# values. Production builds (`next build`, `node dist/main.js`), not dev
+# servers: nothing recompiles on save, so after a code change rebuild the one
+# service. What makes them right for a laptop:
+#   - the API runs as PRODUCTION on the sample-marked TESTING database, as
+#     staging does and as `pnpm api:dev:test` does (server/api/.env.test): real
+#     random sign-in codes, read in Mailpit, no personas, mock payments. The
+#     database holds reference data and test settings only (STACK_SEED=reference).
+#     Logs are JSON (pino-pretty is a dev dependency the image does not carry),
+#     and OTP_DEBUG_LOG is off;
+#   - every other API value is server/api/.env.test (and .env.test.local when
+#     you have one), with the container addresses of db, redis and mailpit;
+#   - ONE NETWORK NAMESPACE for api, web and app. The public URLs are baked
+#     into the Next builds as localhost (NEXT_PUBLIC_API_URL=http://localhost:8000),
+#     and web's own server calls them too: its middleware checks the session
+#     there. In a deployed stack those are public hosts every container can
+#     reach; here they are localhost, which inside a container is itself. So
+#     api, web and app share the namespace of `net`, a container that only
+#     holds it and publishes the ports: `localhost:8000` and `localhost:3002`
+#     mean the same inside them as in your browser. db, redis and mailpit still
+#     resolve by service name. Rebuilding one of them never moves the others.
+
+# The public origins the frontends are built with (inlined at compile time) and
+# run with: what apps/web and apps/app's .env.development name. As in
+# production, the app has its own origin (app.injishi.com there, :3002 here):
+# web's /sign-in hands off to it, and the admin console is its /admin.
+# Empty INJISHI_ENVIRONMENT, as in `pnpm dev`: only a deployed demo build strips
+# production's session cookies, and there are none on localhost.
+x-local-public: &local-public
+  NEXT_PUBLIC_API_URL: http://localhost:8000
+  NEXT_PUBLIC_WEB_URL: http://localhost:3000
+  NEXT_PUBLIC_SITE_URL: http://localhost:3000
+  NEXT_PUBLIC_PMS_URL: http://localhost:3002
+  NEXT_PUBLIC_INJISHI_ENVIRONMENT: ""
+
+# server/api/.env.test, then only what differs inside Docker.
+x-local-api-env: &local-api-env
+  # The testing database (2026-10-24): a production process on the
+  # sample-marked test database, as staging runs. Real codes in Mailpit, no
+  # personas, mock payments allowed. server/api/.env.test says the same.
+  INJISHI_ENVIRONMENT: production
+  INJISHI_DATABASE_KIND: sample
+  NODE_ENV: production
+  # The script derives it from DATABASE_URL in .env.test (same credentials,
+  # host `db`, port 5432 inside the network).
+  DATABASE_URL: ${INJISHI_DOCKER_DATABASE_URL:-postgres://injishi:injishi@db:5432/injishi}
+  REDIS_URL: redis://redis:6379
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  SMTP_URL: smtp://mailpit:1025
+  # The folder `pnpm api:dev:test` writes uploads to, bind mounted, so the two
+  # ways of running share the files the shared database points at.
+  STORAGE_ADAPTER_MODE: local
+  STORAGE_LOCAL_ROOT: /app/.storage
+  # .env.test says debug, which as JSON is a wall of text. Override per run:
+  # LOG_LEVEL=debug pnpm docker:rebuild api
+  LOG_LEVEL: ${LOG_LEVEL:-info}
 
 services:
   db:
@@ -94,6 +164,180 @@ services:
       - "127.0.0.1:${INJISHI_SMTP_PORT:-1025}:1025"
       - "127.0.0.1:${INJISHI_MAILPIT_PORT:-8025}:8025"
 
+  # ── apps profile ────────────────────────────────────────────────────────────
+  # Off unless asked for (`--profile apps`, which scripts/docker-stack.mjs
+  # passes). `restart: on-failure` rather than unless-stopped: db, redis and
+  # mailpit do not come back on their own after a reboot either, so neither do
+  # these; `pnpm docker:up` brings all of them back together.
+
+  # Holds the one network namespace api, web and app share, and publishes their
+  # ports (the note at the top). node:22-alpine because every image here is
+  # built on it, so it costs no download and no disk.
+  net:
+    image: node:22-alpine
+    profiles: ["apps"]
+    init: true
+    # Exits 0 when stopped, so on-failure never brings it back on its own.
+    command: ["sh", "-c", "trap 'exit 0' TERM INT; tail -f /dev/null & wait"]
+    restart: on-failure
+    ports:
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3002:3002"
+
+  api:
+    image: injishi-api:local
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+      args:
+        INJISHI_COMMIT: ${INJISHI_COMMIT:-}
+    profiles: ["apps"]
+    restart: on-failure
+    # Migrations are a no-op on the database `pnpm docker:up` just migrated;
+    # kept so a rebuilt image never boots against an older schema.
+    command: ["sh", "-c", "node scripts/migrate.mjs && node dist/main.js"]
+    env_file:
+      - path: ../../server/api/.env.test
+      - path: ../../server/api/.env.test.local
+        required: false
+    environment:
+      <<: *local-api-env
+      INJISHI_PROCESS: http
+    volumes:
+      - ../../server/api/.storage:/app/.storage
+    network_mode: service:net
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    depends_on:
+      net:
+        condition: service_started
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    deploy:
+      resources:
+        limits: { memory: 768M }
+
+  # The same image under INJISHI_PROCESS=worker: the BullMQ queues (mail, rent
+  # cycle, reminders). No `build` of its own, so one build serves both; it needs
+  # no published port, so it sits on the ordinary network.
+  worker:
+    image: injishi-api:local
+    pull_policy: never
+    profiles: ["apps"]
+    restart: on-failure
+    env_file:
+      - path: ../../server/api/.env.test
+      - path: ../../server/api/.env.test.local
+        required: false
+    environment:
+      <<: *local-api-env
+      INJISHI_PROCESS: worker
+    volumes:
+      - ../../server/api/.storage:/app/.storage
+    healthcheck:
+      disable: true
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits: { memory: 512M }
+
+  web:
+    image: injishi-web:local
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+      secrets:
+        - heroui_token
+      args:
+        <<: *local-public
+    profiles: ["apps"]
+    restart: on-failure
+    environment:
+      <<: *local-public
+      NODE_ENV: production
+      PORT: "3000"
+      INTERNAL_API_URL: http://localhost:8000
+    network_mode: service:net
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    depends_on:
+      net:
+        condition: service_started
+      api:
+        condition: service_healthy
+      app:
+        condition: service_started
+    deploy:
+      resources:
+        limits: { memory: 768M }
+
+  # The operator app. Its embedded fixture database (@injishi/db, libSQL) lives
+  # on the app-data volume, as in production, so a restart does not reseed it.
+  app:
+    image: injishi-app:local
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.app
+      secrets:
+        - heroui_token
+      args:
+        <<: *local-public
+        OPERATOR_ASSET_PREFIX: /operator-static
+    profiles: ["apps"]
+    restart: on-failure
+    environment:
+      <<: *local-public
+      NODE_ENV: production
+      PORT: "3002"
+      OPERATOR_ASSET_PREFIX: /operator-static
+      INJISHI_API_URL: http://localhost:8000
+      # The Origin its server calls carry: its own, as in production. On
+      # CORS_ORIGINS in .env.test.
+      INJISHI_API_ORIGIN: http://localhost:3002
+      AUTH_COOKIE_DOMAIN: ""
+      INJISHI_DB_URL: file:/data/injishi.db
+    volumes:
+      - app-data:/data
+    network_mode: service:net
+    # Not the image's check: `/` redirects to web, so it would measure web.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/sign-in',{redirect:'manual'}).then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    depends_on:
+      net:
+        condition: service_started
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits: { memory: 768M }
+
 volumes:
   db-data:
   minio-data:
+  app-data:
+
+# HeroUI Pro's CI/CD token for the web and app builds, a BuildKit secret that is
+# never written into a layer (the note in Dockerfile.web). scripts/docker-stack.mjs
+# reads it from the root .env. Nothing else in this file needs it.
+secrets:
+  heroui_token:
+    environment: HEROUI_AUTH_TOKEN

@@ -1,0 +1,25 @@
+{
+  "private": true,
+  "name": "@injishi/i18n",
+  "version": "0.1.0",
+  "description": "The English and Kinyarwanda message catalogs (ADR-074). A scaffold: the locales and two empty catalogs, read by nothing yet. Ships TypeScript source; the consumer compiles it.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"tests/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "@typescript-eslint/parser": "^8.68.0",
+    "eslint": "^10.9.1",
+    "typescript": "5.8.3"
+  }
+}

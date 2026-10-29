@@ -8,7 +8,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { HOST_FAQ } from "@/data/host";
 import { CONTACT } from "@/data/navigation";

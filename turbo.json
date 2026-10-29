@@ -1,8 +1,15 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "agentGuidance": false,
-  "globalEnv": ["HEROUI_AUTH_TOKEN", "INJISHI_DB_URL", "INJISHI_DEMO_SHORTCUTS", "OPERATOR_APP_URL", "NEXT_PUBLIC_PMS_URL", "NEXT_PUBLIC_WEB_URL"],
-  "globalPassThroughEnv": ["NEXT_DIST_DIR"],
+  "globalEnv": [
+    "HEROUI_AUTH_TOKEN",
+    "INJISHI_DB_URL",
+    "INJISHI_DEMO_SHORTCUTS",
+    "OPERATOR_APP_URL",
+    "NEXT_PUBLIC_PMS_URL",
+    "NEXT_PUBLIC_WEB_URL"
+  ],
+  "globalPassThroughEnv": ["NEXT_DIST_DIR", "NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS", "NODE_EXTRA_CA_CERTS"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

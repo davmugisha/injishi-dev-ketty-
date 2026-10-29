@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { Permission } from '@injishi/contracts';
 
 import { TASK_GUIDES, TUTORIALS, TaskGuide, Tutorial } from '../content/tasks';

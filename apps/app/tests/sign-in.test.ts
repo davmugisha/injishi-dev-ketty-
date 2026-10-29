@@ -25,6 +25,18 @@ test("the demo's own guest keeps her story, and business people keep their works
   assert.equal(destinationAfterSignIn("owner", "", "owner@example.com"), homeHref("owner"));
 });
 
+test("a floor role borrowing the waiter's shell lands on its own live screen", () => {
+  // A real cashier lands on the live floor, a cook on the station board; the demo waiter keeps her home.
+  assert.equal(homeAfterSignIn("waiter", "cashier1@pos.demo.injishi.com", "PosFloor"), "/pos/floor");
+  assert.equal(destinationAfterSignIn("waiter", "", "kitchen1@pos.demo.injishi.com", "PosStations"), "/pos/stations");
+  assert.equal(homeAfterSignIn("waiter", personas.waiter.email), homeHref("waiter"));
+  // A return target the shell may open still wins over the role's landing.
+  assert.equal(
+    destinationAfterSignIn("waiter", "/pos/shift", "cashier1@pos.demo.injishi.com", "PosFloor"),
+    "/pos/shift",
+  );
+});
+
 test("an explicit return target still wins over the home", () => {
   // `next=` paths are this app's screens: one the person may open is honoured as it stands.
   assert.equal(destinationAfterSignIn("guest", "/trips", "alice@example.com"), "/trips");

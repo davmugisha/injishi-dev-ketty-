@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState, type DragEvent } from "react";
-import type { OrgCertificateKind } from "@injishi/contracts";
-import { Button } from "@injishi/ui";
+import { useEffect, useRef, useState, type DragEvent } from "react";
+import type { BusinessKind, OrgCertificateKind } from "@injishi/contracts";
+import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { File, FileCheck, FileText, FileUp, Flame, HeartPulse, Medal, ShieldCheck, Stamp, X } from "lucide-react";
 
@@ -10,20 +10,22 @@ import { removeCertificate, uploadCertificate } from "@/data/uploads";
 import { apiResultMessage } from "@/lib/api";
 
 import type { DocumentDraft } from "./business-draft";
-import { documentRows, type DocumentRow, type RegisterPath } from "./register-steps";
-import { Field, SelectField, TextInput, formatBytes } from "./wizard-ui";
+import { documentRows, type DocumentRow } from "./register-steps";
+import { Field, Offline, SelectField, formatBytes } from "./wizard-ui";
 
 /**
- * Step 4, Documents (Register.dc.html): one row per document the artboard
- * names, each with its own Upload, and its state said twice, as a chip and as
- * a line (Uploaded, Failed, Uploading, Needed, Optional). One row is required:
- * the RDB certificate for a business, the land title for a residence.
+ * Step 3, Documents (ADR-075 S5): one row per document the business kind asks
+ * for, each with its own Upload, and its state said twice, as a chip and as a
+ * line (Uploaded, Failed, Uploading, Needed, Optional). One row is required:
+ * the RDB certificate for a stay or a venue, the land title for a residence.
+ * The rows come from the contracts table the API refuses a registration from,
+ * so the API asks for exactly what this asks for (AC-11).
  *
  * The drop zone at the top takes several files at once and asks which row each
  * one is, because a guessed kind files a tax clearance under the RDB
  * certificate for the officer who opens it. A file is uploaded the moment it is
  * chosen (`POST /uploads/certificate`, 10 MB, PDF or image) and sent with the
- * registration when it is signed.
+ * registration when the first Pay press creates it.
  */
 
 const ACCEPT = "application/pdf,image/jpeg,image/png,image/webp";
@@ -60,17 +62,23 @@ interface Unsorted {
 }
 
 export function StepDocuments({
-  path,
+  kind,
+  franchisee,
   docs,
   onDocsChange,
   errors,
+  online = true,
 }: {
-  path: RegisterPath;
+  kind: BusinessKind | null;
+  /** A franchisee answered on Business: its agreement joins the rows, optional (ADR-075 S5). */
+  franchisee: boolean;
   docs: DocumentDraft[];
   onDocsChange: (next: DocumentDraft[]) => void;
   errors: Record<string, string>;
+  /** The device has a network. Nothing uploads without one, and the step says so (ADR-075 S9). */
+  online?: boolean;
 }) {
-  const rows = documentRows(path);
+  const rows = documentRows(kind, { franchisee });
   const [transient, setTransient] = useState<Record<string, Transient>>({});
   const [unsorted, setUnsorted] = useState<Unsorted[]>([]);
   const [zoneProblems, setZoneProblems] = useState<string[]>([]);
@@ -82,6 +90,21 @@ export function StepDocuments({
 
   const docFor = (kind: OrgCertificateKind) => docs.find((d) => d.kind === kind) ?? null;
   const freeRows = rows.filter((r) => !docFor(r.kind));
+
+  // What the API refused when the Pay press sent these (AC-11): a missing required row, or an upload that is not
+  // this person's `certificate`, keyed `business.certificates.<n>.objectKey` in the order the docs were sent.
+  // Read once when the refusal arrives, by object key, so a new upload of that row clears it.
+  const missingMessage = errors["business.certificates"];
+  const [refused, setRefused] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const next: Record<string, string> = {};
+    for (const [key, message] of Object.entries(errors)) {
+      const at = /^business\.certificates\.(\d+)\.objectKey$/.exec(key);
+      const sent = at ? docsRef.current[Number(at[1])] : undefined;
+      if (sent) next[sent.objectKey] = message;
+    }
+    setRefused(next);
+  }, [errors]);
 
   async function uploadInto(row: DocumentRow, file: globalThis.File) {
     const problem = whyNot(file);
@@ -153,7 +176,7 @@ export function StepDocuments({
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragging(false);
-    void acceptZone(e.dataTransfer.files);
+    if (online) void acceptZone(e.dataTransfer.files);
   };
 
   return (
@@ -179,8 +202,10 @@ export function StepDocuments({
           <span role="status" className="text-xs text-muted-foreground">
             Uploading…
           </span>
-        ) : (
+        ) : online ? (
           <FilePick label="Browse files" multiple onFiles={(files) => void acceptZone(files)} />
+        ) : (
+          <Offline id="register-documents-offline">You're offline. Connect to upload.</Offline>
         )}
       </div>
 
@@ -190,6 +215,12 @@ export function StepDocuments({
             <li key={p}>We did not upload {p}.</li>
           ))}
         </ul>
+      ) : null}
+
+      {missingMessage ? (
+        <p role="alert" className="text-sm text-destructive">
+          {missingMessage}
+        </p>
       ) : null}
 
       {unsorted.length ? (
@@ -230,7 +261,16 @@ export function StepDocuments({
         {rows.map((row) => {
           const doc = docFor(row.kind);
           const t = transient[row.kind];
-          const state = doc ? "done" : t?.status === "uploading" ? "uploading" : t?.status === "failed" ? "failed" : "none";
+          const refusal = doc ? refused[doc.objectKey] : undefined;
+          const state = refusal
+            ? "failed"
+            : doc
+              ? "done"
+              : t?.status === "uploading"
+                ? "uploading"
+                : t?.status === "failed"
+                  ? "failed"
+                  : "none";
           const Icon = ICON[row.kind] ?? File;
           const chip =
             state === "done"
@@ -243,7 +283,9 @@ export function StepDocuments({
                     ? { label: "Needed", cls: "bg-warning/15 text-foreground" }
                     : { label: "Optional", cls: "bg-card text-muted-foreground" };
           const meta =
-            state === "done" && doc
+            refusal && doc
+              ? `${doc.filename} · ${refusal}`
+              : state === "done" && doc
               ? `${doc.filename} · ${formatBytes(doc.sizeBytes)}`
               : state === "failed" && t
                 ? `${t.filename} · ${t.reason ?? "it did not upload"}`
@@ -276,7 +318,7 @@ export function StepDocuments({
                   <Button variant="ghost" size="sm" onClick={() => remove(row.kind)}>
                     Remove<span className="sr-only">: {row.label}</span>
                   </Button>
-                ) : state === "uploading" ? null : (
+                ) : state === "uploading" || !online ? null : (
                   <FilePick
                     label={state === "failed" ? "Try again" : "Upload"}
                     hiddenLabel={`: ${row.label}`}
@@ -287,20 +329,6 @@ export function StepDocuments({
                   />
                 )}
               </div>
-              {row.kind === "other" && doc ? (
-                <div className="max-w-form md:pl-12">
-                  <Field label="What it is" error={errors["documents.other"]}>
-                    <TextInput
-                      className="w-full"
-                      placeholder="Trading licence"
-                      value={doc.kindOther}
-                      onChange={(e) =>
-                        onDocsChange(docs.map((d) => (d.kind === "other" ? { ...d, kindOther: e.target.value } : d)))
-                      }
-                    />
-                  </Field>
-                </div>
-              ) : null}
             </li>
           );
         })}
@@ -351,18 +379,15 @@ function FilePick({
   );
 }
 
-/** Whether Documents can be left: the required row filled, "Other" named, nothing waiting to be sorted. */
-export function documentsReady(path: RegisterPath, docs: DocumentDraft[]): { ok: boolean; why: string } {
-  const required = documentRows(path).filter((r) => r.required);
+/** Whether Documents can be left: the required row filled. */
+export function documentsReady(kind: BusinessKind | null, docs: DocumentDraft[]): { ok: boolean; why: string } {
+  const required = documentRows(kind).filter((r) => r.required);
   const missing = required.filter((r) => !docs.some((d) => d.kind === r.kind));
   if (missing.length) {
     const label = missing[0]!.label;
     // "RDB certificate" keeps its capitals; "Land title" reads mid sentence.
     const named = /^[A-Z]{2}/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
     return { ok: false, why: `Upload the ${named} to continue.` };
-  }
-  if (docs.some((d) => d.kind === "other" && d.kindOther.trim() === "")) {
-    return { ok: false, why: "Say what the Other document is." };
   }
   return { ok: true, why: "" };
 }

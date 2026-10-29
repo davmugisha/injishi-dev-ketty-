@@ -1,3 +1,5 @@
+import { PSF_NO_INSTRUMENT_MESSAGE, psfInstrument } from './psf-instrument';
+import { psfPayee } from './psf-payee';
 import {
   PSF_CONSENT_VERSION,
   PSF_DOMAINS,
@@ -706,9 +708,8 @@ export class PsfMembershipService {
    * A prompt still waiting on the person is a 409 `payment_pending`, not a
    * failure: pressing again asks the provider again under the same key.
    *
-   * `phoneE164` is the number the prompt goes to. The seam's one time fee does
-   * not carry an instrument yet, the gap `CaptureEscrowCommand` closed for
-   * bookings (ADR-047); when a live adapter lands it travels the same way.
+   * `phoneE164` is the number the prompt goes to, carried as the fee's
+   * instrument (073-gtbank-payments).
    */
   async pay(
     orgId: string,
@@ -716,7 +717,6 @@ export class PsfMembershipService {
     applicationId: string,
     input: PayPsfMembershipRequest,
   ): Promise<PsfMembershipOverview> {
-    void input.phoneE164;
     const facts = await this.applicantFacts(orgId, userId);
     const app = await this.repo.applicationById(applicationId);
     if (!app || app.orgId !== orgId) throw new NotFoundException('Application not found.');
@@ -733,6 +733,7 @@ export class PsfMembershipService {
       app,
       scopeId: workspaceId,
       recordedByUserId: userId,
+      phoneE164: input.phoneE164 ?? null,
     });
     return this.overview(orgId, userId);
   }
@@ -756,16 +757,22 @@ export class PsfMembershipService {
     app: { id: string; status: string; approvedFeeRwf: number | null; approvedMembershipNumber: string | null; requestedTierName: string };
     scopeId: string;
     recordedByUserId: string;
+    /** The number the prompt goes to. */
+    phoneE164: string | null;
   }): Promise<void> {
     const { app, orgId } = input;
     if (app.status !== 'approved' || app.approvedFeeRwf === null) {
       throw new ConflictException(PSF_NOT_PAYABLE_MESSAGE);
     }
+    const instrument = psfInstrument(input.phoneE164);
+    if (!instrument) throw new UnprocessableEntityException(PSF_NO_INSTRUMENT_MESSAGE);
     let receipt;
     try {
       receipt = await this.payments.chargeOneTimeFee({
         kind: 'one_time_fee',
+        purpose: 'psf_membership',
         feeCode: 'psf_membership',
+        instrument,
         idempotencyKey: `${input.scopeId}:psf-membership:${app.id}`,
         amountRwf: app.approvedFeeRwf,
         currency: 'RWF',
@@ -822,19 +829,17 @@ export class PsfMembershipService {
    * nothing is sent, and the log says so rather than pretending.
    */
   private async remit(applicationId: string, workspaceId: string, amountRwf: number): Promise<void> {
-    const destination = this.config.get<string>('PSF_PAYOUT_DESTINATION');
-    const destinationRef = this.config.get<string>('PSF_PAYOUT_REF');
-    if ((destination !== 'momo' && destination !== 'bank') || !destinationRef) {
+    const payee = psfPayee((key) => this.config.get<string>(key));
+    if (!payee) {
       this.log.warn(
-        `PSF's payout account is not configured (PSF_PAYOUT_DESTINATION, PSF_PAYOUT_REF); the fee on application ${applicationId} is held for PSF.`,
+        `PSF's payout account is not configured (PSF_PAYOUT_DESTINATION, PSF_PAYOUT_REF, PSF_PAYOUT_NAME, PSF_PAYOUT_ID_NUMBER, PSF_PAYOUT_PHONE); the fee on application ${applicationId} is held for PSF.`,
       );
       return;
     }
     try {
       const sent = await this.payments.payout({
         kind: 'payout',
-        destination,
-        destinationRef,
+        payee,
         idempotencyKey: `${workspaceId}:psf-remittance:${applicationId}`,
         amountRwf,
         currency: 'RWF',

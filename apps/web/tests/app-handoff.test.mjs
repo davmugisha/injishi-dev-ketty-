@@ -1,12 +1,15 @@
 /**
  * Web hands `/sign-in` to the operator app only when the app is another origin
  * (`src/lib/app-handoff.ts`), and `/register` never: registration is web's
- * wizard everywhere.
+ * wizard everywhere. Old zone links (`/w/...`, `/oversight/...`) are sent on.
  *
- * The bug this pins: the hand-off was unconditional, and a deployed stack builds
- * web with `NEXT_PUBLIC_PMS_URL` equal to its own origin, because the app is a
- * zone under it. So `https://www.injishi.com/sign-in` answered a 307 to
+ * The first bug this pins: the hand-off was unconditional, and a stack once
+ * built web with `NEXT_PUBLIC_PMS_URL` equal to its own origin (the app was a
+ * zone under it). So `https://www.injishi.com/sign-in` answered a 307 to
  * itself, forever, and the waitlist's one door into the product was a loop.
+ * The second (2026-10-24): every stack gives the app its own origin now, and
+ * web forwarded `/w/<id>` to an app with no page there, so sign-in ended on a
+ * 404.
  *
  * THIS TEST RUNS THE REAL FUNCTION: the source is read, transpiled and
  * evaluated, never restated.
@@ -35,19 +38,23 @@ async function loadHandoff() {
   return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 }
 
-const { appHandoffRedirects, appHandoffRscRewrites, APP_HANDOFF_PATHS, HANDOFF_RSC_ANSWER, RSC_HEADER } =
-  await loadHandoff();
+const {
+  appHandoffRedirects,
+  appHandoffRscRewrites,
+  APP_HANDOFF_PATHS,
+  HANDOFF_RSC_ANSWER,
+  oldZoneRedirects,
+  OLD_ZONE_ROOTS,
+  RSC_HEADER,
+} = await loadHandoff();
 
-/** Each stack's two build values, as its compose file or env file sets them. */
+/** Builds whose app shares web's origin: the retired zone model, kept safe. */
 const SAME_ORIGIN = {
-  // docker-compose.dokploy.yml: the operator app is a zone, so its public URL is web's.
-  production: ["https://www.injishi.com", "https://www.injishi.com"],
-  // docker-compose.demo.yml, the same shape on the demo host.
-  demo: ["https://www-demo.injishi.com", "https://www-demo.injishi.com"],
+  "one host": ["https://www.injishi.com", "https://www.injishi.com"],
+  "the demo host": ["https://www-demo.injishi.com", "https://www-demo.injishi.com"],
   // A trailing slash on one side is still the same origin.
   "a trailing slash": ["https://www.injishi.com/", "https://www.injishi.com"],
-  // apps/web/.env.example, which describes the zone model on a laptop.
-  "the env example": ["http://localhost:3000", "http://localhost:3000"],
+  "one laptop port": ["http://localhost:3000", "http://localhost:3000"],
 };
 
 describe("no hand-off when the app shares web's origin", () => {
@@ -58,7 +65,18 @@ describe("no hand-off when the app shares web's origin", () => {
   }
 });
 
-describe("the hand-off still runs when the app is its own origin", () => {
+describe("the hand-off runs when the app is its own origin, as in every stack", () => {
+  test("production (docker-compose.dokploy.yml) sends sign in to app.injishi.com", () => {
+    assert.deepEqual(appHandoffRedirects("https://www.injishi.com", "https://app.injishi.com"), [
+      {
+        source: "/sign-in",
+        destination: "https://app.injishi.com/sign-in",
+        permanent: false,
+        missing: [{ type: "header", key: "rsc" }],
+      },
+    ]);
+  });
+
   test("a laptop with the app on :3002 sends sign in there", () => {
     const pageLoadsOnly = [{ type: "header", key: "rsc" }];
     assert.deepEqual(appHandoffRedirects("http://localhost:3000", "http://localhost:3002"), [
@@ -177,4 +195,45 @@ describe("next.config.ts decides through this function and nowhere else", () => 
       assert.doesNotMatch(config, new RegExp(`source:\\s*["'\`]${path}["'\`]`));
     });
   }
+});
+
+describe("old zone links are sent on, never forwarded", () => {
+  test("a property setup page keeps its path, on the app", () => {
+    const [setup] = oldZoneRedirects("http://localhost:3000", "http://localhost:3002");
+    assert.deepEqual(setup, {
+      source: "/w/:workspaceId/setup",
+      destination: "http://localhost:3002/w/:workspaceId/setup",
+      permanent: false,
+    });
+  });
+
+  test("anything else under an old root goes to /start, which opens the person's home", () => {
+    const rest = oldZoneRedirects("https://www.injishi.com", "https://app.injishi.com").slice(1);
+    for (const root of OLD_ZONE_ROOTS) {
+      assert.ok(rest.some((r) => r.source === root && r.destination === "/start"), root);
+      assert.ok(rest.some((r) => r.source === `${root}/:path*` && r.destination === "/start"), `${root}/*`);
+    }
+  });
+
+  test("with the app on web's own origin, no redirect names it (it would loop)", () => {
+    for (const r of oldZoneRedirects("https://www.injishi.com", "https://www.injishi.com")) {
+      assert.equal(r.destination, "/start");
+    }
+  });
+});
+
+describe("next.config.ts forwards nothing to the app", () => {
+  const config = readFileSync(resolve(here, "../next.config.ts"), "utf8");
+
+  test("its only rewrites answer RSC fetches of hand-off paths, never the app's screens", () => {
+    assert.doesNotMatch(config, /OPERATOR_APP_URL/);
+    assert.match(config, /afterFiles:\s*\[\]/);
+  });
+
+  test("it spreads oldZoneRedirects with the two public origins", () => {
+    assert.match(
+      config,
+      /oldZoneRedirects\(\s*process\.env\.NEXT_PUBLIC_WEB_URL,\s*process\.env\.NEXT_PUBLIC_PMS_URL\s*\)/,
+    );
+  });
 });

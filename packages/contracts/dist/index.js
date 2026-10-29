@@ -26,18 +26,23 @@ __exportStar(require("./phone"), exports);
 __exportStar(require("./authz"), exports);
 __exportStar(require("./staff-authz"), exports);
 __exportStar(require("./rdb"), exports);
+__exportStar(require("./business-kind"), exports);
 __exportStar(require("./countries"), exports);
 __exportStar(require("./geography"), exports);
 __exportStar(require("./registration"), exports);
+__exportStar(require("./registration-documents"), exports);
 __exportStar(require("./inventory"), exports);
 __exportStar(require("./setup-steps"), exports);
 __exportStar(require("./booking"), exports);
 __exportStar(require("./trips"), exports);
+__exportStar(require("./refunds"), exports);
+__exportStar(require("./money-queue"), exports);
 __exportStar(require("./stay"), exports);
 __exportStar(require("./offers"), exports);
 __exportStar(require("./inbox"), exports);
 __exportStar(require("./ops"), exports);
 __exportStar(require("./broker"), exports);
+__exportStar(require("./broker-plans"), exports);
 __exportStar(require("./ordering"), exports);
 __exportStar(require("./outlets"), exports);
 __exportStar(require("./property-detail"), exports);
@@ -52,6 +57,7 @@ __exportStar(require("./psf"), exports);
 __exportStar(require("./psf-public"), exports);
 __exportStar(require("./business-code"), exports);
 __exportStar(require("./identity"), exports);
+__exportStar(require("./registration-draft"), exports);
 __exportStar(require("./people"), exports);
 __exportStar(require("./people-file"), exports);
 __exportStar(require("./time"), exports);
@@ -74,4 +80,12 @@ __exportStar(require("./marketplace"), exports);
 // The residence screens of the new interface (real-data 1.3.1).
 __exportStar(require("./interface-residence"), exports);
 __exportStar(require("./staff-phone"), exports);
+// Rentals, rebuilt (blueprint WP 1.1): vocabulary, Kigali dates, the lease
+// state machine, the rent schedule, allocation, the contract, tax and payouts.
+__exportStar(require("./rentals"), exports);
+// Who am I, in one call (blueprint 2.5): where a person lands.
+__exportStar(require("./me-context"), exports);
+__exportStar(require("./guests"), exports);
+// The bar and restaurant point of sale (POS spec, phase 1).
+__exportStar(require("./pos"), exports);
 //# sourceMappingURL=index.js.map

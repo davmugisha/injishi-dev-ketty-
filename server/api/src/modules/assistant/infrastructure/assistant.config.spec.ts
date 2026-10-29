@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { DEFAULT_PRICES, estimateCostMicroUsd } from '../domain/usage';
 import { DEFAULT_AI_TURNS_PER_DAY, DEFAULT_ASSISTANT_MODEL, resolveAssistantConfig } from './assistant.config';
 

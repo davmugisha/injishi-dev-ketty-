@@ -14,7 +14,7 @@
   "aliases": {
     "components": "@/components",
     "utils": "@injishi/utils",
-    "ui": "@injishi/ui",
+    "ui": "@injishi/web-ui",
     "lib": "@/lib",
     "hooks": "@/hooks"
   }

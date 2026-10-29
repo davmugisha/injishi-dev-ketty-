@@ -4,8 +4,15 @@
 # and the marketplace (apps/web). `server/*` holds the API. `packages/*` holds
 # the shared packages, and globbing them here is what lets every member keep
 # `workspace:*`. Dropping any of the three breaks the build.
+#
+# `products/*` holds the eleven products (ADR-074 D-c): screens, flows and
+# product metadata, each `@injishi/product-<id>`, with no authority, no secrets
+# and no database. It is globbed before the first product exists, so the
+# manifest check, the lint ratchet and CI's change detection see a product the
+# day its folder lands. `injishi/product-boundaries` keeps its edges.
 packages:
   - apps/*
+  - products/*
   - server/*
   - packages/*
 
@@ -32,6 +39,12 @@ minimumReleaseAgeExclude:
 fetchRetries: 6
 fetchTimeout: 300000
 networkConcurrency: 8
+
+# The same store folder names on every machine. pnpm shortens long names to 60 characters on Windows
+# and 120 elsewhere, and the Expo app's runtime version (its fingerprint, mobile spec 0001 AC-9) hashes
+# those paths, so without this a build made on EAS's Linux machines refuses updates published from
+# Windows. 60 is Windows' own default, so nothing changes there.
+virtualStoreDirMaxLength: 60
 
 # Only these packages may run install scripts.
 # @heroui-pro/react downloads its licensed components in postinstall,

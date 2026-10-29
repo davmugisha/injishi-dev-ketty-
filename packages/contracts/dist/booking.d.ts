@@ -15,12 +15,12 @@ export declare const CancellationTier: z.ZodEnum<["flexible", "moderate", "limit
 export type CancellationTier = z.infer<typeof CancellationTier>;
 export declare const BookingStatus: z.ZodEnum<["pending_approval", "confirmed", "declined", "cancelled", "no_show"]>;
 export type BookingStatus = z.infer<typeof BookingStatus>;
-export declare const PaymentStatus: z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out"]>;
+export declare const PaymentStatus: z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out", "refund_pending"]>;
 export type PaymentStatus = z.infer<typeof PaymentStatus>;
 /** Why a `request_to_book` was declined (mirrors the Postgres `decline_reason` enum). */
 export declare const DeclineReason: z.ZodEnum<["host_declined", "expired"]>;
 export type DeclineReason = z.infer<typeof DeclineReason>;
-export declare const EscrowStatus: z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited"]>;
+export declare const EscrowStatus: z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited", "refund_pending"]>;
 export type EscrowStatus = z.infer<typeof EscrowStatus>;
 /** ISO calendar day, `yyyy-mm-dd` (booking dates are days, not instants). */
 export declare const IsoDate: z.ZodString;
@@ -48,9 +48,9 @@ export declare const RoomTypeSummary: z.ZodObject<{
     minStay: z.ZodNullable<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     name: string;
+    id: string;
     domain: "hospitality" | "residence" | "enterprise";
     capacity: number | null;
-    id: string;
     roomCount: number;
     nightlyRateRwf: number | null;
     bookingMode: "instant_book" | "request_to_book" | null;
@@ -60,9 +60,9 @@ export declare const RoomTypeSummary: z.ZodObject<{
     minStay: number | null;
 }, {
     name: string;
+    id: string;
     domain: "hospitality" | "residence" | "enterprise";
     capacity: number | null;
-    id: string;
     roomCount: number;
     nightlyRateRwf: number | null;
     bookingMode: "instant_book" | "request_to_book" | null;
@@ -115,16 +115,16 @@ export declare const BookablePropertySummary: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
-    districtName: string | null;
     slug: string | null;
+    districtName: string | null;
     checkInTime: string | null;
     checkOutTime: string | null;
     photo: string | null;
 }, {
     name: string;
     id: string;
-    districtName: string | null;
     slug: string | null;
+    districtName: string | null;
     checkInTime: string | null;
     checkOutTime: string | null;
     photo: string | null;
@@ -158,16 +158,16 @@ export declare const BookableRoom: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string;
         id: string;
-        districtName: string | null;
         slug: string | null;
+        districtName: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
         photo: string | null;
     }, {
         name: string;
         id: string;
-        districtName: string | null;
         slug: string | null;
+        districtName: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
         photo: string | null;
@@ -195,9 +195,9 @@ export declare const BookableRoom: z.ZodObject<{
         minStay: z.ZodNullable<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         name: string;
+        id: string;
         domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
-        id: string;
         roomCount: number;
         nightlyRateRwf: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
@@ -207,9 +207,9 @@ export declare const BookableRoom: z.ZodObject<{
         minStay: number | null;
     }, {
         name: string;
+        id: string;
         domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
-        id: string;
         roomCount: number;
         nightlyRateRwf: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
@@ -222,17 +222,17 @@ export declare const BookableRoom: z.ZodObject<{
     property: {
         name: string;
         id: string;
-        districtName: string | null;
         slug: string | null;
+        districtName: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
         photo: string | null;
     };
     roomType: {
         name: string;
+        id: string;
         domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
-        id: string;
         roomCount: number;
         nightlyRateRwf: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
@@ -245,17 +245,17 @@ export declare const BookableRoom: z.ZodObject<{
     property: {
         name: string;
         id: string;
-        districtName: string | null;
         slug: string | null;
+        districtName: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
         photo: string | null;
     };
     roomType: {
         name: string;
+        id: string;
         domain: "hospitality" | "residence" | "enterprise";
         capacity: number | null;
-        id: string;
         roomCount: number;
         nightlyRateRwf: number | null;
         bookingMode: "instant_book" | "request_to_book" | null;
@@ -410,12 +410,12 @@ export declare const PaymentInstrument: z.ZodDiscriminatedUnion<"kind", [z.ZodOb
     /** Nine national digits. Normalised by the client; re-checked here. */
     msisdn: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    kind: "mobile_money";
     network: "mtn_momo" | "airtel_money";
+    kind: "mobile_money";
     msisdn: string;
 }, {
-    kind: "mobile_money";
     network: "mtn_momo" | "airtel_money";
+    kind: "mobile_money";
     msisdn: string;
 }>, z.ZodObject<{
     kind: z.ZodLiteral<"card">;
@@ -457,21 +457,19 @@ export declare const CreateBookingInput: z.ZodObject<{
      * mints a NEW token, which is what lets one guest hold two rooms of the same
      * type for the same nights.
      *
-     * Optional here on purpose, and only for now: migration phase 2 (ADR-020)
-     * ships the field before any client sends it, so an API deploy never rejects
-     * a browser still running the previous bundle. The server mints one when it is
-     * absent, so the key it derives is still unique and the duplicate constraint
-     * is simply inert for that request. It is NEVER null: a null under a unique
-     * index deduplicates nothing.
+     * REQUIRED since 073-gtbank-payments AC-25 (ADR-020 build task 8). It was
+     * optional while migration phase 2 shipped the field before any client sent
+     * it, and the server minted one when it was absent, which made the duplicate
+     * constraint inert for that request: a retried press with no token was a
+     * second charge. Every client sends one now (the web checkout and the
+     * operator app's guest zone), so a body without it is refused.
      */
-    attemptToken: z.ZodOptional<z.ZodString>;
+    attemptToken: z.ZodString;
     /**
      * How to take the money (ADR-047).
      *
-     * REQUIRED, unlike `attemptToken`, and the difference is deliberate. An
-     * absent attempt token degrades to a unique key and the request still
-     * means something; an absent instrument means "charge somebody, somehow",
-     * which is not a booking anyone can honour. `apps/web` is the only client
+     * REQUIRED: an absent instrument means "charge somebody, somehow", which is
+     * not a booking anyone can honour. `apps/web` is the only client
      * that creates bookings today, so requiring it costs no migration window.
      */
     instrument: z.ZodDiscriminatedUnion<"kind", [z.ZodObject<{
@@ -480,12 +478,12 @@ export declare const CreateBookingInput: z.ZodObject<{
         /** Nine national digits. Normalised by the client; re-checked here. */
         msisdn: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        kind: "mobile_money";
         network: "mtn_momo" | "airtel_money";
+        kind: "mobile_money";
         msisdn: string;
     }, {
-        kind: "mobile_money";
         network: "mtn_momo" | "airtel_money";
+        kind: "mobile_money";
         msisdn: string;
     }>, z.ZodObject<{
         kind: z.ZodLiteral<"card">;
@@ -504,30 +502,30 @@ export declare const CreateBookingInput: z.ZodObject<{
     checkOut: string;
     guests: number;
     nonRefundable: boolean;
+    attemptToken: string;
     instrument: {
-        kind: "mobile_money";
         network: "mtn_momo" | "airtel_money";
+        kind: "mobile_money";
         msisdn: string;
     } | {
         kind: "card";
         token: string;
     };
-    attemptToken?: string | undefined;
 }, {
     roomTypeId: string;
     checkIn: string;
     checkOut: string;
     guests: number;
+    attemptToken: string;
     instrument: {
-        kind: "mobile_money";
         network: "mtn_momo" | "airtel_money";
+        kind: "mobile_money";
         msisdn: string;
     } | {
         kind: "card";
         token: string;
     };
     nonRefundable?: boolean | undefined;
-    attemptToken?: string | undefined;
 }>;
 export type CreateBookingInput = z.infer<typeof CreateBookingInput>;
 /** Server-computed price breakdown, echoed back so the UI can show what was charged. */
@@ -614,8 +612,8 @@ export declare const BookingResult: z.ZodObject<{
     reference: z.ZodString;
     status: z.ZodEnum<["pending_approval", "confirmed", "declined", "cancelled", "no_show"]>;
     bookingMode: z.ZodEnum<["instant_book", "request_to_book"]>;
-    paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out"]>>;
-    escrowStatus: z.ZodNullable<z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited"]>>;
+    paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out", "refund_pending"]>>;
+    escrowStatus: z.ZodNullable<z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited", "refund_pending"]>>;
     nonRefundable: z.ZodBoolean;
     lockedCancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
     checkIn: z.ZodString;
@@ -656,16 +654,16 @@ export declare const BookingResult: z.ZodObject<{
     /** Set for `request_to_book`: when the request auto-declines (F-B03). */
     approvalExpiresAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+    status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
     id: string;
-    reference: string;
     bookingMode: "instant_book" | "request_to_book";
     checkIn: string;
     checkOut: string;
     guests: number;
     nonRefundable: boolean;
-    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-    escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+    reference: string;
+    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+    escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
     lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
     breakdown: {
         nightlyRateRwf: number;
@@ -678,16 +676,16 @@ export declare const BookingResult: z.ZodObject<{
     };
     approvalExpiresAt: string | null;
 }, {
-    status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+    status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
     id: string;
-    reference: string;
     bookingMode: "instant_book" | "request_to_book";
     checkIn: string;
     checkOut: string;
     guests: number;
     nonRefundable: boolean;
-    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-    escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+    reference: string;
+    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+    escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
     lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
     breakdown: {
         nightlyRateRwf: number;
@@ -747,8 +745,8 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
         reference: z.ZodString;
         status: z.ZodEnum<["pending_approval", "confirmed", "declined", "cancelled", "no_show"]>;
         bookingMode: z.ZodEnum<["instant_book", "request_to_book"]>;
-        paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out"]>>;
-        escrowStatus: z.ZodNullable<z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited"]>>;
+        paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out", "refund_pending"]>>;
+        escrowStatus: z.ZodNullable<z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited", "refund_pending"]>>;
         nonRefundable: z.ZodBoolean;
         lockedCancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
         checkIn: z.ZodString;
@@ -789,16 +787,16 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
         /** Set for `request_to_book`: when the request auto-declines (F-B03). */
         approvalExpiresAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
         id: string;
-        reference: string;
         bookingMode: "instant_book" | "request_to_book";
         checkIn: string;
         checkOut: string;
         guests: number;
         nonRefundable: boolean;
-        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+        reference: string;
+        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+        escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
         lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         breakdown: {
             nightlyRateRwf: number;
@@ -811,16 +809,16 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
         };
         approvalExpiresAt: string | null;
     }, {
-        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
         id: string;
-        reference: string;
         bookingMode: "instant_book" | "request_to_book";
         checkIn: string;
         checkOut: string;
         guests: number;
         nonRefundable: boolean;
-        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+        reference: string;
+        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+        escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
         lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         breakdown: {
             nightlyRateRwf: number;
@@ -836,18 +834,23 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
     /** Why it ended badly, in words meant for the guest. */
     failureReason: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    network: "mtn_momo" | "airtel_money" | null;
+    attemptToken: string;
+    state: "confirmed" | "expired" | "prompting" | "refused";
+    payerMasked: string | null;
     amountRwf: number | null;
+    expiresAt: string;
     booking: {
-        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
         id: string;
-        reference: string;
         bookingMode: "instant_book" | "request_to_book";
         checkIn: string;
         checkOut: string;
         guests: number;
         nonRefundable: boolean;
-        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+        reference: string;
+        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+        escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
         lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         breakdown: {
             nightlyRateRwf: number;
@@ -861,24 +864,24 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
         approvalExpiresAt: string | null;
     } | null;
     failureReason: string | null;
-    state: "expired" | "refused" | "confirmed" | "prompting";
-    expiresAt: string;
-    network: "mtn_momo" | "airtel_money" | null;
-    attemptToken: string;
-    payerMasked: string | null;
 }, {
+    network: "mtn_momo" | "airtel_money" | null;
+    attemptToken: string;
+    state: "confirmed" | "expired" | "prompting" | "refused";
+    payerMasked: string | null;
     amountRwf: number | null;
+    expiresAt: string;
     booking: {
-        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
         id: string;
-        reference: string;
         bookingMode: "instant_book" | "request_to_book";
         checkIn: string;
         checkOut: string;
         guests: number;
         nonRefundable: boolean;
-        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+        reference: string;
+        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+        escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
         lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         breakdown: {
             nightlyRateRwf: number;
@@ -892,11 +895,6 @@ export declare const PaymentAttemptStatus: z.ZodObject<{
         approvalExpiresAt: string | null;
     } | null;
     failureReason: string | null;
-    state: "expired" | "refused" | "confirmed" | "prompting";
-    expiresAt: string;
-    network: "mtn_momo" | "airtel_money" | null;
-    attemptToken: string;
-    payerMasked: string | null;
 }>;
 export type PaymentAttemptStatus = z.infer<typeof PaymentAttemptStatus>;
 /**
@@ -915,8 +913,8 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
         reference: z.ZodString;
         status: z.ZodEnum<["pending_approval", "confirmed", "declined", "cancelled", "no_show"]>;
         bookingMode: z.ZodEnum<["instant_book", "request_to_book"]>;
-        paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out"]>>;
-        escrowStatus: z.ZodNullable<z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited"]>>;
+        paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out", "refund_pending"]>>;
+        escrowStatus: z.ZodNullable<z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited", "refund_pending"]>>;
         nonRefundable: z.ZodBoolean;
         lockedCancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
         checkIn: z.ZodString;
@@ -957,16 +955,16 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
         /** Set for `request_to_book`: when the request auto-declines (F-B03). */
         approvalExpiresAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
         id: string;
-        reference: string;
         bookingMode: "instant_book" | "request_to_book";
         checkIn: string;
         checkOut: string;
         guests: number;
         nonRefundable: boolean;
-        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+        reference: string;
+        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+        escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
         lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         breakdown: {
             nightlyRateRwf: number;
@@ -979,16 +977,16 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
         };
         approvalExpiresAt: string | null;
     }, {
-        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
         id: string;
-        reference: string;
         bookingMode: "instant_book" | "request_to_book";
         checkIn: string;
         checkOut: string;
         guests: number;
         nonRefundable: boolean;
-        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+        reference: string;
+        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+        escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
         lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         breakdown: {
             nightlyRateRwf: number;
@@ -1004,16 +1002,16 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
 }, "strip", z.ZodTypeAny, {
     status: "confirmed";
     booking: {
-        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
         id: string;
-        reference: string;
         bookingMode: "instant_book" | "request_to_book";
         checkIn: string;
         checkOut: string;
         guests: number;
         nonRefundable: boolean;
-        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+        reference: string;
+        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+        escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
         lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         breakdown: {
             nightlyRateRwf: number;
@@ -1029,16 +1027,16 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
 }, {
     status: "confirmed";
     booking: {
-        status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+        status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
         id: string;
-        reference: string;
         bookingMode: "instant_book" | "request_to_book";
         checkIn: string;
         checkOut: string;
         guests: number;
         nonRefundable: boolean;
-        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-        escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+        reference: string;
+        paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+        escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
         lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         breakdown: {
             nightlyRateRwf: number;
@@ -1077,8 +1075,8 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             reference: z.ZodString;
             status: z.ZodEnum<["pending_approval", "confirmed", "declined", "cancelled", "no_show"]>;
             bookingMode: z.ZodEnum<["instant_book", "request_to_book"]>;
-            paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out"]>>;
-            escrowStatus: z.ZodNullable<z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited"]>>;
+            paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out", "refund_pending"]>>;
+            escrowStatus: z.ZodNullable<z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited", "refund_pending"]>>;
             nonRefundable: z.ZodBoolean;
             lockedCancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
             checkIn: z.ZodString;
@@ -1119,16 +1117,16 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             /** Set for `request_to_book`: when the request auto-declines (F-B03). */
             approvalExpiresAt: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+            status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
             id: string;
-            reference: string;
             bookingMode: "instant_book" | "request_to_book";
             checkIn: string;
             checkOut: string;
             guests: number;
             nonRefundable: boolean;
-            paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-            escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+            reference: string;
+            paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+            escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
             lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
             breakdown: {
                 nightlyRateRwf: number;
@@ -1141,16 +1139,16 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             };
             approvalExpiresAt: string | null;
         }, {
-            status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+            status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
             id: string;
-            reference: string;
             bookingMode: "instant_book" | "request_to_book";
             checkIn: string;
             checkOut: string;
             guests: number;
             nonRefundable: boolean;
-            paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-            escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+            reference: string;
+            paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+            escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
             lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
             breakdown: {
                 nightlyRateRwf: number;
@@ -1166,18 +1164,23 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
         /** Why it ended badly, in words meant for the guest. */
         failureReason: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        network: "mtn_momo" | "airtel_money" | null;
+        attemptToken: string;
+        state: "confirmed" | "expired" | "prompting" | "refused";
+        payerMasked: string | null;
         amountRwf: number | null;
+        expiresAt: string;
         booking: {
-            status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+            status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
             id: string;
-            reference: string;
             bookingMode: "instant_book" | "request_to_book";
             checkIn: string;
             checkOut: string;
             guests: number;
             nonRefundable: boolean;
-            paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-            escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+            reference: string;
+            paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+            escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
             lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
             breakdown: {
                 nightlyRateRwf: number;
@@ -1191,24 +1194,24 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             approvalExpiresAt: string | null;
         } | null;
         failureReason: string | null;
-        state: "expired" | "refused" | "confirmed" | "prompting";
-        expiresAt: string;
-        network: "mtn_momo" | "airtel_money" | null;
-        attemptToken: string;
-        payerMasked: string | null;
     }, {
+        network: "mtn_momo" | "airtel_money" | null;
+        attemptToken: string;
+        state: "confirmed" | "expired" | "prompting" | "refused";
+        payerMasked: string | null;
         amountRwf: number | null;
+        expiresAt: string;
         booking: {
-            status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+            status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
             id: string;
-            reference: string;
             bookingMode: "instant_book" | "request_to_book";
             checkIn: string;
             checkOut: string;
             guests: number;
             nonRefundable: boolean;
-            paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-            escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+            reference: string;
+            paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+            escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
             lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
             breakdown: {
                 nightlyRateRwf: number;
@@ -1222,27 +1225,27 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             approvalExpiresAt: string | null;
         } | null;
         failureReason: string | null;
-        state: "expired" | "refused" | "confirmed" | "prompting";
-        expiresAt: string;
-        network: "mtn_momo" | "airtel_money" | null;
-        attemptToken: string;
-        payerMasked: string | null;
     }>;
 }, "strip", z.ZodTypeAny, {
     status: "awaiting_payment";
     attempt: {
+        network: "mtn_momo" | "airtel_money" | null;
+        attemptToken: string;
+        state: "confirmed" | "expired" | "prompting" | "refused";
+        payerMasked: string | null;
         amountRwf: number | null;
+        expiresAt: string;
         booking: {
-            status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+            status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
             id: string;
-            reference: string;
             bookingMode: "instant_book" | "request_to_book";
             checkIn: string;
             checkOut: string;
             guests: number;
             nonRefundable: boolean;
-            paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-            escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+            reference: string;
+            paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+            escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
             lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
             breakdown: {
                 nightlyRateRwf: number;
@@ -1256,27 +1259,27 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             approvalExpiresAt: string | null;
         } | null;
         failureReason: string | null;
-        state: "expired" | "refused" | "confirmed" | "prompting";
-        expiresAt: string;
-        network: "mtn_momo" | "airtel_money" | null;
-        attemptToken: string;
-        payerMasked: string | null;
     };
 }, {
     status: "awaiting_payment";
     attempt: {
+        network: "mtn_momo" | "airtel_money" | null;
+        attemptToken: string;
+        state: "confirmed" | "expired" | "prompting" | "refused";
+        payerMasked: string | null;
         amountRwf: number | null;
+        expiresAt: string;
         booking: {
-            status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+            status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
             id: string;
-            reference: string;
             bookingMode: "instant_book" | "request_to_book";
             checkIn: string;
             checkOut: string;
             guests: number;
             nonRefundable: boolean;
-            paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-            escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+            reference: string;
+            paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+            escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
             lockedCancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
             breakdown: {
                 nightlyRateRwf: number;
@@ -1290,11 +1293,6 @@ export declare const CreateBookingOutcome: z.ZodDiscriminatedUnion<"status", [z.
             approvalExpiresAt: string | null;
         } | null;
         failureReason: string | null;
-        state: "expired" | "refused" | "confirmed" | "prompting";
-        expiresAt: string;
-        network: "mtn_momo" | "airtel_money" | null;
-        attemptToken: string;
-        payerMasked: string | null;
     };
 }>]>;
 export type CreateBookingOutcome = z.infer<typeof CreateBookingOutcome>;
@@ -1320,24 +1318,24 @@ export declare const BookingApprovalResult: z.ZodObject<{
     reference: z.ZodString;
     status: z.ZodEnum<["pending_approval", "confirmed", "declined", "cancelled", "no_show"]>;
     declineReason: z.ZodNullable<z.ZodEnum<["host_declined", "expired"]>>;
-    paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out"]>>;
-    escrowStatus: z.ZodNullable<z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited"]>>;
+    paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out", "refund_pending"]>>;
+    escrowStatus: z.ZodNullable<z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited", "refund_pending"]>>;
     confirmedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+    status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
     id: string;
     reference: string;
-    declineReason: "expired" | "host_declined" | null;
-    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-    escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+    escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
+    declineReason: "host_declined" | "expired" | null;
     confirmedAt: string | null;
 }, {
-    status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+    status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
     id: string;
     reference: string;
-    declineReason: "expired" | "host_declined" | null;
-    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-    escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+    escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
+    declineReason: "host_declined" | "expired" | null;
     confirmedAt: string | null;
 }>;
 export type BookingApprovalResult = z.infer<typeof BookingApprovalResult>;
@@ -1408,17 +1406,17 @@ export declare const CancellationQuote: z.ZodObject<{
     rule: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     reference: string;
-    percent: number;
     cancellable: boolean;
     refusal: string | null;
+    percent: number;
     refundRwf: number;
     forfeitRwf: number;
     rule: string;
 }, {
     reference: string;
-    percent: number;
     cancellable: boolean;
     refusal: string | null;
+    percent: number;
     refundRwf: number;
     forfeitRwf: number;
     rule: string;
@@ -1430,27 +1428,27 @@ export declare const BookingCancellationResult: z.ZodObject<{
     reference: z.ZodString;
     status: z.ZodEnum<["pending_approval", "confirmed", "declined", "cancelled", "no_show"]>;
     cancelledBy: z.ZodEnum<["guest", "host"]>;
-    paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out"]>>;
-    escrowStatus: z.ZodNullable<z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited"]>>;
+    paymentStatus: z.ZodNullable<z.ZodEnum<["captured", "refunded_full", "refunded_partial", "forfeited", "paid_out", "refund_pending"]>>;
+    escrowStatus: z.ZodNullable<z.ZodEnum<["held", "released", "refunded_full", "refunded_partial", "forfeited", "refund_pending"]>>;
     refundRwf: z.ZodNumber;
     forfeitRwf: z.ZodNumber;
     rule: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+    status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
     id: string;
     reference: string;
-    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-    escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+    escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
     refundRwf: number;
     forfeitRwf: number;
     rule: string;
     cancelledBy: "guest" | "host";
 }, {
-    status: "declined" | "pending_approval" | "confirmed" | "cancelled" | "no_show";
+    status: "pending_approval" | "confirmed" | "declined" | "cancelled" | "no_show";
     id: string;
     reference: string;
-    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | null;
-    escrowStatus: "held" | "refunded_full" | "refunded_partial" | "forfeited" | "released" | null;
+    paymentStatus: "captured" | "refunded_full" | "refunded_partial" | "forfeited" | "paid_out" | "refund_pending" | null;
+    escrowStatus: "refunded_full" | "refunded_partial" | "forfeited" | "refund_pending" | "held" | "released" | null;
     refundRwf: number;
     forfeitRwf: number;
     rule: string;

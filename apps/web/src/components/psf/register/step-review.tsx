@@ -11,7 +11,7 @@ import {
   type PsfCatalogue,
   type PsfTier,
 } from "@injishi/contracts";
-import { Checkbox } from "@injishi/ui";
+import { Checkbox } from "@injishi/web-ui";
 
 import { PhoneInput } from "@/app/(app)/(entry)/register/phone-input";
 import { Field, Notice } from "@/app/(app)/(entry)/register/wizard-ui";

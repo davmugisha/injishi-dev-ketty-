@@ -17,7 +17,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { MyPayService } from '../../../modules/people/application/my-pay.service';
+import { MyPayService } from '../../../modules/hr/application/my-pay.service';
 import {
   CurrentUser,
   SessionGuard,

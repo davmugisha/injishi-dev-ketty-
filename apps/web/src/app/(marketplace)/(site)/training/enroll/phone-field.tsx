@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Input } from "@injishi/ui";
+import { Input } from "@injishi/web-ui";
 import {
   PHONE_COUNTRIES,
   countryForE164,

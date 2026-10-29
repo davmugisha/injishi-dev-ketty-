@@ -392,18 +392,18 @@ export declare const PsfSubsector: z.ZodObject<{
     associationCodes: z.ZodArray<z.ZodString, "many">;
 }, "strip", z.ZodTypeAny, {
     active: boolean;
-    districtId: number | null;
     id: string;
     districtName: string | null;
+    districtId: number | null;
     nameEn: string;
     sortOrder: number;
     clusterCode: string;
     associationCodes: string[];
 }, {
     active: boolean;
-    districtId: number | null;
     id: string;
     districtName: string | null;
+    districtId: number | null;
     nameEn: string;
     sortOrder: number;
     clusterCode: string;
@@ -452,18 +452,18 @@ export declare const PsfCluster: z.ZodObject<{
         associationCodes: z.ZodArray<z.ZodString, "many">;
     }, "strip", z.ZodTypeAny, {
         active: boolean;
-        districtId: number | null;
         id: string;
         districtName: string | null;
+        districtId: number | null;
         nameEn: string;
         sortOrder: number;
         clusterCode: string;
         associationCodes: string[];
     }, {
         active: boolean;
-        districtId: number | null;
         id: string;
         districtName: string | null;
+        districtId: number | null;
         nameEn: string;
         sortOrder: number;
         clusterCode: string;
@@ -486,9 +486,9 @@ export declare const PsfCluster: z.ZodObject<{
     }[];
     subsectors: {
         active: boolean;
-        districtId: number | null;
         id: string;
         districtName: string | null;
+        districtId: number | null;
         nameEn: string;
         sortOrder: number;
         clusterCode: string;
@@ -511,9 +511,9 @@ export declare const PsfCluster: z.ZodObject<{
     }[];
     subsectors?: {
         active: boolean;
-        districtId: number | null;
         id: string;
         districtName: string | null;
+        districtId: number | null;
         nameEn: string;
         sortOrder: number;
         clusterCode: string;
@@ -565,18 +565,18 @@ export declare const PsfCatalogue: z.ZodObject<{
             associationCodes: z.ZodArray<z.ZodString, "many">;
         }, "strip", z.ZodTypeAny, {
             active: boolean;
-            districtId: number | null;
             id: string;
             districtName: string | null;
+            districtId: number | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
             associationCodes: string[];
         }, {
             active: boolean;
-            districtId: number | null;
             id: string;
             districtName: string | null;
+            districtId: number | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
@@ -599,9 +599,9 @@ export declare const PsfCatalogue: z.ZodObject<{
         }[];
         subsectors: {
             active: boolean;
-            districtId: number | null;
             id: string;
             districtName: string | null;
+            districtId: number | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
@@ -624,9 +624,9 @@ export declare const PsfCatalogue: z.ZodObject<{
         }[];
         subsectors?: {
             active: boolean;
-            districtId: number | null;
             id: string;
             districtName: string | null;
+            districtId: number | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
@@ -651,9 +651,9 @@ export declare const PsfCatalogue: z.ZodObject<{
         }[];
         subsectors: {
             active: boolean;
-            districtId: number | null;
             id: string;
             districtName: string | null;
+            districtId: number | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
@@ -678,9 +678,9 @@ export declare const PsfCatalogue: z.ZodObject<{
         }[];
         subsectors?: {
             active: boolean;
-            districtId: number | null;
             id: string;
             districtName: string | null;
+            districtId: number | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
@@ -800,8 +800,8 @@ export declare const PsfMembership: z.ZodObject<{
     expiresOn: z.ZodNullable<z.ZodString>;
     endedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    expiresOn: string | null;
     id: string;
+    expiresOn: string | null;
     annualFeeRwf: number | null;
     source: "psf_confirmed" | "self_declared";
     tierCode: string | null;
@@ -810,8 +810,8 @@ export declare const PsfMembership: z.ZodObject<{
     startsOn: string | null;
     endedAt: string | null;
 }, {
-    expiresOn: string | null;
     id: string;
+    expiresOn: string | null;
     annualFeeRwf: number | null;
     source: "psf_confirmed" | "self_declared";
     tierCode: string | null;
@@ -901,14 +901,14 @@ export declare const PsfPayment: z.ZodObject<{
     /** Whether Injishi has passed the money on to PSF yet. */
     remittedAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    reference: string;
     amountRwf: number;
     paidAt: string;
-    reference: string;
     remittedAt: string | null;
 }, {
+    reference: string;
     amountRwf: number;
     paidAt: string;
-    reference: string;
     remittedAt: string | null;
 }>;
 export type PsfPayment = z.infer<typeof PsfPayment>;
@@ -942,14 +942,14 @@ export declare const PsfApplication: z.ZodObject<{
         /** Whether Injishi has passed the money on to PSF yet. */
         remittedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        reference: string;
         amountRwf: number;
         paidAt: string;
-        reference: string;
         remittedAt: string | null;
     }, {
+        reference: string;
         amountRwf: number;
         paidAt: string;
-        reference: string;
         remittedAt: string | null;
     }>>;
     withdrawnAt: z.ZodNullable<z.ZodString>;
@@ -1023,11 +1023,12 @@ export declare const PsfApplication: z.ZodObject<{
         idDocumentNumber: string;
     }>;
 }, "strip", z.ZodTypeAny, {
-    status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+    status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+    id: string;
+    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     requestedTierCode: string;
     declaredFeeRwf: number | null;
     decidedAt: string | null;
-    id: string;
     submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -1037,14 +1038,13 @@ export declare const PsfApplication: z.ZodObject<{
     submittedCapacity: "owner" | "on_behalf_of";
     submittedByName: string | null;
     queuedAt: string | null;
-    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     decisionNote: string | null;
     approvedMembershipNumber: string | null;
     approvedFeeRwf: number | null;
     payment: {
+        reference: string;
         amountRwf: number;
         paidAt: string;
-        reference: string;
         remittedAt: string | null;
     } | null;
     withdrawnAt: string | null;
@@ -1072,11 +1072,12 @@ export declare const PsfApplication: z.ZodObject<{
         idDocumentNumber: string;
     };
 }, {
-    status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+    status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+    id: string;
+    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     requestedTierCode: string;
     declaredFeeRwf: number | null;
     decidedAt: string | null;
-    id: string;
     submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -1086,14 +1087,13 @@ export declare const PsfApplication: z.ZodObject<{
     submittedCapacity: "owner" | "on_behalf_of";
     submittedByName: string | null;
     queuedAt: string | null;
-    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     decisionNote: string | null;
     approvedMembershipNumber: string | null;
     approvedFeeRwf: number | null;
     payment: {
+        reference: string;
         amountRwf: number;
         paidAt: string;
-        reference: string;
         remittedAt: string | null;
     } | null;
     withdrawnAt: string | null;
@@ -1203,18 +1203,18 @@ export declare const PsfBusinessProfile: z.ZodObject<{
     registrationKind: z.ZodNullable<z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>>;
 }, "strip", z.ZodTypeAny, {
     domain: "hospitality" | "residence" | "enterprise";
+    districtName: string | null;
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
     ownerGroups: ("women" | "youth" | "pwd")[];
-    districtName: string | null;
     businessCode: string | null;
     clusterName: string | null;
     subsectorName: string | null;
     associationName: string | null;
 }, {
     domain: "hospitality" | "residence" | "enterprise";
+    districtName: string | null;
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
     ownerGroups: ("women" | "youth" | "pwd")[];
-    districtName: string | null;
     businessCode: string | null;
     clusterName: string | null;
     associationName: string | null;
@@ -1242,18 +1242,18 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         registrationKind: z.ZodNullable<z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>>;
     }, "strip", z.ZodTypeAny, {
         domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
         ownerGroups: ("women" | "youth" | "pwd")[];
-        districtName: string | null;
         businessCode: string | null;
         clusterName: string | null;
         subsectorName: string | null;
         associationName: string | null;
     }, {
         domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
         ownerGroups: ("women" | "youth" | "pwd")[];
-        districtName: string | null;
         businessCode: string | null;
         clusterName: string | null;
         associationName: string | null;
@@ -1270,8 +1270,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         expiresOn: z.ZodNullable<z.ZodString>;
         endedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -1280,8 +1280,8 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         startsOn: string | null;
         endedAt: string | null;
     }, {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -1320,14 +1320,14 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             /** Whether Injishi has passed the money on to PSF yet. */
             remittedAt: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         }, {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         }>>;
         withdrawnAt: z.ZodNullable<z.ZodString>;
@@ -1403,12 +1403,13 @@ export declare const PsfMembershipOverview: z.ZodObject<{
     } & {
         stage: z.ZodEnum<["waiting_tin_check", "with_psf", "awaiting_payment"]>;
     }, "strip", z.ZodTypeAny, {
-        status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         declaredFeeRwf: number | null;
-        stage: "waiting_tin_check" | "with_psf" | "awaiting_payment";
+        stage: "awaiting_payment" | "waiting_tin_check" | "with_psf";
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -1418,14 +1419,13 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         approvedMembershipNumber: string | null;
         approvedFeeRwf: number | null;
         payment: {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         } | null;
         withdrawnAt: string | null;
@@ -1453,12 +1453,13 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             idDocumentNumber: string;
         };
     }, {
-        status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         declaredFeeRwf: number | null;
-        stage: "waiting_tin_check" | "with_psf" | "awaiting_payment";
+        stage: "awaiting_payment" | "waiting_tin_check" | "with_psf";
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -1468,14 +1469,13 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         approvedMembershipNumber: string | null;
         approvedFeeRwf: number | null;
         payment: {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         } | null;
         withdrawnAt: string | null;
@@ -1534,14 +1534,14 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             /** Whether Injishi has passed the money on to PSF yet. */
             remittedAt: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         }, {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         }>>;
         withdrawnAt: z.ZodNullable<z.ZodString>;
@@ -1615,11 +1615,12 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             idDocumentNumber: string;
         }>;
     }, "strip", z.ZodTypeAny, {
-        status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -1629,14 +1630,13 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         approvedMembershipNumber: string | null;
         approvedFeeRwf: number | null;
         payment: {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         } | null;
         withdrawnAt: string | null;
@@ -1664,11 +1664,12 @@ export declare const PsfMembershipOverview: z.ZodObject<{
             idDocumentNumber: string;
         };
     }, {
-        status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -1678,14 +1679,13 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         approvedMembershipNumber: string | null;
         approvedFeeRwf: number | null;
         payment: {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         } | null;
         withdrawnAt: string | null;
@@ -1780,17 +1780,17 @@ export declare const PsfMembershipOverview: z.ZodObject<{
     orgId: string;
     profile: {
         domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
         ownerGroups: ("women" | "youth" | "pwd")[];
-        districtName: string | null;
         businessCode: string | null;
         clusterName: string | null;
         subsectorName: string | null;
         associationName: string | null;
     };
     current: {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -1800,12 +1800,13 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         endedAt: string | null;
     } | null;
     open: {
-        status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         declaredFeeRwf: number | null;
-        stage: "waiting_tin_check" | "with_psf" | "awaiting_payment";
+        stage: "awaiting_payment" | "waiting_tin_check" | "with_psf";
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -1815,14 +1816,13 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         approvedMembershipNumber: string | null;
         approvedFeeRwf: number | null;
         payment: {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         } | null;
         withdrawnAt: string | null;
@@ -1851,11 +1851,12 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         };
     } | null;
     history: {
-        status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -1865,14 +1866,13 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         approvedMembershipNumber: string | null;
         approvedFeeRwf: number | null;
         payment: {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         } | null;
         withdrawnAt: string | null;
@@ -1927,17 +1927,17 @@ export declare const PsfMembershipOverview: z.ZodObject<{
     orgId: string;
     profile: {
         domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
         ownerGroups: ("women" | "youth" | "pwd")[];
-        districtName: string | null;
         businessCode: string | null;
         clusterName: string | null;
         associationName: string | null;
         subsectorName?: string | null | undefined;
     };
     current: {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -1947,12 +1947,13 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         endedAt: string | null;
     } | null;
     open: {
-        status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         declaredFeeRwf: number | null;
-        stage: "waiting_tin_check" | "with_psf" | "awaiting_payment";
+        stage: "awaiting_payment" | "waiting_tin_check" | "with_psf";
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -1962,14 +1963,13 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         approvedMembershipNumber: string | null;
         approvedFeeRwf: number | null;
         payment: {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         } | null;
         withdrawnAt: string | null;
@@ -1998,11 +1998,12 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         };
     } | null;
     history: {
-        status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -2012,14 +2013,13 @@ export declare const PsfMembershipOverview: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         approvedMembershipNumber: string | null;
         approvedFeeRwf: number | null;
         payment: {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         } | null;
         withdrawnAt: string | null;
@@ -2106,14 +2106,14 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
         /** Whether Injishi has passed the money on to PSF yet. */
         remittedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        reference: string;
         amountRwf: number;
         paidAt: string;
-        reference: string;
         remittedAt: string | null;
     }, {
+        reference: string;
         amountRwf: number;
         paidAt: string;
-        reference: string;
         remittedAt: string | null;
     }>>;
     withdrawnAt: z.ZodNullable<z.ZodString>;
@@ -2187,11 +2187,12 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
         idDocumentNumber: string;
     }>;
 }, "form">, "strip", z.ZodTypeAny, {
-    status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+    status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+    id: string;
+    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     requestedTierCode: string;
     declaredFeeRwf: number | null;
     decidedAt: string | null;
-    id: string;
     submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -2201,23 +2202,23 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
     submittedCapacity: "owner" | "on_behalf_of";
     submittedByName: string | null;
     queuedAt: string | null;
-    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     decisionNote: string | null;
     approvedMembershipNumber: string | null;
     approvedFeeRwf: number | null;
     payment: {
+        reference: string;
         amountRwf: number;
         paidAt: string;
-        reference: string;
         remittedAt: string | null;
     } | null;
     withdrawnAt: string | null;
 }, {
-    status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+    status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+    id: string;
+    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     requestedTierCode: string;
     declaredFeeRwf: number | null;
     decidedAt: string | null;
-    id: string;
     submittedAt: string;
     requestedTierName: string;
     quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -2227,14 +2228,13 @@ export declare const AdminPsfApplication: z.ZodObject<Omit<{
     submittedCapacity: "owner" | "on_behalf_of";
     submittedByName: string | null;
     queuedAt: string | null;
-    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     decisionNote: string | null;
     approvedMembershipNumber: string | null;
     approvedFeeRwf: number | null;
     payment: {
+        reference: string;
         amountRwf: number;
         paidAt: string;
-        reference: string;
         remittedAt: string | null;
     } | null;
     withdrawnAt: string | null;
@@ -2253,8 +2253,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         expiresOn: z.ZodNullable<z.ZodString>;
         endedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -2263,8 +2263,8 @@ export declare const AdminOrgPsf: z.ZodObject<{
         startsOn: string | null;
         endedAt: string | null;
     }, {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -2303,14 +2303,14 @@ export declare const AdminOrgPsf: z.ZodObject<{
             /** Whether Injishi has passed the money on to PSF yet. */
             remittedAt: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         }, {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         }>>;
         withdrawnAt: z.ZodNullable<z.ZodString>;
@@ -2384,11 +2384,12 @@ export declare const AdminOrgPsf: z.ZodObject<{
             idDocumentNumber: string;
         }>;
     }, "form">, "strip", z.ZodTypeAny, {
-        status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -2398,23 +2399,23 @@ export declare const AdminOrgPsf: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         approvedMembershipNumber: string | null;
         approvedFeeRwf: number | null;
         payment: {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         } | null;
         withdrawnAt: string | null;
     }, {
-        status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -2424,22 +2425,21 @@ export declare const AdminOrgPsf: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         approvedMembershipNumber: string | null;
         approvedFeeRwf: number | null;
         payment: {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         } | null;
         withdrawnAt: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     membership: {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -2449,11 +2449,12 @@ export declare const AdminOrgPsf: z.ZodObject<{
         endedAt: string | null;
     } | null;
     applications: {
-        status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -2463,22 +2464,21 @@ export declare const AdminOrgPsf: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         approvedMembershipNumber: string | null;
         approvedFeeRwf: number | null;
         payment: {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         } | null;
         withdrawnAt: string | null;
     }[];
 }, {
     membership: {
-        expiresOn: string | null;
         id: string;
+        expiresOn: string | null;
         annualFeeRwf: number | null;
         source: "psf_confirmed" | "self_declared";
         tierCode: string | null;
@@ -2488,11 +2488,12 @@ export declare const AdminOrgPsf: z.ZodObject<{
         endedAt: string | null;
     } | null;
     applications: {
-        status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+        status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+        id: string;
+        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         requestedTierCode: string;
         declaredFeeRwf: number | null;
         decidedAt: string | null;
-        id: string;
         submittedAt: string;
         requestedTierName: string;
         quotedPriceKind: "minimum" | "fixed" | "range" | "set_by_psf";
@@ -2502,14 +2503,13 @@ export declare const AdminOrgPsf: z.ZodObject<{
         submittedCapacity: "owner" | "on_behalf_of";
         submittedByName: string | null;
         queuedAt: string | null;
-        declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
         decisionNote: string | null;
         approvedMembershipNumber: string | null;
         approvedFeeRwf: number | null;
         payment: {
+            reference: string;
             amountRwf: number;
             paidAt: string;
-            reference: string;
             remittedAt: string | null;
         } | null;
         withdrawnAt: string | null;
@@ -2712,21 +2712,21 @@ export declare const PsfApplicationBranch: z.ZodObject<{
     canDecide: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     status: "pending" | "declined" | "admitted";
+    id: string;
+    districtName: string | null;
     districtId: number;
     street: string;
     decidedAt: string | null;
-    id: string;
-    districtName: string | null;
     sectorName: string | null;
     note: string | null;
     canDecide: boolean;
 }, {
     status: "pending" | "declined" | "admitted";
+    id: string;
+    districtName: string | null;
     districtId: number;
     street: string;
     decidedAt: string | null;
-    id: string;
-    districtName: string | null;
     sectorName: string | null;
     note: string | null;
     canDecide: boolean;
@@ -2789,12 +2789,12 @@ export declare const PsfQueueItem: z.ZodObject<{
      */
     decidesHere: z.ZodDefault<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
+    domain: "hospitality" | "residence" | "enterprise";
+    districtName: string | null;
     districtId: number | null;
     declaredFeeRwf: number | null;
-    domain: "hospitality" | "residence" | "enterprise";
     ownerGroups: ("women" | "youth" | "pwd")[];
     orgId: string;
-    districtName: string | null;
     submittedAt: string;
     businessCode: string | null;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
@@ -2813,12 +2813,12 @@ export declare const PsfQueueItem: z.ZodObject<{
     branchesPending: number;
     decidesHere: boolean;
 }, {
+    domain: "hospitality" | "residence" | "enterprise";
+    districtName: string | null;
     districtId: number | null;
     declaredFeeRwf: number | null;
-    domain: "hospitality" | "residence" | "enterprise";
     ownerGroups: ("women" | "youth" | "pwd")[];
     orgId: string;
-    districtName: string | null;
     submittedAt: string;
     businessCode: string | null;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
@@ -2878,12 +2878,12 @@ export declare const PsfQueuePage: z.ZodObject<{
          */
         decidesHere: z.ZodDefault<z.ZodBoolean>;
     }, "strip", z.ZodTypeAny, {
+        domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         districtId: number | null;
         declaredFeeRwf: number | null;
-        domain: "hospitality" | "residence" | "enterprise";
         ownerGroups: ("women" | "youth" | "pwd")[];
         orgId: string;
-        districtName: string | null;
         submittedAt: string;
         businessCode: string | null;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
@@ -2902,12 +2902,12 @@ export declare const PsfQueuePage: z.ZodObject<{
         branchesPending: number;
         decidesHere: boolean;
     }, {
+        domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         districtId: number | null;
         declaredFeeRwf: number | null;
-        domain: "hospitality" | "residence" | "enterprise";
         ownerGroups: ("women" | "youth" | "pwd")[];
         orgId: string;
-        districtName: string | null;
         submittedAt: string;
         businessCode: string | null;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
@@ -2931,12 +2931,12 @@ export declare const PsfQueuePage: z.ZodObject<{
     total: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     items: {
+        domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         districtId: number | null;
         declaredFeeRwf: number | null;
-        domain: "hospitality" | "residence" | "enterprise";
         ownerGroups: ("women" | "youth" | "pwd")[];
         orgId: string;
-        districtName: string | null;
         submittedAt: string;
         businessCode: string | null;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
@@ -2959,12 +2959,12 @@ export declare const PsfQueuePage: z.ZodObject<{
     total: number;
 }, {
     items: {
+        domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         districtId: number | null;
         declaredFeeRwf: number | null;
-        domain: "hospitality" | "residence" | "enterprise";
         ownerGroups: ("women" | "youth" | "pwd")[];
         orgId: string;
-        districtName: string | null;
         submittedAt: string;
         businessCode: string | null;
         registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
@@ -3026,14 +3026,14 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         /** Whether Injishi has passed the money on to PSF yet. */
         remittedAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        reference: string;
         amountRwf: number;
         paidAt: string;
-        reference: string;
         remittedAt: string | null;
     }, {
+        reference: string;
         amountRwf: number;
         paidAt: string;
-        reference: string;
         remittedAt: string | null;
     }>>;
     withdrawnAt: z.ZodNullable<z.ZodString>;
@@ -3123,18 +3123,18 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         registrationKind: z.ZodNullable<z.ZodEnum<["tin", "rca", "rgb", "other", "none"]>>;
     }, "strip", z.ZodTypeAny, {
         domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
         ownerGroups: ("women" | "youth" | "pwd")[];
-        districtName: string | null;
         businessCode: string | null;
         clusterName: string | null;
         subsectorName: string | null;
         associationName: string | null;
     }, {
         domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
         ownerGroups: ("women" | "youth" | "pwd")[];
-        districtName: string | null;
         businessCode: string | null;
         clusterName: string | null;
         associationName: string | null;
@@ -3166,21 +3166,21 @@ export declare const PsfOfficerApplication: z.ZodObject<{
         canDecide: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         status: "pending" | "declined" | "admitted";
+        id: string;
+        districtName: string | null;
         districtId: number;
         street: string;
         decidedAt: string | null;
-        id: string;
-        districtName: string | null;
         sectorName: string | null;
         note: string | null;
         canDecide: boolean;
     }, {
         status: "pending" | "declined" | "admitted";
+        id: string;
+        districtName: string | null;
         districtId: number;
         street: string;
         decidedAt: string | null;
-        id: string;
-        districtName: string | null;
         sectorName: string | null;
         note: string | null;
         canDecide: boolean;
@@ -3188,24 +3188,25 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     /** The officer is the District Manager who decides the business (2026-10-23); see `PsfQueueItem.decidesHere`. */
     decidesHere: z.ZodDefault<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
-    status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+    status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+    id: string;
+    districtName: string | null;
+    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     requestedTierCode: string;
     declaredFeeRwf: number | null;
     branches: {
         status: "pending" | "declined" | "admitted";
+        id: string;
+        districtName: string | null;
         districtId: number;
         street: string;
         decidedAt: string | null;
-        id: string;
-        districtName: string | null;
         sectorName: string | null;
         note: string | null;
         canDecide: boolean;
     }[];
     decidedAt: string | null;
-    id: string;
     orgId: string;
-    districtName: string | null;
     submittedAt: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     requestedTierName: string;
@@ -3216,14 +3217,13 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     submittedCapacity: "owner" | "on_behalf_of";
     submittedByName: string | null;
     queuedAt: string | null;
-    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     decisionNote: string | null;
     approvedMembershipNumber: string | null;
     approvedFeeRwf: number | null;
     payment: {
+        reference: string;
         amountRwf: number;
         paidAt: string;
-        reference: string;
         remittedAt: string | null;
     } | null;
     withdrawnAt: string | null;
@@ -3252,9 +3252,9 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     };
     profile: {
         domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
         ownerGroups: ("women" | "youth" | "pwd")[];
-        districtName: string | null;
         businessCode: string | null;
         clusterName: string | null;
         subsectorName: string | null;
@@ -3269,13 +3269,14 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     suggestedMembershipNumber: string | null;
     paidBeforeReview: boolean;
 }, {
-    status: "submitted" | "approved" | "member" | "declined" | "withdrawn";
+    status: "submitted" | "approved" | "declined" | "member" | "withdrawn";
+    id: string;
+    districtName: string | null;
+    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     requestedTierCode: string;
     declaredFeeRwf: number | null;
     decidedAt: string | null;
-    id: string;
     orgId: string;
-    districtName: string | null;
     submittedAt: string;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     requestedTierName: string;
@@ -3286,14 +3287,13 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     submittedCapacity: "owner" | "on_behalf_of";
     submittedByName: string | null;
     queuedAt: string | null;
-    declineReason: "other" | "details_incomplete" | "not_eligible_for_tier" | "business_not_recognised" | null;
     decisionNote: string | null;
     approvedMembershipNumber: string | null;
     approvedFeeRwf: number | null;
     payment: {
+        reference: string;
         amountRwf: number;
         paidAt: string;
-        reference: string;
         remittedAt: string | null;
     } | null;
     withdrawnAt: string | null;
@@ -3322,9 +3322,9 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     };
     profile: {
         domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
         ownerGroups: ("women" | "youth" | "pwd")[];
-        districtName: string | null;
         businessCode: string | null;
         clusterName: string | null;
         associationName: string | null;
@@ -3337,11 +3337,11 @@ export declare const PsfOfficerApplication: z.ZodObject<{
     suggestedMembershipNumber: string | null;
     branches?: {
         status: "pending" | "declined" | "admitted";
+        id: string;
+        districtName: string | null;
         districtId: number;
         street: string;
         decidedAt: string | null;
-        id: string;
-        districtName: string | null;
         sectorName: string | null;
         note: string | null;
         canDecide: boolean;
@@ -3435,7 +3435,7 @@ export declare const PsfBusinessesQuery: z.ZodObject<{
     cluster?: string | undefined;
     association?: string | undefined;
     tier?: string | undefined;
-    standing?: "member" | "declined" | "awaiting_payment" | "not_applied" | "applied" | "lapsed" | undefined;
+    standing?: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed" | undefined;
     group?: "women" | "youth" | "pwd" | undefined;
 }, {
     province?: number | undefined;
@@ -3448,7 +3448,7 @@ export declare const PsfBusinessesQuery: z.ZodObject<{
     cluster?: string | undefined;
     association?: string | undefined;
     tier?: string | undefined;
-    standing?: "member" | "declined" | "awaiting_payment" | "not_applied" | "applied" | "lapsed" | undefined;
+    standing?: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed" | undefined;
     group?: "women" | "youth" | "pwd" | undefined;
 }>;
 export type PsfBusinessesQuery = z.infer<typeof PsfBusinessesQuery>;
@@ -3486,14 +3486,14 @@ export declare const PsfBusinessRow: z.ZodObject<{
      */
     headOfficeInScope: z.ZodDefault<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
+    domain: "hospitality" | "residence" | "enterprise";
+    districtName: string | null;
     districtId: number | null;
     expiresOn: string | null;
     legalName: string;
-    domain: "hospitality" | "residence" | "enterprise";
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
     ownerGroups: ("women" | "youth" | "pwd")[];
     orgId: string;
-    districtName: string | null;
     sectorName: string | null;
     businessCode: string | null;
     clusterCode: string | null;
@@ -3504,7 +3504,7 @@ export declare const PsfBusinessRow: z.ZodObject<{
     associationName: string | null;
     paidRwf: number;
     headOfficeInScope: boolean;
-    standing: "member" | "declined" | "awaiting_payment" | "not_applied" | "applied" | "lapsed";
+    standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
     associationAcronym: string | null;
     hasTin: boolean;
     registeredAt: string;
@@ -3512,14 +3512,14 @@ export declare const PsfBusinessRow: z.ZodObject<{
     lastPaidAt: string | null;
     branchCount: number;
 }, {
+    domain: "hospitality" | "residence" | "enterprise";
+    districtName: string | null;
     districtId: number | null;
     expiresOn: string | null;
     legalName: string;
-    domain: "hospitality" | "residence" | "enterprise";
     registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
     ownerGroups: ("women" | "youth" | "pwd")[];
     orgId: string;
-    districtName: string | null;
     sectorName: string | null;
     businessCode: string | null;
     clusterCode: string | null;
@@ -3527,7 +3527,7 @@ export declare const PsfBusinessRow: z.ZodObject<{
     membershipNumber: string | null;
     clusterName: string | null;
     associationName: string | null;
-    standing: "member" | "declined" | "awaiting_payment" | "not_applied" | "applied" | "lapsed";
+    standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
     associationAcronym: string | null;
     hasTin: boolean;
     registeredAt: string;
@@ -3553,20 +3553,20 @@ export declare const PsfBusinessBranch: z.ZodObject<{
     inScope: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     status: "pending" | "declined" | "admitted";
-    districtId: number;
-    street: string;
     id: string;
     districtName: string | null;
+    districtId: number;
+    street: string;
     sectorName: string | null;
     note: string | null;
     provinceName: string | null;
     inScope: boolean;
 }, {
     status: "pending" | "declined" | "admitted";
-    districtId: number;
-    street: string;
     id: string;
     districtName: string | null;
+    districtId: number;
+    street: string;
     sectorName: string | null;
     note: string | null;
     provinceName: string | null;
@@ -3608,14 +3608,14 @@ export declare const PsfBusinessesPage: z.ZodObject<{
          */
         headOfficeInScope: z.ZodDefault<z.ZodBoolean>;
     }, "strip", z.ZodTypeAny, {
+        domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         districtId: number | null;
         expiresOn: string | null;
         legalName: string;
-        domain: "hospitality" | "residence" | "enterprise";
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
         ownerGroups: ("women" | "youth" | "pwd")[];
         orgId: string;
-        districtName: string | null;
         sectorName: string | null;
         businessCode: string | null;
         clusterCode: string | null;
@@ -3626,7 +3626,7 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         associationName: string | null;
         paidRwf: number;
         headOfficeInScope: boolean;
-        standing: "member" | "declined" | "awaiting_payment" | "not_applied" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -3634,14 +3634,14 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         lastPaidAt: string | null;
         branchCount: number;
     }, {
+        domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         districtId: number | null;
         expiresOn: string | null;
         legalName: string;
-        domain: "hospitality" | "residence" | "enterprise";
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
         ownerGroups: ("women" | "youth" | "pwd")[];
         orgId: string;
-        districtName: string | null;
         sectorName: string | null;
         businessCode: string | null;
         clusterCode: string | null;
@@ -3649,7 +3649,7 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         membershipNumber: string | null;
         clusterName: string | null;
         associationName: string | null;
-        standing: "member" | "declined" | "awaiting_payment" | "not_applied" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -3665,14 +3665,14 @@ export declare const PsfBusinessesPage: z.ZodObject<{
     total: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     items: {
+        domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         districtId: number | null;
         expiresOn: string | null;
         legalName: string;
-        domain: "hospitality" | "residence" | "enterprise";
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
         ownerGroups: ("women" | "youth" | "pwd")[];
         orgId: string;
-        districtName: string | null;
         sectorName: string | null;
         businessCode: string | null;
         clusterCode: string | null;
@@ -3683,7 +3683,7 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         associationName: string | null;
         paidRwf: number;
         headOfficeInScope: boolean;
-        standing: "member" | "declined" | "awaiting_payment" | "not_applied" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -3695,14 +3695,14 @@ export declare const PsfBusinessesPage: z.ZodObject<{
     total: number;
 }, {
     items: {
+        domain: "hospitality" | "residence" | "enterprise";
+        districtName: string | null;
         districtId: number | null;
         expiresOn: string | null;
         legalName: string;
-        domain: "hospitality" | "residence" | "enterprise";
         registrationKind: "other" | "none" | "tin" | "rca" | "rgb" | null;
         ownerGroups: ("women" | "youth" | "pwd")[];
         orgId: string;
-        districtName: string | null;
         sectorName: string | null;
         businessCode: string | null;
         clusterCode: string | null;
@@ -3710,7 +3710,7 @@ export declare const PsfBusinessesPage: z.ZodObject<{
         membershipNumber: string | null;
         clusterName: string | null;
         associationName: string | null;
-        standing: "member" | "declined" | "awaiting_payment" | "not_applied" | "applied" | "lapsed";
+        standing: "declined" | "awaiting_payment" | "member" | "not_applied" | "applied" | "lapsed";
         associationAcronym: string | null;
         hasTin: boolean;
         registeredAt: string;
@@ -3906,9 +3906,9 @@ export declare const PsfSubsectorsView: z.ZodObject<{
             canEdit: z.ZodBoolean;
         }, "strip", z.ZodTypeAny, {
             active: boolean;
-            districtId: number | null;
             id: string;
             districtName: string | null;
+            districtId: number | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
@@ -3916,9 +3916,9 @@ export declare const PsfSubsectorsView: z.ZodObject<{
             canEdit: boolean;
         }, {
             active: boolean;
-            districtId: number | null;
             id: string;
             districtName: string | null;
+            districtId: number | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
@@ -3930,9 +3930,9 @@ export declare const PsfSubsectorsView: z.ZodObject<{
         nameEn: string;
         subsectors: {
             active: boolean;
-            districtId: number | null;
             id: string;
             districtName: string | null;
+            districtId: number | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
@@ -3944,9 +3944,9 @@ export declare const PsfSubsectorsView: z.ZodObject<{
         nameEn: string;
         subsectors: {
             active: boolean;
-            districtId: number | null;
             id: string;
             districtName: string | null;
+            districtId: number | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
@@ -3989,9 +3989,9 @@ export declare const PsfSubsectorsView: z.ZodObject<{
         nameEn: string;
         subsectors: {
             active: boolean;
-            districtId: number | null;
             id: string;
             districtName: string | null;
+            districtId: number | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;
@@ -4014,9 +4014,9 @@ export declare const PsfSubsectorsView: z.ZodObject<{
         nameEn: string;
         subsectors: {
             active: boolean;
-            districtId: number | null;
             id: string;
             districtName: string | null;
+            districtId: number | null;
             nameEn: string;
             sortOrder: number;
             clusterCode: string;

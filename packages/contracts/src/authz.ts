@@ -33,7 +33,18 @@ export const Permission = z.enum([
     // `property.switch` was here. Seeing a branch is coverage, not a capability:
     // the switcher reads `branches` from the grant (ADR-054 AC-S4).
     "rent.record",
-    "lease.advance",
+    /**
+     * Run the business's leases (rentals blueprint 2.1): draft, edit, send,
+     * cancel and start them, record notices and move outs, and keep the tenant
+     * records. Was `lease.advance`, which only moved a lease along a board;
+     * migration 0083 renames stored overrides.
+     */
+    "lease.manage",
+    /**
+     * Sign a lease AS THE LANDLORD, which binds the business to it. Owner by
+     * default (`OWNER_BY_DEFAULT`); an owner may grant it to a manager.
+     */
+    "lease.sign",
     "deposit.return",
     "unit.manage",
     "listing.manage",
@@ -186,6 +197,54 @@ export const Permission = z.enum([
      * proposer, which the service refuses whatever permissions either holds.
      */
     "lostfound.manage",
+    /**
+     * Decide where the business's rent is paid out: add, change, retire and
+     * make primary a bank account, MoMo number or MoMo Pay code (rentals
+     * blueprint 2.1). Owner by default, because whoever holds it decides whose
+     * account the tenants' money lands in; an owner may grant it.
+     */
+    "payout.manage",
+    /** Record and void the business's expenses, and pay a fixer. Owner, manager and finance. */
+    "expense.manage",
+    /** Keep the tax side: the taxpayer kind, the year's declaration, and lease filings with RRA. Owner, manager and finance. */
+    "tax.manage",
+    /** Register the landlord's own guests, which go to the local leaders. Owner, manager and receptionist. */
+    "guest.register",
+    /**
+     * The bar and restaurant point of sale (POS spec, phase 1). Nine permissions
+     * in the `services` area, each moveable per role under ADR-055.
+     *
+     * `pos.sell` takes an order: open a draft, add and change lines, send it to
+     * the kitchen and bar. The waiter's, the cashier's and the bartender's.
+     */
+    "pos.sell",
+    /** Take payment on an order and settle its bill. The cashier's. */
+    "pos.checkout",
+    /**
+     * Discount a line or an order UP TO the outlet's configured limit. Above
+     * the limit the discount waits for `pos.override`, so a cashier can never
+     * give a bill away alone.
+     */
+    "pos.discount",
+    /**
+     * The manager's override: approve a discount above the limit, void a line
+     * already sent to the kitchen, cancel an order. Every use is audited with a
+     * reason.
+     */
+    "pos.override",
+    /**
+     * Refund a settled POS payment. Owner and manager by default; finance keeps
+     * its ADR-069 D-b seven, and a business may grant it this (ADR-055).
+     */
+    "pos.refund",
+    /** Open, close, transfer and merge table sessions. Front of house. */
+    "table.manage",
+    /** Move kitchen and bar tickets through their stations. Kitchen and bar staff. */
+    "kitchen.work",
+    /** Open and close one's own cashier shift, record cash paid in and out. */
+    "register.operate",
+    /** Review a closed shift's cash variance and approve a paid out. Owner and manager. */
+    "shift.review",
 ]);
 export type Permission = z.infer<typeof Permission>;
 const ALL = Permission.options;
@@ -228,21 +287,31 @@ const OWNER_ONLY: readonly Permission[] = ["team.manage"];
  * holds. `hr` holds `people.manage` and `payroll.draft` by its own set, not by
  * inheriting from here, and `payroll.run` stays the owner's alone.
  */
-const OWNER_BY_DEFAULT: readonly Permission[] = ["people.manage", "payroll.draft", "payroll.run"];
+const OWNER_BY_DEFAULT: readonly Permission[] = [
+    "people.manage",
+    "payroll.draft",
+    "payroll.run",
+    // Rentals (blueprint 2.1): signing binds the business to a lease, and the
+    // payout account decides where the rent goes.
+    "lease.sign",
+    "payout.manage",
+];
 /**
  * Role to permissions, inside a business workspace.
  *
  * owner runs and OWNS the property: everything, the roster included.
  * manager runs the property: everything operational, money and the fiscal
  * account included — but does not decide who works here (`OWNER_ONLY`), and by
- * default neither reads HR files in full nor drafts or confirms payroll
- * (`OWNER_BY_DEFAULT`).
+ * default neither reads HR files in full nor drafts or confirms payroll, nor
+ * signs leases or decides where rent is paid out (`OWNER_BY_DEFAULT`).
  * receptionist works the front desk and takes service orders: no money, no
- * team, no housekeeping board, no menu editing. Clocks staff in and out.
+ * team, no housekeeping board, no menu editing. Clocks staff in and out, and
+ * registers the landlord's guests.
  * finance is the accountant (ADR-069 D-b): reads the money, posts and voids
  * charges, records payments, closes bills, keeps the EBM account, withdraws a
- * signed sale and answers refund requests. No rooms, no reservations to
- * write, no rates, no staff files, no guest inbox.
+ * signed sale and answers refund requests; on a residence it records rent,
+ * keeps the expenses and the tax side (rentals blueprint 2.1). No rooms, no
+ * reservations to write, no rates, no staff files, no guest inbox.
  * hr is the HR officer (ADR-069 D-b): reads and keeps the staff files, the
  * roster, attendance and leave, and DRAFTS the pay run; the owner confirms it.
  * No money, no folios, no reservations, no guest inbox.
@@ -269,6 +338,7 @@ const ROLE_PERMISSIONS: Readonly<Record<OrgRole, ReadonlySet<Permission>>> = {
         "message.send",
         "attendance.record",
         "lostfound.manage",
+        "guest.register",
     ]),
     finance: new Set<Permission>([
         "money.view",
@@ -278,6 +348,9 @@ const ROLE_PERMISSIONS: Readonly<Record<OrgRole, ReadonlySet<Permission>>> = {
         "ebm.manage",
         "ebm.refund",
         "refund.decide",
+        "rent.record",
+        "expense.manage",
+        "tax.manage",
     ]),
     hr: new Set<Permission>([
         "people.view",
@@ -289,6 +362,19 @@ const ROLE_PERMISSIONS: Readonly<Record<OrgRole, ReadonlySet<Permission>>> = {
         "payroll.draft",
     ]),
     housekeeper: new Set<Permission>(["housekeeping.set", "ticket.advance"]),
+    cashier: new Set<Permission>([
+        "pos.sell",
+        "pos.checkout",
+        "pos.discount",
+        "table.manage",
+        "register.operate",
+    ]),
+    waiter: new Set<Permission>(["pos.sell", "table.manage"]),
+    bartender: new Set<Permission>(["pos.sell", "table.manage", "kitchen.work"]),
+    kitchen: new Set<Permission>(["kitchen.work"]),
+    // The stock permissions arrive with the inventory phase; until then the
+    // role signs in and holds nothing.
+    stock_controller: new Set<Permission>([]),
 };
 /** Does this role hold this permission? The single predicate both sides use. */
 export function can(role: OrgRole, permission: Permission): boolean {
@@ -313,7 +399,8 @@ export const PERMISSION_LABEL: Readonly<Record<Permission, string>> = {
     "team.manage": "manage the team",
     "money.view": "view money",
     "rent.record": "record rent",
-    "lease.advance": "advance leases",
+    "lease.manage": "manage leases and tenants",
+    "lease.sign": "sign leases for the business",
     "deposit.return": "return deposits",
     "unit.manage": "change unit rents",
     "listing.manage": "manage listings and inventory",
@@ -336,6 +423,19 @@ export const PERMISSION_LABEL: Readonly<Record<Permission, string>> = {
     "payroll.draft": "draft the pay run",
     "payroll.run": "confirm the pay run",
     "lostfound.manage": "keep the lost and found register",
+    "payout.manage": "choose where rent is paid out",
+    "expense.manage": "record expenses",
+    "tax.manage": "keep tax declarations and lease filings",
+    "guest.register": "register guests",
+    "pos.sell": "take orders at the point of sale",
+    "pos.checkout": "take payment and settle bills",
+    "pos.discount": "give discounts within the limit",
+    "pos.override": "approve discounts over the limit, voids and cancellations",
+    "pos.refund": "refund point of sale payments",
+    "table.manage": "open, transfer and close tables",
+    "kitchen.work": "work kitchen and bar tickets",
+    "register.operate": "run a cashier shift",
+    "shift.review": "review cashier shifts and paid outs",
 };
 // ---------------------------------------------------------------------------
 // A business's own role customisation
@@ -512,7 +612,12 @@ export const PERMISSION_AREA_OF: Readonly<Record<Permission, PermissionArea>> = 
     "ebm.refund": "money",
     "refund.decide": "money",
     "rent.record": "money",
-    "lease.advance": "property",
+    "payout.manage": "money",
+    "expense.manage": "money",
+    "tax.manage": "money",
+    "lease.manage": "property",
+    "lease.sign": "property",
+    "guest.register": "property",
     "deposit.return": "property",
     "unit.manage": "property",
     "listing.manage": "property",
@@ -529,6 +634,15 @@ export const PERMISSION_AREA_OF: Readonly<Record<Permission, PermissionArea>> = 
     "payroll.draft": "people",
     "payroll.run": "people",
     "lostfound.manage": "front_desk",
+    "pos.sell": "services",
+    "pos.checkout": "services",
+    "pos.discount": "services",
+    "pos.override": "services",
+    "pos.refund": "money",
+    "table.manage": "services",
+    "kitchen.work": "services",
+    "register.operate": "money",
+    "shift.review": "money",
 };
 // ---------------------------------------------------------------------------
 // What each role may do, at THIS business
@@ -789,12 +903,18 @@ export function workspaceAllows(access: Pick<WorkspaceAccess, "permissions">, pe
  * "no assignment" and "no console" are the same thing.
  */
 export const OversightGrant = z.object({
+    /** The assignment row: a local leader's seen marks and flags name it. */
+    assignmentId: Uuid,
     oversightRole: OversightRole,
     governmentBodyCode: z.string(),
     governmentTitle: z.string().nullable(),
     scopeLevel: OversightScopeLevel,
     provinceId: z.number().int().nullable(),
     districtId: z.number().int().nullable(),
+    /** A local leader's sector, cell and village (P5); null for a business reviewer. */
+    sectorId: z.number().int().nullable(),
+    cellId: z.number().int().nullable(),
+    villageId: z.number().int().nullable(),
 });
 export type OversightGrant = z.infer<typeof OversightGrant>;
 /**
@@ -820,7 +940,7 @@ export type OversightGrant = z.infer<typeof OversightGrant>;
 export const OversightConsoleGrant = z.object({
     /** The assignment row, so a console can name the seat it is rendering. */
     assignmentId: Uuid,
-    console: z.enum(["verification", "approval", "tax", "membership"]),
+    console: z.enum(["verification", "approval", "tax", "membership", "guests"]),
     oversightRole: OversightRole,
     bodyCode: z.string(),
     bodyName: z.string().nullable(),
@@ -828,6 +948,9 @@ export const OversightConsoleGrant = z.object({
     scopeLevel: OversightScopeLevel,
     provinceId: z.number().int().nullable(),
     districtId: z.number().int().nullable(),
+    sectorId: z.number().int().nullable(),
+    cellId: z.number().int().nullable(),
+    villageId: z.number().int().nullable(),
     scopeLabel: z.string(),
 });
 export type OversightConsoleGrant = z.infer<typeof OversightConsoleGrant>;
@@ -844,8 +967,20 @@ export const OVERSIGHT_COUNTRY_SCOPE_LABEL = "Rwanda";
 export const OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE: string = "Your appointment is recorded, and the console for it is not built yet. " +
     "Tax compliance review is not available in this release.";
 /** Which console a function opens. */
-export function oversightConsoleFor(role: OversightRole): "verification" | "approval" | "tax" | "membership" {
+export function oversightConsoleFor(role: OversightRole): "verification" | "approval" | "tax" | "membership" | "guests" {
     switch (role) {
+        // The local leaders (P5) all read guests staying in their area.
+        case "village_leader":
+        case "dasso":
+        case "cell_executive":
+        case "district_officer":
+        case "district_immigration":
+        case "sector_executive":
+        case "dgie_province":
+        case "dgie_national":
+        case "dgie_village":
+        case "dgie_cell":
+            return "guests";
         case "business_field_verifier":
             return "verification";
         case "business_approver":
@@ -934,6 +1069,14 @@ export interface OversightScope {
 export function oversightScopesOverlap(a: OversightScope, b: OversightScope): boolean {
     // A country grant covers the whole map, so it meets everything.
     if (a.scopeLevel === "country" || b.scopeLevel === "country") return true;
+    // A local leader's sector, cell or village sits inside one district, which is
+    // all this business-gate question can tell about it (the leader roles gate
+    // nothing, so nothing should ask; this keeps a wrong caller conservative).
+    const local = (s: OversightScope) => s.scopeLevel === "sector" || s.scopeLevel === "cell" || s.scopeLevel === "village";
+    if (local(a) || local(b)) {
+        const fold = (s: OversightScope): OversightScope => (local(s) ? { scopeLevel: "district", provinceId: s.provinceId, districtId: s.districtId } : s);
+        return oversightScopesOverlap(fold(a), fold(b));
+    }
     if (a.scopeLevel === "province" && b.scopeLevel === "province")
         return a.provinceId !== null && a.provinceId === b.provinceId;
     if (a.scopeLevel === "district" && b.scopeLevel === "district")
@@ -957,6 +1100,18 @@ export function opposingGateRole(role: OversightRole): OversightRole | null {
         // Membership is not a registration gate either (ADR-056), so a PSF
         // field verifier may also hold it: they decide different things.
         case "psf_membership_officer":
+            return null;
+        // A local leader reads guests; they gate no business at all.
+        case "village_leader":
+        case "dasso":
+        case "cell_executive":
+        case "district_officer":
+        case "district_immigration":
+        case "sector_executive":
+        case "dgie_province":
+        case "dgie_national":
+        case "dgie_village":
+        case "dgie_cell":
             return null;
     }
 }
@@ -993,4 +1148,4 @@ export function mayElevate(identity: {
 }): boolean {
     return identity.kycStatus === "verified" && identity.activeDocumentCount > 0;
 }
-export const ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Validate your National ID or scan your passport on the About you step, then try again.";
+export const ELEVATION_REFUSED_MESSAGE = "This needs a verified identity. Scan your ID on the You step of registration, then try again.";

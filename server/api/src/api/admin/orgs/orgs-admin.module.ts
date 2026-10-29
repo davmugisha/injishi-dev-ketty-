@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { OrganizationModule } from '../../../modules/organization/organization.module';
 import { AdminSharedModule } from '../admin-shared.module';
 import { AdminBrokerActionsService } from '../brokers/broker-actions.service';
+import { AdminBrokerPlansService } from '../brokers/broker-plans-admin.service';
 import { AdminBrokersController } from '../brokers/brokers.controller';
 import { AdminBrokersService } from '../brokers/brokers.service';
 import { AdminOrgActionsService } from './org-actions.service';
@@ -43,6 +44,7 @@ import { AdminOrgsService } from './orgs.service';
     AdminOrgActionsService,
     AdminBrokersService,
     AdminBrokerActionsService,
+    AdminBrokerPlansService,
   ],
 })
 export class OrgsAdminModule {}

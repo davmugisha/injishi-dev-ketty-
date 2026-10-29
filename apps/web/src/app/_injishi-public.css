@@ -14,13 +14,16 @@
  * keyframes. ADR-013 call 4 owns everything below it: the @layer components
  * and @utility rules the public pages are written against. */
 @import "tailwindcss" source(none);
+@import "@injishi/web-ui/styles.css";
+/* The one web library products import (ADR-074 D-l), beside web-ui until
+ * stage 9. Only its `@source "./"`: it carries no theme of its own. */
 @import "@injishi/ui/styles.css";
 /* HeroUI 3 ships its component CSS and a full set of role DEFAULTS. It must be
  * imported BEFORE the token sheet: both define the same variable names at the
  * same specificity, so the later one wins and the earlier import would leave
  * every surface on HeroUI's stock blue. */
 @import "@heroui/styles";
-@import "@injishi/ui/pro.css"; /* HeroUI Pro, after HeroUI OSS, as Pro requires */
+@import "@injishi/web-ui/pro.css"; /* HeroUI Pro, after HeroUI OSS, as Pro requires */
 @import "@injishi/design-tokens/heroui.css";
 
 /* source(none) turns off automatic detection, so this list is the complete
@@ -56,39 +59,28 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* One family, Inter, mounted by next/font/local (src/lib/fonts.ts) as a
-   * CSS variable on the <html> element. Display and body share it: the
-   * Injishi Design System sets everything in Inter (ADR-068), and Spectral, the serif
-   * the display role used to take, is retired (2026-10-06). `--font-display`
-   * stays as its own token so a heading's role is still named, and so a
-   * future display face is one line. */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* Two families, mounted by next/font/local (src/lib/fonts.ts) as CSS
+   * variables on the <html> element: Figtree for body, Instrument Sans for
+   * headings, as the Injishi design system sets them (ADR-068, re-synced
+   * 2026-10-26; Inter carried both before). `--font-heading` is the design
+   * system's own name for the heading role. `--font-display` is this layer's
+   * older name for the same role, kept so every `font-display` call site and
+   * the heading rule below move with it; it is the heading face, never a
+   * third family. Both are written out rather than one reading the other:
+   * Tailwind emits only the theme variables something uses, so a
+   * `var(--font-heading)` here could point at a variable that was never
+   * emitted. */
+  --font-sans: var(--font-figtree, "Figtree"), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-instrument-sans, "Instrument Sans"), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-instrument-sans, "Instrument Sans"), ui-sans-serif, system-ui, sans-serif;
 
-  /* The accent green used AS INK, held fixed in both themes.
-   *
-   * ui-tokens.md and ui-rules.md both name this role and say when to reach for
-   * it: on a ground that does NOT invert — `bg-white/95` over a photograph,
-   * a fixed light panel — where `accent-text` would carry its dark twin onto a
-   * surface that never goes dark. The rule was written and the role was never
-   * declared out here: `_injishi-app.css` has it for the signed-in layer and
-   * this sheet did not, so every marketplace `text-accent-ink` compiled to
-   * NOTHING and the text simply inherited the page colour — near-white on a
-   * near-white panel in dark theme, measured at 1.06:1 on the listing card.
-   *
-   * It is declared HERE rather than in `@injishi/design-tokens`, and that is
-   * deliberate: `apps/app` already has a `--accent-ink` and it means the
-   * opposite thing — the dark ink that sits ON the accent fill (`ink-950`,
-   * `pms-tokens.css`), which is also its `--color-primary-foreground`. Emitting
-   * this value from the shared package would land unlayered over that app's
-   * layered copy and repaint every CTA's label in the wrong ink. One name,
-   * two meanings, and until one of them is renamed neither may be shared.
-   *
-   * The value is the LIGHT theme's `accent-text`, held still. */
-  --color-accent-ink: oklch(49.00% 0.1594 145.10);
+  /* `text-accent-ink`, the accent as ink on a plate that never goes dark,
+   * comes from `@injishi/design-tokens/heroui.css` (the fixed `accentInk`
+   * role, the light `accent-text` held still). It used to be pasted here,
+   * because `apps/app` once had a `--accent-ink` of its own; that one is gone. */
 
   /* Page motion. Component motion (the accordion frames, tw-animate-css) is
-   * @injishi/ui's, imported above — ADR-010 supporting call 5b. */
+   * @injishi/web-ui's, imported above — ADR-010 supporting call 5b. */
   --animate-fade-up: fade-up 0.5s ease-out forwards;
   --animate-slide-up: slide-up 0.3s ease-out forwards;
   --animate-slide-down: slide-down 0.3s ease-out forwards;
@@ -181,8 +173,9 @@
     cursor: pointer;
   }
 
-  /* Headings take the display role (Inter since ADR-068, when the serif
-     was retired); a heading with no weight of its own sets at 600 with a
+  /* Headings take the display role (Instrument Sans since the 2026-10-26
+     re-sync of ADR-068; Inter before it, and Spectral before the serif was
+     retired); a heading with no weight of its own sets at 600 with a
      slight negative track, which is what keeps a sans heading reading as a
      heading at the sizes Spectral used to carry at 400. ADR-010 call 6
      scopes this rule to the public layer: the four app route groups keep

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { EbmReceipt } from "@injishi/contracts";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { apiResultMessage } from "@/lib/api";
 import { fetchReceipt } from "@/data/receipt";

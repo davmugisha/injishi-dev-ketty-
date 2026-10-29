@@ -18,6 +18,10 @@ export default tseslint.config(
     files: ['src/**/*.ts'],
     plugins: { injishi },
     rules: {
+      // ADR-074 D-f. The server never imports a product: a shape both sides
+      // need belongs in `@injishi/contracts`. Nor the demo's fixtures.
+      'injishi/product-boundaries': 'error',
+      'injishi/no-demo-data': 'error',
       /**
        * ADR-012, AC-1. A mutating route behind `WorkspaceGuard` or
        * `StaffGuard` must say which power it needs, or every member
@@ -37,9 +41,9 @@ export default tseslint.config(
             // and there is no power to name. Demanding a permission would mean
             // inventing one that grants nothing.
             'MeController.setActiveWorkspace',
-            // Every route of `/api/v1/ops/broker` (ADR-038 child 6): the two
-            // commands `POST .../:listingId/reveal` and `.../placements`, and
-            // the four reads beside them.
+            // Every route of `/api/v1/ops/broker` (2026-10-25): the homes,
+            // reveals and placements, the plan and its checkout, and the reads
+            // beside them.
             //
             // `permissionsForWorkspace` returns an EMPTY array for any
             // workspace whose kind is not `business`, and a broker workspace is
@@ -51,12 +55,29 @@ export default tseslint.config(
             //
             // The reads are listed because audit H1 extended this rule from
             // mutations to every verb; before that they needed no entry.
+            'OpsBrokerController.summary',
+            'OpsBrokerController.list',
+            'OpsBrokerController.home',
             'OpsBrokerController.reveal',
             'OpsBrokerController.startPlacement',
-            'OpsBrokerController.directory',
-            'OpsBrokerController.credits',
             'OpsBrokerController.placements',
             'OpsBrokerController.earnings',
+            'OpsBrokerController.reviews',
+            'OpsBrokerController.plan',
+            'OpsBrokerController.checkout',
+            'OpsBrokerController.payment',
+            'OpsBrokerController.change',
+            'OpsBrokerController.cancel',
+            'OpsBrokerController.homeDistrict',
+            // `/api/v1/ops/broker/messages` (2026-10-26), for the same reason:
+            // `PlacementMessagesService` refuses a workspace that is not a
+            // broker's own (403) and a placement that is not theirs (404).
+            'OpsBrokerMessagesController.list',
+            'OpsBrokerMessagesController.unread',
+            'OpsBrokerMessagesController.thread',
+            'OpsBrokerMessagesController.send',
+            'OpsBrokerMessagesController.read',
+            'OpsBrokerMessagesController.file',
           ],
         },
       ],

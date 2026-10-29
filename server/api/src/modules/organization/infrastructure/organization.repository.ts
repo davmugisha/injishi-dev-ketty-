@@ -1,6 +1,7 @@
 import {
   districtLetters,
   formatBusinessCode,
+  type BusinessKind,
   type Domain,
   type EnterpriseRegistrationKind,
   type OrgRegistrationStatus,
@@ -14,7 +15,6 @@ import {
   desc,
   eq,
   inArray,
-  isNotNull,
   isNull,
   lte,
   or,
@@ -28,6 +28,7 @@ import {
   districts,
   oboRegistrations,
   orgCertificates,
+  orgFranchises,
   orgInvitations,
   orgRegistrationReviews,
   orgMemberships,
@@ -35,6 +36,7 @@ import {
   oversightAssignments,
   properties,
   recordAccessLogs,
+  registrationDrafts,
   registrationFees,
   sectors,
   subscriptionInvoices,
@@ -99,6 +101,11 @@ class NothingToSettle extends Error {}
 export interface CreateOrgRow {
   legalName: string;
   domain: Domain;
+  /** What kind of business it is (ADR-075 D-h). */
+  /** Null for a PSF business (`enterprise`), which is not a place. */
+  businessKind: BusinessKind | null;
+  /** The Pay press's `Idempotency-Key` (ADR-075 AC-14), or null for a caller that sent none. */
+  creationKey: string | null;
   rdbEntityGroup: string | null;
   accommodationClass: string | null;
   accommodationClassOther: string | null;
@@ -132,7 +139,8 @@ export interface CreateOrgRow {
       | 'other'
       | 'rdb_certificate'
       | 'psf_certificate'
-      | 'land_title';
+      | 'land_title'
+      | 'franchise_agreement';
     kindOther: string | null;
     objectKey: string;
     certificateNumber: string | null;
@@ -170,6 +178,21 @@ export interface CreateOrgRow {
   ownerGroups: PsfOwnerGroup[];
   registrationKind: EnterpriseRegistrationKind | null;
   registrationNumber: string | null;
+  /**
+   * Part of a franchise, and how (ADR-075 AC-8), written as the org's
+   * `org_franchises` row. Null for No, which writes no row.
+   */
+  franchise:
+    | {
+        role: 'franchisee';
+        brandName: string;
+        franchisorLegalName: string;
+        franchisorCountry: string;
+        /** The object key of the `franchise_agreement` document it sent, or null. */
+        agreementObjectKey: string | null;
+      }
+    | { role: 'franchisor'; brandName: string; franchisedLocations: number }
+    | null;
 }
 
 export interface CreatedOrg {
@@ -269,6 +292,8 @@ export class OrganizationRepository {
         .values({
           legalName: input.legalName,
           domain: input.domain,
+          businessKind: input.businessKind,
+          creationKey: input.creationKey,
           rdbEntityGroup: input.rdbEntityGroup,
           accommodationClass: input.accommodationClass,
           accommodationClassOther: input.accommodationClassOther,
@@ -349,6 +374,29 @@ export class OrganizationRepository {
         await tx.insert(orgCertificates).values(
           input.certificates.map((c) => ({ orgId: org.id, ...c })),
         );
+      }
+
+      // ADR-075 AC-8: the franchise answer, in the same transaction, so a
+      // registration never exists without the answer it was made with.
+      if (input.franchise?.role === 'franchisee') {
+        const key = input.franchise.agreementObjectKey;
+        await tx.insert(orgFranchises).values({
+          orgId: org.id,
+          role: 'franchisee',
+          brandName: input.franchise.brandName,
+          franchisorLegalName: input.franchise.franchisorLegalName,
+          franchisorCountry: input.franchise.franchisorCountry,
+          agreementObjectId: key
+            ? sql`(select ${storedObjects.id} from ${storedObjects} where ${storedObjects.objectKey} = ${key})`
+            : null,
+        });
+      } else if (input.franchise?.role === 'franchisor') {
+        await tx.insert(orgFranchises).values({
+          orgId: org.id,
+          role: 'franchisor',
+          brandName: input.franchise.brandName,
+          franchisedLocations: input.franchise.franchisedLocations,
+        });
       }
 
       let claimInvitation: CreatedOrg['claimInvitation'] = null;
@@ -526,21 +574,18 @@ export class OrganizationRepository {
   /**
    * Settle the registration fee and advance the org, in one transaction.
    *
-   * Conditional on the org still being at `pending_payment` WITH an accepted
-   * operator contract, and on the invoice still being pending, so a duplicated
-   * payment callback cannot advance an org twice or bill it twice. Returns false
-   * when a guard did not match, which the caller reads as "already done" or, when
-   * the contract is still open, as the refusal it is.
+   * Conditional on the org still being at `pending_payment` and on the invoice
+   * still being pending, so a duplicated payment callback cannot advance an org
+   * twice or bill it twice. Returns false when a guard did not match, which the
+   * caller reads as "already done".
    *
-   * The contract condition is inside the statement rather than only checked
-   * beforehand (ADR-053, AC-R13). Settling is the only door into `submitted`, so
-   * this is what makes an officer's queue unreachable without an accepted
-   * contract; a check before the write could lose a race to nothing, but a
-   * condition on the write cannot.
+   * It no longer waits on an accepted operator contract: ADR-075 moved the
+   * agreement to after approval (AC-12, superseding ADR-053 AC-R13), and only
+   * signing it makes a business `active` (A3).
    *
-   * The org moves FIRST and the invoice second. The other way round, an org
-   * refused on its contract would still have committed a paid invoice, because
-   * returning from a transaction commits whatever it already wrote.
+   * The org moves FIRST and the invoice second, inside one transaction, so a
+   * move that cannot find its invoice is undone rather than submitting a
+   * business nobody paid for.
    *
    * A business on the PSF path (`enterprise`) signs no operator contract: it
    * lists nothing on the marketplace, which is what the contract governs.
@@ -550,6 +595,37 @@ export class OrganizationRepository {
    * is never spent on a draft nobody paid for, and a paid business always has
    * one.
    */
+  /** The org a registration invoice bills (073-gtbank-payments AC-16). */
+  async orgOfRegistrationInvoice(invoiceId: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({ orgId: subscriptionInvoices.orgId })
+      .from(subscriptionInvoices)
+      .where(
+        and(
+          eq(subscriptionInvoices.id, invoiceId),
+          eq(subscriptionInvoices.invoiceKind, 'registration_fee'),
+        ),
+      )
+      .limit(1);
+    return row?.orgId ?? null;
+  }
+
+  /** A paid registration invoice back to pending, because its payment was reversed (073 AC-20). */
+  async reopenRegistrationInvoice(invoiceId: string): Promise<boolean> {
+    const reopened = await this.db
+      .update(subscriptionInvoices)
+      .set({ status: 'pending', updatedAt: new Date() })
+      .where(
+        and(
+          eq(subscriptionInvoices.id, invoiceId),
+          eq(subscriptionInvoices.invoiceKind, 'registration_fee'),
+          eq(subscriptionInvoices.status, 'paid'),
+        ),
+      )
+      .returning({ id: subscriptionInvoices.id });
+    return reopened.length > 0;
+  }
+
   /**
    * The public PSF form's payment settled (2026-10-23): the membership fee is
    * the one payment, with no registration fee invoice, so this moves the
@@ -576,8 +652,7 @@ export class OrganizationRepository {
 
   async settleRegistrationFee(
     orgId: string,
-    /** Null when nobody signed in paid it: the public PSF form. */
-    actorUserId: string | null,
+    mover: RegistrationMover,
   ): Promise<boolean> {
     try {
       return await this.db.transaction(async (tx) => {
@@ -588,7 +663,6 @@ export class OrganizationRepository {
             and(
               eq(orgs.id, orgId),
               eq(orgs.registrationStatus, 'pending_payment'),
-              or(isNotNull(orgs.contractVersion), eq(orgs.domain, 'enterprise')),
             ),
           )
           .returning({ id: orgs.id });
@@ -610,55 +684,28 @@ export class OrganizationRepository {
         // for.
         if (paid.length === 0) throw new NothingToSettle();
 
-        // The registrant paying is what moved it. When a real payment callback
-        // replaces this stand in, the mover becomes `system` in the same line.
+        // The registrant moves it on the free path (the seam is off); the
+        // payment settling moves it, as `system`, when money was taken
+        // (073-gtbank-payments AC-16).
         await recordRegistrationEvent(tx, {
           orgId,
           from: 'pending_payment',
           to: 'submitted',
-          mover: actorUserId
-            ? { trigger: 'registrant', actorUserId }
-            : { trigger: 'system', actorUserId: null },
+          mover,
         });
         await issueBusinessCode(tx, orgId);
+        // The draft this registration was made from has nothing left to hold (ADR-075 D-m): its checks and its
+        // tries reset with it, so a helper's next business starts clean. Only the draft marked with THIS
+        // registration, never one its registrant has since begun for another business.
+        await tx
+          .delete(registrationDrafts)
+          .where(sql`${registrationDrafts.checks} ->> 'registrationId' = ${orgId}::text`);
         return true;
       });
     } catch (error) {
       if (error instanceof NothingToSettle) return false;
       throw error;
     }
-  }
-
-  /**
-   * Record the operator contract acceptance, once (ADR-053, AC-R8).
-   *
-   * One conditional update: it writes only while no acceptance is recorded and
-   * the org is still at `pending_payment`. So a double press, a retried request
-   * or a press that lands after paying cannot move `contract_accepted_at`, and
-   * the first acceptance is the one that stands. Returns whether this call wrote.
-   */
-  async acceptContract(input: {
-    orgId: string;
-    userId: string;
-    contractVersion: string;
-  }): Promise<boolean> {
-    const rows = await this.db
-      .update(orgs)
-      .set({
-        contractVersion: input.contractVersion,
-        contractAcceptedAt: new Date(),
-        contractAcceptedByUserId: input.userId,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(orgs.id, input.orgId),
-          eq(orgs.registrationStatus, 'pending_payment'),
-          isNull(orgs.contractVersion),
-        ),
-      )
-      .returning({ id: orgs.id });
-    return rows.length > 0;
   }
 
   /**
@@ -756,6 +803,7 @@ export class OrganizationRepository {
         id: string;
         legalName: string;
         domain: Domain;
+        businessKind: BusinessKind | null;
         accommodationClass: string | null;
         businessCode: string | null;
         tin: string | null;
@@ -775,6 +823,7 @@ export class OrganizationRepository {
         id: orgs.id,
         legalName: orgs.legalName,
         domain: orgs.domain,
+        businessKind: orgs.businessKind,
         accommodationClass: orgs.accommodationClass,
         businessCode: orgs.businessCode,
         tin: orgs.tin,
@@ -915,6 +964,29 @@ export class OrganizationRepository {
 
       return true;
     });
+  }
+
+  /**
+   * The registration a Pay press created (ADR-075 AC-14): the org whose
+   * `creation_key` is this `Idempotency-Key`, or null.
+   */
+  async orgIdByCreationKey(key: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({ id: orgs.id })
+      .from(orgs)
+      .where(eq(orgs.creationKey, key))
+      .limit(1);
+    return row?.id ?? null;
+  }
+
+  /** The org holding this TIN, or null; for answering a registrant's replay with their own registration. */
+  async orgIdByTin(tin: string): Promise<string | null> {
+    const [row] = await this.db
+      .select({ id: orgs.id })
+      .from(orgs)
+      .where(eq(orgs.tin, tin))
+      .limit(1);
+    return row?.id ?? null;
   }
 
   /** Is this person on this org at all? The check every registrant route owes. */
@@ -1565,6 +1637,13 @@ export class OrganizationRepository {
       );
     return rows
       .filter((r) => Boolean(r.email))
+      // A reviewer is appointed at the country, a province or a district (the
+      // table's role-scope check); the narrowing says so to the type.
+      .flatMap((r) =>
+        r.scopeLevel === 'country' || r.scopeLevel === 'province' || r.scopeLevel === 'district'
+          ? [{ ...r, scopeLevel: r.scopeLevel }]
+          : [],
+      )
       .map((r) => ({
         userId: r.userId,
         email: r.email,

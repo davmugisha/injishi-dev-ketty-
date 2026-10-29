@@ -32,6 +32,14 @@ export const WorkOrderEventKind = z.enum([
     "verified",
     "from_signal",
     "planned",
+    // Rentals P4 (migration 0087): the steps of the shared ticket lifecycle a
+    // hotel order never takes, and the fixer being paid.
+    "acknowledged",
+    "wont_fix",
+    "reopened",
+    "paid",
+    "closed",
+    "cancelled",
 ]);
 export type WorkOrderEventKind = z.infer<typeof WorkOrderEventKind>;
 

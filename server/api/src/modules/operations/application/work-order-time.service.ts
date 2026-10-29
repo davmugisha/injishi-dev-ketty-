@@ -14,9 +14,10 @@ import type { Db } from '../infrastructure/room-events';
 import { StaffPhoneRepository, type TimeLogRow } from '../infrastructure/staff-phone.repository';
 import { type WorkOrderRow, WorkOrdersRepository } from '../infrastructure/work-orders.repository';
 import { iso } from './housekeeping-board.service';
+import { TicketLifecycle } from './ticket-lifecycle';
 import { WorkOrdersService } from './work-orders.service';
 
-const FINISHED = new Set(['resolved', 'closed', 'cancelled']);
+const FINISHED = new Set(['resolved', 'closed', 'wont_fix', 'cancelled']);
 
 /**
  * The technician's side of a work order (real-data leaf 1.3.3): the timer on their own repair, starting
@@ -32,6 +33,7 @@ export class WorkOrderTimeService {
     private readonly repo: WorkOrdersRepository,
     private readonly phone: StaffPhoneRepository,
     private readonly orders: WorkOrdersService,
+    private readonly lifecycle: TicketLifecycle,
   ) {}
 
   async logs(ws: ScopedWorkspace): Promise<WorkOrderTimeLogList> {
@@ -79,11 +81,16 @@ export class WorkOrderTimeService {
       const order = await this.mine(tx, ws, id, userId);
       if (FINISHED.has(order.status)) throw new ConflictException('This work order is already fixed.');
       await this.phone.stopLogs(tx, order.id, null);
-      await tx.execute(sql`
-        update maintenance_tickets set status = 'resolved', resolved_at = now(), updated_at = now()
-         where id = ${order.id}
-      `);
-      await this.repo.addEvent(tx, { ticketId: order.id, kind: 'fixed', note: body.fix, actorUserId: userId });
+      // The shared ticket lifecycle (WP 4.1) writes the move and its `fixed` row with the fix.
+      await this.lifecycle.move(tx, {
+        ticketId: order.id,
+        to: 'resolved',
+        actorUserId: userId,
+        actorRole: 'staff',
+        note: body.fix,
+        eventKind: 'fixed',
+        visibleToTenant: false,
+      });
       if (body.askRelease && order.room_id) {
         const block = await this.repo.openBlockForTicket(tx, order.id);
         if (block && block.status === 'active') {
@@ -113,11 +120,15 @@ export class WorkOrderTimeService {
   }
 
   private async startWork(tx: Db, order: WorkOrderRow, userId: string): Promise<void> {
-    if (order.status !== 'open' && order.status !== 'assigned') return;
-    await tx.execute(sql`
-      update maintenance_tickets set status = 'in_progress', updated_at = now() where id = ${order.id}
-    `);
-    await this.repo.addEvent(tx, { ticketId: order.id, kind: 'started', note: null, actorUserId: userId });
+    if (order.status !== 'open' && order.status !== 'acknowledged' && order.status !== 'assigned') return;
+    await this.lifecycle.move(tx, {
+      ticketId: order.id,
+      to: 'in_progress',
+      actorUserId: userId,
+      actorRole: 'staff',
+      eventKind: 'started',
+      visibleToTenant: false,
+    });
   }
 }
 

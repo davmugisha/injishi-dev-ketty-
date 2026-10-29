@@ -2,7 +2,7 @@
 
 import { CalendarDays, MapPin, Search, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@injishi/utils";
 import { StayDatePicker } from "@/components/search/stay-date-picker";

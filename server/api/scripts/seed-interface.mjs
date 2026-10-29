@@ -25,6 +25,7 @@ import { assertSampleDatabase, describeDatabase } from './sample-database.mjs';
 import { AREAS } from './seed-interface/index.mjs';
 import { loadFixtures, TODAY } from './seed-interface/lib.mjs';
 import { seedWorld, WORKSPACE } from './seed-interface/world.mjs';
+import { apiEnvFile } from './env-file.mjs';
 
 /** The business workspaces of the interface world: convergence never reaches past them. */
 const INTERFACE_WORKSPACES = [WORKSPACE.hotel, WORKSPACE.residences];
@@ -32,7 +33,7 @@ const INTERFACE_WORKSPACES = [WORKSPACE.hotel, WORKSPACE.residences];
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 function loadDotEnv() {
-  const file = path.join(here, '..', '.env');
+  const file = apiEnvFile() ?? path.join(here, '..', '.env');
   if (!existsSync(file)) return;
   for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
     const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);

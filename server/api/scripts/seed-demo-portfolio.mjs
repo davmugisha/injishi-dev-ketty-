@@ -66,10 +66,12 @@ import {
   filingEntries,
 } from './contract-filings.mjs';
 import { rentHistory } from './rent-history.mjs';
+import { filingsTable, rentalsRebuilt, skipRentalsNote } from './rentals-rebuilt.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
+import { apiEnvFile } from './env-file.mjs';
 
 function loadDotEnv() {
-  const file = path.join(process.cwd(), '.env');
+  const file = apiEnvFile() ?? path.join(process.cwd(), '.env');
   if (!fs.existsSync(file)) return;
   for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
     const match = /^([A-Za-z0-9_]+)=(.*)$/.exec(line.trim());
@@ -500,6 +502,11 @@ async function seedLandlord(c) {
       id: u.id, room_type_id: u.type, property_id: DEMO.ingoro, workspace_id: DEMO.greenHillsWorkspace,
       label: u.label, status: 'available', housekeeping_status: 'clean',
     });
+  }
+
+  if (await rentalsRebuilt(c)) {
+    console.log(skipRentalsNote('seed-demo-portfolio.mjs', "Ingoro Apartments' leases, rent roll, notices, filings, deposits and repairs"));
+    return;
   }
 
   for (const l of LEASES) {
@@ -1065,14 +1072,15 @@ async function purge(c) {
     await q(`DELETE FROM caution_holds WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
     await q(`DELETE FROM maintenance_tickets WHERE id::text LIKE $1 OR lease_id::text LIKE $1 OR room_id::text LIKE $1`);
     await q(`DELETE FROM move_out_notices WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
-    await q(`DELETE FROM contract_filings WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
+    // Migration 0082 renamed contract_filings to lease_filings.
+    await q(`DELETE FROM ${(await filingsTable(c))} WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
     // The signatures this script backfilled onto seed-demo.mjs's five leases.
     // It owns them: they were null before it ran, and nothing else writes them.
     await c.query(
       `UPDATE leases SET landlord_signed_at = NULL, tenant_signed_at = NULL WHERE id = ANY($1::uuid[])`,
       [[DEMO.leaseA1, DEMO.leaseA2, DEMO.leaseB1, DEMO.leaseB2, DEMO.leaseC1]],
     );
-    await q(`DELETE FROM rent_charges WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
+    await q(`DELETE FROM ${(await rentalsRebuilt(c)) ? 'lease_charges' : 'rent_charges'} WHERE id::text LIKE $1 OR lease_id::text LIKE $1`);
     await sweepReferences(c, 'leases', MY_ROWS);
     await q(`DELETE FROM leases WHERE id::text LIKE $1 OR room_id::text LIKE $1`);
     await sweepReferences(c, 'rooms', MY_ROWS);
@@ -1113,13 +1121,14 @@ async function summary(c) {
     [MY_ROWS],
   );
   const reviews = await one(`SELECT moderation_state s, count(*)::int n FROM reviews WHERE id::text LIKE $1 GROUP BY 1`, [MY_ROWS]);
+  const rebuilt = await rentalsRebuilt(c);
   const rent = await one(
-    `SELECT count(*)::int n, count(DISTINCT rc.period_month)::int months
-       FROM rent_charges rc JOIN leases l ON l.id = rc.lease_id WHERE l.workspace_id = $1`,
+    `SELECT count(*)::int n, count(DISTINCT date_trunc('month', rc.${rebuilt ? 'period_start' : 'period_month'}))::int months
+       FROM ${rebuilt ? 'lease_charges' : 'rent_charges'} rc JOIN leases l ON l.id = rc.lease_id WHERE l.workspace_id = $1`,
     [DEMO.greenHillsWorkspace],
   );
   const filings = await one(
-    `SELECT cf.status s, count(*)::int n FROM contract_filings cf
+    `SELECT cf.status s, count(*)::int n FROM ${await filingsTable(c)} cf
        JOIN leases l ON l.id = cf.lease_id WHERE l.workspace_id = $1 GROUP BY 1 ORDER BY 1`,
     [DEMO.greenHillsWorkspace],
   );

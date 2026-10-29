@@ -2193,7 +2193,7 @@ const teamRolesPermissionAreas: TeamRolesPermissionArea[] = [
     id: "property",
     label: "Property & listings",
     permissions: [
-      { key: "lease.advance", description: "Advance leases" },
+      { key: "lease.manage", description: "Manage leases and tenants" },
       { key: "deposit.return", description: "Return deposits" },
       { key: "unit.manage", description: "Change unit rents" },
       { key: "listing.manage", description: "Manage listings and inventory" },
@@ -3592,7 +3592,7 @@ const settingsBusinessNodes: SettingsBusinessNode[] = [
       gate: "Fiscal treatment of residential rent not verified",
       note: "No fiscal receipts are issued for rent until the treatment is confirmed with your tax adviser. Rent receipts are payment receipts only.",
       links: [
-        { label: "Rent roll", board: "RentRoll" },
+        { label: "Rentals", board: "ResidenceHome" },
         { label: "Integrations", board: "Integrations" },
       ],
     },
@@ -3623,8 +3623,8 @@ const settingsBusinessNodes: SettingsBusinessNode[] = [
       gate: "",
       note: "Residence units use leases, not stays, and never appear in hotel availability or occupancy.",
       links: [
-        { label: "Leases", board: "Leases" },
-        { label: "Rent roll", board: "RentRoll" },
+        { label: "Units", board: "Units" },
+        { label: "Rentals", board: "ResidenceHome" },
       ],
     },
   },

@@ -1,3 +1,7 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
+import type { PayerNumberPurgeRepository } from './payer-number-purge.repository';
+import type { PaymentSeam } from '../../payments/domain/payment-seam';
 import type { Job, Queue } from 'bullmq';
 
 import type { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
@@ -7,6 +11,8 @@ import {
 } from '../../payments/domain/payment-port';
 import type { BookingRepository } from './booking.repository';
 import { PaymentCompensationProcessor } from './payment-compensation.processor';
+import type { BookingRefunds } from '../application/booking-refunds';
+import type { DisbursementDispatcher } from '../../payments/application/disbursement-dispatcher.service';
 
 /**
  * The referee between a late-settling capture and the retry the guest was
@@ -24,18 +30,18 @@ describe('PaymentCompensationProcessor · void-pending', () => {
   };
 
   function build(opts: { claimed: boolean; settledNow?: boolean }): {
-    payments: Record<string, jest.Mock | string>;
-    bookings: Record<string, jest.Mock>;
-    compensations: Record<string, jest.Mock>;
+    payments: Record<string, Mock | string>;
+    bookings: Record<string, Mock>;
+    compensations: Record<string, Mock>;
     processor: PaymentCompensationProcessor;
     job: Job;
   } {
     const payments = {
       mode: 'mock' as const,
-      voidPending: jest
+      voidPending: vi
         .fn()
         .mockRejectedValue(new PaymentUnavailableError('cannot void', voidJob.idempotencyKey)),
-      fetchTransaction: jest.fn().mockResolvedValue({
+      fetchTransaction: vi.fn().mockResolvedValue({
         adapterRef: voidJob.originalRef,
         mode: 'mock',
         replayed: false,
@@ -44,23 +50,30 @@ describe('PaymentCompensationProcessor · void-pending', () => {
         occurredAt: new Date(),
         settlement: opts.settledNow === false ? 'pending' : 'settled',
       }),
-      refund: jest.fn().mockResolvedValue({ replayed: false }),
+      refund: vi.fn().mockResolvedValue({ replayed: false }),
     };
     const bookings = {
-      escrowExistsForCaptureKey: jest.fn().mockResolvedValue(opts.claimed),
-      recordExpiredDeclines: jest.fn(),
+      escrowExistsForCaptureKey: vi.fn().mockResolvedValue(opts.claimed),
+      recordExpiredDeclines: vi.fn(),
     };
     const compensations = {
-      markDone: jest.fn().mockResolvedValue(undefined),
-      markFailed: jest.fn().mockResolvedValue(undefined),
-      drain: jest.fn().mockResolvedValue(0),
+      markDone: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined),
+      drain: vi.fn().mockResolvedValue(0),
     };
-    const queue = { upsertJobScheduler: jest.fn() };
+    const queue = { upsertJobScheduler: vi.fn() };
+    const payerNumbers = { run: vi.fn().mockResolvedValue({ stamped: 0, purged: 0 }) };
+    const seam = { settings: { refundWindowDays: 30 } };
     const processor = new PaymentCompensationProcessor(
       queue as unknown as Queue,
       payments as unknown as PaymentPort,
       bookings as unknown as BookingRepository,
       compensations as unknown as PaymentCompensationService,
+      payerNumbers as unknown as PayerNumberPurgeRepository,
+      seam as unknown as PaymentSeam,
+      { tick: vi.fn() } as unknown as DisbursementDispatcher,
+      // 073 AC-13: no bank record behind these payments, so the provider path runs.
+      { plan: vi.fn().mockResolvedValue(null) } as unknown as BookingRefunds,
     );
     const job = { name: 'void-pending', data: voidJob } as unknown as Job;
     return { payments, bookings, compensations, processor, job };

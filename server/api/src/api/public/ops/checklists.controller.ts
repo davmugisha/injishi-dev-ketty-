@@ -20,7 +20,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { ChecklistsService } from '../../../modules/people/application/checklists.service';
+import { ChecklistsService } from '../../../modules/hr/application/checklists.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import {
   CurrentUser,

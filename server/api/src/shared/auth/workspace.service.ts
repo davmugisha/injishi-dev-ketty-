@@ -18,12 +18,14 @@ import {
   parseRolePermissionOverride,
   permissionsForWorkspace,
   staffPermissionsForRoles,
+  tidyPlaceName,
 } from '@injishi/contracts';
 
 import { DRIZZLE, type Database } from '../database/database.module';
 import type { CoveredProperties } from './branch-scope';
 import {
   adminUsers,
+  cells,
   departments,
   districts,
   governmentBodies,
@@ -36,8 +38,10 @@ import {
   oversightAssignments,
   properties,
   provinces,
+  sectors,
   sessions,
   verifiedIdentities,
+  villages,
   workspaces,
 } from '../../database/drizzle/schema';
 
@@ -403,12 +407,17 @@ export class WorkspaceService {
   async oversightGrantsForUser(userId: string): Promise<OversightGrant[]> {
     const rows = await this.db
       .select({
+        assignmentId: oversightAssignments.id,
         oversightRole: oversightAssignments.oversightRole,
         governmentBodyCode: oversightAssignments.governmentBodyCode,
         governmentTitle: oversightAssignments.governmentTitle,
         scopeLevel: oversightAssignments.scopeLevel,
         provinceId: oversightAssignments.provinceId,
         districtId: oversightAssignments.districtId,
+        // A local leader's post (P5) names its sector, cell and village too.
+        sectorId: oversightAssignments.sectorId,
+        cellId: oversightAssignments.cellId,
+        villageId: oversightAssignments.villageId,
       })
       .from(oversightAssignments)
       .where(
@@ -444,8 +453,14 @@ export class WorkspaceService {
         scopeLevel: oversightAssignments.scopeLevel,
         provinceId: oversightAssignments.provinceId,
         districtId: oversightAssignments.districtId,
+        sectorId: oversightAssignments.sectorId,
+        cellId: oversightAssignments.cellId,
+        villageId: oversightAssignments.villageId,
         provinceName: provinces.name,
         districtName: districts.name,
+        sectorName: sectors.name,
+        cellName: cells.name,
+        villageName: villages.name,
       })
       .from(oversightAssignments)
       .innerJoin(
@@ -454,6 +469,9 @@ export class WorkspaceService {
       )
       .leftJoin(provinces, eq(provinces.id, oversightAssignments.provinceId))
       .leftJoin(districts, eq(districts.id, oversightAssignments.districtId))
+      .leftJoin(sectors, eq(sectors.id, oversightAssignments.sectorId))
+      .leftJoin(cells, eq(cells.id, oversightAssignments.cellId))
+      .leftJoin(villages, eq(villages.id, oversightAssignments.villageId))
       .where(
         and(
           eq(oversightAssignments.userId, userId),
@@ -471,6 +489,9 @@ export class WorkspaceService {
       scopeLevel: row.scopeLevel,
       provinceId: row.provinceId,
       districtId: row.districtId,
+      sectorId: row.sectorId,
+      cellId: row.cellId,
+      villageId: row.villageId,
       // A region an officer can READ. A country grant says Rwanda rather than
       // nothing, because "no region shown" and "every region" look identical on a
       // screen and only one of them is a bug. A name that failed to resolve falls
@@ -479,8 +500,20 @@ export class WorkspaceService {
         row.scopeLevel === 'country'
           ? OVERSIGHT_COUNTRY_SCOPE_LABEL
           : row.scopeLevel === 'province'
-            ? (row.provinceName ?? 'Province')
-            : (row.districtName ?? 'District'),
+            ? tidyPlaceName(row.provinceName ?? 'Province')
+            : row.scopeLevel === 'district'
+              ? tidyPlaceName(row.districtName ?? 'District')
+              : // A local leader's post (P5): its own place, then the district.
+                [
+                  row.scopeLevel === 'village' ? `${tidyPlaceName(row.villageName ?? 'Village')} village` : null,
+                  row.scopeLevel === 'village' || row.scopeLevel === 'cell'
+                    ? `${tidyPlaceName(row.cellName ?? 'Cell')} cell`
+                    : null,
+                  `${tidyPlaceName(row.sectorName ?? 'Sector')} sector`,
+                  row.districtName ? tidyPlaceName(row.districtName) : null,
+                ]
+                  .filter((part): part is string => Boolean(part))
+                  .join(', '),
     }));
   }
 

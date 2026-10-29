@@ -26,7 +26,7 @@ function resetLabel(iso: string): string {
   }).format(new Date(iso));
 }
 
-/** Phone apps on this device: housekeeping, supervisor, technician, guest and resident. */
+/** Phone apps on this device: housekeeping, supervisor, technician and guest. */
 const PHONE_PERSONAS: Persona[] = PERSONA_IDS.map((id) => personas[id]).filter((p) => p.app.kind === "phone");
 
 function PersonaCard({
@@ -220,7 +220,7 @@ export default function SignInScreen() {
               <Text className="text-xs text-muted">Demo data last reset {resetLabel(options.seededAt)}</Text>
             ) : null}
             <Text className="pt-1 text-xs font-semibold tracking-wider text-muted uppercase">
-              Staff devices, guests and residents
+              Staff devices and guests
             </Text>
             {PHONE_PERSONAS.map((p) => (
               <PersonaCard

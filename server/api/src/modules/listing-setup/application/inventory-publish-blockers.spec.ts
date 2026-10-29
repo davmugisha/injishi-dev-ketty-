@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -17,9 +19,9 @@ function workspace(scope: Partial<ScopedWorkspace['branchScope']> = {}): ScopedW
 
 function service(facts: object | null, row: object | null = { id: PROPERTY, workspaceId: WORKSPACE }): InventoryService {
   const repo = {
-    findProperty: jest.fn(async () => row),
-    publishFactsFor: jest.fn(async () => facts),
-    publish: jest.fn(() => {
+    findProperty: vi.fn(async () => row),
+    publishFactsFor: vi.fn(async () => facts),
+    publish: vi.fn(() => {
       throw new Error('publishBlockers must never publish');
     }),
   };

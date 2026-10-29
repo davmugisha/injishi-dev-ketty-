@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Checkbox } from "@injishi/ui";
+import { Button, Checkbox } from "@injishi/web-ui";
 import { StepButton } from "@/components/shared/step-button";
 import {
   DEFAULT_GUESTS,

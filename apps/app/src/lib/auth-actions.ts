@@ -97,7 +97,14 @@ export async function verifyCode(_prev: VerifyState, form: FormData): Promise<Ve
   store.delete(LEGACY_SESSION_COOKIE);
   store.delete(OTP_COOKIE);
   const account = await accountFor(result.cookie);
-  redirect(destinationAfterSignIn(account?.persona.id ?? "guest", String(form.get("next") ?? ""), account?.user.email));
+  redirect(
+    destinationAfterSignIn(
+      account?.persona.id ?? "guest",
+      String(form.get("next") ?? ""),
+      account?.user.email,
+      account?.persona.home,
+    ),
+  );
 }
 
 /** "Resend code" on the code step, to the address the first code went to. Says why when it cannot. */
@@ -149,12 +156,14 @@ export async function signOutOtherSessions(): Promise<SessionsState> {
  * of web as well. The API writes the clearing cookies with the domain the session was set on; when it
  * cannot be reached, the app clears what this origin can see.
  */
-export async function signOut(): Promise<void> {
+export async function signOut(next?: string): Promise<void> {
   const store = await cookies();
   const cookie = await currentSessionCookie();
   const cleared = cookie ? await signOutOfApi(cookie) : [];
   if (cleared.length > 0) applyApiCookies(store, cleared);
   else clearAuthCookies(store);
   store.delete(LEGACY_SESSION_COOKIE);
-  redirect("/sign-in");
+  // Back to a page of this app after signing in again (an invitation link), never to another site.
+  const back = next && /^\/(?![/\\])/.test(next) ? next : null;
+  redirect(back ? `/sign-in?next=${encodeURIComponent(back)}` : "/sign-in");
 }

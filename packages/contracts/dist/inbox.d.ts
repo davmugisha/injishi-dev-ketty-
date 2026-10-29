@@ -81,11 +81,11 @@ export declare const GuestThread: z.ZodObject<{
     unreadCount: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "archived";
-    kind: "dispute" | "reservation" | "department_request";
     id: string;
+    kind: "dispute" | "reservation" | "department_request";
     subjectId: string;
     propertyName: string | null;
-    scope: "lease" | "booking" | "stay";
+    scope: "booking" | "lease" | "stay";
     departmentName: string | null;
     lastMessageAt: string | null;
     lastMessagePreview: string | null;
@@ -94,11 +94,11 @@ export declare const GuestThread: z.ZodObject<{
     unreadCount: number;
 }, {
     status: "active" | "archived";
-    kind: "dispute" | "reservation" | "department_request";
     id: string;
+    kind: "dispute" | "reservation" | "department_request";
     subjectId: string;
     propertyName: string | null;
-    scope: "lease" | "booking" | "stay";
+    scope: "booking" | "lease" | "stay";
     departmentName: string | null;
     lastMessageAt: string | null;
     lastMessagePreview: string | null;
@@ -149,11 +149,11 @@ export declare const MyThreads: z.ZodObject<{
         unreadCount: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
-        kind: "dispute" | "reservation" | "department_request";
         id: string;
+        kind: "dispute" | "reservation" | "department_request";
         subjectId: string;
         propertyName: string | null;
-        scope: "lease" | "booking" | "stay";
+        scope: "booking" | "lease" | "stay";
         departmentName: string | null;
         lastMessageAt: string | null;
         lastMessagePreview: string | null;
@@ -162,11 +162,11 @@ export declare const MyThreads: z.ZodObject<{
         unreadCount: number;
     }, {
         status: "active" | "archived";
-        kind: "dispute" | "reservation" | "department_request";
         id: string;
+        kind: "dispute" | "reservation" | "department_request";
         subjectId: string;
         propertyName: string | null;
-        scope: "lease" | "booking" | "stay";
+        scope: "booking" | "lease" | "stay";
         departmentName: string | null;
         lastMessageAt: string | null;
         lastMessagePreview: string | null;
@@ -177,11 +177,11 @@ export declare const MyThreads: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     threads: {
         status: "active" | "archived";
-        kind: "dispute" | "reservation" | "department_request";
         id: string;
+        kind: "dispute" | "reservation" | "department_request";
         subjectId: string;
         propertyName: string | null;
-        scope: "lease" | "booking" | "stay";
+        scope: "booking" | "lease" | "stay";
         departmentName: string | null;
         lastMessageAt: string | null;
         lastMessagePreview: string | null;
@@ -192,11 +192,11 @@ export declare const MyThreads: z.ZodObject<{
 }, {
     threads: {
         status: "active" | "archived";
-        kind: "dispute" | "reservation" | "department_request";
         id: string;
+        kind: "dispute" | "reservation" | "department_request";
         subjectId: string;
         propertyName: string | null;
-        scope: "lease" | "booking" | "stay";
+        scope: "booking" | "lease" | "stay";
         departmentName: string | null;
         lastMessageAt: string | null;
         lastMessagePreview: string | null;
@@ -214,8 +214,8 @@ export declare const GuestMessage: z.ZodObject<{
     senderName: z.ZodNullable<z.ZodString>;
     /** True when the READER sent it, so a screen can side the bubble. */
     fromUs: z.ZodBoolean;
-    /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s). */
-    bodyType: z.ZodEnum<["text", "image", "voice", "system"]>;
+    /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s); `file` a document sent in a lease thread (migration 0073). */
+    bodyType: z.ZodEnum<["text", "image", "voice", "system", "file"]>;
     body: z.ZodNullable<z.ZodString>;
     /** The order a `system` line reports on; read it from `GET /me/orders/:id`. */
     serviceOrderId: z.ZodNullable<z.ZodString>;
@@ -229,7 +229,7 @@ export declare const GuestMessage: z.ZodObject<{
     senderUserId: string | null;
     senderName: string | null;
     fromUs: boolean;
-    bodyType: "text" | "image" | "voice" | "system";
+    bodyType: "text" | "image" | "voice" | "system" | "file";
     serviceOrderId: string | null;
     voiceDurationS: number | null;
 }, {
@@ -240,7 +240,7 @@ export declare const GuestMessage: z.ZodObject<{
     senderUserId: string | null;
     senderName: string | null;
     fromUs: boolean;
-    bodyType: "text" | "image" | "voice" | "system";
+    bodyType: "text" | "image" | "voice" | "system" | "file";
     serviceOrderId: string | null;
     voiceDurationS: number | null;
 }>;
@@ -265,8 +265,8 @@ export declare const GuestMessagePage: z.ZodObject<{
         senderName: z.ZodNullable<z.ZodString>;
         /** True when the READER sent it, so a screen can side the bubble. */
         fromUs: z.ZodBoolean;
-        /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s). */
-        bodyType: z.ZodEnum<["text", "image", "voice", "system"]>;
+        /** `system` is a line the platform wrote, such as an order's status (ADR-050 D-s); `file` a document sent in a lease thread (migration 0073). */
+        bodyType: z.ZodEnum<["text", "image", "voice", "system", "file"]>;
         body: z.ZodNullable<z.ZodString>;
         /** The order a `system` line reports on; read it from `GET /me/orders/:id`. */
         serviceOrderId: z.ZodNullable<z.ZodString>;
@@ -280,7 +280,7 @@ export declare const GuestMessagePage: z.ZodObject<{
         senderUserId: string | null;
         senderName: string | null;
         fromUs: boolean;
-        bodyType: "text" | "image" | "voice" | "system";
+        bodyType: "text" | "image" | "voice" | "system" | "file";
         serviceOrderId: string | null;
         voiceDurationS: number | null;
     }, {
@@ -291,7 +291,7 @@ export declare const GuestMessagePage: z.ZodObject<{
         senderUserId: string | null;
         senderName: string | null;
         fromUs: boolean;
-        bodyType: "text" | "image" | "voice" | "system";
+        bodyType: "text" | "image" | "voice" | "system" | "file";
         serviceOrderId: string | null;
         voiceDurationS: number | null;
     }>, "many">;
@@ -307,7 +307,7 @@ export declare const GuestMessagePage: z.ZodObject<{
         senderUserId: string | null;
         senderName: string | null;
         fromUs: boolean;
-        bodyType: "text" | "image" | "voice" | "system";
+        bodyType: "text" | "image" | "voice" | "system" | "file";
         serviceOrderId: string | null;
         voiceDurationS: number | null;
     }[];
@@ -321,7 +321,7 @@ export declare const GuestMessagePage: z.ZodObject<{
         senderUserId: string | null;
         senderName: string | null;
         fromUs: boolean;
-        bodyType: "text" | "image" | "voice" | "system";
+        bodyType: "text" | "image" | "voice" | "system" | "file";
         serviceOrderId: string | null;
         voiceDurationS: number | null;
     }[];
@@ -446,9 +446,9 @@ export declare const GuestDeskPlace: z.ZodObject<{
         unreadCount: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
+    checkIn: string | null;
     subjectId: string;
     propertyName: string;
-    checkIn: string | null;
     propertyId: string;
     departments: {
         name: string;
@@ -463,9 +463,9 @@ export declare const GuestDeskPlace: z.ZodObject<{
     bookingReference: string | null;
     inHouse: boolean;
 }, {
+    checkIn: string | null;
     subjectId: string;
     propertyName: string;
-    checkIn: string | null;
     propertyId: string;
     departments: {
         name: string;
@@ -533,9 +533,9 @@ export declare const MyDepartments: z.ZodObject<{
             unreadCount: number;
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
+        checkIn: string | null;
         subjectId: string;
         propertyName: string;
-        checkIn: string | null;
         propertyId: string;
         departments: {
             name: string;
@@ -550,9 +550,9 @@ export declare const MyDepartments: z.ZodObject<{
         bookingReference: string | null;
         inHouse: boolean;
     }, {
+        checkIn: string | null;
         subjectId: string;
         propertyName: string;
-        checkIn: string | null;
         propertyId: string;
         departments: {
             name: string;
@@ -569,9 +569,9 @@ export declare const MyDepartments: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     places: {
+        checkIn: string | null;
         subjectId: string;
         propertyName: string;
-        checkIn: string | null;
         propertyId: string;
         departments: {
             name: string;
@@ -588,9 +588,9 @@ export declare const MyDepartments: z.ZodObject<{
     }[];
 }, {
     places: {
+        checkIn: string | null;
         subjectId: string;
         propertyName: string;
-        checkIn: string | null;
         propertyId: string;
         departments: {
             name: string;

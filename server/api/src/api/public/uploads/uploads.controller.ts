@@ -91,7 +91,7 @@ export class UploadsController {
    * persist a file path instead of a payload.
    *
    * This does not reopen the narrowness the certificate route above argues for.
-   * `kind` is checked against `ATTACHMENT_KINDS`, a fixed four-entry list in the
+   * `kind` is checked against `ATTACHMENT_KINDS`, a fixed short list in the
    * domain file — not passed through to the database enum. A route that takes a
    * `kind` is only a file host if the kinds are open, and these are not.
    */

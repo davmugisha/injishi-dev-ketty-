@@ -26,6 +26,7 @@ import {
   snapshotsOf,
   unclassifiedSentence,
 } from '../domain/sellable-item';
+import { PaymentSeam } from '../../payments/domain/payment-seam';
 import { FolioRepository } from '../infrastructure/folio.repository';
 import { MessagingService } from './messaging.service';
 import {
@@ -72,6 +73,7 @@ export class GuestOrderingService {
     private readonly catalog: ServiceCatalogRepository,
     private readonly folios: FolioRepository,
     private readonly messaging: MessagingService,
+    private readonly seam: PaymentSeam,
   ) {}
 
   protected now(): Date {
@@ -249,6 +251,12 @@ export class GuestOrderingService {
     }
     if (!departmentId) {
       throw new UnprocessableEntityException('Pick at least one thing.');
+    }
+    // Paying now: the bank's rules, refused before the order or its prompt
+    // exists (073-gtbank-payments AC-23, AC-24).
+    if (body.instrument) {
+      const ruleFault = this.seam.ruleProblem(subtotalRwf + taxRwf, body.instrument);
+      if (ruleFault) throw new UnprocessableEntityException(ruleFault);
     }
 
     const inHouse = body.context === 'in_house_folio';

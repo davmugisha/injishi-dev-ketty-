@@ -20,7 +20,7 @@ import {
   UnprocessableEntityException,
   forwardRef,
 } from '@nestjs/common';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 
 // Cross-module dependency goes through ListingModule's application service —
 // never its repository (architecture.md invariant).
@@ -33,6 +33,7 @@ import {
   type BookableRoomType,
 } from '../../listing/application/listing.service';
 import { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
+import { PaymentSeam } from '../../payments/domain/payment-seam';
 import {
   captureKeyFor,
   refundKeyFor,
@@ -196,6 +197,7 @@ export class BookingService {
      */
     @Inject(forwardRef(() => PaymentAttemptService))
     private readonly attempts: PaymentAttemptService,
+    private readonly seam: PaymentSeam,
   ) {}
 
   async create(
@@ -270,17 +272,20 @@ export class BookingService {
       guests: input.guests,
     });
 
+    // The bank's rules, refused before any hold, attempt or prompt
+    // (073-gtbank-payments AC-23, AC-24): a card while card payments are off,
+    // a network not prompted here, a total above the collection limit. The
+    // checkout has already said so with the same function.
+    const ruleFault = this.seam.ruleProblem(breakdown.grossRwf, input.instrument);
+    if (ruleFault) throw new UnprocessableEntityException(ruleFault);
+
     /**
      * The key that ties the charge, the escrow row and any later refund
-     * together (ADR-020 D-c).
-     *
-     * Minted server-side when the client did not send a token, which is only
-     * true while `attemptToken` is still optional in the contract. A fresh uuid
-     * makes the key unique, so the constraint is simply inert for that request
-     * rather than wrong. It is NEVER null: a null under a unique index
-     * deduplicates nothing, which would disable the whole protection in silence.
+     * together (ADR-020 D-c). The client's token is required on the wire
+     * (073-gtbank-payments AC-25): the server used to mint one when it was
+     * absent, which left a retried press with no token free to charge twice.
      */
-    const attemptToken = input.attemptToken ?? randomUUID();
+    const attemptToken = input.attemptToken;
     const idempotencyKey = captureKeyFor(roomType.workspaceId, attemptToken);
 
     // --- Phase 1a: has this exact press already been settled -----------------
@@ -630,6 +635,7 @@ export class BookingService {
     try {
       return await this.payments.captureEscrow({
         kind: 'escrow_capture',
+        purpose: 'booking',
         idempotencyKey: args.idempotencyKey,
         amountRwf: args.amountRwf,
         currency: 'RWF',
@@ -644,8 +650,13 @@ export class BookingService {
         );
       }
       if (err instanceof PaymentUnavailableError) {
+        // Only a request that never arrived may be told nothing was charged
+        // (073-gtbank-payments AC-7). One that may have arrived is parked, and
+        // its money is never lost: a person confirms it and it is refunded.
         throw new ServiceUnavailableException(
-          'We could not reach the payment service. Nothing has been charged. Please try again.',
+          err.delivered === 'no'
+            ? 'We could not reach the payment service. Nothing has been charged. Please try again.'
+            : 'We could not confirm this payment with the payment service. If your phone shows it as paid, it will be refunded to you; you do not need to pay again for it.',
         );
       }
       throw err;
