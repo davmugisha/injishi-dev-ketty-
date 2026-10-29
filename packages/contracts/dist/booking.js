@@ -137,7 +137,7 @@ exports.BookableRoom = zod_1.z.object({
 /**
  * The bounds a stay has to fit inside, defined ONCE for both sides.
  *
- * These lived only in `server/api/src/modules/booking/domain/pricing.ts`, so
+ * These lived only in `server/api/src/modules/pms/domain/pricing.ts`, so
  * the API refused a stay the calendar had happily offered: a guest could pick
  * 120 nights, or a date three years out, fill in a payment method, and learn at
  * the last click that neither was ever allowed. A bound the client cannot see

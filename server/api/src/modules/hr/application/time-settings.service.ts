@@ -29,7 +29,7 @@ import {
   type ScopedWorkspace,
 } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { isCalendarDate } from '../../booking/domain/pricing';
+import { isCalendarDate } from '../../pms/domain/pricing';
 import { DEFAULT_ATTENDANCE_RULES, type AttendanceRules } from '../domain/time-rules';
 import { violatedConstraint } from '../infrastructure/employees.repository';
 import { writeHrAudit } from '../infrastructure/hr-audit';

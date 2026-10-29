@@ -6,7 +6,7 @@ import {
   type PaymentStatus,
 } from '@injishi/contracts';
 
-import { nightsBetween } from '../../booking/domain/pricing';
+import { nightsBetween } from '../../pms/domain/pricing';
 import type { StayForReceipt } from './receipt-builder';
 
 /** Payment states in which the money stayed with the seller — a sale happened. */

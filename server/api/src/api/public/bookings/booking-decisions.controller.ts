@@ -10,8 +10,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { BookingApprovalService } from '../../../modules/booking/application/booking-approval.service';
-import { BookingCancellationService } from '../../../modules/booking/application/booking-cancellation.service';
+import { BookingApprovalService } from '../../../modules/pms/application/booking-approval.service';
+import { BookingCancellationService } from '../../../modules/pms/application/booking-cancellation.service';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,

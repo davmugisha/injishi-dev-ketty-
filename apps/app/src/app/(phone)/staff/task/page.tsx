@@ -7,9 +7,10 @@ import type {
   FoundItemSpot,
   MinibarItem,
 } from "@injishi/data/fixtures/staff";
+import { StaffTaskView } from "@injishi/product-pms/web";
 import { NothingYet } from "@injishi/ui/phone";
 import type { Metadata } from "next";
-import { StaffTaskView } from "@/features/staff/StaffTaskView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { myProfile, phoneSupervisor } from "@/server/sources/staff";
@@ -35,10 +36,12 @@ export default async function StaffTaskPage({ searchParams }: { searchParams: Pr
   const supervisor = await phoneSupervisor(await requestContext());
   const { offline } = await searchParams;
   return (
-    <StaffTaskView
-      persona={persona}
-      data={{ rooms, finished, sections, minibar, spots, found, profile: profile ?? null, supervisor }}
-      offline={offline === "1"}
-    />
+    <PmsMount>
+      <StaffTaskView
+        persona={persona}
+        data={{ rooms, finished, sections, minibar, spots, found, profile: profile ?? null, supervisor }}
+        offline={offline === "1"}
+      />
+    </PmsMount>
   );
 }

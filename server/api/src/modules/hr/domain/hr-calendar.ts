@@ -1,4 +1,4 @@
-import { localMidnight, localToday } from '../../booking/domain/pricing';
+import { localMidnight, localToday } from '../../pms/domain/pricing';
 
 /**
  * Calendar arithmetic for the HR module (ADR-058, index contract 9).

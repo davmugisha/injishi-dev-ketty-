@@ -27,7 +27,7 @@ import { DRIZZLE, type Database } from '../../../shared/database/database.module
 import { toCsv, type CsvColumn } from '../../../shared/lists/csv';
 import { pageOf } from '../../../shared/lists/list-query';
 import { ListExportService } from '../../lists/application/list-export.service';
-import { isCalendarDate } from '../../booking/domain/pricing';
+import { isCalendarDate } from '../../pms/domain/pricing';
 import { addDays, kigaliToday, lastOfMonth, monthOf } from '../domain/hr-calendar';
 import {
   EmployeesRepository,

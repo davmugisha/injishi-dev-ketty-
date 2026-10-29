@@ -81,6 +81,7 @@ export function MapPanel({ points, label, selectedId, onSelect, height = "24rem"
   // Fitted to the points whenever they change (a new filter), and once the box has a size.
   // biome-ignore lint/correctness/useExhaustiveDependencies: refit on a new set of points, not on every render
   useEffect(() => {
+    // biome-ignore lint/suspicious/noFocusedTests: this is the map's own refit above, not a focused test (Jasmine's `fit`)
     fit();
   }, [key, size.width > 0 && size.height > 0]);
 

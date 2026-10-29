@@ -1,6 +1,6 @@
 import type { EbmDate, EbmTime } from '@injishi/contracts';
 
-import { PROPERTY_TIME_ZONE } from '../../booking/domain/pricing';
+import { PROPERTY_TIME_ZONE } from '../../pms/domain/pricing';
 
 /**
  * The clock an EBM receipt is stamped with.

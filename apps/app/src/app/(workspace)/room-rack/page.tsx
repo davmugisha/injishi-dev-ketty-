@@ -1,7 +1,8 @@
 import { screens } from "@injishi/data";
 import type { RackDay, RackLane, RoomMove } from "@injishi/data/fixtures/frontdesk";
+import { RoomRackView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { RoomRackView } from "@/features/frontdesk/RoomRackView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -15,5 +16,9 @@ export default async function RoomRackPage() {
     getCollection<RackLane>("frontdesk.rackLanes"),
     getCollection<RoomMove>("frontdesk.roomMoves"),
   ]);
-  return <RoomRackView days={days} lanes={lanes} move={moves[0] ?? null} />;
+  return (
+    <PmsMount>
+      <RoomRackView days={days} lanes={lanes} move={moves[0] ?? null} />
+    </PmsMount>
+  );
 }

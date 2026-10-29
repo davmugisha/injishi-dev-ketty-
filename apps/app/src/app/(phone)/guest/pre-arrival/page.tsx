@@ -8,9 +8,10 @@ import type {
   PreArrivalForm,
   PreArrivalNextStep,
 } from "@injishi/data/fixtures/guest";
+import { GuestPreArrivalView, type PreArrivalStep } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { GuestPreArrivalView, type PreArrivalStep } from "@/features/guest/GuestPreArrivalView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
 
@@ -35,9 +36,11 @@ export default async function GuestPreArrivalPage({ searchParams }: { searchPara
   if (!persona || !form || !booking || !documents.length || !slots.length) notFound();
   const { step } = await searchParams;
   return (
-    <GuestPreArrivalView
-      data={{ booking, form, documents, privacy, slots, travelModes, pillows, diets, countries, next }}
-      step={STEPS.includes(step as PreArrivalStep) ? (step as PreArrivalStep) : "id"}
-    />
+    <PmsMount>
+      <GuestPreArrivalView
+        data={{ booking, form, documents, privacy, slots, travelModes, pillows, diets, countries, next }}
+        step={STEPS.includes(step as PreArrivalStep) ? (step as PreArrivalStep) : "id"}
+      />
+    </PmsMount>
   );
 }

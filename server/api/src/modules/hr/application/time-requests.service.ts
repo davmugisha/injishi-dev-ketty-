@@ -26,7 +26,7 @@ import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import { runBulk } from '../../../shared/lists/bulk';
 import { pageOf } from '../../../shared/lists/list-query';
-import { isCalendarDate } from '../../booking/domain/pricing';
+import { isCalendarDate } from '../../pms/domain/pricing';
 import { eachDate, kigaliDateOf, lastOfMonth, monthOf, shiftInstants } from '../domain/hr-calendar';
 import { EmployeesRepository, violatedConstraint, type EmployeeRow, type Tx } from '../infrastructure/employees.repository';
 import { writeHrAudit } from '../infrastructure/hr-audit';
