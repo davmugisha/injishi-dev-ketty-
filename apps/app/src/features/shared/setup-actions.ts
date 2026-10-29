@@ -133,7 +133,29 @@ export async function addPhotoAction(workspaceId: string, propertyId: string, fo
   return run(workspaceId, async () => {
     const file = form.get("file");
     if (!(file instanceof Blob)) throw new setup.SetupRefusal("Choose a photograph to add.");
-    await setup.addPhoto(await ctx(), workspaceId, propertyId, file, String(form.get("caption") ?? ""));
+    const roomTypeId = String(form.get("roomTypeId") ?? "") || undefined;
+    await setup.addPhoto(await ctx(), workspaceId, propertyId, file, String(form.get("caption") ?? ""), roomTypeId);
+    return undefined;
+  });
+}
+
+/** A facility ticked or unticked → `POST` / `DELETE /ops/amenities`. Saved as it is pressed. */
+export async function setAmenityAction(
+  workspaceId: string,
+  propertyId: string,
+  code: string,
+  offered: boolean,
+): Promise<ActionResult> {
+  return run(workspaceId, async () => {
+    await setup.setAmenity(await ctx(), workspaceId, propertyId, code, offered);
+    return undefined;
+  });
+}
+
+/** The star grade RDB gave → `PUT /inventory/star-grade`. Empty is "not graded". */
+export async function setStarGradeAction(workspaceId: string, grade: string): Promise<ActionResult> {
+  return run(workspaceId, async () => {
+    await setup.setStarGrade(await ctx(), workspaceId, grade ? Number(grade) : null);
     return undefined;
   });
 }

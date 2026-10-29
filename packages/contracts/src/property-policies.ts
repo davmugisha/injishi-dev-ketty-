@@ -64,6 +64,14 @@ export const INTERNET_LABEL: Readonly<Record<InternetAccess, string>> = {
     paid: "Wi-Fi at a charge",
     none: "No internet",
 };
+/** 0118: a crib for a baby is free, charged by the night, or not offered. */
+export const CribPolicy = z.enum(["free", "charged", "none"]);
+export type CribPolicy = z.infer<typeof CribPolicy>;
+export const CRIB_POLICY_LABEL: Readonly<Record<CribPolicy, string>> = {
+    free: "Cribs free on request",
+    charged: "Cribs on request, at a charge",
+    none: "No cribs",
+};
 export const ParkingOption = z.enum(["free_on_site", "paid_on_site", "street", "none"]);
 export type ParkingOption = z.infer<typeof ParkingOption>;
 export const PARKING_LABEL: Readonly<Record<ParkingOption, string>> = {
@@ -93,6 +101,9 @@ export const propertyPolicyFields = {
     quietUntil: ClockTime.nullable().optional(),
     internet: InternetAccess.nullable().optional(),
     parking: ParkingOption.nullable().optional(),
+    /** 0118. A charged crib names its price a night; a free one or none names none. */
+    cribs: CribPolicy.nullable().optional(),
+    cribPriceRwf: z.number().int().positive("A charged crib has a price.").max(1_000_000).nullable().optional(),
 };
 /** The policy fields on their own, for a screen that checks an edit before sending it. */
 export const PropertyPolicyEdit = z.object(propertyPolicyFields);
@@ -115,6 +126,8 @@ export const PropertyPolicies = z.object({
     quietUntil: z.string().nullable().default(null),
     internet: InternetAccess.nullable().default(null),
     parking: ParkingOption.nullable().default(null),
+    cribs: CribPolicy.nullable().default(null),
+    cribPriceRwf: z.number().int().nullable().default(null),
 });
 export type PropertyPolicies = z.infer<typeof PropertyPolicies>;
 /**
@@ -211,6 +224,9 @@ export const roomTypeDetailFields = {
      * price, or absent: one guest then pays the room price. Only a room priced per room has one.
      */
     singleGuestPriceRwf: z.number().int().positive("A price is more than nothing.").max(100_000_000).nullable().optional(),
+    /** 0118: how many extra beds the room takes, and what one costs a night, settled at the property. */
+    extraBedsMax: z.number().int().min(0).max(4).nullable().optional(),
+    extraBedPriceRwf: z.number().int().nonnegative().max(10_000_000).nullable().optional(),
 };
 /** The room facts on their own, for a screen that checks an edit before sending it. */
 export const RoomTypeDetailEdit = z.object(roomTypeDetailFields);
@@ -229,3 +245,20 @@ export function nightlyRateFor(
     }
     return roomType.nightlyRateRwf;
 }
+// ---------------------------------------------------------------------------
+// Star grade (0118): the business's word until an officer checks it
+// ---------------------------------------------------------------------------
+/** RDB grades stays from one to five stars under the EAC criteria. Null is "not graded". */
+export const StarGrade = z.number().int().min(1, "A grade is one to five stars.").max(5, "A grade is one to five stars.");
+/** The owner says what grade RDB gave; saying it again withdraws any confirmation. */
+export const SetStarGradeRequest = z.object({
+    workspaceId: z.string().uuid(),
+    grade: StarGrade.nullable(),
+});
+export type SetStarGradeRequest = z.infer<typeof SetStarGradeRequest>;
+/** Where a business's star grade stands, as its owner and Injishi staff read it. */
+export const StarGradeStatus = z.object({
+    grade: z.number().int().nullable(),
+    verifiedAt: z.string().nullable(),
+});
+export type StarGradeStatus = z.infer<typeof StarGradeStatus>;

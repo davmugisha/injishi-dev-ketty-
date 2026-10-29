@@ -26,6 +26,10 @@ export declare const PARTIES_POLICY_LABEL: Readonly<Record<PartiesPolicy, string
 export declare const InternetAccess: z.ZodEnum<["free_everywhere", "rooms_only", "public_only", "paid", "none"]>;
 export type InternetAccess = z.infer<typeof InternetAccess>;
 export declare const INTERNET_LABEL: Readonly<Record<InternetAccess, string>>;
+/** 0118: a crib for a baby is free, charged by the night, or not offered. */
+export declare const CribPolicy: z.ZodEnum<["free", "charged", "none"]>;
+export type CribPolicy = z.infer<typeof CribPolicy>;
+export declare const CRIB_POLICY_LABEL: Readonly<Record<CribPolicy, string>>;
 export declare const ParkingOption: z.ZodEnum<["free_on_site", "paid_on_site", "street", "none"]>;
 export type ParkingOption = z.infer<typeof ParkingOption>;
 export declare const PARKING_LABEL: Readonly<Record<ParkingOption, string>>;
@@ -50,6 +54,9 @@ export declare const propertyPolicyFields: {
     quietUntil: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     internet: z.ZodOptional<z.ZodNullable<z.ZodEnum<["free_everywhere", "rooms_only", "public_only", "paid", "none"]>>>;
     parking: z.ZodOptional<z.ZodNullable<z.ZodEnum<["free_on_site", "paid_on_site", "street", "none"]>>>;
+    /** 0118. A charged crib names its price a night; a free one or none names none. */
+    cribs: z.ZodOptional<z.ZodNullable<z.ZodEnum<["free", "charged", "none"]>>>;
+    cribPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 };
 /** The policy fields on their own, for a screen that checks an edit before sending it. */
 export declare const PropertyPolicyEdit: z.ZodObject<{
@@ -69,6 +76,9 @@ export declare const PropertyPolicyEdit: z.ZodObject<{
     quietUntil: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     internet: z.ZodOptional<z.ZodNullable<z.ZodEnum<["free_everywhere", "rooms_only", "public_only", "paid", "none"]>>>;
     parking: z.ZodOptional<z.ZodNullable<z.ZodEnum<["free_on_site", "paid_on_site", "street", "none"]>>>;
+    /** 0118. A charged crib names its price a night; a free one or none names none. */
+    cribs: z.ZodOptional<z.ZodNullable<z.ZodEnum<["free", "charged", "none"]>>>;
+    cribPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     checkInUntil?: string | null | undefined;
     frontDesk?: "limited" | "none" | "24h" | null | undefined;
@@ -86,6 +96,8 @@ export declare const PropertyPolicyEdit: z.ZodObject<{
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
     parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    cribs?: "none" | "free" | "charged" | null | undefined;
+    cribPriceRwf?: number | null | undefined;
 }, {
     checkInUntil?: string | null | undefined;
     frontDesk?: "limited" | "none" | "24h" | null | undefined;
@@ -103,6 +115,8 @@ export declare const PropertyPolicyEdit: z.ZodObject<{
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
     parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    cribs?: "none" | "free" | "charged" | null | undefined;
+    cribPriceRwf?: number | null | undefined;
 }>;
 export type PropertyPolicyEdit = z.infer<typeof PropertyPolicyEdit>;
 /** What a stay has told its guests, as the owner and the guest page read it. Null is "not said yet". */
@@ -123,6 +137,8 @@ export declare const PropertyPolicies: z.ZodObject<{
     quietUntil: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     internet: z.ZodDefault<z.ZodNullable<z.ZodEnum<["free_everywhere", "rooms_only", "public_only", "paid", "none"]>>>;
     parking: z.ZodDefault<z.ZodNullable<z.ZodEnum<["free_on_site", "paid_on_site", "street", "none"]>>>;
+    cribs: z.ZodDefault<z.ZodNullable<z.ZodEnum<["free", "charged", "none"]>>>;
+    cribPriceRwf: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     checkInUntil: string | null;
     frontDesk: "limited" | "none" | "24h" | null;
@@ -140,6 +156,8 @@ export declare const PropertyPolicies: z.ZodObject<{
     quietUntil: string | null;
     internet: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null;
     parking: "street" | "none" | "free_on_site" | "paid_on_site" | null;
+    cribs: "none" | "free" | "charged" | null;
+    cribPriceRwf: number | null;
 }, {
     checkInUntil?: string | null | undefined;
     frontDesk?: "limited" | "none" | "24h" | null | undefined;
@@ -157,6 +175,8 @@ export declare const PropertyPolicies: z.ZodObject<{
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
     parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    cribs?: "none" | "free" | "charged" | null | undefined;
+    cribPriceRwf?: number | null | undefined;
 }>;
 export type PropertyPolicies = z.infer<typeof PropertyPolicies>;
 /**
@@ -238,6 +258,9 @@ export declare const roomTypeDetailFields: {
      * price, or absent: one guest then pays the room price. Only a room priced per room has one.
      */
     singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    /** 0118: how many extra beds the room takes, and what one costs a night, settled at the property. */
+    extraBedsMax: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    extraBedPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 };
 /** The room facts on their own, for a screen that checks an edit before sending it. */
 export declare const RoomTypeDetailEdit: z.ZodObject<{
@@ -267,6 +290,9 @@ export declare const RoomTypeDetailEdit: z.ZodObject<{
      * price, or absent: one guest then pays the room price. Only a room priced per room has one.
      */
     singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    /** 0118: how many extra beds the room takes, and what one costs a night, settled at the property. */
+    extraBedsMax: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    extraBedPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     singleGuestPriceRwf?: number | null | undefined;
     roomCategory?: "family" | "single" | "double" | "twin" | "triple" | "suite" | "studio" | "tent" | "dorm_bed" | null | undefined;
@@ -278,6 +304,8 @@ export declare const RoomTypeDetailEdit: z.ZodObject<{
     maxChildren?: number | null | undefined;
     sizeM2?: number | null | undefined;
     bathroom?: "private" | "shared" | null | undefined;
+    extraBedsMax?: number | null | undefined;
+    extraBedPriceRwf?: number | null | undefined;
 }, {
     singleGuestPriceRwf?: number | null | undefined;
     roomCategory?: "family" | "single" | "double" | "twin" | "triple" | "suite" | "studio" | "tent" | "dorm_bed" | null | undefined;
@@ -289,6 +317,8 @@ export declare const RoomTypeDetailEdit: z.ZodObject<{
     maxChildren?: number | null | undefined;
     sizeM2?: number | null | undefined;
     bathroom?: "private" | "shared" | null | undefined;
+    extraBedsMax?: number | null | undefined;
+    extraBedPriceRwf?: number | null | undefined;
 }>;
 export type RoomTypeDetailEdit = z.infer<typeof RoomTypeDetailEdit>;
 /**
@@ -301,4 +331,30 @@ export declare function nightlyRateFor(roomType: {
     singleGuestPriceRwf?: number | null;
     priceBasis?: string | null;
 }, guests: number): number;
+/** RDB grades stays from one to five stars under the EAC criteria. Null is "not graded". */
+export declare const StarGrade: z.ZodNumber;
+/** The owner says what grade RDB gave; saying it again withdraws any confirmation. */
+export declare const SetStarGradeRequest: z.ZodObject<{
+    workspaceId: z.ZodString;
+    grade: z.ZodNullable<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    workspaceId: string;
+    grade: number | null;
+}, {
+    workspaceId: string;
+    grade: number | null;
+}>;
+export type SetStarGradeRequest = z.infer<typeof SetStarGradeRequest>;
+/** Where a business's star grade stands, as its owner and Injishi staff read it. */
+export declare const StarGradeStatus: z.ZodObject<{
+    grade: z.ZodNullable<z.ZodNumber>;
+    verifiedAt: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    verifiedAt: string | null;
+    grade: number | null;
+}, {
+    verifiedAt: string | null;
+    grade: number | null;
+}>;
+export type StarGradeStatus = z.infer<typeof StarGradeStatus>;
 //# sourceMappingURL=property-policies.d.ts.map

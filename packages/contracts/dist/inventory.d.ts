@@ -60,6 +60,8 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     quietUntil: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     internet: z.ZodOptional<z.ZodNullable<z.ZodEnum<["free_everywhere", "rooms_only", "public_only", "paid", "none"]>>>;
     parking: z.ZodOptional<z.ZodNullable<z.ZodEnum<["free_on_site", "paid_on_site", "street", "none"]>>>;
+    cribs: z.ZodOptional<z.ZodNullable<z.ZodEnum<["free", "charged", "none"]>>>;
+    cribPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     name: z.ZodString;
     sectorId: z.ZodNumber;
     /**
@@ -112,6 +114,8 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
     parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    cribs?: "none" | "free" | "charged" | null | undefined;
+    cribPriceRwf?: number | null | undefined;
     locationPrivacy?: boolean | undefined;
     houseRules?: string | undefined;
 }, {
@@ -143,6 +147,8 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
     parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    cribs?: "none" | "free" | "charged" | null | undefined;
+    cribPriceRwf?: number | null | undefined;
     locationPrivacy?: boolean | undefined;
     houseRules?: string | undefined;
 }>;
@@ -176,6 +182,8 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     quietUntil: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     internet: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["free_everywhere", "rooms_only", "public_only", "paid", "none"]>>>>;
     parking: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["free_on_site", "paid_on_site", "street", "none"]>>>>;
+    cribs: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["free", "charged", "none"]>>>>;
+    cribPriceRwf: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
     name: z.ZodOptional<z.ZodString>;
     sectorId: z.ZodOptional<z.ZodNumber>;
     villageId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
@@ -223,6 +231,8 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
     parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    cribs?: "none" | "free" | "charged" | null | undefined;
+    cribPriceRwf?: number | null | undefined;
     locationPrivacy?: boolean | undefined;
     houseRules?: string | undefined;
 }, {
@@ -255,6 +265,8 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
     parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    cribs?: "none" | "free" | "charged" | null | undefined;
+    cribPriceRwf?: number | null | undefined;
     locationPrivacy?: boolean | undefined;
     houseRules?: string | undefined;
 }>;
@@ -492,6 +504,8 @@ export declare const PropertyPhoto: z.ZodObject<{
     isCover: z.ZodBoolean;
     caption: z.ZodNullable<z.ZodString>;
     url: z.ZodString;
+    /** 0118: the room type it shows; null is the property. Optional for an older API. */
+    roomTypeId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     id: string;
     objectKey: string;
@@ -499,6 +513,7 @@ export declare const PropertyPhoto: z.ZodObject<{
     position: number;
     isCover: boolean;
     caption: string | null;
+    roomTypeId?: string | null | undefined;
 }, {
     id: string;
     objectKey: string;
@@ -506,6 +521,7 @@ export declare const PropertyPhoto: z.ZodObject<{
     position: number;
     isCover: boolean;
     caption: string | null;
+    roomTypeId?: string | null | undefined;
 }>;
 export type PropertyPhoto = z.infer<typeof PropertyPhoto>;
 /**
@@ -599,6 +615,8 @@ export declare const OperatorProperty: z.ZodObject<{
         isCover: z.ZodBoolean;
         caption: z.ZodNullable<z.ZodString>;
         url: z.ZodString;
+        /** 0118: the room type it shows; null is the property. Optional for an older API. */
+        roomTypeId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         id: string;
         objectKey: string;
@@ -606,6 +624,7 @@ export declare const OperatorProperty: z.ZodObject<{
         position: number;
         isCover: boolean;
         caption: string | null;
+        roomTypeId?: string | null | undefined;
     }, {
         id: string;
         objectKey: string;
@@ -613,6 +632,7 @@ export declare const OperatorProperty: z.ZodObject<{
         position: number;
         isCover: boolean;
         caption: string | null;
+        roomTypeId?: string | null | undefined;
     }>, "many">;
     /**
      * Empty until feature 2 builds the room type write path. An empty array is a
@@ -645,6 +665,8 @@ export declare const OperatorProperty: z.ZodObject<{
         sizeM2: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         bathroom: z.ZodOptional<z.ZodNullable<z.ZodEnum<["private", "shared"]>>>;
         singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        extraBedsMax: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        extraBedPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
         name: string;
@@ -663,6 +685,8 @@ export declare const OperatorProperty: z.ZodObject<{
         maxChildren?: number | null | undefined;
         sizeM2?: number | null | undefined;
         bathroom?: "private" | "shared" | null | undefined;
+        extraBedsMax?: number | null | undefined;
+        extraBedPriceRwf?: number | null | undefined;
         maxGuests?: number | null | undefined;
     }, {
         status: "active" | "archived";
@@ -682,6 +706,8 @@ export declare const OperatorProperty: z.ZodObject<{
         maxChildren?: number | null | undefined;
         sizeM2?: number | null | undefined;
         bathroom?: "private" | "shared" | null | undefined;
+        extraBedsMax?: number | null | undefined;
+        extraBedPriceRwf?: number | null | undefined;
         maxGuests?: number | null | undefined;
     }>, "many">;
     checkInUntil: z.ZodDefault<z.ZodNullable<z.ZodString>>;
@@ -700,6 +726,8 @@ export declare const OperatorProperty: z.ZodObject<{
     quietUntil: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     internet: z.ZodDefault<z.ZodNullable<z.ZodEnum<["free_everywhere", "rooms_only", "public_only", "paid", "none"]>>>;
     parking: z.ZodDefault<z.ZodNullable<z.ZodEnum<["free_on_site", "paid_on_site", "street", "none"]>>>;
+    cribs: z.ZodDefault<z.ZodNullable<z.ZodEnum<["free", "charged", "none"]>>>;
+    cribPriceRwf: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
@@ -745,6 +773,8 @@ export declare const OperatorProperty: z.ZodObject<{
         maxChildren?: number | null | undefined;
         sizeM2?: number | null | undefined;
         bathroom?: "private" | "shared" | null | undefined;
+        extraBedsMax?: number | null | undefined;
+        extraBedPriceRwf?: number | null | undefined;
         maxGuests?: number | null | undefined;
     }[];
     photos: {
@@ -754,6 +784,7 @@ export declare const OperatorProperty: z.ZodObject<{
         position: number;
         isCover: boolean;
         caption: string | null;
+        roomTypeId?: string | null | undefined;
     }[];
     latitude: number | null;
     longitude: number | null;
@@ -773,6 +804,8 @@ export declare const OperatorProperty: z.ZodObject<{
     quietUntil: string | null;
     internet: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null;
     parking: "street" | "none" | "free_on_site" | "paid_on_site" | null;
+    cribs: "none" | "free" | "charged" | null;
+    cribPriceRwf: number | null;
     locationPrivacy: boolean;
     houseRules: string | null;
     listingStatus: "draft" | "published";
@@ -824,6 +857,8 @@ export declare const OperatorProperty: z.ZodObject<{
         maxChildren?: number | null | undefined;
         sizeM2?: number | null | undefined;
         bathroom?: "private" | "shared" | null | undefined;
+        extraBedsMax?: number | null | undefined;
+        extraBedPriceRwf?: number | null | undefined;
         maxGuests?: number | null | undefined;
     }[];
     photos: {
@@ -833,6 +868,7 @@ export declare const OperatorProperty: z.ZodObject<{
         position: number;
         isCover: boolean;
         caption: string | null;
+        roomTypeId?: string | null | undefined;
     }[];
     locationPrivacy: boolean;
     houseRules: string | null;
@@ -858,6 +894,8 @@ export declare const OperatorProperty: z.ZodObject<{
     quietUntil?: string | null | undefined;
     internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
     parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    cribs?: "none" | "free" | "charged" | null | undefined;
+    cribPriceRwf?: number | null | undefined;
 }>;
 export type OperatorProperty = z.infer<typeof OperatorProperty>;
 /**
@@ -1235,7 +1273,7 @@ export type OperatorPropertyList = z.infer<typeof OperatorPropertyList>;
  * Defined now, with the property level reasons already usable, so feature 3 adds
  * cases to an enum that exists rather than inventing one late.
  */
-export declare const PublishBlocker: z.ZodEnum<["org_not_active", "missing_name", "missing_sector", "no_active_room_type", "no_priced_room_type", "no_sellable_room", "no_photo", "missing_check_in", "missing_front_desk", "missing_language", "room_type_without_beds"]>;
+export declare const PublishBlocker: z.ZodEnum<["org_not_active", "missing_name", "missing_sector", "no_active_room_type", "no_priced_room_type", "no_sellable_room", "no_photo", "missing_check_in", "missing_front_desk", "missing_language", "room_type_without_beds", "room_type_without_photo"]>;
 export type PublishBlocker = z.infer<typeof PublishBlocker>;
 export declare const PUBLISH_BLOCKER_LABEL: Readonly<Record<PublishBlocker, string>>;
 /** Which screen a blocker sends the operator back to. */
@@ -1282,6 +1320,8 @@ export declare const CreateRoomTypeRequest: z.ZodObject<{
     sizeM2: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     bathroom: z.ZodOptional<z.ZodNullable<z.ZodEnum<["private", "shared"]>>>;
     singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    extraBedsMax: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    extraBedPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     name: z.ZodString;
     /**
      * How many people the room physically sleeps.
@@ -1321,6 +1361,8 @@ export declare const CreateRoomTypeRequest: z.ZodObject<{
     maxChildren?: number | null | undefined;
     sizeM2?: number | null | undefined;
     bathroom?: "private" | "shared" | null | undefined;
+    extraBedsMax?: number | null | undefined;
+    extraBedPriceRwf?: number | null | undefined;
     roomLabels?: string[] | undefined;
 }, {
     name: string;
@@ -1341,6 +1383,8 @@ export declare const CreateRoomTypeRequest: z.ZodObject<{
     maxChildren?: number | null | undefined;
     sizeM2?: number | null | undefined;
     bathroom?: "private" | "shared" | null | undefined;
+    extraBedsMax?: number | null | undefined;
+    extraBedPriceRwf?: number | null | undefined;
     roomLabels?: string[] | undefined;
 }>;
 export type CreateRoomTypeRequest = z.infer<typeof CreateRoomTypeRequest>;
@@ -1374,6 +1418,8 @@ export declare const UpdateRoomTypeRequest: z.ZodObject<{
     sizeM2: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
     bathroom: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["private", "shared"]>>>>;
     singleGuestPriceRwf: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
+    extraBedsMax: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
+    extraBedPriceRwf: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
     name: z.ZodOptional<z.ZodString>;
     maxGuests: z.ZodOptional<z.ZodNumber>;
     basePriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -1399,6 +1445,8 @@ export declare const UpdateRoomTypeRequest: z.ZodObject<{
     maxChildren?: number | null | undefined;
     sizeM2?: number | null | undefined;
     bathroom?: "private" | "shared" | null | undefined;
+    extraBedsMax?: number | null | undefined;
+    extraBedPriceRwf?: number | null | undefined;
     maxGuests?: number | undefined;
     basePriceRwf?: number | null | undefined;
 }, {
@@ -1419,6 +1467,8 @@ export declare const UpdateRoomTypeRequest: z.ZodObject<{
     maxChildren?: number | null | undefined;
     sizeM2?: number | null | undefined;
     bathroom?: "private" | "shared" | null | undefined;
+    extraBedsMax?: number | null | undefined;
+    extraBedPriceRwf?: number | null | undefined;
     maxGuests?: number | undefined;
     basePriceRwf?: number | null | undefined;
 }>;
@@ -1629,15 +1679,19 @@ export declare const AttachPropertyPhotoRequest: z.ZodObject<{
     /** The first photograph on a property becomes the cover whatever this says. */
     isCover: z.ZodOptional<z.ZodBoolean>;
     caption: z.ZodOptional<z.ZodString>;
+    /** 0118: the room type it shows, on this property; absent is a photograph of the property. */
+    roomTypeId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     objectKey: string;
     workspaceId: string;
+    roomTypeId?: string | undefined;
     position?: number | undefined;
     isCover?: boolean | undefined;
     caption?: string | undefined;
 }, {
     objectKey: string;
     workspaceId: string;
+    roomTypeId?: string | undefined;
     position?: number | undefined;
     isCover?: boolean | undefined;
     caption?: string | undefined;
@@ -1697,6 +1751,8 @@ export declare const PropertyPhotoList: z.ZodObject<{
         isCover: z.ZodBoolean;
         caption: z.ZodNullable<z.ZodString>;
         url: z.ZodString;
+        /** 0118: the room type it shows; null is the property. Optional for an older API. */
+        roomTypeId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         id: string;
         objectKey: string;
@@ -1704,6 +1760,7 @@ export declare const PropertyPhotoList: z.ZodObject<{
         position: number;
         isCover: boolean;
         caption: string | null;
+        roomTypeId?: string | null | undefined;
     }, {
         id: string;
         objectKey: string;
@@ -1711,6 +1768,7 @@ export declare const PropertyPhotoList: z.ZodObject<{
         position: number;
         isCover: boolean;
         caption: string | null;
+        roomTypeId?: string | null | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     photos: {
@@ -1720,6 +1778,7 @@ export declare const PropertyPhotoList: z.ZodObject<{
         position: number;
         isCover: boolean;
         caption: string | null;
+        roomTypeId?: string | null | undefined;
     }[];
 }, {
     photos: {
@@ -1729,6 +1788,7 @@ export declare const PropertyPhotoList: z.ZodObject<{
         position: number;
         isCover: boolean;
         caption: string | null;
+        roomTypeId?: string | null | undefined;
     }[];
 }>;
 export type PropertyPhotoList = z.infer<typeof PropertyPhotoList>;

@@ -111,6 +111,10 @@ export const RoomTypeSummary = z.object({
     maxChildren: z.number().int().nullish(),
     sizeM2: z.number().int().nullish(),
     bathroom: z.enum(["private", "shared"]).nullish(),
+    /** 0118: extra beds the room takes and their price a night; the room type's own photograph. */
+    extraBedsMax: z.number().int().nullish(),
+    extraBedPriceRwf: z.number().int().nullish(),
+    photo: z.string().url().nullish(),
 });
 export type RoomTypeSummary = z.infer<typeof RoomTypeSummary>;
 /**

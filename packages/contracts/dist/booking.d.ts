@@ -84,6 +84,10 @@ export declare const RoomTypeSummary: z.ZodObject<{
     maxChildren: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     sizeM2: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     bathroom: z.ZodOptional<z.ZodNullable<z.ZodEnum<["private", "shared"]>>>;
+    /** 0118: extra beds the room takes and their price a night; the room type's own photograph. */
+    extraBedsMax: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    extraBedPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    photo: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
@@ -107,6 +111,9 @@ export declare const RoomTypeSummary: z.ZodObject<{
     maxChildren?: number | null | undefined;
     sizeM2?: number | null | undefined;
     bathroom?: "private" | "shared" | null | undefined;
+    extraBedsMax?: number | null | undefined;
+    extraBedPriceRwf?: number | null | undefined;
+    photo?: string | null | undefined;
 }, {
     name: string;
     id: string;
@@ -130,6 +137,9 @@ export declare const RoomTypeSummary: z.ZodObject<{
     maxChildren?: number | null | undefined;
     sizeM2?: number | null | undefined;
     bathroom?: "private" | "shared" | null | undefined;
+    extraBedsMax?: number | null | undefined;
+    extraBedPriceRwf?: number | null | undefined;
+    photo?: string | null | undefined;
 }>;
 export type RoomTypeSummary = z.infer<typeof RoomTypeSummary>;
 /**
@@ -175,19 +185,19 @@ export declare const BookablePropertySummary: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
+    photo: string | null;
     slug: string | null;
     districtName: string | null;
     checkInTime: string | null;
     checkOutTime: string | null;
-    photo: string | null;
 }, {
     name: string;
     id: string;
+    photo: string | null;
     slug: string | null;
     districtName: string | null;
     checkInTime: string | null;
     checkOutTime: string | null;
-    photo: string | null;
 }>;
 export type BookablePropertySummary = z.infer<typeof BookablePropertySummary>;
 /**
@@ -218,19 +228,19 @@ export declare const BookableRoom: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         name: string;
         id: string;
+        photo: string | null;
         slug: string | null;
         districtName: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
-        photo: string | null;
     }, {
         name: string;
         id: string;
+        photo: string | null;
         slug: string | null;
         districtName: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
-        photo: string | null;
     }>;
     roomType: z.ZodObject<{
         id: z.ZodString;
@@ -275,6 +285,10 @@ export declare const BookableRoom: z.ZodObject<{
         maxChildren: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         sizeM2: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         bathroom: z.ZodOptional<z.ZodNullable<z.ZodEnum<["private", "shared"]>>>;
+        /** 0118: extra beds the room takes and their price a night; the room type's own photograph. */
+        extraBedsMax: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        extraBedPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        photo: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         name: string;
         id: string;
@@ -298,6 +312,9 @@ export declare const BookableRoom: z.ZodObject<{
         maxChildren?: number | null | undefined;
         sizeM2?: number | null | undefined;
         bathroom?: "private" | "shared" | null | undefined;
+        extraBedsMax?: number | null | undefined;
+        extraBedPriceRwf?: number | null | undefined;
+        photo?: string | null | undefined;
     }, {
         name: string;
         id: string;
@@ -321,16 +338,19 @@ export declare const BookableRoom: z.ZodObject<{
         maxChildren?: number | null | undefined;
         sizeM2?: number | null | undefined;
         bathroom?: "private" | "shared" | null | undefined;
+        extraBedsMax?: number | null | undefined;
+        extraBedPriceRwf?: number | null | undefined;
+        photo?: string | null | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
     property: {
         name: string;
         id: string;
+        photo: string | null;
         slug: string | null;
         districtName: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
-        photo: string | null;
     };
     roomType: {
         name: string;
@@ -355,16 +375,19 @@ export declare const BookableRoom: z.ZodObject<{
         maxChildren?: number | null | undefined;
         sizeM2?: number | null | undefined;
         bathroom?: "private" | "shared" | null | undefined;
+        extraBedsMax?: number | null | undefined;
+        extraBedPriceRwf?: number | null | undefined;
+        photo?: string | null | undefined;
     };
 }, {
     property: {
         name: string;
         id: string;
+        photo: string | null;
         slug: string | null;
         districtName: string | null;
         checkInTime: string | null;
         checkOutTime: string | null;
-        photo: string | null;
     };
     roomType: {
         name: string;
@@ -389,6 +412,9 @@ export declare const BookableRoom: z.ZodObject<{
         maxChildren?: number | null | undefined;
         sizeM2?: number | null | undefined;
         bathroom?: "private" | "shared" | null | undefined;
+        extraBedsMax?: number | null | undefined;
+        extraBedPriceRwf?: number | null | undefined;
+        photo?: string | null | undefined;
     };
 }>;
 export type BookableRoom = z.infer<typeof BookableRoom>;

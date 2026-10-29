@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import {
   bedsLine,
   CHILDREN_POLICY_LABEL,
+  CRIB_POLICY_LABEL,
   FRONT_DESK_LABEL,
   INTERNET_LABEL,
   PARKING_LABEL,
@@ -52,6 +53,8 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
   const menu = rooms.length > 0 && rooms.every((room) => room.priceBasis === "per_item");
   const cheapest = rooms.find((room) => room.nightlyRateRwf !== null) ?? null;
   const facts = [
+    // 0118: RDB's grade, shown only once Injishi has checked it against the grading certificate.
+    property.starGrade ? `${"★".repeat(property.starGrade)} ${property.starGrade}-star, graded by RDB` : null,
     property.districtName,
     rooms.length > 0 ? pluralize(rooms.length, menu ? "item" : "room type") : null,
     cheapest?.nightlyRateRwf != null
@@ -214,6 +217,11 @@ function GoodToKnow({ policies }: { policies: PropertyPolicies }) {
       : null,
     policies.internet ? INTERNET_LABEL[policies.internet] : null,
     policies.parking ? PARKING_LABEL[policies.parking] : null,
+    policies.cribs === "charged" && policies.cribPriceRwf
+      ? `Cribs on request, ${formatPrice(policies.cribPriceRwf)} a night`
+      : policies.cribs
+        ? CRIB_POLICY_LABEL[policies.cribs]
+        : null,
   ].filter((line): line is string => Boolean(line));
   if (lines.length === 0) return null;
   return (
@@ -245,6 +253,9 @@ function RoomRow({ room }: { room: RoomTypeSummary }) {
         : null,
     room.sizeM2 ? `${room.sizeM2} m²` : null,
     room.bathroom === "shared" ? "Shared bathroom" : room.bathroom === "private" ? "Private bathroom" : null,
+    room.extraBedsMax
+      ? `Up to ${pluralize(room.extraBedsMax, "extra bed")}${room.extraBedPriceRwf ? `, ${formatPrice(room.extraBedPriceRwf)} a night` : ", free"}`
+      : null,
     room.bookingMode === "instant_book"
       ? "Instant booking"
       : room.bookingMode === "request_to_book"
@@ -255,7 +266,11 @@ function RoomRow({ room }: { room: RoomTypeSummary }) {
 
   return (
     <li className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-input py-4">
-      <span className="flex min-w-0 flex-col gap-1">
+      {room.photo ? (
+        // A plain img: the API's photo route answers a short-lived redirect, which next/image would cache.
+        <img src={room.photo} alt={room.name} loading="lazy" className="size-20 shrink-0 rounded-card object-cover" />
+      ) : null}
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="text-base font-medium text-page-fg">{room.name}</span>
         {details.length > 0 ? (
           <span className="text-sm text-page-fg-70">{details.join(" · ")}</span>

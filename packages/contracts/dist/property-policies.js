@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RoomTypeDetailEdit = exports.roomTypeDetailFields = exports.Bathroom = exports.RoomBeds = exports.RoomBed = exports.BED_SLEEPS = exports.BED_TYPE_LABEL = exports.BedType = exports.ROOM_CATEGORY_LABEL = exports.RoomCategory = exports.PropertyPolicies = exports.PropertyPolicyEdit = exports.propertyPolicyFields = exports.PARKING_LABEL = exports.ParkingOption = exports.INTERNET_LABEL = exports.InternetAccess = exports.PARTIES_POLICY_LABEL = exports.PartiesPolicy = exports.SMOKING_POLICY_LABEL = exports.SmokingPolicy = exports.PETS_POLICY_LABEL = exports.PetsPolicy = exports.CHILDREN_POLICY_LABEL = exports.ChildrenPolicy = exports.STAFF_LANGUAGE_LABEL = exports.StaffLanguage = exports.FRONT_DESK_LABEL = exports.FrontDesk = exports.ClockTime = void 0;
+exports.StarGradeStatus = exports.SetStarGradeRequest = exports.StarGrade = exports.RoomTypeDetailEdit = exports.roomTypeDetailFields = exports.Bathroom = exports.RoomBeds = exports.RoomBed = exports.BED_SLEEPS = exports.BED_TYPE_LABEL = exports.BedType = exports.ROOM_CATEGORY_LABEL = exports.RoomCategory = exports.PropertyPolicies = exports.PropertyPolicyEdit = exports.propertyPolicyFields = exports.PARKING_LABEL = exports.ParkingOption = exports.CRIB_POLICY_LABEL = exports.CribPolicy = exports.INTERNET_LABEL = exports.InternetAccess = exports.PARTIES_POLICY_LABEL = exports.PartiesPolicy = exports.SMOKING_POLICY_LABEL = exports.SmokingPolicy = exports.PETS_POLICY_LABEL = exports.PetsPolicy = exports.CHILDREN_POLICY_LABEL = exports.ChildrenPolicy = exports.STAFF_LANGUAGE_LABEL = exports.StaffLanguage = exports.FRONT_DESK_LABEL = exports.FrontDesk = exports.ClockTime = void 0;
 exports.policiesFromRow = policiesFromRow;
 exports.bedsSleep = bedsSleep;
 exports.bedsLine = bedsLine;
@@ -63,6 +63,13 @@ exports.INTERNET_LABEL = {
     paid: "Wi-Fi at a charge",
     none: "No internet",
 };
+/** 0118: a crib for a baby is free, charged by the night, or not offered. */
+exports.CribPolicy = zod_1.z.enum(["free", "charged", "none"]);
+exports.CRIB_POLICY_LABEL = {
+    free: "Cribs free on request",
+    charged: "Cribs on request, at a charge",
+    none: "No cribs",
+};
 exports.ParkingOption = zod_1.z.enum(["free_on_site", "paid_on_site", "street", "none"]);
 exports.PARKING_LABEL = {
     free_on_site: "Free parking on site",
@@ -91,6 +98,9 @@ exports.propertyPolicyFields = {
     quietUntil: exports.ClockTime.nullable().optional(),
     internet: exports.InternetAccess.nullable().optional(),
     parking: exports.ParkingOption.nullable().optional(),
+    /** 0118. A charged crib names its price a night; a free one or none names none. */
+    cribs: exports.CribPolicy.nullable().optional(),
+    cribPriceRwf: zod_1.z.number().int().positive("A charged crib has a price.").max(1000000).nullable().optional(),
 };
 /** The policy fields on their own, for a screen that checks an edit before sending it. */
 exports.PropertyPolicyEdit = zod_1.z.object(exports.propertyPolicyFields);
@@ -112,6 +122,8 @@ exports.PropertyPolicies = zod_1.z.object({
     quietUntil: zod_1.z.string().nullable().default(null),
     internet: exports.InternetAccess.nullable().default(null),
     parking: exports.ParkingOption.nullable().default(null),
+    cribs: exports.CribPolicy.nullable().default(null),
+    cribPriceRwf: zod_1.z.number().int().nullable().default(null),
 });
 /**
  * A stored row's policies as the contract reads them: times leave as `HH:MM`, and a value no list holds
@@ -203,6 +215,9 @@ exports.roomTypeDetailFields = {
      * price, or absent: one guest then pays the room price. Only a room priced per room has one.
      */
     singleGuestPriceRwf: zod_1.z.number().int().positive("A price is more than nothing.").max(100000000).nullable().optional(),
+    /** 0118: how many extra beds the room takes, and what one costs a night, settled at the property. */
+    extraBedsMax: zod_1.z.number().int().min(0).max(4).nullable().optional(),
+    extraBedPriceRwf: zod_1.z.number().int().nonnegative().max(10000000).nullable().optional(),
 };
 /** The room facts on their own, for a screen that checks an edit before sending it. */
 exports.RoomTypeDetailEdit = zod_1.z.object(exports.roomTypeDetailFields);
@@ -217,4 +232,19 @@ function nightlyRateFor(roomType, guests) {
     }
     return roomType.nightlyRateRwf;
 }
+// ---------------------------------------------------------------------------
+// Star grade (0118): the business's word until an officer checks it
+// ---------------------------------------------------------------------------
+/** RDB grades stays from one to five stars under the EAC criteria. Null is "not graded". */
+exports.StarGrade = zod_1.z.number().int().min(1, "A grade is one to five stars.").max(5, "A grade is one to five stars.");
+/** The owner says what grade RDB gave; saying it again withdraws any confirmation. */
+exports.SetStarGradeRequest = zod_1.z.object({
+    workspaceId: zod_1.z.string().uuid(),
+    grade: exports.StarGrade.nullable(),
+});
+/** Where a business's star grade stands, as its owner and Injishi staff read it. */
+exports.StarGradeStatus = zod_1.z.object({
+    grade: zod_1.z.number().int().nullable(),
+    verifiedAt: zod_1.z.string().nullable(),
+});
 //# sourceMappingURL=property-policies.js.map

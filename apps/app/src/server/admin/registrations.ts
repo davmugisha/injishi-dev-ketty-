@@ -23,3 +23,22 @@ export async function registrationTimeline(orgId: string): Promise<RegistrationE
   });
   return r.items;
 }
+
+/** 0118: a business's star grade and whether Injishi has confirmed it (`GET /admin/orgs/:id/star-grade`). */
+export interface StarGradeState {
+  grade: number | null;
+  verifiedAt: string | null;
+}
+
+export async function starGradeOf(orgId: string): Promise<StarGradeState> {
+  const api = await currentApi();
+  return api.get<StarGradeState>(`/api/v1/admin/orgs/${orgId}/star-grade`);
+}
+
+/** Confirm the grade against RDB's grading certificate, or withdraw a confirmation; both need a reason. */
+export async function decideStarGrade(orgId: string, confirm: boolean, reason: string): Promise<StarGradeState> {
+  const api = await currentApi();
+  return api.post<StarGradeState>(`/api/v1/admin/orgs/${orgId}/star-grade/${confirm ? "confirm" : "withdraw"}`, {
+    reason,
+  });
+}

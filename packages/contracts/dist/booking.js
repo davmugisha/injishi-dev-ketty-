@@ -114,6 +114,10 @@ exports.RoomTypeSummary = zod_1.z.object({
     maxChildren: zod_1.z.number().int().nullish(),
     sizeM2: zod_1.z.number().int().nullish(),
     bathroom: zod_1.z.enum(["private", "shared"]).nullish(),
+    /** 0118: extra beds the room takes and their price a night; the room type's own photograph. */
+    extraBedsMax: zod_1.z.number().int().nullish(),
+    extraBedPriceRwf: zod_1.z.number().int().nullish(),
+    photo: zod_1.z.string().url().nullish(),
 });
 /**
  * One entry in the marketplace sitemap: `GET /api/v1/properties/sitemap`

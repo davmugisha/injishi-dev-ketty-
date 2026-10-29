@@ -30,6 +30,8 @@ export const PropertyDetail = z.object({
     houseRules: z.string().nullable(),
     /** 0117: the check-in window's end, the front desk, languages and the house rules as choices. */
     policies: PropertyPolicies.optional(),
+    /** 0118: RDB's star grade, only once an officer has confirmed it; null otherwise. */
+    starGrade: z.number().int().min(1).max(5).nullish(),
     /**
      * One absolute URL per photograph, in the operator's order, the cover first.
      *

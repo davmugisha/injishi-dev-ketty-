@@ -4,7 +4,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bedsLine, bedsSleep, computeBreakdown, nightlyRateFor, PropertyPolicyEdit, RoomBeds } from "../dist/index.js";
+import { bedsLine, bedsSleep, computeBreakdown, nightlyRateFor, PropertyPolicyEdit, RoomBeds, RoomTypeDetailEdit, SetStarGradeRequest } from "../dist/index.js";
 
 test("one guest in a room priced per room pays the one guest price", () => {
   const room = { nightlyRateRwf: 60000, singleGuestPriceRwf: 45000, priceBasis: "per_unit" };
@@ -38,4 +38,15 @@ test("policies are choices: an answer no list holds is refused", () => {
   assert.equal(PropertyPolicyEdit.safeParse({ petsPolicy: "sometimes" }).success, false);
   assert.equal(PropertyPolicyEdit.safeParse({ languages: ["de"] }).success, false);
   assert.equal(PropertyPolicyEdit.safeParse({ minCheckInAge: 12 }).success, false);
+});
+
+test("cribs, extra beds and a star grade are choices too (0118)", () => {
+  assert.equal(PropertyPolicyEdit.safeParse({ cribs: "charged", cribPriceRwf: 5000 }).success, true);
+  assert.equal(PropertyPolicyEdit.safeParse({ cribs: "sometimes" }).success, false);
+  assert.equal(RoomTypeDetailEdit.safeParse({ extraBedsMax: 2, extraBedPriceRwf: 10000 }).success, true);
+  assert.equal(RoomTypeDetailEdit.safeParse({ extraBedsMax: 9 }).success, false);
+  const ws = "11111111-1111-4111-8111-111111111111";
+  assert.equal(SetStarGradeRequest.safeParse({ workspaceId: ws, grade: 3 }).success, true);
+  assert.equal(SetStarGradeRequest.safeParse({ workspaceId: ws, grade: null }).success, true);
+  assert.equal(SetStarGradeRequest.safeParse({ workspaceId: ws, grade: 6 }).success, false);
 });

@@ -16,6 +16,8 @@ import {
   type OperatorRoomTypeList,
   type PropertyPhotoList,
   ReorderPropertyPhotosRequest,
+  SetStarGradeRequest,
+  type StarGradeStatus,
   UpdatePropertyRequest,
   UpdateRatePlanRequest,
   UpdateRoomTypeRequest,
@@ -30,6 +32,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -319,6 +322,25 @@ export class InventoryController {
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<PropertySetupProgress> {
     return this.setup.progress(workspace, propertyId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Star grade (0118)
+  // -------------------------------------------------------------------------
+
+  /** The business's star grade and whether an officer has confirmed it. */
+  @Get('star-grade')
+  starGrade(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<StarGradeStatus> {
+    return this.inventory.starGrade(workspace);
+  }
+
+  /** Say the grade RDB gave, or that it has none. Withdraws any confirmation until an officer checks again. */
+  @Put('star-grade')
+  setStarGrade(
+    @Body(new ZodValidationPipe(SetStarGradeRequest)) body: SetStarGradeRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<StarGradeStatus> {
+    return this.inventory.setStarGrade(workspace, body.grade);
   }
 
   // -------------------------------------------------------------------------

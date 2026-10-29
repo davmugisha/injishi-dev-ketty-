@@ -13,6 +13,7 @@ const READY: PublishFacts = {
   hasFrontDesk: true,
   languageCount: 2,
   roomTypesWithoutBeds: 0,
+  roomTypesWithoutPhoto: 0,
 };
 
 describe('what a stay owes its guests before it publishes (0117)', () => {
@@ -30,6 +31,11 @@ describe('what a stay owes its guests before it publishes (0117)', () => {
         roomTypesWithoutBeds: 1,
       }),
     ).toEqual(['room_type_without_beds', 'missing_check_in', 'missing_front_desk', 'missing_language']);
+  });
+
+  it('every room type of a stay has a photograph of its own (0118)', () => {
+    expect(publishBlockersFor({ ...READY, roomTypesWithoutPhoto: 2 })).toEqual(['room_type_without_photo']);
+    expect(publishBlockersFor({ ...READY, isStay: false, roomTypesWithoutPhoto: 2 })).toEqual([]);
   });
 
   it('a venue is listed, not booked, and owes none of it', () => {

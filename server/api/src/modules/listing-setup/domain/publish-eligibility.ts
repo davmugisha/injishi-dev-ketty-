@@ -48,6 +48,8 @@ export interface PublishFacts {
   languageCount?: number;
   /** Active room types with no beds or no adult limit. */
   roomTypesWithoutBeds?: number;
+  /** 0118: active room types with no photograph of their own. */
+  roomTypesWithoutPhoto?: number;
 }
 
 /**
@@ -70,6 +72,7 @@ export function publishBlockersFor(facts: PublishFacts): PublishBlocker[] {
   }
   if (facts.isStay) {
     if (facts.activeRoomTypeCount > 0 && (facts.roomTypesWithoutBeds ?? 0) > 0) blockers.push('room_type_without_beds');
+    if (facts.activeRoomTypeCount > 0 && (facts.roomTypesWithoutPhoto ?? 0) > 0) blockers.push('room_type_without_photo');
     if (facts.hasCheckInTime === false) blockers.push('missing_check_in');
     if (facts.hasFrontDesk === false) blockers.push('missing_front_desk');
     if (facts.languageCount === 0) blockers.push('missing_language');

@@ -231,6 +231,8 @@ export const PropertyPhoto = z.object({
     isCover: z.boolean(),
     caption: z.string().nullable(),
     url: z.string(),
+    /** 0118: the room type it shows; null is the property. Optional for an older API. */
+    roomTypeId: Uuid.nullish(),
 });
 export type PropertyPhoto = z.infer<typeof PropertyPhoto>;
 /**
@@ -277,6 +279,8 @@ export const OperatorProperty = OperatorPropertySummary.extend({
         sizeM2: z.number().int().nullish(),
         bathroom: z.enum(["private", "shared"]).nullish(),
         singleGuestPriceRwf: z.number().int().nullish(),
+        extraBedsMax: z.number().int().nullish(),
+        extraBedPriceRwf: z.number().int().nullish(),
     })),
 });
 export type OperatorProperty = z.infer<typeof OperatorProperty>;
@@ -365,6 +369,8 @@ export const PublishBlocker = z.enum([
     "missing_language",
     /** 0117: every room type of a stay says its beds and how many adults it takes. */
     "room_type_without_beds",
+    /** 0118: every room type of a stay has a photograph of its own. */
+    "room_type_without_photo",
 ]);
 export type PublishBlocker = z.infer<typeof PublishBlocker>;
 export const PUBLISH_BLOCKER_LABEL: Readonly<Record<PublishBlocker, string>> = {
@@ -379,6 +385,7 @@ export const PUBLISH_BLOCKER_LABEL: Readonly<Record<PublishBlocker, string>> = {
     missing_front_desk: "Say when the front desk is open.",
     missing_language: "Pick at least one language your staff speak.",
     room_type_without_beds: "Give every room type its beds and the number of adults it takes.",
+    room_type_without_photo: "Add a photograph of every room type.",
 };
 /** Which screen a blocker sends the operator back to. */
 export function stepForPublishBlocker(blocker: PublishBlocker): "registration" | "property" | "room_types" | "photos" {
@@ -395,6 +402,7 @@ export function stepForPublishBlocker(blocker: PublishBlocker): "registration" |
         case "no_priced_room_type":
         case "no_sellable_room":
         case "room_type_without_beds":
+        case "room_type_without_photo":
             return "room_types";
         case "no_photo":
             return "photos";
@@ -563,6 +571,8 @@ export const AttachPropertyPhotoRequest = WorkspaceScoped.extend({
     /** The first photograph on a property becomes the cover whatever this says. */
     isCover: z.boolean().optional(),
     caption: z.string().trim().max(300).optional(),
+    /** 0118: the room type it shows, on this property; absent is a photograph of the property. */
+    roomTypeId: Uuid.optional(),
 });
 export type AttachPropertyPhotoRequest = z.infer<typeof AttachPropertyPhotoRequest>;
 /**

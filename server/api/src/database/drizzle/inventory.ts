@@ -100,6 +100,9 @@ export const properties = pgTable(
     quietUntil: time('quiet_until'),
     internet: text('internet'),
     parking: text('parking'),
+    /** 0118: a crib is free, charged (`crib_price_rwf` a night) or not offered. */
+    cribs: text('cribs'),
+    cribPriceRwf: amount('crib_price_rwf'),
     // How a guest or an officer reaches the property itself, which is not
     // always how they reach its owner: a group runs several front desks.
     // Nullable, because every property that predates the setup screen has none.
@@ -211,6 +214,8 @@ export const propertyPhotos = pgTable(
     /** 0 based and dense. The operator's chosen order, not an upload order. */
     position: integer('position').notNull(),
     isCover: boolean('is_cover').notNull().default(false),
+    /** 0118: the room type this photograph shows; null is the property itself. */
+    roomTypeId: uuid('room_type_id').references((): AnyPgColumn => roomTypes.id, { onDelete: 'set null' }),
     caption: text('caption'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
@@ -267,6 +272,9 @@ export const roomTypes = pgTable(
     beds: jsonb('beds').$type<{ type: string; count: number }[]>(),
     sizeM2: smallint('size_m2'),
     bathroom: text('bathroom'),
+    /** 0118: how many extra beds the room takes, and what one costs a night, settled at the property. */
+    extraBedsMax: smallint('extra_beds_max'),
+    extraBedPriceRwf: amount('extra_bed_price_rwf'),
 
     // --- DEPRECATED (F-L03/F-L07 expand phase) ----------------------------
     // These are superseded but NOT yet dropped: the booking engine, contracts

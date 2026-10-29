@@ -37,6 +37,8 @@ const ROOM_FACT_COLUMNS = {
   maxChildren: roomTypes.maxChildren,
   sizeM2: roomTypes.sizeM2,
   bathroom: roomTypes.bathroom,
+  extraBedsMax: roomTypes.extraBedsMax,
+  extraBedPriceRwf: roomTypes.extraBedPriceRwf,
 };
 
 /** The room facts off a row, nulls kept; the CHECK constraint holds `bathroom` to its two values. */
@@ -48,6 +50,8 @@ function roomFactsOf(r: {
   maxChildren: number | null;
   sizeM2: number | null;
   bathroom: string | null;
+  extraBedsMax: number | null;
+  extraBedPriceRwf: number | null;
 }): {
   singleGuestPriceRwf: number | null;
   roomCategory: string | null;
@@ -56,6 +60,8 @@ function roomFactsOf(r: {
   maxChildren: number | null;
   sizeM2: number | null;
   bathroom: 'private' | 'shared' | null;
+  extraBedsMax: number | null;
+  extraBedPriceRwf: number | null;
 } {
   return {
     singleGuestPriceRwf: r.singleGuestPriceRwf ?? null,
@@ -65,6 +71,8 @@ function roomFactsOf(r: {
     maxChildren: r.maxChildren,
     sizeM2: r.sizeM2,
     bathroom: r.bathroom as 'private' | 'shared' | null,
+    extraBedsMax: r.extraBedsMax,
+    extraBedPriceRwf: r.extraBedPriceRwf ?? null,
   };
 }
 
@@ -86,6 +94,8 @@ const POLICY_COLUMNS = {
   quietUntil: properties.quietUntil,
   internet: properties.internet,
   parking: properties.parking,
+  cribs: properties.cribs,
+  cribPriceRwf: properties.cribPriceRwf,
 };
 
 const operatorParty = alias(outletParties, 'operator_party');
@@ -119,9 +129,11 @@ const PUBLICLY_VISIBLE = and(
  * is configuration, so `ListingService` builds it. The repository never returns
  * an object key to a caller that could put one on the wire.
  */
-export type PublicPropertyRecord = Omit<PropertyDetail, 'photos'> & {
+export type PublicPropertyRecord = Omit<PropertyDetail, 'photos' | 'roomTypes'> & {
   /** In the operator's order; the first is the cover. */
   photoIds: string[];
+  /** 0118: each with the id of its own first photograph, which the service turns into a route URL. */
+  roomTypes: (RoomTypeSummary & { photoId: string | null })[];
 };
 
 /** A discovery card, with its photographs as ids for the same reason. */
@@ -168,6 +180,8 @@ export class ListingRepository {
         checkOutTime: properties.checkOutTime,
         houseRules: properties.houseRules,
         policies: POLICY_COLUMNS,
+        // 0118: shown only once an officer has confirmed it against RDB's certificate.
+        starGrade: sql<number | null>`case when ${orgs.starGradeVerifiedAt} is not null then ${orgs.eacStarGrade} end`,
       })
       .from(properties)
       .innerJoin(listings, eq(listings.propertyId, properties.id))
@@ -200,6 +214,7 @@ export class ListingRepository {
       checkOutTime: row.checkOutTime ?? null,
       houseRules: row.houseRules ?? null,
       policies: policiesFromRow(row.policies),
+      starGrade: row.starGrade ?? null,
       photoIds,
       roomTypes: types,
       facilities,
@@ -530,9 +545,13 @@ export class ListingRepository {
   }
 
   /** Active Room types for a property, cheapest first. */
-  async findRoomTypes(propertyId: string): Promise<RoomTypeSummary[]> {
+  async findRoomTypes(propertyId: string): Promise<(RoomTypeSummary & { photoId: string | null })[]> {
     const rows = await this.db
       .select({
+        // 0118: the room type's own first photograph, in the operator's order. The outer column is named in
+        // full: in a select list Drizzle writes a lone table's columns unqualified, and a bare "id" here would
+        // be the photograph's own.
+        photoId: sql<string | null>`(select pp.id from ${propertyPhotos} pp where pp.room_type_id = "room_types"."id" order by pp.position limit 1)`,
         id: roomTypes.id,
         name: roomTypes.name,
         domain: roomTypes.domain,

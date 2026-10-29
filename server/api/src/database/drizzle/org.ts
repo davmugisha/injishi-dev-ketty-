@@ -84,6 +84,12 @@ export const orgs = pgTable(
     // join or display these two as one.
     psfMember: boolean('psf_member').notNull().default(false),
     eacStarGrade: smallint('eac_star_grade'),
+    /**
+     * 0118: who confirmed `eac_star_grade` against RDB's grading certificate, and when. Until then the
+     * grade is the business's own word and no guest is shown it; changing it withdraws the confirmation.
+     */
+    starGradeVerifiedAt: timestamp('star_grade_verified_at', { withTimezone: true }),
+    starGradeVerifiedBy: uuid('star_grade_verified_by').references((): AnyPgColumn => users.id, { onDelete: 'set null' }),
     // D24: nullable, because TIN is for businesses and UPI is for residences.
     // The old NOT NULL forced a residential landlord to invent a TIN to exist.
     // Still unique when present — KYB dedup depends on it.

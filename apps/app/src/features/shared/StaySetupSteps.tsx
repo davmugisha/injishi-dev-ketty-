@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Key, Persons } from "@gravity-ui/icons";
+import { Clock, Key, ListCheck, Persons } from "@gravity-ui/icons";
 import { Button, Checkbox, Description, Input, Label, TextArea, TextField } from "@heroui/react";
 import {
   BED_TYPE_LABEL,
@@ -9,6 +9,8 @@ import {
   bedsSleep,
   CHILDREN_POLICY_LABEL,
   type ChildrenPolicy,
+  CRIB_POLICY_LABEL,
+  type CribPolicy,
   FRONT_DESK_LABEL,
   type FrontDesk,
   INTERNET_LABEL,
@@ -29,8 +31,15 @@ import {
   type StaffLanguage,
 } from "@injishi/contracts";
 import { type FormEvent, useState } from "react";
-import type { ApiProperty, SetupRead } from "@/server/mutations/setup";
-import { addRoomTypeAction, updatePropertyAction, updateRoomTypeAction } from "./setup-actions";
+import { type ApiAmenity, type ApiProperty, hasPhoto, type SetupRead } from "@/server/mutations/setup";
+import {
+  addPhotoAction,
+  addRoomTypeAction,
+  setAmenityAction,
+  setStarGradeAction,
+  updatePropertyAction,
+  updateRoomTypeAction,
+} from "./setup-actions";
 import { hhmm, Outcome, rwf, SELECT, StepCard, useStep } from "./setup-ui";
 
 /**
@@ -227,6 +236,8 @@ export function RulesStep({ data, index }: { data: Open; index: number }) {
   const [internet, setInternet] = useState<InternetAccess | "">(p?.internet ?? "");
   const [parking, setParking] = useState<ParkingOption | "">(p?.parking ?? "");
   const [other, setOther] = useState(p?.houseRules ?? "");
+  const [cribs, setCribs] = useState<CribPolicy | "">(p?.cribs ?? "");
+  const [cribPrice, setCribPrice] = useState(p?.cribPriceRwf != null ? String(p.cribPriceRwf) : "");
   if (!p) return null;
   const done = !!p.checkInTime && !!p.checkOutTime;
   const quietHalf = (quietFrom === "") !== (quietUntil === "");
@@ -250,6 +261,8 @@ export function RulesStep({ data, index }: { data: Open; index: number }) {
           quietUntil: quietUntil || null,
           internet: orNull(internet),
           parking: orNull(parking),
+          cribs: orNull(cribs),
+          cribPriceRwf: cribs === "charged" ? Number(cribPrice.replace(/\D/g, "")) || null : null,
         },
       }),
     );
@@ -306,6 +319,15 @@ export function RulesStep({ data, index }: { data: Open; index: number }) {
           />
           <ChoiceSelect label="Internet" value={internet} onChange={setInternet} labels={INTERNET_LABEL} />
           <ChoiceSelect label="Parking" value={parking} onChange={setParking} labels={PARKING_LABEL} />
+        </div>
+        <div className={GRID}>
+          <ChoiceSelect label="Cribs for babies" value={cribs} onChange={setCribs} labels={CRIB_POLICY_LABEL} />
+          {cribs === "charged" ? (
+            <TextField value={cribPrice} onChange={setCribPrice} isRequired fullWidth>
+              <Label>Crib price a night (RWF)</Label>
+              <Input inputMode="numeric" placeholder="5000" className="tabular" />
+            </TextField>
+          ) : null}
         </div>
         <TextField value={other} onChange={setOther} fullWidth>
           <Label>Anything else guests should know</Label>
@@ -426,6 +448,8 @@ function RoomForm({
   const [bathroom, setBathroom] = useState<"private" | "shared">(row?.bathroom ?? "private");
   const [price, setPrice] = useState(row?.basePriceRwf != null ? String(row.basePriceRwf) : "");
   const [single, setSingle] = useState(row?.singleGuestPriceRwf != null ? String(row.singleGuestPriceRwf) : "");
+  const [extraBeds, setExtraBeds] = useState(String(row?.extraBedsMax ?? 0));
+  const [extraBedPrice, setExtraBedPrice] = useState(row?.extraBedPriceRwf != null ? String(row.extraBedPriceRwf) : "");
   if (!p) return null;
 
   const perRoom = words.priceBasis === "per_unit";
@@ -458,6 +482,8 @@ function RoomForm({
     sizeM2: size.trim() ? Number(size.replace(/\D/g, "")) : null,
     bathroom,
     singleGuestPriceRwf: perRoom && single.trim() ? Number(single.replace(/\D/g, "")) : null,
+    extraBedsMax: Number(extraBeds),
+    extraBedPriceRwf: Number(extraBeds) > 0 && extraBedPrice.trim() ? Number(extraBedPrice.replace(/\D/g, "")) : null,
   });
 
   const submit = async (e: FormEvent) => {
@@ -548,6 +574,26 @@ function RoomForm({
           </TextField>
         ) : null}
       </div>
+      <div className={GRID}>
+        <label className="flex flex-col gap-1 text-sm font-medium">
+          Extra beds it can take
+          <select className={SELECT} value={extraBeds} onChange={(e) => setExtraBeds(e.target.value)}>
+            <option value="0">None</option>
+            {[1, 2, 3, 4].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+        {Number(extraBeds) > 0 ? (
+          <TextField value={extraBedPrice} onChange={setExtraBedPrice} fullWidth>
+            <Label>Extra bed a night (RWF)</Label>
+            <Input inputMode="numeric" placeholder="10000" className="tabular" />
+            <Description>Arranged with the desk and paid at the property. Empty is free.</Description>
+          </TextField>
+        ) : null}
+      </div>
       {problem && beds.length > 0 ? <p className="m-0 text-[13px] text-danger">{problem}</p> : null}
       <Button
         type="submit"
@@ -559,6 +605,48 @@ function RoomForm({
       </Button>
       <Outcome result={step.result} okText={row ? "Saved." : "Added."} />
     </form>
+  );
+}
+
+/** A room type's own photograph (0118): the first one filed under it, and a way to add one. */
+function RoomPhoto({ data, row }: { data: Open; row: RoomTypeRow }) {
+  const p = data.property;
+  const step = useStep();
+  const [key, setKey] = useState(0);
+  const photo = p?.photos.find((ph) => ph.roomTypeId === row.id) ?? null;
+  if (!p) return null;
+  const upload = async (file: File | undefined) => {
+    if (!file) return;
+    const form = new FormData();
+    form.set("file", file);
+    form.set("caption", row.name);
+    form.set("roomTypeId", row.id);
+    await step.run(() => addPhotoAction(data.workspaceId, p.id, form));
+    setKey((k) => k + 1);
+  };
+  return (
+    <div className="flex items-center gap-3">
+      {photo ? (
+        // biome-ignore lint/performance/noImgElement: a short-lived signed URL, not a static asset
+        <img src={photo.url} alt={row.name} className="size-14 shrink-0 rounded-lg bg-default object-cover" />
+      ) : (
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-default text-[11px] text-muted">
+          No photo
+        </span>
+      )}
+      <label className="text-[13px] font-medium text-accent">
+        {step.busy ? "Uploading…" : photo ? "Add another photo" : "Add a photo of this room"}
+        <input
+          key={key}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="sr-only"
+          disabled={step.busy}
+          onChange={(e) => void upload(e.target.files?.[0])}
+        />
+      </label>
+      {step.result && !step.result.ok ? <span className="text-[13px] text-danger">{step.result.error}</span> : null}
+    </div>
   );
 }
 
@@ -583,6 +671,9 @@ function RoomLine({ data, row }: { data: Open; row: RoomTypeRow }) {
           {missing ? (
             <span className="text-[13px] text-danger">Add its beds and the adults it takes before you publish.</span>
           ) : null}
+          {!hasPhoto(data.property, row.id) ? (
+            <span className="text-[13px] text-danger">Add a photograph of this room before you publish.</span>
+          ) : null}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-[13px] text-muted tabular">
@@ -594,6 +685,7 @@ function RoomLine({ data, row }: { data: Open; row: RoomTypeRow }) {
           </Button>
         </div>
       </div>
+      <RoomPhoto data={data} row={row} />
       {open ? <RoomForm data={data} row={row} onSaved={() => setOpen(false)} /> : null}
     </li>
   );
@@ -631,5 +723,115 @@ export function StayRoomsStep({ data, index }: { data: Open; index: number }) {
         </Button>
       )}
     </StepCard>
+  );
+}
+
+// ── 4. Facilities ─────────────────────────────────────────────────────────────────────────────────
+
+/** The shared catalogue, grouped as it is stored, each ticked or not; a tick is saved as it is pressed. */
+export function FacilitiesStep({ data, index }: { data: Open; index: number }) {
+  const p = data.property;
+  const [offered, setOffered] = useState<Set<string>>(
+    () => new Set(data.amenities.filter((a) => a.offered).map((a) => a.code)),
+  );
+  const [error, setError] = useState<string | null>(null);
+  if (!p) return null;
+  const groups = new Map<string, ApiAmenity[]>();
+  for (const a of data.amenities) {
+    const key = a.category ?? "Other";
+    groups.set(key, [...(groups.get(key) ?? []), a]);
+  }
+  const toggle = async (code: string, on: boolean) => {
+    setError(null);
+    setOffered((now) => {
+      const next = new Set(now);
+      if (on) next.add(code);
+      else next.delete(code);
+      return next;
+    });
+    const res = await setAmenityAction(data.workspaceId, p.id, code, on);
+    if (!res.ok) {
+      setError(res.error);
+      setOffered((now) => {
+        const next = new Set(now);
+        if (on) next.delete(code);
+        else next.add(code);
+        return next;
+      });
+    }
+  };
+  return (
+    <StepCard
+      id="facilities"
+      index={index}
+      title="Facilities"
+      done={offered.size > 0}
+      icon={<ListCheck />}
+      lead="What a stay includes, from Wi-Fi to a pool. Guests filter by these, so tick only what is there every day."
+    >
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]">
+        {[...groups.entries()].map(([category, items]) => (
+          <fieldset key={category} className="m-0 flex flex-col gap-1.5 border-0 p-0">
+            <legend className="mb-1 text-sm font-medium">{category}</legend>
+            {items.map((a) => (
+              <Checkbox key={a.code} isSelected={offered.has(a.code)} onChange={(on) => void toggle(a.code, on)}>
+                <Checkbox.Content className="flex items-center gap-2">
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <span className="text-sm">{a.label}</span>
+                </Checkbox.Content>
+              </Checkbox>
+            ))}
+          </fieldset>
+        ))}
+      </div>
+      {error ? <p className="m-0 text-[13px] text-danger">{error}</p> : null}
+    </StepCard>
+  );
+}
+
+// ── The star grade, on the property step ─────────────────────────────────────────────────────────
+
+/**
+ * The grade RDB gave under the EAC criteria (0118). The owner's word until an Injishi officer checks it
+ * against the grading certificate; guests see stars only once it is confirmed.
+ */
+export function StarGradeField({ data }: { data: Open }) {
+  const step = useStep();
+  const [grade, setGrade] = useState(data.starGrade.grade ? String(data.starGrade.grade) : "");
+  const said = data.starGrade.grade;
+  const changed = grade !== (said ? String(said) : "");
+  return (
+    <div className="flex flex-col gap-2 border-t border-separator pt-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1 text-sm font-medium">
+          Official star grade
+          <select className={`${SELECT} w-56`} value={grade} onChange={(e) => setGrade(e.target.value)}>
+            <option value="">Not graded</option>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <option key={n} value={n}>
+                {`${n} star${n === 1 ? "" : "s"}`}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button
+          variant="secondary"
+          isDisabled={step.busy || !changed}
+          onPress={() => void step.run(() => setStarGradeAction(data.workspaceId, grade))}
+        >
+          {step.busy ? "Saving…" : "Save grade"}
+        </Button>
+      </div>
+      <p className="m-0 text-[13px] text-muted">
+        {said === null
+          ? "Graded by RDB? Say so here; an officer checks it against your grading certificate before guests see stars."
+          : data.starGrade.verifiedAt
+            ? `${said} stars, confirmed by Injishi. Guests see it on your page.`
+            : `${said} stars, waiting for an officer to check it against your RDB grading certificate. Guests see no stars until then.`}
+      </p>
+      <Outcome result={step.result} okText="Saved. An officer checks it before guests see it." />
+    </div>
   );
 }

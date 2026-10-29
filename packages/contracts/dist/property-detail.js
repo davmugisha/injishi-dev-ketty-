@@ -33,6 +33,8 @@ exports.PropertyDetail = zod_1.z.object({
     houseRules: zod_1.z.string().nullable(),
     /** 0117: the check-in window's end, the front desk, languages and the house rules as choices. */
     policies: property_policies_1.PropertyPolicies.optional(),
+    /** 0118: RDB's star grade, only once an officer has confirmed it; null otherwise. */
+    starGrade: zod_1.z.number().int().min(1).max(5).nullish(),
     /**
      * One absolute URL per photograph, in the operator's order, the cover first.
      *

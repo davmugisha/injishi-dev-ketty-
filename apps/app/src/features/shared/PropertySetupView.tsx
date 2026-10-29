@@ -6,7 +6,8 @@ import { tidyPlaceName } from "@injishi/contracts";
 import { LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { type FormEvent, useEffect, useState } from "react";
 import type { Place, SetupRead } from "@/server/mutations/setup";
-import { DeskStep, RulesStep, StayRoomsStep } from "./StaySetupSteps";
+import { MapPinPicker } from "./MapPinPicker";
+import { DeskStep, FacilitiesStep, RulesStep, StarGradeField, StayRoomsStep } from "./StaySetupSteps";
 import {
   addPhotoAction,
   addRoomTypeAction,
@@ -301,8 +302,15 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
             ? "The village decides which local leader your premises are filed with."
             : "The village decides which local leader your guests are reported to when they check in."}
         </p>
+        {venue ? null : (
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium">Pin it on the map</span>
+            <MapPinPicker value={mapPoint} onChange={setMapPoint} />
+            <span className="text-xs text-muted">Click where the entrance is, then drag the pin to the gate if it is off.</span>
+          </div>
+        )}
         <TextField value={mapPoint} onChange={setMapPoint} fullWidth>
-          <Label>Map location</Label>
+          <Label>{venue ? "Map location" : "Or paste the point"}</Label>
           <Input placeholder="-1.9441, 30.0880" inputMode="decimal" className="tabular" />
           <Description>
             {venue
@@ -338,6 +346,7 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
         </Button>
         <Outcome result={step.result} okText="Saved." />
       </form>
+      {venue ? null : <StarGradeField data={data} />}
     </StepCard>
   );
 }
@@ -823,7 +832,7 @@ export function PropertySetupView({
               : "Your property is on the marketplace. Keep its details, prices and photographs up to date here."
             : venue
               ? "Three steps, then publish. Customers see nothing until you press Publish."
-              : "Five steps, then publish. Guests see nothing until you press Publish."
+              : "Six steps, then publish. Guests see nothing until you press Publish."
         }
       />
       {!data.approved ? <ReviewNotice status={data.status} /> : null}
@@ -851,9 +860,10 @@ export function PropertySetupView({
           <>
             <DeskStep data={data} index={2} />
             <RulesStep data={data} index={3} />
-            <StayRoomsStep data={data} index={4} />
-            <PhotoStep data={data} index={5} />
-            <PublishStep data={data} webUrl={webUrl} index={6} />
+            <FacilitiesStep data={data} index={4} />
+            <StayRoomsStep data={data} index={5} />
+            <PhotoStep data={data} index={6} />
+            <PublishStep data={data} webUrl={webUrl} index={7} />
           </>
         )}
         <KindChecklist data={data} />

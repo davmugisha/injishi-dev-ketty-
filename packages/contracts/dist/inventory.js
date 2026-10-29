@@ -226,6 +226,8 @@ exports.PropertyPhoto = zod_1.z.object({
     isCover: zod_1.z.boolean(),
     caption: zod_1.z.string().nullable(),
     url: zod_1.z.string(),
+    /** 0118: the room type it shows; null is the property. Optional for an older API. */
+    roomTypeId: primitives_1.Uuid.nullish(),
 });
 /**
  * One property in full, as its owner sees it.
@@ -271,6 +273,8 @@ exports.OperatorProperty = exports.OperatorPropertySummary.extend({
         sizeM2: zod_1.z.number().int().nullish(),
         bathroom: zod_1.z.enum(["private", "shared"]).nullish(),
         singleGuestPriceRwf: zod_1.z.number().int().nullish(),
+        extraBedsMax: zod_1.z.number().int().nullish(),
+        extraBedPriceRwf: zod_1.z.number().int().nullish(),
     })),
 });
 /**
@@ -355,6 +359,8 @@ exports.PublishBlocker = zod_1.z.enum([
     "missing_language",
     /** 0117: every room type of a stay says its beds and how many adults it takes. */
     "room_type_without_beds",
+    /** 0118: every room type of a stay has a photograph of its own. */
+    "room_type_without_photo",
 ]);
 exports.PUBLISH_BLOCKER_LABEL = {
     org_not_active: "Publishing opens once your business is approved.",
@@ -368,6 +374,7 @@ exports.PUBLISH_BLOCKER_LABEL = {
     missing_front_desk: "Say when the front desk is open.",
     missing_language: "Pick at least one language your staff speak.",
     room_type_without_beds: "Give every room type its beds and the number of adults it takes.",
+    room_type_without_photo: "Add a photograph of every room type.",
 };
 /** Which screen a blocker sends the operator back to. */
 function stepForPublishBlocker(blocker) {
@@ -384,6 +391,7 @@ function stepForPublishBlocker(blocker) {
         case "no_priced_room_type":
         case "no_sellable_room":
         case "room_type_without_beds":
+        case "room_type_without_photo":
             return "room_types";
         case "no_photo":
             return "photos";
@@ -545,6 +553,8 @@ exports.AttachPropertyPhotoRequest = exports.WorkspaceScoped.extend({
     /** The first photograph on a property becomes the cover whatever this says. */
     isCover: zod_1.z.boolean().optional(),
     caption: zod_1.z.string().trim().max(300).optional(),
+    /** 0118: the room type it shows, on this property; absent is a photograph of the property. */
+    roomTypeId: primitives_1.Uuid.optional(),
 });
 /**
  * Reorder, re caption, or move the cover, in one call.

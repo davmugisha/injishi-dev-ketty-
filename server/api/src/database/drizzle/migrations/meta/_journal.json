@@ -827,6 +827,13 @@
       "when": 1793044576609,
       "tag": "0117_hotel_setup_details",
       "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1793044676609,
+      "tag": "0118_hotel_setup_phase_two",
+      "breakpoints": true
     }
   ]
 }

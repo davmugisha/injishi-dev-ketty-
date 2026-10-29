@@ -162,10 +162,14 @@ export class ListingService {
 
   /** Photograph ids become their stable public URLs; nothing else changes. */
   private toWire(record: PublicPropertyRecord): PropertyDetail {
-    const { photoIds, ...property } = record;
+    const { photoIds, roomTypes, ...property } = record;
     return {
       ...property,
       photos: photoIds.map((id) => photoRouteUrl(this.origin, id)),
+      roomTypes: roomTypes.map(({ photoId, ...roomType }) => ({
+        ...roomType,
+        photo: photoId ? photoRouteUrl(this.origin, photoId) : null,
+      })),
     };
   }
 }

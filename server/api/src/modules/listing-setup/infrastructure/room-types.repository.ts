@@ -211,6 +211,8 @@ export class RoomTypesRepository {
           sizeM2: r.sizeM2 ?? null,
           bathroom: r.bathroom ?? null,
           singleGuestPriceRwf: r.singleGuestPriceRwf ?? null,
+          extraBedsMax: r.extraBedsMax ?? null,
+          extraBedPriceRwf: r.extraBedPriceRwf ?? null,
         })
         .returning({ id: roomTypes.id });
       if (!roomType) throw new Error('Room type insert returned no row.');
@@ -262,7 +264,7 @@ export class RoomTypesRepository {
       }
       if (r.roomCount !== undefined) patch.roomCount = r.roomCount;
       if (r.basePriceRwf !== undefined) patch.basePriceRwf = r.basePriceRwf;
-      for (const key of ['roomCategory', 'beds', 'maxAdults', 'maxChildren', 'sizeM2', 'bathroom', 'singleGuestPriceRwf'] as const) {
+      for (const key of ['roomCategory', 'beds', 'maxAdults', 'maxChildren', 'sizeM2', 'bathroom', 'singleGuestPriceRwf', 'extraBedsMax', 'extraBedPriceRwf'] as const) {
         if (r[key] !== undefined) patch[key] = r[key];
       }
       if (r.bookingMode !== undefined) patch.bookingMode = r.bookingMode;

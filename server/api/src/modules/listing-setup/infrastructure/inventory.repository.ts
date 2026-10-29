@@ -18,6 +18,7 @@ import {
   rooms,
   sectors,
   villages,
+  workspaces,
 } from '../../../database/drizzle/schema';
 import {
   randomSlugSuffix,
@@ -98,6 +99,8 @@ export interface PropertyRow {
   quietUntil: string | null;
   internet: string | null;
   parking: string | null;
+  cribs: string | null;
+  cribPriceRwf: number | null;
   locationPrivacy: boolean;
   timezone: string;
   contactPhone: string | null;
@@ -131,6 +134,8 @@ const POLICY_COLUMNS = {
   quietUntil: properties.quietUntil,
   internet: properties.internet,
   parking: properties.parking,
+  cribs: properties.cribs,
+  cribPriceRwf: properties.cribPriceRwf,
 };
 const POLICY_KEYS = Object.keys(POLICY_COLUMNS) as (keyof typeof POLICY_COLUMNS)[];
 
@@ -203,6 +208,25 @@ export class InventoryRepository {
       .where(eq(villages.id, villageId))
       .limit(1);
     return row?.sectorId ?? null;
+  }
+
+  /** 0118: the workspace's business's star grade, and whether an officer has confirmed it. */
+  async starGradeFor(workspaceId: string): Promise<{ grade: number | null; verifiedAt: Date | null } | null> {
+    const [row] = await this.db
+      .select({ grade: orgs.eacStarGrade, verifiedAt: orgs.starGradeVerifiedAt })
+      .from(workspaces)
+      .innerJoin(orgs, eq(orgs.id, workspaces.orgId))
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** 0118: the business says its grade; saying it again withdraws any confirmation. */
+  async setStarGrade(workspaceId: string, grade: number | null): Promise<void> {
+    await this.db
+      .update(orgs)
+      .set({ eacStarGrade: grade, starGradeVerifiedAt: null, starGradeVerifiedBy: null, updatedAt: new Date() })
+      .where(sql`${orgs.id} = (select ${workspaces.orgId} from ${workspaces} where ${workspaces.id} = ${workspaceId})`);
   }
 
   async districtForSector(sectorId: number): Promise<number | null> {
@@ -464,6 +488,8 @@ export class InventoryRepository {
       sizeM2: number | null;
       bathroom: 'private' | 'shared' | null;
       singleGuestPriceRwf: number | null;
+      extraBedsMax: number | null;
+      extraBedPriceRwf: number | null;
     }[]
   > {
     const rows = await this.db
@@ -482,6 +508,8 @@ export class InventoryRepository {
         sizeM2: roomTypes.sizeM2,
         bathroom: roomTypes.bathroom,
         singleGuestPriceRwf: roomTypes.singleGuestPriceRwf,
+        extraBedsMax: roomTypes.extraBedsMax,
+        extraBedPriceRwf: roomTypes.extraBedPriceRwf,
         sellableRoomCount: sql<number>`count(${rooms.id}) filter (where ${rooms.status} = 'available')`,
       })
       .from(roomTypes)
@@ -511,6 +539,7 @@ export class InventoryRepository {
         ...r,
         basePriceRwf: r.basePriceRwf ?? null,
         singleGuestPriceRwf: r.singleGuestPriceRwf ?? null,
+        extraBedPriceRwf: r.extraBedPriceRwf ?? null,
         // The column's CHECK constraint holds it to these two.
         bathroom: (r.bathroom as 'private' | 'shared' | null) ?? null,
         sellableRoomCount: Number(r.sellableRoomCount),
@@ -728,6 +757,18 @@ export class InventoryRepository {
       .from(propertyPhotos)
       .where(eq(propertyPhotos.propertyId, propertyId));
 
+    // 0118: every room type of a stay has a photograph of its own.
+    const [unphotographed] = await handle
+      .select({ count: sql<number>`count(*)` })
+      .from(roomTypes)
+      .where(
+        and(
+          eq(roomTypes.propertyId, propertyId),
+          eq(roomTypes.status, 'active'),
+          sql`not exists (select 1 from ${propertyPhotos} where ${propertyPhotos.roomTypeId} = ${roomTypes.id})`,
+        ),
+      );
+
     return {
       orgActive: property.registrationStatus === 'active',
       sectorId: property.sectorId,
@@ -740,6 +781,7 @@ export class InventoryRepository {
       hasFrontDesk: property.frontDesk !== null,
       languageCount: property.languages.length,
       roomTypesWithoutBeds: Number(unfurnished?.count ?? 0),
+      roomTypesWithoutPhoto: Number(unphotographed?.count ?? 0),
     };
   }
 

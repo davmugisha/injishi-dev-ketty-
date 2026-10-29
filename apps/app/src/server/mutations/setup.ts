@@ -70,7 +70,16 @@ export interface ApiProperty extends ApiPropertySummary, Partial<PropertyPolicie
   contactEmail?: string | null;
   latitude?: number | null;
   longitude?: number | null;
-  photos: { id: string; objectKey: string; position: number; isCover: boolean; caption: string | null; url: string }[];
+  photos: {
+    id: string;
+    objectKey: string;
+    position: number;
+    isCover: boolean;
+    caption: string | null;
+    url: string;
+    /** 0118: the room type it shows; null is the property. */
+    roomTypeId?: string | null;
+  }[];
   roomTypes: {
     id: string;
     name: string;
@@ -87,7 +96,23 @@ export interface ApiProperty extends ApiPropertySummary, Partial<PropertyPolicie
     sizeM2?: number | null;
     bathroom?: "private" | "shared" | null;
     singleGuestPriceRwf?: number | null;
+    extraBedsMax?: number | null;
+    extraBedPriceRwf?: number | null;
   }[];
+}
+
+/** One amenity in the shared catalogue, flagged with whether this property offers it (`GET /ops/amenities`). */
+export interface ApiAmenity {
+  code: string;
+  category: string | null;
+  label: string;
+  offered: boolean;
+}
+
+/** The business's star grade and whether an officer has confirmed it (`GET /inventory/star-grade`). */
+export interface ApiStarGrade {
+  grade: number | null;
+  verifiedAt: string | null;
 }
 
 /** GET /api/v1/inventory/setup (PropertySetupProgress): counts the checklist is judged against. */
@@ -133,7 +158,7 @@ export interface Place {
  * What a listing needs before the API lets it publish, in the order a person does them. A stay also says how
  * guests reach the desk (`desk`) and its check-in and house rules (`rules`); a venue has neither.
  */
-export type StepKey = "property" | "desk" | "rules" | "room_type" | "photo" | "publish";
+export type StepKey = "property" | "desk" | "rules" | "facilities" | "room_type" | "photo" | "publish";
 
 export interface SetupStep {
   key: StepKey;
@@ -177,6 +202,10 @@ export type SetupRead =
       /** What the API would refuse a publish for, in words, in the order to fix them. */
       blockers: string[];
       published: boolean;
+      /** 0118: what this property offers, from the shared catalogue; empty when there is no property yet. */
+      amenities: ApiAmenity[];
+      /** 0118: the star grade the business has said, and whether it is confirmed. */
+      starGrade: ApiStarGrade;
     };
 
 /** The signed-in person's business workspace by id, or a refusal. */
@@ -203,6 +232,8 @@ export function blockersFor(
     if (!stay.languages?.length) out.push("Pick at least one language your staff speak.");
     if (stay.roomTypes.some((t) => t.status === "active" && !isFurnished(t)))
       out.push("Give every room type its beds and the number of adults it takes.");
+    if (stay.roomTypes.some((t) => t.status === "active" && !hasPhoto(stay, t.id)))
+      out.push("Add a photograph of every room type.");
   }
   if (!hasProperty) {
     out.push(
@@ -249,6 +280,11 @@ export async function setupGlance(ctx: SourceContext, workspaceId: string): Prom
   }
 }
 
+/** 0118: whether a room type has a photograph of its own, which a stay needs to publish. */
+export function hasPhoto(property: ApiProperty | null, roomTypeId: string): boolean {
+  return (property?.photos ?? []).some((p) => p.roomTypeId === roomTypeId);
+}
+
 /** A room type that says its beds and how many adults it takes (0117), which a stay needs to publish. */
 export function isFurnished(t: ApiProperty["roomTypes"][number]): boolean {
   return (t.beds?.length ?? 0) > 0 && t.maxAdults != null;
@@ -267,9 +303,15 @@ export async function readSetup(ctx: SourceContext, workspaceId: string, propert
   const { properties } = await ctx.api.get<{ properties: ApiPropertySummary[] }>("/api/v1/inventory/properties", api);
   // The branch asked for, or the first: a business registered with several sets each up in turn.
   const first = properties.find((p) => p.id === propertyId) ?? properties[0] ?? null;
-  const [property, progress] = await Promise.all([
+  const [property, progress, amenities, starGrade] = await Promise.all([
     first ? ctx.api.get<ApiProperty>(`/api/v1/inventory/properties/${first.id}`, api) : Promise.resolve(null),
     ctx.api.get<ApiSetupProgress>("/api/v1/inventory/setup", { ...api, query: { propertyId: first?.id } }),
+    first
+      ? ctx.api
+          .get<{ amenities: ApiAmenity[] }>("/api/v1/ops/amenities", { ...api, query: { propertyId: first.id } })
+          .then((r) => r.amenities)
+      : Promise.resolve([]),
+    ctx.api.get<ApiStarGrade>("/api/v1/inventory/star-grade", api),
   ]);
   const { counts } = progress;
   const published = property?.listingStatus === "published";
@@ -312,6 +354,7 @@ export async function readSetup(ctx: SourceContext, workspaceId: string, propert
             done: !!property?.frontDesk && !!property.languages?.length && !!property.contactPhone,
           },
           { key: "rules", title: "Check-in and house rules", done: !!property?.checkInTime && !!property.checkOutTime },
+          { key: "facilities", title: "Facilities", done: amenities.some((a) => a.offered) },
           {
             key: "room_type",
             title: `${words.typePlural} and prices`,
@@ -319,10 +362,16 @@ export async function readSetup(ctx: SourceContext, workspaceId: string, propert
               counts.pricedRoomTypes > 0 &&
               (property?.roomTypes ?? []).filter((t) => t.status === "active").every(isFurnished),
           },
-          { key: "photo", title: "Photographs", done: counts.photos > 0 },
+          {
+            key: "photo",
+            title: "Photographs",
+            done: counts.photos > 0 && (property?.roomTypes ?? []).filter((t) => t.status === "active").every((t) => hasPhoto(property, t.id)),
+          },
           { key: "publish", title: "Publish", done: published },
         ],
     blockers: blockersFor(counts, !!property, foodVenue, approved, property),
+    amenities,
+    starGrade,
     published,
   };
 }
@@ -556,6 +605,8 @@ export async function addPhoto(
   propertyId: string,
   file: Blob & { name?: string },
   caption?: string,
+  /** 0118: the room type it shows; absent is a photograph of the property. */
+  roomTypeId?: string,
 ): Promise<{ id: string }> {
   workspaceOf(ctx, workspaceId);
   if (!file || file.size === 0) throw new SetupRefusal("Choose a photograph to add.");
@@ -566,7 +617,7 @@ export async function addPhoto(
   const uploaded = await ctx.api.upload<{ objectKey: string }>("/api/v1/uploads/property-photo", form);
   return ctx.api.post<{ id: string }>(
     `/api/v1/inventory/properties/${propertyId}/photos`,
-    { workspaceId, objectKey: uploaded.objectKey, caption: text(caption, 300) },
+    { workspaceId, objectKey: uploaded.objectKey, caption: text(caption, 300), ...(roomTypeId ? { roomTypeId } : {}) },
     { workspaceId },
   );
 }
@@ -589,4 +640,28 @@ export async function unpublish(
 ): Promise<ApiPropertySummary> {
   workspaceOf(ctx, workspaceId);
   return ctx.api.post<ApiPropertySummary>(`/api/v1/inventory/properties/${propertyId}/unpublish`, {}, { workspaceId });
+}
+
+/** 0118: offer an amenity on a property, or stop (`POST` / `DELETE /ops/amenities`). */
+export async function setAmenity(
+  ctx: SourceContext,
+  workspaceId: string,
+  propertyId: string,
+  code: string,
+  offered: boolean,
+): Promise<void> {
+  workspaceOf(ctx, workspaceId);
+  if (offered) {
+    await ctx.api.post("/api/v1/ops/amenities", { propertyId, amenityCode: code }, { workspaceId });
+  } else {
+    await ctx.api.delete(`/api/v1/ops/amenities/${encodeURIComponent(code)}`, { workspaceId, query: { propertyId } });
+  }
+}
+
+/** 0118: say the star grade RDB gave, or none (`PUT /inventory/star-grade`). It waits for an officer to confirm. */
+export async function setStarGrade(ctx: SourceContext, workspaceId: string, grade: number | null): Promise<ApiStarGrade> {
+  workspaceOf(ctx, workspaceId);
+  if (grade !== null && !(Number.isInteger(grade) && grade >= 1 && grade <= 5))
+    throw new SetupRefusal("A star grade is one to five stars.");
+  return ctx.api.put<ApiStarGrade>("/api/v1/inventory/star-grade", { workspaceId, grade }, { workspaceId });
 }

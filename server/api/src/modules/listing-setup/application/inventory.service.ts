@@ -7,6 +7,7 @@ import {
   policiesFromRow,
   PUBLISH_BLOCKER_LABEL,
   type PublishBlocker,
+  type StarGradeStatus,
   type UpdatePropertyRequest,
 } from '@injishi/contracts';
 import {
@@ -321,6 +322,24 @@ export class InventoryService {
       photos,
       roomTypes,
     };
+  }
+
+  /** 0118: the business's star grade, as its owner sees it: the grade and whether an officer confirmed it. */
+  async starGrade(workspace: ScopedWorkspace): Promise<StarGradeStatus> {
+    const row = await this.repo.starGradeFor(workspace.workspaceId);
+    if (!row) throw new NotFoundException('No business behind this workspace.');
+    return { grade: row.grade, verifiedAt: row.verifiedAt?.toISOString() ?? null };
+  }
+
+  /**
+   * 0118: say the business's star grade. It is the owner's word until an officer checks it against RDB's
+   * grading certificate, so saying it again, even the same grade, withdraws the confirmation.
+   */
+  async setStarGrade(workspace: ScopedWorkspace, grade: number | null): Promise<StarGradeStatus> {
+    // The grade is the whole business's, so a member who covers only some branches may not change it.
+    assertCoversEveryBranch(workspace);
+    await this.repo.setStarGrade(workspace.workspaceId, grade);
+    return this.starGrade(workspace);
   }
 
   /**
