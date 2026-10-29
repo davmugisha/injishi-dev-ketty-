@@ -46,6 +46,26 @@ interface CheckInInput {
   roomLabel: string;
   /** Cash taken at the desk, posted to the bill once the stay is open. One key per press of "Record cash". */
   cash?: { amountRwf: number; idempotencyKey: string } | null;
+  /** The registration card: nationality and the document, which decide who the stay is reported to. */
+  guest?: GuestCard;
+}
+
+/** Nationality and the document, as the desk read them from the guest's ID (`StayRegistrationDetails`). */
+export interface GuestCard {
+  nationality?: string;
+  documentType?: "national_id" | "passport" | "other";
+  idNumber?: string;
+}
+
+function guestCard(card: GuestCard | undefined): GuestCard {
+  if (!card) return {};
+  const nationality = card.nationality?.trim().toUpperCase();
+  const idNumber = card.idNumber?.trim();
+  return {
+    ...(nationality && /^[A-Z]{2}$/.test(nationality) ? { nationality } : {}),
+    ...(card.documentType ? { documentType: card.documentType } : {}),
+    ...(idNumber ? { idNumber } : {}),
+  };
 }
 
 export interface CheckedIn {
@@ -63,7 +83,11 @@ export async function checkIn(ctx: SourceContext, input: CheckInInput): Promise<
   const { board, booking } = await bookingOf(ctx, input.bookingRef);
   const room = roomOf(board, input.roomLabel);
   return command(ctx, async () => {
-    const stay = await ctx.ops().post<{ id: string }>(`/api/v1/ops/stays/${booking.id}/checkin`, { roomId: room.id });
+    const card = guestCard(input.guest);
+    const stay = await ctx.ops().post<{ id: string }>(`/api/v1/ops/stays/${booking.id}/checkin`, {
+      roomId: room.id,
+      ...(Object.keys(card).length ? { guest: card } : {}),
+    });
     // The stay's bill, read back from the desk's day as it now stands.
     const after = await ctx.ops().get<ApiBoard>("/api/v1/ops/front-desk");
     const opened = after.stays.find((s) => s.id === stay.id);
@@ -144,6 +168,8 @@ export interface WalkInInput {
   phone?: string;
   /** Where the claim code goes, so the guest can carry on in the app. */
   email?: string;
+  /** The registration card (0114). */
+  guest?: GuestCard;
 }
 
 export interface WalkedIn {
@@ -222,7 +248,7 @@ export async function walkIn(ctx: SourceContext, input: WalkInInput): Promise<Wa
       roomId: room.id,
       guestName: name,
       plannedExitAt: new Date(`${leaves}T${checkOutTime}:00+02:00`).toISOString(),
-      guest: { fullName: name, ...(phone ? { phone } : {}), ...(email ? { email } : {}) },
+      guest: { fullName: name, ...guestCard(input.guest), ...(phone ? { phone } : {}), ...(email ? { email } : {}) },
     });
     const after = await ctx.ops().get<ApiBoard>("/api/v1/ops/front-desk");
     const opened = after.stays.find((s) => s.id === stay.id);

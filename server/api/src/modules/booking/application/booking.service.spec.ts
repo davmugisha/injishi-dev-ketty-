@@ -313,6 +313,14 @@ describe('BookingService money ordering', () => {
     expect(payments.captureEscrow.mock.calls[0][0].amountRwf).toBe(90_000);
   });
 
+  it('refuses a stay shorter than the room type minimum, before any charge', async () => {
+    const { service, listings, payments } = build();
+    listings.findBookableRoomType.mockResolvedValue({ ...roomType, minStay: 3 });
+
+    await expect(service.create(input, GUEST_ID)).rejects.toThrow(/at least 3 nights/);
+    expect(payments.captureEscrow).not.toHaveBeenCalled();
+  });
+
   it("refuses to book a venue's menu item, before any hold or charge", async () => {
     const { service, listings, payments } = build();
     listings.findBookableRoomType.mockResolvedValue({ ...roomType, priceBasis: 'per_item', bookingMode: null });

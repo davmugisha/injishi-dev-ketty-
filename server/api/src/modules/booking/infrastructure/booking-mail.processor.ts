@@ -263,6 +263,7 @@ function stillTrue(event: string, status: string): boolean {
   switch (event) {
     case 'confirmed':
     case 'approved':
+    case 'host_confirmed':
       return status === 'confirmed';
     case 'request_sent':
     case 'host_request':

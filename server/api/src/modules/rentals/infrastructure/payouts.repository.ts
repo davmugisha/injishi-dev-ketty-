@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 
-import { leasePayments, leases, payoutAccounts, payouts, tenants } from '../../../database/drizzle/schema';
+import { leasePayments, leases, payoutAccounts, payouts, tenants, workspaces } from '../../../database/drizzle/schema';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import type { DbOrTx, Tx } from './rentals-writers';
 
@@ -15,11 +15,16 @@ export interface PayoutListRow {
   payment: { id: string; leaseId: string; leaseReference: string; tenantName: string; receiptNumber: string | null } | null;
 }
 
+/** What the payouts pass sends: a landlord's rent, and a host's booking once the guest checks out (0116). */
+const SENT_BY_PASS = ['rent', 'booking'] as const;
+
 /**
  * Payouts of rent to the landlord (blueprint 1.4; WP 1.6b): one per gateway
  * payment, keyed `<workspace>:payout:<payment>`, queued to the primary payout
- * account or held until there is one.
+ * account or held until there is one. A host's booking payout (0116) is sent
+ * by the same pass; it has no lease, so its business is its workspace's.
  */
+
 @Injectable()
 export class PayoutsRepository {
   constructor(@Inject(DRIZZLE) private readonly db: Database) {}
@@ -65,17 +70,18 @@ export class PayoutsRepository {
       .where(eq(payouts.id, id));
   }
 
-  /** Held payouts of rent, oldest first, with the org they belong to (through the payment's lease). */
+  /** Held payouts, oldest first, with the org they belong to (the payment's lease, else the workspace's). */
   async held(limit = 200, db: DbOrTx = this.db): Promise<(PayoutRow & { orgId: string })[]> {
     const rows = await db
-      .select({ payout: payouts, orgId: leases.orgId })
+      .select({ payout: payouts, orgId: sql<string | null>`coalesce(${leases.orgId}, ${workspaces.orgId})` })
       .from(payouts)
-      .innerJoin(leasePayments, eq(leasePayments.payoutId, payouts.id))
-      .innerJoin(leases, eq(leases.id, leasePayments.leaseId))
-      .where(and(eq(payouts.status, 'held'), eq(payouts.source, 'rent')))
+      .leftJoin(leasePayments, eq(leasePayments.payoutId, payouts.id))
+      .leftJoin(leases, eq(leases.id, leasePayments.leaseId))
+      .innerJoin(workspaces, eq(workspaces.id, payouts.workspaceId))
+      .where(and(eq(payouts.status, 'held'), inArray(payouts.source, SENT_BY_PASS)))
       .orderBy(asc(payouts.createdAt))
       .limit(limit);
-    return rows.map((r) => ({ ...r.payout, orgId: r.orgId }));
+    return rows.flatMap((r) => (r.orgId ? [{ ...r.payout, orgId: r.orgId }] : []));
   }
 
   /** Queued payouts of rent not touched since `before`: ones whose job was lost. */
@@ -83,18 +89,20 @@ export class PayoutsRepository {
     return db
       .select()
       .from(payouts)
-      .where(and(eq(payouts.status, 'queued'), eq(payouts.source, 'rent'), lt(payouts.updatedAt, before)))
+      .where(and(eq(payouts.status, 'queued'), inArray(payouts.source, SENT_BY_PASS), lt(payouts.updatedAt, before)))
       .orderBy(asc(payouts.createdAt))
       .limit(limit);
   }
 
-  /** The org of a payout, through its payment's lease. */
+  /** The org of a payout: through its payment's lease, else (a host's booking payout) its workspace's. */
   async orgOf(payoutId: string, db: DbOrTx = this.db): Promise<string | null> {
     const [row] = await db
-      .select({ orgId: leases.orgId })
-      .from(leasePayments)
-      .innerJoin(leases, eq(leases.id, leasePayments.leaseId))
-      .where(eq(leasePayments.payoutId, payoutId))
+      .select({ orgId: sql<string | null>`coalesce(${leases.orgId}, ${workspaces.orgId})` })
+      .from(payouts)
+      .leftJoin(leasePayments, eq(leasePayments.payoutId, payouts.id))
+      .leftJoin(leases, eq(leases.id, leasePayments.leaseId))
+      .innerJoin(workspaces, eq(workspaces.id, payouts.workspaceId))
+      .where(eq(payouts.id, payoutId))
       .limit(1);
     return row?.orgId ?? null;
   }

@@ -256,6 +256,20 @@ function compose(
         ].join('\n'),
       };
 
+    case 'host_confirmed':
+      return {
+        subject: `New booking at ${f.propertyName} — ${f.reference}`,
+        body: [
+          hi,
+          '',
+          `${guestName ?? 'A guest'} has booked ${f.propertyName}. The booking is confirmed and ${money(f.grossRwf)} is held in escrow until the stay.`,
+          '',
+          stay,
+          '',
+          'It is on Reservations in the Injishi operator app. The money is paid out to your payout account after the guest checks out.',
+        ].join('\n'),
+      };
+
     case 'host_guest_cancelled':
       return {
         subject: `A guest cancelled — ${f.reference}`,

@@ -70,7 +70,7 @@ export function partyPrice(
     return {
       label: pluralize(nights, "night"),
       amount: `${formatRateNumber(nightlyRateRwf * nights)} RWF`,
-      note: "before fees",
+      note: "total for your stay",
     };
   }
   return null;

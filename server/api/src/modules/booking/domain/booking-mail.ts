@@ -51,6 +51,12 @@ export const BOOKING_MAIL_EVENTS = [
   'cancelled',
   /** To the property: a request is waiting for an answer. */
   'host_request',
+  /**
+   * To the property: an instant booking is in, paid and confirmed. Instant
+   * book is the default, and until 2026-10-29 the property heard of one only
+   * by opening Reservations.
+   */
+  'host_confirmed',
   /** To the property: the guest cancelled. */
   'host_guest_cancelled',
   /**
@@ -63,6 +69,7 @@ export const BOOKING_MAIL_EVENTS = [
 /** Events addressed to the property's managers rather than to the guest. */
 export const HOST_MAIL_EVENTS: ReadonlySet<BookingMailEvent> = new Set([
   'host_request',
+  'host_confirmed',
   'host_guest_cancelled',
   'host_payment_reversed',
 ]);

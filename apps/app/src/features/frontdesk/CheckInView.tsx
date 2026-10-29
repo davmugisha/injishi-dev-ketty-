@@ -55,6 +55,7 @@ import NextLink from "next/link";
 import { type ReactNode, useEffect, useRef, useState, useTransition } from "react";
 import { readFrancs } from "@/lib/francs";
 import { checkInGuest } from "./actions";
+import { EMPTY_REGISTRATION_CARD, RegistrationCard, registrationDetails } from "./RegistrationCard";
 import { ChoiceSelect, isReady, ROOM_STATUS } from "./shared";
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -97,6 +98,7 @@ export function CheckInView({
   const [cashTaken, setCashTaken] = useState(0);
   const [cashAt, setCashAt] = useState("");
   const [idOk, setIdOk] = useState(false);
+  const [card, setCard] = useState(EMPTY_REGISTRATION_CARD);
   // No candidate profile means nothing to review (guest profiles per business are not built yet).
   const dup: "open" | "separate" = file.duplicate.cards.length ? "open" : "separate";
   const [room, setRoom] = useState(file.stayId ? file.preAssignedRoom || file.defaultRoom : file.defaultRoom);
@@ -305,6 +307,7 @@ export function CheckInView({
           // The cash the person typed and recorded, never the amount due.
           cash:
             payState === "cash" && cashKey && cashTaken > 0 ? { amountRwf: cashTaken, idempotencyKey: cashKey } : null,
+          guest: registrationDetails(card),
         });
         if (!result.ok) {
           toast.danger(`Check-in needs attention: ${result.error}`);
@@ -486,6 +489,7 @@ export function CheckInView({
                 <p className="text-xs text-muted">
                   Full document numbers stay masked. Compare the ID the guest hands you with the name on the booking.
                 </p>
+                <RegistrationCard value={card} onChange={setCard} />
                 <Checkbox isSelected={idOk} onChange={setIdOk}>
                   <Checkbox.Content className="flex items-center gap-2.5">
                     <Checkbox.Control>

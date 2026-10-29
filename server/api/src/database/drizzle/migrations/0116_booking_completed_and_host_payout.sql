@@ -1,0 +1,13 @@
+-- A stay that ended (2026-10-29).
+--
+-- A booking stayed `confirmed` after its guest checked out, so the nights an
+-- early departure freed stayed sold, and nothing ever paid the host: the
+-- escrow sat `held` for good. Check out now stamps `completed_at`, the nights
+-- from that day on are free again, and the escrow is released to the host as
+-- a `payouts` row (source `booking`, one per booking by its idempotency key)
+-- that the payouts pass sends.
+--
+-- A timestamp, not a new `booking_status`: two dozen readers ask "is this
+-- booking confirmed?", and a completed stay is still one, for its receipt, its
+-- refunds and its history. What changed is that it is over.
+ALTER TABLE "bookings" ADD COLUMN "completed_at" timestamp with time zone;

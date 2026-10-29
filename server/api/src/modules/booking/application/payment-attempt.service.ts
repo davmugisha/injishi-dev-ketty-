@@ -1,5 +1,6 @@
 import {
   PAYMENT_PROMPT_TTL_SECONDS,
+  breakdownAsCharged,
   computeBreakdown,
   type BookingResult,
   type CreateBookingInput,
@@ -720,13 +721,29 @@ export class PaymentAttemptService {
     }
 
     const nights = nightsBetween(checkIn, checkOut);
-    const breakdown = computeBreakdown({
-      nightlyRateRwf: roomType.nightlyRateRwf,
-      nights,
-      nonRefundable: row.nonRefundable,
-      guests,
-      priceBasis: roomType.priceBasis,
-    });
+    // Priced as it was charged: a prompt started before the guest service fee
+    // was dropped carried 5% on top (`breakdownAsCharged`), and the booking and
+    // its escrow must record what the guest actually paid.
+    const breakdown = breakdownAsCharged(
+      {
+        nightlyRateRwf: roomType.nightlyRateRwf,
+        nights,
+        nonRefundable: row.nonRefundable,
+        guests,
+        priceBasis: roomType.priceBasis,
+      },
+      row.amountRwf ?? 0,
+    );
+    if (row.amountRwf != null && breakdown.grossRwf !== row.amountRwf) {
+      // The price moved while the guest was approving (the host changed the
+      // rate). Booking at today's figure would record an escrow that is not
+      // the money taken, and later refund the wrong amount, so the guest is
+      // refunded in full and can book again at the new price.
+      this.log.warn(
+        `Payment attempt ${row.attemptToken} captured ${row.amountRwf} RWF but the stay now prices at ${breakdown.grossRwf}; refunded.`,
+      );
+      return this.end(row, 'refused', PRICE_MOVED);
+    }
 
     let booking: BookingResult;
     try {
@@ -906,6 +923,8 @@ const LOST =
 const WITHDRAWN =
   'That room stopped being available while the payment was being approved, so your payment is being refunded in full.';
 const DECLINED = 'That payment was declined. Nothing has been charged.';
+const PRICE_MOVED =
+  'The price of that room changed while the payment was being approved, so your payment is being refunded in full. Book again to see the new price.';
 const ORDER_GONE =
   'This order was cancelled while the payment was being approved, so your payment is being refunded in full.';
 const FEE_ALREADY_PAID =

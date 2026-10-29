@@ -47,7 +47,8 @@ describe('PaymentAttemptService', () => {
     guests: 2,
     nonRefundable: false,
     attemptFingerprint: 'abc123',
-    amountRwf: 94_500,
+    // 45,000 x 2 guests x 3 nights: what the stay prices at, so it books.
+    amountRwf: 270_000,
     adapterRef: 'mock_escrow_capture_tok-1',
     network: 'mtn_momo',
     payerMasked: '078•••456',
@@ -62,7 +63,7 @@ describe('PaymentAttemptService', () => {
     adapterRef: row.adapterRef!,
     mode: 'mock',
     replayed: false,
-    amountRwf: 94_500,
+    amountRwf: 270_000,
     currency: 'RWF',
     occurredAt: new Date(),
     settlement: 'settled',
@@ -209,6 +210,26 @@ describe('PaymentAttemptService', () => {
     expect(written.input.checkIn).toBe('2026-11-02');
     expect(written.input.guests).toBe(2);
     expect(written.idempotencyKey).toBe(row.idempotencyKey);
+  });
+
+  it('books a prompt started under the old 5% fee at what it captured', async () => {
+    // 270,000 for the stay plus the 5% the guest paid before 2026-10-29.
+    const { service, bookings } = build({ row: { ...row, amountRwf: 283_500 }, fetch: { ...settled, amountRwf: 283_500 } });
+
+    const status = await service.poll('tok-1', GUEST);
+
+    expect(status.state).toBe('confirmed');
+    expect(bookings.writeBooking.mock.calls[0][0].breakdown.grossRwf).toBe(283_500);
+  });
+
+  it('refunds a prompt whose room changed price while the guest approved it', async () => {
+    const { service, bookings } = build({ row: { ...row, amountRwf: 250_000 }, fetch: { ...settled, amountRwf: 250_000 } });
+
+    const status = await service.poll('tok-1', GUEST);
+
+    expect(status.state).toBe('refused');
+    expect(status.failureReason).toMatch(/price of that room changed/);
+    expect(bookings.writeBooking).not.toHaveBeenCalled();
   });
 
   it('stays prompting while the customer has not answered', async () => {

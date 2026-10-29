@@ -148,7 +148,11 @@ export async function readNightlyCapacity(
             where b.room_type_id = ${roomTypeId}
               and b.status in ('pending_approval', 'confirmed')
               and b.check_in <= d::date
-              and b.check_out > d::date)
+              and b.check_out > d::date
+              -- A stay that checked out early holds no night from its
+              -- departure day on (0116).
+              and (b.completed_at is null
+                   or (b.completed_at at time zone 'Africa/Kigali')::date > d::date))
           +
           ${holds}
         )::int as held

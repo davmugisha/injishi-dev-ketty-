@@ -813,6 +813,13 @@
       "when": 1793044376609,
       "tag": "0115_room_type_price_basis",
       "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1793044476609,
+      "tag": "0116_booking_completed_and_host_payout",
+      "breakpoints": true
     }
   ]
 }

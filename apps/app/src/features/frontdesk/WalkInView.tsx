@@ -33,6 +33,7 @@ import { formatRwf, GateChip, LinkButton, PageContent, PageHeader, toneColor } f
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { EMPTY_REGISTRATION_CARD, RegistrationCard, registrationDetails } from "./RegistrationCard";
 import { checkInWalkIn } from "./actions";
 import { ChoiceSelect, plural } from "./shared";
 
@@ -116,6 +117,7 @@ export function WalkInView({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [card, setCard] = useState(EMPTY_REGISTRATION_CARD);
   const [saving, startSaving] = useTransition();
 
   const guests = adults + kids;
@@ -142,6 +144,7 @@ export function WalkInView({
         guestName: name,
         phone: phone || undefined,
         email: email || undefined,
+        guest: registrationDetails(card),
       });
       if (!result.ok) {
         toast.danger(`${name.trim()} was not checked in: ${result.error}`);
@@ -351,6 +354,7 @@ export function WalkInView({
                 <Input placeholder="Gets the claim code for the guest app" type="email" />
               </TextField>
             </div>
+            <RegistrationCard value={card} onChange={setCard} />
             <p className="text-xs text-muted" aria-live="polite">
               Guest profiles are not built yet, so there is nothing to search or match: the stay opens under the name
               typed above and is linked to no earlier stay. Check the ID when you hand over the key.

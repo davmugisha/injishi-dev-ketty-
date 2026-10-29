@@ -1,3 +1,4 @@
+import type { StayCompletionService } from './stay-completion.service';
 import type { HotelGuestFilingService } from '../../guests/application/hotel-guest-filing.service';
 import { describe, expect, it } from 'vitest';
 
@@ -151,6 +152,7 @@ function build(opts: {
     // A walk-in has no booking, so nothing pre-arrival is carried onto the stay.
     { carryToStay: async () => undefined } as unknown as SelfCheckInService,
     hotelGuests as unknown as HotelGuestFilingService,
+    { completeBooking: async () => null } as unknown as StayCompletionService,
   );
   return { service, opened, holdQueries, folios, cards, posted, filed };
 }

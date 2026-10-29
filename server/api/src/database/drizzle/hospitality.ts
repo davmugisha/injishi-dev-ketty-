@@ -102,6 +102,12 @@ export const bookings = pgTable(
      * given rather than recomputing it from a tier and a clock that have moved.
      */
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    /**
+     * When the guest checked out (0116). The booking stays `confirmed`; this
+     * says the stay is over, frees the nights from that day on, and is what
+     * releases the escrow to the host.
+     */
+    completedAt: timestamp('completed_at', { withTimezone: true }),
     /** `guest` or `host`. */
     cancelledBy: text('cancelled_by'),
     /** What went back to the guest; the rest of `gross_rwf` stays with the host. */

@@ -9,6 +9,7 @@ import {
   assignRoom,
   type CheckedIn,
   cancelReservation,
+  type GuestCard,
   checkIn,
   declineRequest,
   markNoShow,
@@ -70,6 +71,7 @@ export async function checkInGuest(input: {
   bookingRef: string;
   roomLabel: string;
   cash: { amountRwf: number; idempotencyKey: string } | null;
+  guest?: GuestCard;
 }): Promise<ActionResult<CheckedIn>> {
   await requirePersona("CheckIn");
   const result = await attempt(async () => checkIn(await requestContext(), input));

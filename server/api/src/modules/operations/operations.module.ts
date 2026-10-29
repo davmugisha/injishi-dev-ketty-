@@ -6,6 +6,8 @@ import { AmenitiesService } from './application/amenities.service';
 import { DepartmentsService } from './application/departments.service';
 import { FolioService } from './application/folio.service';
 import { FrontDeskService } from './application/front-desk.service';
+import { StayCompletionService } from './application/stay-completion.service';
+import { StayCompletionRepository } from './infrastructure/stay-completion.repository';
 import { FrontDeskBoardService } from './application/front-desk-board.service';
 import { SelfCheckInService } from './application/self-check-in.service';
 import { HousekeepingService } from './application/housekeeping.service';
@@ -103,6 +105,8 @@ import { PaymentsModule } from '../payments/payments.module';
   imports: [MailerModule, PaymentsModule, GuestsModule],
   providers: [
     FrontDeskRepository,
+    StayCompletionRepository,
+    StayCompletionService,
     // The front desk's day in one read (interface real-data, frontdesk leaf).
     FrontDeskBoardRepository,
     FrontDeskBoardService,

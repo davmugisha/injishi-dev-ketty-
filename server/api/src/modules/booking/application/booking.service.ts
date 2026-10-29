@@ -245,6 +245,14 @@ export class BookingService {
       throw new BadRequestException('Bookings open up to 18 months ahead.');
     }
 
+    // The host's minimum stay (ARI, F-L08). The booking card already refuses a
+    // shorter range; this is the rule, the card only says it first.
+    if (roomType.minStay != null && nights < roomType.minStay) {
+      throw new BadRequestException(
+        `That room needs at least ${roomType.minStay} nights.`,
+      );
+    }
+
     // A room type with no stated capacity is not unlimited (review 3.7).
     const capacity = roomType.capacity ?? DEFAULT_CAPACITY;
     if (input.guests > capacity) {
@@ -564,6 +572,10 @@ export class BookingService {
     // nothing at all (booking audit, 2026-09-13).
     if (created.status === 'pending_approval') {
       await this.notifications.notify(created.id, 'host_request');
+    } else if (created.status === 'confirmed') {
+      // An instant booking needs no answer, but the property still has to
+      // know a guest is coming (2026-10-29).
+      await this.notifications.notify(created.id, 'host_confirmed');
     }
 
     return {

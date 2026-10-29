@@ -21,6 +21,7 @@ import {
 } from '../../../shared/auth/branch-scope';
 import { plannedExitFor } from '../domain/stay-reference';
 import { FolioRepository } from '../infrastructure/folio.repository';
+import { StayCompletionService } from './stay-completion.service';
 import { HotelGuestFilingService } from '../../guests/application/hotel-guest-filing.service';
 import { FolioService } from './folio.service';
 import {
@@ -67,6 +68,8 @@ export class FrontDeskService {
     private readonly selfCheckIn: SelfCheckInService,
     /** Each check in files its guest for the village leader, DASSO and district (0114). */
     private readonly hotelGuests: HotelGuestFilingService,
+    /** Check out completes the booking and releases its escrow to the host (0116). */
+    private readonly completion: StayCompletionService,
   ) {}
 
   /** Every room in this workspace, with who is in it. */
@@ -410,6 +413,9 @@ export class FrontDeskService {
     // moment the guest walked into the first room.
     if (closed && stay.bookingId) {
       await this.assignments.releaseForBooking(stay.bookingId);
+      // The stay is over: free the nights it no longer uses and pay the host.
+      // Never throws (StayCompletionService), so it cannot un-check-out a guest.
+      await this.completion.completeBooking(stay.bookingId);
     }
     if (!closed) {
       // Somebody else closed it between our read and our write. Their write is
