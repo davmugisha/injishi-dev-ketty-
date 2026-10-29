@@ -46,8 +46,10 @@ function NavMenu({
               <Sidebar.MenuItem
                 key={item.id}
                 id={`${idPrefix}${item.id}`}
-                href={navHref(item.board, pathname)}
-                isCurrent={current === item.board}
+                href={item.href ?? navHref(item.board, pathname)}
+                isCurrent={
+                  item.href ? pathname === item.href || pathname.startsWith(`${item.href}/`) : current === item.board
+                }
                 textValue={item.label}
                 tooltip={item.chip ? `${item.label} · ${item.chip}` : item.label}
               >

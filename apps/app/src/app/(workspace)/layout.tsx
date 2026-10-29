@@ -1,4 +1,4 @@
-import { type NavGroup, navigationFor } from "@injishi/data";
+import { type NavGroup, navigationFor, personaByEmail } from "@injishi/data";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { WorkspaceShell } from "@/components/shell/WorkspaceShell";
@@ -6,6 +6,7 @@ import { MessagesLive } from "@/features/messages/MessagesLive";
 import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
 import { currentAccount } from "@/lib/session";
 import { brokerNav } from "@/server/broker/nav";
+import { businessNav } from "@/server/business/nav";
 import { officerNav, officerPersona } from "@/server/oversight/nav";
 import { landlordScope } from "@/server/rentals/client";
 import { landlordNav } from "@/server/rentals/nav";
@@ -24,6 +25,17 @@ function realScreensOnly(groups: NavGroup[]): NavGroup[] {
         .map(({ chip: _chip, alert: _alert, ...item }) => item),
     }))
     .filter((g) => g.items.length > 0);
+}
+
+/** The shells a hotel's owner and manager wear: their sidebar is built from their own business. */
+const BUSINESS_SHELLS: ReadonlySet<string> = new Set(["owner", "manager"]);
+
+/**
+ * The sidebar's counts come from the design boards ("Reservations 12"). They are the demo persona's
+ * story, so a real owner, whose new hotel has no bookings, sees the items without them.
+ */
+function withoutSampleCounts(groups: NavGroup[]): NavGroup[] {
+  return groups.map((g) => ({ ...g, items: g.items.map(({ chip: _chip, alert: _alert, ...item }) => item) }));
 }
 
 /**
@@ -71,7 +83,10 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
             ? await brokerNav()
             : persona.id === "ops"
               ? realScreensOnly(navigationFor("ops"))
-              : navigationFor(persona.id);
+              : personaByEmail(account.user.email)?.id === persona.id
+                ? navigationFor(persona.id)
+                : ((BUSINESS_SHELLS.has(persona.id) ? await businessNav(account) : null) ??
+                  withoutSampleCounts(navigationFor(persona.id)));
   if (nav.length === 0) {
     // Phone/tablet personas visiting a desktop screen they may open: home plus "what to try".
     nav = [

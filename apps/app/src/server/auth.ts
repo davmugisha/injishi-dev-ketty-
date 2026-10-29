@@ -325,12 +325,18 @@ async function meContext(cookie: SessionCookie): Promise<MeContext | null> {
 /**
  * A demo persona is the person it describes. Anyone else borrows a shell (home, navigation) but keeps
  * their own name and email, so a real owner never sees "Didier Mugenzi" on their own workspace. A
- * landlord's switcher is their own businesses, read from the API, never the shell's.
+ * landlord's or a hotel's switcher is their own businesses, read from the API, never the shell's: the
+ * shell's is the demo's "Amahoro Hospitality Ltd".
  */
 function asPerson(shell: Persona, user: ApiUser, workspaces: Workspace[], context: MeContext | null): Persona {
   if (shell.email && shell.email === user.email.toLowerCase()) return shell;
-  const business =
-    shell.id === "landlord" && context ? landlordBusiness(context.businesses, context.activeWorkspaceId) : null;
+  const business = !context
+    ? null
+    : shell.id === "landlord"
+      ? landlordBusiness(context.businesses, context.activeWorkspaceId)
+      : HOTEL_SHELLS.has(shell.id)
+        ? hotelBusiness(context)
+        : null;
   // An account with no name of its own: the owner's lease signatory name (the owner signs for the
   // business), a broker's registered name, the landlord's business, and only then the email's first part.
   const signatory = business?.role === "owner" ? business.signatoryName?.trim() : "";
@@ -342,10 +348,35 @@ function asPerson(shell: Persona, user: ApiUser, workspaces: Workspace[], contex
     user.email.split("@")[0];
   const parts = name.split(/\s+/).filter(Boolean);
   const person = { ...shell, name, firstName: parts[0] ?? name, initials: initialsOf(name), email: user.email };
-  if (shell.id !== "landlord" || !context) return person;
-  if (!business) return person;
+  if (!context || !business) return person;
   const role = ROLE_LABEL[business.role ?? ""] ?? "Member";
-  return { ...person, role, workspace: landlordSwitcher(business, workspaces, context) };
+  return { ...person, role, workspace: businessSwitcher(business, workspaces, context) };
+}
+
+/** The shells a hotel role wears (`ROLE_PERSONA`), each of which gets the real business in its switcher. */
+const HOTEL_SHELLS: ReadonlySet<string> = new Set([
+  "owner",
+  "manager",
+  "frontdesk",
+  "finance",
+  "hr",
+  "housekeeper",
+  "waiter",
+  "store",
+]);
+
+/**
+ * The hospitality business in view: the one the session chose, else a running one, else one still
+ * in review (its owner sets the listing up before approval).
+ */
+function hotelBusiness(context: MeContext): MeContextBusiness | null {
+  const held = context.businesses.filter((b) => b.domain === "hospitality" && b.role !== null);
+  return (
+    held.find((b) => b.workspaceId === context.activeWorkspaceId) ??
+    held.find((b) => b.operational) ??
+    held[0] ??
+    null
+  );
 }
 
 function initialsOf(name: string): string {
@@ -377,20 +408,23 @@ function homeBoardOf(business: MeContextBusiness): BoardId {
 }
 
 /**
- * The landlord's business switcher, from real records: the business in view with its buildings, the
- * person's other businesses (each switched to with `POST /me/active-workspace`), and their own home
- * when they rent one too.
+ * The business switcher, from real records: the business in view with its buildings (a landlord) or
+ * branches (a hotel), the person's other businesses (each switched to with `POST /me/active-workspace`),
+ * and their own home when they rent one too.
  */
-function landlordSwitcher(business: MeContextBusiness, workspaces: Workspace[], context: MeContext): WorkspaceContext {
+function businessSwitcher(business: MeContextBusiness, workspaces: Workspace[], context: MeContext): WorkspaceContext {
   const grant = workspaces.find((w) => w.workspaceId === business.workspaceId);
-  const buildings = (grant?.branches ?? []).filter(
-    (b): b is { propertyId: string; name: string } => typeof b === "object" && b !== null && "propertyId" in b,
-  );
-  const branches = buildings.map((b) => ({ id: b.propertyId, name: b.name, meta: "" }));
+  const rentals = business.domain === "residence";
+  const unit = rentals ? "building" : "branch";
+  const units = rentals ? "buildings" : "branches";
+  // A residence workspace names its buildings by `propertyId`, a hotel's its branches by `id`.
+  const branches = (grant?.branches ?? []).flatMap((b) => {
+    if (typeof b !== "object" || b === null || !("name" in b)) return [];
+    const id = "propertyId" in b ? b.propertyId : "id" in b ? b.id : null;
+    return typeof id === "string" ? [{ id, name: String(b.name), meta: "" }] : [];
+  });
   const all =
-    branches.length > 1
-      ? [{ id: "all", name: "All buildings", meta: `${branches.length} buildings` }, ...branches]
-      : branches;
+    branches.length > 1 ? [{ id: "all", name: `All ${units}`, meta: `${branches.length} ${units}` }, ...branches] : branches;
   const others: WorkspaceContext["others"] = context.businesses
     .filter((b) => b.workspaceId !== business.workspaceId && b.role !== null)
     .map((b) => ({
@@ -410,7 +444,9 @@ function landlordSwitcher(business: MeContextBusiness, workspaces: Workspace[], 
     kind: "business",
     ini: initialsOf(business.orgName),
     name: business.orgName,
-    meta: `Rentals · ${buildings.length === 1 ? "1 building" : `${buildings.length} buildings`}`,
+    meta: `${rentals ? "Rentals" : "Hospitality"} · ${branches.length === 1 ? `1 ${unit}` : `${branches.length} ${units}`}${
+      business.operational ? "" : " · in review"
+    }`,
     role,
     rolePhrase: ROLE_PHRASE[business.role ?? ""] ?? `You\u2019re a member here as ${role.toLowerCase()}.`,
     branches: all.length > 0 ? all : [{ id: business.workspaceId, name: business.orgName, meta: "" }],

@@ -131,6 +131,12 @@ export interface NavItem {
   label: string;
   icon: IconName;
   board: BoardId;
+  /**
+   * Where the item goes, when that is not the board's own route: a page addressed by the business it is about
+   * (`/w/<workspaceId>/setup`). It also decides when the item is the current one. The board still names the
+   * screen for search and access.
+   */
+  href?: string;
   chip?: string;
   /** Chip rendered as an alert (danger) count. */
   alert?: boolean;

@@ -367,7 +367,9 @@ export function BusinessSwitcher({
   }
   return (
     <Popover isOpen={open} onOpenChange={setOpen}>
-      <Popover.Trigger>{trigger({})}</Popover.Trigger>
+      {/* The trigger wrapper shrinks to its content unless told otherwise, which squeezed the name and role
+          to nothing and left the tile alone in a narrow pill. */}
+      <Popover.Trigger className="w-full in-[.sidebar[data-state=collapsed]]:w-auto">{trigger({})}</Popover.Trigger>
       <Popover.Content placement="bottom start" className="rounded-2xl p-0">
         <Popover.Dialog className="p-0">{panel}</Popover.Dialog>
       </Popover.Content>
