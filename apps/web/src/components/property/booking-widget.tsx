@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
+import { bedsLine, nightlyRateFor, type RoomBed, type RoomTypeSummary } from "@injishi/contracts";
 import { Button, Popover, PopoverContent, PopoverTrigger } from "@injishi/web-ui";
 import { formatPrice, nightsBetween, pluralize } from "@injishi/utils";
 import { BookingGuestPicker } from "@/components/property/booking-guest-picker";
@@ -67,6 +68,15 @@ import { retryWhileFailed, type ApiResult } from "@/lib/api";
 interface BookingWidgetProperty {
   slug: string;
   maxGuests: number;
+}
+
+/**
+ * How a room's price is counted, in a guest's words. A hotel room (one with a kind of room, 0117) is priced
+ * per room; a villa or apartment is the whole place; anything else is per person.
+ */
+function perWords(room: Pick<RoomTypeSummary, "priceBasis" | "roomCategory">): string {
+  if (room.priceBasis !== "per_unit") return "per person, per night";
+  return room.roomCategory ? "per room, per night" : "per night, whole place";
 }
 
 export function BookingWidget({ property }: { property: BookingWidgetProperty }) {
@@ -196,8 +206,12 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
    * from somewhere else that a charge would then disagree with — the exact
    * defect `lib/booking.ts` exists to prevent one layer down.
    */
-  const quotedRateRwf = (bookable ?? chosen ?? sellable[0] ?? null)?.nightlyRateRwf ?? null;
-  const quotedBasis = (bookable ?? chosen ?? sellable[0] ?? null)?.priceBasis ?? "per_person";
+  const quotedRoom = bookable ?? chosen ?? sellable[0] ?? null;
+  const listRateRwf = quotedRoom?.nightlyRateRwf ?? null;
+  // A room priced per room charges one guest its one guest price, when it has one: the server's rule.
+  const quotedRateRwf =
+    quotedRoom && listRateRwf !== null ? nightlyRateFor({ ...quotedRoom, nightlyRateRwf: listRateRwf }, party) : null;
+  const quotedBasis = quotedRoom?.priceBasis ?? "per_person";
   /** The room the card names: the guest's choice, else the one it would sell. */
   const shownRoom = chosen ?? bookable;
 
@@ -314,8 +328,9 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
                       title={room.name}
                       detail={[
                         room.capacity ? `Sleeps ${room.capacity}` : null,
+                        room.beds?.length ? bedsLine(room.beds as RoomBed[]) : null,
                         room.nightlyRateRwf !== null
-                          ? `${formatPrice(room.nightlyRateRwf)} ${room.priceBasis === "per_unit" ? "per night, whole place" : "per person, per night"}`
+                          ? `${formatPrice(room.nightlyRateRwf)} ${perWords(room)}`
                           : null,
                       ]
                         .filter(Boolean)

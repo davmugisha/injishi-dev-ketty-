@@ -37,6 +37,17 @@ export interface PublishFacts {
   pricedRoomTypeCount: number;
   /** Rows in `property_photos`. */
   photoCount: number;
+  /**
+   * 0117: what a stay tells guests before they can book it, as Booking.com and Expedia refuse to open a
+   * hotel without. A venue (a bar, a coffee shop) is listed, not booked, and owes none of it. Optional, so
+   * facts read by an older caller only skip these checks.
+   */
+  isStay?: boolean;
+  hasCheckInTime?: boolean;
+  hasFrontDesk?: boolean;
+  languageCount?: number;
+  /** Active room types with no beds or no adult limit. */
+  roomTypesWithoutBeds?: number;
 }
 
 /**
@@ -56,6 +67,12 @@ export function publishBlockersFor(facts: PublishFacts): PublishBlocker[] {
     // Only when there IS a room type. Saying "add a room type" and "price a room
     // type" together reads as two faults when it is one missing thing.
     blockers.push('no_priced_room_type');
+  }
+  if (facts.isStay) {
+    if (facts.activeRoomTypeCount > 0 && (facts.roomTypesWithoutBeds ?? 0) > 0) blockers.push('room_type_without_beds');
+    if (facts.hasCheckInTime === false) blockers.push('missing_check_in');
+    if (facts.hasFrontDesk === false) blockers.push('missing_front_desk');
+    if (facts.languageCount === 0) blockers.push('missing_language');
   }
   if (facts.photoCount === 0) blockers.push('no_photo');
   return blockers;

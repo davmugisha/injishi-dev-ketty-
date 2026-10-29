@@ -78,9 +78,28 @@ export const properties = pgTable(
     longitude: numeric('longitude'),
     locationPrivacy: boolean('location_privacy').notNull().default(false),
     timezone: text('timezone').notNull().default('Africa/Kigali'),
+    // 0117: check-in is a window, from `check_in_time` until `check_in_until`.
     checkInTime: time('check_in_time'),
+    checkInUntil: time('check_in_until'),
     checkOutTime: time('check_out_time'),
     houseRules: text('house_rules'),
+    // 0117: what a guest is told before booking, as choices the platforms ask for. Every value is held
+    // to its list by a CHECK constraint as well as by the contract (`PropertyPolicies`).
+    frontDesk: text('front_desk'),
+    frontDeskOpens: time('front_desk_opens'),
+    frontDeskCloses: time('front_desk_closes'),
+    languages: text('languages').array().notNull().default(sql`'{}'::text[]`),
+    whatsapp: text('whatsapp'),
+    directions: text('directions'),
+    minCheckInAge: smallint('min_check_in_age'),
+    childrenPolicy: text('children_policy'),
+    petsPolicy: text('pets_policy'),
+    smokingPolicy: text('smoking_policy'),
+    partiesPolicy: text('parties_policy'),
+    quietFrom: time('quiet_from'),
+    quietUntil: time('quiet_until'),
+    internet: text('internet'),
+    parking: text('parking'),
     // How a guest or an officer reaches the property itself, which is not
     // always how they reach its owner: a group runs several front desks.
     // Nullable, because every property that predates the setup screen has none.
@@ -241,6 +260,13 @@ export const roomTypes = pgTable(
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     /** Per person, per whole unit, or per menu item (0115). */
     priceBasis: roomPriceBasisEnum('price_basis').notNull().default('per_person'),
+    /** 0117: what one guest pays for a room priced per room; null means the room price. */
+    singleGuestPriceRwf: amount('single_guest_price_rwf'),
+    /** 0117: the kind of room (a Double sleeps two in one bed, a Twin two in two), its beds, size and bathroom. */
+    roomCategory: text('room_category'),
+    beds: jsonb('beds').$type<{ type: string; count: number }[]>(),
+    sizeM2: smallint('size_m2'),
+    bathroom: text('bathroom'),
 
     // --- DEPRECATED (F-L03/F-L07 expand phase) ----------------------------
     // These are superseded but NOT yet dropped: the booking engine, contracts

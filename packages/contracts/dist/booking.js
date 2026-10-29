@@ -103,6 +103,17 @@ exports.RoomTypeSummary = zod_1.z.object({
      * absent minimum as 1 rather than inventing a longer one.
      */
     minStay: zod_1.z.number().int().positive().nullable(),
+    /**
+     * 0117: what one guest pays for a room priced per room (`nightlyRateFor`), the kind of room, its beds,
+     * who may sleep there, its size and bathroom. Optional, so an older API's answer still parses.
+     */
+    singleGuestPriceRwf: primitives_1.RwfAmount.nullish(),
+    roomCategory: zod_1.z.string().nullish(),
+    beds: zod_1.z.array(zod_1.z.object({ type: zod_1.z.string(), count: zod_1.z.number().int().positive() })).nullish(),
+    maxAdults: zod_1.z.number().int().nullish(),
+    maxChildren: zod_1.z.number().int().nullish(),
+    sizeM2: zod_1.z.number().int().nullish(),
+    bathroom: zod_1.z.enum(["private", "shared"]).nullish(),
 });
 /**
  * One entry in the marketplace sitemap: `GET /api/v1/properties/sitemap`

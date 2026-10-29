@@ -8,6 +8,7 @@ import {
   type CreateBookingOutcome,
   type MoneyBreakdown,
   type PaymentInstrument,
+  nightlyRateFor,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -279,8 +280,13 @@ export class BookingService {
 
     // Per person, the rate is per guest, per night (infants are not in
     // `guests`, so they stay free); a villa or apartment is per unit, per night.
+    // A room priced per room charges one guest its one guest price, when it has one (0117).
+    const nightlyRateRwf = nightlyRateFor(
+      { ...roomType, nightlyRateRwf: roomType.nightlyRateRwf },
+      input.guests,
+    );
     const breakdown = computeBreakdown({
-      nightlyRateRwf: roomType.nightlyRateRwf,
+      nightlyRateRwf,
       nights,
       nonRefundable,
       guests: input.guests,
@@ -409,7 +415,7 @@ export class BookingService {
         // Narrowed by the two guards at the top of this method. TypeScript
         // narrows a PROPERTY rather than the object, so they are passed
         // explicitly instead of as an intersection the call site cannot satisfy.
-        nightlyRateRwf: roomType.nightlyRateRwf,
+        nightlyRateRwf,
         bookingMode: roomType.bookingMode,
         receipt,
         idempotencyKey,

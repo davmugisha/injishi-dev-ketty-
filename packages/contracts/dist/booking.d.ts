@@ -64,6 +64,26 @@ export declare const RoomTypeSummary: z.ZodObject<{
      * absent minimum as 1 rather than inventing a longer one.
      */
     minStay: z.ZodNullable<z.ZodNumber>;
+    /**
+     * 0117: what one guest pays for a room priced per room (`nightlyRateFor`), the kind of room, its beds,
+     * who may sleep there, its size and bathroom. Optional, so an older API's answer still parses.
+     */
+    singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    roomCategory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    beds: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+        type: z.ZodString;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        type: string;
+        count: number;
+    }, {
+        type: string;
+        count: number;
+    }>, "many">>>;
+    maxAdults: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    maxChildren: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    sizeM2: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    bathroom: z.ZodOptional<z.ZodNullable<z.ZodEnum<["private", "shared"]>>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
@@ -77,6 +97,16 @@ export declare const RoomTypeSummary: z.ZodObject<{
     nonrefundableEligible: boolean;
     priceBasis: "per_person" | "per_unit" | "per_item";
     minStay: number | null;
+    singleGuestPriceRwf?: number | null | undefined;
+    roomCategory?: string | null | undefined;
+    beds?: {
+        type: string;
+        count: number;
+    }[] | null | undefined;
+    maxAdults?: number | null | undefined;
+    maxChildren?: number | null | undefined;
+    sizeM2?: number | null | undefined;
+    bathroom?: "private" | "shared" | null | undefined;
 }, {
     name: string;
     id: string;
@@ -90,6 +120,16 @@ export declare const RoomTypeSummary: z.ZodObject<{
     nonrefundableEligible: boolean;
     minStay: number | null;
     priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+    singleGuestPriceRwf?: number | null | undefined;
+    roomCategory?: string | null | undefined;
+    beds?: {
+        type: string;
+        count: number;
+    }[] | null | undefined;
+    maxAdults?: number | null | undefined;
+    maxChildren?: number | null | undefined;
+    sizeM2?: number | null | undefined;
+    bathroom?: "private" | "shared" | null | undefined;
 }>;
 export type RoomTypeSummary = z.infer<typeof RoomTypeSummary>;
 /**
@@ -215,6 +255,26 @@ export declare const BookableRoom: z.ZodObject<{
          * absent minimum as 1 rather than inventing a longer one.
          */
         minStay: z.ZodNullable<z.ZodNumber>;
+        /**
+         * 0117: what one guest pays for a room priced per room (`nightlyRateFor`), the kind of room, its beds,
+         * who may sleep there, its size and bathroom. Optional, so an older API's answer still parses.
+         */
+        singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        roomCategory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        beds: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+            type: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            type: string;
+            count: number;
+        }, {
+            type: string;
+            count: number;
+        }>, "many">>>;
+        maxAdults: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        maxChildren: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        sizeM2: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        bathroom: z.ZodOptional<z.ZodNullable<z.ZodEnum<["private", "shared"]>>>;
     }, "strip", z.ZodTypeAny, {
         name: string;
         id: string;
@@ -228,6 +288,16 @@ export declare const BookableRoom: z.ZodObject<{
         nonrefundableEligible: boolean;
         priceBasis: "per_person" | "per_unit" | "per_item";
         minStay: number | null;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
     }, {
         name: string;
         id: string;
@@ -241,6 +311,16 @@ export declare const BookableRoom: z.ZodObject<{
         nonrefundableEligible: boolean;
         minStay: number | null;
         priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
     property: {
@@ -265,6 +345,16 @@ export declare const BookableRoom: z.ZodObject<{
         nonrefundableEligible: boolean;
         priceBasis: "per_person" | "per_unit" | "per_item";
         minStay: number | null;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
     };
 }, {
     property: {
@@ -289,6 +379,16 @@ export declare const BookableRoom: z.ZodObject<{
         nonrefundableEligible: boolean;
         minStay: number | null;
         priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
     };
 }>;
 export type BookableRoom = z.infer<typeof BookableRoom>;

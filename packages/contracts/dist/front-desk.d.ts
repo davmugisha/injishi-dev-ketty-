@@ -523,18 +523,18 @@ export declare const FrontDeskRoomType: z.ZodObject<{
     name: string;
     id: string;
     roomCount: number;
+    beds: string | null;
     sleeps: number;
     rateRwf: number | null;
-    beds: string | null;
     freeTonight: number;
 }, {
     active: boolean;
     name: string;
     id: string;
     roomCount: number;
+    beds: string | null;
     sleeps: number;
     rateRwf: number | null;
-    beds: string | null;
     freeTonight: number;
 }>;
 export type FrontDeskRoomType = z.infer<typeof FrontDeskRoomType>;
@@ -1000,18 +1000,18 @@ export declare const FrontDeskBoard: z.ZodObject<{
         name: string;
         id: string;
         roomCount: number;
+        beds: string | null;
         sleeps: number;
         rateRwf: number | null;
-        beds: string | null;
         freeTonight: number;
     }, {
         active: boolean;
         name: string;
         id: string;
         roomCount: number;
+        beds: string | null;
         sleeps: number;
         rateRwf: number | null;
-        beds: string | null;
         freeTonight: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
@@ -1026,9 +1026,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
         name: string;
         id: string;
         roomCount: number;
+        beds: string | null;
         sleeps: number;
         rateRwf: number | null;
-        beds: string | null;
         freeTonight: number;
     }[];
     rooms: {
@@ -1156,9 +1156,9 @@ export declare const FrontDeskBoard: z.ZodObject<{
         name: string;
         id: string;
         roomCount: number;
+        beds: string | null;
         sleeps: number;
         rateRwf: number | null;
-        beds: string | null;
         freeTonight: number;
     }[];
     rooms: {

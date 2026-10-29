@@ -34,6 +34,7 @@ import {
   type PropertyCard,
   REQUIRED_CONSENTS,
   type SavedPlace,
+  nightlyRateFor,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -117,6 +118,7 @@ export class MarketplaceService {
       photos: detail.photos,
       fromNightlyRateRwf: null,
       fromPriceBasis: 'per_person',
+      businessKind: null,
       maxGuests: null,
       roomTypeCount: detail.roomTypes.length,
       latitude: detail.latitude,
@@ -162,8 +164,9 @@ export class MarketplaceService {
     if (capacity !== null && q.guests > capacity) {
       throw new BadRequestException(`${room.roomType.name} sleeps ${capacity}.`);
     }
-    const rate = room.roomType.nightlyRateRwf;
-    if (rate === null) throw new ConflictException('This room has no price yet.');
+    if (room.roomType.nightlyRateRwf === null) throw new ConflictException('This room has no price yet.');
+    // A room priced per room charges one guest its one guest price, when it has one (0117).
+    const rate = nightlyRateFor({ ...room.roomType, nightlyRateRwf: room.roomType.nightlyRateRwf }, q.guests);
     const tier = room.roomType.cancellationTier ?? 'flexible';
     const rule = CANCELLATION_TIERS[tier];
     const time = /^\d{2}:\d{2}/.exec(room.property.checkInTime ?? '')?.[0] ?? '14:00';

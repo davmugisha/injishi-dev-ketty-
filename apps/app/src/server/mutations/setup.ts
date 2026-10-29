@@ -14,9 +14,13 @@
 import {
   isFoodVenue,
   isSetupStepDone,
-  type PropertySetupCounts,
-  type RoomPriceBasis,
   type SetupStep as KindStep,
+  type PropertyPolicies,
+  PropertyPolicyEdit,
+  type PropertySetupCounts,
+  type RoomBed,
+  type RoomPriceBasis,
+  RoomTypeDetailEdit,
   type SetupVocabulary,
   setupKindLabel,
   setupStepsFor,
@@ -57,13 +61,15 @@ interface ApiPropertySummary {
 }
 
 /** GET /api/v1/inventory/properties/:id (OperatorProperty), the fields read here. */
-export interface ApiProperty extends ApiPropertySummary {
+export interface ApiProperty extends ApiPropertySummary, Partial<PropertyPolicies> {
   description: string | null;
   checkInTime: string | null;
   checkOutTime: string | null;
   houseRules?: string | null;
   contactPhone?: string | null;
   contactEmail?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   photos: { id: string; objectKey: string; position: number; isCover: boolean; caption: string | null; url: string }[];
   roomTypes: {
     id: string;
@@ -72,6 +78,15 @@ export interface ApiProperty extends ApiPropertySummary {
     basePriceRwf: number | null;
     priceBasis?: RoomPriceBasis;
     sellableRoomCount: number;
+    // 0117: what the room is and who may sleep there.
+    maxGuests?: number | null;
+    maxAdults?: number | null;
+    maxChildren?: number | null;
+    roomCategory?: string | null;
+    beds?: RoomBed[] | null;
+    sizeM2?: number | null;
+    bathroom?: "private" | "shared" | null;
+    singleGuestPriceRwf?: number | null;
   }[];
 }
 
@@ -114,8 +129,11 @@ export interface Place {
 
 // ── Reading where setup stands ─────────────────────────────────────────────────────────────────────
 
-/** The four things a listing needs before the API lets it publish, in the order a person does them. */
-export type StepKey = "property" | "room_type" | "photo" | "publish";
+/**
+ * What a listing needs before the API lets it publish, in the order a person does them. A stay also says how
+ * guests reach the desk (`desk`) and its check-in and house rules (`rules`); a venue has neither.
+ */
+export type StepKey = "property" | "desk" | "rules" | "room_type" | "photo" | "publish";
 
 export interface SetupStep {
   key: StepKey;
@@ -174,9 +192,18 @@ export function blockersFor(
   hasProperty: boolean,
   foodVenue = false,
   approved = true,
+  /** 0117: a stay's own facts, the API's `missing_*` and `room_type_without_beds` blockers. */
+  stay?: ApiProperty | null,
 ): string[] {
   const out: string[] = [];
   if (!approved) out.push("Publishing opens once your business is approved.");
+  if (stay && !foodVenue) {
+    if (!stay.checkInTime) out.push("Say when guests can check in.");
+    if (!stay.frontDesk) out.push("Say when the front desk is open.");
+    if (!stay.languages?.length) out.push("Pick at least one language your staff speak.");
+    if (stay.roomTypes.some((t) => t.status === "active" && !isFurnished(t)))
+      out.push("Give every room type its beds and the number of adults it takes.");
+  }
   if (!hasProperty) {
     out.push(
       foodVenue
@@ -197,6 +224,34 @@ export function blockersFor(
     );
   }
   return out;
+}
+
+/** Where setup stands, for the sidebar: one read of `/inventory/setup`, not the three `readSetup` makes. */
+export interface SetupGlance {
+  foodVenue: boolean;
+  /** Of the four steps to publishing (property, priced type, photo, publish), how many are left. */
+  left: number;
+  published: boolean;
+}
+
+/** Null when the person cannot set up listings here, or the API does not answer. */
+export async function setupGlance(ctx: SourceContext, workspaceId: string): Promise<SetupGlance | null> {
+  const ws = ctx.account?.workspaces.find((w) => w.workspaceId === workspaceId && w.kind === "business");
+  if (!ws?.permissions.includes("listing.manage")) return null;
+  try {
+    const progress = await ctx.api.get<ApiSetupProgress>("/api/v1/inventory/setup", { workspaceId });
+    const { counts } = progress;
+    const published = counts.published > 0;
+    const done = [counts.properties > 0, counts.pricedRoomTypes > 0, counts.photos > 0, published].filter(Boolean);
+    return { foodVenue: isFoodVenue(kindOf(progress)), left: 4 - done.length, published };
+  } catch {
+    return null;
+  }
+}
+
+/** A room type that says its beds and how many adults it takes (0117), which a stay needs to publish. */
+export function isFurnished(t: ApiProperty["roomTypes"][number]): boolean {
+  return (t.beds?.length ?? 0) > 0 && t.maxAdults != null;
 }
 
 export async function readSetup(ctx: SourceContext, workspaceId: string, propertyId?: string): Promise<SetupRead> {
@@ -242,13 +297,32 @@ export async function readSetup(ctx: SourceContext, workspaceId: string, propert
     properties: properties.map((p) => ({ id: p.id, name: p.name })),
     property,
     counts,
-    steps: [
-      { key: "property", title: foodVenue ? "Venue details" : "Property details", done: !!property },
-      { key: "room_type", title: typeTitle, done: counts.pricedRoomTypes > 0 },
-      { key: "photo", title: "A photograph", done: counts.photos > 0 },
-      { key: "publish", title: "Publish", done: published },
-    ],
-    blockers: blockersFor(counts, !!property, foodVenue, approved),
+    steps: foodVenue
+      ? [
+          { key: "property", title: "Venue details", done: !!property },
+          { key: "room_type", title: typeTitle, done: counts.pricedRoomTypes > 0 },
+          { key: "photo", title: "A photograph", done: counts.photos > 0 },
+          { key: "publish", title: "Publish", done: published },
+        ]
+      : [
+          { key: "property", title: "Property and location", done: !!property?.description && !!property.address.villageId },
+          {
+            key: "desk",
+            title: "Front desk and contact",
+            done: !!property?.frontDesk && !!property.languages?.length && !!property.contactPhone,
+          },
+          { key: "rules", title: "Check-in and house rules", done: !!property?.checkInTime && !!property.checkOutTime },
+          {
+            key: "room_type",
+            title: `${words.typePlural} and prices`,
+            done:
+              counts.pricedRoomTypes > 0 &&
+              (property?.roomTypes ?? []).filter((t) => t.status === "active").every(isFurnished),
+          },
+          { key: "photo", title: "Photographs", done: counts.photos > 0 },
+          { key: "publish", title: "Publish", done: published },
+        ],
+    blockers: blockersFor(counts, !!property, foodVenue, approved, property),
     published,
   };
 }
@@ -325,9 +399,15 @@ export async function updateProperty(
     contactPhone?: string;
     contactEmail?: string;
     houseRules?: string;
+    /** "-1.9441, 30.0880" as Google Maps copies it; empty clears the pin. */
+    mapPoint?: string;
+    /** 0117: the front desk, languages, check-in window and house rules as choices. */
+    policies?: PropertyPolicyEdit;
   },
 ): Promise<ApiPropertySummary> {
   workspaceOf(ctx, workspaceId);
+  const policies = input.policies === undefined ? undefined : PropertyPolicyEdit.safeParse(input.policies);
+  if (policies && !policies.success) throw new SetupRefusal(policies.error.issues[0]?.message ?? "Check the answers.");
   const time = /^\d{2}:\d{2}$/;
   const email = input.contactEmail?.trim();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new SetupRefusal("Use an email like frontdesk@example.com.");
@@ -346,9 +426,25 @@ export async function updateProperty(
       contactPhone: input.contactPhone === undefined ? undefined : phoneE164(input.contactPhone),
       contactEmail: input.contactEmail === undefined ? undefined : email || null,
       houseRules: input.houseRules === undefined ? undefined : text(input.houseRules, 4000) ?? "",
+      ...mapPointOf(input.mapPoint),
+      ...(policies?.success ? policies.data : {}),
     },
     { workspaceId },
   );
+}
+
+/** "-1.9441, 30.0880" → the two halves the API stores; empty clears; not sent when untouched. */
+function mapPointOf(raw: string | undefined): { latitude?: number | null; longitude?: number | null } {
+  if (raw === undefined) return {};
+  const t = raw.trim();
+  if (!t) return { latitude: null, longitude: null };
+  const m = /^(-?\d{1,2}(?:\.\d+)?)\s*[, ]\s*(-?\d{1,3}(?:\.\d+)?)$/.exec(t);
+  if (!m) throw new SetupRefusal("Paste the map point as latitude, longitude, like -1.9441, 30.0880.");
+  const latitude = Number(m[1]);
+  const longitude = Number(m[2]);
+  if (latitude < -2.9 || latitude > -1.0 || longitude < 28.8 || longitude > 31.0)
+    throw new SetupRefusal("That point is outside Rwanda. Check it on the map and paste it again.");
+  return { latitude, longitude };
 }
 
 /** A Rwandan number as the API stores it: `+2507…`. Empty clears it; anything else is refused here. */
@@ -368,9 +464,18 @@ export async function addRoomType(
   ctx: SourceContext,
   workspaceId: string,
   propertyId: string,
-  input: { name: string; maxGuests: number; basePriceRwf: number; roomCount: number; priceBasis?: RoomPriceBasis },
+  input: {
+    name: string;
+    maxGuests: number;
+    basePriceRwf: number;
+    roomCount: number;
+    priceBasis?: RoomPriceBasis;
+    /** 0117: the kind of room, its beds, who may sleep there, its size and bathroom, the one guest price. */
+    details?: RoomTypeDetailEdit;
+  },
 ): Promise<{ id: string }> {
   workspaceOf(ctx, workspaceId);
+  const details = roomDetails(input.details);
   const name = input.name.trim();
   if (name.length < 2) throw new SetupRefusal("Give the room type a name guests will recognise.");
   if (!Number.isInteger(input.maxGuests) || input.maxGuests < 1)
@@ -392,6 +497,45 @@ export async function addRoomType(
       // listed, never booked, so it is sent without one.
       bookingMode: input.priceBasis === "per_item" ? undefined : "instant_book",
       cancellationTier: "flexible",
+      ...details,
+    },
+    { workspaceId },
+  );
+}
+
+/** The room facts checked against the contract before they are sent; nothing sent when none were given. */
+function roomDetails(details: RoomTypeDetailEdit | undefined): RoomTypeDetailEdit {
+  if (details === undefined) return {};
+  const parsed = RoomTypeDetailEdit.safeParse(details);
+  if (!parsed.success) throw new SetupRefusal(parsed.error.issues[0]?.message ?? "Check the room details.");
+  return parsed.data;
+}
+
+/**
+ * Edit a room type (`PATCH /inventory/room-types/:id`): its price, how many it sleeps, and the room facts. Only
+ * what is sent changes; the API carries a price change through to the default rate plan.
+ */
+export async function updateRoomType(
+  ctx: SourceContext,
+  workspaceId: string,
+  roomTypeId: string,
+  input: { name?: string; maxGuests?: number; basePriceRwf?: number; details?: RoomTypeDetailEdit },
+): Promise<void> {
+  workspaceOf(ctx, workspaceId);
+  if (input.name !== undefined && input.name.trim().length < 2)
+    throw new SetupRefusal("Give the room type a name guests will recognise.");
+  if (input.maxGuests !== undefined && (!Number.isInteger(input.maxGuests) || input.maxGuests < 1))
+    throw new SetupRefusal("A room sleeps at least one person.");
+  if (input.basePriceRwf !== undefined && (!Number.isInteger(input.basePriceRwf) || input.basePriceRwf < 0))
+    throw new SetupRefusal("Enter the price in whole francs.");
+  await ctx.api.patch(
+    `/api/v1/inventory/room-types/${roomTypeId}`,
+    {
+      workspaceId,
+      ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+      ...(input.maxGuests !== undefined ? { maxGuests: input.maxGuests } : {}),
+      ...(input.basePriceRwf !== undefined ? { basePriceRwf: input.basePriceRwf } : {}),
+      ...roomDetails(input.details),
     },
     { workspaceId },
   );

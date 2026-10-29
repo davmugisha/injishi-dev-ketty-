@@ -28,6 +28,7 @@ function card(id: string, slug: string, name: string, district: string, rate: nu
     photos: [],
     fromNightlyRateRwf: rate,
     fromPriceBasis: 'per_person',
+    businessKind: null,
     maxGuests: guests,
     roomTypeCount: 1,
   };

@@ -4,6 +4,7 @@ import {
   type CreatePropertyRequest,
   type OperatorProperty,
   type OperatorPropertySummary,
+  policiesFromRow,
   PUBLISH_BLOCKER_LABEL,
   type PublishBlocker,
   type UpdatePropertyRequest,
@@ -32,6 +33,7 @@ import {
   type PropertyRow,
 } from '../infrastructure/inventory.repository';
 import { PropertyPhotosService } from './property-photos.service';
+
 
 /**
  * Inventory authoring (ADR-009), the write path an approved business finally
@@ -171,6 +173,9 @@ export class InventoryService {
     if (request.villageId != null) {
       await this.assertVillageIn(request.villageId, request.sectorId ?? existing.sectorId);
     }
+    if ((request.latitude === undefined) !== (request.longitude === undefined)) {
+      throw new BadRequestException('Send the map point whole: its latitude and its longitude.');
+    }
 
     const outcome = await this.repo.updateProperty({
       propertyId,
@@ -306,10 +311,13 @@ export class InventoryService {
       checkInTime: (row as PropertyRow).checkInTime,
       checkOutTime: (row as PropertyRow).checkOutTime,
       houseRules: (row as PropertyRow).houseRules,
+      ...policiesFromRow(row as PropertyRow),
       locationPrivacy: (row as PropertyRow).locationPrivacy,
       timezone: (row as PropertyRow).timezone,
       contactPhone: (row as PropertyRow).contactPhone,
       contactEmail: (row as PropertyRow).contactEmail,
+      latitude: (row as PropertyRow).latitude === null ? null : Number((row as PropertyRow).latitude),
+      longitude: (row as PropertyRow).longitude === null ? null : Number((row as PropertyRow).longitude),
       photos,
       roomTypes,
     };

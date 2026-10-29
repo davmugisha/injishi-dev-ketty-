@@ -90,7 +90,8 @@ test("each class speaks its own words", () => {
   assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "tented_camp" }).unitPlural, "tents");
   assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "villa" }).typePlural, "Villa types");
   assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "apartment" }).unitSingular, "apartment");
-  assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "hotel" }).pricePeriod, "per person, per night");
+  assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "hotel" }).pricePeriod, "per room, per night");
+  assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "tented_camp" }).pricePeriod, "per tent, per night");
 });
 
 test("a coffee shop or bar is a food venue, not a hotel", () => {

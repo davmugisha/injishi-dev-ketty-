@@ -90,6 +90,7 @@ describe('ListingService, public photographs', () => {
       photoIds: [PHOTO_B],
       fromNightlyRateRwf: 45_000,
       fromPriceBasis: 'per_person',
+      businessKind: null,
       maxGuests: 2,
       roomTypeCount: 1,
     };

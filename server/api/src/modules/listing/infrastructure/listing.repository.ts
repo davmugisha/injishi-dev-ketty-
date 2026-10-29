@@ -4,6 +4,7 @@ import type {
   PropertyDetail,
   RoomTypeSummary,
 } from '@injishi/contracts';
+import { policiesFromRow } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, desc, eq, exists, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
@@ -26,6 +27,66 @@ import {
   type Database,
 } from '../../../shared/database/database.module';
 import { buildFacilities } from '../domain/facilities';
+
+/** 0117: what a room is and who may sleep there, as every public room type read selects it. */
+const ROOM_FACT_COLUMNS = {
+  singleGuestPriceRwf: roomTypes.singleGuestPriceRwf,
+  roomCategory: roomTypes.roomCategory,
+  beds: roomTypes.beds,
+  maxAdults: roomTypes.maxAdults,
+  maxChildren: roomTypes.maxChildren,
+  sizeM2: roomTypes.sizeM2,
+  bathroom: roomTypes.bathroom,
+};
+
+/** The room facts off a row, nulls kept; the CHECK constraint holds `bathroom` to its two values. */
+function roomFactsOf(r: {
+  singleGuestPriceRwf: number | null;
+  roomCategory: string | null;
+  beds: { type: string; count: number }[] | null;
+  maxAdults: number | null;
+  maxChildren: number | null;
+  sizeM2: number | null;
+  bathroom: string | null;
+}): {
+  singleGuestPriceRwf: number | null;
+  roomCategory: string | null;
+  beds: { type: string; count: number }[] | null;
+  maxAdults: number | null;
+  maxChildren: number | null;
+  sizeM2: number | null;
+  bathroom: 'private' | 'shared' | null;
+} {
+  return {
+    singleGuestPriceRwf: r.singleGuestPriceRwf ?? null,
+    roomCategory: r.roomCategory,
+    beds: r.beds,
+    maxAdults: r.maxAdults,
+    maxChildren: r.maxChildren,
+    sizeM2: r.sizeM2,
+    bathroom: r.bathroom as 'private' | 'shared' | null,
+  };
+}
+
+/** 0117: the policy columns of a property's public page. */
+const POLICY_COLUMNS = {
+  checkInUntil: properties.checkInUntil,
+  frontDesk: properties.frontDesk,
+  frontDeskOpens: properties.frontDeskOpens,
+  frontDeskCloses: properties.frontDeskCloses,
+  languages: properties.languages,
+  whatsapp: properties.whatsapp,
+  directions: properties.directions,
+  minCheckInAge: properties.minCheckInAge,
+  childrenPolicy: properties.childrenPolicy,
+  petsPolicy: properties.petsPolicy,
+  smokingPolicy: properties.smokingPolicy,
+  partiesPolicy: properties.partiesPolicy,
+  quietFrom: properties.quietFrom,
+  quietUntil: properties.quietUntil,
+  internet: properties.internet,
+  parking: properties.parking,
+};
 
 const operatorParty = alias(outletParties, 'operator_party');
 
@@ -106,6 +167,7 @@ export class ListingRepository {
         checkInTime: properties.checkInTime,
         checkOutTime: properties.checkOutTime,
         houseRules: properties.houseRules,
+        policies: POLICY_COLUMNS,
       })
       .from(properties)
       .innerJoin(listings, eq(listings.propertyId, properties.id))
@@ -137,6 +199,7 @@ export class ListingRepository {
       checkInTime: row.checkInTime ?? null,
       checkOutTime: row.checkOutTime ?? null,
       houseRules: row.houseRules ?? null,
+      policies: policiesFromRow(row.policies),
       photoIds,
       roomTypes: types,
       facilities,
@@ -287,6 +350,7 @@ export class ListingRepository {
           when bool_and(${roomTypes.priceBasis} = 'per_unit') filter (where ${roomTypes.status} = 'active') then 'per_unit'
           else 'per_person' end`,
         maxGuests: sql<number | null>`max(${roomTypes.capacity}) filter (where ${roomTypes.status} = 'active')`,
+        businessKind: sql<string | null>`coalesce(${orgs.businessKind}::text, ${orgs.accommodationClass})`,
         roomTypeCount: sql<number>`count(${roomTypes.id}) filter (where ${roomTypes.status} = 'active')::int`,
       })
       .from(properties)
@@ -295,7 +359,7 @@ export class ListingRepository {
       .leftJoin(districts, eq(districts.id, properties.districtId))
       .leftJoin(roomTypes, eq(roomTypes.propertyId, properties.id))
       .where(and(PUBLICLY_VISIBLE, isNotNull(properties.slug)))
-      .groupBy(properties.id, districts.name)
+      .groupBy(properties.id, districts.name, orgs.businessKind, orgs.accommodationClass)
       .orderBy(asc(properties.name))
       .limit(limit);
 
@@ -332,6 +396,7 @@ export class ListingRepository {
       // Aggregates over bigint come back as strings from pg.
       fromNightlyRateRwf: row.fromNightlyRateRwf === null ? null : Number(row.fromNightlyRateRwf),
       fromPriceBasis: row.fromPriceBasis,
+      businessKind: row.businessKind ?? null,
       maxGuests: row.maxGuests === null ? null : Number(row.maxGuests),
       roomTypeCount: Number(row.roomTypeCount),
     }));
@@ -366,6 +431,7 @@ export class ListingRepository {
         nonrefundableEligible: roomTypes.nonrefundableEligible,
         priceBasis: roomTypes.priceBasis,
         minStay: roomTypes.minStay,
+        ...ROOM_FACT_COLUMNS,
         propertyId: properties.id,
         propertySlug: properties.slug,
         propertyName: properties.name,
@@ -416,6 +482,7 @@ export class ListingRepository {
         nonrefundableEligible: row.nonrefundableEligible,
         priceBasis: row.priceBasis,
         minStay: row.minStay ?? null,
+        ...roomFactsOf(row),
       },
     };
   }
@@ -478,6 +545,7 @@ export class ListingRepository {
         nonrefundableEligible: roomTypes.nonrefundableEligible,
         priceBasis: roomTypes.priceBasis,
         minStay: roomTypes.minStay,
+        ...ROOM_FACT_COLUMNS,
       })
       .from(roomTypes)
       .where(
@@ -493,6 +561,7 @@ export class ListingRepository {
       capacity: r.capacity ?? null,
       nightlyRateRwf: r.nightlyRateRwf ?? null,
       minStay: r.minStay ?? null,
+      ...roomFactsOf(r),
     }));
   }
 
@@ -518,6 +587,7 @@ export class ListingRepository {
         nonrefundableEligible: roomTypes.nonrefundableEligible,
         priceBasis: roomTypes.priceBasis,
         minStay: roomTypes.minStay,
+        ...ROOM_FACT_COLUMNS,
         propertyId: roomTypes.propertyId,
         workspaceId: roomTypes.workspaceId,
       })
@@ -542,6 +612,7 @@ export class ListingRepository {
       ...row,
       capacity: row.capacity ?? null,
       nightlyRateRwf: row.nightlyRateRwf ?? null,
+      ...roomFactsOf(row),
     };
   }
 }

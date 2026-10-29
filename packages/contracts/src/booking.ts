@@ -100,6 +100,17 @@ export const RoomTypeSummary = z.object({
      * absent minimum as 1 rather than inventing a longer one.
      */
     minStay: z.number().int().positive().nullable(),
+    /**
+     * 0117: what one guest pays for a room priced per room (`nightlyRateFor`), the kind of room, its beds,
+     * who may sleep there, its size and bathroom. Optional, so an older API's answer still parses.
+     */
+    singleGuestPriceRwf: RwfAmount.nullish(),
+    roomCategory: z.string().nullish(),
+    beds: z.array(z.object({ type: z.string(), count: z.number().int().positive() })).nullish(),
+    maxAdults: z.number().int().nullish(),
+    maxChildren: z.number().int().nullish(),
+    sizeM2: z.number().int().nullish(),
+    bathroom: z.enum(["private", "shared"]).nullish(),
 });
 export type RoomTypeSummary = z.infer<typeof RoomTypeSummary>;
 /**

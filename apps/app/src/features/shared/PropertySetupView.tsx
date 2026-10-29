@@ -4,8 +4,9 @@ import { ArrowUpRightFromSquare, CircleCheck, Clock, House, Picture, Tag } from 
 import { Alert, Button, Card, Chip, Description, Input, Label, TextArea, TextField } from "@heroui/react";
 import { tidyPlaceName } from "@injishi/contracts";
 import { LinkButton, PageContent, PageHeader } from "@injishi/ui";
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
-import type { Place, SetupRead, StepKey } from "@/server/mutations/setup";
+import { type FormEvent, useEffect, useState } from "react";
+import type { Place, SetupRead } from "@/server/mutations/setup";
+import { DeskStep, RulesStep, StayRoomsStep } from "./StaySetupSteps";
 import {
   addPhotoAction,
   addRoomTypeAction,
@@ -15,9 +16,9 @@ import {
   unpublishAction,
   updatePropertyAction,
 } from "./setup-actions";
+import { Outcome, rwf, SELECT, StepCard, useStep } from "./setup-ui";
 
 type Open = Extract<SetupRead, { open: true }>;
-type Result = { ok: true } | { ok: false; error: string };
 
 /** Where an unapproved registration stands, in the owner's words (RegistrationSummary statuses). */
 const WAITING: Record<string, { chip: string; tone: "accent" | "warning" | "danger" | "default"; text: string }> = {
@@ -53,82 +54,6 @@ const WAITING: Record<string, { chip: string; tone: "accent" | "warning" | "dang
   },
   suspended: { chip: "Suspended", tone: "danger", text: "This business is suspended. Contact Injishi support." },
 };
-
-const rwf = (n: number) => `RWF ${n.toLocaleString("en-US")}`;
-const hhmm = (t: string | null | undefined) => (t ? t.slice(0, 5) : "");
-
-function StepCard({
-  id,
-  index,
-  title,
-  done,
-  icon,
-  lead,
-  children,
-}: {
-  id: StepKey;
-  index: number;
-  title: string;
-  done: boolean;
-  icon: ReactNode;
-  lead: string;
-  children: ReactNode;
-}) {
-  return (
-    <Card render={(p) => <section {...p} />} aria-labelledby={`step-${id}`} className="gap-4 p-5">
-      <Card.Header className="flex flex-row items-start gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-default text-muted">
-          {icon}
-        </span>
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <h2 id={`step-${id}`} className="text-[15px] leading-[22px] font-semibold">
-            {index}. {title}
-          </h2>
-          <Card.Description>{lead}</Card.Description>
-        </div>
-        <Chip size="sm" variant="soft" color={done ? "success" : "default"}>
-          {done ? "Done" : "To do"}
-        </Chip>
-      </Card.Header>
-      {children}
-    </Card>
-  );
-}
-
-function Outcome({ result, okText }: { result: Result | null; okText: string }) {
-  if (!result) return null;
-  return result.ok ? (
-    <p role="status" className="flex items-center gap-1.5 text-[13px] text-success">
-      <CircleCheck className="size-4" aria-hidden="true" />
-      {okText}
-    </p>
-  ) : (
-    <Alert status="danger" role="alert">
-      <Alert.Content>
-        <Alert.Title>Not saved</Alert.Title>
-        <Alert.Description>{result.error}</Alert.Description>
-      </Alert.Content>
-    </Alert>
-  );
-}
-
-/** Run a server action and keep its outcome for the step it was pressed on. */
-function useStep() {
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<Result | null>(null);
-  const run = async (call: () => Promise<{ ok: true } | { ok: false; error: string }>) => {
-    setBusy(true);
-    setResult(null);
-    const res = await call();
-    setBusy(false);
-    setResult(res.ok ? { ok: true } : { ok: false, error: res.error });
-    return res.ok;
-  };
-  return { busy, result, run };
-}
-
-const SELECT =
-  "h-10 w-full rounded-xl border border-separator bg-field px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus";
 
 function PlacePicker({ provinces, onSector }: { provinces: Place[]; onSector: (id: string) => void }) {
   const [districts, setDistricts] = useState<Place[]>([]);
@@ -267,14 +192,15 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
   const step = useStep();
   const [description, setDescription] = useState(p?.description ?? "");
   const [street, setStreet] = useState(typeof p?.address.street === "string" ? p.address.street : "");
-  const [checkIn, setCheckIn] = useState(hhmm(p?.checkInTime));
-  const [checkOut, setCheckOut] = useState(hhmm(p?.checkOutTime));
   const [name, setName] = useState("");
   const [sectorId, setSectorId] = useState("");
   const [villageId, setVillageId] = useState(p?.address.villageId ? String(p.address.villageId) : "");
   const [phone, setPhone] = useState(p?.contactPhone ?? "");
   const [email, setEmail] = useState(p?.contactEmail ?? "");
-  const [rules, setRules] = useState(p?.houseRules ?? "");
+  const [directions, setDirections] = useState(p?.directions ?? "");
+  const [mapPoint, setMapPoint] = useState(
+    p?.latitude != null && p?.longitude != null ? `${p.latitude}, ${p.longitude}` : "",
+  );
 
   if (!p) {
     const submit = (e: FormEvent) => {
@@ -327,9 +253,9 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
         description,
         street,
         villageId,
-        contactPhone: phone,
-        contactEmail: email,
-        ...(venue ? {} : { checkInTime: checkIn, checkOutTime: checkOut, houseRules: rules }),
+        mapPoint,
+        // A stay says these on their own steps (front desk and contact, check-in and house rules).
+        ...(venue ? { contactPhone: phone, contactEmail: email } : { policies: { directions: directions.trim() || null } }),
       }),
     );
   };
@@ -337,13 +263,13 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
     <StepCard
       id="property"
       index={1}
-      title={venue ? "Venue details" : "Property details"}
+      title={venue ? "Venue details" : "Property and location"}
       done
       icon={<House />}
       lead={
         venue
           ? "Created from your registration. Add what customers read, the village it is in and how to reach you."
-          : "Created from your registration. Add what guests read, the village it is in and how to reach the desk."
+          : "Created from your registration. Add what guests read about the place, the village it is in and how to find it."
       }
     >
       <dl className="m-0 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))]">
@@ -375,38 +301,36 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
             ? "The village decides which local leader your premises are filed with."
             : "The village decides which local leader your guests are reported to when they check in."}
         </p>
-        <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))]">
-          <TextField value={phone} onChange={setPhone} fullWidth>
-            <Label>{venue ? "Phone" : "Front desk phone"}</Label>
-            <Input type="tel" placeholder="078 123 4567" />
-          </TextField>
-          <TextField value={email} onChange={setEmail} fullWidth>
-            <Label>{venue ? "Email" : "Front desk email"}</Label>
-            <Input type="email" placeholder="frontdesk@example.com" />
-          </TextField>
-        </div>
-        <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr))]">
-          <TextField value={street} onChange={setStreet} fullWidth>
-            <Label>Street</Label>
-            <Input placeholder="KG 11 Ave" />
-          </TextField>
-          {venue ? null : (
-            <>
-              <TextField value={checkIn} onChange={setCheckIn} fullWidth>
-                <Label>Check-in from</Label>
-                <Input placeholder="14:00" inputMode="numeric" />
-              </TextField>
-              <TextField value={checkOut} onChange={setCheckOut} fullWidth>
-                <Label>Check-out by</Label>
-                <Input placeholder="11:00" inputMode="numeric" />
-              </TextField>
-            </>
-          )}
-        </div>
+        <TextField value={mapPoint} onChange={setMapPoint} fullWidth>
+          <Label>Map location</Label>
+          <Input placeholder="-1.9441, 30.0880" inputMode="decimal" className="tabular" />
+          <Description>
+            {venue
+              ? "Find the venue on Google Maps, right-click it and copy the numbers. Without them it is not pinned on the map."
+              : "Find the property on Google Maps, right-click it and copy the numbers. Without them it is not pinned on the map."}
+          </Description>
+        </TextField>
+        {venue ? (
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))]">
+            <TextField value={phone} onChange={setPhone} fullWidth>
+              <Label>Phone</Label>
+              <Input type="tel" placeholder="078 123 4567" />
+            </TextField>
+            <TextField value={email} onChange={setEmail} fullWidth>
+              <Label>Email</Label>
+              <Input type="email" placeholder="frontdesk@example.com" />
+            </TextField>
+          </div>
+        ) : null}
+        <TextField value={street} onChange={setStreet} fullWidth>
+          <Label>{venue ? "Street" : "Street or landmark"}</Label>
+          <Input placeholder={venue ? "KG 11 Ave" : "KG 11 Ave, opposite the bus park"} />
+        </TextField>
         {venue ? null : (
-          <TextField value={rules} onChange={setRules} fullWidth>
-            <Label>House rules</Label>
-            <TextArea rows={2} placeholder="Quiet hours, smoking, pets, visitors." />
+          <TextField value={directions} onChange={setDirections} fullWidth>
+            <Label>How to find it</Label>
+            <TextArea rows={2} placeholder="From the main road, turn left at the church; the gate is the second on the right." />
+            <Description>Optional. Shown to guests once they have booked.</Description>
           </TextField>
         )}
         <Button type="submit" variant="secondary" className="self-start" isDisabled={step.busy}>
@@ -535,7 +459,7 @@ function RoomTypeStep({ data }: { data: Open }) {
   );
 }
 
-function PhotoStep({ data }: { data: Open }) {
+function PhotoStep({ data, index = 3 }: { data: Open; index?: number }) {
   const p = data.property;
   const venue = data.foodVenue;
   const step = useStep();
@@ -560,7 +484,7 @@ function PhotoStep({ data }: { data: Open }) {
   return (
     <StepCard
       id="photo"
-      index={3}
+      index={index}
       title="A photograph"
       done={data.counts.photos > 0}
       icon={<Picture />}
@@ -622,7 +546,7 @@ function PhotoStep({ data }: { data: Open }) {
   );
 }
 
-function PublishStep({ data, webUrl }: { data: Open; webUrl: string }) {
+function PublishStep({ data, webUrl, index = 4 }: { data: Open; webUrl: string; index?: number }) {
   const p = data.property;
   const venue = data.foodVenue;
   const step = useStep();
@@ -649,7 +573,7 @@ function PublishStep({ data, webUrl }: { data: Open; webUrl: string }) {
   return (
     <StepCard
       id="publish"
-      index={4}
+      index={index}
       title="Publish"
       done={live}
       icon={<ArrowUpRightFromSquare />}
@@ -898,8 +822,8 @@ export function PropertySetupView({
               ? "Your venue is on the marketplace. Keep its details, prices and photographs up to date here."
               : "Your property is on the marketplace. Keep its details, prices and photographs up to date here."
             : venue
-              ? "Four steps, then publish. Customers see nothing until you press Publish."
-              : "Four steps, then publish. Guests see nothing until you press Publish."
+              ? "Three steps, then publish. Customers see nothing until you press Publish."
+              : "Five steps, then publish. Guests see nothing until you press Publish."
         }
       />
       {!data.approved ? <ReviewNotice status={data.status} /> : null}
@@ -917,9 +841,21 @@ export function PropertySetupView({
       </section>
       <div className="flex max-w-[860px] flex-col gap-4">
         <PropertyStep data={data} provinces={provinces} />
-        <RoomTypeStep data={data} />
-        <PhotoStep data={data} />
-        <PublishStep data={data} webUrl={webUrl} />
+        {venue ? (
+          <>
+            <RoomTypeStep data={data} />
+            <PhotoStep data={data} />
+            <PublishStep data={data} webUrl={webUrl} />
+          </>
+        ) : (
+          <>
+            <DeskStep data={data} index={2} />
+            <RulesStep data={data} index={3} />
+            <StayRoomsStep data={data} index={4} />
+            <PhotoStep data={data} index={5} />
+            <PublishStep data={data} webUrl={webUrl} index={6} />
+          </>
+        )}
         <KindChecklist data={data} />
         <GettingPaidCard data={data} />
       </div>

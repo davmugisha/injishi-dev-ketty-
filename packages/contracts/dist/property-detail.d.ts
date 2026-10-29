@@ -24,6 +24,59 @@ export declare const PropertyDetail: z.ZodObject<{
     checkInTime: z.ZodNullable<z.ZodString>;
     checkOutTime: z.ZodNullable<z.ZodString>;
     houseRules: z.ZodNullable<z.ZodString>;
+    /** 0117: the check-in window's end, the front desk, languages and the house rules as choices. */
+    policies: z.ZodOptional<z.ZodObject<{
+        checkInUntil: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        frontDesk: z.ZodDefault<z.ZodNullable<z.ZodEnum<["24h", "limited", "none"]>>>;
+        frontDeskOpens: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        frontDeskCloses: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        languages: z.ZodDefault<z.ZodArray<z.ZodEnum<["rw", "en", "fr", "sw"]>, "many">>;
+        whatsapp: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        directions: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        minCheckInAge: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+        childrenPolicy: z.ZodDefault<z.ZodNullable<z.ZodEnum<["welcome", "adults_only"]>>>;
+        petsPolicy: z.ZodDefault<z.ZodNullable<z.ZodEnum<["no", "on_request", "yes"]>>>;
+        smokingPolicy: z.ZodDefault<z.ZodNullable<z.ZodEnum<["no", "designated", "allowed"]>>>;
+        partiesPolicy: z.ZodDefault<z.ZodNullable<z.ZodEnum<["no", "on_request"]>>>;
+        quietFrom: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        quietUntil: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        internet: z.ZodDefault<z.ZodNullable<z.ZodEnum<["free_everywhere", "rooms_only", "public_only", "paid", "none"]>>>;
+        parking: z.ZodDefault<z.ZodNullable<z.ZodEnum<["free_on_site", "paid_on_site", "street", "none"]>>>;
+    }, "strip", z.ZodTypeAny, {
+        checkInUntil: string | null;
+        frontDesk: "limited" | "none" | "24h" | null;
+        frontDeskOpens: string | null;
+        frontDeskCloses: string | null;
+        languages: ("en" | "rw" | "fr" | "sw")[];
+        whatsapp: string | null;
+        directions: string | null;
+        minCheckInAge: number | null;
+        childrenPolicy: "welcome" | "adults_only" | null;
+        petsPolicy: "no" | "on_request" | "yes" | null;
+        smokingPolicy: "no" | "designated" | "allowed" | null;
+        partiesPolicy: "no" | "on_request" | null;
+        quietFrom: string | null;
+        quietUntil: string | null;
+        internet: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null;
+        parking: "street" | "none" | "free_on_site" | "paid_on_site" | null;
+    }, {
+        checkInUntil?: string | null | undefined;
+        frontDesk?: "limited" | "none" | "24h" | null | undefined;
+        frontDeskOpens?: string | null | undefined;
+        frontDeskCloses?: string | null | undefined;
+        languages?: ("en" | "rw" | "fr" | "sw")[] | undefined;
+        whatsapp?: string | null | undefined;
+        directions?: string | null | undefined;
+        minCheckInAge?: number | null | undefined;
+        childrenPolicy?: "welcome" | "adults_only" | null | undefined;
+        petsPolicy?: "no" | "on_request" | "yes" | null | undefined;
+        smokingPolicy?: "no" | "designated" | "allowed" | null | undefined;
+        partiesPolicy?: "no" | "on_request" | null | undefined;
+        quietFrom?: string | null | undefined;
+        quietUntil?: string | null | undefined;
+        internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
+        parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    }>>;
     /**
      * One absolute URL per photograph, in the operator's order, the cover first.
      *
@@ -46,6 +99,22 @@ export declare const PropertyDetail: z.ZodObject<{
         nonrefundableEligible: z.ZodBoolean;
         priceBasis: z.ZodDefault<z.ZodEnum<["per_person", "per_unit", "per_item"]>>;
         minStay: z.ZodNullable<z.ZodNumber>;
+        singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        roomCategory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        beds: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+            type: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            type: string;
+            count: number;
+        }, {
+            type: string;
+            count: number;
+        }>, "many">>>;
+        maxAdults: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        maxChildren: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        sizeM2: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        bathroom: z.ZodOptional<z.ZodNullable<z.ZodEnum<["private", "shared"]>>>;
     }, "strip", z.ZodTypeAny, {
         name: string;
         id: string;
@@ -59,6 +128,16 @@ export declare const PropertyDetail: z.ZodObject<{
         nonrefundableEligible: boolean;
         priceBasis: "per_person" | "per_unit" | "per_item";
         minStay: number | null;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
     }, {
         name: string;
         id: string;
@@ -72,6 +151,16 @@ export declare const PropertyDetail: z.ZodObject<{
         nonrefundableEligible: boolean;
         minStay: number | null;
         priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
     }>, "many">;
     /**
      * What the property offers, amenities and outlets as ONE deduped list
@@ -104,14 +193,14 @@ export declare const PropertyDetail: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             name: string;
             id: string;
-            outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+            outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
         }, {
             name: string;
             id: string;
-            outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+            outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
@@ -126,7 +215,7 @@ export declare const PropertyDetail: z.ZodObject<{
         outlet: {
             name: string;
             id: string;
-            outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+            outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
@@ -141,7 +230,7 @@ export declare const PropertyDetail: z.ZodObject<{
         outlet: {
             name: string;
             id: string;
-            outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+            outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
@@ -156,7 +245,7 @@ export declare const PropertyDetail: z.ZodObject<{
         outlet: {
             name: string;
             id: string;
-            outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+            outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
@@ -171,7 +260,7 @@ export declare const PropertyDetail: z.ZodObject<{
         outlet: {
             name: string;
             id: string;
-            outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+            outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
@@ -198,12 +287,22 @@ export declare const PropertyDetail: z.ZodObject<{
         nonrefundableEligible: boolean;
         priceBasis: "per_person" | "per_unit" | "per_item";
         minStay: number | null;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
     }[];
     photos: string[];
     latitude: number | null;
     longitude: number | null;
-    houseRules: string | null;
     locationPrivacy: boolean;
+    houseRules: string | null;
     facilities: {
         key: string;
         amenity: {
@@ -214,12 +313,30 @@ export declare const PropertyDetail: z.ZodObject<{
         outlet: {
             name: string;
             id: string;
-            outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+            outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
         } | null;
     }[];
+    policies?: {
+        checkInUntil: string | null;
+        frontDesk: "limited" | "none" | "24h" | null;
+        frontDeskOpens: string | null;
+        frontDeskCloses: string | null;
+        languages: ("en" | "rw" | "fr" | "sw")[];
+        whatsapp: string | null;
+        directions: string | null;
+        minCheckInAge: number | null;
+        childrenPolicy: "welcome" | "adults_only" | null;
+        petsPolicy: "no" | "on_request" | "yes" | null;
+        smokingPolicy: "no" | "designated" | "allowed" | null;
+        partiesPolicy: "no" | "on_request" | null;
+        quietFrom: string | null;
+        quietUntil: string | null;
+        internet: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null;
+        parking: "street" | "none" | "free_on_site" | "paid_on_site" | null;
+    } | undefined;
 }, {
     name: string;
     id: string;
@@ -241,12 +358,22 @@ export declare const PropertyDetail: z.ZodObject<{
         nonrefundableEligible: boolean;
         minStay: number | null;
         priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
     }[];
     photos: string[];
     latitude: number | null;
     longitude: number | null;
-    houseRules: string | null;
     locationPrivacy: boolean;
+    houseRules: string | null;
     facilities: {
         key: string;
         amenity: {
@@ -257,12 +384,30 @@ export declare const PropertyDetail: z.ZodObject<{
         outlet: {
             name: string;
             id: string;
-            outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+            outletKind: "other" | "parking" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "laundry" | "business_center";
             orderingAccess: "both" | "in_house_only" | "walk_in_only";
             hours: Record<string, unknown> | null;
             operatorLabel: string | null;
         } | null;
     }[];
+    policies?: {
+        checkInUntil?: string | null | undefined;
+        frontDesk?: "limited" | "none" | "24h" | null | undefined;
+        frontDeskOpens?: string | null | undefined;
+        frontDeskCloses?: string | null | undefined;
+        languages?: ("en" | "rw" | "fr" | "sw")[] | undefined;
+        whatsapp?: string | null | undefined;
+        directions?: string | null | undefined;
+        minCheckInAge?: number | null | undefined;
+        childrenPolicy?: "welcome" | "adults_only" | null | undefined;
+        petsPolicy?: "no" | "on_request" | "yes" | null | undefined;
+        smokingPolicy?: "no" | "designated" | "allowed" | null | undefined;
+        partiesPolicy?: "no" | "on_request" | null | undefined;
+        quietFrom?: string | null | undefined;
+        quietUntil?: string | null | undefined;
+        internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
+        parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
+    } | undefined;
 }>;
 export type PropertyDetail = z.infer<typeof PropertyDetail>;
 /**
@@ -295,6 +440,12 @@ export declare const PropertyCard: z.ZodObject<{
      * older API's card still parses.
      */
     fromPriceBasis: z.ZodDefault<z.ZodEnum<["per_person", "per_unit", "per_item"]>>;
+    /**
+     * What the business registered as (`orgs.business_kind`, else its class):
+     * "hotel", "villa", "coffee_shop". Default null so an older API's card
+     * still parses; a card with none says "Stay", never a guess from the name.
+     */
+    businessKind: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     /** The most guests any active room type sleeps; null when none states it. */
     maxGuests: z.ZodNullable<z.ZodNumber>;
     roomTypeCount: z.ZodNumber;
@@ -310,6 +461,7 @@ export declare const PropertyCard: z.ZodObject<{
     id: string;
     slug: string;
     districtName: string | null;
+    businessKind: string | null;
     description: string | null;
     roomTypeCount: number;
     fromNightlyRateRwf: number | null;
@@ -330,6 +482,7 @@ export declare const PropertyCard: z.ZodObject<{
     photos: string[];
     latitude: number | null;
     longitude: number | null;
+    businessKind?: string | null | undefined;
     fromPriceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
 }>;
 export type PropertyCard = z.infer<typeof PropertyCard>;

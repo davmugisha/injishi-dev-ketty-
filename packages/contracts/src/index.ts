@@ -30,6 +30,7 @@ export * from "./broker-plans";
 export * from "./ordering";
 export * from "./outlets";
 export * from "./property-detail";
+export * from "./property-policies";
 export * from "./ebm";
 export * from "./ebm-connection";
 export * from "./admin";

@@ -1,5 +1,6 @@
 "use server";
 
+import type { PropertyPolicyEdit, RoomTypeDetailEdit } from "@injishi/contracts";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentAccount } from "@/lib/session";
@@ -51,6 +52,9 @@ export async function updatePropertyAction(
     contactPhone?: string;
     contactEmail?: string;
     houseRules?: string;
+    mapPoint?: string;
+    /** 0117: the front desk, languages, check-in window and house rules as choices. */
+    policies?: PropertyPolicyEdit;
   },
 ): Promise<ActionResult> {
   return run(workspaceId, async () => {
@@ -80,11 +84,18 @@ export async function createPropertyAction(
   });
 }
 
-/** "Add room type" → `POST /inventory/properties/:id/room-types`, with its price. */
+/** "Add room type" → `POST /inventory/properties/:id/room-types`, with its price and, for a stay, its room facts. */
 export async function addRoomTypeAction(
   workspaceId: string,
   propertyId: string,
-  input: { name: string; maxGuests: string; basePriceRwf: string; roomCount: string; priceBasis?: string },
+  input: {
+    name: string;
+    maxGuests: string;
+    basePriceRwf: string;
+    roomCount: string;
+    priceBasis?: string;
+    details?: RoomTypeDetailEdit;
+  },
 ): Promise<ActionResult> {
   return run(workspaceId, async () => {
     const basis = input.priceBasis === "per_unit" || input.priceBasis === "per_item" ? input.priceBasis : "per_person";
@@ -94,6 +105,24 @@ export async function addRoomTypeAction(
       basePriceRwf: int(input.basePriceRwf),
       roomCount: int(input.roomCount),
       priceBasis: basis,
+      details: input.details,
+    });
+    return undefined;
+  });
+}
+
+/** "Save" on a room type already added → `PATCH /inventory/room-types/:id`. */
+export async function updateRoomTypeAction(
+  workspaceId: string,
+  roomTypeId: string,
+  input: { name?: string; maxGuests?: string; basePriceRwf?: string; details?: RoomTypeDetailEdit },
+): Promise<ActionResult> {
+  return run(workspaceId, async () => {
+    await setup.updateRoomType(await ctx(), workspaceId, roomTypeId, {
+      name: input.name,
+      maxGuests: input.maxGuests === undefined ? undefined : int(input.maxGuests),
+      basePriceRwf: input.basePriceRwf === undefined ? undefined : int(input.basePriceRwf),
+      details: input.details,
     });
     return undefined;
   });

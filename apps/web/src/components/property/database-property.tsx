@@ -1,7 +1,20 @@
 import { Grid3x3 } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
-import type { RoomTypeSummary } from "@injishi/contracts";
+import {
+  bedsLine,
+  CHILDREN_POLICY_LABEL,
+  FRONT_DESK_LABEL,
+  INTERNET_LABEL,
+  PARKING_LABEL,
+  PARTIES_POLICY_LABEL,
+  PETS_POLICY_LABEL,
+  type PropertyPolicies,
+  type RoomBed,
+  type RoomTypeSummary,
+  SMOKING_POLICY_LABEL,
+  STAFF_LANGUAGE_LABEL,
+} from "@injishi/contracts";
 import { formatPrice, pluralize } from "@injishi/utils";
 import {
   BookingWidget,
@@ -42,7 +55,7 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
     property.districtName,
     rooms.length > 0 ? pluralize(rooms.length, menu ? "item" : "room type") : null,
     cheapest?.nightlyRateRwf != null
-      ? `from ${formatPrice(cheapest.nightlyRateRwf)} ${PRICE_PERIOD[cheapest.priceBasis]}`
+      ? `from ${formatPrice(cheapest.nightlyRateRwf)} ${pricePeriod(cheapest)}`
       : null,
   ].filter((fact): fact is string => Boolean(fact));
   // The card's guest ceiling: nobody books more people than the largest room sleeps.
@@ -101,9 +114,11 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
               <dl className="grid grid-cols-2 gap-x-8">
                 {property.checkInTime ? (
                   <div className="flex flex-col gap-1 border-b border-input py-3">
-                    <dt className="text-sm text-page-fg-70">Check-in from</dt>
+                    <dt className="text-sm text-page-fg-70">Check-in</dt>
                     <dd className="m-0 text-base font-medium text-page-fg">
-                      {clockTime(property.checkInTime)}
+                      {property.policies?.checkInUntil
+                        ? `${clockTime(property.checkInTime)} to ${clockTime(property.policies.checkInUntil)}`
+                        : `From ${clockTime(property.checkInTime)}`}
                     </dd>
                   </div>
                 ) : null}
@@ -118,6 +133,8 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
               </dl>
             </section>
           ) : null}
+
+          {property.policies ? <GoodToKnow policies={property.policies} /> : null}
 
           <PropertyFacilities facilities={property.facilities} />
 
@@ -171,9 +188,63 @@ function VisitCard({ property }: { property: PublicProperty }) {
   );
 }
 
+/**
+ * What a stay has said about itself (0117), as a guest reads it before booking: the desk, the languages,
+ * children, pets, smoking, parties, quiet hours, internet and parking. Only what the host has said is shown.
+ */
+function GoodToKnow({ policies }: { policies: PropertyPolicies }) {
+  const desk =
+    policies.frontDesk === "limited" && policies.frontDeskOpens && policies.frontDeskCloses
+      ? `Front desk open ${clockTime(policies.frontDeskOpens)} to ${clockTime(policies.frontDeskCloses)}`
+      : policies.frontDesk
+        ? FRONT_DESK_LABEL[policies.frontDesk].replace(/^Open/, "Front desk open")
+        : null;
+  const lines = [
+    desk,
+    policies.languages.length
+      ? `Staff speak ${policies.languages.map((l) => STAFF_LANGUAGE_LABEL[l]).join(", ")}`
+      : null,
+    policies.minCheckInAge ? `Guests check in from age ${policies.minCheckInAge}, with an ID or passport` : null,
+    policies.childrenPolicy ? CHILDREN_POLICY_LABEL[policies.childrenPolicy] : null,
+    policies.petsPolicy ? PETS_POLICY_LABEL[policies.petsPolicy] : null,
+    policies.smokingPolicy ? SMOKING_POLICY_LABEL[policies.smokingPolicy] : null,
+    policies.partiesPolicy ? PARTIES_POLICY_LABEL[policies.partiesPolicy] : null,
+    policies.quietFrom && policies.quietUntil
+      ? `Quiet hours ${clockTime(policies.quietFrom)} to ${clockTime(policies.quietUntil)}`
+      : null,
+    policies.internet ? INTERNET_LABEL[policies.internet] : null,
+    policies.parking ? PARKING_LABEL[policies.parking] : null,
+  ].filter((line): line is string => Boolean(line));
+  if (lines.length === 0) return null;
+  return (
+    <section>
+      <SectionHeading lead="Good to " emphasis="know" className="mb-6" />
+      <ul className="m-0 grid list-none grid-cols-1 gap-x-8 p-0 sm:grid-cols-2">
+        {lines.map((line) => (
+          <li key={line} className="border-b border-input py-3 text-base text-page-fg">
+            {line}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** How a room's price is counted: a hotel room (one with a kind of room) is per room, a villa the whole place. */
+function pricePeriod(room: RoomTypeSummary): string {
+  return room.priceBasis === "per_unit" && room.roomCategory ? "per room, per night" : PRICE_PERIOD[room.priceBasis];
+}
+
 function RoomRow({ room }: { room: RoomTypeSummary }) {
   const details = [
-    room.capacity && room.priceBasis !== "per_item" ? `Sleeps ${room.capacity}` : null,
+    room.beds?.length ? bedsLine(room.beds as RoomBed[]) : null,
+    room.maxAdults
+      ? `${pluralize(room.maxAdults, "adult")}${room.maxChildren ? ` and ${pluralize(room.maxChildren, "child", "children")}` : ""}`
+      : room.capacity && room.priceBasis !== "per_item"
+        ? `Sleeps ${room.capacity}`
+        : null,
+    room.sizeM2 ? `${room.sizeM2} m²` : null,
+    room.bathroom === "shared" ? "Shared bathroom" : room.bathroom === "private" ? "Private bathroom" : null,
     room.bookingMode === "instant_book"
       ? "Instant booking"
       : room.bookingMode === "request_to_book"
@@ -195,7 +266,12 @@ function RoomRow({ room }: { room: RoomTypeSummary }) {
           {room.nightlyRateRwf !== null ? (
             <>
               <b className="font-semibold">{formatPrice(room.nightlyRateRwf)}</b>{" "}
-              <span className="text-sm text-page-fg-70">{PRICE_PERIOD[room.priceBasis]}</span>
+              <span className="text-sm text-page-fg-70">{pricePeriod(room)}</span>
+              {room.singleGuestPriceRwf != null ? (
+                <span className="block text-sm text-page-fg-70">
+                  {formatPrice(room.singleGuestPriceRwf)} for one guest
+                </span>
+              ) : null}
             </>
           ) : (
             <span className="text-sm text-page-fg-70">Price on request</span>

@@ -46,6 +46,7 @@ __exportStar(require("./broker-plans"), exports);
 __exportStar(require("./ordering"), exports);
 __exportStar(require("./outlets"), exports);
 __exportStar(require("./property-detail"), exports);
+__exportStar(require("./property-policies"), exports);
 __exportStar(require("./ebm"), exports);
 __exportStar(require("./ebm-connection"), exports);
 __exportStar(require("./admin"), exports);

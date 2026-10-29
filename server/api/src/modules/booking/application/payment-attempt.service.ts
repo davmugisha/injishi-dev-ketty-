@@ -8,6 +8,7 @@ import {
   type PaymentAttemptStatus,
   type PaymentInstrument,
   type RegistrationFeeAttemptStatus,
+  nightlyRateFor,
 } from '@injishi/contracts';
 import {
   Inject,
@@ -721,12 +722,14 @@ export class PaymentAttemptService {
     }
 
     const nights = nightsBetween(checkIn, checkOut);
+    // A room priced per room charges one guest its one guest price, when it has one (0117).
+    const nightlyRateRwf = nightlyRateFor({ ...roomType, nightlyRateRwf: roomType.nightlyRateRwf }, guests);
     // Priced as it was charged: a prompt started before the guest service fee
     // was dropped carried 5% on top (`breakdownAsCharged`), and the booking and
     // its escrow must record what the guest actually paid.
     const breakdown = breakdownAsCharged(
       {
-        nightlyRateRwf: roomType.nightlyRateRwf,
+        nightlyRateRwf,
         nights,
         nonRefundable: row.nonRefundable,
         guests,
@@ -765,7 +768,7 @@ export class PaymentAttemptService {
         } satisfies CreateBookingInput,
         guestUserId: row.guestUserId,
         roomType,
-        nightlyRateRwf: roomType.nightlyRateRwf,
+        nightlyRateRwf,
         bookingMode: roomType.bookingMode,
         receipt,
         idempotencyKey: row.idempotencyKey,

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { BookingMode, CancellationTier, RoomPriceBasis } from "./booking";
 import { HousekeepingStatus, RoomStatus } from "./ops";
 import { ContactPhone, Domain, Uuid } from "./primitives";
+import { PropertyPolicies, propertyPolicyFields, roomTypeDetailFields } from "./property-policies";
 /**
  * The operator write path for inventory (ADR-009).
  *
@@ -56,6 +57,13 @@ const propertyFields = {
      * DASSO see the guest and the village never does. `null` clears it.
      */
     villageId: z.number().int().positive("Choose a village.").nullable().optional(),
+    /**
+     * Where the property is on the map, as the host pinned it. Inside Rwanda,
+     * and both or neither: a guest is only ever shown a point the host gave
+     * (the website used to invent one at the district centre). `null` clears.
+     */
+    latitude: z.number().gte(-2.9, "That point is outside Rwanda.").lte(-1.0, "That point is outside Rwanda.").nullable().optional(),
+    longitude: z.number().gte(28.8, "That point is outside Rwanda.").lte(31.0, "That point is outside Rwanda.").nullable().optional(),
     /** The street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
     street: z.string().trim().max(200).optional(),
     description: z.string().trim().max(4000).optional(),
@@ -69,6 +77,8 @@ const propertyFields = {
         .regex(/^\d{2}:\d{2}(:\d{2})?$/, "Use a time like 11:00.")
         .optional(),
     houseRules: z.string().trim().max(4000).optional(),
+    /** 0117: the check-in window's end, the front desk, languages and the house rules as choices. */
+    ...propertyPolicyFields,
     /**
      * Hide the exact pin from the public until a stay is confirmed. Already
      * respected by the public read path, so this is a real toggle, not a stub.
@@ -232,6 +242,7 @@ export type PropertyPhoto = z.infer<typeof PropertyPhoto>;
  * or an order, so they became rows.
  */
 export const OperatorProperty = OperatorPropertySummary.extend({
+    ...PropertyPolicies.shape,
     description: z.string().nullable(),
     checkInTime: z.string().nullable(),
     checkOutTime: z.string().nullable(),
@@ -240,6 +251,9 @@ export const OperatorProperty = OperatorPropertySummary.extend({
     timezone: z.string(),
     contactPhone: z.string().nullable(),
     contactEmail: z.string().nullable(),
+    /** The map point the host pinned; null until they do. Default null for an older API. */
+    latitude: z.number().nullable().default(null),
+    longitude: z.number().nullable().default(null),
     photos: z.array(PropertyPhoto),
     /**
      * Empty until feature 2 builds the room type write path. An empty array is a
@@ -254,6 +268,15 @@ export const OperatorProperty = OperatorPropertySummary.extend({
         basePriceRwf: z.number().int().nullable(),
         priceBasis: RoomPriceBasis.default("per_person"),
         sellableRoomCount: z.number().int(),
+        /** 0117. Optional, so an older API's answer still parses. */
+        maxGuests: z.number().int().nullish(),
+        maxAdults: z.number().int().nullish(),
+        maxChildren: z.number().int().nullish(),
+        roomCategory: z.string().nullish(),
+        beds: z.array(z.object({ type: z.string(), count: z.number().int().positive() })).nullish(),
+        sizeM2: z.number().int().nullish(),
+        bathroom: z.enum(["private", "shared"]).nullish(),
+        singleGuestPriceRwf: z.number().int().nullish(),
     })),
 });
 export type OperatorProperty = z.infer<typeof OperatorProperty>;
@@ -336,6 +359,12 @@ export const PublishBlocker = z.enum([
      * listing nobody can see is not a listing.
      */
     "no_photo",
+    /** 0117: a stay says its check-in window, its front desk and a language its staff speak. */
+    "missing_check_in",
+    "missing_front_desk",
+    "missing_language",
+    /** 0117: every room type of a stay says its beds and how many adults it takes. */
+    "room_type_without_beds",
 ]);
 export type PublishBlocker = z.infer<typeof PublishBlocker>;
 export const PUBLISH_BLOCKER_LABEL: Readonly<Record<PublishBlocker, string>> = {
@@ -346,6 +375,10 @@ export const PUBLISH_BLOCKER_LABEL: Readonly<Record<PublishBlocker, string>> = {
     no_priced_room_type: "At least one room type needs a price.",
     no_sellable_room: "At least one room has to be available to sell.",
     no_photo: "Add at least one photograph of the property.",
+    missing_check_in: "Say when guests can check in.",
+    missing_front_desk: "Say when the front desk is open.",
+    missing_language: "Pick at least one language your staff speak.",
+    room_type_without_beds: "Give every room type its beds and the number of adults it takes.",
 };
 /** Which screen a blocker sends the operator back to. */
 export function stepForPublishBlocker(blocker: PublishBlocker): "registration" | "property" | "room_types" | "photos" {
@@ -354,10 +387,14 @@ export function stepForPublishBlocker(blocker: PublishBlocker): "registration" |
             return "registration";
         case "missing_name":
         case "missing_sector":
+        case "missing_check_in":
+        case "missing_front_desk":
+        case "missing_language":
             return "property";
         case "no_active_room_type":
         case "no_priced_room_type":
         case "no_sellable_room":
+        case "room_type_without_beds":
             return "room_types";
         case "no_photo":
             return "photos";
@@ -413,6 +450,8 @@ const roomTypeFields = {
     priceBasis: RoomPriceBasis.optional(),
     /** How many rooms of this type exist. Seeds nothing; `rooms` is the truth. */
     roomCount: z.number().int().positive().max(10_000).optional(),
+    /** 0117: the kind of room, its beds, who may sleep there, its size and bathroom, the one guest price. */
+    ...roomTypeDetailFields,
 };
 /**
  * What one physical room or unit is called on the door: `101`, `Tent 4`,

@@ -203,6 +203,14 @@ export class RoomTypesRepository {
           bookingMode: menuItem ? null : (r.bookingMode ?? 'instant_book'),
           cancellationTier: r.cancellationTier ?? 'flexible',
           priceBasis: r.priceBasis ?? 'per_person',
+          // 0117: what the room is and who may sleep there.
+          roomCategory: r.roomCategory ?? null,
+          beds: r.beds ?? null,
+          maxAdults: r.maxAdults ?? null,
+          maxChildren: r.maxChildren ?? null,
+          sizeM2: r.sizeM2 ?? null,
+          bathroom: r.bathroom ?? null,
+          singleGuestPriceRwf: r.singleGuestPriceRwf ?? null,
         })
         .returning({ id: roomTypes.id });
       if (!roomType) throw new Error('Room type insert returned no row.');
@@ -215,6 +223,8 @@ export class RoomTypesRepository {
         isDefault: true,
         basePriceRwf: r.basePriceRwf,
         baseOccupancy: r.maxGuests,
+        // The one guest price lives twice, like the base price: here is what the plan quotes.
+        singleOccupancyPriceRwf: r.singleGuestPriceRwf ?? null,
         cancellationTier: r.cancellationTier ?? 'flexible',
         bookingMode: menuItem ? null : (r.bookingMode ?? 'instant_book'),
       });
@@ -252,6 +262,9 @@ export class RoomTypesRepository {
       }
       if (r.roomCount !== undefined) patch.roomCount = r.roomCount;
       if (r.basePriceRwf !== undefined) patch.basePriceRwf = r.basePriceRwf;
+      for (const key of ['roomCategory', 'beds', 'maxAdults', 'maxChildren', 'sizeM2', 'bathroom', 'singleGuestPriceRwf'] as const) {
+        if (r[key] !== undefined) patch[key] = r[key];
+      }
       if (r.bookingMode !== undefined) patch.bookingMode = r.bookingMode;
       if (r.cancellationTier !== undefined) {
         patch.cancellationTier = r.cancellationTier;
@@ -275,6 +288,7 @@ export class RoomTypesRepository {
 
       const planPatch: Record<string, unknown> = { updatedAt: new Date() };
       if (r.basePriceRwf !== undefined) planPatch.basePriceRwf = r.basePriceRwf;
+      if (r.singleGuestPriceRwf !== undefined) planPatch.singleOccupancyPriceRwf = r.singleGuestPriceRwf;
       if (r.maxGuests !== undefined) planPatch.baseOccupancy = r.maxGuests;
       if (r.cancellationTier !== undefined) {
         planPatch.cancellationTier = r.cancellationTier;

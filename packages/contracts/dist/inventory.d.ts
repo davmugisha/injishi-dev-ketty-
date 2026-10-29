@@ -33,22 +33,6 @@ export type WorkspaceScoped = z.infer<typeof WorkspaceScoped>;
 export declare const CreatePropertyRequest: z.ZodObject<{
     workspaceId: z.ZodString;
 } & {
-    name: z.ZodString;
-    sectorId: z.ZodNumber;
-    /**
-     * The village the property stands in, which must lie in `sectorId`. It is
-     * what puts a check-in in front of that village's leader and its cell's
-     * executive (the guest register, 0114); with only a sector, the sector and
-     * DASSO see the guest and the village never does. `null` clears it.
-     */
-    villageId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    /** The street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
-    street: z.ZodOptional<z.ZodString>;
-    description: z.ZodOptional<z.ZodString>;
-    /** `HH:MM` or `HH:MM:SS`; the column is a bare `time`. */
-    checkInTime: z.ZodOptional<z.ZodString>;
-    checkOutTime: z.ZodOptional<z.ZodString>;
-    houseRules: z.ZodOptional<z.ZodString>;
     /**
      * Hide the exact pin from the public until a stay is confirmed. Already
      * respected by the public read path, so this is a real toggle, not a stub.
@@ -60,6 +44,45 @@ export declare const CreatePropertyRequest: z.ZodObject<{
      */
     contactPhone: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     contactEmail: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    checkInUntil: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    frontDesk: z.ZodOptional<z.ZodNullable<z.ZodEnum<["24h", "limited", "none"]>>>;
+    frontDeskOpens: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    frontDeskCloses: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    languages: z.ZodOptional<z.ZodArray<z.ZodEnum<["rw", "en", "fr", "sw"]>, "many">>;
+    whatsapp: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    directions: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    minCheckInAge: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    childrenPolicy: z.ZodOptional<z.ZodNullable<z.ZodEnum<["welcome", "adults_only"]>>>;
+    petsPolicy: z.ZodOptional<z.ZodNullable<z.ZodEnum<["no", "on_request", "yes"]>>>;
+    smokingPolicy: z.ZodOptional<z.ZodNullable<z.ZodEnum<["no", "designated", "allowed"]>>>;
+    partiesPolicy: z.ZodOptional<z.ZodNullable<z.ZodEnum<["no", "on_request"]>>>;
+    quietFrom: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    quietUntil: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    internet: z.ZodOptional<z.ZodNullable<z.ZodEnum<["free_everywhere", "rooms_only", "public_only", "paid", "none"]>>>;
+    parking: z.ZodOptional<z.ZodNullable<z.ZodEnum<["free_on_site", "paid_on_site", "street", "none"]>>>;
+    name: z.ZodString;
+    sectorId: z.ZodNumber;
+    /**
+     * The village the property stands in, which must lie in `sectorId`. It is
+     * what puts a check-in in front of that village's leader and its cell's
+     * executive (the guest register, 0114); with only a sector, the sector and
+     * DASSO see the guest and the village never does. `null` clears it.
+     */
+    villageId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    /**
+     * Where the property is on the map, as the host pinned it. Inside Rwanda,
+     * and both or neither: a guest is only ever shown a point the host gave
+     * (the website used to invent one at the district centre). `null` clears.
+     */
+    latitude: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    longitude: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    /** The street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
+    street: z.ZodOptional<z.ZodString>;
+    description: z.ZodOptional<z.ZodString>;
+    /** `HH:MM` or `HH:MM:SS`; the column is a bare `time`. */
+    checkInTime: z.ZodOptional<z.ZodString>;
+    checkOutTime: z.ZodOptional<z.ZodString>;
+    houseRules: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     sectorId: number;
@@ -71,8 +94,26 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     description?: string | undefined;
     contactEmail?: string | null | undefined;
     contactPhone?: string | null | undefined;
-    houseRules?: string | undefined;
+    latitude?: number | null | undefined;
+    longitude?: number | null | undefined;
+    checkInUntil?: string | null | undefined;
+    frontDesk?: "limited" | "none" | "24h" | null | undefined;
+    frontDeskOpens?: string | null | undefined;
+    frontDeskCloses?: string | null | undefined;
+    languages?: ("en" | "rw" | "fr" | "sw")[] | undefined;
+    whatsapp?: string | null | undefined;
+    directions?: string | null | undefined;
+    minCheckInAge?: number | null | undefined;
+    childrenPolicy?: "welcome" | "adults_only" | null | undefined;
+    petsPolicy?: "no" | "on_request" | "yes" | null | undefined;
+    smokingPolicy?: "no" | "designated" | "allowed" | null | undefined;
+    partiesPolicy?: "no" | "on_request" | null | undefined;
+    quietFrom?: string | null | undefined;
+    quietUntil?: string | null | undefined;
+    internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
+    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     locationPrivacy?: boolean | undefined;
+    houseRules?: string | undefined;
 }, {
     name: string;
     sectorId: number;
@@ -84,8 +125,26 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     description?: string | undefined;
     contactEmail?: string | null | undefined;
     contactPhone?: string | null | undefined;
-    houseRules?: string | undefined;
+    latitude?: number | null | undefined;
+    longitude?: number | null | undefined;
+    checkInUntil?: string | null | undefined;
+    frontDesk?: "limited" | "none" | "24h" | null | undefined;
+    frontDeskOpens?: string | null | undefined;
+    frontDeskCloses?: string | null | undefined;
+    languages?: ("en" | "rw" | "fr" | "sw")[] | undefined;
+    whatsapp?: string | null | undefined;
+    directions?: string | null | undefined;
+    minCheckInAge?: number | null | undefined;
+    childrenPolicy?: "welcome" | "adults_only" | null | undefined;
+    petsPolicy?: "no" | "on_request" | "yes" | null | undefined;
+    smokingPolicy?: "no" | "designated" | "allowed" | null | undefined;
+    partiesPolicy?: "no" | "on_request" | null | undefined;
+    quietFrom?: string | null | undefined;
+    quietUntil?: string | null | undefined;
+    internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
+    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     locationPrivacy?: boolean | undefined;
+    houseRules?: string | undefined;
 }>;
 export type CreatePropertyRequest = z.infer<typeof CreatePropertyRequest>;
 /**
@@ -98,17 +157,35 @@ export type CreatePropertyRequest = z.infer<typeof CreatePropertyRequest>;
 export declare const UpdatePropertyRequest: z.ZodObject<{
     workspaceId: z.ZodString;
 } & {
+    locationPrivacy: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
+    contactPhone: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    contactEmail: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    checkInUntil: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    frontDesk: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["24h", "limited", "none"]>>>>;
+    frontDeskOpens: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    frontDeskCloses: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    languages: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodEnum<["rw", "en", "fr", "sw"]>, "many">>>;
+    whatsapp: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    directions: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    minCheckInAge: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
+    childrenPolicy: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["welcome", "adults_only"]>>>>;
+    petsPolicy: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["no", "on_request", "yes"]>>>>;
+    smokingPolicy: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["no", "designated", "allowed"]>>>>;
+    partiesPolicy: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["no", "on_request"]>>>>;
+    quietFrom: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    quietUntil: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    internet: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["free_everywhere", "rooms_only", "public_only", "paid", "none"]>>>>;
+    parking: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["free_on_site", "paid_on_site", "street", "none"]>>>>;
     name: z.ZodOptional<z.ZodString>;
     sectorId: z.ZodOptional<z.ZodNumber>;
     villageId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
+    latitude: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
+    longitude: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
     street: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     description: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     checkInTime: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     checkOutTime: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     houseRules: z.ZodOptional<z.ZodOptional<z.ZodString>>;
-    locationPrivacy: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
-    contactPhone: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-    contactEmail: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
 } & {
     /**
      * The two digit branch id RRA issued for this location (ADR-054 AC-M2).
@@ -128,8 +205,26 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     rraBranchId?: string | null | undefined;
     contactEmail?: string | null | undefined;
     contactPhone?: string | null | undefined;
-    houseRules?: string | undefined;
+    latitude?: number | null | undefined;
+    longitude?: number | null | undefined;
+    checkInUntil?: string | null | undefined;
+    frontDesk?: "limited" | "none" | "24h" | null | undefined;
+    frontDeskOpens?: string | null | undefined;
+    frontDeskCloses?: string | null | undefined;
+    languages?: ("en" | "rw" | "fr" | "sw")[] | undefined;
+    whatsapp?: string | null | undefined;
+    directions?: string | null | undefined;
+    minCheckInAge?: number | null | undefined;
+    childrenPolicy?: "welcome" | "adults_only" | null | undefined;
+    petsPolicy?: "no" | "on_request" | "yes" | null | undefined;
+    smokingPolicy?: "no" | "designated" | "allowed" | null | undefined;
+    partiesPolicy?: "no" | "on_request" | null | undefined;
+    quietFrom?: string | null | undefined;
+    quietUntil?: string | null | undefined;
+    internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
+    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     locationPrivacy?: boolean | undefined;
+    houseRules?: string | undefined;
 }, {
     workspaceId: string;
     name?: string | undefined;
@@ -142,8 +237,26 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     rraBranchId?: string | null | undefined;
     contactEmail?: string | null | undefined;
     contactPhone?: string | null | undefined;
-    houseRules?: string | undefined;
+    latitude?: number | null | undefined;
+    longitude?: number | null | undefined;
+    checkInUntil?: string | null | undefined;
+    frontDesk?: "limited" | "none" | "24h" | null | undefined;
+    frontDeskOpens?: string | null | undefined;
+    frontDeskCloses?: string | null | undefined;
+    languages?: ("en" | "rw" | "fr" | "sw")[] | undefined;
+    whatsapp?: string | null | undefined;
+    directions?: string | null | undefined;
+    minCheckInAge?: number | null | undefined;
+    childrenPolicy?: "welcome" | "adults_only" | null | undefined;
+    petsPolicy?: "no" | "on_request" | "yes" | null | undefined;
+    smokingPolicy?: "no" | "designated" | "allowed" | null | undefined;
+    partiesPolicy?: "no" | "on_request" | null | undefined;
+    quietFrom?: string | null | undefined;
+    quietUntil?: string | null | undefined;
+    internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
+    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
     locationPrivacy?: boolean | undefined;
+    houseRules?: string | undefined;
 }>;
 export type UpdatePropertyRequest = z.infer<typeof UpdatePropertyRequest>;
 /**
@@ -474,6 +587,9 @@ export declare const OperatorProperty: z.ZodObject<{
     timezone: z.ZodString;
     contactPhone: z.ZodNullable<z.ZodString>;
     contactEmail: z.ZodNullable<z.ZodString>;
+    /** The map point the host pinned; null until they do. Default null for an older API. */
+    latitude: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+    longitude: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
     photos: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         objectKey: z.ZodString;
@@ -511,6 +627,24 @@ export declare const OperatorProperty: z.ZodObject<{
         basePriceRwf: z.ZodNullable<z.ZodNumber>;
         priceBasis: z.ZodDefault<z.ZodEnum<["per_person", "per_unit", "per_item"]>>;
         sellableRoomCount: z.ZodNumber;
+        /** 0117. Optional, so an older API's answer still parses. */
+        maxGuests: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        maxAdults: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        maxChildren: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        roomCategory: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        beds: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+            type: z.ZodString;
+            count: z.ZodNumber;
+        }, "strip", z.ZodTypeAny, {
+            type: string;
+            count: number;
+        }, {
+            type: string;
+            count: number;
+        }>, "many">>>;
+        sizeM2: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        bathroom: z.ZodOptional<z.ZodNullable<z.ZodEnum<["private", "shared"]>>>;
+        singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
         name: string;
@@ -519,6 +653,17 @@ export declare const OperatorProperty: z.ZodObject<{
         priceBasis: "per_person" | "per_unit" | "per_item";
         sellableRoomCount: number;
         basePriceRwf: number | null;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
+        maxGuests?: number | null | undefined;
     }, {
         status: "active" | "archived";
         name: string;
@@ -527,7 +672,34 @@ export declare const OperatorProperty: z.ZodObject<{
         sellableRoomCount: number;
         basePriceRwf: number | null;
         priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
+        maxGuests?: number | null | undefined;
     }>, "many">;
+    checkInUntil: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    frontDesk: z.ZodDefault<z.ZodNullable<z.ZodEnum<["24h", "limited", "none"]>>>;
+    frontDeskOpens: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    frontDeskCloses: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    languages: z.ZodDefault<z.ZodArray<z.ZodEnum<["rw", "en", "fr", "sw"]>, "many">>;
+    whatsapp: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    directions: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    minCheckInAge: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+    childrenPolicy: z.ZodDefault<z.ZodNullable<z.ZodEnum<["welcome", "adults_only"]>>>;
+    petsPolicy: z.ZodDefault<z.ZodNullable<z.ZodEnum<["no", "on_request", "yes"]>>>;
+    smokingPolicy: z.ZodDefault<z.ZodNullable<z.ZodEnum<["no", "designated", "allowed"]>>>;
+    partiesPolicy: z.ZodDefault<z.ZodNullable<z.ZodEnum<["no", "on_request"]>>>;
+    quietFrom: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    quietUntil: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    internet: z.ZodDefault<z.ZodNullable<z.ZodEnum<["free_everywhere", "rooms_only", "public_only", "paid", "none"]>>>;
+    parking: z.ZodDefault<z.ZodNullable<z.ZodEnum<["free_on_site", "paid_on_site", "street", "none"]>>>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     id: string;
@@ -563,6 +735,17 @@ export declare const OperatorProperty: z.ZodObject<{
         priceBasis: "per_person" | "per_unit" | "per_item";
         sellableRoomCount: number;
         basePriceRwf: number | null;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
+        maxGuests?: number | null | undefined;
     }[];
     photos: {
         id: string;
@@ -572,8 +755,26 @@ export declare const OperatorProperty: z.ZodObject<{
         isCover: boolean;
         caption: string | null;
     }[];
-    houseRules: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    checkInUntil: string | null;
+    frontDesk: "limited" | "none" | "24h" | null;
+    frontDeskOpens: string | null;
+    frontDeskCloses: string | null;
+    languages: ("en" | "rw" | "fr" | "sw")[];
+    whatsapp: string | null;
+    directions: string | null;
+    minCheckInAge: number | null;
+    childrenPolicy: "welcome" | "adults_only" | null;
+    petsPolicy: "no" | "on_request" | "yes" | null;
+    smokingPolicy: "no" | "designated" | "allowed" | null;
+    partiesPolicy: "no" | "on_request" | null;
+    quietFrom: string | null;
+    quietUntil: string | null;
+    internet: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null;
+    parking: "street" | "none" | "free_on_site" | "paid_on_site" | null;
     locationPrivacy: boolean;
+    houseRules: string | null;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
     branchCode: string | null;
@@ -613,6 +814,17 @@ export declare const OperatorProperty: z.ZodObject<{
         sellableRoomCount: number;
         basePriceRwf: number | null;
         priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+        singleGuestPriceRwf?: number | null | undefined;
+        roomCategory?: string | null | undefined;
+        beds?: {
+            type: string;
+            count: number;
+        }[] | null | undefined;
+        maxAdults?: number | null | undefined;
+        maxChildren?: number | null | undefined;
+        sizeM2?: number | null | undefined;
+        bathroom?: "private" | "shared" | null | undefined;
+        maxGuests?: number | null | undefined;
     }[];
     photos: {
         id: string;
@@ -622,12 +834,30 @@ export declare const OperatorProperty: z.ZodObject<{
         isCover: boolean;
         caption: string | null;
     }[];
-    houseRules: string | null;
     locationPrivacy: boolean;
+    houseRules: string | null;
     listingStatus: "draft" | "published";
     sellableRoomCount: number;
     branchCode: string | null;
     timezone: string;
+    latitude?: number | null | undefined;
+    longitude?: number | null | undefined;
+    checkInUntil?: string | null | undefined;
+    frontDesk?: "limited" | "none" | "24h" | null | undefined;
+    frontDeskOpens?: string | null | undefined;
+    frontDeskCloses?: string | null | undefined;
+    languages?: ("en" | "rw" | "fr" | "sw")[] | undefined;
+    whatsapp?: string | null | undefined;
+    directions?: string | null | undefined;
+    minCheckInAge?: number | null | undefined;
+    childrenPolicy?: "welcome" | "adults_only" | null | undefined;
+    petsPolicy?: "no" | "on_request" | "yes" | null | undefined;
+    smokingPolicy?: "no" | "designated" | "allowed" | null | undefined;
+    partiesPolicy?: "no" | "on_request" | null | undefined;
+    quietFrom?: string | null | undefined;
+    quietUntil?: string | null | undefined;
+    internet?: "none" | "paid" | "free_everywhere" | "rooms_only" | "public_only" | null | undefined;
+    parking?: "street" | "none" | "free_on_site" | "paid_on_site" | null | undefined;
 }>;
 export type OperatorProperty = z.infer<typeof OperatorProperty>;
 /**
@@ -1005,7 +1235,7 @@ export type OperatorPropertyList = z.infer<typeof OperatorPropertyList>;
  * Defined now, with the property level reasons already usable, so feature 3 adds
  * cases to an enum that exists rather than inventing one late.
  */
-export declare const PublishBlocker: z.ZodEnum<["org_not_active", "missing_name", "missing_sector", "no_active_room_type", "no_priced_room_type", "no_sellable_room", "no_photo"]>;
+export declare const PublishBlocker: z.ZodEnum<["org_not_active", "missing_name", "missing_sector", "no_active_room_type", "no_priced_room_type", "no_sellable_room", "no_photo", "missing_check_in", "missing_front_desk", "missing_language", "room_type_without_beds"]>;
 export type PublishBlocker = z.infer<typeof PublishBlocker>;
 export declare const PUBLISH_BLOCKER_LABEL: Readonly<Record<PublishBlocker, string>>;
 /** Which screen a blocker sends the operator back to. */
@@ -1030,6 +1260,28 @@ export declare const CreateRoomTypeRequest: z.ZodObject<{
     workspaceId: z.ZodString;
 } & {
     roomLabels: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    roomCategory: z.ZodOptional<z.ZodNullable<z.ZodEnum<["single", "double", "twin", "triple", "family", "suite", "studio", "tent", "dorm_bed"]>>>;
+    beds: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodArray<z.ZodObject<{
+        type: z.ZodEnum<["single", "double", "queen", "king", "bunk", "sofa_bed"]>;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        type: "single" | "double" | "queen" | "king" | "bunk" | "sofa_bed";
+        count: number;
+    }, {
+        type: "single" | "double" | "queen" | "king" | "bunk" | "sofa_bed";
+        count: number;
+    }>, "many">, {
+        type: "single" | "double" | "queen" | "king" | "bunk" | "sofa_bed";
+        count: number;
+    }[], {
+        type: "single" | "double" | "queen" | "king" | "bunk" | "sofa_bed";
+        count: number;
+    }[]>>>;
+    maxAdults: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    maxChildren: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    sizeM2: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    bathroom: z.ZodOptional<z.ZodNullable<z.ZodEnum<["private", "shared"]>>>;
+    singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     name: z.ZodString;
     /**
      * How many people the room physically sleeps.
@@ -1059,6 +1311,16 @@ export declare const CreateRoomTypeRequest: z.ZodObject<{
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
     priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+    singleGuestPriceRwf?: number | null | undefined;
+    roomCategory?: "family" | "single" | "double" | "twin" | "triple" | "suite" | "studio" | "tent" | "dorm_bed" | null | undefined;
+    beds?: {
+        type: "single" | "double" | "queen" | "king" | "bunk" | "sofa_bed";
+        count: number;
+    }[] | null | undefined;
+    maxAdults?: number | null | undefined;
+    maxChildren?: number | null | undefined;
+    sizeM2?: number | null | undefined;
+    bathroom?: "private" | "shared" | null | undefined;
     roomLabels?: string[] | undefined;
 }, {
     name: string;
@@ -1069,6 +1331,16 @@ export declare const CreateRoomTypeRequest: z.ZodObject<{
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
     priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+    singleGuestPriceRwf?: number | null | undefined;
+    roomCategory?: "family" | "single" | "double" | "twin" | "triple" | "suite" | "studio" | "tent" | "dorm_bed" | null | undefined;
+    beds?: {
+        type: "single" | "double" | "queen" | "king" | "bunk" | "sofa_bed";
+        count: number;
+    }[] | null | undefined;
+    maxAdults?: number | null | undefined;
+    maxChildren?: number | null | undefined;
+    sizeM2?: number | null | undefined;
+    bathroom?: "private" | "shared" | null | undefined;
     roomLabels?: string[] | undefined;
 }>;
 export type CreateRoomTypeRequest = z.infer<typeof CreateRoomTypeRequest>;
@@ -1080,6 +1352,28 @@ export declare const UpdateRoomTypeRequest: z.ZodObject<{
     workspaceId: z.ZodString;
 } & {
     status: z.ZodOptional<z.ZodEnum<["active", "archived"]>>;
+    roomCategory: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["single", "double", "twin", "triple", "family", "suite", "studio", "tent", "dorm_bed"]>>>>;
+    beds: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodArray<z.ZodObject<{
+        type: z.ZodEnum<["single", "double", "queen", "king", "bunk", "sofa_bed"]>;
+        count: z.ZodNumber;
+    }, "strip", z.ZodTypeAny, {
+        type: "single" | "double" | "queen" | "king" | "bunk" | "sofa_bed";
+        count: number;
+    }, {
+        type: "single" | "double" | "queen" | "king" | "bunk" | "sofa_bed";
+        count: number;
+    }>, "many">, {
+        type: "single" | "double" | "queen" | "king" | "bunk" | "sofa_bed";
+        count: number;
+    }[], {
+        type: "single" | "double" | "queen" | "king" | "bunk" | "sofa_bed";
+        count: number;
+    }[]>>>>;
+    maxAdults: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
+    maxChildren: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
+    sizeM2: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
+    bathroom: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodEnum<["private", "shared"]>>>>;
+    singleGuestPriceRwf: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
     name: z.ZodOptional<z.ZodString>;
     maxGuests: z.ZodOptional<z.ZodNumber>;
     basePriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -1095,6 +1389,16 @@ export declare const UpdateRoomTypeRequest: z.ZodObject<{
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
     priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+    singleGuestPriceRwf?: number | null | undefined;
+    roomCategory?: "family" | "single" | "double" | "twin" | "triple" | "suite" | "studio" | "tent" | "dorm_bed" | null | undefined;
+    beds?: {
+        type: "single" | "double" | "queen" | "king" | "bunk" | "sofa_bed";
+        count: number;
+    }[] | null | undefined;
+    maxAdults?: number | null | undefined;
+    maxChildren?: number | null | undefined;
+    sizeM2?: number | null | undefined;
+    bathroom?: "private" | "shared" | null | undefined;
     maxGuests?: number | undefined;
     basePriceRwf?: number | null | undefined;
 }, {
@@ -1105,6 +1409,16 @@ export declare const UpdateRoomTypeRequest: z.ZodObject<{
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
     priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
+    singleGuestPriceRwf?: number | null | undefined;
+    roomCategory?: "family" | "single" | "double" | "twin" | "triple" | "suite" | "studio" | "tent" | "dorm_bed" | null | undefined;
+    beds?: {
+        type: "single" | "double" | "queen" | "king" | "bunk" | "sofa_bed";
+        count: number;
+    }[] | null | undefined;
+    maxAdults?: number | null | undefined;
+    maxChildren?: number | null | undefined;
+    sizeM2?: number | null | undefined;
+    bathroom?: "private" | "shared" | null | undefined;
     maxGuests?: number | undefined;
     basePriceRwf?: number | null | undefined;
 }>;

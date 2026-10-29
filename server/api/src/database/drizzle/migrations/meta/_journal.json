@@ -820,6 +820,13 @@
       "when": 1793044476609,
       "tag": "0116_booking_completed_and_host_payout",
       "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1793044576609,
+      "tag": "0117_hotel_setup_details",
+      "breakpoints": true
     }
   ]
 }

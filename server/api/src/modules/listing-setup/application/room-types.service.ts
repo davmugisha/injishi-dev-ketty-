@@ -1,6 +1,8 @@
 import {
+  bedsSleep,
   priceBasisFor,
   type CreateRoomTypeRequest,
+  type RoomBed,
   type OperatorRoomType,
   type UpdateRoomTypeRequest,
 } from '@injishi/contracts';
@@ -106,6 +108,7 @@ export class RoomTypesService {
     // coffee shop's espresso bookable by forgetting the field.
     const kind = request.priceBasis ? null : await this.repo.businessKindForProperty(propertyId);
     const priceBasis = request.priceBasis ?? (kind ? priceBasisFor(kind) : 'per_person');
+    assertRoomFacts({ ...request, priceBasis });
 
     let roomTypeId: string;
     try {
@@ -147,6 +150,15 @@ export class RoomTypesService {
     assertContained(existing, workspace.workspaceId, 'Room type');
     assertInBranchScope(workspace, existing.propertyId, 'Room type');
     const row = existing as RoomTypeRow;
+
+    assertRoomFacts({
+      maxGuests: request.maxGuests ?? row.maxGuests,
+      basePriceRwf: request.basePriceRwf !== undefined ? request.basePriceRwf : row.basePriceRwf,
+      priceBasis: request.priceBasis ?? row.priceBasis,
+      singleGuestPriceRwf: request.singleGuestPriceRwf,
+      maxAdults: request.maxAdults,
+      beds: request.beds,
+    });
 
     const archiving = request.status === 'archived' && row.status === 'active';
     const unpricing =
@@ -218,5 +230,34 @@ export class RoomTypesService {
       sellableRoomCount: row.sellableRoomCount,
       defaultRatePlanId: row.defaultRatePlanId,
     };
+  }
+}
+
+/**
+ * What a room type may say about itself (0117), beyond what each field's own range holds: a one guest
+ * price is only for a room priced per room and costs less than the room, and a room holds no more adults
+ * than it sleeps, or than its beds do. A field not sent is not checked.
+ */
+function assertRoomFacts(r: {
+  maxGuests?: number | null;
+  basePriceRwf?: number | null;
+  priceBasis?: string | null;
+  singleGuestPriceRwf?: number | null;
+  maxAdults?: number | null;
+  beds?: readonly RoomBed[] | null;
+}): void {
+  if (r.singleGuestPriceRwf != null) {
+    if (r.priceBasis !== 'per_unit') {
+      throw new BadRequestException('A price for one guest is only for a room priced per room.');
+    }
+    if (r.basePriceRwf != null && r.singleGuestPriceRwf >= r.basePriceRwf) {
+      throw new BadRequestException('The price for one guest should be less than the room price.');
+    }
+  }
+  if (r.maxAdults != null && r.maxGuests != null && r.maxAdults > r.maxGuests) {
+    throw new BadRequestException('A room cannot take more adults than it sleeps.');
+  }
+  if (r.maxAdults != null && r.beds && r.beds.length > 0 && r.maxAdults > bedsSleep(r.beds)) {
+    throw new BadRequestException(`Those beds sleep ${bedsSleep(r.beds)}, fewer than the adults the room takes.`);
   }
 }

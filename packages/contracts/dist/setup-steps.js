@@ -49,18 +49,23 @@ const CURRENT_CLASS = {
     serviced_apartment: "apartment",
     cottage: "lodge",
 };
-const PER_PERSON = { pricePeriod: "per person, per night", priceBasis: "per_person" };
+/**
+ * A hotel's room, priced per room per night with an optional lower price for one guest (owner
+ * decision, 2026-10-29), the way hotels quote and the booking platforms ask. Counted like a villa:
+ * the party does not multiply it (`chargedGuests`).
+ */
+const PER_ROOM = { pricePeriod: "per room, per night", priceBasis: "per_unit" };
 /** Let whole, to one party (owner decision, 2026-10-29). */
 const PER_UNIT = { pricePeriod: "per night, for the whole place", priceBasis: "per_unit" };
 const HOSPITALITY_VOCABULARY = {
-    hotel: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", ...PER_PERSON },
-    motel: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", ...PER_PERSON },
-    tented_camp: { typePlural: "Tent types", unitPlural: "tents", unitSingular: "tent", ...PER_PERSON },
-    guest_house: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", ...PER_PERSON },
+    hotel: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", ...PER_ROOM },
+    motel: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", ...PER_ROOM },
+    tented_camp: { typePlural: "Tent types", unitPlural: "tents", unitSingular: "tent", pricePeriod: "per tent, per night", priceBasis: "per_unit" },
+    guest_house: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", ...PER_ROOM },
     apartment: { typePlural: "Apartment types", unitPlural: "apartments", unitSingular: "apartment", ...PER_UNIT },
-    lodge: { typePlural: "Room and cottage types", unitPlural: "rooms and cottages", unitSingular: "room", ...PER_PERSON },
+    lodge: { typePlural: "Room and cottage types", unitPlural: "rooms and cottages", unitSingular: "room", ...PER_ROOM },
     villa: { typePlural: "Villa types", unitPlural: "villas", unitSingular: "villa", ...PER_UNIT },
-    other: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", ...PER_PERSON },
+    other: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", ...PER_ROOM },
 };
 const RESIDENCE_VOCABULARY = {
     typePlural: "Unit types",
@@ -218,9 +223,11 @@ function setupStepsFor(business) {
         title: words.typePlural,
         description: venue
             ? `Menu items or packages you sell, and the price ${words.pricePeriod}, in Rwandan francs.`
-            : words.priceBasis === "per_unit" && !residence
+            : words.priceBasis === "per_unit" && !residence && words.pricePeriod === PER_UNIT.pricePeriod
                 ? `Each kind of ${words.unitSingular} you let whole, how many people it sleeps, and its price ${words.pricePeriod}.`
-                : `What you ${residence ? "let" : "sell"}, how many people each sleeps, and its price ${words.pricePeriod}.`,
+                : words.priceBasis === "per_unit" && !residence
+                    ? `Each kind of ${words.unitSingular} you sell: its beds, who may sleep in it, and its price ${words.pricePeriod}.`
+                    : `What you ${residence ? "let" : "sell"}, how many people each sleeps, and its price ${words.pricePeriod}.`,
         required: true,
     }, {
         key: "rooms",

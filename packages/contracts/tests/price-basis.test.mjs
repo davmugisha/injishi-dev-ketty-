@@ -59,9 +59,9 @@ describe("each kind sets its prices on its own basis", () => {
     }
   });
 
-  test("rooms, tents and cottages are per person", () => {
+  test("rooms, tents and cottages are priced per room, as hotels quote them (2026-10-29)", () => {
     for (const kind of ["hotel", "motel", "guest_house", "lodge", "tented_camp", "other"]) {
-      assert.equal(priceBasisFor(hosp(kind)), "per_person", kind);
+      assert.equal(priceBasisFor(hosp(kind)), "per_unit", kind);
     }
   });
 
