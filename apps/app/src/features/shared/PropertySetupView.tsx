@@ -771,6 +771,27 @@ function KindChecklist({ data }: { data: Open }) {
   );
 }
 
+/** Where the booking money goes: the host's payout account, on its own page (0116). */
+function GettingPaidCard({ data }: { data: Open }) {
+  return (
+    <Card render={(p) => <section {...p} />} aria-labelledby="paid-h" className="gap-2 p-5">
+      <h2 id="paid-h" className="text-[15px] leading-[22px] font-semibold">
+        Getting paid
+      </h2>
+      <p className="m-0 text-sm text-muted">
+        {data.approved
+          ? "Add the mobile money number or bank account your booking money goes to. Each guest's payment is sent there after they check out."
+          : "Once you are approved, add the mobile money number or bank account your booking money goes to."}
+      </p>
+      {data.approved ? (
+        <LinkButton href={`/w/${data.workspaceId}/getting-paid`} variant="secondary" className="self-start">
+          Set up getting paid
+        </LinkButton>
+      ) : null}
+    </Card>
+  );
+}
+
 /** One business, several branches: pick which one this page sets up. */
 function PropertySwitcher({ data }: { data: Open }) {
   if (data.properties.length < 2) return null;
@@ -900,6 +921,7 @@ export function PropertySetupView({
         <PhotoStep data={data} />
         <PublishStep data={data} webUrl={webUrl} />
         <KindChecklist data={data} />
+        <GettingPaidCard data={data} />
       </div>
     </PageContent>
   );

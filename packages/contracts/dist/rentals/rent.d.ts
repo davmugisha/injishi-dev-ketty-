@@ -1774,6 +1774,11 @@ export declare const PayoutView: z.ZodObject<{
         receiptNumber: string | null;
         leaseReference: string;
     }>>;
+    /**
+     * A host's payout for a stay (0116): the booking it pays, by reference.
+     * Null on rent. Default null, so an older API's body still parses.
+     */
+    bookingReference: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     failureReason: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
     settledAt: z.ZodNullable<z.ZodString>;
@@ -1791,6 +1796,7 @@ export declare const PayoutView: z.ZodObject<{
     } | null;
     createdAt: string;
     settledAt: string | null;
+    bookingReference: string | null;
     destination: string | null;
     statusLabel: string;
     accountKind: "bank" | "momo" | "momo_pay" | null;
@@ -1813,6 +1819,7 @@ export declare const PayoutView: z.ZodObject<{
     statusLabel: string;
     accountKind: "bank" | "momo" | "momo_pay" | null;
     payeeName: string | null;
+    bookingReference?: string | null | undefined;
 }>;
 export type PayoutView = z.infer<typeof PayoutView>;
 export declare const PayoutList: z.ZodObject<{
@@ -1844,6 +1851,11 @@ export declare const PayoutList: z.ZodObject<{
             receiptNumber: string | null;
             leaseReference: string;
         }>>;
+        /**
+         * A host's payout for a stay (0116): the booking it pays, by reference.
+         * Null on rent. Default null, so an older API's body still parses.
+         */
+        bookingReference: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         failureReason: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
         settledAt: z.ZodNullable<z.ZodString>;
@@ -1861,6 +1873,7 @@ export declare const PayoutList: z.ZodObject<{
         } | null;
         createdAt: string;
         settledAt: string | null;
+        bookingReference: string | null;
         destination: string | null;
         statusLabel: string;
         accountKind: "bank" | "momo" | "momo_pay" | null;
@@ -1883,6 +1896,7 @@ export declare const PayoutList: z.ZodObject<{
         statusLabel: string;
         accountKind: "bank" | "momo" | "momo_pay" | null;
         payeeName: string | null;
+        bookingReference?: string | null | undefined;
     }>, "many">;
     totals: z.ZodObject<{
         queuedRwf: z.ZodNumber;
@@ -1915,6 +1929,7 @@ export declare const PayoutList: z.ZodObject<{
         } | null;
         createdAt: string;
         settledAt: string | null;
+        bookingReference: string | null;
         destination: string | null;
         statusLabel: string;
         accountKind: "bank" | "momo" | "momo_pay" | null;
@@ -1945,6 +1960,7 @@ export declare const PayoutList: z.ZodObject<{
         statusLabel: string;
         accountKind: "bank" | "momo" | "momo_pay" | null;
         payeeName: string | null;
+        bookingReference?: string | null | undefined;
     }[];
     totals: {
         paidRwf: number;

@@ -441,7 +441,7 @@ exports.PERMISSION_LABEL = {
     "payroll.draft": "draft the pay run",
     "payroll.run": "confirm the pay run",
     "lostfound.manage": "keep the lost and found register",
-    "payout.manage": "choose where rent is paid out",
+    "payout.manage": "choose where rent and booking money are paid out",
     "expense.manage": "record expenses",
     "tax.manage": "keep tax declarations and lease filings",
     "guest.register": "register guests",

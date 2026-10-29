@@ -5,13 +5,23 @@ import type { PayoutList, PayoutView } from "@injishi/contracts";
 import { DataTable, DateText, EmptyBlock, formatMoney, IconAction, Money, SectionCard, StatusChip } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { retryPayout } from "../actions";
+import { type PaidBusiness, retryPayout } from "../actions";
 
 /**
  * The rent Injishi sent on to the business (Getting paid): each payout with the tenant's payment it came
  * from, where it went and where it stands; a failed or held one can be sent again to the primary account.
  */
-export function Payouts({ list, canRetry }: { list: PayoutList | null; canRetry: boolean }) {
+export function Payouts({
+  list,
+  canRetry,
+  business = "landlord",
+}: {
+  list: PayoutList | null;
+  canRetry: boolean;
+  /** A landlord's rent payouts (the default), or a host's booking payouts (0116). */
+  business?: PaidBusiness;
+}) {
+  const host = business !== "landlord";
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   if (!list) return null;
@@ -19,7 +29,7 @@ export function Payouts({ list, canRetry }: { list: PayoutList | null; canRetry:
   const waiting = totals.queuedRwf + totals.heldRwf;
   const retry = async (p: PayoutView) => {
     setBusy(p.id);
-    const result = await retryPayout(p.id);
+    const result = await retryPayout(p.id, business);
     setBusy(null);
     if (!result.ok) {
       toast.danger(result.error);
@@ -50,7 +60,11 @@ export function Payouts({ list, canRetry }: { list: PayoutList | null; canRetry:
             size="sm"
             icon="Wallet"
             title="No payouts yet"
-            description="When a tenant pays through Injishi, the money is sent to your primary account."
+            description={
+              host
+                ? "When a guest checks out, what they paid through Injishi is sent to your primary account."
+                : "When a tenant pays through Injishi, the money is sent to your primary account."
+            }
           />
         }
         columns={[
@@ -73,6 +87,13 @@ export function Payouts({ list, canRetry }: { list: PayoutList | null; canRetry:
                     {p.payment.receiptNumber ? ` · ${p.payment.receiptNumber}` : ""}
                   </span>
                 </div>
+              ) : p.bookingReference ? (
+                <div className="flex min-w-0 flex-col text-sm">
+                  <span className="truncate">Booking</span>
+                  <span className="truncate text-xs text-muted tabular">{p.bookingReference}</span>
+                </div>
+              ) : host ? (
+                "Booking"
               ) : (
                 "Rent"
               ),
@@ -110,7 +131,7 @@ export function Payouts({ list, canRetry }: { list: PayoutList | null; canRetry:
             : undefined
         }
         mobile={{
-          title: (p) => p.payment?.tenantName ?? "Rent",
+          title: (p) => p.payment?.tenantName ?? (p.bookingReference ? `Booking ${p.bookingReference}` : host ? "Booking" : "Rent"),
           description: (p) => `${p.destination ?? "No account yet"} · ${p.payment?.leaseReference ?? ""}`,
           trailing: (p) => (
             <div className="flex flex-col items-end gap-1">

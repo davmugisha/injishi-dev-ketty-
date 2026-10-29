@@ -151,14 +151,21 @@ export class PayoutsRepository {
 
   /** The workspace's payouts, newest first, by the month they were made and by status. */
   async list(
-    input: { workspaceId: string; month: string | null; status: PayoutRow['status'] | null; propertyIds: readonly string[] | null },
+    input: {
+      workspaceId: string;
+      month: string | null;
+      status: PayoutRow['status'] | null;
+      propertyIds: readonly string[] | null;
+      /** Rent for a landlord, bookings for a host (0116). */
+      source?: 'rent' | 'booking';
+    },
     db: DbOrTx = this.db,
   ): Promise<PayoutListRow[]> {
     const rows = await this.listQuery(db)
       .where(
         and(
           eq(payouts.workspaceId, input.workspaceId),
-          eq(payouts.source, 'rent'),
+          eq(payouts.source, input.source ?? 'rent'),
           input.month ? sql`to_char(${payouts.createdAt} at time zone 'Africa/Kigali', 'YYYY-MM') = ${input.month}` : undefined,
           input.status ? eq(payouts.status, input.status) : undefined,
           input.propertyIds === null
