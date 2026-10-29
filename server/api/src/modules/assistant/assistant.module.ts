@@ -4,8 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { WorkspaceService } from '../../shared/auth/workspace.service';
 import { isWorkerProcess } from '../../shared/process/process-role';
 import { BookingModule } from '../pms/booking.module';
-import { RoomTypesService } from '../listing-setup/application/room-types.service';
-import { ListingSetupModule } from '../listing-setup/listing-setup.module';
+import { RoomTypesService } from '../platform/property/application/room-types.service';
+import { ListingSetupModule } from '../platform/property/listing-setup.module';
 import { ListingModule } from '../listing/listing.module';
 import { OperationsModule } from '../operations/operations.module';
 import {

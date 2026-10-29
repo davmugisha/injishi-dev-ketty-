@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 
-import { StorageModule } from '../storage/storage.module';
+import { StorageModule } from '../../storage/storage.module';
 import { InventoryService } from './application/inventory.service';
 import { PropertyPhotosService } from './application/property-photos.service';
 import { RatePlansService } from './application/rate-plans.service';

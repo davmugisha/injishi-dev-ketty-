@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { coversProperty, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import { coversProperty, type ScopedWorkspace } from '../../../../shared/auth/branch-scope';
 import { SetupProgressRepository } from '../infrastructure/setup-progress.repository';
 
 /**

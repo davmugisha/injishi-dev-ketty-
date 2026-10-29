@@ -13,7 +13,7 @@ import {
 import {
   assertInBranchScope,
   type ScopedWorkspace,
-} from '../../../shared/auth/branch-scope';
+} from '../../../../shared/auth/branch-scope';
 import { assertContained } from '../domain/containment';
 import {
   collidingLabels,

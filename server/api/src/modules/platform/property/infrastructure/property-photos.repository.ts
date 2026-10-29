@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, sql } from 'drizzle-orm';
 
-import { propertyPhotos } from '../../../database/drizzle/schema';
+import { propertyPhotos } from '../../../../database/drizzle/schema';
 import {
   DRIZZLE,
   type Database,
-} from '../../../shared/database/database.module';
+} from '../../../../shared/database/database.module';
 
 /** One photograph row, before a signed URL is added to it. */
 export interface PropertyPhotoRow {

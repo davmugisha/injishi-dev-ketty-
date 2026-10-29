@@ -13,8 +13,8 @@ import {
 import {
   assertInBranchScope,
   type ScopedWorkspace,
-} from '../../../shared/auth/branch-scope';
-import { StorageService } from '../../storage/application/storage.service';
+} from '../../../../shared/auth/branch-scope';
+import { StorageService } from '../../../storage/application/storage.service';
 import { assertContained } from '../domain/containment';
 import { InventoryRepository } from '../infrastructure/inventory.repository';
 import {

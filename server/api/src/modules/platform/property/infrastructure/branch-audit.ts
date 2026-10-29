@@ -1,4 +1,4 @@
-import { auditEvents } from '../../../database/drizzle/governance';
+import { auditEvents } from '../../../../database/drizzle/governance';
 import type { Tx } from './insert-property';
 
 /** What moved on a branch, and what it became (ADR-054 AC-A1). */

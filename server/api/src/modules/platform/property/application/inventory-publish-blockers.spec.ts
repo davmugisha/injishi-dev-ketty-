@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { NotFoundException } from '@nestjs/common';
 
-import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
+import type { ScopedWorkspace } from '../../../../shared/auth/branch-scope';
 import type { PropertyPhotosService } from './property-photos.service';
 import { InventoryService } from './inventory.service';
 

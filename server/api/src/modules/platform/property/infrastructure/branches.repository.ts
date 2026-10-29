@@ -14,11 +14,11 @@ import {
   roomTypes,
   rooms,
   users,
-} from '../../../database/drizzle/schema';
+} from '../../../../database/drizzle/schema';
 import {
   DRIZZLE,
   type Database,
-} from '../../../shared/database/database.module';
+} from '../../../../shared/database/database.module';
 import { recordBranchEvent } from './branch-audit';
 import type { Tx } from './insert-property';
 

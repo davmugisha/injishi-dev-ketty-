@@ -1,7 +1,7 @@
 import { describe, expect, it, type Mock, type MockInstance, vi } from 'vitest';
 
-import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
-import { coversProperty } from '../../../shared/auth/branch-scope';
+import type { ScopedWorkspace } from '../../../../shared/auth/branch-scope';
+import { coversProperty } from '../../../../shared/auth/branch-scope';
 import type { BranchesRepository } from '../infrastructure/branches.repository';
 import type { InventoryRepository } from '../infrastructure/inventory.repository';
 import { InventoryService } from './inventory.service';

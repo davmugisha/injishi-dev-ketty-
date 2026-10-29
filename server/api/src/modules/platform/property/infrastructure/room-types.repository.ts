@@ -11,11 +11,11 @@ import {
   ratePlans,
   roomTypes,
   rooms,
-} from '../../../database/drizzle/schema';
+} from '../../../../database/drizzle/schema';
 import {
   DRIZZLE,
   type Database,
-} from '../../../shared/database/database.module';
+} from '../../../../shared/database/database.module';
 import { insertRooms } from './rooms.repository';
 
 /** One room type, with the counts and the default plan a caller needs. */

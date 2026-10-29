@@ -2,11 +2,11 @@ import type { RoomStatus } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import { asc, eq, sql } from 'drizzle-orm';
 
-import { roomTypes, rooms } from '../../../database/drizzle/schema';
+import { roomTypes, rooms } from '../../../../database/drizzle/schema';
 import {
   DRIZZLE,
   type Database,
-} from '../../../shared/database/database.module';
+} from '../../../../shared/database/database.module';
 
 export interface RoomRow {
   id: string;

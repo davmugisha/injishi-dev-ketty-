@@ -5,9 +5,9 @@ import type {
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, sql } from 'drizzle-orm';
 
-import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { inBranchScope, type BranchScope } from '../../../shared/auth/branch-scope';
-import { ratePlans, roomTypes } from '../../../database/drizzle/schema';
+import { DRIZZLE, type Database } from '../../../../shared/database/database.module';
+import { inBranchScope, type BranchScope } from '../../../../shared/auth/branch-scope';
+import { ratePlans, roomTypes } from '../../../../database/drizzle/schema';
 
 /** One rate plan row, joined to the room type it prices. */
 export interface RatePlanRow {

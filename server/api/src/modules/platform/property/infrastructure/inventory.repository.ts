@@ -16,7 +16,7 @@ import {
   roomTypes,
   rooms,
   sectors,
-} from '../../../database/drizzle/schema';
+} from '../../../../database/drizzle/schema';
 import {
   randomSlugSuffix,
   slugCandidates,
@@ -28,8 +28,8 @@ import { insertPropertyWithListing } from './insert-property';
 import {
   DRIZZLE,
   type Database,
-} from '../../../shared/database/database.module';
-import { inBranchScope, type BranchScope } from '../../../shared/auth/branch-scope';
+} from '../../../../shared/database/database.module';
+import { inBranchScope, type BranchScope } from '../../../../shared/auth/branch-scope';
 
 /**
  * Postgres `unique_violation`. Narrowed here rather than inline, so a caller

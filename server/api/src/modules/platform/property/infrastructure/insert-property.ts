@@ -1,6 +1,6 @@
-import { properties, listings } from '../../../database/drizzle/schema';
-import { seedPropertyDepartments } from '../../operations/domain/usali-departments';
-import type { Database } from '../../../shared/database/database.module';
+import { properties, listings } from '../../../../database/drizzle/schema';
+import { seedPropertyDepartments } from '../../../operations/domain/usali-departments';
+import type { Database } from '../../../../shared/database/database.module';
 
 /** A transaction handle, as `db.transaction` passes it. */
 export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];

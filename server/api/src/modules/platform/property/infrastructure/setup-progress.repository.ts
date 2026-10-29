@@ -5,7 +5,7 @@ import { sql } from 'drizzle-orm';
 import {
   DRIZZLE,
   type Database,
-} from '../../../shared/database/database.module';
+} from '../../../../shared/database/database.module';
 
 export interface SetupBusinessRow {
   orgId: string;
