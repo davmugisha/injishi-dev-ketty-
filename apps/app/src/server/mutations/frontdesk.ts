@@ -144,6 +144,10 @@ export interface WalkInInput {
   phone?: string;
   /** Where the claim code goes, so the guest can carry on in the app. */
   email?: string;
+  /** ISO 3166-1 alpha-2: with a phone, files the guest with the area's leaders (and DGIE from abroad). */
+  nationality?: string;
+  documentType?: "national_id" | "passport";
+  idNumber?: string;
 }
 
 export interface WalkedIn {
@@ -222,7 +226,15 @@ export async function walkIn(ctx: SourceContext, input: WalkInInput): Promise<Wa
       roomId: room.id,
       guestName: name,
       plannedExitAt: new Date(`${leaves}T${checkOutTime}:00+02:00`).toISOString(),
-      guest: { fullName: name, ...(phone ? { phone } : {}), ...(email ? { email } : {}) },
+      guest: {
+        fullName: name,
+        ...(phone ? { phone } : {}),
+        ...(email ? { email } : {}),
+        ...(input.nationality ? { nationality: input.nationality } : {}),
+        ...(input.idNumber?.trim() && input.documentType
+          ? { documentType: input.documentType, idNumber: input.idNumber.trim().toUpperCase() }
+          : {}),
+      },
     });
     const after = await ctx.ops().get<ApiBoard>("/api/v1/ops/front-desk");
     const opened = after.stays.find((s) => s.id === stay.id);

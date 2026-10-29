@@ -29,7 +29,7 @@ import { EmptyState } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
 import { screenHref } from "@injishi/data";
 import type { RoomType } from "@injishi/data/fixtures/frontdesk";
-import { formatRwf, GateChip, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
+import { CountrySelect, formatRwf, GateChip, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -116,12 +116,15 @@ export function WalkInView({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [nationality, setNationality] = useState<string | null>("RW");
+  const [idNumber, setIdNumber] = useState("");
   const [saving, startSaving] = useTransition();
 
   const guests = adults + kids;
   const bookable = (t: RoomType) => t.free > 0 && !t.soldNote && guests <= t.sleeps;
   const t = roomTypes.find((x) => x.id === sel && bookable(x));
-  const canCheckIn = !!t && name.trim().length > 0 && !saving;
+  // The leaders of the area must hear of every guest (the law on accommodation): name, phone and nationality.
+  const canCheckIn = !!t && name.trim().length > 0 && phone.trim().length >= 9 && !!nationality && !saving;
 
   const pick = (id: string) => setSel(id);
 
@@ -142,6 +145,9 @@ export function WalkInView({
         guestName: name,
         phone: phone || undefined,
         email: email || undefined,
+        nationality: nationality ?? undefined,
+        documentType: nationality === "RW" ? "national_id" : "passport",
+        idNumber: idNumber || undefined,
       });
       if (!result.ok) {
         toast.danger(`${name.trim()} was not checked in: ${result.error}`);
@@ -346,14 +352,22 @@ export function WalkInView({
                 <Label>Phone</Label>
                 <Input className="tabular" type="tel" placeholder="+250 7…" />
               </TextField>
+              <CountrySelect label="Nationality" value={nationality} onChange={setNationality} isRequired />
+              <TextField value={idNumber} onChange={setIdNumber} className="flex flex-col gap-1">
+                <Label>{nationality === "RW" ? "National ID number" : "Passport number"}</Label>
+                <Input className="tabular" placeholder={nationality === "RW" ? "16 digits" : "As on the passport"} />
+              </TextField>
               <TextField value={email} onChange={setEmail} className="flex flex-col gap-1">
                 <Label>Email (optional)</Label>
                 <Input placeholder="Gets the claim code for the guest app" type="email" />
               </TextField>
             </div>
+            <p className="text-xs text-muted">
+              Checking in files the guest with the village leader and the cell, and with DGIE for a guest from abroad,
+              as the law asks of every place that lets rooms.
+            </p>
             <p className="text-xs text-muted" aria-live="polite">
-              Guest profiles are not built yet, so there is nothing to search or match: the stay opens under the name
-              typed above and is linked to no earlier stay. Check the ID when you hand over the key.
+              The stay opens under the name typed above. Check the ID when you hand over the key.
             </p>
           </Card>
         </div>
@@ -449,9 +463,11 @@ export function WalkInView({
                   <ArrowRightToSquare className="size-4" />
                   {saving
                     ? "Checking in…"
-                    : name.trim()
-                      ? `Check in ${name.trim()}`
-                      : "Type the guest's name to check in"}
+                    : !name.trim()
+                      ? "Type the guest's name to check in"
+                      : phone.trim().length < 9
+                        ? "Add the guest's phone to check in"
+                        : `Check in ${name.trim()}`}
                 </Button>
                 <div className="flex gap-2">
                   <Button size="sm" variant="ghost" onPress={() => window.print()}>
