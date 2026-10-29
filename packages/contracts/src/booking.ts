@@ -150,6 +150,46 @@ export type BookableRoom = z.infer<typeof BookableRoom>;
  * one number per rule.
  */
 export const MAX_NIGHTS = 90;
+/**
+ * The longest stay a room type may allow when it lets by the week or the month (serviced apartments,
+ * 2026-10-29): its own `max_stay`, up to a year. Others keep `MAX_NIGHTS`.
+ */
+export const LONG_STAY_MAX_NIGHTS = 365;
+
+/** The most nights a room type takes in one booking. */
+export function maxNightsFor(roomTypeMaxStay: number | null | undefined): number {
+  return roomTypeMaxStay && roomTypeMaxStay > MAX_NIGHTS ? Math.min(roomTypeMaxStay, LONG_STAY_MAX_NIGHTS) : MAX_NIGHTS;
+}
+
+/** A week and more takes the weekly discount, four weeks and more the monthly one. */
+export const WEEKLY_FROM_NIGHTS = 7;
+export const MONTHLY_FROM_NIGHTS = 28;
+
+/**
+ * The nightly rate a stay is charged at (2026-10-29): each night at its own price (a price set for that
+ * day, else the room type's), averaged, less the weekly or monthly discount the stay is long enough for.
+ * The one rule the quote and the booking both use, so what a guest is shown is what they pay.
+ */
+export function stayNightlyRate(input: {
+  baseRwf: number;
+  /** One entry per night, in order; null where no day price is set. */
+  dayRatesRwf: readonly (number | null)[];
+  weeklyDiscountPct?: number | null;
+  monthlyDiscountPct?: number | null;
+}): { nightlyRwf: number; discountPct: number } {
+  const n = input.dayRatesRwf.length;
+  if (n === 0) return { nightlyRwf: input.baseRwf, discountPct: 0 };
+  const total = input.dayRatesRwf.reduce<number>((t, r) => t + (r ?? input.baseRwf), 0);
+  const pct =
+    n >= MONTHLY_FROM_NIGHTS && input.monthlyDiscountPct
+      ? input.monthlyDiscountPct
+      : n >= WEEKLY_FROM_NIGHTS && input.weeklyDiscountPct
+        ? input.weeklyDiscountPct
+        : 0;
+  const bounded = Math.max(0, Math.min(90, pct));
+  return { nightlyRwf: Math.round((total / n) * (1 - bounded / 100)), discountPct: bounded };
+}
+
 /** How far ahead a booking may be made. 18 months. */
 export const MAX_HORIZON_DAYS = 540;
 /** A room type with no stated capacity is not unlimited. */

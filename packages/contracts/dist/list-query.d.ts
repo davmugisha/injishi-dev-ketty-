@@ -149,7 +149,7 @@ export declare const ListQuery: z.ZodObject<{
         dir: "asc" | "desc";
     }[];
     page: number;
-    pageSize: 10 | 50 | 100 | 25;
+    pageSize: 10 | 100 | 50 | 25;
     filters: {
         field: string;
         op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -163,7 +163,7 @@ export declare const ListQuery: z.ZodObject<{
         dir: "asc" | "desc";
     }[] | undefined;
     page?: number | undefined;
-    pageSize?: 10 | 50 | 100 | 25 | undefined;
+    pageSize?: 10 | 100 | 50 | 25 | undefined;
     q?: string | undefined;
     filters?: {
         field: string;
@@ -271,7 +271,7 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
     items: T["_output"][];
     total: number;
     page: number;
-    pageSize: 10 | 50 | 100 | 25;
+    pageSize: 10 | 100 | 50 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -289,7 +289,7 @@ export declare function listPage<T extends z.ZodTypeAny>(item: T): z.ZodObject<{
     items: T["_input"][];
     total: number;
     page: number;
-    pageSize: 10 | 50 | 100 | 25;
+    pageSize: 10 | 100 | 50 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -371,7 +371,7 @@ export declare const SavedViewConfig: z.ZodObject<{
         field: string;
         dir: "asc" | "desc";
     }[];
-    pageSize: 10 | 50 | 100 | 25;
+    pageSize: 10 | 100 | 50 | 25;
     filters: {
         field: string;
         op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -386,7 +386,7 @@ export declare const SavedViewConfig: z.ZodObject<{
         field: string;
         dir: "asc" | "desc";
     }[] | undefined;
-    pageSize?: 10 | 50 | 100 | 25 | undefined;
+    pageSize?: 10 | 100 | 50 | 25 | undefined;
     q?: string | undefined;
     filters?: {
         field: string;
@@ -437,7 +437,7 @@ export declare const SavedView: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -452,7 +452,7 @@ export declare const SavedView: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         q?: string | undefined;
         filters?: {
             field: string;
@@ -476,7 +476,7 @@ export declare const SavedView: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -501,7 +501,7 @@ export declare const SavedView: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         q?: string | undefined;
         filters?: {
             field: string;
@@ -560,7 +560,7 @@ export declare const SavedViewList: z.ZodObject<{
                 field: string;
                 dir: "asc" | "desc";
             }[];
-            pageSize: 10 | 50 | 100 | 25;
+            pageSize: 10 | 100 | 50 | 25;
             filters: {
                 field: string;
                 op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -575,7 +575,7 @@ export declare const SavedViewList: z.ZodObject<{
                 field: string;
                 dir: "asc" | "desc";
             }[] | undefined;
-            pageSize?: 10 | 50 | 100 | 25 | undefined;
+            pageSize?: 10 | 100 | 50 | 25 | undefined;
             q?: string | undefined;
             filters?: {
                 field: string;
@@ -599,7 +599,7 @@ export declare const SavedViewList: z.ZodObject<{
                 field: string;
                 dir: "asc" | "desc";
             }[];
-            pageSize: 10 | 50 | 100 | 25;
+            pageSize: 10 | 100 | 50 | 25;
             filters: {
                 field: string;
                 op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -624,7 +624,7 @@ export declare const SavedViewList: z.ZodObject<{
                 field: string;
                 dir: "asc" | "desc";
             }[] | undefined;
-            pageSize?: 10 | 50 | 100 | 25 | undefined;
+            pageSize?: 10 | 100 | 50 | 25 | undefined;
             q?: string | undefined;
             filters?: {
                 field: string;
@@ -651,7 +651,7 @@ export declare const SavedViewList: z.ZodObject<{
                 field: string;
                 dir: "asc" | "desc";
             }[];
-            pageSize: 10 | 50 | 100 | 25;
+            pageSize: 10 | 100 | 50 | 25;
             filters: {
                 field: string;
                 op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -678,7 +678,7 @@ export declare const SavedViewList: z.ZodObject<{
                 field: string;
                 dir: "asc" | "desc";
             }[] | undefined;
-            pageSize?: 10 | 50 | 100 | 25 | undefined;
+            pageSize?: 10 | 100 | 50 | 25 | undefined;
             q?: string | undefined;
             filters?: {
                 field: string;
@@ -736,7 +736,7 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -751,7 +751,7 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         q?: string | undefined;
         filters?: {
             field: string;
@@ -771,7 +771,7 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -792,7 +792,7 @@ export declare const CreateSavedViewRequest: z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         q?: string | undefined;
         filters?: {
             field: string;
@@ -845,7 +845,7 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -860,7 +860,7 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         q?: string | undefined;
         filters?: {
             field: string;
@@ -880,7 +880,7 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -900,7 +900,7 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         q?: string | undefined;
         filters?: {
             field: string;
@@ -920,7 +920,7 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[];
-        pageSize: 10 | 50 | 100 | 25;
+        pageSize: 10 | 100 | 50 | 25;
         filters: {
             field: string;
             op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in" | "nin" | "contains" | "between" | "isNull" | "isNotNull";
@@ -940,7 +940,7 @@ export declare const UpdateSavedViewRequest: z.ZodEffects<z.ZodObject<{
             field: string;
             dir: "asc" | "desc";
         }[] | undefined;
-        pageSize?: 10 | 50 | 100 | 25 | undefined;
+        pageSize?: 10 | 100 | 50 | 25 | undefined;
         q?: string | undefined;
         filters?: {
             field: string;

@@ -522,4 +522,62 @@ export class ListingRepository {
       nightlyRateRwf: row.nightlyRateRwf ?? null,
     };
   }
+
+  /**
+   * What prices a stay of a room type over its nights (2026-10-29): the default rate plan's weekly and
+   * monthly discounts and stay bounds, and the days between `checkIn` and the night before `checkOut`
+   * that carry their own price, are closed, or ask for a longest or shortest stay.
+   */
+  async stayTerms(roomTypeId: string, checkIn: string, checkOut: string): Promise<StayTerms> {
+    const plan = await this.db.execute<{
+      id: string | null;
+      weekly: string | null;
+      monthly: string | null;
+      min_stay: number | null;
+      max_stay: number | null;
+    }>(sql`
+      select rp.id,
+             coalesce(rp.weekly_discount_pct, rt.weekly_discount_pct) as weekly,
+             coalesce(rp.monthly_discount_pct, rt.monthly_discount_pct) as monthly,
+             coalesce(rp.min_stay, rt.min_stay) as min_stay,
+             coalesce(rp.max_stay, rt.max_stay) as max_stay
+        from room_types rt
+        left join lateral (
+          select * from rate_plans p
+           where p.room_type_id = rt.id and p.status = 'active'
+           order by p.is_default desc, p.created_at asc limit 1
+        ) rp on true
+       where rt.id = ${roomTypeId}`);
+    const p = plan.rows[0];
+    const days = p?.id
+      ? (
+          await this.db.execute<{ day: string; rate: string | null; blocked: boolean; min_nights: number | null }>(sql`
+            select to_char(d.day, 'YYYY-MM-DD') as day, d.custom_nightly_rate_rwf as rate, d.blocked, d.min_nights
+              from date_overrides d
+             where d.room_type_id = ${roomTypeId} and d.rate_plan_id = ${p.id}
+               and d.day >= ${checkIn}::date and d.day < ${checkOut}::date
+             order by d.day`)
+        ).rows
+      : [];
+    return {
+      weeklyDiscountPct: p?.weekly == null ? null : Number(p.weekly),
+      monthlyDiscountPct: p?.monthly == null ? null : Number(p.monthly),
+      minStay: p?.min_stay ?? null,
+      maxStay: p?.max_stay ?? null,
+      days: days.map((d) => ({
+        day: d.day,
+        rateRwf: d.rate == null ? null : Number(d.rate),
+        blocked: d.blocked,
+        minNights: d.min_nights,
+      })),
+    };
+  }
+}
+
+export interface StayTerms {
+  weeklyDiscountPct: number | null;
+  monthlyDiscountPct: number | null;
+  minStay: number | null;
+  maxStay: number | null;
+  days: { day: string; rateRwf: number | null; blocked: boolean; minNights: number | null }[];
 }

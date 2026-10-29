@@ -156,13 +156,15 @@ export class MarketplaceService {
     const room = await this.listings.getBookableRoom(q.roomTypeId);
     const nights = Math.round((Date.parse(`${q.checkOut}T12:00:00Z`) - Date.parse(`${q.checkIn}T12:00:00Z`)) / 86_400_000);
     if (!(nights >= 1)) throw new BadRequestException('Check-out must be after check-in.');
-    if (nights > MAX_NIGHTS) throw new BadRequestException(`A stay is at most ${MAX_NIGHTS} nights.`);
+    const rate = await this.listings.stayRate(room.roomType, q.checkIn, q.checkOut);
+    if (nights > rate.maxNights) throw new BadRequestException(`A stay is at most ${rate.maxNights} nights.`);
+    if (nights < rate.minNights) throw new BadRequestException(`This room takes stays of ${rate.minNights} nights or more.`);
+    if (rate.closedOn) throw new ConflictException(`${room.roomType.name} is not available on ${rate.closedOn}.`);
     const capacity = room.roomType.capacity;
     if (capacity !== null && q.guests > capacity) {
       throw new BadRequestException(`${room.roomType.name} sleeps ${capacity}.`);
     }
-    const rate = room.roomType.nightlyRateRwf;
-    if (rate === null) throw new ConflictException('This room has no price yet.');
+    if (room.roomType.nightlyRateRwf === null) throw new ConflictException('This room has no price yet.');
     const tier = room.roomType.cancellationTier ?? 'flexible';
     const rule = CANCELLATION_TIERS[tier];
     const time = /^\d{2}:\d{2}/.exec(room.property.checkInTime ?? '')?.[0] ?? '14:00';
@@ -188,7 +190,7 @@ export class MarketplaceService {
       checkIn: q.checkIn,
       checkOut: q.checkOut,
       guests: q.guests,
-      breakdown: computeBreakdown({ nightlyRateRwf: rate, nights, nonRefundable: false, guests: q.guests }),
+      breakdown: computeBreakdown({ nightlyRateRwf: rate.nightlyRateRwf, nights, nonRefundable: false, guests: q.guests }),
       bookingMode: room.roomType.bookingMode,
       approvalWindowHours: room.roomType.bookingMode === 'request_to_book' ? APPROVAL_WINDOW_HOURS : null,
       cancellationTier: tier,

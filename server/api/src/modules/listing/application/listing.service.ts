@@ -5,6 +5,7 @@ import type {
   RoomTypeSummary,
   SitemapProperty,
 } from '@injishi/contracts';
+import { maxNightsFor, stayNightlyRate } from '@injishi/contracts';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 
 import { StorageService } from '../../storage/application/storage.service';
@@ -167,4 +168,45 @@ export class ListingService {
       photos: photoIds.map((id) => photoRouteUrl(this.origin, id)),
     };
   }
+
+  /**
+   * The price and the rules of a stay (2026-10-29): the nightly rate it is charged at (day prices
+   * averaged, less a weekly or monthly discount), the first closed night if any, and the shortest and
+   * longest stay the room type takes. The quote and the booking both ask this, so they never disagree.
+   */
+  async stayRate(
+    roomType: { id: string; nightlyRateRwf: number | null; minStay?: number | null },
+    checkIn: string,
+    checkOut: string,
+  ): Promise<StayRate> {
+    const terms = await this.listings.stayTerms(roomType.id, checkIn, checkOut);
+    const byDay = new Map(terms.days.map((d) => [d.day, d]));
+    const nights: string[] = [];
+    for (let t = Date.parse(`${checkIn}T12:00:00Z`); t < Date.parse(`${checkOut}T12:00:00Z`); t += 86_400_000) {
+      nights.push(new Date(t).toISOString().slice(0, 10));
+    }
+    const priced = stayNightlyRate({
+      baseRwf: roomType.nightlyRateRwf ?? 0,
+      dayRatesRwf: nights.map((d) => byDay.get(d)?.rateRwf ?? null),
+      weeklyDiscountPct: terms.weeklyDiscountPct,
+      monthlyDiscountPct: terms.monthlyDiscountPct,
+    });
+    const arrival = byDay.get(checkIn);
+    return {
+      nightlyRateRwf: priced.nightlyRwf,
+      discountPct: priced.discountPct,
+      closedOn: terms.days.find((d) => d.blocked)?.day ?? null,
+      minNights: arrival?.minNights ?? terms.minStay ?? roomType.minStay ?? 1,
+      maxNights: maxNightsFor(terms.maxStay),
+    };
+  }
+}
+
+export interface StayRate {
+  nightlyRateRwf: number;
+  discountPct: number;
+  /** The first night of the stay the room type is closed on, if any. */
+  closedOn: string | null;
+  minNights: number;
+  maxNights: number;
 }

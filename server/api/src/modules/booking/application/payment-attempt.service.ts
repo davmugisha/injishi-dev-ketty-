@@ -715,8 +715,10 @@ export class PaymentAttemptService {
     }
 
     const nights = nightsBetween(checkIn, checkOut);
+    // Priced as the booking was quoted: day prices and the length of stay discount (2026-10-29).
+    const rate = await this.listings.stayRate(roomType, checkIn, checkOut);
     const breakdown = computeBreakdown({
-      nightlyRateRwf: roomType.nightlyRateRwf,
+      nightlyRateRwf: rate.nightlyRateRwf,
       nights,
       nonRefundable: row.nonRefundable,
       guests,

@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BookingCancellationResult = exports.CancellationQuote = exports.CancellationParty = exports.CANCELLATION_TIERS = exports.BookingApprovalResult = exports.PAYMENT_PROMPT_TTL_SECONDS = exports.CreateBookingOutcome = exports.PaymentAttemptStatus = exports.PaymentAttemptState = exports.BookingResult = exports.MAX_INFANTS = exports.GUEST_SERVICE_FEE_RATE = exports.NON_REFUNDABLE_DISCOUNT = exports.MoneyBreakdown = exports.CreateBookingInput = exports.PaymentInstrument = exports.NationalMsisdn = exports.NETWORK_PREFIXES = exports.MobileMoneyNetwork = exports.RoomAvailability = exports.NightAvailability = exports.PROPERTY_TIME_ZONE = exports.DEFAULT_CAPACITY = exports.MAX_HORIZON_DAYS = exports.MAX_NIGHTS = exports.BookableRoom = exports.BookablePropertySummary = exports.SitemapProperty = exports.RoomTypeSummary = exports.IsoDate = exports.EscrowStatus = exports.DeclineReason = exports.PaymentStatus = exports.BookingStatus = exports.CancellationTier = exports.ApprovalPolicy = exports.BookingMode = void 0;
+exports.BookingCancellationResult = exports.CancellationQuote = exports.CancellationParty = exports.CANCELLATION_TIERS = exports.BookingApprovalResult = exports.PAYMENT_PROMPT_TTL_SECONDS = exports.CreateBookingOutcome = exports.PaymentAttemptStatus = exports.PaymentAttemptState = exports.BookingResult = exports.MAX_INFANTS = exports.GUEST_SERVICE_FEE_RATE = exports.NON_REFUNDABLE_DISCOUNT = exports.MoneyBreakdown = exports.CreateBookingInput = exports.PaymentInstrument = exports.NationalMsisdn = exports.NETWORK_PREFIXES = exports.MobileMoneyNetwork = exports.RoomAvailability = exports.NightAvailability = exports.PROPERTY_TIME_ZONE = exports.DEFAULT_CAPACITY = exports.MAX_HORIZON_DAYS = exports.MONTHLY_FROM_NIGHTS = exports.WEEKLY_FROM_NIGHTS = exports.LONG_STAY_MAX_NIGHTS = exports.MAX_NIGHTS = exports.BookableRoom = exports.BookablePropertySummary = exports.SitemapProperty = exports.RoomTypeSummary = exports.IsoDate = exports.EscrowStatus = exports.DeclineReason = exports.PaymentStatus = exports.BookingStatus = exports.CancellationTier = exports.ApprovalPolicy = exports.BookingMode = void 0;
+exports.maxNightsFor = maxNightsFor;
+exports.stayNightlyRate = stayNightlyRate;
 exports.soldOutNights = soldOutNights;
 exports.networkForMsisdn = networkForMsisdn;
 exports.instrumentProblem = instrumentProblem;
@@ -147,6 +149,36 @@ exports.BookableRoom = zod_1.z.object({
  * one number per rule.
  */
 exports.MAX_NIGHTS = 90;
+/**
+ * The longest stay a room type may allow when it lets by the week or the month (serviced apartments,
+ * 2026-10-29): its own `max_stay`, up to a year. Others keep `MAX_NIGHTS`.
+ */
+exports.LONG_STAY_MAX_NIGHTS = 365;
+/** The most nights a room type takes in one booking. */
+function maxNightsFor(roomTypeMaxStay) {
+    return roomTypeMaxStay && roomTypeMaxStay > exports.MAX_NIGHTS ? Math.min(roomTypeMaxStay, exports.LONG_STAY_MAX_NIGHTS) : exports.MAX_NIGHTS;
+}
+/** A week and more takes the weekly discount, four weeks and more the monthly one. */
+exports.WEEKLY_FROM_NIGHTS = 7;
+exports.MONTHLY_FROM_NIGHTS = 28;
+/**
+ * The nightly rate a stay is charged at (2026-10-29): each night at its own price (a price set for that
+ * day, else the room type's), averaged, less the weekly or monthly discount the stay is long enough for.
+ * The one rule the quote and the booking both use, so what a guest is shown is what they pay.
+ */
+function stayNightlyRate(input) {
+    const n = input.dayRatesRwf.length;
+    if (n === 0)
+        return { nightlyRwf: input.baseRwf, discountPct: 0 };
+    const total = input.dayRatesRwf.reduce((t, r) => t + (r ?? input.baseRwf), 0);
+    const pct = n >= exports.MONTHLY_FROM_NIGHTS && input.monthlyDiscountPct
+        ? input.monthlyDiscountPct
+        : n >= exports.WEEKLY_FROM_NIGHTS && input.weeklyDiscountPct
+            ? input.weeklyDiscountPct
+            : 0;
+    const bounded = Math.max(0, Math.min(90, pct));
+    return { nightlyRwf: Math.round((total / n) * (1 - bounded / 100)), discountPct: bounded };
+}
 /** How far ahead a booking may be made. 18 months. */
 exports.MAX_HORIZON_DAYS = 540;
 /** A room type with no stated capacity is not unlimited. */

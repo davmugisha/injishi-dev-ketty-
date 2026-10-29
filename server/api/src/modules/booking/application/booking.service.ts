@@ -227,8 +227,17 @@ export class BookingService {
     if (nights <= 0) {
       throw new BadRequestException('Check-out must be after check-in.');
     }
-    if (nights > MAX_NIGHTS) {
-      throw new BadRequestException(`Stays are limited to ${MAX_NIGHTS} nights.`);
+    // The stay's own rules (2026-10-29): day prices, closed nights, the shortest and longest stay, and
+    // a weekly or monthly discount, the same answer the quote gave.
+    const rate = await this.listings.stayRate(roomType, input.checkIn, input.checkOut);
+    if (nights > rate.maxNights) {
+      throw new BadRequestException(`Stays are limited to ${rate.maxNights} nights.`);
+    }
+    if (nights < rate.minNights) {
+      throw new BadRequestException(`This room takes stays of ${rate.minNights} nights or more.`);
+    }
+    if (rate.closedOn) {
+      throw new ConflictException(`${roomType.name} is not available on ${rate.closedOn}. Choose other dates.`);
     }
 
     // "Today" is a Kigali fact, not a UTC one (review 1.6).
@@ -266,7 +275,7 @@ export class BookingService {
     // Priced per person: the rate is per guest, per night (infants are not in
     // `guests`, so they stay free).
     const breakdown = computeBreakdown({
-      nightlyRateRwf: roomType.nightlyRateRwf,
+      nightlyRateRwf: rate.nightlyRateRwf,
       nights,
       nonRefundable,
       guests: input.guests,
