@@ -25,6 +25,8 @@ const registerFiles = readdirSync(REGISTER)
 const identityClient = read(resolve(here, "../src/data/identity.ts"));
 const scanner = read(resolve(REGISTER, "identity-verifier.tsx"));
 const section = read(resolve(REGISTER, "section-identity.tsx"));
+// The director line is the business's, under "Who is registering it?", not the person's.
+const tinSection = read(resolve(REGISTER, "section-tin.tsx"));
 
 describe("no code is sent to any phone (AC-4)", () => {
   test("no register file names the SMS routes or speaks their words", () => {
@@ -75,10 +77,14 @@ describe("the scan (AC-5, AC-6)", () => {
 
 describe("the director line (AC-7)", () => {
   test("the owner learns listed or not, and is pointed to the helper path, never shown the names", () => {
-    assert.match(section, /You're listed as a director/);
-    assert.match(section, /You're not listed as a director/);
-    assert.match(section, /Register it for the owner instead/);
-    assert.doesNotMatch(section, /directorNames|RRA lists/);
+    assert.match(tinSection, /You're listed as a director/);
+    assert.match(tinSection, /You're not listed as a director/);
+    assert.match(tinSection, /Register it for the owner instead/);
+    assert.doesNotMatch(tinSection, /directorNames|RRA lists/);
+  });
+
+  test("the identity section is about the person alone: no director line, no TIN", () => {
+    assert.doesNotMatch(section, /director|TIN/);
   });
 
   test("the contract asks for the directors' names only with the helper's capacity", async () => {

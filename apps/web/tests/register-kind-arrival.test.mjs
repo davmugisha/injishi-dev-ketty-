@@ -123,17 +123,17 @@ describe("the sign in round trip", () => {
 });
 
 describe("the wizard, given a kind", () => {
-  test("opens on Business whether or not the kind arrived; Business asks it when it did not (ADR-075 S3)", () => {
-    assert.equal(openingStep(), "business");
+  test("opens on You whether or not the kind arrived; the kind is asked first when it did not (ADR-075 S3)", () => {
+    assert.equal(openingStep(), "you");
   });
 
   test("reopens a draft on the step it was left at, which never asks again a kind the draft already knows (ADR-075 S9)", () => {
-    assert.equal(resumeStep("you"), "you");
-    assert.equal(resumeStep(undefined), "business");
+    assert.equal(resumeStep("business"), "business");
+    assert.equal(resumeStep(undefined), "you");
   });
 
-  test("walks the same five steps whether or not the kind arrived: the kind is a question inside Business", () => {
-    assert.deepEqual(stepOrder(), ["business", "you", "documents", "review", "pay"]);
+  test("walks the same five steps whether or not the kind arrived: the person, then the business", () => {
+    assert.deepEqual(stepOrder(), ["you", "business", "documents", "review", "pay"]);
   });
 
   test("saves as the answers are typed, never on opening (ADR-075 S9; R02)", () => {

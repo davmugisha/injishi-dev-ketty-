@@ -108,10 +108,11 @@ import { formatRwf } from "./wizard-ui";
  * Business registration (F-S03 / FL01) as ADR-075 A1 decides it, on the real
  * API: the owner presses List Business and walks five steps.
  *
- * FIVE STEPS: Business (the kind when none arrived, then sections that show in
- * order: the TIN with RRA and who is registering it, the classification, the
- * location; then branches and PSF), You (the ID and the director check),
- * Documents, Review (no agreement, no signature) and Pay, whose first press
+ * FIVE STEPS, after the kind when none arrived: You (the person: the ID, a
+ * phone, a home address, and nothing about the business), Business (sections
+ * that show in order: the TIN with RRA, who is registering it and the director
+ * check, on the helper path the owner, the classification, the location; then
+ * branches and PSF), Documents, Review (no agreement, no signature) and Pay, whose first press
  * creates the registration. A residence walks the same five, with its property
  * and UPI in Business. `register-steps.ts` owns the order, the sections and the
  * saving; this component owns the state and the calls.
@@ -548,7 +549,7 @@ export default function RegisterWizard({
     setChoosingKind(true);
     setFormError("");
     setScreen("steps");
-    setStep("business");
+    setStep(youDone ? "business" : "you");
   };
 
   // --- step two: the TIN --------------------------------------------------------
@@ -710,7 +711,7 @@ export default function RegisterWizard({
   const prepareForOwner = () => {
     setCapacity("on_behalf_of");
     setCapPick("on_behalf_of");
-    setIdConfirmed(true);
+    setTinConfirmed(true);
     void nameTheOwner();
   };
 
@@ -736,10 +737,10 @@ export default function RegisterWizard({
         return (
           tinConfirmed &&
           ((verdict?.result === "verified" && !nameDiffers) || (verdict?.result === "pending" && carryOnPending)) &&
-          legalName.length >= 2
+          legalName.length >= 2 &&
+          // The owner must be one of RRA's directors; someone who is not registers it for the owner.
+          !(capacity === "owner" && isDirector === false)
         );
-      case "owner":
-        return identityOk && isDirector !== false;
       case "id":
         return identityOk;
       case "intended":
@@ -825,7 +826,7 @@ export default function RegisterWizard({
   /** Where an issue at `key` is answered, so a refusal sends the person there. */
   const stepForIssue = (key: string): StepId => {
     if (key.startsWith("business.certificates")) return "documents";
-    if (key.startsWith("personal") || key.startsWith("capacity") || key.startsWith("intendedOwner")) return "you";
+    if (key.startsWith("personal")) return "you";
     return "business";
   };
 
@@ -1113,7 +1114,6 @@ export default function RegisterWizard({
 
   const SECTION_TITLE: Record<SectionId, string> = {
     tin: "Business name and TIN",
-    owner: "You and the company",
     id: "Your identity",
     intended: "The owner",
     cls: "Classification",
@@ -1125,10 +1125,11 @@ export default function RegisterWizard({
   const sectionSummary = (id: SectionId): string => {
     switch (id) {
       case "tin":
-        return `${legalName || "Not named"} · TIN ${formatTin(tin)} · ${capacity === "owner" ? "you own or direct it" : "you register it for the owner"}`;
-      case "owner":
+        return `${legalName || "Not named"} · TIN ${formatTin(tin)} · ${
+          capacity === "owner" ? (isDirector ? "you're listed as a director" : "you own or direct it") : "you register it for the owner"
+        }`;
       case "id":
-        return [registrantName || "You", idLine, id === "owner" && isDirector ? "a director" : null].filter(Boolean).join(" · ");
+        return [registrantName || "You", idLine].filter(Boolean).join(" · ");
       case "intended":
         return `${intendedOwner.name.trim()} · ${intendedOwner.email.trim()} · claims it after approval`;
       case "cls":
@@ -1145,7 +1146,7 @@ export default function RegisterWizard({
   };
   const sectionChecked = (id: SectionId): string | null => {
     if (id === "tin") return verdict?.result === "verified" ? "Checked by RRA" : null;
-    if (id === "owner" || id === "id") return checkedBy;
+    if (id === "id") return checkedBy;
     if (id === "upi") return "Format checked";
     return null;
   };
@@ -1155,7 +1156,7 @@ export default function RegisterWizard({
       setTinCheck(null);
       setTinConfirmed(false);
       setCarryOnPending(false);
-    } else if (id === "owner" || id === "id") setIdConfirmed(false);
+    } else if (id === "id") setIdConfirmed(false);
     else if (id === "intended") setIntendedConfirmed(false);
     else if (id === "loc") setLocSaved(false);
     else if (id === "fr") setFrConfirmed(false);
@@ -1185,25 +1186,23 @@ export default function RegisterWizard({
             onAskInjishi={() => {
               if (!openAssistant()) window.location.assign("/help");
             }}
+            isDirector={isDirector}
+            onPrepareForOwner={prepareForOwner}
             onNext={confirmTin}
             error={errors["business.legalName"] ?? errors["business.tin"]}
             online={online}
           />
         );
-      case "owner":
       case "id":
         return (
           <SectionIdentity
-            path={path}
             identity={identity}
             profileComplete={profile?.complete === true && !editingProfile}
             draft={personal}
             onDraftChange={setPersonal}
             onIdentity={onIdentity}
             needsExtras={!personalOk}
-            isDirector={id === "owner" ? isDirector : null}
             errors={errors}
-            onPrepareForOwner={prepareForOwner}
             onEditProfile={editStoredProfile}
             onNext={confirmId}
             online={online}
@@ -1274,19 +1273,31 @@ export default function RegisterWizard({
     ? [{ title: "Registering", value: `${kindLabel} · ${summary.legalName}`, step: null }]
     : landlord
       ? [
+          { title: "You", value: youRow, step: "you" },
           { title: "Business type", value: kindLabel, step: "business" },
           { title: "The property", value: `${business.legalName.trim()} · UPI ${business.upi.trim()}`, step: "business" },
           { title: "Location", value: locLine ?? "Not chosen", step: "business" },
-          { title: "You", value: youRow, step: "you" },
           { title: "Documents", value: docsText, step: "documents" },
         ]
       : [
+          { title: "You", value: youRow, step: "you" },
           { title: "Business type", value: kindLabel, step: "business" },
           {
             title: "The business",
-            value: `${legalName} · TIN ${formatTin(tin)}${verdict?.result === "verified" ? " · checked by RRA" : " · RRA checks it after payment"}`,
+            value: `${legalName} · TIN ${formatTin(tin)}${verdict?.result === "verified" ? " · checked by RRA" : " · RRA checks it after payment"}${
+              path !== "helper" && isDirector ? " · you're listed as a director" : ""
+            }`,
             step: "business",
           },
+          ...(path === "helper"
+            ? [
+                {
+                  title: "The owner",
+                  value: `${intendedOwner.name.trim()} · ${intendedOwner.email.trim()} · claims it after approval`,
+                  step: "business" as const,
+                },
+              ]
+            : []),
           { title: "Location", value: locLine ?? "Not chosen", step: "business" },
           { title: "Franchise", value: franchiseLine(business), step: "business" },
           {
@@ -1297,44 +1308,30 @@ export default function RegisterWizard({
             step: "business",
           },
           { title: "PSF", value: psfText, step: "business" },
-          path === "helper"
-            ? { title: "You", value: youRow, step: "you" }
-            : { title: "You", value: `${youRow}${isDirector ? ", a director" : ""}`, step: "you" },
-          ...(path === "helper"
-            ? [
-                {
-                  title: "The owner",
-                  value: `${intendedOwner.name.trim()} · ${intendedOwner.email.trim()} · claims it after approval`,
-                  step: "you" as const,
-                },
-              ]
-            : []),
           { title: "Documents", value: docsText, step: "documents" },
         ];
 
+  // No kind arrived, or Change was pressed: the kind is asked before You and Business, whichever is open.
+  const pickingKind = summary === null && (choosingKind || !kind);
+
   const LEAD: Record<StepId, string> = {
-    business: choosingKind || !kind
-      ? "Pick the one that fits. It decides the documents we ask for."
-      : landlord
-        ? "Tell us about the property and where it is."
+    business: landlord
+      ? "Tell us about the property and where it is."
+      : path === "helper"
+        ? "Check the TIN with RRA, name the owner, then say where the business is. The owner claims it once Injishi approves it."
         : "Check the TIN with RRA, then say where the business is.",
-    you:
-      path === "helper"
-        ? "Scan your ID, then take a selfie, and name the owner. They claim the business once PSF approves it."
-        : "Scan your ID, then take a selfie.",
-    documents: landlord ? "Upload the land title." : "Upload your RDB certificate. The rest are optional.",
+    you: "Scan your ID, then take a selfie. This step is about you; the business comes next.",
+    documents: landlord ? "Upload the land title." : "Upload your RDB certificate.",
     review: "Check your answers. You can change them until you pay.",
     pay: "Pay the registration fee. PSF reviews your registration next.",
   };
 
   let primary: StepPrimary | null = { label: "Continue", icon: <ArrowRight size={16} aria-hidden />, onPress: next };
-  if (step === "business") {
-    if (choosingKind || !kindOk) {
-      primary = {
-        ...primary,
-        disabled: true,
-        why: kind === "other" && !choosingKind ? "Say what kind of place it is to continue." : "Pick a business type to continue.",
-      };
+  if (pickingKind) {
+    primary = { ...primary, disabled: true, why: "Pick a business type to continue." };
+  } else if (step === "business") {
+    if (!kindOk) {
+      primary = { ...primary, disabled: true, why: "Say what kind of place it is to continue." };
     } else if (!businessDone) {
       primary = { ...primary, disabled: true, why: "Finish the sections above to continue." };
     }
@@ -1426,16 +1423,13 @@ export default function RegisterWizard({
         }
       >
         <SectionIdentity
-          path="landlord"
           identity={identity}
           profileComplete={profile?.complete === true && !editingProfile}
           draft={personal}
           onDraftChange={setPersonal}
           onIdentity={onIdentity}
           needsExtras={!personalOk}
-          isDirector={null}
           errors={errors}
-          onPrepareForOwner={() => undefined}
           onEditProfile={editStoredProfile}
           onNext={checkBrokerDetails}
           hideNext={brokerDetailsOk}
@@ -1477,8 +1471,8 @@ export default function RegisterWizard({
     body = (
       <StepFrame
         position={{ n: stepIndex + 1, of: order.length }}
-        title={STEP_TITLE[step]}
-        lead={LEAD[step]}
+        title={pickingKind ? "What kind of business?" : STEP_TITLE[step]}
+        lead={pickingKind ? "Pick the one that fits. It decides the documents we ask for." : LEAD[step]}
         onBack={stepIndex > 0 && !(summary !== null && step === "review") ? () => goTo(order[stepIndex - 1]!) : null}
         primary={primary}
       >
@@ -1493,7 +1487,7 @@ export default function RegisterWizard({
           </Callout>
         ) : null}
 
-        {step === "business" && (choosingKind || !kind) ? (
+        {pickingKind ? (
           <StepType
             kind={kind}
             other={business.accommodationClassOther}
@@ -1503,7 +1497,7 @@ export default function RegisterWizard({
           />
         ) : null}
 
-        {step === "business" && !(choosingKind || !kind) ? (
+        {step === "business" && !pickingKind ? (
           <>
             {sectionList(bizSections)}
             {!landlord && businessDone ? (
@@ -1531,7 +1525,7 @@ export default function RegisterWizard({
           </>
         ) : null}
 
-        {step === "you" ? sectionList(youSections) : null}
+        {step === "you" && !pickingKind ? sectionList(youSections) : null}
 
         {step === "documents" ? (
           <StepDocuments kind={documentKind} franchisee={franchisee} docs={docs} onDocsChange={setDocs} errors={errors} online={online} />
