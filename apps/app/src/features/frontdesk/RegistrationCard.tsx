@@ -5,17 +5,30 @@ import { COUNTRIES } from "@injishi/contracts";
 
 /** The registration card the desk fills for the guest it checks in (0114). */
 export interface RegistrationCardValue {
+  /** As printed on the ID. Asked only when the booking names nobody (`askName`). */
+  fullName: string;
   nationality: string;
   documentType: "national_id" | "passport" | "other";
   idNumber: string;
 }
 
-export const EMPTY_REGISTRATION_CARD: RegistrationCardValue = { nationality: "RW", documentType: "national_id", idNumber: "" };
+export const EMPTY_REGISTRATION_CARD: RegistrationCardValue = {
+  fullName: "",
+  nationality: "RW",
+  documentType: "national_id",
+  idNumber: "",
+};
 
-/** What the check-in and walk-in routes take as `guest`; the document number only when one was typed. */
+/** What the check-in and walk-in routes take as `guest`; the name and document number only when typed. */
 export function registrationDetails(card: RegistrationCardValue) {
+  const fullName = card.fullName.trim();
   const idNumber = card.idNumber.trim();
-  return { nationality: card.nationality, documentType: card.documentType, ...(idNumber ? { idNumber } : {}) };
+  return {
+    ...(fullName ? { fullName } : {}),
+    nationality: card.nationality,
+    documentType: card.documentType,
+    ...(idNumber ? { idNumber } : {}),
+  };
 }
 
 const SELECT =
@@ -25,17 +38,33 @@ const SELECT =
  * Nationality and the document, as on the guest's ID. Every check in is filed for the village leader, DASSO
  * and the district where the property stands, and a guest from abroad for DGIE as well: the nationality is what
  * decides that, so it is asked here rather than assumed Rwandan.
+ *
+ * `askName` adds the guest's name, as printed on the ID, for a booking that names nobody: a marketplace guest
+ * whose account has no name. The register files no guest without one.
  */
 export function RegistrationCard({
   value,
   onChange,
+  askName = false,
 }: {
   value: RegistrationCardValue;
   onChange: (next: RegistrationCardValue) => void;
+  askName?: boolean;
 }) {
   const foreign = value.nationality !== "RW";
   return (
     <div className="flex flex-col gap-2">
+      {askName ? (
+        <TextField
+          isRequired
+          value={value.fullName}
+          onChange={(fullName) => onChange({ ...value, fullName })}
+          className="flex flex-col gap-1"
+        >
+          <Label>Full name, as on the ID</Label>
+          <Input placeholder="The booking does not name the guest" autoComplete="off" />
+        </TextField>
+      ) : null}
       <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr))]">
         <label className="flex flex-col gap-1 text-sm font-medium">
           Nationality

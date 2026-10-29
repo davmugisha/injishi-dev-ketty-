@@ -50,8 +50,10 @@ interface CheckInInput {
   guest?: GuestCard;
 }
 
-/** Nationality and the document, as the desk read them from the guest's ID (`StayRegistrationDetails`). */
+/** The name, nationality and document, as the desk read them from the guest's ID (`StayRegistrationDetails`). */
 export interface GuestCard {
+  /** Only for a booking that names nobody; the API's limit is 200 characters. */
+  fullName?: string;
   nationality?: string;
   documentType?: "national_id" | "passport" | "other";
   idNumber?: string;
@@ -59,9 +61,11 @@ export interface GuestCard {
 
 function guestCard(card: GuestCard | undefined): GuestCard {
   if (!card) return {};
+  const fullName = card.fullName?.trim().slice(0, 200);
   const nationality = card.nationality?.trim().toUpperCase();
   const idNumber = card.idNumber?.trim();
   return {
+    ...(fullName ? { fullName } : {}),
     ...(nationality && /^[A-Z]{2}$/.test(nationality) ? { nationality } : {}),
     ...(card.documentType ? { documentType: card.documentType } : {}),
     ...(idNumber ? { idNumber } : {}),

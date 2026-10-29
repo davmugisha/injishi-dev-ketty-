@@ -26,6 +26,7 @@ import type {
   RoomType,
   Tone,
 } from "@injishi/data/fixtures/frontdesk";
+import { UNNAMED_GUEST } from "@/lib/guest-name";
 import { clock, dayMonth, dayMonthYear, kigaliDate, rwf } from "../format";
 import { defineSources, type SourceContext } from "./types";
 
@@ -209,7 +210,7 @@ const CHANNEL: Record<ApiChannel, string> = {
 
 export const channelOf = (c: ApiChannel | null | undefined): string => CHANNEL[c ?? "marketplace"];
 
-export const nameOf = (n: string | null | undefined): string => n?.trim() || "Unnamed guest";
+export const nameOf = (n: string | null | undefined): string => n?.trim() || UNNAMED_GUEST;
 
 export function initialsOf(name: string): string {
   const parts = name.split(/\s+/).filter(Boolean);

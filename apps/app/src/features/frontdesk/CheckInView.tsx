@@ -54,6 +54,7 @@ import {
 import NextLink from "next/link";
 import { type ReactNode, useEffect, useRef, useState, useTransition } from "react";
 import { readFrancs } from "@/lib/francs";
+import { UNNAMED_GUEST } from "@/lib/guest-name";
 import { checkInGuest } from "./actions";
 import { EMPTY_REGISTRATION_CARD, RegistrationCard, registrationDetails } from "./RegistrationCard";
 import { ChoiceSelect, isReady, ROOM_STATUS } from "./shared";
@@ -99,6 +100,9 @@ export function CheckInView({
   const [cashAt, setCashAt] = useState("");
   const [idOk, setIdOk] = useState(false);
   const [card, setCard] = useState(EMPTY_REGISTRATION_CARD);
+  // A booking that names nobody: the desk types the name off the ID, or the guest register files nobody.
+  const nameless = file.guest === UNNAMED_GUEST;
+  const nameMissing = nameless && card.fullName.trim().length < 2;
   // No candidate profile means nothing to review (guest profiles per business are not built yet).
   const dup: "open" | "separate" = file.duplicate.cards.length ? "open" : "separate";
   const [room, setRoom] = useState(file.stayId ? file.preAssignedRoom || file.defaultRoom : file.defaultRoom);
@@ -263,17 +267,19 @@ export function CheckInView({
 
   const blocked =
     saving ||
-    (step === 1 && !idOk) ||
+    (step === 1 && (!idOk || nameMissing)) ||
     (step === 2 && !roomReady) ||
     (step === 3 && pay !== "later" && payState === "idle" && !nothingDue) ||
     (step === 4 && !keyGiven);
   const hint =
     step === 1
-      ? idOk
-        ? dup === "open"
-          ? "The possible duplicate can be reviewed later in Guests"
-          : "Ready for the room"
-        : "Confirm the ID check to continue"
+      ? nameMissing
+        ? "Type the guest's name as on the ID"
+        : idOk
+          ? dup === "open"
+            ? "The possible duplicate can be reviewed later in Guests"
+            : "Ready for the room"
+          : "Confirm the ID check to continue"
       : step === 2
         ? roomReady
           ? `Room ${room} is ready`
@@ -489,7 +495,7 @@ export function CheckInView({
                 <p className="text-xs text-muted">
                   Full document numbers stay masked. Compare the ID the guest hands you with the name on the booking.
                 </p>
-                <RegistrationCard value={card} onChange={setCard} />
+                <RegistrationCard value={card} onChange={setCard} askName={nameless} />
                 <Checkbox isSelected={idOk} onChange={setIdOk}>
                   <Checkbox.Content className="flex items-center gap-2.5">
                     <Checkbox.Control>
