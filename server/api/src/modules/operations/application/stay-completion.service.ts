@@ -1,6 +1,11 @@
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
+import type { Queue } from 'bullmq';
 
 import { reportAlarm } from '../../../shared/observability/error-reporter';
+import { queueJobId } from '../../../shared/queues/job-id';
+import { QUEUES } from '../../../shared/queues/queues.module';
+import { PAYOUT_ATTEMPTS, SEND_PAYOUT, type SendPayoutJob } from '../../rentals/infrastructure/rentals-money.queue';
 import { type CompletedStay, StayCompletionRepository } from '../infrastructure/stay-completion.repository';
 
 /**
@@ -15,7 +20,10 @@ import { type CompletedStay, StayCompletionRepository } from '../infrastructure/
 export class StayCompletionService {
   private readonly log = new Logger(StayCompletionService.name);
 
-  constructor(private readonly repo: StayCompletionRepository) {}
+  constructor(
+    private readonly repo: StayCompletionRepository,
+    @InjectQueue(QUEUES.payouts) private readonly payouts: Queue,
+  ) {}
 
   async completeBooking(bookingId: string): Promise<CompletedStay | null> {
     try {
@@ -26,6 +34,9 @@ export class StayCompletionService {
             done.payout.status === 'queued' ? `queued to ${done.payout.destinationMasked}` : 'held: no payout account'
           }.`,
         );
+        // Send it now. Without this the payout sat `queued` until the hourly pass took it for lost,
+        // ten minutes to an hour after the guest left.
+        if (done.payout.status === 'queued') await this.sendPayout(done.payout.id);
       }
       return done;
     } catch (cause) {
@@ -34,6 +45,23 @@ export class StayCompletionService {
       );
       reportAlarm('STAY_COMPLETION_FAILED', 'A checked-out booking was not completed or paid out.', { bookingId }, cause);
       return null;
+    }
+  }
+
+  /** The job `RentalsMoneyQueue.sendPayout` queues for rent. Redis down is not an error: the hourly pass sends it. */
+  private async sendPayout(payoutId: string): Promise<void> {
+    try {
+      await this.payouts.add(SEND_PAYOUT, { payoutId } satisfies SendPayoutJob, {
+        jobId: queueJobId(`payout:${payoutId}:${Date.now()}`),
+        attempts: PAYOUT_ATTEMPTS,
+        backoff: { type: 'exponential', delay: 30_000 },
+        removeOnComplete: true,
+        removeOnFail: 500,
+      });
+    } catch (cause) {
+      this.log.warn(
+        `Could not queue payout ${payoutId}: ${cause instanceof Error ? cause.message : 'queue unavailable'}. The hourly pass sends it.`,
+      );
     }
   }
 }

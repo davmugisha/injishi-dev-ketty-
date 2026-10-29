@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { CheckoutCase, CheckoutLedgerLine } from "@injishi/data/fixtures/stays";
+import { ActionLink, EmptyBlock, PageContent, PageHeader } from "@injishi/ui";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { CheckoutView, type MomoState, type ReceiptOutcome } from "@/features/stays/CheckoutView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
@@ -26,7 +26,24 @@ export default async function CheckoutPage({
     getCollection<CheckoutLedgerLine>("stays.checkoutLedger"),
   ]);
   const checkout = checkouts[0];
-  if (!checkout) notFound();
+  // Nobody left to check out, which is where the desk lands right after the last checkout of the day.
+  if (!checkout) {
+    return (
+      <PageContent>
+        <PageHeader title={screens.Checkout.pageTitle} />
+        <EmptyBlock
+          icon="CircleCheck"
+          title="Nobody is due out"
+          description="Every guest due to leave has checked out. A guest leaving early checks out from their stay's page."
+          action={
+            <ActionLink href="/front-desk" icon="ArrowLeft">
+              Front desk
+            </ActionLink>
+          }
+        />
+      </PageContent>
+    );
+  }
   const { receipt, momo } = await searchParams;
   return (
     <CheckoutView
