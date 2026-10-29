@@ -1,4 +1,5 @@
 import {
+  priceBasisFor,
   type CreateRoomTypeRequest,
   type OperatorRoomType,
   type UpdateRoomTypeRequest,
@@ -99,13 +100,20 @@ export class RoomTypesService {
       );
     }
 
+    // Unsent, the price basis is the business's own (owner decisions,
+    // 2026-10-29): a villa or apartment is let whole, a bar or coffee shop
+    // lists menu items, everything else is per person. So no client can leave a
+    // coffee shop's espresso bookable by forgetting the field.
+    const kind = request.priceBasis ? null : await this.repo.businessKindForProperty(propertyId);
+    const priceBasis = request.priceBasis ?? (kind ? priceBasisFor(kind) : 'per_person');
+
     let roomTypeId: string;
     try {
       roomTypeId = await this.repo.create({
         propertyId,
         workspaceId: workspace.workspaceId,
         domain,
-        request,
+        request: { ...request, priceBasis },
         roomLabels,
       });
     } catch (err) {
@@ -205,6 +213,7 @@ export class RoomTypesService {
       bookingMode: (row.bookingMode ?? null) as OperatorRoomType['bookingMode'],
       cancellationTier: (row.cancellationTier ??
         null) as OperatorRoomType['cancellationTier'],
+      priceBasis: row.priceBasis,
       roomCount: row.roomCount,
       sellableRoomCount: row.sellableRoomCount,
       defaultRatePlanId: row.defaultRatePlanId,

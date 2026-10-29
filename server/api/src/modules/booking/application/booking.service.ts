@@ -1,6 +1,7 @@
 import {
   breakdownAsCharged,
   instrumentProblem,
+  isStayPriceBasis,
   type BookingMode,
   type BookingResult,
   type CreateBookingInput,
@@ -214,6 +215,10 @@ export class BookingService {
     if (roomType.domain !== 'hospitality') {
       throw new BadRequestException('That room type is not bookable.');
     }
+    // A venue's menu item is listed, never booked.
+    if (!isStayPriceBasis(roomType.priceBasis)) {
+      throw new BadRequestException('That is not something that can be booked.');
+    }
     if (roomType.nightlyRateRwf == null || roomType.bookingMode == null) {
       throw new BadRequestException('That room type is not priced for booking.');
     }
@@ -264,13 +269,14 @@ export class BookingService {
 
     const nonRefundable = input.nonRefundable && roomType.nonrefundableEligible;
 
-    // Priced per person: the rate is per guest, per night (infants are not in
-    // `guests`, so they stay free).
+    // Per person, the rate is per guest, per night (infants are not in
+    // `guests`, so they stay free); a villa or apartment is per unit, per night.
     const breakdown = computeBreakdown({
       nightlyRateRwf: roomType.nightlyRateRwf,
       nights,
       nonRefundable,
       guests: input.guests,
+      priceBasis: roomType.priceBasis,
     });
 
     // The bank's rules, refused before any hold, attempt or prompt

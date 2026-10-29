@@ -213,8 +213,9 @@ export function Checkout() {
       nights: selection.nights,
       guests: billableGuests(selection.intent.guests),
       nonRefundable,
+      priceBasis: roomType?.priceBasis,
     });
-  }, [selection, nightlyRateRwf, nonRefundable]);
+  }, [selection, nightlyRateRwf, nonRefundable, roomType?.priceBasis]);
 
   // A changed quote is a different booking, so it gets a different attempt
   // token (ADR-020 AC-12) — same dependency list `booking-review.tsx` used.

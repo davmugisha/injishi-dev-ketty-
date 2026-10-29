@@ -6,6 +6,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 
 import {
+  cells,
   districts,
   listings,
   orgs,
@@ -16,6 +17,7 @@ import {
   roomTypes,
   rooms,
   sectors,
+  villages,
 } from '../../../database/drizzle/schema';
 import {
   randomSlugSuffix,
@@ -71,6 +73,10 @@ export interface PropertyRow {
   districtName: string | null;
   sectorId: number | null;
   sectorName: string | null;
+  cellId: number | null;
+  cellName: string | null;
+  villageId: number | null;
+  villageName: string | null;
   addressText: string | null;
   checkInTime: string | null;
   checkOutTime: string | null;
@@ -105,6 +111,10 @@ const PROPERTY_COLUMNS = {
   districtName: districts.name,
   sectorId: properties.sectorId,
   sectorName: sectors.name,
+  cellId: cells.id,
+  cellName: cells.name,
+  villageId: properties.villageId,
+  villageName: villages.name,
   addressText: properties.addressText,
   checkInTime: properties.checkInTime,
   checkOutTime: properties.checkOutTime,
@@ -141,6 +151,17 @@ export class InventoryRepository {
    * Returns null when the sector does not exist, which the caller turns into a
    * 422 rather than writing a property with a dangling address.
    */
+  /** The sector a village sits in, through its cell; null when there is no such village. */
+  async sectorForVillage(villageId: number): Promise<number | null> {
+    const [row] = await this.db
+      .select({ sectorId: cells.sectorId })
+      .from(villages)
+      .innerJoin(cells, eq(cells.id, villages.cellId))
+      .where(eq(villages.id, villageId))
+      .limit(1);
+    return row?.sectorId ?? null;
+  }
+
   async districtForSector(sectorId: number): Promise<number | null> {
     const [row] = await this.db
       .select({ districtId: sectors.districtId })
@@ -190,6 +211,7 @@ export class InventoryRepository {
         name: r.name,
         sectorId: r.sectorId,
         districtId: input.districtId,
+        villageId: r.villageId ?? null,
         street: r.street ?? null,
         isHeadOffice,
         description: r.description ?? null,
@@ -256,6 +278,10 @@ export class InventoryRepository {
       patch.sectorId = r.sectorId;
       patch.districtId = input.districtId;
     }
+    // A village belongs to one sector, so a new sector without a village clears
+    // the old one rather than leaving it filed somewhere it is not.
+    if (r.villageId !== undefined) patch.villageId = r.villageId;
+    else if (r.sectorId !== undefined) patch.villageId = null;
 
     try {
       await this.db.transaction(async (tx) => {
@@ -321,6 +347,8 @@ export class InventoryRepository {
       .from(properties)
       .leftJoin(listings, eq(listings.propertyId, properties.id))
       .leftJoin(sectors, eq(sectors.id, properties.sectorId))
+      .leftJoin(villages, eq(villages.id, properties.villageId))
+      .leftJoin(cells, eq(cells.id, villages.cellId))
       .leftJoin(districts, eq(districts.id, properties.districtId))
       .leftJoin(provinces, eq(provinces.id, districts.provinceId))
       .where(eq(properties.id, propertyId))
@@ -345,6 +373,8 @@ export class InventoryRepository {
       .from(properties)
       .leftJoin(listings, eq(listings.propertyId, properties.id))
       .leftJoin(sectors, eq(sectors.id, properties.sectorId))
+      .leftJoin(villages, eq(villages.id, properties.villageId))
+      .leftJoin(cells, eq(cells.id, villages.cellId))
       .leftJoin(districts, eq(districts.id, properties.districtId))
       .leftJoin(provinces, eq(provinces.id, districts.provinceId))
       .where(
@@ -373,6 +403,7 @@ export class InventoryRepository {
       domain: 'hospitality' | 'residence';
       status: 'active' | 'archived';
       basePriceRwf: number | null;
+      priceBasis: 'per_person' | 'per_unit' | 'per_item';
       sellableRoomCount: number;
     }[]
   > {
@@ -383,6 +414,7 @@ export class InventoryRepository {
         domain: roomTypes.domain,
         status: roomTypes.status,
         basePriceRwf: roomTypes.basePriceRwf,
+        priceBasis: roomTypes.priceBasis,
         sellableRoomCount: sql<number>`count(${rooms.id}) filter (where ${rooms.status} = 'available')`,
       })
       .from(roomTypes)
@@ -399,6 +431,7 @@ export class InventoryRepository {
         roomTypes.domain,
         roomTypes.status,
         roomTypes.basePriceRwf,
+        roomTypes.priceBasis,
       )
       .orderBy(roomTypes.name);
 

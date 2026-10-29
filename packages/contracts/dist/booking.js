@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BookingCancellationResult = exports.CancellationQuote = exports.CancellationParty = exports.CANCELLATION_TIERS = exports.BookingApprovalResult = exports.PAYMENT_PROMPT_TTL_SECONDS = exports.CreateBookingOutcome = exports.PaymentAttemptStatus = exports.PaymentAttemptState = exports.BookingResult = exports.MAX_INFANTS = exports.LEGACY_GUEST_SERVICE_FEE_RATE = exports.GUEST_SERVICE_FEE_RATE = exports.NON_REFUNDABLE_DISCOUNT = exports.MoneyBreakdown = exports.CreateBookingInput = exports.PaymentInstrument = exports.NationalMsisdn = exports.NETWORK_PREFIXES = exports.MobileMoneyNetwork = exports.RoomAvailability = exports.NightAvailability = exports.PROPERTY_TIME_ZONE = exports.DEFAULT_CAPACITY = exports.MAX_HORIZON_DAYS = exports.MAX_NIGHTS = exports.BookableRoom = exports.BookablePropertySummary = exports.SitemapProperty = exports.RoomTypeSummary = exports.IsoDate = exports.EscrowStatus = exports.DeclineReason = exports.PaymentStatus = exports.BookingStatus = exports.CancellationTier = exports.ApprovalPolicy = exports.BookingMode = void 0;
+exports.BookingCancellationResult = exports.CancellationQuote = exports.CancellationParty = exports.CANCELLATION_TIERS = exports.BookingApprovalResult = exports.PAYMENT_PROMPT_TTL_SECONDS = exports.CreateBookingOutcome = exports.PaymentAttemptStatus = exports.PaymentAttemptState = exports.BookingResult = exports.MAX_INFANTS = exports.LEGACY_GUEST_SERVICE_FEE_RATE = exports.GUEST_SERVICE_FEE_RATE = exports.NON_REFUNDABLE_DISCOUNT = exports.MoneyBreakdown = exports.CreateBookingInput = exports.PaymentInstrument = exports.NationalMsisdn = exports.NETWORK_PREFIXES = exports.MobileMoneyNetwork = exports.RoomAvailability = exports.NightAvailability = exports.PROPERTY_TIME_ZONE = exports.DEFAULT_CAPACITY = exports.MAX_HORIZON_DAYS = exports.MAX_NIGHTS = exports.BookableRoom = exports.BookablePropertySummary = exports.SitemapProperty = exports.RoomTypeSummary = exports.IsoDate = exports.EscrowStatus = exports.DeclineReason = exports.PaymentStatus = exports.BookingStatus = exports.CancellationTier = exports.ApprovalPolicy = exports.RoomPriceBasis = exports.BookingMode = void 0;
+exports.chargedGuests = chargedGuests;
+exports.isStayPriceBasis = isStayPriceBasis;
 exports.soldOutNights = soldOutNights;
 exports.networkForMsisdn = networkForMsisdn;
 exports.instrumentProblem = instrumentProblem;
@@ -18,6 +20,25 @@ const primitives_1 = require("./primitives");
  */
 /** Per-Room-type booking mode (F-B03). */
 exports.BookingMode = zod_1.z.enum(["instant_book", "request_to_book"]);
+/**
+ * How a room type's price is counted (owner decisions, 2026-10-29).
+ *
+ * - `per_person`: per guest, per night. A hotel, motel, lodge, guest house or
+ *   tented camp room; four guests pay four times what one does.
+ * - `per_unit`: per night for the whole place, whoever is in the party. A villa
+ *   or an apartment is let whole, to one party.
+ * - `per_item`: a bar's or coffee shop's menu item, priced each. Listed on the
+ *   marketplace and never booked.
+ */
+exports.RoomPriceBasis = zod_1.z.enum(["per_person", "per_unit", "per_item"]);
+/** The guests a stay's rate is multiplied by: the party per person, one per unit. */
+function chargedGuests(priceBasis, partyGuests) {
+    return priceBasis === "per_unit" ? 1 : Math.max(1, Math.trunc(partyGuests));
+}
+/** Can a room type with this basis be booked as a stay? A menu item cannot. */
+function isStayPriceBasis(priceBasis) {
+    return priceBasis !== "per_item";
+}
 /** Sub-field of `request_to_book` only — never a mode of its own (F-B03). */
 exports.ApprovalPolicy = zod_1.z.enum(["approve_all", "approve_first_three"]);
 exports.CancellationTier = zod_1.z.enum([
@@ -71,6 +92,8 @@ exports.RoomTypeSummary = zod_1.z.object({
     approvalPolicy: exports.ApprovalPolicy.nullable(),
     cancellationTier: exports.CancellationTier.nullable(),
     nonrefundableEligible: zod_1.z.boolean(),
+    /** How the price is counted; absent from an older API, which only priced per person. */
+    priceBasis: exports.RoomPriceBasis.default("per_person"),
     /**
      * The shortest stay this room accepts (ARI, F-L08).
      *
@@ -369,7 +392,7 @@ exports.GUEST_SERVICE_FEE_RATE = 0;
  */
 function computeBreakdown(args) {
     const { nightlyRateRwf, nights, nonRefundable } = args;
-    const guests = Math.max(1, Math.trunc(args.guests ?? 1));
+    const guests = chargedGuests(args.priceBasis, args.guests ?? 1);
     const accommodationRwf = nightlyRateRwf * guests * nights;
     const nonRefundableDiscountRwf = nonRefundable
         ? Math.round(accommodationRwf * exports.NON_REFUNDABLE_DISCOUNT)

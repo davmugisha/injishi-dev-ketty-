@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BookingMode, CancellationTier } from "./booking";
+import { BookingMode, CancellationTier, RoomPriceBasis } from "./booking";
 import { HousekeepingStatus, RoomStatus } from "./ops";
 import { ContactPhone, Domain, Uuid } from "./primitives";
 /**
@@ -49,6 +49,13 @@ const propertyFields = {
         .min(2, "Give the property a name guests will recognise.")
         .max(200, "That name is too long for our records."),
     sectorId: z.number().int().positive("Choose a sector."),
+    /**
+     * The village the property stands in, which must lie in `sectorId`. It is
+     * what puts a check-in in front of that village's leader and its cell's
+     * executive (the guest register, 0114); with only a sector, the sector and
+     * DASSO see the guest and the village never does. `null` clears it.
+     */
+    villageId: z.number().int().positive("Choose a village.").nullable().optional(),
     /** The street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
     street: z.string().trim().max(200).optional(),
     description: z.string().trim().max(4000).optional(),
@@ -157,6 +164,11 @@ export const PropertyAddress = z.object({
     districtName: z.string().nullable(),
     sectorId: z.number().int().nullable(),
     sectorName: z.string().nullable(),
+    /** Resolved from the village. Default null so an older API's body still parses. */
+    cellId: z.number().int().nullable().default(null),
+    cellName: z.string().nullable().default(null),
+    villageId: z.number().int().nullable().default(null),
+    villageName: z.string().nullable().default(null),
     street: z.string().nullable(),
 });
 export type PropertyAddress = z.infer<typeof PropertyAddress>;
@@ -240,6 +252,7 @@ export const OperatorProperty = OperatorPropertySummary.extend({
         domain: Domain,
         status: z.enum(["active", "archived"]),
         basePriceRwf: z.number().int().nullable(),
+        priceBasis: RoomPriceBasis.default("per_person"),
         sellableRoomCount: z.number().int(),
     })),
 });
@@ -393,6 +406,11 @@ const roomTypeFields = {
         .nullable(),
     bookingMode: BookingMode.optional(),
     cancellationTier: CancellationTier.optional(),
+    /**
+     * Per person (the default), per whole unit, or per menu item. A `per_item`
+     * row is never bookable, so it is stored with no booking mode.
+     */
+    priceBasis: RoomPriceBasis.optional(),
     /** How many rooms of this type exist. Seeds nothing; `rooms` is the truth. */
     roomCount: z.number().int().positive().max(10_000).optional(),
 };
@@ -441,6 +459,7 @@ export const OperatorRoomType = z.object({
     basePriceRwf: z.number().int().nullable(),
     bookingMode: BookingMode.nullable(),
     cancellationTier: CancellationTier.nullable(),
+    priceBasis: RoomPriceBasis.default("per_person"),
     roomCount: z.number().int(),
     sellableRoomCount: z.number().int(),
     /** The plan this type sells on by default. Exactly one, always. */
@@ -638,6 +657,13 @@ export const PropertySetupProgress = z.object({
      * vocabulary so a venue is not asked for rooms.
      */
     entityGroup: z.string().nullable(),
+    /**
+     * What the business said it is at registration (`orgs.business_kind`): a
+     * hotel, a villa, a coffee shop. The one field setup should branch on; the
+     * class and entity group are kept for a business registered before it.
+     * Default null so an older API's body still parses.
+     */
+    businessKind: z.string().nullable().default(null),
     propertyId: Uuid.nullable(),
     propertyName: z.string().nullable(),
     counts: PropertySetupCounts,

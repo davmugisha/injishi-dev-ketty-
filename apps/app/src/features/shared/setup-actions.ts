@@ -42,10 +42,24 @@ const int = (value: string) =>
 export async function updatePropertyAction(
   workspaceId: string,
   propertyId: string,
-  input: { description: string; street: string; checkInTime?: string; checkOutTime?: string },
+  input: {
+    description: string;
+    street: string;
+    checkInTime?: string;
+    checkOutTime?: string;
+    villageId?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    houseRules?: string;
+  },
 ): Promise<ActionResult> {
   return run(workspaceId, async () => {
-    await setup.updateProperty(await ctx(), workspaceId, propertyId, input);
+    const { villageId, ...rest } = input;
+    await setup.updateProperty(await ctx(), workspaceId, propertyId, {
+      ...rest,
+      // Not sent: left as it is. Emptied: cleared.
+      villageId: villageId === undefined ? undefined : villageId ? int(villageId) : null,
+    });
     return undefined;
   });
 }
@@ -70,14 +84,16 @@ export async function createPropertyAction(
 export async function addRoomTypeAction(
   workspaceId: string,
   propertyId: string,
-  input: { name: string; maxGuests: string; basePriceRwf: string; roomCount: string },
+  input: { name: string; maxGuests: string; basePriceRwf: string; roomCount: string; priceBasis?: string },
 ): Promise<ActionResult> {
   return run(workspaceId, async () => {
+    const basis = input.priceBasis === "per_unit" || input.priceBasis === "per_item" ? input.priceBasis : "per_person";
     await setup.addRoomType(await ctx(), workspaceId, propertyId, {
       name: input.name,
       maxGuests: int(input.maxGuests),
       basePriceRwf: int(input.basePriceRwf),
       roomCount: int(input.roomCount),
+      priceBasis: basis,
     });
     return undefined;
   });
@@ -106,8 +122,14 @@ export async function unpublishAction(workspaceId: string, propertyId: string): 
   });
 }
 
-/** The next level of the address picker: a province's districts, or a district's sectors. */
-export async function placesAction(level: "districts" | "sectors", parentId: number): Promise<setup.Place[]> {
+/** The next level of the address picker: a province's districts, a district's sectors, a sector's cells, a cell's villages. */
+export async function placesAction(
+  level: "districts" | "sectors" | "cells" | "villages",
+  parentId: number,
+): Promise<setup.Place[]> {
   const c = await ctx();
-  return level === "districts" ? setup.districts(c, parentId) : setup.sectors(c, parentId);
+  if (level === "districts") return setup.districts(c, parentId);
+  if (level === "sectors") return setup.sectors(c, parentId);
+  if (level === "cells") return setup.cells(c, parentId);
+  return setup.villages(c, parentId);
 }

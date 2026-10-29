@@ -105,6 +105,7 @@ export class InventoryService {
     assertCoversEveryBranch(workspace);
 
     const districtId = await this.districtFor(request.sectorId);
+    if (request.villageId != null) await this.assertVillageIn(request.villageId, request.sectorId);
 
     const propertyId = await this.repo.createProperty({
       orgId: workspace.orgId,
@@ -167,6 +168,9 @@ export class InventoryService {
       request.sectorId === undefined
         ? null
         : await this.districtFor(request.sectorId);
+    if (request.villageId != null) {
+      await this.assertVillageIn(request.villageId, request.sectorId ?? existing.sectorId);
+    }
 
     const outcome = await this.repo.updateProperty({
       propertyId,
@@ -409,6 +413,17 @@ export class InventoryService {
     });
   }
 
+  /** Refuse a village that does not exist or lies outside the property's sector. */
+  private async assertVillageIn(villageId: number, sectorId: number | null): Promise<void> {
+    const villageSector = await this.repo.sectorForVillage(villageId);
+    if (villageSector === null) {
+      throw new BadRequestException('That village does not exist. Pick one from the list.');
+    }
+    if (villageSector !== sectorId) {
+      throw new BadRequestException('That village is not in the sector the property is in.');
+    }
+  }
+
   /** Refuse an address that points at a sector we do not have. */
   private async districtFor(sectorId: number): Promise<number> {
     const districtId = await this.repo.districtForSector(sectorId);
@@ -435,6 +450,10 @@ export class InventoryService {
         districtName: row.districtName,
         sectorId: row.sectorId,
         sectorName: row.sectorName,
+        cellId: row.cellId,
+        cellName: row.cellName,
+        villageId: row.villageId,
+        villageName: row.villageName,
         street: row.addressText,
       },
       listingStatus: row.listingStatus,

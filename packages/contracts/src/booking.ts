@@ -9,6 +9,26 @@ import { Domain, RwfAmount } from "./primitives";
 /** Per-Room-type booking mode (F-B03). */
 export const BookingMode = z.enum(["instant_book", "request_to_book"]);
 export type BookingMode = z.infer<typeof BookingMode>;
+/**
+ * How a room type's price is counted (owner decisions, 2026-10-29).
+ *
+ * - `per_person`: per guest, per night. A hotel, motel, lodge, guest house or
+ *   tented camp room; four guests pay four times what one does.
+ * - `per_unit`: per night for the whole place, whoever is in the party. A villa
+ *   or an apartment is let whole, to one party.
+ * - `per_item`: a bar's or coffee shop's menu item, priced each. Listed on the
+ *   marketplace and never booked.
+ */
+export const RoomPriceBasis = z.enum(["per_person", "per_unit", "per_item"]);
+export type RoomPriceBasis = z.infer<typeof RoomPriceBasis>;
+/** The guests a stay's rate is multiplied by: the party per person, one per unit. */
+export function chargedGuests(priceBasis: RoomPriceBasis | null | undefined, partyGuests: number): number {
+    return priceBasis === "per_unit" ? 1 : Math.max(1, Math.trunc(partyGuests));
+}
+/** Can a room type with this basis be booked as a stay? A menu item cannot. */
+export function isStayPriceBasis(priceBasis: RoomPriceBasis | null | undefined): boolean {
+    return priceBasis !== "per_item";
+}
 /** Sub-field of `request_to_book` only — never a mode of its own (F-B03). */
 export const ApprovalPolicy = z.enum(["approve_all", "approve_first_three"]);
 export type ApprovalPolicy = z.infer<typeof ApprovalPolicy>;
@@ -69,6 +89,8 @@ export const RoomTypeSummary = z.object({
     approvalPolicy: ApprovalPolicy.nullable(),
     cancellationTier: CancellationTier.nullable(),
     nonrefundableEligible: z.boolean(),
+    /** How the price is counted; absent from an older API, which only priced per person. */
+    priceBasis: RoomPriceBasis.default("per_person"),
     /**
      * The shortest stay this room accepts (ARI, F-L08).
      *
@@ -388,9 +410,14 @@ export function computeBreakdown(args: {
      * locked figure must not multiply by the party a second time.
      */
     guests?: number;
+    /**
+     * How the rate is counted. `per_unit` prices the whole place, so the party
+     * size does not multiply it (`chargedGuests`). Absent means per person.
+     */
+    priceBasis?: RoomPriceBasis | null;
 }): MoneyBreakdown {
     const { nightlyRateRwf, nights, nonRefundable } = args;
-    const guests = Math.max(1, Math.trunc(args.guests ?? 1));
+    const guests = chargedGuests(args.priceBasis, args.guests ?? 1);
     const accommodationRwf = nightlyRateRwf * guests * nights;
     const nonRefundableDiscountRwf = nonRefundable
         ? Math.round(accommodationRwf * NON_REFUNDABLE_DISCOUNT)

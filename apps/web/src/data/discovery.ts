@@ -125,7 +125,19 @@ function cardToProperty(card: PropertyCard): PropertyDetail {
     // Per person: every Injishi booking is charged rate × guests × nights
     // (owner decision 2026-09-15, `computeBreakdown`). This said "per room",
     // so a couple read half of what checkout then charged them.
-    price: { fromUsd: null, fromRwf: rate, basis: "per person, per night", includes: "Room only" },
+    // A villa or apartment is let whole (per night); a bar or coffee shop lists
+    // menu prices and is not booked (each).
+    price: {
+      fromUsd: null,
+      fromRwf: rate,
+      basis:
+        card.fromPriceBasis === "per_unit"
+          ? "per night"
+          : card.fromPriceBasis === "per_item"
+            ? "each"
+            : "per person, per night",
+      includes: card.fromPriceBasis === "per_item" ? "Menu" : card.fromPriceBasis === "per_unit" ? "Whole place" : "Room only",
+    },
     nightlyRateRwf: rate,
     rating: null,
     operator: null,

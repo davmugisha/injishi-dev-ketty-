@@ -12,6 +12,8 @@ export interface NewPropertyValues {
   sectorId: number;
   /** DERIVED from the sector by the caller, never asked twice (D24). */
   districtId: number;
+  /** Checked by the caller to lie in `sectorId`. */
+  villageId?: number | null;
   street: string | null;
   isHeadOffice: boolean;
   description?: string | null;
@@ -48,6 +50,7 @@ export async function insertPropertyWithListing(
       description: v.description ?? null,
       sectorId: v.sectorId,
       districtId: v.districtId,
+      villageId: v.villageId ?? null,
       addressText: v.street,
       checkInTime: v.checkInTime ?? null,
       checkOutTime: v.checkOutTime ?? null,

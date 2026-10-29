@@ -35,13 +35,14 @@ import type { PublicProperty } from "@/data/public-property";
  */
 export function DatabaseProperty({ property, slug }: { property: PublicProperty; slug: string }) {
   const rooms = property.roomTypes.filter((room) => room.domain === "hospitality");
+  // A bar or coffee shop lists a menu and is not booked (owner decision, 2026-10-29).
+  const menu = rooms.length > 0 && rooms.every((room) => room.priceBasis === "per_item");
   const cheapest = rooms.find((room) => room.nightlyRateRwf !== null) ?? null;
   const facts = [
     property.districtName,
-    rooms.length > 0 ? pluralize(rooms.length, "room type") : null,
-    // Per person: bookings are charged rate × guests × nights.
+    rooms.length > 0 ? pluralize(rooms.length, menu ? "item" : "room type") : null,
     cheapest?.nightlyRateRwf != null
-      ? `from ${formatPrice(cheapest.nightlyRateRwf)} per person, per night`
+      ? `from ${formatPrice(cheapest.nightlyRateRwf)} ${PRICE_PERIOD[cheapest.priceBasis]}`
       : null,
   ].filter((fact): fact is string => Boolean(fact));
   // The card's guest ceiling: nobody books more people than the largest room sleeps.
@@ -72,7 +73,7 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
         <div className="flex flex-col gap-14">
           {property.description ? (
             <section className="flex flex-col gap-4">
-              <SectionHeading lead="About this " emphasis="stay" className="mb-2" />
+              <SectionHeading lead="About this " emphasis={menu ? "place" : "stay"} className="mb-2" />
               {paragraphs(property.description).map((paragraph) => (
                 <p key={paragraph.slice(0, 40)} className="max-w-read text-page-fg-70">
                   {paragraph}
@@ -82,7 +83,7 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
           ) : null}
 
           <section>
-            <SectionHeading lead="Rooms" className="mb-6" />
+            <SectionHeading lead={menu ? "Menu" : "Rooms"} className="mb-6" />
             {rooms.length > 0 ? (
               <ul className="m-0 flex list-none flex-col p-0">
                 {rooms.map((room) => (
@@ -133,18 +134,46 @@ export function DatabaseProperty({ property, slug }: { property: PublicProperty;
         </div>
 
         {/* It reads the real rooms by slug in the browser, so a property that stops being public stops
-            being sellable on the next load, whatever this page's cache holds. */}
-        <Suspense fallback={<BookingWidgetSkeleton />}>
-          <BookingWidget property={{ slug, maxGuests }} />
-        </Suspense>
+            being sellable on the next load, whatever this page's cache holds. A venue has no booking card:
+            customers walk in, so the card says where and when instead. */}
+        {menu ? (
+          <VisitCard property={property} />
+        ) : (
+          <Suspense fallback={<BookingWidgetSkeleton />}>
+            <BookingWidget property={{ slug, maxGuests }} />
+          </Suspense>
+        )}
       </div>
     </div>
   );
 }
 
+/** How a listed price is counted, in the words beside it. */
+const PRICE_PERIOD: Record<RoomTypeSummary["priceBasis"], string> = {
+  per_person: "per person, per night",
+  per_unit: "per night, whole place",
+  per_item: "each",
+};
+
+/** In place of the booking card on a bar's or coffee shop's page: nothing to book, so where to find it. */
+function VisitCard({ property }: { property: PublicProperty }) {
+  return (
+    <aside className="flex h-fit flex-col gap-3 rounded-card border border-input p-6">
+      <h2 className="text-lg font-semibold text-page-fg">Visit</h2>
+      <p className="text-sm text-page-fg-70">
+        No booking needed. The prices on this page are what you pay when you order.
+      </p>
+      {property.districtName ? <p className="text-sm text-page-fg">{property.districtName}</p> : null}
+      <Link href="/support" className="text-sm underline underline-offset-4">
+        Ask us about this place
+      </Link>
+    </aside>
+  );
+}
+
 function RoomRow({ room }: { room: RoomTypeSummary }) {
   const details = [
-    room.capacity ? `Sleeps ${room.capacity}` : null,
+    room.capacity && room.priceBasis !== "per_item" ? `Sleeps ${room.capacity}` : null,
     room.bookingMode === "instant_book"
       ? "Instant booking"
       : room.bookingMode === "request_to_book"
@@ -166,7 +195,7 @@ function RoomRow({ room }: { room: RoomTypeSummary }) {
           {room.nightlyRateRwf !== null ? (
             <>
               <b className="font-semibold">{formatPrice(room.nightlyRateRwf)}</b>{" "}
-              <span className="text-sm text-page-fg-70">per person, per night</span>
+              <span className="text-sm text-page-fg-70">{PRICE_PERIOD[room.priceBasis]}</span>
             </>
           ) : (
             <span className="text-sm text-page-fg-70">Price on request</span>

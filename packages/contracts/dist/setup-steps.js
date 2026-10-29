@@ -4,12 +4,14 @@ exports.SETUP_STEP_KEYS = void 0;
 exports.isFoodVenue = isFoodVenue;
 exports.currentAccommodationClass = currentAccommodationClass;
 exports.setupVocabularyFor = setupVocabularyFor;
+exports.priceBasisFor = priceBasisFor;
+exports.setupKindLabel = setupKindLabel;
 exports.setupStepsFor = setupStepsFor;
 exports.isSetupStepDone = isSetupStepDone;
 exports.setupCompletion = setupCompletion;
 const rdb_1 = require("./rdb");
 /**
- * What an APPROVED business sets up before it can trade, per kind of business.
+ * What a business sets up before it can trade, per kind of business.
  *
  * The ONE definition. The operator app's checklist renders it, the approval mail
  * points at it, and `PropertySetupCounts` is only the raw numbers it is judged
@@ -24,8 +26,8 @@ const rdb_1 = require("./rdb");
  * business, and the underlying calls do not.
  *
  * Nothing here opens a door. The registration gate still decides whether a
- * business may write any of this (D20): these steps only exist once it is
- * `active`, which is the ruling this file was written under (2026-09-13).
+ * business may write any of this: from the moment its fee is paid it may build
+ * the listing (`canSetUpDuringReview`), and publishing waits for `active`.
  */
 /** Every step any business can have, in the order the checklist shows them. */
 exports.SETUP_STEP_KEYS = [
@@ -47,21 +49,26 @@ const CURRENT_CLASS = {
     serviced_apartment: "apartment",
     cottage: "lodge",
 };
+const PER_PERSON = { pricePeriod: "per person, per night", priceBasis: "per_person" };
+/** Let whole, to one party (owner decision, 2026-10-29). */
+const PER_UNIT = { pricePeriod: "per night, for the whole place", priceBasis: "per_unit" };
 const HOSPITALITY_VOCABULARY = {
-    hotel: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", pricePeriod: "per person, per night" },
-    motel: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", pricePeriod: "per person, per night" },
-    tented_camp: { typePlural: "Tent types", unitPlural: "tents", unitSingular: "tent", pricePeriod: "per person, per night" },
-    guest_house: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", pricePeriod: "per person, per night" },
-    apartment: { typePlural: "Apartment types", unitPlural: "apartments", unitSingular: "apartment", pricePeriod: "per person, per night" },
-    lodge: { typePlural: "Room and cottage types", unitPlural: "rooms and cottages", unitSingular: "room", pricePeriod: "per person, per night" },
-    villa: { typePlural: "Villa types", unitPlural: "villas", unitSingular: "villa", pricePeriod: "per person, per night" },
-    other: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", pricePeriod: "per person, per night" },
+    hotel: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", ...PER_PERSON },
+    motel: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", ...PER_PERSON },
+    tented_camp: { typePlural: "Tent types", unitPlural: "tents", unitSingular: "tent", ...PER_PERSON },
+    guest_house: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", ...PER_PERSON },
+    apartment: { typePlural: "Apartment types", unitPlural: "apartments", unitSingular: "apartment", ...PER_UNIT },
+    lodge: { typePlural: "Room and cottage types", unitPlural: "rooms and cottages", unitSingular: "room", ...PER_PERSON },
+    villa: { typePlural: "Villa types", unitPlural: "villas", unitSingular: "villa", ...PER_UNIT },
+    other: { typePlural: "Room types", unitPlural: "rooms", unitSingular: "room", ...PER_PERSON },
 };
 const RESIDENCE_VOCABULARY = {
     typePlural: "Unit types",
     unitPlural: "units",
     unitSingular: "unit",
     pricePeriod: "per month",
+    // Rentals price leases on their own terms; per unit is the nearest reading.
+    priceBasis: "per_unit",
 };
 /**
  * Coffee shops, bars and restaurants: same inventory rows as lodging (a
@@ -73,6 +80,8 @@ const VENUE_VOCABULARY = {
     unitPlural: "offerings",
     unitSingular: "offering",
     pricePeriod: "each",
+    // Listed with prices, never booked (owner decision, 2026-10-29).
+    priceBasis: "per_item",
 };
 /**
  * Which hospitality classes run departments and outlets as a matter of course.
@@ -90,6 +99,7 @@ const RUNS_DEPARTMENTS = new Set([
     "lodge",
     "tented_camp",
 ]);
+const VENUE_KINDS = new Set(["bar_restaurant", "coffee_shop"]);
 /**
  * True for coffee shops, bars and restaurants: F&B venues registered under
  * `restaurant_bar_nightclub`, or `other` whose free text names a venue.
@@ -98,6 +108,8 @@ const RUNS_DEPARTMENTS = new Set([
  * check-in times or "per person, per night" pricing.
  */
 function isFoodVenue(business) {
+    if (business.businessKind && VENUE_KINDS.has(business.businessKind))
+        return true;
     if (business.entityGroup === "restaurant_bar_nightclub")
         return true;
     const parsed = rdb_1.RdbEntityGroup.safeParse(business.entityGroup);
@@ -131,7 +143,28 @@ function setupVocabularyFor(business) {
         return RESIDENCE_VOCABULARY;
     if (isFoodVenue(business))
         return VENUE_VOCABULARY;
-    return HOSPITALITY_VOCABULARY[currentAccommodationClass(business.accommodationClass)];
+    return HOSPITALITY_VOCABULARY[stayClassOf(business)];
+}
+/** The class a stay is set up as: the registered kind when it is a class, else the stored class. */
+function stayClassOf(business) {
+    const kind = rdb_1.AccommodationClass.safeParse(business.businessKind);
+    return kind.success ? kind.data : currentAccommodationClass(business.accommodationClass);
+}
+/** How this business's prices are counted: per person, per whole unit, or per menu item. */
+function priceBasisFor(business) {
+    return setupVocabularyFor(business).priceBasis;
+}
+/** The name of the kind, for a heading: "hotel", "villa", "coffee shop". */
+function setupKindLabel(business) {
+    if (business.domain === "residence")
+        return "residence";
+    if (business.businessKind === "coffee_shop")
+        return "coffee shop";
+    if (business.businessKind === "bar_restaurant")
+        return "bar and restaurant";
+    if (isFoodVenue(business))
+        return "venue";
+    return stayClassOf(business).replace(/_/g, " ");
 }
 /**
  * The steps this business sets up, in order.
@@ -144,7 +177,7 @@ function setupStepsFor(business) {
     const words = setupVocabularyFor(business);
     const residence = business.domain === "residence";
     const venue = !residence && isFoodVenue(business);
-    const cls = residence ? null : currentAccommodationClass(business.accommodationClass);
+    const cls = residence ? null : stayClassOf(business);
     const departmentsRequired = cls !== null && !venue && RUNS_DEPARTMENTS.has(cls);
     const steps = [
         {
@@ -185,7 +218,9 @@ function setupStepsFor(business) {
         title: words.typePlural,
         description: venue
             ? `Menu items or packages you sell, and the price ${words.pricePeriod}, in Rwandan francs.`
-            : `What you ${residence ? "let" : "sell"}, how many people each sleeps, and its price ${words.pricePeriod}.`,
+            : words.priceBasis === "per_unit" && !residence
+                ? `Each kind of ${words.unitSingular} you let whole, how many people it sleeps, and its price ${words.pricePeriod}.`
+                : `What you ${residence ? "let" : "sell"}, how many people each sleeps, and its price ${words.pricePeriod}.`,
         required: true,
     }, {
         key: "rooms",

@@ -197,6 +197,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
    * defect `lib/booking.ts` exists to prevent one layer down.
    */
   const quotedRateRwf = (bookable ?? chosen ?? sellable[0] ?? null)?.nightlyRateRwf ?? null;
+  const quotedBasis = (bookable ?? chosen ?? sellable[0] ?? null)?.priceBasis ?? "per_person";
   /** The room the card names: the guest's choice, else the one it would sell. */
   const shownRoom = chosen ?? bookable;
 
@@ -207,11 +208,12 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
         : computeQuote({
             nightlyRateRwf: quotedRateRwf,
             nights,
-            // Priced per person: adding a guest adds their nights.
+            // Per person, adding a guest adds their nights; a villa or apartment is per night, whole.
             guests: party,
             nonRefundable,
+            priceBasis: quotedBasis,
           }),
-    [quotedRateRwf, nights, party, nonRefundable],
+    [quotedRateRwf, nights, party, nonRefundable, quotedBasis],
   );
 
   /**
@@ -313,7 +315,7 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
                       detail={[
                         room.capacity ? `Sleeps ${room.capacity}` : null,
                         room.nightlyRateRwf !== null
-                          ? `${formatPrice(room.nightlyRateRwf)} per person, per night`
+                          ? `${formatPrice(room.nightlyRateRwf)} ${room.priceBasis === "per_unit" ? "per night, whole place" : "per person, per night"}`
                           : null,
                       ]
                         .filter(Boolean)

@@ -51,6 +51,13 @@ const propertyFields = {
         .min(2, "Give the property a name guests will recognise.")
         .max(200, "That name is too long for our records."),
     sectorId: zod_1.z.number().int().positive("Choose a sector."),
+    /**
+     * The village the property stands in, which must lie in `sectorId`. It is
+     * what puts a check-in in front of that village's leader and its cell's
+     * executive (the guest register, 0114); with only a sector, the sector and
+     * DASSO see the guest and the village never does. `null` clears it.
+     */
+    villageId: zod_1.z.number().int().positive("Choose a village.").nullable().optional(),
     /** The street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
     street: zod_1.z.string().trim().max(200).optional(),
     description: zod_1.z.string().trim().max(4000).optional(),
@@ -154,6 +161,11 @@ exports.PropertyAddress = zod_1.z.object({
     districtName: zod_1.z.string().nullable(),
     sectorId: zod_1.z.number().int().nullable(),
     sectorName: zod_1.z.string().nullable(),
+    /** Resolved from the village. Default null so an older API's body still parses. */
+    cellId: zod_1.z.number().int().nullable().default(null),
+    cellName: zod_1.z.string().nullable().default(null),
+    villageId: zod_1.z.number().int().nullable().default(null),
+    villageName: zod_1.z.string().nullable().default(null),
     street: zod_1.z.string().nullable(),
 });
 /** One row in the operator's property list. */
@@ -234,6 +246,7 @@ exports.OperatorProperty = exports.OperatorPropertySummary.extend({
         domain: primitives_1.Domain,
         status: zod_1.z.enum(["active", "archived"]),
         basePriceRwf: zod_1.z.number().int().nullable(),
+        priceBasis: booking_1.RoomPriceBasis.default("per_person"),
         sellableRoomCount: zod_1.z.number().int(),
     })),
 });
@@ -382,6 +395,11 @@ const roomTypeFields = {
         .nullable(),
     bookingMode: booking_1.BookingMode.optional(),
     cancellationTier: booking_1.CancellationTier.optional(),
+    /**
+     * Per person (the default), per whole unit, or per menu item. A `per_item`
+     * row is never bookable, so it is stored with no booking mode.
+     */
+    priceBasis: booking_1.RoomPriceBasis.optional(),
     /** How many rooms of this type exist. Seeds nothing; `rooms` is the truth. */
     roomCount: zod_1.z.number().int().positive().max(10000).optional(),
 };
@@ -427,6 +445,7 @@ exports.OperatorRoomType = zod_1.z.object({
     basePriceRwf: zod_1.z.number().int().nullable(),
     bookingMode: booking_1.BookingMode.nullable(),
     cancellationTier: booking_1.CancellationTier.nullable(),
+    priceBasis: booking_1.RoomPriceBasis.default("per_person"),
     roomCount: zod_1.z.number().int(),
     sellableRoomCount: zod_1.z.number().int(),
     /** The plan this type sells on by default. Exactly one, always. */
@@ -611,6 +630,13 @@ exports.PropertySetupProgress = zod_1.z.object({
      * vocabulary so a venue is not asked for rooms.
      */
     entityGroup: zod_1.z.string().nullable(),
+    /**
+     * What the business said it is at registration (`orgs.business_kind`): a
+     * hotel, a villa, a coffee shop. The one field setup should branch on; the
+     * class and entity group are kept for a business registered before it.
+     * Default null so an older API's body still parses.
+     */
+    businessKind: zod_1.z.string().nullable().default(null),
     propertyId: primitives_1.Uuid.nullable(),
     propertyName: zod_1.z.string().nullable(),
     counts: exports.PropertySetupCounts,

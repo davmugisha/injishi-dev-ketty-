@@ -11,7 +11,18 @@
  * even be sent, and (c) lets the page ask the question first, so an unapproved business is shown a plain
  * explanation instead of forms that would be refused.
  */
-import { tidyPlaceName } from "@injishi/contracts";
+import {
+  isFoodVenue,
+  isSetupStepDone,
+  type PropertySetupCounts,
+  type RoomPriceBasis,
+  type SetupStep as KindStep,
+  type SetupVocabulary,
+  setupKindLabel,
+  setupStepsFor,
+  setupVocabularyFor,
+  tidyPlaceName,
+} from "@injishi/contracts";
 import type { Workspace } from "../auth";
 import type { SourceContext } from "../sources/types";
 
@@ -32,10 +43,16 @@ interface ApiPropertySummary {
   slug: string | null;
   listingStatus: string;
   publishedAt: string | null;
-  address: { sectorName?: string | null; districtName?: string | null; street?: string | null } & Record<
-    string,
-    unknown
-  >;
+  address: {
+    sectorId?: number | null;
+    sectorName?: string | null;
+    districtName?: string | null;
+    cellId?: number | null;
+    cellName?: string | null;
+    villageId?: number | null;
+    villageName?: string | null;
+    street?: string | null;
+  } & Record<string, unknown>;
   roomTypeCount: number;
 }
 
@@ -44,12 +61,16 @@ export interface ApiProperty extends ApiPropertySummary {
   description: string | null;
   checkInTime: string | null;
   checkOutTime: string | null;
+  houseRules?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
   photos: { id: string; objectKey: string; position: number; isCover: boolean; caption: string | null; url: string }[];
   roomTypes: {
     id: string;
     name: string;
     status: "active" | "archived";
     basePriceRwf: number | null;
+    priceBasis?: RoomPriceBasis;
     sellableRoomCount: number;
   }[];
 }
@@ -62,6 +83,7 @@ export interface ApiSetupProgress {
   accommodationClass: string | null;
   accommodationClassOther: string | null;
   entityGroup: string | null;
+  businessKind?: string | null;
   propertyId: string | null;
   propertyName: string | null;
   counts: {
@@ -74,26 +96,15 @@ export interface ApiSetupProgress {
   } & Record<string, number>;
 }
 
-/**
- * Coffee shop / bar / restaurant: same inventory APIs as lodging, different words.
- * Mirrors `isFoodVenue` in `@injishi/contracts` without importing the package here.
- */
-export function isFoodVenueSetup(progress: {
-  entityGroup?: string | null;
-  accommodationClass?: string | null;
-  accommodationClassOther?: string | null;
-}): boolean {
-  if (progress.entityGroup === "restaurant_bar_nightclub") return true;
-  if (progress.accommodationClass !== "other") return false;
-  const other = (progress.accommodationClassOther ?? "").toLowerCase();
-  return (
-    other.includes("coffee") ||
-    other.includes("bar") ||
-    other.includes("restaurant") ||
-    other.includes("nightclub") ||
-    other.includes("café") ||
-    other.includes("cafe")
-  );
+/** The kind facts `setupStepsFor` and friends read, from the setup counts' answer. */
+function kindOf(progress: ApiSetupProgress) {
+  return {
+    domain: progress.domain as "hospitality" | "residence",
+    accommodationClass: progress.accommodationClass,
+    accommodationClassOther: progress.accommodationClassOther ?? null,
+    entityGroup: progress.entityGroup ?? null,
+    businessKind: progress.businessKind ?? null,
+  };
 }
 
 export interface Place {
@@ -134,6 +145,14 @@ export type SetupRead =
       entityGroup: string | null;
       /** Coffee shop / bar: setup speaks venue, not hotel rooms. */
       foodVenue: boolean;
+      /** "hotel", "villa", "coffee shop": the kind, for the page's words. */
+      kindLabel: string;
+      /** The words this kind uses, and how its prices are counted. */
+      words: SetupVocabulary;
+      /** This kind's whole checklist (`setupStepsFor`), each judged done against the counts. */
+      checklist: (KindStep & { done: boolean })[];
+      /** Every property of the business, so the page can switch between branches. */
+      properties: { id: string; name: string }[];
       property: ApiProperty | null;
       counts: ApiSetupProgress["counts"];
       steps: SetupStep[];
@@ -180,7 +199,7 @@ export function blockersFor(
   return out;
 }
 
-export async function readSetup(ctx: SourceContext, workspaceId: string): Promise<SetupRead> {
+export async function readSetup(ctx: SourceContext, workspaceId: string, propertyId?: string): Promise<SetupRead> {
   const ws = workspaceOf(ctx, workspaceId);
   const businessName = ws.orgName ?? ws.label;
   // The registration gate: an unpaid, rejected, suspended or unclaimed business holds no `listing.manage`, and
@@ -191,14 +210,18 @@ export async function readSetup(ctx: SourceContext, workspaceId: string): Promis
   }
   const api = { workspaceId };
   const { properties } = await ctx.api.get<{ properties: ApiPropertySummary[] }>("/api/v1/inventory/properties", api);
-  const first = properties[0] ?? null;
+  // The branch asked for, or the first: a business registered with several sets each up in turn.
+  const first = properties.find((p) => p.id === propertyId) ?? properties[0] ?? null;
   const [property, progress] = await Promise.all([
     first ? ctx.api.get<ApiProperty>(`/api/v1/inventory/properties/${first.id}`, api) : Promise.resolve(null),
     ctx.api.get<ApiSetupProgress>("/api/v1/inventory/setup", { ...api, query: { propertyId: first?.id } }),
   ]);
   const { counts } = progress;
   const published = property?.listingStatus === "published";
-  const foodVenue = isFoodVenueSetup(progress);
+  const kind = kindOf(progress);
+  const foodVenue = isFoodVenue(kind);
+  const words = setupVocabularyFor(kind);
+  const typeTitle = foodVenue ? "What you sell" : `A priced ${words.unitSingular} type`;
   return {
     open: true,
     workspaceId,
@@ -210,21 +233,21 @@ export async function readSetup(ctx: SourceContext, workspaceId: string): Promis
     accommodationClassOther: progress.accommodationClassOther ?? null,
     entityGroup: progress.entityGroup ?? null,
     foodVenue,
+    kindLabel: setupKindLabel(kind),
+    words,
+    checklist: setupStepsFor(kind).map((s) => ({
+      ...s,
+      done: isSetupStepDone(s.key, counts as PropertySetupCounts),
+    })),
+    properties: properties.map((p) => ({ id: p.id, name: p.name })),
     property,
     counts,
-    steps: foodVenue
-      ? [
-          { key: "property", title: "Venue details", done: !!property },
-          { key: "room_type", title: "What you sell", done: counts.pricedRoomTypes > 0 },
-          { key: "photo", title: "A photograph", done: counts.photos > 0 },
-          { key: "publish", title: "Publish", done: published },
-        ]
-      : [
-          { key: "property", title: "Property details", done: !!property },
-          { key: "room_type", title: "A priced room type", done: counts.pricedRoomTypes > 0 },
-          { key: "photo", title: "A photograph", done: counts.photos > 0 },
-          { key: "publish", title: "Publish", done: published },
-        ],
+    steps: [
+      { key: "property", title: foodVenue ? "Venue details" : "Property details", done: !!property },
+      { key: "room_type", title: typeTitle, done: counts.pricedRoomTypes > 0 },
+      { key: "photo", title: "A photograph", done: counts.photos > 0 },
+      { key: "publish", title: "Publish", done: published },
+    ],
     blockers: blockersFor(counts, !!property, foodVenue, approved),
     published,
   };
@@ -245,6 +268,14 @@ export async function districts(ctx: SourceContext, provinceId: number): Promise
 
 export async function sectors(ctx: SourceContext, districtId: number): Promise<Place[]> {
   return tidy(await ctx.api.get<Place[]>("/api/v1/geography/sectors", { query: { districtId } }));
+}
+
+export async function cells(ctx: SourceContext, sectorId: number): Promise<Place[]> {
+  return tidy(await ctx.api.get<Place[]>("/api/v1/geography/cells", { query: { sectorId } }));
+}
+
+export async function villages(ctx: SourceContext, cellId: number): Promise<Place[]> {
+  return tidy(await ctx.api.get<Place[]>("/api/v1/geography/villages", { query: { cellId } }));
 }
 
 // ── Writing ────────────────────────────────────────────────────────────────────────────────────────
@@ -285,10 +316,21 @@ export async function updateProperty(
   ctx: SourceContext,
   workspaceId: string,
   propertyId: string,
-  input: { description?: string; street?: string; checkInTime?: string; checkOutTime?: string },
+  input: {
+    description?: string;
+    street?: string;
+    checkInTime?: string;
+    checkOutTime?: string;
+    villageId?: number | null;
+    contactPhone?: string;
+    contactEmail?: string;
+    houseRules?: string;
+  },
 ): Promise<ApiPropertySummary> {
   workspaceOf(ctx, workspaceId);
   const time = /^\d{2}:\d{2}$/;
+  const email = input.contactEmail?.trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new SetupRefusal("Use an email like frontdesk@example.com.");
   if (input.checkInTime && !time.test(input.checkInTime)) throw new SetupRefusal("Use a check-in time like 14:00.");
   if (input.checkOutTime && !time.test(input.checkOutTime)) throw new SetupRefusal("Use a check-out time like 11:00.");
   return ctx.api.patch<ApiPropertySummary>(
@@ -299,9 +341,23 @@ export async function updateProperty(
       street: text(input.street, 200),
       checkInTime: input.checkInTime || undefined,
       checkOutTime: input.checkOutTime || undefined,
+      villageId: input.villageId === undefined ? undefined : input.villageId,
+      // An emptied field clears the contact; one never touched is not sent.
+      contactPhone: input.contactPhone === undefined ? undefined : phoneE164(input.contactPhone),
+      contactEmail: input.contactEmail === undefined ? undefined : email || null,
+      houseRules: input.houseRules === undefined ? undefined : text(input.houseRules, 4000) ?? "",
     },
     { workspaceId },
   );
+}
+
+/** A Rwandan number as the API stores it: `+2507…`. Empty clears it; anything else is refused here. */
+function phoneE164(raw: string): string | null {
+  const digits = raw.replace(/[\s()-]/g, "");
+  if (!digits) return null;
+  const local = digits.replace(/^\+?250/, "").replace(/^0/, "");
+  if (!/^7\d{8}$/.test(local)) throw new SetupRefusal("Use a phone number like 078 123 4567.");
+  return `+250${local}`;
 }
 
 /**
@@ -312,7 +368,7 @@ export async function addRoomType(
   ctx: SourceContext,
   workspaceId: string,
   propertyId: string,
-  input: { name: string; maxGuests: number; basePriceRwf: number; roomCount: number },
+  input: { name: string; maxGuests: number; basePriceRwf: number; roomCount: number; priceBasis?: RoomPriceBasis },
 ): Promise<{ id: string }> {
   workspaceOf(ctx, workspaceId);
   const name = input.name.trim();
@@ -331,8 +387,10 @@ export async function addRoomType(
       maxGuests: input.maxGuests,
       basePriceRwf: input.basePriceRwf,
       roomCount: input.roomCount,
-      // Without a mode the listing publishes but guests see "can't be booked online".
-      bookingMode: "instant_book",
+      priceBasis: input.priceBasis ?? "per_person",
+      // Without a mode a stay publishes but guests see "can't be booked online". A venue's menu item is
+      // listed, never booked, so it is sent without one.
+      bookingMode: input.priceBasis === "per_item" ? undefined : "instant_book",
       cancellationTier: "flexible",
     },
     { workspaceId },

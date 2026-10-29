@@ -36,6 +36,8 @@ export function partyPrice(
   intent: StayIntent,
 ): PartyPrice | null {
   if (nightlyRateRwf === null) return null;
+  // A bar's or coffee shop's menu price is per item: there is no stay to total.
+  if (/^each$/i.test(basis.trim())) return null;
   const perPerson = isPerPerson(basis);
   const guests = billableGuests(intent.guests);
   const checkIn = fromParamDate(intent.checkIn);

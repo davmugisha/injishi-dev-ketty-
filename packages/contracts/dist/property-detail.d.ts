@@ -44,6 +44,7 @@ export declare const PropertyDetail: z.ZodObject<{
         approvalPolicy: z.ZodNullable<z.ZodEnum<["approve_all", "approve_first_three"]>>;
         cancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
         nonrefundableEligible: z.ZodBoolean;
+        priceBasis: z.ZodDefault<z.ZodEnum<["per_person", "per_unit", "per_item"]>>;
         minStay: z.ZodNullable<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         name: string;
@@ -56,6 +57,7 @@ export declare const PropertyDetail: z.ZodObject<{
         approvalPolicy: "approve_all" | "approve_first_three" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
+        priceBasis: "per_person" | "per_unit" | "per_item";
         minStay: number | null;
     }, {
         name: string;
@@ -69,6 +71,7 @@ export declare const PropertyDetail: z.ZodObject<{
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
         minStay: number | null;
+        priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
     }>, "many">;
     /**
      * What the property offers, amenities and outlets as ONE deduped list
@@ -193,6 +196,7 @@ export declare const PropertyDetail: z.ZodObject<{
         approvalPolicy: "approve_all" | "approve_first_three" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
+        priceBasis: "per_person" | "per_unit" | "per_item";
         minStay: number | null;
     }[];
     photos: string[];
@@ -236,6 +240,7 @@ export declare const PropertyDetail: z.ZodObject<{
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
         nonrefundableEligible: boolean;
         minStay: number | null;
+        priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
     }[];
     photos: string[];
     latitude: number | null;
@@ -283,6 +288,13 @@ export declare const PropertyCard: z.ZodObject<{
     photos: z.ZodArray<z.ZodString, "many">;
     /** The cheapest priced, sellable room type; null when none is priced. */
     fromNightlyRateRwf: z.ZodNullable<z.ZodNumber>;
+    /**
+     * How that price is counted: `per_unit` when every room type is let whole (a
+     * villa, an apartment), `per_item` when the place sells a menu and is not
+     * booked (a bar, a coffee shop), else `per_person`. Default per person, so an
+     * older API's card still parses.
+     */
+    fromPriceBasis: z.ZodDefault<z.ZodEnum<["per_person", "per_unit", "per_item"]>>;
     /** The most guests any active room type sleeps; null when none states it. */
     maxGuests: z.ZodNullable<z.ZodNumber>;
     roomTypeCount: z.ZodNumber;
@@ -305,6 +317,7 @@ export declare const PropertyCard: z.ZodObject<{
     photos: string[];
     latitude: number | null;
     longitude: number | null;
+    fromPriceBasis: "per_person" | "per_unit" | "per_item";
 }, {
     name: string;
     id: string;
@@ -317,6 +330,7 @@ export declare const PropertyCard: z.ZodObject<{
     photos: string[];
     latitude: number | null;
     longitude: number | null;
+    fromPriceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
 }>;
 export type PropertyCard = z.infer<typeof PropertyCard>;
 //# sourceMappingURL=property-detail.d.ts.map

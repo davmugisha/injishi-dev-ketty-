@@ -30,6 +30,7 @@ export interface RoomTypeRow {
   basePriceRwf: number | null;
   bookingMode: string | null;
   cancellationTier: string | null;
+  priceBasis: 'per_person' | 'per_unit' | 'per_item';
   roomCount: number;
   sellableRoomCount: number;
   defaultRatePlanId: string | null;
@@ -62,6 +63,7 @@ const ROOM_TYPE_COLUMNS = {
   basePriceRwf: roomTypes.basePriceRwf,
   bookingMode: roomTypes.bookingMode,
   cancellationTier: roomTypes.cancellationTier,
+  priceBasis: roomTypes.priceBasis,
   roomCount: roomTypes.roomCount,
   sellableRoomCount: sql<number>`count(${rooms.id}) filter (where ${rooms.status} = 'available')`,
   defaultRatePlanId: ratePlans.id,
@@ -79,6 +81,7 @@ const ROOM_TYPE_GROUP_BY = [
   roomTypes.basePriceRwf,
   roomTypes.bookingMode,
   roomTypes.cancellationTier,
+  roomTypes.priceBasis,
   roomTypes.roomCount,
   ratePlans.id,
 ] as const;
@@ -177,6 +180,7 @@ export class RoomTypesRepository {
     roomLabels: readonly string[];
   }): Promise<string> {
     const r = input.request;
+    const menuItem = r.priceBasis === 'per_item';
     return this.db.transaction(async (tx) => {
       const [roomType] = await tx
         .insert(roomTypes)
@@ -194,9 +198,11 @@ export class RoomTypesRepository {
           basePriceRwf: r.basePriceRwf,
           // Instant book is the default path to a chargeable listing. Null
           // booking mode published fine but the marketplace treats it as
-          // unsellable ("can't be booked online"), so create never leaves it blank.
-          bookingMode: r.bookingMode ?? 'instant_book',
+          // unsellable ("can't be booked online"), so create never leaves it
+          // blank for a stay. A menu item is never booked, so it has none.
+          bookingMode: menuItem ? null : (r.bookingMode ?? 'instant_book'),
           cancellationTier: r.cancellationTier ?? 'flexible',
+          priceBasis: r.priceBasis ?? 'per_person',
         })
         .returning({ id: roomTypes.id });
       if (!roomType) throw new Error('Room type insert returned no row.');
@@ -210,7 +216,7 @@ export class RoomTypesRepository {
         basePriceRwf: r.basePriceRwf,
         baseOccupancy: r.maxGuests,
         cancellationTier: r.cancellationTier ?? 'flexible',
-        bookingMode: r.bookingMode ?? 'instant_book',
+        bookingMode: menuItem ? null : (r.bookingMode ?? 'instant_book'),
       });
 
       await insertRooms(tx, {
@@ -250,6 +256,11 @@ export class RoomTypesRepository {
       if (r.cancellationTier !== undefined) {
         patch.cancellationTier = r.cancellationTier;
       }
+      if (r.priceBasis !== undefined) {
+        patch.priceBasis = r.priceBasis;
+        // A menu item cannot be booked, so it keeps no booking mode.
+        if (r.priceBasis === 'per_item') patch.bookingMode = null;
+      }
       if (r.status !== undefined) {
         patch.status = r.status;
         // Archiving stamps the moment. Unarchiving clears it, so the column never
@@ -269,6 +280,7 @@ export class RoomTypesRepository {
         planPatch.cancellationTier = r.cancellationTier;
       }
       if (r.bookingMode !== undefined) planPatch.bookingMode = r.bookingMode;
+      if (r.priceBasis === 'per_item') planPatch.bookingMode = null;
       if (Object.keys(planPatch).length > 1) {
         await tx
           .update(ratePlans)
@@ -333,6 +345,33 @@ export class RoomTypesRepository {
     // A PSF business lists nothing and has no property to hold a room type.
     const domain = row?.domain ?? null;
     return domain === 'enterprise' ? null : domain;
+  }
+
+  /**
+   * The kind facts of the business behind a property, for `priceBasisFor`: a
+   * room type created without a price basis takes its business's own.
+   */
+  async businessKindForProperty(propertyId: string): Promise<{
+    domain: 'hospitality' | 'residence';
+    accommodationClass: string | null;
+    accommodationClassOther: string | null;
+    entityGroup: string | null;
+    businessKind: string | null;
+  } | null> {
+    const [row] = await this.db
+      .select({
+        domain: orgs.domain,
+        accommodationClass: orgs.accommodationClass,
+        accommodationClassOther: orgs.accommodationClassOther,
+        entityGroup: orgs.rdbEntityGroup,
+        businessKind: orgs.businessKind,
+      })
+      .from(properties)
+      .innerJoin(orgs, eq(orgs.id, properties.orgId))
+      .where(eq(properties.id, propertyId))
+      .limit(1);
+    if (!row || row.domain === 'enterprise') return null;
+    return { ...row, domain: row.domain, businessKind: row.businessKind ?? null };
   }
 
   private normalise(row: {

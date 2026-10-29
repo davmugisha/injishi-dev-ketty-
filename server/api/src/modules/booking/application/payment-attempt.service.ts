@@ -707,7 +707,12 @@ export class PaymentAttemptService {
     }
 
     const roomType = await this.listings.findBookableRoomType(roomTypeId);
-    if (!roomType || roomType.nightlyRateRwf == null || roomType.bookingMode == null) {
+    if (
+      !roomType ||
+      roomType.nightlyRateRwf == null ||
+      roomType.bookingMode == null ||
+      roomType.priceBasis === 'per_item'
+    ) {
       // The room stopped being sellable while the guest was approving. Their
       // money goes back; a reservation against inventory that no longer exists
       // would be worse than the refund.
@@ -720,6 +725,7 @@ export class PaymentAttemptService {
       nights,
       nonRefundable: row.nonRefundable,
       guests,
+      priceBasis: roomType.priceBasis,
     });
 
     let booking: BookingResult;

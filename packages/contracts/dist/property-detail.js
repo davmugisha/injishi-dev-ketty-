@@ -71,6 +71,13 @@ exports.PropertyCard = zod_1.z.object({
     photos: zod_1.z.array(zod_1.z.string().url()),
     /** The cheapest priced, sellable room type; null when none is priced. */
     fromNightlyRateRwf: zod_1.z.number().int().nonnegative().nullable(),
+    /**
+     * How that price is counted: `per_unit` when every room type is let whole (a
+     * villa, an apartment), `per_item` when the place sells a menu and is not
+     * booked (a bar, a coffee shop), else `per_person`. Default per person, so an
+     * older API's card still parses.
+     */
+    fromPriceBasis: zod_1.z.enum(["per_person", "per_unit", "per_item"]).default("per_person"),
     /** The most guests any active room type sleeps; null when none states it. */
     maxGuests: zod_1.z.number().int().positive().nullable(),
     roomTypeCount: zod_1.z.number().int().nonnegative(),

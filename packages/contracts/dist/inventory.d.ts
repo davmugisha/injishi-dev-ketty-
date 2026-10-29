@@ -35,6 +35,13 @@ export declare const CreatePropertyRequest: z.ZodObject<{
 } & {
     name: z.ZodString;
     sectorId: z.ZodNumber;
+    /**
+     * The village the property stands in, which must lie in `sectorId`. It is
+     * what puts a check-in in front of that village's leader and its cell's
+     * executive (the guest register, 0114); with only a sector, the sector and
+     * DASSO see the guest and the village never does. `null` clears it.
+     */
+    villageId: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     /** The street line, e.g. "KG 11 Ave". Optional: not every plot has one. */
     street: z.ZodOptional<z.ZodString>;
     description: z.ZodOptional<z.ZodString>;
@@ -59,6 +66,7 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     workspaceId: string;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
+    villageId?: number | null | undefined;
     street?: string | undefined;
     description?: string | undefined;
     contactEmail?: string | null | undefined;
@@ -71,6 +79,7 @@ export declare const CreatePropertyRequest: z.ZodObject<{
     workspaceId: string;
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
+    villageId?: number | null | undefined;
     street?: string | undefined;
     description?: string | undefined;
     contactEmail?: string | null | undefined;
@@ -91,6 +100,7 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
 } & {
     name: z.ZodOptional<z.ZodString>;
     sectorId: z.ZodOptional<z.ZodNumber>;
+    villageId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodNumber>>>;
     street: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     description: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     checkInTime: z.ZodOptional<z.ZodOptional<z.ZodString>>;
@@ -112,6 +122,7 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
     sectorId?: number | undefined;
+    villageId?: number | null | undefined;
     street?: string | undefined;
     description?: string | undefined;
     rraBranchId?: string | null | undefined;
@@ -125,6 +136,7 @@ export declare const UpdatePropertyRequest: z.ZodObject<{
     checkInTime?: string | undefined;
     checkOutTime?: string | undefined;
     sectorId?: number | undefined;
+    villageId?: number | null | undefined;
     street?: string | undefined;
     description?: string | undefined;
     rraBranchId?: string | null | undefined;
@@ -199,15 +211,24 @@ export declare const PropertyAddress: z.ZodObject<{
     districtName: z.ZodNullable<z.ZodString>;
     sectorId: z.ZodNullable<z.ZodNumber>;
     sectorName: z.ZodNullable<z.ZodString>;
+    /** Resolved from the village. Default null so an older API's body still parses. */
+    cellId: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+    cellName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+    villageId: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+    villageName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     street: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     districtName: string | null;
     provinceId: number | null;
     districtId: number | null;
     sectorId: number | null;
+    cellId: number | null;
+    villageId: number | null;
     street: string | null;
     sectorName: string | null;
     provinceName: string | null;
+    villageName: string | null;
+    cellName: string | null;
 }, {
     districtName: string | null;
     provinceId: number | null;
@@ -216,6 +237,10 @@ export declare const PropertyAddress: z.ZodObject<{
     street: string | null;
     sectorName: string | null;
     provinceName: string | null;
+    cellId?: number | null | undefined;
+    villageId?: number | null | undefined;
+    villageName?: string | null | undefined;
+    cellName?: string | null | undefined;
 }>;
 export type PropertyAddress = z.infer<typeof PropertyAddress>;
 /** One row in the operator's property list. */
@@ -237,15 +262,24 @@ export declare const OperatorPropertySummary: z.ZodObject<{
         districtName: z.ZodNullable<z.ZodString>;
         sectorId: z.ZodNullable<z.ZodNumber>;
         sectorName: z.ZodNullable<z.ZodString>;
+        /** Resolved from the village. Default null so an older API's body still parses. */
+        cellId: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+        cellName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        villageId: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+        villageName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         street: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
+        cellId: number | null;
+        villageId: number | null;
         street: string | null;
         sectorName: string | null;
         provinceName: string | null;
+        villageName: string | null;
+        cellName: string | null;
     }, {
         districtName: string | null;
         provinceId: number | null;
@@ -254,6 +288,10 @@ export declare const OperatorPropertySummary: z.ZodObject<{
         street: string | null;
         sectorName: string | null;
         provinceName: string | null;
+        cellId?: number | null | undefined;
+        villageId?: number | null | undefined;
+        villageName?: string | null | undefined;
+        cellName?: string | null | undefined;
     }>;
     listingStatus: z.ZodEnum<["draft", "published"]>;
     publishedAt: z.ZodNullable<z.ZodString>;
@@ -278,9 +316,13 @@ export declare const OperatorPropertySummary: z.ZodObject<{
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
+        cellId: number | null;
+        villageId: number | null;
         street: string | null;
         sectorName: string | null;
         provinceName: string | null;
+        villageName: string | null;
+        cellName: string | null;
     };
     isHeadOffice: boolean;
     roomTypeCount: number;
@@ -302,6 +344,10 @@ export declare const OperatorPropertySummary: z.ZodObject<{
         street: string | null;
         sectorName: string | null;
         provinceName: string | null;
+        cellId?: number | null | undefined;
+        villageId?: number | null | undefined;
+        villageName?: string | null | undefined;
+        cellName?: string | null | undefined;
     };
     isHeadOffice: boolean;
     roomTypeCount: number;
@@ -375,15 +421,24 @@ export declare const OperatorProperty: z.ZodObject<{
         districtName: z.ZodNullable<z.ZodString>;
         sectorId: z.ZodNullable<z.ZodNumber>;
         sectorName: z.ZodNullable<z.ZodString>;
+        /** Resolved from the village. Default null so an older API's body still parses. */
+        cellId: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+        cellName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+        villageId: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+        villageName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         street: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         districtName: string | null;
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
+        cellId: number | null;
+        villageId: number | null;
         street: string | null;
         sectorName: string | null;
         provinceName: string | null;
+        villageName: string | null;
+        cellName: string | null;
     }, {
         districtName: string | null;
         provinceId: number | null;
@@ -392,6 +447,10 @@ export declare const OperatorProperty: z.ZodObject<{
         street: string | null;
         sectorName: string | null;
         provinceName: string | null;
+        cellId?: number | null | undefined;
+        villageId?: number | null | undefined;
+        villageName?: string | null | undefined;
+        cellName?: string | null | undefined;
     }>;
     listingStatus: z.ZodEnum<["draft", "published"]>;
     publishedAt: z.ZodNullable<z.ZodString>;
@@ -450,12 +509,14 @@ export declare const OperatorProperty: z.ZodObject<{
         domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
         status: z.ZodEnum<["active", "archived"]>;
         basePriceRwf: z.ZodNullable<z.ZodNumber>;
+        priceBasis: z.ZodDefault<z.ZodEnum<["per_person", "per_unit", "per_item"]>>;
         sellableRoomCount: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "archived";
         name: string;
         id: string;
         domain: "hospitality" | "residence" | "enterprise";
+        priceBasis: "per_person" | "per_unit" | "per_item";
         sellableRoomCount: number;
         basePriceRwf: number | null;
     }, {
@@ -465,6 +526,7 @@ export declare const OperatorProperty: z.ZodObject<{
         domain: "hospitality" | "residence" | "enterprise";
         sellableRoomCount: number;
         basePriceRwf: number | null;
+        priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     name: string;
@@ -478,9 +540,13 @@ export declare const OperatorProperty: z.ZodObject<{
         provinceId: number | null;
         districtId: number | null;
         sectorId: number | null;
+        cellId: number | null;
+        villageId: number | null;
         street: string | null;
         sectorName: string | null;
         provinceName: string | null;
+        villageName: string | null;
+        cellName: string | null;
     };
     isHeadOffice: boolean;
     description: string | null;
@@ -494,6 +560,7 @@ export declare const OperatorProperty: z.ZodObject<{
         name: string;
         id: string;
         domain: "hospitality" | "residence" | "enterprise";
+        priceBasis: "per_person" | "per_unit" | "per_item";
         sellableRoomCount: number;
         basePriceRwf: number | null;
     }[];
@@ -526,6 +593,10 @@ export declare const OperatorProperty: z.ZodObject<{
         street: string | null;
         sectorName: string | null;
         provinceName: string | null;
+        cellId?: number | null | undefined;
+        villageId?: number | null | undefined;
+        villageName?: string | null | undefined;
+        cellName?: string | null | undefined;
     };
     isHeadOffice: boolean;
     description: string | null;
@@ -541,6 +612,7 @@ export declare const OperatorProperty: z.ZodObject<{
         domain: "hospitality" | "residence" | "enterprise";
         sellableRoomCount: number;
         basePriceRwf: number | null;
+        priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
     }[];
     photos: {
         id: string;
@@ -774,15 +846,24 @@ export declare const OperatorPropertyList: z.ZodObject<{
             districtName: z.ZodNullable<z.ZodString>;
             sectorId: z.ZodNullable<z.ZodNumber>;
             sectorName: z.ZodNullable<z.ZodString>;
+            /** Resolved from the village. Default null so an older API's body still parses. */
+            cellId: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+            cellName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
+            villageId: z.ZodDefault<z.ZodNullable<z.ZodNumber>>;
+            villageName: z.ZodDefault<z.ZodNullable<z.ZodString>>;
             street: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
             districtName: string | null;
             provinceId: number | null;
             districtId: number | null;
             sectorId: number | null;
+            cellId: number | null;
+            villageId: number | null;
             street: string | null;
             sectorName: string | null;
             provinceName: string | null;
+            villageName: string | null;
+            cellName: string | null;
         }, {
             districtName: string | null;
             provinceId: number | null;
@@ -791,6 +872,10 @@ export declare const OperatorPropertyList: z.ZodObject<{
             street: string | null;
             sectorName: string | null;
             provinceName: string | null;
+            cellId?: number | null | undefined;
+            villageId?: number | null | undefined;
+            villageName?: string | null | undefined;
+            cellName?: string | null | undefined;
         }>;
         listingStatus: z.ZodEnum<["draft", "published"]>;
         publishedAt: z.ZodNullable<z.ZodString>;
@@ -815,9 +900,13 @@ export declare const OperatorPropertyList: z.ZodObject<{
             provinceId: number | null;
             districtId: number | null;
             sectorId: number | null;
+            cellId: number | null;
+            villageId: number | null;
             street: string | null;
             sectorName: string | null;
             provinceName: string | null;
+            villageName: string | null;
+            cellName: string | null;
         };
         isHeadOffice: boolean;
         roomTypeCount: number;
@@ -839,6 +928,10 @@ export declare const OperatorPropertyList: z.ZodObject<{
             street: string | null;
             sectorName: string | null;
             provinceName: string | null;
+            cellId?: number | null | undefined;
+            villageId?: number | null | undefined;
+            villageName?: string | null | undefined;
+            cellName?: string | null | undefined;
         };
         isHeadOffice: boolean;
         roomTypeCount: number;
@@ -859,9 +952,13 @@ export declare const OperatorPropertyList: z.ZodObject<{
             provinceId: number | null;
             districtId: number | null;
             sectorId: number | null;
+            cellId: number | null;
+            villageId: number | null;
             street: string | null;
             sectorName: string | null;
             provinceName: string | null;
+            villageName: string | null;
+            cellName: string | null;
         };
         isHeadOffice: boolean;
         roomTypeCount: number;
@@ -885,6 +982,10 @@ export declare const OperatorPropertyList: z.ZodObject<{
             street: string | null;
             sectorName: string | null;
             provinceName: string | null;
+            cellId?: number | null | undefined;
+            villageId?: number | null | undefined;
+            villageName?: string | null | undefined;
+            cellName?: string | null | undefined;
         };
         isHeadOffice: boolean;
         roomTypeCount: number;
@@ -942,6 +1043,11 @@ export declare const CreateRoomTypeRequest: z.ZodObject<{
     basePriceRwf: z.ZodNullable<z.ZodNumber>;
     bookingMode: z.ZodOptional<z.ZodEnum<["instant_book", "request_to_book"]>>;
     cancellationTier: z.ZodOptional<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
+    /**
+     * Per person (the default), per whole unit, or per menu item. A `per_item`
+     * row is never bookable, so it is stored with no booking mode.
+     */
+    priceBasis: z.ZodOptional<z.ZodEnum<["per_person", "per_unit", "per_item"]>>;
     /** How many rooms of this type exist. Seeds nothing; `rooms` is the truth. */
     roomCount: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
@@ -952,6 +1058,7 @@ export declare const CreateRoomTypeRequest: z.ZodObject<{
     roomCount?: number | undefined;
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
     roomLabels?: string[] | undefined;
 }, {
     name: string;
@@ -961,6 +1068,7 @@ export declare const CreateRoomTypeRequest: z.ZodObject<{
     roomCount?: number | undefined;
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
     roomLabels?: string[] | undefined;
 }>;
 export type CreateRoomTypeRequest = z.infer<typeof CreateRoomTypeRequest>;
@@ -977,6 +1085,7 @@ export declare const UpdateRoomTypeRequest: z.ZodObject<{
     basePriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     bookingMode: z.ZodOptional<z.ZodOptional<z.ZodEnum<["instant_book", "request_to_book"]>>>;
     cancellationTier: z.ZodOptional<z.ZodOptional<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>>;
+    priceBasis: z.ZodOptional<z.ZodOptional<z.ZodEnum<["per_person", "per_unit", "per_item"]>>>;
     roomCount: z.ZodOptional<z.ZodOptional<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     workspaceId: string;
@@ -985,6 +1094,7 @@ export declare const UpdateRoomTypeRequest: z.ZodObject<{
     roomCount?: number | undefined;
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
     maxGuests?: number | undefined;
     basePriceRwf?: number | null | undefined;
 }, {
@@ -994,6 +1104,7 @@ export declare const UpdateRoomTypeRequest: z.ZodObject<{
     roomCount?: number | undefined;
     bookingMode?: "instant_book" | "request_to_book" | undefined;
     cancellationTier?: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | undefined;
+    priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
     maxGuests?: number | undefined;
     basePriceRwf?: number | null | undefined;
 }>;
@@ -1009,6 +1120,7 @@ export declare const OperatorRoomType: z.ZodObject<{
     basePriceRwf: z.ZodNullable<z.ZodNumber>;
     bookingMode: z.ZodNullable<z.ZodEnum<["instant_book", "request_to_book"]>>;
     cancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
+    priceBasis: z.ZodDefault<z.ZodEnum<["per_person", "per_unit", "per_item"]>>;
     roomCount: z.ZodNumber;
     sellableRoomCount: z.ZodNumber;
     /** The plan this type sells on by default. Exactly one, always. */
@@ -1021,6 +1133,7 @@ export declare const OperatorRoomType: z.ZodObject<{
     roomCount: number;
     bookingMode: "instant_book" | "request_to_book" | null;
     cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+    priceBasis: "per_person" | "per_unit" | "per_item";
     maxGuests: number | null;
     propertyId: string;
     sellableRoomCount: number;
@@ -1039,6 +1152,7 @@ export declare const OperatorRoomType: z.ZodObject<{
     sellableRoomCount: number;
     basePriceRwf: number | null;
     defaultRatePlanId: string | null;
+    priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
 }>;
 export type OperatorRoomType = z.infer<typeof OperatorRoomType>;
 export declare const OperatorRoomTypeList: z.ZodObject<{
@@ -1052,6 +1166,7 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
         basePriceRwf: z.ZodNullable<z.ZodNumber>;
         bookingMode: z.ZodNullable<z.ZodEnum<["instant_book", "request_to_book"]>>;
         cancellationTier: z.ZodNullable<z.ZodEnum<["flexible", "moderate", "limited", "firm", "strict_extended_stay"]>>;
+        priceBasis: z.ZodDefault<z.ZodEnum<["per_person", "per_unit", "per_item"]>>;
         roomCount: z.ZodNumber;
         sellableRoomCount: z.ZodNumber;
         /** The plan this type sells on by default. Exactly one, always. */
@@ -1064,6 +1179,7 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
         roomCount: number;
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+        priceBasis: "per_person" | "per_unit" | "per_item";
         maxGuests: number | null;
         propertyId: string;
         sellableRoomCount: number;
@@ -1082,6 +1198,7 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
         sellableRoomCount: number;
         basePriceRwf: number | null;
         defaultRatePlanId: string | null;
+        priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     roomTypes: {
@@ -1092,6 +1209,7 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
         roomCount: number;
         bookingMode: "instant_book" | "request_to_book" | null;
         cancellationTier: "flexible" | "moderate" | "limited" | "firm" | "strict_extended_stay" | null;
+        priceBasis: "per_person" | "per_unit" | "per_item";
         maxGuests: number | null;
         propertyId: string;
         sellableRoomCount: number;
@@ -1112,6 +1230,7 @@ export declare const OperatorRoomTypeList: z.ZodObject<{
         sellableRoomCount: number;
         basePriceRwf: number | null;
         defaultRatePlanId: string | null;
+        priceBasis?: "per_person" | "per_unit" | "per_item" | undefined;
     }[];
 }>;
 export type OperatorRoomTypeList = z.infer<typeof OperatorRoomTypeList>;
@@ -1504,6 +1623,13 @@ export declare const PropertySetupProgress: z.ZodObject<{
      * vocabulary so a venue is not asked for rooms.
      */
     entityGroup: z.ZodNullable<z.ZodString>;
+    /**
+     * What the business said it is at registration (`orgs.business_kind`): a
+     * hotel, a villa, a coffee shop. The one field setup should branch on; the
+     * class and entity group are kept for a business registered before it.
+     * Default null so an older API's body still parses.
+     */
+    businessKind: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     propertyId: z.ZodNullable<z.ZodString>;
     propertyName: z.ZodNullable<z.ZodString>;
     counts: z.ZodObject<{
@@ -1551,6 +1677,7 @@ export declare const PropertySetupProgress: z.ZodObject<{
     domain: "hospitality" | "residence" | "enterprise";
     legalName: string;
     entityGroup: string | null;
+    businessKind: string | null;
     accommodationClass: string | null;
     accommodationClassOther: string | null;
     orgId: string;
@@ -1593,6 +1720,7 @@ export declare const PropertySetupProgress: z.ZodObject<{
         pricedRoomTypes: number;
         outlets: number;
     };
+    businessKind?: string | null | undefined;
 }>;
 export type PropertySetupProgress = z.infer<typeof PropertySetupProgress>;
 //# sourceMappingURL=inventory.d.ts.map

@@ -4,7 +4,7 @@ import { ArrowUpRightFromSquare, CircleCheck, Clock, House, Picture, Tag } from 
 import { Alert, Button, Card, Chip, Description, Input, Label, TextArea, TextField } from "@heroui/react";
 import { tidyPlaceName } from "@injishi/contracts";
 import { LinkButton, PageContent, PageHeader } from "@injishi/ui";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import type { Place, SetupRead, StepKey } from "@/server/mutations/setup";
 import {
   addPhotoAction,
@@ -193,6 +193,74 @@ function PlacePicker({ provinces, onSector }: { provinces: Place[]; onSector: (i
   );
 }
 
+/**
+ * Cell, then village, inside the sector the property is in. The village is what files a check-in with that
+ * village's leader and its cell's executive; with only a sector, the village never hears of its guests.
+ */
+function VillagePicker({
+  sectorId,
+  initialCellId,
+  villageId,
+  onVillage,
+}: {
+  sectorId: number;
+  initialCellId: number | null;
+  villageId: string;
+  onVillage: (id: string) => void;
+}) {
+  const [cells, setCells] = useState<Place[] | null>(null);
+  const [cellId, setCellId] = useState(initialCellId ? String(initialCellId) : "");
+  const [villages, setVillages] = useState<Place[]>([]);
+  useEffect(() => {
+    let live = true;
+    void placesAction("cells", sectorId).then((rows) => live && setCells(rows));
+    if (initialCellId) void placesAction("villages", initialCellId).then((rows) => live && setVillages(rows));
+    return () => {
+      live = false;
+    };
+  }, [sectorId, initialCellId]);
+  return (
+    <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr))]">
+      <label className="flex flex-col gap-1 text-sm font-medium">
+        Cell
+        <select
+          className={SELECT}
+          value={cellId}
+          disabled={!cells?.length}
+          onChange={async (e) => {
+            setCellId(e.target.value);
+            onVillage("");
+            setVillages(e.target.value ? await placesAction("villages", Number(e.target.value)) : []);
+          }}
+        >
+          <option value="">{cells === null ? "Loading…" : "Choose…"}</option>
+          {(cells ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-sm font-medium">
+        Village
+        <select
+          className={SELECT}
+          value={villageId}
+          disabled={!villages.length}
+          onChange={(e) => onVillage(e.target.value)}
+        >
+          <option value="">Choose…</option>
+          {villages.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+}
+
 function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
   const p = data.property;
   const venue = data.foodVenue;
@@ -203,6 +271,10 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
   const [checkOut, setCheckOut] = useState(hhmm(p?.checkOutTime));
   const [name, setName] = useState("");
   const [sectorId, setSectorId] = useState("");
+  const [villageId, setVillageId] = useState(p?.address.villageId ? String(p.address.villageId) : "");
+  const [phone, setPhone] = useState(p?.contactPhone ?? "");
+  const [email, setEmail] = useState(p?.contactEmail ?? "");
+  const [rules, setRules] = useState(p?.houseRules ?? "");
 
   if (!p) {
     const submit = (e: FormEvent) => {
@@ -242,6 +314,7 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
   }
 
   const place = [
+    p.address.villageName ? `${tidyPlaceName(p.address.villageName)} village` : null,
     p.address.sectorName ? `${tidyPlaceName(p.address.sectorName)} sector` : null,
     p.address.districtName ? tidyPlaceName(p.address.districtName) : null,
   ]
@@ -253,7 +326,10 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
       updatePropertyAction(data.workspaceId, p.id, {
         description,
         street,
-        ...(venue ? {} : { checkInTime: checkIn, checkOutTime: checkOut }),
+        villageId,
+        contactPhone: phone,
+        contactEmail: email,
+        ...(venue ? {} : { checkInTime: checkIn, checkOutTime: checkOut, houseRules: rules }),
       }),
     );
   };
@@ -266,8 +342,8 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
       icon={<House />}
       lead={
         venue
-          ? "Created from your registration. Add what customers read about the place."
-          : "Created from your registration. Add what guests read before they book."
+          ? "Created from your registration. Add what customers read, the village it is in and how to reach you."
+          : "Created from your registration. Add what guests read, the village it is in and how to reach the desk."
       }
     >
       <dl className="m-0 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))]">
@@ -286,6 +362,29 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
           <TextArea rows={3} placeholder="What makes the place, in a few sentences." />
           <Description>{venue ? "Shown on your venue page." : "Shown on your property page."}</Description>
         </TextField>
+        {p.address.sectorId ? (
+          <VillagePicker
+            sectorId={p.address.sectorId}
+            initialCellId={p.address.cellId ?? null}
+            villageId={villageId}
+            onVillage={setVillageId}
+          />
+        ) : null}
+        <p className="m-0 text-[13px] text-muted">
+          {venue
+            ? "The village decides which local leader your premises are filed with."
+            : "The village decides which local leader your guests are reported to when they check in."}
+        </p>
+        <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))]">
+          <TextField value={phone} onChange={setPhone} fullWidth>
+            <Label>{venue ? "Phone" : "Front desk phone"}</Label>
+            <Input type="tel" placeholder="078 123 4567" />
+          </TextField>
+          <TextField value={email} onChange={setEmail} fullWidth>
+            <Label>{venue ? "Email" : "Front desk email"}</Label>
+            <Input type="email" placeholder="frontdesk@example.com" />
+          </TextField>
+        </div>
         <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr))]">
           <TextField value={street} onChange={setStreet} fullWidth>
             <Label>Street</Label>
@@ -304,6 +403,12 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
             </>
           )}
         </div>
+        {venue ? null : (
+          <TextField value={rules} onChange={setRules} fullWidth>
+            <Label>House rules</Label>
+            <TextArea rows={2} placeholder="Quiet hours, smoking, pets, visitors." />
+          </TextField>
+        )}
         <Button type="submit" variant="secondary" className="self-start" isDisabled={step.busy}>
           {step.busy ? "Saving…" : "Save details"}
         </Button>
@@ -316,6 +421,9 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
 function RoomTypeStep({ data }: { data: Open }) {
   const p = data.property;
   const venue = data.foodVenue;
+  const words = data.words;
+  const wholeUnit = words.priceBasis === "per_unit";
+  const typeLabel = `${words.unitSingular.charAt(0).toUpperCase()}${words.unitSingular.slice(1)} type`;
   const step = useStep();
   const [name, setName] = useState("");
   const [sleeps, setSleeps] = useState(venue ? "1" : "2");
@@ -333,6 +441,7 @@ function RoomTypeStep({ data }: { data: Open }) {
         maxGuests: venue ? "1" : sleeps,
         basePriceRwf: price,
         roomCount: venue ? "1" : rooms,
+        priceBasis: words.priceBasis,
       }),
     );
     if (ok) {
@@ -344,13 +453,15 @@ function RoomTypeStep({ data }: { data: Open }) {
     <StepCard
       id="room_type"
       index={2}
-      title={venue ? "What you sell" : "A priced room type"}
+      title={venue ? "What you sell" : `A priced ${words.unitSingular} type`}
       done={done}
       icon={<Tag />}
       lead={
         venue
-          ? "Menu items or packages, each with a price in Rwandan francs."
-          : "What you sell and at what price, per person, per night, in Rwandan francs."
+          ? "Menu items or packages, each with a price in Rwandan francs. Customers see them on your page; nothing is booked."
+          : wholeUnit
+            ? `Each ${words.unitSingular} is let whole to one party, so the price is ${words.pricePeriod}, in Rwandan francs, however many people stay.`
+            : `What you sell and at what price, ${words.pricePeriod}, in Rwandan francs.`
       }
     >
       {types.length ? (
@@ -364,12 +475,10 @@ function RoomTypeStep({ data }: { data: Open }) {
               <span className="text-[13px] text-muted tabular">
                 {t.basePriceRwf === null
                   ? "No price yet"
-                  : venue
-                    ? `${rwf(t.basePriceRwf)} each`
-                    : `${rwf(t.basePriceRwf)} per person, per night`}
+                  : `${rwf(t.basePriceRwf)} ${words.pricePeriod}`}
                 {venue
                   ? null
-                  : ` · ${t.sellableRoomCount} ${t.sellableRoomCount === 1 ? "room" : "rooms"}`}
+                  : ` · ${t.sellableRoomCount} ${t.sellableRoomCount === 1 ? words.unitSingular : words.unitPlural}`}
               </span>
             </li>
           ))}
@@ -379,8 +488,10 @@ function RoomTypeStep({ data }: { data: Open }) {
         <form onSubmit={submit} className="flex flex-col gap-3">
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr))]">
             <TextField value={name} onChange={setName} isRequired fullWidth>
-              <Label>{venue ? "Item" : "Room type"}</Label>
-              <Input placeholder={venue ? "Espresso, lunch set…" : "Double room"} />
+              <Label>{venue ? "Item" : typeLabel}</Label>
+              <Input
+                placeholder={venue ? "Espresso, lunch set…" : wholeUnit ? `Two-bedroom ${words.unitSingular}` : "Double room"}
+              />
             </TextField>
             {venue ? null : (
               <TextField value={sleeps} onChange={setSleeps} isRequired fullWidth>
@@ -389,12 +500,12 @@ function RoomTypeStep({ data }: { data: Open }) {
               </TextField>
             )}
             <TextField value={price} onChange={setPrice} isRequired fullWidth>
-              <Label>Price (RWF)</Label>
+              <Label>{venue ? "Price each (RWF)" : wholeUnit ? "Price per night (RWF)" : "Price per person (RWF)"}</Label>
               <Input inputMode="numeric" placeholder={venue ? "2500" : "45000"} className="tabular" />
             </TextField>
             {venue ? null : (
               <TextField value={rooms} onChange={setRooms} isRequired fullWidth>
-                <Label>How many rooms</Label>
+                <Label>{`How many ${words.unitPlural}`}</Label>
                 <Input inputMode="numeric" />
               </TextField>
             )}
@@ -410,12 +521,12 @@ function RoomTypeStep({ data }: { data: Open }) {
               : types.length
                 ? venue
                   ? "Add another item"
-                  : "Add another room type"
+                  : `Add another ${words.unitSingular} type`
                 : venue
                   ? "Add item"
-                  : "Add room type"}
+                  : `Add ${words.unitSingular} type`}
           </Button>
-          <Outcome result={step.result} okText={venue ? "Item added." : "Room type added."} />
+          <Outcome result={step.result} okText={venue ? "Item added." : `${typeLabel} added.`} />
         </form>
       ) : (
         <p className="text-[13px] text-muted">{venue ? "Add the venue first." : "Add the property first."}</p>
@@ -600,6 +711,89 @@ function PublishStep({ data, webUrl }: { data: Open; webUrl: string }) {
   );
 }
 
+/** Where each checklist step is done: on this page, or a screen of its own. */
+const STEP_HOME: Partial<Record<string, { href: string; label: string }>> = {
+  property: { href: "#property", label: "Above" },
+  contact: { href: "#property", label: "Above" },
+  room_types: { href: "#room_type", label: "Above" },
+  photos: { href: "#photo", label: "Above" },
+  listing: { href: "#publish", label: "Above" },
+  rooms: { href: "/room-rack", label: "Room rack" },
+  outlets: { href: "/outlets", label: "Outlets" },
+  staff: { href: "/settings/team", label: "Team" },
+};
+
+/**
+ * The whole checklist for this kind of business (`setupStepsFor`): a hotel runs departments, a villa does not,
+ * a coffee shop numbers no rooms. Publishing needs only the four cards above; the rest is what running the
+ * place well needs, done here or on its own screen.
+ */
+function KindChecklist({ data }: { data: Open }) {
+  const left = data.checklist.filter((s) => !s.done).length;
+  return (
+    <Card render={(p) => <section {...p} />} aria-labelledby="checklist-h" className="gap-3 p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="checklist-h" className="text-[15px] leading-[22px] font-semibold">
+          {`Your ${data.kindLabel} checklist`}
+        </h2>
+        <span className="text-[13px] text-muted tabular">
+          {left === 0 ? "All done" : `${data.checklist.length - left} of ${data.checklist.length} done`}
+        </span>
+      </div>
+      <ul className="m-0 flex list-none flex-col p-0">
+        {data.checklist.map((s) => {
+          const home = STEP_HOME[s.key];
+          return (
+            <li
+              key={s.key}
+              className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 border-t border-separator py-2.5 first:border-t-0"
+            >
+              <div className="flex min-w-0 flex-1 basis-64 flex-col gap-0.5">
+                <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                  {s.done ? <CircleCheck className="size-4 text-success" aria-label="Done" /> : null}
+                  {s.title}
+                  <Chip size="sm" variant="soft" color={s.required ? "accent" : "default"}>
+                    {s.required ? "Required" : "Recommended"}
+                  </Chip>
+                </span>
+                <span className="text-[13px] text-muted">{s.description}</span>
+              </div>
+              {home && !s.done ? (
+                <a href={home.href} className="text-[13px] font-medium text-accent underline-offset-2 hover:underline">
+                  {home.label}
+                </a>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
+  );
+}
+
+/** One business, several branches: pick which one this page sets up. */
+function PropertySwitcher({ data }: { data: Open }) {
+  if (data.properties.length < 2) return null;
+  return (
+    <label className="flex max-w-[420px] flex-col gap-1 text-sm font-medium">
+      Setting up
+      <select
+        className={SELECT}
+        value={data.property?.id ?? ""}
+        onChange={(e) => {
+          window.location.search = `?property=${encodeURIComponent(e.target.value)}`;
+        }}
+      >
+        {data.properties.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 /** Shown above the steps while the registration is reviewed: build now, publish after approval. */
 function ReviewNotice({ status }: { status: string | null }) {
   const where = WAITING[status ?? ""];
@@ -688,6 +882,7 @@ export function PropertySetupView({
         }
       />
       {!data.approved ? <ReviewNotice status={data.status} /> : null}
+      <PropertySwitcher data={data} />
       <section aria-label="Setup progress" className="flex flex-wrap items-center gap-2">
         <span className="mr-1 text-sm font-medium tabular">
           {done} of {data.steps.length} done
@@ -704,6 +899,7 @@ export function PropertySetupView({
         <RoomTypeStep data={data} />
         <PhotoStep data={data} />
         <PublishStep data={data} webUrl={webUrl} />
+        <KindChecklist data={data} />
       </div>
     </PageContent>
   );

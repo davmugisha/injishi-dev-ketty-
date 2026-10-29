@@ -63,6 +63,7 @@ describe('BookingService money ordering', () => {
     approvalPolicy: null,
     cancellationTier: 'flexible',
     nonrefundableEligible: false,
+    priceBasis: 'per_person',
     // ARI (ADR-047 wave E). Null is "the host set none", which every consumer
     // reads as one night rather than inventing a longer minimum.
     minStay: null,
@@ -300,6 +301,24 @@ describe('BookingService money ordering', () => {
     // The same stay for one guest is half of the party of two above, which is
     // the whole point: the total used to be identical for both.
     expect(payments.captureEscrow.mock.calls[0][0].amountRwf).toBe(90_000);
+  });
+
+  it('charges a villa or apartment per night, whatever the party (2026-10-29)', async () => {
+    const { service, listings, payments } = build();
+    listings.findBookableRoomType.mockResolvedValue({ ...roomType, priceBasis: 'per_unit' });
+
+    await service.create(input, GUEST_ID);
+
+    // 45,000 x 2 nights for the whole place: the two guests do not multiply it.
+    expect(payments.captureEscrow.mock.calls[0][0].amountRwf).toBe(90_000);
+  });
+
+  it("refuses to book a venue's menu item, before any hold or charge", async () => {
+    const { service, listings, payments } = build();
+    listings.findBookableRoomType.mockResolvedValue({ ...roomType, priceBasis: 'per_item', bookingMode: null });
+
+    await expect(service.create(input, GUEST_ID)).rejects.toThrow(/cannot be booked|can be booked/);
+    expect(payments.captureEscrow).not.toHaveBeenCalled();
   });
 
   /**

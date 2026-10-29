@@ -14,6 +14,7 @@ export interface SetupBusinessRow {
   accommodationClass: string | null;
   accommodationClassOther: string | null;
   entityGroup: string | null;
+  businessKind: string | null;
 }
 
 /**
@@ -40,13 +41,15 @@ export class SetupProgressRepository {
       accommodation_class: string | null;
       accommodation_class_other: string | null;
       rdb_entity_group: string | null;
+      business_kind: string | null;
     }>(sql`
       select id as org_id,
              legal_name,
              domain,
              accommodation_class,
              accommodation_class_other,
-             rdb_entity_group
+             rdb_entity_group,
+             business_kind::text as business_kind
         from orgs
        where id = ${orgId}
     `);
@@ -59,6 +62,7 @@ export class SetupProgressRepository {
           accommodationClass: row.accommodation_class,
           accommodationClassOther: row.accommodation_class_other,
           entityGroup: row.rdb_entity_group,
+          businessKind: row.business_kind,
         }
       : null;
   }

@@ -30,7 +30,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import { amount, currency, timestamps } from './columns';
-import { approvalPolicyEnum, bookingModeEnum, brokerFeeKindEnum, cancellationTierEnum, checkInMethodEnum, domainKindEnum, housekeepingStatusEnum, listingStatusEnum, rateDerivationKindEnum, ratePlanStatusEnum, rentalUnitStateEnum, roomStatusEnum, roomTypeStatusEnum, unitKitchenEnum } from './enums';
+import { approvalPolicyEnum, bookingModeEnum, roomPriceBasisEnum, brokerFeeKindEnum, cancellationTierEnum, checkInMethodEnum, domainKindEnum, housekeepingStatusEnum, listingStatusEnum, rateDerivationKindEnum, ratePlanStatusEnum, rentalUnitStateEnum, roomStatusEnum, roomTypeStatusEnum, unitKitchenEnum } from './enums';
 import { districts, sectors, villages } from './geography';
 import { storedObjects } from './hospitality';
 import { departments } from './operations';
@@ -239,6 +239,8 @@ export const roomTypes = pgTable(
     amenityDetail: jsonb('amenity_detail'),
     status: roomTypeStatusEnum('status').notNull().default('active'),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
+    /** Per person, per whole unit, or per menu item (0115). */
+    priceBasis: roomPriceBasisEnum('price_basis').notNull().default('per_person'),
 
     // --- DEPRECATED (F-L03/F-L07 expand phase) ----------------------------
     // These are superseded but NOT yet dropped: the booking engine, contracts

@@ -75,6 +75,8 @@ export async function fetchPropertyRooms(
 export function isSellable(room: RoomTypeSummary): boolean {
   return (
     room.domain === "hospitality" &&
+    // A bar's or coffee shop's menu item is listed with its price, never booked.
+    room.priceBasis !== "per_item" &&
     room.nightlyRateRwf !== null &&
     room.bookingMode !== null &&
     room.roomCount > 0

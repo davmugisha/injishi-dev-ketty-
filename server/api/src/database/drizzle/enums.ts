@@ -427,6 +427,17 @@ export const bookingModeEnum = pgEnum('booking_mode', [
   'request_to_book',
 ]);
 
+/**
+ * How a room type's price is counted (0115): per guest per night (a room), per
+ * unit per night (a villa or apartment let whole), or per item (a venue's menu,
+ * which is listed and never booked).
+ */
+export const roomPriceBasisEnum = pgEnum('room_price_basis', [
+  'per_person',
+  'per_unit',
+  'per_item',
+]);
+
 export const approvalPolicyEnum = pgEnum('approval_policy', [
   'approve_all',
   'approve_first_three',

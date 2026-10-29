@@ -282,6 +282,10 @@ export class ListingRepository {
         latitude: properties.latitude,
         longitude: properties.longitude,
         fromNightlyRateRwf: sql<number | null>`min(${roomTypes.basePriceRwf}) filter (where ${roomTypes.status} = 'active' and ${roomTypes.domain} = 'hospitality')`,
+        fromPriceBasis: sql<'per_person' | 'per_unit' | 'per_item'>`case
+          when bool_and(${roomTypes.priceBasis} = 'per_item') filter (where ${roomTypes.status} = 'active') then 'per_item'
+          when bool_and(${roomTypes.priceBasis} = 'per_unit') filter (where ${roomTypes.status} = 'active') then 'per_unit'
+          else 'per_person' end`,
         maxGuests: sql<number | null>`max(${roomTypes.capacity}) filter (where ${roomTypes.status} = 'active')`,
         roomTypeCount: sql<number>`count(${roomTypes.id}) filter (where ${roomTypes.status} = 'active')::int`,
       })
@@ -327,6 +331,7 @@ export class ListingRepository {
       photoIds: photoIdsByProperty.get(row.id) ?? [],
       // Aggregates over bigint come back as strings from pg.
       fromNightlyRateRwf: row.fromNightlyRateRwf === null ? null : Number(row.fromNightlyRateRwf),
+      fromPriceBasis: row.fromPriceBasis,
       maxGuests: row.maxGuests === null ? null : Number(row.maxGuests),
       roomTypeCount: Number(row.roomTypeCount),
     }));
@@ -359,6 +364,7 @@ export class ListingRepository {
         approvalPolicy: roomTypes.approvalPolicy,
         cancellationTier: roomTypes.cancellationTier,
         nonrefundableEligible: roomTypes.nonrefundableEligible,
+        priceBasis: roomTypes.priceBasis,
         minStay: roomTypes.minStay,
         propertyId: properties.id,
         propertySlug: properties.slug,
@@ -408,6 +414,7 @@ export class ListingRepository {
         approvalPolicy: row.approvalPolicy,
         cancellationTier: row.cancellationTier,
         nonrefundableEligible: row.nonrefundableEligible,
+        priceBasis: row.priceBasis,
         minStay: row.minStay ?? null,
       },
     };
@@ -469,6 +476,7 @@ export class ListingRepository {
         approvalPolicy: roomTypes.approvalPolicy,
         cancellationTier: roomTypes.cancellationTier,
         nonrefundableEligible: roomTypes.nonrefundableEligible,
+        priceBasis: roomTypes.priceBasis,
         minStay: roomTypes.minStay,
       })
       .from(roomTypes)
@@ -508,6 +516,7 @@ export class ListingRepository {
         approvalPolicy: roomTypes.approvalPolicy,
         cancellationTier: roomTypes.cancellationTier,
         nonrefundableEligible: roomTypes.nonrefundableEligible,
+        priceBasis: roomTypes.priceBasis,
         minStay: roomTypes.minStay,
         propertyId: roomTypes.propertyId,
         workspaceId: roomTypes.workspaceId,
