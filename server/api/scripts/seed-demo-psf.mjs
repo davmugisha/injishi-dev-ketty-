@@ -66,11 +66,17 @@ const OFFICERS = [
   },
   {
     id: P(20), email: 'olivier@demo.injishi.com', name: 'Olivier Nkurunziza', nid: '1199180056000020', grant: P(22),
+    // Same district: field-verify and final-approve Injishi business registrations.
+    // Separation of duties still blocks approving a case this user field-verified.
+    registrationGrant: P(28),
+    approvalGrant: P(30),
     title: 'PSF District Manager', label: 'Kicukiro',
     scope: { level: 'district', provinceId: 1, districtId: 103 },
   },
   {
     id: P(25), email: 'bosco@demo.injishi.com', name: 'Jean Bosco Habyarimana', nid: '1198780056000025', grant: P(26),
+    registrationGrant: P(29),
+    // Gasabo already has Claudine as BDO approver; Bosco verifies only.
     title: 'PSF District Manager', label: 'Gasabo',
     scope: { level: 'district', provinceId: 1, districtId: 102 },
   },
@@ -403,6 +409,26 @@ async function seedOfficers(c) {
        ON CONFLICT (id) DO UPDATE SET government_title = EXCLUDED.government_title`,
       [o.grant, o.id, o.scope.level, o.scope.provinceId, o.scope.districtId, o.title],
     );
+    // District managers also hold the Injishi business-registration (KYB) desk for
+    // the same district, so one sign-in opens membership and registration queues.
+    if (o.registrationGrant && o.scope.level === 'district') {
+      await c.query(
+        `INSERT INTO oversight_assignments
+           (id, user_id, oversight_role, government_body_code, government_title, scope_level, province_id, district_id)
+         VALUES ($1, $2, 'business_field_verifier', 'PSF', 'Business Registration Officer', $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE SET government_title = EXCLUDED.government_title, revoked_at = NULL`,
+        [o.registrationGrant, o.id, o.scope.level, o.scope.provinceId, o.scope.districtId],
+      );
+    }
+    if (o.approvalGrant && o.scope.level === 'district') {
+      await c.query(
+        `INSERT INTO oversight_assignments
+           (id, user_id, oversight_role, government_body_code, government_title, scope_level, province_id, district_id)
+         VALUES ($1, $2, 'business_approver', 'MINALOC', 'Business Registration Approver', $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE SET government_title = EXCLUDED.government_title, revoked_at = NULL`,
+        [o.approvalGrant, o.id, o.scope.level, o.scope.provinceId, o.scope.districtId],
+      );
+    }
   }
 }
 

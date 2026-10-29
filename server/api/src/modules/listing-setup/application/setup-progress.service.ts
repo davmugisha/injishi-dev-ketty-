@@ -53,6 +53,8 @@ export class SetupProgressService {
       legalName: business.legalName,
       domain: business.domain,
       accommodationClass: business.accommodationClass,
+      accommodationClassOther: business.accommodationClassOther,
+      entityGroup: business.entityGroup,
       propertyId: property?.id ?? null,
       propertyName: property?.name ?? null,
       counts,

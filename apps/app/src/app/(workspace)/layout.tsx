@@ -26,6 +26,33 @@ function realScreensOnly(groups: NavGroup[]): NavGroup[] {
     .filter((g) => g.items.length > 0);
 }
 
+/**
+ * Dual-hat owners (business + PSF/officer) keep the membership portal in the
+ * sidebar after their own business goes active. `personaFor` switches the shell
+ * to owner for setup/ops; without this, Membership / Fees / Subtypes vanish
+ * even though `access` still allows `/psf`.
+ */
+function withOversightNav(nav: NavGroup[], access: readonly string[] | undefined): NavGroup[] {
+  if (!access?.length) return nav;
+  const allowed = new Set(access);
+  const extras: NavGroup[] = [];
+  if (allowed.has("PsfConsole") || allowed.has("PsfReport")) {
+    const items = (navigationFor("psf")[0]?.items ?? []).filter((i) => allowed.has(i.board));
+    if (items.length) {
+      extras.push({
+        label: "PSF membership",
+        items: items.map((i) => ({ ...i, id: `psf-${i.id}` })),
+      });
+    }
+  } else if (allowed.has("OfficerHome")) {
+    extras.push({
+      label: "Oversight",
+      items: [{ id: "officer-home", label: "Registrations", icon: "ShieldCheck", board: "OfficerHome" }],
+    });
+  }
+  return extras.length ? [...nav, ...extras] : nav;
+}
+
 /** Desktop workspace: sidebar navigation of the signed-in persona around every operator screen. */
 export default async function WorkspaceLayout({ children }: { children: ReactNode }) {
   const account = await currentAccount();
@@ -64,6 +91,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
       : null;
   // An officer's or leader's header names their own seat, not the persona's sample one.
   const shown = persona.id === "officer" ? await officerPersona(persona) : persona;
+  nav = withOversightNav(nav, persona.access);
   return (
     <WorkspaceShell persona={shown} nav={nav} altNav={altNav}>
       {children}

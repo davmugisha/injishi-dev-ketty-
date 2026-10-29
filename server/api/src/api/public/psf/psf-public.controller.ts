@@ -1,8 +1,10 @@
 import {
+  CreatePsfFormFieldRequest,
   CreatePsfSubsectorRequest,
   SetPsfTierFeeRequest,
   type PsfOfficerFeesView,
   PsfAreaQuery,
+  UpdatePsfFormFieldRequest,
   UpdatePsfSubsectorRequest,
   type PsfSubsectorsView,
   PsfDecisionsQuery,
@@ -14,6 +16,7 @@ import {
   PsfTrackPayRequest,
   PSF_CHECK_TOKEN_HEADER,
   type OversightGrant,
+  type PsfFormFieldsOfficerView,
   type PsfLogoUploadResult,
   type PsfDecisionsPage,
   type PsfIdentityLookupResult,
@@ -254,5 +257,29 @@ export class OversightPsfConsoleController {
     @Query(new ZodValidationPipe(PsfDecisionsQuery)) query: PsfDecisionsQuery,
   ): Promise<PsfDecisionsPage> {
     return this.reports.decisions(grants, query);
+  }
+
+  /** Dynamic extras on the membership form; only a national officer may edit. */
+  @Get('form-fields')
+  formFields(@CurrentOversight() grants: OversightGrant[]): Promise<PsfFormFieldsOfficerView> {
+    return this.psf.formFieldsForOfficer(grants);
+  }
+
+  @Post('form-fields')
+  @HttpCode(201)
+  createFormField(
+    @CurrentOversight() grants: OversightGrant[],
+    @Body(new ZodValidationPipe(CreatePsfFormFieldRequest)) body: CreatePsfFormFieldRequest,
+  ): Promise<PsfFormFieldsOfficerView> {
+    return this.psf.createFormField(grants, body);
+  }
+
+  @Patch('form-fields/:id')
+  updateFormField(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentOversight() grants: OversightGrant[],
+    @Body(new ZodValidationPipe(UpdatePsfFormFieldRequest)) body: UpdatePsfFormFieldRequest,
+  ): Promise<PsfFormFieldsOfficerView> {
+    return this.psf.updateFormField(grants, id, body);
   }
 }

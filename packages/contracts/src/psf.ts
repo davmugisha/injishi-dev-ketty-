@@ -960,3 +960,78 @@ export const UpdatePsfSubsectorRequest = z.object({
     associationCodes: z.array(z.string().trim().min(1)).max(60).optional(),
 });
 export type UpdatePsfSubsectorRequest = z.infer<typeof UpdatePsfSubsectorRequest>;
+// ---------------------------------------------------------------------------
+// Dynamic membership form fields (officer-configured extras on registration)
+// ---------------------------------------------------------------------------
+/**
+ * Field types an officer may add to the PSF membership form. `select` needs at
+ * least one option; the others carry no options.
+ */
+export const PsfFormFieldType = z.enum(["text", "textarea", "number", "boolean", "select"]);
+export type PsfFormFieldType = z.infer<typeof PsfFormFieldType>;
+/** Stable key: lowercase snake, used as the answer bag key and in APIs. */
+export const PsfFormFieldKey = z
+    .string()
+    .trim()
+    .regex(/^[a-z][a-z0-9_]{1,39}$/, "Use a short lowercase key, e.g. employees_count.");
+export const PsfFormFieldOption = z.string().trim().min(1).max(80);
+export const PsfFormField = z.object({
+    id: Uuid,
+    key: PsfFormFieldKey,
+    label: z.string().trim().min(1).max(120),
+    helpText: z.string().trim().max(400).nullable(),
+    fieldType: PsfFormFieldType,
+    required: z.boolean(),
+    options: z.array(PsfFormFieldOption),
+    sortOrder: z.number().int(),
+    active: z.boolean(),
+});
+export type PsfFormField = z.infer<typeof PsfFormField>;
+/** What applicants and the public form see: active fields only, ordered. */
+export const PsfFormFieldsPublic = z.object({
+    fields: z.array(PsfFormField.omit({ active: true })),
+});
+export type PsfFormFieldsPublic = z.infer<typeof PsfFormFieldsPublic>;
+/** What an officer sees and may edit: every field, including inactive. */
+export const PsfFormFieldsOfficerView = z.object({
+    fields: z.array(PsfFormField),
+    /** Only a country-scoped PSF officer may create or edit the catalogue. */
+    canEdit: z.boolean(),
+});
+export type PsfFormFieldsOfficerView = z.infer<typeof PsfFormFieldsOfficerView>;
+export const CreatePsfFormFieldRequest = z
+    .object({
+        key: PsfFormFieldKey,
+        label: z.string().trim().min(1).max(120),
+        helpText: z.string().trim().max(400).nullable().optional(),
+        fieldType: PsfFormFieldType,
+        required: z.boolean().default(false),
+        options: z.array(PsfFormFieldOption).max(40).default([]),
+        sortOrder: z.number().int().min(0).max(999).default(0),
+    })
+    .superRefine((v, ctx) => {
+        if (v.fieldType === "select" && v.options.length < 1) {
+            ctx.addIssue({ code: "custom", path: ["options"], message: "A select field needs at least one option." });
+        }
+        if (v.fieldType !== "select" && v.options.length > 0) {
+            ctx.addIssue({ code: "custom", path: ["options"], message: "Only a select field carries options." });
+        }
+    });
+export type CreatePsfFormFieldRequest = z.infer<typeof CreatePsfFormFieldRequest>;
+export const UpdatePsfFormFieldRequest = z
+    .object({
+        label: z.string().trim().min(1).max(120).optional(),
+        helpText: z.string().trim().max(400).nullable().optional(),
+        required: z.boolean().optional(),
+        options: z.array(PsfFormFieldOption).max(40).optional(),
+        sortOrder: z.number().int().min(0).max(999).optional(),
+        active: z.boolean().optional(),
+    })
+    .refine((v) => Object.keys(v).length > 0, { message: "Send at least one change." });
+export type UpdatePsfFormFieldRequest = z.infer<typeof UpdatePsfFormFieldRequest>;
+/**
+ * Answers bag keyed by field `key`. Validation against the live catalogue
+ * happens on the server at submit; this shape only bounds the wire.
+ */
+export const PsfFormAnswers = z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]));
+export type PsfFormAnswers = z.infer<typeof PsfFormAnswers>;

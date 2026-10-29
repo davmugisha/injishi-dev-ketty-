@@ -192,8 +192,11 @@ export class RoomTypesRepository {
           roomCount: r.roomCount ?? 1,
           // Deprecated, and written anyway: see the class comment.
           basePriceRwf: r.basePriceRwf,
-          bookingMode: r.bookingMode ?? null,
-          cancellationTier: r.cancellationTier ?? null,
+          // Instant book is the default path to a chargeable listing. Null
+          // booking mode published fine but the marketplace treats it as
+          // unsellable ("can't be booked online"), so create never leaves it blank.
+          bookingMode: r.bookingMode ?? 'instant_book',
+          cancellationTier: r.cancellationTier ?? 'flexible',
         })
         .returning({ id: roomTypes.id });
       if (!roomType) throw new Error('Room type insert returned no row.');
@@ -206,8 +209,8 @@ export class RoomTypesRepository {
         isDefault: true,
         basePriceRwf: r.basePriceRwf,
         baseOccupancy: r.maxGuests,
-        cancellationTier: r.cancellationTier ?? null,
-        bookingMode: r.bookingMode ?? null,
+        cancellationTier: r.cancellationTier ?? 'flexible',
+        bookingMode: r.bookingMode ?? 'instant_book',
       });
 
       await insertRooms(tx, {

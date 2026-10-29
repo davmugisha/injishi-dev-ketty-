@@ -1264,7 +1264,7 @@ export default function RegisterWizard({
       ? `A member${business.psfMembershipNumber.trim() ? `, number ${business.psfMembershipNumber.trim()}` : ""}`
       : business.psfMember === false
         ? business.psfApply === true
-          ? `Applying${tiers?.find((t) => t.code === psf.requestedTierCode)?.nameEn ? `: ${tiers.find((t) => t.code === psf.requestedTierCode)!.nameEn}` : ""}. Sent to PSF after approval`
+          ? `Applying${tiers?.find((t) => t.code === psf.requestedTierCode)?.nameEn ? `: ${tiers.find((t) => t.code === psf.requestedTierCode)!.nameEn}` : ""}. Filed with this registration`
           : "Not a member, not applying now"
         : "Not answered";
   // Mid sentence: "checked", but PSF and ID keep their capitals.

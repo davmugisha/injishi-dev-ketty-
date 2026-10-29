@@ -95,7 +95,6 @@ export const sampleCollectionsByBoard: Record<string, number> = {
   PayrollRules: 1,
   PeopleHome: 2,
   PlanBilling: 7,
-  PsfConsole: 2,
   PublicHelp: 4,
   PublicHost: 2,
   PurchaseOrders: 5,

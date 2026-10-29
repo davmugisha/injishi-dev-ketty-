@@ -69,6 +69,12 @@ export function OfficerHomeView({
         description={state.summary}
         actions={
           <>
+            {persona.id === "psf" ? (
+              <LinkButton href={screenHref("PsfConsole")} variant="secondary">
+                <FileText className="size-4" />
+                Membership
+              </LinkButton>
+            ) : null}
             <LinkButton href={screenHref("DelegatedReports")} variant="secondary">
               <Database className="size-4" />
               Delegated data

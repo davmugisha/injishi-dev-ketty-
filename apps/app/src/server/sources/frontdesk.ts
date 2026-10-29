@@ -20,6 +20,8 @@ import type {
   QueueTab,
   ReadinessRoom,
   Reservation,
+  ReservationsSummary,
+  ReservationView,
   RoomStatus,
   RoomType,
   Tone,
@@ -1072,6 +1074,43 @@ export const sources = defineSources({
       const board = await deskBoard(ctx);
       const atDesk = arrivalsOf(board)[0]?.id ?? null;
       return reservationsOf(board).map((b) => presentReservation(b, board, atDesk));
+    },
+  },
+  "frontdesk.reservationViews": {
+    async list(): Promise<ReservationView[]> {
+      return [
+        { id: "all", label: "All upcoming" },
+        { id: "today", label: "Arriving today" },
+        { id: "payment", label: "Payment action" },
+        { id: "noRoom", label: "No room yet" },
+        { id: "notArrived", label: "Not arrived" },
+      ];
+    },
+  },
+  "frontdesk.reservationsSummary": {
+    async list(ctx): Promise<ReservationsSummary[]> {
+      const board = await deskBoard(ctx);
+      const upcoming = reservationsOf(board);
+      const today = dayNumber(board.today);
+      return [
+        {
+          id: board.property.id,
+          totalBookings: upcoming.length,
+          window: `${dayMonth(board.today)} onward`,
+          policy: "Marketplace terms",
+          refundId: "",
+          actedAt: "",
+          // The view rebuilds these from `today`; placeholders keep the shape.
+          dateRanges: [
+            { id: "upcoming", label: "All upcoming", from: today - 1, to: today + 120 },
+            { id: "today", label: "Arriving today", from: today, to: today },
+            { id: "week", label: "This week", from: today, to: today + 6 },
+          ],
+          declineReasons: ["Dates no longer available", "Can't meet the request", "Guest didn't answer questions", "Other"],
+          cancelReasons: ["Guest changed plans", "Duplicate booking", "Travel disrupted", "Booked elsewhere"],
+          noShowReasons: ["Did not arrive · no contact", "Guest cancelled too late", "Card or wallet declined"],
+        },
+      ];
     },
   },
   "frontdesk.roomTypes": {

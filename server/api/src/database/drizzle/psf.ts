@@ -230,6 +230,16 @@ export const psfMembershipApplications = pgTable(
     withdrawnByUserId: uuid('withdrawn_by_user_id').references(
       () => users.id,
     ),
+    /**
+     * Answers to the officer-configured dynamic fields on the membership form
+     * (`psf_membership_form_fields`). Keys are field `key`s; values are string,
+     * number, boolean or null. Fixed columns above stay the source of truth for
+     * the core form; this bag only holds the extras.
+     */
+    extraAnswers: jsonb('extra_answers')
+      .$type<Record<string, string | number | boolean | null>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     ...timestamps,
   },
   (t) => [
@@ -412,3 +422,35 @@ export const psfApplicationBranches = pgTable(
 );
 
 export type PsfApplicationBranchRow = typeof psfApplicationBranches.$inferSelect;
+
+/**
+ * Officer-configured extras on the PSF membership form (registration + public).
+ * National managers maintain the catalogue; applicants answer into
+ * `psf_membership_applications.extra_answers`.
+ */
+export const psfMembershipFormFields = pgTable(
+  'psf_membership_form_fields',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    key: text('key').notNull(),
+    label: text('label').notNull(),
+    helpText: text('help_text'),
+    fieldType: text('field_type').notNull(),
+    required: boolean('required').notNull().default(false),
+    options: jsonb('options').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    sortOrder: smallint('sort_order').notNull().default(0),
+    active: boolean('active').notNull().default(true),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('psf_membership_form_fields_key_uk').on(t.key),
+    index('psf_membership_form_fields_active_idx').on(t.active, t.sortOrder),
+    check(
+      'psf_membership_form_fields_type_ck',
+      sql`${t.fieldType} IN ('text', 'textarea', 'number', 'boolean', 'select')`,
+    ),
+    check('psf_membership_form_fields_key_ck', sql`${t.key} ~ '^[a-z][a-z0-9_]{1,39}$'`),
+  ],
+);
+
+export type PsfMembershipFormFieldRow = typeof psfMembershipFormFields.$inferSelect;

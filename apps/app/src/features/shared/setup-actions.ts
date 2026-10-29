@@ -42,7 +42,7 @@ const int = (value: string) =>
 export async function updatePropertyAction(
   workspaceId: string,
   propertyId: string,
-  input: { description: string; street: string; checkInTime: string; checkOutTime: string },
+  input: { description: string; street: string; checkInTime?: string; checkOutTime?: string },
 ): Promise<ActionResult> {
   return run(workspaceId, async () => {
     await setup.updateProperty(await ctx(), workspaceId, propertyId, input);

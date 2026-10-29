@@ -45,8 +45,13 @@ interface WorkspacesResponse {
   twoFactor?: TwoFactorStatus;
 }
 
+interface OversightConsole {
+  console?: string;
+  oversightRole?: string;
+}
+
 interface OversightResponse {
-  consoles?: unknown[];
+  consoles?: OversightConsole[];
   twoFactor?: TwoFactorStatus;
 }
 
@@ -64,6 +69,8 @@ export type Access =
       /** Operator workspaces (business or broker), in the API's order. */
       operatorWorkspaceIds: string[];
       holdsConsole: boolean;
+      /** PSF membership console only (District / Province / National Manager). */
+      holdsMembershipConsole: boolean;
       /** `GET /api/v1/me/staff` said this is platform staff. */
       isStaff: boolean;
     };
@@ -83,10 +90,16 @@ export async function fetchAccess(): Promise<Access> {
   const operatorWorkspaceIds = rows
     .filter((w) => (w.kind === "business" || w.kind === "broker") && w.workspaceId)
     .map((w) => w.workspaceId as string);
-  const holdsConsole = (ov.data.consoles ?? []).length > 0;
+  const consoles = ov.data.consoles ?? [];
+  const isMembership = (c: OversightConsole) =>
+    c.console === "membership" || c.oversightRole === "psf_membership_officer";
+  const holdsMembershipConsole = consoles.some(isMembership);
+  // Everything else that appears on `/me/oversight` (KYB verify/approve, tax,
+  // or a stub without a console key) opens the KYB officer desk — not membership.
+  const holdsConsole = consoles.some((c) => !isMembership(c));
   const base = ws.data.twoFactor ??
     ov.data.twoFactor ?? {
-      required: operatorWorkspaceIds.length > 0 || holdsConsole,
+      required: operatorWorkspaceIds.length > 0 || holdsConsole || holdsMembershipConsole,
       verified: false,
     };
   // Staff is a bonus question, not a gate: when `/me/staff` fails the person
@@ -107,6 +120,7 @@ export async function fetchAccess(): Promise<Access> {
     twoFactor,
     operatorWorkspaceIds,
     holdsConsole,
+    holdsMembershipConsole,
     isStaff,
   };
 }

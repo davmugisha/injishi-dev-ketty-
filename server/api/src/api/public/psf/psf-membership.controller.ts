@@ -17,6 +17,7 @@ import {
   type PsfBusinessDetail,
   type PsfBusinessHistory,
   type PsfQueuePage,
+  type PsfFormFieldsPublic,
   type PsfRegisterSummary,
   type PsfTier,
 } from '@injishi/contracts';
@@ -83,6 +84,12 @@ export class PsfTiersController {
   @Get('fees')
   fees(@Query(new ZodValidationPipe(PsfFeesQuery)) query: PsfFeesQuery): Promise<PsfFeesView> {
     return this.psf.feesIn(query.district);
+  }
+
+  /** Active officer-configured extras on the membership form (registration + public). */
+  @Get('form-fields')
+  formFields(): Promise<PsfFormFieldsPublic> {
+    return this.psf.formFieldsPublic();
   }
 }
 

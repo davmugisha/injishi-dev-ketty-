@@ -20,6 +20,9 @@ import { readDesk } from "@/server/sources/oversight";
 
 export const metadata: Metadata = { title: screens.OfficerHome.pageTitle };
 
+/** KYB registration consoles — not the PSF membership console. */
+const KYB_ROLES = new Set(["business_field_verifier", "business_approver"]);
+
 const MANDATES: readonly MandateStateId[] = ["verified", "expiring", "suspended"];
 
 const ROLE_LABEL: Record<string, string> = {
@@ -49,8 +52,15 @@ export default async function OfficerHomePage({ searchParams }: { searchParams: 
   // A local leader reviews no business: their home is the guests in their area (P5).
   if (leaderOnly(await officerConsoles())) redirect("/officer/guests");
   const ctx = await requestContext();
-  const [desk, states, facts, exclusions, kpis, cases, decisions, rules] = await Promise.all([
-    readDesk(ctx),
+  const desk = await readDesk(ctx);
+  // PSF District / Province / National managers hold `membership`, not KYB
+  // verification/approval. Sending them here paints Access Denied; their desk is
+  // the membership console.
+  const holdsKyb = desk.consoles.some((c) => KYB_ROLES.has(c.oversightRole));
+  const holdsMembership = desk.consoles.some((c) => c.oversightRole === "psf_membership_officer");
+  if (holdsMembership && !holdsKyb) redirect("/psf");
+
+  const [states, facts, exclusions, kpis, cases, decisions, rules] = await Promise.all([
     getCollection<MandateState>("oversight.mandateStates"),
     getCollection<MandateFact>("oversight.mandateFacts"),
     getCollection<MandateExclusion>("oversight.mandateExclusions"),

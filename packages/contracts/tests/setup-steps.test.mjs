@@ -18,6 +18,7 @@ const {
   RetiredAccommodationClass,
   SETUP_STEP_KEYS,
   currentAccommodationClass,
+  isFoodVenue,
   isSetupStepDone,
   setupCompletion,
   setupStepsFor,
@@ -90,6 +91,43 @@ test("each class speaks its own words", () => {
   assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "villa" }).typePlural, "Villa types");
   assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "apartment" }).unitSingular, "apartment");
   assert.equal(setupVocabularyFor({ domain: "hospitality", accommodationClass: "hotel" }).pricePeriod, "per person, per night");
+});
+
+test("a coffee shop or bar is a food venue, not a hotel", () => {
+  assert.equal(
+    isFoodVenue({ entityGroup: "restaurant_bar_nightclub", accommodationClass: "other" }),
+    true,
+  );
+  assert.equal(
+    isFoodVenue({
+      accommodationClass: "other",
+      accommodationClassOther: "Coffee shop",
+    }),
+    true,
+  );
+  assert.equal(isFoodVenue({ accommodationClass: "hotel" }), false);
+
+  const coffee = {
+    domain: "hospitality",
+    accommodationClass: "other",
+    entityGroup: "restaurant_bar_nightclub",
+    accommodationClassOther: "Coffee shop",
+  };
+  const words = setupVocabularyFor(coffee);
+  assert.equal(words.typePlural, "What you sell");
+  assert.equal(words.pricePeriod, "each");
+
+  const steps = setupStepsFor(coffee);
+  assert.equal(steps.find((s) => s.key === "property").title, "Venue profile");
+  assert.equal(steps.find((s) => s.key === "rooms").required, false);
+  assert.equal(steps.find((s) => s.key === "room_types").required, true);
+  assert.equal(steps.find((s) => s.key === "departments").required, false);
+  // "other" without a venue group still asks for rooms (unusual lodging).
+  assert.equal(
+    setupStepsFor({ domain: "hospitality", accommodationClass: "other" }).find((s) => s.key === "rooms")
+      .required,
+    true,
+  );
 });
 
 test("a retired or missing class resolves rather than throws", () => {

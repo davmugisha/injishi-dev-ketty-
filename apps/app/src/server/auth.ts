@@ -55,6 +55,35 @@ export async function signInOptions(): Promise<SignInOptions> {
   }
 }
 
+/** One person on the API's demo roster (`GET /api/v1/demo/personas`), the fields the sign-in page reads. */
+export interface DemoRosterPerson {
+  email: string;
+  name: string;
+  headline: string | null;
+  roles: string[];
+}
+
+/**
+ * The API's own demo roster (2026-10-26): the people the seeds create on `@demo.injishi.com`
+ * (the PSF managers among them), beside this app's personas. Empty outside the demo, or when the
+ * API does not answer, so the page never lists anyone a code could not reach.
+ */
+export async function demoRoster(): Promise<DemoRosterPerson[]> {
+  try {
+    const rows = await apiRequest<
+      { email: string; name: string; seats?: { label?: string; role?: string }[]; story?: { headline?: string } }[]
+    >(null, "/api/v1/demo/personas");
+    return rows.map((r) => ({
+      email: r.email,
+      name: r.name,
+      headline: r.story?.headline ?? null,
+      roles: (r.seats ?? []).map((s) => [s.role, s.label].filter(Boolean).join(" · ")).filter(Boolean),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 /** The fixed sign-in code when the API runs as the demo, else null. */
 export async function demoSignInCode(): Promise<string | null> {
   return (await signInOptions()).demo?.code ?? null;
@@ -420,6 +449,21 @@ const ROLE_HOME: Partial<Record<string, BoardId>> = {
 };
 
 /**
+ * Operator shell plus the oversight boards a dual-hat person also holds, so an
+ * approved business owner who is a district manager can open `/w/…/setup` in the
+ * owner portal and still deep-link to `/psf` or `/officer`.
+ */
+function withOversightBoards(shell: Persona, oversight: string[]): Persona {
+  if (oversight.length === 0) return shell;
+  const extra =
+    oversight.includes("psf_membership_officer")
+      ? (personas.psf.access ?? [])
+      : (["OfficerHome", "OfficerCase", "DelegatedReports"] as const);
+  const access = [...new Set([...(shell.access ?? []), ...extra])];
+  return access.length === (shell.access?.length ?? 0) ? shell : { ...shell, access: [...access] };
+}
+
+/**
  * Which interface shell a person gets. A demo persona is matched by email (its story, home and
  * navigation are written for it); anyone else gets the shell of where they land (`/me/context`, from
  * real records): a running residence business is the landlord's; a hotel is the shell of the
@@ -463,12 +507,24 @@ async function personaFor(
     "housekeeper",
   ];
   business.sort((a, b) => order.indexOf(a.orgRole ?? "") - order.indexOf(b.orgRole ?? ""));
+  const active = business.filter((w) => w.registrationStatus === "active");
+  const topActive = active[0];
   const top = business[0];
   if (top?.orgRole && ROLE_PERSONA[top.orgRole]) return shellFor(top.orgRole);
   if (landing?.surface === "tenant") return personas.tenant;
   if (context ? context.staff.isStaff : await holds(cookie, "/api/v1/me/staff")) return personas.ops;
   if (context ? context.oversight.length > 0 : await holds(cookie, "/api/v1/me/oversight")) return personas.officer;
   return personas.guest;
+}
+
+/** The oversight roles a person holds, from GET /api/v1/me/oversight; none when it cannot be read. */
+async function oversightRoles(cookie: SessionCookie): Promise<string[]> {
+  try {
+    const body = await apiRequest<{ consoles?: { oversightRole?: string }[] }>(cookie, "/api/v1/me/oversight");
+    return (body?.consoles ?? []).map((c) => c.oversightRole ?? "").filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 /** True when a /me/* grant read answers with at least one grant. */

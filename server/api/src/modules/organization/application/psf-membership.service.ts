@@ -50,11 +50,16 @@ import {
   PSF_CONTACT_ROLE_LABEL,
   PSF_DECLINE_REASON_LABEL,
   type CreatePsfSubsectorRequest,
+  type CreatePsfFormFieldRequest,
   type PsfBusinessDetail,
   type PsfFeesView,
+  type PsfFormField,
+  type PsfFormFieldsOfficerView,
+  type PsfFormFieldsPublic,
   type PsfOfficerFeesView,
   type SetPsfTierFeeRequest,
   type PsfSubsectorsView,
+  type UpdatePsfFormFieldRequest,
   type UpdatePsfSubsectorRequest,
   PSF_OUT_OF_SCOPE_MESSAGE,
   psfFeeCeilings,
@@ -352,6 +357,80 @@ export class PsfMembershipService {
     }
     await this.repo.setTierFee({ ...input, userId: officerUserId });
     return this.feesForOfficer(grants, input.districtId === null ? {} : { district: input.districtId });
+  }
+
+  // --- Dynamic membership form fields (2026-10-26) -----------------------------
+
+  /** Active fields for the public and registration membership forms. */
+  async formFieldsPublic(): Promise<PsfFormFieldsPublic> {
+    const rows = await this.repo.formFields(true);
+    return { fields: rows.map(toFormFieldView).map(({ active: _a, ...f }) => f) };
+  }
+
+  /** Every field for the officer console; only a national officer may edit. */
+  async formFieldsForOfficer(grants: OversightGrant[]): Promise<PsfFormFieldsOfficerView> {
+    const scope = await this.scopeOf(grants);
+    const rows = await this.repo.formFields(false);
+    return { fields: rows.map(toFormFieldView), canEdit: scope === null };
+  }
+
+  async createFormField(
+    grants: OversightGrant[],
+    input: CreatePsfFormFieldRequest,
+  ): Promise<PsfFormFieldsOfficerView> {
+    if ((await this.scopeOf(grants)) !== null) {
+      throw new ForbiddenException('Only the PSF National Manager configures the membership form.');
+    }
+    try {
+      await this.repo.insertFormField({
+        key: input.key,
+        label: input.label,
+        helpText: input.helpText ?? null,
+        fieldType: input.fieldType,
+        required: input.required,
+        options: input.fieldType === 'select' ? input.options : [],
+        sortOrder: input.sortOrder,
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException('That field key is already in use.');
+      }
+      throw error;
+    }
+    return this.formFieldsForOfficer(grants);
+  }
+
+  async updateFormField(
+    grants: OversightGrant[],
+    id: string,
+    input: UpdatePsfFormFieldRequest,
+  ): Promise<PsfFormFieldsOfficerView> {
+    if ((await this.scopeOf(grants)) !== null) {
+      throw new ForbiddenException('Only the PSF National Manager configures the membership form.');
+    }
+    const existing = await this.repo.formField(id);
+    if (!existing) throw new NotFoundException('That form field is gone.');
+    if (input.options !== undefined && existing.fieldType === 'select' && input.options.length < 1) {
+      throw new UnprocessableEntityException({
+        message: 'Validation failed',
+        issues: [{ code: 'custom', path: ['options'], message: 'A select field needs at least one option.' }],
+      });
+    }
+    if (input.options !== undefined && existing.fieldType !== 'select') {
+      throw new UnprocessableEntityException({
+        message: 'Validation failed',
+        issues: [{ code: 'custom', path: ['options'], message: 'Only a select field carries options.' }],
+      });
+    }
+    await this.repo.updateFormField(id, {
+      ...(input.label !== undefined ? { label: input.label } : {}),
+      ...(input.helpText !== undefined ? { helpText: input.helpText } : {}),
+      ...(input.required !== undefined ? { required: input.required } : {}),
+      ...(input.options !== undefined ? { options: input.options } : {}),
+      ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
+      ...(input.active !== undefined ? { active: input.active } : {}),
+    });
+    return this.formFieldsForOfficer(grants);
   }
 
   // --- Subtypes, as officers keep them (2026-10-20) -----------------------------
@@ -1494,3 +1573,31 @@ function decodeQueueCursor(cursor: string | undefined): { sortAt: Date; id: stri
   if (!/^[0-9a-f-]{36}$/i.test(id)) return undefined;
   return { sortAt, id };
 }
+
+function toFormFieldView(row: {
+  id: string;
+  key: string;
+  label: string;
+  helpText: string | null;
+  fieldType: string;
+  required: boolean;
+  options: string[] | null;
+  sortOrder: number;
+  active: boolean;
+}): PsfFormField {
+  return {
+    id: row.id,
+    key: row.key,
+    label: row.label,
+    helpText: row.helpText,
+    fieldType: row.fieldType as PsfFormField['fieldType'],
+    required: row.required,
+    options: row.options ?? [],
+    sortOrder: row.sortOrder,
+    active: row.active,
+  };
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  const e = error as { code?: string; cause?: { code?: string } } | undefined;
+  return e?.code === '23505' || e?.cause?.code === '23505';}

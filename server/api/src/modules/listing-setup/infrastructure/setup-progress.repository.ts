@@ -12,6 +12,8 @@ export interface SetupBusinessRow {
   legalName: string;
   domain: 'hospitality' | 'residence';
   accommodationClass: string | null;
+  accommodationClassOther: string | null;
+  entityGroup: string | null;
 }
 
 /**
@@ -36,8 +38,15 @@ export class SetupProgressRepository {
       legal_name: string;
       domain: 'hospitality' | 'residence';
       accommodation_class: string | null;
+      accommodation_class_other: string | null;
+      rdb_entity_group: string | null;
     }>(sql`
-      select id as org_id, legal_name, domain, accommodation_class
+      select id as org_id,
+             legal_name,
+             domain,
+             accommodation_class,
+             accommodation_class_other,
+             rdb_entity_group
         from orgs
        where id = ${orgId}
     `);
@@ -48,6 +57,8 @@ export class SetupProgressRepository {
           legalName: row.legal_name,
           domain: row.domain,
           accommodationClass: row.accommodation_class,
+          accommodationClassOther: row.accommodation_class_other,
+          entityGroup: row.rdb_entity_group,
         }
       : null;
   }

@@ -26,9 +26,9 @@ import type { HostKind } from "@/data/host";
  *
  * The eight classes are drawn with eight distinct lucide marks on purpose: the
  * `/host` funnel shows them side by side, so two classes sharing a glyph would
- * read as one. `residence` and `bar_restaurant` make ten marks on that card and
- * are the two that are not classes — see `ResidenceIcon` and
- * `BarRestaurantIcon`.
+ * read as one. `residence`, `bar_restaurant` and `coffee_shop` are the marks
+ * that are not classes — see `ResidenceIcon`, `BarRestaurantIcon` and
+ * `CoffeeShopIcon`.
  */
 
 type IconProps = SVGProps<SVGSVGElement>;
@@ -144,17 +144,20 @@ function BarRestaurantIcon({ size = 24, ...props }: MarkProps) {
 }
 
 /**
+ * A coffee shop is also a table, not a bed — but it is not a bar & restaurant.
+ * A cup marks the difference so the two venue tiles do not read as one.
+ */
+function CoffeeShopIcon({ size = 24, ...props }: MarkProps) {
+  return <Coffee width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
+}
+
+/**
  * The PSF tile: a business of any sector, joining the Private Sector
  * Federation. Not a building, because it is not a place to stay, and not the
  * broker's handshake, because it is a business in its own right.
  */
 export function PsfIcon({ size = 24, ...props }: MarkProps) {
   return <Briefcase width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
-}
-
-/** A coffee shop (ADR-075 AC-1): the second venue with no rooms, drawn as a cup beside Bar & Restaurant's cutlery. */
-function CoffeeShopIcon({ size = 24, ...props }: MarkProps) {
-  return <Coffee width={size} height={size} strokeWidth={1.7} aria-hidden {...props} />;
 }
 
 export const HostKindIcons: Record<
@@ -164,6 +167,6 @@ export const HostKindIcons: Record<
   ...PropertyKindIcons,
   residence: ResidenceIcon,
   bar_restaurant: BarRestaurantIcon,
-  psf: PsfIcon,
   coffee_shop: CoffeeShopIcon,
+  psf: PsfIcon,
 };

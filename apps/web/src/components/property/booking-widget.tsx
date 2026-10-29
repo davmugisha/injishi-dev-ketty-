@@ -495,10 +495,12 @@ export function BookingWidget({ property }: { property: BookingWidgetProperty })
           </Button>
         )}
 
-        {/* One reassurance line, not two stacked at two different sizes. */}
-        <p className="mt-4 text-center text-sm text-page-fg-70">
-          You will not be charged yet. Payment is held in escrow until check-in.
-        </p>
+        {/* Escrow copy only when a stay can actually be booked — not beside "can't be booked". */}
+        {notSold ? null : (
+          <p className="mt-4 text-center text-sm text-page-fg-70">
+            You will not be charged yet. Payment is held in escrow until check-in.
+          </p>
+        )}
 
         {quote ? (
           <>

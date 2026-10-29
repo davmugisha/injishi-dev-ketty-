@@ -4,7 +4,7 @@ import { SignInView } from "@/features/platform/auth/SignInView";
 import { returnTargetFrom } from "@/lib/return-to";
 import { requireScreen } from "@/lib/session";
 import { signInErrorMessage } from "@/lib/sign-in-messages";
-import { signInOptions } from "@/server/auth";
+import { demoRoster, signInOptions } from "@/server/auth";
 
 export const metadata: Metadata = { title: screens.SignIn.pageTitle };
 
@@ -24,10 +24,17 @@ export default async function SignInPage({
   const { next, redirect, as, error } = await searchParams;
   const highlight = as && (PERSONA_IDS as string[]).includes(as) ? as : null;
   const options = await signInOptions();
+  // The demo's people only: the landlord and tenant shells are real people's, with no demo account.
+  const listed = PERSONA_IDS.map((id) => personas[id]).filter((p) => p.email);
+  // The API's own demo people (the `@demo.injishi.com` seeds, the PSF managers among them), less any
+  // this app already lists by the same email.
+  const roster = options.demo
+    ? (await demoRoster()).filter((r) => !listed.some((p) => p.email.toLowerCase() === r.email.toLowerCase()))
+    : [];
   return (
     <SignInView
-      // The demo's people only: the landlord and tenant shells are real people's, with no demo account.
-      personas={PERSONA_IDS.map((id) => personas[id]).filter((p) => p.email)}
+      personas={listed}
+      roster={roster}
       next={returnTargetFrom({ next, redirect }) ?? ""}
       highlight={highlight}
       demo={options.demo}

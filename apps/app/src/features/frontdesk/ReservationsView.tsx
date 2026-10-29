@@ -104,18 +104,29 @@ function savedFilters(today: number): Record<ReservationView["id"], (r: Reservat
   };
 }
 
-/** The arrival date presets: the fixtures' own, or the same three cut from the live list's today. */
+/**
+ * The arrival date presets: the fixtures' own, or windows cut from the live
+ * desk's today. Default is the same horizon the front-desk board loads
+ * (about four months ahead) — a 3-week window was hiding confirmed Amen
+ * bookings that checked in later.
+ */
 function datePresets(summary: ReservationsSummary, today: number): ReservationsSummary["dateRanges"] {
   if (today === FIXTURE_TODAY) return summary.dateRanges;
   return [
     {
-      id: "month",
-      label: `Arriving ${dayLabel(today - 3)} – ${dayLabel(today + 19)}`,
-      from: today - 3,
-      to: today + 19,
+      id: "upcoming",
+      label: `Arriving ${dayLabel(today - 1)} – ${dayLabel(today + 120)}`,
+      from: today - 1,
+      to: today + 120,
     },
     { id: "today", label: `Arriving ${dayLabel(today)}`, from: today, to: today },
     { id: "week", label: `Arriving ${dayLabel(today)} – ${dayLabel(today + 6)}`, from: today, to: today + 6 },
+    {
+      id: "month",
+      label: `Arriving ${dayLabel(today)} – ${dayLabel(today + 30)}`,
+      from: today,
+      to: today + 30,
+    },
   ];
 }
 

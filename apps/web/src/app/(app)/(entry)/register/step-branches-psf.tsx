@@ -208,7 +208,7 @@ export function StepBranchesPsf({
               name="psf-plan"
               checked={business.psfApply === true}
               title="Apply now"
-              description="PSF's full form, here. It goes to PSF once Injishi approves your business."
+              description="Fill PSF’s form here. It is filed with this registration; PSF reviews it alongside Injishi’s checks."
               onSelect={() => {
                 onBusinessChange({ ...business, psfApply: true });
                 onApplyNow();
@@ -218,7 +218,7 @@ export function StepBranchesPsf({
               name="psf-plan"
               checked={business.psfApply === false}
               title="Not now"
-              description="Apply from your workspace whenever you like."
+              description="Register on Injishi only. Apply for PSF later from your workspace."
               onSelect={() => onBusinessChange({ ...business, psfApply: false })}
             />
           </div>

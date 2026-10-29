@@ -25,6 +25,7 @@ import {
   psfAssociations,
   psfClusters,
   psfMembershipApplications,
+  psfMembershipFormFields,
   psfMembershipTiers,
   psfMemberships,
   psfSubsectorAssociations,
@@ -657,6 +658,57 @@ export class PsfMembershipRepository {
       .from(psfMembershipTiers)
       .where(eq(psfMembershipTiers.code, code))
       .limit(1);
+    return row ?? null;
+  }
+
+  // --- Dynamic membership form fields (2026-10-26) -----------------------------
+
+  async formFields(activeOnly: boolean): Promise<(typeof psfMembershipFormFields.$inferSelect)[]> {
+    return this.db
+      .select()
+      .from(psfMembershipFormFields)
+      .where(activeOnly ? eq(psfMembershipFormFields.active, true) : undefined)
+      .orderBy(asc(psfMembershipFormFields.sortOrder), asc(psfMembershipFormFields.key));
+  }
+
+  async formField(id: string): Promise<(typeof psfMembershipFormFields.$inferSelect) | null> {
+    const [row] = await this.db
+      .select()
+      .from(psfMembershipFormFields)
+      .where(eq(psfMembershipFormFields.id, id))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async insertFormField(input: {
+    key: string;
+    label: string;
+    helpText: string | null;
+    fieldType: string;
+    required: boolean;
+    options: string[];
+    sortOrder: number;
+  }): Promise<(typeof psfMembershipFormFields.$inferSelect)> {
+    const [row] = await this.db.insert(psfMembershipFormFields).values(input).returning();
+    return row!;
+  }
+
+  async updateFormField(
+    id: string,
+    patch: Partial<{
+      label: string;
+      helpText: string | null;
+      required: boolean;
+      options: string[];
+      sortOrder: number;
+      active: boolean;
+    }>,
+  ): Promise<(typeof psfMembershipFormFields.$inferSelect) | null> {
+    const [row] = await this.db
+      .update(psfMembershipFormFields)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(psfMembershipFormFields.id, id))
+      .returning();
     return row ?? null;
   }
 
