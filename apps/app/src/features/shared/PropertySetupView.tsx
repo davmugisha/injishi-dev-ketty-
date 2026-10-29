@@ -2,7 +2,7 @@
 
 import { ArrowUpRightFromSquare, CircleCheck, Clock, House, Picture, Tag } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Description, Input, Label, TextArea, TextField } from "@heroui/react";
-import { tidyPlaceName } from "@injishi/contracts";
+import { COMPACT_MAX_ROOMS, setupVocabularyFor, tidyPlaceName } from "@injishi/contracts";
 import { LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { type FormEvent, type ReactNode, useState } from "react";
 import type { Place, SetupRead, StepKey } from "@/server/mutations/setup";
@@ -303,6 +303,13 @@ function PropertyStep({ data, provinces }: { data: Open; provinces: Place[] }) {
 
 function RoomTypeStep({ data }: { data: Open }) {
   const p = data.property;
+  // A lodge sells rooms and cottages, an apartment block apartments, a camp tents (2026-10-29).
+  const words = setupVocabularyFor({
+    domain: data.domain as "hospitality" | "residence",
+    accommodationClass: data.accommodationClass,
+  });
+  const typeWord = words.typePlural.replace(/s$/, "").toLowerCase();
+  const sizeHint = `Up to ${COMPACT_MAX_ROOMS} ${words.unitPlural}, Injishi keeps the menu short for an owner who runs it alone; more, and it adds the team's tools.`;
   const step = useStep();
   const [name, setName] = useState("");
   const [sleeps, setSleeps] = useState("2");
@@ -326,10 +333,10 @@ function RoomTypeStep({ data }: { data: Open }) {
     <StepCard
       id="room_type"
       index={2}
-      title="A priced room type"
+      title={`A priced ${typeWord}`}
       done={done}
       icon={<Tag />}
-      lead="What you sell and at what price, per person, per night, in Rwandan francs."
+      lead={`What you sell and at what price, ${words.pricePeriod}, in Rwandan francs. ${sizeHint}`}
     >
       {types.length ? (
         <ul className="m-0 flex list-none flex-col p-0">
@@ -340,8 +347,8 @@ function RoomTypeStep({ data }: { data: Open }) {
             >
               <span className="font-medium">{t.name}</span>
               <span className="text-[13px] text-muted tabular">
-                {t.basePriceRwf === null ? "No price yet" : `${rwf(t.basePriceRwf)} per person, per night`} ·{" "}
-                {t.sellableRoomCount} {t.sellableRoomCount === 1 ? "room" : "rooms"}
+                {t.basePriceRwf === null ? "No price yet" : `${rwf(t.basePriceRwf)} ${words.pricePeriod}`} ·{" "}
+                {t.sellableRoomCount} {t.sellableRoomCount === 1 ? words.unitSingular : words.unitPlural}
               </span>
             </li>
           ))}
@@ -351,8 +358,16 @@ function RoomTypeStep({ data }: { data: Open }) {
         <form onSubmit={submit} className="flex flex-col gap-3">
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr))]">
             <TextField value={name} onChange={setName} isRequired fullWidth>
-              <Label>Room type</Label>
-              <Input placeholder="Double room" />
+              <Label>{typeWord.charAt(0).toUpperCase() + typeWord.slice(1)}</Label>
+              <Input
+                placeholder={
+                  words.unitSingular === "apartment"
+                    ? "One-bedroom apartment"
+                    : words.unitSingular === "tent"
+                      ? "Safari tent"
+                      : "Double room"
+                }
+              />
             </TextField>
             <TextField value={sleeps} onChange={setSleeps} isRequired fullWidth>
               <Label>Sleeps</Label>
@@ -363,7 +378,7 @@ function RoomTypeStep({ data }: { data: Open }) {
               <Input inputMode="numeric" placeholder="45000" className="tabular" />
             </TextField>
             <TextField value={rooms} onChange={setRooms} isRequired fullWidth>
-              <Label>How many rooms</Label>
+              <Label>How many {words.unitPlural}</Label>
               <Input inputMode="numeric" />
             </TextField>
           </div>
@@ -373,9 +388,9 @@ function RoomTypeStep({ data }: { data: Open }) {
             className="self-start"
             isDisabled={step.busy || name.trim().length < 2 || !price.trim()}
           >
-            {step.busy ? "Adding…" : types.length ? "Add another room type" : "Add room type"}
+            {step.busy ? "Adding…" : types.length ? `Add another ${typeWord}` : `Add ${typeWord}`}
           </Button>
-          <Outcome result={step.result} okText="Room type added." />
+          <Outcome result={step.result} okText={`${typeWord.charAt(0).toUpperCase() + typeWord.slice(1)} added.`} />
         </form>
       ) : (
         <p className="text-[13px] text-muted">Add the property first.</p>
