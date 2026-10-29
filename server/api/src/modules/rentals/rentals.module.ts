@@ -63,7 +63,7 @@ import { RentRemindersProcessor } from './infrastructure/rent-reminders.processo
 import { RentRollRepository } from './infrastructure/rent-roll.repository';
 import { RentalsMoneyQueue } from './infrastructure/rentals-money.queue';
 // Faults (WP 4.1): the shared ticket lifecycle, the landlord's and the tenant's sides.
-import { TicketLifecycle } from '../operations/application/ticket-lifecycle';
+import { TicketLifecycle } from '../pms/application/ticket-lifecycle';
 import { FaultNotices } from './application/fault-notices';
 import { FaultsService } from './application/faults.service';
 import { TenantFaultsService } from './application/tenant-faults.service';

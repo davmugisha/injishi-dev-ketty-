@@ -15,7 +15,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { HousekeepingService } from '../../../modules/operations/application/housekeeping.service';
+import { HousekeepingService } from '../../../modules/pms/application/housekeeping.service';
 import {
   CurrentUser,
   SessionGuard,

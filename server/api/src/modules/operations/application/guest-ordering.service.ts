@@ -27,7 +27,7 @@ import {
   unclassifiedSentence,
 } from '../domain/sellable-item';
 import { PaymentSeam } from '../../payments/domain/payment-seam';
-import { FolioRepository } from '../infrastructure/folio.repository';
+import { FolioRepository } from '../../pms/infrastructure/folio.repository';
 import { MessagingService } from './messaging.service';
 import {
   GuestOrderingRepository,

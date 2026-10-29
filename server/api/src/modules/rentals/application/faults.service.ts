@@ -21,8 +21,8 @@ import { BadRequestException, ConflictException, ForbiddenException, Inject, Inj
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { TicketLifecycle, type TicketAssignee } from '../../operations/application/ticket-lifecycle';
-import { memberHoldsAt } from '../../operations/infrastructure/room-events';
+import { TicketLifecycle, type TicketAssignee } from '../../pms/application/ticket-lifecycle';
+import { memberHoldsAt } from '../../pms/infrastructure/room-events';
 import { RentalsFilesStorage } from '../../storage/application/rentals-files-storage';
 import { buildingIdsOf } from '../domain/attention';
 import { assertBuildingInScope, assertResidence } from '../domain/residence';

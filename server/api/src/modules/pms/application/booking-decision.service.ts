@@ -9,7 +9,7 @@ import {
 import { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
 import { BookingNotificationsService } from './booking-notifications.service';
 import { BookingRefunds } from './booking-refunds';
-import { FolioService } from '../../operations/application/folio.service';
+import { FolioService } from './folio.service';
 import { releaseKeyFor } from '../../payments/domain/keys';
 import {
   PAYMENT_PORT,

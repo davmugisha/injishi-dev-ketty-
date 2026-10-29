@@ -17,7 +17,7 @@ import {
 import { BookingApprovalService } from './booking-approval.service';
 import { BookingDecisionService } from './booking-decision.service';
 import { BookingNotificationsService } from './booking-notifications.service';
-import type { FolioService } from '../../operations/application/folio.service';
+import type { FolioService } from './folio.service';
 import type { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
 import type { BookingRefunds } from './booking-refunds';
 
