@@ -40,6 +40,7 @@ import { NumberStepper } from "@heroui-pro/react/number-stepper";
 import { type Persona, screenHref } from "@injishi/data";
 import type { CheckInFile, MobileNetwork, PaymentMethod } from "@injishi/data/fixtures/frontdesk";
 import {
+  CountrySelect,
   formatRwf,
   GateChip,
   Icon,
@@ -97,6 +98,10 @@ export function CheckInView({
   const [cashTaken, setCashTaken] = useState(0);
   const [cashAt, setCashAt] = useState("");
   const [idOk, setIdOk] = useState(false);
+  // What the area's leaders are sent at check in (2026-10-29).
+  const [nationality, setNationality] = useState<string | null>("RW");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [idNumber, setIdNumber] = useState("");
   // No candidate profile means nothing to review (guest profiles per business are not built yet).
   const dup: "open" | "separate" = file.duplicate.cards.length ? "open" : "separate";
   const [room, setRoom] = useState(file.stayId ? file.preAssignedRoom || file.defaultRoom : file.defaultRoom);
@@ -302,6 +307,13 @@ export function CheckInView({
         const result = await checkInGuest({
           bookingRef: file.id,
           roomLabel: room,
+          guest: {
+            fullName: file.occupant.name,
+            phone: guestPhone.trim() || undefined,
+            nationality: nationality ?? undefined,
+            documentType: nationality === "RW" ? "national_id" : "passport",
+            idNumber: idNumber.trim() || undefined,
+          },
           // The cash the person typed and recorded, never the amount due.
           cash:
             payState === "cash" && cashKey && cashTaken > 0 ? { amountRwf: cashTaken, idempotencyKey: cashKey } : null,
@@ -497,6 +509,32 @@ export function CheckInView({
                 <p className="text-xs text-muted">
                   Your confirmation lets you continue; the stay does not record the ID check yet.
                 </p>
+              </Card>
+
+              <Card variant="secondary" className="gap-3 p-4" aria-labelledby="leaders-h">
+                <div className="flex flex-col gap-0.5">
+                  <h3 id="leaders-h" className="text-sm font-semibold">
+                    For the local leaders
+                  </h3>
+                  <span className="text-xs text-muted">
+                    Checking in files the guest with the village leader and the cell, and with DGIE for a guest from
+                    abroad, as the law asks of every place that lets rooms.
+                  </span>
+                </div>
+                <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr))]">
+                  <CountrySelect label="Nationality" value={nationality} onChange={setNationality} />
+                  <TextField value={guestPhone} onChange={setGuestPhone} className="flex flex-col gap-1">
+                    <Label>Phone</Label>
+                    <Input className="tabular" type="tel" placeholder="+250 7…" />
+                  </TextField>
+                  <TextField value={idNumber} onChange={setIdNumber} className="flex flex-col gap-1">
+                    <Label>{nationality === "RW" ? "National ID number" : "Passport number"}</Label>
+                    <Input
+                      className="tabular"
+                      placeholder={nationality === "RW" ? "16 digits" : "As on the passport"}
+                    />
+                  </TextField>
+                </div>
               </Card>
 
               <Card variant="secondary" className="gap-3 p-4">

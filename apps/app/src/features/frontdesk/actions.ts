@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requirePersona } from "@/lib/session";
 import { ApiError, ApiUnreachableError } from "@/server/api";
 import { requestContext } from "@/server/data";
+import type { CheckInGuestCard } from "@/server/mutations/frontdesk";
 import {
   approveRequest,
   assignRoom,
@@ -70,6 +71,8 @@ export async function checkInGuest(input: {
   bookingRef: string;
   roomLabel: string;
   cash: { amountRwf: number; idempotencyKey: string } | null;
+  /** The card the area's leaders are sent. */
+  guest?: CheckInGuestCard;
 }): Promise<ActionResult<CheckedIn>> {
   await requirePersona("CheckIn");
   const result = await attempt(async () => checkIn(await requestContext(), input));

@@ -46,6 +46,8 @@ interface CheckInInput {
   roomLabel: string;
   /** Cash taken at the desk, posted to the bill once the stay is open. One key per press of "Record cash". */
   cash?: { amountRwf: number; idempotencyKey: string } | null;
+  /** What the area's leaders are sent. */
+  guest?: CheckInGuestCard;
 }
 
 export interface CheckedIn {
@@ -59,11 +61,39 @@ export interface CheckedIn {
  * opens the stay and its bill and credits what the guest paid online; cash taken at the desk is then
  * recorded on that bill (POST /ops/folios/:id/payments) under the key minted when it was counted.
  */
+/** What the desk records for the area's leaders at check in (2026-10-29). */
+export interface CheckInGuestCard {
+  fullName?: string;
+  phone?: string;
+  nationality?: string;
+  documentType?: "national_id" | "passport";
+  idNumber?: string;
+}
+
+/** The card as the API takes it: only what was typed. */
+function cardOf(card: CheckInGuestCard | undefined) {
+  if (!card) return undefined;
+  const phone = card.phone?.trim();
+  const id = card.idNumber?.trim().toUpperCase();
+  const out = {
+    ...(card.fullName?.trim() ? { fullName: card.fullName.trim() } : {}),
+    ...(phone ? { phone } : {}),
+    ...(card.nationality ? { nationality: card.nationality } : {}),
+    ...(id && card.documentType ? { documentType: card.documentType, idNumber: id } : {}),
+    invite: false,
+  };
+  return Object.keys(out).length > 1 ? out : undefined;
+}
+
 export async function checkIn(ctx: SourceContext, input: CheckInInput): Promise<CheckedIn> {
   const { board, booking } = await bookingOf(ctx, input.bookingRef);
   const room = roomOf(board, input.roomLabel);
   return command(ctx, async () => {
-    const stay = await ctx.ops().post<{ id: string }>(`/api/v1/ops/stays/${booking.id}/checkin`, { roomId: room.id });
+    const guest = cardOf(input.guest);
+    const stay = await ctx.ops().post<{ id: string }>(`/api/v1/ops/stays/${booking.id}/checkin`, {
+      roomId: room.id,
+      ...(guest ? { guest } : {}),
+    });
     // The stay's bill, read back from the desk's day as it now stands.
     const after = await ctx.ops().get<ApiBoard>("/api/v1/ops/front-desk");
     const opened = after.stays.find((s) => s.id === stay.id);
@@ -202,7 +232,7 @@ export async function walkIn(ctx: SourceContext, input: WalkInInput): Promise<Wa
   const name = input.guestName.trim();
   if (!name) throw new ApiError(400, "name_required", "Type the guest's name as it is on their ID.", null);
   const nights = Math.trunc(input.nights);
-  if (!(nights >= 1 && nights <= 30)) throw new ApiError(400, "nights", "A walk-in stays 1 to 30 nights.", null);
+  if (!(nights >= 1 && nights <= 365)) throw new ApiError(400, "nights", "A walk-in stays 1 to 365 nights.", null);
   const board = await deskBoard(ctx);
   const type = board.roomTypes.find((t) => t.id === input.roomTypeId && t.active);
   if (!type) throw new ApiError(404, "not_found", "That room type is not sold at this property.", null);
