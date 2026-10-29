@@ -43,7 +43,9 @@ export type HrTrigger =
  * change (index contract 12).
  *
  * IDS ONLY in the payload: never a name, a phone, an amount or a link (the
- * outbox rule of ADR-050 D-v). The consumer reads the rows it needs.
+ * outbox rule of ADR-050 D-v). The consumer reads the rows it needs. A list
+ * holds ids or codes too, such as the `reasons` a flagged punch waits for
+ * (mobile spec 0003, D-ao).
  * `dedupe_key` is `<trigger>:<aggregate id>:<change>`, so one real event is one
  * row and a replay writes nothing.
  */
@@ -55,7 +57,7 @@ export async function writeHrEvent(
     aggregateId: string;
     change: string;
     workspaceId: string | null;
-    payload: Record<string, string | null>;
+    payload: Record<string, string | readonly string[] | null>;
   },
 ): Promise<void> {
   await tx

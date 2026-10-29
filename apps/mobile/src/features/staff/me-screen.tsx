@@ -15,6 +15,7 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/icon";
 import { PhoneBody, PhoneTop } from "@/components/phone";
+import { useSignOut } from "@/features/auth/use-sign-out";
 import { useSession } from "@/lib/session";
 import { getCollection, getDocument } from "@/lib/store";
 import { toneColor } from "@/lib/tone";
@@ -47,7 +48,9 @@ const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "bio", "0", "del"] as
 
 /** Staff member's own page: profile, payslips, leave, documents, assets, help (artifact: StaffMe). */
 export default function StaffMeScreen() {
-  const { persona, signOut } = useSession();
+  const { persona } = useSession();
+  // Asks first when writes are still on the phone (mobile spec 0003, AC-9).
+  const signOut = useSignOut();
   const unlockedParam = param(useLocalSearchParams<{ payslips?: string }>().payslips) === "unlocked";
   const profile =
     (persona ? getDocument<StaffProfile>("staff.profiles", persona.id) : undefined) ??

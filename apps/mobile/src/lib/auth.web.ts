@@ -7,7 +7,7 @@ import type { PersonaId } from "@injishi/data/types";
 import type * as Native from "./auth";
 import { currentPersonaId, signInDirect, signOutStore, startOtp, verifyOtp } from "./store.web";
 
-export type { GoogleOutcome, SendOutcome, SessionState, SignInOptions, VerifyOutcome } from "./auth";
+export type { Account, GoogleOutcome, SendOutcome, SessionState, SignInOptions, VerifyOutcome } from "./auth";
 
 /** The challenge each address is waiting on, for the code step. */
 const pending = new Map<string, string>();
@@ -35,12 +35,29 @@ export const signInWithGoogle: typeof Native.signInWithGoogle = async () => ({ o
 
 export const loadSession: typeof Native.loadSession = async () => {
   const id = currentPersonaId();
-  return id ? { status: "signed-in", persona: personas[id] } : { status: "signed-out" };
+  if (!id) return { status: "signed-out" };
+  const persona = personas[id];
+  // A fixture account: no workspace, so no clock in, and no step up.
+  const account = {
+    userId: `web-${id}`,
+    sessionId: `web-${id}`,
+    name: persona.name,
+    email: persona.email,
+    workspace: null,
+    twoFactor: { required: false, verified: false },
+  };
+  return { status: "signed-in", persona, account };
 };
 
 export const signOut: typeof Native.signOut = async () => {
   signOutStore();
 };
+
+export const lastAccount: typeof Native.lastAccount = () => null;
+
+export const keepStepUp: typeof Native.keepStepUp = () => {};
+
+export const forgetStepUp: typeof Native.forgetStepUp = () => {};
 
 /** `/sign-in?as=<persona>` for captures: signed in without the code step. */
 export const signInAs: typeof Native.signInAs = (personaId: PersonaId) => {

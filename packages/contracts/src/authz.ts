@@ -820,6 +820,29 @@ export const WorkspaceAccess = z.object({
 });
 export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
 /**
+ * The emailed step up for this session (F-S02): whether the person's workspaces
+ * demand it, and whether THIS session has presented a code. `verified` means
+ * something only when `required` is true.
+ */
+export const TwoFactorStatus = z.object({
+    required: z.boolean(),
+    verified: z.boolean(),
+});
+export type TwoFactorStatus = z.infer<typeof TwoFactorStatus>;
+/** `GET /me/workspaces`: every workspace the caller holds, the one this session last acted in, and the step up. */
+export const MyWorkspaces = z.object({
+    workspaces: z.array(WorkspaceAccess.extend({ label: z.string() })),
+    activeWorkspaceId: Uuid.nullable(),
+    twoFactor: TwoFactorStatus,
+});
+export type MyWorkspaces = z.infer<typeof MyWorkspaces>;
+/** `GET /me/two-factor`: the step up's state and the masked address a code goes to. */
+export const TwoFactorChallenge = TwoFactorStatus.extend({ sentTo: z.string() });
+export type TwoFactorChallenge = z.infer<typeof TwoFactorChallenge>;
+/** `POST /me/two-factor/send`: where the code went and how long it works. */
+export const TwoFactorSent = z.object({ sentTo: z.string(), expiresInSeconds: z.number().int() });
+export type TwoFactorSent = z.infer<typeof TwoFactorSent>;
+/**
  * May this org's workspace actually DO anything yet?
  *
  * Only `active`. A business that has paid but is not approved, or is approved

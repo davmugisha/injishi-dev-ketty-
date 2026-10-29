@@ -10,5 +10,5 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "src/uniwind-types.d.ts", ".expo/types/**/*.ts", "expo-env.d.ts"],
-  "exclude": ["node_modules", "dist-android", "dist-web"]
+  "exclude": ["node_modules", "dist-android", "dist-web", "src/**/*.test.ts"]
 }

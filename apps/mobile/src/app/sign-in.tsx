@@ -2,10 +2,12 @@ import { PERSONA_IDS, type Persona, personaByEmail, personas } from "@injishi/da
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { Button, Card, Chip, FieldError, Input, Separator, TextField } from "heroui-native";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { requestCode, type SignInOptions, signInAs, signInOptions, signInWithGoogle } from "@/lib/auth";
+import { Text as UiText } from "@/components/ui";
+import { unsentCount } from "@/data/outbox/store";
+import { lastAccount, requestCode, type SignInOptions, signInAs, signInOptions, signInWithGoogle } from "@/lib/auth";
 import { useSession } from "@/lib/session";
 
 const SEND_ERRORS = {
@@ -96,6 +98,12 @@ export default function SignInScreen() {
   const [sending, setSending] = useState(false);
   const [options, setOptions] = useState<SignInOptions | null>(null);
   const [google, setGoogle] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
+  // A session that expired keeps its writes on the phone; only its own account can send them (mobile spec 0003, D-k).
+  const unsent = useMemo(() => {
+    const last = lastAccount();
+    const count = last ? unsentCount(last.userId) : 0;
+    return last && count > 0 ? { count, email: last.email } : null;
+  }, []);
 
   useEffect(() => {
     void signInOptions().then(setOptions);
@@ -164,6 +172,15 @@ export default function SignInScreen() {
           accessibilityIgnoresInvertColors
         />
         <Text className="text-center text-[30px] leading-9 font-medium text-foreground">Welcome to Injishi</Text>
+        {unsent ? (
+          <Card className="w-full bg-warning-soft">
+            <Card.Body>
+              <UiText role="body" accessibilityRole="alert">
+                {`There ${unsent.count === 1 ? "is 1 unsent change" : `are ${unsent.count} unsent changes`} from ${unsent.email}. Sign in as them to send ${unsent.count === 1 ? "it" : "them"}.`}
+              </UiText>
+            </Card.Body>
+          </Card>
+        ) : null}
 
         <View className="w-full items-center gap-2">
           <Text className="text-[13px] text-muted">Continue with</Text>

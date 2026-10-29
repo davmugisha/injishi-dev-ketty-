@@ -68,3 +68,5 @@ export * from "./me-context";
 export * from "./guests";
 // The bar and restaurant point of sale (POS spec, phase 1).
 export * from "./pos";
+// Offline writes from the phone (mobile spec 0003): the reported time and its refusal codes.
+export * from "./offline";

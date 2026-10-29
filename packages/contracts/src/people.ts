@@ -48,6 +48,19 @@ export type AttendanceSource = z.infer<typeof AttendanceSource>;
 /** `closed` becomes `superseded` only when a correction replaces it. */
 export const AttendanceStatus = z.enum(["open", "closed", "superseded"]);
 export type AttendanceStatus = z.infer<typeof AttendanceStatus>;
+/**
+ * Why a phone punch waits for a person to validate it (mobile spec 0003, D-ao),
+ * in this order: the location reasons first, then `late_sync`, a punch that
+ * reached the server more than 30 minutes after its tap.
+ */
+export const AttendancePendingReason = z.enum([
+    "no_location",
+    "no_branch_location",
+    "poor_accuracy",
+    "outside_fence",
+    "late_sync",
+]);
+export type AttendancePendingReason = z.infer<typeof AttendancePendingReason>;
 /** What kind of day a record's work date was, for pricing overtime (058-time AC-TM7). */
 export const DayKind = z.enum(["weekday", "weekly_off", "public_holiday"]);
 export type DayKind = z.infer<typeof DayKind>;
@@ -451,6 +464,10 @@ export const AttendanceRecord = z.object({
     note: z.string().nullable(),
     /** Closed by the sweep, not by a person: unvalidated until someone puts the times right (AC-TM4). */
     autoClosed: z.boolean(),
+    /** Why the phone clock in waits for validation (mobile spec 0003, D-ao); null for any other punch. */
+    inPendingReason: AttendancePendingReason.nullable(),
+    /** Why the phone clock out waits for validation; null for any other punch. */
+    outPendingReason: AttendancePendingReason.nullable(),
     /**
      * A closed record's work figures (AC-TM7). Null while open, and for a reader
      * outside the figure audience (`attendance.approve` and `people.manage`,

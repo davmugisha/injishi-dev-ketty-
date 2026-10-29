@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { LeaveAllocationRequest } from "./leave";
-import { AttendanceRecord, EmployeeStatus, LeaveRequest, RosterCard, RosterEntry } from "./people";
+import { ReportedTime, reportedTimePair } from "./offline";
+import { AttendancePendingReason, AttendanceRecord, EmployeeStatus, LeaveRequest, RosterCard, RosterEntry } from "./people";
 /**
  * Time (ADR-058, 058-time): publishing the roster, rotations, shift and swap
  * requests, attendance requests, overtime, the attendance policy and geofence
@@ -487,12 +488,18 @@ export const MyWorkFile = z.object({
 export type MyWorkFile = z.infer<typeof MyWorkFile>;
 export const MyWorkFileList = z.object({ files: z.array(MyWorkFile) });
 export type MyWorkFileList = z.infer<typeof MyWorkFileList>;
-/** `POST /me/work/:employeeId/clock-in` and `/clock-out`: where the phone says it is, when it says. */
-export const PhoneClockRequest = z.object({
+/**
+ * `POST /me/work/:employeeId/clock-in` and `/clock-out`: where the phone says it
+ * is, and when the tap really happened (mobile spec 0003, `ReportedTime`).
+ */
+export const PhoneClockRequest = z
+    .object({
     lat: z.number().min(-90).max(90).optional(),
     lng: z.number().min(-180).max(180).optional(),
     accuracyM: z.number().min(0).max(100_000).optional(),
-});
+})
+    .merge(ReportedTime)
+    .superRefine(reportedTimePair);
 export type PhoneClockRequest = z.infer<typeof PhoneClockRequest>;
 /** What a phone punch came to: the record, and whether it waits for validation and why. */
 export const PhoneClockResult = z.object({
@@ -503,6 +510,45 @@ export const PhoneClockResult = z.object({
     distanceM: z.number().int().nullable(),
 });
 export type PhoneClockResult = z.infer<typeof PhoneClockResult>;
+/** One published shift on the phone's shift card, with its template's planned break. */
+export const MyWorkTodayShift = z.object({
+    rosterEntryId: Uuid,
+    shiftName: z.string(),
+    startsAt: z.string(),
+    endsAt: z.string(),
+    /** The template's planned break: what paid hours use, whatever breaks are recorded. */
+    breakMinutes: z.number().int().min(0),
+    propertyId: Uuid,
+});
+export type MyWorkTodayShift = z.infer<typeof MyWorkTodayShift>;
+/**
+ * `GET /me/work/:employeeId/today`: the phone's shift card in one read (mobile
+ * spec 0003, D-u). `shifts` holds the published, scheduled entries of today's
+ * Kigali work date, every one that overlaps the two hours either side of now
+ * (a night shift that crossed midnight), and the open record's own entry, by
+ * `startsAt`. `generatedAt` is the server's clock, for the phone's overlay.
+ */
+export const MyWorkToday = z.object({
+    employeeId: Uuid,
+    workDate: IsoDate,
+    generatedAt: z.string(),
+    shifts: z.array(MyWorkTodayShift),
+    openRecord: z
+        .object({
+        id: Uuid,
+        rosterEntryId: Uuid.nullable(),
+        workDate: IsoDate,
+        clockInAt: z.string(),
+        validated: z.boolean(),
+        pendingReason: AttendancePendingReason.nullable(),
+    })
+        .nullable(),
+    /** The open break; breaks arrive with milestone 3, so null until then. */
+    openBreak: z.object({ id: Uuid, startedAt: z.string() }).nullable(),
+    /** The latest clock out of this work day, when one closed. */
+    lastClockOutAt: z.string().nullable(),
+});
+export type MyWorkToday = z.infer<typeof MyWorkToday>;
 export const RangeQuery = z.object({ from: IsoDate, to: IsoDate }).superRefine(rangeRefine);
 export type RangeQuery = z.infer<typeof RangeQuery>;
 /** `GET /me/work/:employeeId/roster`: published entries only (AC-TM2). */

@@ -62,4 +62,5 @@ export * from "./rentals";
 export * from "./me-context";
 export * from "./guests";
 export * from "./pos";
+export * from "./offline";
 //# sourceMappingURL=index.d.ts.map

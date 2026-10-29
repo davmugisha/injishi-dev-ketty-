@@ -37,6 +37,7 @@ import {
 } from './shared/config/security.config';
 import { resolveTrustProxy } from './shared/config/trust-proxy';
 import { DatabaseModule } from './shared/database/database.module';
+import { IdempotencyModule } from './shared/http/idempotency.module';
 import { QueuesModule } from './shared/queues/queues.module';
 import { ReportingExceptionFilter } from './shared/observability/reporting-exception.filter';
 
@@ -68,6 +69,8 @@ import { ReportingExceptionFilter } from './shared/observability/reporting-excep
     // Shared infrastructure
     DatabaseModule,
     QueuesModule,
+    // The shared idempotency store's daily sweep (mobile spec 0003, D-r).
+    IdempotencyModule,
     // Domain modules - never import each other directly (events or application services only)
     AuthModule,
     GeographyModule,
