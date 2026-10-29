@@ -51,9 +51,9 @@ import {
   type Tone,
   toneColor,
 } from "@injishi/ui";
+import { readFrancs } from "@injishi/utils/francs";
 import NextLink from "next/link";
 import { type ReactNode, useEffect, useRef, useState, useTransition } from "react";
-import { readFrancs } from "@/lib/francs";
 import { checkInGuest } from "./actions";
 import { ChoiceSelect, isReady, ROOM_STATUS } from "./shared";
 

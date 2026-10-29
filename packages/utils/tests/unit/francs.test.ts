@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { parseAmount, readFrancs } from "@/lib/francs";
+import { parseAmount, readFrancs } from "../../src/francs";
 
 const amount = (text: string) => readFrancs(text);
 

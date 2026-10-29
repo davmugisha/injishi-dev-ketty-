@@ -26,6 +26,7 @@
     "@injishi/db": "workspace:*",
     "@injishi/product-hr": "workspace:*",
     "@injishi/ui": "workspace:*",
+    "@injishi/utils": "workspace:*",
     "@internationalized/date": "3.12.4",
     "@number-flow/react": "0.6.2",
     "@react-aria/utils": "3.34.1",
