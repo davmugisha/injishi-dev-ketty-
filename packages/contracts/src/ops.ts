@@ -249,6 +249,12 @@ export const StayRegistrationDetails = z
     fullName: z.string().trim().min(1).max(200).optional(),
     documentType: z.enum(["national_id", "passport", "other"]).optional(),
     idNumber: z.string().trim().min(1).max(64).optional(),
+    /**
+     * ISO-3166-1 alpha-2, as on the document. It decides who the stay is
+     * reported to (0114): every guest goes to the local leaders where the
+     * hotel is, and a guest from abroad to DGIE too.
+     */
+    nationality: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Pick a country").optional(),
     /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
     addressText: z.string().trim().min(1).max(500).optional(),
     /**

@@ -21,6 +21,7 @@ import {
 } from '../../../shared/auth/branch-scope';
 import { plannedExitFor } from '../domain/stay-reference';
 import { FolioRepository } from '../infrastructure/folio.repository';
+import { HotelGuestFilingService } from '../../guests/application/hotel-guest-filing.service';
 import { FolioService } from './folio.service';
 import {
   type CheckInSubject,
@@ -64,6 +65,8 @@ export class FrontDeskService {
     private readonly onboarding: StayClaimService,
     /** The identity a guest sent ahead of arrival, carried onto the stay (ADR-060). */
     private readonly selfCheckIn: SelfCheckInService,
+    /** Each check in files its guest for the village leader, DASSO and district (0114). */
+    private readonly hotelGuests: HotelGuestFilingService,
   ) {}
 
   /** Every room in this workspace, with who is in it. */
@@ -126,6 +129,8 @@ export class FrontDeskService {
     ws: ScopedWorkspace,
     bookingId: string,
     body: CheckInRequest,
+    /** Who pressed Check in: the registration filed for local government is theirs (0114). */
+    deskUserId?: string,
   ): Promise<OperatorStay> {
     const booking = assertOwned(
       await this.rooms.findCheckInSubject(bookingId),
@@ -224,6 +229,10 @@ export class FrontDeskService {
     // What the guest sent from their phone before arriving, photo included.
     // After the desk card, so anything the desk typed wins; never throws.
     await this.selfCheckIn.carryToStay(booking.id, created.id);
+    // Last, after the card and the pre-arrival identity, so the registration
+    // is filed from everything known: the guest into the register local
+    // government reads (0114). Never throws.
+    if (deskUserId) await this.hotelGuests.fileStay(created.id, deskUserId);
 
     return this.presentStay(created);
   }
@@ -252,7 +261,7 @@ export class FrontDeskService {
    * nobody could charge, which is most of what a walk in is: somebody who pays
    * at the counter.
    */
-  async walkIn(ws: ScopedWorkspace, body: WalkInRequest): Promise<OperatorStay> {
+  async walkIn(ws: ScopedWorkspace, body: WalkInRequest, deskUserId?: string): Promise<OperatorStay> {
     const room = assertOwned(await this.rooms.findRoom(body.roomId), ws);
     assertInBranchScope(ws, room.propertyId);
     assertRoomTypeOnSale(room);
@@ -362,6 +371,8 @@ export class FrontDeskService {
      * invitation is best effort and the desk can send it again.
      */
     await this.onboarding.registerAndInvite(created.id, body.guest);
+    // A walk in is a guest too: into the register local government reads (0114). Never throws.
+    if (deskUserId) await this.hotelGuests.fileStay(created.id, deskUserId);
 
     return this.presentStay(created);
   }

@@ -1,3 +1,4 @@
+import { HOTEL_GUEST } from '../domain/hotel-guest';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   RWANDA_CODE,
@@ -55,7 +56,10 @@ export function guestFilterSql(q: {
   if (q.origin === 'nationals') parts.push(sql`g.nationality = ${RWANDA_CODE}`);
   if (q.origin === 'international') parts.push(sql`g.nationality <> ${RWANDA_CODE}`);
   if (q.nationality) parts.push(sql`g.nationality = ${q.nationality}`);
-  if (q.relationship) parts.push(sql`g.relationship = ${q.relationship}`);
+  if (q.relationship) {
+    // A hotel guest has no relationship of its own; the reads name it `HOTEL_GUEST`.
+    parts.push(q.relationship === HOTEL_GUEST.code ? sql`g.host_kind = 'hotel'` : sql`g.relationship = ${q.relationship}`);
+  }
   if (q.flagged) {
     parts.push(sql`exists (select 1 from guest_registration_routes fr where fr.registration_id = g.id and fr.flagged_at is not null)`);
   }

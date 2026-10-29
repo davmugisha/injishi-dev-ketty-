@@ -11,6 +11,7 @@ import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  char,
   check,
   date,
   index,
@@ -355,6 +356,8 @@ export const stayIdentities = pgTable('stay_identities', {
   fullName: text('full_name'),
   idNumber: text('id_number'),
   documentType: documentTypeEnum('document_type'),
+  /** ISO-3166-1 alpha-2, as the desk took it (0114): who the stay is reported to. */
+  nationality: char('nationality', { length: 2 }),
   idPhotoObjectId: uuid('id_photo_object_id').references(() => storedObjects.id),
   addressText: text('address_text'),
   capturedAt: timestamp('captured_at', { withTimezone: true })

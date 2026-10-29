@@ -1,3 +1,4 @@
+import type { HotelGuestFilingService } from '../../guests/application/hotel-guest-filing.service';
 import { describe, expect, it } from 'vitest';
 
 import type { WalkInRequest } from '@injishi/contracts';
@@ -65,6 +66,7 @@ function build(opts: {
   holdQueries: { from: string; to: string }[];
   folios: unknown[];
   cards: unknown[];
+  filed: { stayId: string; deskUserId: string }[];
 } {
   const opened: OpenStayInput[] = [];
   const holdQueries: { from: string; to: string }[] = [];
@@ -131,6 +133,15 @@ function build(opts: {
     },
   } as unknown as StayClaimService;
 
+  // The stays filed for local government (0114), and by whom.
+  const filed: { stayId: string; deskUserId: string }[] = [];
+  const hotelGuests = {
+    fileStay: async (stayId: string, deskUserId: string) => {
+      filed.push({ stayId, deskUserId });
+      return null;
+    },
+  };
+
   const service = new FrontDeskService(
     repo,
     assignments,
@@ -139,8 +150,9 @@ function build(opts: {
     onboarding,
     // A walk-in has no booking, so nothing pre-arrival is carried onto the stay.
     { carryToStay: async () => undefined } as unknown as SelfCheckInService,
+    hotelGuests as unknown as HotelGuestFilingService,
   );
-  return { service, opened, holdQueries, folios, cards, posted };
+  return { service, opened, holdQueries, folios, cards, posted, filed };
 }
 
 const walkIn = (over: Partial<WalkInRequest> = {}): WalkInRequest => ({
@@ -168,6 +180,14 @@ describe('FrontDeskService.walkIn', () => {
     });
     expect(folios).toHaveLength(1);
     expect(cards).toEqual([card]);
+  });
+
+  it('files the walk in for local government, as the desk user who checked them in (0114)', async () => {
+    const { service, filed } = build({ defaultRate: 40_000 });
+
+    const stay = await service.walkIn(ws, walkIn(), 'desk-user-1');
+
+    expect(filed).toEqual([{ stayId: stay.id, deskUserId: 'desk-user-1' }]);
   });
 
   it("falls back to the room type's default rate when none was typed", async () => {

@@ -6,6 +6,7 @@ import { GuestHousekeepingService } from './application/guest-housekeeping.servi
 import { GuestRegistryService } from './application/guest-registry.service';
 import { GuestReportsService } from './application/guest-reports.service';
 import { GuestRoutingService } from './application/guest-routing.service';
+import { HotelGuestFilingService } from './application/hotel-guest-filing.service';
 import { LeaderConsoleService } from './application/leader-console.service';
 import { GuestNotifier } from './infrastructure/guest-notifier';
 import { GuestRegistryRepository } from './infrastructure/guest-registry.repository';
@@ -31,8 +32,9 @@ import { GuestRoutingProcessor } from './infrastructure/guest-routing.processor'
     LeaderConsoleService,
     GuestReportsService,
     GuestHousekeepingService,
+    HotelGuestFilingService,
     ...(isWorkerProcess() ? [GuestRoutingProcessor] : []),
   ],
-  exports: [GuestNotifier, GuestRoutingService, GuestRegistryService, LeaderConsoleService, GuestReportsService, GuestHousekeepingService],
+  exports: [GuestNotifier, GuestRoutingService, GuestRegistryService, LeaderConsoleService, GuestReportsService, GuestHousekeepingService, HotelGuestFilingService],
 })
 export class GuestsModule {}

@@ -20,7 +20,7 @@ import {
 import { FrontDeskService } from '../../../modules/operations/application/front-desk.service';
 import { StayClaimService } from '../../../modules/operations/application/stay-claim.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
-import { SessionGuard } from '../../../shared/auth/session.guard';
+import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,
   RequireAnyPermission,
@@ -123,8 +123,9 @@ export class OpsStaysController {
   walkIn(
     @Body(new ZodValidationPipe(WalkInRequest)) body: WalkInRequest,
     @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
   ): Promise<OperatorStay> {
-    return this.frontDesk.walkIn(workspace, body);
+    return this.frontDesk.walkIn(workspace, body, user.id);
   }
 
   @Post(':id/checkin')
@@ -133,8 +134,9 @@ export class OpsStaysController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(CheckInRequest)) body: CheckInRequest,
     @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
   ): Promise<OperatorStay> {
-    return this.frontDesk.checkIn(workspace, id, body);
+    return this.frontDesk.checkIn(workspace, id, body, user.id);
   }
 
   /**

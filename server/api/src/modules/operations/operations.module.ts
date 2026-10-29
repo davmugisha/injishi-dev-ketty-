@@ -1,3 +1,4 @@
+import { GuestsModule } from '../guests/guests.module';
 import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
@@ -99,7 +100,7 @@ import { PaymentsModule } from '../payments/payments.module';
    *   module notice it later, which is how a guest ends up marked refunded on
    *   money nobody sent.
    */
-  imports: [MailerModule, PaymentsModule],
+  imports: [MailerModule, PaymentsModule, GuestsModule],
   providers: [
     FrontDeskRepository,
     // The front desk's day in one read (interface real-data, frontdesk leaf).
