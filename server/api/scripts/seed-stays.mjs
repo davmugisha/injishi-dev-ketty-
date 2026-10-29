@@ -185,7 +185,20 @@ async function ensureOwner(c, o) {
   return userId;
 }
 
+/**
+ * Owners' addresses: `@injishi.test` on a laptop; on a shared database set `STAYS_OWNER_EMAILS`, e.g.
+ * `guesthouse=a+guesthouse@gmail.com,lodge=a+lodge@gmail.com,apartments=a+apartments@gmail.com`, so the
+ * sign in codes reach a real inbox.
+ */
+const OWNER_EMAILS = Object.fromEntries(
+  (process.env.STAYS_OWNER_EMAILS ?? '')
+    .split(',')
+    .map((pair) => pair.split('=').map((x) => x.trim()))
+    .filter(([k, v]) => k && v),
+);
+
 async function seedBusiness(c, b) {
+  if (OWNER_EMAILS[b.key]) b.owner.email = OWNER_EMAILS[b.key];
   const p = await place(c, b.village);
   const owner = await ensureOwner(c, b.owner);
   await c.query(
