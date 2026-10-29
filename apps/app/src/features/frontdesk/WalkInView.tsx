@@ -221,7 +221,7 @@ export function WalkInView({
             value={nights}
             onChange={setNights}
             min={1}
-            max={10}
+            max={90}
             fewer="Fewer nights"
             more="More nights"
           />
