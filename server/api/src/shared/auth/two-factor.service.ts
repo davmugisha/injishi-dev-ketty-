@@ -195,9 +195,12 @@ export class TwoFactorService {
     if (existing && !this.isDemo) {
       const age = (Date.now() - existing.createdAt.getTime()) / 1000;
       if (age < RESEND_COOLDOWN_SECONDS) {
-        throw new UnprocessableEntityException(
-          `Wait ${Math.ceil(RESEND_COOLDOWN_SECONDS - age)} seconds before asking for another code.`,
-        );
+        // Coded so a client that reopened mid wait knows a code is already on
+        // its way and just asks for it (mobile spec 0003, D-at).
+        throw new UnprocessableEntityException({
+          code: 'resend_cooldown',
+          message: `Wait ${Math.ceil(RESEND_COOLDOWN_SECONDS - age)} seconds before asking for another code.`,
+        });
       }
     }
 

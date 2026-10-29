@@ -42,6 +42,13 @@ export type AttendanceSource = z.infer<typeof AttendanceSource>;
 /** `closed` becomes `superseded` only when a correction replaces it. */
 export declare const AttendanceStatus: z.ZodEnum<["open", "closed", "superseded"]>;
 export type AttendanceStatus = z.infer<typeof AttendanceStatus>;
+/**
+ * Why a phone punch waits for a person to validate it (mobile spec 0003, D-ao),
+ * in this order: the location reasons first, then `late_sync`, a punch that
+ * reached the server more than 30 minutes after its tap.
+ */
+export declare const AttendancePendingReason: z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>;
+export type AttendancePendingReason = z.infer<typeof AttendancePendingReason>;
 /** What kind of day a record's work date was, for pricing overtime (058-time AC-TM7). */
 export declare const DayKind: z.ZodEnum<["weekday", "weekly_off", "public_holiday"]>;
 export type DayKind = z.infer<typeof DayKind>;
@@ -2726,6 +2733,10 @@ export declare const AttendanceRecord: z.ZodObject<{
     note: z.ZodNullable<z.ZodString>;
     /** Closed by the sweep, not by a person: unvalidated until someone puts the times right (AC-TM4). */
     autoClosed: z.ZodBoolean;
+    /** Why the phone clock in waits for validation (mobile spec 0003, D-ao); null for any other punch. */
+    inPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
+    /** Why the phone clock out waits for validation; null for any other punch. */
+    outPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
     /**
      * A closed record's work figures (AC-TM7). Null while open, and for a reader
      * outside the figure audience (`attendance.approve` and `people.manage`,
@@ -2797,6 +2808,8 @@ export declare const AttendanceRecord: z.ZodObject<{
     validated: boolean;
     supersedesId: string | null;
     autoClosed: boolean;
+    inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+    outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
     location: {
         inDistanceM: number | null;
         inAccuracyM: number | null;
@@ -2829,6 +2842,8 @@ export declare const AttendanceRecord: z.ZodObject<{
     validated: boolean;
     supersedesId: string | null;
     autoClosed: boolean;
+    inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+    outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
     location: {
         inDistanceM: number | null;
         inAccuracyM: number | null;

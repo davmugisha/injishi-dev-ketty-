@@ -10,7 +10,9 @@ import {
   isWeeklyOff,
   linkEntry,
   phonePunchVerdict,
+  punchPendingReasons,
   rotationStepOn,
+  takesLateClockOut,
   weeklyOffsFor,
 } from './time-rules';
 
@@ -212,5 +214,44 @@ describe('the phone punch (AC-TM9)', () => {
     expect(phonePunchVerdict({ point: { ...branch, accuracyM: 500 }, branch, radiusM: 150 }).validated).toBe(false);
     expect(phonePunchVerdict({ point: null, branch, radiusM: 150 }).reason).toBe('No location was sent.');
     expect(phonePunchVerdict({ point: { ...branch, accuracyM: 5 }, branch: null, radiusM: 150 }).distanceM).toBeNull();
+  });
+});
+
+describe('why a phone punch waits (mobile spec 0003, D-ao)', () => {
+  const branch = { lat: -1.9441, lng: 30.0619 };
+
+  it('gives each location reason its code', () => {
+    expect(phonePunchVerdict({ point: null, branch, radiusM: 150 }).code).toBe('no_location');
+    expect(phonePunchVerdict({ point: { ...branch, accuracyM: 5 }, branch: null, radiusM: 150 }).code).toBe('no_branch_location');
+    expect(phonePunchVerdict({ point: { ...branch, accuracyM: 500 }, branch, radiusM: 150 }).code).toBe('poor_accuracy');
+    expect(phonePunchVerdict({ point: { lat: -1.9477, lng: 30.0619, accuracyM: 20 }, branch, radiusM: 150 }).code).toBe('outside_fence');
+    expect(phonePunchVerdict({ point: { ...branch, accuracyM: 20 }, branch, radiusM: 150 }).code).toBeNull();
+  });
+
+  it('puts the location reason first and the late arrival after it', () => {
+    expect(punchPendingReasons({ location: 'no_location', lateSync: true })).toEqual(['no_location', 'late_sync']);
+    expect(punchPendingReasons({ location: null, lateSync: true })).toEqual(['late_sync']);
+    expect(punchPendingReasons({ location: null, lateSync: false })).toEqual([]);
+  });
+});
+
+describe('a late clock out after the sweep (mobile spec 0003, D-ap, AC-7)', () => {
+  // Clocked in 07:00, the sweep closed it at 17:00 (it ran at 17:00), signal back at 18:00.
+  const swept = {
+    status: 'closed',
+    autoClosed: true,
+    clockInAt: at('2026-10-05T05:00:00Z'),
+    updatedAt: at('2026-10-05T15:00:00Z'),
+  };
+
+  it('takes a tap made after the clock in and before the sweep ran', () => {
+    expect(takesLateClockOut(swept, at('2026-10-05T13:05:00Z'))).toBe(true);
+  });
+
+  it('refuses a tap after the sweep ran, before the clock in, or on a record a person closed', () => {
+    expect(takesLateClockOut(swept, at('2026-10-05T15:30:00Z'))).toBe(false);
+    expect(takesLateClockOut(swept, at('2026-10-05T04:59:00Z'))).toBe(false);
+    expect(takesLateClockOut({ ...swept, autoClosed: false }, at('2026-10-05T13:05:00Z'))).toBe(false);
+    expect(takesLateClockOut({ ...swept, status: 'superseded' }, at('2026-10-05T13:05:00Z'))).toBe(false);
   });
 });

@@ -84,4 +84,6 @@ __exportStar(require("./me-context"), exports);
 __exportStar(require("./guests"), exports);
 // The bar and restaurant point of sale (POS spec, phase 1).
 __exportStar(require("./pos"), exports);
+// Offline writes from the phone (mobile spec 0003): the reported time and its refusal codes.
+__exportStar(require("./offline"), exports);
 //# sourceMappingURL=index.js.map

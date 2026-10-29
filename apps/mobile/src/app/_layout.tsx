@@ -16,6 +16,7 @@ import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useUniwind } from "uniwind";
+import { DataProvider } from "@/data/data-provider";
 import { SessionProvider } from "@/lib/session";
 import { initStore } from "@/lib/store";
 import { useReduceMotion } from "@/lib/use-reduce-motion";
@@ -52,8 +53,10 @@ export default function RootLayout() {
         <HeroUINativeProvider config={config}>
           <ThemeChrome>
             <SessionProvider>
-              <StatusBar style="auto" />
-              <Stack screenOptions={{ headerShown: false, contentStyle: { flex: 1 } }} />
+              <DataProvider>
+                <StatusBar style="auto" />
+                <Stack screenOptions={{ headerShown: false, contentStyle: { flex: 1 } }} />
+              </DataProvider>
             </SessionProvider>
           </ThemeChrome>
         </HeroUINativeProvider>
