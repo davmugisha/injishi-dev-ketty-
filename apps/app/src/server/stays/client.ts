@@ -45,3 +45,8 @@ export const staysActivity = cache((from?: string, to?: string) =>
 export function can(scope: Pick<StaysScope, "permissions">, ...any: string[]): boolean {
   return any.some((p) => scope.permissions.includes(p));
 }
+
+/** Prices and availability by the day, for the calendar (28 days from `from` when unset). */
+export const ratesCalendar = cache((from?: string, to?: string) =>
+  get<import("@injishi/contracts").RatesCalendar>("/api/v1/ops/rates/calendar", { from, to }),
+);

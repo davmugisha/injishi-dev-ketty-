@@ -1,3 +1,4 @@
+import { letsLongStays } from "@injishi/contracts";
 import { screens } from "@injishi/data";
 import type {
   AvailabilityCalendarChannel,
@@ -12,13 +13,22 @@ import type {
 } from "@injishi/data/fixtures/commercial";
 import type { Metadata } from "next";
 import { AvailabilityCalendarView } from "@/features/commercial/AvailabilityCalendarView";
+import { RatesCalendarView } from "@/features/stays/RatesCalendarView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
+import { ratesCalendar, staysSummary } from "@/server/stays/client";
 
 export const metadata: Metadata = { title: screens.AvailabilityCalendar.pageTitle };
 
-export default async function AvailabilityCalendarPage() {
+export default async function AvailabilityCalendarPage({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
   const persona = await requirePersona("AvailabilityCalendar");
+  // A stay business prices and closes its days here, live (2026-10-29).
+  const { from } = await searchParams;
+  const day = from && /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : undefined;
+  const [summary, calendar] = await Promise.all([staysSummary(), ratesCalendar(day)]);
+  if (summary && calendar) {
+    return <RatesCalendarView data={calendar} longStays={letsLongStays(summary.business.kind)} />;
+  }
   const [windows, nights, ratePlans, roomTypes, groupBlocks, issues, channels, holds, reasons] = await Promise.all([
     getCollection<AvailabilityCalendarWindow>("commercial.calendarWindows"),
     getCollection<AvailabilityCalendarNight>("commercial.calendarNights"),
