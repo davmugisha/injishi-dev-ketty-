@@ -534,7 +534,7 @@ export class InventoryRepository {
   }
 
   /**
-   * The three publish facts, on the pool or on a transaction handle.
+   * The publish facts, on the pool or on a transaction handle.
    *
    * ## Four small queries, and NOT one with correlated subqueries
    *
@@ -563,8 +563,12 @@ export class InventoryRepository {
     propertyId: string,
   ): Promise<PublishFacts | null> {
     const [property] = await handle
-      .select({ sectorId: properties.sectorId })
+      .select({
+        sectorId: properties.sectorId,
+        registrationStatus: orgs.registrationStatus,
+      })
       .from(properties)
+      .innerJoin(orgs, eq(orgs.id, properties.orgId))
       .where(eq(properties.id, propertyId))
       .limit(1);
     if (!property) return null;
@@ -605,6 +609,7 @@ export class InventoryRepository {
       .where(eq(propertyPhotos.propertyId, propertyId));
 
     return {
+      orgActive: property.registrationStatus === 'active',
       sectorId: property.sectorId,
       activeRoomTypeCount: Number(active?.count ?? 0),
       pricedRoomTypeCount: Number(priced?.count ?? 0),

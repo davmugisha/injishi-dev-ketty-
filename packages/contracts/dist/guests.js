@@ -196,7 +196,8 @@ function isFromAbroad(nationality) {
     return nationality.toUpperCase() !== exports.RWANDA_CODE;
 }
 // --- Guest vocabulary -------------------------------------------------------------
-exports.GuestHostKind = zod_1.z.enum(["tenant", "landlord"]);
+/** `hotel`: a guest checked in at a hotel, motel or lodge, filed by the desk (0114). */
+exports.GuestHostKind = zod_1.z.enum(["tenant", "landlord", "hotel"]);
 exports.GuestRegistrationStatus = zod_1.z.enum(["submitted", "cancelled"]);
 /** Where a stay is on a given day. */
 exports.GuestStay = zod_1.z.enum(["arriving", "staying", "left"]);

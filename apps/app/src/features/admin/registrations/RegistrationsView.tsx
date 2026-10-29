@@ -50,7 +50,7 @@ const STAGE_WORDS: Record<Stage, { label: string; tone: StatusTone }> = {
 
 const STEPS = [
   { id: "paid", title: "Registered and paid", description: "The business" },
-  { id: "visit", title: "Field visit", description: "Field verification officer" },
+  { id: "visit", title: "Document review", description: "Document review officer" },
   { id: "approval", title: "Approval", description: "A second officer" },
   { id: "active", title: "Active", description: "Can use Injishi" },
 ];
@@ -93,7 +93,7 @@ function eventWords(e: RegistrationEvent): TimelineEvent {
       id: e.id,
       at: e.occurredAt,
       title: passed ? "Field visit verified" : "Refused at the field visit",
-      detail: [by || "Field verification officer", e.reason].filter(Boolean).join(" · "),
+      detail: [by || "Document review officer", e.reason].filter(Boolean).join(" · "),
       tone: passed ? "success" : "danger",
     };
   }

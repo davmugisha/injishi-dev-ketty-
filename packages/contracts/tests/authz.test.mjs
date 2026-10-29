@@ -37,6 +37,7 @@ const {
   permissionsForWorkspace,
   workspaceAllows,
   isOperational,
+  canSetUpDuringReview,
   oversightConsoleFor,
   districtScopeOf,
   scopeCoversDistrict,
@@ -45,6 +46,7 @@ const {
 } = authz;
 
 /** Every registration status that is not `active`. The gate's whole domain. */
+const REVIEW = ["submitted", "tin_verified", "field_verified"];
 const NOT_ACTIVE = [
   "pending_payment",
   "submitted",
@@ -437,8 +439,8 @@ describe("the registration gate (D20, D23)", () => {
     );
   });
 
-  test("every stage before active resolves an EMPTY set, for every role", () => {
-    for (const status of NOT_ACTIVE) {
+  test("unpaid, rejected, suspended and unclaimed businesses resolve an EMPTY set, for every role", () => {
+    for (const status of NOT_ACTIVE.filter((s) => !REVIEW.includes(s))) {
       for (const role of ROLES) {
         assert.deepEqual(
           permissionsForWorkspace({ kind: "business", orgRole: role, registrationStatus: status }),
@@ -446,6 +448,23 @@ describe("the registration gate (D20, D23)", () => {
           `${role} at ${status} must hold nothing`,
         );
       }
+    }
+  });
+
+  test("in review, a role that manages listings may build one and do nothing else", () => {
+    for (const status of REVIEW) {
+      assert.equal(canSetUpDuringReview(status), true, status);
+      for (const role of ROLES) {
+        const expected = permissionsForRole(role).includes("listing.manage") ? ["listing.manage"] : [];
+        assert.deepEqual(
+          permissionsForWorkspace({ kind: "business", orgRole: role, registrationStatus: status }),
+          expected,
+          `${role} at ${status}`,
+        );
+      }
+    }
+    for (const status of ["pending_payment", "approved", "rejected", "suspended", "active", null]) {
+      assert.equal(canSetUpDuringReview(status), false, String(status));
     }
   });
 

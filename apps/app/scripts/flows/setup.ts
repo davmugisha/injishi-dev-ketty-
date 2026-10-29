@@ -1,6 +1,7 @@
 /**
  * "Set up your property", on the API, with the mutations the setup page calls:
- *   - before approval the owner's setup is closed and the API refuses every inventory write (rule D20);
+ *   - once the fee is paid the owner can build the listing in review, and the API refuses to publish it until
+ *     approval (`org_not_active`);
  *   - approval has already created the property from the registration (its name and sector), so setup starts with
  *     the property in place and names exactly what is missing: a priced room type and a photograph;
  *   - the owner fills in the property, adds a priced room type and a photograph, and only then publishes;
@@ -11,7 +12,6 @@ import { ApiError, apiRequest } from "../../src/server/api";
 import {
   addPhoto,
   addRoomType,
-  createProperty,
   publish,
   readSetup,
   type SetupRead,
@@ -49,32 +49,41 @@ async function apiRefusal(statuses: number[], call: () => Promise<unknown>, what
 
 export const flows: Flow[] = [
   {
-    name: "before approval the owner's setup is closed and the API refuses every inventory write",
+    name: "in review the owner can build the listing, but the API refuses to publish it until approval",
     async run({ asEmail, check, step }) {
-      const business = await registerBusiness(GASABO, "setup-closed");
+      const business = await registerBusiness(GASABO, "setup-review");
       const owner = await asEmail(business.email);
       const workspaceId = businessWorkspace(owner);
 
-      const read = await readSetup(owner, workspaceId);
-      check(!read.open, "setup is open for a business that is still in review");
-      check(read.status === "tin_verified", `the closed setup reports status ${read.status}, not tin_verified`);
-      check(read.businessName === business.legalName, `the closed setup names "${read.businessName}"`);
-      step("the page reads it as closed, with the registration status");
-
-      const words = await apiRefusal(
-        [403],
-        () => createProperty(owner, workspaceId, { name: "Not Yet Hotel", sectorId: 10201 }),
-        "creating a property before approval",
+      let read: SetupRead = await readSetup(owner, workspaceId);
+      check(read.open, "setup is closed for a paid business in review");
+      if (!read.open) return;
+      check(!read.approved, "a business in review reads as approved");
+      check(read.status === "tin_verified", `setup reports status ${read.status}, not tin_verified`);
+      check(read.businessName === business.legalName, `setup names "${read.businessName}"`);
+      check(
+        read.blockers[0] === "Publishing opens once your business is approved.",
+        `the first blocker is "${read.blockers[0]}"`,
       );
-      check(words.length > 0, "the API refused with no words");
-      await apiRefusal(
-        [403],
-        () => owner.api.get("/api/v1/inventory/properties", { workspaceId }),
-        "reading inventory before approval",
-      );
-      step(`the API refuses the write: ${words}`);
+      const created = read.property;
+      check(created, "the registration did not create the property");
+      if (!created) return;
+      step("setup opens in review, and names approval as the first thing publishing waits for");
 
-      await apiRefusal([403, 404], () => owner.api.get("/api/v1/inventory/setup", { workspaceId }), "the setup counts");
+      await addRoomType(owner, workspaceId, created.id, {
+        name: "Garden Room",
+        maxGuests: 2,
+        basePriceRwf: 40_000,
+        roomCount: 2,
+      });
+      await addPhoto(owner, workspaceId, created.id, new Blob([PNG], { type: "image/png" }), "Front");
+      read = await readSetup(owner, workspaceId);
+      check(read.open && read.counts.pricedRoomTypes > 0 && read.counts.photos > 0, "the writes did not land");
+      step("a priced room type and a photograph are saved while in review");
+
+      const words = await apiRefusal([409], () => publish(owner, workspaceId, created.id), "publishing before approval");
+      check(/approved/i.test(words), `the publish refusal does not mention approval: ${words}`);
+      step(`publishing is refused: ${words}`);
 
       let refused = false;
       try {

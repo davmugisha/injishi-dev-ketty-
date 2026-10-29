@@ -35,6 +35,9 @@ async function setupDue(): Promise<SetupDue[]> {
           workspaceId: w.workspaceId,
           businessName: setup.businessName,
           notApproved: !setup.open,
+          inReview: setup.open && !setup.approved,
+          // What is still missing besides approval, in the setup page's own words.
+          missing: setup.open ? setup.blockers.filter((b) => !/approved/i.test(b)) : [],
           href: setupPath(w.workspaceId),
         };
       } catch {

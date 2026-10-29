@@ -48,23 +48,39 @@ export interface SetupVocabulary {
     pricePeriod: string;
 }
 type StoredClass = AccommodationClass | RetiredAccommodationClass;
+/** Inputs that decide lodging vs food-and-drink setup words. */
+export type SetupBusinessKind = {
+    domain: Domain;
+    accommodationClass: StoredClass | string | null;
+    /** RDB entity group on the org; coffee shops land in `restaurant_bar_nightclub`. */
+    entityGroup?: string | null;
+    /** Free text when class is `other` (e.g. "Coffee shop"). */
+    accommodationClassOther?: string | null;
+};
+/**
+ * True for coffee shops, bars and restaurants: F&B venues registered under
+ * `restaurant_bar_nightclub`, or `other` whose free text names a venue.
+ *
+ * They share lodging inventory tables but must not be asked for rooms,
+ * check-in times or "per person, per night" pricing.
+ */
+export declare function isFoodVenue(business: {
+    entityGroup?: string | null;
+    accommodationClass?: string | null;
+    accommodationClassOther?: string | null;
+}): boolean;
 /** Resolve a stored class, retired or unknown, to one the steps are keyed on. */
 export declare function currentAccommodationClass(stored: string | null | undefined): AccommodationClass;
 /** The words a business uses, for its checklist and its forms. */
-export declare function setupVocabularyFor(business: {
-    domain: Domain;
-    accommodationClass: StoredClass | string | null;
-}): SetupVocabulary;
+export declare function setupVocabularyFor(business: SetupBusinessKind): SetupVocabulary;
 /**
  * The steps this business sets up, in order.
  *
  * Residence has no departments and no outlets: a landlord lets units, and a
- * restaurant in the building is somebody else's business.
+ * restaurant in the building is somebody else's business. A coffee shop or bar
+ * has no rooms to number: priced offerings and photographs are enough to go live.
  */
-export declare function setupStepsFor(business: {
-    domain: Domain;
-    accommodationClass: StoredClass | string | null;
-}): SetupStep[];
+export declare function setupStepsFor(business: SetupBusinessKind): SetupStep[];
 /** Is one step finished, judged against the counts the API returned? */
 export declare function isSetupStepDone(key: SetupStepKey, counts: PropertySetupCounts): boolean;
 /** How much of the checklist is finished: all steps, and the required ones. */

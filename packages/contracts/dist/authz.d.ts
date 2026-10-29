@@ -533,6 +533,19 @@ export type WorkspaceAccess = z.infer<typeof WorkspaceAccess>;
  * take away the one screen that explains the wait.
  */
 export declare function isOperational(registrationStatus: OrgRegistrationStatus | null): boolean;
+/**
+ * The statuses in which a business may build its listing before approval.
+ *
+ * The fee is paid and the documents are being read online. Waiting for the
+ * second officer before a host may add a room type or a photograph only moves
+ * the work to after approval, when the host wants to be selling. So these
+ * statuses hold `listing.manage` and nothing else: no money, no staff, and no
+ * publish, which still waits for `active` (`publishBlockersFor`,
+ * `org_not_active`). A rejected, suspended or unclaimed (OBO `approved`)
+ * business holds nothing, as before.
+ */
+export declare const SETUP_DURING_REVIEW_STATUSES: ReadonlySet<OrgRegistrationStatus>;
+export declare function canSetUpDuringReview(registrationStatus: OrgRegistrationStatus | null): boolean;
 /** Plain wording for why a pending workspace refused. Names the stage. */
 export declare const REGISTRATION_STAGE_MESSAGE: Readonly<Record<OrgRegistrationStatus, string>>;
 /** What the operator app calls this workspace. */
@@ -559,7 +572,7 @@ export declare function workspaceLabel(a: {
  * and defaults to none, so every existing caller keeps the platform defaults and
  * a business that has never opened the Roles screen is unaffected. It is applied
  * INSIDE the registration gate rather than beside it: an org that is not
- * `active` holds nothing, and a business cannot grant its way past its own
+ * `active` holds nothing (or, in review, only `listing.manage`), and a business cannot grant its way past its own
  * approval.
  */
 export declare function permissionsForWorkspace(input: {

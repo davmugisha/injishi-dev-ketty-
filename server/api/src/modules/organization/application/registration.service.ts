@@ -35,11 +35,15 @@ import {
   ConflictException,
   ForbiddenException,
   GoneException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
   UnprocessableEntityException,
+  Optional,
 } from '@nestjs/common';
+
+import { PLATFORM, type Platform } from '../../../shared/config/platform';
 
 import {
   awaitsRegistrationFee,
@@ -149,7 +153,17 @@ export class RegistrationService {
      * marks it with the registration it became, whose settled fee clears it.
      */
     private readonly drafts: RegistrationDraftService,
+    /**
+     * Demo lets one dual-hat officer verify and approve the same case so a
+     * walkthrough does not need a second login. Production keeps SoD.
+     */
+    @Optional() @Inject(PLATFORM) private readonly platform?: Pick<Platform, 'environment'>,
   ) {}
+
+  /** True when this stack relaxes separation of duties for a dual-hat demo. */
+  private get allowSelfApprove(): boolean {
+    return this.platform?.environment === 'demo';
+  }
 
   /** What this registration will cost, before anyone commits to it. */
   async quote(
@@ -825,7 +839,9 @@ export class RegistrationService {
     if (!awaitsRegistrationFee(before.status)) return 'already_settled';
 
     if (await this.orgs.settleRegistrationFee(orgId, SYSTEM_MOVER)) {
-      await this.mail.submitted(orgId, false);
+      // As in `settleFeeAndVerify`: a PSF business is mailed when it is
+      // registered, a moment later, so it is not told it is "in review" first.
+      if (before.domain !== 'enterprise') await this.mail.submitted(orgId, false);
       await this.runTinCheck(orgId);
       return 'settled';
     }
@@ -1106,7 +1122,7 @@ export class RegistrationService {
         uncheckedDocumentCount: r.uncheckedDocumentCount,
         waitingSince: r.waitingSince.toISOString(),
         blockedBySeparationOfDuties:
-          role === 'business_approver'
+          role === 'business_approver' && !this.allowSelfApprove
             ? violatesSeparationOfDuties({
                 actorUserId,
                 fieldVerifiedByUserId:
@@ -1195,8 +1211,12 @@ export class RegistrationService {
     // Separation of duties, re-checked HERE and not only at grant time: an
     // officer can legitimately hold both functions in different scopes, so the
     // question is never "may this person approve" but "may they approve THIS".
+    // Demo dual-hat walkthroughs skip this so one login can finish both gates.
     const verifier = await this.orgs.latestFieldVerifierId(orgId);
-    if (violatesSeparationOfDuties({ actorUserId, fieldVerifiedByUserId: verifier })) {
+    if (
+      !this.allowSelfApprove &&
+      violatesSeparationOfDuties({ actorUserId, fieldVerifiedByUserId: verifier })
+    ) {
       throw new ForbiddenException(SEPARATION_OF_DUTIES_MESSAGE);
     }
 
@@ -1401,7 +1421,9 @@ export class RegistrationService {
     // The grant-time check cannot cover this direction. A person appointed first
     // can be added to a business afterwards, and nothing revisits their grant when
     // that happens.
-    if (await this.orgs.holdsOrgRole(orgId, actorUserId)) {
+    // Demo dual-hat walkthroughs skip this so an officer who also registered a
+    // sample business (Olivier / Amen Coffee) can finish the case alone.
+    if (!this.allowSelfApprove && (await this.orgs.holdsOrgRole(orgId, actorUserId))) {
       throw new ForbiddenException(OVERSIGHT_OWN_BUSINESS_MESSAGE);
     }
 

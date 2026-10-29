@@ -91,7 +91,7 @@ export function CaseDecision({
       ? {
           ...c,
           label: passLabel,
-          desc: approving ? "The field visit and documents support opening the business" : c.desc,
+          desc: approving ? "The checked documents support opening the business" : c.desc,
         }
       : c,
   );
@@ -210,10 +210,12 @@ export function CaseDecision({
             </Alert.Title>
             <Alert.Description>
               {stage === "rejected"
-                ? "The owner sees your reason code and explanation, and can fix it and resubmit with no new fee."
+                ? "The owner sees your reason code and explanation by email, and can fix it and resubmit with no new fee."
                 : approving
-                  ? "The decision is on the registry and in your decision log."
-                  : "An approving officer in the district now has this case. You cannot approve a case you verified."}
+                  ? live.outcome === "active"
+                    ? "We emailed the business that it is approved, with a link to set up its property on Injishi."
+                    : "We emailed the registrant. The business opens once the owner claims it."
+                  : "An approving officer in the district now has this case. The business is emailed when they approve. You cannot approve a case you verified."}
             </Alert.Description>
           </Alert.Content>
         </Alert>

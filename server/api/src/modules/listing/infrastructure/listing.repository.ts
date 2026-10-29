@@ -488,7 +488,10 @@ export class ListingRepository {
     }));
   }
 
-  /** The single Room type a booking is being made against (F-B05: one per Booking in v1). */
+  /**
+   * The single Room type a booking is being made against (F-B05: one per Booking in v1),
+   * only while its property is publicly visible (published, business active).
+   */
   async findRoomTypeForBooking(roomTypeId: string): Promise<
     | (RoomTypeSummary & { propertyId: string; workspaceId: string })
     | null
@@ -510,8 +513,18 @@ export class ListingRepository {
         workspaceId: roomTypes.workspaceId,
       })
       .from(roomTypes)
+      .innerJoin(properties, eq(properties.id, roomTypes.propertyId))
+      .innerJoin(listings, eq(listings.propertyId, properties.id))
+      .innerJoin(orgs, eq(orgs.id, properties.orgId))
       .where(
-        and(eq(roomTypes.id, roomTypeId), eq(roomTypes.status, 'active')),
+        and(
+          eq(roomTypes.id, roomTypeId),
+          eq(roomTypes.status, 'active'),
+          // Only what a guest can see is sellable. A business in review may
+          // build room types before approval, and a suspended one keeps its
+          // listing; neither is bookable by naming the id directly.
+          PUBLICLY_VISIBLE,
+        ),
       )
       .limit(1);
 

@@ -1493,6 +1493,17 @@ export declare const PropertySetupProgress: z.ZodObject<{
     legalName: z.ZodString;
     domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
     accommodationClass: z.ZodNullable<z.ZodString>;
+    /**
+     * Free-text when `accommodationClass` is `other` (coffee shop, bar &
+     * restaurant, etc.). Null on the eight lodging classes and on residence.
+     */
+    accommodationClassOther: z.ZodNullable<z.ZodString>;
+    /**
+     * RDB entity group on the org. Coffee shops and bars land in
+     * `restaurant_bar_nightclub`; hotels in `accommodation`. Drives setup
+     * vocabulary so a venue is not asked for rooms.
+     */
+    entityGroup: z.ZodNullable<z.ZodString>;
     propertyId: z.ZodNullable<z.ZodString>;
     propertyName: z.ZodNullable<z.ZodString>;
     counts: z.ZodObject<{
@@ -1539,7 +1550,9 @@ export declare const PropertySetupProgress: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     domain: "hospitality" | "residence" | "enterprise";
     legalName: string;
+    entityGroup: string | null;
     accommodationClass: string | null;
+    accommodationClassOther: string | null;
     orgId: string;
     propertyName: string | null;
     propertyId: string | null;
@@ -1560,7 +1573,9 @@ export declare const PropertySetupProgress: z.ZodObject<{
 }, {
     domain: "hospitality" | "residence" | "enterprise";
     legalName: string;
+    entityGroup: string | null;
     accommodationClass: string | null;
+    accommodationClassOther: string | null;
     orgId: string;
     propertyName: string | null;
     propertyId: string | null;

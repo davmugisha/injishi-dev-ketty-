@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.SetRolePermissionsRequest = exports.OperatorRoleList = exports.OperatorPermissionArea = exports.OperatorRolePermissions = exports.PERMISSION_AREA_OF = exports.PERMISSION_AREA_LABEL = exports.PERMISSION_AREA = exports.LOCKED_PERMISSION_REASON = exports.LOCKED_PERMISSIONS = exports.RolePermissionOverride = exports.CustomisableOrgRole = exports.PERMISSION_LABEL = exports.Permission = void 0;
+exports.ELEVATION_REFUSED_MESSAGE = exports.SEPARATION_OF_DUTIES_MESSAGE = exports.OVERSIGHT_OWN_BUSINESS_MESSAGE = exports.OVERSIGHT_ORG_ROLE_CONFLICT_MESSAGE = exports.OVERSIGHT_SCOPE_CONFLICT_MESSAGE = exports.OVERSIGHT_CONSOLE_NOT_BUILT_MESSAGE = exports.OVERSIGHT_COUNTRY_SCOPE_LABEL = exports.OversightConsoleGrant = exports.OversightGrant = exports.REGISTRATION_STAGE_MESSAGE = exports.SETUP_DURING_REVIEW_STATUSES = exports.WorkspaceAccess = exports.WorkspaceBranch = exports.BranchCoverage = exports.SetRolePermissionsRequest = exports.OperatorRoleList = exports.OperatorPermissionArea = exports.OperatorRolePermissions = exports.PERMISSION_AREA_OF = exports.PERMISSION_AREA_LABEL = exports.PERMISSION_AREA = exports.LOCKED_PERMISSION_REASON = exports.LOCKED_PERMISSIONS = exports.RolePermissionOverride = exports.CustomisableOrgRole = exports.PERMISSION_LABEL = exports.Permission = void 0;
 exports.can = can;
 exports.permissionsForRole = permissionsForRole;
 exports.isCustomisableOrgRole = isCustomisableOrgRole;
@@ -8,6 +8,7 @@ exports.isLockedPermission = isLockedPermission;
 exports.effectivePermissionsForRole = effectivePermissionsForRole;
 exports.parseRolePermissionOverride = parseRolePermissionOverride;
 exports.isOperational = isOperational;
+exports.canSetUpDuringReview = canSetUpDuringReview;
 exports.workspaceLabel = workspaceLabel;
 exports.permissionsForWorkspace = permissionsForWorkspace;
 exports.workspaceAllows = workspaceAllows;
@@ -836,12 +837,31 @@ exports.WorkspaceAccess = zod_1.z.object({
 function isOperational(registrationStatus) {
     return registrationStatus === "active";
 }
+/**
+ * The statuses in which a business may build its listing before approval.
+ *
+ * The fee is paid and the documents are being read online. Waiting for the
+ * second officer before a host may add a room type or a photograph only moves
+ * the work to after approval, when the host wants to be selling. So these
+ * statuses hold `listing.manage` and nothing else: no money, no staff, and no
+ * publish, which still waits for `active` (`publishBlockersFor`,
+ * `org_not_active`). A rejected, suspended or unclaimed (OBO `approved`)
+ * business holds nothing, as before.
+ */
+exports.SETUP_DURING_REVIEW_STATUSES = new Set([
+    "submitted",
+    "tin_verified",
+    "field_verified",
+]);
+function canSetUpDuringReview(registrationStatus) {
+    return registrationStatus !== null && exports.SETUP_DURING_REVIEW_STATUSES.has(registrationStatus);
+}
 /** Plain wording for why a pending workspace refused. Names the stage. */
 exports.REGISTRATION_STAGE_MESSAGE = {
     pending_payment: "Pay your registration fee to start verification. Nothing is reviewed until it clears.",
     submitted: "We're checking your TIN with RRA. This usually takes seconds.",
-    tin_verified: "TIN verified. A district field verifier will confirm your business next.",
-    field_verified: "Verified — awaiting approval.",
+    tin_verified: "TIN verified. We're reviewing your documents online.",
+    field_verified: "Documents checked — awaiting approval.",
     approved: "Approved. Waiting for the owner to claim this business.",
     active: "Active.",
     rejected: "Rejected. Correct the details and resubmit — there's no new fee.",
@@ -873,15 +893,22 @@ function workspaceLabel(a) {
  * and defaults to none, so every existing caller keeps the platform defaults and
  * a business that has never opened the Roles screen is unaffected. It is applied
  * INSIDE the registration gate rather than beside it: an org that is not
- * `active` holds nothing, and a business cannot grant its way past its own
+ * `active` holds nothing (or, in review, only `listing.manage`), and a business cannot grant its way past its own
  * approval.
  */
 function permissionsForWorkspace(input) {
     if (input.kind !== "business" || input.orgRole === null)
         return [];
-    if (!isOperational(input.registrationStatus))
-        return [];
-    return effectivePermissionsForRole(input.orgRole, input.roleOverrides ?? []);
+    const held = effectivePermissionsForRole(input.orgRole, input.roleOverrides ?? []);
+    if (isOperational(input.registrationStatus))
+        return held;
+    // In review the role's own default decides, and an override may only take
+    // it away: a business cannot grant its way past its own approval.
+    if (canSetUpDuringReview(input.registrationStatus))
+        return permissionsForRole(input.orgRole).includes("listing.manage") && held.includes("listing.manage")
+            ? ["listing.manage"]
+            : [];
+    return [];
 }
 /** Refuse unless the workspace grants it. The one predicate a guard calls. */
 function workspaceAllows(access, permission) {

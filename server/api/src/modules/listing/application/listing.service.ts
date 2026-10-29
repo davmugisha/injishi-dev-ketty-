@@ -149,7 +149,8 @@ export class ListingService {
 
   /**
    * The Room type a booking is being made against (F-B05: one per Booking in
-   * v1). Returns null when it does not exist or is not `active`; the caller
+   * v1). Returns null when it does not exist, is not `active`, or its property
+   * is not publicly visible (unpublished, or its business not active); the caller
    * decides which 4xx that is, since "unknown room type" reads differently on
    * the booking path than on the browse path.
    */

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SETUP_STEP_KEYS = void 0;
+exports.isFoodVenue = isFoodVenue;
 exports.currentAccommodationClass = currentAccommodationClass;
 exports.setupVocabularyFor = setupVocabularyFor;
 exports.setupStepsFor = setupStepsFor;
@@ -63,6 +64,17 @@ const RESIDENCE_VOCABULARY = {
     pricePeriod: "per month",
 };
 /**
+ * Coffee shops, bars and restaurants: same inventory rows as lodging (a
+ * "room type" is still the sellable thing with a price), but the words and
+ * the obligations are venue — no rooms to number, no check-in.
+ */
+const VENUE_VOCABULARY = {
+    typePlural: "What you sell",
+    unitPlural: "offerings",
+    unitSingular: "offering",
+    pricePeriod: "each",
+};
+/**
  * Which hospitality classes run departments and outlets as a matter of course.
  *
  * A hotel, motel, lodge and tented camp run a front office, housekeeping and a
@@ -78,6 +90,29 @@ const RUNS_DEPARTMENTS = new Set([
     "lodge",
     "tented_camp",
 ]);
+/**
+ * True for coffee shops, bars and restaurants: F&B venues registered under
+ * `restaurant_bar_nightclub`, or `other` whose free text names a venue.
+ *
+ * They share lodging inventory tables but must not be asked for rooms,
+ * check-in times or "per person, per night" pricing.
+ */
+function isFoodVenue(business) {
+    if (business.entityGroup === "restaurant_bar_nightclub")
+        return true;
+    const parsed = rdb_1.RdbEntityGroup.safeParse(business.entityGroup);
+    if (parsed.success && parsed.data === "restaurant_bar_nightclub")
+        return true;
+    if (business.accommodationClass !== "other")
+        return false;
+    const other = (business.accommodationClassOther ?? "").toLowerCase();
+    return (other.includes("coffee") ||
+        other.includes("bar") ||
+        other.includes("restaurant") ||
+        other.includes("nightclub") ||
+        other.includes("café") ||
+        other.includes("cafe"));
+}
 /** Resolve a stored class, retired or unknown, to one the steps are keyed on. */
 function currentAccommodationClass(stored) {
     const current = rdb_1.AccommodationClass.safeParse(stored);
@@ -94,26 +129,32 @@ function currentAccommodationClass(stored) {
 function setupVocabularyFor(business) {
     if (business.domain === "residence")
         return RESIDENCE_VOCABULARY;
+    if (isFoodVenue(business))
+        return VENUE_VOCABULARY;
     return HOSPITALITY_VOCABULARY[currentAccommodationClass(business.accommodationClass)];
 }
 /**
  * The steps this business sets up, in order.
  *
  * Residence has no departments and no outlets: a landlord lets units, and a
- * restaurant in the building is somebody else's business.
+ * restaurant in the building is somebody else's business. A coffee shop or bar
+ * has no rooms to number: priced offerings and photographs are enough to go live.
  */
 function setupStepsFor(business) {
     const words = setupVocabularyFor(business);
     const residence = business.domain === "residence";
+    const venue = !residence && isFoodVenue(business);
     const cls = residence ? null : currentAccommodationClass(business.accommodationClass);
-    const departmentsRequired = cls !== null && RUNS_DEPARTMENTS.has(cls);
+    const departmentsRequired = cls !== null && !venue && RUNS_DEPARTMENTS.has(cls);
     const steps = [
         {
             key: "property",
-            title: "Property profile",
+            title: venue ? "Venue profile" : "Property profile",
             description: residence
                 ? "The building tenants will live in: its name, address and house rules."
-                : "The place guests will book: its name, address, check-in and check-out times.",
+                : venue
+                    ? "The place customers visit: its name, address and a short description."
+                    : "The place guests will book: its name, address, check-in and check-out times.",
             required: true,
         },
         {
@@ -121,48 +162,63 @@ function setupStepsFor(business) {
             title: "Contact details",
             description: residence
                 ? "The phone number and email tenants and officers reach the property on."
-                : "The front desk phone number and email guests and officers reach you on.",
+                : venue
+                    ? "The phone number and email customers and officers reach you on."
+                    : "The front desk phone number and email guests and officers reach you on.",
             required: true,
         },
     ];
     if (!residence) {
         steps.push({
             key: "departments",
-            title: "Departments and heads",
-            description: departmentsRequired
-                ? "Front office, housekeeping, food and beverage and the rest, each with the name and phone number of its head."
-                : "If you run separate teams, name each department and who heads it, with their phone number.",
+            title: venue ? "Kitchen and service teams" : "Departments and heads",
+            description: venue
+                ? "If you run separate teams (kitchen, service, cash), name each and who heads it."
+                : departmentsRequired
+                    ? "Front office, housekeeping, food and beverage and the rest, each with the name and phone number of its head."
+                    : "If you run separate teams, name each department and who heads it, with their phone number.",
             required: departmentsRequired,
         });
     }
     steps.push({
         key: "room_types",
         title: words.typePlural,
-        description: `What you ${residence ? "let" : "sell"}, how many people each sleeps, and its price ${words.pricePeriod}.`,
+        description: venue
+            ? `Menu items or packages you sell, and the price ${words.pricePeriod}, in Rwandan francs.`
+            : `What you ${residence ? "let" : "sell"}, how many people each sleeps, and its price ${words.pricePeriod}.`,
         required: true,
     }, {
         key: "rooms",
-        title: `Your ${words.unitPlural}`,
-        description: `Every ${words.unitSingular} by the number or name on its door, so bookings${residence ? " and leases" : ""} land on a real one and its cleaning status can be tracked.`,
-        required: true,
+        title: venue ? "Seating or counters (optional)" : `Your ${words.unitPlural}`,
+        description: venue
+            ? "Optional. Number tables or counters if you want to track capacity; most coffee shops skip this."
+            : `Every ${words.unitSingular} by the number or name on its door, so bookings${residence ? " and leases" : ""} land on a real one and its cleaning status can be tracked.`,
+        // Venues do not sell numbered rooms; publish only needs a priced offering.
+        required: !venue,
     }, {
         key: "photos",
         title: "Photos",
-        description: "Pictures of the property. A listing needs at least one before it can go live.",
+        description: venue
+            ? "Pictures of the venue. A listing needs at least one before it can go live."
+            : "Pictures of the property. A listing needs at least one before it can go live.",
         required: true,
     }, {
         key: "amenities",
-        title: "Amenities",
+        title: venue ? "Facilities" : "Amenities",
         description: residence
             ? "What the building includes: water, parking, security, internet."
-            : "What a stay includes: Wi-Fi, breakfast, parking, a pool.",
+            : venue
+                ? "What the venue offers: Wi-Fi, outdoor seating, parking, takeaway."
+                : "What a stay includes: Wi-Fi, breakfast, parking, a pool.",
         required: false,
     });
     if (!residence) {
         steps.push({
             key: "outlets",
-            title: "Outlets",
-            description: "Restaurants, bars, a spa or a shop guests can order from, and who runs each.",
+            title: venue ? "Service points" : "Outlets",
+            description: venue
+                ? "Counters, a terrace or a takeaway point customers order from, and who runs each."
+                : "Restaurants, bars, a spa or a shop guests can order from, and who runs each.",
             required: false,
         });
     }
@@ -171,14 +227,18 @@ function setupStepsFor(business) {
         title: "Staff members",
         description: residence
             ? "Invite a property manager to help run the building."
-            : "Invite your manager, front office and housekeeping staff, each with the role that decides what they can do.",
+            : venue
+                ? "Invite managers and staff, each with the role that decides what they can do."
+                : "Invite your manager, front office and housekeeping staff, each with the role that decides what they can do.",
         required: false,
     }, {
         key: "listing",
         title: "Go live",
         description: residence
             ? "Publish your units so tenants and brokers can find them."
-            : "Publish the property on the marketplace so guests can book it.",
+            : venue
+                ? "Publish the venue on the marketplace so customers can find it."
+                : "Publish the property on the marketplace so guests can book it.",
         required: false,
     });
     return steps;

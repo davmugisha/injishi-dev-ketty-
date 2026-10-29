@@ -331,8 +331,8 @@ export declare const AssistantMessage: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     id: string;
     role: "user" | "assistant";
-    createdAt: string;
     text: string;
+    createdAt: string;
     sources: {
         id: string;
         kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -363,8 +363,8 @@ export declare const AssistantMessage: z.ZodObject<{
 }, {
     id: string;
     role: "user" | "assistant";
-    createdAt: string;
     text: string;
+    createdAt: string;
     sources: {
         id: string;
         kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -511,8 +511,8 @@ export declare const AssistantConversation: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         id: string;
         role: "user" | "assistant";
-        createdAt: string;
         text: string;
+        createdAt: string;
         sources: {
             id: string;
             kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -543,8 +543,8 @@ export declare const AssistantConversation: z.ZodObject<{
     }, {
         id: string;
         role: "user" | "assistant";
-        createdAt: string;
         text: string;
+        createdAt: string;
         sources: {
             id: string;
             kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -596,8 +596,8 @@ export declare const AssistantConversation: z.ZodObject<{
     messages: {
         id: string;
         role: "user" | "assistant";
-        createdAt: string;
         text: string;
+        createdAt: string;
         sources: {
             id: string;
             kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -639,8 +639,8 @@ export declare const AssistantConversation: z.ZodObject<{
     messages: {
         id: string;
         role: "user" | "assistant";
-        createdAt: string;
         text: string;
+        createdAt: string;
         sources: {
             id: string;
             kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -795,8 +795,8 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -827,8 +827,8 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
         }, {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -880,8 +880,8 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
         messages: {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -923,8 +923,8 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
         messages: {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -975,8 +975,8 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
         messages: {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -1021,8 +1021,8 @@ export declare const SendAssistantMessageResult: z.ZodObject<{
         messages: {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -1183,8 +1183,8 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -1215,8 +1215,8 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
         }, {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -1268,8 +1268,8 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
         messages: {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -1311,8 +1311,8 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
         messages: {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -1383,8 +1383,8 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
         messages: {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -1435,8 +1435,8 @@ export declare const AssistantCurrentConversation: z.ZodObject<{
         messages: {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -1611,8 +1611,8 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -1643,8 +1643,8 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
         }, {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -1696,8 +1696,8 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
         messages: {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -1739,8 +1739,8 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
         messages: {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -1784,8 +1784,8 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
         messages: {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";
@@ -1830,8 +1830,8 @@ export declare const ClaimAssistantConversationResult: z.ZodObject<{
         messages: {
             id: string;
             role: "user" | "assistant";
-            createdAt: string;
             text: string;
+            createdAt: string;
             sources: {
                 id: string;
                 kind: "listing" | "article" | "task" | "tutorial" | "record";

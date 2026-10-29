@@ -162,7 +162,7 @@ const CLASS_LABEL: Record<string, string> = {
 };
 
 const ROLE_LABEL: Record<OversightRole, string> = {
-  business_field_verifier: "Field verification",
+  business_field_verifier: "Document review",
   business_approver: "Approval",
   tax_compliance_officer: "Tax compliance",
   psf_membership_officer: "PSF membership",
@@ -326,9 +326,9 @@ function approvalCase(item: ApiQueueItem, now: Date): O.QueueCase {
     slaLabel: "No deadline is recorded for this stage",
     status: blocked ? "Awaiting another officer" : "Awaiting your approval",
     statusTone: blocked ? "default" : "warning",
-    who: blocked ? "Verified by you" : "Field verified",
+    who: blocked ? "Checked by you" : "Documents checked",
     facts: [
-      { label: "Field verified", value: when(item.waitingSince) },
+      { label: "Documents checked", value: when(item.waitingSince) },
       idLine(item),
       { label: "Documents", value: documentsLine(item) },
       { label: "Registered by", value: registrantLine(item) },
@@ -417,7 +417,7 @@ async function caseFile(ctx: SourceContext, orgId: string): Promise<O.CaseFile |
     how: d.certificateNumber ? `Number ${d.certificateNumber} against the file` : "Open the file and read it",
     recorded: d.checkedAt ? `${d.checkedByName ?? "An officer"} · ${when(d.checkedAt)}` : null,
   }));
-  const verifiedLine = inApproval ? [{ label: "Field verified", value: when(item.waitingSince) }] : [];
+  const verifiedLine = inApproval ? [{ label: "Documents checked", value: when(item.waitingSince) }] : [];
   return {
     id: item.orgId,
     queue: gate === "field" ? "Verification queue" : "Approval queue",
@@ -429,7 +429,7 @@ async function caseFile(ctx: SourceContext, orgId: string): Promise<O.CaseFile |
     due: "no deadline recorded",
     slaLeft: `${daysLabel(daysSince(item.waitingSince, ctx.now))} in this stage`,
     assigned:
-      gate === "field" ? "Field verification" : item.blockedBySeparationOfDuties ? "Verified by you" : "Approval",
+      gate === "field" ? "Document review" : item.blockedBySeparationOfDuties ? "Checked by you" : "Approval",
     facts: [
       { label: "Legal name", value: item.legalName },
       idLine(item),
@@ -460,7 +460,7 @@ async function caseFile(ctx: SourceContext, orgId: string): Promise<O.CaseFile |
             {
               id: "verified",
               status: "success" as const,
-              title: "Field verification recorded",
+              title: "Document review recorded",
               detail: when(item.waitingSince),
             },
           ]

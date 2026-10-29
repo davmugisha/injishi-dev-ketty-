@@ -363,7 +363,7 @@ export declare const OrderableOutlet: z.ZodObject<{
             prepTimeMinutes: number | null;
         }[];
     }[];
-    outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+    outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
     orderingAccess: "both" | "in_house_only" | "walk_in_only";
     hours: Record<string, unknown> | null;
     chargeToRoom: boolean;
@@ -395,7 +395,7 @@ export declare const OrderableOutlet: z.ZodObject<{
             prepTimeMinutes: number | null;
         }[];
     }[];
-    outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+    outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
     orderingAccess: "both" | "in_house_only" | "walk_in_only";
     hours: Record<string, unknown> | null;
     chargeToRoom: boolean;
@@ -561,7 +561,7 @@ export declare const OrderableList: z.ZodObject<{
                 prepTimeMinutes: number | null;
             }[];
         }[];
-        outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+        outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         chargeToRoom: boolean;
@@ -593,7 +593,7 @@ export declare const OrderableList: z.ZodObject<{
                 prepTimeMinutes: number | null;
             }[];
         }[];
-        outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+        outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         chargeToRoom: boolean;
@@ -627,7 +627,7 @@ export declare const OrderableList: z.ZodObject<{
                 prepTimeMinutes: number | null;
             }[];
         }[];
-        outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+        outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         chargeToRoom: boolean;
@@ -661,7 +661,7 @@ export declare const OrderableList: z.ZodObject<{
                 prepTimeMinutes: number | null;
             }[];
         }[];
-        outletKind: "other" | "restaurant" | "bar" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
+        outletKind: "other" | "bar" | "restaurant" | "lounge" | "banquet" | "room_service" | "spa" | "gym" | "pool" | "gift_shop" | "parking" | "laundry" | "business_center";
         orderingAccess: "both" | "in_house_only" | "walk_in_only";
         hours: Record<string, unknown> | null;
         chargeToRoom: boolean;

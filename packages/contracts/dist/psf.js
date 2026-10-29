@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PsfApplicationPrefill = exports.PsfApplication = exports.PsfPayment = exports.PsfFiledForm = exports.PsfMembership = exports.CreatePsfAssociationRequest = exports.UpsertPsfAssociationRequest = exports.CreatePsfClusterRequest = exports.UpsertPsfClusterRequest = exports.PsfCatalogue = exports.PsfCluster = exports.PsfSubsector = exports.PsfAssociation = exports.UpdatePsfTierRequest = exports.CreatePsfTierRequest = exports.PsfTier = exports.OVERSIGHT_ROLE_POSTING = exports.PSF_OUT_OF_SCOPE_MESSAGE = exports.PSF_NOT_FOR_RESIDENCE_MESSAGE = exports.PSF_DISTRICT_DECIDES_MESSAGE = exports.PSF_OWN_BUSINESS_MESSAGE = exports.PSF_NOT_PAYABLE_MESSAGE = exports.PSF_NOT_OPEN_MESSAGE = exports.PSF_OPEN_APPLICATION_MESSAGE = exports.PSF_FEE_NOTICE = exports.REGISTRATION_TYPE_SHORT = exports.ENTERPRISE_REGISTRATION_KIND_LABEL = exports.PSF_OWNER_GROUP_SHORT = exports.PSF_OWNER_GROUP_LABEL = exports.PSF_CONTACT_ROLE_LABEL = exports.PSF_TRADE_DIRECTION_LABEL = exports.PSF_OWNERSHIP_LABEL = exports.PSF_COMPANY_TYPE_LABEL = exports.PSF_MEMBERSHIP_SOURCE_LABEL = exports.PSF_DECLINE_REASON_LABEL = exports.PSF_APPLICATION_STAGE_LABEL = exports.PSF_APPLICATION_STATUS_LABEL = exports.PSF_OFFERED_FAMILIES = exports.PSF_FAMILY_BLURB = exports.PSF_FAMILY_LABEL = exports.PSF_DOMAINS = exports.PSF_QUEUE_REGISTRATION_STATES = exports.PsfApplicationStage = exports.PsfMembershipSource = exports.PsfDeclineReason = exports.PsfSubmittedCapacity = exports.PSF_OPEN_APPLICATION_STATUSES = exports.PsfApplicationStatus = exports.PsfPriceKind = exports.PsfMembershipFamily = void 0;
-exports.UpdatePsfSubsectorRequest = exports.CreatePsfSubsectorRequest = exports.PsfSubsectorsView = exports.PsfRegisterSummary = exports.PsfCount = exports.PsfBusinessesPage = exports.PsfBusinessBranch = exports.PsfBusinessRow = exports.PsfBusinessesQuery = exports.PsfBusinessKind = exports.PSF_STANDING_LABEL = exports.PsfStanding = exports.PsfDeclineRequest = exports.PsfApproveRequest = exports.PsfOfficerApplication = exports.PsfQueueQuery = exports.PsfQueuePage = exports.PsfQueueItem = exports.PsfBranchDecisionRequest = exports.PsfApplicationBranch = exports.PSF_BRANCH_STATUS_LABEL = exports.PsfBranchStatus = exports.PayPsfMembershipRequest = exports.CreatePsfApplicationRequest = exports.AdminOrgPsf = exports.AdminPsfApplication = exports.PsfMembershipOverview = exports.PsfBusinessProfile = void 0;
+exports.PsfFormAnswers = exports.UpdatePsfFormFieldRequest = exports.CreatePsfFormFieldRequest = exports.PsfFormFieldsOfficerView = exports.PsfFormFieldsPublic = exports.PsfFormField = exports.PsfFormFieldOption = exports.PsfFormFieldKey = exports.PsfFormFieldType = exports.UpdatePsfSubsectorRequest = exports.CreatePsfSubsectorRequest = exports.PsfSubsectorsView = exports.PsfRegisterSummary = exports.PsfCount = exports.PsfBusinessesPage = exports.PsfBusinessBranch = exports.PsfBusinessRow = exports.PsfBusinessesQuery = exports.PsfBusinessKind = exports.PSF_STANDING_LABEL = exports.PsfStanding = exports.PsfDeclineRequest = exports.PsfApproveRequest = exports.PsfOfficerApplication = exports.PsfQueueQuery = exports.PsfQueuePage = exports.PsfQueueItem = exports.PsfBranchDecisionRequest = exports.PsfApplicationBranch = exports.PSF_BRANCH_STATUS_LABEL = exports.PsfBranchStatus = exports.PayPsfMembershipRequest = exports.CreatePsfApplicationRequest = exports.AdminOrgPsf = exports.AdminPsfApplication = exports.PsfMembershipOverview = exports.PsfBusinessProfile = void 0;
 exports.isInPsfQueueState = isInPsfQueueState;
 exports.isPsfApplicant = isPsfApplicant;
 exports.psfTierAcceptsFee = psfTierAcceptsFee;
@@ -889,4 +889,72 @@ exports.UpdatePsfSubsectorRequest = zod_1.z.object({
     sortOrder: zod_1.z.number().int().min(0).max(999).optional(),
     associationCodes: zod_1.z.array(zod_1.z.string().trim().min(1)).max(60).optional(),
 });
+// ---------------------------------------------------------------------------
+// Dynamic membership form fields (officer-configured extras on registration)
+// ---------------------------------------------------------------------------
+/**
+ * Field types an officer may add to the PSF membership form. `select` needs at
+ * least one option; the others carry no options.
+ */
+exports.PsfFormFieldType = zod_1.z.enum(["text", "textarea", "number", "boolean", "select"]);
+/** Stable key: lowercase snake, used as the answer bag key and in APIs. */
+exports.PsfFormFieldKey = zod_1.z
+    .string()
+    .trim()
+    .regex(/^[a-z][a-z0-9_]{1,39}$/, "Use a short lowercase key, e.g. employees_count.");
+exports.PsfFormFieldOption = zod_1.z.string().trim().min(1).max(80);
+exports.PsfFormField = zod_1.z.object({
+    id: primitives_1.Uuid,
+    key: exports.PsfFormFieldKey,
+    label: zod_1.z.string().trim().min(1).max(120),
+    helpText: zod_1.z.string().trim().max(400).nullable(),
+    fieldType: exports.PsfFormFieldType,
+    required: zod_1.z.boolean(),
+    options: zod_1.z.array(exports.PsfFormFieldOption),
+    sortOrder: zod_1.z.number().int(),
+    active: zod_1.z.boolean(),
+});
+/** What applicants and the public form see: active fields only, ordered. */
+exports.PsfFormFieldsPublic = zod_1.z.object({
+    fields: zod_1.z.array(exports.PsfFormField.omit({ active: true })),
+});
+/** What an officer sees and may edit: every field, including inactive. */
+exports.PsfFormFieldsOfficerView = zod_1.z.object({
+    fields: zod_1.z.array(exports.PsfFormField),
+    /** Only a country-scoped PSF officer may create or edit the catalogue. */
+    canEdit: zod_1.z.boolean(),
+});
+exports.CreatePsfFormFieldRequest = zod_1.z
+    .object({
+    key: exports.PsfFormFieldKey,
+    label: zod_1.z.string().trim().min(1).max(120),
+    helpText: zod_1.z.string().trim().max(400).nullable().optional(),
+    fieldType: exports.PsfFormFieldType,
+    required: zod_1.z.boolean().default(false),
+    options: zod_1.z.array(exports.PsfFormFieldOption).max(40).default([]),
+    sortOrder: zod_1.z.number().int().min(0).max(999).default(0),
+})
+    .superRefine((v, ctx) => {
+    if (v.fieldType === "select" && v.options.length < 1) {
+        ctx.addIssue({ code: "custom", path: ["options"], message: "A select field needs at least one option." });
+    }
+    if (v.fieldType !== "select" && v.options.length > 0) {
+        ctx.addIssue({ code: "custom", path: ["options"], message: "Only a select field carries options." });
+    }
+});
+exports.UpdatePsfFormFieldRequest = zod_1.z
+    .object({
+    label: zod_1.z.string().trim().min(1).max(120).optional(),
+    helpText: zod_1.z.string().trim().max(400).nullable().optional(),
+    required: zod_1.z.boolean().optional(),
+    options: zod_1.z.array(exports.PsfFormFieldOption).max(40).optional(),
+    sortOrder: zod_1.z.number().int().min(0).max(999).optional(),
+    active: zod_1.z.boolean().optional(),
+})
+    .refine((v) => Object.keys(v).length > 0, { message: "Send at least one change." });
+/**
+ * Answers bag keyed by field `key`. Validation against the live catalogue
+ * happens on the server at submit; this shape only bounds the wire.
+ */
+exports.PsfFormAnswers = zod_1.z.record(zod_1.z.string(), zod_1.z.union([zod_1.z.string(), zod_1.z.number(), zod_1.z.boolean(), zod_1.z.null()]));
 //# sourceMappingURL=psf.js.map

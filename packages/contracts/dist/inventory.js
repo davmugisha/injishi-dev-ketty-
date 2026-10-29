@@ -315,7 +315,7 @@ exports.PublishBlocker = zod_1.z.enum([
     "no_photo",
 ]);
 exports.PUBLISH_BLOCKER_LABEL = {
-    org_not_active: "This business is not approved yet.",
+    org_not_active: "Publishing opens once your business is approved.",
     missing_name: "Give the property a name.",
     missing_sector: "Choose the sector the property is in.",
     no_active_room_type: "Add at least one room type.",
@@ -600,6 +600,17 @@ exports.PropertySetupProgress = zod_1.z.object({
     legalName: zod_1.z.string(),
     domain: primitives_1.Domain,
     accommodationClass: zod_1.z.string().nullable(),
+    /**
+     * Free-text when `accommodationClass` is `other` (coffee shop, bar &
+     * restaurant, etc.). Null on the eight lodging classes and on residence.
+     */
+    accommodationClassOther: zod_1.z.string().nullable(),
+    /**
+     * RDB entity group on the org. Coffee shops and bars land in
+     * `restaurant_bar_nightclub`; hotels in `accommodation`. Drives setup
+     * vocabulary so a venue is not asked for rooms.
+     */
+    entityGroup: zod_1.z.string().nullable(),
     propertyId: primitives_1.Uuid.nullable(),
     propertyName: zod_1.z.string().nullable(),
     counts: exports.PropertySetupCounts,

@@ -185,7 +185,7 @@ export type DemoPersona = z.infer<typeof DemoPersona>;
  */
 export const OVERSIGHT_ROLE_LABEL: Readonly<Record<OversightRole, string>> = {
     business_approver: "Approver",
-    business_field_verifier: "Field verifier",
+    business_field_verifier: "Document reviewer",
     tax_compliance_officer: "Tax compliance officer",
     psf_membership_officer: "PSF District Manager",
     village_leader: "Village leader",

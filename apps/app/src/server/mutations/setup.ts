@@ -1,10 +1,12 @@
 /**
- * Setting up a property after the registration is approved, through the API's inventory routes
+ * Setting up a property, from the moment the registration fee is paid, through the API's inventory routes
  * (`/api/v1/inventory/*`, `listing.manage`). Plain functions: the server actions behind the setup page and the
  * verify flows both call them.
  *
- * Whether the business may do any of this is the API's call and nobody else's: a business that is not `active`
- * holds no `listing.manage`, so every write below is refused with the registration gate's own words (rule D20).
+ * Whether the business may do any of this is the API's call and nobody else's: a business in review holds
+ * `listing.manage` and nothing else (`canSetUpDuringReview`), so it can build its listing while the documents are
+ * read, and the API refuses its publish until it is `active` (`org_not_active`). Before payment, or once rejected
+ * or suspended, it holds nothing and every write below is refused with the registration gate's own words.
  * This file adds no second gate. It only (a) reads where the setup stands, (b) refuses a request that must not
  * even be sent, and (c) lets the page ask the question first, so an unapproved business is shown a plain
  * explanation instead of forms that would be refused.
@@ -58,6 +60,8 @@ export interface ApiSetupProgress {
   legalName: string;
   domain: string;
   accommodationClass: string | null;
+  accommodationClassOther: string | null;
+  entityGroup: string | null;
   propertyId: string | null;
   propertyName: string | null;
   counts: {
@@ -68,6 +72,28 @@ export interface ApiSetupProgress {
     photos: number;
     published: number;
   } & Record<string, number>;
+}
+
+/**
+ * Coffee shop / bar / restaurant: same inventory APIs as lodging, different words.
+ * Mirrors `isFoodVenue` in `@injishi/contracts` without importing the package here.
+ */
+export function isFoodVenueSetup(progress: {
+  entityGroup?: string | null;
+  accommodationClass?: string | null;
+  accommodationClassOther?: string | null;
+}): boolean {
+  if (progress.entityGroup === "restaurant_bar_nightclub") return true;
+  if (progress.accommodationClass !== "other") return false;
+  const other = (progress.accommodationClassOther ?? "").toLowerCase();
+  return (
+    other.includes("coffee") ||
+    other.includes("bar") ||
+    other.includes("restaurant") ||
+    other.includes("nightclub") ||
+    other.includes("café") ||
+    other.includes("cafe")
+  );
 }
 
 export interface Place {
@@ -88,7 +114,7 @@ export interface SetupStep {
 
 export type SetupRead =
   | {
-      /** The registration is not approved: setup is closed, and the owner is told where it stands. */
+      /** Unpaid, sent back, suspended or unclaimed: setup is closed, and the owner is told where it stands. */
       open: false;
       workspaceId: string;
       businessName: string;
@@ -98,8 +124,16 @@ export type SetupRead =
       open: true;
       workspaceId: string;
       businessName: string;
+      /** The registration status; anything but `active` means the business is still in review. */
+      status: string | null;
+      /** Approved and active: the only state in which Publish is allowed. */
+      approved: boolean;
       domain: string;
       accommodationClass: string | null;
+      accommodationClassOther: string | null;
+      entityGroup: string | null;
+      /** Coffee shop / bar: setup speaks venue, not hotel rooms. */
+      foodVenue: boolean;
       property: ApiProperty | null;
       counts: ApiSetupProgress["counts"];
       steps: SetupStep[];
@@ -116,21 +150,43 @@ export function workspaceOf(ctx: SourceContext, workspaceId: string): Workspace 
 }
 
 /** The words for what stops a publish, from the same facts the API refuses on (publish-eligibility). */
-export function blockersFor(counts: ApiSetupProgress["counts"], hasProperty: boolean): string[] {
+export function blockersFor(
+  counts: ApiSetupProgress["counts"],
+  hasProperty: boolean,
+  foodVenue = false,
+  approved = true,
+): string[] {
   const out: string[] = [];
-  if (!hasProperty) out.push("Add the property: its name and the sector it is in.");
-  if (hasProperty && counts.roomTypes === 0) out.push("Add at least one room type.");
-  else if (hasProperty && counts.pricedRoomTypes === 0) out.push("At least one room type needs a price.");
-  if (hasProperty && counts.photos === 0) out.push("Add at least one photograph of the property.");
+  if (!approved) out.push("Publishing opens once your business is approved.");
+  if (!hasProperty) {
+    out.push(
+      foodVenue
+        ? "Add the venue: its name and the sector it is in."
+        : "Add the property: its name and the sector it is in.",
+    );
+  }
+  if (hasProperty && counts.roomTypes === 0) {
+    out.push(foodVenue ? "Add at least one priced item you sell." : "Add at least one room type.");
+  } else if (hasProperty && counts.pricedRoomTypes === 0) {
+    out.push(foodVenue ? "At least one item needs a price." : "At least one room type needs a price.");
+  }
+  if (hasProperty && counts.photos === 0) {
+    out.push(
+      foodVenue
+        ? "Add at least one photograph of the venue."
+        : "Add at least one photograph of the property.",
+    );
+  }
   return out;
 }
 
 export async function readSetup(ctx: SourceContext, workspaceId: string): Promise<SetupRead> {
   const ws = workspaceOf(ctx, workspaceId);
   const businessName = ws.orgName ?? ws.label;
-  // The registration gate: before approval the workspace holds no permissions at all, and the inventory
-  // routes would refuse. Asking the API is not needed to know that; the grant already says it.
-  if (ws.registrationStatus !== "active") {
+  // The registration gate: an unpaid, rejected, suspended or unclaimed business holds no `listing.manage`, and
+  // the inventory routes would refuse. Asking the API is not needed to know that; the grant already says it.
+  const approved = ws.registrationStatus === "active";
+  if (!approved && !ws.permissions.includes("listing.manage")) {
     return { open: false, workspaceId, businessName, status: ws.registrationStatus };
   }
   const api = { workspaceId };
@@ -142,21 +198,34 @@ export async function readSetup(ctx: SourceContext, workspaceId: string): Promis
   ]);
   const { counts } = progress;
   const published = property?.listingStatus === "published";
+  const foodVenue = isFoodVenueSetup(progress);
   return {
     open: true,
     workspaceId,
     businessName,
+    status: ws.registrationStatus,
+    approved,
     domain: progress.domain,
     accommodationClass: progress.accommodationClass,
+    accommodationClassOther: progress.accommodationClassOther ?? null,
+    entityGroup: progress.entityGroup ?? null,
+    foodVenue,
     property,
     counts,
-    steps: [
-      { key: "property", title: "Property details", done: !!property },
-      { key: "room_type", title: "A priced room type", done: counts.pricedRoomTypes > 0 },
-      { key: "photo", title: "A photograph", done: counts.photos > 0 },
-      { key: "publish", title: "Publish", done: published },
-    ],
-    blockers: blockersFor(counts, !!property),
+    steps: foodVenue
+      ? [
+          { key: "property", title: "Venue details", done: !!property },
+          { key: "room_type", title: "What you sell", done: counts.pricedRoomTypes > 0 },
+          { key: "photo", title: "A photograph", done: counts.photos > 0 },
+          { key: "publish", title: "Publish", done: published },
+        ]
+      : [
+          { key: "property", title: "Property details", done: !!property },
+          { key: "room_type", title: "A priced room type", done: counts.pricedRoomTypes > 0 },
+          { key: "photo", title: "A photograph", done: counts.photos > 0 },
+          { key: "publish", title: "Publish", done: published },
+        ],
+    blockers: blockersFor(counts, !!property, foodVenue, approved),
     published,
   };
 }
@@ -262,6 +331,9 @@ export async function addRoomType(
       maxGuests: input.maxGuests,
       basePriceRwf: input.basePriceRwf,
       roomCount: input.roomCount,
+      // Without a mode the listing publishes but guests see "can't be booked online".
+      bookingMode: "instant_book",
+      cancellationTier: "flexible",
     },
     { workspaceId },
   );

@@ -544,6 +544,12 @@ export declare const StayRegistrationDetails: z.ZodObject<{
     fullName: z.ZodOptional<z.ZodString>;
     documentType: z.ZodOptional<z.ZodEnum<["national_id", "passport", "other"]>>;
     idNumber: z.ZodOptional<z.ZodString>;
+    /**
+     * ISO-3166-1 alpha-2, as on the document. It decides who the stay is
+     * reported to (0114): every guest goes to the local leaders where the
+     * hotel is, and a guest from abroad to DGIE too.
+     */
+    nationality: z.ZodOptional<z.ZodString>;
     /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
     addressText: z.ZodOptional<z.ZodString>;
     /**
@@ -566,6 +572,7 @@ export declare const StayRegistrationDetails: z.ZodObject<{
     email?: string | undefined;
     phone?: string | undefined;
     idNumber?: string | undefined;
+    nationality?: string | undefined;
     invite?: boolean | undefined;
 }, {
     documentType?: "national_id" | "passport" | "other" | undefined;
@@ -574,6 +581,7 @@ export declare const StayRegistrationDetails: z.ZodObject<{
     email?: string | undefined;
     phone?: string | undefined;
     idNumber?: string | undefined;
+    nationality?: string | undefined;
     invite?: boolean | undefined;
 }>;
 export type StayRegistrationDetails = z.infer<typeof StayRegistrationDetails>;
@@ -766,6 +774,12 @@ export declare const CheckInRequest: z.ZodObject<{
         fullName: z.ZodOptional<z.ZodString>;
         documentType: z.ZodOptional<z.ZodEnum<["national_id", "passport", "other"]>>;
         idNumber: z.ZodOptional<z.ZodString>;
+        /**
+         * ISO-3166-1 alpha-2, as on the document. It decides who the stay is
+         * reported to (0114): every guest goes to the local leaders where the
+         * hotel is, and a guest from abroad to DGIE too.
+         */
+        nationality: z.ZodOptional<z.ZodString>;
         /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
         addressText: z.ZodOptional<z.ZodString>;
         /**
@@ -788,6 +802,7 @@ export declare const CheckInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     }, {
         documentType?: "national_id" | "passport" | "other" | undefined;
@@ -796,6 +811,7 @@ export declare const CheckInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
@@ -806,6 +822,7 @@ export declare const CheckInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -818,6 +835,7 @@ export declare const CheckInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -876,6 +894,12 @@ export declare const WalkInRequest: z.ZodObject<{
         fullName: z.ZodOptional<z.ZodString>;
         documentType: z.ZodOptional<z.ZodEnum<["national_id", "passport", "other"]>>;
         idNumber: z.ZodOptional<z.ZodString>;
+        /**
+         * ISO-3166-1 alpha-2, as on the document. It decides who the stay is
+         * reported to (0114): every guest goes to the local leaders where the
+         * hotel is, and a guest from abroad to DGIE too.
+         */
+        nationality: z.ZodOptional<z.ZodString>;
         /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
         addressText: z.ZodOptional<z.ZodString>;
         /**
@@ -898,6 +922,7 @@ export declare const WalkInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     }, {
         documentType?: "national_id" | "passport" | "other" | undefined;
@@ -906,6 +931,7 @@ export declare const WalkInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
@@ -918,6 +944,7 @@ export declare const WalkInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -932,6 +959,7 @@ export declare const WalkInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;

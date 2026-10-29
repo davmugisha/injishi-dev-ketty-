@@ -13,7 +13,7 @@ import { cn } from "@injishi/utils";
 import { Check, X } from "lucide-react";
 
 import { fetchRegistration } from "@/data/registration";
-import { setupLink, setupNote } from "@/lib/setup-link";
+import { setupIsOpen, setupLink, setupNote } from "@/lib/setup-link";
 
 import { StepCard } from "./register-shell";
 import { Notice } from "./wizard-ui";
@@ -26,14 +26,14 @@ import { Notice } from "./wizard-ui";
  * the person had already passed on Business, and a sent-back registration was
  * a status line with no way to act on it. Here the officers' steps sit inside
  * one stage the owner reads: registered and paid (the TIN checked when it was
- * entered), the field visit, the approval, then set up. A sent-back registration
- * names its reason, in the officer's own words when they left any, with a Fix
- * button. Setting up the property opens once the business is approved: before
- * that the API refuses every inventory write (D20), so the page says when it
- * opens rather than linking to a setup nobody could use (lib/setup-link.ts).
+ * entered), the online document review, the approval, then set up. A sent-back
+ * registration names its reason, in the officer's own words when they left any,
+ * with a Fix button. A hospitality business may set up while it is reviewed and
+ * publish once approved, so the link shows from payment; a residence's waits
+ * for approval (lib/setup-link.ts).
  *
  * WHAT IT CANNOT SAY, AND DOES NOT INVENT. The board prints the payment method,
- * a receipt number, the verifier's district and the visit's date and time.
+ * a receipt number and the reviewing officer's district.
  * `RegistrationSummary` carries none of them (only the submission time, the
  * status and a rejection reason), so the page says what is known and no more.
  */
@@ -60,8 +60,9 @@ function stagesFor(summary: RegistrationSummary): Stage[] {
   const s = summary.status;
   const paid = onDay(summary.submittedAt);
   const id = summary.domain === "residence" ? "UPI" : "TIN";
-  const pastVisit = s === "field_verified" || s === "approved" || s === "active";
+  const checked = s === "field_verified" || s === "approved" || s === "active";
   const approved = s === "approved" || s === "active";
+  const open = setupIsOpen(summary);
   return [
     {
       title: "Registered and paid",
@@ -72,14 +73,14 @@ function stagesFor(summary: RegistrationSummary): Stage[] {
       state: s === "submitted" ? "current" : "done",
     },
     {
-      title: "Field visit",
+      title: "Document review",
       sub:
         s === "rejected"
-          ? "Sent back. Once you resubmit, it goes straight back to the district verifier."
-          : pastVisit
-            ? "The district verifier confirmed the visit."
-            : "A verifier from your district visits to confirm the place, the address and your documents. Have your licence and ID to hand.",
-      state: s === "rejected" ? "problem" : pastVisit ? "done" : s === "tin_verified" ? "current" : "todo",
+          ? "Sent back. Once you resubmit, it goes straight back to the reviewing officer."
+          : checked
+            ? "An officer checked your documents."
+            : "An officer reviews the documents you uploaded, online. You do not need to do anything.",
+      state: s === "rejected" ? "problem" : checked ? "done" : s === "tin_verified" ? "current" : "todo",
     },
     {
       title: "Approval",
@@ -87,7 +88,7 @@ function stagesFor(summary: RegistrationSummary): Stage[] {
         ? s === "approved"
           ? "Approved. It opens once the owner claims it."
           : "Approved."
-        : "A second officer approves after the visit.",
+        : "A second officer approves once the documents are checked.",
       state: approved ? "done" : s === "field_verified" ? "current" : "todo",
     },
     {
@@ -95,8 +96,10 @@ function stagesFor(summary: RegistrationSummary): Stage[] {
       sub:
         s === "active"
           ? "Open now. Publish when the required steps are done."
-          : "Opens once you are approved. Guests see nothing until you publish.",
-      state: s === "active" ? "current" : "todo",
+          : open
+            ? "Open now: get your listing ready while we review. You can publish once you are approved."
+            : "Opens once you are approved. Guests see nothing until you publish.",
+      state: open ? "current" : "todo",
     },
   ];
 }
@@ -112,7 +115,7 @@ function chipFor(summary: RegistrationSummary): { label: string; variant: "accen
     case "field_verified":
       return { label: "In review · approval", variant: "accent" };
     case "tin_verified":
-      return { label: "In review · field visit", variant: "accent" };
+      return { label: "In review · documents", variant: "accent" };
     default:
       return { label: "In review · TIN check", variant: "accent" };
   }
@@ -132,7 +135,7 @@ export function InReview({
   const [checking, setChecking] = useState(false);
 
   // Poll while a machine holds it (the RRA check settles in seconds), and stop
-  // once a person does: a district visit takes days, and asking the API every
+  // once a person does: a document review takes days, and asking the API every
   // few seconds for days would tell the owner nothing new. Coming back to the
   // tab asks once, which is when a person actually looks.
   useEffect(() => {
@@ -271,7 +274,7 @@ export function InReview({
             <h2 id="register-prepare" className="text-lg font-semibold">
               Set up your property
             </h2>
-            <p className="text-sm text-muted-foreground">{setupNote(summary.status)}</p>
+            <p className="text-sm text-muted-foreground">{setupNote(summary.status, summary.domain)}</p>
           </div>
           {setupHref ? (
             <Button asChild>

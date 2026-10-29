@@ -4065,4 +4065,248 @@ export declare const UpdatePsfSubsectorRequest: z.ZodObject<{
     associationCodes?: string[] | undefined;
 }>;
 export type UpdatePsfSubsectorRequest = z.infer<typeof UpdatePsfSubsectorRequest>;
+/**
+ * Field types an officer may add to the PSF membership form. `select` needs at
+ * least one option; the others carry no options.
+ */
+export declare const PsfFormFieldType: z.ZodEnum<["text", "textarea", "number", "boolean", "select"]>;
+export type PsfFormFieldType = z.infer<typeof PsfFormFieldType>;
+/** Stable key: lowercase snake, used as the answer bag key and in APIs. */
+export declare const PsfFormFieldKey: z.ZodString;
+export declare const PsfFormFieldOption: z.ZodString;
+export declare const PsfFormField: z.ZodObject<{
+    id: z.ZodString;
+    key: z.ZodString;
+    label: z.ZodString;
+    helpText: z.ZodNullable<z.ZodString>;
+    fieldType: z.ZodEnum<["text", "textarea", "number", "boolean", "select"]>;
+    required: z.ZodBoolean;
+    options: z.ZodArray<z.ZodString, "many">;
+    sortOrder: z.ZodNumber;
+    active: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    options: string[];
+    active: boolean;
+    id: string;
+    sortOrder: number;
+    key: string;
+    label: string;
+    helpText: string | null;
+    fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+    required: boolean;
+}, {
+    options: string[];
+    active: boolean;
+    id: string;
+    sortOrder: number;
+    key: string;
+    label: string;
+    helpText: string | null;
+    fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+    required: boolean;
+}>;
+export type PsfFormField = z.infer<typeof PsfFormField>;
+/** What applicants and the public form see: active fields only, ordered. */
+export declare const PsfFormFieldsPublic: z.ZodObject<{
+    fields: z.ZodArray<z.ZodObject<Omit<{
+        id: z.ZodString;
+        key: z.ZodString;
+        label: z.ZodString;
+        helpText: z.ZodNullable<z.ZodString>;
+        fieldType: z.ZodEnum<["text", "textarea", "number", "boolean", "select"]>;
+        required: z.ZodBoolean;
+        options: z.ZodArray<z.ZodString, "many">;
+        sortOrder: z.ZodNumber;
+        active: z.ZodBoolean;
+    }, "active">, "strip", z.ZodTypeAny, {
+        options: string[];
+        id: string;
+        sortOrder: number;
+        key: string;
+        label: string;
+        helpText: string | null;
+        fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+        required: boolean;
+    }, {
+        options: string[];
+        id: string;
+        sortOrder: number;
+        key: string;
+        label: string;
+        helpText: string | null;
+        fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+        required: boolean;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    fields: {
+        options: string[];
+        id: string;
+        sortOrder: number;
+        key: string;
+        label: string;
+        helpText: string | null;
+        fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+        required: boolean;
+    }[];
+}, {
+    fields: {
+        options: string[];
+        id: string;
+        sortOrder: number;
+        key: string;
+        label: string;
+        helpText: string | null;
+        fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+        required: boolean;
+    }[];
+}>;
+export type PsfFormFieldsPublic = z.infer<typeof PsfFormFieldsPublic>;
+/** What an officer sees and may edit: every field, including inactive. */
+export declare const PsfFormFieldsOfficerView: z.ZodObject<{
+    fields: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        key: z.ZodString;
+        label: z.ZodString;
+        helpText: z.ZodNullable<z.ZodString>;
+        fieldType: z.ZodEnum<["text", "textarea", "number", "boolean", "select"]>;
+        required: z.ZodBoolean;
+        options: z.ZodArray<z.ZodString, "many">;
+        sortOrder: z.ZodNumber;
+        active: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        options: string[];
+        active: boolean;
+        id: string;
+        sortOrder: number;
+        key: string;
+        label: string;
+        helpText: string | null;
+        fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+        required: boolean;
+    }, {
+        options: string[];
+        active: boolean;
+        id: string;
+        sortOrder: number;
+        key: string;
+        label: string;
+        helpText: string | null;
+        fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+        required: boolean;
+    }>, "many">;
+    /** Only a country-scoped PSF officer may create or edit the catalogue. */
+    canEdit: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    canEdit: boolean;
+    fields: {
+        options: string[];
+        active: boolean;
+        id: string;
+        sortOrder: number;
+        key: string;
+        label: string;
+        helpText: string | null;
+        fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+        required: boolean;
+    }[];
+}, {
+    canEdit: boolean;
+    fields: {
+        options: string[];
+        active: boolean;
+        id: string;
+        sortOrder: number;
+        key: string;
+        label: string;
+        helpText: string | null;
+        fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+        required: boolean;
+    }[];
+}>;
+export type PsfFormFieldsOfficerView = z.infer<typeof PsfFormFieldsOfficerView>;
+export declare const CreatePsfFormFieldRequest: z.ZodEffects<z.ZodObject<{
+    key: z.ZodString;
+    label: z.ZodString;
+    helpText: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    fieldType: z.ZodEnum<["text", "textarea", "number", "boolean", "select"]>;
+    required: z.ZodDefault<z.ZodBoolean>;
+    options: z.ZodDefault<z.ZodArray<z.ZodString, "many">>;
+    sortOrder: z.ZodDefault<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    options: string[];
+    sortOrder: number;
+    key: string;
+    label: string;
+    fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+    required: boolean;
+    helpText?: string | null | undefined;
+}, {
+    key: string;
+    label: string;
+    fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+    options?: string[] | undefined;
+    sortOrder?: number | undefined;
+    helpText?: string | null | undefined;
+    required?: boolean | undefined;
+}>, {
+    options: string[];
+    sortOrder: number;
+    key: string;
+    label: string;
+    fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+    required: boolean;
+    helpText?: string | null | undefined;
+}, {
+    key: string;
+    label: string;
+    fieldType: "number" | "boolean" | "text" | "textarea" | "select";
+    options?: string[] | undefined;
+    sortOrder?: number | undefined;
+    helpText?: string | null | undefined;
+    required?: boolean | undefined;
+}>;
+export type CreatePsfFormFieldRequest = z.infer<typeof CreatePsfFormFieldRequest>;
+export declare const UpdatePsfFormFieldRequest: z.ZodEffects<z.ZodObject<{
+    label: z.ZodOptional<z.ZodString>;
+    helpText: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    required: z.ZodOptional<z.ZodBoolean>;
+    options: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    sortOrder: z.ZodOptional<z.ZodNumber>;
+    active: z.ZodOptional<z.ZodBoolean>;
+}, "strip", z.ZodTypeAny, {
+    options?: string[] | undefined;
+    active?: boolean | undefined;
+    sortOrder?: number | undefined;
+    label?: string | undefined;
+    helpText?: string | null | undefined;
+    required?: boolean | undefined;
+}, {
+    options?: string[] | undefined;
+    active?: boolean | undefined;
+    sortOrder?: number | undefined;
+    label?: string | undefined;
+    helpText?: string | null | undefined;
+    required?: boolean | undefined;
+}>, {
+    options?: string[] | undefined;
+    active?: boolean | undefined;
+    sortOrder?: number | undefined;
+    label?: string | undefined;
+    helpText?: string | null | undefined;
+    required?: boolean | undefined;
+}, {
+    options?: string[] | undefined;
+    active?: boolean | undefined;
+    sortOrder?: number | undefined;
+    label?: string | undefined;
+    helpText?: string | null | undefined;
+    required?: boolean | undefined;
+}>;
+export type UpdatePsfFormFieldRequest = z.infer<typeof UpdatePsfFormFieldRequest>;
+/**
+ * Answers bag keyed by field `key`. Validation against the live catalogue
+ * happens on the server at submit; this shape only bounds the wire.
+ */
+export declare const PsfFormAnswers: z.ZodRecord<z.ZodString, z.ZodUnion<[z.ZodString, z.ZodNumber, z.ZodBoolean, z.ZodNull]>>;
+export type PsfFormAnswers = z.infer<typeof PsfFormAnswers>;
 //# sourceMappingURL=psf.d.ts.map

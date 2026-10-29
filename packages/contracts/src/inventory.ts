@@ -326,7 +326,7 @@ export const PublishBlocker = z.enum([
 ]);
 export type PublishBlocker = z.infer<typeof PublishBlocker>;
 export const PUBLISH_BLOCKER_LABEL: Readonly<Record<PublishBlocker, string>> = {
-    org_not_active: "This business is not approved yet.",
+    org_not_active: "Publishing opens once your business is approved.",
     missing_name: "Give the property a name.",
     missing_sector: "Choose the sector the property is in.",
     no_active_room_type: "Add at least one room type.",
@@ -627,6 +627,17 @@ export const PropertySetupProgress = z.object({
     legalName: z.string(),
     domain: Domain,
     accommodationClass: z.string().nullable(),
+    /**
+     * Free-text when `accommodationClass` is `other` (coffee shop, bar &
+     * restaurant, etc.). Null on the eight lodging classes and on residence.
+     */
+    accommodationClassOther: z.string().nullable(),
+    /**
+     * RDB entity group on the org. Coffee shops and bars land in
+     * `restaurant_bar_nightclub`; hotels in `accommodation`. Drives setup
+     * vocabulary so a venue is not asked for rooms.
+     */
+    entityGroup: z.string().nullable(),
     propertyId: Uuid.nullable(),
     propertyName: z.string().nullable(),
     counts: PropertySetupCounts,

@@ -1540,6 +1540,7 @@ export class OrganizationRepository {
   /** What a registration mail names: the business, where it is, its workspace. */
   async registrationMailFacts(orgId: string): Promise<{
     legalName: string;
+    domain: string;
     tin: string | null;
     businessCode: string | null;
     districtId: number | null;
@@ -1550,6 +1551,7 @@ export class OrganizationRepository {
     const [row] = await this.db
       .select({
         legalName: orgs.legalName,
+        domain: orgs.domain,
         tin: orgs.tin,
         businessCode: orgs.businessCode,
         districtId: orgs.districtId,

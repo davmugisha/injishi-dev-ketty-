@@ -76,8 +76,36 @@ const COUNT_WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven"
 export interface SetupDue {
   workspaceId: string;
   businessName: string;
+  /** Setup is closed: unpaid, sent back, suspended or unclaimed. */
   notApproved: boolean;
+  /** Paid and being reviewed: setup is open, Publish waits for approval. */
+  inReview: boolean;
+  /** What the listing still lacks besides approval, in the setup page's words. */
+  missing: string[];
   href: string;
+}
+
+function setupDueWords(b: SetupDue): { title: string; text: string; cta: string } {
+  if (b.notApproved)
+    return {
+      title: `${b.businessName} is not approved yet`,
+      text: "See where the registration stands and anything it still needs.",
+      cta: "See where it stands",
+    };
+  const left = b.missing.join(" ");
+  if (b.inReview)
+    return {
+      title: `${b.businessName} is in review`,
+      text: left
+        ? `Get your listing ready while we review it. ${left} You can publish once it is approved.`
+        : "Your listing is ready. You can publish as soon as it is approved.",
+      cta: "Open setup",
+    };
+  return {
+    title: `${b.businessName} is not on the marketplace yet`,
+    text: left ? `${left} Then publish. Guests see nothing until you do.` : "Everything is in place. Publish it to go live.",
+    cta: "Set up your property",
+  };
 }
 
 export function OwnerHomeView({
@@ -117,27 +145,22 @@ export function OwnerHomeView({
         }
       />
 
-      {setupDue.map((b) => (
+      {setupDue.map((b) => {
         // The setup page is the one path to the marketplace: rooms, prices, a photograph, publish. Nothing
         // else in this shell linked to it, so an approved owner signing in here never found it.
-        <Alert key={b.workspaceId} status={b.notApproved ? "default" : "accent"} role="status">
-          <Alert.Content>
-            <Alert.Title>
-              {b.notApproved
-                ? `${b.businessName} is not approved yet`
-                : `${b.businessName} is not on the marketplace yet`}
-            </Alert.Title>
-            <Alert.Description>
-              {b.notApproved
-                ? "See where the registration stands and anything it still needs. Setup opens once it is approved."
-                : "Add a priced room type and a photograph, then publish. Guests see nothing until you do."}
-            </Alert.Description>
-          </Alert.Content>
-          <LinkButton href={b.href} variant="primary">
-            {b.notApproved ? "See where it stands" : "Set up your property"}
-          </LinkButton>
-        </Alert>
-      ))}
+        const words = setupDueWords(b);
+        return (
+          <Alert key={b.workspaceId} status={b.notApproved ? "default" : "accent"} role="status">
+            <Alert.Content>
+              <Alert.Title>{words.title}</Alert.Title>
+              <Alert.Description>{words.text}</Alert.Description>
+            </Alert.Content>
+            <LinkButton href={b.href} variant="primary">
+              {words.cta}
+            </LinkButton>
+          </Alert>
+        );
+      })}
 
       <section aria-label="Key figures">
         <KPIGroup className="flex-wrap">

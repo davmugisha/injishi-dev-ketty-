@@ -133,7 +133,7 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
         items: [
           ["Submitted", submitted],
           [
-            "Field verification",
+            "Document review",
             gate === "approval"
               ? "Recorded"
               : stage === "review"
@@ -177,7 +177,7 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
           ? {
               id: "verified",
               icon: "Check",
-              title: "Field verified · waiting for an approving officer",
+              title: "Documents checked · waiting for an approving officer",
               when: "Just now · Injishi",
               state: "Delivered",
               tone: "success",
@@ -349,7 +349,7 @@ export function OfficerCaseView({ file, reasons }: { file: CaseFile; reasons: Re
                 <Alert.Title>Nothing is activated on paperwork alone</Alert.Title>
                 <Alert.Description>
                   {live
-                    ? `${file.business} is registered only after a field verifier has visited and a second officer approves. Injishi records the decision; it does not make it.`
+                    ? `${file.business} is registered only after an officer has checked its documents and a second officer approves. Injishi records the decision; it does not make it.`
                     : "Isangano Lakeside Hotel shows as registered with Rubavu District only after you verify and a second officer approves. Injishi records the decision; it does not make it."}
                 </Alert.Description>
               </Alert.Content>
