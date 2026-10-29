@@ -50,7 +50,7 @@ import {
 } from "@injishi/ui";
 import { Fragment, useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
-import { FieldLabel, FooterHint, FormDialog, firstKey } from "./shared";
+import { FieldLabel, FooterHint, FormDialog, firstKey } from "./form-parts";
 
 interface ChannelsData {
   channels: Channel[];

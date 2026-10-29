@@ -7,9 +7,10 @@ import type {
   PaymentRail,
   SyncConflict,
 } from "@injishi/data/fixtures/stays";
+import { OfflineDeskView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { OfflineDeskView } from "@/features/stays/OfflineDeskView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -29,10 +30,12 @@ export default async function OfflineDeskPage({ searchParams }: { searchParams: 
   if (!conflict) notFound();
   const { offline } = await searchParams;
   return (
-    <OfflineDeskView
-      persona={persona}
-      data={{ arrivals, queue, rails, cashGuests, conflict, choices }}
-      initialOffline={offline !== "0" && offline !== "false"}
-    />
+    <PmsMount>
+      <OfflineDeskView
+        persona={persona}
+        data={{ arrivals, queue, rails, cashGuests, conflict, choices }}
+        initialOffline={offline !== "0" && offline !== "false"}
+      />
+    </PmsMount>
   );
 }

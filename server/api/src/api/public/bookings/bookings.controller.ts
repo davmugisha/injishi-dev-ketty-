@@ -16,9 +16,9 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 
-import { BookingCancellationService } from '../../../modules/booking/application/booking-cancellation.service';
-import { BookingService } from '../../../modules/booking/application/booking.service';
-import { PaymentAttemptService } from '../../../modules/booking/application/payment-attempt.service';
+import { BookingCancellationService } from '../../../modules/pms/application/booking-cancellation.service';
+import { BookingService } from '../../../modules/pms/application/booking.service';
+import { PaymentAttemptService } from '../../../modules/pms/application/payment-attempt.service';
 import { EbmReceiptService } from '../../../modules/ebm/application/ebm-receipt.service';
 import {
   CurrentUser,

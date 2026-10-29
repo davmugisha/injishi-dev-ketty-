@@ -22,7 +22,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { OperatorReservationsService } from '../../../modules/booking/application/operator-reservations.service';
+import { OperatorReservationsService } from '../../../modules/pms/application/operator-reservations.service';
 import { RoomAssignmentService } from '../../../modules/operations/application/room-assignment.service';
 import {
   CurrentUser,

@@ -1,8 +1,9 @@
 import { screens } from "@injishi/data";
 import type { GuestStayRecord, HotelInfoRow, LateCheckoutOption, StayShortcut } from "@injishi/data/fixtures/guest";
+import { GuestStayView, type LateCheckout } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { GuestStayView, type LateCheckout } from "@/features/guest/GuestStayView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -22,10 +23,12 @@ export default async function GuestStayPage({ searchParams }: { searchParams: Pr
   if (!stay || !shortcuts.length) notFound();
   const { late } = await searchParams;
   return (
-    <GuestStayView
-      persona={persona}
-      data={{ stay, shortcuts, lateOptions, info }}
-      late={LATES.includes(late as LateCheckout) ? (late as LateCheckout) : "none"}
-    />
+    <PmsMount>
+      <GuestStayView
+        persona={persona}
+        data={{ stay, shortcuts, lateOptions, info }}
+        late={LATES.includes(late as LateCheckout) ? (late as LateCheckout) : "none"}
+      />
+    </PmsMount>
   );
 }

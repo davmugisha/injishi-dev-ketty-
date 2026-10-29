@@ -199,7 +199,7 @@ export class AdminOrgsService {
          * Every subquery here sits in the select list of a query WITH JOINS, which
          * is what makes Drizzle qualify the column names. In a join free query the
          * same template would silently compare a table to itself; see
-         * `listing-setup/infrastructure/inventory.repository.ts`.
+         * `platform/property/infrastructure/inventory.repository.ts`.
          */
         submittedAt: sql<Date | string | null>`coalesce(
           (select max(${orgRegistrationEvents.occurredAt})

@@ -2,13 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 
 import { WorkspaceService } from '../../../shared/auth/workspace.service';
-import { AvailabilityService } from '../../booking/application/availability.service';
-import { GuestTripsService } from '../../booking/application/guest-trips.service';
-import { OperatorReservationsService } from '../../booking/application/operator-reservations.service';
-import { InventoryService } from '../../listing-setup/application/inventory.service';
+import { AvailabilityService } from '../../pms/application/availability.service';
+import { GuestTripsService } from '../../pms/application/guest-trips.service';
+import { OperatorReservationsService } from '../../pms/application/operator-reservations.service';
+import { InventoryService } from '../../platform/property/application/inventory.service';
 import { FrontDeskService } from '../../operations/application/front-desk.service';
 import { RoomAssignmentService } from '../../operations/application/room-assignment.service';
-import { RoomTypesService } from '../../listing-setup/application/room-types.service';
+import { RoomTypesService } from '../../platform/property/application/room-types.service';
 import { ProposalRepository } from '../infrastructure/proposal.repository';
 import { ListingService } from '../../listing/application/listing.service';
 import type { ModelToolSpec } from '../domain/model-port';

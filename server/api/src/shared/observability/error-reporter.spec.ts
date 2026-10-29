@@ -22,13 +22,13 @@ vi.mock('@sentry/node', () => {
 import * as Sentry from '@sentry/node';
 
 import type { EbmSaleTrigger } from '../../modules/ebm/application/ebm-sale-trigger.service';
-import type { BookingNotificationsService } from '../../modules/booking/application/booking-notifications.service';
-import type { PaymentAttemptService } from '../../modules/booking/application/payment-attempt.service';
-import { BookingService } from '../../modules/booking/application/booking.service';
+import type { BookingNotificationsService } from '../../modules/pms/application/booking-notifications.service';
+import type { PaymentAttemptService } from '../../modules/pms/application/payment-attempt.service';
+import { BookingService } from '../../modules/pms/application/booking.service';
 import {
   NoAvailabilityError,
   type BookingRepository,
-} from '../../modules/booking/infrastructure/booking.repository';
+} from '../../modules/pms/infrastructure/booking.repository';
 import type { ListingService } from '../../modules/listing/application/listing.service';
 import { PaymentCompensationService } from '../../modules/payments/application/payment-compensation.service';
 import type { PaymentPort } from '../../modules/payments/domain/payment-port';

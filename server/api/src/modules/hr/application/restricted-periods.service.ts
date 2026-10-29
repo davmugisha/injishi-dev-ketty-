@@ -9,7 +9,7 @@ import { Inject, Injectable, NotFoundException, UnprocessableEntityException } f
 import { assertOwnedByOrg } from '../../../shared/auth/assert-owned';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { isCalendarDate } from '../../booking/domain/pricing';
+import { isCalendarDate } from '../../pms/domain/pricing';
 import { addDays } from '../domain/hr-calendar';
 import { writeHrAudit } from '../infrastructure/hr-audit';
 import { LeaveExtraRepository, type PeriodRow } from '../infrastructure/leave-extra.repository';

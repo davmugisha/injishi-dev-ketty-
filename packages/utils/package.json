@@ -2,14 +2,15 @@
   "private": true,
   "name": "@injishi/utils",
   "version": "0.1.0",
-  "description": "Presentation helpers shared across the Injishi apps: cn, en-RW price and date formatting, search-param builders, receipt rows.",
+  "description": "Presentation helpers shared across the Injishi apps and products: cn, en-RW price and date formatting, reading a typed franc amount, search-param builders, receipt rows.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./cn": "./src/cn.ts",
     "./format": "./src/format.ts",
     "./url": "./src/url.ts",
-    "./money": "./src/money.ts"
+    "./money": "./src/money.ts",
+    "./francs": "./src/francs.ts"
   },
   "files": [
     "src"

@@ -27,6 +27,6 @@
     "database/drizzle/messaging.ts > database/drizzle/operations.ts",
     "database/drizzle/messaging.ts > database/drizzle/residence.ts > database/drizzle/operations.ts",
     "database/drizzle/money.ts > database/drizzle/operations.ts",
-    "modules/booking/application/booking.service.ts > modules/booking/application/payment-attempt.service.ts"
+    "modules/pms/application/booking.service.ts > modules/pms/application/payment-attempt.service.ts"
   ]
 }
