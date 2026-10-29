@@ -139,10 +139,13 @@ export function WorkspaceShell({
   persona,
   nav,
   altNav,
+  live: liveWorkspace = false,
   children,
 }: {
   persona: Persona;
   nav: NavGroup[];
+  /** Every screen of this workspace reads real records (a stay business): no sample pills or search. */
+  live?: boolean;
   /** Another sidebar for the pages under `prefix` (a landlord reading their own home as a tenant). */
   altNav?: { prefix: string; nav: NavGroup[] } | null;
   children: ReactNode;
@@ -163,7 +166,7 @@ export function WorkspaceShell({
       return next;
     });
   }, []);
-  const live = LIVE_PERSONAS.has(persona.id) || LIVE_SECTIONS.has(screen?.section ?? "");
+  const live = liveWorkspace || LIVE_PERSONAS.has(persona.id) || LIVE_SECTIONS.has(screen?.section ?? "");
   // A live screen shows only the pills it sets itself (<TopbarStatus>), never the registry's samples.
   const pills = live ? Object.values(overrides) : (topbar?.pills ?? []).map((p, i) => overrides[i] ?? p);
   // The lists a live workspace can search: only its own, through its own sidebar.

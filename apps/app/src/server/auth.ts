@@ -301,7 +301,11 @@ async function meContext(cookie: SessionCookie): Promise<MeContext | null> {
 function asPerson(shell: Persona, user: ApiUser, workspaces: Workspace[], context: MeContext | null): Persona {
   if (shell.email && shell.email === user.email.toLowerCase()) return shell;
   const business =
-    shell.id === "landlord" && context ? landlordBusiness(context.businesses, context.activeWorkspaceId) : null;
+    shell.id === "landlord" && context
+      ? landlordBusiness(context.businesses, context.activeWorkspaceId)
+      : (shell.id === "owner" || shell.id === "manager") && context
+        ? stayBusiness(context.businesses, context.activeWorkspaceId)
+        : null;
   // An account with no name of its own: the owner's lease signatory name (the owner signs for the
   // business), a broker's registered name, the landlord's business, and only then the email's first part.
   const signatory = business?.role === "owner" ? business.signatoryName?.trim() : "";
@@ -313,8 +317,7 @@ function asPerson(shell: Persona, user: ApiUser, workspaces: Workspace[], contex
     user.email.split("@")[0];
   const parts = name.split(/\s+/).filter(Boolean);
   const person = { ...shell, name, firstName: parts[0] ?? name, initials: initialsOf(name), email: user.email };
-  if (shell.id !== "landlord" || !context) return person;
-  if (!business) return person;
+  if (!context || !business) return person;
   const role = ROLE_LABEL[business.role ?? ""] ?? "Member";
   return { ...person, role, workspace: landlordSwitcher(business, workspaces, context) };
 }
@@ -352,6 +355,16 @@ function homeBoardOf(business: MeContextBusiness): BoardId {
  * person's other businesses (each switched to with `POST /me/active-workspace`), and their own home
  * when they rent one too.
  */
+/**
+ * The hospitality business a real owner or manager acts in (2026-10-29): the active one when it is a
+ * hospitality business they hold a role in, else the first that is running. The header names it, never
+ * the demo hotel the shell was drawn from.
+ */
+function stayBusiness(businesses: MeContextBusiness[], activeWorkspaceId: string | null): MeContextBusiness | null {
+  const mine = businesses.filter((b) => b.domain === "hospitality" && b.role !== null);
+  return mine.find((b) => b.workspaceId === activeWorkspaceId) ?? mine.find((b) => b.operational) ?? mine[0] ?? null;
+}
+
 function landlordSwitcher(business: MeContextBusiness, workspaces: Workspace[], context: MeContext): WorkspaceContext {
   const grant = workspaces.find((w) => w.workspaceId === business.workspaceId);
   const buildings = (grant?.branches ?? []).filter(
@@ -360,7 +373,9 @@ function landlordSwitcher(business: MeContextBusiness, workspaces: Workspace[], 
   const branches = buildings.map((b) => ({ id: b.propertyId, name: b.name, meta: "" }));
   const all =
     branches.length > 1
-      ? [{ id: "all", name: "All buildings", meta: `${branches.length} buildings` }, ...branches]
+      ? business.domain === "residence"
+        ? [{ id: "all", name: "All buildings", meta: `${branches.length} buildings` }, ...branches]
+        : [{ id: "all", name: "All properties", meta: `${branches.length} properties` }, ...branches]
       : branches;
   const others: WorkspaceContext["others"] = context.businesses
     .filter((b) => b.workspaceId !== business.workspaceId && b.role !== null)
@@ -381,7 +396,10 @@ function landlordSwitcher(business: MeContextBusiness, workspaces: Workspace[], 
     kind: "business",
     ini: initialsOf(business.orgName),
     name: business.orgName,
-    meta: `Rentals · ${buildings.length === 1 ? "1 building" : `${buildings.length} buildings`}`,
+    meta:
+      business.domain === "residence"
+        ? `Rentals · ${buildings.length === 1 ? "1 building" : `${buildings.length} buildings`}`
+        : `Stays · ${buildings.length === 1 ? "1 property" : `${buildings.length} properties`}`,
     role,
     rolePhrase: ROLE_PHRASE[business.role ?? ""] ?? `You\u2019re a member here as ${role.toLowerCase()}.`,
     branches: all.length > 0 ? all : [{ id: business.workspaceId, name: business.orgName, meta: "" }],

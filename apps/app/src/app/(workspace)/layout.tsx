@@ -34,6 +34,10 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
   if (!persona) redirect("/sign-in");
   // A landlord's sidebar follows their permissions and the business's counts (server/rentals/nav.ts).
   // An officer's or local leader's sidebar follows the seats they hold (server/oversight/nav.ts).
+  const stays =
+    persona.id === "owner" || persona.id === "manager"
+      ? await staysNav(persona.id === "manager" ? "ManagerToday" : "OwnerHome")
+      : null;
   let nav =
     persona.id === "landlord"
       ? await landlordNav()
@@ -70,7 +74,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
   // An officer's or leader's header names their own seat, not the persona's sample one.
   const shown = persona.id === "officer" ? await officerPersona(persona) : persona;
   return (
-    <WorkspaceShell persona={shown} nav={nav} altNav={altNav}>
+    <WorkspaceShell persona={shown} nav={nav} altNav={altNav} live={stays !== null}>
       {children}
       {/* Message counts in the sidebar follow new lines live (P3.4). */}
       {persona.id === "landlord" ? (
