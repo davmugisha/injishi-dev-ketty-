@@ -83,6 +83,8 @@ __exportStar(require("./rentals"), exports);
 __exportStar(require("./me-context"), exports);
 // A short-stay business's home: how it is run, today's counts, a period's stays and money.
 __exportStar(require("./stays-overview"), exports);
+// Prices and availability by the day, and a room type's own terms.
+__exportStar(require("./rates-calendar"), exports);
 __exportStar(require("./guests"), exports);
 // The bar and restaurant point of sale (POS spec, phase 1).
 __exportStar(require("./pos"), exports);
