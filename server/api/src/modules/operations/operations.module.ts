@@ -28,7 +28,6 @@ import { OwnerDashboardService } from './application/owner-dashboard.service';
 import { RoomAssignmentService } from './application/room-assignment.service';
 import { ServiceCatalogService } from './application/service-catalog.service';
 import { GuestOrderingService } from './application/guest-ordering.service';
-import { DeclarationPlanService } from './application/declaration-plan.service';
 import { OrderPaymentService } from './application/order-payment.service';
 import { OutletsService } from './application/outlets.service';
 import { OffersService } from './application/offers.service';
@@ -143,7 +142,6 @@ import { PaymentsModule } from '../payments/payments.module';
     HousekeepingService,
     ServiceCatalogService,
     GuestOrderingService,
-    DeclarationPlanService,
     OrderPaymentService,
     OutletsService,
     OffersService,

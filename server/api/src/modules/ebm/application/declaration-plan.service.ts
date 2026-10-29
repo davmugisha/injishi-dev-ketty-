@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 
 import { PLATFORM, type Platform } from '../../../shared/config/platform';
-import { EBM_LIVE, type EbmLive } from '../../ebm/domain/ebm-live';
-import { EbmConnectionRepository } from '../../ebm/infrastructure/ebm-connection.repository';
+import { EBM_LIVE, type EbmLive } from '../domain/ebm-live';
+import { EbmConnectionRepository } from '../infrastructure/ebm-connection.repository';
 
 /**
  * What a sale is told about its taxpayer's fiscal setup (ADR-050 D-b, value
