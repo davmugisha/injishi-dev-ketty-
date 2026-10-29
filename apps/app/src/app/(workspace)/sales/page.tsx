@@ -12,8 +12,8 @@ import type {
   SalesEventsStage,
   SalesEventsTiming,
 } from "@injishi/data/fixtures/commercial";
+import { SalesEventsView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { SalesEventsView } from "@/features/commercial/SalesEventsView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

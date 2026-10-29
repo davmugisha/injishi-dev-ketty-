@@ -1,8 +1,8 @@
 import { screens } from "@injishi/data";
 import type { StorePart, WorkOrder } from "@injishi/data/fixtures/staff";
+import { TechWorkOrdersView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { PmsMount } from "@/features/pms/pms-mount";
-import { TechWorkOrdersView } from "@/features/staff/TechWorkOrdersView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { myProfile } from "@/server/sources/staff";

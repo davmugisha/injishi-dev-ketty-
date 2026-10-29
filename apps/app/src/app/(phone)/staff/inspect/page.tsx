@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { InspectionCheck, InspectionRoom } from "@injishi/data/fixtures/staff";
+import { InspectRoomView } from "@injishi/product-pms/web";
 import { NothingYet } from "@injishi/ui/phone";
 import type { Metadata } from "next";
 import { PmsMount } from "@/features/pms/pms-mount";
-import { InspectRoomView } from "@/features/staff/InspectRoomView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { myProfile } from "@/server/sources/staff";

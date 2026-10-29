@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { Folio } from "@injishi/data/fixtures/finance";
+import { FoliosView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { FoliosView } from "@/features/finance/FoliosView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

@@ -1,8 +1,8 @@
 import { screens } from "@injishi/data";
 import type { CheckInFile } from "@injishi/data/fixtures/frontdesk";
+import { CheckInView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CheckInView } from "@/features/frontdesk/CheckInView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument, requestContext } from "@/server/data";

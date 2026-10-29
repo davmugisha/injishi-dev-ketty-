@@ -7,9 +7,9 @@ import type {
   LoyaltyTier,
   LoyaltyTransaction,
 } from "@injishi/data/fixtures/operations";
+import { LoyaltyView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { LoyaltyView } from "@/features/operations/LoyaltyView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";

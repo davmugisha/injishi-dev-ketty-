@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { PackagesItem, PackagesNoticeTier, PackagesWeekend } from "@injishi/data/fixtures/commercial";
+import { PackagesView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { PackagesView } from "@/features/commercial/PackagesView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

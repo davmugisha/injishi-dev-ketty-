@@ -7,8 +7,8 @@ import type {
   HousekeepingStaff,
   RoomHistory,
 } from "@injishi/data/fixtures/operations";
+import { HousekeepingBoardView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { HousekeepingBoardView } from "@/features/operations/HousekeepingBoardView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";

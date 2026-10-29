@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { HousekeepingDone, HousekeepingTask } from "@injishi/data/fixtures/platform";
+import { StaffTodayView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { StaffTodayView } from "@/features/platform/StaffTodayView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

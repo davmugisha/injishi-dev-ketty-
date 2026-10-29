@@ -1,8 +1,8 @@
 import { screens } from "@injishi/data";
 import type { ConditionSignal, SignalReview, WorkOrder } from "@injishi/data/fixtures/operations";
 import { stock } from "@injishi/data/media";
+import { MaintenanceView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { MaintenanceView } from "@/features/operations/MaintenanceView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";

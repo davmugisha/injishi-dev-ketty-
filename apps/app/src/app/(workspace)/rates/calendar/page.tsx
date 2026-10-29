@@ -10,8 +10,8 @@ import type {
   AvailabilityCalendarRoomType,
   AvailabilityCalendarWindow,
 } from "@injishi/data/fixtures/commercial";
+import { AvailabilityCalendarView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { AvailabilityCalendarView } from "@/features/commercial/AvailabilityCalendarView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

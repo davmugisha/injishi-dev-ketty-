@@ -7,10 +7,10 @@ import type {
   Stay,
   StayRecord,
 } from "@injishi/data/fixtures/stays";
+import { StayFolioView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PmsMount } from "@/features/pms/pms-mount";
-import { StayFolioView } from "@/features/stays/StayFolioView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
 

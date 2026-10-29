@@ -1,5 +1,6 @@
 import { screens } from "@injishi/data";
 import type { MessageTemplate, MessageThread } from "@injishi/data/fixtures/stays";
+import { MessagesView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { NotABroker } from "@/features/broker/shared";
 import {
@@ -9,7 +10,6 @@ import {
 } from "@/features/messages/LandlordMessagesView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { NoRentalsBusiness } from "@/features/rentals/shared";
-import { MessagesView } from "@/features/stays/MessagesView";
 import { currentAccount, currentPersona, requirePersona } from "@/lib/session";
 import { brokerScope, orMissing } from "@/server/broker/client";
 import { getCollection, requestContext } from "@/server/data";

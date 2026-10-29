@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { FoundItem, RegisterAccess } from "@injishi/data/fixtures/operations";
+import { LostFoundView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { LostFoundView } from "@/features/operations/LostFoundView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";

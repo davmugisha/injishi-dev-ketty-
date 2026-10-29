@@ -1,8 +1,8 @@
 import { screens } from "@injishi/data";
 import type { CancellationTier, PaymentOutcome, ReservationRecord } from "@injishi/data/fixtures/frontdesk";
+import { ReservationDetailView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ReservationDetailView } from "@/features/frontdesk/ReservationDetailView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";

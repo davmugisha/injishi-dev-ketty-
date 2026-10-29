@@ -1,8 +1,8 @@
 import { screens } from "@injishi/data";
 import type { GuestStayRecord, KeyAccessPoint, KeyEvent, KeyHelpNote } from "@injishi/data/fixtures/guest";
+import { GuestKeyView, type KeyMode } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { GuestKeyView, type KeyMode } from "@/features/guest/GuestKeyView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

@@ -7,9 +7,9 @@ import type {
   GuestTrip,
   HotelDepartment,
 } from "@injishi/data/fixtures/guest";
+import { GuestTripView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { GuestTripView } from "@/features/guest/GuestTripView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";

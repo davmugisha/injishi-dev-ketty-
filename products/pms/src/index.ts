@@ -240,6 +240,10 @@ export type {
   HousekeepingDone,
   HousekeepingTask,
 } from "./model/platform.ts";
+// Two values the app reads besides the shapes: which Rates & Inventory tab a `?tab=` opens, and the reasons a
+// revenue override may give (the app's server action checks a reason against them).
+export { type RatesInventoryTab, ratesInventoryTab } from "./model/rates-inventory-tabs.ts";
+export { REVENUE_OVERRIDE_REASONS, type RevenueData } from "./model/revenue-model.ts";
 export type * from "./model/shared.ts";
 export type {
   ChecklistSection,

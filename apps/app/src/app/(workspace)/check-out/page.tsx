@@ -1,9 +1,9 @@
 import { screens } from "@injishi/data";
 import type { CheckoutCase, CheckoutLedgerLine } from "@injishi/data/fixtures/stays";
+import { CheckoutView, type MomoState, type ReceiptOutcome } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PmsMount } from "@/features/pms/pms-mount";
-import { CheckoutView, type MomoState, type ReceiptOutcome } from "@/features/stays/CheckoutView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 

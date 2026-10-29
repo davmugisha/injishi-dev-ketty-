@@ -7,10 +7,10 @@ import type {
   PaymentRail,
   SyncConflict,
 } from "@injishi/data/fixtures/stays";
+import { OfflineDeskView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PmsMount } from "@/features/pms/pms-mount";
-import { OfflineDeskView } from "@/features/stays/OfflineDeskView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 

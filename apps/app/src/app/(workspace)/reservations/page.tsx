@@ -5,9 +5,9 @@ import type {
   ReservationsSummary,
   ReservationView,
 } from "@injishi/data/fixtures/frontdesk";
+import { ReservationsView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ReservationsView } from "@/features/frontdesk/ReservationsView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";

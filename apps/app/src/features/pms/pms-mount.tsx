@@ -12,9 +12,19 @@ import {
 } from "@injishi/product-pms/web";
 import type { ReactNode } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
-import { createPackagesDraft, discardPackagesDraft } from "../commercial/PackagesActions";
-import { discardRatesInventoryChange, scheduleRatesInventoryChange } from "../commercial/RatesInventoryActions";
-import { sendRevenueChanges } from "../commercial/RevenueActions";
+import {
+  inspectRoomAction,
+  logRoomFoundItemAction,
+  moveRoomTaskAction,
+  noteWorkOrderAction,
+  reportProblemAction,
+  resolveWorkOrderAction,
+  sendMinibarCountAction,
+  setRoomCheckAction,
+  setWorkOrderTimerAction,
+  startWorkOrderAction,
+  uploadInspectionPhotoAction,
+} from "../staff/actions";
 import {
   approveBookingRequest,
   assignArrivalRoom,
@@ -23,7 +33,7 @@ import {
   checkInWalkIn,
   declineBookingRequest,
   recordNoShow,
-} from "../frontdesk/actions";
+} from "./front-desk-actions";
 import {
   actOnSignalAction,
   addCleaningTaskAction,
@@ -41,22 +51,12 @@ import {
   releaseFoundItemAction,
   releaseRoomAction,
   remindEscalationAction,
-} from "../operations/actions";
-import { setHousekeepingTaskStatus } from "../platform/actions";
-import {
-  inspectRoomAction,
-  logRoomFoundItemAction,
-  moveRoomTaskAction,
-  noteWorkOrderAction,
-  reportProblemAction,
-  resolveWorkOrderAction,
-  sendMinibarCountAction,
-  setRoomCheckAction,
-  setWorkOrderTimerAction,
-  startWorkOrderAction,
-  uploadInspectionPhotoAction,
-} from "../staff/actions";
-import { checkOutGuest, postCharge, recordCash, replyToGuest, resendClaimCode, voidCharge } from "../stays/actions";
+} from "./operations-actions";
+import { createPackagesDraft, discardPackagesDraft } from "./packages-actions";
+import { discardRatesInventoryChange, scheduleRatesInventoryChange } from "./rates-inventory-actions";
+import { sendRevenueChanges } from "./revenue-actions";
+import { setHousekeepingTaskStatus } from "./staff-today-actions";
+import { checkOutGuest, postCharge, recordCash, replyToGuest, resendClaimCode, voidCharge } from "./stays-actions";
 
 /*
  * What PMS's views may not import, handed to them by the app (ADR-074 stage 4). The views live in

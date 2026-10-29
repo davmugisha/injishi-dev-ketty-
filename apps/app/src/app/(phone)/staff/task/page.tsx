@@ -7,10 +7,10 @@ import type {
   FoundItemSpot,
   MinibarItem,
 } from "@injishi/data/fixtures/staff";
+import { StaffTaskView } from "@injishi/product-pms/web";
 import { NothingYet } from "@injishi/ui/phone";
 import type { Metadata } from "next";
 import { PmsMount } from "@/features/pms/pms-mount";
-import { StaffTaskView } from "@/features/staff/StaffTaskView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { myProfile, phoneSupervisor } from "@/server/sources/staff";

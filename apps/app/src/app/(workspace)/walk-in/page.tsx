@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { RoomType } from "@injishi/data/fixtures/frontdesk";
+import { WalkInView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { WalkInView } from "@/features/frontdesk/WalkInView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

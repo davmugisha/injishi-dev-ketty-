@@ -6,9 +6,9 @@ import type {
   GuestStayRecord,
   PaymentMethod,
 } from "@injishi/data/fixtures/guest";
+import { type FolioPaymentState, type FolioStage, GuestFolioView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { type FolioPaymentState, type FolioStage, GuestFolioView } from "@/features/guest/GuestFolioView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

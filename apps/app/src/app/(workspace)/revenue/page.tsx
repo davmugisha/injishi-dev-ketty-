@@ -7,8 +7,8 @@ import type {
   RevenueRecommendation,
   RevenueScenario,
 } from "@injishi/data/fixtures/commercial";
+import { RevenueView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { RevenueView } from "@/features/commercial/RevenueView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

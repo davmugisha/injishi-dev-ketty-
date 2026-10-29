@@ -8,9 +8,9 @@ import type {
   ListingPhoto,
   ListingPolicy,
 } from "@injishi/data/fixtures/commercial";
+import { ListingView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { ListingView } from "@/features/commercial/ListingView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";

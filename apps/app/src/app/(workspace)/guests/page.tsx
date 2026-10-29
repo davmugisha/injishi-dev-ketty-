@@ -1,8 +1,8 @@
 import { screens } from "@injishi/data";
 import type { DirectoryGuest, GuestProfile, ViewPurpose } from "@injishi/data/fixtures/stays";
+import { GuestsView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
 import { PmsMount } from "@/features/pms/pms-mount";
-import { GuestsView } from "@/features/stays/GuestsView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 

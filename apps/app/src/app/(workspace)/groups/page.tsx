@@ -1,7 +1,7 @@
 import { screens } from "@injishi/data";
 import type { GroupsBlock } from "@injishi/data/fixtures/commercial";
+import { GroupsView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { GroupsView } from "@/features/commercial/GroupsView";
 import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
