@@ -1,4 +1,5 @@
 import {
+  breakdownAsCharged,
   instrumentProblem,
   type BookingMode,
   type BookingResult,
@@ -605,11 +606,14 @@ export class BookingService {
       // The lines are recomputed for display; the total is what was captured
       // (review 3.6). A row with no locked rate must not answer "0 RWF".
       breakdown: withCapturedTotal(
-        computeBreakdown({
-          nightlyRateRwf: settled.lockedNightlyRateRwf ?? 0,
-          nights,
-          nonRefundable: settled.nonRefundable,
-        }),
+        breakdownAsCharged(
+          {
+            nightlyRateRwf: settled.lockedNightlyRateRwf ?? 0,
+            nights,
+            nonRefundable: settled.nonRefundable,
+          },
+          settled.grossRwf ?? 0,
+        ),
         settled.grossRwf,
       ),
       approvalExpiresAt: settled.approvalExpiresAt?.toISOString() ?? null,

@@ -8,8 +8,8 @@ import { billableGuests, fromParamDate, type StayIntent } from "@/lib/search-par
  * What THIS party pays, from a stay's rate and the search on screen.
  *
  * Every Injishi booking is charged per person (owner decision, 2026-09-15,
- * restated 2026-10-02): `rate × billable guests × nights`, plus the guest
- * service fee, by `computeBreakdown` in `@injishi/contracts`, which is the
+ * restated 2026-10-02): `rate × billable guests × nights`, with no guest
+ * service fee since 2026-10-29, by `computeBreakdown` in `@injishi/contracts`, which is the
  * server's own arithmetic. So the figure here and the checkout's cannot
  * disagree.
  *
@@ -53,7 +53,7 @@ export function partyPrice(
       return {
         label: `${pluralize(guests, "guest")} · ${pluralize(nights, "night")}`,
         amount: `${formatRateNumber(grossRwf)} RWF`,
-        note: "total incl. service fee",
+        note: "total for your stay",
       };
     }
     if (guests <= 1) return null; // "per person / night" already says it all.

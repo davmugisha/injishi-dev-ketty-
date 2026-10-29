@@ -69,6 +69,9 @@ export function buildMoneyLines(
     });
   }
 
-  lines.push({ label: labels.serviceFee, amountRwf: amounts.serviceFeeRwf });
+  // Omitted at zero for the same reason as the discount: there is no fee to show (2026-10-29).
+  if (amounts.serviceFeeRwf > 0) {
+    lines.push({ label: labels.serviceFee, amountRwf: amounts.serviceFeeRwf });
+  }
   return lines;
 }

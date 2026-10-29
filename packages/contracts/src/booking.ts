@@ -352,8 +352,14 @@ export type MoneyBreakdown = z.infer<typeof MoneyBreakdown>;
  * Non-refundable rate is ~10% cheaper than the standard one (F-B05 Path A).
  */
 export const NON_REFUNDABLE_DISCOUNT = 0.1;
-/** Guest service fee. Rates are quoted excluding it. */
-export const GUEST_SERVICE_FEE_RATE = 0.05;
+/**
+ * Guest service fee: none (owner decision, 2026-10-29). A guest pays the room
+ * rate the host set and nothing on top. It was 5%. The rate stays a constant,
+ * and `serviceFeeRwf` stays on `MoneyBreakdown` at 0, so bookings and refunds
+ * made under the old rate still read, and every receipt that hides a zero fee
+ * line keeps working.
+ */
+export const GUEST_SERVICE_FEE_RATE = 0;
 /**
  * The one implementation of what a stay costs (ADR-014 call 4, ADR-020 AC-8).
  *
@@ -400,6 +406,28 @@ export function computeBreakdown(args: {
         serviceFeeRwf,
         grossRwf: discounted + serviceFeeRwf,
     };
+}
+/** The guest service fee every booking paid until 2026-10-29, when it was dropped. */
+export const LEGACY_GUEST_SERVICE_FEE_RATE = 0.05;
+/**
+ * A PAID booking's lines, as it was charged.
+ *
+ * A booking keeps its locked rate and its total, not the split, so readers
+ * re-derive the split with `computeBreakdown`. A booking paid before the guest
+ * service fee was dropped carried 5% on top; re-derived at today's 0%, its
+ * lines would no longer add up to what the guest paid, and a receipt that must
+ * total the charge would refuse it. So when the charge is exactly the old fee
+ * over the stay, the fee is put back as it was charged. Anything else is left
+ * as `computeBreakdown` says, for the caller's own check to catch.
+ */
+export function breakdownAsCharged(args: Parameters<typeof computeBreakdown>[0], chargedRwf: number): MoneyBreakdown {
+    const today = computeBreakdown(args);
+    const stay = today.accommodationRwf - today.nonRefundableDiscountRwf;
+    const legacyFee = Math.round(stay * LEGACY_GUEST_SERVICE_FEE_RATE);
+    if (today.serviceFeeRwf === 0 && legacyFee > 0 && chargedRwf === stay + legacyFee) {
+        return { ...today, serviceFeeRwf: legacyFee, grossRwf: chargedRwf };
+    }
+    return today;
 }
 /**
  * What one night of this stay costs the whole party: the per-guest rate times
