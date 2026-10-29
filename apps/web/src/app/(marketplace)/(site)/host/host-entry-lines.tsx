@@ -23,19 +23,19 @@ export function HostClosing() {
       <div className="container">
         <div className="mx-auto flex max-w-wide flex-col items-center gap-6 rounded-card border border-border bg-background px-6 py-12 text-center lg:px-16 lg:py-16">
           <SectionHeading
-            lead="List your "
-            emphasis="accommodation"
+            lead="Ready to "
+            emphasis="get listed?"
             className="justify-center"
             headingClassName="text-center"
           />
-          <p className="max-w-narrow text-page-fg-70">
-            About ten minutes to register: have your ID and your RRA TIN (or the UPI of a home you
-            let) to hand, and leave the certificates for the visit if you need to. We check it,
-            photograph it at our cost, and get it live before your first guest arrives.
+          <p className="max-w-narrow leading-relaxed text-page-fg-70">
+            Registering takes about ten minutes. Have your ID, your RRA TIN (or the UPI of a home
+            you let) and a few photos of your place to hand. We review everything online and get
+            your listing live.
           </p>
           <div className="mt-2 flex flex-col items-center gap-2 sm:flex-row sm:gap-4">
             <Button asChild size="lg" variant="primary">
-              <a href={CHOOSER_ANCHOR}>Choose what you are listing</a>
+              <a href={CHOOSER_ANCHOR}>Start registering</a>
             </Button>
             <Button asChild variant="link" size="md">
               <Link href="/sign-in">Already hosting with us? Sign in</Link>

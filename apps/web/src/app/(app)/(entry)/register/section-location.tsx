@@ -51,7 +51,7 @@ export function SectionLocation({
       <Callout tone="info" icon={<Info size={16} aria-hidden />} title={prefilled ? "Filled in from RRA" : "Where it is"}>
         {prefilled
           ? "Filled in from the address RRA holds for this TIN. Pick the cell and village to finish."
-          : "Pick where it is, level by level. A district officer visits this address."}
+          : "Pick where it is, level by level, down to the village."}
       </Callout>
       <AddressPicker
         idPrefix="register-location"

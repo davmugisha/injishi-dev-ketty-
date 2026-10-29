@@ -56,7 +56,9 @@ export function HostBenefits() {
               key={benefit.title}
               className="flex flex-col gap-2 py-7 first:pt-0 last:pb-0 lg:px-8 lg:py-0 lg:first:pl-0 lg:last:pr-0"
             >
-              <Icon className="mb-2 text-page-fg" />
+              <span className="mb-3 flex size-11 items-center justify-center rounded-[0.75rem] bg-surface-secondary text-page-fg">
+                <Icon />
+              </span>
 
               {/* Body size, not the reference's 18px. The documented hierarchy
                   has nothing between Headline and Title, and Title (22 -> 30) is
@@ -64,9 +66,9 @@ export function HostBenefits() {
                   does the separating instead: Spectral 500 here — h1–h6 are
                   routed to the display face at the base layer — over Figtree at
                   70% ink below. */}
-              <h3 className="text-base font-medium text-page-fg">{benefit.title}</h3>
+              <h3 className="text-lg font-medium text-page-fg">{benefit.title}</h3>
 
-              <p className="text-base text-page-fg-70">{benefit.body}</p>
+              <p className="max-w-[46ch] text-base leading-relaxed text-page-fg-70">{benefit.body}</p>
             </li>
           );
         })}

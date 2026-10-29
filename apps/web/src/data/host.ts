@@ -14,28 +14,34 @@ import {
  */
 
 /**
- * What the chooser may offer: any hospitality class, plus `residence` and
- * `bar_restaurant`.
+ * What the chooser may offer: any hospitality class, plus `residence`,
+ * `bar_restaurant` and `coffee_shop`.
  *
- * Neither extra value is an `AccommodationClass`, and neither may ever be added
- * to one. D24 fixes that enum at eight HOSPITALITY classes and the schema marks
+ * The extra values are not `AccommodationClass`, and may never be added to one.
+ * D24 fixes that enum at eight HOSPITALITY classes and the schema marks
  * `orgs.accommodation_class` "hospitality only".
  *
  * - `residence` is the other org type entirely — it carries a UPI rather than a
  *   TIN, it is classified by `ResidenceClass`, and its occupancy is a lease
  *   rather than a booking.
- * - `bar_restaurant` is a hospitality org in a DIFFERENT RDB entity group. §1 of
- *   the classification already names `restaurant_bar_nightclub` beside
- *   `accommodation`, and `orgs.rdb_entity_group` already stores it, so this tile
- *   needs no new vocabulary — only a tile that sets that group. Putting it in
+ * - `bar_restaurant` and `coffee_shop` are hospitality orgs in a DIFFERENT RDB
+ *   entity group. §1 of the classification already names
+ *   `restaurant_bar_nightclub` beside `accommodation`, and
+ *   `orgs.rdb_entity_group` already stores it, so these tiles need no new
+ *   vocabulary — only a tile that sets that group. Putting them in
  *   `AccommodationClass` instead would push a venue with no rooms into the
  *   search filter rail and into every "what shape is the stay" list, which is
- *   the one thing it is not.
+ *   the one thing they are not.
  *
  * The union is widened HERE, at the one screen that asks all three questions in
  * one card, so the contract keeps saying the true thing.
  */
-export type HostKind = AccommodationClass | "residence" | "bar_restaurant" | "coffee_shop" | "psf";
+export type HostKind =
+  | AccommodationClass
+  | "residence"
+  | "bar_restaurant"
+  | "coffee_shop"
+  | "psf";
 
 interface HostPropertyKind {
   value: HostKind;
@@ -59,48 +65,92 @@ interface HostPropertyKind {
  *
  * The blurbs are ours. The labels are not: the seven classes derive from
  * `ACCOMMODATION_CLASS_LABEL`, so this card and the filter rail always say the
- * same word for the same class. `residence` and `bar_restaurant` have no entry
- * there — correctly, neither is a class — so their labels are named below.
+ * same word for the same class. `residence`, `bar_restaurant` and `coffee_shop`
+ * have no entry there — correctly, none is a class — so their labels are named
+ * below.
  */
 const RESIDENCE_LABEL = "Residence";
 const BAR_RESTAURANT_LABEL = "Bar & Restaurant";
+const COFFEE_SHOP_LABEL = "Coffee shop";
 /**
  * THE PSF PATH. Not a place at all: a business of any sector (a factory, a
  * shop, a cooperative, a garage) registering on Injishi to join the Private
  * Sector Federation. Named PSF on the card, as the owner asked (2026-10-15).
  */
 const PSF_LABEL = "PSF";
-const COFFEE_SHOP_LABEL = "Coffee Shop";
 
-const CHOOSER: ReadonlyArray<{ value: HostKind; blurb: string }> = [
-  { value: "hotel", blurb: "Serviced rooms, front desk" },
-  { value: "motel", blurb: "Roadside rooms, drive-up" },
-  { value: "tented_camp", blurb: "Canvas on a fixed site" },
-  { value: "guest_house", blurb: "Rooms in your own home" },
-  { value: "apartment", blurb: "A flat with its own key" },
-  { value: "lodge", blurb: "Built for stays, with grounds" },
-  { value: "villa", blurb: "A whole house, one party" },
-  { value: "bar_restaurant", blurb: "Food and drink, no rooms" },
-  { value: "coffee_shop", blurb: "Coffee and a bite, no rooms" },
-  { value: "residence", blurb: "Let on a lease, not nightly" },
-  { value: "psf", blurb: "Any business: join the Private Sector Federation" },
+/**
+ * Chooser tiles, grouped the way a host scans the card (not alphabetically).
+ *
+ * Stays first (rooms / units), then food & drink (no overnight stay), then
+ * paths that are not a hospitality listing at all. In a two-column grid that
+ * keeps each group on its own rows so Bar sits with Coffee, and Residence with
+ * PSF — not interleaved with Hotel.
+ */
+const CHOOSER_GROUPS: ReadonlyArray<{
+  id: string;
+  label: string;
+  items: ReadonlyArray<{ value: HostKind; blurb: string }>;
+}> = [
+  {
+    id: "stays",
+    label: "Stays",
+    items: [
+      { value: "hotel", blurb: "Serviced rooms, front desk" },
+      { value: "motel", blurb: "Roadside rooms, drive-up" },
+      { value: "guest_house", blurb: "Rooms in your own home" },
+      { value: "lodge", blurb: "Built for stays, with grounds" },
+      { value: "apartment", blurb: "A flat with its own key" },
+      { value: "villa", blurb: "A whole house, one party" },
+      { value: "tented_camp", blurb: "Canvas on a fixed site" },
+    ],
+  },
+  {
+    id: "food",
+    label: "Food & drink",
+    items: [
+      { value: "bar_restaurant", blurb: "Food and drink, no rooms" },
+      { value: "coffee_shop", blurb: "Coffee, light food, no rooms" },
+    ],
+  },
+  {
+    id: "other",
+    label: "Other",
+    items: [
+      { value: "residence", blurb: "Let on a lease, not nightly" },
+    ],
+  },
 ];
 
-export const HOST_PROPERTY_KINDS: HostPropertyKind[] = CHOOSER.map(
-  ({ value, blurb }) => ({
-    value,
-    label:
-      value === "residence"
-        ? RESIDENCE_LABEL
-        : value === "bar_restaurant"
-          ? BAR_RESTAURANT_LABEL
-          : value === "psf"
-            ? PSF_LABEL
-          : value === "coffee_shop"
-            ? COFFEE_SHOP_LABEL
-            : ACCOMMODATION_CLASS_LABEL[value],
-    blurb,
+function labelFor(value: HostKind): string {
+  if (value === "residence") return RESIDENCE_LABEL;
+  if (value === "bar_restaurant") return BAR_RESTAURANT_LABEL;
+  if (value === "coffee_shop") return COFFEE_SHOP_LABEL;
+  if (value === "psf") return PSF_LABEL;
+  return ACCOMMODATION_CLASS_LABEL[value];
+}
+
+export interface HostPropertyKindGroup {
+  id: string;
+  label: string;
+  kinds: HostPropertyKind[];
+}
+
+export const HOST_PROPERTY_KIND_GROUPS: HostPropertyKindGroup[] = CHOOSER_GROUPS.map(
+  (group) => ({
+    id: group.id,
+    label: group.label,
+    kinds: group.items.map(({ value, blurb }) => ({
+      value,
+      label: labelFor(value),
+      blurb,
+    })),
   }),
+);
+
+/** Flat list for lookups (`findHostKind`); order follows the grouped card. */
+export const HOST_PROPERTY_KINDS: HostPropertyKind[] = HOST_PROPERTY_KIND_GROUPS.flatMap(
+  (g) => g.kinds,
 );
 
 /**
@@ -189,11 +239,11 @@ export interface HostStep {
  * no documents yet." Registration asks for none of the rooms. It asks who you
  * are and what business you run, and it opens on an identity check and a TIN,
  * which are documents whatever the copy said. So the step now names what to
- * have to hand, says which part honestly may wait (the certificates: the
- * documents step can be skipped and the officer asks at the visit), and says
- * the fee is paid at the end of it.
+ * have to hand and says the fee is paid at the end of it. There is no field
+ * visit: verification is an RRA check plus an online review of the documents,
+ * and step three is the host's own photos, reviewed before going live.
  *
- * Step two names the checks the pay screen names (RRA, then the officer), and
+ * Step two names the checks (RRA, then the document review), and
  * step four is where the monthly plan begins, the promise the pay screen makes
  * too ("your subscription only starts once you are live").
  */
@@ -202,19 +252,19 @@ export const HOST_STEPS: HostStep[] = [
     n: 1,
     icon: "register",
     title: "Register your business",
-    body: "Your ID, your RRA TIN (or the UPI of a home you let) and the address. About ten minutes online. Certificates can wait for the visit, and the one time registration fee is paid at the end.",
+    body: "Your ID, your RRA TIN (or the UPI of a home you let), the address and your certificates. About ten minutes online, and the one-time registration fee is paid at the end.",
   },
   {
     n: 2,
     icon: "verify",
     title: "We verify it",
-    body: "We check your TIN with RRA, then a district officer visits to confirm the place, the address and your documents.",
+    body: "We check your TIN with RRA and review your documents online to confirm the business, the place and the address.",
   },
   {
     n: 3,
     icon: "photograph",
-    title: "We photograph it",
-    body: "A photographer shoots the accommodation at our cost. The images are yours to keep whether or not you list.",
+    title: "Add your photos",
+    body: "Upload photos of your rooms and spaces. We review them before your listing goes live, so guests see the place as it is.",
   },
   {
     n: 4,
@@ -245,12 +295,12 @@ export const HOST_FAQ: HostFaqGroup[] = [
       {
         question: "What kind of accommodation can I list?",
         answer:
-          "Hotels, motels, tented camps, guest houses, apartments, lodges and villas anywhere in Rwanda. Bars and restaurants register here too, and so do residences let on a lease, on the same verification. If you can show you are entitled to run or let the place, it qualifies. A business of any other sector registers through the PSF tile to join the Private Sector Federation.",
+          "Hotels, motels, tented camps, guest houses, apartments, lodges and villas anywhere in Rwanda. Bars, restaurants and coffee shops register here too, and so do residences let on a lease, on the same verification. If you can show you are entitled to run or let the place, it qualifies. A business of any other sector can join the Private Sector Federation through its own page.",
       },
       {
         question: "How long until my listing is live?",
         answer:
-          "Usually under two weeks. The verification visit is the part that takes scheduling; photography and going live follow within a few days of it.",
+          "As soon as your review is done. Once your documents and photos are approved, your listing goes live.",
       },
       {
         question: "Do I have to accept every booking?",
@@ -301,7 +351,7 @@ export const HOST_FAQ: HostFaqGroup[] = [
         // checks an ID and a TIN on its first two steps. What may truly wait
         // is the certificates, and that is what it now says.
         answer:
-          "To register: your National ID or passport, and your 9 digit RRA TIN, or the UPI of the property if you let a home on a lease. Certificates and licences are optional when you register. Attach them as you go, or show them to the officer at the verification visit.",
+          "To register: your National ID or passport, and your 9 digit RRA TIN, or the UPI of the property if you let a home on a lease. Attach your certificates and licences during registration, and we review them online with the rest.",
       },
       {
         question: "Who is liable if something goes wrong during a stay?",
