@@ -2,14 +2,15 @@
 
 import { Calendar, Plus } from "@gravity-ui/icons";
 import { Button, Chip, Tabs } from "@heroui/react";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
+  Persona,
   RatesInventoryAmenity,
   RatesInventoryMealPlan,
   RatesInventoryRatePlan,
   RatesInventoryRoomType,
   RatesInventorySpace,
-} from "@injishi/data/fixtures/commercial";
+} from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { useState } from "react";
 import { RatesInventoryAmenities, RatesInventoryMealPlans, RatesInventorySpaces } from "./RatesInventoryCatalog";
@@ -29,12 +30,16 @@ interface RatesInventoryData {
 export function RatesInventoryView({
   persona,
   data,
+  owner,
   initialTab = "rates",
 }: {
   persona: Persona;
   data: RatesInventoryData;
+  /** Who approves negotiated rate changes, by name (the business's owner). */
+  owner: string;
   initialTab?: RatesInventoryTab;
 }) {
+  const screenHref = useBoardHref();
   const [tab, setTab] = useState<RatesInventoryTab>(initialTab);
   const counts: Record<RatesInventoryTab, number> = {
     types: data.roomTypes.length,
@@ -89,7 +94,7 @@ export function RatesInventoryView({
           <RatesInventoryRoomTypes roomTypes={data.roomTypes} />
         </Tabs.Panel>
         <Tabs.Panel id="rates" className="mt-0 p-0">
-          <RatesInventoryRatePlans persona={persona} plans={data.ratePlans} />
+          <RatesInventoryRatePlans persona={persona} plans={data.ratePlans} owner={owner} />
         </Tabs.Panel>
         <Tabs.Panel id="spaces" className="mt-0 p-0">
           <RatesInventorySpaces spaces={data.spaces} />

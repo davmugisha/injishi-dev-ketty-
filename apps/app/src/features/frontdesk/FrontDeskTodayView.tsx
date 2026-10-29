@@ -36,7 +36,6 @@ import {
 import { ItemCard, KPIGroup, RadioButtonGroup } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
-import { screenHref } from "@injishi/data";
 import type {
   Arrival,
   Departure,
@@ -46,9 +45,10 @@ import type {
   InHouseStay,
   QueueTab,
   ReadinessRoom,
-  RoomStatus,
+  FrontDeskRoomStatus as RoomStatus,
   RoomType,
-} from "@injishi/data/fixtures/frontdesk";
+} from "@injishi/product-pms";
+import { useBoardHref, usePmsActions, usePmsShell } from "@injishi/product-pms/web";
 import {
   formatRwf,
   Icon,
@@ -62,10 +62,8 @@ import {
 } from "@injishi/ui";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, type ReactNode, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { TopbarStatus } from "@/components/shell/TopbarStatus";
-import { assignArrivalRoom } from "./actions";
-import { bookingHref, isReady, plural, ROOM_STATUS } from "./shared";
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { isReady, plural, ROOM_STATUS, useBookingHref } from "./shared";
 
 interface FrontDeskTodayData {
   kpis: DeskKpi[];
@@ -109,9 +107,6 @@ function longDay(iso: string): string {
 
 /** A stay's own page (Stay and folio), by the stay's id. */
 const stayHref = (stayId: string) => `/stays/${encodeURIComponent(stayId)}`;
-
-/** Where the check-in of one arrival opens. */
-const checkInHref = (bookingId: string) => `${screenHref("CheckIn")}?booking=${encodeURIComponent(bookingId)}`;
 
 /** One table row, whichever queue it comes from. */
 interface QueueRow {
@@ -173,6 +168,15 @@ const SHORTCUTS: [string, string][] = [
 ];
 
 export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskTodayData; offline?: boolean }) {
+  const screenHref = useBoardHref();
+  const bookingHref = useBookingHref();
+  /** Where the check-in of one arrival opens. */
+  const checkInHref = useCallback(
+    (bookingId: string) => `${screenHref("CheckIn")}?booking=${encodeURIComponent(bookingId)}`,
+    [screenHref],
+  );
+  const { assignArrivalRoom } = usePmsActions();
+  const { TopbarStatus } = usePmsShell();
   const router = useRouter();
   const [tab, setTab] = useState<TabId>("arrivals");
   const [query, setQuery] = useState("");
@@ -293,7 +297,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
         arrival: null,
       };
     });
-  }, [tab, data, assigned]);
+  }, [tab, data, assigned, checkInHref, screenHref, bookingHref]);
 
   const q = query.trim().toLowerCase();
   const shown = q ? rows.filter((r) => r.search.toLowerCase().includes(q)) : rows;
@@ -379,7 +383,7 @@ export function FrontDeskTodayView({ data, offline = false }: { data: FrontDeskT
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [screenHref]);
 
   return (
     <PageContent className="text-[14px] leading-5">
@@ -805,6 +809,7 @@ function QueueTable({
   onAssign: (arrivalId: string) => void;
   empty: string;
 }) {
+  const screenHref = useBoardHref();
   return (
     <Table>
       <Table.ScrollContainer>

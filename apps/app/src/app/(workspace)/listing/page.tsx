@@ -11,6 +11,7 @@ import type {
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { ListingView } from "@/features/commercial/ListingView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 import { realSetupRedirect } from "@/server/real-setup";
@@ -32,5 +33,9 @@ export default async function ListingPage() {
   ]);
   const draft = drafts[0];
   if (!draft) notFound();
-  return <ListingView persona={persona} data={{ draft, photos, modes, amenities, policies, checks, history }} />;
+  return (
+    <PmsMount>
+      <ListingView persona={persona} data={{ draft, photos, modes, amenities, policies, checks, history }} />
+    </PmsMount>
+  );
 }

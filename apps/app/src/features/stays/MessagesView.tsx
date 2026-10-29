@@ -24,12 +24,18 @@ import {
   PromptInput,
   Segment,
 } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
-import type { MessageChannel, MessageTemplate, MessageThread, ThreadMessage, Tone } from "@injishi/data/fixtures/stays";
+import type {
+  MessageChannel,
+  MessageTemplate,
+  MessageThread,
+  Persona,
+  ThreadMessage,
+  Tone,
+} from "@injishi/product-pms";
+import { useBoardHref, usePmsActions } from "@injishi/product-pms/web";
 import { GateChip, Icon, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { Fragment, useState, useTransition } from "react";
 import type { Selection } from "react-aria-components";
-import { replyToGuest } from "./actions";
 import { CardHeading, IconTile, SelectField, ToneChip } from "./parts";
 
 type Lang = "EN" | "RW" | "FR";
@@ -114,6 +120,8 @@ export function MessagesView({
   /** The property the desk's day is read for, as the API names it. */
   property: string;
 }) {
+  const screenHref = useBoardHref();
+  const { replyToGuest } = usePmsActions();
   const [sel, setSel] = useState(threads[0]?.id ?? "");
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");

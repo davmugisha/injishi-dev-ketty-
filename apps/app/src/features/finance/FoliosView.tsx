@@ -32,11 +32,11 @@ import {
   TextField,
 } from "@heroui/react";
 import { ListView } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
-import type { Check, FinanceEvent, Folio, FolioKind, FolioLine, Tone } from "@injishi/data/fixtures/finance";
+import type { Check, FinanceEvent, Folio, FolioKind, FinanceFolioLine as FolioLine, Tone } from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { type Key, type ReactNode, useState } from "react";
-import { CheckList, EventTimeline, groupCell, lineTab, money, selectableRow, TabCount, ToneChip } from "./shared";
+import { CheckList, EventTimeline, groupCell, lineTab, money, selectableRow, TabCount, ToneChip } from "./folio-shared";
 
 const KINDS: { id: FolioKind; label: string; icon: ReactNode }[] = [
   { id: "guest", label: "Guest", icon: <Person className="size-4" /> },
@@ -88,6 +88,7 @@ function Stat({ label, value, foot }: { label: string; value: string; foot: stri
 }
 
 export function FoliosView({ folios }: { folios: Folio[] }) {
+  const screenHref = useBoardHref();
   const [tab, setTab] = useState<FolioKind>("master");
   const [sel, setSel] = useState("F-5540");
   const [query, setQuery] = useState("");

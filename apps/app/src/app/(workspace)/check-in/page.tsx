@@ -3,6 +3,7 @@ import type { CheckInFile } from "@injishi/data/fixtures/frontdesk";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CheckInView } from "@/features/frontdesk/CheckInView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument, requestContext } from "@/server/data";
 import { deskPropertyName } from "@/server/sources/frontdesk";
@@ -22,5 +23,9 @@ export default async function CheckInPage({ searchParams }: { searchParams: Prom
   if (!file) notFound();
   // The property is the desk's own read (the same board the check-in file came from).
   const property = await deskPropertyName(await requestContext());
-  return <CheckInView key={file.id} persona={persona} file={file} property={property} />;
+  return (
+    <PmsMount>
+      <CheckInView key={file.id} persona={persona} file={file} property={property} />
+    </PmsMount>
+  );
 }

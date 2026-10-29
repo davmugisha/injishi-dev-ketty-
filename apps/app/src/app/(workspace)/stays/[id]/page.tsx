@@ -9,6 +9,7 @@ import type {
 } from "@injishi/data/fixtures/stays";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { StayFolioView } from "@/features/stays/StayFolioView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
@@ -34,19 +35,21 @@ export default async function StayFolioPage({ params }: { params: Promise<{ id: 
   ]);
   const mine = <T extends { stayId: string }>(docs: T[]) => docs.filter((d) => d.stayId === stay.id);
   return (
-    <StayFolioView
-      persona={persona}
-      data={{
-        stay,
-        records: mine(records),
-        lines: mine(lines),
-        payments: mine(payments),
-        history: [],
-        access: [],
-        documents: [],
-        chargeDepartments,
-        tenders,
-      }}
-    />
+    <PmsMount>
+      <StayFolioView
+        persona={persona}
+        data={{
+          stay,
+          records: mine(records),
+          lines: mine(lines),
+          payments: mine(payments),
+          history: [],
+          access: [],
+          documents: [],
+          chargeDepartments,
+          tenders,
+        }}
+      />
+    </PmsMount>
   );
 }

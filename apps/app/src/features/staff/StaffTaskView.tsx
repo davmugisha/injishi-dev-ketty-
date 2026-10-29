@@ -37,21 +37,21 @@ import {
 } from "@heroui/react";
 import { ItemCard, ListView, Segment, Timeline } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
   ChecklistSection,
   CleaningRoom,
   FinishedRoom,
-  FoundItem,
+  StaffPhoneFoundItem as FoundItem,
   FoundItemSpot,
   MinibarItem,
+  Persona,
   StaffProfile,
-} from "@injishi/data/fixtures/staff";
+} from "@injishi/product-pms";
+import { useBoardHref, usePmsActions } from "@injishi/product-pms/web";
 import { Icon, LinkButton, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
 import { PhoneActionBar, PhoneSheet, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "@injishi/ui/phone";
 import { useState, useTransition } from "react";
 import { reported } from "../operations/shared";
-import { logRoomFoundItemAction, moveRoomTaskAction, sendMinibarCountAction, setRoomCheckAction } from "./actions";
 import { kigaliClock } from "./parts";
 
 interface StaffTaskData {
@@ -90,6 +90,8 @@ export function StaffTaskView({
   data: StaffTaskData;
   offline?: boolean;
 }) {
+  const screenHref = useBoardHref();
+  const { logRoomFoundItemAction, moveRoomTaskAction, sendMinibarCountAction, setRoomCheckAction } = usePmsActions();
   const { rooms, finished, sections, minibar, spots, profile, supervisor } = data;
   /** The supervisor's first name as the API gives it, or "your supervisor": never a name the screen made up. */
   const boss = supervisor?.split(" ")[0] || "your supervisor";

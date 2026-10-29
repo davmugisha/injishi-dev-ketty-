@@ -37,8 +37,13 @@ import {
 } from "@heroui/react";
 import { ItemCard, ListView, RadioButtonGroup, Segment, Stepper } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
-import { type Persona, screenHref } from "@injishi/data";
-import type { CheckInFile, MobileNetwork, PaymentMethod } from "@injishi/data/fixtures/frontdesk";
+import type {
+  CheckInFile,
+  MobileNetwork,
+  FrontDeskPaymentMethod as PaymentMethod,
+  Persona,
+} from "@injishi/product-pms";
+import { useBoardHref, usePmsActions } from "@injishi/product-pms/web";
 import {
   formatRwf,
   GateChip,
@@ -54,7 +59,6 @@ import {
 import { readFrancs } from "@injishi/utils/francs";
 import NextLink from "next/link";
 import { type ReactNode, useEffect, useRef, useState, useTransition } from "react";
-import { checkInGuest } from "./actions";
 import { ChoiceSelect, isReady, ROOM_STATUS } from "./shared";
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -81,6 +85,8 @@ export function CheckInView({
   /** The property the desk's day is read for, as the API names it. */
   property: string;
 }) {
+  const screenHref = useBoardHref();
+  const { checkInGuest } = usePmsActions();
   // A guest already checked in opens on the finished card (the page reads the stay back after the command).
   const [step, setStep] = useState<Step>(file.stayId ? 5 : 1);
   /**

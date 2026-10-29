@@ -4,11 +4,10 @@ import { Tag } from "@gravity-ui/icons";
 import { Card, Chip, ProgressBar, Table } from "@heroui/react";
 import { KPIGroup, Segment } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import { screenHref } from "@injishi/data";
-import type { RevenueScenarioId } from "@injishi/data/fixtures/commercial";
+import type { RevenueScenarioId } from "@injishi/product-pms";
+import { useBoardHref, usePmsShell } from "@injishi/product-pms/web";
 import { LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { Fragment, type ReactNode, useState } from "react";
-import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { RevenueForecast } from "./RevenueForecast";
 import {
   REVENUE_MILLIONS,
@@ -64,6 +63,8 @@ function RevenueLegendKey({ color, children }: { color: string; children: ReactN
 }
 
 export function RevenueView({ data }: { data: RevenueData }) {
+  const screenHref = useBoardHref();
+  const { TopbarStatus } = usePmsShell();
   const [scenario, setScenario] = useState<RevenueScenarioId>("base");
   const rows = revenueNightRows(data, scenario);
   // Opens on the busiest night of the base forecast (the first night at the peak).

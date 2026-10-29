@@ -2,7 +2,7 @@
 
 import { Label, ListBox, Modal, Select, toast } from "@heroui/react";
 import { Timeline } from "@heroui-pro/react";
-import type { HistoryEvent } from "@injishi/data/fixtures/operations";
+import type { OperationsHistoryEvent as HistoryEvent } from "@injishi/product-pms";
 import { toneStatus } from "@injishi/ui";
 import { type Key, type ReactNode, useEffect, useId, useState } from "react";
 

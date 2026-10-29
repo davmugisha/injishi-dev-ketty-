@@ -6,7 +6,7 @@ import type {
   RevenueRecommendation,
   RevenueScenario,
   RevenueScenarioId,
-} from "@injishi/data/fixtures/commercial";
+} from "@injishi/product-pms";
 
 /** Everything the Revenue board reads from the embedded database. */
 export interface RevenueData {

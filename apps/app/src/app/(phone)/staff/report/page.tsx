@@ -2,6 +2,7 @@ import { screens } from "@injishi/data";
 import type { ProblemCategory, ProblemReport, ReportPlace, UrgencyLevel } from "@injishi/data/fixtures/staff";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { StaffReportView } from "@/features/staff/StaffReportView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
@@ -20,5 +21,9 @@ export default async function StaffReportPage({ searchParams }: { searchParams: 
   ]);
   if (!categories.length || !urgencies.length) notFound();
   const { offline } = await searchParams;
-  return <StaffReportView data={{ places, categories, urgencies, open }} offline={offline === "1"} />;
+  return (
+    <PmsMount>
+      <StaffReportView data={{ places, categories, urgencies, open }} offline={offline === "1"} />
+    </PmsMount>
+  );
 }

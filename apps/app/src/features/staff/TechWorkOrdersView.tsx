@@ -36,8 +36,14 @@ import {
   toast,
 } from "@heroui/react";
 import { ItemCard, ListView, Timeline } from "@heroui-pro/react";
-import type { Persona } from "@injishi/data";
-import type { StaffProfile, StorePart, WorkOrder, WorkOrderPart } from "@injishi/data/fixtures/staff";
+import type {
+  Persona,
+  StaffProfile,
+  StorePart,
+  StaffPhoneWorkOrder as WorkOrder,
+  StaffPhoneWorkOrderPart as WorkOrderPart,
+} from "@injishi/product-pms";
+import { usePmsActions } from "@injishi/product-pms/web";
 import { Icon, KeyValueList, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
 import {
   NothingYet,
@@ -50,7 +56,6 @@ import {
 } from "@injishi/ui/phone";
 import { type ReactNode, useState, useTransition } from "react";
 import { reported } from "../operations/shared";
-import { noteWorkOrderAction, resolveWorkOrderAction, setWorkOrderTimerAction, startWorkOrderAction } from "./actions";
 import { kigaliClock, PhotoTile } from "./parts";
 
 interface TechWorkOrdersData {
@@ -95,6 +100,8 @@ interface Step {
 
 /** Technician's work orders: queue, and one job with photos, block, parts, time and notes (artifact: TechWorkOrders). */
 export function TechWorkOrdersView({ persona, data }: { persona: Persona; data: TechWorkOrdersData }) {
+  const { noteWorkOrderAction, resolveWorkOrderAction, setWorkOrderTimerAction, startWorkOrderAction } =
+    usePmsActions();
   const { profile, store } = data;
   const [view, setView] = useState<"queue" | "detail">("detail");
   const [woId, setWoId] = useState(data.orders.find((o) => o.status === "progress")?.id ?? data.orders[0]?.id ?? "");

@@ -25,17 +25,16 @@ import {
   toast,
 } from "@heroui/react";
 import { DropZone, Segment } from "@heroui-pro/react";
-import type { Persona } from "@injishi/data";
-import type { FoundItem, FoundItemStatus, RegisterAccess, Tone } from "@injishi/data/fixtures/operations";
+import type {
+  OperationsFoundItem as FoundItem,
+  FoundItemStatus,
+  Persona,
+  RegisterAccess,
+  Tone,
+} from "@injishi/product-pms";
+import { usePmsActions } from "@injishi/product-pms/web";
 import { GateChip, PageContent, PageHeader, SectionHeader, toneColor } from "@injishi/ui";
 import { useEffect, useState, useTransition } from "react";
-import {
-  approveFoundItemDisposalAction,
-  keepFoundItemAction,
-  logFoundItemAction,
-  openFoundItemClaimAction,
-  releaseFoundItemAction,
-} from "./actions";
 import {
   downloadCsv,
   FieldLabel,
@@ -92,6 +91,13 @@ export function LostFoundView({
   /** The branch, else the business, as the API names it. */
   placeName: string;
 }) {
+  const {
+    approveFoundItemDisposalAction,
+    keepFoundItemAction,
+    logFoundItemAction,
+    openFoundItemClaimAction,
+    releaseFoundItemAction,
+  } = usePmsActions();
   // Who found it and who holds it start as the signed-in person; the other choices are people the register
   // already names (live), never a sample list.
   const you = persona.name;

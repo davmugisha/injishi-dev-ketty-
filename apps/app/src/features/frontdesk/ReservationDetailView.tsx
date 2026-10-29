@@ -17,14 +17,14 @@ import {
 } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Spinner, Table, Toast, toast } from "@heroui/react";
 import { ChatMessage, ItemCard, Timeline } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
 import type {
-  CancellationTier,
-  HistoryEvent,
+  FrontDeskCancellationTier as CancellationTier,
+  FrontDeskHistoryEvent as HistoryEvent,
   LinkedRecord,
   PaymentOutcome,
   ReservationRecord,
-} from "@injishi/data/fixtures/frontdesk";
+} from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import {
   formatRwf,
   GateChip,
@@ -49,6 +49,7 @@ function SectionHeading({ id, children }: { id: string; children: React.ReactNod
 }
 
 function LinkedCard({ lk }: { lk: LinkedRecord & { state: string; note: string } }) {
+  const screenHref = useBoardHref();
   const card = (
     <ItemCard className="h-full flex-col items-start gap-2.5 px-3.5 py-3">
       <ItemCard.Icon>
@@ -87,6 +88,7 @@ export function ReservationDetailView({
   tiers: CancellationTier[];
   payment: PaymentOutcome;
 }) {
+  const screenHref = useBoardHref();
   const [pay] = useState<PaymentOutcome>(payment);
   /** Nothing on this sample record reaches a provider or a mailbox: say so, and change nothing. */
   const unavailable = (what: string) => toast.warning(`${what} is not available yet. Nothing was changed.`);

@@ -27,13 +27,12 @@ import {
 } from "@heroui/react";
 import { EmptyState } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
-import { screenHref } from "@injishi/data";
-import type { RoomType } from "@injishi/data/fixtures/frontdesk";
+import type { RoomType } from "@injishi/product-pms";
+import { useBoardHref, usePmsActions } from "@injishi/product-pms/web";
 import { formatRwf, GateChip, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { checkInWalkIn } from "./actions";
 import { ChoiceSelect, plural } from "./shared";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -105,6 +104,8 @@ export function WalkInView({
   nights: number;
   adults: number;
 }) {
+  const screenHref = useBoardHref();
+  const { checkInWalkIn } = usePmsActions();
   const router = useRouter();
   const [nights, setNights] = useState(initialNights);
   const [adults, setAdults] = useState(initialAdults);

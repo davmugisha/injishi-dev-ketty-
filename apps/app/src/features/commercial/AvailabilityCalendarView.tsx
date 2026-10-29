@@ -3,7 +3,8 @@
 import { ArrowsRotateRight, ChevronLeft, ChevronRight, Clock, Pencil, Tag } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Popover } from "@heroui/react";
 import { ItemCard, ListView, Segment } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
+import type { Persona } from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { Icon, LinkButton, PageContent, PageHeader, StatusDot, toneColor } from "@injishi/ui";
 import NextLink from "next/link";
 import { useMemo, useRef, useState } from "react";
@@ -32,6 +33,7 @@ const LEGEND = [
 ];
 
 export function AvailabilityCalendarView({ persona, data }: { persona: Persona; data: AvailabilityCalendarData }) {
+  const screenHref = useBoardHref();
   const { nights, ratePlans, roomTypes, issues, channels, holds, reasons } = data;
 
   const [planId, setPlanId] = useState(ratePlans[0]?.id ?? "bar");

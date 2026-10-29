@@ -2,6 +2,7 @@ import { screens } from "@injishi/data";
 import type { InspectionCheck, InspectionRoom } from "@injishi/data/fixtures/staff";
 import { NothingYet } from "@injishi/ui/phone";
 import type { Metadata } from "next";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { InspectRoomView } from "@/features/staff/InspectRoomView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
@@ -20,5 +21,9 @@ export default async function InspectRoomPage() {
   // No room waiting is not a 404: the view says so (and keeps a room it just decided on screen).
   if (!checks.length)
     return <NothingYet title="Inspections" message="No inspection checklist is set up for this business yet." />;
-  return <InspectRoomView persona={persona} data={{ profile: profile ?? null, rooms, checks }} />;
+  return (
+    <PmsMount>
+      <InspectRoomView persona={persona} data={{ profile: profile ?? null, rooms, checks }} />
+    </PmsMount>
+  );
 }

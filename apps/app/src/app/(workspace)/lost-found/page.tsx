@@ -2,6 +2,7 @@ import { screens } from "@injishi/data";
 import type { FoundItem, RegisterAccess } from "@injishi/data/fixtures/operations";
 import type { Metadata } from "next";
 import { LostFoundView } from "@/features/operations/LostFoundView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { placeName } from "@/server/sources/operations";
@@ -16,6 +17,8 @@ export default async function LostFoundPage() {
     getCollection<RegisterAccess>("operations.lostFoundAccess"),
   ]);
   return (
-    <LostFoundView persona={persona} items={items} access={access} placeName={placeName(await requestContext())} />
+    <PmsMount>
+      <LostFoundView persona={persona} items={items} access={access} placeName={placeName(await requestContext())} />
+    </PmsMount>
   );
 }

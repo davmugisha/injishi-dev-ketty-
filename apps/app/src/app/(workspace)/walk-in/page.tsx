@@ -2,6 +2,7 @@ import { screens } from "@injishi/data";
 import type { RoomType } from "@injishi/data/fixtures/frontdesk";
 import type { Metadata } from "next";
 import { WalkInView } from "@/features/frontdesk/WalkInView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -25,5 +26,9 @@ export default async function WalkInPage({
   await requirePersona("WalkIn");
   const roomTypes = await getCollection<RoomType>("frontdesk.roomTypes");
   const { nights, adults } = await searchParams;
-  return <WalkInView roomTypes={roomTypes} nights={clamp(nights, 1, 10) ?? 1} adults={clamp(adults, 1, 6) ?? 2} />;
+  return (
+    <PmsMount>
+      <WalkInView roomTypes={roomTypes} nights={clamp(nights, 1, 10) ?? 1} adults={clamp(adults, 1, 6) ?? 2} />
+    </PmsMount>
+  );
 }

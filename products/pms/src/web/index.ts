@@ -8,4 +8,10 @@ export {
   PmsProvider,
   type PmsShell,
   type TopbarStatusProps,
+  // Exported only while PMS's views still sit in apps/app (ADR-074 stage 4, in place); the move makes them
+  // the product's own imports.
+  useBoardHref,
+  usePmsActions,
+  usePmsMedia,
+  usePmsShell,
 } from "./mount.tsx";

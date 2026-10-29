@@ -3,8 +3,8 @@
 import { Card, Chip, ToggleButton } from "@heroui/react";
 import { Widget } from "@heroui-pro/react";
 import { ComposedChart } from "@heroui-pro/react/composed-chart";
-import { screenHref } from "@injishi/data";
-import type { RevenueEvent, RevenueScenario } from "@injishi/data/fixtures/commercial";
+import type { RevenueEvent, RevenueScenario } from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { TextLink } from "@injishi/ui";
 import { type RevenueNightRow, revenueNightEvent } from "./RevenueModel";
 
@@ -46,6 +46,7 @@ export function RevenueForecast({
   selected: number;
   onSelect: (index: number) => void;
 }) {
+  const screenHref = useBoardHref();
   const count = Math.max(rows.length, 1);
   const indexOf = new Map(rows.map((r, i) => [r.night.id, i]));
   const chartData = rows.map(({ night, forecast }) => ({

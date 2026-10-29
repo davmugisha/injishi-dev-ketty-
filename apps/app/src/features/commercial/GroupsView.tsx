@@ -3,8 +3,8 @@
 import { Calendar, Plus } from "@gravity-ui/icons";
 import { Alert, Button, Chip, ProgressBar, Separator } from "@heroui/react";
 import { ItemCard, ItemCardGroup } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
-import type { GroupsBanner, GroupsBlock } from "@injishi/data/fixtures/commercial";
+import type { GroupsBanner, GroupsBlock } from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { type ReactNode, useState } from "react";
 import {
@@ -43,6 +43,7 @@ function BannerAlert({ banner, role, children }: { banner: GroupsBanner; role?: 
 }
 
 export function GroupsView({ blocks }: { blocks: GroupsBlock[] }) {
+  const screenHref = useBoardHref();
   const [selectedId, setSelectedId] = useState(blocks[0]?.id ?? "");
   const [step, setStep] = useState<ReleaseStep>("held");
   const [extended, setExtended] = useState(false);

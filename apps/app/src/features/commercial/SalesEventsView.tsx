@@ -3,8 +3,8 @@
 import { Calendar, CircleCheck, PaperPlane, Pencil, Persons, Plus, TriangleExclamation } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Table } from "@heroui/react";
 import { EmptyState, ItemCard, Kanban, ListView, Segment, Stepper } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
+  Persona,
   SalesEventsBeoFigure,
   SalesEventsBeoNote,
   SalesEventsDeposit,
@@ -17,7 +17,8 @@ import type {
   SalesEventsStage,
   SalesEventsTiming,
   Tone,
-} from "@injishi/data/fixtures/commercial";
+} from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import {
   formatNumber,
   formatRwf,
@@ -90,6 +91,7 @@ function CardHead({
 }
 
 export function SalesEventsView({ persona, data }: { persona: Persona; data: SalesEventsData }) {
+  const screenHref = useBoardHref();
   const planLeadId = data.leads.find((l) => l.hasEventPlan)?.id;
   const [sel, setSel] = useState<string>(planLeadId ?? data.leads[0]?.id ?? "");
   const [resolved, setResolved] = useState(false);

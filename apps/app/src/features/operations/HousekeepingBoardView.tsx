@@ -16,26 +16,21 @@ import {
   ToggleButton,
 } from "@heroui/react";
 import { Kanban, ListView, Segment, Stepper } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
   CleaningTask,
   HousekeepingEscalation,
   HousekeepingRoom,
   HousekeepingRule,
   HousekeepingStaff,
+  Persona,
   RoomHistory,
-  RoomStatus,
+  OperationsRoomStatus as RoomStatus,
   TaskColumn,
   Tone,
-} from "@injishi/data/fixtures/operations";
+} from "@injishi/product-pms";
+import { useBoardHref, usePmsActions } from "@injishi/product-pms/web";
 import { GateChip, Icon, LinkButton, PageContent, PageHeader, SectionHeader, toneColor } from "@injishi/ui";
 import { type CSSProperties, useState, useTransition } from "react";
-import {
-  addCleaningTaskAction,
-  assignCleaningTaskAction,
-  inspectCleaningTaskAction,
-  remindEscalationAction,
-} from "./actions";
 import {
   FieldLabel,
   FooterHint,
@@ -165,6 +160,9 @@ export function HousekeepingBoardView({
   initialView: View;
   data: HousekeepingData;
 }) {
+  const screenHref = useBoardHref();
+  const { addCleaningTaskAction, assignCleaningTaskAction, inspectCleaningTaskAction, remindEscalationAction } =
+    usePmsActions();
   const housekeepers = data.staff.filter((p) => p.role === "housekeeper");
   const supervisor = data.staff.find((p) => p.role === "supervisor");
   const nameOf = (id: string | null) => data.staff.find((p) => p.id === id)?.name ?? "";

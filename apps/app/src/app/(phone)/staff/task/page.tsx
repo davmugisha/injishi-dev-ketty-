@@ -9,6 +9,7 @@ import type {
 } from "@injishi/data/fixtures/staff";
 import { NothingYet } from "@injishi/ui/phone";
 import type { Metadata } from "next";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { StaffTaskView } from "@/features/staff/StaffTaskView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
@@ -35,10 +36,12 @@ export default async function StaffTaskPage({ searchParams }: { searchParams: Pr
   const supervisor = await phoneSupervisor(await requestContext());
   const { offline } = await searchParams;
   return (
-    <StaffTaskView
-      persona={persona}
-      data={{ rooms, finished, sections, minibar, spots, found, profile: profile ?? null, supervisor }}
-      offline={offline === "1"}
-    />
+    <PmsMount>
+      <StaffTaskView
+        persona={persona}
+        data={{ rooms, finished, sections, minibar, spots, found, profile: profile ?? null, supervisor }}
+        offline={offline === "1"}
+      />
+    </PmsMount>
   );
 }

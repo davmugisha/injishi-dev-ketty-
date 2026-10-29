@@ -1,6 +1,6 @@
 import { Chip, Label } from "@heroui/react";
 import { NativeSelect } from "@heroui-pro/react";
-import type { ChipEmphasis, Tone } from "@injishi/data/fixtures/stays";
+import type { ChipEmphasis, Tone } from "@injishi/product-pms";
 import { formatRwf, Icon, toneColor } from "@injishi/ui";
 import { type ReactNode, useId } from "react";
 

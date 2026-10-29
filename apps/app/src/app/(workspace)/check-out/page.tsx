@@ -2,6 +2,7 @@ import { screens } from "@injishi/data";
 import type { CheckoutCase, CheckoutLedgerLine } from "@injishi/data/fixtures/stays";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { CheckoutView, type MomoState, type ReceiptOutcome } from "@/features/stays/CheckoutView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
@@ -29,11 +30,13 @@ export default async function CheckoutPage({
   if (!checkout) notFound();
   const { receipt, momo } = await searchParams;
   return (
-    <CheckoutView
-      persona={persona}
-      data={{ checkout, ledger }}
-      receipt={RECEIPTS.find((r) => r === receipt) ?? "pending"}
-      initialMomo={MOMO.find((m) => m === momo) ?? "pending"}
-    />
+    <PmsMount>
+      <CheckoutView
+        persona={persona}
+        data={{ checkout, ledger }}
+        receipt={RECEIPTS.find((r) => r === receipt) ?? "pending"}
+        initialMomo={MOMO.find((m) => m === momo) ?? "pending"}
+      />
+    </PmsMount>
   );
 }

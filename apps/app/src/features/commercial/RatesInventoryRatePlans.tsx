@@ -16,12 +16,11 @@ import {
   TextField,
 } from "@heroui/react";
 import { Timeline } from "@heroui-pro/react";
-import { type Persona, personas } from "@injishi/data";
-import type { RatesInventoryPendingChange, RatesInventoryRatePlan, Tone } from "@injishi/data/fixtures/commercial";
+import type { Persona, RatesInventoryPendingChange, RatesInventoryRatePlan, Tone } from "@injishi/product-pms";
+import { usePmsActions } from "@injishi/product-pms/web";
 import { GateChip, KeyValueList, toneColor } from "@injishi/ui";
 import { parseDate } from "@internationalized/date";
 import { useOptimistic, useState, useTransition } from "react";
-import { discardRatesInventoryChange, scheduleRatesInventoryChange } from "./RatesInventoryActions";
 import { ratesInventoryDate } from "./RatesInventoryTabs";
 
 interface Draft {
@@ -119,7 +118,17 @@ function RatesInventoryDateField({
 }
 
 /** Rate plans tab: the plan table and the effective-dated editor of the selected plan. */
-export function RatesInventoryRatePlans({ persona, plans }: { persona: Persona; plans: RatesInventoryRatePlan[] }) {
+export function RatesInventoryRatePlans({
+  persona,
+  plans,
+  owner,
+}: {
+  persona: Persona;
+  plans: RatesInventoryRatePlan[];
+  /** Who approves negotiated rate changes, by name. */
+  owner: string;
+}) {
+  const { discardRatesInventoryChange, scheduleRatesInventoryChange } = usePmsActions();
   const [selectedId, setSelectedId] = useState(plans.find((p) => p.id === "corp")?.id ?? plans[0]?.id ?? "");
   const [drafts, setDrafts] = useState<Record<string, Draft>>(() =>
     Object.fromEntries(plans.map((p) => [p.id, { note: p.draftNote, from: p.draftFrom, to: p.draftTo }])),
@@ -139,7 +148,6 @@ export function RatesInventoryRatePlans({ persona, plans }: { persona: Persona; 
   const saved = plan.pendingChange;
   const hasNote = draft.note.trim().length > 0;
   const canSave = hasNote && !saved && !isPending;
-  const owner = personas.owner.name;
   const saveLabel = plan.needsOwnerApproval ? "Send for approval" : "Schedule change";
 
   const save = () => {

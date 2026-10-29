@@ -1,7 +1,7 @@
 "use client";
 
-import type { SalesEventsSpace, SalesEventsSpaceBooking } from "@injishi/data/fixtures/commercial";
-import { stock } from "@injishi/data/media";
+import type { SalesEventsSpace, SalesEventsSpaceBooking } from "@injishi/product-pms";
+import { usePmsMedia } from "@injishi/product-pms/web";
 import { Photo } from "@injishi/ui";
 import type { CSSProperties, ReactNode } from "react";
 
@@ -34,8 +34,6 @@ const CLASH_FILL: CSSProperties = {
     "repeating-linear-gradient(135deg, color-mix(in oklab, var(--danger) 30%, transparent) 0 6px, transparent 6px 12px)",
   boxShadow: "inset 0 0 0 2px var(--danger)",
 };
-
-const isStockKey = (key: string): key is keyof typeof stock => key in stock;
 
 /** Colour key of the space chart (artifact: .ij-legend). */
 export function SalesEventsSpaceLegend() {
@@ -70,6 +68,7 @@ export function SalesEventsSpaceTimeline({
   collision: boolean;
   label: string;
 }) {
+  const { photo, hasPhoto } = usePmsMedia();
   const scenario = collision ? "collision" : "resolved";
   return (
     <div role="img" aria-label={label} className="flex flex-col gap-2">
@@ -95,9 +94,9 @@ export function SalesEventsSpaceTimeline({
             className="grid grid-cols-[150px_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[196px_minmax(0,1fr)]"
           >
             <span className="flex min-w-0 items-center gap-2.5">
-              {isStockKey(s.photo) ? (
+              {hasPhoto(s.photo) ? (
                 <Photo
-                  image={stock[s.photo]}
+                  image={photo(s.photo)}
                   sizes="44px"
                   className="hidden size-[44px] shrink-0 rounded-[10px] sm:block"
                 />

@@ -16,8 +16,8 @@ import {
   TextArea,
   TextField,
 } from "@heroui/react";
+import { usePmsActions } from "@injishi/product-pms/web";
 import { type FormEvent, useState, useTransition } from "react";
-import { createPackagesDraft } from "./PackagesActions";
 
 /** "New package": starts a draft package (name, what it includes, price, what the price covers). */
 export function PackagesNewDialog({
@@ -31,6 +31,7 @@ export function PackagesNewDialog({
   perOptions: string[];
   onCreated: (id: string) => void;
 }) {
+  const { createPackagesDraft } = usePmsActions();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 

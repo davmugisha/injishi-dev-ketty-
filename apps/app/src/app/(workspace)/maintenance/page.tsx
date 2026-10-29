@@ -3,6 +3,7 @@ import type { ConditionSignal, SignalReview, WorkOrder } from "@injishi/data/fix
 import { stock } from "@injishi/data/media";
 import type { Metadata } from "next";
 import { MaintenanceView } from "@/features/operations/MaintenanceView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { placeName, readWorkOrders } from "@/server/sources/operations";
@@ -27,16 +28,18 @@ export default async function MaintenancePage() {
     ]),
   );
   return (
-    <MaintenanceView
-      persona={persona}
-      data={{
-        workOrders,
-        signals,
-        reviews,
-        placeName: placeName(ctx),
-        medianHoursToClose: list.medianHoursToClose,
-        unshownPhotos,
-      }}
-    />
+    <PmsMount>
+      <MaintenanceView
+        persona={persona}
+        data={{
+          workOrders,
+          signals,
+          reviews,
+          placeName: placeName(ctx),
+          medianHoursToClose: list.medianHoursToClose,
+          unshownPhotos,
+        }}
+      />
+    </PmsMount>
   );
 }

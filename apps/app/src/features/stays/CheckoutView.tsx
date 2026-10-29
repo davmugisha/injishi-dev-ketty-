@@ -29,13 +29,12 @@ import {
   toast,
 } from "@heroui/react";
 import { Stepper } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
-import type { CheckoutCase, CheckoutLedgerLine } from "@injishi/data/fixtures/stays";
+import type { CheckoutCase, CheckoutLedgerLine, Persona } from "@injishi/product-pms";
+import { useBoardHref, usePmsActions } from "@injishi/product-pms/web";
 import { KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { checkOutGuest } from "./actions";
 import { CardHeading, Note, rwf, StatTile, ToneChip } from "./parts";
 
 export type ReceiptOutcome = "pending" | "issued" | "unknown";
@@ -70,6 +69,8 @@ export function CheckoutView({
   receipt?: ReceiptOutcome;
   initialMomo?: MomoState;
 }) {
+  const screenHref = useBoardHref();
+  const { checkOutGuest } = usePmsActions();
   const c = data.checkout;
   const router = useRouter();
   const [cardsBack, setCardsBack] = useState(false);

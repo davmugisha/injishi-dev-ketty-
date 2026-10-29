@@ -3,6 +3,7 @@ import type { GuestStayRecord, KeyAccessPoint, KeyEvent, KeyHelpNote } from "@in
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { GuestKeyView, type KeyMode } from "@/features/guest/GuestKeyView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -22,9 +23,11 @@ export default async function GuestKeyPage({ searchParams }: { searchParams: Pro
   if (!stay || !events.length) notFound();
   const { state } = await searchParams;
   return (
-    <GuestKeyView
-      data={{ stay, events, access, help }}
-      state={MODES.includes(state as KeyMode) ? (state as KeyMode) : "active"}
-    />
+    <PmsMount>
+      <GuestKeyView
+        data={{ stay, events, access, help }}
+        state={MODES.includes(state as KeyMode) ? (state as KeyMode) : "active"}
+      />
+    </PmsMount>
   );
 }

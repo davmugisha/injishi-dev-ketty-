@@ -27,17 +27,17 @@ import {
   TextField,
 } from "@heroui/react";
 import { ItemCard, ListView, RadioButtonGroup } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
 import type {
   FolioCharge,
-  FolioPayment,
+  GuestFolioPayment as FolioPayment,
   GuestFolioRecord,
   GuestTone,
-  PaymentMethod,
-} from "@injishi/data/fixtures/guest";
+  GuestPaymentMethod as PaymentMethod,
+} from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { formatNumber, formatRwf, Icon, KeyValueList, LinkButton, PhoneBody, toneColor } from "@injishi/ui";
+import { PhoneSheet } from "@injishi/ui/phone";
 import { useState } from "react";
-import { PhoneSheet } from "@/components/phone/PhoneSheet";
 import { CardHeading, GuestTop, InitialsAvatar, renderAnchor, ScreenHeading, useGuestLang } from "./parts";
 
 export type FolioStage = "in-stay" | "checked-out";
@@ -64,6 +64,7 @@ export function GuestFolioView({
   stage: FolioStage;
   payment: FolioPaymentState;
 }) {
+  const screenHref = useBoardHref();
   const { folio, charges, payments, methods, initials, property } = data;
   const [lang, setLang] = useGuestLang();
   const [tab, setTab] = useState("charges");

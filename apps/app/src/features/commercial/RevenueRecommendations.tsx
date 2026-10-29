@@ -3,10 +3,10 @@
 import { Lock, PaperPlane } from "@gravity-ui/icons";
 import { Button, Card, Chip, Description, Input, Label, Table, TextArea, TextField } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
-import type { RevenueRecommendation, RevenueScenarioId } from "@injishi/data/fixtures/commercial";
+import type { RevenueRecommendation, RevenueScenarioId } from "@injishi/product-pms";
+import { usePmsActions } from "@injishi/product-pms/web";
 import { GateChip, toneColor } from "@injishi/ui";
 import { useState, useTransition } from "react";
-import { sendRevenueChanges } from "./RevenueActions";
 import { REVENUE_OVERRIDE_REASONS, revenueDelta, revenueRecommendationIn, revenueRwf } from "./RevenueModel";
 
 /** Decisions taken on this screen and not persisted yet (accepted/overridden) or sent during this visit. */
@@ -26,6 +26,7 @@ export function RevenueRecommendations({
   recommendations: RevenueRecommendation[];
   scenario: RevenueScenarioId;
 }) {
+  const { sendRevenueChanges } = usePmsActions();
   const [decisions, setDecisions] = useState<Partial<Record<string, RevenueDecision>>>({});
   const [overrides, setOverrides] = useState<Partial<Record<string, RevenueOverride>>>({});
   const [editing, setEditing] = useState<string | null>(null);

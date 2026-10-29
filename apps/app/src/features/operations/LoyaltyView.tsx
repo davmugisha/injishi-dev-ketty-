@@ -33,7 +33,6 @@ import {
 } from "@heroui/react";
 import { KPIGroup, Segment } from "@heroui-pro/react";
 import { KPI } from "@heroui-pro/react/kpi";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
   LoyaltyCandidate,
   LoyaltyLiability,
@@ -43,8 +42,10 @@ import type {
   LoyaltyTierName,
   LoyaltyTransaction,
   LoyaltyTxType,
+  Persona,
   Tone,
-} from "@injishi/data/fixtures/operations";
+} from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { formatNumber, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { Fragment, useState } from "react";
 import { downloadCsv, FieldLabel, FooterHint, FormDialog, firstKey, SelectField } from "./shared";
@@ -156,6 +157,7 @@ const unavailable = (what: string) =>
 
 // Loyalty writes would act as the signed-in person; none exists yet.
 export function LoyaltyView({ persona: _persona, data }: { persona: Persona; data: LoyaltyData }) {
+  const screenHref = useBoardHref();
   const { programme: p } = data;
   const [tab, setTab] = useState("members");
   const [memberId, setMemberId] = useState(data.members[0]?.id ?? "");

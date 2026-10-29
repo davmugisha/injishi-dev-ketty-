@@ -3,7 +3,7 @@
 import { ChevronLeft } from "@gravity-ui/icons";
 import { Avatar, Switch } from "@heroui/react";
 import { Segment, Timeline } from "@heroui-pro/react";
-import type { GuestStepStatus } from "@injishi/data/fixtures/guest";
+import type { GuestStepStatus } from "@injishi/product-pms";
 import { Icon, LinkButton, PhoneTop } from "@injishi/ui";
 import NextLink from "next/link";
 import { type ComponentPropsWithRef, type ReactNode, useCallback, useEffect, useState } from "react";

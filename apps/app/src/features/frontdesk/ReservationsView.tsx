@@ -33,16 +33,10 @@ import {
   toast,
 } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
-import type {
-  BookingRequest,
-  Reservation,
-  ReservationsSummary,
-  ReservationView,
-} from "@injishi/data/fixtures/frontdesk";
+import type { BookingRequest, Persona, Reservation, ReservationsSummary, ReservationView } from "@injishi/product-pms";
+import { useBoardHref, usePmsActions } from "@injishi/product-pms/web";
 import { formatRwf, GateChip, KeyValueList, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { useMemo, useState, useTransition } from "react";
-import { approveBookingRequest, cancelBooking, declineBookingRequest, recordNoShow } from "./actions";
 import { ChoiceSelect, plural } from "./shared";
 
 interface ReservationsData {
@@ -139,6 +133,7 @@ export function ReservationsView({
   initialBooking: string | null;
   initialView: "all" | "requests";
 }) {
+  const screenHref = useBoardHref();
   const { bookings, summary } = data;
   const TODAY = data.today ?? bookings.find((b) => b.today !== undefined)?.today ?? FIXTURE_TODAY;
   const SAVED_FILTER = savedFilters(TODAY);
@@ -517,6 +512,8 @@ function BookingInspector({
   actedAt: string;
   onActed: () => void;
 }) {
+  const screenHref = useBoardHref();
+  const { cancelBooking, recordNoShow } = usePmsActions();
   const TODAY = today;
   const [busy, startBusy] = useTransition();
   const [outcome, setOutcome] = useState<{ refund: number; kept: number; rule: string } | null>(null);
@@ -808,6 +805,8 @@ function RequestCard({
   decidedBy: string;
   setState: (s: RequestState) => void;
 }) {
+  const screenHref = useBoardHref();
+  const { approveBookingRequest, declineBookingRequest } = usePmsActions();
   const [busy, startBusy] = useTransition();
   /** Approve or decline on the API; the request leaves the queue once it is answered. */
   const decide = (answer: "approved" | "declined") =>

@@ -26,14 +26,13 @@ import {
   toast,
 } from "@heroui/react";
 import { RadioButtonGroup, Timeline } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
-import type { ProblemCategory, ProblemReport, ReportPlace, UrgencyLevel } from "@injishi/data/fixtures/staff";
+import type { ProblemCategory, ProblemReport, ReportPlace, UrgencyLevel } from "@injishi/product-pms";
+import { useBoardHref, usePmsActions } from "@injishi/product-pms/web";
 import { Icon, KeyValueList, LinkButton, PhoneBody, PhoneTop, StatusDot } from "@injishi/ui";
 import { PhoneActionBar, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "@injishi/ui/phone";
 import type { ReactNode } from "react";
 import { useState, useTransition } from "react";
 import { reported } from "../operations/shared";
-import { reportProblemAction } from "./actions";
 import { kigaliClock } from "./parts";
 
 interface StaffReportData {
@@ -64,6 +63,8 @@ const BACK_LABEL = "Back to my rooms";
  * starts empty: the place, what is wrong and how urgent are the person's choices, never copied from an earlier report.
  */
 export function StaffReportView({ data, offline = false }: { data: StaffReportData; offline?: boolean }) {
+  const screenHref = useBoardHref();
+  const { reportProblemAction } = usePmsActions();
   const { places, categories, urgencies } = data;
   const [place, setPlace] = useState("");
   const [category, setCategory] = useState("");

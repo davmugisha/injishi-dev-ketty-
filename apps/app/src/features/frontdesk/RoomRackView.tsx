@@ -3,8 +3,16 @@
 import { CircleCheck, CircleDashed, PersonPlus, TriangleExclamation, Xmark } from "@gravity-ui/icons";
 import { Button, Card, Chip, Popover, Switch, Toast, toast } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
-import { type IconName, screenHref } from "@injishi/data";
-import type { RackBar, RackBarKind, RackDay, RackLane, RoomMove, RoomStatus } from "@injishi/data/fixtures/frontdesk";
+import type {
+  IconName,
+  RackBar,
+  RackBarKind,
+  RackDay,
+  RackLane,
+  RoomMove,
+  FrontDeskRoomStatus as RoomStatus,
+} from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { Icon, LinkButton, PageContent, PageHeader, StatusDot, type Tone } from "@injishi/ui";
 import { type CSSProperties, Fragment, useMemo, useState } from "react";
 import { ChoiceSelect, ROOM_STATUS } from "./shared";
@@ -57,6 +65,7 @@ const BAR_BASE =
   "absolute top-1 bottom-1 flex h-auto min-w-0 items-center gap-1.5 overflow-hidden rounded-lg px-2 text-xs font-medium whitespace-nowrap no-underline";
 
 export function RoomRackView({ days, lanes, move }: { days: RackDay[]; lanes: RackLane[]; move: RoomMove | null }) {
+  const screenHref = useBoardHref();
   const [span, setSpan] = useState<14 | 7>(14);
   // The rack is the prototype's sample (its lanes draw group and out-of-order blocks that have no tables), so a
   // move proposed on it is never sent: Confirm says so, and nothing is marked as moved.

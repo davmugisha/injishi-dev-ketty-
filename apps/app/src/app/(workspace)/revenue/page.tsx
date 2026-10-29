@@ -9,6 +9,7 @@ import type {
 } from "@injishi/data/fixtures/commercial";
 import type { Metadata } from "next";
 import { RevenueView } from "@/features/commercial/RevenueView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -24,5 +25,9 @@ export default async function RevenuePage() {
     getCollection<RevenuePaceWeek>("commercial.revenuePaceWeeks"),
     getCollection<RevenueRecommendation>("commercial.revenueRecommendations"),
   ]);
-  return <RevenueView data={{ scenarios, nights, forecasts, events, paceWeeks, recommendations }} />;
+  return (
+    <PmsMount>
+      <RevenueView data={{ scenarios, nights, forecasts, events, paceWeeks, recommendations }} />
+    </PmsMount>
+  );
 }

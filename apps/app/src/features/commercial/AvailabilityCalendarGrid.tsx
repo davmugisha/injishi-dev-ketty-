@@ -2,8 +2,8 @@
 
 import { Check, CircleXmark, Clock } from "@gravity-ui/icons";
 import { ToggleButton } from "@heroui/react";
-import { screenHref } from "@injishi/data";
-import type { AvailabilityCalendarGroupBlock, AvailabilityCalendarNight } from "@injishi/data/fixtures/commercial";
+import type { AvailabilityCalendarGroupBlock, AvailabilityCalendarNight } from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import NextLink from "next/link";
 import type { CSSProperties, RefObject } from "react";
 import type {
@@ -75,6 +75,7 @@ export function AvailabilityCalendarGrid({
   anchorRef: RefObject<HTMLButtonElement | null>;
   onPick: (type: string, night: number) => void;
 }) {
+  const screenHref = useBoardHref();
   const cols: CSSProperties = { gridTemplateColumns: `170px repeat(${nights.length}, minmax(0, 1fr))` };
   const label = "flex items-center px-[10px] text-muted";
 

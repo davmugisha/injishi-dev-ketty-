@@ -1,10 +1,13 @@
 "use client";
 
 import { Label, ListBox, Select } from "@heroui/react";
-import { screenHref } from "@injishi/data";
-import type { CancellationTier, RoomStatus } from "@injishi/data/fixtures/frontdesk";
+import type {
+  FrontDeskCancellationTier as CancellationTier,
+  FrontDeskRoomStatus as RoomStatus,
+} from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { StatusDot, type Tone } from "@injishi/ui";
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback } from "react";
 
 /**
  * Single-choice HeroUI Select over plain string options (artifact: select__trigger). Shows a visible
@@ -73,8 +76,12 @@ export function isReady(status: RoomStatus | null | undefined): boolean {
  * the booking from the API. The full reservation record (/reservations/[id]) is still the prototype's
  * sample (frontdesk.reservationRecords is deferred), so a booking is never routed there by its reference.
  */
-export function bookingHref(bookingId: string): string {
-  return `${screenHref("Reservations")}?booking=${encodeURIComponent(bookingId)}`;
+export function useBookingHref(): (bookingId: string) => string {
+  const screenHref = useBoardHref();
+  return useCallback(
+    (bookingId: string) => `${screenHref("Reservations")}?booking=${encodeURIComponent(bookingId)}`,
+    [screenHref],
+  );
 }
 
 /** "1 night" / "2 nights". */

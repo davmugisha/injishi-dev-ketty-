@@ -4,7 +4,7 @@ import { Xmark } from "@gravity-ui/icons";
 import { Button, Description, Input, Label, ListBox, Popover, Select, TextField } from "@heroui/react";
 import { Segment } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
-import type { AvailabilityCalendarReason } from "@injishi/data/fixtures/commercial";
+import type { AvailabilityCalendarReason } from "@injishi/product-pms";
 import type { RefObject } from "react";
 
 const SELL_OPTIONS = [

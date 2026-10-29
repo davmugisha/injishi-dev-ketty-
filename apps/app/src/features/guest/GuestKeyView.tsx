@@ -3,8 +3,8 @@
 import { ArrowRightArrowLeft, ArrowsRotateRight, Ban, Comments, Key, Lock, LockOpen } from "@gravity-ui/icons";
 import { Alert, Button, Card, Chip, Spinner } from "@heroui/react";
 import { EmptyState, ItemCard, ListView } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
-import type { GuestStayRecord, KeyAccessPoint, KeyEvent, KeyHelpNote } from "@injishi/data/fixtures/guest";
+import type { GuestStayRecord, KeyAccessPoint, KeyEvent, KeyHelpNote } from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { Icon, LinkButton, PhoneBody, StatusDot } from "@injishi/ui";
 import { useState } from "react";
 import { CardHeading, GuestTimeline, GuestTop, IconRow, InitialsAvatar, ScreenHeading, useGuestLang } from "./parts";
@@ -29,6 +29,7 @@ interface GuestKeyData {
 
 /** Guest · digital key: unlock, issuing, a room move, or a key card. */
 export function GuestKeyView({ data, state }: { data: GuestKeyData; state: KeyMode }) {
+  const screenHref = useBoardHref();
   const { stay, events, access, help } = data;
   const [lang, setLang] = useGuestLang();
   const [opened, setOpened] = useState(false);

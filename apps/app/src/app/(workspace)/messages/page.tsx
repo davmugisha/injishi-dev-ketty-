@@ -7,6 +7,7 @@ import {
   LandlordMessagesView,
   type OpenConversation,
 } from "@/features/messages/LandlordMessagesView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { NoRentalsBusiness } from "@/features/rentals/shared";
 import { MessagesView } from "@/features/stays/MessagesView";
 import { currentAccount, currentPersona, requirePersona } from "@/lib/session";
@@ -44,7 +45,11 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
   ]);
   // The property is the desk's own read (the conversations above were read against the same board).
   const property = await deskPropertyName(await requestContext());
-  return <MessagesView persona={persona} threads={threads} templates={templates} property={property} />;
+  return (
+    <PmsMount>
+      <MessagesView persona={persona} threads={threads} templates={templates} property={property} />
+    </PmsMount>
+  );
 }
 
 const uuid = (v: string | undefined) => (v && UUID.test(v) ? v : null);

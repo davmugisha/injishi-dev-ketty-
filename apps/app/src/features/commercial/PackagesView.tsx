@@ -5,7 +5,6 @@ import { Alert, Button, Card, Chip, Table } from "@heroui/react";
 import { EmptyState, ItemCard, ItemCardGroup, KPIGroup, ListView, Segment } from "@heroui-pro/react";
 import { BarChart } from "@heroui-pro/react/bar-chart";
 import { KPI } from "@heroui-pro/react/kpi";
-import { screenHref } from "@injishi/data";
 import type {
   PackagesItem,
   PackagesNoticeTier,
@@ -14,7 +13,8 @@ import type {
   PackagesStatus,
   PackagesWeekend,
   Tone,
-} from "@injishi/data/fixtures/commercial";
+} from "@injishi/product-pms";
+import { useBoardHref, usePmsActions } from "@injishi/product-pms/web";
 import {
   formatNumber,
   formatRwf,
@@ -28,7 +28,6 @@ import {
   toneColor,
 } from "@injishi/ui";
 import { Fragment, useMemo, useState, useTransition } from "react";
-import { discardPackagesDraft } from "./PackagesActions";
 import { PackagesNewDialog } from "./PackagesNewDialog";
 
 const PACKAGES_STATUS: Record<PackagesStatus, { label: string; tone: Tone }> = {
@@ -74,6 +73,7 @@ export function PackagesView({
   weekends: PackagesWeekend[];
   tiers: PackagesNoticeTier[];
 }) {
+  const screenHref = useBoardHref();
   const [selectedId, setSelectedId] = useState(packages[0]?.id ?? "");
   const [tier, setTier] = useState<PackagesNoticeTierId>(tiers[0]?.id ?? "over-7-days");
   const [isNewOpen, setNewOpen] = useState(false);
@@ -202,6 +202,7 @@ function PackagesDetail({
   onTierChange: (tier: PackagesNoticeTierId) => void;
   onDiscarded: () => void;
 }) {
+  const { discardPackagesDraft } = usePmsActions();
   const [discarding, startDiscard] = useTransition();
   const comps = pkg.components;
   const aloneTotal = comps.reduce((a, c) => a + c.alone, 0);

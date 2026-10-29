@@ -15,16 +15,16 @@ import {
   TextField,
 } from "@heroui/react";
 import { ChatMessage, ItemCard, ListView, PromptInput, Segment } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
   ArrivalGuideEntry,
-  CancellationTier,
+  GuestCancellationTier as CancellationTier,
   GuestBooking,
   GuestMessage,
   GuestTrip,
   HotelDepartment,
-} from "@injishi/data/fixtures/guest";
-import { stock } from "@injishi/data/media";
+  Persona,
+} from "@injishi/product-pms";
+import { useBoardHref, usePmsMedia } from "@injishi/product-pms/web";
 import {
   formatNumber,
   formatRwf,
@@ -78,6 +78,8 @@ export function GuestTripView({
   data: GuestTripData;
   claim: "linked" | "unclaimed";
 }) {
+  const screenHref = useBoardHref();
+  const { photo } = usePmsMedia();
   const { trips, booking, guide, tiers, departments, messages } = data;
   const [lang, setLang] = useGuestLang();
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
@@ -172,7 +174,7 @@ export function GuestTripView({
           <>
             <Card render={renderSection} aria-labelledby="trip-h" className="shrink-0 gap-0 overflow-hidden p-0">
               <div className="relative h-[132px] shrink-0 bg-surface-secondary">
-                <Photo image={stock[booking.photo]} fill sizes="390px" priority />
+                <Photo image={photo(booking.photo)} fill sizes="390px" priority />
                 <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/60 to-transparent px-[14px] pt-[20px] pb-[10px] text-[12px] leading-4 font-medium text-white">
                   {booking.photoCaption}
                 </span>
@@ -465,7 +467,7 @@ export function GuestTripView({
             {past.map((p) => (
               <Card key={p.id} render={renderArticle} className="gap-[10px] px-[16px] py-[14px]">
                 <div className="flex items-start gap-[12px]">
-                  <Photo image={stock[p.photo]} className="size-[56px] shrink-0 rounded-[14px]" sizes="56px" />
+                  <Photo image={photo(p.photo)} className="size-[56px] shrink-0 rounded-[14px]" sizes="56px" />
                   <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
                     <span className="font-semibold">{p.property}</span>
                     <span className="text-[12px] leading-4 text-muted">{p.summary}</span>

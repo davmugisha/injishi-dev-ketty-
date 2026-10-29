@@ -14,12 +14,11 @@ import {
 } from "@gravity-ui/icons";
 import { Alert, Button, Card, Label, Modal, ProgressBar, Table } from "@heroui/react";
 import { ItemCard, ItemCardGroup, Timeline } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
-import type { AuditIssue, AuditRun, AuditStep, AuditStepState, AuditTone, Tone } from "@injishi/data/fixtures/finance";
+import type { AuditIssue, AuditRun, AuditStep, AuditStepState, AuditTone, Tone } from "@injishi/product-pms";
+import { useBoardHref, usePmsShell } from "@injishi/product-pms/web";
 import { GateChip, Icon, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { type Key, useState } from "react";
-import { TopbarStatus } from "@/components/shell/TopbarStatus";
-import { selectableRow, ToneChip } from "./shared";
+import { selectableRow, ToneChip } from "./folio-shared";
 
 interface NightAuditData {
   steps: AuditStep[];
@@ -46,6 +45,8 @@ function firstKey(keys: "all" | Set<Key>): string | null {
 }
 
 export function NightAuditView({ data }: { data: NightAuditData }) {
+  const screenHref = useBoardHref();
+  const { TopbarStatus } = usePmsShell();
   const [res, setRes] = useState<Record<string, boolean>>({});
   const [rolled, setRolled] = useState(false);
   const [dialog, setDialog] = useState(false);

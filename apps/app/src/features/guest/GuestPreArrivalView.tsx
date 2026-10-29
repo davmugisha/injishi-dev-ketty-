@@ -27,7 +27,6 @@ import {
   TextField,
 } from "@heroui/react";
 import { DropZone, ItemCard, ListView, RadioButtonGroup, Stepper } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
 import type {
   ArrivalSlot,
   GuestBooking,
@@ -36,7 +35,8 @@ import type {
   IdPrivacyPoint,
   PreArrivalForm,
   PreArrivalNextStep,
-} from "@injishi/data/fixtures/guest";
+} from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { Icon, LinkButton, PhoneBody, toneColor } from "@injishi/ui";
 import { useState } from "react";
 import {
@@ -83,6 +83,7 @@ interface GuestPreArrivalData {
 
 /** Guest · pre-arrival check-in: ID, arrival, preferences, contact, then what happens next. */
 export function GuestPreArrivalView({ data, step: initial }: { data: GuestPreArrivalData; step: PreArrivalStep }) {
+  const screenHref = useBoardHref();
   const { booking, form, documents, privacy, slots, travelModes, pillows, diets, countries, next } = data;
   const [lang, setLang] = useGuestLang();
   const [step, setStep] = useState<PreArrivalStep | null>(null);

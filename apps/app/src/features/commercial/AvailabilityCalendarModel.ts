@@ -9,7 +9,7 @@ import type {
   AvailabilityCalendarReason,
   AvailabilityCalendarRoomType,
   AvailabilityCalendarWindow,
-} from "@injishi/data/fixtures/commercial";
+} from "@injishi/product-pms";
 import { formatNumber } from "@injishi/ui";
 
 /** Everything the availability calendar reads from the database. */

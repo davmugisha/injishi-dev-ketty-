@@ -16,19 +16,19 @@ import {
   toast,
 } from "@heroui/react";
 import { ListView, RadioButtonGroup, Segment } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
   CashGuest,
   ConflictChoice,
   OfflineAction,
   OfflineArrival,
   PaymentRail,
+  Persona,
   SyncConflict,
   Tone,
-} from "@injishi/data/fixtures/stays";
+} from "@injishi/product-pms";
+import { useBoardHref, usePmsShell } from "@injishi/product-pms/web";
 import { LinkButton, PageContent, PageHeader, StatusDot } from "@injishi/ui";
 import { useState } from "react";
-import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { CardHeading, IconTile, InfoRow, readFrancs, ToneChip } from "./parts";
 
 interface OfflineDeskData {
@@ -54,6 +54,8 @@ export function OfflineDeskView({
   data: OfflineDeskData;
   initialOffline: boolean;
 }) {
+  const screenHref = useBoardHref();
+  const { TopbarStatus } = usePmsShell();
   const [cashAmt, setCashAmt] = useState("");
   const [cashGuest, setCashGuest] = useState(data.cashGuests[0]?.id ?? "");
   const [choice, setChoice] = useState<ConflictChoice["id"]>("keep");

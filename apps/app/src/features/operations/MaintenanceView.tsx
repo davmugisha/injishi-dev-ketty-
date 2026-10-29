@@ -3,28 +3,18 @@
 import { BroomMotion, ChartLine, Comment, Database, Picture, Plus } from "@gravity-ui/icons";
 import { Button, Card, Checkbox, Chip, Input, Label, Table, TextArea, TextField, Toast } from "@heroui/react";
 import { ListView, Segment } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
   BlockState,
   ConditionSignal,
+  Persona,
   Severity,
   SignalReview,
   Tone,
-  WorkOrder,
-} from "@injishi/data/fixtures/operations";
-import { stock } from "@injishi/data/media";
+  OperationsWorkOrder as WorkOrder,
+} from "@injishi/product-pms";
+import { useBoardHref, usePmsActions, usePmsMedia, usePmsShell } from "@injishi/product-pms/web";
 import { GateChip, LinkButton, PageContent, PageHeader, Photo, SectionHeader, StatusDot, toneColor } from "@injishi/ui";
 import { useState, useTransition } from "react";
-import { TopbarStatus } from "@/components/shell/TopbarStatus";
-import {
-  actOnSignalAction,
-  addWorkOrderNoteAction,
-  assignWorkOrderAction,
-  createWorkOrderAction,
-  decideRoomBlockAction,
-  dismissSignalAction,
-  releaseRoomAction,
-} from "./actions";
 import {
   FieldLabel,
   FooterHint,
@@ -75,6 +65,18 @@ const DUE_WITHIN: Record<Severity, string> = {
 type SignalState = "open" | "dismissing" | "created" | "dismissed";
 
 export function MaintenanceView({ persona, data }: { persona: Persona; data: MaintenanceData }) {
+  const screenHref = useBoardHref();
+  const {
+    actOnSignalAction,
+    addWorkOrderNoteAction,
+    assignWorkOrderAction,
+    createWorkOrderAction,
+    decideRoomBlockAction,
+    dismissSignalAction,
+    releaseRoomAction,
+  } = usePmsActions();
+  const { TopbarStatus } = usePmsShell();
+  const { photo } = usePmsMedia();
   const [selectedId, setSelectedId] = useState(data.workOrders[0]?.id ?? "");
   const [signalState, setSignalState] = useState<Record<string, SignalState>>({});
   const [signalReason, setSignalReason] = useState<Record<string, string>>({});
@@ -290,7 +292,7 @@ export function MaintenanceView({ persona, data }: { persona: Persona; data: Mai
                   <figure key={p.caption} className="m-0 flex min-w-0 flex-col gap-1">
                     <div className="relative h-[76px] overflow-hidden rounded-[14px] bg-surface-secondary">
                       <Photo
-                        image={stock[p.image]}
+                        image={photo(p.image)}
                         alt={`Photo: ${p.caption}`}
                         fill
                         sizes="(min-width: 1280px) 220px, 33vw"

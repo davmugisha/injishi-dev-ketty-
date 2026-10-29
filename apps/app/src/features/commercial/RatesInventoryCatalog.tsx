@@ -3,15 +3,14 @@
 import { Check, CircleInfo, Gift, Minus, TriangleExclamation } from "@gravity-ui/icons";
 import { Alert, Card, Chip, Table } from "@heroui/react";
 import { ItemCard } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
 import type {
   RatesInventoryAmenity,
   RatesInventoryMealPlan,
   RatesInventoryRoomType,
   RatesInventorySpace,
   RatesInventorySpaceDayState,
-} from "@injishi/data/fixtures/commercial";
-import { stock } from "@injishi/data/media";
+} from "@injishi/product-pms";
+import { useBoardHref, usePmsMedia } from "@injishi/product-pms/web";
 import { formatNumber, KeyValueList, LinkButton, Photo } from "@injishi/ui";
 
 const DAY_STATE: Record<
@@ -26,6 +25,8 @@ const DAY_STATE: Record<
 
 /** Spaces tab: event spaces with layouts, prices and the next seven days of bookings. */
 export function RatesInventorySpaces({ spaces }: { spaces: RatesInventorySpace[] }) {
+  const screenHref = useBoardHref();
+  const { photo } = usePmsMedia();
   return (
     <div className="flex flex-col gap-5">
       <Alert>
@@ -45,7 +46,7 @@ export function RatesInventorySpaces({ spaces }: { spaces: RatesInventorySpace[]
         {spaces.map((s) => (
           <Card key={s.id} role="region" aria-labelledby={`space-${s.id}-h`} className="gap-3 p-[18px]">
             <div className="relative h-[120px] overflow-hidden rounded-[14px] bg-surface-secondary">
-              <Photo image={stock[s.photo]} fill sizes="(min-width: 1280px) 540px, 100vw" />
+              <Photo image={photo(s.photo)} fill sizes="(min-width: 1280px) 540px, 100vw" />
             </div>
             <Card.Header>
               <h2 id={`space-${s.id}-h`} className="text-[15px] leading-[22px] font-semibold">
@@ -167,6 +168,7 @@ export function RatesInventoryAmenities({
 
 /** Meal plans tab: what each board basis includes, its supplement, outlet and tax treatment. */
 export function RatesInventoryMealPlans({ mealPlans }: { mealPlans: RatesInventoryMealPlan[] }) {
+  const screenHref = useBoardHref();
   return (
     <div className="flex flex-col gap-5">
       <Table>

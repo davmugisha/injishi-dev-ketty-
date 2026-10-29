@@ -29,7 +29,6 @@ import {
   TextField,
 } from "@heroui/react";
 import { DropZone, RadioButtonGroup, Timeline } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
   ListingAmenity,
   ListingBookingMode,
@@ -39,8 +38,9 @@ import type {
   ListingModeOption,
   ListingPhoto,
   ListingPolicy,
-} from "@injishi/data/fixtures/commercial";
-import { stock } from "@injishi/data/media";
+  Persona,
+} from "@injishi/product-pms";
+import { useBoardHref, usePmsMedia } from "@injishi/product-pms/web";
 import {
   formatNumber,
   formatRwf,
@@ -63,8 +63,6 @@ interface ListingData {
   checks: ListingCheck[];
   history: ListingHistoryEntry[];
 }
-
-const photoOf = (photo: ListingPhoto) => stock[photo.image as keyof typeof stock];
 
 /** Single-choice select used by the listing form (label, trigger, optional helper text, options). */
 function ListingSelect({
@@ -140,6 +138,9 @@ function ListingCardHeader({
 }
 
 export function ListingView({ persona, data }: { persona: Persona; data: ListingData }) {
+  const { photo } = usePmsMedia();
+  const photoOf = (p: ListingPhoto) => photo(p.image);
+  const screenHref = useBoardHref();
   const { draft, modes, amenities, policies, checks } = data;
 
   const [title, setTitle] = useState(draft.title);

@@ -8,6 +8,7 @@ import type {
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ReservationsView } from "@/features/frontdesk/ReservationsView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, requestContext } from "@/server/data";
 import { dayNumber, deskPropertyName } from "@/server/sources/frontdesk";
@@ -34,11 +35,13 @@ export default async function ReservationsPage({
   const property = await deskPropertyName(ctx);
   const { booking, view } = await searchParams;
   return (
-    <ReservationsView
-      persona={persona}
-      data={{ bookings, views, summary, requests, today: dayNumber(ctx.today.iso), property }}
-      initialBooking={booking ?? null}
-      initialView={view === "requests" ? "requests" : "all"}
-    />
+    <PmsMount>
+      <ReservationsView
+        persona={persona}
+        data={{ bookings, views, summary, requests, today: dayNumber(ctx.today.iso), property }}
+        initialBooking={booking ?? null}
+        initialView={view === "requests" ? "requests" : "all"}
+      />
+    </PmsMount>
   );
 }

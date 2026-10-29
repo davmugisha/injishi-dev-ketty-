@@ -3,6 +3,7 @@ import type { CancellationTier, PaymentOutcome, ReservationRecord } from "@injis
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ReservationDetailView } from "@/features/frontdesk/ReservationDetailView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
 
@@ -35,5 +36,9 @@ export default async function ReservationDetailPage({
   if (!record) notFound();
   const { payment } = await searchParams;
   const outcome = OUTCOMES.find((o) => o === payment) ?? "pending";
-  return <ReservationDetailView key={outcome} record={record} tiers={tiers} payment={outcome} />;
+  return (
+    <PmsMount>
+      <ReservationDetailView key={outcome} record={record} tiers={tiers} payment={outcome} />
+    </PmsMount>
+  );
 }

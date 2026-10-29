@@ -17,7 +17,6 @@ import {
 } from "@heroui/react";
 import { ChatMessage, ItemCard, PromptInput } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
-import { screenHref } from "@injishi/data";
 import type {
   GuestMessage,
   GuestStayRecord,
@@ -25,7 +24,8 @@ import type {
   RequestType,
   ServiceRequest,
   UpdateDelivery,
-} from "@injishi/data/fixtures/guest";
+} from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { Icon, PhoneBody, StatusDot, toneColor } from "@injishi/ui";
 import { useState } from "react";
 import {
@@ -75,6 +75,7 @@ interface GuestRequestsData {
 
 /** Guest · requests, the front-desk conversation, and how stay updates are delivered. */
 export function GuestRequestsView({ data }: { data: GuestRequestsData }) {
+  const screenHref = useBoardHref();
   const { stay, types, requests, messages, channels, deliveries } = data;
   const [lang, setLang] = useGuestLang();
   const [tab, setTab] = useState("requests");

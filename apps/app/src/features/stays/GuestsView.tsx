@@ -31,8 +31,8 @@ import {
   toast,
 } from "@heroui/react";
 import { EmptyState, ItemCard, ListView, RadioButtonGroup, Segment } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
-import type { DirectoryGuest, GuestProfile, InfoItem, ViewPurpose } from "@injishi/data/fixtures/stays";
+import type { DirectoryGuest, GuestProfile, InfoItem, Persona, ViewPurpose } from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { formatNumber, GateChip, Icon, KeyValueList, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { useState } from "react";
 import type { Selection } from "react-aria-components";
@@ -72,6 +72,7 @@ export function GuestsView({
   profiles: GuestProfile[];
   purposes: ViewPurpose[];
 }) {
+  const screenHref = useBoardHref();
   const [sel, setSel] = useState(profiles[0]?.id ?? directory[0]?.id ?? "");
   const [scope, setScope] = useState<"property" | "group">("property");
   const [q, setQ] = useState("");

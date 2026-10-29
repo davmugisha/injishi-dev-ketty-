@@ -3,14 +3,8 @@
 import { ArrowsRotateRight, ArrowUpFromLine, Receipt, TriangleExclamation } from "@gravity-ui/icons";
 import { Button, Card, Chip, ProgressBar, Table } from "@heroui/react";
 import { DropZone, ItemCard, Widget } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
-import type {
-  GroupsBlock,
-  GroupsNight,
-  GroupsRoomingFile,
-  GroupsRoomType,
-  Tone,
-} from "@injishi/data/fixtures/commercial";
+import type { GroupsBlock, GroupsNight, GroupsRoomingFile, GroupsRoomType, Tone } from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { formatNumber, KeyValueList, LinkButton, toneColor } from "@injishi/ui";
 
 /** A night of the block as shown now: rooms still held after any release, and the share picked up. */
@@ -20,6 +14,7 @@ export interface GroupsNightView extends GroupsNight {
 
 /** Organiser, contact, agent and payer, the master bill and the deposit. */
 export function GroupsOrganiserCard({ block }: { block: GroupsBlock }) {
+  const screenHref = useBoardHref();
   return (
     <Card<"section"> render={(props) => <section {...props} />} aria-labelledby="org-h" className="gap-3 p-[18px]">
       <Card.Header>
@@ -175,6 +170,7 @@ export function GroupsRoomingCard({
   matching: boolean;
   onUpload: () => void;
 }) {
+  const screenHref = useBoardHref();
   return (
     <Card<"section"> render={(props) => <section {...props} />} aria-labelledby="rl-h" className="gap-3 p-[18px]">
       <div className="flex flex-wrap items-start justify-between gap-3">

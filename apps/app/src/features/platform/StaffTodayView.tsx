@@ -3,11 +3,10 @@
 import { Check, CircleCheckFill, Clock, CloudSlash, ListCheck, TriangleExclamation } from "@gravity-ui/icons";
 import { Alert, Avatar, Button, Card, Chip, ProgressBar, Toast, toast } from "@heroui/react";
 import { ListView } from "@heroui-pro/react";
-import { type Persona, screenHref } from "@injishi/data";
-import type { HousekeepingDone, HousekeepingTask } from "@injishi/data/fixtures/platform";
+import type { HousekeepingDone, HousekeepingTask, Persona } from "@injishi/product-pms";
+import { useBoardHref, usePmsActions } from "@injishi/product-pms/web";
 import { LinkButton, PhoneBody, PhoneTop, toneColor } from "@injishi/ui";
 import { useOptimistic, useTransition } from "react";
-import { setHousekeepingTaskStatus } from "./actions";
 
 /** "Monday 12 October": today in Kigali. */
 const todayLong = () =>
@@ -30,6 +29,8 @@ export function StaffTodayView({
   done: HousekeepingDone[];
   offline?: boolean;
 }) {
+  const screenHref = useBoardHref();
+  const { setHousekeepingTaskStatus } = usePmsActions();
   const [pending, startTransition] = useTransition();
   const [optimistic, setOptimistic] = useOptimistic(
     tasks,

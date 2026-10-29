@@ -12,12 +12,11 @@ import {
 } from "@gravity-ui/icons";
 import { Button, Card, Chip } from "@heroui/react";
 import { ItemCard, ListView, RadioButtonGroup, Segment } from "@heroui-pro/react";
-import type { Persona } from "@injishi/data";
-import { screenHref } from "@injishi/data";
-import type { GuestStayRecord, HotelInfoRow, LateCheckoutOption, StayShortcut } from "@injishi/data/fixtures/guest";
+import type { GuestStayRecord, HotelInfoRow, LateCheckoutOption, Persona, StayShortcut } from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { formatRwf, Icon, KeyValueList, LinkButton, PhoneBody, StatusDot, toneColor } from "@injishi/ui";
+import { PhoneSheet } from "@injishi/ui/phone";
 import { useState } from "react";
-import { PhoneSheet } from "@/components/phone/PhoneSheet";
 import { GuestTop, Hint, InitialsAvatar, renderAnchor, ScreenHeading, useGuestLang } from "./parts";
 
 export type LateCheckout = "none" | "requested" | "approved";
@@ -45,6 +44,7 @@ export function GuestStayView({
   data: GuestStayData;
   late: LateCheckout;
 }) {
+  const screenHref = useBoardHref();
   const { stay, shortcuts, lateOptions, info } = data;
   const [lang, setLang] = useGuestLang();
   const [late, setLate] = useState<LateCheckout | null>(null);

@@ -14,7 +14,7 @@ import {
   Separator,
   TextField,
 } from "@heroui/react";
-import type { SalesEventsLead, SalesEventsQuoteLine, SalesEventsSeller } from "@injishi/data/fixtures/commercial";
+import type { SalesEventsLead, SalesEventsQuoteLine, SalesEventsSeller } from "@injishi/product-pms";
 import { formatNumber, formatRwf, toneColor } from "@injishi/ui";
 import { Fragment, useState } from "react";
 

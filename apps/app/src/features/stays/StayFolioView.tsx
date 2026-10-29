@@ -32,24 +32,24 @@ import {
 } from "@heroui/react";
 import { ItemCard, ListView, RadioButtonGroup, Segment, Timeline } from "@heroui-pro/react";
 import { NumberStepper } from "@heroui-pro/react/number-stepper";
-import { type Persona, screenHref } from "@injishi/data";
 import type {
   ChargeDepartment,
   DeskTender,
   FolioDepartment,
-  FolioLine,
-  FolioPayment,
+  StayFolioLine as FolioLine,
+  StayFolioPayment as FolioPayment,
+  Persona,
   Stay,
   StayAccess,
   StayDocument,
   StayEvent,
   StayRecord,
-} from "@injishi/data/fixtures/stays";
+} from "@injishi/product-pms";
+import { useBoardHref, usePmsActions } from "@injishi/product-pms/web";
 import { GateChip, Icon, LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import NextLink from "next/link";
 import { Fragment, useState, useTransition } from "react";
 import type { Selection } from "react-aria-components";
-import { checkOutGuest, postCharge, recordCash, resendClaimCode, voidCharge } from "./actions";
 import { CardHeading, IconTile, InfoRow, Note, readFrancs, rwf, SelectField, StatTile, ToneChip } from "./parts";
 
 interface StayFolioData {
@@ -97,6 +97,7 @@ function DeptDot({ color }: { color: string }) {
 
 /** One linked record (booking, stay, folio, fiscal receipt) with its state track. */
 function RecordCard({ record, current, desc }: { record: StayRecord; current: number; desc: string }) {
+  const screenHref = useBoardHref();
   // The booking opens in Reservations with it selected; the others are sections of this page.
   const href =
     record.board === "ReservationDetail"
@@ -154,6 +155,8 @@ interface Row {
 }
 
 export function StayFolioView({ persona, data }: { persona: Persona; data: StayFolioData }) {
+  const screenHref = useBoardHref();
+  const { checkOutGuest, postCharge, recordCash, resendClaimCode, voidCharge } = usePmsActions();
   const { stay } = data;
   const [dept, setDept] = useState<string>("all");
   const [sel, setSel] = useState("");

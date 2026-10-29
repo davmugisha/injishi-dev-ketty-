@@ -10,6 +10,7 @@ import type {
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { LoyaltyView } from "@/features/operations/LoyaltyView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
 
@@ -26,5 +27,9 @@ export default async function LoyaltyPage() {
     getCollection<LoyaltyLiability>("operations.loyaltyLiability"),
   ]);
   if (!programme) notFound();
-  return <LoyaltyView persona={persona} data={{ programme, tiers, members, candidates, transactions, liability }} />;
+  return (
+    <PmsMount>
+      <LoyaltyView persona={persona} data={{ programme, tiers, members, candidates, transactions, liability }} />
+    </PmsMount>
+  );
 }

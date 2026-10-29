@@ -1,6 +1,7 @@
 import { screens } from "@injishi/data";
 import type { DirectoryGuest, GuestProfile, ViewPurpose } from "@injishi/data/fixtures/stays";
 import type { Metadata } from "next";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { GuestsView } from "@/features/stays/GuestsView";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
@@ -14,5 +15,9 @@ export default async function GuestsPage() {
     getCollection<GuestProfile>("stays.guestProfiles"),
     getCollection<ViewPurpose>("stays.viewPurposes"),
   ]);
-  return <GuestsView persona={persona} directory={directory} profiles={profiles} purposes={purposes} />;
+  return (
+    <PmsMount>
+      <GuestsView persona={persona} directory={directory} profiles={profiles} purposes={purposes} />
+    </PmsMount>
+  );
 }

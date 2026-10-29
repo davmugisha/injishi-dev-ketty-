@@ -3,12 +3,8 @@
 import { FolderHouse } from "@gravity-ui/icons";
 import { Card, Chip, Table } from "@heroui/react";
 import { EmptyState, Segment } from "@heroui-pro/react";
-import { screenHref } from "@injishi/data";
-import type {
-  RatesInventoryDomain,
-  RatesInventoryRoomStatus,
-  RatesInventoryRoomType,
-} from "@injishi/data/fixtures/commercial";
+import type { RatesInventoryDomain, RatesInventoryRoomStatus, RatesInventoryRoomType } from "@injishi/product-pms";
+import { useBoardHref } from "@injishi/product-pms/web";
 import { formatNumber, KeyValueList } from "@injishi/ui";
 import NextLink from "next/link";
 import { useState } from "react";
@@ -34,6 +30,7 @@ const ROOM_STATUS: Record<RatesInventoryRoomStatus, { label: string; className: 
 
 /** Room types tab: unit domain switch, the room-type table and the selected type's rooms. */
 export function RatesInventoryRoomTypes({ roomTypes }: { roomTypes: RatesInventoryRoomType[] }) {
+  const screenHref = useBoardHref();
   const [domain, setDomain] = useState<RatesInventoryDomain>("hospitality");
   const [selectedId, setSelectedId] = useState(roomTypes.find((t) => t.id === "dlv")?.id ?? roomTypes[0]?.id ?? "");
   const shown = roomTypes.filter((t) => t.domain === domain);

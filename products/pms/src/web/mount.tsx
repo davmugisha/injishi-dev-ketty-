@@ -1,7 +1,7 @@
 "use client";
 
 import type { PhotoSource } from "@injishi/ui/photo";
-import { type ComponentType, createContext, type ReactNode, useContext } from "react";
+import { type ComponentType, createContext, type ReactNode, useCallback, useContext } from "react";
 import type { PmsActions } from "../model/commands.ts";
 import type { BoardId, IconName, StockKey, Tone } from "../model/shared.ts";
 
@@ -62,14 +62,17 @@ function useMount(): Mount {
   return mount;
 }
 
-/** The link to a screen, by the registry's name for it. */
+/** The link to a screen, by the registry's name for it. Stable while the app's links are, so a view may list it as a dependency. */
 export function useBoardHref(): (board: BoardId) => string {
   const { links } = useMount();
-  return (board) => {
-    const href = links[board];
-    if (href === undefined) throw new Error(`The app passed no link for the screen ${board}.`);
-    return href;
-  };
+  return useCallback(
+    (board: BoardId) => {
+      const href = links[board];
+      if (href === undefined) throw new Error(`The app passed no link for the screen ${board}.`);
+      return href;
+    },
+    [links],
+  );
 }
 
 /** The commands this view may send. */

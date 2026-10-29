@@ -26,13 +26,12 @@ import {
   toast,
 } from "@heroui/react";
 import { RadioButtonGroup } from "@heroui-pro/react";
-import type { Persona } from "@injishi/data";
-import type { CheckResult, InspectionCheck, InspectionRoom, StaffProfile } from "@injishi/data/fixtures/staff";
+import type { CheckResult, InspectionCheck, InspectionRoom, Persona, StaffProfile } from "@injishi/product-pms";
+import { usePmsActions } from "@injishi/product-pms/web";
 import { PhoneBody, PhoneTop, StatusDot } from "@injishi/ui";
 import { NothingYet, PhoneTitle, PhoneToasts, renderSection, ToneTile } from "@injishi/ui/phone";
 import { type ChangeEvent, useEffect, useRef, useState, useTransition } from "react";
 import { reported } from "../operations/shared";
-import { inspectRoomAction, uploadInspectionPhotoAction } from "./actions";
 import { kigaliClock } from "./parts";
 import { attemptToken, shrinkPhoto } from "./photo";
 
@@ -57,6 +56,7 @@ type CheckPhoto = { key: string | null; preview: string | null };
 
 /** Supervisor inspects cleaned rooms and releases them to the front desk or returns them (artifact: InspectRoom). */
 export function InspectRoomView({ persona, data }: { persona: Persona; data: InspectRoomData }) {
+  const { inspectRoomAction, uploadInspectionPhotoAction } = usePmsActions();
   const { profile, checks } = data;
   // A decided room leaves the API's list on the next read; the screen keeps it so its result stays on screen.
   const [kept, setKept] = useState<InspectableRoom[]>([]);
