@@ -1472,6 +1472,7 @@ export function TrendArea({
   actions,
   height = 220,
   empty,
+  format = "money",
   className,
 }: {
   title: ReactNode;
@@ -1483,9 +1484,23 @@ export function TrendArea({
   actions?: ReactNode;
   height?: number;
   empty?: { icon?: IconKey; title: string; description?: ReactNode; action?: ReactNode };
+  /** What the numbers are: francs (the default), a share in percent (occupancy), or a plain count. */
+  format?: "money" | "percent" | "count";
   className?: string;
 }) {
   const motion = !useReducedMotion();
+  const word = (v: number) =>
+    format === "money"
+      ? formatMoney(v)
+      : format === "percent"
+        ? `${formatNumber(v, { maximumFractionDigits: 1 })}%`
+        : formatNumber(v);
+  const axis = (v: number) =>
+    format === "money" ? formatMoneyAxis(v) : format === "percent" ? `${v}%` : formatNumber(v);
+  const total = (j: number) =>
+    format === "percent"
+      ? (values[j] ?? []).reduce((a, v) => a + v, 0) / Math.max(1, (values[j] ?? []).length)
+      : (values[j] ?? []).reduce((a, v) => a + v, 0);
   const base = useId().replace(/:/g, "");
   const rows = range.buckets.map((b, i) => {
     const row: Record<string, string | number> = { label: b.label, long: b.long };
@@ -1494,7 +1509,7 @@ export function TrendArea({
     });
     return row;
   });
-  const totals = series.map((_, j) => (values[j] ?? []).reduce((a, v) => a + v, 0));
+  const totals = series.map((_, j) => total(j));
   const isEmpty = totals.every((t) => t === 0);
   const longOf = (label: string | number) => rows.find((r) => r.label === label)?.long ?? String(label);
   return (
@@ -1506,10 +1521,16 @@ export function TrendArea({
       legend={series.map((s) => ({ label: s.label, color: s.color, line: s.dashed }))}
       isEmpty={isEmpty}
       empty={empty ?? { icon: "Wallet", title: `Nothing in ${range.words}` }}
-      summary={series.map((s, j) => `${s.label} ${formatMoney(totals[j] ?? 0)}`).join(", ") + ` in ${range.words}.`}
+      summary={`${series.map((s, j) => `${s.label} ${word(totals[j] ?? 0)}`).join(", ")}${format === "percent" ? " on average" : ""} in ${range.words}.`}
       table={{
-        columns: [range.unit === "day" ? "Day" : "Month", ...series.map((s) => `${s.label} (RWF)`)],
-        rows: range.buckets.map((b, i) => [b.long, ...series.map((_, j) => bare(values[j]?.[i] ?? 0))]),
+        columns: [
+          range.unit === "day" ? "Day" : "Month",
+          ...series.map((s) => (format === "money" ? `${s.label} (RWF)` : s.label)),
+        ],
+        rows: range.buckets.map((b, i) => [
+          b.long,
+          ...series.map((_, j) => (format === "money" ? bare(values[j]?.[i] ?? 0) : word(values[j]?.[i] ?? 0))),
+        ]),
       }}
     >
       <AreaChart data={rows} height={height} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
@@ -1526,10 +1547,20 @@ export function TrendArea({
           interval={range.unit === "day" ? 4 : "preserveStartEnd"}
           padding={{ left: 8, right: 8 }}
         />
-        <AreaChart.YAxis {...axisProps} width={44} tickFormatter={(v: number) => formatMoneyAxis(v)} />
+        <AreaChart.YAxis
+          {...axisProps}
+          width={44}
+          tickFormatter={axis}
+          {...(format === "percent" ? { domain: [0, 100] } : {})}
+        />
         <AreaChart.Tooltip
           cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
-          content={<AreaChart.TooltipContent {...moneyTooltip(longOf)} />}
+          content={
+            <AreaChart.TooltipContent
+              valueFormatter={(v: number | string) => word(Number(v))}
+              labelFormatter={longOf}
+            />
+          }
         />
         {series.map((s, j) => (
           <AreaChart.Area

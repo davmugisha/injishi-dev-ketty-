@@ -26,7 +26,7 @@ const TONE_COLOR: Record<MoneyDay["tone"], string> = {
   info: "var(--muted)",
 };
 
-const TONE_WORDS: { tone: MoneyDay["tone"]; label: string; dot: string }[] = [
+export const MONEY_TONE_WORDS: { tone: MoneyDay["tone"]; label: string; dot: string }[] = [
   { tone: "due", label: "Due", dot: "bg-accent" },
   { tone: "overdue", label: "Overdue", dot: "bg-danger" },
   { tone: "paid", label: "Paid", dot: "bg-success" },
@@ -46,11 +46,14 @@ export function MoneyCalendar({
   days,
   today,
   label = "Payments calendar",
+  legend = MONEY_TONE_WORDS,
   className,
 }: {
   days: MoneyDay[];
   today: string;
   label?: string;
+  /** The key under the grid, when the tones mean something else (arriving, leaving, in house). */
+  legend?: { tone: MoneyDay["tone"]; label: string; dot: string }[];
   className?: string;
 }) {
   const events = useMemo<AgendaEventType[]>(
@@ -127,7 +130,7 @@ export function MoneyCalendar({
           {chosen ? `${formatDay(chosen.day, "long")} · ${chosen.detail ?? chosen.title}` : "Choose an entry to see it"}
         </span>
         <span className="flex items-center gap-3">
-          {TONE_WORDS.map((t) => (
+          {legend.map((t) => (
             <span key={t.tone} className="flex items-center gap-1.5">
               <span aria-hidden="true" className={cx("size-2 rounded-full", t.dot)} />
               {t.label}

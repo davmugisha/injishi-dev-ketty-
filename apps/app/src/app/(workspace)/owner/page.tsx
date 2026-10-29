@@ -9,11 +9,13 @@ import type {
 } from "@injishi/data/fixtures/platform";
 import type { Metadata } from "next";
 import { OwnerHomeView, type SetupDue } from "@/features/platform/OwnerHomeView";
+import { StayHomeView } from "@/features/stays/StayHomeView";
 import { currentAccount, requirePersona } from "@/lib/session";
 import { setupPath } from "@/lib/setup-path";
 import { getCollection, requestContext } from "@/server/data";
 import { readSetup } from "@/server/mutations/setup";
 import { holdsSampleData } from "@/server/sample-data";
+import { staysActivity, staysSummary } from "@/server/stays/client";
 
 /**
  * The owner's businesses that are not on the marketplace yet, read the way the setup page reads them, so
@@ -49,6 +51,20 @@ export const metadata: Metadata = { title: screens.OwnerHome.pageTitle };
 
 export default async function OwnerHomePage() {
   const persona = await requirePersona("OwnerHome");
+  // A stay business (guest house, lodge, hotel, apartments) gets its own home, all from the API.
+  const stays = await staysSummary();
+  if (stays) {
+    const [account, activity, due] = await Promise.all([currentAccount(), staysActivity(), setupDue()]);
+    const mine = due[0] ?? null;
+    return (
+      <StayHomeView
+        firstName={(account?.user.name ?? "").trim().split(/\s+/)[0] ?? ""}
+        summary={stays}
+        activity={activity}
+        setup={mine ? { href: mine.href, notApproved: mine.notApproved } : null}
+      />
+    );
+  }
   // Decisions and insights have no live source yet, so they come from the fixture store: the demo's pay run,
   // refund and rate change. A real owner is shown none rather than a stranger's.
   const sample = await holdsSampleData();

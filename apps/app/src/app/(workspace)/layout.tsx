@@ -9,6 +9,7 @@ import { brokerNav } from "@/server/broker/nav";
 import { officerNav, officerPersona } from "@/server/oversight/nav";
 import { landlordScope } from "@/server/rentals/client";
 import { landlordNav } from "@/server/rentals/nav";
+import { staysNav } from "@/server/stays/nav";
 import { tenantNav } from "@/server/tenant/nav";
 
 /**
@@ -44,7 +45,11 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
             ? await brokerNav()
             : persona.id === "ops"
               ? realScreensOnly(navigationFor("ops"))
-              : navigationFor(persona.id);
+              : persona.id === "owner" || persona.id === "manager"
+                ? // A stay business's menu follows how it is run (server/stays/nav.ts); a bar keeps its own.
+                  ((await staysNav(persona.id === "manager" ? "ManagerToday" : "OwnerHome")) ??
+                  navigationFor(persona.id))
+                : navigationFor(persona.id);
   if (nav.length === 0) {
     // Phone/tablet personas visiting a desktop screen they may open: home plus "what to try".
     nav = [
