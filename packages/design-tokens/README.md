@@ -64,6 +64,11 @@ as CSS for Uniwind (`./native.css`) and once as JSON (`./native.json`).
 The web reads the generated sheet directly; `apps/web`'s signed in layer
 inlines it, so run `pnpm --filter @injishi/web css:app` as well.
 
+The phone imports `./native.css` in `apps/mobile/src/global.css`, which
+declares no colour of its own. `pnpm --filter @injishi/mobile palette:check`
+(in the app's `check:ci`) fails if that sheet is stale or if `global.css` grows
+a colour or a theme block. A running Metro needs a reload to pick up a change.
+
 **Do not** re-export the HeroUI theme from the theme builder to "refresh" the
 palette. It silently undoes every correction, each of which is named at its own
 declaration in `src/heroui.ts` for exactly this reason. A new save goes in its

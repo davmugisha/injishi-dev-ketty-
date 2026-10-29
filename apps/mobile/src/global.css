@@ -1,64 +1,28 @@
 /*
- * Injishi design system for HeroUI Native (from the saved design system's native export:
- * heroui.pro/ds/de231dfa-8a53-40c9-ba3b-cd9d5a93685b, updatedAt 1792979018879, re-read
- * 2026-10-26; every colour, radius and border value below equals it, and the four font names are
- * the export's Figtree weights as useFonts registers them). The export's heroui-native-pro import and its two
- * @source lines are left out: Pro Native is not installed, and heroui-native sources itself.
- * Mirrors packages/ui/src/styles/injishi.css on the web; the native export has no heading-font
- * token, so headings stay Figtree here (Instrument Sans is web-only).
+ * The phone's stylesheet: Tailwind, Uniwind, HeroUI Native and its vibrant sheet, then the
+ * Injishi palette from @injishi/design-tokens (mobile spec 0002, D-e). This file declares no
+ * colour and no theme block of its own; `pnpm --filter @injishi/mobile palette:check` fails if
+ * it does. Change a colour in packages/design-tokens/src/heroui.ts, then run the package's
+ * generate:css; a change to the imported sheet needs a Metro reload.
+ *
+ * The palette sheet declares its variants inside `:root`, the form HeroUI Native's own theme
+ * uses. Until 2026-10-28 this file declared them in `@layer theme` without `:root`, Uniwind
+ * dropped the whole block, and HeroUI's default theme (its blue accent) stood on every screen.
+ *
+ * The native export's heroui-native-pro import and its two @source lines are left out: Pro Native
+ * is not installed, and heroui-native sources itself. Headings stay Figtree here; the native
+ * export has no heading-font token (Instrument Sans is web only).
  */
 @import "tailwindcss";
 @import "uniwind";
 @import "heroui-native/styles";
 @import "heroui-native/styles/vibrant";
+@import "@injishi/design-tokens/native.css";
 
 @theme {
-  --radius: 0.5rem;
-  --field-radius: 0.25rem;
-  --field-border-width: 0.8488516842015111px;
   /* Family names registered by useFonts (@expo-google-fonts/figtree). */
   --font-normal: "Figtree_400Regular";
   --font-medium: "Figtree_500Medium";
   --font-semibold: "Figtree_600SemiBold";
   --font-bold: "Figtree_700Bold";
-}
-
-@layer theme {
-  @variant light {
-    --background: oklch(95.5% 0.0125 177.9);
-    --muted: oklch(58% 0.0312 177.9);
-    --surface: oklch(97.5% 0.0083 177.9);
-    --surface-secondary: oklch(95% 0.0125 177.9);
-    --surface-tertiary: oklch(93.5% 0.0166 177.9);
-    --overlay: oklch(97.5% 0.0083 177.9);
-    --default: oklch(92% 0.0125 177.9);
-    --accent: oklch(55% 0.18 177.9);
-    --field-background: oklch(97% 0.0062 177.9);
-    --border: oklch(88% 0.0156 177.9);
-    --separator: oklch(92% 0.0104 177.9);
-  }
-
-  @variant dark {
-    --background: oklch(16% 0.0208 177.9);
-    --muted: oklch(65% 0.0208 177.9);
-    --surface: oklch(20% 0.0208 177.9);
-    --surface-secondary: oklch(24% 0.0208 177.9);
-    --surface-tertiary: oklch(27% 0.0208 177.9);
-    --overlay: oklch(20% 0.0208 177.9);
-    --default: oklch(26% 0.0208 177.9);
-    --accent: oklch(70% 0.16 177.9);
-    --accent-foreground: oklch(15% 0.0208 177.9);
-    --field-background: oklch(22% 0.0187 177.9);
-    --segment: oklch(28% 0.026 177.9);
-    --border: oklch(30% 0.0208 177.9);
-    --separator: oklch(28% 0.0187 177.9);
-  }
-}
-
-@theme inline static {
-  --color-chart-1: oklch(42% 0.14 177.9);
-  --color-chart-2: oklch(50% 0.16 177.9);
-  --color-chart-3: oklch(55% 0.18 177.9);
-  --color-chart-4: oklch(65% 0.14 177.9);
-  --color-chart-5: oklch(75% 0.1 177.9);
 }
