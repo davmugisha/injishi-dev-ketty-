@@ -35,6 +35,39 @@ import { BookingRepository } from './infrastructure/booking.repository';
 import { GuestTripsRepository } from './infrastructure/guest-trips.repository';
 import { PaymentCompensationProcessor } from './infrastructure/payment-compensation.processor';
 import { PayerNumberPurgeRepository } from './infrastructure/payer-number-purge.repository';
+import { FolioService } from './application/folio.service';
+import { FrontDeskBoardService } from './application/front-desk-board.service';
+import { FrontDeskService } from './application/front-desk.service';
+import { HousekeepingBoardService } from './application/housekeeping-board.service';
+import { HousekeepingService } from './application/housekeeping.service';
+import { LostFoundService } from './application/lost-found.service';
+import { NightAuditService } from './application/night-audit.service';
+import { OffersService } from './application/offers.service';
+import { RevenueService } from './application/revenue.service';
+import { RoomAssignmentService } from './application/room-assignment.service';
+import { SelfCheckInService } from './application/self-check-in.service';
+import { StaffPhoneService } from './application/staff-phone.service';
+import { StayClaimService } from './application/stay-claim.service';
+import { StayRefundService } from './application/stay-refund.service';
+import { TicketLifecycle } from './application/ticket-lifecycle';
+import { WorkOrderTimeService } from './application/work-order-time.service';
+import { WorkOrdersService } from './application/work-orders.service';
+import { FolioRepository } from './infrastructure/folio.repository';
+import { FrontDeskBoardRepository } from './infrastructure/front-desk-board.repository';
+import { FrontDeskRepository } from './infrastructure/front-desk.repository';
+import { HousekeepingBoardRepository } from './infrastructure/housekeeping-board.repository';
+import { HousekeepingRepository } from './infrastructure/housekeeping.repository';
+import { LostFoundRepository } from './infrastructure/lost-found.repository';
+import { NightAuditProcessor } from './infrastructure/night-audit.processor';
+import { OffersRepository } from './infrastructure/offers.repository';
+import { PreArrivalIdentityRepository } from './infrastructure/pre-arrival-identity.repository';
+import { RevenueRepository } from './infrastructure/revenue.repository';
+import { RoomAssignmentRepository } from './infrastructure/room-assignment.repository';
+import { StaffPhoneRepository } from './infrastructure/staff-phone.repository';
+import { StayClaimRepository } from './infrastructure/stay-claim.repository';
+import { StayInvitationMailer } from './infrastructure/stay-invitation.mailer';
+import { StayRefundRepository } from './infrastructure/stay-refund.repository';
+import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
 
 /**
  * `EbmModule` is imported here and nowhere else, and that is the whole of what
@@ -134,8 +167,53 @@ import { PayerNumberPurgeRepository } from './infrastructure/payer-number-purge.
     RegistrationFeePaymentService,
     // The attempt service completes a fee through this narrow port (073 AC-16).
     { provide: REGISTRATION_FEES, useExisting: RegistrationService },
+    /*
+     * The desk, the stay, the bill and the rooms (ADR-074 stage 4): PMS's
+     * services that sat in OperationsModule until then. They use departments
+     * and the pay now settlement through OperationsModule's exports, and other
+     * products reach the folio only through FolioModule's port.
+     */
+    FrontDeskRepository,
+    FrontDeskService,
+    // The front desk's day in one read (interface real-data, frontdesk leaf).
+    FrontDeskBoardRepository,
+    FrontDeskBoardService,
+    // Self check-in before arrival (ADR-060).
+    PreArrivalIdentityRepository,
+    SelfCheckInService,
+    RoomAssignmentRepository,
+    RoomAssignmentService,
+    FolioRepository,
+    FolioService,
+    NightAuditService,
+    HousekeepingRepository,
+    HousekeepingService,
+    // The operations floor (real-data 1.2.3).
+    HousekeepingBoardRepository,
+    HousekeepingBoardService,
+    OffersRepository,
+    OffersService,
+    StayClaimRepository,
+    StayInvitationMailer,
+    StayClaimService,
+    StayRefundRepository,
+    StayRefundService,
+    RevenueRepository,
+    RevenueService,
+    // The one ticket lifecycle hotel work orders, the tickets board and rentals faults share (WP 4.1).
+    TicketLifecycle,
+    WorkOrdersRepository,
+    WorkOrdersService,
+    LostFoundRepository,
+    LostFoundService,
+    // The staff phone (real-data 1.3.3).
+    StaffPhoneRepository,
+    StaffPhoneService,
+    WorkOrderTimeService,
     ...(isWorkerProcess()
       ? [
+          // The night audit posts room charges in the worker only, never as a side effect of a request.
+          NightAuditProcessor,
           BookingLifecycleProcessor,
           PaymentCompensationProcessor,
           PayerNumberPurgeRepository,
@@ -158,6 +236,23 @@ import { PayerNumberPurgeRepository } from './infrastructure/payer-number-purge.
     // `PublicApiModule`.
     GuestTripsService,
     GuestRefundsService,
+    // For the ops and me controllers in PublicApiModule, and the assistant's tools.
+    FrontDeskBoardService,
+    SelfCheckInService,
+    FrontDeskService,
+    FolioService,
+    RevenueService,
+    RoomAssignmentService,
+    HousekeepingService,
+    OffersService,
+    StayClaimService,
+    StayRefundService,
+    NightAuditService,
+    HousekeepingBoardService,
+    WorkOrdersService,
+    LostFoundService,
+    StaffPhoneService,
+    WorkOrderTimeService,
   ],
 })
 export class BookingModule {}

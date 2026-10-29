@@ -39,7 +39,7 @@ import {
   type ThreadRow,
   MessagingRepository,
 } from '../infrastructure/messaging.repository';
-import type { MyStayRow } from '../../pms/infrastructure/stay-claim.repository';
+import type { MyStayRow } from '../../pms/application/stay-claim.service';
 
 /**
  * The page cursor: a message's `(created_at, id)`, base64url so it reads as

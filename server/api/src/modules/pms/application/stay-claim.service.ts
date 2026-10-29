@@ -23,6 +23,9 @@ import {
   type MyStayRow,
   StayClaimRepository,
 } from '../infrastructure/stay-claim.repository';
+
+/** A stay as its guest reads it, for messaging, which shows the stay a thread belongs to. */
+export type { MyStayRow };
 import { StayInvitationMailer } from '../infrastructure/stay-invitation.mailer';
 
 /**

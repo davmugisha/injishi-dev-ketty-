@@ -34,10 +34,10 @@ import {
   unclassifiedSentence,
 } from '../domain/sellable-item';
 import {
+  accountCodeFor,
   type ChargeDraft,
-  FolioRepository,
-} from '../../pms/infrastructure/folio.repository';
-import { accountCodeFor } from '../../pms/infrastructure/ledger-posting';
+  FolioPort,
+} from '../../pms/application/folio-port';
 import {
   type ItemRow,
   type OrderItemRow,
@@ -94,7 +94,7 @@ const FULFILLED = new Set<ServiceOrderStatus>(['delivered', 'completed']);
 export class ServiceCatalogService {
   constructor(
     private readonly catalog: ServiceCatalogRepository,
-    private readonly folios: FolioRepository,
+    private readonly folios: FolioPort,
     private readonly payments: OrderPaymentService,
   ) {}
 
