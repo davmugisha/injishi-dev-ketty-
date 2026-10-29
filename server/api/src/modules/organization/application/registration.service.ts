@@ -726,6 +726,7 @@ export class RegistrationService {
       name: string;
       sectorId: number;
       districtId: number;
+      villageId: number | null;
       street: string | null;
       isHeadOffice: boolean;
     }[]
@@ -770,6 +771,9 @@ export class RegistrationService {
       name: l.name,
       sectorId: l.address.sectorId,
       districtId: districtOf.get(l.address.sectorId)!,
+      // Checked to lie in its sector by `assertVillagesPlaced`, so Setup opens
+      // on the village the registrant already chose instead of asking again.
+      villageId: l.address.villageId ?? null,
       street: l.address.street ?? null,
       isHeadOffice: l.isHeadOffice,
     }));

@@ -158,6 +158,8 @@ export interface CreateOrgRow {
     sectorId: number;
     /** Derived from the sector by the service, never taken from the request. */
     districtId: number;
+    /** Checked by the service to lie in `sectorId`. */
+    villageId: number | null;
     street: string | null;
     isHeadOffice: boolean;
   }[];
@@ -365,6 +367,7 @@ export class OrganizationRepository {
           name: branch.name,
           sectorId: branch.sectorId,
           districtId: branch.districtId,
+          villageId: branch.villageId,
           street: branch.street,
           isHeadOffice: branch.isHeadOffice,
         });
