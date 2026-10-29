@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { PgDialect } from 'drizzle-orm/pg-core';
 
 import { closeStaleApproval, deleteExpiredConversations } from './retention-queries';

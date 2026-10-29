@@ -1,8 +1,11 @@
 /*
  * Injishi design system — HeroUI Pro "mouve" theme + the saved Injishi overrides
- * (heroui.pro/ds/de231dfa-8a53-40c9-ba3b-cd9d5a93685b, updatedAt 1792979018879,
- * re-read 2026-10-26; every value below equals that save's CSS export except
- * --eclipse, which the export does not set and its DESIGN.md does).
+ * (heroui.pro/ds/de231dfa-8a53-40c9-ba3b-cd9d5a93685b, updatedAt 1793037720487,
+ * read 2026-10-28). Every colour the save's CSS export defines is pasted below
+ * from @injishi/design-tokens' src/heroui.ts, so it carries that palette's
+ * contrast corrections, and `pnpm --filter @injishi/design-tokens check` fails
+ * when one drifts. Change a colour there first, then paste it here. --eclipse,
+ * which the export does not set, is its DESIGN.md's.
  * Figtree (body) and Instrument Sans (headings) are loaded with next/font as
  * --font-figtree and --font-instrument-sans. Activate with
  * data-theme="mouve-light|mouve-dark" (and data-vibrant-palette="true" where the
@@ -22,9 +25,9 @@
 [data-theme="mouve-dark"] {
   /* Ink. The CSS export leaves --eclipse to the mouve theme, whose own is at
      hue 300, so light-theme text was a violet near-black. The save's DESIGN.md
-     resolves eclipse at the saved hue (#172522), and foreground,
-     default-foreground and the light status labels all read it. */
-  --eclipse: oklch(25% 0.0208 177.9);
+     resolves eclipse at the saved hue (#172520), and default-foreground and the
+     light status labels read it. */
+  --eclipse: oklch(24.98% 0.0215 170.32);
 
   /* Border radius */
   --radius: 0.5rem;
@@ -84,26 +87,31 @@
 
 .mouve-light,
 [data-theme="mouve-light"] {
-  --background: oklch(95.5% 0.0125 177.9);
-  --muted: oklch(58% 0.0312 177.9);
-  --scrollbar: oklch(82% 0.0208 177.9);
-  --surface: oklch(97.5% 0.0083 177.9);
-  --surface-secondary: oklch(95% 0.0125 177.9);
-  --surface-tertiary: oklch(93.5% 0.0166 177.9);
-  --overlay: oklch(97.5% 0.0083 177.9);
-  --default: oklch(92% 0.0125 177.9);
-  --accent: oklch(55% 0.18 177.9);
-  --field-background: oklch(97% 0.0062 177.9);
-  --field-border: oklch(88% 0.0208 177.9);
-  --border: oklch(88% 0.0156 177.9);
-  --separator: oklch(92% 0.0104 177.9);
-  --backdrop: oklch(50% 0.0416 177.9 / 0.4);
+  --background: oklch(95.51% 0.0123 178.4);
+  --foreground: oklch(25.05% 0.0201 179.83);
+  --muted: oklch(49.5% 0.0317 176);
+  --scrollbar: oklch(82% 0.0208 172.11);
+  --surface: oklch(97.5% 0.0083 172.11);
+  --surface-secondary: oklch(95% 0.0125 172.11);
+  --surface-tertiary: oklch(93.5% 0.0166 172.11);
+  --overlay: oklch(97.5% 0.0083 172.11);
+  --default: oklch(92% 0.0125 172.11);
+  --accent: oklch(47.02% 0.0911 172.11);
+  --success: oklch(73.29% 0.1934 150.84);
+  --warning: oklch(78.19% 0.1584 72.32);
+  --danger: oklch(53.86% 0.1937 26.72);
+  --field-background: oklch(97% 0.0062 172.11);
+  /* Corrected to 3:1 in src/heroui.ts: a field's border is its boundary. */
+  --field-border: oklch(63% 0.0208 172.11);
+  --border: oklch(88% 0.0156 172.11);
+  --separator: oklch(92% 0.0104 172.11);
+  --backdrop: oklch(50% 0.0416 172.11 / 0.4);
 
-  --chart-1: oklch(42% 0.14 177.9);
-  --chart-2: oklch(50% 0.16 177.9);
-  --chart-3: oklch(55% 0.18 177.9);
-  --chart-4: oklch(65% 0.14 177.9);
-  --chart-5: oklch(75% 0.1 177.9);
+  --chart-1: oklch(42% 0.14 172.11);
+  --chart-2: oklch(50% 0.16 172.11);
+  --chart-3: oklch(55% 0.18 172.11);
+  --chart-4: oklch(65% 0.14 172.11);
+  --chart-5: oklch(75% 0.1 172.11);
 
   /* Injishi chart roles (charts.tsx). Categories in this fixed order, checked with the dataviz
      validator on this surface: slot 1 is the accent's teal. */
@@ -125,36 +133,44 @@
   /* Status chip text (status-chip.tsx): darker than the tint, at least 4.5:1 on it. */
   --status-success-fg: oklch(44% 0.12 150);
   --status-warning-fg: oklch(47% 0.11 62);
-  --status-danger-fg: oklch(49% 0.19 27);
+  /* L 48 since the 18:02 save: its darker red tint took L 49 to 4.38:1 on --default. Now 4.58:1. */
+  --status-danger-fg: oklch(48% 0.19 27);
   --status-info-fg: oklch(42% 0.09 177.9);
 }
 
 .mouve-dark,
 [data-theme="mouve-dark"] {
   color-scheme: dark;
-  --background: oklch(16% 0.0208 177.9);
-  --muted: oklch(65% 0.0208 177.9);
-  --scrollbar: oklch(35% 0.0208 177.9);
-  --surface: oklch(20% 0.0208 177.9);
-  --surface-secondary: oklch(24% 0.0208 177.9);
-  --surface-tertiary: oklch(27% 0.0208 177.9);
-  --overlay: oklch(20% 0.0208 177.9);
-  --default: oklch(26% 0.0208 177.9);
-  --accent: oklch(70% 0.16 177.9);
-  --accent-foreground: oklch(15% 0.0208 177.9);
-  --success-foreground: oklch(20% 0.0208 177.9);
-  --warning-foreground: oklch(20% 0.0208 177.9);
-  --field-background: oklch(22% 0.0187 177.9);
-  --field-border: oklch(32% 0.026 177.9);
-  --segment: oklch(28% 0.026 177.9);
-  --border: oklch(30% 0.0208 177.9);
-  --separator: oklch(28% 0.0187 177.9);
+  --background: oklch(15.95% 0.0203 177.41);
+  --foreground: oklch(99.11% 0.0001 263.28);
+  --muted: oklch(78.73% 0.0285 173.63);
+  --scrollbar: oklch(35% 0.0208 150.84);
+  --surface: oklch(20% 0.0208 150.84);
+  --surface-secondary: oklch(24% 0.0208 150.84);
+  --surface-tertiary: oklch(27% 0.0208 150.84);
+  --overlay: oklch(20% 0.0208 150.84);
+  --default: oklch(26% 0.0208 150.84);
+  --accent: oklch(73.29% 0.1934 150.84);
+  --accent-foreground: oklch(15% 0.0208 150.84);
+  --success: oklch(73.29% 0.1934 150.84);
+  --success-foreground: oklch(20% 0.0208 150.84);
+  --warning: oklch(78.19% 0.1584 72.32);
+  --warning-foreground: oklch(20% 0.0208 150.84);
+  /* Corrected in src/heroui.ts: the saved red carries its white label at 3.48:1. */
+  --danger: oklch(59% 0.2328 25.73);
+  --field-background: oklch(22% 0.0187 150.84);
+  /* Corrected to 3:1 in src/heroui.ts, as light. */
+  --field-border: oklch(50% 0.026 150.84);
+  --segment: oklch(28% 0.026 150.84);
+  --border: oklch(30% 0.0208 150.84);
+  --separator: oklch(28% 0.0187 150.84);
 
-  --chart-1: oklch(50% 0.12 177.9);
-  --chart-2: oklch(60% 0.14 177.9);
-  --chart-3: oklch(70% 0.16 177.9);
-  --chart-4: oklch(78% 0.12 177.9);
-  --chart-5: oklch(85% 0.08 177.9);
+  /* chart-1 is corrected in src/heroui.ts to 3:1 on the lightest dark surface. */
+  --chart-1: oklch(53.5% 0.12 150.84);
+  --chart-2: oklch(60% 0.14 150.84);
+  --chart-3: oklch(70% 0.16 150.84);
+  --chart-4: oklch(78% 0.12 150.84);
+  --chart-5: oklch(85% 0.08 150.84);
 
   --chart-cat-1: oklch(63.7% 0.124 171.6);
   --chart-cat-2: oklch(67% 0.145 286.8);

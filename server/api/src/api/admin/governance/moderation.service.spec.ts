@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 
 import type {
@@ -40,18 +42,18 @@ describe('AdminModerationService.readTicket', () => {
 
   interface Harness {
     service: AdminModerationService;
-    repo: { findSupportTicket: jest.Mock; logSupportTicketRead: jest.Mock };
+    repo: { findSupportTicket: Mock; logSupportTicketRead: Mock };
     order: string[];
   }
 
   function harness(found: AdminTicketDetailRow | null): Harness {
     const order: string[] = [];
     const repo = {
-      findSupportTicket: jest.fn(async () => {
+      findSupportTicket: vi.fn(async () => {
         order.push('find');
         return found;
       }),
-      logSupportTicketRead: jest.fn(async () => {
+      logSupportTicketRead: vi.fn(async () => {
         order.push('log');
       }),
     };

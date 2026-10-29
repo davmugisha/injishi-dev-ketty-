@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { PaymentSeam, resolvePaymentSeam } from '../domain/payment-seam';
 import {
   PaymentDeclinedError,
@@ -77,26 +79,26 @@ describe('DisbursementDispatcher', () => {
 
   function build(opts: { sending?: DispatchRow[]; pulls?: DispatchRow[]; refund?: () => Promise<PaymentReceipt>; fetch?: () => Promise<PaymentReceipt | null>; env?: Record<string, string>; parked?: number; one?: DispatchRow } = {}): {
     dispatcher: DisbursementDispatcher;
-    record: Record<string, jest.Mock>;
-    outcomes: { disbursement: jest.Mock };
-    port: Record<string, jest.Mock>;
+    record: Record<string, Mock>;
+    outcomes: { disbursement: Mock };
+    port: Record<string, Mock>;
   } {
     const record = {
-      dueDisbursementPulls: jest.fn().mockResolvedValue(opts.pulls ?? []),
-      claimForDispatch: jest.fn().mockResolvedValue({ sending: opts.sending ?? [], short: null, overLimit: [], balanceRwf: 0 }),
-      applyDisbursementVerdict: jest.fn().mockResolvedValue(true),
-      findById: jest.fn().mockResolvedValue({ id: 'c-1', idempotencyKey: 'ws-1:booking-capture:tok' }),
-      dispatchRowById: jest.fn().mockResolvedValue(opts.one ?? null),
+      dueDisbursementPulls: vi.fn().mockResolvedValue(opts.pulls ?? []),
+      claimForDispatch: vi.fn().mockResolvedValue({ sending: opts.sending ?? [], short: null, overLimit: [], balanceRwf: 0 }),
+      applyDisbursementVerdict: vi.fn().mockResolvedValue(true),
+      findById: vi.fn().mockResolvedValue({ id: 'c-1', idempotencyKey: 'ws-1:booking-capture:tok' }),
+      dispatchRowById: vi.fn().mockResolvedValue(opts.one ?? null),
     };
-    const queue = { balanceFacts: jest.fn().mockResolvedValue({ parkedCount: opts.parked ?? 0 }) };
+    const queue = { balanceFacts: vi.fn().mockResolvedValue({ parkedCount: opts.parked ?? 0 }) };
     const port = {
-      refund: jest.fn(opts.refund ?? (() => Promise.resolve(settled))),
-      releaseEscrow: jest.fn(() => Promise.resolve(settled)),
-      payout: jest.fn(() => Promise.resolve(settled)),
-      fetchTransaction: jest.fn(opts.fetch ?? (() => Promise.resolve(settled))),
+      refund: vi.fn(opts.refund ?? (() => Promise.resolve(settled))),
+      releaseEscrow: vi.fn(() => Promise.resolve(settled)),
+      payout: vi.fn(() => Promise.resolve(settled)),
+      fetchTransaction: vi.fn(opts.fetch ?? (() => Promise.resolve(settled))),
     };
-    const outcomes = { disbursement: jest.fn().mockResolvedValue(undefined) };
-    const payees = { payerOf: jest.fn().mockResolvedValue({ userId: 'u-1', bookingId: 'b-1' }) };
+    const outcomes = { disbursement: vi.fn().mockResolvedValue(undefined) };
+    const payees = { payerOf: vi.fn().mockResolvedValue({ userId: 'u-1', bookingId: 'b-1' }) };
     const dispatcher = new DisbursementDispatcher(
       port as unknown as PaymentPort,
       record as unknown as PaymentTransactionsRepository,
@@ -250,7 +252,7 @@ describe('DisbursementDispatcher', () => {
   it('counts what a machine is stuck on every tick, and alarms at most hourly (AC-27)', async () => {
     const { dispatcher } = build({ parked: 2 });
     const errorReporter = await import('../../../shared/observability/error-reporter');
-    const alarm = jest.spyOn(errorReporter, 'reportAlarm').mockImplementation(() => undefined);
+    const alarm = vi.spyOn(errorReporter, 'reportAlarm').mockImplementation(() => undefined);
 
     await dispatcher.tick(new Date('2026-10-26T10:00:00Z'));
     await dispatcher.tick(new Date('2026-10-26T10:30:00Z'));

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { MailMessage, MailerPort } from '../../mailer/domain/mailer-port';
 import { BOOKING_MAIL_EVENTS, bookingMailJobId } from '../domain/booking-mail';
 import { BookingMailer, type BookingMailFacts } from './booking-mailer';

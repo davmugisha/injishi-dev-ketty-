@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import type { StaffAccess, WorkspaceAccess } from '@injishi/contracts';
 
 import type { MeContextRepository } from '../infrastructure/me-context.repository';
@@ -40,9 +42,9 @@ const tenancy = {
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function harness(opts: { tenancies?: (typeof tenancy)[]; broker?: { id: string; name: string | null; status: string } | null } = {}) {
   const reads = {
-    tenancies: jest.fn(async () => opts.tenancies ?? []),
-    broker: jest.fn(async () => opts.broker ?? null),
-    signatories: jest.fn(async () => new Map<string, string>()),
+    tenancies: vi.fn(async () => opts.tenancies ?? []),
+    broker: vi.fn(async () => opts.broker ?? null),
+    signatories: vi.fn(async () => new Map<string, string>()),
   };
   return new MeContextService(reads as unknown as MeContextRepository);
 }

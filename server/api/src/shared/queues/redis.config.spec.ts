@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { resolveRedisConnection } from './redis.config';
 
 describe('resolveRedisConnection', () => {

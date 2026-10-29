@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -52,19 +54,19 @@ const at = (iso: string): Date => new Date(iso);
 function build(lease: LeaseThreadContext | null, reads: { userId: string; lastReadAt: Date }[] = []) {
   const emitted: string[] = [];
   const repo = {
-    context: jest.fn(async () => lease),
-    reads: jest.fn(async () => reads),
-    page: jest.fn(async () => [
+    context: vi.fn(async () => lease),
+    reads: vi.fn(async () => reads),
+    page: vi.fn(async () => [
       { id: 'm2', threadId: THREAD, senderUserId: OWNER, senderName: 'Amani', bodyType: 'text', body: 'Rent received', voiceDurationS: null, createdAt: at('2026-10-25T10:05:00Z'), faultId: null, faultReference: null, faultTitle: null, faultStatus: null },
       { id: 'm1', threadId: THREAD, senderUserId: TENANT, senderName: 'Grace', bodyType: 'text', body: 'Paid', voiceDurationS: null, createdAt: at('2026-10-25T10:00:00Z'), faultId: null, faultReference: null, faultTitle: null, faultStatus: null },
     ]),
-    attachments: jest.fn(async () => []),
-    markRead: jest.fn(async () => at('2026-10-25T10:06:00Z')),
-    ensureThread: jest.fn(async () => THREAD),
-    insertMessage: jest.fn(async () => ({ id: 'm2', createdAt: at('2026-10-25T10:05:00Z') })),
+    attachments: vi.fn(async () => []),
+    markRead: vi.fn(async () => at('2026-10-25T10:06:00Z')),
+    ensureThread: vi.fn(async () => THREAD),
+    insertMessage: vi.fn(async () => ({ id: 'm2', createdAt: at('2026-10-25T10:05:00Z') })),
   } as unknown as LeaseMessagesRepository;
   const db = { transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn({}) } as unknown as Database;
-  const files = { put: jest.fn() } as unknown as MessageFilesStorage;
+  const files = { put: vi.fn() } as unknown as MessageFilesStorage;
   const events = {
     messageNew: () => emitted.push('message:new'),
     threadRead: () => emitted.push('thread:read'),

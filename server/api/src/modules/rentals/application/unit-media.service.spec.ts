@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -46,23 +48,23 @@ function harness(opts: { photos?: UnitPhotoRow[]; state?: string; video?: UnitVi
     label: 'A-01',
     state: opts.state ?? 'active',
   } as UnitListRow;
-  const units = { find: jest.fn(async () => unit) };
+  const units = { find: vi.fn(async () => unit) };
   const media = {
-    photos: jest.fn(async () => [...photos].sort((a, b) => a.position - b.position)),
-    video: jest.fn(async () => video),
-    lockUnit: jest.fn(async () => undefined),
-    insertPhoto: jest.fn(async (_tx: unknown, v: { storedObjectId: string; position: number }) => {
+    photos: vi.fn(async () => [...photos].sort((a, b) => a.position - b.position)),
+    video: vi.fn(async () => video),
+    lockUnit: vi.fn(async () => undefined),
+    insertPhoto: vi.fn(async (_tx: unknown, v: { storedObjectId: string; position: number }) => {
       const id = `p-new-${photos.length}`;
       photos.push({ id, storedObjectId: v.storedObjectId, objectKey: 'unit_photo/new.jpg', position: v.position, caption: null });
       return id;
     }),
-    setPosition: jest.fn(async (_tx: unknown, id: string, position: number) => {
+    setPosition: vi.fn(async (_tx: unknown, id: string, position: number) => {
       photos = photos.map((p) => (p.id === id ? { ...p, position } : p));
     }),
-    deletePhoto: jest.fn(async (_tx: unknown, id: string) => {
+    deletePhoto: vi.fn(async (_tx: unknown, id: string) => {
       photos = photos.filter((p) => p.id !== id);
     }),
-    upsertVideo: jest.fn(async (_tx: unknown, v: { storedObjectId: string; posterObjectId: string | null; durationS: number }) => {
+    upsertVideo: vi.fn(async (_tx: unknown, v: { storedObjectId: string; posterObjectId: string | null; durationS: number }) => {
       video = {
         id: 'v-1',
         storedObjectId: v.storedObjectId,
@@ -75,17 +77,17 @@ function harness(opts: { photos?: UnitPhotoRow[]; state?: string; video?: UnitVi
         updatedAt: new Date('2026-10-24T10:00:00Z'),
       };
     }),
-    deleteVideo: jest.fn(async () => {
+    deleteVideo: vi.fn(async () => {
       video = null;
     }),
   };
   const storage = {
-    putPhoto: jest.fn(async () => ({ id: 'o-new', objectKey: 'unit_photo/new.jpg' })),
-    putVideo: jest.fn(async () => ({ id: 'o-video', objectKey: 'unit_video/new.mp4' })),
-    remove: jest.fn(async () => undefined),
-    signedUrl: jest.fn(async (key: string) => `https://files.test/${key}`),
+    putPhoto: vi.fn(async () => ({ id: 'o-new', objectKey: 'unit_photo/new.jpg' })),
+    putVideo: vi.fn(async () => ({ id: 'o-video', objectKey: 'unit_video/new.mp4' })),
+    remove: vi.fn(async () => undefined),
+    signedUrl: vi.fn(async (key: string) => `https://files.test/${key}`),
   };
-  const audit = { write: jest.fn(async () => undefined) };
+  const audit = { write: vi.fn(async () => undefined) };
   const service = new UnitMediaService(
     db as never,
     units as unknown as UnitsRepository,

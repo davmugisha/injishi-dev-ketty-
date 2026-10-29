@@ -45,5 +45,32 @@
       "correctness": { "useExhaustiveDependencies": "warn" },
       "complexity": { "noExcessiveCognitiveComplexity": "off" }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["apps/mobile/src/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useValidAriaRole": {
+              "level": "error",
+              "options": {
+                "allowInvalidRoles": [
+                  "display",
+                  "title1",
+                  "title2",
+                  "title3",
+                  "headline",
+                  "body",
+                  "callout",
+                  "caption",
+                  "micro"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

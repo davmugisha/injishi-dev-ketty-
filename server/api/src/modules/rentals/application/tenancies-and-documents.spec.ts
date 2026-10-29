@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 import type { LeaseStatus } from '@injishi/contracts';
 

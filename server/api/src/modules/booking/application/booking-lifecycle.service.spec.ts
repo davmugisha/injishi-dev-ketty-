@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
 import {
   PaymentUnavailableError,
@@ -40,11 +42,11 @@ describe('BookingLifecycleService', () => {
 
   interface Harness {
     repo: {
-      findExpiredRequests: jest.Mock;
-      recordExpiredDeclines: jest.Mock;
+      findExpiredRequests: Mock;
+      recordExpiredDeclines: Mock;
     };
-    payments: { mode: 'mock'; releaseEscrow: jest.Mock };
-    compensations: { enqueue: jest.Mock };
+    payments: { mode: 'mock'; releaseEscrow: Mock };
+    compensations: { enqueue: Mock };
     service: BookingLifecycleService;
   }
 
@@ -53,8 +55,8 @@ describe('BookingLifecycleService', () => {
     opts: { releaseRejects?: Error } = {},
   ): Harness {
     const repo = {
-      findExpiredRequests: jest.fn().mockResolvedValue(candidates),
-      recordExpiredDeclines: jest
+      findExpiredRequests: vi.fn().mockResolvedValue(candidates),
+      recordExpiredDeclines: vi
         .fn()
         .mockImplementation((ids: string[]) =>
           Promise.resolve(
@@ -65,10 +67,10 @@ describe('BookingLifecycleService', () => {
     const payments = {
       mode: 'mock' as const,
       releaseEscrow: opts.releaseRejects
-        ? jest.fn().mockRejectedValue(opts.releaseRejects)
-        : jest.fn().mockResolvedValue({ replayed: false }),
+        ? vi.fn().mockRejectedValue(opts.releaseRejects)
+        : vi.fn().mockResolvedValue({ replayed: false }),
     };
-    const compensations = { enqueue: jest.fn().mockResolvedValue(undefined) };
+    const compensations = { enqueue: vi.fn().mockResolvedValue(undefined) };
 
     const service = new BookingLifecycleService(
       repo as unknown as BookingRepository,
@@ -76,9 +78,9 @@ describe('BookingLifecycleService', () => {
       compensations as unknown as PaymentCompensationService,
       // ADR-047: the guest is told what happened. A recording double rather
       // than a no-op, so a test can assert WHICH event was raised.
-      { notify: jest.fn().mockResolvedValue(undefined) } as unknown as BookingNotificationsService,
+      { notify: vi.fn().mockResolvedValue(undefined) } as unknown as BookingNotificationsService,
       // 073 AC-13: no bank record behind these payments, so the provider path runs.
-      { plan: jest.fn().mockResolvedValue(null) } as unknown as BookingRefunds,
+      { plan: vi.fn().mockResolvedValue(null) } as unknown as BookingRefunds,
     );
     return { repo, payments, compensations, service };
   }

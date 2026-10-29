@@ -1,16 +1,8 @@
+import { describe, expect, it } from 'vitest';
+
 import { GUARDS_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { RequestMethod } from '@nestjs/common';
 import { OrgRole, permissionsForRole, type Permission } from '@injishi/contracts';
-
-// The controllers are read for their decorator metadata only; nothing is
-// instantiated. The session guard and the two-factor service reach the ESM
-// `@injishi/auth` package, which ts-jest does not transform, so both are stubbed
-// at the module boundary.
-jest.mock('../../../shared/auth/two-factor.service', () => ({ TwoFactorService: class {} }));
-jest.mock('../../../shared/auth/session.guard', () => ({
-  SessionGuard: class {},
-  CurrentUser: () => () => undefined,
-}));
 
 import {
   REQUIRE_ANY_PERMISSION,

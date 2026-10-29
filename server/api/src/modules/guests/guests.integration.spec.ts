@@ -1,3 +1,5 @@
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
 import { randomUUID } from 'node:crypto';
 
 import { type OversightGrant, type TenantGuestRequest, addDays, addMonths, kigaliToday, normaliseGuestPhone } from '@injishi/contracts';
@@ -34,14 +36,14 @@ import { GuestRegistryRepository } from './infrastructure/guest-registry.reposit
  *
  *   createdb injishi_guests_it && DATABASE_URL=… node scripts/migrate.mjs && node scripts/seed-reference.mjs
  *   GUESTS_IT_DATABASE_URL=postgres://injishi:injishi@127.0.0.1:5434/injishi_guests_it \
- *     npx jest src/modules/guests/guests.integration.spec.ts
+ *     npx vitest run src/modules/guests/guests.integration.spec.ts
  *   dropdb injishi_guests_it
  */
 const url = process.env.GUESTS_IT_DATABASE_URL;
 const maybe = url ? describe : describe.skip;
 
 maybe('guests and local leaders against Postgres (GUESTS_IT_DATABASE_URL)', () => {
-  jest.setTimeout(60_000);
+  vi.setConfig({ testTimeout: 60_000 });
 
   let pool: Pool;
   let db: Database;

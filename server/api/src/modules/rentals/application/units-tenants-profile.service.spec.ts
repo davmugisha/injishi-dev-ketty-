@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { CreateUnitRequest, UpdateTenantRequest } from '@injishi/contracts';
 
@@ -29,7 +31,7 @@ const ws = {
 } as unknown as ScopedWorkspace;
 
 const db = { transaction: async <T>(cb: (tx: unknown) => Promise<T>): Promise<T> => cb({}) };
-const audit = { write: jest.fn(async () => undefined) } as unknown as RentalsAuditWriter;
+const audit = { write: vi.fn(async () => undefined) } as unknown as RentalsAuditWriter;
 
 describe('UnitsService: a unit stands alone', () => {
 
@@ -39,21 +41,21 @@ describe('UnitsService: a unit stands alone', () => {
     const inserted: Record<string, unknown>[] = [];
     const unitRow = { id: 'u-1', workspaceId: WS, propertyId: PROPERTY, label: 'A-01', state: 'active', createdAt: new Date(), updatedAt: new Date() } as UnitListRow;
     const units = {
-      labelsTaken: jest.fn(async () => opts.taken ?? []),
-      insertMany: jest.fn(async (_tx: unknown, values: Record<string, unknown>[]) => {
+      labelsTaken: vi.fn(async () => opts.taken ?? []),
+      insertMany: vi.fn(async (_tx: unknown, values: Record<string, unknown>[]) => {
         inserted.push(...values);
         return values.map((_, i) => `u-${i + 1}`);
       }),
-      find: jest.fn(async () => unitRow),
-      leaseFacts: jest.fn(async () => new Map()),
-      openLeases: jest.fn(async () => [{ id: 'l', reference: 'L-0004', status: 'active' }]),
-      findBlock: jest.fn(async () => null),
+      find: vi.fn(async () => unitRow),
+      leaseFacts: vi.fn(async () => new Map()),
+      openLeases: vi.fn(async () => [{ id: 'l', reference: 'L-0004', status: 'active' }]),
+      findBlock: vi.fn(async () => null),
     };
     const context = {
-      buildings: jest.fn(async () => opts.buildings ?? []),
-      ensureBuilding: jest.fn(async () => ({ id: PROPERTY, name: 'Kacyiru Court Ltd' })),
+      buildings: vi.fn(async () => opts.buildings ?? []),
+      ensureBuilding: vi.fn(async () => ({ id: PROPERTY, name: 'Kacyiru Court Ltd' })),
     };
-    const contracts = { refreshDrafts: jest.fn(async () => 0) };
+    const contracts = { refreshDrafts: vi.fn(async () => 0) };
     const service = new UnitsService(
       db as never,
       units as unknown as UnitsRepository,
@@ -131,15 +133,15 @@ describe('TenantsService: a record changes until a signed contract names the per
   function harness(opts: { signed?: boolean; other?: TenantRow | null } = {}) {
     const updates: Record<string, unknown>[] = [];
     const tenants = {
-      find: jest.fn(async () => row),
-      findByEmail: jest.fn(async () => opts.other ?? null),
-      signedTenantIds: jest.fn(async () => new Set(opts.signed ? [TENANT] : [])),
-      update: jest.fn(async (_tx: unknown, _id: string, v: Record<string, unknown>) => void updates.push(v)),
-      draftLeaseIds: jest.fn(async () => ['draft-1']),
-      leasesOf: jest.fn(async () => []),
+      find: vi.fn(async () => row),
+      findByEmail: vi.fn(async () => opts.other ?? null),
+      signedTenantIds: vi.fn(async () => new Set(opts.signed ? [TENANT] : [])),
+      update: vi.fn(async (_tx: unknown, _id: string, v: Record<string, unknown>) => void updates.push(v)),
+      draftLeaseIds: vi.fn(async () => ['draft-1']),
+      leasesOf: vi.fn(async () => []),
     };
-    const contracts = { refreshDrafts: jest.fn(async () => 1) };
-    const events = { write: jest.fn(async () => undefined) };
+    const contracts = { refreshDrafts: vi.fn(async () => 1) };
+    const events = { write: vi.fn(async () => undefined) };
     const service = new TenantsService(
       db as never,
       tenants as unknown as TenantsRepository,
@@ -184,9 +186,9 @@ describe('RentalsProfileService.setup', () => {
   // The doubles' types are what the test reads back; they are inferred.
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   function harness(opts: { village?: number | null; units?: number; primary?: boolean; defaults?: boolean; signatory?: boolean }) {
-    const marked = jest.fn(async () => new Date('2026-10-24T10:00:00Z'));
+    const marked = vi.fn(async () => new Date('2026-10-24T10:00:00Z'));
     const context = {
-      ensureProfile: jest.fn(async () => ({
+      ensureProfile: vi.fn(async () => ({
         defaultGraceDays: 5,
         defaultNoticeDays: 15,
         leaseDefaultsSetAt: opts.defaults ? new Date() : null,
@@ -196,10 +198,10 @@ describe('RentalsProfileService.setup', () => {
         contactEmail: opts.signatory ? 'jean@kacyiru.rw' : null,
         setupCompletedAt: null,
       })),
-      buildings: jest.fn(async () => [{ id: PROPERTY, name: 'Kacyiru Court', villageId: opts.village ?? null }]),
-      buildingPlace: jest.fn(async () => ({ village: 'Rebero', district: 'Kicukiro' })),
-      unitCount: jest.fn(async () => opts.units ?? 0),
-      primaryPayoutAccount: jest.fn(async () =>
+      buildings: vi.fn(async () => [{ id: PROPERTY, name: 'Kacyiru Court', villageId: opts.village ?? null }]),
+      buildingPlace: vi.fn(async () => ({ village: 'Rebero', district: 'Kicukiro' })),
+      unitCount: vi.fn(async () => opts.units ?? 0),
+      primaryPayoutAccount: vi.fn(async () =>
         opts.primary ? { kind: 'momo', bankName: null, momoNetwork: 'mtn', momoPhone: '+250788123456', merchantCode: null } : null,
       ),
       markSetupComplete: marked,

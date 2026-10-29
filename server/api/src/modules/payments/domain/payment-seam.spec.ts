@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { PaymentSeam, resolvePaymentSeam } from './payment-seam';
 import { referenceFor } from './reference';
 

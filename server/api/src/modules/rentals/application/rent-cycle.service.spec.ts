@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { addDays } from '@injishi/contracts';
 
 import type { LeaseChargesRepository } from '../infrastructure/lease-charges.repository';
@@ -52,18 +54,18 @@ function harness(opts: Opts = {}) {
   const raisedPeriods = new Set(opts.raised ?? []);
   const db = { transaction: async <T>(cb: (t: unknown) => Promise<T>): Promise<T> => cb({}) };
   const cycle = {
-    live: jest.fn(async () => live),
-    activeEndingBy: jest.fn(async () => opts.nearEnd ?? []),
-    pastEnd: jest.fn(async () => opts.pastEnd ?? []),
+    live: vi.fn(async () => live),
+    activeEndingBy: vi.fn(async () => opts.nearEnd ?? []),
+    pastEnd: vi.fn(async () => opts.pastEnd ?? []),
   };
   const row = { id: LEASE, workspaceId: WS, status: 'active', endDate: '2027-10-23', reference: 'L-0001', ...opts.row } as LeaseRow;
   const leases = {
-    lock: jest.fn(async () => row),
-    update: jest.fn(async (_tx: unknown, id: string, values: unknown) => record('updateLease')(id, values)),
+    lock: vi.fn(async () => row),
+    update: vi.fn(async (_tx: unknown, id: string, values: unknown) => record('updateLease')(id, values)),
   };
   const charges = {
-    rentPeriodsRaised: jest.fn(async () => [...raisedPeriods]),
-    raiseRent: jest.fn(async (_tx: unknown, input: { periodStart: string; dueOn: string; amountRwf: number }) => {
+    rentPeriodsRaised: vi.fn(async () => [...raisedPeriods]),
+    raiseRent: vi.fn(async (_tx: unknown, input: { periodStart: string; dueOn: string; amountRwf: number }) => {
       record('raise')(input);
       if (raisedPeriods.has(input.periodStart)) return null;
       raisedPeriods.add(input.periodStart);
@@ -71,17 +73,17 @@ function harness(opts: Opts = {}) {
     }),
   };
   const payments = {
-    applyCredit: jest.fn(async (_tx: unknown, input: { chargeIds: string[] }) => {
+    applyCredit: vi.fn(async (_tx: unknown, input: { chargeIds: string[] }) => {
       record('credit')(input);
       return { allocations: [], allocatedRwf: 0, creditRwf: 0, paidChargeIds: [], depositPaid: false, ...(opts.credit ?? {}) };
     }),
   };
   const lifecycle = {
-    leasesDueToStart: jest.fn(async () => opts.dueToStart ?? []),
-    startOnSchedule: jest.fn(async (id: string) => (record('start')(id), true)),
+    leasesDueToStart: vi.fn(async () => opts.dueToStart ?? []),
+    startOnSchedule: vi.fn(async (id: string) => (record('start')(id), true)),
   };
-  const events = { write: jest.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
-  const audit = { write: jest.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
+  const events = { write: vi.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
+  const audit = { write: vi.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
   const service = new RentCycleService(
     db as never,
     cycle as unknown as RentCycleRepository,

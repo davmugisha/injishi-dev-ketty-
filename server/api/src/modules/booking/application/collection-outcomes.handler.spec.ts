@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import type { CollectionOutcome, PaymentOutcomes } from '../../payments/application/payment-outcomes';
 import type { RefundsOwedService } from '../../payments/application/refunds-owed.service';
 import type { RegistrationFees } from '../domain/registration-fees';
@@ -20,24 +22,24 @@ describe('CollectionOutcomesHandler', () => {
 
   function build(attempt: Record<string, unknown> | null, opts: { claimed?: boolean } = {}): {
     handler: CollectionOutcomesHandler;
-    refunds: { prepareCollection: jest.Mock; owe: jest.Mock };
-    bookings: { escrowExistsForCaptureKey: jest.Mock; cancelForReversal: jest.Mock };
-    notifications: { notify: jest.Mock };
-    registrations: { reopenFeeAfterReversal: jest.Mock };
+    refunds: { prepareCollection: Mock; owe: Mock };
+    bookings: { escrowExistsForCaptureKey: Mock; cancelForReversal: Mock };
+    notifications: { notify: Mock };
+    registrations: { reopenFeeAfterReversal: Mock };
   } {
     const refunds = {
-      prepareCollection: jest.fn().mockResolvedValue({ collection: { id: 't-1' } }),
-      owe: jest.fn().mockResolvedValue({ row: { id: 'd-1' }, created: true }),
+      prepareCollection: vi.fn().mockResolvedValue({ collection: { id: 't-1' } }),
+      owe: vi.fn().mockResolvedValue({ row: { id: 'd-1' }, created: true }),
     };
     const bookings = {
-      escrowExistsForCaptureKey: jest.fn().mockResolvedValue(opts.claimed ?? false),
-      cancelForReversal: jest.fn().mockResolvedValue({ id: 'b-1', reference: 'BK-AAAA-BBBB' }),
+      escrowExistsForCaptureKey: vi.fn().mockResolvedValue(opts.claimed ?? false),
+      cancelForReversal: vi.fn().mockResolvedValue({ id: 'b-1', reference: 'BK-AAAA-BBBB' }),
     };
-    const notifications = { notify: jest.fn().mockResolvedValue(undefined) };
-    const registrations = { reopenFeeAfterReversal: jest.fn().mockResolvedValue(true) };
+    const notifications = { notify: vi.fn().mockResolvedValue(undefined) };
+    const registrations = { reopenFeeAfterReversal: vi.fn().mockResolvedValue(true) };
     const handler = new CollectionOutcomesHandler(
-      { onCollection: jest.fn() } as unknown as PaymentOutcomes,
-      { findByKey: jest.fn().mockResolvedValue(attempt) } as unknown as PaymentAttemptRepository,
+      { onCollection: vi.fn() } as unknown as PaymentOutcomes,
+      { findByKey: vi.fn().mockResolvedValue(attempt) } as unknown as PaymentAttemptRepository,
       bookings as unknown as BookingRepository,
       refunds as unknown as RefundsOwedService,
       notifications as unknown as BookingNotificationsService,

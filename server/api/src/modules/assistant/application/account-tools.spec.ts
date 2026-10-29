@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { BUSINESS_WORKSPACE, GUEST_A, GUEST_B, fakeReads } from '../testing/fake-listings';
 import { ToolSet } from './assistant-tools';
 

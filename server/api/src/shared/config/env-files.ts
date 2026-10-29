@@ -13,7 +13,7 @@ import { parseEnv } from 'node:util';
  *
  * `APP_ENV` picks the file. It is not `NODE_ENV`, which says how the code runs,
  * and not `INJISHI_ENVIRONMENT`, which says which platform this is (ADR-043).
- * Unset, it follows `NODE_ENV`, so Jest reads the test file and a production
+ * Unset, it follows `NODE_ENV`, so Vitest reads the test file and a production
  * image the production one, and anything else is development.
  *
  * Only that one file is read, never a second one underneath it, so a value

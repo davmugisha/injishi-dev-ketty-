@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.rnLineHeight = exports.rnFontSize = exports.rnRadiusRoles = exports.rnRadius = exports.rnSpace = exports.easingCurves = exports.motionMs = exports.rhythm = exports.containers = exports.typeScale = exports.typeSteps = exports.herouiFixedGrounds = exports.herouiTypeScale = exports.herouiTracking = exports.herouiSpacing = exports.herouiFieldBorderWidth = exports.herouiFieldRadius = exports.herouiRadius = exports.herouiMixes = exports.herouiElevation = exports.herouiAliases = exports.herouiDark = exports.herouiLight = exports.herouiFixed = exports.palettes = exports.shadowControl = exports.radiusCard = exports.fixedGrounds = exports.aliases = exports.dark = exports.light = exports.fixed = exports.status = exports.green = exports.ink = void 0;
+exports.rnLineHeight = exports.rnFontSize = exports.rnRadiusRoles = exports.rnRadius = exports.rnSpace = exports.easingCurves = exports.motionMs = exports.rhythm = exports.containers = exports.typeScale = exports.typeSteps = exports.herouiFixedGrounds = exports.herouiTypeScale = exports.herouiTracking = exports.herouiSpacing = exports.herouiFieldBorderWidth = exports.herouiFieldRadius = exports.herouiRadius = exports.herouiSoftLabels = exports.herouiMixes = exports.herouiElevation = exports.herouiAliases = exports.herouiDark = exports.herouiLight = exports.herouiFixed = exports.palettes = exports.shadowControl = exports.radiusCard = exports.fixedGrounds = exports.aliases = exports.dark = exports.light = exports.fixed = exports.status = exports.green = exports.ink = void 0;
 /**
  * @injishi/design-tokens — one vocabulary everywhere.
  *
@@ -13,6 +13,9 @@ exports.rnLineHeight = exports.rnFontSize = exports.rnRadiusRoles = exports.rnRa
  *    "@injishi/design-tokens", plus the scales — { rnSpace, rnRadius,
  *    rnFontSize, rnLineHeight } — which ADR-034 task 6 made this package the
  *    single owner of
+ *  - mobile (HeroUI Native): import "@injishi/design-tokens/native.css" in
+ *    global.css after HeroUI Native's own sheets; read
+ *    "@injishi/design-tokens/native.json" for a colour as a value
  *  - any surface laying out a page: import { typeSteps, typeScale, containers,
  *    rhythm } from "@injishi/design-tokens" (ADR-027's layout scale, emitted
  *    into injishi-heroui.css as @theme keys)
@@ -21,7 +24,8 @@ exports.rnLineHeight = exports.rnFontSize = exports.rnRadiusRoles = exports.rnRa
  *    utilities, and read as numbers by apps/mobile
  *
  * There is exactly one place any token value is authored (src/ramps.ts +
- * src/semantic.ts). Everything else is generated or resolved from here.
+ * src/semantic.ts + src/heroui.ts). Everything else is generated or resolved
+ * from here.
  */
 var ramps_1 = require("./ramps");
 Object.defineProperty(exports, "ink", { enumerable: true, get: function () { return ramps_1.ink; } });
@@ -43,6 +47,7 @@ Object.defineProperty(exports, "herouiDark", { enumerable: true, get: function (
 Object.defineProperty(exports, "herouiAliases", { enumerable: true, get: function () { return heroui_1.herouiAliases; } });
 Object.defineProperty(exports, "herouiElevation", { enumerable: true, get: function () { return heroui_1.herouiElevation; } });
 Object.defineProperty(exports, "herouiMixes", { enumerable: true, get: function () { return heroui_1.herouiMixes; } });
+Object.defineProperty(exports, "herouiSoftLabels", { enumerable: true, get: function () { return heroui_1.herouiSoftLabels; } });
 Object.defineProperty(exports, "herouiRadius", { enumerable: true, get: function () { return heroui_1.herouiRadius; } });
 Object.defineProperty(exports, "herouiFieldRadius", { enumerable: true, get: function () { return heroui_1.herouiFieldRadius; } });
 Object.defineProperty(exports, "herouiFieldBorderWidth", { enumerable: true, get: function () { return heroui_1.herouiFieldBorderWidth; } });

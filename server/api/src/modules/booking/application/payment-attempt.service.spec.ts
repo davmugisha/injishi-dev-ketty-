@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { NotFoundException } from '@nestjs/common';
 
 import type { ListingService } from '../../listing/application/listing.service';
@@ -79,41 +81,41 @@ describe('PaymentAttemptService', () => {
   ): {
     service: PaymentAttemptService;
     attempts: {
-      findForGuest: jest.Mock;
-      findByKey: jest.Mock;
-      markConfirmed: jest.Mock;
-      markEnded: jest.Mock;
-      findPrompting: jest.Mock;
-      claimConfirmed: jest.Mock;
-      markDuplicateFee: jest.Mock;
-      findUnsettledFees: jest.Mock;
+      findForGuest: Mock;
+      findByKey: Mock;
+      markConfirmed: Mock;
+      markEnded: Mock;
+      findPrompting: Mock;
+      claimConfirmed: Mock;
+      markDuplicateFee: Mock;
+      findUnsettledFees: Mock;
     };
-    compensations: { enqueue: jest.Mock };
-    bookings: { writeBooking: jest.Mock; settledForAttempt: jest.Mock };
-    orderPayments: { settle: jest.Mock; fail: jest.Mock; attach: jest.Mock };
-    payments: { fetchTransaction: jest.Mock };
-    transactions: { linkAttempt: jest.Mock; markExpired: jest.Mock; markParked: jest.Mock };
-    registrations: { orgOfRegistrationInvoice: jest.Mock; settleFeeFromPayment: jest.Mock };
+    compensations: { enqueue: Mock };
+    bookings: { writeBooking: Mock; settledForAttempt: Mock };
+    orderPayments: { settle: Mock; fail: Mock; attach: Mock };
+    payments: { fetchTransaction: Mock };
+    transactions: { linkAttempt: Mock; markExpired: Mock; markParked: Mock };
+    registrations: { orgOfRegistrationInvoice: Mock; settleFeeFromPayment: Mock };
   } {
     const attempts = {
-      findForGuest: jest
+      findForGuest: vi
         .fn()
         .mockResolvedValue(overrides.row === undefined ? row : overrides.row),
-      findByKey: jest.fn().mockResolvedValue(null),
-      markConfirmed: jest.fn().mockResolvedValue(undefined),
+      findByKey: vi.fn().mockResolvedValue(null),
+      markConfirmed: vi.fn().mockResolvedValue(undefined),
       // True: this caller's guarded update ended the attempt.
-      markEnded: jest.fn().mockResolvedValue(true),
-      findPrompting: jest.fn().mockResolvedValue([]),
-      record: jest.fn().mockResolvedValue(undefined),
-      claimConfirmed: jest.fn().mockResolvedValue(overrides.claimWins ?? true),
-      markDuplicateFee: jest.fn().mockResolvedValue(true),
-      findUnsettledFees: jest.fn().mockResolvedValue(overrides.unsettledFees ?? []),
+      markEnded: vi.fn().mockResolvedValue(true),
+      findPrompting: vi.fn().mockResolvedValue([]),
+      record: vi.fn().mockResolvedValue(undefined),
+      claimConfirmed: vi.fn().mockResolvedValue(overrides.claimWins ?? true),
+      markDuplicateFee: vi.fn().mockResolvedValue(true),
+      findUnsettledFees: vi.fn().mockResolvedValue(overrides.unsettledFees ?? []),
     };
 
     const payments = {
       fetchTransaction: overrides.fetchThrows
-        ? jest.fn().mockRejectedValue(overrides.fetchThrows)
-        : jest
+        ? vi.fn().mockRejectedValue(overrides.fetchThrows)
+        : vi
             .fn()
             .mockResolvedValue(
               overrides.fetch === undefined ? settled : overrides.fetch,
@@ -121,7 +123,7 @@ describe('PaymentAttemptService', () => {
     };
 
     const listings = {
-      findBookableRoomType: jest.fn().mockResolvedValue(
+      findBookableRoomType: vi.fn().mockResolvedValue(
         overrides.roomTypeMissing
           ? null
           : {
@@ -143,29 +145,29 @@ describe('PaymentAttemptService', () => {
     };
 
     const bookings = {
-      writeBooking: jest
+      writeBooking: vi
         .fn()
         .mockResolvedValue({ id: 'booking-1', reference: 'BK-ABC123' }),
-      settledForAttempt: jest
+      settledForAttempt: vi
         .fn()
         .mockResolvedValue({ id: 'booking-1', reference: 'BK-ABC123' }),
     };
 
-    const compensations = { enqueue: jest.fn().mockResolvedValue(undefined) };
+    const compensations = { enqueue: vi.fn().mockResolvedValue(undefined) };
     const orderPayments = {
-      settle: jest.fn().mockResolvedValue({ kind: 'settled', replayed: false, emissionId: null, wake: false }),
-      fail: jest.fn().mockResolvedValue(true),
-      attach: jest.fn().mockResolvedValue(undefined),
+      settle: vi.fn().mockResolvedValue({ kind: 'settled', replayed: false, emissionId: null, wake: false }),
+      fail: vi.fn().mockResolvedValue(true),
+      attach: vi.fn().mockResolvedValue(undefined),
     };
-    const guestOrders = { detail: jest.fn() };
+    const guestOrders = { detail: vi.fn() };
     const transactions = {
-      linkAttempt: jest.fn().mockResolvedValue(undefined),
-      markExpired: jest.fn().mockResolvedValue(undefined),
-      markParked: jest.fn().mockResolvedValue(undefined),
+      linkAttempt: vi.fn().mockResolvedValue(undefined),
+      markExpired: vi.fn().mockResolvedValue(undefined),
+      markParked: vi.fn().mockResolvedValue(undefined),
     };
     const registrations = {
-      orgOfRegistrationInvoice: jest.fn().mockResolvedValue('org-1'),
-      settleFeeFromPayment: jest.fn().mockResolvedValue(overrides.feeOutcome ?? 'settled'),
+      orgOfRegistrationInvoice: vi.fn().mockResolvedValue('org-1'),
+      settleFeeFromPayment: vi.fn().mockResolvedValue(overrides.feeOutcome ?? 'settled'),
     };
 
     const service = new PaymentAttemptService(

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { redact } from './redaction';
 
 describe('redact (ADR-061 D-g)', () => {

@@ -1,11 +1,4 @@
-// The session guard's import chain reaches Better Auth, which ships as ESM Jest
-// does not transform. The guard is overridden below, so the auth package is
-// stood in for the way `upload-throttler.guard.spec.ts` does it.
-jest.mock('@injishi/auth', () => ({
-  DEMO_OTP_CODE: '123456',
-  DEMO_COOKIE_PREFIX: 'injishi-demo',
-  createAuth: (config: unknown) => ({ config }),
-}));
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { ForbiddenException, UnauthorizedException, VersioningType, type ExecutionContext } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -53,12 +46,11 @@ interface SetCookieCall {
 }
 
 /**
- * A stand in for `@fastify/cookie`, which loads its parser through a dynamic
- * `import()` that Jest cannot run without `--experimental-vm-modules`. It
- * parses the `Cookie` header onto `request.cookies` as the plugin does, and
- * RECORDS every `reply.setCookie` call, so these tests assert the exact
- * options the controller passes. Serialising those options into a header is
- * the plugin's own contract; the live run in ADR-061 verify.md checks it.
+ * A stand in for `@fastify/cookie`. It parses the `Cookie` header onto
+ * `request.cookies` as the plugin does, and RECORDS every `reply.setCookie`
+ * call, so these tests assert the exact options the controller passes.
+ * Serialising those options into a header is the plugin's own contract; the
+ * live run in ADR-061 verify.md checks it.
  */
 interface CookieRequest {
   headers: { cookie?: string };

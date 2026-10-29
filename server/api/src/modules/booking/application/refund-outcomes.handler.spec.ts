@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import type { DisbursementOutcome, PaymentOutcomes } from '../../payments/application/payment-outcomes';
 import type { RefundLedgerRepository } from '../infrastructure/refund-ledger.repository';
 import type { BookingNotificationsService } from './booking-notifications.service';
@@ -29,16 +31,16 @@ describe('RefundOutcomesHandler', () => {
 
   function build(): {
     handler: RefundOutcomesHandler;
-    ledger: { settleRefunded: jest.Mock; reopenRefund: jest.Mock };
-    notifications: { notifyRefund: jest.Mock };
-    subscribed: jest.Mock;
+    ledger: { settleRefunded: Mock; reopenRefund: Mock };
+    notifications: { notifyRefund: Mock };
+    subscribed: Mock;
   } {
-    const subscribed = jest.fn();
+    const subscribed = vi.fn();
     const ledger = {
-      settleRefunded: jest.fn().mockResolvedValue('refunded_full'),
-      reopenRefund: jest.fn().mockResolvedValue(true),
+      settleRefunded: vi.fn().mockResolvedValue('refunded_full'),
+      reopenRefund: vi.fn().mockResolvedValue(true),
     };
-    const notifications = { notifyRefund: jest.fn().mockResolvedValue(undefined) };
+    const notifications = { notifyRefund: vi.fn().mockResolvedValue(undefined) };
     const handler = new RefundOutcomesHandler(
       { onDisbursement: subscribed } as unknown as PaymentOutcomes,
       ledger as unknown as RefundLedgerRepository,

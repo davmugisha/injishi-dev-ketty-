@@ -1,15 +1,4 @@
-// `@injishi/auth` is ESM and outside what ts-jest transforms, so its constants
-// are stood in for; the values match the package (packages/auth/src/options.ts).
-jest.mock('@injishi/auth', () => ({
-  DEMO_OTP_CODE: '123456',
-  OTP_EXPIRY_SECONDS: 600,
-  OTP_LENGTH: 6,
-  OTP_MAX_ATTEMPTS: 5,
-}));
-jest.mock('../../modules/auth/infrastructure/otp-mailer', () => ({
-  OtpMailer: class {},
-}));
-jest.mock('./workspace.service', () => ({ WorkspaceService: class {} }));
+import { describe, expect, it, type Mock, vi } from 'vitest';
 
 import { createHash } from 'node:crypto';
 
@@ -31,23 +20,23 @@ describe('TwoFactorService.sendCode', () => {
 
   function build(platform: Platform): {
     service: TwoFactorService;
-    send: jest.Mock;
-    stored: jest.Mock;
+    send: Mock;
+    stored: Mock;
   } {
     const selects = [[], [{ email: EMAIL }]];
-    const stored = jest.fn();
+    const stored = vi.fn();
     const db = {
-      select: jest.fn(() => ({
+      select: vi.fn(() => ({
         from: () => ({ where: () => ({ limit: () => Promise.resolve(selects.shift() ?? []) }) }),
       })),
-      insert: jest.fn(() => ({
+      insert: vi.fn(() => ({
         values: (row: unknown) => {
           stored(row);
           return { onConflictDoUpdate: () => Promise.resolve() };
         },
       })),
     };
-    const send = jest.fn().mockResolvedValue(undefined);
+    const send = vi.fn().mockResolvedValue(undefined);
     const service = new TwoFactorService(
       db as unknown as Database,
       platform,

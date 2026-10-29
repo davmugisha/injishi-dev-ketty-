@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 
 import type { PasswordHolders } from '../infrastructure/password-holders';
@@ -12,17 +14,17 @@ describe('PasswordSetupService', () => {
     has?: boolean;
     createdAgoMs?: number;
     proved?: boolean;
-  }): { svc: PasswordSetupService; setPassword: jest.Mock } {
+  }): { svc: PasswordSetupService; setPassword: Mock } {
     const created = new Date(NOW.getTime() - (opts.createdAgoMs ?? 60_000));
     const holders = {
-      isTenant: jest.fn(async () => opts.tenant ?? true),
-      hasPassword: jest.fn(async () => opts.has ?? false),
-      session: jest.fn(async () => ({
+      isTenant: vi.fn(async () => opts.tenant ?? true),
+      hasPassword: vi.fn(async () => opts.has ?? false),
+      session: vi.fn(async () => ({
         createdAt: created,
         twoFactorVerifiedAt: opts.proved === false ? null : created,
       })),
     } as unknown as PasswordHolders;
-    const setPassword = jest.fn(async () => {});
+    const setPassword = vi.fn(async () => {});
     return { svc: new PasswordSetupService(holders, () => NOW), setPassword };
   }
 

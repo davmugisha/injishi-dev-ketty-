@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
+
 import {
   CreateBucketCommand,
   GetBucketEncryptionCommand,
@@ -51,10 +53,10 @@ function infrastructure(env: Env): new () => unknown {
 }
 
 /** What MinIO answers, by bucket: present and encrypted unless listed otherwise. */
-function fakeMinio(missing: string[] = [], unencrypted: string[] = []): jest.SpyInstance {
+function fakeMinio(missing: string[] = [], unencrypted: string[] = []): MockInstance {
   const error = (name: string): S3ServiceException =>
     new S3ServiceException({ name, $fault: 'client', $metadata: { httpStatusCode: 404 }, message: name });
-  return (jest.spyOn(S3Client.prototype, 'send') as unknown as jest.SpyInstance).mockImplementation(
+  return (vi.spyOn(S3Client.prototype, 'send') as unknown as MockInstance).mockImplementation(
     async (command: { input: { Bucket?: string } }) => {
       const bucket = command.input.Bucket ?? '';
       if (command instanceof HeadBucketCommand) {
@@ -88,12 +90,12 @@ async function app(env: Env): Promise<TestingModule> {
 const bucketOf = (port: StoragePort): string => (port as S3StorageAdapter).bucket;
 
 beforeEach(() => {
-  jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-  jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+  vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+  vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
 });
 
 afterEach(async () => {
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
   while (compiled.length) await compiled.pop()?.close();
 });
 

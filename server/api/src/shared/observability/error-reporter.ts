@@ -163,7 +163,7 @@ export function apiSentryOptions({
 /**
  * The Sentry reporter, or the inert one when this process must not report.
  * The SDK is initialised here and only here. `testOptions` is for tests: a
- * recording transport, and the process handlers left out of a jest worker.
+ * recording transport, and the process handlers left out of a test worker.
  */
 export function createErrorReporter(
   env: NodeJS.ProcessEnv = process.env,

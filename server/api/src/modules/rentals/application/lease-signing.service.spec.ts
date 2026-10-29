@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { BadRequestException, ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { addDays, addMonths, buildLeaseContract, contractHash, kigaliDateOf, kigaliToday, type LeaseStatus, type SignLeaseRequest } from '@injishi/contracts';
 
@@ -164,58 +166,58 @@ function harness(opts: Opts = {}) {
   };
   const db = { transaction: async <T>(cb: (t: unknown) => Promise<T>): Promise<T> => cb({}) };
   const leases = {
-    find: jest.fn(async () => leaseRecord),
-    lock: jest.fn(async () => lease),
-    version: jest.fn(async () => versionRow),
-    update: jest.fn(async (_tx: unknown, id: string, values: unknown) => record('updateLease')(id, values)),
+    find: vi.fn(async () => leaseRecord),
+    lock: vi.fn(async () => lease),
+    version: vi.fn(async () => versionRow),
+    update: vi.fn(async (_tx: unknown, id: string, values: unknown) => record('updateLease')(id, values)),
   };
   const signing = {
-    liveCode: jest.fn(async () => (opts.code === undefined ? codeRow() : opts.code)),
-    replaceCode: jest.fn(async (_tx: unknown, values: unknown) => {
+    liveCode: vi.fn(async () => (opts.code === undefined ? codeRow() : opts.code)),
+    replaceCode: vi.fn(async (_tx: unknown, values: unknown) => {
       record('replaceCode')(values);
       return CODE_ID;
     }),
-    deleteCode: jest.fn(async (id: string) => record('deleteCode')(id)),
-    countWrongTry: jest.fn(async () => (opts.code?.attempts ?? 0) + 1),
-    consumeCode: jest.fn(async () => true),
-    liveSignatures: jest.fn(async () => opts.signatures ?? []),
-    insertSignature: jest.fn(async (_tx: unknown, values: unknown) => {
+    deleteCode: vi.fn(async (id: string) => record('deleteCode')(id)),
+    countWrongTry: vi.fn(async () => (opts.code?.attempts ?? 0) + 1),
+    consumeCode: vi.fn(async () => true),
+    liveSignatures: vi.fn(async () => opts.signatures ?? []),
+    insertSignature: vi.fn(async (_tx: unknown, values: unknown) => {
       record('signature')(values);
       return 'sig-1';
     }),
-    passwordHash: jest.fn(async () => null),
-    openNewLeaseFiling: jest.fn(async (_tx: unknown, values: unknown) => {
+    passwordHash: vi.fn(async () => null),
+    openNewLeaseFiling: vi.fn(async (_tx: unknown, values: unknown) => {
       record('filing')(values);
       return 'filing-1';
     }),
   };
   const charges = {
-    raiseDeposit: jest.fn(async (_tx: unknown, input: { dueOn: string; amountRwf: number }) => {
+    raiseDeposit: vi.fn(async (_tx: unknown, input: { dueOn: string; amountRwf: number }) => {
       record('deposit')(input);
       return { id: 'charge-1', kind: 'deposit', periodStart: null, periodEnd: null, ...input };
     }),
   };
   const contracts = {
-    build: jest.fn(async () => ({ contract, hash: opts.builtHash ?? HASH, problems: opts.problems ?? [] })),
-    freeze: jest.fn(async () => ({ versionId: VERSION, version: 1, hash: opts.builtHash ?? HASH, created: false })),
-    refreshDrafts: jest.fn(async () => 1),
+    build: vi.fn(async () => ({ contract, hash: opts.builtHash ?? HASH, problems: opts.problems ?? [] })),
+    freeze: vi.fn(async () => ({ versionId: VERSION, version: 1, hash: opts.builtHash ?? HASH, created: false })),
+    refreshDrafts: vi.fn(async () => 1),
   };
-  const events = { write: jest.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
-  const audit = { write: jest.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
-  const reads = { detail: jest.fn(async () => ({ id: LEASE, status: 'pending_signature' }) as never) };
+  const events = { write: vi.fn(async (_tx: unknown, e: unknown) => record('event')(e)) };
+  const audit = { write: vi.fn(async (_tx: unknown, e: unknown) => record('audit')(e)) };
+  const reads = { detail: vi.fn(async () => ({ id: LEASE, status: 'pending_signature' }) as never) };
   const tenancies = {
-    record: jest.fn(async () => leaseRecord),
-    detail: jest.fn(async () => ({ id: LEASE, status: 'signed' }) as never),
+    record: vi.fn(async () => leaseRecord),
+    detail: vi.fn(async () => ({ id: LEASE, status: 'signed' }) as never),
   };
-  const mail = jest.fn(async () => undefined);
-  const invitations = { issue: jest.fn(async () => mail) };
+  const mail = vi.fn(async () => undefined);
+  const invitations = { issue: vi.fn(async () => mail) };
   const storage = {
-    describe: jest.fn(async () => (opts.drawing === undefined ? null : opts.drawing)),
-    holdObject: jest.fn(async (id: string) => record('hold')(id)),
+    describe: vi.fn(async () => (opts.drawing === undefined ? null : opts.drawing)),
+    holdObject: vi.fn(async (id: string) => record('hold')(id)),
   };
-  const passwords = { verify: jest.fn(async () => false) };
-  const mailer = { signingCode: jest.fn(async () => opts.mailOk ?? true) };
-  const documents = { signedCopy: jest.fn(async (job: unknown) => (record('queued')(job), true)) };
+  const passwords = { verify: vi.fn(async () => false) };
+  const mailer = { signingCode: vi.fn(async () => opts.mailOk ?? true) };
+  const documents = { signedCopy: vi.fn(async (job: unknown) => (record('queued')(job), true)) };
   const service = new LeaseSigningService(
     db as never,
     leases as unknown as LeasesRepository,

@@ -70,27 +70,10 @@
   --font-heading: var(--font-instrument-sans, "Instrument Sans"), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-instrument-sans, "Instrument Sans"), ui-sans-serif, system-ui, sans-serif;
 
-  /* The accent teal used AS INK, held fixed in both themes.
-   *
-   * ui-tokens.md and ui-rules.md both name this role and say when to reach for
-   * it: on a ground that does NOT invert — `bg-white/95` over a photograph,
-   * a fixed light panel — where `accent-text` would carry its dark twin onto a
-   * surface that never goes dark. The rule was written and the role was never
-   * declared out here: `_injishi-app.css` has it for the signed-in layer and
-   * this sheet did not, so every marketplace `text-accent-ink` compiled to
-   * NOTHING and the text simply inherited the page colour — near-white on a
-   * near-white panel in dark theme, measured at 1.06:1 on the listing card.
-   *
-   * It is declared HERE rather than in `@injishi/design-tokens`, and that is
-   * deliberate: `apps/app` already has a `--accent-ink` and it means the
-   * opposite thing — the dark ink that sits ON the accent fill (`ink-950`,
-   * `pms-tokens.css`), which is also its `--color-primary-foreground`. Emitting
-   * this value from the shared package would land unlayered over that app's
-   * layered copy and repaint every CTA's label in the wrong ink. One name,
-   * two meanings, and until one of them is renamed neither may be shared.
-   *
-   * The value is the LIGHT theme's `accent-text`, held still. */
-  --color-accent-ink: oklch(46.00% 0.1800 177.90);
+  /* `text-accent-ink`, the accent as ink on a plate that never goes dark,
+   * comes from `@injishi/design-tokens/heroui.css` (the fixed `accentInk`
+   * role, the light `accent-text` held still). It used to be pasted here,
+   * because `apps/app` once had a `--accent-ink` of its own; that one is gone. */
 
   /* Page motion. Component motion (the accordion frames, tw-animate-css) is
    * @injishi/web-ui's, imported above — ADR-010 supporting call 5b. */

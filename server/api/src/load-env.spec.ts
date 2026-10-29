@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -49,14 +51,14 @@ describe('load-env.ts', () => {
   beforeEach(() => {
     dir = mkdtempSync(path.join(tmpdir(), 'injishi-load-env-'));
     writeFileSync(path.join(dir, '.env.test'), `${PROBE}=from-file\nPAYMENT_ADAPTER_MODE=off\n`);
-    jest.spyOn(process, 'cwd').mockReturnValue(dir);
+    vi.spyOn(process, 'cwd').mockReturnValue(dir);
     process.env.APP_ENV = 'test';
     delete process.env[PROBE];
     delete process.env.PAYMENT_ADAPTER_MODE;
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     rmSync(dir, { recursive: true, force: true });
     delete process.env[PROBE];
     for (const [key, value] of Object.entries(saved)) {
@@ -65,21 +67,19 @@ describe('load-env.ts', () => {
     }
   });
 
-  it("fills process.env from the file APP_ENV picks, the moment it is imported", () => {
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- a fresh load is the thing under test
-      require('./load-env');
-    });
+  it("fills process.env from the file APP_ENV picks, the moment it is imported", async () => {
+    // A fresh load is the thing under test, so a copy an earlier case imported must not be reused.
+    vi.resetModules();
+    await import('./load-env');
     expect(process.env[PROBE]).toBe('from-file');
     expect(process.env.PAYMENT_ADAPTER_MODE).toBe('off');
   });
 
-  it('leaves a value the process was started with alone', () => {
+  it('leaves a value the process was started with alone', async () => {
     process.env.PAYMENT_ADAPTER_MODE = 'mock';
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- a fresh load is the thing under test
-      require('./load-env');
-    });
+    // A fresh load is the thing under test, so a copy an earlier case imported must not be reused.
+    vi.resetModules();
+    await import('./load-env');
     expect(process.env.PAYMENT_ADAPTER_MODE).toBe('mock');
   });
 

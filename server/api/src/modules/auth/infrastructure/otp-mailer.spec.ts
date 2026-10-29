@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
+
 import { Logger } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 
@@ -36,17 +38,17 @@ const refusing: MailerPort = {
   send: () => Promise.reject(new Error('SMTP delivery failed: 550 no such user')),
 };
 
-let warn: jest.SpyInstance;
-let error: jest.SpyInstance;
+let warn: MockInstance;
+let error: MockInstance;
 
 beforeEach(() => {
-  jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-  warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-  error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+  vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+  warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+  error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 });
 afterEach(() => {
-  jest.useRealTimers();
-  jest.restoreAllMocks();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 /** Every line written through the Nest logger during the test. */
@@ -142,20 +144,20 @@ describe('OtpMailer · a failed send', () => {
   });
 
   it('abandons a transport that never answers after 8 seconds, not before', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const silent: MailerPort = { send: () => new Promise<void>(() => undefined) };
     const sending = new OtpMailer(silent, configFrom({})).send({
       email: EMAIL,
       otp: OTP,
       type: 'sign-in',
     });
-    const settled = jest.fn();
+    const settled = vi.fn();
     sending.then(settled, settled);
 
-    await jest.advanceTimersByTimeAsync(7_999);
+    await vi.advanceTimersByTimeAsync(7_999);
     expect(settled).not.toHaveBeenCalled();
 
-    await jest.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(1);
     await expect(sending).rejects.toThrow(
       'Failed to send OTP email: mail transport did not respond within 8000ms',
     );

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { countLeaveDays, isContradictoryHalfDay, yearsTouched } from './leave-days';
 import { isWeeklyOff, weeklyOffsFor } from './time-rules';
 

@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, type MockInstance, vi } from 'vitest';
+
 import {
   CreateBucketCommand,
   GetBucketEncryptionCommand,
@@ -49,7 +51,7 @@ function fakeS3(
 ): { client: S3Client; sent: Sent[] } {
   const client = new S3Client({ region: 'us-east-1', endpoint: 'http://127.0.0.1:9', forcePathStyle: true });
   const sent: Sent[] = [];
-  (jest.spyOn(client, 'send') as unknown as jest.SpyInstance).mockImplementation(
+  (vi.spyOn(client, 'send') as unknown as MockInstance).mockImplementation(
     async (command: { input: Record<string, unknown> }, options?: { abortSignal?: AbortSignal }) => {
       const bucket = String(command.input.Bucket);
       const record: Sent = {
@@ -90,7 +92,7 @@ function fakeS3(
   return { client, sent };
 }
 
-const quietLog = (): { log: jest.Mock; warn: jest.Mock } => ({ log: jest.fn(), warn: jest.fn() });
+const quietLog = (): { log: Mock; warn: Mock } => ({ log: vi.fn(), warn: vi.fn() });
 
 async function refusal(promise: Promise<unknown>): Promise<string> {
   try {

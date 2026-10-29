@@ -12,7 +12,9 @@
     },
     "./css": "./generated/injishi-tokens.css",
     "./ramps.css": "./generated/injishi-ramps.css",
-    "./heroui.css": "./generated/injishi-heroui.css"
+    "./heroui.css": "./generated/injishi-heroui.css",
+    "./native.css": "./generated/injishi-native.css",
+    "./native.json": "./generated/injishi-native.json"
   },
   "files": [
     "dist",
@@ -22,7 +24,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "generate:css": "node scripts/emit-css.mjs",
-    "check": "node scripts/check-dist.mjs && node scripts/emit-css.mjs --check",
+    "check": "node scripts/check-dist.mjs && node scripts/emit-css.mjs --check && node scripts/check-pasted.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "node ../../scripts/no-tests.mjs"
