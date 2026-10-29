@@ -4,11 +4,11 @@ import type {
 } from '@injishi/contracts';
 import { BadRequestException, Injectable } from '@nestjs/common';
 
-import { assertOwned } from '../../../shared/auth/assert-owned';
+import { assertOwned } from '../../../../shared/auth/assert-owned';
 import {
   assertInBranchScope,
   type ScopedWorkspace,
-} from '../../../shared/auth/branch-scope';
+} from '../../../../shared/auth/branch-scope';
 import { AmenitiesRepository } from '../infrastructure/amenities.repository';
 
 /**

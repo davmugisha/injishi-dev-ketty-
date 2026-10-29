@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
-import { AmenitiesService } from './application/amenities.service';
 import { DepartmentsService } from './application/departments.service';
 import { FolioService } from './application/folio.service';
 import { FrontDeskService } from './application/front-desk.service';
@@ -35,7 +34,6 @@ import { OutletsService } from './application/outlets.service';
 import { OffersService } from './application/offers.service';
 import { StayClaimService } from './application/stay-claim.service';
 import { StayRefundService } from './application/stay-refund.service';
-import { AmenitiesRepository } from './infrastructure/amenities.repository';
 import { DepartmentsRepository } from './infrastructure/departments.repository';
 import { FolioRepository } from './infrastructure/folio.repository';
 import { FrontDeskRepository } from './infrastructure/front-desk.repository';
@@ -108,7 +106,6 @@ import { PaymentsModule } from '../payments/payments.module';
     MessageTemplatesRepository,
     MessagingRepository,
     ResidenceRepository,
-    AmenitiesRepository,
     DepartmentsRepository,
     FolioRepository,
     RevenueRepository,
@@ -138,7 +135,6 @@ import { PaymentsModule } from '../payments/payments.module';
     FrontDeskService,
     MessagingService,
     ResidenceService,
-    AmenitiesService,
     DepartmentsService,
     FolioService,
     RevenueService,
@@ -168,7 +164,6 @@ import { PaymentsModule } from '../payments/payments.module';
     FrontDeskService,
     MessagingService,
     ResidenceService,
-    AmenitiesService,
     DepartmentsService,
     FolioService,
     RevenueService,

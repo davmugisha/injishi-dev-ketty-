@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
 
 import { StorageModule } from '../../storage/storage.module';
+import { AmenitiesService } from './application/amenities.service';
 import { InventoryService } from './application/inventory.service';
 import { PropertyPhotosService } from './application/property-photos.service';
 import { RatePlansService } from './application/rate-plans.service';
 import { RoomTypesService } from './application/room-types.service';
 import { RoomsService } from './application/rooms.service';
 import { SetupProgressService } from './application/setup-progress.service';
+import { AmenitiesRepository } from './infrastructure/amenities.repository';
 import { BranchesRepository } from './infrastructure/branches.repository';
 import { InventoryRepository } from './infrastructure/inventory.repository';
 import { PropertyPhotosRepository } from './infrastructure/property-photos.repository';
@@ -41,6 +43,10 @@ import { SetupProgressRepository } from './infrastructure/setup-progress.reposit
   // SETUP — the terms a room type sells on — not something that happens at
   // the desk today.
   providers: [
+    // What a property offers (ADR-074 stage 4: from operations, because amenities are the property's, not
+    // the desk's, and every product that sets up a property reads them).
+    AmenitiesRepository,
+    AmenitiesService,
     // Archive, restore and the head office move (ADR-054).
     BranchesRepository,
     InventoryRepository,
@@ -59,6 +65,8 @@ import { SetupProgressRepository } from './infrastructure/setup-progress.reposit
     SetupProgressService,
   ],
   exports: [
+    // For OpsAmenitiesController in PublicApiModule.
+    AmenitiesService,
     InventoryService,
     PropertyPhotosService,
     RatePlansService,
