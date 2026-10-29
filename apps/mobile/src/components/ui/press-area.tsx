@@ -77,19 +77,20 @@ export function PressArea({
       className={className}
       style={[{ minHeight: metrics.touch, minWidth: metrics.touch }, style]}
     >
-      {feedback === "native" && Platform.OS === "android" ? (
-        // The `pressed` role carries its own 8% alpha, so the ripple runs at full opacity: HeroUI's
-        // default peak of 0.1 would multiply it down to an invisible 1%.
-        <PressableFeedback.Ripple
-          animation={{ backgroundColor: { value: pressedColor }, opacity: { value: [0, 1, 0] } }}
-        />
-      ) : null}
       {feedback === "native" && Platform.OS !== "android" ? (
         <PressableFeedback.Highlight
           animation={{ backgroundColor: { value: pressedColor }, opacity: { value: [0, 1] } }}
         />
       ) : null}
       {children}
+      {feedback === "native" && Platform.OS === "android" ? (
+        // After the content, on top: the ripple starts from its own layer's touch, which a sibling
+        // drawn over it would take. The `pressed` role carries its own 8% alpha, so it runs at full
+        // opacity: HeroUI's default peak of 0.1 would multiply it down to an invisible 1%.
+        <PressableFeedback.Ripple
+          animation={{ backgroundColor: { value: pressedColor }, opacity: { value: [0, 1, 0] } }}
+        />
+      ) : null}
       {reduceMotion && pressed ? <PressedLayer /> : null}
     </PressableFeedback>
   );
