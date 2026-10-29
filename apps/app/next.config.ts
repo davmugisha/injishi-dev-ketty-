@@ -16,7 +16,14 @@ const config: NextConfig = {
   // a zone and kept the two `/_next` folders apart; web forwards nothing now.
   assetPrefix: process.env.OPERATOR_ASSET_PREFIX ?? "/operator-static",
   // Workspace packages ship TypeScript source.
-  transpilePackages: ["@injishi/ui", "@injishi/utils", "@injishi/product-hr", "@injishi/data", "@injishi/db"],
+  transpilePackages: [
+    "@injishi/ui",
+    "@injishi/utils",
+    "@injishi/product-hr",
+    "@injishi/product-pms",
+    "@injishi/data",
+    "@injishi/db",
+  ],
   // Native embedded-database driver stays a Node.js dependency of the server bundle.
   serverExternalPackages: ["@libsql/client", "libsql"],
   experimental: {
