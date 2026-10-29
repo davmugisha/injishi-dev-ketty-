@@ -210,8 +210,10 @@ const REGISTRATION_SELECT = sql`
          to_char(g.arrival_on, 'YYYY-MM-DD') as "arrivalOn", to_char(g.departure_on, 'YYYY-MM-DD') as "departureOn",
          g.status::text as status,
          case when g.host_kind = 'tenant' then t.full_name
+              when g.host_kind::text = 'stay' then p.name
               else coalesce(nullif(btrim(lp.signatory_name), ''), o.legal_name) end as "hostName",
          case when g.host_kind = 'tenant' then t.phone
+              when g.host_kind::text = 'stay' then p.contact_phone
               else coalesce(lp.contact_phone, p.contact_phone, ru.phone_number) end as "hostPhone",
          g.changed_at as "changedAt", g.cancelled_at as "cancelledAt", g.created_at as "createdAt"
     from guest_registrations g
@@ -325,6 +327,13 @@ export class GuestRegistryRepository {
     return row;
   }
 
+  /** Whether a stay already has its registration (check in is retried; the leaders hear once). */
+  async stayRegistered(guestStayId: string): Promise<boolean> {
+    const result = await this.db.execute(sql`
+      select 1 from guest_registrations where guest_stay_id = ${guestStayId} limit 1`);
+    return rowsOf<{ '?column?': number }>(result).length > 0;
+  }
+
   /** The landlord's buildings, each with where it is and its units. */
   async buildings(workspaceId: string): Promise<BuildingRow[]> {
     const result = await this.db.execute(sql`
@@ -422,6 +431,8 @@ export class GuestRegistryRepository {
       leaseId: string | null;
       propertyId: string;
       unitId: string | null;
+      /** A stay business's guest: the stay checked in. */
+      guestStayId?: string | null;
       registeredByUserId: string;
       area: Area;
     },
@@ -435,6 +446,7 @@ export class GuestRegistryRepository {
         leaseId: values.leaseId,
         propertyId: values.propertyId,
         unitId: values.unitId,
+        guestStayId: values.guestStayId ?? null,
         registeredByUserId: values.registeredByUserId,
         villageId: values.area.villageId,
         cellId: values.area.cellId,

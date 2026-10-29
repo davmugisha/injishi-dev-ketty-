@@ -97,7 +97,7 @@ export function presentLeaderGuest(
     stay: guestStayOn(today, row.arrivalOn, row.departureOn),
     host: {
       kind: row.hostKind,
-      name: row.hostName || (row.hostKind === 'tenant' ? 'The tenant' : 'The landlord'),
+      name: row.hostName || (row.hostKind === 'tenant' ? 'The tenant' : row.hostKind === 'stay' ? 'The property' : 'The landlord'),
       phone: row.hostPhone,
     },
     home: {

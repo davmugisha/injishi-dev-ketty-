@@ -1,3 +1,4 @@
+import type { GuestRegistryService } from '../../guests/application/guest-registry.service';
 import { describe, expect, it, type Mock, vi } from 'vitest';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -114,6 +115,7 @@ describe('FrontDeskService.checkOut: the departure note and the balance', () => 
       { close } as unknown as FolioService,
       {} as unknown as StayClaimService,
       {} as unknown as SelfCheckInService,
+      { fileStayGuest: vi.fn().mockResolvedValue(null) } as unknown as GuestRegistryService,
     );
 
     return { service, closeStay, findFolioForStay, close, releaseForBooking };

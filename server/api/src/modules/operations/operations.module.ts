@@ -4,6 +4,7 @@ import { isWorkerProcess } from '../../shared/process/process-role';
 import { AmenitiesService } from './application/amenities.service';
 import { DepartmentsService } from './application/departments.service';
 import { FolioService } from './application/folio.service';
+import { GuestsModule } from '../guests/guests.module';
 import { FrontDeskService } from './application/front-desk.service';
 import { StaysOverviewService } from './application/stays-overview.service';
 import { StaysOverviewRepository } from './infrastructure/stays-overview.repository';
@@ -101,7 +102,7 @@ import { PaymentsModule } from '../payments/payments.module';
    *   module notice it later, which is how a guest ends up marked refunded on
    *   money nobody sent.
    */
-  imports: [MailerModule, PaymentsModule],
+  imports: [MailerModule, PaymentsModule, GuestsModule],
   providers: [
     FrontDeskRepository,
     // The front desk's day in one read (interface real-data, frontdesk leaf).

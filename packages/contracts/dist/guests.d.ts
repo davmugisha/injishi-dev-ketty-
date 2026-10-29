@@ -52,7 +52,8 @@ export declare const OVERSIGHT_ROLE_SCOPES: Readonly<Record<OversightRole, reado
 export declare function guestChainFor(fromAbroad: boolean): LeaderRole[];
 /** A guest is "from abroad" when their nationality is not Rwandan. */
 export declare function isFromAbroad(nationality: string): boolean;
-export declare const GuestHostKind: z.ZodEnum<["tenant", "landlord"]>;
+/** Who filed a guest: a tenant, a landlord, or a stay business at check in (`stay`, 2026-10-29). */
+export declare const GuestHostKind: z.ZodEnum<["tenant", "landlord", "stay"]>;
 export type GuestHostKind = z.infer<typeof GuestHostKind>;
 export declare const GuestRegistrationStatus: z.ZodEnum<["submitted", "cancelled"]>;
 export type GuestRegistrationStatus = z.infer<typeof GuestRegistrationStatus>;
@@ -165,6 +166,7 @@ export declare const TenantGuestRequest: z.ZodEffects<z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     fullName: string;
     phone: string;
+    nationality: string;
     arrivalOn: string;
     departureOn: string;
     origin: {
@@ -174,7 +176,6 @@ export declare const TenantGuestRequest: z.ZodEffects<z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
-    nationality: string;
     relationship: string;
     idNumber?: string | null | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
@@ -193,12 +194,13 @@ export declare const TenantGuestRequest: z.ZodEffects<z.ZodObject<{
     };
     relationship: string;
     idNumber?: string | null | undefined;
+    nationality?: string | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
-    nationality?: string | undefined;
 }>, {
     fullName: string;
     phone: string;
+    nationality: string;
     arrivalOn: string;
     departureOn: string;
     origin: {
@@ -208,7 +210,6 @@ export declare const TenantGuestRequest: z.ZodEffects<z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
-    nationality: string;
     relationship: string;
     idNumber?: string | null | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
@@ -227,9 +228,9 @@ export declare const TenantGuestRequest: z.ZodEffects<z.ZodObject<{
     };
     relationship: string;
     idNumber?: string | null | undefined;
+    nationality?: string | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
-    nationality?: string | undefined;
 }>;
 export type TenantGuestRequest = z.infer<typeof TenantGuestRequest>;
 /** A landlord registers their own guest at one of their buildings: `POST /ops/guests`, and `PATCH …/:id`. */
@@ -267,6 +268,7 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     fullName: string;
     phone: string;
+    nationality: string;
     propertyId: string;
     arrivalOn: string;
     departureOn: string;
@@ -277,7 +279,6 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
-    nationality: string;
     relationship: string;
     idNumber?: string | null | undefined;
     unitId?: string | null | undefined;
@@ -298,13 +299,14 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
     };
     relationship: string;
     idNumber?: string | null | undefined;
+    nationality?: string | undefined;
     unitId?: string | null | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
-    nationality?: string | undefined;
 }>, {
     fullName: string;
     phone: string;
+    nationality: string;
     propertyId: string;
     arrivalOn: string;
     departureOn: string;
@@ -315,7 +317,6 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
-    nationality: string;
     relationship: string;
     idNumber?: string | null | undefined;
     unitId?: string | null | undefined;
@@ -336,10 +337,10 @@ export declare const LandlordGuestRequest: z.ZodEffects<z.ZodObject<{
     };
     relationship: string;
     idNumber?: string | null | undefined;
+    nationality?: string | undefined;
     unitId?: string | null | undefined;
     idKind?: "national_id" | "passport" | null | undefined;
     relationshipOther?: string | null | undefined;
-    nationality?: string | undefined;
 }>;
 export type LandlordGuestRequest = z.infer<typeof LandlordGuestRequest>;
 /** One step of the chain as the host reads it: who it went to and where it stands. Never a flag. */
@@ -362,7 +363,7 @@ export declare const HostChainStep: z.ZodObject<{
 export type HostChainStep = z.infer<typeof HostChainStep>;
 export declare const HostGuest: z.ZodObject<{
     id: z.ZodString;
-    hostKind: z.ZodEnum<["tenant", "landlord"]>;
+    hostKind: z.ZodEnum<["tenant", "landlord", "stay"]>;
     fullName: z.ZodString;
     phone: z.ZodString;
     nationality: z.ZodString;
@@ -432,6 +433,7 @@ export declare const HostGuest: z.ZodObject<{
     propertyName: string;
     phone: string;
     idNumber: string | null;
+    nationality: string;
     stay: "arriving" | "staying" | "left" | null;
     unitLabel: string | null;
     propertyId: string;
@@ -447,9 +449,8 @@ export declare const HostGuest: z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
-    nationality: string;
     relationship: string;
-    hostKind: "landlord" | "tenant";
+    hostKind: "landlord" | "tenant" | "stay";
     nationalityName: string;
     fromAbroad: boolean;
     relationshipLabel: string;
@@ -470,6 +471,7 @@ export declare const HostGuest: z.ZodObject<{
     propertyName: string;
     phone: string;
     idNumber: string | null;
+    nationality: string;
     stay: "arriving" | "staying" | "left" | null;
     unitLabel: string | null;
     propertyId: string;
@@ -485,9 +487,8 @@ export declare const HostGuest: z.ZodObject<{
         kind: "country";
         countryCode: string;
     };
-    nationality: string;
     relationship: string;
-    hostKind: "landlord" | "tenant";
+    hostKind: "landlord" | "tenant" | "stay";
     nationalityName: string;
     fromAbroad: boolean;
     relationshipLabel: string;
@@ -551,7 +552,7 @@ export type HostGuestQuery = z.infer<typeof HostGuestQuery>;
 export declare const HostGuestList: z.ZodObject<{
     guests: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        hostKind: z.ZodEnum<["tenant", "landlord"]>;
+        hostKind: z.ZodEnum<["tenant", "landlord", "stay"]>;
         fullName: z.ZodString;
         phone: z.ZodString;
         nationality: z.ZodString;
@@ -621,6 +622,7 @@ export declare const HostGuestList: z.ZodObject<{
         propertyName: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -636,9 +638,8 @@ export declare const HostGuestList: z.ZodObject<{
             kind: "country";
             countryCode: string;
         };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "landlord" | "tenant" | "stay";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -659,6 +660,7 @@ export declare const HostGuestList: z.ZodObject<{
         propertyName: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -674,9 +676,8 @@ export declare const HostGuestList: z.ZodObject<{
             kind: "country";
             countryCode: string;
         };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "landlord" | "tenant" | "stay";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -700,6 +701,7 @@ export declare const HostGuestList: z.ZodObject<{
         propertyName: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -715,9 +717,8 @@ export declare const HostGuestList: z.ZodObject<{
             kind: "country";
             countryCode: string;
         };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "landlord" | "tenant" | "stay";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -741,6 +742,7 @@ export declare const HostGuestList: z.ZodObject<{
         propertyName: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -756,9 +758,8 @@ export declare const HostGuestList: z.ZodObject<{
             kind: "country";
             countryCode: string;
         };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "landlord" | "tenant" | "stay";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -778,7 +779,7 @@ export type HostGuestList = z.infer<typeof HostGuestList>;
 export declare const TenantGuestList: z.ZodObject<{
     guests: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        hostKind: z.ZodEnum<["tenant", "landlord"]>;
+        hostKind: z.ZodEnum<["tenant", "landlord", "stay"]>;
         fullName: z.ZodString;
         phone: z.ZodString;
         nationality: z.ZodString;
@@ -848,6 +849,7 @@ export declare const TenantGuestList: z.ZodObject<{
         propertyName: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -863,9 +865,8 @@ export declare const TenantGuestList: z.ZodObject<{
             kind: "country";
             countryCode: string;
         };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "landlord" | "tenant" | "stay";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -886,6 +887,7 @@ export declare const TenantGuestList: z.ZodObject<{
         propertyName: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -901,9 +903,8 @@ export declare const TenantGuestList: z.ZodObject<{
             kind: "country";
             countryCode: string;
         };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "landlord" | "tenant" | "stay";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -938,6 +939,7 @@ export declare const TenantGuestList: z.ZodObject<{
         propertyName: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -953,9 +955,8 @@ export declare const TenantGuestList: z.ZodObject<{
             kind: "country";
             countryCode: string;
         };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "landlord" | "tenant" | "stay";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -983,6 +984,7 @@ export declare const TenantGuestList: z.ZodObject<{
         propertyName: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -998,9 +1000,8 @@ export declare const TenantGuestList: z.ZodObject<{
             kind: "country";
             countryCode: string;
         };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "landlord" | "tenant" | "stay";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -1024,7 +1025,7 @@ export type TenantGuestList = z.infer<typeof TenantGuestList>;
 export declare const LandlordGuestList: z.ZodObject<{
     guests: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        hostKind: z.ZodEnum<["tenant", "landlord"]>;
+        hostKind: z.ZodEnum<["tenant", "landlord", "stay"]>;
         fullName: z.ZodString;
         phone: z.ZodString;
         nationality: z.ZodString;
@@ -1094,6 +1095,7 @@ export declare const LandlordGuestList: z.ZodObject<{
         propertyName: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -1109,9 +1111,8 @@ export declare const LandlordGuestList: z.ZodObject<{
             kind: "country";
             countryCode: string;
         };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "landlord" | "tenant" | "stay";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -1132,6 +1133,7 @@ export declare const LandlordGuestList: z.ZodObject<{
         propertyName: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -1147,9 +1149,8 @@ export declare const LandlordGuestList: z.ZodObject<{
             kind: "country";
             countryCode: string;
         };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "landlord" | "tenant" | "stay";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -1209,6 +1210,7 @@ export declare const LandlordGuestList: z.ZodObject<{
         propertyName: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -1224,9 +1226,8 @@ export declare const LandlordGuestList: z.ZodObject<{
             kind: "country";
             countryCode: string;
         };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "landlord" | "tenant" | "stay";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -1260,6 +1261,7 @@ export declare const LandlordGuestList: z.ZodObject<{
         propertyName: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left" | null;
         unitLabel: string | null;
         propertyId: string;
@@ -1275,9 +1277,8 @@ export declare const LandlordGuestList: z.ZodObject<{
             kind: "country";
             countryCode: string;
         };
-        nationality: string;
         relationship: string;
-        hostKind: "landlord" | "tenant";
+        hostKind: "landlord" | "tenant" | "stay";
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -1356,16 +1357,16 @@ export declare const LeaderGuestQuery: z.ZodObject<{
     cellId?: number | undefined;
     villageId?: number | undefined;
     q?: string | undefined;
-    origin?: "nationals" | "international" | undefined;
     nationality?: string | undefined;
+    origin?: "nationals" | "international" | undefined;
 }, {
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
     page?: number | undefined;
     q?: string | undefined;
-    origin?: "nationals" | "international" | undefined;
     nationality?: string | undefined;
+    origin?: "nationals" | "international" | undefined;
     tab?: "arriving" | "staying" | "left" | "flagged" | undefined;
     when?: "soon" | "later" | undefined;
 }>;
@@ -1444,16 +1445,16 @@ export declare const LeaderGuest: z.ZodObject<{
     nights: z.ZodNumber;
     stay: z.ZodEnum<["arriving", "staying", "left"]>;
     host: z.ZodObject<{
-        kind: z.ZodEnum<["tenant", "landlord"]>;
+        kind: z.ZodEnum<["tenant", "landlord", "stay"]>;
         name: z.ZodString;
         phone: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        kind: "landlord" | "tenant";
+        kind: "landlord" | "tenant" | "stay";
         phone: string | null;
     }, {
         name: string;
-        kind: "landlord" | "tenant";
+        kind: "landlord" | "tenant" | "stay";
         phone: string | null;
     }>;
     home: z.ZodObject<{
@@ -1548,13 +1549,14 @@ export declare const LeaderGuest: z.ZodObject<{
     nights: number;
     host: {
         name: string;
-        kind: "landlord" | "tenant";
+        kind: "landlord" | "tenant" | "stay";
         phone: string | null;
     };
     fullName: string;
     createdAt: string;
     phone: string;
     idNumber: string | null;
+    nationality: string;
     stay: "arriving" | "staying" | "left";
     arrivalOn: string;
     departureOn: string;
@@ -1570,7 +1572,6 @@ export declare const LeaderGuest: z.ZodObject<{
         cellName: string | null;
     };
     idKind: "national_id" | "passport" | null;
-    nationality: string;
     nationalityName: string;
     fromAbroad: boolean;
     relationshipLabel: string;
@@ -1597,13 +1598,14 @@ export declare const LeaderGuest: z.ZodObject<{
     nights: number;
     host: {
         name: string;
-        kind: "landlord" | "tenant";
+        kind: "landlord" | "tenant" | "stay";
         phone: string | null;
     };
     fullName: string;
     createdAt: string;
     phone: string;
     idNumber: string | null;
+    nationality: string;
     stay: "arriving" | "staying" | "left";
     arrivalOn: string;
     departureOn: string;
@@ -1619,7 +1621,6 @@ export declare const LeaderGuest: z.ZodObject<{
         cellName: string | null;
     };
     idKind: "national_id" | "passport" | null;
-    nationality: string;
     nationalityName: string;
     fromAbroad: boolean;
     relationshipLabel: string;
@@ -2237,16 +2238,16 @@ export declare const LeaderGuestPage: z.ZodObject<{
         nights: z.ZodNumber;
         stay: z.ZodEnum<["arriving", "staying", "left"]>;
         host: z.ZodObject<{
-            kind: z.ZodEnum<["tenant", "landlord"]>;
+            kind: z.ZodEnum<["tenant", "landlord", "stay"]>;
             name: z.ZodString;
             phone: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
             name: string;
-            kind: "landlord" | "tenant";
+            kind: "landlord" | "tenant" | "stay";
             phone: string | null;
         }, {
             name: string;
-            kind: "landlord" | "tenant";
+            kind: "landlord" | "tenant" | "stay";
             phone: string | null;
         }>;
         home: z.ZodObject<{
@@ -2341,13 +2342,14 @@ export declare const LeaderGuestPage: z.ZodObject<{
         nights: number;
         host: {
             name: string;
-            kind: "landlord" | "tenant";
+            kind: "landlord" | "tenant" | "stay";
             phone: string | null;
         };
         fullName: string;
         createdAt: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left";
         arrivalOn: string;
         departureOn: string;
@@ -2363,7 +2365,6 @@ export declare const LeaderGuestPage: z.ZodObject<{
             cellName: string | null;
         };
         idKind: "national_id" | "passport" | null;
-        nationality: string;
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -2390,13 +2391,14 @@ export declare const LeaderGuestPage: z.ZodObject<{
         nights: number;
         host: {
             name: string;
-            kind: "landlord" | "tenant";
+            kind: "landlord" | "tenant" | "stay";
             phone: string | null;
         };
         fullName: string;
         createdAt: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left";
         arrivalOn: string;
         departureOn: string;
@@ -2412,7 +2414,6 @@ export declare const LeaderGuestPage: z.ZodObject<{
             cellName: string | null;
         };
         idKind: "national_id" | "passport" | null;
-        nationality: string;
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -2444,13 +2445,14 @@ export declare const LeaderGuestPage: z.ZodObject<{
         nights: number;
         host: {
             name: string;
-            kind: "landlord" | "tenant";
+            kind: "landlord" | "tenant" | "stay";
             phone: string | null;
         };
         fullName: string;
         createdAt: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left";
         arrivalOn: string;
         departureOn: string;
@@ -2466,7 +2468,6 @@ export declare const LeaderGuestPage: z.ZodObject<{
             cellName: string | null;
         };
         idKind: "national_id" | "passport" | null;
-        nationality: string;
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -2544,13 +2545,14 @@ export declare const LeaderGuestPage: z.ZodObject<{
         nights: number;
         host: {
             name: string;
-            kind: "landlord" | "tenant";
+            kind: "landlord" | "tenant" | "stay";
             phone: string | null;
         };
         fullName: string;
         createdAt: string;
         phone: string;
         idNumber: string | null;
+        nationality: string;
         stay: "arriving" | "staying" | "left";
         arrivalOn: string;
         departureOn: string;
@@ -2566,7 +2568,6 @@ export declare const LeaderGuestPage: z.ZodObject<{
             cellName: string | null;
         };
         idKind: "national_id" | "passport" | null;
-        nationality: string;
         nationalityName: string;
         fromAbroad: boolean;
         relationshipLabel: string;
@@ -2662,8 +2663,8 @@ export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
-    origin?: "nationals" | "international" | undefined;
     nationality?: string | undefined;
+    origin?: "nationals" | "international" | undefined;
     relationship?: string | undefined;
     flagged?: "only" | undefined;
 }, {
@@ -2672,8 +2673,8 @@ export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
-    origin?: "nationals" | "international" | undefined;
     nationality?: string | undefined;
+    origin?: "nationals" | "international" | undefined;
     relationship?: string | undefined;
     flagged?: "only" | undefined;
 }>, {
@@ -2682,8 +2683,8 @@ export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
-    origin?: "nationals" | "international" | undefined;
     nationality?: string | undefined;
+    origin?: "nationals" | "international" | undefined;
     relationship?: string | undefined;
     flagged?: "only" | undefined;
 }, {
@@ -2692,8 +2693,8 @@ export declare const GuestReportQuery: z.ZodEffects<z.ZodObject<{
     sectorId?: number | undefined;
     cellId?: number | undefined;
     villageId?: number | undefined;
-    origin?: "nationals" | "international" | undefined;
     nationality?: string | undefined;
+    origin?: "nationals" | "international" | undefined;
     relationship?: string | undefined;
     flagged?: "only" | undefined;
 }>;

@@ -42,6 +42,7 @@ import { idKindEnum, oversightRoleEnum } from './enums';
 import { cells, districts, provinces, sectors, villages } from './geography';
 import { properties, rentalUnits } from './inventory';
 import { oversightAssignments, orgs, workspaces } from './org';
+import { guestStays } from './hospitality';
 import { leases } from './residence';
 
 export const guestHostKindEnum = pgEnum('guest_host_kind', GuestHostKind.options);
@@ -85,6 +86,8 @@ export const guestRegistrations = pgTable(
       .notNull()
       .references(() => properties.id),
     unitId: uuid('unit_id').references(() => rentalUnits.id),
+    /** A stay business's guest: the stay checked in (2026-10-29). Null for a tenant's or a landlord's. */
+    guestStayId: uuid('guest_stay_id').references(() => guestStays.id),
     registeredByUserId: uuid('registered_by_user_id')
       .notNull()
       .references(() => users.id),
@@ -128,6 +131,8 @@ export const guestRegistrations = pgTable(
   (t) => [
     index('guest_registrations_host_idx').on(t.workspaceId, t.hostKind, t.arrivalOn),
     index('guest_registrations_lease_idx').on(t.leaseId).where(sql`${t.leaseId} IS NOT NULL`),
+    // One registration per stay checked in.
+    uniqueIndex('guest_registrations_stay_uk').on(t.guestStayId).where(sql`${t.guestStayId} IS NOT NULL`),
     index('guest_registrations_property_idx').on(t.propertyId),
     index('guest_registrations_district_idx').on(t.districtId, t.arrivalOn),
     index('guest_registrations_sector_idx').on(t.sectorId, t.arrivalOn),
@@ -137,7 +142,10 @@ export const guestRegistrations = pgTable(
     index('guest_registrations_departure_idx').on(t.departureOn),
     check(
       'guest_registrations_host_shape',
-      sql`(${t.hostKind} = 'tenant' AND ${t.leaseId} IS NOT NULL) OR (${t.hostKind} = 'landlord' AND ${t.leaseId} IS NULL)`,
+      // Compared as text so the migration can name `stay` in the same transaction that adds it.
+      sql`(${t.hostKind}::text = 'tenant' AND ${t.leaseId} IS NOT NULL AND ${t.guestStayId} IS NULL)
+          OR (${t.hostKind}::text = 'landlord' AND ${t.leaseId} IS NULL AND ${t.guestStayId} IS NULL)
+          OR (${t.hostKind}::text = 'stay' AND ${t.leaseId} IS NULL AND ${t.guestStayId} IS NOT NULL)`,
     ),
     // A level is known only when every level above it is.
     check(
@@ -161,12 +169,15 @@ export const guestRegistrations = pgTable(
     ),
     check(
       'guest_registrations_origin_shape',
-      sql`(${t.originCountry} = 'RW') = (${t.originVillageId} IS NOT NULL)`,
+      // A stay business's desk records the country, not the village a Rwandan guest comes from.
+      sql`(${t.hostKind}::text = 'stay' AND ${t.originVillageId} IS NULL)
+          OR ((${t.originCountry} = 'RW') = (${t.originVillageId} IS NOT NULL))`,
     ),
-    // Departure on or after arrival, at most 90 days later.
+    // Departure on or after arrival, at most 90 days later; a stay (a serviced apartment) up to a year.
     check(
       'guest_registrations_dates',
-      sql`${t.departureOn} >= ${t.arrivalOn} AND ${t.departureOn} - ${t.arrivalOn} <= 90`,
+      sql`${t.departureOn} >= ${t.arrivalOn}
+          AND ${t.departureOn} - ${t.arrivalOn} <= (CASE WHEN ${t.hostKind}::text = 'stay' THEN 366 ELSE 90 END)`,
     ),
     check(
       'guest_registrations_cancelled_shape',

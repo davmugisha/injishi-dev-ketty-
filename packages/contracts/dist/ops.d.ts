@@ -547,6 +547,12 @@ export declare const StayRegistrationDetails: z.ZodObject<{
     /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
     addressText: z.ZodOptional<z.ZodString>;
     /**
+     * ISO 3166-1 alpha-2, as the document says (2026-10-29). With a phone, it files the guest with the
+     * local leaders of the property's village, and with DGIE for a guest from abroad, as the law asks
+     * every place that lets rooms to keep.
+     */
+    nationality: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+    /**
      * Where the "continue in the app" mail goes. The ONE address this stay's
      * claim invitation is ever sent to, which is why it is captured here at the
      * counter with the guest watching, and never supplied later by a caller.
@@ -566,6 +572,7 @@ export declare const StayRegistrationDetails: z.ZodObject<{
     email?: string | undefined;
     phone?: string | undefined;
     idNumber?: string | undefined;
+    nationality?: string | undefined;
     invite?: boolean | undefined;
 }, {
     documentType?: "national_id" | "passport" | "other" | undefined;
@@ -574,6 +581,7 @@ export declare const StayRegistrationDetails: z.ZodObject<{
     email?: string | undefined;
     phone?: string | undefined;
     idNumber?: string | undefined;
+    nationality?: string | undefined;
     invite?: boolean | undefined;
 }>;
 export type StayRegistrationDetails = z.infer<typeof StayRegistrationDetails>;
@@ -769,6 +777,12 @@ export declare const CheckInRequest: z.ZodObject<{
         /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
         addressText: z.ZodOptional<z.ZodString>;
         /**
+         * ISO 3166-1 alpha-2, as the document says (2026-10-29). With a phone, it files the guest with the
+         * local leaders of the property's village, and with DGIE for a guest from abroad, as the law asks
+         * every place that lets rooms to keep.
+         */
+        nationality: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+        /**
          * Where the "continue in the app" mail goes. The ONE address this stay's
          * claim invitation is ever sent to, which is why it is captured here at the
          * counter with the guest watching, and never supplied later by a caller.
@@ -788,6 +802,7 @@ export declare const CheckInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     }, {
         documentType?: "national_id" | "passport" | "other" | undefined;
@@ -796,6 +811,7 @@ export declare const CheckInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
@@ -806,6 +822,7 @@ export declare const CheckInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -818,6 +835,7 @@ export declare const CheckInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -879,6 +897,12 @@ export declare const WalkInRequest: z.ZodObject<{
         /** Home address, free text: Rwandan and foreign addresses do not share a shape. */
         addressText: z.ZodOptional<z.ZodString>;
         /**
+         * ISO 3166-1 alpha-2, as the document says (2026-10-29). With a phone, it files the guest with the
+         * local leaders of the property's village, and with DGIE for a guest from abroad, as the law asks
+         * every place that lets rooms to keep.
+         */
+        nationality: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+        /**
          * Where the "continue in the app" mail goes. The ONE address this stay's
          * claim invitation is ever sent to, which is why it is captured here at the
          * counter with the guest watching, and never supplied later by a caller.
@@ -898,6 +922,7 @@ export declare const WalkInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     }, {
         documentType?: "national_id" | "passport" | "other" | undefined;
@@ -906,6 +931,7 @@ export declare const WalkInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     }>>;
 }, "strip", z.ZodTypeAny, {
@@ -918,6 +944,7 @@ export declare const WalkInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;
@@ -932,6 +959,7 @@ export declare const WalkInRequest: z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
+        nationality?: string | undefined;
         invite?: boolean | undefined;
     } | undefined;
     nightlyRateRwf?: number | undefined;

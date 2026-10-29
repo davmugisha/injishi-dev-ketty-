@@ -1,3 +1,4 @@
+import type { GuestRegistryService } from '../../guests/application/guest-registry.service';
 import { describe, expect, it } from 'vitest';
 
 import type { WalkInRequest } from '@injishi/contracts';
@@ -139,6 +140,7 @@ function build(opts: {
     onboarding,
     // A walk-in has no booking, so nothing pre-arrival is carried onto the stay.
     { carryToStay: async () => undefined } as unknown as SelfCheckInService,
+    { fileStayGuest: async () => null } as unknown as GuestRegistryService,
   );
   return { service, opened, holdQueries, folios, cards, posted };
 }

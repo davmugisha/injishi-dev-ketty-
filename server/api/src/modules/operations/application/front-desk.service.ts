@@ -1,11 +1,14 @@
-import type {
-  CheckInRequest,
-  CheckOutRequest,
-  OperatorRoom,
-  OperatorStay,
-  OperatorStayList,
-  SetHousekeepingRequest,
-  WalkInRequest,
+import {
+  addDays,
+  type CheckInRequest,
+  type CheckOutRequest,
+  kigaliToday,
+  type OperatorRoom,
+  type OperatorStay,
+  type OperatorStayList,
+  type SetHousekeepingRequest,
+  type StayRegistrationDetails,
+  type WalkInRequest,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -15,6 +18,7 @@ import {
 } from '@nestjs/common';
 
 import { assertOwned } from '../../../shared/auth/assert-owned';
+import { GuestRegistryService } from '../../guests/application/guest-registry.service';
 import {
   assertInBranchScope,
   type ScopedWorkspace,
@@ -64,7 +68,45 @@ export class FrontDeskService {
     private readonly onboarding: StayClaimService,
     /** The identity a guest sent ahead of arrival, carried onto the stay (ADR-060). */
     private readonly selfCheckIn: SelfCheckInService,
+    /** Every guest checked in is filed with the leaders of the place, and DGIE for a guest from abroad. */
+    private readonly guestRegistry: GuestRegistryService,
   ) {}
+
+  /**
+   * File the guest with the local leaders (and DGIE), as the law asks of every place that lets rooms
+   * (2026-10-29). Best effort, like the registration card: a check in never fails because the filing
+   * did, and the desk sees the guest in house either way.
+   */
+  private async fileWithLeaders(input: {
+    workspaceId: string;
+    propertyId: string | null;
+    stayId: string;
+    userId: string | null;
+    fallbackName: string;
+    guest: StayRegistrationDetails | undefined;
+    arrivalOn: string;
+    departureOn: string;
+  }): Promise<void> {
+    const g = input.guest;
+    if (!input.propertyId || !input.userId || !g?.nationality || !g.phone) return;
+    try {
+      await this.guestRegistry.fileStayGuest({
+        workspaceId: input.workspaceId,
+        propertyId: input.propertyId,
+        guestStayId: input.stayId,
+        userId: input.userId,
+        fullName: g.fullName ?? input.fallbackName,
+        phone: e164(g.phone),
+        nationality: g.nationality,
+        idKind: g.documentType === 'national_id' || g.documentType === 'passport' ? g.documentType : null,
+        idNumber: g.idNumber ?? null,
+        arrivalOn: input.arrivalOn,
+        departureOn: input.departureOn,
+      });
+    } catch (error) {
+      this.log.warn(`stay ${input.stayId}: not filed with the leaders: ${error instanceof Error ? error.message : error}`);
+    }
+  }
 
   /** Every room in this workspace, with who is in it. */
   async listRooms(ws: ScopedWorkspace): Promise<OperatorRoom[]> {
@@ -126,6 +168,8 @@ export class FrontDeskService {
     ws: ScopedWorkspace,
     bookingId: string,
     body: CheckInRequest,
+    /** Who checked the guest in: the leaders' record names them. */
+    actorUserId?: string,
   ): Promise<OperatorStay> {
     const booking = assertOwned(
       await this.rooms.findCheckInSubject(bookingId),
@@ -221,6 +265,16 @@ export class FrontDeskService {
     // the claim code and the "continue in the app" mail. A booked guest usually
     // sends nothing here and nothing happens.
     await this.onboarding.registerAndInvite(created.id, body.guest);
+    await this.fileWithLeaders({
+      workspaceId: ws.workspaceId,
+      propertyId: room.propertyId,
+      stayId: created.id,
+      userId: actorUserId ?? null,
+      fallbackName: created.guestName ?? 'Guest',
+      guest: body.guest,
+      arrivalOn: kigaliToday(),
+      departureOn: booking.checkOut,
+    });
     // What the guest sent from their phone before arriving, photo included.
     // After the desk card, so anything the desk typed wins; never throws.
     await this.selfCheckIn.carryToStay(booking.id, created.id);
@@ -252,7 +306,7 @@ export class FrontDeskService {
    * nobody could charge, which is most of what a walk in is: somebody who pays
    * at the counter.
    */
-  async walkIn(ws: ScopedWorkspace, body: WalkInRequest): Promise<OperatorStay> {
+  async walkIn(ws: ScopedWorkspace, body: WalkInRequest, actorUserId?: string): Promise<OperatorStay> {
     const room = assertOwned(await this.rooms.findRoom(body.roomId), ws);
     assertInBranchScope(ws, room.propertyId);
     assertRoomTypeOnSale(room);
@@ -362,6 +416,16 @@ export class FrontDeskService {
      * invitation is best effort and the desk can send it again.
      */
     await this.onboarding.registerAndInvite(created.id, body.guest);
+    await this.fileWithLeaders({
+      workspaceId: ws.workspaceId,
+      propertyId: room.propertyId,
+      stayId: created.id,
+      userId: actorUserId ?? null,
+      fallbackName: body.guestName.trim(),
+      guest: body.guest,
+      arrivalOn: kigaliToday(),
+      departureOn: plannedExitAt ? kigaliToday(plannedExitAt) : addDays(kigaliToday(), 1),
+    });
 
     return this.presentStay(created);
   }
@@ -619,4 +683,13 @@ export function prepaidRoomRwf(
   );
   if (nights <= 0) return 0;
   return Math.max(0, booking.lockedNightlyRateRwf * nights - (booking.refundRwf ?? 0));
+}
+
+/** A Rwandan number as the desk types it ("0788…") in E.164; anything already international is kept. */
+function e164(phone: string): string | null {
+  const digits = phone.replace(/[^\d+]/g, '');
+  if (/^\+[1-9]\d{7,14}$/.test(digits)) return digits;
+  if (/^0\d{9}$/.test(digits)) return `+250${digits.slice(1)}`;
+  if (/^250\d{9}$/.test(digits)) return `+${digits}`;
+  return null;
 }

@@ -1657,6 +1657,7 @@ export declare const TenantView: z.ZodObject<{
     createdAt: string;
     phone: string | null;
     idNumber: string | null;
+    nationality: string | null;
     leases: {
         status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
@@ -1666,7 +1667,6 @@ export declare const TenantView: z.ZodObject<{
         endDate: string;
     }[];
     idKind: "national_id" | "passport" | null;
-    nationality: string | null;
     updatedAt: string;
     hasAccount: boolean;
     editable: boolean;
@@ -1677,6 +1677,7 @@ export declare const TenantView: z.ZodObject<{
     createdAt: string;
     phone: string | null;
     idNumber: string | null;
+    nationality: string | null;
     leases: {
         status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
@@ -1686,7 +1687,6 @@ export declare const TenantView: z.ZodObject<{
         endDate: string;
     }[];
     idKind: "national_id" | "passport" | null;
-    nationality: string | null;
     updatedAt: string;
     hasAccount: boolean;
     editable: boolean;
@@ -1736,6 +1736,7 @@ export declare const TenantList: z.ZodObject<{
         createdAt: string;
         phone: string | null;
         idNumber: string | null;
+        nationality: string | null;
         leases: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
@@ -1745,7 +1746,6 @@ export declare const TenantList: z.ZodObject<{
             endDate: string;
         }[];
         idKind: "national_id" | "passport" | null;
-        nationality: string | null;
         updatedAt: string;
         hasAccount: boolean;
         editable: boolean;
@@ -1756,6 +1756,7 @@ export declare const TenantList: z.ZodObject<{
         createdAt: string;
         phone: string | null;
         idNumber: string | null;
+        nationality: string | null;
         leases: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
@@ -1765,7 +1766,6 @@ export declare const TenantList: z.ZodObject<{
             endDate: string;
         }[];
         idKind: "national_id" | "passport" | null;
-        nationality: string | null;
         updatedAt: string;
         hasAccount: boolean;
         editable: boolean;
@@ -1778,6 +1778,7 @@ export declare const TenantList: z.ZodObject<{
         createdAt: string;
         phone: string | null;
         idNumber: string | null;
+        nationality: string | null;
         leases: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
@@ -1787,7 +1788,6 @@ export declare const TenantList: z.ZodObject<{
             endDate: string;
         }[];
         idKind: "national_id" | "passport" | null;
-        nationality: string | null;
         updatedAt: string;
         hasAccount: boolean;
         editable: boolean;
@@ -1800,6 +1800,7 @@ export declare const TenantList: z.ZodObject<{
         createdAt: string;
         phone: string | null;
         idNumber: string | null;
+        nationality: string | null;
         leases: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
@@ -1809,7 +1810,6 @@ export declare const TenantList: z.ZodObject<{
             endDate: string;
         }[];
         idKind: "national_id" | "passport" | null;
-        nationality: string | null;
         updatedAt: string;
         hasAccount: boolean;
         editable: boolean;
@@ -2315,8 +2315,8 @@ export declare const LeaseDetail: z.ZodObject<{
         createdAt: string;
         phone: string | null;
         idNumber: string | null;
-        idKind: "national_id" | "passport" | null;
         nationality: string | null;
+        idKind: "national_id" | "passport" | null;
         updatedAt: string;
         hasAccount: boolean;
         editable: boolean;
@@ -2327,8 +2327,8 @@ export declare const LeaseDetail: z.ZodObject<{
         createdAt: string;
         phone: string | null;
         idNumber: string | null;
-        idKind: "national_id" | "passport" | null;
         nationality: string | null;
+        idKind: "national_id" | "passport" | null;
         updatedAt: string;
         hasAccount: boolean;
         editable: boolean;
@@ -2757,8 +2757,8 @@ export declare const LeaseDetail: z.ZodObject<{
         createdAt: string;
         phone: string | null;
         idNumber: string | null;
-        idKind: "national_id" | "passport" | null;
         nationality: string | null;
+        idKind: "national_id" | "passport" | null;
         updatedAt: string;
         hasAccount: boolean;
         editable: boolean;
@@ -2908,8 +2908,8 @@ export declare const LeaseDetail: z.ZodObject<{
         createdAt: string;
         phone: string | null;
         idNumber: string | null;
-        idKind: "national_id" | "passport" | null;
         nationality: string | null;
+        idKind: "national_id" | "passport" | null;
         updatedAt: string;
         hasAccount: boolean;
         editable: boolean;
@@ -3160,15 +3160,15 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             }, {
                 fullName: string;
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             }>;
         }, "strip", z.ZodTypeAny, {
             landlord: {
@@ -3183,8 +3183,8 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             };
         }, {
             landlord: {
@@ -3199,8 +3199,8 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             };
         }>;
         premises: z.ZodObject<{
@@ -3308,8 +3308,8 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             };
         };
         issuedAt: string;
@@ -3357,8 +3357,8 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             };
         };
         issuedAt: string;
@@ -3445,8 +3445,8 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             };
         };
         issuedAt: string;
@@ -3512,8 +3512,8 @@ export declare const LeaseContractView: z.ZodObject<{
                 email: string;
                 phone: string;
                 idNumber: string;
-                idKind: "national_id" | "passport";
                 nationality: string;
+                idKind: "national_id" | "passport";
             };
         };
         issuedAt: string;

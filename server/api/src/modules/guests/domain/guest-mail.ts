@@ -63,20 +63,23 @@ export interface GuestMailInput {
   fromCountry: string | null;
   arrivalOn: string;
   departureOn: string;
-  hostKind: 'tenant' | 'landlord';
+  hostKind: 'tenant' | 'landlord' | 'stay';
   /** The home's place in words, village up to district. */
   area: string;
   role: LeaderRole;
 }
 
 function stayLine(input: GuestMailInput): string {
-  const host = input.hostKind === 'tenant' ? 'A tenant' : 'A landlord';
+  const host =
+    input.hostKind === 'tenant' ? 'A tenant' : input.hostKind === 'stay' ? 'A guest house, lodge or hotel' : 'A landlord';
   const where = input.area ? ` in ${input.area}` : '';
   const dates =
     input.arrivalOn === input.departureOn
       ? `on ${longDate(input.arrivalOn)}`
       : `from ${longDate(input.arrivalOn)} to ${longDate(input.departureOn)}`;
-  return `${host}${where} registered a guest staying ${dates}.`;
+  return input.hostKind === 'stay'
+    ? `${host}${where} checked in a guest staying ${dates}.`
+    : `${host}${where} registered a guest staying ${dates}.`;
 }
 
 /** A guest was filed in the leader's area: one per registration, per leader. */

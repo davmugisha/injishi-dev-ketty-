@@ -208,7 +208,8 @@ export function isFromAbroad(nationality: string): boolean {
 
 // --- Guest vocabulary -------------------------------------------------------------
 
-export const GuestHostKind = z.enum(["tenant", "landlord"]);
+/** Who filed a guest: a tenant, a landlord, or a stay business at check in (`stay`, 2026-10-29). */
+export const GuestHostKind = z.enum(["tenant", "landlord", "stay"]);
 export type GuestHostKind = z.infer<typeof GuestHostKind>;
 
 export const GuestRegistrationStatus = z.enum(["submitted", "cancelled"]);

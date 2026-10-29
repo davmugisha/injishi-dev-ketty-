@@ -53,15 +53,15 @@ export declare const LeaseTenantParty: z.ZodObject<{
     email: string;
     phone: string;
     idNumber: string;
-    idKind: "national_id" | "passport";
     nationality: string;
+    idKind: "national_id" | "passport";
 }, {
     fullName: string;
     email: string;
     phone: string;
     idNumber: string;
-    idKind: "national_id" | "passport";
     nationality: string;
+    idKind: "national_id" | "passport";
 }>;
 export type LeaseTenantParty = z.infer<typeof LeaseTenantParty>;
 /** Where the home is, down to the village. */
@@ -186,15 +186,15 @@ export declare const LeaseContract: z.ZodObject<{
             email: string;
             phone: string;
             idNumber: string;
-            idKind: "national_id" | "passport";
             nationality: string;
+            idKind: "national_id" | "passport";
         }, {
             fullName: string;
             email: string;
             phone: string;
             idNumber: string;
-            idKind: "national_id" | "passport";
             nationality: string;
+            idKind: "national_id" | "passport";
         }>;
     }, "strip", z.ZodTypeAny, {
         landlord: {
@@ -209,8 +209,8 @@ export declare const LeaseContract: z.ZodObject<{
             email: string;
             phone: string;
             idNumber: string;
-            idKind: "national_id" | "passport";
             nationality: string;
+            idKind: "national_id" | "passport";
         };
     }, {
         landlord: {
@@ -225,8 +225,8 @@ export declare const LeaseContract: z.ZodObject<{
             email: string;
             phone: string;
             idNumber: string;
-            idKind: "national_id" | "passport";
             nationality: string;
+            idKind: "national_id" | "passport";
         };
     }>;
     premises: z.ZodObject<{
@@ -337,8 +337,8 @@ export declare const LeaseContract: z.ZodObject<{
             email: string;
             phone: string;
             idNumber: string;
-            idKind: "national_id" | "passport";
             nationality: string;
+            idKind: "national_id" | "passport";
         };
     };
     issuedAt: string;
@@ -386,8 +386,8 @@ export declare const LeaseContract: z.ZodObject<{
             email: string;
             phone: string;
             idNumber: string;
-            idKind: "national_id" | "passport";
             nationality: string;
+            idKind: "national_id" | "passport";
         };
     };
     issuedAt: string;

@@ -162,7 +162,15 @@ export function GuestPanel({ guest: initial, onClose }: { guest: LeaderGuest; on
             ]}
           />
         </Section>
-        <Section title={guest.host.kind === "tenant" ? "Staying with the tenant" : "Staying with the landlord"}>
+        <Section
+          title={
+            guest.host.kind === "tenant"
+              ? "Staying with the tenant"
+              : guest.host.kind === "stay"
+                ? "Staying at"
+                : "Staying with the landlord"
+          }
+        >
           <Facts
             items={[
               { label: "Host", value: guest.host.name },
