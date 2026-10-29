@@ -44,7 +44,7 @@ import {
 } from '@nestjs/common';
 import { z } from 'zod';
 
-import { APPROVAL_WINDOW_HOURS } from '../../booking/domain/pricing';
+import { APPROVAL_WINDOW_HOURS } from '../../pms/domain/pricing';
 import { ListingService } from '../../listing/application/listing.service';
 import { placeLine } from '../domain/place-line';
 import { type CardRow, MarketplaceRepository, type RoomCardRow } from '../infrastructure/marketplace.repository';

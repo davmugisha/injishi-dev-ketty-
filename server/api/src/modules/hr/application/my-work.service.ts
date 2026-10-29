@@ -23,7 +23,7 @@ import type {
 } from '@injishi/contracts';
 import { ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 
-import { isCalendarDate } from '../../booking/domain/pricing';
+import { isCalendarDate } from '../../pms/domain/pricing';
 import { firstOfMonth, lastOfMonth, monthOf } from '../domain/hr-calendar';
 import { phonePunchVerdict } from '../domain/time-rules';
 import { EmployeesRepository, type EmployeeRow } from '../infrastructure/employees.repository';

@@ -28,7 +28,7 @@ import {
   assertInBranchScope,
   type ScopedWorkspace,
 } from '../../../shared/auth/branch-scope';
-import { localToday } from '../../booking/domain/pricing';
+import { localToday } from '../../pms/domain/pricing';
 import { scrubPhoneNumbers } from './scrub';
 import {
   type DeskSubject,

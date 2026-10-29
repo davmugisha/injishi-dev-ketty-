@@ -15,8 +15,8 @@ import {
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
-import { noShowRefund } from '../../booking/domain/no-show';
-import { localToday, nightsBetween } from '../../booking/domain/pricing';
+import { noShowRefund } from '../../pms/domain/no-show';
+import { localToday, nightsBetween } from '../../pms/domain/pricing';
 import {
   type BoardBookingRow,
   type BoardRoomRow,

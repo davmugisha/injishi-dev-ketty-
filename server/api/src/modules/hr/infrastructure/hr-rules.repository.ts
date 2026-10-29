@@ -3,7 +3,7 @@ import { and, eq, isNull, or, sql } from 'drizzle-orm';
 
 import { configEntries } from '../../../database/drizzle/schema';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { localMidnight } from '../../booking/domain/pricing';
+import { localMidnight } from '../../pms/domain/pricing';
 import {
   HR_RULE,
   parseHrRule,

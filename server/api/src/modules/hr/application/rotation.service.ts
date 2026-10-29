@@ -20,7 +20,7 @@ import {
 import { assertOwnedByOrg } from '../../../shared/auth/assert-owned';
 import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { isCalendarDate } from '../../booking/domain/pricing';
+import { isCalendarDate } from '../../pms/domain/pricing';
 import { addDays, eachDate, kigaliToday, shiftInstants } from '../domain/hr-calendar';
 import { rotationStepOn } from '../domain/time-rules';
 import { EmployeesRepository, violatedConstraint } from '../infrastructure/employees.repository';

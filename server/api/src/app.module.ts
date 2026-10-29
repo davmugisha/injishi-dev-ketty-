@@ -27,7 +27,7 @@ import { resolveAuthSurface } from './shared/config/auth-surface';
 import { PLATFORM, type Platform } from './shared/config/platform';
 import { scrubForeignSessionCookies } from './shared/http/foreign-session-cookies';
 import { registerAuthRoutes } from './modules/auth/infrastructure/auth-http';
-import { BookingModule } from './modules/booking/booking.module';
+import { BookingModule } from './modules/pms/booking.module';
 import { GeographyModule } from './modules/geography/geography.module';
 import { ListingModule } from './modules/listing/listing.module';
 import { envFilesFor } from './shared/config/env-files';
