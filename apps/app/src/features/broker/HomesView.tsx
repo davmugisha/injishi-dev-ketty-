@@ -320,8 +320,8 @@ export function HomesView({ data, openUnitId }: { data: BrokerHomes; openUnitId:
               aria-label="Map"
               className={
                 mobileView === "list"
-                  ? "hidden h-full min-h-0 overflow-hidden rounded-xl border border-border lg:block"
-                  : "h-[calc(100dvh-12rem)] min-h-80 overflow-hidden rounded-xl border border-border lg:h-full"
+                  ? "hidden h-full min-h-0 overflow-hidden rounded-[var(--surface-radius)] border border-border lg:block"
+                  : "h-[calc(100dvh-12rem)] min-h-80 overflow-hidden rounded-[var(--surface-radius)] border border-border lg:h-full"
               }
             >
               {mapHomes.length > 0 ? (

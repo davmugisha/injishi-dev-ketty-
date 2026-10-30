@@ -20,7 +20,7 @@ export function TenantMessagesView({ thread, selfName }: { thread: LeaseThreadVi
   return (
     <PageContent>
       <AreaHeader title="Messages" />
-      <Card className="flex h-[min(780px,calc(100dvh-12rem))] min-h-[480px] flex-col gap-0 overflow-hidden rounded-xl p-0">
+      <Card className="flex h-[min(780px,calc(100dvh-12rem))] min-h-[480px] flex-col gap-0 overflow-hidden p-0">
         <header className="flex items-center gap-3 border-b border-separator px-3 py-2.5 sm:px-4">
           <ChatHeader
             name={thread.counterpartName}

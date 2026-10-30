@@ -250,7 +250,7 @@ function FileCard({ file }: { file: ChatFile }) {
       href={file.url}
       target="_blank"
       rel="noreferrer"
-      className="block max-w-full rounded-xl text-foreground no-underline focus-visible:outline-2 focus-visible:outline-focus"
+      className="block max-w-full rounded-[var(--inner-radius)] text-foreground no-underline focus-visible:outline-2 focus-visible:outline-focus"
       aria-label={`Open ${file.filename ?? "the document"}${file.sizeBytes ? `, ${fileSize(file.sizeBytes)}` : ""}`}
     >
       <ChatAttachment
@@ -999,7 +999,7 @@ export function ChatInbox({
   return (
     <div
       className={cx(
-        "grid h-[min(780px,calc(100dvh-12rem))] min-h-[520px] grid-cols-1 overflow-hidden rounded-xl border border-separator bg-surface md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]",
+        "grid h-[min(780px,calc(100dvh-12rem))] min-h-[520px] grid-cols-1 overflow-hidden rounded-[var(--surface-radius)] border border-separator bg-surface md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]",
         className,
       )}
     >

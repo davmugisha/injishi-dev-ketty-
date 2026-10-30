@@ -108,7 +108,7 @@ function Inbox({
     return (
       <PageContent>
         <AreaHeader title="Messages" />
-        <Card className="rounded-xl p-6">
+        <Card className="p-6">
           <EmptyBlock
             icon="Comments"
             title={empty.title}

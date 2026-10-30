@@ -222,7 +222,7 @@ export function Schedule({
   return (
     <section aria-label={label} className={cx("flex min-w-0 flex-col gap-3", className)}>
       <div ref={rootRef} className="min-w-0">
-        <Agenda {...agenda} className="overflow-hidden rounded-2xl border border-separator">
+        <Agenda {...agenda} className="overflow-hidden rounded-[var(--surface-radius)] border border-separator">
           <div className="flex flex-wrap items-center gap-2 px-3 py-2">
             <h2 className="mr-auto text-base font-semibold whitespace-nowrap">{agenda.heading}</h2>
             <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">

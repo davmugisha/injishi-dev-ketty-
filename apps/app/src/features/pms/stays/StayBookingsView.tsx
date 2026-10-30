@@ -286,7 +286,9 @@ export function StayBookingsView({
             ]}
           />
           {open.guestMessage ? (
-            <blockquote className="rounded-xl bg-default/60 px-3 py-2 text-sm">{open.guestMessage}</blockquote>
+            <blockquote className="rounded-[var(--inner-radius)] bg-default/60 px-3 py-2 text-sm">
+              {open.guestMessage}
+            </blockquote>
           ) : null}
           {open.state === "pending" && open.approvalExpiresAt ? (
             <p className="text-xs text-muted">Answer by {formatDay(open.approvalExpiresAt.slice(0, 10), "long")}.</p>
