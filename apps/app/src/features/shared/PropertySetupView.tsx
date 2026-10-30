@@ -5,7 +5,7 @@ import { Alert, Button, Card, Chip, Description, Input, Label, TextArea, TextFie
 import { tidyPlaceName } from "@injishi/contracts";
 import { LinkButton, PageContent, PageHeader } from "@injishi/ui";
 import { type FormEvent, useEffect, useState } from "react";
-import type { Place, SetupRead } from "@/server/mutations/setup";
+import { hasPhoto, type Place, type SetupRead } from "@/server/mutations/setup";
 import { MapPinPicker } from "./MapPinPicker";
 import { DeskStep, FacilitiesStep, RulesStep, StarGradeField, StayRoomsStep } from "./StaySetupSteps";
 import {
@@ -476,17 +476,26 @@ function PhotoStep({ data, index = 3 }: { data: Open; index?: number }) {
   const [file, setFile] = useState<File | null>(null);
   const [inputKey, setInputKey] = useState(0);
   const photos = p?.photos ?? [];
+  // A stay shows every room type in a photograph of its own before it publishes (0118), so the photo
+  // says which room it shows, starting with a room that still has none.
+  const rooms = venue ? [] : (p?.roomTypes ?? []).filter((t) => t.status === "active");
+  const bare = rooms.filter((t) => !hasPhoto(p ?? null, t.id));
+  const [room, setRoom] = useState<string | null>(null);
+  const shows = room ?? bare[0]?.id ?? "";
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!p || !file) return;
     const form = new FormData();
     form.set("file", file);
-    form.set("caption", caption);
+    const named = rooms.find((t) => t.id === shows);
+    form.set("caption", caption || named?.name || "");
+    if (named) form.set("roomTypeId", named.id);
     const ok = await step.run(() => addPhotoAction(data.workspaceId, p.id, form));
     if (ok) {
       setCaption("");
       setFile(null);
+      setRoom(null);
       setInputKey((k) => k + 1);
     }
   };
@@ -494,15 +503,34 @@ function PhotoStep({ data, index = 3 }: { data: Open; index?: number }) {
     <StepCard
       id="photo"
       index={index}
-      title="A photograph"
-      done={data.counts.photos > 0}
+      title={rooms.length ? "Photographs" : "A photograph"}
+      done={data.counts.photos > 0 && bare.length === 0}
       icon={<Picture />}
       lead={
         venue
           ? "At least one, so customers can see the venue. The first one is the cover."
-          : "At least one, so guests can see the place. The first one is the cover."
+          : rooms.length
+            ? "The place, and every room type in a photograph of its own, so guests see the room they book. The first one is the cover."
+            : "At least one, so guests can see the place. The first one is the cover."
       }
     >
+      {rooms.length ? (
+        <ul className="m-0 flex list-none flex-wrap gap-2 p-0" aria-label="A photograph of every room type">
+          {rooms.map((t) => {
+            const ok = hasPhoto(p ?? null, t.id);
+            return (
+              <li key={t.id}>
+                <Chip size="sm" variant="soft" color={ok ? "success" : "warning"}>
+                  {ok ? <CircleCheck className="size-3" aria-hidden="true" /> : null}
+                  <Chip.Label>
+                    {t.name} · {ok ? "has its photo" : "needs a photo"}
+                  </Chip.Label>
+                </Chip>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
       {photos.length ? (
         <ul className="m-0 grid list-none gap-3 p-0 [grid-template-columns:repeat(auto-fill,minmax(120px,1fr))]">
           {photos.map((ph) => (
@@ -534,9 +562,25 @@ function PhotoStep({ data, index = 3 }: { data: Open; index?: number }) {
             />
             <span className="text-xs font-normal text-muted">JPEG, PNG or WebP, up to 8 MB.</span>
           </label>
+          {rooms.length ? (
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              What it shows
+              <select className={SELECT} value={shows} onChange={(e) => setRoom(e.target.value)}>
+                <option value="">The place itself: outside, lobby, garden…</option>
+                {rooms.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                    {hasPhoto(p ?? null, t.id) ? "" : " · needs a photo"}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <TextField value={caption} onChange={setCaption} fullWidth>
             <Label>Caption</Label>
-            <Input placeholder={venue ? "Counter, terrace…" : "Front of the house"} />
+            <Input
+              placeholder={venue ? "Counter, terrace…" : (rooms.find((t) => t.id === shows)?.name ?? "Front of the house")}
+            />
           </TextField>
           <Button
             type="submit"

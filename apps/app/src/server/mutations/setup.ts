@@ -232,8 +232,9 @@ export function blockersFor(
     if (!stay.languages?.length) out.push("Pick at least one language your staff speak.");
     if (stay.roomTypes.some((t) => t.status === "active" && !isFurnished(t)))
       out.push("Give every room type its beds and the number of adults it takes.");
-    if (stay.roomTypes.some((t) => t.status === "active" && !hasPhoto(stay, t.id)))
-      out.push("Add a photograph of every room type.");
+    const bare = stay.roomTypes.filter((t) => t.status === "active" && !hasPhoto(stay, t.id));
+    if (bare.length)
+      out.push(`Add a photograph of ${bare.map((t) => t.name).join(", ")} under Photographs: pick the room in "What it shows".`);
   }
   if (!hasProperty) {
     out.push(
