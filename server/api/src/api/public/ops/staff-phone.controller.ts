@@ -13,8 +13,8 @@ import {
 } from '@injishi/contracts';
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 
-import { StaffPhoneService } from '../../../modules/operations/application/staff-phone.service';
-import { WorkOrderTimeService } from '../../../modules/operations/application/work-order-time.service';
+import { StaffPhoneService } from '../../../modules/pms/application/staff-phone.service';
+import { WorkOrderTimeService } from '../../../modules/pms/application/work-order-time.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import {

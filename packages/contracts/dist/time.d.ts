@@ -2278,16 +2278,38 @@ export declare const MyWorkFileList: z.ZodObject<{
     }[];
 }>;
 export type MyWorkFileList = z.infer<typeof MyWorkFileList>;
-/** `POST /me/work/:employeeId/clock-in` and `/clock-out`: where the phone says it is, when it says. */
-export declare const PhoneClockRequest: z.ZodObject<{
+/**
+ * `POST /me/work/:employeeId/clock-in` and `/clock-out`: where the phone says it
+ * is, and when the tap really happened (mobile spec 0003, `ReportedTime`).
+ */
+export declare const PhoneClockRequest: z.ZodEffects<z.ZodObject<{
     lat: z.ZodOptional<z.ZodNumber>;
     lng: z.ZodOptional<z.ZodNumber>;
     accuracyM: z.ZodOptional<z.ZodNumber>;
+} & {
+    occurredAt: z.ZodOptional<z.ZodString>;
+    deviceSentAt: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    occurredAt?: string | undefined;
+    deviceSentAt?: string | undefined;
     lat?: number | undefined;
     lng?: number | undefined;
     accuracyM?: number | undefined;
 }, {
+    occurredAt?: string | undefined;
+    deviceSentAt?: string | undefined;
+    lat?: number | undefined;
+    lng?: number | undefined;
+    accuracyM?: number | undefined;
+}>, {
+    occurredAt?: string | undefined;
+    deviceSentAt?: string | undefined;
+    lat?: number | undefined;
+    lng?: number | undefined;
+    accuracyM?: number | undefined;
+}, {
+    occurredAt?: string | undefined;
+    deviceSentAt?: string | undefined;
     lat?: number | undefined;
     lng?: number | undefined;
     accuracyM?: number | undefined;
@@ -2321,6 +2343,8 @@ export declare const PhoneClockResult: z.ZodObject<{
         supersedesId: z.ZodNullable<z.ZodString>;
         note: z.ZodNullable<z.ZodString>;
         autoClosed: z.ZodBoolean;
+        inPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
+        outPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
         figures: z.ZodNullable<z.ZodObject<{
             lateMinutes: z.ZodNullable<z.ZodNumber>;
             earlyMinutes: z.ZodNullable<z.ZodNumber>;
@@ -2385,6 +2409,8 @@ export declare const PhoneClockResult: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -2417,6 +2443,8 @@ export declare const PhoneClockResult: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -2455,6 +2483,8 @@ export declare const PhoneClockResult: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -2492,6 +2522,8 @@ export declare const PhoneClockResult: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -2504,6 +2536,152 @@ export declare const PhoneClockResult: z.ZodObject<{
     distanceM: number | null;
 }>;
 export type PhoneClockResult = z.infer<typeof PhoneClockResult>;
+/** One published shift on the phone's shift card, with its template's planned break. */
+export declare const MyWorkTodayShift: z.ZodObject<{
+    rosterEntryId: z.ZodString;
+    shiftName: z.ZodString;
+    startsAt: z.ZodString;
+    endsAt: z.ZodString;
+    /** The template's planned break: what paid hours use, whatever breaks are recorded. */
+    breakMinutes: z.ZodNumber;
+    propertyId: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    propertyId: string;
+    startsAt: string;
+    endsAt: string;
+    breakMinutes: number;
+    shiftName: string;
+    rosterEntryId: string;
+}, {
+    propertyId: string;
+    startsAt: string;
+    endsAt: string;
+    breakMinutes: number;
+    shiftName: string;
+    rosterEntryId: string;
+}>;
+export type MyWorkTodayShift = z.infer<typeof MyWorkTodayShift>;
+/**
+ * `GET /me/work/:employeeId/today`: the phone's shift card in one read (mobile
+ * spec 0003, D-u). `shifts` holds the published, scheduled entries of today's
+ * Kigali work date, every one that overlaps the two hours either side of now
+ * (a night shift that crossed midnight), and the open record's own entry, by
+ * `startsAt`. `generatedAt` is the server's clock, for the phone's overlay.
+ */
+export declare const MyWorkToday: z.ZodObject<{
+    employeeId: z.ZodString;
+    workDate: z.ZodString;
+    generatedAt: z.ZodString;
+    shifts: z.ZodArray<z.ZodObject<{
+        rosterEntryId: z.ZodString;
+        shiftName: z.ZodString;
+        startsAt: z.ZodString;
+        endsAt: z.ZodString;
+        /** The template's planned break: what paid hours use, whatever breaks are recorded. */
+        breakMinutes: z.ZodNumber;
+        propertyId: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        propertyId: string;
+        startsAt: string;
+        endsAt: string;
+        breakMinutes: number;
+        shiftName: string;
+        rosterEntryId: string;
+    }, {
+        propertyId: string;
+        startsAt: string;
+        endsAt: string;
+        breakMinutes: number;
+        shiftName: string;
+        rosterEntryId: string;
+    }>, "many">;
+    openRecord: z.ZodNullable<z.ZodObject<{
+        id: z.ZodString;
+        rosterEntryId: z.ZodNullable<z.ZodString>;
+        workDate: z.ZodString;
+        clockInAt: z.ZodString;
+        validated: z.ZodBoolean;
+        pendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        workDate: string;
+        rosterEntryId: string | null;
+        clockInAt: string;
+        validated: boolean;
+        pendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+    }, {
+        id: string;
+        workDate: string;
+        rosterEntryId: string | null;
+        clockInAt: string;
+        validated: boolean;
+        pendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+    }>>;
+    /** The open break; breaks arrive with milestone 3, so null until then. */
+    openBreak: z.ZodNullable<z.ZodObject<{
+        id: z.ZodString;
+        startedAt: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        id: string;
+        startedAt: string;
+    }, {
+        id: string;
+        startedAt: string;
+    }>>;
+    /** The latest clock out of this work day, when one closed. */
+    lastClockOutAt: z.ZodNullable<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    generatedAt: string;
+    employeeId: string;
+    workDate: string;
+    openRecord: {
+        id: string;
+        workDate: string;
+        rosterEntryId: string | null;
+        clockInAt: string;
+        validated: boolean;
+        pendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+    } | null;
+    shifts: {
+        propertyId: string;
+        startsAt: string;
+        endsAt: string;
+        breakMinutes: number;
+        shiftName: string;
+        rosterEntryId: string;
+    }[];
+    openBreak: {
+        id: string;
+        startedAt: string;
+    } | null;
+    lastClockOutAt: string | null;
+}, {
+    generatedAt: string;
+    employeeId: string;
+    workDate: string;
+    openRecord: {
+        id: string;
+        workDate: string;
+        rosterEntryId: string | null;
+        clockInAt: string;
+        validated: boolean;
+        pendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+    } | null;
+    shifts: {
+        propertyId: string;
+        startsAt: string;
+        endsAt: string;
+        breakMinutes: number;
+        shiftName: string;
+        rosterEntryId: string;
+    }[];
+    openBreak: {
+        id: string;
+        startedAt: string;
+    } | null;
+    lastClockOutAt: string | null;
+}>;
+export type MyWorkToday = z.infer<typeof MyWorkToday>;
 export declare const RangeQuery: z.ZodEffects<z.ZodObject<{
     from: z.ZodString;
     to: z.ZodString;
@@ -3073,6 +3251,8 @@ export declare const MyAttendance: z.ZodObject<{
         supersedesId: z.ZodNullable<z.ZodString>;
         note: z.ZodNullable<z.ZodString>;
         autoClosed: z.ZodBoolean;
+        inPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
+        outPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
         figures: z.ZodNullable<z.ZodObject<{
             lateMinutes: z.ZodNullable<z.ZodNumber>;
             earlyMinutes: z.ZodNullable<z.ZodNumber>;
@@ -3137,6 +3317,8 @@ export declare const MyAttendance: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -3169,6 +3351,8 @@ export declare const MyAttendance: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -3347,6 +3531,8 @@ export declare const MyAttendance: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -3414,6 +3600,8 @@ export declare const MyAttendance: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -3850,6 +4038,8 @@ export declare const MyTeamAttendance: z.ZodObject<{
         supersedesId: z.ZodNullable<z.ZodString>;
         note: z.ZodNullable<z.ZodString>;
         autoClosed: z.ZodBoolean;
+        inPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
+        outPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
         figures: z.ZodNullable<z.ZodObject<{
             lateMinutes: z.ZodNullable<z.ZodNumber>;
             earlyMinutes: z.ZodNullable<z.ZodNumber>;
@@ -3914,6 +4104,8 @@ export declare const MyTeamAttendance: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -3946,6 +4138,8 @@ export declare const MyTeamAttendance: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -4032,6 +4226,8 @@ export declare const MyTeamAttendance: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -4082,6 +4278,8 @@ export declare const MyTeamAttendance: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;

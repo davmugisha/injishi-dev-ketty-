@@ -1,6 +1,7 @@
 import {
   ATTENDANCE_LIST,
   ROSTER_LIST,
+  type AttendancePendingReason,
   type AttendanceSource,
   type AttendanceStatus,
   type DayKind,
@@ -109,6 +110,22 @@ export interface AttendanceRow {
   approvedOvertimeMinutes: number | null;
   dayKind: DayKind | null;
   autoClosed: boolean;
+  /** Why a phone punch waits for validation (mobile spec 0003, D-ao). */
+  inPendingReason: AttendancePendingReason | null;
+  outPendingReason: AttendancePendingReason | null;
+  /** The last change to the row: for a record the sweep closed, when the sweep ran. */
+  updatedAt: Date;
+}
+
+/**
+ * When a phone punch reached the server and the tap the phone reported, kept
+ * beside the corrected time (mobile spec 0003, D-ac), and why it waits for
+ * validation (D-ao).
+ */
+export interface PunchArrival {
+  receivedAt: Date;
+  deviceAt: Date | null;
+  pendingReason: AttendancePendingReason | null;
 }
 
 /** What closing a record stores beside its clock out (058-time AC-TM7). */
@@ -612,6 +629,9 @@ export class TimeRepository {
     approvedOvertimeMinutes: attendanceRecords.approvedOvertimeMinutes,
     dayKind: attendanceRecords.dayKind,
     autoClosed: attendanceRecords.autoClosed,
+    inPendingReason: attendanceRecords.inPendingReason,
+    outPendingReason: attendanceRecords.outPendingReason,
+    updatedAt: attendanceRecords.updatedAt,
   };
 
   // The joined select builder's type is drizzle's to spell, and every caller
@@ -743,6 +763,15 @@ export class TimeRepository {
     return !!row;
   }
 
+  /** A person's newest live record, open or closed, by clock in. */
+  async latestRecord(employeeId: string, tx?: Tx): Promise<AttendanceRow | null> {
+    const [row] = await this.records(tx)
+      .where(and(eq(attendanceRecords.employeeId, employeeId), sql`${attendanceRecords.status} <> 'superseded'`))
+      .orderBy(desc(attendanceRecords.clockInAt))
+      .limit(1);
+    return row ?? null;
+  }
+
   /** People's records in a range, superseded ones left out, for self service, a team and insights. */
   async personRecords(input: { employeeIds: readonly string[]; from: string; to: string }, tx?: Tx): Promise<AttendanceRow[]> {
     if (input.employeeIds.length === 0) return [];
@@ -850,10 +879,11 @@ export class TimeRepository {
       note: string | null;
       kioskId?: string | null;
       inLocation?: PunchLocation | null;
+      inArrival?: PunchArrival | null;
       close?: CloseValues | null;
     },
   ): Promise<string> {
-    const { inLocation, close, ...rest } = values;
+    const { inLocation, inArrival, close, ...rest } = values;
     const [row] = await tx
       .insert(attendanceRecords)
       .values({
@@ -862,6 +892,9 @@ export class TimeRepository {
         inLongitude: inLocation?.longitude?.toFixed(6) ?? null,
         inAccuracyM: inLocation?.accuracyM ?? null,
         inDistanceM: inLocation?.distanceM ?? null,
+        ...(inArrival
+          ? { inReceivedAt: inArrival.receivedAt, inDeviceAt: inArrival.deviceAt, inPendingReason: inArrival.pendingReason }
+          : {}),
         ...(close ? closeColumns(close) : {}),
       })
       .returning({ id: attendanceRecords.id });
@@ -877,7 +910,13 @@ export class TimeRepository {
     id: string,
     clockOutAt: Date,
     close: CloseValues,
-    extra: { outLocation?: PunchLocation | null; autoClosed?: boolean; validated?: boolean; note?: string } = {},
+    extra: {
+      outLocation?: PunchLocation | null;
+      outArrival?: PunchArrival | null;
+      autoClosed?: boolean;
+      validated?: boolean;
+      note?: string;
+    } = {},
   ): Promise<boolean> {
     const rows = await tx
       .update(attendanceRecords)
@@ -893,12 +932,48 @@ export class TimeRepository {
               outDistanceM: extra.outLocation.distanceM,
             }
           : {}),
+        ...(extra.outArrival ? outArrivalColumns(extra.outArrival) : {}),
         ...(extra.autoClosed ? { autoClosed: true } : {}),
         ...(extra.validated === false ? { validated: false, validatedByUserId: null } : {}),
         ...(extra.note ? { note: extra.note } : {}),
         updatedAt: new Date(),
       })
       .where(and(eq(attendanceRecords.id, id), eq(attendanceRecords.status, 'open')))
+      .returning({ id: attendanceRecords.id });
+    return rows.length > 0;
+  }
+
+  /**
+   * Put a phone's late clock out over the end the sweep gave a record (mobile
+   * spec 0003, D-ap): the tap time, figures from it, unvalidated, and no longer
+   * `auto_closed`, because a person's real time replaced the sweep's. False
+   * when the record is no longer one the sweep closed.
+   */
+  async recloseAutoClosed(
+    tx: Tx,
+    id: string,
+    clockOutAt: Date,
+    close: CloseValues,
+    extra: { outLocation: PunchLocation | null; outArrival: PunchArrival },
+  ): Promise<boolean> {
+    const rows = await tx
+      .update(attendanceRecords)
+      .set({
+        clockOutAt,
+        ...closeColumns(close),
+        outLatitude: extra.outLocation?.latitude?.toFixed(6) ?? null,
+        outLongitude: extra.outLocation?.longitude?.toFixed(6) ?? null,
+        outAccuracyM: extra.outLocation?.accuracyM ?? null,
+        outDistanceM: extra.outLocation?.distanceM ?? null,
+        ...outArrivalColumns(extra.outArrival),
+        autoClosed: false,
+        validated: false,
+        validatedByUserId: null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(eq(attendanceRecords.id, id), eq(attendanceRecords.status, 'closed'), eq(attendanceRecords.autoClosed, true)),
+      )
       .returning({ id: attendanceRecords.id });
     return rows.length > 0;
   }
@@ -1017,6 +1092,10 @@ export class TimeRepository {
       .where(inArray(attendanceKiosks.id, [...ids]));
     return new Map(rows.map((r) => [r.id, r.name]));
   }
+}
+
+function outArrivalColumns(arrival: PunchArrival): Record<string, unknown> {
+  return { outReceivedAt: arrival.receivedAt, outDeviceAt: arrival.deviceAt, outPendingReason: arrival.pendingReason };
 }
 
 function closeColumns(close: CloseValues): Record<string, unknown> {

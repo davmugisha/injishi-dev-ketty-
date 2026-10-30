@@ -1,7 +1,8 @@
 import { screens } from "@injishi/data";
 import type { AuditIssue, AuditRun, AuditStep } from "@injishi/data/fixtures/finance";
+import { NightAuditView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { NightAuditView } from "@/features/finance/NightAuditView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -14,5 +15,9 @@ export default async function NightAuditPage() {
     getCollection<AuditIssue>("finance.auditIssues"),
     getCollection<AuditRun>("finance.auditRuns"),
   ]);
-  return <NightAuditView data={{ steps, issues, runs }} />;
+  return (
+    <PmsMount>
+      <NightAuditView data={{ steps, issues, runs }} />
+    </PmsMount>
+  );
 }

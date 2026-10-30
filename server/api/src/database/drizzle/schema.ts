@@ -91,3 +91,5 @@ export * from './brokers';
 // The bar and restaurant point of sale (POS spec, phase 1): tables, orders, kitchen tickets,
 // simulated payments, registers and cashier shifts. A leaf: nothing imports it back.
 export * from './pos';
+// The shared idempotency store for offline writes (mobile spec 0003, D-r). A leaf over auth.
+export * from './idempotency';

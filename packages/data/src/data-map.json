@@ -1424,7 +1424,7 @@
     "area": "commercial",
     "class": "table",
     "target": "audit_events (subject_type property)",
-    "missing": "only branch archive writes property audit rows (listing-setup/infrastructure/branch-audit.ts); listing/rate edits write nothing; need subject types listing, rate_plan + GET /inventory/properties/:id/history",
+    "missing": "only branch archive writes property audit rows (platform/property/infrastructure/branch-audit.ts); listing/rate edits write nothing; need subject types listing, rate_plan + GET /inventory/properties/:id/history",
     "crud": "R",
     "seed": "demo",
     "scope": "property"

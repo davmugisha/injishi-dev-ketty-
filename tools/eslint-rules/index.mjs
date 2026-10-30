@@ -59,6 +59,15 @@
  * with nothing to count. The demo data row is a rule of its own because the
  * ADR wants it at two levels: `error` in products, `apps/web` and the
  * packages, a counted `warn` in `apps/app` and `apps/mobile` until stage 9.
+ *
+ * The five design vocabulary rules took a `native` option with mobile spec
+ * 0002 (D-z, AC-18), because the phone that replaced the old app on 2026-10-14
+ * had none of the names their mobile halves read, and they had sat off there
+ * since. Each native half reads the new kit's vocabulary, gathered in
+ * `native-vocabulary.mjs` from the palette's generated files and HeroUI
+ * Native's own roles, and `design-vocabulary-native.test.mjs` pins every half
+ * in both directions. The option is off by default, so the web configs and
+ * `apps/web`'s planted controls read exactly what they read before.
  */
 
 import groundForegroundAgreement from './ground-foreground-agreement.mjs';
@@ -75,7 +84,7 @@ import { surfaceVocabulary, surfaceRefusals } from './surface-vocabulary.mjs';
 
 /** @type {import('eslint').ESLint.Plugin} */
 const plugin = {
-  meta: { name: 'injishi', version: '0.7.0' },
+  meta: { name: 'injishi', version: '0.8.0' },
   rules: {
     'ground-foreground-agreement': groundForegroundAgreement,
     'kebab-case-filenames': kebabCaseFilenames,

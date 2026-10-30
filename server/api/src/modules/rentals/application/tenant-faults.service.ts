@@ -12,7 +12,7 @@ import {
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { TicketLifecycle } from '../../operations/application/ticket-lifecycle';
+import { TicketLifecycle } from '../../pms/application/ticket-lifecycle';
 import { RentalsFilesStorage } from '../../storage/application/rentals-files-storage';
 import { FaultsRepository, type FaultRow } from '../infrastructure/faults.repository';
 import { RentalsAuditWriter } from '../infrastructure/rentals-writers';

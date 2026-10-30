@@ -32,7 +32,7 @@ import {
   CLAIM_CODE_RETRIES,
   isClaimCodeCollision,
   mintClaimCode,
-} from '../../../modules/operations/domain/stay-claim';
+} from '../../../modules/pms/domain/stay-claim';
 
 /**
  * The two Users-section writes: end every session a person holds, and give an

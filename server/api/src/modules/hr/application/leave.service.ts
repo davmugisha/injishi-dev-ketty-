@@ -26,7 +26,7 @@ import { assertOwnedByOrg } from '../../../shared/auth/assert-owned';
 import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { runBulk } from '../../../shared/lists/bulk';
 import { pageOf } from '../../../shared/lists/list-query';
-import { isCalendarDate } from '../../booking/domain/pricing';
+import { isCalendarDate } from '../../pms/domain/pricing';
 import { addDays, eachDate, kigaliToday, mondayOf, monthOf } from '../domain/hr-calendar';
 import { HR_RULE, missingRuleMessage } from '../domain/hr-rules';
 import { dueAccruals } from '../domain/leave-accrual';

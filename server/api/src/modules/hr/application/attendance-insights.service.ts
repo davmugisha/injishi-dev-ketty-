@@ -10,7 +10,7 @@ import type {
 import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 
 import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
-import { isCalendarDate } from '../../booking/domain/pricing';
+import { isCalendarDate } from '../../pms/domain/pricing';
 import { firstOfMonth, lastOfMonth } from '../domain/hr-calendar';
 import { TimeRepository, type AttendanceRow } from '../infrastructure/time.repository';
 import { rosterCard } from './employee-presenter';

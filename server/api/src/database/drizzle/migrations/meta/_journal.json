@@ -715,6 +715,13 @@
       "when": 1793042976609,
       "tag": "0101_chains_village_cell_district",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1793272043635,
+      "tag": "0102_mobile_offline_writes",
+      "breakpoints": true
     }
   ]
 }

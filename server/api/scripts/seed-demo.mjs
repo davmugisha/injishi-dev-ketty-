@@ -1093,7 +1093,7 @@ async function seedRatePlan(c, rp) {
        (id, room_type_id, workspace_id, name, is_default, base_price_rwf,
         base_occupancy, booking_mode, approval_policy, cancellation_tier)
      VALUES ($1, $2, $3, $4, true, $5, $6, $7, $8, $9)
-     ON CONFLICT (id) DO NOTHING`,
+     ON CONFLICT DO NOTHING`,
     [
       rp.id, rp.roomTypeId, rp.workspaceId, rp.name, rp.priceRwf,
       rp.baseOccupancy, rp.bookingMode, rp.approvalPolicy, rp.cancellationTier,

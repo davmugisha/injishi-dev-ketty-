@@ -34,7 +34,26 @@
  *
  * It reads literals only: a class built from a variable is a hole and passes,
  * the same limit ADR-028 recorded for its own rule.
+ *
+ * THE `native` HALF (mobile spec 0002, D-z) is the same question asked of the
+ * phone, where the answer is shorter. Its corners follow the save through
+ * HeroUI's `--radius` (D-u), so `rounded-lg` is a corner there, and its type
+ * sizes are `no-arbitrary-type-scale`'s. What the phone can get wrong in a
+ * surface is the GROUND: a `bg-` that is not one of the surfaces HeroUI Native
+ * and the palette define. `bg-muted` paints a text colour as a fill,
+ * `bg-foreground` inverts a tile no theme measured, `bg-black/40` is a scrim
+ * typed by hand where `bg-backdrop` is the scrim, and `bg-accent/10` invents a
+ * soft fill beside the real one, at a contrast nobody checked. The set it
+ * allows is read in `native-vocabulary.mjs`, from the palette's generated
+ * files and HeroUI's own grounds, so a role the palette adds is allowed the
+ * day it is emitted. With `native: true` this rule checks grounds only.
+ * `surface-refusals` takes no option: its two refusals are web classes.
  */
+
+import { GROUND_PAIRS, backgroundColourOf } from './native-vocabulary.mjs';
+import { splitVariants, stripOpacity, tokens } from './shared-strings.mjs';
+
+const NATIVE_GROUNDS = [...GROUND_PAIRS.keys()].sort();
 
 const DELETED_CORNER = /\brounded-(?:sm|md|lg|xl|2xl|3xl)\b/g;
 const HAND_TYPED_SIZE = /\btext-\[\d+(?:\.\d+)?px\]/g;
@@ -63,8 +82,22 @@ const rule = {
         'Three corners, a named type step, the shared Button and Badge, and a ' +
         'ground that agrees with its theme: the surface vocabulary (ADR-037).',
     },
-    schema: [],
+    schema: counts
+      ? [
+          {
+            type: 'object',
+            properties: { native: { type: 'boolean' } },
+            additionalProperties: false,
+          },
+        ]
+      : [],
     messages: {
+      nativeGround:
+        '`{{cls}}` is not a ground on the phone. Paint one of the surfaces HeroUI Native and the palette define: ' +
+        '{{grounds}} (mobile spec 0002, D-z). `bg-pressed` is the kit\'s press layer, `bg-backdrop` the scrim.',
+      nativeOpacity:
+        '`{{cls}}` is a ground at an opacity: a colour the palette never measured for contrast (D-c). ' +
+        'Use {{fix}} (mobile spec 0002, D-z).',
       deletedCorner:
         '`{{cls}}` is not a corner in this product. Use `rounded` for a ' +
         'control, `rounded-card` for a surface, `rounded-full` for a pill ' +
@@ -87,8 +120,35 @@ const rule = {
   },
 
   create(context) {
+    const native = counts && context.options[0]?.native === true;
+
+    /** The phone's half: every `bg-` names a ground the palette defines, at full strength. */
+    function checkGrounds(node, value) {
+      for (const token of tokens(value)) {
+        const { base } = splitVariants(token);
+        if (!base.startsWith('bg-')) continue;
+        const solid = stripOpacity(base);
+        const colour = backgroundColourOf(solid.slice(3));
+        if (!colour) continue;
+        if (!GROUND_PAIRS.has(colour)) {
+          context.report({ node, messageId: 'nativeGround', data: { cls: base, grounds: NATIVE_GROUNDS.join(', ') } });
+        } else if (solid !== base) {
+          const soft = GROUND_PAIRS.has(`${colour}-soft`) ? `\`bg-${colour}-soft\`, its soft fill` : null;
+          context.report({
+            node,
+            messageId: 'nativeOpacity',
+            data: { cls: base, fix: soft ?? '`bg-backdrop` for a scrim, or a ground at full strength' },
+          });
+        }
+      }
+    }
+
     function check(node, value) {
       if (typeof value !== 'string' || value.length < 4) return;
+      if (native) {
+        checkGrounds(node, value);
+        return;
+      }
 
       // Refused ground: one string carrying both halves.
       if (refusals && FIXED_GROUND.test(value) && DARK_GROUND.test(value)) {

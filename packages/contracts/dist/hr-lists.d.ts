@@ -1181,6 +1181,8 @@ export declare const AttendancePage: z.ZodObject<{
         supersedesId: z.ZodNullable<z.ZodString>;
         note: z.ZodNullable<z.ZodString>;
         autoClosed: z.ZodBoolean;
+        inPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
+        outPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
         figures: z.ZodNullable<z.ZodObject<{
             lateMinutes: z.ZodNullable<z.ZodNumber>;
             earlyMinutes: z.ZodNullable<z.ZodNumber>;
@@ -1245,6 +1247,8 @@ export declare const AttendancePage: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -1277,6 +1281,8 @@ export declare const AttendancePage: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -1347,6 +1353,8 @@ export declare const AttendancePage: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -1397,6 +1405,8 @@ export declare const AttendancePage: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;

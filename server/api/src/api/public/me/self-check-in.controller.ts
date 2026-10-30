@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 
-import { SelfCheckInService } from '../../../modules/operations/application/self-check-in.service';
+import { SelfCheckInService } from '../../../modules/pms/application/self-check-in.service';
 import {
   CurrentUser,
   SessionGuard,
