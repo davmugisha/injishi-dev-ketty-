@@ -46,7 +46,7 @@ export function presentHostGuest(row: RegistrationRow, routes: readonly RouteRow
     id: row.id,
     hostKind: row.hostKind,
     fullName: row.fullName,
-    phone: row.phone,
+    phone: row.phone ?? '',
     nationality: row.nationality,
     nationalityName: row.nationalityName,
     fromAbroad: row.nationality !== RWANDA_CODE,
@@ -88,7 +88,7 @@ export function presentLeaderGuest(
     fromAbroad: row.nationality !== RWANDA_CODE,
     idKind: row.idKind,
     idNumber: row.idNumber,
-    phone: row.phone,
+    phone: row.phone ?? '',
     relationshipLabel: row.relationshipOther ?? row.relationshipLabel,
     originWords: originWords(row),
     arrivalOn: row.arrivalOn,
@@ -97,7 +97,7 @@ export function presentLeaderGuest(
     stay: guestStayOn(today, row.arrivalOn, row.departureOn),
     host: {
       kind: row.hostKind,
-      name: row.hostName || (row.hostKind === 'tenant' ? 'The tenant' : row.hostKind === 'stay' ? 'The property' : 'The landlord'),
+      name: row.hostName || (row.hostKind === 'tenant' ? 'The tenant' : row.hostKind === 'hotel' ? 'The property' : 'The landlord'),
       phone: row.hostPhone,
     },
     home: {

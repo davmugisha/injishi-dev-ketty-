@@ -342,9 +342,10 @@ export class GuestRegistryService {
         originCountry: input.nationality,
         originVillageId: null,
         arrivalOn: input.arrivalOn,
-        departureOn: departureOn < addDays(input.arrivalOn, 366) ? departureOn : addDays(input.arrivalOn, 366),
+        // The leaders' record spans at most 90 days; a longer stay is filed again as it runs on (the sweep).
+        departureOn: departureOn < addDays(input.arrivalOn, 90) ? departureOn : addDays(input.arrivalOn, 90),
       },
-      { hostKind: 'stay', leaseId: null, userId: input.userId, guestStayId: input.guestStayId },
+      { hostKind: 'hotel', leaseId: null, userId: input.userId, guestStayId: input.guestStayId },
     );
   }
 

@@ -159,9 +159,26 @@ export class GuestRoutingService {
    * whose area has someone in the post is delivered and its leaders emailed.
    * Safe to repeat. `propertyId` narrows it to one building.
    */
+  /**
+   * A hotel or apartment guest staying past their filing (2026-10-30). The leaders' record of a guest
+   * spans at most 90 days, for every host, so a long stay is filed for its first 90 days and, on the day
+   * that window ends with the guest still in house, filed again for the next stretch (to the planned
+   * departure, at most 90 more days). The leaders are told, as for any change. An extension the desk
+   * makes is picked up the same way, on the day the old window closes.
+   */
+  async rollHotelStays(today: string): Promise<number> {
+    const rolled = await this.guests.rollHotelStays(today);
+    for (const id of rolled) await this.notify(id, true);
+    if (rolled.length) this.log.log(`hotel stays filed again for their next stretch: ${rolled.length}`);
+    return rolled.length;
+  }
+
   async sweep(propertyId?: string): Promise<{ relocated: number; delivered: number }> {
     const today = kigaliToday(this.now());
-    if (!propertyId) await this.completeChains(today);
+    if (!propertyId) {
+      await this.completeChains(today);
+      await this.rollHotelStays(today);
+    }
     const waiting = await this.guests.waitingRoutes(today, propertyId);
     const relocated = new Set<string>();
     const delivered = new Map<string, string[]>();

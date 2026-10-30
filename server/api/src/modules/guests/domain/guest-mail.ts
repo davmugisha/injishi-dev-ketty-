@@ -63,7 +63,7 @@ export interface GuestMailInput {
   fromCountry: string | null;
   arrivalOn: string;
   departureOn: string;
-  hostKind: 'tenant' | 'landlord' | 'stay';
+  hostKind: 'tenant' | 'landlord' | 'hotel';
   /** The home's place in words, village up to district. */
   area: string;
   role: LeaderRole;
@@ -71,13 +71,13 @@ export interface GuestMailInput {
 
 function stayLine(input: GuestMailInput): string {
   const host =
-    input.hostKind === 'tenant' ? 'A tenant' : input.hostKind === 'stay' ? 'A guest house, lodge or hotel' : 'A landlord';
+    input.hostKind === 'tenant' ? 'A tenant' : input.hostKind === 'hotel' ? 'A guest house, lodge or hotel' : 'A landlord';
   const where = input.area ? ` in ${input.area}` : '';
   const dates =
     input.arrivalOn === input.departureOn
       ? `on ${longDate(input.arrivalOn)}`
       : `from ${longDate(input.arrivalOn)} to ${longDate(input.departureOn)}`;
-  return input.hostKind === 'stay'
+  return input.hostKind === 'hotel'
     ? `${host}${where} checked in a guest staying ${dates}.`
     : `${host}${where} registered a guest staying ${dates}.`;
 }

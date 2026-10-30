@@ -204,23 +204,23 @@ const REGISTRATION_SELECT = sql`
          g.registered_by_user_id as "registeredByUserId",
          g.full_name as "fullName", g.phone, g.nationality, c.name as "nationalityName",
          g.id_kind::text as "idKind", g.id_number as "idNumber",
-         g.relationship, gr.label as "relationshipLabel", g.relationship_other as "relationshipOther",
+         coalesce(g.relationship, 'stay_guest') as relationship, coalesce(gr.label, 'Staying guest') as "relationshipLabel", g.relationship_other as "relationshipOther",
          g.origin_country as "originCountry", oc.name as "originCountryName", g.origin_village_id as "originVillageId",
          ov.name as "originVillageName", oce.name as "originCellName", os.name as "originSectorName", od.name as "originDistrictName",
          to_char(g.arrival_on, 'YYYY-MM-DD') as "arrivalOn", to_char(g.departure_on, 'YYYY-MM-DD') as "departureOn",
          g.status::text as status,
          case when g.host_kind = 'tenant' then t.full_name
-              when g.host_kind::text = 'stay' then p.name
+              when g.host_kind::text = 'hotel' then p.name
               else coalesce(nullif(btrim(lp.signatory_name), ''), o.legal_name) end as "hostName",
          case when g.host_kind = 'tenant' then t.phone
-              when g.host_kind::text = 'stay' then p.contact_phone
+              when g.host_kind::text = 'hotel' then p.contact_phone
               else coalesce(lp.contact_phone, p.contact_phone, ru.phone_number) end as "hostPhone",
          g.changed_at as "changedAt", g.cancelled_at as "cancelledAt", g.created_at as "createdAt"
     from guest_registrations g
     join properties p on p.id = g.property_id
     left join rental_units u on u.id = g.unit_id
     join countries c on c.code = g.nationality
-    join guest_relationships gr on gr.code = g.relationship
+    left join guest_relationships gr on gr.code = g.relationship
     join countries oc on oc.code = g.origin_country
     left join villages ov on ov.id = g.origin_village_id
     left join cells oce on oce.id = ov.cell_id
@@ -494,6 +494,33 @@ export class GuestRegistryRepository {
    * they had, unseen again; a step that changed (Rwandan to abroad switches
    * the district post) is replaced.
    */
+  /**
+   * Hotel guests whose filed window ends by `today` while they are still in house and planned beyond it:
+   * the window moves on to the next stretch (to the planned departure, at most 90 days). Their ids.
+   */
+  async rollHotelStays(today: string): Promise<string[]> {
+    const result = await this.db.execute(sql`
+      with due as (
+        select g.id, g.departure_on,
+               greatest((coalesce(gs.planned_exit_at, now() + interval '1 day') at time zone 'Africa/Kigali')::date,
+                        g.departure_on + 1) as leaves
+          from guest_registrations g
+          join guest_stays gs on gs.id = g.guest_stay_id
+         where g.host_kind::text = 'hotel' and g.status = 'submitted' and gs.lifecycle = 'open'
+           and g.departure_on <= ${today}::date
+           and (gs.planned_exit_at is null
+                or (gs.planned_exit_at at time zone 'Africa/Kigali')::date > g.departure_on)
+      )
+      update guest_registrations g
+         set arrival_on = d.departure_on,
+             departure_on = least(d.leaves, d.departure_on + 90),
+             changed_at = now(), updated_at = now()
+        from due d
+       where g.id = d.id
+      returning g.id`);
+    return rowsOf<{ id: string }>(result).map((r) => r.id);
+  }
+
   async updateRegistration(
     tx: Tx,
     registrationId: string,
@@ -768,7 +795,7 @@ export class GuestRegistryRepository {
   async reportRows(scope: SQL, narrow: SQL, from: string, to: string): Promise<ReportRowRaw[]> {
     const result = await this.db.execute(sql`
       select to_char(g.arrival_on, 'YYYY-MM-DD') as "arrivalOn", to_char(g.departure_on, 'YYYY-MM-DD') as "departureOn",
-             g.nationality, c.name as "nationalityName", g.relationship, gr.label as "relationshipLabel",
+             g.nationality, c.name as "nationalityName", coalesce(g.relationship, 'stay_guest') as relationship, coalesce(gr.label, 'Staying guest') as "relationshipLabel",
              g.sector_id as "sectorId", s.name as "sectorName", g.cell_id as "cellId", ce.name as "cellName",
              g.village_id as "villageId", v.name as "villageName", d.name as "districtName",
              g.property_id as "propertyId", g.unit_id as "unitId", p.address_text as "addressText", u.label as "unitLabel",
@@ -777,7 +804,7 @@ export class GuestRegistryRepository {
         join properties p on p.id = g.property_id
         left join rental_units u on u.id = g.unit_id
         join countries c on c.code = g.nationality
-        join guest_relationships gr on gr.code = g.relationship
+        left join guest_relationships gr on gr.code = g.relationship
         ${AREA_NAMES}
        where g.status = 'submitted' and ${scope} and ${narrow}
          and g.arrival_on between ${from}::date and ${to}::date

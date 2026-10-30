@@ -74,6 +74,7 @@ function setup(posts: Partial<Record<LeaderRole, Holder[]>>): {
     routesFor: vi.fn(async () => [] as RouteRow[]),
     markNotified: vi.fn(async () => undefined),
     waitingRoutes: vi.fn(async () => [] as WaitingRouteRow[]),
+    rollHotelStays: vi.fn(async () => [] as string[]),
     currentWithRoles: vi.fn(async () => []),
     transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({})),
     relocate: vi.fn(async () => undefined),
