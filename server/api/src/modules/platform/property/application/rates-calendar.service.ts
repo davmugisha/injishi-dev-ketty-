@@ -5,14 +5,16 @@ import {
   RATES_CALENDAR_MAX_DAYS,
   type RatesCalendar,
   type RatesDaysUpdate,
+  type RatesSpecialDates,
   type RatesTermsUpdate,
+  specialRanges,
 } from '@injishi/contracts';
 
 import type { ScopedWorkspace } from '../../../../shared/auth/branch-scope';
-import { RatesCalendarRepository } from '../infrastructure/rates-calendar.repository';
+import { RatesCalendarRepository, type RatesRoomTypeRow } from '../infrastructure/rates-calendar.repository';
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
-const span = (from: string, to: string) => (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
+const span = (from: string, to: string): number => (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000;
 
 /**
  * Prices and availability by the day (2026-10-29): what each night costs, which nights are closed, the
@@ -48,6 +50,8 @@ export class RatesCalendarService {
         propertyName: t.propertyName,
         rooms: t.rooms,
         basePriceRwf: t.basePriceRwf,
+        priceBasis: t.priceBasis,
+        singleGuestPriceRwf: t.singleGuestPriceRwf,
         minStay: t.minStay,
         maxStay: t.maxStay,
         weeklyDiscountPct: t.weeklyDiscountPct,
@@ -67,6 +71,28 @@ export class RatesCalendarService {
     };
   }
 
+  /** Every run of days from today on with its own price, closing or shortest stay. */
+  async specialDates(ws: ScopedWorkspace, now: Date = new Date()): Promise<RatesSpecialDates> {
+    const today = kigaliToday(now);
+    const types = await this.rates.roomTypes(ws.workspaceId, ws.branchScope.propertyIds);
+    const names = new Map(types.map((t) => [t.id, t.name]));
+    const days = await this.rates.specialDays(
+      types.map((t) => t.id),
+      today,
+    );
+    const ranges = specialRanges(
+      days.map((d) => ({
+        roomTypeId: d.roomTypeId,
+        roomTypeName: names.get(d.roomTypeId) ?? '',
+        day: d.day,
+        priceRwf: d.rateRwf,
+        closed: d.blocked,
+        minNights: d.minNights,
+      })),
+    ).sort((a, b) => a.from.localeCompare(b.from) || a.roomTypeName.localeCompare(b.roomTypeName));
+    return { today, ranges };
+  }
+
   async writeDays(ws: ScopedWorkspace, body: RatesDaysUpdate): Promise<RatesCalendar> {
     const type = await this.ownRoomType(ws, body.roomTypeId);
     if (span(body.from, body.to) > 366) throw new BadRequestException('Change at most a year of days at a time.');
@@ -81,11 +107,20 @@ export class RatesCalendarService {
     const min = body.minStay === undefined ? type.minStay : body.minStay;
     const max = body.maxStay === undefined ? type.maxStay : body.maxStay;
     if (min && max && min > max) throw new BadRequestException('The shortest stay is longer than the longest.');
+    if (body.singleGuestPriceRwf != null) {
+      if (type.priceBasis !== 'per_unit') {
+        throw new BadRequestException(`${type.name} is priced per guest, so it has no one guest price.`);
+      }
+      const base = body.basePriceRwf ?? type.basePriceRwf;
+      if (body.singleGuestPriceRwf >= base) {
+        throw new BadRequestException('One guest pays less than the room price. Lower it, or leave it empty.');
+      }
+    }
     await this.rates.writeTerms({ ratePlanId: type.ratePlanId, ...body });
     return this.calendar(ws, {});
   }
 
-  private async ownRoomType(ws: ScopedWorkspace, roomTypeId: string) {
+  private async ownRoomType(ws: ScopedWorkspace, roomTypeId: string): Promise<RatesRoomTypeRow> {
     const types = await this.rates.roomTypes(ws.workspaceId, ws.branchScope.propertyIds);
     const type = types.find((t) => t.id === roomTypeId);
     if (!type) throw new NotFoundException('That room type was not found.');

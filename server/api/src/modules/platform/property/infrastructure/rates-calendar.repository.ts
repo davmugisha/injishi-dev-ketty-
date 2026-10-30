@@ -10,6 +10,8 @@ export interface RatesRoomTypeRow {
   ratePlanId: string | null;
   rooms: number;
   basePriceRwf: number;
+  priceBasis: string;
+  singleGuestPriceRwf: number | null;
   minStay: number | null;
   maxStay: number | null;
   weeklyDiscountPct: number | null;
@@ -41,6 +43,8 @@ export class RatesCalendarRepository {
       rate_plan_id: string | null;
       rooms: number;
       base: string | number | null;
+      price_basis: string;
+      single: string | number | null;
       min_stay: number | null;
       max_stay: number | null;
       weekly: string | null;
@@ -49,6 +53,7 @@ export class RatesCalendarRepository {
       select rt.id, rt.name, p.name as property_name, rp.id as rate_plan_id,
              (select count(*)::int from rooms r where r.room_type_id = rt.id and r.status <> 'out_of_service') as rooms,
              coalesce(rp.base_price_rwf, rt.base_price_rwf) as base,
+             rt.price_basis::text as price_basis, rt.single_guest_price_rwf as single,
              coalesce(rp.min_stay, rt.min_stay) as min_stay, coalesce(rp.max_stay, rt.max_stay) as max_stay,
              coalesce(rp.weekly_discount_pct, rt.weekly_discount_pct) as weekly,
              coalesce(rp.monthly_discount_pct, rt.monthly_discount_pct) as monthly
@@ -68,6 +73,8 @@ export class RatesCalendarRepository {
       ratePlanId: r.rate_plan_id,
       rooms: Number(r.rooms),
       basePriceRwf: Number(r.base ?? 0),
+      priceBasis: r.price_basis,
+      singleGuestPriceRwf: r.single == null ? null : Number(r.single),
       minStay: r.min_stay,
       maxStay: r.max_stay,
       weeklyDiscountPct: r.weekly == null ? null : Number(r.weekly),
@@ -95,6 +102,39 @@ export class RatesCalendarRepository {
          sql`, `,
        )})
          and d.day between ${from}::date and ${to}::date`);
+    return rows.map((r) => ({
+      roomTypeId: r.room_type_id,
+      day: r.day,
+      rateRwf: r.rate == null ? null : Number(r.rate),
+      blocked: r.blocked,
+      minNights: r.min_nights,
+    }));
+  }
+
+  /** Every day from `from` on that carries its own price, closing or shortest stay, by room type then day. */
+  async specialDays(roomTypeIds: readonly string[], from: string): Promise<RatesOverrideRow[]> {
+    if (roomTypeIds.length === 0) return [];
+    const { rows } = await this.db.execute<{
+      room_type_id: string;
+      day: string;
+      rate: string | null;
+      blocked: boolean;
+      min_nights: number | null;
+    }>(sql`
+      select d.room_type_id, to_char(d.day, 'YYYY-MM-DD') as day, d.custom_nightly_rate_rwf as rate, d.blocked, d.min_nights
+        from date_overrides d
+        join lateral (
+          select x.id from rate_plans x where x.room_type_id = d.room_type_id and x.status = 'active'
+           order by x.is_default desc, x.created_at asc limit 1
+        ) rp on rp.id = d.rate_plan_id
+       where d.room_type_id in (${sql.join(
+         roomTypeIds.map((id) => sql`${id}::uuid`),
+         sql`, `,
+       )})
+         and d.day >= ${from}::date
+         and (d.custom_nightly_rate_rwf is not null or d.blocked or d.min_nights is not null)
+       order by d.room_type_id, d.day
+       limit 2000`);
     return rows.map((r) => ({
       roomTypeId: r.room_type_id,
       day: r.day,
@@ -169,6 +209,7 @@ export class RatesCalendarRepository {
     roomTypeId: string;
     ratePlanId: string | null;
     basePriceRwf?: number;
+    singleGuestPriceRwf?: number | null;
     minStay?: number | null;
     maxStay?: number | null;
     weeklyDiscountPct?: number | null;
@@ -177,6 +218,14 @@ export class RatesCalendarRepository {
     const sets = (kind: 'rt' | 'rp'): SQL[] => {
       const out: SQL[] = [];
       if (input.basePriceRwf !== undefined) out.push(sql`base_price_rwf = ${input.basePriceRwf}`);
+      // The room type's one guest price is mirrored on its rate plan, as RoomTypesRepository.update does.
+      if (input.singleGuestPriceRwf !== undefined) {
+        out.push(
+          kind === 'rt'
+            ? sql`single_guest_price_rwf = ${input.singleGuestPriceRwf}`
+            : sql`single_occupancy_price_rwf = ${input.singleGuestPriceRwf}`,
+        );
+      }
       if (input.minStay !== undefined) out.push(sql`min_stay = ${input.minStay}`);
       if (input.maxStay !== undefined) out.push(sql`max_stay = ${input.maxStay}`);
       if (input.weeklyDiscountPct !== undefined) out.push(sql`weekly_discount_pct = ${input.weeklyDiscountPct}`);

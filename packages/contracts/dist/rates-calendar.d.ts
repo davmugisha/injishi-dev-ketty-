@@ -31,7 +31,12 @@ export declare const RatesRoomType: z.ZodObject<{
     name: z.ZodString;
     propertyName: z.ZodString;
     rooms: z.ZodNumber;
+    /** A night's price: for the room (`per_unit`, hotels since 0119) or for each guest (`per_person`). */
     basePriceRwf: z.ZodNumber;
+    /** `per_unit` or `per_person`. Optional, so an older API's answer still parses. */
+    priceBasis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    /** What one guest pays a night for a room priced per room; null when one guest pays the room price. */
+    singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     minStay: z.ZodNullable<z.ZodNumber>;
     maxStay: z.ZodNullable<z.ZodNumber>;
     weeklyDiscountPct: z.ZodNullable<z.ZodNumber>;
@@ -80,6 +85,8 @@ export declare const RatesRoomType: z.ZodObject<{
     maxStay: number | null;
     weeklyDiscountPct: number | null;
     monthlyDiscountPct: number | null;
+    priceBasis?: string | null | undefined;
+    singleGuestPriceRwf?: number | null | undefined;
 }, {
     name: string;
     id: string;
@@ -98,6 +105,8 @@ export declare const RatesRoomType: z.ZodObject<{
     maxStay: number | null;
     weeklyDiscountPct: number | null;
     monthlyDiscountPct: number | null;
+    priceBasis?: string | null | undefined;
+    singleGuestPriceRwf?: number | null | undefined;
 }>;
 export type RatesRoomType = z.infer<typeof RatesRoomType>;
 export declare const RatesCalendar: z.ZodObject<{
@@ -109,7 +118,12 @@ export declare const RatesCalendar: z.ZodObject<{
         name: z.ZodString;
         propertyName: z.ZodString;
         rooms: z.ZodNumber;
+        /** A night's price: for the room (`per_unit`, hotels since 0119) or for each guest (`per_person`). */
         basePriceRwf: z.ZodNumber;
+        /** `per_unit` or `per_person`. Optional, so an older API's answer still parses. */
+        priceBasis: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        /** What one guest pays a night for a room priced per room; null when one guest pays the room price. */
+        singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         minStay: z.ZodNullable<z.ZodNumber>;
         maxStay: z.ZodNullable<z.ZodNumber>;
         weeklyDiscountPct: z.ZodNullable<z.ZodNumber>;
@@ -158,6 +172,8 @@ export declare const RatesCalendar: z.ZodObject<{
         maxStay: number | null;
         weeklyDiscountPct: number | null;
         monthlyDiscountPct: number | null;
+        priceBasis?: string | null | undefined;
+        singleGuestPriceRwf?: number | null | undefined;
     }, {
         name: string;
         id: string;
@@ -176,6 +192,8 @@ export declare const RatesCalendar: z.ZodObject<{
         maxStay: number | null;
         weeklyDiscountPct: number | null;
         monthlyDiscountPct: number | null;
+        priceBasis?: string | null | undefined;
+        singleGuestPriceRwf?: number | null | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     from: string;
@@ -197,6 +215,8 @@ export declare const RatesCalendar: z.ZodObject<{
         maxStay: number | null;
         weeklyDiscountPct: number | null;
         monthlyDiscountPct: number | null;
+        priceBasis?: string | null | undefined;
+        singleGuestPriceRwf?: number | null | undefined;
     }[];
     to: string;
     today: string;
@@ -220,6 +240,8 @@ export declare const RatesCalendar: z.ZodObject<{
         maxStay: number | null;
         weeklyDiscountPct: number | null;
         monthlyDiscountPct: number | null;
+        priceBasis?: string | null | undefined;
+        singleGuestPriceRwf?: number | null | undefined;
     }[];
     to: string;
     today: string;
@@ -283,6 +305,8 @@ export type RatesDaysUpdate = z.infer<typeof RatesDaysUpdate>;
 export declare const RatesTermsUpdate: z.ZodObject<{
     roomTypeId: z.ZodString;
     basePriceRwf: z.ZodOptional<z.ZodNumber>;
+    /** One guest's price a night, for a room priced per room; null clears it. */
+    singleGuestPriceRwf: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     minStay: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     maxStay: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     weeklyDiscountPct: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -290,6 +314,7 @@ export declare const RatesTermsUpdate: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     roomTypeId: string;
     minStay?: number | null | undefined;
+    singleGuestPriceRwf?: number | null | undefined;
     basePriceRwf?: number | undefined;
     maxStay?: number | null | undefined;
     weeklyDiscountPct?: number | null | undefined;
@@ -297,10 +322,102 @@ export declare const RatesTermsUpdate: z.ZodObject<{
 }, {
     roomTypeId: string;
     minStay?: number | null | undefined;
+    singleGuestPriceRwf?: number | null | undefined;
     basePriceRwf?: number | undefined;
     maxStay?: number | null | undefined;
     weeklyDiscountPct?: number | null | undefined;
     monthlyDiscountPct?: number | null | undefined;
 }>;
 export type RatesTermsUpdate = z.infer<typeof RatesTermsUpdate>;
+/** A run of days with its own price, closing or shortest stay, from today on (`GET /ops/rates/special-dates`). */
+export declare const RatesSpecialRange: z.ZodObject<{
+    roomTypeId: z.ZodString;
+    roomTypeName: z.ZodString;
+    /** The first and the last day of the run. */
+    from: z.ZodEffects<z.ZodString, string, string>;
+    to: z.ZodEffects<z.ZodString, string, string>;
+    /** The run's own price a night; null keeps the room type's price. */
+    priceRwf: z.ZodNullable<z.ZodNumber>;
+    closed: z.ZodBoolean;
+    minNights: z.ZodNullable<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    roomTypeId: string;
+    closed: boolean;
+    priceRwf: number | null;
+    from: string;
+    to: string;
+    roomTypeName: string;
+    minNights: number | null;
+}, {
+    roomTypeId: string;
+    closed: boolean;
+    priceRwf: number | null;
+    from: string;
+    to: string;
+    roomTypeName: string;
+    minNights: number | null;
+}>;
+export type RatesSpecialRange = z.infer<typeof RatesSpecialRange>;
+export declare const RatesSpecialDates: z.ZodObject<{
+    today: z.ZodEffects<z.ZodString, string, string>;
+    ranges: z.ZodArray<z.ZodObject<{
+        roomTypeId: z.ZodString;
+        roomTypeName: z.ZodString;
+        /** The first and the last day of the run. */
+        from: z.ZodEffects<z.ZodString, string, string>;
+        to: z.ZodEffects<z.ZodString, string, string>;
+        /** The run's own price a night; null keeps the room type's price. */
+        priceRwf: z.ZodNullable<z.ZodNumber>;
+        closed: z.ZodBoolean;
+        minNights: z.ZodNullable<z.ZodNumber>;
+    }, "strip", z.ZodTypeAny, {
+        roomTypeId: string;
+        closed: boolean;
+        priceRwf: number | null;
+        from: string;
+        to: string;
+        roomTypeName: string;
+        minNights: number | null;
+    }, {
+        roomTypeId: string;
+        closed: boolean;
+        priceRwf: number | null;
+        from: string;
+        to: string;
+        roomTypeName: string;
+        minNights: number | null;
+    }>, "many">;
+}, "strip", z.ZodTypeAny, {
+    today: string;
+    ranges: {
+        roomTypeId: string;
+        closed: boolean;
+        priceRwf: number | null;
+        from: string;
+        to: string;
+        roomTypeName: string;
+        minNights: number | null;
+    }[];
+}, {
+    today: string;
+    ranges: {
+        roomTypeId: string;
+        closed: boolean;
+        priceRwf: number | null;
+        from: string;
+        to: string;
+        roomTypeName: string;
+        minNights: number | null;
+    }[];
+}>;
+export type RatesSpecialDates = z.infer<typeof RatesSpecialDates>;
+/** Days in a row with the same settings make one run; `days` sorted by room type, then day. */
+export declare function specialRanges(days: readonly {
+    roomTypeId: string;
+    roomTypeName: string;
+    day: string;
+    priceRwf: number | null;
+    closed: boolean;
+    minNights: number | null;
+}[]): RatesSpecialRange[];
 //# sourceMappingURL=rates-calendar.d.ts.map

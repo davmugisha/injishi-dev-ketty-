@@ -1,4 +1,4 @@
-import { type RatesCalendar, RatesDaysUpdate, RatesTermsUpdate } from '@injishi/contracts';
+import { type RatesCalendar, RatesDaysUpdate, type RatesSpecialDates, RatesTermsUpdate } from '@injishi/contracts';
 import { Body, Controller, Get, Put, Query, UseGuards } from '@nestjs/common';
 
 import { RatesCalendarService } from '../../../modules/platform/property/application/rates-calendar.service';
@@ -25,6 +25,11 @@ export class OpsRatesCalendarController {
     @Query('to') to?: string,
   ): Promise<RatesCalendar> {
     return this.rates.calendar(workspace, { from, to });
+  }
+
+  @Get('special-dates')
+  specialDates(@CurrentWorkspace() workspace: ScopedWorkspace): Promise<RatesSpecialDates> {
+    return this.rates.specialDates(workspace);
   }
 
   @Put('days')

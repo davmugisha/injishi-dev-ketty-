@@ -29,7 +29,12 @@ export const RatesRoomType = z.object({
   name: z.string(),
   propertyName: z.string(),
   rooms: z.number().int().min(0),
+  /** A night's price: for the room (`per_unit`, hotels since 0119) or for each guest (`per_person`). */
   basePriceRwf: z.number().int().min(0),
+  /** `per_unit` or `per_person`. Optional, so an older API's answer still parses. */
+  priceBasis: z.string().nullish(),
+  /** What one guest pays a night for a room priced per room; null when one guest pays the room price. */
+  singleGuestPriceRwf: z.number().int().positive().nullish(),
   minStay: z.number().int().positive().nullable(),
   maxStay: z.number().int().positive().nullable(),
   weeklyDiscountPct: z.number().min(0).max(90).nullable(),
@@ -70,9 +75,74 @@ export type RatesDaysUpdate = z.infer<typeof RatesDaysUpdate>;
 export const RatesTermsUpdate = z.object({
   roomTypeId: Uuid,
   basePriceRwf: z.number().int().positive().max(100_000_000).optional(),
+  /** One guest's price a night, for a room priced per room; null clears it. */
+  singleGuestPriceRwf: z.number().int().positive().max(100_000_000).nullable().optional(),
   minStay: z.number().int().positive().max(365).nullable().optional(),
   maxStay: z.number().int().positive().max(365).nullable().optional(),
   weeklyDiscountPct: z.number().min(0).max(90).nullable().optional(),
   monthlyDiscountPct: z.number().min(0).max(90).nullable().optional(),
 });
 export type RatesTermsUpdate = z.infer<typeof RatesTermsUpdate>;
+
+/** A run of days with its own price, closing or shortest stay, from today on (`GET /ops/rates/special-dates`). */
+export const RatesSpecialRange = z.object({
+  roomTypeId: Uuid,
+  roomTypeName: z.string(),
+  /** The first and the last day of the run. */
+  from: CalendarDay,
+  to: CalendarDay,
+  /** The run's own price a night; null keeps the room type's price. */
+  priceRwf: z.number().int().positive().nullable(),
+  closed: z.boolean(),
+  minNights: z.number().int().positive().nullable(),
+});
+export type RatesSpecialRange = z.infer<typeof RatesSpecialRange>;
+
+export const RatesSpecialDates = z.object({
+  today: CalendarDay,
+  ranges: z.array(RatesSpecialRange),
+});
+export type RatesSpecialDates = z.infer<typeof RatesSpecialDates>;
+
+/** Days in a row with the same settings make one run; `days` sorted by room type, then day. */
+export function specialRanges(
+  days: readonly {
+    roomTypeId: string;
+    roomTypeName: string;
+    day: string;
+    priceRwf: number | null;
+    closed: boolean;
+    minNights: number | null;
+  }[],
+): RatesSpecialRange[] {
+  const next = (day: string) => {
+    const d = new Date(`${day}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  };
+  const out: RatesSpecialRange[] = [];
+  for (const d of days) {
+    const last = out[out.length - 1];
+    if (
+      last &&
+      last.roomTypeId === d.roomTypeId &&
+      next(last.to) === d.day &&
+      last.priceRwf === d.priceRwf &&
+      last.closed === d.closed &&
+      last.minNights === d.minNights
+    ) {
+      last.to = d.day;
+      continue;
+    }
+    out.push({
+      roomTypeId: d.roomTypeId,
+      roomTypeName: d.roomTypeName,
+      from: d.day,
+      to: d.day,
+      priceRwf: d.priceRwf,
+      closed: d.closed,
+      minNights: d.minNights,
+    });
+  }
+  return out;
+}
