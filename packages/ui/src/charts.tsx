@@ -1244,6 +1244,8 @@ export interface CountSlice {
   key: string;
   label: string;
   count: number;
+  /** A fixed colour (a state's own): slices keep the order given instead of largest first. */
+  color?: string;
 }
 
 /**
@@ -1277,11 +1279,13 @@ export function CountDonut({
   className?: string;
 }) {
   const motion = !useReducedMotion();
-  const positive = data.filter((d) => d.count > 0).sort((a, b) => b.count - a.count);
-  const top = positive.slice(0, 5);
-  const rest = positive.slice(5).reduce((n, d) => n + d.count, 0);
+  const fixed = data.some((d) => d.color);
+  const positive = data.filter((d) => d.count > 0);
+  if (!fixed) positive.sort((a, b) => b.count - a.count);
+  const top = fixed ? positive : positive.slice(0, 5);
+  const rest = fixed ? 0 : positive.slice(5).reduce((n, d) => n + d.count, 0);
   const slices = [
-    ...top.map((d, i) => ({ key: d.key, name: d.label, value: d.count, color: CHART_COLOR.cat(i + 1) })),
+    ...top.map((d, i) => ({ key: d.key, name: d.label, value: d.count, color: d.color ?? CHART_COLOR.cat(i + 1) })),
     ...(rest > 0 ? [{ key: "", name: "Other", value: rest, color: "var(--chart-other)" }] : []),
   ];
   const total = slices.reduce((n, d) => n + d.value, 0);
@@ -1502,13 +1506,20 @@ export function TrendArea({
       ? (values[j] ?? []).reduce((a, v) => a + v, 0) / Math.max(1, (values[j] ?? []).length)
       : (values[j] ?? []).reduce((a, v) => a + v, 0);
   const base = useId().replace(/:/g, "");
-  const rows = range.buckets.map((b, i) => {
+  // Months before the first figure are left off, so a line never seems to rise out of months with no
+  // records; at least two points stay so there is a line to read.
+  const firstFigure = range.buckets.findIndex((_, i) => series.some((_s, j) => (values[j]?.[i] ?? 0) !== 0));
+  const skip =
+    range.unit === "month" && firstFigure > 0 ? Math.min(firstFigure, Math.max(0, range.buckets.length - 2)) : 0;
+  const rows = range.buckets.slice(skip).map((b, k) => {
+    const i = k + skip;
     const row: Record<string, string | number> = { label: b.label, long: b.long };
     series.forEach((s, j) => {
       row[s.key] = values[j]?.[i] ?? 0;
     });
     return row;
   });
+  const fewPoints = rows.length <= 12;
   const totals = series.map((_, j) => total(j));
   const isEmpty = totals.every((t) => t === 0);
   const longOf = (label: string | number) => rows.find((r) => r.label === label)?.long ?? String(label);
@@ -1567,11 +1578,13 @@ export function TrendArea({
             key={s.key}
             dataKey={s.key}
             name={s.label}
-            type="monotone"
+            // Straight lines between real figures: a curve would invent a path between two months.
+            type="linear"
             stroke={s.color}
             strokeWidth={s.dashed ? 1.5 : 2}
             strokeDasharray={s.dashed ? "4 4" : undefined}
             fill={s.dashed ? "transparent" : `url(#${base}-${j})`}
+            dot={fewPoints && !s.dashed ? { r: 2.5, strokeWidth: 0, fill: s.color } : false}
             activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
             isAnimationActive={motion}
           />

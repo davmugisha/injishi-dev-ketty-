@@ -122,8 +122,8 @@ export function KpiStrip({ label, items, className }: { label: string; items: Kp
         className={cx("grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-separator bg-separator", cols)}
       >
         {items.map((k, i) => {
-          // Five or more to a row leave a cell too narrow for "RWF 183,000": compact from 100K there.
-          const shown = valueText(k, false, items.length >= 5 ? 100_000 : 1_000_000);
+          // Five or more to a row leave a cell too narrow for "RWF 90,323": compact from 10K there.
+          const shown = valueText(k, false, items.length >= 5 ? 10_000 : items.length === 4 ? 100_000 : 1_000_000);
           const exact = valueText(k, true);
           const showSpark = k.spark && k.spark.length > 1 && k.spark.some((v) => v > 0) && k.progress == null;
           const showProgress = k.progress != null && k.progress > 0 && k.progress < 100;
@@ -148,7 +148,7 @@ export function KpiStrip({ label, items, className }: { label: string; items: Kp
                 ) : null}
                 <KPI.Title
                   className={cx(
-                    "min-w-0 flex-1 truncate text-[13px] font-medium",
+                    "min-w-0 flex-1 truncate text-sm font-medium",
                     k.isCurrent ? "text-accent" : "text-muted",
                   )}
                 >
@@ -170,7 +170,7 @@ export function KpiStrip({ label, items, className }: { label: string; items: Kp
                   <KPI.Value
                     value={k.value}
                     className={cx(
-                      "truncate text-[28px] leading-none font-semibold tracking-tight tabular",
+                      "truncate text-2xl leading-none font-semibold tracking-tight tabular sm:text-3xl",
                       k.status && k.status !== "success" ? TONE_TEXT[k.status] : "text-foreground",
                     )}
                   >
