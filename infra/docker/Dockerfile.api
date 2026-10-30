@@ -50,8 +50,10 @@ COPY packages/ui-contract/package.json ./packages/ui-contract/
 COPY packages/product-contract/package.json ./packages/product-contract/
 COPY packages/api-client/package.json ./packages/api-client/
 COPY packages/i18n/package.json ./packages/i18n/
+COPY products/finance/package.json ./products/finance/
 COPY products/hr/package.json ./products/hr/
 COPY products/outlets/package.json ./products/outlets/
+COPY products/pay/package.json ./products/pay/
 COPY products/pms/package.json ./products/pms/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @injishi/api...
