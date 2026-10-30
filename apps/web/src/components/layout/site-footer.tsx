@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SocialIcons } from "@/components/icons";
 import { InjishiGlyph } from "@/components/icons/marks";
 import { AsciiWordmark } from "@/components/layout/ascii-wordmark";
-import { FooterGlass } from "@/components/layout/footer-glass";
+import { LazyFooterGlass } from "@/components/layout/lazy-footer-glass";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { ThemePill } from "@/components/layout/theme-pill";
 import { FOOTER_COLUMNS, SOCIAL_LINKS } from "@/data/navigation";
@@ -16,7 +16,8 @@ import { FOOTER_COLUMNS, SOCIAL_LINKS } from "@/data/navigation";
  * and a reader scanning for "Privacy" had to read all twelve links to find it.
  *
  * Still a Server Component. Two client islands hang off it, and both are their
- * own file for that reason: `FooterGlass` (a WebGL canvas) and `ThemePill`.
+ * own file for that reason: `FooterGlass` (a WebGL canvas, fetched only once
+ * the footer nears the viewport, through `LazyFooterGlass`) and `ThemePill`.
  *
  * THE PANEL COLOUR is derived, not picked. `--accent` is a mid-tone amber at
  * 60% lightness, and near-white body text on it measures 4.09:1 — under the
@@ -61,7 +62,7 @@ export function SiteFooter() {
 
       <div className="relative bg-[color-mix(in_oklch,var(--accent)_72%,var(--ink))]">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-          <FooterGlass />
+          <LazyFooterGlass />
         </div>
 
         <div className="container relative py-14 md:py-20">

@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import {
   bootPlatform,
   expectedDatabaseKind,
@@ -19,7 +21,7 @@ import {
  */
 
 const marker = (rows: Array<Record<string, unknown>>): Queryable => ({
-  query: jest.fn().mockResolvedValue({ rows }),
+  query: vi.fn().mockResolvedValue({ rows }),
 });
 const SAMPLE = marker([{ kind: 'sample' }]);
 const REAL = marker([]);
@@ -182,13 +184,13 @@ describe('readDatabaseKind', () => {
   });
 
   it("fails with the database's own error rather than guessing a kind", async () => {
-    const down = { query: jest.fn().mockRejectedValue(new Error('connect ECONNREFUSED')) };
+    const down = { query: vi.fn().mockRejectedValue(new Error('connect ECONNREFUSED')) };
     await expect(readDatabaseKind(down)).rejects.toThrow('connect ECONNREFUSED');
   });
 
   it('names the migration when the marker table does not exist yet', async () => {
     const old = {
-      query: jest.fn().mockRejectedValue(
+      query: vi.fn().mockRejectedValue(
         Object.assign(new Error('relation "database_identity" does not exist'), { code: '42P01' }),
       ),
     };

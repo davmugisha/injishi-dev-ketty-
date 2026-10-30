@@ -15,11 +15,11 @@ export declare const PayCondition: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     value: string;
     field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-    op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+    op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
 }, {
     value: string;
     field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-    op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+    op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
 }>;
 export type PayCondition = z.infer<typeof PayCondition>;
 export declare const PayTargetMode: z.ZodEnum<["include", "exclude"]>;
@@ -47,11 +47,11 @@ export declare const PayComponent: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     }, {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     }>>;
     appliesAllActive: z.ZodBoolean;
     oneOffPeriod: z.ZodNullable<z.ZodString>;
@@ -77,8 +77,8 @@ export declare const PayComponent: z.ZodObject<{
     code: string;
     status: "active" | "archived";
     name: string;
-    kind: "deduction" | "allowance";
     id: string;
+    kind: "deduction" | "allowance";
     amountRwf: number | null;
     taxable: boolean;
     beforeTax: boolean;
@@ -89,7 +89,7 @@ export declare const PayComponent: z.ZodObject<{
     condition: {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     } | null;
     appliesAllActive: boolean;
     oneOffPeriod: string | null;
@@ -103,8 +103,8 @@ export declare const PayComponent: z.ZodObject<{
     code: string;
     status: "active" | "archived";
     name: string;
-    kind: "deduction" | "allowance";
     id: string;
+    kind: "deduction" | "allowance";
     amountRwf: number | null;
     taxable: boolean;
     beforeTax: boolean;
@@ -115,7 +115,7 @@ export declare const PayComponent: z.ZodObject<{
     condition: {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     } | null;
     appliesAllActive: boolean;
     oneOffPeriod: string | null;
@@ -150,11 +150,11 @@ export declare const PayComponentList: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             value: string;
             field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-            op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+            op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
         }, {
             value: string;
             field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-            op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+            op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
         }>>;
         appliesAllActive: z.ZodBoolean;
         oneOffPeriod: z.ZodNullable<z.ZodString>;
@@ -180,8 +180,8 @@ export declare const PayComponentList: z.ZodObject<{
         code: string;
         status: "active" | "archived";
         name: string;
-        kind: "deduction" | "allowance";
         id: string;
+        kind: "deduction" | "allowance";
         amountRwf: number | null;
         taxable: boolean;
         beforeTax: boolean;
@@ -192,7 +192,7 @@ export declare const PayComponentList: z.ZodObject<{
         condition: {
             value: string;
             field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-            op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+            op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
         } | null;
         appliesAllActive: boolean;
         oneOffPeriod: string | null;
@@ -206,8 +206,8 @@ export declare const PayComponentList: z.ZodObject<{
         code: string;
         status: "active" | "archived";
         name: string;
-        kind: "deduction" | "allowance";
         id: string;
+        kind: "deduction" | "allowance";
         amountRwf: number | null;
         taxable: boolean;
         beforeTax: boolean;
@@ -218,7 +218,7 @@ export declare const PayComponentList: z.ZodObject<{
         condition: {
             value: string;
             field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-            op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+            op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
         } | null;
         appliesAllActive: boolean;
         oneOffPeriod: string | null;
@@ -234,8 +234,8 @@ export declare const PayComponentList: z.ZodObject<{
         code: string;
         status: "active" | "archived";
         name: string;
-        kind: "deduction" | "allowance";
         id: string;
+        kind: "deduction" | "allowance";
         amountRwf: number | null;
         taxable: boolean;
         beforeTax: boolean;
@@ -246,7 +246,7 @@ export declare const PayComponentList: z.ZodObject<{
         condition: {
             value: string;
             field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-            op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+            op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
         } | null;
         appliesAllActive: boolean;
         oneOffPeriod: string | null;
@@ -262,8 +262,8 @@ export declare const PayComponentList: z.ZodObject<{
         code: string;
         status: "active" | "archived";
         name: string;
-        kind: "deduction" | "allowance";
         id: string;
+        kind: "deduction" | "allowance";
         amountRwf: number | null;
         taxable: boolean;
         beforeTax: boolean;
@@ -274,7 +274,7 @@ export declare const PayComponentList: z.ZodObject<{
         condition: {
             value: string;
             field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-            op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+            op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
         } | null;
         appliesAllActive: boolean;
         oneOffPeriod: string | null;
@@ -309,11 +309,11 @@ export declare const CreatePayComponentRequest: z.ZodEffects<z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     }, {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     }>>;
     appliesAllActive: z.ZodBoolean;
     oneOffPeriod: z.ZodNullable<z.ZodString>;
@@ -343,7 +343,7 @@ export declare const CreatePayComponentRequest: z.ZodEffects<z.ZodObject<{
     condition: {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     } | null;
     appliesAllActive: boolean;
     oneOffPeriod: string | null;
@@ -365,7 +365,7 @@ export declare const CreatePayComponentRequest: z.ZodEffects<z.ZodObject<{
     condition: {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     } | null;
     appliesAllActive: boolean;
     oneOffPeriod: string | null;
@@ -387,7 +387,7 @@ export declare const CreatePayComponentRequest: z.ZodEffects<z.ZodObject<{
     condition: {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     } | null;
     appliesAllActive: boolean;
     oneOffPeriod: string | null;
@@ -409,7 +409,7 @@ export declare const CreatePayComponentRequest: z.ZodEffects<z.ZodObject<{
     condition: {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     } | null;
     appliesAllActive: boolean;
     oneOffPeriod: string | null;
@@ -438,11 +438,11 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     }, "strip", z.ZodTypeAny, {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     }, {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     }>>>;
     appliesAllActive: z.ZodOptional<z.ZodBoolean>;
     oneOffPeriod: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -471,7 +471,7 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     condition?: {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     } | null | undefined;
     appliesAllActive?: boolean | undefined;
     oneOffPeriod?: string | null | undefined;
@@ -493,7 +493,7 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     condition?: {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     } | null | undefined;
     appliesAllActive?: boolean | undefined;
     oneOffPeriod?: string | null | undefined;
@@ -515,7 +515,7 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     condition?: {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     } | null | undefined;
     appliesAllActive?: boolean | undefined;
     oneOffPeriod?: string | null | undefined;
@@ -537,7 +537,7 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     condition?: {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     } | null | undefined;
     appliesAllActive?: boolean | undefined;
     oneOffPeriod?: string | null | undefined;
@@ -559,7 +559,7 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     condition?: {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     } | null | undefined;
     appliesAllActive?: boolean | undefined;
     oneOffPeriod?: string | null | undefined;
@@ -581,7 +581,7 @@ export declare const UpdatePayComponentRequest: z.ZodEffects<z.ZodEffects<z.ZodO
     condition?: {
         value: string;
         field: "children" | "sex" | "marital_status" | "years_of_service" | "prior_experience" | "employee_type" | "job_position" | "department" | "branch" | "wage_basis";
-        op: "eq" | "ne" | "in" | "gt" | "gte" | "lt" | "lte";
+        op: "gte" | "gt" | "lte" | "lt" | "eq" | "ne" | "in";
     } | null | undefined;
     appliesAllActive?: boolean | undefined;
     oneOffPeriod?: string | null | undefined;
@@ -755,8 +755,8 @@ export declare const Loan: z.ZodObject<{
     }>, "many">;
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    kind: "loan" | "advance";
     id: string;
+    kind: "loan" | "advance";
     amountRwf: number;
     reason: string | null;
     employee: {
@@ -781,8 +781,8 @@ export declare const Loan: z.ZodObject<{
         deferredFrom: string | null;
     }[];
 }, {
-    kind: "loan" | "advance";
     id: string;
+    kind: "loan" | "advance";
     amountRwf: number;
     reason: string | null;
     employee: {
@@ -893,10 +893,10 @@ export declare const PayClaim: z.ZodObject<{
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     status: "approved" | "rejected" | "cancelled" | "requested";
-    kind: "reimbursement" | "leave_encashment";
-    decidedAt: string | null;
     id: string;
+    kind: "reimbursement" | "leave_encashment";
     amountRwf: number | null;
+    decidedAt: string | null;
     reason: string;
     decisionNote: string | null;
     employee: {
@@ -907,8 +907,8 @@ export declare const PayClaim: z.ZodObject<{
     paid: boolean;
     createdAt: string;
     branchId: string | null;
-    days: number | null;
     period: string;
+    days: number | null;
     leaveType: {
         name: string;
         id: string;
@@ -917,10 +917,10 @@ export declare const PayClaim: z.ZodObject<{
     hasReceipt: boolean;
 }, {
     status: "approved" | "rejected" | "cancelled" | "requested";
-    kind: "reimbursement" | "leave_encashment";
-    decidedAt: string | null;
     id: string;
+    kind: "reimbursement" | "leave_encashment";
     amountRwf: number | null;
+    decidedAt: string | null;
     reason: string;
     decisionNote: string | null;
     employee: {
@@ -931,8 +931,8 @@ export declare const PayClaim: z.ZodObject<{
     paid: boolean;
     createdAt: string;
     branchId: string | null;
-    days: number | null;
     period: string;
+    days: number | null;
     leaveType: {
         name: string;
         id: string;
@@ -1165,40 +1165,40 @@ export declare const PayslipRow: z.ZodObject<{
     paidReference: z.ZodNullable<z.ZodString>;
     sentAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "draft" | "confirmed";
+    status: "confirmed" | "draft";
     id: string;
+    grossRwf: number;
     employee: {
         employeeId: string;
         displayName: string;
         jobPositionTitle: string | null;
     };
-    grossRwf: number;
     paidAt: string | null;
     branchId: string | null;
+    period: string;
     employeeNumber: string;
     netRwf: number;
     paidMethod: "cash" | "bank" | "momo" | null;
     paidReference: string | null;
     sentAt: string | null;
-    period: string;
     payRunId: string;
 }, {
-    status: "draft" | "confirmed";
+    status: "confirmed" | "draft";
     id: string;
+    grossRwf: number;
     employee: {
         employeeId: string;
         displayName: string;
         jobPositionTitle: string | null;
     };
-    grossRwf: number;
     paidAt: string | null;
     branchId: string | null;
+    period: string;
     employeeNumber: string;
     netRwf: number;
     paidMethod: "cash" | "bank" | "momo" | null;
     paidReference: string | null;
     sentAt: string | null;
-    period: string;
     payRunId: string;
 }>;
 export type PayslipRow = z.infer<typeof PayslipRow>;
@@ -1238,16 +1238,16 @@ export declare const PayFile: z.ZodObject<{
     createdAt: z.ZodString;
     createdByName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    kind: "bank" | "momo" | "paye" | "rssb";
     id: string;
+    kind: "bank" | "momo" | "paye" | "rssb";
     createdAt: string;
     totalRwf: number | null;
     rowCount: number | null;
     formatVersion: string | null;
     createdByName: string | null;
 }, {
-    kind: "bank" | "momo" | "paye" | "rssb";
     id: string;
+    kind: "bank" | "momo" | "paye" | "rssb";
     createdAt: string;
     totalRwf: number | null;
     rowCount: number | null;
@@ -1266,16 +1266,16 @@ export declare const PayFileList: z.ZodObject<{
         createdAt: z.ZodString;
         createdByName: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "bank" | "momo" | "paye" | "rssb";
         id: string;
+        kind: "bank" | "momo" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
         formatVersion: string | null;
         createdByName: string | null;
     }, {
-        kind: "bank" | "momo" | "paye" | "rssb";
         id: string;
+        kind: "bank" | "momo" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1284,8 +1284,8 @@ export declare const PayFileList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     files: {
-        kind: "bank" | "momo" | "paye" | "rssb";
         id: string;
+        kind: "bank" | "momo" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1294,8 +1294,8 @@ export declare const PayFileList: z.ZodObject<{
     }[];
 }, {
     files: {
-        kind: "bank" | "momo" | "paye" | "rssb";
         id: string;
+        kind: "bank" | "momo" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1332,16 +1332,16 @@ export declare const PayFileResult: z.ZodObject<{
         createdAt: z.ZodString;
         createdByName: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "bank" | "momo" | "paye" | "rssb";
         id: string;
+        kind: "bank" | "momo" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
         formatVersion: string | null;
         createdByName: string | null;
     }, {
-        kind: "bank" | "momo" | "paye" | "rssb";
         id: string;
+        kind: "bank" | "momo" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1366,8 +1366,8 @@ export declare const PayFileResult: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     url: string;
     file: {
-        kind: "bank" | "momo" | "paye" | "rssb";
         id: string;
+        kind: "bank" | "momo" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1383,8 +1383,8 @@ export declare const PayFileResult: z.ZodObject<{
 }, {
     url: string;
     file: {
-        kind: "bank" | "momo" | "paye" | "rssb";
         id: string;
+        kind: "bank" | "momo" | "paye" | "rssb";
         createdAt: string;
         totalRwf: number | null;
         rowCount: number | null;
@@ -1580,22 +1580,22 @@ export declare const PayrollDashboard: z.ZodObject<{
         employeeContributionsRwf: z.ZodNumber;
         employerContributionsRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         grossRwf: number;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         headcount: number;
     }, {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         grossRwf: number;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         headcount: number;
     }>, "many">;
     openLoansRwf: z.ZodNumber;
@@ -1604,13 +1604,13 @@ export declare const PayrollDashboard: z.ZodObject<{
     unpaidPayslips: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
     months: {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         grossRwf: number;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         headcount: number;
     }[];
     openLoansRwf: number;
@@ -1619,13 +1619,13 @@ export declare const PayrollDashboard: z.ZodObject<{
     unpaidPayslips: number;
 }, {
     months: {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         grossRwf: number;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         headcount: number;
     }[];
     openLoansRwf: number;
@@ -1668,6 +1668,7 @@ export declare const ContractRow: z.ZodObject<{
         displayName: string;
         jobPositionTitle: string | null;
     };
+    noticeDays: number | null;
     branchId: string | null;
     contractType: string;
     employeeNumber: string;
@@ -1675,7 +1676,6 @@ export declare const ContractRow: z.ZodObject<{
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
     payStructureId: string | null;
-    noticeDays: number | null;
 }, {
     status: string;
     id: string;
@@ -1685,6 +1685,7 @@ export declare const ContractRow: z.ZodObject<{
         displayName: string;
         jobPositionTitle: string | null;
     };
+    noticeDays: number | null;
     branchId: string | null;
     contractType: string;
     employeeNumber: string;
@@ -1692,7 +1693,6 @@ export declare const ContractRow: z.ZodObject<{
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
     payStructureId: string | null;
-    noticeDays: number | null;
 }>;
 export type ContractRow = z.infer<typeof ContractRow>;
 /** `PATCH /ops/contracts/:id`: the pay terms a contract carries; its wage and dates change only by a new contract. */
@@ -1700,17 +1700,17 @@ export declare const UpdateContractPayTermsRequest: z.ZodEffects<z.ZodObject<{
     payStructureId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     noticeDays: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
-    payStructureId?: string | null | undefined;
     noticeDays?: number | null | undefined;
+    payStructureId?: string | null | undefined;
 }, {
-    payStructureId?: string | null | undefined;
     noticeDays?: number | null | undefined;
+    payStructureId?: string | null | undefined;
 }>, {
-    payStructureId?: string | null | undefined;
     noticeDays?: number | null | undefined;
+    payStructureId?: string | null | undefined;
 }, {
-    payStructureId?: string | null | undefined;
     noticeDays?: number | null | undefined;
+    payStructureId?: string | null | undefined;
 }>;
 export type UpdateContractPayTermsRequest = z.infer<typeof UpdateContractPayTermsRequest>;
 export declare const MyPayslip: z.ZodObject<{
@@ -1723,14 +1723,14 @@ export declare const MyPayslip: z.ZodObject<{
     id: string;
     grossRwf: number;
     paidAt: string | null;
-    netRwf: number;
     period: string;
+    netRwf: number;
 }, {
     id: string;
     grossRwf: number;
     paidAt: string | null;
-    netRwf: number;
     period: string;
+    netRwf: number;
 }>;
 export type MyPayslip = z.infer<typeof MyPayslip>;
 export declare const MyPayslipList: z.ZodObject<{
@@ -1744,30 +1744,30 @@ export declare const MyPayslipList: z.ZodObject<{
         id: string;
         grossRwf: number;
         paidAt: string | null;
-        netRwf: number;
         period: string;
+        netRwf: number;
     }, {
         id: string;
         grossRwf: number;
         paidAt: string | null;
-        netRwf: number;
         period: string;
+        netRwf: number;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     payslips: {
         id: string;
         grossRwf: number;
         paidAt: string | null;
-        netRwf: number;
         period: string;
+        netRwf: number;
     }[];
 }, {
     payslips: {
         id: string;
         grossRwf: number;
         paidAt: string | null;
-        netRwf: number;
         period: string;
+        netRwf: number;
     }[];
 }>;
 export type MyPayslipList = z.infer<typeof MyPayslipList>;
@@ -1819,8 +1819,8 @@ export declare const MyLoanList: z.ZodObject<{
         }>, "many">;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        kind: "loan" | "advance";
         id: string;
+        kind: "loan" | "advance";
         amountRwf: number;
         reason: string | null;
         employee: {
@@ -1845,8 +1845,8 @@ export declare const MyLoanList: z.ZodObject<{
             deferredFrom: string | null;
         }[];
     }, {
-        kind: "loan" | "advance";
         id: string;
+        kind: "loan" | "advance";
         amountRwf: number;
         reason: string | null;
         employee: {
@@ -1873,8 +1873,8 @@ export declare const MyLoanList: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     loans: {
-        kind: "loan" | "advance";
         id: string;
+        kind: "loan" | "advance";
         amountRwf: number;
         reason: string | null;
         employee: {
@@ -1901,8 +1901,8 @@ export declare const MyLoanList: z.ZodObject<{
     }[];
 }, {
     loans: {
-        kind: "loan" | "advance";
         id: string;
+        kind: "loan" | "advance";
         amountRwf: number;
         reason: string | null;
         employee: {
@@ -1973,10 +1973,10 @@ export declare const MyPayClaimList: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        kind: "reimbursement" | "leave_encashment";
-        decidedAt: string | null;
         id: string;
+        kind: "reimbursement" | "leave_encashment";
         amountRwf: number | null;
+        decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -1987,8 +1987,8 @@ export declare const MyPayClaimList: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        days: number | null;
         period: string;
+        days: number | null;
         leaveType: {
             name: string;
             id: string;
@@ -1997,10 +1997,10 @@ export declare const MyPayClaimList: z.ZodObject<{
         hasReceipt: boolean;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        kind: "reimbursement" | "leave_encashment";
-        decidedAt: string | null;
         id: string;
+        kind: "reimbursement" | "leave_encashment";
         amountRwf: number | null;
+        decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -2011,8 +2011,8 @@ export declare const MyPayClaimList: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        days: number | null;
         period: string;
+        days: number | null;
         leaveType: {
             name: string;
             id: string;
@@ -2023,10 +2023,10 @@ export declare const MyPayClaimList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     claims: {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        kind: "reimbursement" | "leave_encashment";
-        decidedAt: string | null;
         id: string;
+        kind: "reimbursement" | "leave_encashment";
         amountRwf: number | null;
+        decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -2037,8 +2037,8 @@ export declare const MyPayClaimList: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        days: number | null;
         period: string;
+        days: number | null;
         leaveType: {
             name: string;
             id: string;
@@ -2049,10 +2049,10 @@ export declare const MyPayClaimList: z.ZodObject<{
 }, {
     claims: {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        kind: "reimbursement" | "leave_encashment";
-        decidedAt: string | null;
         id: string;
+        kind: "reimbursement" | "leave_encashment";
         amountRwf: number | null;
+        decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -2063,8 +2063,8 @@ export declare const MyPayClaimList: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        days: number | null;
         period: string;
+        days: number | null;
         leaveType: {
             name: string;
             id: string;

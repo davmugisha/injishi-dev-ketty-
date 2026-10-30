@@ -1,12 +1,17 @@
 # @injishi/auth
 
-**This is the source.** It used to be a build-output mirror of
-`injishi.managed/packages/auth`; that repo was deleted in September 2026 and
-this directory is the only copy. There is no sync script and nothing to sync
-from. See ADR-034 in the corpus (`injishi.context/dox/adrs/034-vendor-becomes-source.md`).
+The one Better Auth setup the API, web and the app share: email code sign-in
+(codes stored hashed), Google, the OTP send budget and the session cookie names.
 
-Ships only compiled `dist/` (JS + `.d.ts`). The TypeScript source was lost with the repo. Reconstructing it is owed under ADR-034; until then `dist/` is the source.
+- `src/` is the source. Consumers read the compiled `dist/`, which is committed:
+  after editing `src/`, run `pnpm --filter @injishi/auth build` and commit both.
+  A rebuild that changes only line endings in `dist/` is not a change; revert it.
+- Entry points: `./server` (`createAuth`, used by
+  `server/api/src/modules/auth/auth.module.ts`), `./client` (the browser client
+  and the OTP constants), `./edge` (cookie helpers for web's and the app's
+  `proxy.ts`) and `.`, which re-exports the server code too, so a client
+  component imports `./client`, never `.`.
+- Tests: `pnpm --filter @injishi/auth test` (`tests/*.test.mjs`, against `dist/`).
 
-The directory was called `vendor/` until ADR-034 task 7 renamed it. A directory
-called `vendor` is a directory nobody edits, which was the wrong instruction to
-leave on the only copy of a shared package.
+It was a build-output mirror of another repository once (ADR-034); that
+repository is gone and this directory is the only copy.

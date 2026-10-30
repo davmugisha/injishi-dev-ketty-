@@ -34,11 +34,11 @@ export declare const PayslipLineRef: z.ZodObject<{
     kind: z.ZodEnum<["loan_installment", "loan", "claim", "adjustment", "leave_type"]>;
     id: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
     id: string;
+    kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
 }, {
-    kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
     id: string;
+    kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
 }>;
 export type PayslipLineRef = z.infer<typeof PayslipLineRef>;
 export declare const PayslipLine: z.ZodObject<{
@@ -69,11 +69,11 @@ export declare const PayslipLine: z.ZodObject<{
         kind: z.ZodEnum<["loan_installment", "loan", "claim", "adjustment", "leave_type"]>;
         id: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         id: string;
+        kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
     }, {
-        kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         id: string;
+        kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
     }>>;
 }, "strip", z.ZodTypeAny, {
     code: string;
@@ -83,8 +83,8 @@ export declare const PayslipLine: z.ZodObject<{
     basis: string;
     side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
     ref?: {
-        kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         id: string;
+        kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
     } | undefined;
     taxable?: boolean | undefined;
     contributable?: boolean | undefined;
@@ -98,8 +98,8 @@ export declare const PayslipLine: z.ZodObject<{
     basis: string;
     side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
     ref?: {
-        kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         id: string;
+        kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
     } | undefined;
     taxable?: boolean | undefined;
     contributable?: boolean | undefined;
@@ -151,11 +151,11 @@ export declare const Payslip: z.ZodObject<{
             kind: z.ZodEnum<["loan_installment", "loan", "claim", "adjustment", "leave_type"]>;
             id: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             id: string;
+            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         }, {
-            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             id: string;
+            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         }>>;
     }, "strip", z.ZodTypeAny, {
         code: string;
@@ -165,8 +165,8 @@ export declare const Payslip: z.ZodObject<{
         basis: string;
         side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
         ref?: {
-            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             id: string;
+            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         } | undefined;
         taxable?: boolean | undefined;
         contributable?: boolean | undefined;
@@ -180,8 +180,8 @@ export declare const Payslip: z.ZodObject<{
         basis: string;
         side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
         ref?: {
-            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             id: string;
+            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         } | undefined;
         taxable?: boolean | undefined;
         contributable?: boolean | undefined;
@@ -195,7 +195,7 @@ export declare const Payslip: z.ZodObject<{
     paidReference: z.ZodNullable<z.ZodString>;
     sentAt: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "draft" | "confirmed";
+    status: "confirmed" | "draft";
     id: string;
     grossRwf: number;
     paidAt: string | null;
@@ -218,8 +218,8 @@ export declare const Payslip: z.ZodObject<{
         basis: string;
         side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
         ref?: {
-            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             id: string;
+            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         } | undefined;
         taxable?: boolean | undefined;
         contributable?: boolean | undefined;
@@ -230,7 +230,7 @@ export declare const Payslip: z.ZodObject<{
     paidReference: string | null;
     sentAt: string | null;
 }, {
-    status: "draft" | "confirmed";
+    status: "confirmed" | "draft";
     id: string;
     grossRwf: number;
     paidAt: string | null;
@@ -253,8 +253,8 @@ export declare const Payslip: z.ZodObject<{
         basis: string;
         side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
         ref?: {
-            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             id: string;
+            kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
         } | undefined;
         taxable?: boolean | undefined;
         contributable?: boolean | undefined;
@@ -336,16 +336,16 @@ export declare const PayRun: z.ZodObject<{
     employeeContributionsRwf: z.ZodNumber;
     employerContributionsRwf: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    status: "draft" | "confirmed";
+    status: "confirmed" | "draft";
     id: string;
-    periodStart: string;
     grossRwf: number;
     confirmedAt: string | null;
+    periodStart: string;
+    period: string;
     payeRwf: number;
     employeeContributionsRwf: number;
     employerContributionsRwf: number;
     netRwf: number;
-    period: string;
     computedAt: string;
     ruleVersions: {
         configType: string;
@@ -355,16 +355,16 @@ export declare const PayRun: z.ZodObject<{
     confirmedByUserId: string | null;
     headcount: number;
 }, {
-    status: "draft" | "confirmed";
+    status: "confirmed" | "draft";
     id: string;
-    periodStart: string;
     grossRwf: number;
     confirmedAt: string | null;
+    periodStart: string;
+    period: string;
     payeRwf: number;
     employeeContributionsRwf: number;
     employerContributionsRwf: number;
     netRwf: number;
-    period: string;
     computedAt: string;
     ruleVersions: {
         configType: string;
@@ -405,16 +405,16 @@ export declare const PayRunDetail: z.ZodObject<{
         employeeContributionsRwf: z.ZodNumber;
         employerContributionsRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
-        periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        periodStart: string;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -424,16 +424,16 @@ export declare const PayRunDetail: z.ZodObject<{
         confirmedByUserId: string | null;
         headcount: number;
     }, {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
-        periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        periodStart: string;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -487,11 +487,11 @@ export declare const PayRunDetail: z.ZodObject<{
                 kind: z.ZodEnum<["loan_installment", "loan", "claim", "adjustment", "leave_type"]>;
                 id: z.ZodString;
             }, "strip", z.ZodTypeAny, {
-                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             }, {
-                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             }>>;
         }, "strip", z.ZodTypeAny, {
             code: string;
@@ -501,8 +501,8 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
             ref?: {
-                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             } | undefined;
             taxable?: boolean | undefined;
             contributable?: boolean | undefined;
@@ -516,8 +516,8 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
             ref?: {
-                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             } | undefined;
             taxable?: boolean | undefined;
             contributable?: boolean | undefined;
@@ -531,7 +531,7 @@ export declare const PayRunDetail: z.ZodObject<{
         paidReference: z.ZodNullable<z.ZodString>;
         sentAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
         grossRwf: number;
         paidAt: string | null;
@@ -554,8 +554,8 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
             ref?: {
-                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             } | undefined;
             taxable?: boolean | undefined;
             contributable?: boolean | undefined;
@@ -566,7 +566,7 @@ export declare const PayRunDetail: z.ZodObject<{
         paidReference: string | null;
         sentAt: string | null;
     }, {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
         grossRwf: number;
         paidAt: string | null;
@@ -589,8 +589,8 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
             ref?: {
-                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             } | undefined;
             taxable?: boolean | undefined;
             contributable?: boolean | undefined;
@@ -623,16 +623,16 @@ export declare const PayRunDetail: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     run: {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
-        periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        periodStart: string;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -643,7 +643,7 @@ export declare const PayRunDetail: z.ZodObject<{
         headcount: number;
     };
     payslips: {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
         grossRwf: number;
         paidAt: string | null;
@@ -666,8 +666,8 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
             ref?: {
-                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             } | undefined;
             taxable?: boolean | undefined;
             contributable?: boolean | undefined;
@@ -687,16 +687,16 @@ export declare const PayRunDetail: z.ZodObject<{
     }[];
 }, {
     run: {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
-        periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        periodStart: string;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -707,7 +707,7 @@ export declare const PayRunDetail: z.ZodObject<{
         headcount: number;
     };
     payslips: {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
         grossRwf: number;
         paidAt: string | null;
@@ -730,8 +730,8 @@ export declare const PayRunDetail: z.ZodObject<{
             basis: string;
             side: "passthrough" | "employee" | "earning" | "employer" | "deduction";
             ref?: {
-                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
                 id: string;
+                kind: "adjustment" | "claim" | "loan_installment" | "loan" | "leave_type";
             } | undefined;
             taxable?: boolean | undefined;
             contributable?: boolean | undefined;

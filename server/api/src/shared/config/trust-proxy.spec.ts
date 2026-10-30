@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { FastifyAdapter } from '@nestjs/platform-fastify';
 
 import { MAX_TRUSTED_HOPS, resolveTrustProxy } from './trust-proxy';

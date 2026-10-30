@@ -18,7 +18,12 @@ export function apiBaseUrl(): string {
  * (403 MISSING_OR_NULL_ORIGIN). The app's own public origin is on the API's CORS_ORIGINS list.
  */
 export function apiOrigin(): string {
-  return (process.env.INJISHI_API_ORIGIN ?? process.env.INJISHI_APP_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+  return (
+    process.env.INJISHI_API_ORIGIN ||
+    process.env.INJISHI_APP_URL ||
+    process.env.NEXT_PUBLIC_PMS_URL ||
+    "http://localhost:3002"
+  ).replace(/\/+$/, "");
 }
 
 const TIMEOUT_MS = 15_000;
@@ -62,9 +67,25 @@ export interface RequestOptions {
   /** Money routes need one key per press, minted at the call site. */
   idempotencyKey?: string;
   query?: Record<string, string | number | boolean | null | undefined>;
+  /** A multipart body (a file upload). Sent as is; the runtime sets the multipart content type and boundary. */
+  form?: FormData;
+  /** The visitor's address, forwarded so the API's per-IP sign-in limits count them and not this server. */
+  clientIp?: string | null;
+  /** The visitor's browser, forwarded where the API keeps it as evidence (a lease signature). */
+  userAgent?: string | null;
 }
 
-/** A cookie pair as the API set it: `injishi-demo.session_token=…` (name differs per environment). */
+/**
+ * The header that names the visitor to the API. Every call here reaches the API from THIS server, so
+ * without it Better Auth sees no client address at all: in production it then skips its rate limiter and
+ * the per-IP send cap altogether ("Rate limiting skipped: could not determine client IP address").
+ * Web's sign-in form forwards it the same way (`apps/web/src/lib/otp.server.ts`).
+ */
+export function clientIpHeaders(clientIp: string | null | undefined): Record<string, string> {
+  return clientIp ? { "x-forwarded-for": clientIp } : {};
+}
+
+/** The browser's Better Auth cookies as a `Cookie` header: `injishi-demo.session_token=…` (name differs per environment). */
 export type SessionCookie = string;
 
 function messageOf(body: unknown, status: number): { code: string | null; message: string } {
@@ -88,13 +109,20 @@ export async function apiRequest<T>(
   for (const [key, value] of Object.entries(options.query ?? {})) {
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
   }
-  const headers: Record<string, string> = { accept: "application/json", origin: apiOrigin() };
+  const headers: Record<string, string> = {
+    accept: "application/json",
+    origin: apiOrigin(),
+    ...clientIpHeaders(options.clientIp),
+  };
   if (cookie) headers.cookie = cookie;
   if (options.workspaceId) headers["x-workspace-id"] = options.workspaceId;
   if (options.branchId) headers["x-branch-id"] = options.branchId;
   if (options.idempotencyKey) headers["idempotency-key"] = options.idempotencyKey;
-  let payload: string | undefined;
-  if (options.body !== undefined) {
+  if (options.userAgent) headers["user-agent"] = options.userAgent.slice(0, 500);
+  let payload: string | FormData | undefined;
+  if (options.form) {
+    payload = options.form;
+  } else if (options.body !== undefined) {
     headers["content-type"] = "application/json";
     payload = JSON.stringify(options.body);
   }
@@ -133,6 +161,8 @@ export interface ApiClient {
   put<T>(path: string, body?: unknown, options?: Omit<RequestOptions, "method" | "body">): Promise<T>;
   patch<T>(path: string, body?: unknown, options?: Omit<RequestOptions, "method" | "body">): Promise<T>;
   delete<T>(path: string, options?: Omit<RequestOptions, "method" | "body">): Promise<T>;
+  /** POST a file as multipart/form-data. */
+  upload<T>(path: string, form: FormData, options?: Omit<RequestOptions, "method" | "body" | "form">): Promise<T>;
 }
 
 export function createApiClient(cookie: SessionCookie | null): ApiClient {
@@ -143,5 +173,6 @@ export function createApiClient(cookie: SessionCookie | null): ApiClient {
     put: (path, body, options) => apiRequest(cookie, path, { ...options, method: "PUT", body: body ?? {} }),
     patch: (path, body, options) => apiRequest(cookie, path, { ...options, method: "PATCH", body: body ?? {} }),
     delete: (path, options) => apiRequest(cookie, path, { ...options, method: "DELETE" }),
+    upload: (path, form, options) => apiRequest(cookie, path, { ...options, method: "POST", form }),
   };
 }

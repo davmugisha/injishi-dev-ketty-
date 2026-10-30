@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2, House, MapPin, Mountain, type LucideIcon } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { useMemo, useRef, useState } from "react";
 import { Input } from "@heroui/react";
 import { cn, pluralize } from "@injishi/utils";

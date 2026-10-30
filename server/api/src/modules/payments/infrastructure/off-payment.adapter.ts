@@ -36,12 +36,22 @@ export class OffPaymentAdapter implements PaymentPort {
   payout = refuse;
   chargeRecurring = refuse;
   chargeOneTimeFee = refuse;
+  collectRent = refuse;
+  payLandlord = refuse;
+  payVendor = refuse;
+  chargeSubscription = refuse;
+
+  /** No provider, no callbacks: nothing posted here is ever a payment. */
+  parseCallback(): null {
+    return null;
+  }
 
   fetchTransaction(workspaceId: string, adapterRef: string): Promise<PaymentReceipt | null> {
     return Promise.reject(
       new PaymentUnavailableError(
         `payments are switched off on this stack; cannot read ${adapterRef} for ${workspaceId}`,
         'none',
+        'no',
       ),
     );
   }
@@ -52,6 +62,8 @@ function refuse(command: PaymentCommand): Promise<PaymentReceipt> {
     new PaymentUnavailableError(
       'payments are switched off on this stack (PAYMENT_ADAPTER_MODE=off)',
       command.idempotencyKey,
+      // Nothing was sent anywhere (073 AC-7).
+      'no',
     ),
   );
 }

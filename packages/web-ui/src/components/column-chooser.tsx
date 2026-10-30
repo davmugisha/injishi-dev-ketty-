@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { Columns3Icon } from "lucide-react";
 
 import { Button } from "./button";

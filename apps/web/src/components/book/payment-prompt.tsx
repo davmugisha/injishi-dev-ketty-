@@ -3,10 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Smartphone } from "lucide-react";
 import type { PaymentAttemptStatus } from "@injishi/contracts";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
 import { AirtelMark, MtnMark } from "@/components/icons/marks";
 import { fetchPaymentAttempt } from "@/data/bookings";
+import type { ApiResult } from "@/lib/api";
+
+/** What the prompt needs from any attempt it waits on: a booking's, or a registration fee's. */
+type PromptAttempt = Pick<
+  PaymentAttemptStatus,
+  "attemptToken" | "state" | "network" | "payerMasked" | "amountRwf" | "expiresAt"
+>;
 
 const MARK = { mtn_momo: MtnMark, airtel_money: AirtelMark } as const;
 const LABEL = { mtn_momo: "MTN MoMo", airtel_money: "Airtel Money" } as const;
@@ -38,17 +45,30 @@ const LABEL = { mtn_momo: "MTN MoMo", airtel_money: "Airtel Money" } as const;
  * is invisible; the guest is told to approve on their phone, and the screen
  * changes by itself when it lands.
  */
-export function PaymentPrompt({
+export function PaymentPrompt<A extends PromptAttempt = PaymentAttemptStatus>({
   attempt,
   onSettled,
   onEnded,
+  poll,
+  landsAs = "your booking",
 }: {
-  attempt: PaymentAttemptStatus;
-  /** The money landed and there is a reservation. */
-  onSettled: (settled: PaymentAttemptStatus) => void;
+  attempt: A;
+  /** The money landed, and what it paid for exists. */
+  onSettled: (settled: A) => void;
   /** It was refused or timed out. Nothing was charged. */
-  onEnded: (ended: PaymentAttemptStatus) => void;
+  onEnded: (ended: A) => void;
+  /**
+   * How to ask where the attempt got to. The booking poll by default; the
+   * register wizard passes the registration fee's (073-gtbank-payments AC-17).
+   */
+  poll?: (attemptToken: string) => Promise<ApiResult<A>>;
+  /** What appears once the money lands, as the sentence names it. */
+  landsAs?: string;
 }) {
+  const fetchAttempt =
+    poll ?? (fetchPaymentAttempt as unknown as (attemptToken: string) => Promise<ApiResult<A>>);
+  const fetchRef = useRef(fetchAttempt);
+  fetchRef.current = fetchAttempt;
   const [secondsLeft, setSecondsLeft] = useState(() => remaining(attempt.expiresAt));
   const [checking, setChecking] = useState(false);
   /** The last poll did not get an answer (a 429, a dropped network, a timeout). */
@@ -89,7 +109,7 @@ export function PaymentPrompt({
 
     const tick = async (lastDelayMs: number) => {
       if (stopped) return;
-      const result = await fetchPaymentAttempt(attempt.attemptToken);
+      const result = await fetchRef.current(attempt.attemptToken);
       if (stopped) return;
 
       if (result.status !== "ok") {
@@ -128,7 +148,7 @@ export function PaymentPrompt({
 
   const check = async () => {
     setChecking(true);
-    const result = await fetchPaymentAttempt(attempt.attemptToken);
+    const result = await fetchAttempt(attempt.attemptToken);
     setChecking(false);
     if (result.status !== "ok") {
       setUnanswered(true);
@@ -175,7 +195,7 @@ export function PaymentPrompt({
         ) : (
           // Not "timed out, nothing charged": an approval can land right at the
           // end, and only the server's next answer may say which it was.
-          `Confirming with ${label}. If you approved in time, your booking will appear here.`
+          `Confirming with ${label}. If you approved in time, ${landsAs} will appear here.`
         )}
       </p>
 

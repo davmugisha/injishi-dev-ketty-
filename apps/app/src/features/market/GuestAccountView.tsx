@@ -51,7 +51,7 @@ import {
   setConsentAction,
   withdrawRequestAction,
 } from "./actions";
-import { chipColor, propertyHref } from "./format";
+import { chipColor, propertyHref, rwf } from "./format";
 import { MarketFooter, MarketHeader, MarketMain, type MarketVisitor } from "./MarketChrome";
 import { Stars } from "./stars";
 
@@ -95,7 +95,8 @@ export function GuestAccountView({
   const [tab, setTab] = useState<AccountTab>("trips");
   const [col, setCol] = useState(collections[0]?.id ?? "");
   const [removed, setRemoved] = useState<string[]>([]);
-  const [withdrawn, setWithdrawn] = useState<string[]>([]);
+  /** Requests withdrawn on this screen, and the refund the API decided for each (POST /bookings/:ref/cancel). */
+  const [withdrawn, setWithdrawn] = useState<Record<string, number>>({});
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [name, setName] = useState(profile.name);
@@ -185,8 +186,9 @@ export function GuestAccountView({
               </Tabs.Tab>
               <Tabs.Tab id="reviews" className="h-10 w-auto flex-none gap-2 px-3 text-sm">
                 Reviews
+                {/* Reviews are not served yet: the tab shows sample reviews, so it counts nothing as yours. */}
                 <Chip size="sm" variant="soft" color="warning">
-                  <Chip.Label>{toWrite.length} to write</Chip.Label>
+                  <Chip.Label>Sample</Chip.Label>
                 </Chip>
                 <Tabs.Indicator />
               </Tabs.Tab>
@@ -204,8 +206,11 @@ export function GuestAccountView({
               <SectionHeader id="up-h" title="Upcoming" />
               <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr))]">
                 {upcoming.map((u) => {
+                  const refund = withdrawn[u.id];
                   const facts =
-                    u.withdrawable && withdrawn.includes(u.id) && u.withdrawnFacts ? u.withdrawnFacts : u.facts;
+                    u.withdrawable && refund !== undefined && u.withdrawnFacts
+                      ? [...u.withdrawnFacts, refundFact(refund)]
+                      : u.facts;
                   return (
                     <Card key={u.id} render={(p) => <article {...p} />} className="flex-row gap-0 overflow-hidden p-0">
                       <div className="relative w-[150px] shrink-0 self-stretch bg-surface-secondary">
@@ -244,7 +249,7 @@ export function GuestAccountView({
                             </LinkButton>
                           ))}
                           {u.withdrawable ? (
-                            withdrawn.includes(u.id) ? (
+                            refund !== undefined ? (
                               <Chip size="sm" variant="soft">
                                 <Chip.Label>Request withdrawn · hold released</Chip.Label>
                               </Chip>
@@ -256,7 +261,7 @@ export function GuestAccountView({
                                 onPress={() =>
                                   act(
                                     () => withdrawRequestAction(u.id),
-                                    () => setWithdrawn((cur) => [...cur, u.id]),
+                                    (answer) => setWithdrawn((cur) => ({ ...cur, [u.id]: answer.refundRwf })),
                                   )
                                 }
                               >
@@ -399,7 +404,11 @@ export function GuestAccountView({
                       {collection.visibility} · {collection.items.length} {collection.noun}
                     </span>
                   </div>
-                  <Button variant="secondary" size="sm">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onPress={() => toast.warning("Sharing a list is not available yet. Nothing was shared.")}
+                  >
                     <Persons className="size-4" />
                     Share
                   </Button>
@@ -469,6 +478,15 @@ export function GuestAccountView({
 
         {tab === "reviews" ? (
           <>
+            <Alert status="warning">
+              <Alert.Content>
+                <Alert.Title>Sample reviews, not yours</Alert.Title>
+                <Alert.Description>
+                  Reviews are not served yet. The stays waiting for a review and the reviews below are sample data: they
+                  are not reviews you wrote or reviews hosts wrote about you.
+                </Alert.Description>
+              </Alert.Content>
+            </Alert>
             <Alert status="accent">
               <Alert.Indicator>
                 <EyeSlash />
@@ -638,8 +656,7 @@ export function GuestAccountView({
               <Card variant="secondary" className="mt-2 gap-2 p-3.5">
                 <span className="text-[13px] font-semibold">Your data</span>
                 <span className="text-xs leading-[17px] text-muted">
-                  Ask for a copy, a correction or deletion of your personal data. Your data export from 1 Oct is ready
-                  until 15 Oct.
+                  Ask for a copy, a correction or deletion of your personal data.
                 </span>
                 <div className="flex flex-wrap gap-2">
                   <LinkButton href={screenHref("Account")} variant="secondary" size="sm">
@@ -659,6 +676,13 @@ export function GuestAccountView({
       <Toast.Provider placement="bottom" />
     </>
   );
+}
+
+/** The payment line after a withdrawal: the refund the API answered with, as it answered. */
+function refundFact(refundRwf: number): UpcomingTrip["facts"][number] {
+  return refundRwf > 0
+    ? { label: "Payment", chip: "Refunded", tone: "default", note: rwf(refundRwf) }
+    : { label: "Payment", chip: "Nothing refunded", tone: "warning", note: "" };
 }
 
 /** A saved place with a page opens it (its id is the page's slug); any other returns to explore. */

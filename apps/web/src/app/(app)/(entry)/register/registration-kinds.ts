@@ -1,6 +1,8 @@
 import {
   ACCOMMODATION_CLASS_LABEL,
   AccommodationClass,
+  BUSINESS_KIND_NOUN,
+  type BusinessKind,
   type RdbEntityGroup,
   type RegistrantRole,
 } from "@injishi/contracts";
@@ -42,9 +44,10 @@ export type RegistrationKind =
   | AccommodationClass
   | "residence"
   | "broker"
-  | "bar_restaurant";
+  | "bar_restaurant"
+  | "coffee_shop";
 
-export interface RegistrationKindEntry {
+interface RegistrationKindEntry {
   value: RegistrationKind;
   label: string;
   blurb: string;
@@ -55,6 +58,7 @@ export interface RegistrationKindEntry {
 const RESIDENCE_LABEL = "Residence";
 const BROKER_LABEL = "Broker";
 const BAR_RESTAURANT_LABEL = "Bar & Restaurant";
+const COFFEE_SHOP_LABEL = "Coffee Shop";
 
 /**
  * The tiles, in the order they are shown.
@@ -89,12 +93,19 @@ const ENTRIES: ReadonlyArray<{
     blurb: "Food and drink, no rooms",
     group: "venue",
   },
+  { value: "coffee_shop", blurb: "Coffee and a bite, no rooms", group: "venue" },
   { value: "residence", blurb: "Let on a lease, not nightly", group: "lease" },
-  { value: "broker", blurb: "You place tenants for owners", group: "lease" },
 ];
 
-export const REGISTRATION_KINDS: RegistrationKindEntry[] = ENTRIES.map(
-  ({ value, blurb, group }) => ({
+/**
+ * A broker is outside the register (ADR-075 AC-1): it keeps its own short form
+ * (`POST /registrations/broker`) and is never a tile on the chooser. The value
+ * stays known, so `/register?kind=broker` still opens that form.
+ */
+const BROKER_ENTRY = { value: "broker" as const, blurb: "You place tenants for owners", group: "lease" as const };
+
+function entryOf({ value, blurb, group }: { value: RegistrationKind; blurb: string; group: "stay" | "venue" | "lease" }): RegistrationKindEntry {
+  return {
     value,
     label:
       value === "residence"
@@ -103,18 +114,36 @@ export const REGISTRATION_KINDS: RegistrationKindEntry[] = ENTRIES.map(
           ? BROKER_LABEL
           : value === "bar_restaurant"
             ? BAR_RESTAURANT_LABEL
-            : ACCOMMODATION_CLASS_LABEL[value],
+            : value === "coffee_shop"
+              ? COFFEE_SHOP_LABEL
+              : ACCOMMODATION_CLASS_LABEL[value],
     blurb,
     group,
-  }),
-);
+  };
+}
+
+/** The chooser's tiles: Stay, Food and drink, Lease (ADR-075 AC-1). */
+export const REGISTRATION_KINDS: RegistrationKindEntry[] = ENTRIES.map(entryOf);
+
+const KNOWN_KINDS: RegistrationKindEntry[] = [...REGISTRATION_KINDS, entryOf(BROKER_ENTRY)];
+
+/**
+ * A kind as it reads mid sentence, with its article: "a coffee shop", "an
+ * apartment", and "a business" for a kind with no noun of its own (Other). The
+ * noun is `BUSINESS_KIND_NOUN`'s, the same word the heading says, so "a Apartment"
+ * and "a Other" from a Title Case tile label cannot come back.
+ */
+export function kindInSentence(kind: BusinessKind | null): string {
+  const noun = (kind ? BUSINESS_KIND_NOUN[kind] : null) ?? "business";
+  return `${/^[aeiou]/i.test(noun) ? "an" : "a"} ${noun}`;
+}
 
 /** Read a kind back off the query string, checked against the list above. */
 export function findRegistrationKind(
   value: string | null | undefined,
 ): RegistrationKindEntry | null {
   if (!value) return null;
-  return REGISTRATION_KINDS.find((k) => k.value === value) ?? null;
+  return KNOWN_KINDS.find((k) => k.value === value) ?? null;
 }
 
 /**
@@ -132,6 +161,8 @@ export function findRegistrationKind(
  */
 export function registrationForKind(kind: RegistrationKind): {
   role: RegistrantRole;
+  /** What the org carries (ADR-075 D-h); a stay's kind is its class. */
+  businessKind: BusinessKind;
   accommodationClass: AccommodationClass | null;
   /** Only meaningful on a hospitality registration; null on the other two. */
   entityGroup: RdbEntityGroup | null;
@@ -141,6 +172,7 @@ export function registrationForKind(kind: RegistrationKind): {
   if (kind === "broker")
     return {
       role: "broker",
+      businessKind: "broker",
       accommodationClass: null,
       entityGroup: null,
       accommodationClassOther: null,
@@ -148,49 +180,29 @@ export function registrationForKind(kind: RegistrationKind): {
   if (kind === "residence")
     return {
       role: "landlord",
+      businessKind: "residence",
       accommodationClass: null,
       entityGroup: null,
       accommodationClassOther: null,
     };
-  // A bar & restaurant is a hospitality org in the `restaurant_bar_nightclub`
-  // entity group. The group is the classification that actually describes it;
-  // `accommodation_class` is still `not null` for every hospitality org (the
-  // `orgs_domain_shape` check), and RDB has no accommodation class for a venue
-  // with no rooms, so `other` plus the name is the honest pair — the same escape
-  // D24 built for a place that does not fit the eight. It is filled in HERE
-  // rather than typed by the registrant, because this tile already knows it.
-  if (kind === "bar_restaurant")
+  // A venue (Bar & Restaurant, Coffee Shop) is a hospitality org in the
+  // `restaurant_bar_nightclub` entity group with a kind and NO accommodation
+  // class (ADR-075 D-h, AC-31). It used to be `other` plus the free text
+  // "Bar & Restaurant", because the org had nowhere else to say what it was.
+  if (kind === "bar_restaurant" || kind === "coffee_shop")
     return {
       role: "host",
-      accommodationClass: "other",
+      businessKind: kind,
+      accommodationClass: null,
       entityGroup: "restaurant_bar_nightclub",
-      accommodationClassOther: BAR_RESTAURANT_LABEL,
+      accommodationClassOther: null,
     };
   return {
     role: "host",
+    businessKind: kind,
     accommodationClass: kind,
     entityGroup: "accommodation",
     accommodationClassOther: null,
   };
 }
 
-/**
- * The one sentence that says what this kind of registration involves.
- *
- * Shown under the confirmed tile on step 1, so a person who carried an answer
- * in from `/host` still learns what they are about to be asked — the old
- * summary said only the label back, which reads as a receipt rather than as a
- * step.
- */
-export function whatWeAskFor(kind: RegistrationKind): string {
-  switch (kind) {
-    case "broker":
-      return "We need your National ID and your contact details. There is no fee and no waiting.";
-    case "residence":
-      return "We need the UPI of the property, your address, and any documents you hold.";
-    case "bar_restaurant":
-      return "We need your 9 digit RRA TIN, your address, and any licences you hold for serving food or drink.";
-    default:
-      return "We need your 9 digit RRA TIN, your address, and any certificates you hold.";
-  }
-}

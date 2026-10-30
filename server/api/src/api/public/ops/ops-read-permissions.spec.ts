@@ -1,16 +1,8 @@
+import { describe, expect, it } from 'vitest';
+
 import { GUARDS_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { RequestMethod } from '@nestjs/common';
 import { OrgRole, permissionsForRole, type Permission } from '@injishi/contracts';
-
-// The controllers are read for their decorator metadata only; nothing is
-// instantiated. The session guard and the two-factor service reach the ESM
-// `@injishi/auth` package, which ts-jest does not transform, so both are stubbed
-// at the module boundary.
-jest.mock('../../../shared/auth/two-factor.service', () => ({ TwoFactorService: class {} }));
-jest.mock('../../../shared/auth/session.guard', () => ({
-  SessionGuard: class {},
-  CurrentUser: () => () => undefined,
-}));
 
 import {
   REQUIRE_ANY_PERMISSION,
@@ -64,12 +56,25 @@ import { OpsOutletsController } from './outlets.controller';
 import { OpsRefundRequestsController } from './refunds.controller';
 import { OpsReservationsController, OpsRoomAssignmentsController } from './reservations.controller';
 import {
-  OpsDepositsController,
-  OpsFilingsController,
-  OpsLeasesController,
-  OpsRentRollController,
   OpsTicketsController,
 } from './residence.controller';
+import { OpsLeasesController } from './rentals/leases.controller';
+import { OpsPayoutAccountsController } from './rentals/payout-accounts.controller';
+import { OpsRentalsController } from './rentals/rentals.controller';
+import { OpsTenantsController } from './rentals/tenants.controller';
+import { OpsBlocksController, OpsUnitsController } from './rentals/units.controller';
+import { OpsRentalPropertiesController } from './rentals/properties.controller';
+import { OpsRentalsOverviewController } from './rentals/rentals-overview.controller';
+import { OpsUnitMediaController } from './rentals/unit-media.controller';
+import { OpsPayoutsController } from './rentals/payouts.controller';
+import { OpsRentController } from './rentals/rent.controller';
+import { OpsFaultsController } from './rentals/faults.controller';
+import { OpsExpensesController } from './rentals/expenses.controller';
+import { OpsMoveOutsController } from './rentals/move-outs.controller';
+import { OpsFilingsController, OpsTaxesController } from './rentals/taxes.controller';
+import { OpsLeaseBrokersController } from './rentals/lease-brokers.controller';
+import { OpsLeaseMessagesController } from './rentals/messages.controller';
+import { OpsPlacementMessagesController } from './rentals/placement-messages.controller';
 import { OpsRevenueController } from './revenue.controller';
 import { OpsCertificatesController } from './certificates.controller';
 import { OpsOwnerDashboardController, OpsReportsController } from './owner-dashboard.controller';
@@ -128,11 +133,7 @@ const CONTROLLERS: Ctor[] = [
   OpsOutletsController,
   OpsReservationsController,
   OpsRoomAssignmentsController,
-  OpsLeasesController,
-  OpsRentRollController,
-  OpsFilingsController,
   OpsTicketsController,
-  OpsDepositsController,
   OpsRevenueController,
   OpsOwnerDashboardController,
   OpsReportsController,
@@ -181,6 +182,25 @@ const CONTROLLERS: Ctor[] = [
   OpsContractsController,
   OpsPayrollController,
   OpsPayFilesController,
+  OpsRentalsController,
+  OpsPayoutAccountsController,
+  OpsUnitsController,
+  OpsBlocksController,
+  OpsTenantsController,
+  OpsLeasesController,
+  OpsRentalsOverviewController,
+  OpsRentalPropertiesController,
+  OpsUnitMediaController,
+  OpsRentController,
+  OpsPayoutsController,
+  OpsFaultsController,
+  OpsExpensesController,
+  OpsMoveOutsController,
+  OpsTaxesController,
+  OpsFilingsController,
+  OpsLeaseBrokersController,
+  OpsLeaseMessagesController,
+  OpsPlacementMessagesController,
 ];
 
 interface Read {
@@ -310,14 +330,7 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   // plan.
   '/ops/reservations/:id/assignments': ['owner', 'manager', 'receptionist'],
   '/ops/room-assignments': ['owner', 'manager', 'receptionist'],
-  '/ops/leases': ['owner', 'manager'],
-  '/ops/rent-roll': ['owner', 'manager', 'finance'],
-  // The Filings lens on Finance (F-R10). The same consumers as the leases it
-  // reports on: whether a contract was filed is the business's compliance
-  // record, not something the front desk needs.
-  '/ops/filings': ['owner', 'manager', 'finance'],
   '/ops/tickets': ['owner', 'manager', 'housekeeper'],
-  '/ops/deposits': ['owner', 'manager', 'finance'],
   '/ops/revenue': ['owner', 'manager', 'finance'],
   // The owner's figures: what the business earned and holds, read on money.view like the month above.
   '/ops/revenue/daily': ['owner', 'manager', 'finance'],
@@ -454,6 +467,68 @@ const EXPECTED: Record<string, readonly OrgRole[]> = {
   '/ops/payroll/dashboard': ['owner', 'hr'],
   '/ops/payroll/rules': ['owner', 'hr'],
   '/ops/pay-files/:id': ['owner'],
+  // Rentals (blueprint 2.3, WP 1.4 and 1.5a). The landlord's profile and setup
+  // read under any rentals permission: the leases, units, listing or money side.
+  // The housekeeper (faults) and the desk (guests) work the property without them.
+  '/ops/rentals/profile': ['owner', 'manager', 'finance'],
+  '/ops/rentals/setup': ['owner', 'manager', 'finance'],
+  // Brokers (2026-10-25): who brought tenants, and the brokers a lease can name.
+  '/ops/rentals/placements': ['owner', 'manager', 'receptionist'],
+  '/ops/rentals/brokers': ['owner', 'manager'],
+  // Where rent is paid out: whoever reads the money, or decides where it goes.
+  '/ops/payout-accounts': ['owner', 'manager', 'finance'],
+  // Units and blocks: whoever works units, leases or the money.
+  '/ops/units': ['owner', 'manager', 'finance'],
+  '/ops/units/:id': ['owner', 'manager', 'finance'],
+  '/ops/blocks': ['owner', 'manager', 'finance'],
+  // A tenant record holds an ID number: `lease.manage` alone.
+  '/ops/tenants': ['owner', 'manager'],
+  '/ops/tenants/:id': ['owner', 'manager'],
+  // Leases read under `lease.manage`, `rent.record`, `money.view` or `deposit.return`.
+  '/ops/leases': ['owner', 'manager', 'finance'],
+  '/ops/leases/counts': ['owner', 'manager', 'finance'],
+  '/ops/leases/:id': ['owner', 'manager', 'finance'],
+  '/ops/leases/:id/events': ['owner', 'manager', 'finance'],
+  '/ops/leases/:id/contract': ['owner', 'manager', 'finance'],
+  '/ops/leases/:id/contract/pdf': ['owner', 'manager', 'finance'],
+  // The landlord's home (WP 2.2): the nav counts read under any rentals
+  // permission; the month's figures under the money reads.
+  '/ops/rentals/summary': ['owner', 'manager', 'finance'],
+  '/ops/rentals/overview': ['owner', 'manager', 'finance'],
+  '/ops/properties': ['owner', 'manager', 'finance'],
+  '/ops/units/:id/media': ['owner', 'manager', 'finance'],
+  // Rent (WP 1.6a): the roll, charges, payments, reminders and the month's
+  // figures read under `rent.record` or `money.view`; payouts (WP 1.6b)
+  // under `money.view` or `payout.manage`.
+  '/ops/rent/roll': ['owner', 'manager', 'finance'],
+  '/ops/rent/summary': ['owner', 'manager', 'finance'],
+  '/ops/rent/charges': ['owner', 'manager', 'finance'],
+  '/ops/rent/payments': ['owner', 'manager', 'finance'],
+  '/ops/rent/payments/:id': ['owner', 'manager', 'finance'],
+  '/ops/rent/reminders': ['owner', 'manager', 'finance'],
+  '/ops/payouts': ['owner', 'manager', 'finance'],
+  // Faults (WP 4.1): whoever works the faults, `ticket.advance` (the housekeeper too).
+  '/ops/faults': ['owner', 'manager', 'housekeeper'],
+  '/ops/faults/:id': ['owner', 'manager', 'housekeeper'],
+  // Expenses (WP 4.3): `money.view` or `expense.manage`.
+  '/ops/expenses': ['owner', 'manager', 'finance'],
+  // Moving out (WP 1.7): the page is the lease side's or the deposit side's; deposits read with the money too.
+  '/ops/move-outs': ['owner', 'manager'],
+  '/ops/deposits': ['owner', 'manager', 'finance'],
+  '/ops/deposits/:id': ['owner', 'manager', 'finance'],
+  // Taxes and filings (WP 4.4): `money.view` or `tax.manage`; filings also `lease.manage`.
+  '/ops/taxes/taxpayer': ['owner', 'manager', 'finance'],
+  '/ops/taxes/:year': ['owner', 'manager', 'finance'],
+  '/ops/filings': ['owner', 'manager', 'finance'],
+  // Messages with tenants (P3.4): `message.send`, the owner and whoever they let answer messages.
+  '/ops/rentals/messages': ['owner', 'manager', 'receptionist'],
+  '/ops/rentals/messages/unread': ['owner', 'manager', 'receptionist'],
+  '/ops/rentals/messages/:leaseId': ['owner', 'manager', 'receptionist'],
+  '/ops/rentals/messages/:leaseId/files/:id': ['owner', 'manager', 'receptionist'],
+  // Messages with brokers (2026-10-26): as the Brokers screen, `lease.manage` or `message.send`.
+  '/ops/rentals/placement-messages': ['owner', 'manager', 'receptionist'],
+  '/ops/rentals/placement-messages/:placementId': ['owner', 'manager', 'receptionist'],
+  '/ops/rentals/placement-messages/:placementId/files/:id': ['owner', 'manager', 'receptionist'],
 };
 
 describe('operator reads (audit H1)', () => {
@@ -527,5 +602,257 @@ describe('pay runs: drafted by payroll.draft, confirmed by payroll.run (ADR-069 
     // The default roles: the owner does both, hr drafts and never signs.
     const admitted = ROLES.filter((role) => admits(read, permissionsForRole(role)));
     expect(admitted).toEqual(drafting ? ['owner', 'hr'] : ['owner']);
+  });
+});
+
+/**
+ * The rentals writes (blueprint 2.1): each names the one permission it needs.
+ * Units are `unit.manage`; drafting, editing, cancelling and starting a lease,
+ * the invitation, the lease defaults and tenant records are `lease.manage`;
+ * who signs leases for the business, and signing them, is `lease.sign`, and
+ * where rent is paid out is `payout.manage`,
+ * both the owner's by default (`OWNER_BY_DEFAULT`), so a manager holds neither
+ * until an owner grants it.
+ */
+describe('rentals writes (blueprint 2.1)', () => {
+  const routes = handlers(
+    [OpsRentalsController, OpsPayoutAccountsController, OpsUnitsController, OpsBlocksController, OpsTenantsController, OpsLeasesController],
+    [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE],
+  );
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'PUT /ops/rentals/profile/lease-defaults': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'PUT /ops/rentals/profile/signatory': { allOf: ['lease.sign'], roles: ['owner'] },
+    'PUT /ops/rentals/profile/brokers': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/payout-accounts': { allOf: ['payout.manage'], roles: ['owner'] },
+    'PATCH /ops/payout-accounts/:id': { allOf: ['payout.manage'], roles: ['owner'] },
+    'POST /ops/payout-accounts/:id/primary': { allOf: ['payout.manage'], roles: ['owner'] },
+    'POST /ops/payout-accounts/:id/retire': { allOf: ['payout.manage'], roles: ['owner'] },
+    'POST /ops/units': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/units/bulk': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'PATCH /ops/units/:id': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/units/:id/retire': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/blocks': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'PATCH /ops/blocks/:id': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'PATCH /ops/tenants/:id': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/leases': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'PATCH /ops/leases/:id': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/leases/:id/cancel': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    // WP 1.5b: signing for the business is the owner's by default; the invitation and Start are lease.manage.
+    'POST /ops/leases/:id/sign/code': { allOf: ['lease.sign'], roles: ['owner'] },
+    'POST /ops/leases/:id/sign': { allOf: ['lease.sign'], roles: ['owner'] },
+    'POST /ops/leases/:id/invitation/resend': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/leases/:id/start': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+  };
+
+  it('judges every rentals write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/**
+ * The landlord's buildings and unit media (WP 2.2, 2.3): where a building is
+ * is the listing's (`listing.manage`), because tenants, brokers and the local
+ * leaders are told it; a unit's photos and video are `unit.manage`'s.
+ */
+describe('rentals home, location and unit media writes (WP 2.2, 2.3)', () => {
+  const routes = handlers(
+    [OpsRentalsOverviewController, OpsRentalPropertiesController, OpsUnitMediaController],
+    [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE],
+  );
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'PUT /ops/properties/:id/location': { allOf: ['listing.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/units/:id/photos': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'PATCH /ops/units/:id/photos/order': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'DELETE /ops/units/:id/photos/:photoId': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'PUT /ops/units/:id/video': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+    'DELETE /ops/units/:id/video': { allOf: ['unit.manage'], roles: ['owner', 'manager'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/**
+ * The rent cycle's writes (WP 1.6a, 1.6b): reminding tenants is
+ * `rent.record` (owner, manager, finance); rent is paid only through the
+ * payment integration, so no route records, reverses or slips a payment; forgiving a charge is `lease.manage`; sending a payout again is
+ * `payout.manage`, the owner's by default.
+ */
+describe('rent and payout writes (WP 1.6)', () => {
+  const routes = handlers([OpsRentController, OpsPayoutsController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'POST /ops/rent/reminders': { allOf: ['rent.record'], roles: ['owner', 'manager', 'finance'] },
+    'POST /ops/rent/charges/:id/waive': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/payouts/:id/retry': { allOf: ['payout.manage'], roles: ['owner'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/**
+ * Faults (WP 4.1): raising, moving, handing over, photos and messages are
+ * `ticket.advance` (owner, manager, housekeeper); a reply the tenant sees also
+ * needs `message.send`, which the service checks.
+ */
+describe('fault writes (WP 4.1)', () => {
+  const routes = handlers([OpsFaultsController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'POST /ops/faults': { allOf: ['ticket.advance'], roles: ['owner', 'manager', 'housekeeper'] },
+    'POST /ops/faults/:id/move': { allOf: ['ticket.advance'], roles: ['owner', 'manager', 'housekeeper'] },
+    'POST /ops/faults/:id/assign': { allOf: ['ticket.advance'], roles: ['owner', 'manager', 'housekeeper'] },
+    'POST /ops/faults/:id/photos': { allOf: ['ticket.advance'], roles: ['owner', 'manager', 'housekeeper'] },
+    'POST /ops/faults/:id/messages': { allOf: ['ticket.advance'], roles: ['owner', 'manager', 'housekeeper'] },
+    // Paying the fixer is money out (WP 4.3): `expense.manage`, which the housekeeper does not hold.
+    'POST /ops/faults/:id/pay': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
+    'POST /ops/faults/:id/payments/recorded': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/**
+ * Moving out (WP 1.7): a recorded notice, acknowledging it and the move out are
+ * `lease.manage`; settling a deposit sends the landlord's money back, `deposit.return`.
+ */
+describe('move-out writes (WP 1.7)', () => {
+  const routes = handlers([OpsMoveOutsController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'POST /ops/leases/:id/notice': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/leases/:id/notice/acknowledge': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/leases/:id/move-out': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/deposits/:id/settle': { allOf: ['deposit.return'], roles: ['owner', 'manager'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/** Expenses (WP 4.3): writing one down, voiding one and its receipt are `expense.manage`. */
+describe('expense writes (WP 4.3)', () => {
+  const routes = handlers([OpsExpensesController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'POST /ops/expenses': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
+    'POST /ops/expenses/:id/void': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
+    'POST /ops/expenses/:id/receipt': { allOf: ['expense.manage'], roles: ['owner', 'manager', 'finance'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/** Taxes and filings (WP 4.4): the taxpayer kind, a declaration and a filing are `tax.manage`. */
+describe('tax and filing writes (WP 4.4)', () => {
+  const routes = handlers([OpsTaxesController, OpsFilingsController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'PUT /ops/taxes/taxpayer': { allOf: ['tax.manage'], roles: ['owner', 'manager', 'finance'] },
+    'PUT /ops/taxes/:year/declaration': { allOf: ['tax.manage'], roles: ['owner', 'manager', 'finance'] },
+    'POST /ops/filings/:id/filed': { allOf: ['tax.manage'], roles: ['owner', 'manager', 'finance'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/**
+ * The broker on a lease (2026-10-25): marking the recorded fee paid or owed,
+ * and rating the broker, are `lease.manage`'s, like drafting the lease.
+ */
+describe('lease broker writes (2026-10-25)', () => {
+  const routes = handlers([OpsLeaseBrokersController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { allOf: Permission[]; roles: OrgRole[] }> = {
+    'PUT /ops/leases/:id/broker-fee': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+    'POST /ops/leases/:id/broker-rating': { allOf: ['lease.manage'], roles: ['owner', 'manager'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual(expected?.allOf);
+    expect(read.anyOf).toEqual([]);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
+  });
+});
+
+/**
+ * Messages with brokers (2026-10-26): sending and reading are the Brokers
+ * screen's, `lease.manage` or `message.send`. A housekeeper or the finance
+ * desk never writes to a broker.
+ */
+describe('placement message writes (2026-10-26)', () => {
+  const routes = handlers([OpsPlacementMessagesController], [RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE]);
+  const WRITES: Record<string, { anyOf: Permission[]; roles: OrgRole[] }> = {
+    'POST /ops/rentals/placement-messages/:placementId': { anyOf: ['lease.manage', 'message.send'], roles: ['owner', 'manager', 'receptionist'] },
+    'POST /ops/rentals/placement-messages/:placementId/read': { anyOf: ['lease.manage', 'message.send'], roles: ['owner', 'manager', 'receptionist'] },
+  };
+
+  it('judges every write', () => {
+    expect(routes.map((r) => r.key).sort()).toEqual(Object.keys(WRITES).sort());
+  });
+
+  it.each(routes.map((r) => [r.key, r.read] as const))('%s', (key, read) => {
+    const expected = WRITES[key];
+    expect(read.allOf).toEqual([]);
+    expect(read.anyOf).toEqual(expected?.anyOf);
+    expect(ROLES.filter((role) => admits(read, permissionsForRole(role)))).toEqual(expected?.roles);
   });
 });

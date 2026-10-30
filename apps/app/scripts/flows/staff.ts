@@ -1,8 +1,8 @@
 /**
  * The staff phones on the API: a cleaner's room from start to clean (checklist, minibar, a found
- * item) and the supervisor's inspection of it; a fault reported from the phone and worked by the
- * technician (taken, timed, noted, fixed); a leave request asked and cancelled on the person's own
- * file. The same mutations the phones' buttons call and the same live sources they read, ending with
+ * item) and the supervisor's inspection of it, a failed check carrying a photo stored through
+ * `POST /uploads`; a fault reported from the phone and worked by the technician (started, timed,
+ * noted, fixed); a leave request asked and cancelled on the person's own file. The same mutations the phones' buttons call and the same live sources they read, ending with
  * the refusals the platform makes on purpose.
  */
 import type { HousekeepingRoom } from "@injishi/data/fixtures/operations";
@@ -29,6 +29,12 @@ async function read<T>(ctx: SourceContext, name: keyof typeof sources): Promise<
   forgetOperations(ctx);
   return (await sources[name].list(ctx)) as T[];
 }
+
+/** A few bytes sent as a JPEG: the upload route checks the declared type and size, never decodes the picture. */
+const TINY_JPEG = Buffer.from(
+  "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=",
+  "base64",
+);
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 /** "2026-12-01" as the leave form writes it, "1 Dec 2026". */
@@ -91,16 +97,30 @@ export const flows: Flow[] = [
       check(minibar?.used === 1, `sending again replaces the count: ${JSON.stringify(minibar)}`);
       step(`minibar counted (2 × ${water.label}), then corrected to 1: a report, never a charge`);
 
-      const ref = await staff.logRoomFoundItem(jeanne, taskId, {
+      const logged = await staff.logRoomFoundItem(jeanne, taskId, {
         description: "Grey umbrella, folded",
         spot: "wardrobe",
       });
+      const ref = logged.reference;
       const found = (await read<FoundItem>(jeanne, "staff.foundItems")).find((f) => f.ref === ref);
       check(
         found?.name === "Grey umbrella" && found.room === room.id && found.spot === "wardrobe",
         `the logged item on her phone: ${JSON.stringify(found)}`,
       );
-      step(`found an umbrella in the wardrobe: ${ref} in the register, with her as finder`);
+      // The phone names who to hand it to only from the register's answer, and her phone reads the same custodian.
+      check(
+        logged.custodianName === null || found.holder === logged.custodianName.split(" ")[0],
+        `the custodian the register named (${logged.custodianName}) is not who her phone says to hand it to (${found.holder})`,
+      );
+      // The sheet starts empty: an item with nothing typed is refused before anything is sent.
+      const blank = await staff.logRoomFoundItem(jeanne, taskId, { description: "  ", spot: "wardrobe" }).then(
+        () => null,
+        (error: unknown) => error,
+      );
+      check(blank instanceof staff.StaffInputError, `an item with no description was not refused: ${String(blank)}`);
+      step(
+        `found an umbrella in the wardrobe: ${ref} in the register, with her as finder, to hand to ${logged.custodianName ?? "nobody named"}`,
+      );
 
       await staff.moveRoomTask(jeanne, taskId, "done");
       check(
@@ -123,6 +143,16 @@ export const flows: Flow[] = [
 
       const checks = phone.checklist.filter((i) => i.kind === "inspection");
       const verdicts = checks.map((c, i) => ({ itemId: c.id, result: (i === 0 ? "fail" : "pass") as "pass" | "fail" }));
+
+      // "Add a photo of the problem": stored by the API, named by the failed check. The same photo sent again
+      // (a retry with the same attempt token) is the same object, never a copy.
+      const token = crypto.randomUUID();
+      const photo = new Blob([new Uint8Array(TINY_JPEG)], { type: "image/jpeg" });
+      const uploaded = await staff.uploadPhoto(beatrice, photo, "basin.jpg", token);
+      check(/^property_photo\//.test(uploaded.objectKey), `the photo was stored as ${uploaded.objectKey}`);
+      const again = await staff.uploadPhoto(beatrice, photo, "basin.jpg", token);
+      check(again.objectKey === uploaded.objectKey, "sending the same photo again made a second copy");
+      step(`Beatrice photographed the failed check: stored as ${uploaded.objectKey}`);
       await refused(
         400,
         () => staff.inspectRoom(beatrice, taskId, { result: "pass", checks: verdicts }),
@@ -136,7 +166,7 @@ export const flows: Flow[] = [
       await staff.inspectRoom(beatrice, taskId, {
         result: "fail",
         reason: `${checks[0]?.label}. Wipe the basin again`,
-        checks: verdicts,
+        checks: verdicts.map((v, i) => (i === 0 ? { ...v, photoObjectKey: uploaded.objectKey } : v)),
       });
       check(
         !(await read<InspectionRoom>(beatrice, "staff.inspectionRooms")).some((r) => r.id === taskId),
@@ -146,9 +176,15 @@ export const flows: Flow[] = [
         (r) => r.no === room.id && r.kind === "Re-clean",
       );
       check(reclean?.status === "waiting", `the re-clean on Jeanne's phone: ${JSON.stringify(reclean)}`);
+      forgetStaff(beatrice);
       const results = (await readPhone(beatrice)).checks.filter((c) => c.taskId === taskId && c.result !== "done");
       check(results.length === checks.length, `the inspection kept ${results.length} of ${checks.length} verdicts`);
-      step("Beatrice failed it with the checks: back on Jeanne's phone as a Re-clean");
+      const failedCheck = results.find((c) => c.itemId === checks[0]?.id);
+      check(
+        failedCheck?.result === "fail" && failedCheck.photoObjectKey === uploaded.objectKey,
+        `the failed check keeps its photo: ${JSON.stringify(failedCheck)}`,
+      );
+      step("Beatrice failed it with the checks and the photo: back on Jeanne's phone as a Re-clean");
 
       await refused(
         409,
@@ -165,7 +201,7 @@ export const flows: Flow[] = [
     },
   },
   {
-    name: "a fault reported from the phone is taken, timed, noted and fixed by the technician",
+    name: "a fault reported from the phone is started, timed, noted and fixed by the technician",
     async run({ as, check, refused, step }) {
       const jeanne = await as("housekeeper");
       const tech = await as("technician");
@@ -189,10 +225,14 @@ export const flows: Flow[] = [
 
       let order = (await read<WorkOrder>(tech, "staff.workOrders")).find((o) => o.ref === ref);
       check(order?.status === "new" && order.priority === "High", `on the technician's list: ${JSON.stringify(order)}`);
+      // "Start work" (`/start`): his, and In progress, with no clock running until he starts the timer.
+      await staff.startWorkOrder(tech, order.id);
+      order = (await read<WorkOrder>(tech, "staff.workOrders")).find((o) => o.ref === ref);
+      check(order?.status === "progress" && order.repair === null, `after Start work: ${JSON.stringify(order)}`);
       await staff.setWorkOrderTimer(tech, order.id, true);
       order = (await read<WorkOrder>(tech, "staff.workOrders")).find((o) => o.ref === ref);
-      check(order?.status === "progress" && order.repair !== null, `after Start work: ${JSON.stringify(order)}`);
-      step("Jean-Paul took it and started the timer: In progress, the clock running");
+      check(order?.status === "progress" && order.repair !== null, `after Start timer: ${JSON.stringify(order)}`);
+      step("Jean-Paul pressed Start work (In progress), then started the timer: the clock running");
 
       await staff.noteWorkOrder(tech, order.id, "Starter is failing; replacing the tube and starter.");
       await staff.setWorkOrderTimer(tech, order.id, false);

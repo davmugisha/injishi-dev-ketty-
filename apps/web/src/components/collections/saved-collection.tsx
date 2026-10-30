@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { pluralize } from "@injishi/utils";
 import { ListingCard } from "@/components/stays/listing-card";
 import type { Listing } from "@/data/listings";

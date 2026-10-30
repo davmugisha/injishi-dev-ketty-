@@ -58,7 +58,7 @@ import {
 export type QueryOutcome = "successful" | "failed" | "no-answer";
 type Outcome = "verified" | "failed" | "investigating";
 
-export interface FinanceHomeData {
+interface FinanceHomeData {
   groups: ExceptionGroup[];
   exceptions: FinanceException[];
   kpis: FinanceKpi[];

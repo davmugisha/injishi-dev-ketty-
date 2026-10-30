@@ -7,6 +7,7 @@ import { cn } from "@injishi/utils";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { ArtDirectedImage } from "@/components/shared/art-directed-image";
 import { MONTHS, SEASON_IMAGE, SEASON_LABEL, type Season } from "@/data/journeys";
+import { formatWeekendDay, longWeekendIn } from "@/lib/long-weekend";
 import { EMPTY_INTENT, exploreHref, todayInKigali } from "@/lib/search-params";
 
 const SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -24,38 +25,6 @@ const BAR: Readonly<Record<Season, string>> = {
 /** Bar height for each rain level, as a share of the chart. */
 const HEIGHT = ["18%", "40%", "68%", "100%"] as const;
 
-/** How many nights the month's suggested dates cover: a long weekend. */
-const NIGHTS = 3;
-
-const iso = (date: Date) => date.toISOString().slice(0, 10);
-
-/**
- * A Friday-to-Monday weekend in `month`: the first Friday on or after the
- * 10th, in the next year that month still lies ahead.
- */
-function weekendIn(month: number, today: string): { checkIn: string; checkOut: string } {
-  const year = Number(today.slice(0, 4));
-  for (const candidateYear of [year, year + 1]) {
-    const start = new Date(Date.UTC(candidateYear, month, 10));
-    start.setUTCDate(start.getUTCDate() + ((5 - start.getUTCDay() + 7) % 7));
-    if (iso(start) > today) {
-      const end = new Date(start);
-      end.setUTCDate(end.getUTCDate() + NIGHTS);
-      return { checkIn: iso(start), checkOut: iso(end) };
-    }
-  }
-  throw new Error("unreachable: next year's month always lies ahead");
-}
-
-function formatDay(isoDate: string): string {
-  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
-}
-
 /**
  * "When to go": the year as a rainfall chart, coloured by Rwanda's seasons,
  * beside a photograph of the season picked.
@@ -70,7 +39,7 @@ export function WhenToGo() {
   const [month, setMonth] = useState(() => Number(today.slice(5, 7)) - 1);
   const note = MONTHS[month];
   if (!note) return null;
-  const dates = weekendIn(month, today);
+  const dates = longWeekendIn(month, today);
   const dry = note.season === "dry";
 
   return (
@@ -179,7 +148,8 @@ export function WhenToGo() {
                 href={exploreHref({ ...EMPTY_INTENT, ...dates })}
                 className="inline-flex w-max items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground transition-transform duration-quick hover:-translate-y-0.5"
               >
-                Stays for {formatDay(dates.checkIn)} – {formatDay(dates.checkOut)}
+                Stays for {formatWeekendDay(dates.checkIn, today)} –{" "}
+                {formatWeekendDay(dates.checkOut, today)}
                 <ArrowRight className="size-4" aria-hidden />
               </Link>
             </div>

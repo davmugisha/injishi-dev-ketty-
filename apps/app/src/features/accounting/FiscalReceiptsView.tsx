@@ -26,7 +26,7 @@ import { CardHeading, type KpiItem, KpiStrip, LINE_LIST, LINE_PANEL, LINE_TAB } 
 
 export type FiscalTab = "invoices" | "receipts" | "queue" | "numbering" | "journal" | "items";
 
-export interface FiscalReceiptsData {
+interface FiscalReceiptsData {
   profiles: FiscalProfile[];
   queue: FiscalQueueItem[];
   kinds: FiscalDocumentKind[];

@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { Logger } from '@nestjs/common';
 
 import {
@@ -196,7 +198,7 @@ describe('UsageLedger (ADR-061 D-s)', () => {
   });
 
   it('never fails the turn when the ledger cannot be written', async () => {
-    const logged = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const logged = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     const { ledger: l } = ledger(true);
     await expect(l.recordTurn(turn)).resolves.toBeUndefined();
     // The gap is visible in the logs, not silently lost.
@@ -232,7 +234,7 @@ describe('the allowance (ADR-061 D-t)', () => {
   });
 
   it('refuses once the month reaches the budget, and warns at 80% and 100% once each', async () => {
-    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     // A US$10 budget is 10,000,000 micro dollars.
     expect(await ledgerWith({ budgetUsd: 10, spentMicro: 7_900_000 }).ledger.allowance(who)).toEqual({ allowed: true });
     expect(warn).not.toHaveBeenCalled();

@@ -9,7 +9,6 @@ const APP_LABEL: Record<PhoneAppId, string> = {
   housekeeper: "Staff app",
   supervisor: "Supervisor app",
   technician: "Technician app",
-  resident: "Resident portal",
   guest: "Guest app",
 };
 

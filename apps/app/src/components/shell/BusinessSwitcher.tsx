@@ -7,6 +7,7 @@ import { canAccess, type Persona, screenHref, type WorkspaceContext } from "@inj
 import { LinkButton, TextLink } from "@injishi/ui";
 import NextLink from "next/link";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { switchBusiness } from "@/lib/workspace-actions";
 import { useWorkspaceStore } from "@/lib/workspace-store";
 
 function Tile({
@@ -18,7 +19,7 @@ function Tile({
   variant?: "solid" | "outline" | "pending" | "round";
   size?: "sm" | "md";
 }) {
-  const base = size === "sm" ? "size-8 rounded-[10px] text-xs" : "size-10 rounded-xl text-[13px]";
+  const base = size === "sm" ? "size-8 rounded-lg text-xs" : "size-10 rounded-xl text-sm";
   const look = {
     solid: "bg-accent-soft text-accent-soft-foreground",
     outline: "text-foreground ring-[1.5px] ring-border-secondary ring-inset",
@@ -36,13 +37,29 @@ function Tile({
 }
 
 function Row({ children, href, className }: { children: ReactNode; href?: string; className?: string }) {
-  const cls = `flex min-h-12 w-full items-center gap-3 rounded-[14px] px-2.5 py-1.5 text-left text-sm no-underline text-foreground ${href ? "hover:bg-default" : ""} ${className ?? ""}`;
+  const cls = `flex min-h-12 w-full items-center gap-3 rounded-xl px-2.5 py-1.5 text-left text-sm no-underline text-foreground ${href ? "hover:bg-default" : ""} ${className ?? ""}`;
   return href ? (
     <NextLink href={href} className={cls}>
       {children}
     </NextLink>
   ) : (
     <div className={cls}>{children}</div>
+  );
+}
+
+/** A row that opens another real business: the session switches to it first, then its home opens. */
+function SwitchRow({ workspaceId, href, children }: { workspaceId: string; href: string; children: ReactNode }) {
+  return (
+    <form action={switchBusiness}>
+      <input type="hidden" name="workspaceId" value={workspaceId} />
+      <input type="hidden" name="next" value={href} />
+      <button
+        type="submit"
+        className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-xl px-2.5 py-1.5 text-left text-sm text-foreground hover:bg-default"
+      >
+        {children}
+      </button>
+    </form>
   );
 }
 
@@ -56,7 +73,7 @@ function SectionLabel({ id, children, extra }: { id: string; children: ReactNode
 }
 
 /** The switcher panel body (artifact: BusinessSwitcher.dc.html). */
-export function SwitcherPanel({
+function SwitcherPanel({
   persona,
   ctx,
   branch,
@@ -91,7 +108,7 @@ export function SwitcherPanel({
     >
       <div className="flex flex-col gap-1 px-[18px] pt-[18px] pb-3">
         <h2 className="text-base leading-[22px] font-semibold tracking-[-0.01em]">Switch Business or Branch</h2>
-        <p className="text-[13px] leading-[18px] text-muted">Your role changes with the business. {ctx.rolePhrase}</p>
+        <p className="text-sm text-muted">Your role changes with the business. {ctx.rolePhrase}</p>
       </div>
       <div className="px-4 pt-1 pb-3.5">
         <SearchField aria-label="Find a business or branch" value={q} onChange={setQ} fullWidth>
@@ -136,7 +153,7 @@ export function SwitcherPanel({
                 <Radio
                   key={b.id}
                   value={b.id}
-                  className="rounded-[14px] px-2.5 py-1 pl-4 data-[selected=true]:bg-surface-secondary"
+                  className="rounded-xl px-2.5 py-1 pl-4 data-[selected=true]:bg-surface-secondary"
                 >
                   <Radio.Content className="flex min-h-9 w-full items-center gap-3">
                     <Radio.Control>
@@ -161,7 +178,7 @@ export function SwitcherPanel({
             {ctx.canManage && !query ? (
               <TextLink
                 href={screenHref("SettingsBusiness")}
-                className="mt-1 mb-0.5 ml-4 inline-flex px-2.5 py-1 text-[13px] font-medium"
+                className="mt-1 mb-0.5 ml-4 inline-flex px-2.5 py-1 text-sm font-medium"
               >
                 Manage branches
               </TextLink>
@@ -172,21 +189,32 @@ export function SwitcherPanel({
         {showOthers ? (
           <section className="border-t border-separator px-2 py-2.5" aria-labelledby="bs-others">
             <SectionLabel id="bs-others">Your Other Businesses</SectionLabel>
-            {others.map((o) => (
-              <Row key={o.name} href={screenHref(o.board)}>
-                <Tile ini={o.ini} variant="outline" />
-                <span className="flex min-w-0 flex-1 flex-col" onClickCapture={onNavigate}>
-                  <span className="truncate font-semibold">{o.name}</span>
-                  <span className="truncate text-xs text-muted">{o.meta}</span>
-                </span>
-                {o.count ? (
-                  <Chip size="sm" color="warning" variant="soft" aria-label={o.countLabel}>
-                    {o.count}
-                  </Chip>
-                ) : null}
-                <ChevronRight className="size-4 text-muted" aria-hidden="true" />
-              </Row>
-            ))}
+            {others.map((o) => {
+              const body = (
+                <>
+                  <Tile ini={o.ini} variant="outline" />
+                  <span className="flex min-w-0 flex-1 flex-col" onClickCapture={onNavigate}>
+                    <span className="truncate font-semibold">{o.name}</span>
+                    <span className="truncate text-xs text-muted">{o.meta}</span>
+                  </span>
+                  {o.count ? (
+                    <Chip size="sm" color="warning" variant="soft" aria-label={o.countLabel}>
+                      {o.count}
+                    </Chip>
+                  ) : null}
+                  <ChevronRight className="size-4 text-muted" aria-hidden="true" />
+                </>
+              );
+              return o.workspaceId ? (
+                <SwitchRow key={o.workspaceId} workspaceId={o.workspaceId} href={screenHref(o.board)}>
+                  {body}
+                </SwitchRow>
+              ) : (
+                <Row key={o.name} href={screenHref(o.board)}>
+                  {body}
+                </Row>
+              );
+            })}
             {showInvite && ctx.invite ? (
               accepted ? (
                 <Row href={screenHref(ctx.invite.board)}>
@@ -214,7 +242,7 @@ export function SwitcherPanel({
               )
             ) : null}
             {noOthers ? (
-              <p className="px-2.5 pt-1 pb-1.5 text-[13px] leading-[18px] text-muted">
+              <p className="px-2.5 pt-1 pb-1.5 text-sm text-muted">
                 No other businesses yet. An owner can invite you, or you can register your own.
               </p>
             ) : null}
@@ -253,7 +281,7 @@ export function SwitcherPanel({
         <LinkButton href={screenHref("Register")} size="sm" variant="outline">
           Add a business
         </LinkButton>
-        <TextLink href={screenHref("InviteAccept")} className="text-[13px] font-medium">
+        <TextLink href={screenHref("InviteAccept")} className="text-sm font-medium">
           Join with an invite code
         </TextLink>
       </div>
@@ -285,12 +313,12 @@ export function BusinessSwitcher({
   if (!ctx) return null;
   if (ctx.kind === "institution") {
     return (
-      <div className="flex w-full items-center gap-2.5 rounded-[14px] bg-surface px-2.5 py-2 shadow-surface">
+      <div className="flex w-full items-center gap-2.5 rounded-xl bg-surface px-2.5 py-2 shadow-surface">
         <Avatar size="sm" variant="soft" color={ctx.tone === "danger" ? "danger" : "accent"}>
           <Avatar.Fallback>{ctx.ini}</Avatar.Fallback>
         </Avatar>
         <span className="flex min-w-0 flex-1 flex-col" data-sidebar="label">
-          <span className="truncate text-[13px] leading-[18px] font-semibold">{ctx.name}</span>
+          <span className="truncate text-sm font-semibold">{ctx.name}</span>
           <span className="truncate text-xs leading-4 text-muted">{ctx.sub}</span>
         </span>
       </div>
@@ -299,21 +327,22 @@ export function BusinessSwitcher({
 
   const isAll = current?.id === "all";
   const title = isAll ? ctx.name : (current?.name ?? ctx.name);
-  const sub = `${isAll ? "All branches" : ctx.name} · ${ctx.role}`;
+  // A business with one branch of its own name says the role alone, not the name twice.
+  const sub = !isAll && title === ctx.name ? ctx.role : `${isAll ? "All branches" : ctx.name} · ${ctx.role}`;
   const trigger = (props: { onPress?: () => void; expanded?: boolean }) => (
     <Button
       variant="secondary"
-      className="h-auto w-full justify-start gap-2.5 rounded-[14px] bg-surface px-2.5 py-2 text-left shadow-surface"
+      className="h-auto w-full justify-start gap-2.5 rounded-xl bg-surface px-2.5 py-2 text-left shadow-surface in-[.sidebar[data-state=collapsed]]:w-auto in-[.sidebar[data-state=collapsed]]:bg-transparent in-[.sidebar[data-state=collapsed]]:p-0 in-[.sidebar[data-state=collapsed]]:shadow-none"
       aria-label={`${title}, ${sub}. Switch business or branch`}
       aria-expanded={props.expanded}
       onPress={props.onPress}
     >
       <Tile ini={ctx.ini} size="sm" />
       <span className="flex min-w-0 flex-1 flex-col" data-sidebar="label">
-        <span className="truncate text-[13px] leading-[18px] font-semibold">{title}</span>
+        <span className="truncate text-sm font-semibold">{title}</span>
         <span className="truncate text-xs leading-4 font-normal text-muted">{sub}</span>
       </span>
-      <ChevronsExpandVertical className="size-4 shrink-0 text-muted" aria-hidden="true" />
+      <ChevronsExpandVertical className="size-4 shrink-0 text-muted" aria-hidden="true" data-sidebar="label" />
     </Button>
   );
   const panel = (
@@ -332,14 +361,14 @@ export function BusinessSwitcher({
     return (
       <div className="flex flex-col gap-2">
         <div className="w-56">{trigger({ onPress: () => setOpen(!open), expanded: open })}</div>
-        {open ? <div className="w-fit rounded-[22px] bg-overlay shadow-overlay">{panel}</div> : null}
+        {open ? <div className="w-fit rounded-2xl bg-overlay shadow-overlay">{panel}</div> : null}
       </div>
     );
   }
   return (
     <Popover isOpen={open} onOpenChange={setOpen}>
       <Popover.Trigger>{trigger({})}</Popover.Trigger>
-      <Popover.Content placement="bottom start" className="rounded-[22px] p-0">
+      <Popover.Content placement="bottom start" className="rounded-2xl p-0">
         <Popover.Dialog className="p-0">{panel}</Popover.Dialog>
       </Popover.Content>
     </Popover>

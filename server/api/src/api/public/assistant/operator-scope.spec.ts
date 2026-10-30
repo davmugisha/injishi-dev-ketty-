@@ -1,13 +1,4 @@
-// TwoFactorService imports @injishi/auth, which ships as ESM Jest does not
-// transform. The service is stood in below; the package is mocked the way
-// `upload-throttler.guard.spec.ts` mocks it.
-jest.mock('@injishi/auth', () => ({
-  DEMO_OTP_CODE: '123456',
-  DEMO_COOKIE_PREFIX: 'injishi-demo',
-  OTP_EXPIRY_SECONDS: 300,
-  OTP_LENGTH: 6,
-  createAuth: (config: unknown) => ({ config }),
-}));
+import { describe, expect, it, vi } from 'vitest';
 
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 
@@ -30,17 +21,17 @@ function resolver(overrides: {
 } = {}): { resolver: OperatorScopeResolver; calls: string[] } {
   const calls: string[] = [];
   const twoFactor = {
-    assertSatisfied: jest.fn(async () => {
+    assertSatisfied: vi.fn(async () => {
       calls.push('step-up');
       return overrides.stepUp ? overrides.stepUp() : undefined;
     }),
   } as unknown as TwoFactorService;
   const workspaces = {
-    resolveForUser: jest.fn(async () => {
+    resolveForUser: vi.fn(async () => {
       calls.push('membership');
       return overrides.resolveForUser ? overrides.resolveForUser() : access;
     }),
-    coveredProperties: jest.fn(async () => {
+    coveredProperties: vi.fn(async () => {
       calls.push('coverage');
       return overrides.coverage ?? { coverage: 'limited', propertyIds: [BRANCH_A] };
     }),

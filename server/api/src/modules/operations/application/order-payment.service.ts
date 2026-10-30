@@ -5,7 +5,7 @@ import {
   ServiceCatalogRepository,
   type SettleOutcome,
 } from '../infrastructure/service-catalog.repository';
-import { DeclarationPlanService } from './declaration-plan.service';
+import { DeclarationPlanService } from '../../ebm/application/declaration-plan.service';
 
 /**
  * THE MONEY SIDE OF A PAY NOW ORDER (ADR-050 D-n, D-p; AC-21, AC-24).

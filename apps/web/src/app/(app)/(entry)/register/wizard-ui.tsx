@@ -1,13 +1,14 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { createContext, isValidElement, useContext, useId, type ReactNode } from "react";
+import { CloudOff } from "lucide-react";
 import {
-  Button,
   Input,
   ListBox,
   Select,
   TextArea as HeroTextArea,
 } from "@heroui/react";
+import { Badge } from "@injishi/web-ui";
 
 /**
  * The small shared pieces every step of the wizard uses.
@@ -40,6 +41,7 @@ export const TextArea = HeroTextArea;
  * has.
  */
 const EMPTY_KEY = "__empty__";
+const FieldLabelId = createContext<string | null>(null);
 
 export interface SelectOption {
   value: string;
@@ -72,6 +74,7 @@ export function SelectField({
   disabled,
   id,
   invalid,
+  ariaLabel,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -80,7 +83,10 @@ export function SelectField({
   disabled?: boolean;
   id?: string;
   invalid?: boolean;
+  /** For a standalone select, such as the country code inside PhoneInput. */
+  ariaLabel?: string;
 }) {
+  const fieldLabelId = useContext(FieldLabelId);
   const toKey = (v: string) => (v === "" ? EMPTY_KEY : v);
   const fromKey = (k: unknown) => {
     const key = k === null || k === undefined ? "" : String(k);
@@ -99,6 +105,8 @@ export function SelectField({
       isDisabled={disabled}
       isInvalid={invalid}
       placeholder={placeholder}
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabel ? undefined : fieldLabelId ?? undefined}
       className="w-full"
     >
       <Select.Trigger id={id} className="w-full">
@@ -129,17 +137,22 @@ export function Field({
   hint,
   error,
   required,
+  composite = false,
   children,
 }: {
   label: string;
   hint?: ReactNode;
   error?: string;
   required?: boolean;
+  /** A compound control labels its parts individually and cannot sit in a label. */
+  composite?: boolean;
   children: ReactNode;
 }) {
-  return (
-    <label className="block">
-      <span className="text-sm font-semibold">
+  const labelId = useId();
+  const selectChild = isValidElement(children) && children.type === SelectField;
+  const content = (
+    <>
+      <span id={selectChild ? labelId : undefined} className="text-sm font-semibold">
         {label}
         {required ? (
           <span className="text-destructive" aria-hidden="true">
@@ -150,14 +163,28 @@ export function Field({
       {hint ? (
         <span className="mt-0.5 block text-xs text-muted-foreground">{hint}</span>
       ) : null}
-      <span className="mt-1.5 block">{children}</span>
+      {selectChild || composite ? (
+        <div className="mt-1.5">{children}</div>
+      ) : (
+        <span className="mt-1.5 block">{children}</span>
+      )}
       {error ? (
         <span className="mt-1 block text-sm text-destructive" role="alert">
           {error}
         </span>
       ) : null}
-    </label>
+    </>
   );
+  // A Select renders a button and its own hidden label/select. Nesting it inside
+  // an HTML label makes the option box's trigger ambiguous to browsers and AT.
+  if (selectChild || composite) {
+    return (
+      <FieldLabelId.Provider value={selectChild ? labelId : null}>
+        <div className="block">{content}</div>
+      </FieldLabelId.Provider>
+    );
+  }
+  return <label className="block">{content}</label>;
 }
 
 /** A group of related choices that is not a single labelled input. */
@@ -249,9 +276,9 @@ export function ChoiceCard({
         <span className="flex flex-1 flex-wrap items-center justify-between gap-x-2 gap-y-1">
           <span className="text-sm font-semibold">{title}</span>
           {checked && badge ? (
-            <span className="rounded-full bg-accent-brand/15 px-2 py-0.5 text-2xs font-semibold text-accent-text">
+            <Badge variant="accent" size="sm">
               {badge}
-            </span>
+            </Badge>
           ) : null}
         </span>
       </span>
@@ -283,42 +310,17 @@ export function Notice({
   );
 }
 
-/** The footer every step shares: back on the left, forward on the right. */
-export function StepActions({
-  onBack,
-  backLabel = "Back",
-  onNext,
-  nextLabel,
-  busy,
-  disabled,
-}: {
-  onBack?: () => void;
-  backLabel?: string;
-  onNext: () => void;
-  nextLabel: string;
-  busy?: boolean;
-  disabled?: boolean;
-}) {
+/**
+ * Said beside the one thing that cannot be done offline (ADR-075 S9): the TIN
+ * check, an upload, the ID scan, paying. Everything else carries on, and the
+ * answers are kept on this phone meanwhile, which the header already says.
+ */
+export function Offline({ id, children }: { id: string; children: ReactNode }) {
   return (
-    <div className="mt-8 flex items-center gap-3">
-      {onBack ? (
-        <Button variant="outline" onPress={onBack}>
-          {backLabel}
-        </Button>
-      ) : null}
-      <span className="grow" />
-      {/* `isPending` rather than a swapped label alone: it puts the button in
-          HeroUI's pending state, which also stops a second press. The old
-          version only changed the text and stayed live. */}
-      <Button
-        variant="primary"
-        onPress={onNext}
-        isDisabled={busy || disabled}
-        isPending={busy}
-      >
-        {busy ? "Working…" : nextLabel}
-      </Button>
-    </div>
+    <p id={id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <CloudOff size={14} aria-hidden className="shrink-0" />
+      {children}
+    </p>
   );
 }
 
@@ -344,6 +346,11 @@ export { formatRwf } from "@/lib/money";
  * keys, the focus ring and the screen reader all work without being rebuilt.
  * The input is visually hidden rather than removed, so the group is a real
  * radio group and not a div that listens for clicks.
+ *
+ * A press on the tile that is ALREADY picked still answers. A radio fires no
+ * change when it is checked again, so after Change reopened the chooser, the
+ * kind already chosen could not be chosen again to close it; the click is
+ * caught for that one case, and a press on any other tile stays the change.
  */
 export function TileCard({
   name,
@@ -378,6 +385,9 @@ export function TileCard({
         value={value}
         checked={checked}
         onChange={() => onSelect(value)}
+        onClick={() => {
+          if (checked) onSelect(value);
+        }}
         className="sr-only"
       />
       {icon ? (
@@ -395,7 +405,7 @@ export function TileCard({
       <span className="flex flex-col gap-0.5">
         <span className="text-sm font-semibold">{label}</span>
         {blurb ? (
-          <span className="text-xs leading-[1.5] text-muted-foreground">
+          <span className="text-xs leading-normal text-muted-foreground">
             {blurb}
           </span>
         ) : null}
@@ -439,78 +449,6 @@ export function ChoiceTile({
         {description ? <span className="text-xs text-muted-foreground">{description}</span> : null}
       </span>
     </label>
-  );
-}
-
-/**
- * A six digit code in six boxes (the artboard's). Typing moves to the next box,
- * Backspace on an empty box moves back, and a pasted or autofilled code is
- * spread across all six, so an SMS code offered by the phone fills in one tap.
- * `value` is the digits typed so far, never padded.
- */
-export function CodeBoxes({
-  value,
-  onChange,
-  onComplete,
-  idPrefix,
-  disabled,
-  invalid,
-}: {
-  value: string;
-  onChange: (next: string) => void;
-  onComplete?: (code: string) => void;
-  idPrefix: string;
-  disabled?: boolean;
-  invalid?: boolean;
-}) {
-  const digits = value.replace(/\D/g, "").slice(0, 6);
-  const focusBox = (i: number) => {
-    const el = document.getElementById(`${idPrefix}-${Math.max(0, Math.min(5, i))}`);
-    if (el instanceof HTMLInputElement) {
-      el.focus();
-      el.select();
-    }
-  };
-  const write = (next: string, focusAt: number) => {
-    const clean = next.replace(/\D/g, "").slice(0, 6);
-    onChange(clean);
-    focusBox(focusAt);
-    if (clean.length === 6) onComplete?.(clean);
-  };
-  return (
-    <div className="flex flex-wrap gap-2">
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <input
-          key={i}
-          id={`${idPrefix}-${i}`}
-          type="text"
-          inputMode="numeric"
-          autoComplete={i === 0 ? "one-time-code" : "off"}
-          maxLength={i === 0 ? 6 : 1}
-          aria-label={`Digit ${i + 1} of 6`}
-          aria-invalid={invalid ? true : undefined}
-          disabled={disabled}
-          value={digits[i] ?? ""}
-          onChange={(e) => {
-            const typed = e.target.value.replace(/\D/g, "");
-            if (typed.length > 1) {
-              // Pasted or autofilled: spread it from this box on.
-              write(digits.slice(0, i) + typed, i + typed.length);
-              return;
-            }
-            const next = digits.slice(0, i) + typed + digits.slice(i + 1);
-            write(next, typed ? i + 1 : i);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Backspace" && !digits[i] && i > 0) {
-              e.preventDefault();
-              write(digits.slice(0, i - 1) + digits.slice(i), i - 1);
-            }
-          }}
-          className="size-12 rounded border border-input bg-field text-center text-xl font-semibold tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[invalid=true]:border-destructive disabled:opacity-50"
-        />
-      ))}
-    </div>
   );
 }
 

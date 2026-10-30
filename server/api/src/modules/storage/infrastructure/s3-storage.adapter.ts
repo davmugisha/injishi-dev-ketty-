@@ -5,11 +5,14 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { createReadStream } from 'node:fs';
+
 import { Logger, type OnApplicationShutdown } from '@nestjs/common';
 
 import { isObjectKey, mintObjectKey } from '../domain/object-key';
 import type { StorageBackend } from '../domain/storage-backend';
 import type {
+  PutFileInput,
   PutObjectInput,
   PutObjectResult,
   StoragePort,
@@ -34,6 +37,9 @@ import {
  * picture back and opening a certificate; anything longer should be a new URL.
  */
 export const MAX_SIGNED_URL_TTL_SECONDS = 900;
+
+/** How long one streamed file (a unit's video tour) may take to reach the store. */
+const PUT_FILE_DEADLINE_MS = 10 * 60 * 1000;
 
 /**
  * The two clients one process holds, whichever environments it serves.
@@ -137,6 +143,34 @@ export class S3StorageAdapter implements StoragePort {
       );
     }
     return { objectKey, sizeBytes: input.body.byteLength };
+  }
+
+  /**
+   * A large file streamed from disk (a unit's video tour): one PUT with a
+   * known length, so neither this process nor the SDK holds the whole file.
+   * The deadline is longer than an ordinary put's: 100 MB over a slow link to
+   * the store takes minutes, not seconds.
+   */
+  async putFile(input: PutFileInput): Promise<PutObjectResult> {
+    const objectKey = mintObjectKey(input);
+    try {
+      await this.clients.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: objectKey,
+          Body: createReadStream(input.path),
+          ContentLength: input.sizeBytes,
+          ContentType: input.mime,
+        }),
+        withDeadline(Math.max(this.clients.timeouts.operationMs, PUT_FILE_DEADLINE_MS)),
+      );
+    } catch (error) {
+      throw new Error(
+        `Storing ${objectKey} in bucket "${this.bucket}" failed: ${describeS3Error(error)}`,
+        { cause: error },
+      );
+    }
+    return { objectKey, sizeBytes: input.sizeBytes };
   }
 
   /**

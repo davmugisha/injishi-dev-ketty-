@@ -70,7 +70,8 @@ export interface PropertyDetail {
   propertyType: string;
   starClass: number | null;
   rooms: number | null;
-  bedrooms: number;
+  /** Null when unknown, which is every database property: the API has no bedroom count. */
+  bedrooms: number | null;
   maxGuests: number;
   capacity: string[];
   /** Null until the property uploads a photograph. */

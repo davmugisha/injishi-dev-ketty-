@@ -1,0 +1,23 @@
+{
+  // Runs as TypeScript under Node's own type stripping (Node 22.18 and up), so
+  // nothing here emits and there is no build step: `node src/main.ts` is the
+  // server. That is why imports carry their `.ts` extension and why the syntax
+  // is erasable only (no enums, no namespaces, no parameter properties).
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}

@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "name": "@injishi/mock-apis",
+  "version": "0.1.0",
+  "description": "Injishi Mock APIs: one HTTP server that stands in for the providers registration depends on (GTBank's NIDA lookup and Payment Hub, RRA's taxpayer register, Smile ID's document check), answering from seeded registers. Laptops and sample stacks only. The API reaches it through each seam's `sandbox` mode, with the same HTTP adapter a live provider will get.",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/main.ts",
+    "start": "node src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "test": "node --test \"tests/*.test.ts\""
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "@typescript-eslint/parser": "^8.68.0",
+    "eslint": "^10.9.1",
+    "typescript": "5.8.3"
+  }
+}

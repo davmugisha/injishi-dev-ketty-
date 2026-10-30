@@ -117,8 +117,10 @@ export function ResultCardVertical({
           {listing.location} · {ACCOMMODATION_CLASS_LABEL[listing.kind]}
         </p>
         <p className="truncate text-muted-foreground">
-          Sleeps {listing.maxGuests} · {listing.bedrooms}{" "}
-          {listing.bedrooms === 1 ? "bedroom" : "bedrooms"}
+          Sleeps {listing.maxGuests}
+          {listing.bedrooms !== null
+            ? ` · ${listing.bedrooms} ${listing.bedrooms === 1 ? "bedroom" : "bedrooms"}`
+            : null}
         </p>
 
         <p className="mt-1.5 truncate text-foreground">

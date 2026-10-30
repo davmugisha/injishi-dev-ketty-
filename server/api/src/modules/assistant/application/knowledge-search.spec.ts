@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { KNOWLEDGE, KnowledgeArticle } from '../content/knowledge';
 import { searchKnowledge, tokens } from './knowledge-search';
 

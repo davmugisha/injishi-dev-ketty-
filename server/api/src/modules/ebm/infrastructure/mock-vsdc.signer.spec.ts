@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { EbmSdcBlock, ebmQrPayload } from '@injishi/contracts';
 
 import type { VsdcSignRequest } from '../domain/vsdc-port';

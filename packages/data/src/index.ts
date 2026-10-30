@@ -26,6 +26,41 @@ export function screenByPath(pathname: string): ScreenEntry | undefined {
   return hit ? screens[hit.board] : undefined;
 }
 
+/** The `[name]` parameters of the screen at `pathname`, by name: `/home/abc/lease` gives `{ leaseId: "abc" }`. */
+export function routeParams(pathname: string): Record<string, string> {
+  const screen = screenByPath(pathname);
+  if (!screen?.route.includes("[")) return {};
+  const names = [...screen.route.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1]);
+  const re = new RegExp(`^${screen.route.replace(/\[[^\]]+\]/g, "([^/]+)")}$`);
+  const match = re.exec(pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname);
+  if (!match) return {};
+  return Object.fromEntries(names.map((name, i) => [name, decodeURIComponent(match[i + 1] ?? "")]));
+}
+
+/**
+ * Where a sidebar item links, from where the person is: a board whose route names a parameter
+ * (`/home/[leaseId]/lease`) takes it from the current pathname when the screen there has the same one;
+ * a parameter nothing fills cuts the link short (`/home`), where the page picks for them.
+ */
+export function navHref(board: BoardId, pathname: string): string {
+  const route = screens[board].route;
+  if (!route.includes("[")) return screens[board].href;
+  const params = routeParams(pathname);
+  const parts = route.split("/");
+  const out: string[] = [];
+  for (const part of parts) {
+    const m = /^\[([^\]]+)\]$/.exec(part);
+    if (!m) {
+      out.push(part);
+      continue;
+    }
+    const value = params[m[1]];
+    if (!value) break;
+    out.push(encodeURIComponent(value));
+  }
+  return out.join("/") || "/";
+}
+
 /** Screens any signed-in person may open. */
 export const SHARED_BOARDS: readonly BoardId[] = [
   "Account",
@@ -43,7 +78,7 @@ const BUSINESS_STAFF: readonly PersonaId[] = [
   "finance",
   "hr",
   "store",
-  "residence",
+  "landlord",
   "outlet",
   "waiter",
   "housekeeper",

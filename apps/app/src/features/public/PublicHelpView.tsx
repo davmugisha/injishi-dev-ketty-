@@ -48,12 +48,12 @@ import type {
 import { GateChip, Icon, LinkButton, StatusDot, TextLink, toneColor } from "@injishi/ui";
 import { type FormEvent, useState, useTransition } from "react";
 import { openSupportTicketAction } from "./actions";
-import { ChoiceField, fileSize } from "./fields";
+import { ChoiceField } from "./fields";
 import type { DemoLinks } from "./links";
 import { PublicFooter, PublicHeader, PublicMain, type PublicVisitor, SignInAction } from "./PublicChrome";
 import { linkTo } from "./shared";
 
-export interface PublicHelpData {
+interface PublicHelpData {
   guides: HelpGuide[];
   services: ServiceStatus[];
   incident: IncidentUpdate[];
@@ -74,7 +74,7 @@ const COPY = {
     popular: "Popular:",
     status: "System status",
     contact: "Contact support",
-    contactSub: "A person reads every ticket. You can follow it from your account.",
+    contactSub: "A person on the support team reads every ticket.",
     category: "Category",
     business: "Business",
     describe: "Describe the problem",
@@ -92,7 +92,7 @@ const COPY = {
     popular: "Ibikunzwe:",
     status: "Uko serivisi zihagaze",
     contact: "Twandikire",
-    contactSub: "Umuntu asoma buri kibazo. Ushobora kugikurikirana kuri konti yawe.",
+    contactSub: "Umuntu asoma buri kibazo.",
     category: "Icyiciro",
     business: "Ikigo",
     describe: "Sobanura ikibazo",
@@ -141,16 +141,8 @@ const TOPIC: Record<string, "booking" | "payment" | "listing" | "other"> = {
   bookings: "booking",
 };
 
-const PROBLEM =
-  "A guest paid RWF 280,000 by MTN MoMo at 10:42. Their phone shows the money left, but the folio still says Pending after 15 minutes.";
 const DATA_REQUEST =
   "I would like a copy of the personal data you hold about me, and to know which businesses it was shared with.";
-
-interface Attachment {
-  id: string;
-  name: string;
-  meta: string;
-}
 
 /** Public · help and support (artifact: PublicHelp.dc.html) — guides, system status, support and privacy. */
 export function PublicHelpView({
@@ -172,15 +164,13 @@ export function PublicHelpView({
   const [who, setWho] = useState("biz");
   const [cat, setCat] = useState("payments");
   const [business, setBusiness] = useState(data.businesses[0]?.id ?? "");
-  const [bizReply, setBizReply] = useState("eric.habimana@isangano.example");
-  const [place, setPlace] = useState("Isangano Lakeside Hotel");
-  const [guestReply, setGuestReply] = useState("sarah.kimani@example.com");
-  const [reference, setReference] = useState("PI-77142");
-  const [problem, setProblem] = useState(PROBLEM);
+  // The form opens a real ticket, so it starts empty: a sample reply address would file someone else's email.
+  const [bizReply, setBizReply] = useState("");
+  const [place, setPlace] = useState("");
+  const [guestReply, setGuestReply] = useState("");
+  const [reference, setReference] = useState("");
+  const [problem, setProblem] = useState("");
   const [dataRequest, setDataRequest] = useState(DATA_REQUEST);
-  const [files, setFiles] = useState<Attachment[]>([
-    { id: "momo-sms-1042", name: "momo-sms-1042.jpg", meta: "184 KB · uploaded" },
-  ]);
   const [sent, setSent] = useState(false);
   const [ticket, setTicket] = useState("");
   const [sending, startSending] = useTransition();
@@ -192,7 +182,10 @@ export function PublicHelpView({
     ? data.guides.filter((g) => g.title.toLowerCase().includes(q) || g.kind.toLowerCase().includes(q))
     : data.guides.filter((g) => g.role === role);
   const guidesTitle = q ? `${guides.length} results for “${query}”` : t.guides;
-  const disrupted = data.services.some((s) => s.tone !== "success");
+  // The status card draws sample collections (no public status route yet, data map public.serviceStatus): the
+  // notice names the disrupted service from that data and the card says it is sample, never a fixed live incident.
+  const disruptedService = data.services.find((s) => s.tone !== "success");
+  const disrupted = disruptedService !== undefined;
 
   const privacy = cat === "privacy";
   const catLabel = CATEGORIES.find((c) => c.id === cat)?.label ?? "";
@@ -204,19 +197,18 @@ export function PublicHelpView({
     {
       id: "agent",
       title: "With a support agent",
-      detail: privacy ? "Handled by our data protection lead" : "Next · you get an email when someone picks it up",
+      detail: "Next · a person on the support team picks it up",
     },
     { id: "waiting", title: "Waiting for you", detail: "Only if we need more information" },
-    { id: "resolved", title: "Resolved", detail: "You can reopen within 14 days" },
+    { id: "resolved", title: "Resolved", detail: "Closed by support once answered" },
   ];
 
-  const addFiles = (list: File[]) =>
-    setFiles((cur) => [
-      ...cur,
-      ...list
-        .filter((f) => /\.(jpe?g|png|pdf)$/i.test(f.name) && f.size <= 10 * 1024 * 1024)
-        .map((f, i) => ({ id: `${Date.now()}-${i}-${f.name}`, name: f.name, meta: `${fileSize(f.size)} · uploaded` })),
-    ]);
+  // The support intake takes text only and no route stores a file for a ticket, so nothing is attached:
+  // choosing or dropping a file says so and keeps nothing.
+  const addFiles = (list: File[]) => {
+    if (!list.length) return;
+    toast.warning("Attaching a file is not available yet. Nothing was attached; describe it in your message.");
+  };
   const send = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const body = privacy ? dataRequest : problem;
@@ -227,7 +219,6 @@ export function PublicHelpView({
       !privacy && reference.trim() ? `Reference: ${reference.trim()}` : null,
     ].filter(Boolean);
     startSending(async () => {
-      // Attachments are not sent: the support intake takes text only, and has no file route yet.
       const result = await openSupportTicketAction({
         topic: TOPIC[cat] ?? "other",
         message: `${context.join("\n")}\n\n${body}`,
@@ -398,8 +389,9 @@ export function PublicHelpView({
               <h2 id="status-h" className="text-[15px] leading-[22px] font-semibold">
                 {t.status}
               </h2>
+              {/* The status below is sample data: the chip never states the live state of Injishi as fact. */}
               <Chip size="sm" variant="soft" color={disrupted ? "warning" : "success"}>
-                {disrupted ? "Partial disruption" : "Operational"}
+                {disrupted ? "Sample · partial disruption" : "Sample · operational"}
               </Chip>
             </div>
             <ul className="flex flex-col gap-[8px] text-[13px]">
@@ -411,18 +403,21 @@ export function PublicHelpView({
                 </li>
               ))}
             </ul>
-            <Alert status="warning">
-              <Alert.Indicator>
-                <TriangleExclamation />
-              </Alert.Indicator>
-              <Alert.Content>
-                <Alert.Title>MTN MoMo confirmations delayed</Alert.Title>
-                <Alert.Description>
-                  Since 09:20 CAT some confirmations take up to 10 minutes. Payments show Pending until the provider
-                  confirms. Please don’t pay twice.
-                </Alert.Description>
-              </Alert.Content>
-            </Alert>
+            {disruptedService ? (
+              <Alert status="warning">
+                <Alert.Indicator>
+                  <TriangleExclamation />
+                </Alert.Indicator>
+                <Alert.Content>
+                  <Alert.Title>
+                    {disruptedService.name} · {disruptedService.state.toLowerCase()}
+                  </Alert.Title>
+                  <Alert.Description>
+                    Anything waiting on it shows Pending until it is confirmed. Please don’t pay twice.
+                  </Alert.Description>
+                </Alert.Content>
+              </Alert>
+            ) : null}
             <Timeline size="sm" density="compact" aria-label="Incident updates">
               {data.incident.map((ic) => (
                 <Timeline.Item key={ic.id} status={ic.status}>
@@ -437,7 +432,7 @@ export function PublicHelpView({
                 </Timeline.Item>
               ))}
             </Timeline>
-            <span className="text-[12px] text-muted">Updated 10:41 CAT, Monday 12 October</span>
+            <span className="text-[12px] text-muted">Sample status · not the live state of Injishi’s services</span>
           </Card>
         </div>
 
@@ -462,7 +457,7 @@ export function PublicHelpView({
                   <Alert.Content>
                     <Alert.Title>Ticket {ticket.slice(0, 8).toUpperCase()} created</Alert.Title>
                     <Alert.Description>
-                      {ticketLine} We emailed a copy to {replyTo} and will write again when a person picks it up.
+                      {ticketLine} A person on the support team reads it. Your reply address is {replyTo}.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>
@@ -479,9 +474,6 @@ export function PublicHelpView({
                   ))}
                 </Stepper>
                 <div className="flex flex-wrap items-center gap-[8px]">
-                  <LinkButton href={linkTo(links, "Account")} variant="secondary" size="sm">
-                    Track in your account
-                  </LinkButton>
                   <Button variant="ghost" size="sm" onPress={() => setSent(false)}>
                     Send another
                   </Button>
@@ -569,7 +561,7 @@ export function PublicHelpView({
                       <Paperclip className="size-6" />
                     </DropZone.Icon>
                     <DropZone.Label>Drop a screenshot or PDF here</DropZone.Label>
-                    <DropZone.Description>JPG, PNG or PDF · up to 10 MB each</DropZone.Description>
+                    <DropZone.Description>Not available yet · describe it in your message</DropZone.Description>
                     <DropZone.Trigger>Choose file</DropZone.Trigger>
                   </DropZone.Area>
                   <DropZone.Input
@@ -577,26 +569,6 @@ export function PublicHelpView({
                     multiple
                     onSelect={(list) => addFiles([...list])}
                   />
-                  {files.length ? (
-                    <DropZone.FileList>
-                      {files.map((f) => {
-                        const ext = (f.name.split(".").pop() ?? "jpg").toUpperCase();
-                        return (
-                          <DropZone.FileItem key={f.id} status="complete">
-                            <DropZone.FileFormatIcon format={ext} color={ext === "PDF" ? "red" : "blue"} />
-                            <DropZone.FileInfo>
-                              <DropZone.FileName>{f.name}</DropZone.FileName>
-                              <DropZone.FileMeta>{f.meta}</DropZone.FileMeta>
-                            </DropZone.FileInfo>
-                            <DropZone.FileRemoveTrigger
-                              aria-label={`Remove ${f.name}`}
-                              onPress={() => setFiles((cur) => cur.filter((x) => x.id !== f.id))}
-                            />
-                          </DropZone.FileItem>
-                        );
-                      })}
-                    </DropZone.FileList>
-                  ) : null}
                 </DropZone>
                 <div className="flex flex-wrap items-center justify-between gap-[10px]">
                   <TextLink href={linkTo(links, "Assistant")} className="text-[13px]">
@@ -653,11 +625,19 @@ export function PublicHelpView({
               ))}
             </Tabs>
             <div className="flex flex-wrap items-center gap-[8px]">
-              <Button variant="secondary" size="sm">
+              <Button
+                variant="secondary"
+                size="sm"
+                onPress={() => toast.warning("The full text of this document is not available here yet.")}
+              >
                 <BookOpen className="size-4" />
                 Read in full
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={() => toast.warning("Downloading this document is not available yet.")}
+              >
                 <FileArrowDown className="size-4" />
                 PDF
               </Button>

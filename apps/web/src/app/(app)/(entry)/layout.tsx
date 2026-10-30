@@ -16,7 +16,7 @@ import type { ReactNode } from "react";
  * entry screen someone adds cannot forget them.
  *
  * These routes are deliberately ABSENT from `PROTECTED_PREFIXES` in
- * `src/middleware.ts` (`/claim-org` excepted, which was always gated). They are
+ * `src/proxy.ts` (`/claim-org` excepted, which was always gated). They are
  * steps of signing in, and gating them locks the door from the inside. Sitting
  * in a folder beside gated routes is not a reason to add them.
  */

@@ -15,9 +15,11 @@ import {
   OwnerRefusal,
   saveReportView,
   saveRolePresets,
+  sendStepUpCode,
 } from "../../src/server/mutations/owner";
-import { sources } from "../../src/server/sources/owner";
+import { employeeFileEmails, sources, teamScopes } from "../../src/server/sources/owner";
 import type { SourceContext } from "../../src/server/sources/types";
+import { demoCode } from "../lib/harness";
 import type { Flow } from "./types";
 
 const members = async (ctx: SourceContext) => (await sources["owner.teamRolesMembers"].list(ctx)) as TeamRolesMember[];
@@ -188,6 +190,78 @@ export const flows: Flow[] = [
     },
   },
   {
+    name: "the grant screens' step-up code is checked by the API: unasked, wrong and spent codes are refused",
+    async run({ as, check, refused, step }) {
+      const owner = await as("owner");
+      const email = () => `flow.stepup.${Date.now()}.${Math.round(Math.random() * 1e6)}@app.demo.injishi.com`;
+      const invite = (stepUpCode: string, contact = email()) =>
+        inviteMember(owner, { name: "Step Up", contact, role: "frontdesk", scopeIds: ["ish"], stepUpCode });
+      const invitations = async () => (await members(owner)).filter((m) => m.name === "Step Up");
+      const before = (await invitations()).length;
+
+      // This session never asked for a code, so no code can be good, whatever its digits.
+      await refused(422, () => invite("123456"), "a step-up code nobody asked for");
+      const sent = await sendStepUpCode(owner);
+      check(/@/.test(sent.sentTo) && sent.expiresInSeconds > 0, `the API answered ${JSON.stringify(sent)}`);
+      step(`the API emailed a code to ${sent.sentTo}`);
+      await refused(422, () => invite("000000"), "a wrong step-up code");
+      const short = await screenRefusal(() => invite("12 34"), "a code that is not six digits");
+      check((await invitations()).length === before, "a refused step-up still wrote an invitation");
+      step(`unasked and wrong codes are refused by the API (422), "${short}" before it; nothing was written`);
+
+      const code = await demoCode();
+      const { id } = await invite(code);
+      const made = (await members(owner)).find((m) => m.id === id);
+      check(
+        made?.status === "invited" && made.scopeIds.join() === "ish",
+        `the invitation reads ${JSON.stringify(made)}`,
+      );
+      step("the right code let the invitation through");
+      await refused(422, () => invite(code), "a step-up code used twice");
+      step("the same code a second time is refused: a code is spent when it verifies");
+
+      // A role change asks for its own code, and a change that changes nothing never spends one.
+      const beatrice = (await members(owner)).find((m) => m.name === "Beatrice Mukandori");
+      check(beatrice?.status === "active" && beatrice.role === "staff", `Beatrice reads ${JSON.stringify(beatrice)}`);
+      await changeMember(owner, beatrice.id, { role: "staff", scopeIds: beatrice.scopeIds, stepUpCode: "000000" });
+      await refused(
+        422,
+        () => changeMember(owner, beatrice.id, { role: "frontdesk", scopeIds: ["isg"], stepUpCode: "000000" }),
+        "a role change with a wrong code",
+      );
+      check(
+        (await members(owner)).find((m) => m.id === beatrice.id)?.role === "staff",
+        "a refused code changed a role",
+      );
+      await sendStepUpCode(owner);
+      await changeMember(owner, beatrice.id, { role: "frontdesk", scopeIds: ["isg"], stepUpCode: code });
+      check((await members(owner)).find((m) => m.id === beatrice.id)?.role === "frontdesk", "the change did not land");
+      await sendStepUpCode(owner);
+      await changeMember(owner, beatrice.id, { role: "staff", scopeIds: ["isg"], stepUpCode: code });
+      check((await members(owner)).find((m) => m.id === beatrice.id)?.role === "staff", "Beatrice was not put back");
+      step("a role change went through only with a fresh code, and was put back with another");
+
+      await cancelInvitation(owner, id);
+
+      // The code proves who is typing, never what they may do.
+      const manager = await as("manager");
+      await sendStepUpCode(manager);
+      await refused(
+        403,
+        () =>
+          inviteMember(manager, {
+            name: "No",
+            contact: email(),
+            role: "frontdesk",
+            scopeIds: ["isg"],
+            stepUpCode: code,
+          }),
+        "a stepped-up general manager inviting staff",
+      );
+      step("the general manager, with a good code, is still refused with 403 (no team.manage)");
+    },
+  },
+  {
     name: "the owner saves a Reports view and a second view of the same name is refused",
     async run({ as, check, refused, step }) {
       const owner = await as("owner");
@@ -214,6 +288,33 @@ export const flows: Flow[] = [
         "the front desk saving a Reports view",
       );
       step("the same name twice is refused (409); the front desk (no money.view) is refused with 403");
+    },
+  },
+  {
+    name: "the Team screen's scope picker and employee-file line come from live data, never the sample tree",
+    async run({ as, check, step }) {
+      const owner = await as("owner");
+      const scopes = await teamScopes(owner);
+      const grantable = scopes.filter((s) => s.kind !== "entity");
+      check(
+        grantable.length > 0 && grantable.every((s) => s.kind === "property"),
+        `the picker offers outlets or merchants: ${JSON.stringify(scopes)}`,
+      );
+      const team = await members(owner);
+      const offered = new Set(grantable.map((s) => s.id));
+      const unknown = team.flatMap((m) => m.scopeIds).filter((id) => !offered.has(id));
+      check(unknown.length === 0, `members cover branches the picker does not offer: ${unknown.join(", ")}`);
+      step(
+        `${grantable.length} live branches under ${scopes.filter((s) => s.kind === "entity").length} businesses; no outlet row`,
+      );
+
+      const files = await employeeFileEmails(owner);
+      check(files !== null && files.length > 0, "the owner (people.view) read no employee file from People");
+      const filed = team.filter((m) => m.status === "active" && files?.includes(m.contact.trim().toLowerCase()));
+      check(filed.length > 0, "no active member's email matches an active file in People");
+      step(`${filed.length} active members have a file in People, read from GET /ops/employees`);
+      const manager = await as("manager");
+      check((await employeeFileEmails(manager)) === null, "the manager holds no team.manage, so People is not read");
     },
   },
 ];

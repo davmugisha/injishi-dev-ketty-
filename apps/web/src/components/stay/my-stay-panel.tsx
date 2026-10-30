@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Badge, Button, Input, Textarea } from "@injishi/ui";
+import { Badge, Button, Input, Textarea } from "@injishi/web-ui";
 import {
   REFUND_DETAIL_MAX,
   StayRefundReason,

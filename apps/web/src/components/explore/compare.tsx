@@ -23,7 +23,7 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@injishi/ui";
+} from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { NoPhoto } from "@/components/stays/no-photo";
 import type { Listing } from "@/data/listings";
@@ -388,6 +388,7 @@ function buildSections(selected: Listing[], intent?: StayIntent): Section[] {
         {
           label: "Bedrooms",
           cell: (l) => {
+            if (l.bedrooms === null) return "Not stated";
             const noun = bookingUnit(l.kind, `${l.nameLead} ${l.nameRest}`).one;
             return `${l.bedrooms} ${l.bedrooms === 1 ? "bedroom" : "bedrooms"} per ${noun}`;
           },

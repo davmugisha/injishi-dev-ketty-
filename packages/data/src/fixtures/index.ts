@@ -16,8 +16,6 @@ import { fixtures as peopleFixtures } from "./people.ts";
 import { fixtures as platformFixtures } from "./platform.ts";
 import { fixtures as platformopsFixtures } from "./platformops.ts";
 import { fixtures as publicFixtures } from "./public.ts";
-import { fixtures as residenceFixtures } from "./residence.ts";
-import { fixtures as residentFixtures } from "./resident.ts";
 import { fixtures as sharedFixtures } from "./shared.ts";
 import { fixtures as staffFixtures } from "./staff.ts";
 import { fixtures as staysFixtures } from "./stays.ts";
@@ -38,8 +36,6 @@ export const fixtureSets: Record<string, FixtureSet> = {
   staff: staffFixtures,
   outlets: outletsFixtures,
   stock: stockFixtures,
-  residence: residenceFixtures,
-  resident: residentFixtures,
   guest: guestFixtures,
   market: marketFixtures,
   public: publicFixtures,

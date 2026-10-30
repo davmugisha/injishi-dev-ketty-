@@ -31,6 +31,14 @@ exports.WorkOrderEventKind = zod_1.z.enum([
     "verified",
     "from_signal",
     "planned",
+    // Rentals P4 (migration 0087): the steps of the shared ticket lifecycle a
+    // hotel order never takes, and the fixer being paid.
+    "acknowledged",
+    "wont_fix",
+    "reopened",
+    "paid",
+    "closed",
+    "cancelled",
 ]);
 exports.WorkOrderPartState = zod_1.z.enum(["requested", "ordered", "issued", "contractor"]);
 exports.WorkOrderPart = zod_1.z.object({

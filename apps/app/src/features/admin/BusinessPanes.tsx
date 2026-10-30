@@ -40,7 +40,7 @@ const SUSPEND_REASONS = ["Non-payment past grace", "Licence lapsed", "Fraud or a
 const REINSTATE_REASONS = ["Licence renewed", "Debt settled", "Suspended in error"];
 
 /** Documents of a business with reviewer checks applied (checked → verified). */
-export function businessDocuments(b: Business, types: KybDocumentType[], checked: Record<string, boolean>) {
+function businessDocuments(b: Business, types: KybDocumentType[], checked: Record<string, boolean>) {
   return b.documents.map((d) => {
     const type = types.find((t) => t.id === d.type);
     const state: KybDocState = checked[d.type] ? "verified" : d.state;

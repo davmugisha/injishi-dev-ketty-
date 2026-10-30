@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import type { EbmLive } from '../domain/ebm-live';
 import { EbmApiError, type EbmApiClient, type EbmInvoiceRequest } from '../infrastructure/ebm-api.client';
 import type {
@@ -79,10 +81,10 @@ describe('EbmEmissionService', () => {
 
   interface Harness {
     service: EbmEmissionService;
-    emissions: { claim: jest.Mock; releaseToHeld: jest.Mock; markEmitted: jest.Mock; markFailed: jest.Mock };
-    bookings: { findForEmission: jest.Mock };
-    connections: { credentialsFor: jest.Mock; markRevoked: jest.Mock };
-    client: { createInvoice: jest.Mock; invoice: jest.Mock };
+    emissions: { claim: Mock; releaseToHeld: Mock; markEmitted: Mock; markFailed: Mock };
+    bookings: { findForEmission: Mock };
+    connections: { credentialsFor: Mock; markRevoked: Mock };
+    client: { createInvoice: Mock; invoice: Mock };
   }
 
   /** The certified answer with the named device fields taken out. */
@@ -118,26 +120,26 @@ describe('EbmEmissionService', () => {
           } as EbmEmissionRow);
 
     const emissions = {
-      claim: jest.fn(async () => row),
-      releaseToHeld: jest.fn(async () => undefined),
-      markEmitted: jest.fn(async () => undefined),
-      markFailed: jest.fn(async () => undefined),
+      claim: vi.fn(async () => row),
+      releaseToHeld: vi.fn(async () => undefined),
+      markEmitted: vi.fn(async () => undefined),
+      markFailed: vi.fn(async () => undefined),
     };
     const bookings = {
-      findForEmission: jest.fn(async () => (opts.booking === undefined ? booking() : opts.booking)),
+      findForEmission: vi.fn(async () => (opts.booking === undefined ? booking() : opts.booking)),
     };
     const connections = {
-      credentialsFor: jest.fn(
+      credentialsFor: vi.fn(
         typeof opts.creds === 'function' ? opts.creds : async () => opts.creds ?? READY,
       ),
-      markRevoked: jest.fn(async () => undefined),
+      markRevoked: vi.fn(async () => undefined),
     };
     const client = {
-      createInvoice: jest.fn(
+      createInvoice: vi.fn(
         opts.createInvoice ??
           (async () => ({ id: RRA_ANSWER.id, status: 'Certified', raw: { ...RRA_ANSWER } })),
       ),
-      invoice: jest.fn(opts.getInvoice ?? (async () => { throw new Error('not expected'); })),
+      invoice: vi.fn(opts.getInvoice ?? (async () => { throw new Error('not expected'); })),
     };
     const live = { config: {} as EbmLive['config'], client: client as unknown as EbmApiClient };
     const service = new FixedClock(
@@ -324,8 +326,8 @@ describe('EbmEmissionService', () => {
         expect(token).toBe('at-2');
         return { id: 41, status: 'Certified', raw: { ...RRA_ANSWER } };
       },
-      creds: jest
-        .fn<Promise<Credentials>, []>()
+      creds: vi
+        .fn<() => Promise<Credentials>>()
         .mockResolvedValueOnce(READY)
         .mockResolvedValueOnce({ ...READY, accessToken: 'at-2' }) as unknown as () => Promise<Credentials>,
     });

@@ -4,12 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { SearchIcon } from "@/components/icons";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { HostCta } from "@/components/layout/host-cta";
-import { LanguageMenu } from "@/components/layout/language-menu";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { SearchOverlay } from "@/components/layout/search-overlay";
 import { PRIMARY_NAV, headerVariantFor } from "@/data/navigation";
@@ -218,11 +217,14 @@ export function SiteHeader() {
                   ))}
                 </div>
 
-                {/* It is NOT a second theme control, and the paragraph above
-                    still holds: `ThemePill` in the footer owns the theme. Read
-                    `language-menu.tsx` before trusting this to do anything —
-                    no locale layer reads what it selects yet. */}
-                <LanguageMenu className={content} />
+                {/* `LanguageMenu` stood here: a globe offering English,
+                    Français and Kinyarwanda that changed nothing, because no
+                    locale layer reads the choice (its own file says so). A
+                    visitor who picked Kinyarwanda got English and a control
+                    that had lied to them, so it is unmounted until the site can
+                    speak the languages it offers (2026-10-21). The component is
+                    kept for that day; mount it here again with the locale
+                    layer. */}
 
                 <Button
                   variant="ghost"

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ServiceCard } from "@/components/services/service-card";
+import { fetchPlatform, servesSampleData } from "@/data/platform";
 import { ServiceKindIcon } from "@/components/services/service-kind-mark";
 import { PageHero } from "@/components/shared/page-hero";
 import { SectionHeading } from "@/components/shared/section-heading";
@@ -28,11 +30,21 @@ import {
  * It opens on a photographic hero ON PURPOSE: `headerVariantFor` keeps
  * `/services` off its white-page list, and the detail pages under it inherit
  * the dark header by prefix.
+ *
+ * SAMPLE DATABASES ONLY. There is no Services module; every business, price
+ * and capacity here is invented. Production served it as real offers, linked
+ * from the header, until 2026-10-21. Now the API is asked, and anything but a
+ * positive "sample data" answer is a 404 (fail closed, as `/demo` does), and
+ * no crawler is ever told to index it. When the real module lands, this gate
+ * goes with the fixture.
  */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Services",
   description:
     "Pool day passes, halls, outdoor spaces, marquees and parking, booked on their own at hotels across Rwanda.",
+  robots: { index: false, follow: false },
 };
 
 const GROUPS = SERVICE_KIND_ORDER.map((kind) => ({
@@ -40,7 +52,9 @@ const GROUPS = SERVICE_KIND_ORDER.map((kind) => ({
   services: servicesOfKind(kind),
 })).filter((group) => group.services.length > 0);
 
-export default function ServicesPage() {
+export default async function ServicesPage() {
+  if (!servesSampleData(await fetchPlatform())) notFound();
+
   return (
     <div className="flex flex-col items-center bg-background">
       <PageHero

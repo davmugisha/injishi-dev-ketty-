@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { fixed, ink, green } from "@injishi/design-tokens";
+import { WEB_URL } from "@/lib/web-url";
 
 /**
  * The 404 for a URL that matches no route group at all.
@@ -20,6 +21,8 @@ import { fixed, ink, green } from "@injishi/design-tokens";
  */
 export const metadata: Metadata = {
   title: "Page not found | Injishi",
+  // The root share card reaches this document too; its URL needs an origin.
+  metadataBase: new URL(WEB_URL),
   robots: { index: false, follow: false },
 };
 
@@ -42,7 +45,7 @@ export default function GlobalNotFound() {
           background: `light-dark(${WHITE}, ${INK})`,
           color: `light-dark(${INK}, ${PAPER})`,
           fontFamily:
-            "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+            "Figtree, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
           WebkitFontSmoothing: "antialiased",
         }}
       >
@@ -70,7 +73,7 @@ export default function GlobalNotFound() {
           <h1
             style={{
               margin: 0,
-              fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+              fontFamily: "Instrument Sans, Figtree, ui-sans-serif, system-ui, sans-serif",
               fontSize: "clamp(2rem, 6vw, 3rem)",
               lineHeight: 1.2,
               fontWeight: 500,

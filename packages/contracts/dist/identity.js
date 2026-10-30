@@ -1,98 +1,140 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PassportVerifyResult = exports.PassportRejectionReason = exports.PassportVerifyRequest = exports.NationalIdConfirmRequest = exports.NationalIdLookupResult = exports.NationalIdLookupRequest = exports.IdentityStatus = exports.VerifiedPerson = exports.IdentityAdapterMode = void 0;
+exports.NationalIdCheckRequest = exports.TypedIdentityRequest = exports.IdentityScanResult = exports.IdentityScanRequest = exports.IdentityStatus = exports.IdentityScanState = exports.IdentityOnFile = exports.IdentityScanReason = exports.IdentityScanOutcome = exports.SCAN_ATTEMPTS_BEFORE_CONTINUE = exports.IdentityAdapterMode = void 0;
 const zod_1 = require("zod");
 const primitives_1 = require("./primitives");
 const registration_1 = require("./registration");
 // ---------------------------------------------------------------------------
-// Identity verification (ADR-060): a National ID looked up in the population
-// register, or a passport read and checked by a document verifier.
+// Identity (ADR-060, rebuilt by ADR-075 A1): the ID is scanned, front then a
+// selfie, for a National ID and a passport alike. No code is sent to any phone
+// (AC-4); where no checker runs, the photos are kept and a PSF officer compares
+// them before approving (D-a, O-6).
 // ---------------------------------------------------------------------------
 /**
- * Which side of each seam a deployment runs. `off` is a real answer, not a
- * missing one: it is what a real database runs until a provider is signed, and
- * it is the only mode in which a business registration is not held to a
- * verified identity, because a check nobody can run cannot be required.
+ * Which side of an identity seam a deployment runs. `off` is a real answer,
+ * not a missing one: it is what a real database runs until a provider is
+ * signed, and there the scan stores the photos for PSF and reads nothing.
+ * `sandbox` is the real HTTP adapter talking to Injishi Mock APIs
+ * (`server/mock-apis`): the people it answers about are as invented as the
+ * mock's.
  */
-exports.IdentityAdapterMode = zod_1.z.enum(["mock", "live", "off"]);
+exports.IdentityAdapterMode = zod_1.z.enum(["mock", "sandbox", "live", "off"]);
+/** How many tries a draft gets before the person may continue and PSF checks the ID by eye (AC-5). */
+exports.SCAN_ATTEMPTS_BEFORE_CONTINUE = 3;
 /**
- * The person as the register or the document states them. The document number
+ * One scan's outcome (D-n). `machine_passed` is the only one that reads
+ * "Checked" (AC-6); `manual_needed` is a deployment with no checker, where the
+ * photos wait for PSF; `machine_failed` is a checker that refused the photos.
+ */
+exports.IdentityScanOutcome = zod_1.z.enum(["machine_passed", "machine_failed", "manual_needed"]);
+/** Why a checker refused a scan. Each has its own fix, worded by the server. */
+exports.IdentityScanReason = zod_1.z.enum([
+    "not_authentic",
+    "face_mismatch",
+    "unreadable",
+    "expired",
+    "unavailable",
+    /** The population register holds no one under this National ID. */
+    "not_found",
+    /** The register holds the number, and the card was cancelled. */
+    "revoked",
+]);
+/**
+ * The person on file, as the scan read them or as they typed them. The number
  * comes back MASKED, like every other read of it (§10); the server keeps the
  * full number on `identity_documents`.
  */
-exports.VerifiedPerson = zod_1.z.object({
+exports.IdentityOnFile = zod_1.z.object({
     fullName: zod_1.z.string().min(1),
     /** `YYYY-MM-DD`. */
     dateOfBirth: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     gender: registration_1.Gender.nullable(),
-    /**
-     * The phone the register holds, in full. Returned only to the person who
-     * just proved they hold it by typing the code sent there, so it prefills
-     * their phone field. Null for a passport, which carries no phone.
-     */
-    phoneE164: zod_1.z.string().nullable(),
     documentType: registration_1.AccountDocumentType,
     documentNumberMasked: zod_1.z.string(),
     issuingCountry: registration_1.CountryCode,
     /**
-     * True when a MOCK adapter made this person up. A demo must be able to say
-     * "these details are generated" rather than pass them off as a register's.
+     * True when a MOCK verifier made this person up. A demo must be able to say
+     * "these details are generated" rather than pass them off as a document's.
      */
     generated: zod_1.z.boolean(),
+    /**
+     * True once a machine check passed, or PSF verified the identity on
+     * approval (D-o). False while the details are typed and PSF has still to
+     * compare the photos: the status reads "PSF will check your ID" (AC-6).
+     */
+    checked: zod_1.z.boolean(),
+    /**
+     * Where the details came from: read off a document by a checker, returned
+     * by the population register for a National ID number, or typed as
+     * printed. Optional for a client built before it existed.
+     */
+    source: zod_1.z.enum(["document", "registry", "typed"]).optional(),
 });
-/** `GET /api/v1/me/identity`: where the caller stands, and what can be run here. */
+/** The caller's latest scan, and how many tries this draft has used. */
+exports.IdentityScanState = zod_1.z.object({
+    outcome: exports.IdentityScanOutcome,
+    documentType: registration_1.AccountDocumentType,
+    /** Tries on this draft (`checks.scan.attempts`, D-m), reset with the draft. */
+    attempts: zod_1.z.number().int().nonnegative(),
+    /** Whether the person may type their details and carry on, for PSF to check (AC-5). */
+    mayContinue: zod_1.z.boolean(),
+});
+/** `GET /api/v1/me/identity`: where the caller stands, and whether a machine reads the ID here. */
 exports.IdentityStatus = zod_1.z.object({
     kycStatus: primitives_1.KycStatus,
-    /** `registry`, `document_scan` or `manual`, once verified. */
+    /** `document_scan`, `psf_review` or another earlier method, once verified. */
     method: zod_1.z.string().nullable(),
-    verified: exports.VerifiedPerson.omit({ phoneE164: true }).nullable(),
-    /** Which verification paths this deployment can run at all. */
-    available: zod_1.z.object({ nationalId: zod_1.z.boolean(), passport: zod_1.z.boolean() }),
+    onFile: exports.IdentityOnFile.nullable(),
+    scan: exports.IdentityScanState.nullable(),
+    /** False where the seam is `off`: the scan keeps the photos and reads nothing, so the person types what is printed. */
+    machineCheck: zod_1.z.boolean(),
+    /** The document verifier's mode: a passport, and a National ID card where the registry is off. */
+    mode: exports.IdentityAdapterMode,
     /**
-     * Whether registering a business here requires a verified identity. True
-     * whenever either path is available: a check that can run is enforced.
+     * The National ID registry's mode (NIDA, through GTBank). Anything but
+     * `off` means a National ID is checked by its NUMBER and a selfie
+     * (`POST /me/identity/national-id`), not by scanning the card.
      */
-    required: zod_1.z.boolean(),
-    modes: zod_1.z.object({ registry: exports.IdentityAdapterMode, documents: exports.IdentityAdapterMode }),
+    nationalIdMode: exports.IdentityAdapterMode,
 });
-/** `POST /api/v1/me/identity/national-id/lookup`. */
-exports.NationalIdLookupRequest = zod_1.z.object({ documentNumber: registration_1.RwandanNationalId });
+const PhotoKey = zod_1.z.string().trim().min(1).max(300);
+/** `POST /api/v1/me/identity/scan`: the front of the card or the photo page, then a selfie, both uploaded first as `id_photo`. */
+exports.IdentityScanRequest = zod_1.z.object({
+    documentType: registration_1.AccountDocumentType,
+    frontKey: PhotoKey,
+    selfieKey: PhotoKey,
+    /** A passport's issuing country, which the document checker is told. Ignored for a National ID. */
+    issuingCountry: registration_1.CountryCode.optional(),
+});
+exports.IdentityScanResult = zod_1.z.object({
+    outcome: exports.IdentityScanOutcome,
+    reason: exports.IdentityScanReason.nullable(),
+    /** What went wrong and how to fix it, or what happens next. Null when the check passed. */
+    message: zod_1.z.string().nullable(),
+    /** What the checker read, or null when it read nothing. */
+    fields: exports.IdentityOnFile.nullable(),
+    /** This try's number on the draft. */
+    attempt: zod_1.z.number().int().positive(),
+    mayContinue: zod_1.z.boolean(),
+});
 /**
- * The lookup NEVER returns the person. Whoever types an ID number might not be
- * its holder, so a lookup that answered with a name and a date of birth would
- * be a directory of strangers. It sends a code to the phone the register holds
- * and says where, masked; the person is revealed by `confirm`, to whoever can
- * read that code.
+ * `PUT /api/v1/me/identity/document`: the details as printed, typed after a
+ * scan that read nothing (no checker here) or after the tries ran out. Stored
+ * with `kyc_status` `pending`, for PSF to hold against the photos.
  */
-exports.NationalIdLookupResult = zod_1.z.discriminatedUnion("status", [
-    zod_1.z.object({
-        status: zod_1.z.literal("code_sent"),
-        challengeId: primitives_1.Uuid,
-        /** The register's phone, masked: `+250·····123`. */
-        sentTo: zod_1.z.string(),
-        expiresInSeconds: zod_1.z.number().int().positive(),
-    }),
-    zod_1.z.object({ status: zod_1.z.literal("not_found"), message: zod_1.z.string() }),
-    /** The register holds no phone for this person, so nothing can bind them. */
-    zod_1.z.object({ status: zod_1.z.literal("no_phone"), message: zod_1.z.string() }),
-    zod_1.z.object({ status: zod_1.z.literal("unavailable"), message: zod_1.z.string() }),
-]);
-/** `POST /api/v1/me/identity/national-id/confirm`. */
-exports.NationalIdConfirmRequest = zod_1.z.object({
-    challengeId: primitives_1.Uuid,
-    code: zod_1.z.string().trim().regex(/^\d{6}$/, "The code is 6 digits."),
+exports.TypedIdentityRequest = zod_1.z.object({
+    fullName: registration_1.PersonalDetails.shape.fullName,
+    dateOfBirth: registration_1.PersonalDetails.shape.dateOfBirth,
+    document: registration_1.IdentityDocumentInput,
 });
-/** `POST /api/v1/me/identity/passport`: two uploads, `id_photo` kind, the caller's own. */
-exports.PassportVerifyRequest = zod_1.z.object({
-    /** The passport's photo page. */
-    documentObjectKey: zod_1.z.string().trim().min(1).max(300),
-    /** A selfie, matched against the passport's portrait. */
-    selfieObjectKey: zod_1.z.string().trim().min(1).max(300),
+/**
+ * `POST /api/v1/me/identity/national-id`: a Rwandan National ID checked by its
+ * number against the population register (NIDA, through GTBank), with a
+ * selfie uploaded first as `id_photo`. Answers an `IdentityScanResult`, and
+ * counts as one try on the draft, as a scan does.
+ */
+exports.NationalIdCheckRequest = zod_1.z.object({
+    documentNumber: registration_1.RwandanNationalId,
+    selfieKey: PhotoKey,
 });
-exports.PassportRejectionReason = zod_1.z.enum(["not_authentic", "face_mismatch", "unreadable", "expired"]);
-exports.PassportVerifyResult = zod_1.z.discriminatedUnion("status", [
-    zod_1.z.object({ status: zod_1.z.literal("verified"), person: exports.VerifiedPerson }),
-    zod_1.z.object({ status: zod_1.z.literal("rejected"), reason: exports.PassportRejectionReason, message: zod_1.z.string() }),
-    zod_1.z.object({ status: zod_1.z.literal("unavailable"), message: zod_1.z.string() }),
-]);
 //# sourceMappingURL=identity.js.map

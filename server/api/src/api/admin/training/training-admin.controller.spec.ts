@@ -1,10 +1,4 @@
-// The guards' import chain reaches Better Auth, which ships as ESM Jest does not
-// transform, so it is stood in here.
-jest.mock('@injishi/auth', () => ({
-  DEMO_OTP_CODE: '123456',
-  DEMO_COOKIE_PREFIX: 'injishi-demo',
-  createAuth: (config: unknown) => ({ config }),
-}));
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   staffPermissionsForRoles,
@@ -44,12 +38,12 @@ function access(roles: StaffRole[]): StaffAccess {
 
 function guardFor(resolved: StaffAccess): StaffGuard {
   const workspaces = {
-    staffAccessForUser: jest.fn().mockResolvedValue(resolved),
+    staffAccessForUser: vi.fn().mockResolvedValue(resolved),
   } as unknown as WorkspaceService;
   // The step-up is satisfied in every case: this spec is about the permission.
   const twoFactor = {
-    assertSatisfied: jest.fn().mockResolvedValue(undefined),
-    stateFor: jest.fn().mockResolvedValue({ verified: true }),
+    assertSatisfied: vi.fn().mockResolvedValue(undefined),
+    stateFor: vi.fn().mockResolvedValue({ verified: true }),
   } as unknown as TwoFactorService;
   return new StaffGuard(workspaces, twoFactor, new Reflector());
 }
@@ -131,7 +125,7 @@ describe('AdminTrainingController · GET trainers · the handler', () => {
       items: [{ id: TRAINER_ID, name: 'Aline Uwase', email: 'aline@example.test' }],
       meta: { total: 1, page: 2, pageSize: 10 },
     };
-    const sessions = { listTrainers: jest.fn().mockResolvedValue(page) };
+    const sessions = { listTrainers: vi.fn().mockResolvedValue(page) };
     const controller = new AdminTrainingController(
       {} as never,
       sessions as unknown as TrainingSessionService,

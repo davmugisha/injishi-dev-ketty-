@@ -1,9 +1,10 @@
-// `@injishi/auth` is ESM and outside what ts-jest transforms, so `createAuth`
-// is stood in for by a recorder: this spec checks what the registry ASKS for
-// (secret, base URL, cookie prefix, database, demo code) per instance. The G2
-// gate of the environments ledger compares the constants below with the
+import { describe, expect, it, vi } from 'vitest';
+
+// `createAuth` is stood in for by a recorder: this spec checks what the registry
+// ASKS for (secret, base URL, cookie prefix, database, demo code) per instance.
+// The G2 gate of the environments ledger compares the constants below with the
 // package's real exports.
-jest.mock('@injishi/auth', () => ({
+vi.mock('@injishi/auth', () => ({
   DEMO_OTP_CODE: '123456',
   DEMO_COOKIE_PREFIX: 'injishi-demo',
   createAuth: (config: unknown) => ({ config }),
@@ -13,7 +14,7 @@ import type { AuthInstance, SendOtp } from '@injishi/auth';
 
 import type { Platform } from '../../shared/config/platform';
 import type { Database } from '../../shared/database/database.module';
-import { createAuthRegistry } from './auth.module';
+import { createAuthRegistry, googleCredentials, mobileTrustedOrigins } from './auth.module';
 
 /*
  * One environment per process (ADR-043). The registry used to hold a
@@ -27,7 +28,7 @@ const SECRET = 'p'.repeat(40);
 const OVERSIGHT_SECRET = 'o'.repeat(40);
 
 const db = { name: 'the one database' } as unknown as Database;
-const mailer = { send: jest.fn() };
+const mailer = { send: vi.fn() };
 
 const PRODUCTION: Platform = { environment: 'production', sampleData: false, commit: null };
 const STAGING: Platform = { environment: 'production', sampleData: true, commit: null };
@@ -40,6 +41,8 @@ type Requested = {
   cookiePrefix?: string;
   cookieDomain?: string;
   demoOtpCode?: string;
+  trustedOrigins: string[];
+  google?: { clientId: string; clientSecret: string };
   sendOtp: SendOtp;
 };
 
@@ -179,5 +182,83 @@ describe('createAuthRegistry · local development', () => {
     expect(marketplace.baseURL).toBe('http://localhost:8000');
     expect(marketplace.demoOtpCode).toBe('123456');
     expect(marketplace.cookiePrefix).toBe(DEMO_COOKIE_PREFIX);
+  });
+});
+
+describe('createAuthRegistry · the phone app and Google', () => {
+  it('trusts the browser apps and the phone app scheme, and never Expo Go in production', () => {
+    const registry = createAuthRegistry(PRODUCTION, db, configFrom(DEPLOYED), mailer);
+    const origins = requested(registry.for('marketplace')).trustedOrigins;
+    expect(origins).toEqual(expect.arrayContaining(['https://www.injishi.com', 'injishi://']));
+    expect(origins.some((o) => o.startsWith('exp://'))).toBe(false);
+  });
+
+  it('trusts Expo Go on a laptop, where the phone app runs in it', () => {
+    const local = { BETTER_AUTH_SECRET: 'dev-secret', CORS_ORIGINS: 'http://localhost:3002' };
+    const registry = createAuthRegistry(DEMO, db, configFrom(local), mailer);
+    expect(requested(registry.for('marketplace')).trustedOrigins).toEqual(
+      expect.arrayContaining(['http://localhost:3002', 'injishi://', 'exp://']),
+    );
+  });
+
+  it('trusts the development build outside production, and never in it (mobile AC-7)', () => {
+    // NODE_ENV decides, not the platform: the mobile worktree runs a
+    // production process (no sample data) under NODE_ENV=development.
+    const local = { NODE_ENV: 'development', BETTER_AUTH_SECRET: 'dev-secret' };
+    const laptop = createAuthRegistry(PRODUCTION, db, configFrom(local), mailer);
+    expect(requested(laptop.for('marketplace')).trustedOrigins).toContain('injishi-dev://');
+
+    const deployed = createAuthRegistry(PRODUCTION, db, configFrom(DEPLOYED), mailer);
+    const origins = requested(deployed.for('marketplace')).trustedOrigins;
+    expect(origins).not.toContain('injishi-dev://');
+    expect(origins).not.toContain('injishi-preview://');
+  });
+
+  it('trusts the preview build only where the deploy lists it (mobile AC-7)', () => {
+    const staging = { ...DEPLOYED, MOBILE_EXTRA_SCHEMES: ' injishi-preview , ' };
+    const registry = createAuthRegistry(STAGING, db, configFrom(staging), mailer);
+    const origins = requested(registry.for('marketplace')).trustedOrigins;
+    expect(origins).toEqual(expect.arrayContaining(['injishi://', 'injishi-preview://']));
+    expect(origins).not.toContain('injishi-dev://');
+    expect(origins.some((o) => o.startsWith('exp://'))).toBe(false);
+  });
+
+  it('reads an empty MOBILE_EXTRA_SCHEMES as unset', () => {
+    expect(mobileTrustedOrigins('production', '')).toEqual(['injishi://']);
+    expect(mobileTrustedOrigins('production', ' , ')).toEqual(['injishi://']);
+    expect(mobileTrustedOrigins('production', undefined)).toEqual(['injishi://']);
+  });
+
+  it.each([
+    ['a wildcard', 'injishi-*'],
+    ['another app', 'exp'],
+    ['the production scheme', 'injishi'],
+    ['a scheme with its separator', 'injishi-preview://'],
+    ['one bad entry among good ones', 'injishi-preview,Injishi-Dev'],
+  ])('refuses to boot on %s in MOBILE_EXTRA_SCHEMES', (_, value) => {
+    expect(() =>
+      createAuthRegistry(
+        PRODUCTION,
+        db,
+        configFrom({ ...DEPLOYED, MOBILE_EXTRA_SCHEMES: value }),
+        mailer,
+      ),
+    ).toThrow(/MOBILE_EXTRA_SCHEMES may list only the app's own schemes/);
+  });
+
+  it('mounts Google only when both halves of the credential are set', () => {
+    const withGoogle = { ...DEPLOYED, GOOGLE_CLIENT_ID: 'id', GOOGLE_CLIENT_SECRET: 'secret' };
+    const registry = createAuthRegistry(PRODUCTION, db, configFrom(withGoogle), mailer);
+    expect(requested(registry.for('marketplace')).google).toEqual({ clientId: 'id', clientSecret: 'secret' });
+
+    const halfSet = { ...DEPLOYED, GOOGLE_CLIENT_ID: 'id', GOOGLE_CLIENT_SECRET: '  ' };
+    const without = createAuthRegistry(PRODUCTION, db, configFrom(halfSet), mailer);
+    expect(requested(without.for('marketplace')).google).toBeUndefined();
+  });
+
+  it('answers the platform endpoint from the same rule', () => {
+    expect(googleCredentials(configFrom({ GOOGLE_CLIENT_ID: 'id', GOOGLE_CLIENT_SECRET: 's' }))).toBeDefined();
+    expect(googleCredentials(configFrom({ GOOGLE_CLIENT_ID: 'id' }))).toBeUndefined();
+    expect(googleCredentials(configFrom({}))).toBeUndefined();
   });
 });

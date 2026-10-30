@@ -89,11 +89,6 @@ export function iso(value: Date | null | undefined): string | null {
   return value instanceof Date ? value.toISOString() : null;
 }
 
-/** A required timestamp. Same conversion, no null in the contract. */
-export function isoRequired(value: Date): string {
-  return value.toISOString();
-}
-
 /**
  * Page and page size, applied once.
  *

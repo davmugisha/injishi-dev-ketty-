@@ -15,13 +15,13 @@ const TABS: { id: TabId; label: string; note: string; whoHead: string; locked?: 
   {
     id: "verification",
     label: "Verification",
-    note: "Registrations you check against their documents. A verified case still needs a second officer to approve.",
+    note: "A verified case still needs a second officer to approve.",
     whoHead: "Assigned to",
   },
   {
     id: "approval",
     label: "Approval",
-    note: "Cases another officer verified. You can approve or reject them, but never a case you verified yourself.",
+    note: "Cases another officer verified. Never one you verified yourself.",
     whoHead: "Verified by",
   },
   {
@@ -39,8 +39,21 @@ const QUEUE_NAME: Record<QueueId, string> = {
   tax: "Tax queue",
 };
 
+/** What an empty queue says: nothing waiting when the officer holds the grant, otherwise that it is not theirs. */
+function emptyTitle(id: TabId, held: QueueId[]): string {
+  if (id !== "membership" && held.includes(id)) return "Nothing is waiting in this queue";
+  return id === "membership" ? "Membership queue is not delegated to you" : `The ${id} queue is not delegated to you`;
+}
+
+function emptyNote(id: TabId, held: QueueId[]): string {
+  if (id !== "membership" && held.includes(id)) return "New registrations show here when they reach this stage.";
+  return id === "membership"
+    ? "PSF and the Chamber of Tourism decide memberships in their own console."
+    : "Your assignment does not include this function.";
+}
+
 /** The officer's queues (tabs and table) beside the inspector of the selected case. */
-export function OfficerQueues({ cases }: { cases: QueueCase[] }) {
+export function OfficerQueues({ cases, held }: { cases: QueueCase[]; held: QueueId[] }) {
   const [tab, setTab] = useState<TabId>("verification");
   const [sel, setSel] = useState<Record<QueueId, string>>(() => ({
     verification: cases.find((c) => c.queue === "verification")?.id ?? "",
@@ -61,9 +74,9 @@ export function OfficerQueues({ cases }: { cases: QueueCase[] }) {
       <section className="flex min-w-0 flex-[999_1_600px] flex-col gap-3" aria-labelledby="q-h">
         <SectionHeader
           id="q-h"
-          title="Your Queues"
+          title="Your queues"
           className="items-center"
-          action={<span className="text-[12px] text-muted">Sorted by SLA due date · working days, Kigali time</span>}
+          action={<span className="text-[12px] text-muted">Oldest due first</span>}
         />
         <Tabs variant="secondary" selectedKey={tab} onSelectionChange={(k) => setTab(String(k) as TabId)}>
           <Tabs.ListContainer>
@@ -120,7 +133,7 @@ export function OfficerQueues({ cases }: { cases: QueueCase[] }) {
                                   <span className="flex min-w-0 flex-col">
                                     <span className="font-medium">{r.business}</span>
                                     <span className="text-[12px] leading-4 text-muted tabular">
-                                      {r.id} · {r.place}
+                                      {r.ref ?? r.id} · {r.place}
                                     </span>
                                   </span>
                                 </span>
@@ -158,11 +171,8 @@ export function OfficerQueues({ cases }: { cases: QueueCase[] }) {
                         <EmptyState.Media variant="icon">
                           <Lock />
                         </EmptyState.Media>
-                        <EmptyState.Title>Membership queue is not delegated to you</EmptyState.Title>
-                        <EmptyState.Description>
-                          PSF and the Chamber of Tourism decide memberships in their own console. Rubavu District has no
-                          membership mandate, so no applications are routed here.
-                        </EmptyState.Description>
+                        <EmptyState.Title>{emptyTitle(t.id, held)}</EmptyState.Title>
+                        <EmptyState.Description>{emptyNote(t.id, held)}</EmptyState.Description>
                       </EmptyState.Header>
                     </EmptyState>
                   </Card>
@@ -181,7 +191,7 @@ export function OfficerQueues({ cases }: { cases: QueueCase[] }) {
         >
           <Card.Header className="gap-1">
             <p className="text-[13px] leading-[18px] font-medium text-muted tabular">
-              {selected.id} · {QUEUE_NAME[selected.queue]}
+              {selected.ref ?? selected.id} · {QUEUE_NAME[selected.queue]}
             </p>
             <CardHeading id="insp-h">{selected.business}</CardHeading>
             <Card.Description>
@@ -199,7 +209,7 @@ export function OfficerQueues({ cases }: { cases: QueueCase[] }) {
             </Alert.Content>
           </Alert>
           {selected.action === "open" && selected.cta ? (
-            <LinkButton href={screenHref(selected.board)} fullWidth>
+            <LinkButton href={selected.href ?? screenHref(selected.board)} fullWidth>
               {selected.cta}
             </LinkButton>
           ) : null}

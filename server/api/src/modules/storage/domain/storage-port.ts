@@ -44,7 +44,28 @@ export type StoredObjectKind =
   /** ADR-058: a file hung on a note, a policy, an announcement or a disciplinary record. */
   | 'hr_attachment'
   /** 058-payroll: a bank or MoMo file, or a declaration; `payroll.run` only. */
-  | 'hr_pay_file';
+  | 'hr_pay_file'
+  /** Rentals (migration 0073): a signature drawn before signing a lease, a PNG; held once it stands. */
+  | 'lease_signature'
+  /**
+   * Rentals (migration 0073): a lease contract PDF the platform rendered, a
+   * preview of one version or its signed copy. Never uploaded by anybody.
+   */
+  | 'lease_contract'
+  /** Rentals (migration 0073): a unit's photo, re-encoded as a JPEG on the way in. */
+  | 'unit_photo'
+  /** Rentals (migration 0073): a unit's video tour, or the still shown before it plays. */
+  | 'unit_video'
+  /** Rentals (migration 0073): a payment's receipt PDF the platform rendered, or the slip a landlord attached to a recorded payment. */
+  | 'payment_receipt'
+  /** Rentals (migration 0073): the proof a lease copy was filed with RRA. */
+  | 'filing_proof'
+  /** Rentals P4 (migration 0087): a fault's photo, re-encoded as a JPEG on the way in. */
+  | 'fault_photo'
+  /** Rentals P4 (migration 0087): the receipt behind an expense (a fixer's, a bank's interest statement). */
+  | 'expense_receipt'
+  /** Rentals P4 (migration 0087): the receipt RRA gives for rental income tax paid. */
+  | 'tax_receipt';
 
 export interface PutObjectInput {
   /** The raw bytes. Callers must size-check BEFORE reading a stream to here. */
@@ -71,6 +92,17 @@ export interface PutObjectInput {
    * Adapters that ignore it stay correct; they simply lose the convergence.
    */
   readonly keyHint?: string;
+}
+
+/**
+ * A file already on this process's disk, to be stored without reading it into
+ * memory (rentals, unit video tours). The caller streamed the upload to `path`
+ * under its own ceiling, read its first bytes and measured it; the adapter
+ * streams it on and never deletes `path`, which stays the caller's to clean up.
+ */
+export interface PutFileInput extends Omit<PutObjectInput, 'body'> {
+  readonly path: string;
+  readonly sizeBytes: number;
 }
 
 export interface PutObjectResult {
@@ -109,6 +141,8 @@ export interface PutObjectResult {
  */
 export interface StoragePort {
   put(input: PutObjectInput): Promise<PutObjectResult>;
+  /** `put` for a large file on disk: streamed, never buffered whole. */
+  putFile(input: PutFileInput): Promise<PutObjectResult>;
   /**
    * A read URL that expires. `ttlSeconds` is a ceiling the adapter may lower,
    * never raise: F-S09 §10 makes the short TTL a security property.
@@ -163,12 +197,18 @@ export const MAX_CERTIFICATE_BYTES = 10 * 1024 * 1024;
  *
  * `certificate`, `contract` and `filing_copy` are absent on purpose: each has
  * its own bounded path, and none of them is uploaded from a phone.
+ *
+ * `lease_signature` (rentals, WP 1.5b) is the signature a person draws before
+ * signing a lease: a PNG from the signature pad, uploaded by the signer and
+ * named by its key in the signing request, which checks it is theirs and puts
+ * it under legal hold once the signature stands.
  */
 export const ATTACHMENT_KINDS = [
   'id_photo',
   'property_photo',
   'message_attachment',
   'avatar',
+  'lease_signature',
 ] as const satisfies ReadonlyArray<StoredObjectKind>;
 
 export type AttachmentKind = (typeof ATTACHMENT_KINDS)[number];
@@ -209,4 +249,17 @@ export const MIME_EXTENSION: Readonly<Record<string, string>> = {
   'image/heic': 'heic',
   // 058-payroll: the bank and MoMo files and the declarations Injishi builds.
   'text/csv': 'csv',
+  // Rentals: a unit's video tour.
+  'video/mp4': 'mp4',
+  'video/quicktime': 'mov',
+  'video/webm': 'webm',
+  // Rentals P3.4: a message's documents and voice notes.
+  'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'text/plain': 'txt',
+  'audio/ogg': 'ogg',
+  'audio/mp4': 'm4a',
+  'audio/webm': 'weba',
 };

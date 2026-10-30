@@ -56,9 +56,9 @@ export declare const LeaveAllocationRequest: z.ZodObject<{
     createdAt: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     status: "approved" | "rejected" | "cancelled" | "requested";
+    id: string;
     kind: "compensatory" | "extra";
     decidedAt: string | null;
-    id: string;
     reason: string;
     decisionNote: string | null;
     employee: {
@@ -84,9 +84,9 @@ export declare const LeaveAllocationRequest: z.ZodObject<{
     } | null;
 }, {
     status: "approved" | "rejected" | "cancelled" | "requested";
+    id: string;
     kind: "compensatory" | "extra";
     decidedAt: string | null;
-    id: string;
     reason: string;
     decisionNote: string | null;
     employee: {
@@ -579,6 +579,12 @@ export declare const LeaveDashboard: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     today: string;
+    waiting: {
+        requests: number;
+        routedToMe: number;
+        atStepTwo: number;
+        allocations: number;
+    };
     onLeaveToday: {
         startsOn: string;
         employee: {
@@ -601,14 +607,14 @@ export declare const LeaveDashboard: z.ZodObject<{
         requestId: string;
         leaveTypeName: string;
     }[];
-    waiting: {
-        requests: number;
-        routedToMe: number;
-        atStepTwo: number;
-        allocations: number;
-    };
 }, {
     today: string;
+    waiting: {
+        requests: number;
+        routedToMe: number;
+        atStepTwo: number;
+        allocations: number;
+    };
     onLeaveToday: {
         startsOn: string;
         employee: {
@@ -631,12 +637,6 @@ export declare const LeaveDashboard: z.ZodObject<{
         requestId: string;
         leaveTypeName: string;
     }[];
-    waiting: {
-        requests: number;
-        routedToMe: number;
-        atStepTwo: number;
-        allocations: number;
-    };
 }>;
 export type LeaveDashboard = z.infer<typeof LeaveDashboard>;
 export declare const LeaveDefaultsDiff: z.ZodObject<{
@@ -817,15 +817,15 @@ export declare const MyLeaveBalances: z.ZodObject<{
             creditDays: z.ZodNumber;
             remainingDays: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
-            kind: "adjustment" | "accrual" | "carry_forward";
             id: string;
+            kind: "adjustment" | "accrual" | "carry_forward";
             effectiveOn: string;
             usableUntil: string | null;
             creditDays: number;
             remainingDays: number;
         }, {
-            kind: "adjustment" | "accrual" | "carry_forward";
             id: string;
+            kind: "adjustment" | "accrual" | "carry_forward";
             effectiveOn: string;
             usableUntil: string | null;
             creditDays: number;
@@ -842,9 +842,9 @@ export declare const MyLeaveBalances: z.ZodObject<{
             expiresOn: z.ZodNullable<z.ZodString>;
             lotId: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
+            id: string;
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            id: string;
             reason: string | null;
             days: number;
             effectiveOn: string;
@@ -852,9 +852,9 @@ export declare const MyLeaveBalances: z.ZodObject<{
             leaveRequestId: string | null;
             lotId: string | null;
         }, {
+            id: string;
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            id: string;
             reason: string | null;
             days: number;
             effectiveOn: string;
@@ -864,9 +864,9 @@ export declare const MyLeaveBalances: z.ZodObject<{
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         entries: {
+            id: string;
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            id: string;
             reason: string | null;
             days: number;
             effectiveOn: string;
@@ -906,8 +906,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
         };
         balanceDays: number | null;
         lots: {
-            kind: "adjustment" | "accrual" | "carry_forward";
             id: string;
+            kind: "adjustment" | "accrual" | "carry_forward";
             effectiveOn: string;
             usableUntil: string | null;
             creditDays: number;
@@ -915,9 +915,9 @@ export declare const MyLeaveBalances: z.ZodObject<{
         }[];
     }, {
         entries: {
+            id: string;
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            id: string;
             reason: string | null;
             days: number;
             effectiveOn: string;
@@ -957,8 +957,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
         };
         balanceDays: number | null;
         lots: {
-            kind: "adjustment" | "accrual" | "carry_forward";
             id: string;
+            kind: "adjustment" | "accrual" | "carry_forward";
             effectiveOn: string;
             usableUntil: string | null;
             creditDays: number;
@@ -969,9 +969,9 @@ export declare const MyLeaveBalances: z.ZodObject<{
     employeeId: string;
     balances: {
         entries: {
+            id: string;
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            id: string;
             reason: string | null;
             days: number;
             effectiveOn: string;
@@ -1011,8 +1011,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
         };
         balanceDays: number | null;
         lots: {
-            kind: "adjustment" | "accrual" | "carry_forward";
             id: string;
+            kind: "adjustment" | "accrual" | "carry_forward";
             effectiveOn: string;
             usableUntil: string | null;
             creditDays: number;
@@ -1023,9 +1023,9 @@ export declare const MyLeaveBalances: z.ZodObject<{
     employeeId: string;
     balances: {
         entries: {
+            id: string;
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            id: string;
             reason: string | null;
             days: number;
             effectiveOn: string;
@@ -1065,8 +1065,8 @@ export declare const MyLeaveBalances: z.ZodObject<{
         };
         balanceDays: number | null;
         lots: {
-            kind: "adjustment" | "accrual" | "carry_forward";
             id: string;
+            kind: "adjustment" | "accrual" | "carry_forward";
             effectiveOn: string;
             usableUntil: string | null;
             creditDays: number;
@@ -1144,8 +1144,8 @@ export declare const MyLeaveRequestList: z.ZodObject<{
         hasAttachment: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
         id: string;
+        decidedAt: string | null;
         reason: string | null;
         startsOn: string;
         decisionNote: string | null;
@@ -1182,8 +1182,8 @@ export declare const MyLeaveRequestList: z.ZodObject<{
         hasAttachment: boolean;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
         id: string;
+        decidedAt: string | null;
         reason: string | null;
         startsOn: string;
         decisionNote: string | null;
@@ -1222,8 +1222,8 @@ export declare const MyLeaveRequestList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     requests: {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
         id: string;
+        decidedAt: string | null;
         reason: string | null;
         startsOn: string;
         decisionNote: string | null;
@@ -1262,8 +1262,8 @@ export declare const MyLeaveRequestList: z.ZodObject<{
 }, {
     requests: {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
         id: string;
+        decidedAt: string | null;
         reason: string | null;
         startsOn: string;
         decisionNote: string | null;
@@ -1355,9 +1355,9 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
+        id: string;
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        id: string;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -1383,9 +1383,9 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
         } | null;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
+        id: string;
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        id: string;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -1413,9 +1413,9 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     requests: {
         status: "approved" | "rejected" | "cancelled" | "requested";
+        id: string;
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        id: string;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -1443,9 +1443,9 @@ export declare const MyLeaveAllocationList: z.ZodObject<{
 }, {
     requests: {
         status: "approved" | "rejected" | "cancelled" | "requested";
+        id: string;
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        id: string;
         reason: string;
         decisionNote: string | null;
         employee: {

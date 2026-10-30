@@ -48,8 +48,11 @@ const EVERYTHING = [
 const SOURCE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|css)$/;
 /** Extensions and names that mean "something TypeScript would read". */
 const TYPE_EXT = /\.(ts|tsx)$/;
-/** Files that change what a lint run concludes even with no source change. */
-const LINT_CONFIG = /(^|\/)(eslint\.config\.mjs|tsconfig[^/]*\.json|package\.json)$/;
+/**
+ * Files that change what a lint run concludes even with no source change.
+ * `biome.json` is the one root config the interface members lint against.
+ */
+const LINT_CONFIG = /(^|\/)(eslint\.config\.mjs|biome\.json|tsconfig[^/]*\.json|package\.json)$/;
 
 function changedFiles() {
   if (!baseRef) {
@@ -126,10 +129,9 @@ function affected(name) {
 const hitsEverything = runEverything || files.some((file) => EVERYTHING.some((prefix) => file === prefix || file.startsWith(prefix)));
 
 const outputs = {
-  // The four build jobs, each true when its app or any package it consumes changed.
+  // The three build jobs, each true when its app or any package it consumes changed.
   build_web: hitsEverything || affected('@injishi/web'),
   build_app: hitsEverything || affected('@injishi/app'),
-  build_admin: hitsEverything || affected('@injishi/admin'),
   build_api: hitsEverything || affected('@injishi/api'),
 
   // Mobile: its own tree, plus the two packages it shares with the web surfaces.

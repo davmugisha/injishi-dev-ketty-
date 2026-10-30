@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { upiError } from "@/lib/upi";
 

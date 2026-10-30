@@ -186,11 +186,25 @@ export class PaymentCompensationService {
   }
 
   private async wake(job: CompensationJob): Promise<boolean> {
+    const jobId = queueJobId(job.idempotencyKey);
     try {
+      /*
+       * A job that spent its attempts is kept (`removeOnFail: false`), and
+       * BullMQ ignores an add under an id it still holds. So the drain used to
+       * "re-queue" a spent refund every minute and nothing ever ran it again
+       * (073-gtbank-payments AC-25). The row says the money is still owed, so
+       * the spent job goes and a fresh one takes its id. A job still waiting,
+       * delayed or running is left alone: that is the deduplication working.
+       */
+      const existing = await this.queue.getJob(jobId);
+      if (existing) {
+        const state = await existing.getState();
+        if (state === 'failed' || state === 'completed') await existing.remove();
+      }
       await this.queue.add(job.kind, job, {
         // Never the raw key: BullMQ refuses our four part keys as ids, which
         // is how every void and refund used to be dropped (see queueJobId).
-        jobId: queueJobId(job.idempotencyKey),
+        jobId,
         attempts: ATTEMPTS,
         backoff: { type: 'exponential', delay: BACKOFF_MS },
         removeOnComplete: false,

@@ -6,9 +6,13 @@
  * does not name is tried in each business workspace the person holds: a record of the other business
  * answers 404 there (ADR-054), and the one that owns it does the work.
  */
+import type { DeskEntry, RosterWeekId, ShiftLetter } from "@injishi/product-hr";
 import { ApiError } from "../api";
 import { addDays } from "../sources/people";
 import { NoWorkspaceError, type ScopedApi, type SourceContext } from "../sources/types";
+
+/** The shapes these writes take are the HR product's, the same ones its views send (ADR-074 stage 3). */
+export type { DeskEntry, RosterWeekId, ShiftLetter };
 
 function businesses(ctx: SourceContext): ScopedApi[] {
   const out: ScopedApi[] = [];
@@ -85,23 +89,10 @@ export async function decideCorrection(
   );
 }
 
-export interface DeskEntry {
-  /** The employee (file) id. */
-  employee: string;
-  /** "15 Oct 2026" or "2026-10-15". */
-  date: string;
-  /** "06:00". */
-  clockIn: string;
-  /** "14:00", or empty while they are still on shift. */
-  clockOut: string;
-  reason: string;
-  justification: string;
-}
-
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** "15 Oct 2026", "15 October 2026" or "2026-10-15" → "2026-10-15"; null when it is not a date. */
-export function parseDay(text: string): string | null {
+function parseDay(text: string): string | null {
   const t = text.trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
   const m = t.match(/^(\d{1,2})\s+([A-Za-z]{3})[a-z]*\s+(\d{4})$/);
@@ -201,9 +192,6 @@ export async function setChecklistStep(ctx: SourceContext, id: string, done: boo
 }
 
 // ── Roster ──────────────────────────────────────────────────────────────────────────────────────
-
-export type RosterWeekId = "this" | "next";
-export type ShiftLetter = "M" | "E" | "N" | "O";
 
 interface Template {
   id: string;

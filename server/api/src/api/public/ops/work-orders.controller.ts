@@ -12,7 +12,7 @@ import {
 } from '@injishi/contracts';
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 
-import { WorkOrdersService } from '../../../modules/operations/application/work-orders.service';
+import { WorkOrdersService } from '../../../modules/pms/application/work-orders.service';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';

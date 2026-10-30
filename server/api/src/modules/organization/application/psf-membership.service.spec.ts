@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import {
   ConflictException,
   ForbiddenException,
@@ -79,44 +81,44 @@ const FORM = {
 };
 
 function setup(): {
-  repo: Record<string, jest.Mock>;
-  mail: Record<string, jest.Mock>;
+  repo: Record<string, Mock>;
+  mail: Record<string, Mock>;
   service: PsfMembershipService;
 } {
   const repo = {
-    orgFacts: jest.fn().mockResolvedValue(facts()),
-    activeRole: jest.fn().mockResolvedValue('owner'),
-    tier: jest.fn().mockResolvedValue(TIER),
-    tiers: jest.fn().mockResolvedValue([TIER]),
-    insertApplication: jest.fn().mockResolvedValue({ id: APP }),
-    currentMembership: jest.fn().mockResolvedValue(null),
-    applications: jest.fn().mockResolvedValue([]),
-    personFacts: jest.fn().mockResolvedValue(null),
-    withdraw: jest.fn().mockResolvedValue(true),
-    applicationById: jest.fn().mockResolvedValue({ id: APP, orgId: ORG, status: 'submitted', requestedTierName: 'Ordinary' }),
-    markQueued: jest.fn().mockResolvedValue([]),
-    officerApplication: jest.fn().mockResolvedValue({ id: APP, orgId: ORG, officerHasStake: false }),
-    decideMember: jest.fn().mockResolvedValue({ orgId: ORG }),
-    decline: jest.fn().mockResolvedValue({ orgId: ORG }),
-    endExpired: jest.fn().mockResolvedValue([]),
-    claimExpiryReminders: jest.fn().mockResolvedValue([]),
-    unstampedQueuedOrgs: jest.fn().mockResolvedValue([]),
+    orgFacts: vi.fn().mockResolvedValue(facts()),
+    activeRole: vi.fn().mockResolvedValue('owner'),
+    tier: vi.fn().mockResolvedValue(TIER),
+    tiers: vi.fn().mockResolvedValue([TIER]),
+    insertApplication: vi.fn().mockResolvedValue({ id: APP }),
+    currentMembership: vi.fn().mockResolvedValue(null),
+    applications: vi.fn().mockResolvedValue([]),
+    personFacts: vi.fn().mockResolvedValue(null),
+    withdraw: vi.fn().mockResolvedValue(true),
+    applicationById: vi.fn().mockResolvedValue({ id: APP, orgId: ORG, status: 'submitted', requestedTierName: 'Ordinary' }),
+    markQueued: vi.fn().mockResolvedValue([]),
+    officerApplication: vi.fn().mockResolvedValue({ id: APP, orgId: ORG, officerHasStake: false }),
+    decideMember: vi.fn().mockResolvedValue({ orgId: ORG }),
+    decline: vi.fn().mockResolvedValue({ orgId: ORG }),
+    endExpired: vi.fn().mockResolvedValue([]),
+    claimExpiryReminders: vi.fn().mockResolvedValue([]),
+    unstampedQueuedOrgs: vi.fn().mockResolvedValue([]),
   };
   const mail = {
-    received: jest.fn().mockResolvedValue(undefined),
-    queueEntered: jest.fn().mockResolvedValue(undefined),
-    member: jest.fn().mockResolvedValue(undefined),
-    declined: jest.fn().mockResolvedValue(undefined),
-    expiring: jest.fn().mockResolvedValue(undefined),
-    expired: jest.fn().mockResolvedValue(undefined),
+    received: vi.fn().mockResolvedValue(undefined),
+    queueEntered: vi.fn().mockResolvedValue(undefined),
+    member: vi.fn().mockResolvedValue(undefined),
+    declined: vi.fn().mockResolvedValue(undefined),
+    expiring: vi.fn().mockResolvedValue(undefined),
+    expired: vi.fn().mockResolvedValue(undefined),
   };
   const service = new PsfMembershipService(
     repo as unknown as PsfMembershipRepository,
     mail as unknown as PsfMembershipMailer,
-    { documentFor: jest.fn().mockResolvedValue(null) } as unknown as ProfileService,
+    { documentFor: vi.fn().mockResolvedValue(null) } as unknown as ProfileService,
   );
   // `decidedView` reads back after a decision; its detail is not under test here.
-  jest
+  vi
     .spyOn(service as unknown as { decidedView: () => Promise<unknown> }, 'decidedView')
     .mockResolvedValue({});
   return { repo, mail, service };
@@ -201,7 +203,7 @@ describe('PsfMembershipService · applying (AC-6, AC-8, AC-9, AC-16)', () => {
 
 describe('PsfMembershipService · deciding (AC-11 to AC-14)', () => {
   const grants = [
-    { oversightRole: 'psf_membership_officer' as const, governmentBodyCode: 'PSF', governmentTitle: null, scopeLevel: 'country' as const, provinceId: null, districtId: null },
+    { assignmentId: '7a1f5b9e-2c4d-4e8f-9a1b-3c5d7e9f1a2b', oversightRole: 'psf_membership_officer' as const, governmentBodyCode: 'PSF', governmentTitle: null, scopeLevel: 'country' as const, provinceId: null, districtId: null, sectorId: null, cellId: null, villageId: null },
   ];
   const body = { tierCode: 'ordinary_300k', membershipNumber: 'PSF/1', annualFeeRwf: 300000, startsOn: '2026-09-27', expiresOn: '2027-09-26' };
 

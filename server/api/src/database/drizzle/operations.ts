@@ -32,7 +32,6 @@ import { amount, currency, timestamps } from './columns';
 import { taxCodeEnum } from './enums';
 import { bookings, guestStays } from './hospitality';
 // Lazy only (inside `references`): interface-operations imports this module back.
-import { housekeepingRules } from './interface-operations';
 import { amenities, properties, rooms } from './inventory';
 import { ebmInvoices } from './money';
 import { orgs, workspaces } from './org';
@@ -1274,4 +1273,44 @@ export const serviceOrderEvents = pgTable(
       .defaultNow(),
   },
   (t) => [index('service_order_events_order_idx').on(t.serviceOrderId)],
+);
+
+// Defined here rather than in its interface-* file because housekeeping_tasks.rule_id references it: a base schema file never imports an
+// interface one, which is what made the import cycles the api-cycles ratchet refused.
+export const housekeepingRuleCodeEnum = pgEnum('housekeeping_rule_code', [
+  'checkout',
+  'stayover',
+  'inspection',
+  'turndown',
+  'deep_clean',
+]);
+
+/**
+ * The rules that put tasks on the board without anyone typing them: a checkout clean when the desk
+ * checks a guest out, the daily stayover, the inspection after a checkout clean. The code decides
+ * the task type; `trigger` is the machine-readable condition and `description` says it in words.
+ */
+export const housekeepingRules = pgTable(
+  'housekeeping_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id),
+    propertyId: uuid('property_id')
+      .notNull()
+      .references(() => properties.id, { onDelete: 'cascade' }),
+    code: housekeepingRuleCodeEnum('code').notNull(),
+    name: text('name').notNull(),
+    description: text('description').notNull(),
+    trigger: jsonb('trigger').notNull(),
+    estimatedMinutes: smallint('estimated_minutes'),
+    active: boolean('active').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [
+    index('housekeeping_rules_property_idx').on(t.propertyId, t.active),
+    uniqueIndex('housekeeping_rules_property_code_uk').on(t.propertyId, t.code),
+  ],
 );

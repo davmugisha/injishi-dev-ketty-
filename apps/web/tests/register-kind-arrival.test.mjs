@@ -33,10 +33,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 const src = (p) => readFileSync(resolve(here, "../src", p), "utf8");
 
 const { HOST_PROPERTY_KINDS, hostKindHref, findHostKind } = await import("@/data/host");
-const { findRegistrationKind, registrationForKind } = await import(
+const { findRegistrationKind, kindInSentence, registrationForKind } = await import(
   "@/app/(app)/(entry)/register/registration-kinds"
 );
-const { openingStep, resumeStep, savesOnLeave, stepOrder } = await import(
+const { openingStep, resumeStep, stepOrder } = await import(
   "@/app/(app)/(entry)/register/register-steps"
 );
 const { safeRedirect } = await import("@/lib/redirect");
@@ -62,7 +62,7 @@ describe("a tile on /host", () => {
   });
 
   test("the chooser and the closing call to action no longer link through /host/start", () => {
-    for (const file of ["components/host/host-chooser.tsx", "components/host/host-cta.tsx"]) {
+    for (const file of ["components/host/host-chooser.tsx", "app/(marketplace)/(site)/host/host-entry-lines.tsx"]) {
       const code = src(file)
         .split(/\r?\n/)
         .filter((line) => !/^\s*(\*|\/\/|\{\/\*)/.test(line))
@@ -108,33 +108,44 @@ describe("the sign in round trip", () => {
 });
 
 describe("the wizard, given a kind", () => {
-  test("opens on step two when the kind arrived, on Business type when it did not", () => {
-    assert.equal(openingStep("owner", true), "tin");
-    assert.equal(openingStep("landlord", true), "property");
-    assert.equal(openingStep("owner", false), "type");
+  test("opens on Business whether or not the kind arrived; Business asks it when it did not (ADR-075 S3)", () => {
+    assert.equal(openingStep(), "business");
   });
 
-  test("never resumes a draft on the question the URL just answered", () => {
-    assert.equal(resumeStep("owner", true), "tin");
-    assert.equal(resumeStep("owner", false), "type");
+  test("reopens a draft on the step it was left at, which never asks again a kind the draft already knows (ADR-075 S9)", () => {
+    assert.equal(resumeStep("you"), "you");
+    assert.equal(resumeStep(undefined), "business");
   });
 
-  test("shows the steps that remain: Business type drops out while the kind is the one that arrived", () => {
-    assert.deepEqual(stepOrder("owner", true), ["tin", "branches", "documents", "overview", "pay"]);
-    assert.deepEqual(stepOrder("owner", false)[0], "type");
+  test("walks the same five steps whether or not the kind arrived: the kind is a question inside Business", () => {
+    assert.deepEqual(stepOrder(), ["business", "you", "documents", "review", "pay"]);
   });
 
-  test("saves a draft when a step is left, not when the wizard opens (R02)", () => {
-    assert.equal(savesOnLeave(null, "tin"), false, "opening on step two overwrote a draft");
-    assert.equal(savesOnLeave("tin", "branches"), true);
-    assert.equal(savesOnLeave("type", "tin"), true);
+  test("saves as the answers are typed, never on opening (ADR-075 S9; R02)", () => {
+    const wizard = src("app/(app)/(entry)/register/register-wizard.tsx");
+    // What the wizard opened on is where saving starts: opening it writes nothing.
+    assert.match(wizard, /useDraftAutosave\(\{ userId, draft: draftNow, start: saveStart \}\)/);
+    assert.match(wizard, /setSaveStart\(\{ savedAt: null, push: false \}\)/);
   });
 
-  test("the wizard reads its opening, its resume and its saving from that module", () => {
+  test("names the kind mid sentence with its article, in lower case (the fee line said \"a Apartment\")", () => {
+    assert.equal(kindInSentence("apartment"), "an apartment");
+    assert.equal(kindInSentence("coffee_shop"), "a coffee shop");
+    assert.equal(kindInSentence("other"), "a business");
+    assert.equal(kindInSentence(null), "a business");
+  });
+
+  test("a saved draft of another kind is reopened, never opened over (ADR-075 S9)", () => {
+    const wizard = src("app/(app)/(entry)/register/register-wizard.tsx");
+    // The restore no longer requires the draft's kind to match `?kind=`, and says so when it does not.
+    assert.match(wizard, /if \(saved && savedKind !== null && checks\.registrationId === undefined\) \{/);
+    assert.match(wizard, /if \(arrivalKind !== null && savedKind !== arrivalKind\) setHeldDraft\(savedKind\)/);
+  });
+
+  test("the wizard reads its opening and its resume from that module", () => {
     const wizard = src("app/(app)/(entry)/register/register-wizard.tsx");
     assert.match(wizard, /setStep\(openingStep\(/);
     assert.match(wizard, /setStep\(resumeStep\(/);
-    assert.match(wizard, /savesOnLeave\(from, step\)/);
     // The old confirmation face of the kind question is gone, not hidden.
     assert.doesNotMatch(src("app/(app)/(entry)/register/step-type.tsx"), /carried/);
   });

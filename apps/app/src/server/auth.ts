@@ -4,42 +4,71 @@
  *
  * On the demo stack the API accepts the fixed code 123456 for every account (ADR-043); in
  * production it mails a random code. This file does not know which: it forwards what was typed.
+ *
+ * The session it opens is the API's own cookie, handed on to the browser (`session-cookies.ts`), so
+ * the person is signed in on web and here at once.
  */
 
-import { DEMO_OTP, type Persona, type PersonaId, personaByEmail, personas } from "@injishi/data";
-import { ApiError, apiBaseUrl, apiOrigin, apiRequest, type SessionCookie } from "./api";
+import { landlordBusiness, type MeContext, type MeContextBusiness } from "@injishi/contracts";
+import {
+  type BoardId,
+  DEMO_OTP,
+  type Persona,
+  type PersonaId,
+  personaByEmail,
+  personas,
+  type WorkspaceContext,
+} from "@injishi/data";
+import { ApiError, apiBaseUrl, apiOrigin, apiRequest, clientIpHeaders, type SessionCookie } from "./api";
+import { authCookiesFrom, cookieHeaderFor, type ForwardedCookie } from "./session-cookies";
 
 const AUTH = "/api/auth";
 
 /** One-time codes expire after this long (`OTP_EXPIRY_SECONDS` in @injishi/auth). */
 export const OTP_TTL_SECONDS = 600;
 
-/**
- * The fixed sign-in code when the API runs as the demo, else null. Asked of the API
- * (`GET /api/v1/platform`), never assumed: production must never pre-fill or print a code.
- */
-export async function demoSignInCode(): Promise<string | null> {
-  return (await demoPlatform())?.code ?? null;
+/** What the sign-in screens may offer, from `GET /api/v1/platform`. */
+export interface SignInOptions {
+  /** The demo's fixed code and last reset, or null outside the demo. */
+  demo: { code: string; seededAt: string | null } | null;
+  /** The API has Google credentials, so its Google provider is mounted. */
+  google: boolean;
 }
 
-/** What the sign-in page may say about the demo: its code and when its data was last seeded. Null outside the demo. */
-export async function demoPlatform(): Promise<{ code: string; seededAt: string | null } | null> {
+/**
+ * Asked of the API, never assumed: production must never pre-fill or print a code, and a Google button
+ * must not be pressable where the provider is not mounted. An unreachable API offers neither.
+ */
+export async function signInOptions(): Promise<SignInOptions> {
   try {
-    const platform = await apiRequest<{ environment?: string; seededAt?: string | null }>(null, "/api/v1/platform");
-    return platform.environment === "demo" ? { code: DEMO_OTP, seededAt: platform.seededAt ?? null } : null;
+    const platform = await apiRequest<{
+      environment?: string;
+      seededAt?: string | null;
+      googleSignIn?: boolean | null;
+    }>(null, "/api/v1/platform");
+    return {
+      demo: platform.environment === "demo" ? { code: DEMO_OTP, seededAt: platform.seededAt ?? null } : null,
+      google: platform.googleSignIn === true,
+    };
   } catch {
-    return null;
+    return { demo: null, google: false };
   }
+}
+
+/** The fixed sign-in code when the API runs as the demo, else null. */
+export async function demoSignInCode(): Promise<string | null> {
+  return (await signInOptions()).demo?.code ?? null;
 }
 
 export type SendResult = { ok: true } | { ok: false; reason: "invalid-email" | "too-many" | "unavailable" };
 
 /** "Continue" on the sign-in form: ask the API to send a code to this email. */
-export async function sendSignInCode(email: string): Promise<SendResult> {
+export async function sendSignInCode(email: string, clientIp?: string | null): Promise<SendResult> {
   try {
     await apiRequest(null, `${AUTH}/email-otp/send-verification-otp`, {
       method: "POST",
       body: { email: email.trim().toLowerCase(), type: "sign-in" },
+      clientIp,
     });
     return { ok: true };
   } catch (error) {
@@ -51,41 +80,33 @@ export async function sendSignInCode(email: string): Promise<SendResult> {
   }
 }
 
-export type VerifyResult =
-  | { ok: true; cookie: SessionCookie; expiresAt: Date }
+type VerifyResult =
+  /** `cookie` is the session as a `Cookie` header; `setCookies` is what the browser must be given. */
+  | { ok: true; cookie: SessionCookie; setCookies: ForwardedCookie[] }
   | { ok: false; reason: "wrong-code" | "expired" | "too-many" | "unavailable" };
 
-const SESSION_COOKIE_PART = /session_(token|data)$/;
-
-/** Keep the session cookies the API set, as one `name=value; name=value` header value. */
-function sessionCookieFrom(response: Response): { cookie: string; expiresAt: Date } | null {
-  const pairs: string[] = [];
-  let expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  for (const line of response.headers.getSetCookie()) {
-    const [pair, ...attrs] = line.split(";").map((p) => p.trim());
-    const eq = pair.indexOf("=");
-    if (eq < 1) continue;
-    const name = pair.slice(0, eq);
-    if (!SESSION_COOKIE_PART.test(name)) continue;
-    pairs.push(pair);
-    if (name.endsWith("session_token")) {
-      for (const attr of attrs) {
-        const [k, v] = attr.split("=");
-        if (k.toLowerCase() === "max-age" && Number(v) > 0) expiresAt = new Date(Date.now() + Number(v) * 1000);
-        if (k.toLowerCase() === "expires" && v) expiresAt = new Date(attr.slice(attr.indexOf("=") + 1));
-      }
-    }
-  }
-  return pairs.some((p) => p.split("=")[0].endsWith("session_token")) ? { cookie: pairs.join("; "), expiresAt } : null;
-}
-
-/** "Verify and continue": exchange the typed code for the API's session cookie. */
-export async function verifySignInCode(email: string, code: string): Promise<VerifyResult> {
+/**
+ * "Verify and continue": exchange the typed code for the API's session cookie. The visitor's browser is
+ * named to the API (`userAgent`), because the session it opens records the user agent that asked for it,
+ * and from this server that was Node's: every device on the account screen read "Unknown device".
+ */
+export async function verifySignInCode(
+  email: string,
+  code: string,
+  clientIp?: string | null,
+  userAgent?: string | null,
+): Promise<VerifyResult> {
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl()}${AUTH}/sign-in/email-otp`, {
       method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json", origin: apiOrigin() },
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+        origin: apiOrigin(),
+        ...clientIpHeaders(clientIp),
+        ...(userAgent ? { "user-agent": userAgent } : {}),
+      },
       body: JSON.stringify({ email: email.trim().toLowerCase(), otp: code.replace(/\D/g, "") }),
       cache: "no-store",
       signal: AbortSignal.timeout(15_000),
@@ -101,17 +122,30 @@ export async function verifySignInCode(email: string, code: string): Promise<Ver
     if (response.status >= 500) return { ok: false, reason: "unavailable" };
     return { ok: false, reason: "wrong-code" };
   }
-  const session = sessionCookieFrom(response);
-  if (!session) return { ok: false, reason: "unavailable" };
-  return { ok: true, cookie: session.cookie, expiresAt: session.expiresAt };
+  const setCookies = authCookiesFrom(response);
+  const cookie = cookieHeaderFor(setCookies);
+  if (!cookie) return { ok: false, reason: "unavailable" };
+  return { ok: true, cookie, setCookies };
 }
 
-/** End the API session. A failure is ignored: the app forgets the cookie either way. */
-export async function signOutOfApi(cookie: SessionCookie): Promise<void> {
+/**
+ * End the API session, and return the cookies that clear it in the browser: the API writes them with
+ * the domain the session was set on, which this app could not name by itself. Empty when the API could
+ * not be reached; the caller then clears what it can.
+ */
+export async function signOutOfApi(cookie: SessionCookie): Promise<ForwardedCookie[]> {
   try {
-    await apiRequest(cookie, `${AUTH}/sign-out`, { method: "POST", body: {} });
+    const response = await fetch(`${apiBaseUrl()}${AUTH}/sign-out`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json", origin: apiOrigin(), cookie },
+      // An empty object, never no body: Fastify answers a JSON content type over an empty body with a 400.
+      body: "{}",
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+    return authCookiesFrom(response);
   } catch {
-    // The cookie is dropped by the caller regardless.
+    return [];
   }
 }
 
@@ -140,12 +174,86 @@ export interface Workspace {
 export interface Account {
   user: ApiUser;
   workspaces: Workspace[];
+  /**
+   * Who this person is across the product (`GET /me/context`): their businesses, the homes they rent,
+   * leader or officer seats, broker record, staff roles, and where they land. Null only when the API
+   * predates the route.
+   */
+  context: MeContext | null;
   persona: Persona;
+  /**
+   * The emailed step-up (F-S02). An email-code session is stepped up when it opens; a Google session is
+   * not, and the API refuses an operator's workspace calls until it is (`two_factor_required`).
+   */
+  twoFactor: { required: boolean; verified: boolean };
 }
 
 interface SessionBody {
   user: ApiUser;
-  session: { expiresAt: string };
+  session: { id: string; expiresAt: string };
+}
+
+// ── The person's own sessions ───────────────────────────────────────────────
+
+/** A session as Better Auth's `list-sessions` returns it. The token is the session: it never leaves the server. */
+interface ApiSession {
+  id: string;
+  token: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}
+
+/** One of the person's active sessions, as the account screen may show it. */
+interface SessionSummary {
+  id: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** The session this browser holds. */
+  current: boolean;
+}
+
+/** Every active session of the person behind this cookie, this one first, then the most recently used. */
+export async function sessionsFor(cookie: SessionCookie): Promise<SessionSummary[]> {
+  const [sessions, own] = await Promise.all([
+    apiRequest<ApiSession[]>(cookie, `${AUTH}/list-sessions`),
+    apiRequest<SessionBody | null>(cookie, `${AUTH}/get-session`),
+  ]);
+  return sessions
+    .map((s) => ({
+      id: s.id,
+      userAgent: s.userAgent ?? null,
+      ipAddress: s.ipAddress ?? null,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
+      current: s.id === own?.session.id,
+    }))
+    .sort((a, b) => Number(b.current) - Number(a.current) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+}
+
+/**
+ * Sign one of the person's other sessions out. The page names it by id; the token is looked up here, among
+ * this person's own sessions, so a forged id can only ever miss. This browser's own session is refused:
+ * signing out of it is the Sign out button, which also clears the cookie.
+ */
+export async function revokeSession(cookie: SessionCookie, id: string): Promise<boolean> {
+  const [sessions, own] = await Promise.all([
+    apiRequest<ApiSession[]>(cookie, `${AUTH}/list-sessions`),
+    apiRequest<SessionBody | null>(cookie, `${AUTH}/get-session`),
+  ]);
+  const target = sessions.find((s) => s.id === id);
+  if (!target || target.id === own?.session.id) return false;
+  await apiRequest(cookie, `${AUTH}/revoke-session`, { method: "POST", body: { token: target.token } });
+  return true;
+}
+
+/** Sign out every session of this person except the one this browser holds. */
+export async function revokeOtherSessions(cookie: SessionCookie): Promise<void> {
+  await apiRequest(cookie, `${AUTH}/revoke-other-sessions`, { method: "POST", body: {} });
 }
 
 /** The person behind a session cookie, or null when the API says the session is gone. */
@@ -158,21 +266,130 @@ export async function accountFor(cookie: SessionCookie): Promise<Account | null>
     throw error;
   }
   if (!session?.user) return null;
-  const { workspaces } = await apiRequest<{ workspaces: Workspace[] }>(cookie, "/api/v1/me/workspaces");
-  const shell = await personaFor(cookie, session.user, workspaces);
-  return { user: session.user, workspaces, persona: asPerson(shell, session.user) };
+  const [{ workspaces, twoFactor }, context] = await Promise.all([
+    apiRequest<{
+      workspaces: Workspace[];
+      twoFactor?: { required?: boolean; verified?: boolean };
+    }>(cookie, "/api/v1/me/workspaces"),
+    meContext(cookie),
+  ]);
+  const shell = await personaFor(cookie, session.user, workspaces, context);
+  return {
+    user: session.user,
+    workspaces,
+    context,
+    persona: asPerson(shell, session.user, workspaces, context),
+    twoFactor: { required: twoFactor?.required === true, verified: twoFactor?.verified === true },
+  };
+}
+
+/** `GET /me/context`, or null from an API that does not have it yet (a 404). Other failures throw. */
+async function meContext(cookie: SessionCookie): Promise<MeContext | null> {
+  try {
+    return await apiRequest<MeContext>(cookie, "/api/v1/me/context");
+  } catch (error) {
+    if (error instanceof ApiError && error.notFound) return null;
+    throw error;
+  }
 }
 
 /**
  * A demo persona is the person it describes. Anyone else borrows a shell (home, navigation) but keeps
- * their own name and email, so a real owner never sees "Didier Mugenzi" on their own workspace.
+ * their own name and email, so a real owner never sees "Didier Mugenzi" on their own workspace. A
+ * landlord's switcher is their own businesses, read from the API, never the shell's.
  */
-function asPerson(shell: Persona, user: ApiUser): Persona {
-  if (shell.email === user.email.toLowerCase()) return shell;
-  const name = user.name?.trim() || user.email.split("@")[0];
+function asPerson(shell: Persona, user: ApiUser, workspaces: Workspace[], context: MeContext | null): Persona {
+  if (shell.email && shell.email === user.email.toLowerCase()) return shell;
+  const business =
+    shell.id === "landlord" && context ? landlordBusiness(context.businesses, context.activeWorkspaceId) : null;
+  // An account with no name of its own: the owner's lease signatory name (the owner signs for the
+  // business), a broker's registered name, the landlord's business, and only then the email's first part.
+  const signatory = business?.role === "owner" ? business.signatoryName?.trim() : "";
+  const name =
+    user.name?.trim() ||
+    signatory ||
+    context?.broker?.name?.trim() ||
+    business?.orgName.trim() ||
+    user.email.split("@")[0];
+  const parts = name.split(/\s+/).filter(Boolean);
+  const person = { ...shell, name, firstName: parts[0] ?? name, initials: initialsOf(name), email: user.email };
+  if (shell.id !== "landlord" || !context) return person;
+  if (!business) return person;
+  const role = ROLE_LABEL[business.role ?? ""] ?? "Member";
+  return { ...person, role, workspace: landlordSwitcher(business, workspaces, context) };
+}
+
+function initialsOf(name: string): string {
   const parts = name.split(/\s+/).filter(Boolean);
   const initials = ((parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts.at(-1)?.[0] ?? "") : "")).toUpperCase();
-  return { ...shell, name, firstName: parts[0] ?? name, initials: initials || "?", email: user.email };
+  return initials || "?";
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  owner: "Owner",
+  manager: "Manager",
+  receptionist: "Front desk",
+  finance: "Finance",
+  hr: "HR",
+  housekeeper: "Housekeeping",
+};
+
+const ROLE_PHRASE: Record<string, string> = {
+  owner: "You\u2019re the owner here.",
+  manager: "You\u2019re a manager here.",
+  finance: "You look after the money here.",
+};
+
+/** Where another business of this person opens: a residence business on its home, a hotel on the role's. */
+function homeBoardOf(business: MeContextBusiness): BoardId {
+  if (business.domain === "residence") return "ResidenceHome";
+  const persona = ROLE_PERSONA[business.role ?? ""];
+  return persona ? personas[persona].home : "OwnerHome";
+}
+
+/**
+ * The landlord's business switcher, from real records: the business in view with its buildings, the
+ * person's other businesses (each switched to with `POST /me/active-workspace`), and their own home
+ * when they rent one too.
+ */
+function landlordSwitcher(business: MeContextBusiness, workspaces: Workspace[], context: MeContext): WorkspaceContext {
+  const grant = workspaces.find((w) => w.workspaceId === business.workspaceId);
+  const buildings = (grant?.branches ?? []).filter(
+    (b): b is { propertyId: string; name: string } => typeof b === "object" && b !== null && "propertyId" in b,
+  );
+  const branches = buildings.map((b) => ({ id: b.propertyId, name: b.name, meta: "" }));
+  const all =
+    branches.length > 1
+      ? [{ id: "all", name: "All buildings", meta: `${branches.length} buildings` }, ...branches]
+      : branches;
+  const others: WorkspaceContext["others"] = context.businesses
+    .filter((b) => b.workspaceId !== business.workspaceId && b.role !== null)
+    .map((b) => ({
+      ini: initialsOf(b.orgName),
+      name: b.orgName,
+      meta: `${b.domain === "residence" ? "Rentals" : "Hospitality"} · ${ROLE_LABEL[b.role ?? ""] ?? "Member"}${
+        b.operational ? "" : " · in review"
+      }`,
+      board: homeBoardOf(b),
+      workspaceId: b.workspaceId,
+    }));
+  if (context.tenancies.length > 0) {
+    others.push({ ini: "MH", name: "My home", meta: "The homes you rent", board: "TenantHome" });
+  }
+  const role = ROLE_LABEL[business.role ?? ""] ?? "Member";
+  return {
+    kind: "business",
+    ini: initialsOf(business.orgName),
+    name: business.orgName,
+    meta: `Rentals · ${buildings.length === 1 ? "1 building" : `${buildings.length} buildings`}`,
+    role,
+    rolePhrase: ROLE_PHRASE[business.role ?? ""] ?? `You\u2019re a member here as ${role.toLowerCase()}.`,
+    branches: all.length > 0 ? all : [{ id: business.workspaceId, name: business.orgName, meta: "" }],
+    currentBranch: all[0]?.id ?? business.workspaceId,
+    canManage: false,
+    others,
+    invite: null,
+  };
 }
 
 const ROLE_PERSONA: Record<string, PersonaId> = {
@@ -182,25 +399,75 @@ const ROLE_PERSONA: Record<string, PersonaId> = {
   finance: "finance",
   hr: "hr",
   housekeeper: "housekeeper",
+  // The bar and restaurant floor (POS spec, phase 1) wears the outlet staff's tablet shell.
+  cashier: "waiter",
+  waiter: "waiter",
+  bartender: "waiter",
+  kitchen: "waiter",
+  stock_controller: "store",
+};
+
+/**
+ * Where a floor role lands: the live floor, or for the kitchen its station board. The demo waiter keeps
+ * the story written for her; a real cashier, waiter, bartender or cook lands on the screens that read
+ * their outlet from the API.
+ */
+const ROLE_HOME: Partial<Record<string, BoardId>> = {
+  cashier: "PosFloor",
+  waiter: "PosFloor",
+  bartender: "PosFloor",
+  kitchen: "PosStations",
 };
 
 /**
  * Which interface shell a person gets. A demo persona is matched by email (its story, home and
- * navigation are written for it); anyone else gets the shell of their strongest real grant, so a
- * real business owner signing in lands on the owner workspace of their own business.
+ * navigation are written for it); anyone else gets the shell of where they land (`/me/context`, from
+ * real records): a running residence business is the landlord's; a hotel is the shell of the
+ * person's role there; a tenancy is the tenant's home; then platform staff, an officer or leader, and
+ * otherwise the guest side. A residence business still in review opens nothing yet.
  */
-async function personaFor(cookie: SessionCookie, user: ApiUser, workspaces: Workspace[]): Promise<Persona> {
+async function personaFor(
+  cookie: SessionCookie,
+  user: ApiUser,
+  workspaces: Workspace[],
+  context: MeContext | null,
+): Promise<Persona> {
   const demo = personaByEmail(user.email);
   if (demo) return demo;
-  const business = workspaces.filter((w) => w.kind === "business" && w.orgRole);
-  const order = ["owner", "manager", "finance", "hr", "receptionist", "housekeeper"];
+  const landing = context?.landing;
+  if (landing?.surface === "landlord") return personas.landlord;
+  // A broker's workspace has kind `broker`, never a business: their landing says so (`/me/context`).
+  if (landing?.surface === "broker") return personas.broker;
+  // The shell of a role in a business, with the floor roles' own home (POS) where they have one.
+  const shellFor = (role: string) => {
+    const shell = personas[ROLE_PERSONA[role] as PersonaId];
+    const home = ROLE_HOME[role];
+    return home ? { ...shell, home } : shell;
+  };
+  if (landing?.surface === "business") {
+    const chosen = workspaces.find((w) => w.workspaceId === landing.workspaceId);
+    if (chosen?.orgRole && ROLE_PERSONA[chosen.orgRole]) return shellFor(chosen.orgRole);
+  }
+  const business = workspaces.filter((w) => w.kind === "business" && w.orgRole && w.domain !== "residence");
+  const order = [
+    "owner",
+    "manager",
+    "finance",
+    "hr",
+    "receptionist",
+    "cashier",
+    "bartender",
+    "waiter",
+    "stock_controller",
+    "kitchen",
+    "housekeeper",
+  ];
   business.sort((a, b) => order.indexOf(a.orgRole ?? "") - order.indexOf(b.orgRole ?? ""));
   const top = business[0];
-  if (top?.domain === "broker") return personas.broker;
-  if (top?.domain === "residence" && (top.orgRole === "owner" || top.orgRole === "manager")) return personas.residence;
-  if (top?.orgRole && ROLE_PERSONA[top.orgRole]) return personas[ROLE_PERSONA[top.orgRole]];
-  if (await holds(cookie, "/api/v1/me/staff")) return personas.ops;
-  if (await holds(cookie, "/api/v1/me/oversight")) return personas.officer;
+  if (top?.orgRole && ROLE_PERSONA[top.orgRole]) return shellFor(top.orgRole);
+  if (landing?.surface === "tenant") return personas.tenant;
+  if (context ? context.staff.isStaff : await holds(cookie, "/api/v1/me/staff")) return personas.ops;
+  if (context ? context.oversight.length > 0 : await holds(cookie, "/api/v1/me/oversight")) return personas.officer;
   return personas.guest;
 }
 
@@ -223,11 +490,25 @@ async function holds(cookie: SessionCookie, path: string): Promise<boolean> {
   }
 }
 
-/** The business workspace a persona's screens act in, by org domain (owner Didier holds two). */
+/** The broker workspace of this person (kind `broker`, one per person), or null. */
+export function brokerWorkspace(account: Pick<Account, "workspaces">): Workspace | null {
+  return account.workspaces.find((w) => w.kind === "broker") ?? null;
+}
+
+/**
+ * The business workspace a persona's screens act in, by org domain (owner Didier holds two). A
+ * landlord acts in the residence business the session chose (the business switcher), else the first
+ * running one.
+ */
 export function workspaceFor(
-  account: Pick<Account, "workspaces">,
+  account: Pick<Account, "workspaces"> & Partial<Pick<Account, "context">>,
   domain: "hospitality" | "residence" | "broker" = "hospitality",
 ): Workspace | null {
   const business = account.workspaces.filter((w) => w.kind === "business");
+  if (domain === "residence" && account.context) {
+    const chosen = landlordBusiness(account.context.businesses, account.context.activeWorkspaceId);
+    const grant = chosen && business.find((w) => w.workspaceId === chosen.workspaceId);
+    if (grant) return grant;
+  }
   return business.find((w) => w.domain === domain) ?? business[0] ?? null;
 }

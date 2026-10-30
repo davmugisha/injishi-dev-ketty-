@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import type { Job } from 'bullmq';
 
 import { users } from '../../../database/drizzle/schema';
@@ -52,9 +54,9 @@ function mailRow(overrides: Row = {}): Row {
 
 interface Harness {
   processor: TrainingMailProcessor;
-  send: jest.Mock;
-  readBytes: jest.Mock;
-  fanOutReminder: jest.Mock;
+  send: Mock;
+  readBytes: Mock;
+  fanOutReminder: Mock;
   projections: Row[];
 }
 
@@ -70,16 +72,16 @@ function harness(
   }
   chain.limit = async () => queue.shift() ?? [];
   const db = {
-    select: jest.fn((projection: Row) => {
+    select: vi.fn((projection: Row) => {
       projections.push(projection);
       return chain;
     }),
   };
-  const send = jest.fn(async () => {
+  const send = vi.fn(async () => {
     if (opts.mailFails) throw new Error('SMTP delivery failed: timeout');
   });
-  const readBytes = jest.fn(async () => opts.pdf ?? Buffer.from('%PDF-1.7 stored'));
-  const fanOutReminder = jest.fn(async () => 2);
+  const readBytes = vi.fn(async () => opts.pdf ?? Buffer.from('%PDF-1.7 stored'));
+  const fanOutReminder = vi.fn(async () => 2);
   const config = { verifyBaseUrl: 'https://www.injishi.com/' } as TrainingConfig;
 
   const processor = new TrainingMailProcessor(

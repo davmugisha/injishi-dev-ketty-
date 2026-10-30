@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@injishi/web-ui";
 
 import { SelectField, TextInput } from "./wizard-ui";
 
@@ -86,8 +87,39 @@ export function PhoneInput({
    * form comes to show `+254` above a value of `+250788123456`.
    */
   const [pickedCode, setPickedCode] = useState<string>(DEFAULT_COUNTRY.code);
+  const [keepFullNumber, setKeepFullNumber] = useState(false);
 
   const parsed = countryForE164(value);
+  const unknownCallingCode = value.startsWith("+") && !parsed;
+  if (unknownCallingCode || keepFullNumber) {
+    return (
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Enter the full number, including + and its country code. Countries
+          outside the short list can be entered here.
+        </p>
+        <TextInput
+          id={id}
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          aria-label="Phone number with country code"
+          aria-invalid={invalid || undefined}
+          value={value}
+          onChange={(event) => {
+            setKeepFullNumber(true);
+            onChange(event.target.value);
+          }}
+        />
+        <Button variant="ghost" size="sm" onClick={() => {
+          setKeepFullNumber(false);
+          onChange("");
+        }}>
+          Use the country picker instead
+        </Button>
+      </div>
+    );
+  }
   const country =
     parsed ??
     PHONE_COUNTRIES.find((c) => c.code === pickedCode) ??
@@ -109,13 +141,21 @@ export function PhoneInput({
     <div className="flex flex-col gap-2 sm:flex-row">
       <div className="sm:w-60 sm:shrink-0">
         <SelectField
+          ariaLabel="Country calling code"
           value={country.code}
-          options={PHONE_COUNTRIES.map((c) => ({
-            value: c.code,
-            label: `${c.dial} · ${c.name}`,
-          }))}
+          options={[
+            ...PHONE_COUNTRIES.map((c) => ({
+              value: c.code,
+              label: `${c.dial} · ${c.name}`,
+            })),
+            { value: "other", label: "Another country — enter full number" },
+          ]}
           invalid={invalid}
           onChange={(code) => {
+            if (code === "other") {
+              setKeepFullNumber(true);
+              return;
+            }
             const next =
               PHONE_COUNTRIES.find((c) => c.code === code) ?? DEFAULT_COUNTRY;
             setPickedCode(next.code);
@@ -134,6 +174,7 @@ export function PhoneInput({
           inputMode="tel"
           autoComplete="tel-national"
           aria-label={`Phone number in ${country.name}`}
+          aria-invalid={invalid || undefined}
           placeholder={country.example}
           maxLength={country.nationalDigits + 6}
           value={national}

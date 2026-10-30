@@ -17,5 +17,6 @@ export * from "./server.js";
 // Re-exported rather than reached through "/edge" because the API resolves
 // packages the node10 way, which cannot see subpath exports. `edge.ts` imports
 // nothing but the shared constants, so this pulls in no runtime.
-export { OVERSIGHT_COOKIE_PREFIX, dropForeignSessionCookies, isProductionSessionCookie, } from "./edge.js";
+export { OVERSIGHT_COOKIE_PREFIX, dropForeignSessionCookies, isProductionSessionCookie, } from "./edge.js"; // The password rule and its sentences (tenants only, 2026-10-23).
+export * from "./password.js";
 //# sourceMappingURL=index.js.map

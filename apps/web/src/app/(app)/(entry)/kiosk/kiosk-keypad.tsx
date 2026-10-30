@@ -9,7 +9,7 @@
  * screen applies it to whichever field is open.
  */
 import { Delete } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 

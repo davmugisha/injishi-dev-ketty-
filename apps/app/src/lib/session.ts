@@ -4,30 +4,49 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { type ApiClient, ApiError, createApiClient, type SessionCookie } from "@/server/api";
 import { type Account, accountFor, OTP_TTL_SECONDS } from "@/server/auth";
+import { expiredAuthCookies, type ForwardedCookie, sessionCookieHeader } from "@/server/session-cookies";
+import { safePath } from "./return-to";
 
-/** Holds the API's own session cookie pair (base64url), httpOnly, on the app's origin. */
-export const SESSION_COOKIE = "ij_session";
+/**
+ * Where the app kept the API's session before it shared the browser's Better Auth cookie with web.
+ * Never read; cleared on sign-in and sign-out so it does not linger in a browser.
+ */
+export const LEGACY_SESSION_COOKIE = "ij_session";
 /** The email a code was sent to, between the sign-in and verify steps. */
 export const OTP_COOKIE = "ij_otp";
 
-export function encodeSessionCookie(cookie: SessionCookie): string {
-  return Buffer.from(cookie, "utf8").toString("base64url");
+type CookieStore = Awaited<ReturnType<typeof cookies>>;
+
+/**
+ * Hand the browser the cookies the API set (sign-in) or cleared (sign-out), with every attribute the API
+ * chose. Works on `cookies()` in a Server Action and on `response.cookies` in a route handler.
+ */
+export function applyApiCookies(store: Pick<CookieStore, "set">, forwarded: readonly ForwardedCookie[]): void {
+  for (const { name, value, ...options } of forwarded) store.set({ name, value, ...options });
 }
 
-function decodeSessionCookie(value: string | undefined): SessionCookie | null {
-  if (!value) return null;
-  try {
-    const decoded = Buffer.from(value, "base64url").toString("utf8");
-    return decoded.includes("session_token=") ? decoded : null;
-  } catch {
-    return null;
-  }
-}
-
-/** The API session cookie this request carries, or null. */
+/** The browser's Better Auth session as a `Cookie` header for the API, or null. */
 export const currentSessionCookie = cache(async (): Promise<SessionCookie | null> => {
-  return decodeSessionCookie((await cookies()).get(SESSION_COOKIE)?.value);
+  return sessionCookieHeader((await cookies()).getAll());
 });
+
+/**
+ * Clear every Better Auth cookie this origin can see, for when the API cannot be asked to, on the domain
+ * the API sets them on (`expiredAuthCookies` says why a plain delete is not enough).
+ */
+export function clearAuthCookies(
+  store: Pick<CookieStore, "getAll" | "set" | "delete">,
+  domain: string | undefined = process.env.AUTH_COOKIE_DOMAIN?.trim() || undefined,
+): void {
+  applyApiCookies(
+    store,
+    expiredAuthCookies(
+      store.getAll().map((c) => c.name),
+      domain,
+    ),
+  );
+  store.delete(LEGACY_SESSION_COOKIE);
+}
 
 /**
  * Who is signed in, resolved by the API once per request (React cache). Null when there is no
@@ -90,8 +109,7 @@ export function readPendingSignIn(value: string | undefined): PendingSignIn | nu
   }
 }
 
-/** Only allow same-site relative redirects. */
+/** Only allow same-origin paths, as a browser would resolve them (`return-to.ts` says why). */
 export function safeNext(next: string | null | undefined): string | null {
-  if (!next?.startsWith("/") || next.startsWith("//")) return null;
-  return next;
+  return safePath(next);
 }

@@ -329,12 +329,12 @@ export type PersonalDetails = z.infer<typeof PersonalDetails>;
  * sending an upload, and the officer's console listing what was sent. Two
  * copies of an enum is how a kind gets added in one place and not the other.
  */
-export declare const OrgCertificateKind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+export declare const OrgCertificateKind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
 export type OrgCertificateKind = z.infer<typeof OrgCertificateKind>;
 /** What each kind is called on screen, wherever a document is listed. */
 export declare const ORG_CERTIFICATE_KIND_LABEL: Readonly<Record<OrgCertificateKind, string>>;
 export declare const CertificateInput: z.ZodObject<{
-    kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+    kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
     /** Required when `kind` is `other`; the database carries the same rule. */
     kindOther: z.ZodOptional<z.ZodString>;
     /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -344,7 +344,7 @@ export declare const CertificateInput: z.ZodObject<{
     issuedOn: z.ZodOptional<z.ZodString>;
     expiresOn: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
     objectKey: string;
     kindOther?: string | undefined;
     certificateNumber?: string | undefined;
@@ -352,7 +352,7 @@ export declare const CertificateInput: z.ZodObject<{
     issuedOn?: string | undefined;
     expiresOn?: string | undefined;
 }, {
-    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
     objectKey: string;
     kindOther?: string | undefined;
     certificateNumber?: string | undefined;
@@ -651,6 +651,44 @@ export type PsfApplicationInput = z.infer<typeof PsfApplicationInput>;
 /** The membership number a business that answered Yes may give (ADR-056 AC-1). */
 export declare const PsfMembershipNumber: z.ZodString;
 /**
+ * Whether the business is part of a franchise (ADR-075 O-7, AC-8). No block
+ * means No, as no `org_franchises` row does. A franchisee runs another
+ * company's brand and names that company; a franchisor owns the brand and says
+ * how many locations run under it. The franchisee's agreement, when it has one
+ * to hand, is a `franchise_agreement` document on the Documents step.
+ */
+export declare const FranchiseRole: z.ZodEnum<["franchisee", "franchisor"]>;
+export type FranchiseRole = z.infer<typeof FranchiseRole>;
+export declare const FranchiseDeclaration: z.ZodDiscriminatedUnion<"role", [z.ZodObject<{
+    role: z.ZodLiteral<"franchisee">;
+    brandName: z.ZodString;
+    franchisorLegalName: z.ZodString;
+    franchisorCountry: z.ZodPipeline<z.ZodString, z.ZodEffects<z.ZodString, string, string>>;
+}, "strict", z.ZodTypeAny, {
+    role: "franchisee";
+    brandName: string;
+    franchisorLegalName: string;
+    franchisorCountry: string;
+}, {
+    role: "franchisee";
+    brandName: string;
+    franchisorLegalName: string;
+    franchisorCountry: string;
+}>, z.ZodObject<{
+    role: z.ZodLiteral<"franchisor">;
+    brandName: z.ZodString;
+    franchisedLocations: z.ZodNumber;
+}, "strict", z.ZodTypeAny, {
+    role: "franchisor";
+    brandName: string;
+    franchisedLocations: number;
+}, {
+    role: "franchisor";
+    brandName: string;
+    franchisedLocations: number;
+}>]>;
+export type FranchiseDeclaration = z.infer<typeof FranchiseDeclaration>;
+/**
  * A hospitality business. Carries a TIN, never a UPI-only identity, and is the
  * only branch that may hold a tourism licence, a grade, or a PSF membership.
  */
@@ -685,7 +723,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
         /** Required when `kind` is `other`; the database carries the same rule. */
         kindOther: z.ZodOptional<z.ZodString>;
         /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -695,7 +733,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         issuedOn: z.ZodOptional<z.ZodString>;
         expiresOn: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -703,7 +741,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -714,7 +752,14 @@ export declare const HospitalityBusiness: z.ZodObject<{
 } & {
     domain: z.ZodLiteral<"hospitality">;
     entityGroup: z.ZodDefault<z.ZodEnum<["accommodation", "restaurant_bar_nightclub", "travel_services", "tourism_information_center", "cultural_tourism"]>>;
-    accommodationClass: z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>;
+    /**
+     * What kind of business it is (ADR-075 D-h, AC-31). A stay's kind is its accommodation class; a venue (Bar &
+     * Restaurant, Coffee Shop) has a kind and no class. Optional only so a request built before ADR-075 still
+     * reads: its kind is then derived from the class (`hospitalityKindOf`).
+     */
+    businessKind: z.ZodOptional<z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop"]>>;
+    /** A stay's RDB class. Required for a stay, forbidden for a venue, which has no rooms (ADR-075 O-14). */
+    accommodationClass: z.ZodOptional<z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>>;
     /** Required when the class is `other`, forbidden otherwise (D24). */
     accommodationClassOther: z.ZodOptional<z.ZodString>;
     tin: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
@@ -894,6 +939,35 @@ export declare const HospitalityBusiness: z.ZodObject<{
         useDocumentOnFile?: true | undefined;
     }>>;
     eacStarGrade: z.ZodOptional<z.ZodNumber>;
+    /** Part of a franchise, and how (ADR-075 AC-8). Absent means No. */
+    franchise: z.ZodOptional<z.ZodDiscriminatedUnion<"role", [z.ZodObject<{
+        role: z.ZodLiteral<"franchisee">;
+        brandName: z.ZodString;
+        franchisorLegalName: z.ZodString;
+        franchisorCountry: z.ZodPipeline<z.ZodString, z.ZodEffects<z.ZodString, string, string>>;
+    }, "strict", z.ZodTypeAny, {
+        role: "franchisee";
+        brandName: string;
+        franchisorLegalName: string;
+        franchisorCountry: string;
+    }, {
+        role: "franchisee";
+        brandName: string;
+        franchisorLegalName: string;
+        franchisorCountry: string;
+    }>, z.ZodObject<{
+        role: z.ZodLiteral<"franchisor">;
+        brandName: z.ZodString;
+        franchisedLocations: z.ZodNumber;
+    }, "strict", z.ZodTypeAny, {
+        role: "franchisor";
+        brandName: string;
+        franchisedLocations: number;
+    }, {
+        role: "franchisor";
+        brandName: string;
+        franchisedLocations: number;
+    }>]>>;
     /** The locations beyond the head office (ADR-054). Empty for a single site business. */
     branches: z.ZodDefault<z.ZodArray<z.ZodObject<{
         name: z.ZodString;
@@ -949,6 +1023,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         };
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
+    domain: "hospitality";
     address: {
         country: "RW";
         provinceId: number;
@@ -960,7 +1035,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
     };
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -968,9 +1043,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
-    domain: "hospitality";
     entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-    accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     tin: string;
     chamberOfTourismMember: boolean;
     psfMember: boolean;
@@ -986,6 +1059,18 @@ export declare const HospitalityBusiness: z.ZodObject<{
             street?: string | undefined;
         };
     }[];
+    franchise?: {
+        role: "franchisee";
+        brandName: string;
+        franchisorLegalName: string;
+        franchisorCountry: string;
+    } | {
+        role: "franchisor";
+        brandName: string;
+        franchisedLocations: number;
+    } | undefined;
+    businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+    accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
     accommodationClassOther?: string | undefined;
     upi?: string | undefined;
     tourismLicenseNumber?: string | undefined;
@@ -1021,6 +1106,7 @@ export declare const HospitalityBusiness: z.ZodObject<{
     } | undefined;
     eacStarGrade?: number | undefined;
 }, {
+    domain: "hospitality";
     address: {
         country: "RW";
         provinceId: number;
@@ -1031,11 +1117,19 @@ export declare const HospitalityBusiness: z.ZodObject<{
         street?: string | undefined;
     };
     legalName: string;
-    domain: "hospitality";
-    accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     tin: string;
+    franchise?: {
+        role: "franchisee";
+        brandName: string;
+        franchisorLegalName: string;
+        franchisorCountry: string;
+    } | {
+        role: "franchisor";
+        brandName: string;
+        franchisedLocations: number;
+    } | undefined;
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1044,6 +1138,8 @@ export declare const HospitalityBusiness: z.ZodObject<{
         expiresOn?: string | undefined;
     }[] | undefined;
     entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
+    businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+    accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
     accommodationClassOther?: string | undefined;
     upi?: string | undefined;
     tourismLicenseNumber?: string | undefined;
@@ -1125,7 +1221,7 @@ export declare const ResidenceBusiness: z.ZodObject<{
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
         /** Required when `kind` is `other`; the database carries the same rule. */
         kindOther: z.ZodOptional<z.ZodString>;
         /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -1135,7 +1231,7 @@ export declare const ResidenceBusiness: z.ZodObject<{
         issuedOn: z.ZodOptional<z.ZodString>;
         expiresOn: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1143,7 +1239,7 @@ export declare const ResidenceBusiness: z.ZodObject<{
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1168,7 +1264,10 @@ export declare const ResidenceBusiness: z.ZodObject<{
      */
     psfApplication: z.ZodOptional<z.ZodNever>;
     psfMembershipNumber: z.ZodOptional<z.ZodNever>;
+    /** Refused, not stripped, for the same reason: a franchise is a hospitality business's brand (ADR-075 O-7). */
+    franchise: z.ZodOptional<z.ZodNever>;
 }, "strip", z.ZodTypeAny, {
+    domain: "residence";
     address: {
         country: "RW";
         provinceId: number;
@@ -1180,7 +1279,7 @@ export declare const ResidenceBusiness: z.ZodObject<{
     };
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1188,13 +1287,14 @@ export declare const ResidenceBusiness: z.ZodObject<{
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
-    domain: "residence";
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
+    franchise?: undefined;
     psfMembershipNumber?: undefined;
     psfApplication?: undefined;
     branches?: unknown[] | undefined;
 }, {
+    domain: "residence";
     address: {
         country: "RW";
         provinceId: number;
@@ -1205,11 +1305,11 @@ export declare const ResidenceBusiness: z.ZodObject<{
         street?: string | undefined;
     };
     legalName: string;
-    domain: "residence";
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
+    franchise?: undefined;
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1252,7 +1352,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
         /** Required when `kind` is `other`; the database carries the same rule. */
         kindOther: z.ZodOptional<z.ZodString>;
         /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -1262,7 +1362,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn: z.ZodOptional<z.ZodString>;
         expiresOn: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1270,7 +1370,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1281,7 +1381,14 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
 } & {
     domain: z.ZodLiteral<"hospitality">;
     entityGroup: z.ZodDefault<z.ZodEnum<["accommodation", "restaurant_bar_nightclub", "travel_services", "tourism_information_center", "cultural_tourism"]>>;
-    accommodationClass: z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>;
+    /**
+     * What kind of business it is (ADR-075 D-h, AC-31). A stay's kind is its accommodation class; a venue (Bar &
+     * Restaurant, Coffee Shop) has a kind and no class. Optional only so a request built before ADR-075 still
+     * reads: its kind is then derived from the class (`hospitalityKindOf`).
+     */
+    businessKind: z.ZodOptional<z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop"]>>;
+    /** A stay's RDB class. Required for a stay, forbidden for a venue, which has no rooms (ADR-075 O-14). */
+    accommodationClass: z.ZodOptional<z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>>;
     /** Required when the class is `other`, forbidden otherwise (D24). */
     accommodationClassOther: z.ZodOptional<z.ZodString>;
     tin: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
@@ -1461,6 +1568,35 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         useDocumentOnFile?: true | undefined;
     }>>;
     eacStarGrade: z.ZodOptional<z.ZodNumber>;
+    /** Part of a franchise, and how (ADR-075 AC-8). Absent means No. */
+    franchise: z.ZodOptional<z.ZodDiscriminatedUnion<"role", [z.ZodObject<{
+        role: z.ZodLiteral<"franchisee">;
+        brandName: z.ZodString;
+        franchisorLegalName: z.ZodString;
+        franchisorCountry: z.ZodPipeline<z.ZodString, z.ZodEffects<z.ZodString, string, string>>;
+    }, "strict", z.ZodTypeAny, {
+        role: "franchisee";
+        brandName: string;
+        franchisorLegalName: string;
+        franchisorCountry: string;
+    }, {
+        role: "franchisee";
+        brandName: string;
+        franchisorLegalName: string;
+        franchisorCountry: string;
+    }>, z.ZodObject<{
+        role: z.ZodLiteral<"franchisor">;
+        brandName: z.ZodString;
+        franchisedLocations: z.ZodNumber;
+    }, "strict", z.ZodTypeAny, {
+        role: "franchisor";
+        brandName: string;
+        franchisedLocations: number;
+    }, {
+        role: "franchisor";
+        brandName: string;
+        franchisedLocations: number;
+    }>]>>;
     /** The locations beyond the head office (ADR-054). Empty for a single site business. */
     branches: z.ZodDefault<z.ZodArray<z.ZodObject<{
         name: z.ZodString;
@@ -1516,6 +1652,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         };
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
+    domain: "hospitality";
     address: {
         country: "RW";
         provinceId: number;
@@ -1527,7 +1664,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     };
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1535,9 +1672,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
-    domain: "hospitality";
     entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-    accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     tin: string;
     chamberOfTourismMember: boolean;
     psfMember: boolean;
@@ -1553,6 +1688,18 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
             street?: string | undefined;
         };
     }[];
+    franchise?: {
+        role: "franchisee";
+        brandName: string;
+        franchisorLegalName: string;
+        franchisorCountry: string;
+    } | {
+        role: "franchisor";
+        brandName: string;
+        franchisedLocations: number;
+    } | undefined;
+    businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+    accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
     accommodationClassOther?: string | undefined;
     upi?: string | undefined;
     tourismLicenseNumber?: string | undefined;
@@ -1588,6 +1735,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     } | undefined;
     eacStarGrade?: number | undefined;
 }, {
+    domain: "hospitality";
     address: {
         country: "RW";
         provinceId: number;
@@ -1598,11 +1746,19 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         street?: string | undefined;
     };
     legalName: string;
-    domain: "hospitality";
-    accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     tin: string;
+    franchise?: {
+        role: "franchisee";
+        brandName: string;
+        franchisorLegalName: string;
+        franchisorCountry: string;
+    } | {
+        role: "franchisor";
+        brandName: string;
+        franchisedLocations: number;
+    } | undefined;
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1611,6 +1767,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         expiresOn?: string | undefined;
     }[] | undefined;
     entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
+    businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+    accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
     accommodationClassOther?: string | undefined;
     upi?: string | undefined;
     tourismLicenseNumber?: string | undefined;
@@ -1690,7 +1848,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         street?: string | undefined;
     }>;
     certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
         /** Required when `kind` is `other`; the database carries the same rule. */
         kindOther: z.ZodOptional<z.ZodString>;
         /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -1700,7 +1858,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn: z.ZodOptional<z.ZodString>;
         expiresOn: z.ZodOptional<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1708,7 +1866,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1733,7 +1891,10 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
      */
     psfApplication: z.ZodOptional<z.ZodNever>;
     psfMembershipNumber: z.ZodOptional<z.ZodNever>;
+    /** Refused, not stripped, for the same reason: a franchise is a hospitality business's brand (ADR-075 O-7). */
+    franchise: z.ZodOptional<z.ZodNever>;
 }, "strip", z.ZodTypeAny, {
+    domain: "residence";
     address: {
         country: "RW";
         provinceId: number;
@@ -1745,7 +1906,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     };
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1753,13 +1914,14 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
-    domain: "residence";
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
+    franchise?: undefined;
     psfMembershipNumber?: undefined;
     psfApplication?: undefined;
     branches?: unknown[] | undefined;
 }, {
+    domain: "residence";
     address: {
         country: "RW";
         provinceId: number;
@@ -1770,11 +1932,11 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         street?: string | undefined;
     };
     legalName: string;
-    domain: "residence";
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
+    franchise?: undefined;
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1786,6 +1948,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     psfApplication?: undefined;
     branches?: unknown[] | undefined;
 }>]>, {
+    domain: "hospitality";
     address: {
         country: "RW";
         provinceId: number;
@@ -1797,7 +1960,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     };
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1805,9 +1968,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
-    domain: "hospitality";
     entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-    accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     tin: string;
     chamberOfTourismMember: boolean;
     psfMember: boolean;
@@ -1823,6 +1984,18 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
             street?: string | undefined;
         };
     }[];
+    franchise?: {
+        role: "franchisee";
+        brandName: string;
+        franchisorLegalName: string;
+        franchisorCountry: string;
+    } | {
+        role: "franchisor";
+        brandName: string;
+        franchisedLocations: number;
+    } | undefined;
+    businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+    accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
     accommodationClassOther?: string | undefined;
     upi?: string | undefined;
     tourismLicenseNumber?: string | undefined;
@@ -1858,6 +2031,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     } | undefined;
     eacStarGrade?: number | undefined;
 } | {
+    domain: "residence";
     address: {
         country: "RW";
         provinceId: number;
@@ -1869,7 +2043,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
     };
     legalName: string;
     certificates: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1877,13 +2051,14 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         issuedOn?: string | undefined;
         expiresOn?: string | undefined;
     }[];
-    domain: "residence";
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
+    franchise?: undefined;
     psfMembershipNumber?: undefined;
     psfApplication?: undefined;
     branches?: unknown[] | undefined;
 }, {
+    domain: "hospitality";
     address: {
         country: "RW";
         provinceId: number;
@@ -1894,11 +2069,19 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         street?: string | undefined;
     };
     legalName: string;
-    domain: "hospitality";
-    accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
     tin: string;
+    franchise?: {
+        role: "franchisee";
+        brandName: string;
+        franchisorLegalName: string;
+        franchisorCountry: string;
+    } | {
+        role: "franchisor";
+        brandName: string;
+        franchisedLocations: number;
+    } | undefined;
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -1907,6 +2090,8 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         expiresOn?: string | undefined;
     }[] | undefined;
     entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
+    businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+    accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
     accommodationClassOther?: string | undefined;
     upi?: string | undefined;
     tourismLicenseNumber?: string | undefined;
@@ -1956,6 +2141,7 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         };
     }[] | undefined;
 } | {
+    domain: "residence";
     address: {
         country: "RW";
         provinceId: number;
@@ -1966,11 +2152,11 @@ export declare const BusinessDetails: z.ZodEffects<z.ZodDiscriminatedUnion<"doma
         street?: string | undefined;
     };
     legalName: string;
-    domain: "residence";
     upi: string;
     residenceClass: "residential_landlord" | "residential_property_manager";
+    franchise?: undefined;
     certificates?: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         objectKey: string;
         kindOther?: string | undefined;
         certificateNumber?: string | undefined;
@@ -2176,7 +2362,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         }>;
         certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-            kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+            kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
             /** Required when `kind` is `other`; the database carries the same rule. */
             kindOther: z.ZodOptional<z.ZodString>;
             /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -2186,7 +2372,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn: z.ZodOptional<z.ZodString>;
             expiresOn: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2194,7 +2380,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }, {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2205,7 +2391,14 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     } & {
         domain: z.ZodLiteral<"hospitality">;
         entityGroup: z.ZodDefault<z.ZodEnum<["accommodation", "restaurant_bar_nightclub", "travel_services", "tourism_information_center", "cultural_tourism"]>>;
-        accommodationClass: z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>;
+        /**
+         * What kind of business it is (ADR-075 D-h, AC-31). A stay's kind is its accommodation class; a venue (Bar &
+         * Restaurant, Coffee Shop) has a kind and no class. Optional only so a request built before ADR-075 still
+         * reads: its kind is then derived from the class (`hospitalityKindOf`).
+         */
+        businessKind: z.ZodOptional<z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop"]>>;
+        /** A stay's RDB class. Required for a stay, forbidden for a venue, which has no rooms (ADR-075 O-14). */
+        accommodationClass: z.ZodOptional<z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>>;
         /** Required when the class is `other`, forbidden otherwise (D24). */
         accommodationClassOther: z.ZodOptional<z.ZodString>;
         tin: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
@@ -2385,6 +2578,35 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             useDocumentOnFile?: true | undefined;
         }>>;
         eacStarGrade: z.ZodOptional<z.ZodNumber>;
+        /** Part of a franchise, and how (ADR-075 AC-8). Absent means No. */
+        franchise: z.ZodOptional<z.ZodDiscriminatedUnion<"role", [z.ZodObject<{
+            role: z.ZodLiteral<"franchisee">;
+            brandName: z.ZodString;
+            franchisorLegalName: z.ZodString;
+            franchisorCountry: z.ZodPipeline<z.ZodString, z.ZodEffects<z.ZodString, string, string>>;
+        }, "strict", z.ZodTypeAny, {
+            role: "franchisee";
+            brandName: string;
+            franchisorLegalName: string;
+            franchisorCountry: string;
+        }, {
+            role: "franchisee";
+            brandName: string;
+            franchisorLegalName: string;
+            franchisorCountry: string;
+        }>, z.ZodObject<{
+            role: z.ZodLiteral<"franchisor">;
+            brandName: z.ZodString;
+            franchisedLocations: z.ZodNumber;
+        }, "strict", z.ZodTypeAny, {
+            role: "franchisor";
+            brandName: string;
+            franchisedLocations: number;
+        }, {
+            role: "franchisor";
+            brandName: string;
+            franchisedLocations: number;
+        }>]>>;
         /** The locations beyond the head office (ADR-054). Empty for a single site business. */
         branches: z.ZodDefault<z.ZodArray<z.ZodObject<{
             name: z.ZodString;
@@ -2440,6 +2662,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             };
         }>, "many">>;
     }, "strip", z.ZodTypeAny, {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -2451,7 +2674,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2459,9 +2682,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "hospitality";
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
         chamberOfTourismMember: boolean;
         psfMember: boolean;
@@ -2477,6 +2698,18 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 street?: string | undefined;
             };
         }[];
+        franchise?: {
+            role: "franchisee";
+            brandName: string;
+            franchisorLegalName: string;
+            franchisorCountry: string;
+        } | {
+            role: "franchisor";
+            brandName: string;
+            franchisedLocations: number;
+        } | undefined;
+        businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+        accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
         accommodationClassOther?: string | undefined;
         upi?: string | undefined;
         tourismLicenseNumber?: string | undefined;
@@ -2512,6 +2745,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         } | undefined;
         eacStarGrade?: number | undefined;
     }, {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -2522,11 +2756,19 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "hospitality";
-        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
+        franchise?: {
+            role: "franchisee";
+            brandName: string;
+            franchisorLegalName: string;
+            franchisorCountry: string;
+        } | {
+            role: "franchisor";
+            brandName: string;
+            franchisedLocations: number;
+        } | undefined;
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2535,6 +2777,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[] | undefined;
         entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
+        businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+        accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
         accommodationClassOther?: string | undefined;
         upi?: string | undefined;
         tourismLicenseNumber?: string | undefined;
@@ -2614,7 +2858,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         }>;
         certificates: z.ZodDefault<z.ZodArray<z.ZodObject<{
-            kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+            kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
             /** Required when `kind` is `other`; the database carries the same rule. */
             kindOther: z.ZodOptional<z.ZodString>;
             /** Key of an already-uploaded `stored_objects` row (F-S09). */
@@ -2624,7 +2868,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn: z.ZodOptional<z.ZodString>;
             expiresOn: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2632,7 +2876,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }, {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2657,7 +2901,10 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
          */
         psfApplication: z.ZodOptional<z.ZodNever>;
         psfMembershipNumber: z.ZodOptional<z.ZodNever>;
+        /** Refused, not stripped, for the same reason: a franchise is a hospitality business's brand (ADR-075 O-7). */
+        franchise: z.ZodOptional<z.ZodNever>;
     }, "strip", z.ZodTypeAny, {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -2669,7 +2916,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2677,13 +2924,14 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
+        franchise?: undefined;
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
     }, {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -2694,11 +2942,11 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
+        franchise?: undefined;
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2710,6 +2958,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
     }>]>, {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -2721,7 +2970,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2729,9 +2978,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "hospitality";
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
         chamberOfTourismMember: boolean;
         psfMember: boolean;
@@ -2747,6 +2994,18 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 street?: string | undefined;
             };
         }[];
+        franchise?: {
+            role: "franchisee";
+            brandName: string;
+            franchisorLegalName: string;
+            franchisorCountry: string;
+        } | {
+            role: "franchisor";
+            brandName: string;
+            franchisedLocations: number;
+        } | undefined;
+        businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+        accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
         accommodationClassOther?: string | undefined;
         upi?: string | undefined;
         tourismLicenseNumber?: string | undefined;
@@ -2782,6 +3041,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         } | undefined;
         eacStarGrade?: number | undefined;
     } | {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -2793,7 +3053,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2801,13 +3061,14 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
+        franchise?: undefined;
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
     }, {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -2818,11 +3079,19 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "hospitality";
-        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
+        franchise?: {
+            role: "franchisee";
+            brandName: string;
+            franchisorLegalName: string;
+            franchisorCountry: string;
+        } | {
+            role: "franchisor";
+            brandName: string;
+            franchisedLocations: number;
+        } | undefined;
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2831,6 +3100,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[] | undefined;
         entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
+        businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+        accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
         accommodationClassOther?: string | undefined;
         upi?: string | undefined;
         tourismLicenseNumber?: string | undefined;
@@ -2880,6 +3151,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             };
         }[] | undefined;
     } | {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -2890,11 +3162,11 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
+        franchise?: undefined;
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2922,6 +3194,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     business: {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -2933,7 +3206,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -2941,9 +3214,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "hospitality";
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
         chamberOfTourismMember: boolean;
         psfMember: boolean;
@@ -2959,6 +3230,18 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 street?: string | undefined;
             };
         }[];
+        franchise?: {
+            role: "franchisee";
+            brandName: string;
+            franchisorLegalName: string;
+            franchisorCountry: string;
+        } | {
+            role: "franchisor";
+            brandName: string;
+            franchisedLocations: number;
+        } | undefined;
+        businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+        accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
         accommodationClassOther?: string | undefined;
         upi?: string | undefined;
         tourismLicenseNumber?: string | undefined;
@@ -2994,6 +3277,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         } | undefined;
         eacStarGrade?: number | undefined;
     } | {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -3005,7 +3289,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3013,15 +3297,15 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
+        franchise?: undefined;
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
     };
-    role: "broker" | "host" | "landlord";
     capacity: "owner" | "on_behalf_of";
+    role: "broker" | "host" | "landlord";
     personal?: {
         fullName: string;
         dateOfBirth: string;
@@ -3056,6 +3340,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     } | undefined;
 }, {
     business: {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -3066,11 +3351,19 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "hospitality";
-        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
+        franchise?: {
+            role: "franchisee";
+            brandName: string;
+            franchisorLegalName: string;
+            franchisorCountry: string;
+        } | {
+            role: "franchisor";
+            brandName: string;
+            franchisedLocations: number;
+        } | undefined;
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3079,6 +3372,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[] | undefined;
         entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
+        businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+        accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
         accommodationClassOther?: string | undefined;
         upi?: string | undefined;
         tourismLicenseNumber?: string | undefined;
@@ -3128,6 +3423,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             };
         }[] | undefined;
     } | {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -3138,11 +3434,11 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
+        franchise?: undefined;
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3190,6 +3486,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     } | undefined;
 }>, {
     business: {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -3201,7 +3498,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3209,9 +3506,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "hospitality";
         entityGroup: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism";
-        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
         chamberOfTourismMember: boolean;
         psfMember: boolean;
@@ -3227,6 +3522,18 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
                 street?: string | undefined;
             };
         }[];
+        franchise?: {
+            role: "franchisee";
+            brandName: string;
+            franchisorLegalName: string;
+            franchisorCountry: string;
+        } | {
+            role: "franchisor";
+            brandName: string;
+            franchisedLocations: number;
+        } | undefined;
+        businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+        accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
         accommodationClassOther?: string | undefined;
         upi?: string | undefined;
         tourismLicenseNumber?: string | undefined;
@@ -3262,6 +3569,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         } | undefined;
         eacStarGrade?: number | undefined;
     } | {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -3273,7 +3581,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
         };
         legalName: string;
         certificates: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3281,15 +3589,15 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             issuedOn?: string | undefined;
             expiresOn?: string | undefined;
         }[];
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
+        franchise?: undefined;
         psfMembershipNumber?: undefined;
         psfApplication?: undefined;
         branches?: unknown[] | undefined;
     };
-    role: "broker" | "host" | "landlord";
     capacity: "owner" | "on_behalf_of";
+    role: "broker" | "host" | "landlord";
     personal?: {
         fullName: string;
         dateOfBirth: string;
@@ -3324,6 +3632,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
     } | undefined;
 }, {
     business: {
+        domain: "hospitality";
         address: {
             country: "RW";
             provinceId: number;
@@ -3334,11 +3643,19 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "hospitality";
-        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa";
         tin: string;
+        franchise?: {
+            role: "franchisee";
+            brandName: string;
+            franchisorLegalName: string;
+            franchisorCountry: string;
+        } | {
+            role: "franchisor";
+            brandName: string;
+            franchisedLocations: number;
+        } | undefined;
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3347,6 +3664,8 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             expiresOn?: string | undefined;
         }[] | undefined;
         entityGroup?: "accommodation" | "restaurant_bar_nightclub" | "travel_services" | "tourism_information_center" | "cultural_tourism" | undefined;
+        businessKind?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop" | undefined;
+        accommodationClass?: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | undefined;
         accommodationClassOther?: string | undefined;
         upi?: string | undefined;
         tourismLicenseNumber?: string | undefined;
@@ -3396,6 +3715,7 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             };
         }[] | undefined;
     } | {
+        domain: "residence";
         address: {
             country: "RW";
             provinceId: number;
@@ -3406,11 +3726,11 @@ export declare const CreateRegistrationRequest: z.ZodEffects<z.ZodObject<{
             street?: string | undefined;
         };
         legalName: string;
-        domain: "residence";
         upi: string;
         residenceClass: "residential_landlord" | "residential_property_manager";
+        franchise?: undefined;
         certificates?: {
-            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+            kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
             objectKey: string;
             kindOther?: string | undefined;
             certificateNumber?: string | undefined;
@@ -3485,7 +3805,7 @@ export type RegistrationReviewDecision = z.infer<typeof RegistrationReviewDecisi
 export declare const RegistrationReview: z.ZodObject<{
     stage: z.ZodEnum<["tin_verified", "field_verified"]>;
     decision: z.ZodEnum<["passed", "rejected"]>;
-    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer"]>;
+    oversightRole: z.ZodEnum<["tax_compliance_officer", "business_field_verifier", "business_approver", "psf_membership_officer", "village_leader", "dasso", "cell_executive", "district_officer", "district_immigration", "sector_executive", "dgie_province", "dgie_national", "dgie_village", "dgie_cell"]>;
     /** The body and title AS OF the decision, never re-resolved (F-S03 §9). */
     governmentBodyCode: z.ZodString;
     governmentTitle: z.ZodNullable<z.ZodString>;
@@ -3495,7 +3815,7 @@ export declare const RegistrationReview: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     stage: "tin_verified" | "field_verified";
     decision: "rejected" | "passed";
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
     governmentBodyCode: string;
     governmentTitle: string | null;
     reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
@@ -3504,7 +3824,7 @@ export declare const RegistrationReview: z.ZodObject<{
 }, {
     stage: "tin_verified" | "field_verified";
     decision: "rejected" | "passed";
-    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer";
+    oversightRole: "tax_compliance_officer" | "business_field_verifier" | "business_approver" | "psf_membership_officer" | "village_leader" | "dasso" | "cell_executive" | "district_officer" | "district_immigration" | "sector_executive" | "dgie_province" | "dgie_national" | "dgie_village" | "dgie_cell";
     governmentBodyCode: string;
     governmentTitle: string | null;
     reasonCode: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
@@ -3548,7 +3868,7 @@ export type RejectRegistrationRequest = z.infer<typeof RejectRegistrationRequest
  */
 export declare const OversightDocument: z.ZodObject<{
     id: z.ZodString;
-    kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+    kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
     /** Set only when `kind` is `other`; the database carries the same rule. */
     kindOther: z.ZodNullable<z.ZodString>;
     certificateNumber: z.ZodNullable<z.ZodString>;
@@ -3564,28 +3884,28 @@ export declare const OversightDocument: z.ZodObject<{
     checkedAt: z.ZodNullable<z.ZodString>;
     checkedByName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+    expired: boolean;
+    id: string;
+    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
     kindOther: string | null;
     certificateNumber: string | null;
     issuedBy: string | null;
     issuedOn: string | null;
     expiresOn: string | null;
-    id: string;
-    expired: boolean;
     mime: string | null;
     sizeBytes: number | null;
     url: string | null;
     checkedAt: string | null;
     checkedByName: string | null;
 }, {
-    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+    expired: boolean;
+    id: string;
+    kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
     kindOther: string | null;
     certificateNumber: string | null;
     issuedBy: string | null;
     issuedOn: string | null;
     expiresOn: string | null;
-    id: string;
-    expired: boolean;
     mime: string | null;
     sizeBytes: number | null;
     url: string | null;
@@ -3605,7 +3925,7 @@ export declare const OversightDocumentList: z.ZodObject<{
     status: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
     documents: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
-        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title"]>;
+        kind: z.ZodEnum<["rdb_grade", "tourism_license", "tax_clearance", "fire_safety", "health_inspection", "other", "rdb_certificate", "psf_certificate", "land_title", "franchise_agreement"]>;
         /** Set only when `kind` is `other`; the database carries the same rule. */
         kindOther: z.ZodNullable<z.ZodString>;
         certificateNumber: z.ZodNullable<z.ZodString>;
@@ -3621,28 +3941,28 @@ export declare const OversightDocumentList: z.ZodObject<{
         checkedAt: z.ZodNullable<z.ZodString>;
         checkedByName: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        expired: boolean;
+        id: string;
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         kindOther: string | null;
         certificateNumber: string | null;
         issuedBy: string | null;
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
-        expired: boolean;
         mime: string | null;
         sizeBytes: number | null;
         url: string | null;
         checkedAt: string | null;
         checkedByName: string | null;
     }, {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        expired: boolean;
+        id: string;
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         kindOther: string | null;
         certificateNumber: string | null;
         issuedBy: string | null;
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
-        expired: boolean;
         mime: string | null;
         sizeBytes: number | null;
         url: string | null;
@@ -3654,14 +3974,14 @@ export declare const OversightDocumentList: z.ZodObject<{
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     legalName: string;
     documents: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        expired: boolean;
+        id: string;
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         kindOther: string | null;
         certificateNumber: string | null;
         issuedBy: string | null;
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
-        expired: boolean;
         mime: string | null;
         sizeBytes: number | null;
         url: string | null;
@@ -3674,14 +3994,14 @@ export declare const OversightDocumentList: z.ZodObject<{
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
     legalName: string;
     documents: {
-        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title";
+        expired: boolean;
+        id: string;
+        kind: "other" | "rdb_grade" | "tourism_license" | "tax_clearance" | "fire_safety" | "health_inspection" | "rdb_certificate" | "psf_certificate" | "land_title" | "franchise_agreement";
         kindOther: string | null;
         certificateNumber: string | null;
         issuedBy: string | null;
         issuedOn: string | null;
         expiresOn: string | null;
-        id: string;
-        expired: boolean;
         mime: string | null;
         sizeBytes: number | null;
         url: string | null;
@@ -3795,6 +4115,8 @@ export declare const OversightQueueItem: z.ZodObject<{
     intendedOwnerName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+    domain: "hospitality" | "residence";
+    districtName: string | null;
     districtId: number | null;
     addressText: string | null;
     legalName: string;
@@ -3803,7 +4125,6 @@ export declare const OversightQueueItem: z.ZodObject<{
         kindOther: string | null;
         certificateNumber: string | null;
     }[];
-    domain: "hospitality" | "residence";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     tin: string | null;
     upi: string | null;
@@ -3814,7 +4135,6 @@ export declare const OversightQueueItem: z.ZodObject<{
         isHeadOffice: boolean;
     }[];
     orgId: string;
-    districtName: string | null;
     sectorName: string | null;
     waitingSince: string;
     blockedBySeparationOfDuties: boolean;
@@ -3830,6 +4150,8 @@ export declare const OversightQueueItem: z.ZodObject<{
     intendedOwnerName: string | null;
 }, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+    domain: "hospitality" | "residence";
+    districtName: string | null;
     districtId: number | null;
     addressText: string | null;
     legalName: string;
@@ -3838,7 +4160,6 @@ export declare const OversightQueueItem: z.ZodObject<{
         kindOther: string | null;
         certificateNumber: string | null;
     }[];
-    domain: "hospitality" | "residence";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     tin: string | null;
     upi: string | null;
@@ -3849,7 +4170,6 @@ export declare const OversightQueueItem: z.ZodObject<{
         isHeadOffice: boolean;
     }[];
     orgId: string;
-    districtName: string | null;
     sectorName: string | null;
     waitingSince: string;
     blockedBySeparationOfDuties: boolean;
@@ -3993,6 +4313,8 @@ export declare const RegistrationSummary: z.ZodObject<{
     workspaceId: z.ZodString;
     legalName: z.ZodString;
     domain: z.ZodEnum<["hospitality", "residence"]>;
+    /** What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say. */
+    businessKind: z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop", "residence", "broker"]>;
     accommodationClass: z.ZodNullable<z.ZodUnion<[z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>, z.ZodEnum<["town_hotel", "vacation_hotel_resort", "serviced_apartment", "cottage"]>]>>;
     status: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
     /** Set only while `status` is `pending_payment`. */
@@ -4005,11 +4327,9 @@ export declare const RegistrationSummary: z.ZodObject<{
     rejectionNotes: z.ZodNullable<z.ZodString>;
     submittedAt: z.ZodNullable<z.ZodString>;
     /**
-     * The operator contract this business accepted, and when (ADR-053, AC-R8).
-     *
-     * Read from the server so a registrant who comes back to the wizard resumes
-     * at the right step, never from the browser. Both null until accepted, and
-     * both stay null for a business that paid before acceptance was recorded.
+     * The operator contract a business accepted before paying, and when (ADR-053, AC-R8), kept readable for the
+     * businesses that did. ADR-075 removed that step: a registration made since carries neither, and its
+     * agreement is signed after approval (A3).
      */
     contractVersion: z.ZodNullable<z.ZodString>;
     contractAcceptedAt: z.ZodNullable<z.ZodString>;
@@ -4020,8 +4340,9 @@ export declare const RegistrationSummary: z.ZodObject<{
     payoutLocked: z.ZodNullable<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    legalName: string;
     domain: "hospitality" | "residence";
+    legalName: string;
+    businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     orgId: string;
     workspaceId: string;
@@ -4035,8 +4356,9 @@ export declare const RegistrationSummary: z.ZodObject<{
     payoutLocked: boolean | null;
 }, {
     status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
-    legalName: string;
     domain: "hospitality" | "residence";
+    legalName: string;
+    businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
     accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
     orgId: string;
     workspaceId: string;
@@ -4059,186 +4381,10 @@ export type RegistrationSummary = z.infer<typeof RegistrationSummary>;
  */
 export declare const OPERATOR_CONTRACT_VERSION = "2026-09-12";
 /**
- * `POST /api/v1/registrations/:id/contract`. The version the page rendered.
- *
- * The server refuses anything but `OPERATOR_CONTRACT_VERSION` and stores the
- * constant, never this value, so a stale tab cannot bind anyone to old terms.
+ * Why a registrant action was refused, sent as `code` on the error body so a page can word the refusal without
+ * matching on English. The contract codes went with the contract before payment (ADR-075, AC-12).
  */
-export declare const AcceptContractRequest: z.ZodObject<{
-    contractVersion: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    contractVersion: string;
-}, {
-    contractVersion: string;
-}>;
-export type AcceptContractRequest = z.infer<typeof AcceptContractRequest>;
-export declare const REGISTRATION_DRAFT_PHASES: readonly ["place", "about", "business", "documents"];
-export declare const RegistrationDraft: z.ZodEffects<z.ZodObject<{
-    v: z.ZodLiteral<1>;
-    phase: z.ZodEnum<["place", "about", "business", "documents"]>;
-    kind: z.ZodNullable<z.ZodString>;
-    capacity: z.ZodEnum<["owner", "on_behalf_of"]>;
-    /** False when the stored profile answered About you. */
-    typedPersonal: z.ZodBoolean;
-    personal: z.ZodObject<{
-        firstName: z.ZodString;
-        middleName: z.ZodString;
-        lastName: z.ZodString;
-        documentType: z.ZodEnum<["national_id", "passport"]>;
-        issuingCountry: z.ZodString;
-        gender: z.ZodString;
-        dateOfBirth: z.ZodString;
-        phoneE164: z.ZodString;
-        address: z.ZodRecord<z.ZodString, z.ZodString>;
-    }, "strict", z.ZodTypeAny, {
-        documentType: "national_id" | "passport";
-        issuingCountry: string;
-        gender: string;
-        dateOfBirth: string;
-        phoneE164: string;
-        address: Record<string, string>;
-        firstName: string;
-        lastName: string;
-        middleName: string;
-    }, {
-        documentType: "national_id" | "passport";
-        issuingCountry: string;
-        gender: string;
-        dateOfBirth: string;
-        phoneE164: string;
-        address: Record<string, string>;
-        firstName: string;
-        lastName: string;
-        middleName: string;
-    }>;
-    intendedOwner: z.ZodObject<{
-        name: z.ZodString;
-        email: z.ZodString;
-    }, "strict", z.ZodTypeAny, {
-        name: string;
-        email: string;
-    }, {
-        name: string;
-        email: string;
-    }>;
-    business: z.ZodRecord<z.ZodString, z.ZodUnion<[z.ZodString, z.ZodBoolean, z.ZodNull, z.ZodRecord<z.ZodString, z.ZodString>]>>;
-    branches: z.ZodArray<z.ZodObject<{
-        name: z.ZodString;
-        address: z.ZodRecord<z.ZodString, z.ZodString>;
-    }, "strict", z.ZodTypeAny, {
-        name: string;
-        address: Record<string, string>;
-    }, {
-        name: string;
-        address: Record<string, string>;
-    }>, "many">;
-}, "strict", z.ZodTypeAny, {
-    business: Record<string, string | boolean | Record<string, string> | null>;
-    personal: {
-        documentType: "national_id" | "passport";
-        issuingCountry: string;
-        gender: string;
-        dateOfBirth: string;
-        phoneE164: string;
-        address: Record<string, string>;
-        firstName: string;
-        lastName: string;
-        middleName: string;
-    };
-    kind: string | null;
-    branches: {
-        name: string;
-        address: Record<string, string>;
-    }[];
-    capacity: "owner" | "on_behalf_of";
-    intendedOwner: {
-        name: string;
-        email: string;
-    };
-    v: 1;
-    phase: "business" | "documents" | "place" | "about";
-    typedPersonal: boolean;
-}, {
-    business: Record<string, string | boolean | Record<string, string> | null>;
-    personal: {
-        documentType: "national_id" | "passport";
-        issuingCountry: string;
-        gender: string;
-        dateOfBirth: string;
-        phoneE164: string;
-        address: Record<string, string>;
-        firstName: string;
-        lastName: string;
-        middleName: string;
-    };
-    kind: string | null;
-    branches: {
-        name: string;
-        address: Record<string, string>;
-    }[];
-    capacity: "owner" | "on_behalf_of";
-    intendedOwner: {
-        name: string;
-        email: string;
-    };
-    v: 1;
-    phase: "business" | "documents" | "place" | "about";
-    typedPersonal: boolean;
-}>, {
-    business: Record<string, string | boolean | Record<string, string> | null>;
-    personal: {
-        documentType: "national_id" | "passport";
-        issuingCountry: string;
-        gender: string;
-        dateOfBirth: string;
-        phoneE164: string;
-        address: Record<string, string>;
-        firstName: string;
-        lastName: string;
-        middleName: string;
-    };
-    kind: string | null;
-    branches: {
-        name: string;
-        address: Record<string, string>;
-    }[];
-    capacity: "owner" | "on_behalf_of";
-    intendedOwner: {
-        name: string;
-        email: string;
-    };
-    v: 1;
-    phase: "business" | "documents" | "place" | "about";
-    typedPersonal: boolean;
-}, {
-    business: Record<string, string | boolean | Record<string, string> | null>;
-    personal: {
-        documentType: "national_id" | "passport";
-        issuingCountry: string;
-        gender: string;
-        dateOfBirth: string;
-        phoneE164: string;
-        address: Record<string, string>;
-        firstName: string;
-        lastName: string;
-        middleName: string;
-    };
-    kind: string | null;
-    branches: {
-        name: string;
-        address: Record<string, string>;
-    }[];
-    capacity: "owner" | "on_behalf_of";
-    intendedOwner: {
-        name: string;
-        email: string;
-    };
-    v: 1;
-    phase: "business" | "documents" | "place" | "about";
-    typedPersonal: boolean;
-}>;
-export type RegistrationDraft = z.infer<typeof RegistrationDraft>;
-export declare const RegistrationConflictCode: z.ZodEnum<["identity_not_verified", "contract_not_accepted", "contract_not_open", "contract_version_stale"]>;
+export declare const RegistrationConflictCode: z.ZodEnum<["identity_not_verified"]>;
 export type RegistrationConflictCode = z.infer<typeof RegistrationConflictCode>;
 /**
  * `POST /api/v1/registrations/tin-check`. Asked at the Business step, before
@@ -4247,10 +4393,19 @@ export type RegistrationConflictCode = z.infer<typeof RegistrationConflictCode>;
  */
 export declare const TinCheckRequest: z.ZodObject<{
     tin: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
+    /**
+     * Who is asking (ADR-075 AC-7). The directors' NAMES come back only for the
+     * helper ("For the owner"), who picks the owner from them. On the owner path
+     * they do not: the name matched there may be typed, and showing the names
+     * first would let anyone type one. The owner learns only listed or not.
+     */
+    capacity: z.ZodOptional<z.ZodEnum<["owner", "on_behalf_of"]>>;
 }, "strip", z.ZodTypeAny, {
     tin: string;
+    capacity?: "owner" | "on_behalf_of" | undefined;
 }, {
     tin: string;
+    capacity?: "owner" | "on_behalf_of" | undefined;
 }>;
 export type TinCheckRequest = z.infer<typeof TinCheckRequest>;
 /**
@@ -4279,6 +4434,7 @@ export declare const RegistryBusiness: z.ZodObject<{
         sectorId: number;
         street: string | null;
     }>>;
+    /** Empty unless the request named the helper capacity (ADR-075 AC-7). */
     directors: z.ZodArray<z.ZodObject<{
         name: z.ZodString;
     }, "strip", z.ZodTypeAny, {
@@ -4356,6 +4512,7 @@ export declare const TinCheckResult: z.ZodObject<{
             sectorId: number;
             street: string | null;
         }>>;
+        /** Empty unless the request named the helper capacity (ADR-075 AC-7). */
         directors: z.ZodArray<z.ZodObject<{
             name: z.ZodString;
         }, "strip", z.ZodTypeAny, {
@@ -4395,9 +4552,10 @@ export declare const TinCheckResult: z.ZodObject<{
         generated: boolean;
     }>>;
     /**
-     * Whether the caller's own verified document is among the directors. Null
-     * when the register lists no directors, or the caller holds no document to
-     * compare. `false` is what moves a registrant to the on behalf path.
+     * Whether the caller's own document, scanned or typed, is among the
+     * directors. Null when the register lists no directors, or the caller holds
+     * no document yet. `false` is what moves a registrant to the on behalf
+     * path. The wizard's answer is never the record: create matches again.
      */
     registrantIsDirector: z.ZodNullable<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
@@ -4468,15 +4626,15 @@ export declare const ClaimPreview: z.ZodObject<{
     registrationStatus: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
     registrantName: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    districtName: string | null;
     legalName: string;
     orgId: string;
-    districtName: string | null;
     registrantName: string | null;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
 }, {
+    districtName: string | null;
     legalName: string;
     orgId: string;
-    districtName: string | null;
     registrantName: string | null;
     registrationStatus: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
 }>;
@@ -4487,15 +4645,485 @@ export declare const RegistrationFeeQuote: z.ZodObject<{
     amountRwf: z.ZodNumber;
     currency: z.ZodLiteral<"RWF">;
 }, "strip", z.ZodTypeAny, {
-    businessType: "hospitality" | "residence" | "broker";
     amountRwf: number;
+    businessType: "hospitality" | "residence" | "broker";
     currency: "RWF";
 }, {
-    businessType: "hospitality" | "residence" | "broker";
     amountRwf: number;
+    businessType: "hospitality" | "residence" | "broker";
     currency: "RWF";
 }>;
 export type RegistrationFeeQuote = z.infer<typeof RegistrationFeeQuote>;
+/**
+ * One press of pay. Both fields are optional because the fee settles free
+ * while payments are off (call 9), and then there is nothing to prompt; when
+ * money is taken, the server refuses a body missing either with a 422.
+ */
+export declare const RegistrationPayRequest: z.ZodObject<{
+    /** Minted once per press and reused on every retry of that press. */
+    attemptToken: z.ZodOptional<z.ZodString>;
+    /** The registrant's mobile money number. A card is refused. */
+    instrument: z.ZodOptional<z.ZodDiscriminatedUnion<"kind", [z.ZodObject<{
+        kind: z.ZodLiteral<"mobile_money">;
+        network: z.ZodEnum<["mtn_momo", "airtel_money"]>;
+        msisdn: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        network: "mtn_momo" | "airtel_money";
+        kind: "mobile_money";
+        msisdn: string;
+    }, {
+        network: "mtn_momo" | "airtel_money";
+        kind: "mobile_money";
+        msisdn: string;
+    }>, z.ZodObject<{
+        kind: z.ZodLiteral<"card">;
+        token: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
+        kind: "card";
+        token: string;
+    }, {
+        kind: "card";
+        token: string;
+    }>]>>;
+}, "strip", z.ZodTypeAny, {
+    attemptToken?: string | undefined;
+    instrument?: {
+        network: "mtn_momo" | "airtel_money";
+        kind: "mobile_money";
+        msisdn: string;
+    } | {
+        kind: "card";
+        token: string;
+    } | undefined;
+}, {
+    attemptToken?: string | undefined;
+    instrument?: {
+        network: "mtn_momo" | "airtel_money";
+        kind: "mobile_money";
+        msisdn: string;
+    } | {
+        kind: "card";
+        token: string;
+    } | undefined;
+}>;
+export type RegistrationPayRequest = z.infer<typeof RegistrationPayRequest>;
+/** A fee payment waiting on the registrant's handset, as the wizard watches it. */
+export declare const RegistrationFeeAttemptStatus: z.ZodObject<{
+    attemptToken: z.ZodString;
+    state: z.ZodEnum<["prompting", "confirmed", "refused", "expired"]>;
+    network: z.ZodNullable<z.ZodEnum<["mtn_momo", "airtel_money"]>>;
+    /** Masked: enough to recognise, never enough to charge. */
+    payerMasked: z.ZodNullable<z.ZodString>;
+    amountRwf: z.ZodNullable<z.ZodNumber>;
+    expiresAt: z.ZodString;
+    failureReason: z.ZodNullable<z.ZodString>;
+    /** The registration as it stands now: `submitted` once the fee settled. */
+    registration: z.ZodObject<{
+        orgId: z.ZodString;
+        workspaceId: z.ZodString;
+        legalName: z.ZodString;
+        domain: z.ZodEnum<["hospitality", "residence"]>;
+        /** What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say. */
+        businessKind: z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop", "residence", "broker"]>;
+        accommodationClass: z.ZodNullable<z.ZodUnion<[z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>, z.ZodEnum<["town_hotel", "vacation_hotel_resort", "serviced_apartment", "cottage"]>]>>;
+        status: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
+        /** Set only while `status` is `pending_payment`. */
+        amountDueRwf: z.ZodNullable<z.ZodNumber>;
+        /** The invoice to settle, when one is outstanding. */
+        invoiceId: z.ZodNullable<z.ZodString>;
+        /** Reason code from the rejecting stage, when `status` is `rejected`. */
+        rejectionReason: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
+        /** The reviewing officer's own words, when they left any. */
+        rejectionNotes: z.ZodNullable<z.ZodString>;
+        submittedAt: z.ZodNullable<z.ZodString>;
+        /**
+         * The operator contract a business accepted before paying, and when (ADR-053, AC-R8), kept readable for the
+         * businesses that did. ADR-075 removed that step: a registration made since carries neither, and its
+         * agreement is signed after approval (A3).
+         */
+        contractVersion: z.ZodNullable<z.ZodString>;
+        contractAcceptedAt: z.ZodNullable<z.ZodString>;
+        /**
+         * Whether payouts wait on the owner's identity being verified (ADR-053,
+         * AC-R1). Null for a business nobody registered on behalf of anyone else.
+         */
+        payoutLocked: z.ZodNullable<z.ZodBoolean>;
+    }, "strip", z.ZodTypeAny, {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    }, {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    network: "mtn_momo" | "airtel_money" | null;
+    attemptToken: string;
+    state: "confirmed" | "expired" | "prompting" | "refused";
+    payerMasked: string | null;
+    amountRwf: number | null;
+    expiresAt: string;
+    failureReason: string | null;
+    registration: {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    };
+}, {
+    network: "mtn_momo" | "airtel_money" | null;
+    attemptToken: string;
+    state: "confirmed" | "expired" | "prompting" | "refused";
+    payerMasked: string | null;
+    amountRwf: number | null;
+    expiresAt: string;
+    failureReason: string | null;
+    registration: {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    };
+}>;
+export type RegistrationFeeAttemptStatus = z.infer<typeof RegistrationFeeAttemptStatus>;
+/**
+ * What the pay press answers: settled at once (the free path, or an
+ * instrument that settled inside the call), or an attempt to wait on.
+ */
+export declare const RegistrationPayResult: z.ZodDiscriminatedUnion<"kind", [z.ZodObject<{
+    kind: z.ZodLiteral<"settled">;
+    registration: z.ZodObject<{
+        orgId: z.ZodString;
+        workspaceId: z.ZodString;
+        legalName: z.ZodString;
+        domain: z.ZodEnum<["hospitality", "residence"]>;
+        /** What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say. */
+        businessKind: z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop", "residence", "broker"]>;
+        accommodationClass: z.ZodNullable<z.ZodUnion<[z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>, z.ZodEnum<["town_hotel", "vacation_hotel_resort", "serviced_apartment", "cottage"]>]>>;
+        status: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
+        /** Set only while `status` is `pending_payment`. */
+        amountDueRwf: z.ZodNullable<z.ZodNumber>;
+        /** The invoice to settle, when one is outstanding. */
+        invoiceId: z.ZodNullable<z.ZodString>;
+        /** Reason code from the rejecting stage, when `status` is `rejected`. */
+        rejectionReason: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
+        /** The reviewing officer's own words, when they left any. */
+        rejectionNotes: z.ZodNullable<z.ZodString>;
+        submittedAt: z.ZodNullable<z.ZodString>;
+        /**
+         * The operator contract a business accepted before paying, and when (ADR-053, AC-R8), kept readable for the
+         * businesses that did. ADR-075 removed that step: a registration made since carries neither, and its
+         * agreement is signed after approval (A3).
+         */
+        contractVersion: z.ZodNullable<z.ZodString>;
+        contractAcceptedAt: z.ZodNullable<z.ZodString>;
+        /**
+         * Whether payouts wait on the owner's identity being verified (ADR-053,
+         * AC-R1). Null for a business nobody registered on behalf of anyone else.
+         */
+        payoutLocked: z.ZodNullable<z.ZodBoolean>;
+    }, "strip", z.ZodTypeAny, {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    }, {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    kind: "settled";
+    registration: {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    };
+}, {
+    kind: "settled";
+    registration: {
+        status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+        domain: "hospitality" | "residence";
+        legalName: string;
+        businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+        accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+        orgId: string;
+        workspaceId: string;
+        amountDueRwf: number | null;
+        invoiceId: string | null;
+        rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+        rejectionNotes: string | null;
+        submittedAt: string | null;
+        contractVersion: string | null;
+        contractAcceptedAt: string | null;
+        payoutLocked: boolean | null;
+    };
+}>, z.ZodObject<{
+    kind: z.ZodLiteral<"attempt">;
+    attempt: z.ZodObject<{
+        attemptToken: z.ZodString;
+        state: z.ZodEnum<["prompting", "confirmed", "refused", "expired"]>;
+        network: z.ZodNullable<z.ZodEnum<["mtn_momo", "airtel_money"]>>;
+        /** Masked: enough to recognise, never enough to charge. */
+        payerMasked: z.ZodNullable<z.ZodString>;
+        amountRwf: z.ZodNullable<z.ZodNumber>;
+        expiresAt: z.ZodString;
+        failureReason: z.ZodNullable<z.ZodString>;
+        /** The registration as it stands now: `submitted` once the fee settled. */
+        registration: z.ZodObject<{
+            orgId: z.ZodString;
+            workspaceId: z.ZodString;
+            legalName: z.ZodString;
+            domain: z.ZodEnum<["hospitality", "residence"]>;
+            /** What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say. */
+            businessKind: z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other", "bar_restaurant", "coffee_shop", "residence", "broker"]>;
+            accommodationClass: z.ZodNullable<z.ZodUnion<[z.ZodEnum<["hotel", "motel", "tented_camp", "guest_house", "apartment", "lodge", "villa", "other"]>, z.ZodEnum<["town_hotel", "vacation_hotel_resort", "serviced_apartment", "cottage"]>]>>;
+            status: z.ZodEnum<["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "active", "rejected", "suspended"]>;
+            /** Set only while `status` is `pending_payment`. */
+            amountDueRwf: z.ZodNullable<z.ZodNumber>;
+            /** The invoice to settle, when one is outstanding. */
+            invoiceId: z.ZodNullable<z.ZodString>;
+            /** Reason code from the rejecting stage, when `status` is `rejected`. */
+            rejectionReason: z.ZodNullable<z.ZodEnum<["tin_not_found", "tin_mismatch", "premises_not_found", "documents_invalid", "documents_expired", "not_operating", "ownership_unclear", "duplicate_business", "other"]>>;
+            /** The reviewing officer's own words, when they left any. */
+            rejectionNotes: z.ZodNullable<z.ZodString>;
+            submittedAt: z.ZodNullable<z.ZodString>;
+            /**
+             * The operator contract a business accepted before paying, and when (ADR-053, AC-R8), kept readable for the
+             * businesses that did. ADR-075 removed that step: a registration made since carries neither, and its
+             * agreement is signed after approval (A3).
+             */
+            contractVersion: z.ZodNullable<z.ZodString>;
+            contractAcceptedAt: z.ZodNullable<z.ZodString>;
+            /**
+             * Whether payouts wait on the owner's identity being verified (ADR-053,
+             * AC-R1). Null for a business nobody registered on behalf of anyone else.
+             */
+            payoutLocked: z.ZodNullable<z.ZodBoolean>;
+        }, "strip", z.ZodTypeAny, {
+            status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+            domain: "hospitality" | "residence";
+            legalName: string;
+            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+            accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+            orgId: string;
+            workspaceId: string;
+            amountDueRwf: number | null;
+            invoiceId: string | null;
+            rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+            rejectionNotes: string | null;
+            submittedAt: string | null;
+            contractVersion: string | null;
+            contractAcceptedAt: string | null;
+            payoutLocked: boolean | null;
+        }, {
+            status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+            domain: "hospitality" | "residence";
+            legalName: string;
+            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+            accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+            orgId: string;
+            workspaceId: string;
+            amountDueRwf: number | null;
+            invoiceId: string | null;
+            rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+            rejectionNotes: string | null;
+            submittedAt: string | null;
+            contractVersion: string | null;
+            contractAcceptedAt: string | null;
+            payoutLocked: boolean | null;
+        }>;
+    }, "strip", z.ZodTypeAny, {
+        network: "mtn_momo" | "airtel_money" | null;
+        attemptToken: string;
+        state: "confirmed" | "expired" | "prompting" | "refused";
+        payerMasked: string | null;
+        amountRwf: number | null;
+        expiresAt: string;
+        failureReason: string | null;
+        registration: {
+            status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+            domain: "hospitality" | "residence";
+            legalName: string;
+            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+            accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+            orgId: string;
+            workspaceId: string;
+            amountDueRwf: number | null;
+            invoiceId: string | null;
+            rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+            rejectionNotes: string | null;
+            submittedAt: string | null;
+            contractVersion: string | null;
+            contractAcceptedAt: string | null;
+            payoutLocked: boolean | null;
+        };
+    }, {
+        network: "mtn_momo" | "airtel_money" | null;
+        attemptToken: string;
+        state: "confirmed" | "expired" | "prompting" | "refused";
+        payerMasked: string | null;
+        amountRwf: number | null;
+        expiresAt: string;
+        failureReason: string | null;
+        registration: {
+            status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+            domain: "hospitality" | "residence";
+            legalName: string;
+            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+            accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+            orgId: string;
+            workspaceId: string;
+            amountDueRwf: number | null;
+            invoiceId: string | null;
+            rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+            rejectionNotes: string | null;
+            submittedAt: string | null;
+            contractVersion: string | null;
+            contractAcceptedAt: string | null;
+            payoutLocked: boolean | null;
+        };
+    }>;
+}, "strip", z.ZodTypeAny, {
+    kind: "attempt";
+    attempt: {
+        network: "mtn_momo" | "airtel_money" | null;
+        attemptToken: string;
+        state: "confirmed" | "expired" | "prompting" | "refused";
+        payerMasked: string | null;
+        amountRwf: number | null;
+        expiresAt: string;
+        failureReason: string | null;
+        registration: {
+            status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+            domain: "hospitality" | "residence";
+            legalName: string;
+            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+            accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+            orgId: string;
+            workspaceId: string;
+            amountDueRwf: number | null;
+            invoiceId: string | null;
+            rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+            rejectionNotes: string | null;
+            submittedAt: string | null;
+            contractVersion: string | null;
+            contractAcceptedAt: string | null;
+            payoutLocked: boolean | null;
+        };
+    };
+}, {
+    kind: "attempt";
+    attempt: {
+        network: "mtn_momo" | "airtel_money" | null;
+        attemptToken: string;
+        state: "confirmed" | "expired" | "prompting" | "refused";
+        payerMasked: string | null;
+        amountRwf: number | null;
+        expiresAt: string;
+        failureReason: string | null;
+        registration: {
+            status: "pending_payment" | "submitted" | "tin_verified" | "field_verified" | "approved" | "active" | "rejected" | "suspended";
+            domain: "hospitality" | "residence";
+            legalName: string;
+            businessKind: "residence" | "broker" | "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "bar_restaurant" | "coffee_shop";
+            accommodationClass: "other" | "hotel" | "motel" | "tented_camp" | "guest_house" | "apartment" | "lodge" | "villa" | "town_hotel" | "vacation_hotel_resort" | "serviced_apartment" | "cottage" | null;
+            orgId: string;
+            workspaceId: string;
+            amountDueRwf: number | null;
+            invoiceId: string | null;
+            rejectionReason: "other" | "tin_not_found" | "tin_mismatch" | "premises_not_found" | "documents_invalid" | "documents_expired" | "not_operating" | "ownership_unclear" | "duplicate_business" | null;
+            rejectionNotes: string | null;
+            submittedAt: string | null;
+            contractVersion: string | null;
+            contractAcceptedAt: string | null;
+            payoutLocked: boolean | null;
+        };
+    };
+}>]>;
+export type RegistrationPayResult = z.infer<typeof RegistrationPayResult>;
 /**
  * What the wizard shows a registrant who already has an account (FL01 §1).
  *
@@ -4780,7 +5408,13 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
         } | undefined;
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     }>>;
+    /** The district the broker works in: the free plan shows the homes there (2026-10-25). */
+    homeDistrictId: z.ZodNumber;
+    /** The registration fee, paid first by mobile money (`POST /registrations/broker/fee`). */
+    feePaymentId: z.ZodString;
 }, "strip", z.ZodTypeAny, {
+    homeDistrictId: number;
+    feePaymentId: string;
     personal?: {
         fullName: string;
         dateOfBirth: string;
@@ -4809,6 +5443,8 @@ export declare const CreateBrokerRegistrationRequest: z.ZodObject<{
         gender?: "other" | "female" | "male" | "prefer_not_to_say" | undefined;
     } | undefined;
 }, {
+    homeDistrictId: number;
+    feePaymentId: string;
     personal?: {
         fullName: string;
         dateOfBirth: string;
@@ -4896,6 +5532,6 @@ export declare const UploadedObject: z.ZodObject<{
     filename: string;
 }>;
 export type UploadedObject = z.infer<typeof UploadedObject>;
-/** The six kinds `org_certificates.kind` accepts, in the order the form asks. */
+/** Every kind `org_certificates.kind` accepts, worded for a list of what was sent. */
 export declare const CERTIFICATE_KIND_LABEL: Readonly<Record<CertificateInput["kind"], string>>;
 //# sourceMappingURL=registration.d.ts.map

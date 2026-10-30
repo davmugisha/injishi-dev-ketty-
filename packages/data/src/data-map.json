@@ -857,7 +857,7 @@
     "crud": "R",
     "seed": "none",
     "scope": "org",
-    "deferred": "Membership scope is per branch (org_membership_branches, ADR-054): the tree's outlet rows (Isangano Terrace and Lake Bar) cannot be granted and Ikawa Corner is another merchant (outlet_parties). Live members' scopeIds use the branch codes isg/ish/kcr this tree already names; outlet-level scope needs an org_membership_outlets decision."
+    "deferred": "No screen reads it any more: the Team screen builds its scope picker from the live businesses and branches the person manages (sources/owner.ts teamScopes), keyed as members' scopes are. The fixture's outlet rows (Isangano Terrace and Lake Bar) cannot be granted because membership scope is per branch (org_membership_branches, ADR-054), and Ikawa Corner is another merchant; outlet-level scope needs an org_membership_outlets decision."
   },
   {
     "collection": "owner.teamRolesInvite",
@@ -1424,7 +1424,7 @@
     "area": "commercial",
     "class": "table",
     "target": "audit_events (subject_type property)",
-    "missing": "only branch archive writes property audit rows (listing-setup/infrastructure/branch-audit.ts); listing/rate edits write nothing; need subject types listing, rate_plan + GET /inventory/properties/:id/history",
+    "missing": "only branch archive writes property audit rows (platform/property/infrastructure/branch-audit.ts); listing/rate edits write nothing; need subject types listing, rate_plan + GET /inventory/properties/:id/history",
     "crud": "R",
     "seed": "demo",
     "scope": "property"
@@ -1772,12 +1772,13 @@
   {
     "collection": "operations.roomStatusHistory",
     "area": "operations",
-    "class": "static",
-    "target": "placeholder \"typical history\" keyed by status; delete once room_status_events exists",
+    "class": "derived",
+    "target": "room_status_events (the board's history: GET /ops/housekeeping/board .history), which operations.roomHistory already serves per room",
     "missing": "—",
     "crud": "R",
     "seed": "none",
-    "scope": "—"
+    "scope": "—",
+    "deferred": "Not product configuration: it is the prototype's sample \"typical history\" per room status, which the housekeeping board used to show as a real room's history when the room had none. No screen reads it any more: the board shows each room's own recorded changes (operations.roomHistory, live) and says plainly when there are none. Kept only until the fixture is deleted."
   },
   {
     "collection": "operations.cleaningTasks",
@@ -2011,12 +2012,11 @@
     "collection": "frontdesk.roomTypes",
     "area": "frontdesk",
     "class": "exists",
-    "target": "room_types + default rate_plans via GET /inventory/properties/:id/room-types; left/free DERIVED via GET /room-types/:roomTypeId/availability",
-    "missing": "bed text lives in beds tables with no route",
-    "crud": "R",
+    "target": "room_types + default rate_plans with freeTonight via GET /api/v1/ops/front-desk (FrontDeskBoard.roomTypes); the walk-in names the type's id and POST /ops/stays/walk-in opens the stay in a ready room of it",
+    "missing": "Bed text is null when a type has no bed rows; the prototype's slug ids (queen, dlv) are the type's uuid live. Quote holds are not built (frontdesk.walkInQuotes).",
+    "crud": "R (Walk-in → Check in: POST /ops/stays/walk-in [stay.checkin])",
     "seed": "demo",
-    "scope": "property",
-    "deferred": "Read with the walk-in quote, which keys room types by the prototype's slugs (queen, twin, dlv, family) and holds a room while the guest decides; quote holds (stay_quotes) are not built, so the type list stays with the quote. The live counts exist already (FrontDeskBoard.roomTypes[].freeTonight on GET /ops/front-desk)."
+    "scope": "property"
   },
   {
     "collection": "frontdesk.rooms",
@@ -2159,45 +2159,41 @@
     "collection": "stays.stays",
     "area": "stays",
     "class": "extend",
-    "target": "guest_stays via GET /ops/stays/:id",
-    "missing": "no human reference (ST-8812), adults, contracting company/payer, late checkout; freeNights/nextBooking DERIVED from room_assignments/bookings; extend stay has no route",
-    "crud": "R, U (extend, late checkout)",
+    "target": "guest_stays via GET /api/v1/ops/front-desk (stay reference, booking, folio); get by reference or id; list = the stay in view: the one /stays/[id] opens by reference or id, else the next guest due out (the stay Checkout opens on)",
+    "missing": "Booking parties (contracting company, billing letter), the business TIN on a desk read, guest profile ids and adults for a walk-in are not recorded; extend and late checkout have no route. freeNights/nextBooking are derived from the room's next hold.",
+    "crud": "R, U (Check out → POST /ops/stays/:id/checkout [stay.checkout, folio.close]; Resend claim code → POST /ops/stays/:id/claim-invite [stay.checkin])",
     "seed": "demo",
-    "scope": "property",
-    "deferred": "The stay record (StayFolio) is served whole or not at all: its bill groups every line by the outlet that sold it (Isangano Terrace, Lake Bar, Laundry, Minibar) and the interface world has no outlets until the outlets area seeds them; and its payments include payments in flight (a desk MoMo prompt against a bill, an unmatched bank transfer) that have no table. Serving the lines live beside fixture payments would show a balance that is not the bill's."
+    "scope": "property"
   },
   {
     "collection": "stays.stayRecords",
     "area": "stays",
     "class": "derived",
-    "target": "bookings.status, guest_stays.lifecycle, folios.status, ebm_invoices.status",
-    "missing": "—",
+    "target": "derived per stay: bookings.status, guest_stays.lifecycle, folios.status (GET /ops/front-desk, GET /ops/folios/:id), for the stay in view: the one /stays/[id] opens by reference or id, else the next guest due out (the stay Checkout opens on)",
+    "missing": "No route lists a folio's fiscal receipts, so the fiscal card says the bill is closed, not what RRA answered.",
     "crud": "R",
     "seed": "none",
-    "scope": "property",
-    "deferred": "Derived per stay on the stay record, which is deferred: The stay record (StayFolio) is served whole or not at all: its bill groups every line by the outlet that sold it (Isangano Terrace, Lake Bar, Laundry, Minibar) and the interface world has no outlets until the outlets area seeds them; and its payments include payments in flight (a desk MoMo prompt against a bill, an unmatched bank transfer) that have no table. Serving the lines live beside fixture payments would show a balance that is not the bill's."
+    "scope": "property"
   },
   {
     "collection": "stays.folioLines",
     "area": "stays",
     "class": "exists",
-    "target": "folio_charges via GET /ops/folios/:id, POST …/charges, POST …/charges/:chargeId/void",
-    "missing": "src human refs need a join on source_ref_type/id; mine = posted_by_user_id = caller",
-    "crud": "C, R (void = reversal line)",
+    "target": "folio_charges via GET /api/v1/ops/folios/:id for the stay in view: the one /stays/[id] opens by reference or id, else the next guest due out (the stay Checkout opens on); each charge with its VAT line folded in, voids as reversal lines; Post charge → POST /ops/folios/:id/charges, Void → POST /ops/folios/:id/charges/:chargeId/void (Idempotency-Key per press)",
+    "missing": "Lines are grouped by revenue department (the world has no outlets at Isangano yet); other staff are named by role, since no desk read names a colleague.",
+    "crud": "C, R (void = reversal line) [folio.charge]",
     "seed": "demo",
-    "scope": "property",
-    "deferred": "Read whole by the stay page and filtered by stay, and grouped by outlet labels the world has no outlets for yet. The stay record (StayFolio) is served whole or not at all: its bill groups every line by the outlet that sold it (Isangano Terrace, Lake Bar, Laundry, Minibar) and the interface world has no outlets until the outlets area seeds them; and its payments include payments in flight (a desk MoMo prompt against a bill, an unmatched bank transfer) that have no table. Serving the lines live beside fixture payments would show a balance that is not the bill's."
+    "scope": "property"
   },
   {
     "collection": "stays.folioPayments",
     "area": "stays",
     "class": "extend",
-    "target": "payment/deposit lines of folio_charges + payment_attempts",
-    "missing": "payment_attempts.purpose lacks folio (+ folio_id), so a pending desk MoMo prompt cannot exist; unmatched bank transfer needs unallocated_receipts; POST /ops/folios/:id/payments [folio.payment] records confirmed money only",
-    "crud": "C, R",
+    "target": "payment and deposit lines of folio_charges via GET /api/v1/ops/folios/:id for the stay in view: the one /stays/[id] opens by reference or id, else the next guest due out (the stay Checkout opens on); Record cash → POST /ops/folios/:id/payments (cash, Idempotency-Key per press)",
+    "missing": "Only confirmed money is on a bill: payments in flight (a desk MoMo prompt, an unmatched bank transfer) have no table, so the screen never shows one uncounted.",
+    "crud": "C (cash), R [folio.payment]",
     "seed": "demo",
-    "scope": "property",
-    "deferred": "Payments in flight have no table: payment_attempts has no folio purpose (a desk MoMo prompt against a bill) and unmatched bank transfers (unallocated receipts) do not exist. Serving only the confirmed payment lines would drop two of the three the screen shows and change its balance."
+    "scope": "property"
   },
   {
     "collection": "stays.stayHistory",
@@ -2208,7 +2204,7 @@
     "crud": "R",
     "seed": "demo",
     "scope": "property",
-    "deferred": "Nothing writes stay audit rows (audit_events with subject guest_stay) and there is no GET /ops/stays/:id/history; seeding a move and a key history the system cannot produce would be invented."
+    "deferred": "Nothing writes stay audit rows (audit_events with subject guest_stay) and there is no GET /ops/stays/:id/history; seeding a move and a key history the system cannot produce would be invented. A live stay shows its check-in and says moves are not recorded."
   },
   {
     "collection": "stays.stayAccess",
@@ -2219,7 +2215,7 @@
     "crud": "R, U",
     "seed": "demo",
     "scope": "property",
-    "deferred": "Key cards and mobile keys need a lock provider integration and a stay_keys table; only the app claim exists (guest_stays.claim_status)."
+    "deferred": "Key cards and mobile keys need a lock provider integration and a stay_keys table; only the app claim exists (guest_stays.claim_status), and Resend claim code calls POST /ops/stays/:id/claim-invite directly. A live stay lists no keys."
   },
   {
     "collection": "stays.stayDocuments",
@@ -2230,7 +2226,7 @@
     "crud": "R",
     "seed": "none",
     "scope": "property",
-    "deferred": "A folio's fiscal receipts have no list or print route (GET /ops/folios/:id/receipts), the demo declares nothing (ADR-043), and the commercial invoice needs the city ledger."
+    "deferred": "A folio's fiscal receipts have no list or print route (GET /ops/folios/:id/receipts), the demo declares nothing (ADR-043), and the commercial invoice needs the city ledger. The stay page lists none for a live stay and says so."
   },
   {
     "collection": "stays.lateCheckoutOptions",
@@ -2241,18 +2237,17 @@
     "crud": "R",
     "seed": "demo",
     "scope": "property",
-    "deferred": "A property's late-checkout fee schedule has no column and nothing applies one (no late-checkout route posting the fee and moving the planned exit); read only by the deferred stay record."
+    "deferred": "A property's late-checkout fee schedule has no column and nothing applies one: no route moves a stay's planned exit or posts the fee. The stay page shows the prototype's options and says the control is not available."
   },
   {
     "collection": "stays.chargeDepartments",
     "area": "stays",
     "class": "exists",
-    "target": "revenue-centre departments + outlets via GET /ops/departments, GET /ops/outlets",
-    "missing": "—",
+    "target": "the property's active revenue-centre departments, room nights excepted, via GET /api/v1/ops/departments [folio.charge]",
+    "missing": "Outlets (Isangano Terrace, Lake Bar) are not seeded at Isangano; a desk charge names its revenue department.",
     "crud": "R",
     "seed": "demo",
-    "scope": "property",
-    "deferred": "The charge drawer offers outlets (Isangano Terrace, Lake Bar, Minibar) and Laundry; the interface world has only the USALI departments until the outlets area seeds outlets, and the drawer is on the deferred stay record."
+    "scope": "property"
   },
   {
     "collection": "stays.deskTenders",
@@ -2263,29 +2258,27 @@
     "crud": "R",
     "seed": "prod",
     "scope": "platform",
-    "deferred": "The payment drawer splits mobile money by network (MTN, Airtel), which PaymentMethod does not, and a desk MoMo prompt against a bill does not exist; the drawer is on the deferred stay record."
+    "deferred": "The payment drawer splits mobile money by network (MTN, Airtel), which PaymentMethod does not, and a desk prompt to the guest's phone has no route; the drawer records cash only (POST /ops/folios/:id/payments) and says a MoMo request is not available."
   },
   {
     "collection": "stays.checkouts",
     "area": "stays",
     "class": "new",
-    "target": "trade_accounts + city_ledger_entries (company share moved to city ledger with authorisation and invoice) over guest_stays + folios",
-    "missing": "no folio split/transfer route; check-out exists (POST /ops/stays/:id/checkout)",
-    "crud": "R, U",
+    "target": "the next guest due out (open guest_stays by planned exit, owing first) and its folio via GET /api/v1/ops/front-desk + GET /ops/folios/:id; Complete checkout → POST /ops/stays/:id/checkout (closes a bill settled to zero)",
+    "missing": "Company accounts and the city ledger (trade_accounts, city_ledger_entries) do not exist, so the company share, its authorisation and the commercial invoice are always empty. The page takes no stay id: other guests check out from their stay's page.",
+    "crud": "R, U (check out) [stay.checkout, folio.close]",
     "seed": "demo",
-    "scope": "property",
-    "deferred": "Checkout moves the company share to a company account (trade_accounts, city_ledger_entries with authorisation and invoice), which does not exist: an /architect decision on company accounts and the city ledger. Check out itself exists (POST /ops/stays/:id/checkout)."
+    "scope": "property"
   },
   {
     "collection": "stays.checkoutLedger",
     "area": "stays",
     "class": "derived",
-    "target": "sums of folio_charges + payment_attempts + unallocated_receipts + city_ledger_entries",
-    "missing": "—",
+    "target": "derived from the checkout stay's folio: charges per revenue department (voids netted) and each confirmed payment (GET /ops/folios/:id)",
+    "missing": "No company-ledger move, MoMo attempt or unmatched transfer can appear (no tables).",
     "crud": "R",
     "seed": "none",
-    "scope": "property",
-    "deferred": "Sums the company-ledger move, the unmatched bank transfer and the MoMo attempt, none of which have tables (see stays.checkouts and stays.folioPayments)."
+    "scope": "property"
   },
   {
     "collection": "stays.momoTrail",
@@ -2296,7 +2289,7 @@
     "crud": "R",
     "seed": "demo",
     "scope": "property",
-    "deferred": "A MoMo payment against a bill has no attempt or event history: payment_attempts has no folio purpose, and payment_attempt_events and an unknown state do not exist."
+    "deferred": "A MoMo payment against a bill has no attempt or event history: payment_attempts has no folio purpose, and payment_attempt_events and an unknown state do not exist. The live Checkout screen does not draw this sample trail."
   },
   {
     "collection": "stays.fiscalReceipts",
@@ -2307,7 +2300,7 @@
     "crud": "R",
     "seed": "demo",
     "scope": "property",
-    "deferred": "The screen splits one checkout into a company and a guest receipt; the platform raises one NS per folio close, the demo declares nothing (ADR-043), and no route lists a folio's receipts."
+    "deferred": "The prototype splits one checkout into a company and a guest receipt; the platform raises one NS per folio close, the demo declares nothing (ADR-043), and no route lists a folio's receipts. The live Checkout screen does not draw these sample drafts; it says the bill's close is the fiscal act."
   },
   {
     "collection": "stays.checkoutKeys",
@@ -2318,7 +2311,7 @@
     "crud": "R, U (revoke)",
     "seed": "demo",
     "scope": "property",
-    "deferred": "Revoking keys at checkout needs stay_keys and a lock provider (see stays.stayAccess)."
+    "deferred": "Revoking keys at checkout needs stay_keys and a lock provider (see stays.stayAccess). The live Checkout screen does not draw these sample keys; Revoke says it is not available."
   },
   {
     "collection": "stays.threads",
@@ -2983,7 +2976,7 @@
     "crud": "R",
     "seed": "demo",
     "scope": "org",
-    "deferred": "A file's access log is per person (audit_events per employee), but the screen reads one list for every file (FileAccess has no employee key), so live data would show everybody's views on each file; it needs the view keyed by employee and a GET /ops/employees/:id/access-log route."
+    "deferred": "No screen reads it any more: the employee file says its access log is not available instead of showing these sample entries under a live employee's name. A file's access log is per person (audit_events per employee), but FileAccess has no employee key, so live data would show everybody's views on each file; it needs the view keyed by employee and a GET /ops/employees/:id/access-log route."
   },
   {
     "collection": "people.family",
@@ -4193,431 +4186,6 @@
     "scope": "org"
   },
   {
-    "collection": "residence.blocks",
-    "area": "residence",
-    "class": "new",
-    "target": "new property_blocks + rooms.block_id",
-    "missing": "nothing in rooms/spaces models a building, wing or floor",
-    "crud": "R",
-    "seed": "demo",
-    "scope": "property"
-  },
-  {
-    "collection": "residence.units",
-    "area": "residence",
-    "class": "extend",
-    "target": "rooms of a room_types.domain='residence' type, joined to active leases and current rent_charges",
-    "missing": "rooms.block_id; asking rent of a vacant unit = residence rate_plans.base_price_rwf (unverified that every residence type has one); status paid/pending/unknown/arrears/notice/vacant derives from lease + charge + rent payment + notice. No residence unit route: GET /ops/rooms is the front-desk list (stay.checkin/housekeeping.set/…), GET /inventory/room-types/:id/rooms is listing.manage",
-    "crud": "R",
-    "seed": "demo",
-    "scope": "property"
-  },
-  {
-    "collection": "residence.homeKpis",
-    "area": "residence",
-    "class": "derived",
-    "target": "rooms vs active leases; rent_charges sums for the month; pending = new rent_payments.status='pending'; arrears = overdue rent_charges",
-    "missing": "rent_payments",
-    "crud": "R",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "residence.rentBuckets",
-    "area": "residence",
-    "class": "derived",
-    "target": "rent_charges (scheduled, paid) + rent_payments (pending) for the month",
-    "missing": "rent_payments",
-    "crud": "R",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "residence.arrearsAging",
-    "area": "residence",
-    "class": "derived",
-    "target": "open balance of rent_charges (amount_rwf − paid_amount_rwf) bucketed by due_date age",
-    "missing": "none",
-    "crud": "R",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "residence.vacancies",
-    "area": "residence",
-    "class": "derived",
-    "target": "residence rooms with no active lease; days since the last lease's end_date; applicant count from new lease_applications",
-    "missing": "lease_applications",
-    "crud": "R",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "residence.renewals",
-    "area": "residence",
-    "class": "derived",
-    "target": "feed of lease_renewals (offers), move_out_notices, leases ending within N days",
-    "missing": "renewal offer columns (see leases)",
-    "crud": "R",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "residence.homeTickets",
-    "area": "residence",
-    "class": "extend",
-    "target": "maintenance_tickets · GET /api/v1/ops/tickets",
-    "missing": "human number (WO-345), assignee (staff or contractor), visit time: none exist on the table or OperatorTicket",
-    "crud": "R",
-    "seed": "demo",
-    "scope": "property"
-  },
-  {
-    "collection": "residence.filings",
-    "area": "residence",
-    "class": "extend",
-    "target": "contract_filings · GET /api/v1/ops/filings",
-    "missing": "Fixture models a manual delivery: stage draft/awaiting ack, \"sent 21 Nov, delivered in person\", \"Record acknowledgement\". filing_status is pending/filed/failed (adapter job). Needs sent_at, delivery_method, delivered_by_user_id, acknowledged_at, acknowledgement_object_id, and a route POST /ops/filings/:leaseId/acknowledge",
-    "crud": "R U",
-    "seed": "demo",
-    "scope": "org",
-    "deferred": "The fixture models a MANUAL delivery of the signed lease to an authority (sent on, delivered in person, acknowledgement recorded with a scan); contract_filings models an adapter job (pending/filed/failed), and which authority receives a residential lease filing, and how, is undecided (F-R10 carries an unverified rule awaiting legal sign-off). Delivery columns and an acknowledge route need an /architect decision first. The lease register already reads each lease's filing state from contract_filings; \"Record acknowledgement\" says it is not available."
-  },
-  {
-    "collection": "residence.applicants",
-    "area": "residence",
-    "class": "new",
-    "target": "new lease_applications + lease_application_documents (+ link to brokers / tenant_placements)",
-    "missing": "stage, screening checks done, docs with check state, desired move-in, term, occupants, offered rent/deposit, decline reason, convert-to-lease. No route",
-    "crud": "R U (+C lease)",
-    "seed": "demo",
-    "scope": "org (property)"
-  },
-  {
-    "collection": "residence.screeningChecks",
-    "area": "residence",
-    "class": "static",
-    "target": "check list in code; per-applicant result stored on lease_applications.screening",
-    "missing": "could become org config later",
-    "crud": "R",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "residence.invitations",
-    "area": "residence",
-    "class": "extend",
-    "target": "lease_invitations",
-    "missing": "Table is \"invite a tenant to an EXISTING lease\" (lease_id NOT NULL, email NOT NULL). Fixture invites a person to APPLY for a unit before any lease: needs lease_id nullable, room_id, application_id, name, phone, channel (email/link/broker), invited_by_user_id, revoked_at. No route (send/resend/revoke)",
-    "crud": "C R U",
-    "seed": "demo",
-    "scope": "org (property)",
-    "deferred": "lease_invitations invites a tenant to an EXISTING lease (lease_id and email NOT NULL); the fixture invites a person to APPLY for a unit before any lease exists, by email, link or broker. Making lease_id nullable changes what the table means and who may be reached before screening (an open link to apply), which needs an /architect decision (invite-to-apply versus listing enquiries). Send, resend and revoke on Applicants say they are not available."
-  },
-  {
-    "collection": "residence.leases",
-    "area": "residence",
-    "class": "extend",
-    "target": "leases (+ lease_signatures, contract_filings, lease_renewals) · GET /api/v1/ops/leases, POST /ops/leases/:id/advance",
-    "missing": "reference (L-KC-014), rent_due_day (\"15th\"), grace_days, notice_period_days, named occupants (new lease_occupants), company tenant TIN, clause edits (store in contract_content jsonb), verified income (derived). Display status (\"Renewal offered\", \"Filing draft\", \"Notice given\") is derived from lease + renewal + filing + notice, not lease_status. No create route (convert from applicant), no clause edit, no withdraw-offer",
-    "crud": "C R U",
-    "seed": "demo",
-    "scope": "org (property)"
-  },
-  {
-    "collection": "residence.leaseClauses",
-    "area": "residence",
-    "class": "new",
-    "target": "new lease_clause_templates (the org's standard clauses)",
-    "missing": "review flag (awaiting counsel); a lease copies them into leases.contract_content",
-    "crud": "R U",
-    "seed": "demo",
-    "scope": "org"
-  },
-  {
-    "collection": "residence.acceptedRenewals",
-    "area": "residence",
-    "class": "extend",
-    "target": "lease_renewals",
-    "missing": "Table models a TENANT request (requested_end_date, pending/approved/rejected). Fixture is a LANDLORD offer: rent, term, deposit top-up, answer-by, accepted/declined, amendment signing. See renewal columns below",
-    "crud": "R",
-    "seed": "demo",
-    "scope": "org"
-  },
-  {
-    "collection": "residence.rentKpis",
-    "area": "residence",
-    "class": "derived",
-    "target": "rent_charges + rent_payments (+ vacancy from rooms × asking rent)",
-    "missing": "rent_payments",
-    "crud": "R",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "residence.rentRoll",
-    "area": "residence",
-    "class": "derived",
-    "target": "per lease: last four rent_charges (history), verified this month, overdue sum · source route GET /api/v1/ops/rent-roll returns the charges flat",
-    "missing": "per-month pending/unknown needs rent_payments; late = paid after due_date (derivable from paid_at)",
-    "crud": "R",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "residence.rentLedgers",
-    "area": "residence",
-    "class": "new",
-    "target": "rent_charges (exists) interleaved with new rent_payments (+ rent_payment_allocations) and new rent_reminders",
-    "missing": "A payment is not a row today: POST /ops/leases/:id/rent only bumps rent_charges.paid_amount_rwf. Provider ref, network, verified/pending/unknown, part payment allocation and reminders have no table. \"Save as pending\" and \"Send reminder\" need routes",
-    "crud": "R C",
-    "seed": "demo",
-    "scope": "org"
-  },
-  {
-    "collection": "residence.payouts",
-    "area": "residence",
-    "class": "table",
-    "target": "payouts (payee_type='landlord', source='rent')",
-    "missing": "Only GET /api/v1/admin/finance/payouts (platform staff); no workspace route for the landlord's own settlements",
-    "crud": "R",
-    "seed": "demo",
-    "scope": "org"
-  },
-  {
-    "collection": "residence.depositKpis",
-    "area": "residence",
-    "class": "derived",
-    "target": "caution_holds (held), settlements in progress, move_out_notices running, caution_settlements.refunded_rwf this quarter · route GET /ops/deposits gives the holds",
-    "missing": "none beyond move-out tables",
-    "crud": "R",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "residence.moveOuts",
-    "area": "residence",
-    "class": "new",
-    "target": "reuse move_out_notices, caution_holds, caution_settlements; new lease_inspections, lease_inspection_items, caution_deductions",
-    "missing": "inspection checklist with before/after and photos, per-deduction evidence, resident accept/dispute, manager decision keep/reduce/drop, approver ≠ proposer, refund verification. POST /ops/deposits/:id/return settles in one step with no deductions list. Routes for notice record, inspection book/start/sign, deductions, approval missing",
-    "crud": "C R U",
-    "seed": "demo",
-    "scope": "org",
-    "deferred": "The settlement workflow (inspection checklist with before/after photos, per-deduction evidence, resident accept or dispute, approver different from proposer, refund verification) has no tables, and POST /ops/deposits/:id/return settles a caution in one step with no deductions list. Deductions are money kept from a tenant and need their own decision (proposer/approver separation, dispute path, evidence storage) before they are built. Recording a notice is live (POST /ops/residence/notices, move_out_notices); sending a settlement for approval says it is not available."
-  },
-  {
-    "collection": "residence.tickets",
-    "area": "residence",
-    "class": "extend",
-    "target": "maintenance_tickets + maintenance_events + threads.maintenance_ticket_id / messages · GET/POST /api/v1/ops/tickets, POST /ops/tickets/:id/advance, GET /ops/threads",
-    "missing": "ticket_number, assigned_to_user_id / contractor name, staff_may_enter, visit_from/visit_to, cost_bearer, cost_rwf; category values \"Doors and locks\", \"Decoration\", common area are not in maintenance_category; a common-area ticket (\"Block B stairwell\") needs space_id or block (CHECK requires room/space/lease). Internal note vs reply = maintenance_events vs thread message",
-    "crud": "C R U",
-    "seed": "demo",
-    "scope": "property"
-  },
-  {
-    "collection": "residence.accessRequests",
-    "area": "residence",
-    "class": "extend",
-    "target": "visitor_access_requests",
-    "missing": "status (open/approved/declined), decided_by_user_id, decided_at, decision_note, visitor_name, from_date/to_date (14 nights), kind (overnight / gate exception); lease_id NOT NULL blocks a gate case for a unit with no lease. No route",
-    "crud": "R U",
-    "seed": "demo",
-    "scope": "property"
-  },
-  {
-    "collection": "residence.visitors",
-    "area": "residence",
-    "class": "new",
-    "target": "new visitor_passes",
-    "missing": "gate code, window, contractor vs guest, created by resident or manager, state expected/approved/used/expired. No route",
-    "crud": "C R",
-    "seed": "demo",
-    "scope": "property"
-  },
-  {
-    "collection": "residence.visitorLog",
-    "area": "residence",
-    "class": "extend",
-    "target": "visitor_log_entries",
-    "missing": "lease_id NOT NULL, but the log holds a vacant unit and \"Block C roof\" → nullable + property_id, room_id; visitor_pass_id, admitted_how, recorded_by_user_id. No route (read + CSV export)",
-    "crud": "R",
-    "seed": "demo",
-    "scope": "property"
-  },
-  {
-    "collection": "resident.tenancies",
-    "area": "resident",
-    "class": "extend",
-    "target": "leases (+ orgs for landlord name/TIN, caution_holds for deposit, move_out_notices for notice)",
-    "missing": "rent_due_day, grace_days, notice_period_days, occupants; move_out_notices.reason_code (only free message exists). Routes GET /me/leases, POST /me/leases/:id/notice",
-    "crud": "R U (C notice)",
-    "seed": "demo",
-    "scope": "user"
-  },
-  {
-    "collection": "resident.rentCharges",
-    "area": "resident",
-    "class": "table",
-    "target": "rent_charges",
-    "missing": "route GET /me/leases/:id/rent-charges",
-    "crud": "R",
-    "seed": "demo",
-    "scope": "user"
-  },
-  {
-    "collection": "resident.receipts",
-    "area": "resident",
-    "class": "new",
-    "target": "rent_payments (status verified; network, provider ref, verified_at)",
-    "missing": "same table as residence.rentLedgers; route GET /me/leases/:id/payments",
-    "crud": "R",
-    "seed": "demo",
-    "scope": "user"
-  },
-  {
-    "collection": "resident.paymentIntents",
-    "area": "resident",
-    "class": "extend",
-    "target": "payment_attempts",
-    "missing": "purpose enum lacks rent; needs rent_charge_id FK and the payment_attempts_purpose_shape CHECK widened; part payment (partDefault, minPart) is policy, recheck cadence is a constant. Route POST /me/rent-charges/:id/pay + poll",
-    "crud": "C R",
-    "seed": "demo",
-    "scope": "user",
-    "deferred": "Paying rent by mobile money needs payment_attempts.purpose to admit rent (the enum and the payment_attempts_purpose_shape CHECK), a rent_charge_id on the attempt, and the provider settlement to write a verified rent_payments row; that is the payments domain's adapter and callback path, not this leaf. The Pay button says it is not available and nothing is charged; a payment made at the office or by bank is recorded by management (POST /ops/residence/rent-payments, saved as pending)."
-  },
-  {
-    "collection": "resident.payNetworks",
-    "area": "resident",
-    "class": "static",
-    "target": "MobileMoneyNetwork (MTN, Airtel)",
-    "missing": "providerRef values are per-payment demo data, belong on rent_payments",
-    "crud": "R",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "resident.notices",
-    "area": "resident",
-    "class": "table",
-    "target": "notifications (category lease / announcement, read_at = not new)",
-    "missing": "no /me/notifications route; no operator route to broadcast a property/block notice (fan out one row per tenant)",
-    "crud": "R",
-    "seed": "demo",
-    "scope": "user"
-  },
-  {
-    "collection": "resident.threads",
-    "area": "resident",
-    "class": "exists",
-    "target": "threads (lease scope, maintenance_ticket_id) · GET /api/v1/me/threads (repository joins leases.tenant_user_id)",
-    "missing": "none",
-    "crud": "R",
-    "seed": "none",
-    "scope": "user"
-  },
-  {
-    "collection": "resident.messages",
-    "area": "resident",
-    "class": "exists",
-    "target": "messages · GET /api/v1/me/threads/:id/messages, POST /me/threads/:id/messages",
-    "missing": "none",
-    "crud": "R",
-    "seed": "none",
-    "scope": "user"
-  },
-  {
-    "collection": "resident.repairCategories",
-    "area": "resident",
-    "class": "static",
-    "target": "labels over maintenance_category",
-    "missing": "doors-windows has no enum value (enum: plumbing, electrical, hvac, appliance, furniture, it_tech, safety, other)",
-    "crud": "R",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "resident.repairDrafts",
-    "area": "resident",
-    "class": "static",
-    "target": "(client) the repair form; photo goes through POST /uploads first",
-    "missing": "none",
-    "crud": "C (client)",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "resident.repairs",
-    "area": "resident",
-    "class": "extend",
-    "target": "maintenance_tickets (raised_by_role='tenant', lease_id)",
-    "missing": "ticket_number, staff_may_enter, visit time; tenant routes GET/POST /me/tickets missing (only /ops/tickets)",
-    "crud": "C R",
-    "seed": "demo",
-    "scope": "user"
-  },
-  {
-    "collection": "resident.visitorDrafts",
-    "area": "resident",
-    "class": "static",
-    "target": "(client) visitor form defaults",
-    "missing": "the code is minted by the server on create; maxNights: 7 is a property/lease policy (lease clause \"visitors\") — no column",
-    "crud": "C (client)",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "resident.visitors",
-    "area": "resident",
-    "class": "new",
-    "target": "visitor_passes (+ visitor_log_entries for \"Visited\")",
-    "missing": "tenant route GET/POST /me/visitor-passes",
-    "crud": "C R",
-    "seed": "demo",
-    "scope": "user"
-  },
-  {
-    "collection": "resident.renewalOffers",
-    "area": "resident",
-    "class": "extend",
-    "target": "lease_renewals",
-    "missing": "offer columns (rent, months, starts, top-up, answer_by, other terms) and accept/decline; route POST /me/renewal-offers/:id/accept",
-    "crud": "decline",
-    "seed": "demo",
-    "scope": "demo"
-  },
-  {
-    "collection": "resident.leaseDocuments",
-    "area": "resident",
-    "class": "new",
-    "target": "new lease_documents (signed lease = leases.contract_object_id + lease_signatures; move-in report; house rules acknowledgement)",
-    "missing": "table + GET /me/leases/:id/documents (signed download links, like HR files)",
-    "crud": "R",
-    "seed": "demo",
-    "scope": "user",
-    "deferred": "Needs a lease documents table and short-lived signed download links (as HR files have), and nothing on the platform produces a signed lease PDF to list yet (no route renders the contract). Left on fixtures until the contract document exists."
-  },
-  {
-    "collection": "resident.moveOutSteps",
-    "area": "resident",
-    "class": "static",
-    "target": "copy",
-    "missing": "none",
-    "crud": "R",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
-    "collection": "resident.noticeReasons",
-    "area": "resident",
-    "class": "static",
-    "target": "code list; stored as move_out_notices.reason_code (new)",
-    "missing": "column",
-    "crud": "R",
-    "seed": "none",
-    "scope": "—"
-  },
-  {
     "collection": "guest.trips",
     "area": "guest",
     "class": "exists",
@@ -5790,6 +5358,16 @@
     "target": "money_overrides (dual-auth CHECK exists); **no reader or writer anywhere** in modules/api",
     "missing": "state rejected; actions split allocation / allocate charge / retarget payment; amount, source ref, evidence files, proposed postings, approved_at/rejected_at/reason; routes GET/POST /admin/finance/overrides, POST …/:id/approve (step-up, admin.money.override, two-person), …/:id/reject",
     "crud": "R, U, C",
+    "seed": "demo",
+    "scope": "platform"
+  },
+  {
+    "collection": "admin.moneyDesk",
+    "area": "admin",
+    "class": "derived",
+    "target": "payment_transactions + money_overrides via GET /admin/finance/payments, GET /admin/finance/payments/balance and GET /admin/money-overrides (073-gtbank-payments AC-19)",
+    "missing": "reconciliation_runs has no writer until 073 build task 9, so the last run reads Never run",
+    "crud": "R, C (pull, resolve, override request, treasury adjustment), U (approve, reject)",
     "seed": "demo",
     "scope": "platform"
   },

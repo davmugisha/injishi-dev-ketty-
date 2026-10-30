@@ -52,6 +52,22 @@
  * after they were "enforced". It is `warn` wherever it is wired: a warn is a
  * count, not a pardon (the ADR-037 idiom), and it flips to `error` when the
  * count reaches zero.
+ *
+ * `product-boundaries` and `no-demo-data` landed with ADR-074 stage 1, before
+ * the first product folder, because the cheapest day to hold a boundary is the
+ * day nothing crosses it yet. The product edges start at `error` everywhere,
+ * with nothing to count. The demo data row is a rule of its own because the
+ * ADR wants it at two levels: `error` in products, `apps/web` and the
+ * packages, a counted `warn` in `apps/app` and `apps/mobile` until stage 9.
+ *
+ * The five design vocabulary rules took a `native` option with mobile spec
+ * 0002 (D-z, AC-18), because the phone that replaced the old app on 2026-10-14
+ * had none of the names their mobile halves read, and they had sat off there
+ * since. Each native half reads the new kit's vocabulary, gathered in
+ * `native-vocabulary.mjs` from the palette's generated files and HeroUI
+ * Native's own roles, and `design-vocabulary-native.test.mjs` pins every half
+ * in both directions. The option is off by default, so the web configs and
+ * `apps/web`'s planted controls read exactly what they read before.
  */
 
 import groundForegroundAgreement from './ground-foreground-agreement.mjs';
@@ -62,12 +78,13 @@ import noArbitraryWidth from './no-arbitrary-width.mjs';
 import noClientAuthz from './no-client-authz.mjs';
 import noDuplicateSharedComponent from './no-duplicate-shared-component.mjs';
 import noRawColorClasses from './no-raw-color-classes.mjs';
+import { noDemoData, productBoundaries } from './product-boundaries.mjs';
 import requirePermissionOnGuardedRoute from './require-permission-on-guarded-route.mjs';
 import { surfaceVocabulary, surfaceRefusals } from './surface-vocabulary.mjs';
 
 /** @type {import('eslint').ESLint.Plugin} */
 const plugin = {
-  meta: { name: 'injishi', version: '0.6.0' },
+  meta: { name: 'injishi', version: '0.8.0' },
   rules: {
     'ground-foreground-agreement': groundForegroundAgreement,
     'kebab-case-filenames': kebabCaseFilenames,
@@ -75,8 +92,10 @@ const plugin = {
     'no-arbitrary-type-scale': noArbitraryTypeScale,
     'no-arbitrary-width': noArbitraryWidth,
     'no-client-authz': noClientAuthz,
+    'no-demo-data': noDemoData,
     'no-duplicate-shared-component': noDuplicateSharedComponent,
     'no-raw-color-classes': noRawColorClasses,
+    'product-boundaries': productBoundaries,
     'require-permission-on-guarded-route': requirePermissionOnGuardedRoute,
     'surface-vocabulary': surfaceVocabulary,
     'surface-refusals': surfaceRefusals,

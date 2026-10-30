@@ -1,14 +1,19 @@
 /**
  * The marketplace and Sarah Kimani's web account, on the API, through the mutations the screens call:
- * the heart, a named list (create, add, rename, remove, delete), consent, contact details, and a booking
- * paid by mobile money on the mock rail, then cancelled. Guest routes declare no permission (ownership is
+ * the heart, a named list (create, add, rename, remove, delete), consent, contact details, a booking
+ * paid by mobile money on the mock rail, then cancelled, the checkout's "Your details" saved to her
+ * account, a request to book withdrawn from the checkout's "Cancel request", a stay chosen on the property
+ * page booked exactly as chosen (room, dates, party, plan, the typed payer), and a listing reported to
+ * Injishi support. Guest routes declare no permission (ownership is
  * the guard), so the refusals are another person's list answering 404, a visitor with no session
  * answering 401, and a required consent that cannot be turned off answering 409.
  */
 import type {
   GuestConsent,
   GuestProfile,
+  MarketCheckout,
   MarketListing,
+  MarketRoom,
   PastTrip,
   SavedCollection,
   UpcomingTrip,
@@ -22,15 +27,42 @@ import {
   paymentAttempt,
   removeFromCollection,
   renameCollection,
+  reportListing,
+  saveCheckoutDetails,
   saveContact,
   setConsent,
   setSaved,
 } from "../../src/server/mutations/market";
-import { catalogue, sources } from "../../src/server/sources/market";
+import {
+  addDays,
+  type CheckoutDocument,
+  catalogue,
+  sources,
+  stayKey,
+  stayRange,
+} from "../../src/server/sources/market";
 import { contextFor } from "../lib/harness";
 import type { Flow } from "./types";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** A booking's reference once its press settled: at once, or after the mock rail's prompt is approved. */
+async function settled(
+  ctx: Awaited<ReturnType<typeof contextFor>>,
+  outcome: Awaited<ReturnType<typeof bookCheckout>>,
+  token: string,
+  check: (c: unknown, m: string) => asserts c,
+): Promise<string> {
+  let reference = outcome.status === "confirmed" ? outcome.booking.reference : outcome.attempt.booking?.reference;
+  for (let i = 0; i < 30 && !reference; i++) {
+    await sleep(1000);
+    const attempt = await paymentAttempt(ctx, token);
+    check(attempt.state === "prompting" || attempt.state === "confirmed", `the attempt became ${attempt.state}`);
+    reference = attempt.booking?.reference;
+  }
+  check(reference, "the payment never settled into a booking");
+  return reference;
+}
 
 export const flows: Flow[] = [
   {
@@ -147,7 +179,7 @@ export const flows: Flow[] = [
     async run({ as, check, refused, step }) {
       const sarah = await as("guest");
       const token = crypto.randomUUID();
-      const outcome = await bookCheckout(sarah, "instant", { network: "mtn_momo", number: "078 812 4417" }, token);
+      const outcome = await bookCheckout(sarah, "instant", { network: "mtn_momo", number: "078 300 1234" }, token);
       let reference = outcome.status === "confirmed" ? outcome.booking.reference : outcome.attempt.booking?.reference;
       if (outcome.status === "awaiting_payment") {
         step("the prompt is on the handset (mock rail): polling");
@@ -162,7 +194,7 @@ export const flows: Flow[] = [
       step(`booked ${reference}`);
 
       // The same press again is the same intent, never a second charge.
-      const replay = await bookCheckout(sarah, "instant", { network: "mtn_momo", number: "078 812 4417" }, token);
+      const replay = await bookCheckout(sarah, "instant", { network: "mtn_momo", number: "078 300 1234" }, token);
       const replayRef = replay.status === "confirmed" ? replay.booking.reference : replay.attempt.booking?.reference;
       check(replayRef === reference, `replaying the press made ${replayRef}, not ${reference}`);
 
@@ -186,6 +218,182 @@ export const flows: Flow[] = [
         "the cancelled booking is still upcoming",
       );
       step(`cancelled: Past shows "${gone.dates}" and "${gone.money.chip}"`);
+    },
+  },
+  {
+    name: "checkout: Your details saved to Sarah's account and read back on the checkout; a visitor is refused",
+    async run({ as, check, refused, step }) {
+      const sarah = await as("guest");
+      const visitor = await contextFor(null);
+      const draft = async () =>
+        ((await sources["market.checkouts"].list(sarah)) as MarketCheckout[]).find((d) => d.id === "instant");
+      const was = (await draft())?.guest;
+      check(was, "the checkout has no instant draft for Sarah");
+      await saveCheckoutDetails(sarah, {
+        firstName: was.firstName,
+        lastName: was.lastName,
+        mobile: "+250 788 400 123",
+        country: "UG",
+      });
+      const now = (await draft())?.guest;
+      check(now?.mobile === "+250788400123" && now.country === "UG", `the checkout reads ${JSON.stringify(now)}`);
+      step("mobile and country edited under Your details: saved to her account, read back on the checkout");
+      await saveCheckoutDetails(sarah, {
+        firstName: was.firstName,
+        lastName: was.lastName,
+        mobile: was.mobile,
+        country: was.country,
+      });
+      const back = (await draft())?.guest;
+      check(back?.mobile === was.mobile && back.country === was.country, `not restored: ${JSON.stringify(back)}`);
+      await refused(
+        401,
+        () => saveCheckoutDetails(visitor, { firstName: "A", lastName: "B", mobile: "", country: "RW" }),
+        "a visitor with no session saving checkout details",
+      );
+      step("restored; a visitor with no session is refused with 401");
+    },
+  },
+  {
+    name: "checkout: a request to book is sent, then withdrawn with Cancel request and refunded in full",
+    async run({ as, check, refused, step }) {
+      const sarah = await as("guest");
+      const drafts = (await sources["market.checkouts"].list(sarah)) as MarketCheckout[];
+      check(
+        drafts.some((d) => d.id === "request"),
+        `the featured place offers no request-to-book room: ${drafts.map((d) => d.id).join(", ")}`,
+      );
+      const token = crypto.randomUUID();
+      const outcome = await bookCheckout(sarah, "request", { network: "mtn_momo", number: "078 300 1234" }, token);
+      const reference = await settled(sarah, outcome, token, check);
+      const pending = ((await sources["market.upcomingTrips"].list(sarah)) as UpcomingTrip[]).find(
+        (t) => t.id === reference,
+      );
+      check(pending, `the request is not in Upcoming: ${reference}`);
+      step(`request ${reference} sent and paid on the mock rail; it waits for the hotel`);
+
+      const owner = await as("owner");
+      await refused(404, () => cancelBooking(owner, reference), "another person withdrawing Sarah's request");
+      const result = await cancelBooking(sarah, reference);
+      check(result.refundRwf > 0, `withdrawing refunded ${JSON.stringify(result)}`);
+      const past = ((await sources["market.pastTrips"].list(sarah)) as PastTrip[]).find((t) => t.id === reference);
+      check(past?.dates.startsWith("Cancelled"), `Past reads ${JSON.stringify(past)}`);
+      step(`Cancel request withdrew it: RWF ${result.refundRwf} refunded, now in Past as cancelled`);
+      await refused(409, () => cancelBooking(sarah, reference), "withdrawing the same request twice");
+    },
+  },
+  {
+    name: "Reserve carries the chosen room, dates, party and plan to checkout, which books exactly that stay",
+    async run({ as, check, refused, step }) {
+      const sarah = await as("guest");
+      const rooms = (await sources["market.rooms"].list(sarah)) as MarketRoom[];
+      // Three nights for one adult, a few weeks out, on an instant room with every night free.
+      let pick: { room: MarketRoom; checkIn: string; checkOut: string } | undefined;
+      for (let start = 30; start < 80 && !pick; start += 3) {
+        const checkIn = addDays(sarah.today, start);
+        const checkOut = addDays(sarah.today, start + 3);
+        const room = rooms.find((r) => r.booking === "instant" && !r.soldOut.some((n) => n >= checkIn && n < checkOut));
+        if (room) pick = { room, checkIn, checkOut };
+      }
+      check(pick, "no instant room is free for three nights in the coming weeks");
+      const choice = {
+        roomTypeId: pick.room.id,
+        checkIn: pick.checkIn,
+        checkOut: pick.checkOut,
+        adults: 1,
+        children: 0,
+        nonRefundable: false,
+      };
+      const key = stayKey(choice);
+      const getCheckout = sources["market.checkouts"].get;
+      check(getCheckout, "the checkout source reads no single stay");
+      const draft = (await getCheckout(sarah, key)) as CheckoutDocument | undefined;
+      check(
+        draft?.room === pick.room.name && draft.nights === 3 && draft.guests === "1 adult",
+        `the checkout shows ${JSON.stringify(draft && { room: draft.room, dates: draft.dates, guests: draft.guests })}`,
+      );
+      check(draft.dates.startsWith(stayRange(pick.checkIn, pick.checkOut)), `the checkout's dates are ${draft.dates}`);
+      step(`the checkout shows the chosen stay: ${draft.room}, ${draft.dates}, ${draft.guests}`);
+
+      // Non-refundable on a room the API offers no such rate for: booked refundable, and the checkout says so.
+      const saver = (await getCheckout(sarah, stayKey({ ...choice, nonRefundable: true }))) as CheckoutDocument;
+      check(
+        saver.nonRefundableDiscountRwf
+          ? saver.plan === "Non-refundable" && saver.cancellation.every((t) => t.label === "No refund")
+          : saver.plan.includes("no non-refundable rate") && saver.serviceFee === draft.serviceFee,
+        `the saver checkout reads ${saver.plan}`,
+      );
+      step(`asking for the Non-refundable plan reads "${saver.plan}"`);
+
+      await refused(
+        400,
+        () => bookCheckout(sarah, key, { network: "mtn_momo", number: "  " }, crypto.randomUUID()),
+        "paying with no mobile money number typed",
+      );
+      await refused(
+        404,
+        () =>
+          bookCheckout(
+            sarah,
+            stayKey({ ...choice, checkOut: addDays(sarah.today, 200) }),
+            { network: "mtn_momo", number: "078 300 1234" },
+            crypto.randomUUID(),
+          ),
+        "a stay longer than the API quotes (more than 90 nights)",
+      );
+      await refused(
+        404,
+        () =>
+          bookCheckout(sarah, "stay:not-a-room", { network: "mtn_momo", number: "078 300 1234" }, crypto.randomUUID()),
+        "a stay that names no room",
+      );
+      step("no number typed (400), a stay the API will not quote (404) and a malformed stay (404) send nothing");
+
+      const token = crypto.randomUUID();
+      const outcome = await bookCheckout(sarah, key, { network: "mtn_momo", number: "078 300 1234" }, token);
+      const reference = await settled(sarah, outcome, token, check);
+      const trip = ((await sources["market.upcomingTrips"].list(sarah)) as UpcomingTrip[]).find(
+        (t) => t.id === reference,
+      );
+      check(
+        trip?.dates.startsWith(stayRange(pick.checkIn, pick.checkOut)) && trip.room.includes("1 guest"),
+        `Upcoming reads ${JSON.stringify(trip && { dates: trip.dates, room: trip.room })}`,
+      );
+      step(`booked ${reference} for exactly that stay: ${trip.dates}, ${trip.room}`);
+      await cancelBooking(sarah, reference);
+      step("cancelled again, so the room is free for the next run");
+    },
+  },
+  {
+    name: "Report this listing opens a support ticket about it; a visitor and an unknown place are refused",
+    async run({ as, check, refused, step }) {
+      const sarah = await as("guest");
+      const visitor = await contextFor(null);
+      const place = (await catalogue(sarah)).find((c) => c.hasPage);
+      check(place, "no listed place to report");
+      const ticket = await reportListing(sarah, {
+        slug: place.slug,
+        reason: "photos",
+        detail: "Flow check: the pool in the photos is not at this address.",
+      });
+      check(/^[0-9a-f-]{36}$/.test(ticket.id), `the ticket id is ${ticket.id}`);
+      step(`reported ${place.name}: support ticket ${ticket.id}`);
+      await refused(
+        401,
+        () => reportListing(visitor, { slug: place.slug, reason: "photos", detail: "" }),
+        "a visitor reporting a listing",
+      );
+      await refused(
+        404,
+        () => reportListing(sarah, { slug: "no-such-place", reason: "photos", detail: "" }),
+        "reporting a place that is not listed",
+      );
+      await refused(
+        400,
+        () => reportListing(sarah, { slug: place.slug, reason: "because", detail: "" }),
+        "a reason that is not offered",
+      );
+      step("a visitor (401), an unknown place (404) and an unknown reason (400) are refused before anything is sent");
     },
   },
 ];

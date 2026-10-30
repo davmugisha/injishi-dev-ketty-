@@ -181,6 +181,21 @@ export class OversightGrantsService {
   }
 
   /**
+   * The two grant-time refusals, for an appointment written elsewhere: the
+   * appoint-by-email route (`LocalLeadersService`, P5) runs the same rules
+   * for a business reviewer, inside its own transaction. A local leader gates
+   * no business, so neither rule applies to one.
+   */
+  async assertMayHold(
+    tx: Database,
+    input: { userId: string; oversightRole: CreateOversightGrantRequest['oversightRole']; scope: OversightScope },
+  ): Promise<void> {
+    const proposed = await this.resolveScope(tx, input.scope);
+    await this.assertNoScopeConflict(tx, { userId: input.userId, oversightRole: input.oversightRole, proposed });
+    await this.assertNoOrgRoleConflict(tx, { userId: input.userId, proposed });
+  }
+
+  /**
    * Revoke an appointment.
    *
    * **`revoked_at`, never a delete.** A revoked posting has to keep explaining a

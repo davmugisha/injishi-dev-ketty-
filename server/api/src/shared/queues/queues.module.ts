@@ -5,6 +5,24 @@ import { ConfigService } from '@nestjs/config';
 import { resolveRedisConnection } from './redis.config';
 
 /**
+ * The rentals jobs' queues (blueprint 2.6), named before their processors land
+ * so the names are fixed. `modules/rentals/domain/rentals-queues.ts` says what
+ * each one does; nothing consumes them yet, so an early job waits.
+ */
+export const RENTALS_QUEUES = {
+  rentCycle: 'RentCycle',
+  rentReminders: 'RentReminders',
+  paymentSettlement: 'PaymentSettlement',
+  payouts: 'Payouts',
+  leaseDocuments: 'LeaseDocuments',
+  rentalsHousekeeping: 'RentalsHousekeeping',
+  guestRouting: 'GuestRouting',
+  brokerPlans: 'BrokerPlans',
+  /** Rentals P3.4: every two minutes, one email per reader for lease messages left unread. */
+  messageDigests: 'MessageDigests',
+} as const;
+
+/**
  * Canonical queue names (architecture.md "Backend Worker Queues").
  * Jobs must be idempotent; compliance/money jobs queue, never skip.
  */
@@ -78,6 +96,14 @@ export const QUEUES = {
    * scheduler's policy is per queue.
    */
   hrDaily: 'HrDaily',
+  /**
+   * Mobile spec 0003 (D-r): the daily sweep of the shared idempotency store,
+   * deleting answers kept longer than 30 days. Its own queue, because a
+   * scheduler's policy is per queue.
+   */
+  idempotencySweep: 'IdempotencySweep',
+  /** Rentals (blueprint 2.6): see `RENTALS_QUEUES` above. */
+  ...RENTALS_QUEUES,
 } as const;
 
 @Global()

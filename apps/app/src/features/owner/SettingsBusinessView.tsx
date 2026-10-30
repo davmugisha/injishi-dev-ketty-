@@ -1,7 +1,7 @@
 "use client";
 
 import { CircleInfo, Plus, ShieldExclamation } from "@gravity-ui/icons";
-import { Alert, Button, Card, Chip } from "@heroui/react";
+import { Alert, Button, Card, Chip, Toast, toast } from "@heroui/react";
 import { ItemCard } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type {
@@ -17,7 +17,7 @@ import { SettingsBusinessProperty } from "./SettingsBusinessProperty";
 import { SettingsBusinessTree } from "./SettingsBusinessTree";
 import { SettingsNav } from "./SettingsNav";
 
-export interface SettingsBusinessData {
+interface SettingsBusinessData {
   nodes: SettingsBusinessNode[];
   profiles: SettingsBusinessProfile[];
   units: SettingsBusinessUnit[];
@@ -29,7 +29,7 @@ export interface SettingsBusinessData {
 type PressableRender = NonNullable<Parameters<typeof ItemCard<"button">>[0]["render"]>;
 const PressableCard: PressableRender = (props) => <button type="button" {...props} />; // heroui-ok: ItemCard render (documented pressable pattern)
 
-export function SettingsBusinessView({ data }: { data: SettingsBusinessData }) {
+export function SettingsBusinessView({ data, businessName }: { data: SettingsBusinessData; businessName: string }) {
   const [sel, setSel] = useState("isg");
   const selected = data.nodes.find((n) => n.id === sel);
   const profile = data.profiles.find((p) => p.id === sel);
@@ -37,17 +37,32 @@ export function SettingsBusinessView({ data }: { data: SettingsBusinessData }) {
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Settings · Amahoro Hospitality Group"
+        eyebrow={`Settings · ${businessName}`}
         title="Business Structure"
         description="How the business is organised. Tax and fiscal details belong to each legal entity, separate from property branding."
         actions={
           <>
-            <Button variant="ghost">
+            <Button
+              variant="ghost"
+              onPress={() =>
+                toast.warning(
+                  "Adding a legal entity is not available yet. A new entity is registered with its own TIN through Injishi support.",
+                )
+              }
+            >
               <Plus className="size-4" />
               Legal entity
             </Button>
-            <Button variant="secondary">
+            <Button
+              variant="secondary"
+              onPress={() =>
+                toast.warning(
+                  "Adding a property here is not available yet: this structure is sample data, so nothing was created.",
+                )
+              }
+            >
               <Plus className="size-4" />
               Property or branch
             </Button>

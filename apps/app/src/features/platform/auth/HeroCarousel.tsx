@@ -11,21 +11,21 @@ const SLIDES = [
     tab: "Personal",
     image: stock.signInHeroTraveller,
     title: "One account, every workspace",
-    body: "Book, host, rent and broker from a single Injishi identity — switch workspace anytime.",
+    body: "Book, host, rent and broker from a single Injishi identity. Switch workspace anytime.",
   },
   {
     id: "host",
     tab: "Host",
     image: stock.signInHeroHost,
     title: "Run a fast front desk",
-    body: "Arrivals, check-ins, walk-ins and departures — your whole day on one Today screen.",
+    body: "Arrivals, check-ins, walk-ins and departures: your whole day on one Today screen.",
   },
   {
     id: "landlord",
     tab: "Landlord",
     image: stock.signInHeroLandlord,
     title: "Leases without the paper",
-    body: "E-sign contracts, watch the rent roll, and settle the Caution — no paper anywhere.",
+    body: "E-sign contracts, watch the rent roll, and settle the Caution. No paper anywhere.",
   },
   {
     id: "broker",
@@ -39,7 +39,7 @@ const SLIDES = [
     tab: "Compliance",
     image: stock.signInHeroCompliance,
     title: "RRA handled in the background",
-    body: "EBM e-invoices per sale and lease contracts auto-filed — compliance without the paperwork.",
+    body: "EBM e-invoices per sale and lease contracts auto-filed: compliance without the paperwork.",
   },
 ] as const;
 

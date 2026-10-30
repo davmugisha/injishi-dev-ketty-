@@ -37,7 +37,6 @@ import { DropZone, EmptyState, ListView } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type {
   AccountIdentity,
-  AccountSession,
   AccountWorkspace,
   DataRequest,
   KycCheck,
@@ -49,14 +48,17 @@ import type {
   SignInMethod,
 } from "@injishi/data/fixtures/shared";
 import { GateChip, Icon, LinkButton, PageContent, TextLink, toneColor } from "@injishi/ui";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { signOutOtherSessions, signOutSession } from "@/lib/auth-actions";
+import type { SessionRow } from "@/lib/sessions";
 import { CardHeading, LINE_LIST, LINE_TAB, ProcessTimeline } from "./ui";
 
-export interface AccountData {
+interface AccountData {
   identity: AccountIdentity;
   profile: ProfileField[];
   methods: SignInMethod[];
-  sessions: AccountSession[];
+  /** The person's own sessions, from the API (`sessionRow`). */
+  sessions: SessionRow[];
   checks: KycCheck[];
   kycStates: KycState[];
   workspaces: AccountWorkspace[];
@@ -93,7 +95,10 @@ function methodText(identity: AccountIdentity, method: SignInMethod, key: "desc"
 export function AccountView({ data, initialTab = "security" }: { data: AccountData; initialTab?: string }) {
   const idn = data.identity;
   const [tab, setTab] = useState(TABS.some((t) => t.id === initialTab) ? initialTab : "security");
-  const [revoked, setRevoked] = useState<Record<string, boolean>>({});
+  // Which session sign-out is running ("others" for all of them), and why the last one did not happen.
+  const [ending, setEnding] = useState<string | null>(null);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [, startSessionChange] = useTransition();
   const [prefs, setPrefs] = useState<Record<string, boolean>>({});
   const [news, setNews] = useState(true);
   const [leaving, setLeaving] = useState(false);
@@ -101,7 +106,17 @@ export function AccountView({ data, initialTab = "security" }: { data: AccountDa
   const [corr, setCorr] = useState(false);
   const [display, setDisplay] = useState(idn.displayName);
 
-  const others = data.sessions.filter((s) => !s.current && !revoked[s.id]);
+  const others = data.sessions.filter((s) => !s.current);
+  /** End sessions on the API; the action re-reads them, so a row leaves only once it is really gone. */
+  const endSessions = (key: string, change: () => Promise<{ error?: string }>) => {
+    setEnding(key);
+    setSessionError(null);
+    startSessionChange(async () => {
+      const { error } = await change();
+      setSessionError(error ?? null);
+      setEnding(null);
+    });
+  };
   const signIn = data.methods.filter((m) => m.group === "signin");
   const recovery = data.methods.filter((m) => m.group === "recovery");
   const requests: DataRequest[] = corr
@@ -276,78 +291,69 @@ export function AccountView({ data, initialTab = "security" }: { data: AccountDa
                   Active Sessions
                 </h2>
                 <p className="text-[13px] text-muted">
-                  Locations are approximate, from the network address. Sign out anything you don’t recognise.
+                  Every device signed in to your account, with the network address it last used. Sign out anything you
+                  don’t recognise.
                 </p>
               </div>
               <Button
                 size="sm"
                 variant="danger-soft"
-                isDisabled={others.length === 0}
-                onPress={() => setRevoked((r) => ({ ...r, ...Object.fromEntries(others.map((s) => [s.id, true])) }))}
+                isDisabled={others.length === 0 || ending !== null}
+                isPending={ending === "others"}
+                onPress={() => endSessions("others", () => signOutOtherSessions())}
               >
                 <ArrowRightFromSquare className="size-4" />
                 Sign out all other sessions
               </Button>
             </div>
+            {sessionError ? (
+              <p role="alert" className="text-sm text-danger">
+                {sessionError}
+              </p>
+            ) : null}
             <Table>
               <Table.ScrollContainer>
                 <Table.Content aria-label="Active sessions">
                   <Table.Header>
                     <Table.Column isRowHeader>Device</Table.Column>
-                    <Table.Column>Location</Table.Column>
+                    <Table.Column>Network address</Table.Column>
                     <Table.Column>Signed in</Table.Column>
                     <Table.Column>Last active</Table.Column>
-                    <Table.Column>Workspace</Table.Column>
                     <Table.Column className="text-right">Action</Table.Column>
                   </Table.Header>
                   <Table.Body>
-                    {data.sessions.map((s) => {
-                      const isRevoked = !!revoked[s.id];
-                      return (
-                        <Table.Row key={s.id} id={s.id}>
-                          <Table.Cell>
-                            <span className="flex items-center gap-2.5">
-                              <Icon name={s.icon} />
-                              <span className="font-medium">{s.device}</span>
-                              {s.current ? (
-                                <Chip size="sm" variant="soft" color="accent">
-                                  This device
-                                </Chip>
-                              ) : null}
-                            </span>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <span className="flex items-center gap-2">
-                              {s.place}
-                              {s.newLocation && !isRevoked ? (
-                                <Chip size="sm" variant="soft" color="warning">
-                                  New location
-                                </Chip>
-                              ) : null}
-                            </span>
-                          </Table.Cell>
-                          <Table.Cell className="tabular">{s.since}</Table.Cell>
-                          <Table.Cell className="tabular">{s.last}</Table.Cell>
-                          <Table.Cell>{s.workspace}</Table.Cell>
-                          <Table.Cell className="text-right">
-                            {isRevoked ? (
-                              <Chip size="sm" variant="soft">
-                                Signed out just now
+                    {data.sessions.map((s) => (
+                      <Table.Row key={s.id} id={s.id}>
+                        <Table.Cell>
+                          <span className="flex items-center gap-2.5">
+                            <Icon name={s.icon} />
+                            <span className="font-medium">{s.device}</span>
+                            {s.current ? (
+                              <Chip size="sm" variant="soft" color="accent">
+                                This device
                               </Chip>
-                            ) : s.current ? null : (
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                aria-label={`Sign out ${s.device} in ${s.place}`}
-                                onPress={() => setRevoked((r) => ({ ...r, [s.id]: true }))}
-                              >
-                                Sign out
-                              </Button>
-                            )}
-                          </Table.Cell>
-                        </Table.Row>
-                      );
-                    })}
+                            ) : null}
+                          </span>
+                        </Table.Cell>
+                        <Table.Cell className="tabular">{s.place}</Table.Cell>
+                        <Table.Cell className="tabular">{s.since}</Table.Cell>
+                        <Table.Cell className="tabular">{s.last}</Table.Cell>
+                        <Table.Cell className="text-right">
+                          {s.current ? null : (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              aria-label={`Sign out ${s.device} at ${s.place}`}
+                              isDisabled={ending !== null}
+                              isPending={ending === s.id}
+                              onPress={() => endSessions(s.id, () => signOutSession(s.id))}
+                            >
+                              Sign out
+                            </Button>
+                          )}
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
                   </Table.Body>
                 </Table.Content>
               </Table.ScrollContainer>

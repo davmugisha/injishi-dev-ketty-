@@ -52,6 +52,3 @@ export function currentStep(
   return open?.id ?? CHECKOUT_STEPS[CHECKOUT_STEPS.length - 1].id;
 }
 
-export function isLastStep(id: CheckoutStepId): boolean {
-  return CHECKOUT_STEPS[CHECKOUT_STEPS.length - 1].id === id;
-}

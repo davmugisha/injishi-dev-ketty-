@@ -8,7 +8,7 @@ import { findRegistrationKind } from "./registration-kinds";
  * A thin server shell around one client component. The page has no state of
  * its own: the gate resolves the identity in the browser (the Better Auth
  * cookie belongs to the API origin, so the Next server never receives it), and
- * the wizard owns everything after that, from About you to the one In review
+ * the wizard owns everything after that, from Business to the one In review
  * page.
  */
 export const metadata = {

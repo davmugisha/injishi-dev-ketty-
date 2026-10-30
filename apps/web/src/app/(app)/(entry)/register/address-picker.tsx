@@ -8,6 +8,7 @@ import {
   type Village,
 } from "@injishi/contracts";
 import { useEffect, useState } from "react";
+import { Button } from "@injishi/web-ui";
 
 import {
   fetchCells,
@@ -15,7 +16,9 @@ import {
   fetchProvinces,
   fetchSectors,
   fetchVillages,
+  type GeographyList,
 } from "@/data/geography";
+import { useOnline } from "@/hooks/use-online";
 
 import { COUNTRY_OPTIONS } from "./country-options";
 import { Field, SelectField, TextArea, TextInput } from "./wizard-ui";
@@ -57,6 +60,76 @@ export const EMPTY_ADDRESS: AddressDraft = {
   street: "",
   addressText: "",
 };
+
+type OptionsPhase = "idle" | "loading" | "ready" | "empty" | "error";
+
+/** Keep a response tied to the parent it was fetched for. A stale response must
+ * never appear as options under a newly selected province, district or cell. */
+function useAddressOptions<T>(
+  parentId: string,
+  load: (id: number) => Promise<GeographyList<T>>,
+) {
+  const [attempt, setAttempt] = useState(0);
+  const [response, setResponse] = useState<{
+    parentId: string;
+    options: T[];
+    phase: OptionsPhase;
+  }>({ parentId: "", options: [], phase: "idle" });
+
+  useEffect(() => {
+    if (!parentId) return;
+    let current = true;
+    setResponse({ parentId, options: [], phase: "loading" });
+    void load(Number(parentId)).then((result) => {
+      if (!current) return;
+      setResponse(result.status === "ok"
+        ? { parentId, options: result.data, phase: result.data.length ? "ready" : "empty" }
+        : { parentId, options: [], phase: "error" });
+    });
+    return () => { current = false; };
+  }, [parentId, load, attempt]);
+
+  const current = response.parentId === parentId
+    ? response
+    : { parentId, options: [] as T[], phase: parentId ? "loading" as const : "idle" as const };
+  return { ...current, retry: () => setAttempt((n) => n + 1) };
+}
+
+function LoadStatus({
+  level,
+  phase,
+  retry,
+}: {
+  level: string;
+  phase: OptionsPhase;
+  retry: () => void;
+}) {
+  // Read before the early return: a hook runs on every render or none.
+  const online = useOnline();
+  if (phase !== "error" && phase !== "empty") return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
+      <span>{phase === "error"
+        ? online
+          ? `We couldn't load the ${level} list.`
+          : `You're offline. Connect to load the ${level} list.`
+        : `No ${level} options were returned.`}</span>
+      <Button variant="ghost" size="sm" onClick={retry}>Try again</Button>
+    </div>
+  );
+}
+
+function optionPlaceholder(
+  phase: OptionsPhase,
+  level: string,
+  parent: string,
+): string {
+  if (phase === "idle") return `Pick a ${parent} first`;
+  if (phase === "loading") return `Loading ${level} options…`;
+  if (phase === "error") return `Could not load ${level}`;
+  if (phase === "empty") return `No ${level} options`;
+  return `Choose a ${level}`;
+}
 
 /** Turn the draft into the wire shape, or null when it is not answered yet. */
 export function addressFromDraft(draft: AddressDraft): unknown {
@@ -121,95 +194,13 @@ export function AddressPicker({
   streetLabel?: string;
   streetHint?: string;
 }) {
-  const [provinces, setProvinces] = useState<Province[]>([]);
-  const [districts, setDistricts] = useState<District[]>([]);
-  const [sectors, setSectors] = useState<Sector[]>([]);
-  const [cells, setCells] = useState<Cell[]>([]);
-  const [villages, setVillages] = useState<Village[]>([]);
-  const [unavailable, setUnavailable] = useState(false);
-
   const isRwanda = draft.country === "RW";
-
-  useEffect(() => {
-    if (!isRwanda) return;
-    let cancelled = false;
-    void (async () => {
-      const res = await fetchProvinces();
-      if (cancelled) return;
-      if (res.status === "ok") setProvinces(res.data);
-      else setUnavailable(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isRwanda]);
-
-  // Each level reloads from the one above and CLEARS the ones below. Leaving a
-  // stale sector selected after changing district would submit an address whose
-  // parts disagree, and the server would refuse it with a message about a field
-  // the person cannot see.
-  useEffect(() => {
-    if (!isRwanda || !draft.provinceId) {
-      setDistricts([]);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const res = await fetchDistricts(Number(draft.provinceId));
-      if (!cancelled && res.status === "ok") setDistricts(res.data);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isRwanda, draft.provinceId]);
-
-  useEffect(() => {
-    if (!isRwanda || !draft.districtId) {
-      setSectors([]);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const res = await fetchSectors(Number(draft.districtId));
-      if (!cancelled && res.status === "ok") setSectors(res.data);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isRwanda, draft.districtId]);
-
-  // The last two levels are fetched only where they are asked for: an address
-  // that never shows a cell picker has no reason to pull 2,148 rows' worth of
-  // one sector's cells, and a branch address is exactly that case.
-  useEffect(() => {
-    if (!isRwanda || !collectVillage || !draft.sectorId) {
-      setCells([]);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const res = await fetchCells(Number(draft.sectorId));
-      if (!cancelled && res.status === "ok") setCells(res.data);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isRwanda, collectVillage, draft.sectorId]);
-
-  useEffect(() => {
-    if (!isRwanda || !collectVillage || !draft.cellId) {
-      setVillages([]);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const res = await fetchVillages(Number(draft.cellId));
-      if (!cancelled && res.status === "ok") setVillages(res.data);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isRwanda, collectVillage, draft.cellId]);
+  const provinces = useAddressOptions<Province>(isRwanda ? "1" : "", fetchProvinces);
+  const districts = useAddressOptions<District>(isRwanda ? draft.provinceId : "", fetchDistricts);
+  const sectors = useAddressOptions<Sector>(isRwanda ? draft.districtId : "", fetchSectors);
+  // Only locations which save a village need the last two levels.
+  const cells = useAddressOptions<Cell>(isRwanda && collectVillage ? draft.sectorId : "", fetchCells);
+  const villages = useAddressOptions<Village>(isRwanda && collectVillage ? draft.cellId : "", fetchVillages);
 
   return (
     <div className="space-y-4">
@@ -235,22 +226,16 @@ export function AddressPicker({
 
       {isRwanda ? (
         <>
-          {unavailable ? (
-            <p className="text-sm text-destructive">
-              We couldn&apos;t load the province list. Check your connection and
-              reload.
-            </p>
-          ) : null}
-
           <Field label="Province" required error={errors[`${errorPrefix}.provinceId`]}>
             <SelectField
               id={`${idPrefix}-province`}
               value={draft.provinceId}
-              options={provinces.map((p) => ({
+              disabled={provinces.phase !== "ready"}
+              options={provinces.options.map((p) => ({
                 value: String(p.id),
                 label: p.name,
               }))}
-              placeholder="Choose a province"
+              placeholder={optionPlaceholder(provinces.phase, "province", "country")}
               invalid={Boolean(errors[`${errorPrefix}.provinceId`])}
               onChange={(provinceId) =>
                 onChange({
@@ -264,19 +249,18 @@ export function AddressPicker({
               }
             />
           </Field>
+          <LoadStatus level="province" phase={provinces.phase} retry={provinces.retry} />
 
           <Field label="District" required error={errors[`${errorPrefix}.districtId`]}>
             <SelectField
               id={`${idPrefix}-district`}
               value={draft.districtId}
-              disabled={!draft.provinceId}
-              options={districts.map((d) => ({
+              disabled={districts.phase !== "ready"}
+              options={districts.options.map((d) => ({
                 value: String(d.id),
                 label: d.name,
               }))}
-              placeholder={
-                draft.provinceId ? "Choose a district" : "Pick a province first"
-              }
+              placeholder={optionPlaceholder(districts.phase, "district", "province")}
               invalid={Boolean(errors[`${errorPrefix}.districtId`])}
               onChange={(districtId) =>
                 onChange({
@@ -289,25 +273,25 @@ export function AddressPicker({
               }
             />
           </Field>
+          <LoadStatus level="district" phase={districts.phase} retry={districts.retry} />
 
           <Field label="Sector" required error={errors[`${errorPrefix}.sectorId`]}>
             <SelectField
               id={`${idPrefix}-sector`}
               value={draft.sectorId}
-              disabled={!draft.districtId}
-              options={sectors.map((sector) => ({
+              disabled={sectors.phase !== "ready"}
+              options={sectors.options.map((sector) => ({
                 value: String(sector.id),
                 label: sector.name,
               }))}
-              placeholder={
-                draft.districtId ? "Choose a sector" : "Pick a district first"
-              }
+              placeholder={optionPlaceholder(sectors.phase, "sector", "district")}
               invalid={Boolean(errors[`${errorPrefix}.sectorId`])}
               onChange={(sectorId) =>
                 onChange({ ...draft, sectorId, cellId: "", villageId: "" })
               }
             />
           </Field>
+          <LoadStatus level="sector" phase={sectors.phase} retry={sectors.retry} />
 
           {collectVillage ? (
             <>
@@ -320,20 +304,19 @@ export function AddressPicker({
                 <SelectField
                   id={`${idPrefix}-cell`}
                   value={draft.cellId}
-                  disabled={!draft.sectorId}
-                  options={cells.map((cell) => ({
+                  disabled={cells.phase !== "ready"}
+                  options={cells.options.map((cell) => ({
                     value: String(cell.id),
                     label: cell.name,
                   }))}
-                  placeholder={
-                    draft.sectorId ? "Choose a cell" : "Pick a sector first"
-                  }
+                  placeholder={optionPlaceholder(cells.phase, "cell", "sector")}
                   invalid={Boolean(errors[`${errorPrefix}.cellId`])}
                   onChange={(cellId) =>
                     onChange({ ...draft, cellId, villageId: "" })
                   }
                 />
               </Field>
+              <LoadStatus level="cell" phase={cells.phase} retry={cells.retry} />
 
               <Field
                 label="Village"
@@ -344,18 +327,17 @@ export function AddressPicker({
                 <SelectField
                   id={`${idPrefix}-village`}
                   value={draft.villageId}
-                  disabled={!draft.cellId}
-                  options={villages.map((village) => ({
+                  disabled={villages.phase !== "ready"}
+                  options={villages.options.map((village) => ({
                     value: String(village.id),
                     label: village.name,
                   }))}
-                  placeholder={
-                    draft.cellId ? "Choose a village" : "Pick a cell first"
-                  }
+                  placeholder={optionPlaceholder(villages.phase, "village", "cell")}
                   invalid={Boolean(errors[`${errorPrefix}.villageId`])}
                   onChange={(villageId) => onChange({ ...draft, villageId })}
                 />
               </Field>
+              <LoadStatus level="village" phase={villages.phase} retry={villages.retry} />
             </>
           ) : null}
 

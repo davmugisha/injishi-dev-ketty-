@@ -14,25 +14,30 @@ import {
   countryName,
   type PsfTier,
 } from "@injishi/contracts";
-import { Button, Checkbox } from "@injishi/ui";
+import { Badge, Button, Checkbox } from "@injishi/web-ui";
 import { X } from "lucide-react";
 
 import { formatRwf } from "@/lib/money";
 
 import { COUNTRY_OPTIONS } from "./country-options";
 import { PhoneInput } from "./phone-input";
-import { Field, SelectField, TextInput } from "./wizard-ui";
+import { ChoiceCard, Field, Fieldset, SelectField, TextInput } from "./wizard-ui";
 
 /**
  * PSF's own membership form (ADR-056), as the registration artboard draws it
  * under "Apply now": sent with the registration as `business.psfApplication`,
- * written in the same transaction, and passed to PSF only once Injishi approves
- * the business. Injishi takes no payment for PSF (`PSF_FEE_NOTICE`).
+ * written in the same transaction, and passed to PSF only once the district's
+ * PSF officer approves the business. Injishi takes no payment for PSF
+ * (`PSF_FEE_NOTICE`).
  *
  * What the wizard already knows is filled in (the name RRA holds, the company
- * type, the checked name, birth date and phone), so most of it is read and
- * confirmed rather than typed. The ID is the one checked on step two
- * (`useDocumentOnFile`), never typed again, when there is one on file.
+ * type, the name, birth date and phone), so most of it is read and confirmed
+ * rather than typed. This form sits on Business, step one, BEFORE You asks for
+ * the ID, so nothing has been checked in this walk yet: the ID it names is one
+ * already on file, from an earlier scan or the account (`useDocumentOnFile`),
+ * when there is one. With none it asks for a National ID or a passport, the two
+ * `PsfIdDocument` takes; an ID recorded on You afterwards replaces the typed
+ * one, because the request then names the document on file.
  */
 
 export interface PsfDraft {
@@ -54,8 +59,9 @@ export interface PsfDraft {
   phoneE164: string;
   email: string;
   dateOfBirth: string;
-  /** Only when no checked document is on file to use. */
-  nationalId: string;
+  /** Only when no document is on file to use: which ID, and its number. */
+  idType: "national_id" | "passport";
+  idNumber: string;
   consent: boolean;
 }
 
@@ -78,7 +84,8 @@ export const EMPTY_PSF: PsfDraft = {
   phoneE164: "",
   email: "",
   dateOfBirth: "",
-  nationalId: "",
+  idType: "national_id",
+  idNumber: "",
   consent: false,
 };
 
@@ -105,7 +112,12 @@ export function psfCandidate(d: PsfDraft, documentOnFile: boolean): unknown {
     email: d.email,
     ...(documentOnFile
       ? { useDocumentOnFile: true }
-      : { idDocument: { documentType: "national_id", documentNumber: d.nationalId.replace(/\s+/g, "") } }),
+      : {
+          idDocument:
+            d.idType === "passport"
+              ? { documentType: "passport", documentNumber: d.idNumber }
+              : { documentType: "national_id", documentNumber: d.idNumber.replace(/\s+/g, "") },
+        }),
     dateOfBirth: d.dateOfBirth,
     ...(d.consent ? { consent: true } : {}),
   };
@@ -125,6 +137,8 @@ export function PsfApplication({
   draft,
   onChange,
   tiers,
+  tiersFailed,
+  onRetryTiers,
   documentLine,
   errors,
 }: {
@@ -132,7 +146,9 @@ export function PsfApplication({
   onChange: (next: PsfDraft) => void;
   /** Null while loading or when the tiers could not be read. */
   tiers: PsfTier[] | null;
-  /** "National ID ending 6789, the one checked", or null when no document is on file. */
+  tiersFailed: boolean;
+  onRetryTiers: () => void;
+  /** "National ID ending 6789, already checked", or null when no document is on file. */
   documentLine: string | null;
   errors: Record<string, string>;
 }) {
@@ -144,9 +160,9 @@ export function PsfApplication({
     <div className="flex flex-col gap-5 rounded-card bg-secondary p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-base font-semibold">PSF membership application</h4>
-        <span className="rounded-full bg-card px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+        <Badge variant="subtle" size="sm">
           Sent to PSF after approval
-        </span>
+        </Badge>
       </div>
 
       <div className="max-w-form">
@@ -154,13 +170,19 @@ export function PsfApplication({
           <SelectField
             id="psf-tier"
             value={draft.requestedTierCode}
-            placeholder={tiers === null ? "Loading PSF's tiers…" : "Pick a tier"}
-            disabled={tiers === null || tiers.length === 0}
+            placeholder={tiersFailed ? "Could not load tiers" : tiers === null ? "Loading PSF's tiers…" : tiers.some((t) => t.active) ? "Pick a tier" : "No active tiers"}
+            disabled={tiersFailed || tiers === null || !tiers.some((t) => t.active)}
             invalid={Boolean(e("requestedTierCode"))}
             options={(tiers ?? []).filter((t) => t.active).map((t) => ({ value: t.code, label: tierLabel(t) }))}
             onChange={(v) => set("requestedTierCode", v)}
           />
         </Field>
+        {tiersFailed || (tiers !== null && !tiers.some((t) => t.active)) ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
+            <span>{tiersFailed ? "We couldn't load PSF's membership tiers." : "PSF has no active membership tiers right now."}</span>
+            <Button variant="ghost" size="sm" onClick={onRetryTiers}>Try again</Button>
+          </div>
+        ) : null}
       </div>
 
       <p className="text-sm font-semibold">The business</p>
@@ -270,7 +292,7 @@ export function PsfApplication({
         {/* A row of its own: the country picker and the number side by side
             do not fit half a card. */}
         <div className="sm:col-span-2">
-          <Field label="Phone" error={e("phoneE164")}>
+          <Field label="Phone" composite error={e("phoneE164")}>
             <PhoneInput id="psf-phone" value={draft.phoneE164} invalid={Boolean(e("phoneE164"))} onChange={(v) => set("phoneE164", v)} />
           </Field>
         </div>
@@ -282,35 +304,29 @@ export function PsfApplication({
         </Field>
       </div>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-semibold">Gender, as PSF&apos;s form asks it</legend>
-        <div className="flex flex-wrap gap-x-7 gap-y-2">
+      <Fieldset
+        legend="Gender, as PSF's form asks it"
+        hint="This goes to PSF only. Your Injishi profile keeps your own answer."
+        error={e("gender")}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
           {(
             [
               ["male", "Male"],
               ["female", "Female"],
             ] as const
           ).map(([value, label]) => (
-            <label key={value} className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="psf-gender"
-                value={value}
-                checked={draft.gender === value}
-                onChange={() => set("gender", value)}
-                className="size-4"
-              />
-              {label}
-            </label>
+            <ChoiceCard
+              key={value}
+              name="psf-gender"
+              value={value}
+              checked={draft.gender === value}
+              title={label}
+              onSelect={() => set("gender", value)}
+            />
           ))}
         </div>
-        <span className="text-xs text-muted-foreground">This goes to PSF only. Your Injishi profile keeps your own answer.</span>
-        {e("gender") ? (
-          <span role="alert" className="text-sm text-destructive">
-            {e("gender")}
-          </span>
-        ) : null}
-      </fieldset>
+      </Fieldset>
 
       {documentLine ? (
         <dl className="flex flex-wrap gap-x-4 gap-y-1 rounded-card bg-card px-4 py-3 text-sm">
@@ -318,13 +334,28 @@ export function PsfApplication({
           <dd className="font-medium">{documentLine}</dd>
         </dl>
       ) : (
-        <div className="max-w-form">
-          <Field label="National ID for PSF" hint="16 digits" error={e("idDocument.documentNumber") ?? e("idDocument")}>
+        <div className="grid max-w-form gap-4 sm:grid-cols-2">
+          <Field label="ID for PSF">
+            <SelectField
+              id="psf-id-type"
+              value={draft.idType}
+              options={[
+                { value: "national_id", label: "Rwandan National ID" },
+                { value: "passport", label: "Passport" },
+              ]}
+              onChange={(v) => onChange({ ...draft, idType: v === "passport" ? "passport" : "national_id", idNumber: "" })}
+            />
+          </Field>
+          <Field
+            label={draft.idType === "passport" ? "Passport number" : "National ID number"}
+            hint={draft.idType === "passport" ? "6 to 12 letters or digits" : "16 digits"}
+            error={e("idDocument.documentNumber") ?? e("idDocument")}
+          >
             <TextInput
               className="w-full tabular-nums"
-              inputMode="numeric"
-              value={draft.nationalId}
-              onChange={(ev) => set("nationalId", ev.target.value)}
+              inputMode={draft.idType === "passport" ? "text" : "numeric"}
+              value={draft.idNumber}
+              onChange={(ev) => set("idNumber", ev.target.value)}
             />
           </Field>
         </div>

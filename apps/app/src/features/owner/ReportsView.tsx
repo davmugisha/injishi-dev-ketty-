@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowDownToLine, Bookmark, Plus } from "@gravity-ui/icons";
+import { ArrowDownToLine, Bookmark, ChartColumn, Plus } from "@gravity-ui/icons";
 import { Button, Card, Chip, Label, ListBox, Select, Tabs, Toast, toast } from "@heroui/react";
-import { ListView, Segment } from "@heroui-pro/react";
+import { EmptyState, ListView, Segment } from "@heroui-pro/react";
 import type {
   ReportsAgingBucket,
   ReportsArrear,
@@ -29,7 +29,7 @@ import { saveReportsView } from "./ReportsActions";
 import { ReportsFinancialPanel, ReportsResidencePanel, ReportsSummary } from "./ReportsFinancial";
 import { ReportsPerformancePanel, type ReportsTrendMetric } from "./ReportsPerformance";
 
-export interface ReportsData {
+interface ReportsData {
   properties: ReportsProperty[];
   savedViews: ReportsSavedView[];
   kpis: ReportsKpi[];
@@ -72,7 +72,7 @@ function FilterLabel({ children }: { children: string }) {
   return <Label className="text-xs font-normal text-muted">{children}</Label>;
 }
 
-export function ReportsView({ data }: { data: ReportsData }) {
+export function ReportsView({ data, businessName }: { data: ReportsData; businessName: string }) {
   // The screen opens on the person's first saved view (their default comes first), not a fixed record.
   const first = data.savedViews[0];
   const [tab, setTab] = useState<ReportsTab>(first?.tab ?? "perf");
@@ -108,16 +108,44 @@ export function ReportsView({ data }: { data: ReportsData }) {
     }
   };
 
+  // No branch figures to read (an account without the money view, or a business with no branch yet):
+  // the screen says so instead of drawing panels around a property that does not exist.
+  if (!property) {
+    return (
+      <PageContent>
+        <PageHeader
+          eyebrow={`${businessName} · Reports`}
+          title="Reports"
+          description="Defined measures with their source. Open any figure to see the records behind it."
+        />
+        <EmptyState size="sm">
+          <EmptyState.Header>
+            <EmptyState.Media variant="icon">
+              <ChartColumn />
+            </EmptyState.Media>
+            <EmptyState.Title>No figures to report</EmptyState.Title>
+            <EmptyState.Description>
+              This month's branch figures are not open to this account, or the business has no branch yet.
+            </EmptyState.Description>
+          </EmptyState.Header>
+        </EmptyState>
+      </PageContent>
+    );
+  }
+
   return (
     <PageContent>
       <Toast.Provider placement="bottom" />
       <PageHeader
-        eyebrow="Amahoro Hospitality Group · Reports"
+        eyebrow={`${businessName} · Reports`}
         title="Reports"
         description="Defined measures with their source. Open any figure to see the records behind it."
         actions={
           <>
-            <Button variant="secondary">
+            <Button
+              variant="secondary"
+              onPress={() => toast.warning("Exporting reports is not available yet. No file was made.")}
+            >
               <ArrowDownToLine className="size-4" />
               Export
             </Button>
@@ -254,7 +282,15 @@ export function ReportsView({ data }: { data: ReportsData }) {
             </Card.Title>
             <Card.Description>Each copy is cut to what the recipient is allowed to see</Card.Description>
           </Card.Header>
-          <Button size="sm" variant="secondary">
+          <Button
+            size="sm"
+            variant="secondary"
+            onPress={() =>
+              toast.warning(
+                "Scheduling exports is not available yet. The schedules listed here are sample data; nothing was scheduled.",
+              )
+            }
+          >
             <Plus className="size-4" />
             New schedule
           </Button>

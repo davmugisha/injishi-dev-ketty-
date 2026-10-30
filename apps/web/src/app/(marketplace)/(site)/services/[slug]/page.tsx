@@ -2,18 +2,18 @@ import { Check } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Separator } from "@injishi/ui";
+import { Separator } from "@injishi/web-ui";
 import { ServiceBookingPanel } from "@/components/services/service-booking-panel";
 import { ServiceCard } from "@/components/services/service-card";
 import { ServiceGallery } from "@/components/services/service-gallery";
 import { ServiceKindIcon } from "@/components/services/service-kind-mark";
 import { PageHero } from "@/components/shared/page-hero";
 import { SectionHeading } from "@/components/shared/section-heading";
+import { fetchPlatform, servesSampleData } from "@/data/platform";
 import { fetchPublicProperty } from "@/data/public-property";
 import {
   findServiceListing,
   SERVICE_KIND_TAG,
-  serviceStaticParams,
   servicesForProperty,
 } from "@/data/service-listings";
 import { formatRwf } from "@/lib/money";
@@ -22,9 +22,13 @@ import { formatRwf } from "@/lib/money";
  * One chargeable service: gallery, price, capacity, inclusions, the property.
  *
  * `params` is a Promise in Next 15 and is awaited, the same as the property
- * route beside this one. `generateStaticParams` prerenders every service so
- * this route never renders on demand, and `generateMetadata` reads the same
- * record the page does rather than a second copy of the title.
+ * route beside this one. `generateMetadata` reads the same record the page
+ * does rather than a second copy of the title.
+ *
+ * SAMPLE DATABASES ONLY, like the index above it: the record is invented, so
+ * the API is asked on every request and anything but a positive "sample data"
+ * answer is a 404. That is why it no longer prerenders every service with
+ * `generateStaticParams`: a build cannot know which stack it will serve.
  *
  * IT OPENS ON A PHOTOGRAPHIC HERO, AND THAT IS A HEADER DECISION AS MUCH AS A
  * DESIGN ONE. `headerVariantFor` in `data/navigation.ts` matches by PREFIX and
@@ -44,9 +48,7 @@ import { formatRwf } from "@/lib/money";
  * plain string can name a page nobody published. The API answers whether the
  * property is public; the link and the location block render only when it is.
  */
-export function generateStaticParams() {
-  return serviceStaticParams();
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -60,6 +62,7 @@ export async function generateMetadata({
   return {
     title: `${service.name} — ${service.propertyName}`,
     description: `${service.blurb} ${formatRwf(service.priceRwf)} ${service.priceUnit}.`,
+    robots: { index: false, follow: false },
   };
 }
 
@@ -68,6 +71,7 @@ export default async function ServiceDetailPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  if (!servesSampleData(await fetchPlatform())) notFound();
   const { slug } = await params;
   const service = findServiceListing(slug);
   if (!service) notFound();

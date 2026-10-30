@@ -10,8 +10,9 @@ import type {
   AvailabilityCalendarRoomType,
   AvailabilityCalendarWindow,
 } from "@injishi/data/fixtures/commercial";
+import { AvailabilityCalendarView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { AvailabilityCalendarView } from "@/features/commercial/AvailabilityCalendarView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -31,9 +32,21 @@ export default async function AvailabilityCalendarPage() {
     getCollection<AvailabilityCalendarReason>("commercial.calendarReasons"),
   ]);
   return (
-    <AvailabilityCalendarView
-      persona={persona}
-      data={{ window: windows[0] ?? null, nights, ratePlans, roomTypes, groupBlocks, issues, channels, holds, reasons }}
-    />
+    <PmsMount>
+      <AvailabilityCalendarView
+        persona={persona}
+        data={{
+          window: windows[0] ?? null,
+          nights,
+          ratePlans,
+          roomTypes,
+          groupBlocks,
+          issues,
+          channels,
+          holds,
+          reasons,
+        }}
+      />
+    </PmsMount>
   );
 }

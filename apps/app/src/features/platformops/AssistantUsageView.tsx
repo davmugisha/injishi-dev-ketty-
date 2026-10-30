@@ -17,7 +17,7 @@ import { GateChip, PageContent, PageHeader, SectionHeader } from "@injishi/ui";
 import { useState } from "react";
 import { count, firstKey, HBar, KpiStrip, money, ToneChip } from "./shared";
 
-export interface AssistantUsageData {
+interface AssistantUsageData {
   months: UsageMonth[];
   flags: FlaggedAnswer[];
   findings: FindingOption[];

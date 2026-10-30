@@ -39,6 +39,8 @@ exports.PaymentStatus = zod_1.z.enum([
     "refunded_partial",
     "forfeited",
     "paid_out",
+    /** Cancelled at once with the refund owed; refunded only once the bank says so (073-gtbank-payments AC-13). */
+    "refund_pending",
 ]);
 /** Why a `request_to_book` was declined (mirrors the Postgres `decline_reason` enum). */
 exports.DeclineReason = zod_1.z.enum(["host_declined", "expired"]);
@@ -48,6 +50,8 @@ exports.EscrowStatus = zod_1.z.enum([
     "refunded_full",
     "refunded_partial",
     "forfeited",
+    /** Released to the guest, with the refund owed as a disbursement (073-gtbank-payments AC-13). */
+    "refund_pending",
 ]);
 /** ISO calendar day, `yyyy-mm-dd` (booking dates are days, not instants). */
 exports.IsoDate = zod_1.z
@@ -133,7 +137,7 @@ exports.BookableRoom = zod_1.z.object({
 /**
  * The bounds a stay has to fit inside, defined ONCE for both sides.
  *
- * These lived only in `server/api/src/modules/booking/domain/pricing.ts`, so
+ * These lived only in `server/api/src/modules/pms/domain/pricing.ts`, so
  * the API refused a stay the calendar had happily offered: a guest could pick
  * 120 nights, or a date three years out, fill in a payment method, and learn at
  * the last click that neither was ever allowed. A bound the client cannot see
@@ -303,21 +307,19 @@ exports.CreateBookingInput = zod_1.z.object({
      * mints a NEW token, which is what lets one guest hold two rooms of the same
      * type for the same nights.
      *
-     * Optional here on purpose, and only for now: migration phase 2 (ADR-020)
-     * ships the field before any client sends it, so an API deploy never rejects
-     * a browser still running the previous bundle. The server mints one when it is
-     * absent, so the key it derives is still unique and the duplicate constraint
-     * is simply inert for that request. It is NEVER null: a null under a unique
-     * index deduplicates nothing.
+     * REQUIRED since 073-gtbank-payments AC-25 (ADR-020 build task 8). It was
+     * optional while migration phase 2 shipped the field before any client sent
+     * it, and the server minted one when it was absent, which made the duplicate
+     * constraint inert for that request: a retried press with no token was a
+     * second charge. Every client sends one now (the web checkout and the
+     * operator app's guest zone), so a body without it is refused.
      */
-    attemptToken: zod_1.z.string().uuid().optional(),
+    attemptToken: zod_1.z.string().uuid(),
     /**
      * How to take the money (ADR-047).
      *
-     * REQUIRED, unlike `attemptToken`, and the difference is deliberate. An
-     * absent attempt token degrades to a unique key and the request still
-     * means something; an absent instrument means "charge somebody, somehow",
-     * which is not a booking anyone can honour. `apps/web` is the only client
+     * REQUIRED: an absent instrument means "charge somebody, somehow", which is
+     * not a booking anyone can honour. `apps/web` is the only client
      * that creates bookings today, so requiring it costs no migration window.
      */
     instrument: exports.PaymentInstrument,

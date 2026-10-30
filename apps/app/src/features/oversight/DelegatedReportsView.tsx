@@ -16,7 +16,7 @@ import { GateChip, Icon, PageContent, PageHeader } from "@injishi/ui";
 import { useState } from "react";
 import { CardHeading, FactGrid, HBar, ToneChip } from "./shared";
 
-export interface DelegatedReportsData {
+interface DelegatedReportsData {
   months: OccupancyMonth[];
   sectors: OccupancySector[];
   terms: DatasetTerm[];

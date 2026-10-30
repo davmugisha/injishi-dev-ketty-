@@ -102,6 +102,19 @@ export const AdminAuditSubjectType = z.enum([
     // names, and never an ID number, an RSSB number or a wage (AC-U5).
     "employee",
     "pay_run",
+    // Rentals (migration 0073): a tenant record, a unit, a payout account and a
+    // deposit settlement are audited against themselves.
+    "tenant",
+    "rental_unit",
+    "payout_account",
+    "deposit",
+    // P5 (migration 0084): a guest registration filed, changed, cancelled or flagged.
+    "guest_registration",
+    // Rentals P4 (migration 0087): a fault's moves and payments, an expense,
+    // and a year's rental income tax declaration.
+    "maintenance_ticket",
+    "expense",
+    "tax_declaration",
 ]);
 export type AdminAuditSubjectType = z.infer<typeof AdminAuditSubjectType>;
 /**
@@ -898,6 +911,18 @@ export const CreateOversightGrantRequest = z
         districtId: z.number().int().positive().nullable().optional(),
     })
     .superRefine((value, ctx) => {
+        // A local leader (P5) is appointed by email and area through
+        // `AppointOfficerRequest` (`POST /admin/local-leaders`), which knows
+        // sectors, cells and villages. This older route keeps the three levels a
+        // business reviewer uses.
+        if (value.scopeLevel === "sector" || value.scopeLevel === "cell" || value.scopeLevel === "village") {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["scopeLevel"],
+                message: "Appoint a local leader from Local leaders and officers.",
+            });
+            return;
+        }
         // Mirrors `oversight_assignments_scope_shape`. A country grant names no
         // region at all; the other two name exactly their own level.
         if (value.scopeLevel === "country") {

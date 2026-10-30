@@ -4,8 +4,9 @@
  * a checklist item id, a work order id); a room or place typed by a person is resolved from a fresh
  * read and never guessed. The API decides who may do what; nothing here checks a permission.
  */
+import { ApiError, ApiUnreachableError, apiBaseUrl, apiOrigin } from "../api";
 import { forgetOperations, readWorkOrders } from "../sources/operations";
-import { forgetStaff, myFile } from "../sources/staff";
+import { forgetStaff, myFile, readPhone } from "../sources/staff";
 import type { SourceContext } from "../sources/types";
 import { advanceHousekeepingTask } from "./platform";
 
@@ -46,20 +47,31 @@ export async function sendMinibarCount(
   forget(ctx);
 }
 
-/** "Log the item": into the lost and found register with the cleaner as finder. Returns its reference. */
+/** The register's answer to "Log the item": its reference and who the register names as custodian, if anyone. */
+export interface LoggedFoundItem {
+  reference: string;
+  /** Today's supervisor when the API named one (the item is handed to them); null when nobody is named. */
+  custodianName: string | null;
+}
+
+/** "Log the item": into the lost and found register with the cleaner as finder. */
 export async function logRoomFoundItem(
   ctx: SourceContext,
   taskId: string,
   input: { description: string; spot: string },
-): Promise<string> {
+): Promise<LoggedFoundItem> {
+  const description = input.description.trim();
+  if (!description) throw new StaffInputError("Say what the item is.");
+  const spot = input.spot.trim();
+  if (!spot) throw new StaffInputError("Choose where it was found.");
   const created = await ctx
     .ops()
-    .post<{ reference: string }>(`/api/v1/ops/housekeeping/tasks/${encodeURIComponent(taskId)}/found-items`, {
-      description: input.description.trim(),
-      spot: input.spot.trim(),
-    });
+    .post<{ reference: string; custodianName: string | null }>(
+      `/api/v1/ops/housekeeping/tasks/${encodeURIComponent(taskId)}/found-items`,
+      { description, spot },
+    );
   forget(ctx);
-  return created.reference;
+  return { reference: created.reference, custodianName: created.custodianName ?? null };
 }
 
 // ── Reporting a problem ────────────────────────────────────────────────────────────────────────────
@@ -111,18 +123,111 @@ export async function reportProblem(ctx: SourceContext, input: NewProblemReport)
   return created.reference;
 }
 
+// ── Photos ─────────────────────────────────────────────────────────────────────────────────────────
+
+/** What the API's attachment route stores: phone photographs only (`ATTACHMENT_MIME_TYPES`). */
+const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic"]);
+/** `MAX_ATTACHMENT_BYTES` on the API. */
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+
+/** A photograph the API stored: the key a record names it by. */
+interface UploadedPhoto {
+  objectKey: string;
+}
+
+/**
+ * Store one photograph from the phone (`POST /api/v1/uploads`, multipart) and return its key. It is filed as a
+ * `property_photo`, the kind the attachment route keeps for a photo of a fault in a room. `attemptToken` is
+ * minted once per photo on the phone, so sending the same photo again returns the same key, never a copy. The
+ * key means nothing until a record names it: the inspection's failed check does (`photoObjectKey`).
+ */
+export async function uploadPhoto(
+  ctx: SourceContext,
+  photo: Blob,
+  filename: string,
+  attemptToken: string,
+): Promise<UploadedPhoto> {
+  if (!PHOTO_TYPES.has(photo.type)) throw new StaffInputError("Send a photo (JPEG, PNG, WebP or HEIC).");
+  if (photo.size === 0) throw new StaffInputError("That photo is empty. Take it again.");
+  if (photo.size > MAX_PHOTO_BYTES) throw new StaffInputError("A photo must be 8 MB or smaller.");
+  const token = attemptToken.trim();
+  if (!token || token.length > 200) throw new StaffInputError("Take the photo again.");
+  const form = new FormData();
+  form.set("kind", "property_photo");
+  form.set("attemptToken", token);
+  form.set("file", photo, filename || "photo.jpg");
+  const headers: Record<string, string> = { accept: "application/json", origin: apiOrigin() };
+  if (ctx.api.cookie) headers.cookie = ctx.api.cookie;
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl()}/api/v1/uploads`, {
+      method: "POST",
+      headers,
+      body: form,
+      cache: "no-store",
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (error) {
+    throw new ApiUnreachableError(error);
+  }
+  const text = await response.text();
+  let body: unknown = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = text;
+  }
+  if (!response.ok) {
+    const b = (body && typeof body === "object" ? body : {}) as { message?: unknown; code?: unknown };
+    const message = Array.isArray(b.message) ? b.message.join("; ") : typeof b.message === "string" ? b.message : "";
+    throw new ApiError(
+      response.status,
+      typeof b.code === "string" ? b.code : null,
+      message || `The photo was not stored (HTTP ${response.status}).`,
+      body,
+    );
+  }
+  const key = (body as { objectKey?: unknown } | null)?.objectKey;
+  if (typeof key !== "string" || !key) throw new ApiError(502, null, "The photo was not stored.", body);
+  return { objectKey: key };
+}
+
 // ── Inspection ─────────────────────────────────────────────────────────────────────────────────────
 
-/** "Pass" / "Fail" on a cleaned room, with the verdict each check got. Failing reopens it as a re-clean. */
+export interface InspectionVerdict {
+  itemId: string;
+  result: "pass" | "fail";
+  /** The uploaded photo of a failed check (`uploadPhoto`), when one was taken. */
+  photoObjectKey?: string;
+}
+
+/**
+ * "Pass" / "Fail" on a cleaned room, with the verdict each check got. Failing reopens it as a re-clean. The API
+ * writes each verdict over the one already there, photo included, so a failed check that already carries a
+ * photo keeps it unless a new one was taken: the key is read from the phone's own record, never invented.
+ */
 export async function inspectRoom(
   ctx: SourceContext,
   taskId: string,
-  input: { result: "pass" | "fail"; reason?: string; checks: { itemId: string; result: "pass" | "fail" }[] },
+  input: { result: "pass" | "fail"; reason?: string; checks: InspectionVerdict[] },
 ): Promise<void> {
+  const checks: InspectionVerdict[] = input.checks.map((c) => {
+    const key = c.result === "fail" ? c.photoObjectKey?.trim() : undefined;
+    return key ? { itemId: c.itemId, result: c.result, photoObjectKey: key } : { itemId: c.itemId, result: c.result };
+  });
+  if (checks.some((c) => c.result === "fail" && !c.photoObjectKey)) {
+    const kept = new Map(
+      (await readPhone(ctx)).checks
+        .filter((c) => c.taskId === taskId && c.result === "fail" && c.photoObjectKey)
+        .map((c) => [c.itemId, c.photoObjectKey as string]),
+    );
+    for (const c of checks)
+      if (c.result === "fail" && !c.photoObjectKey && kept.has(c.itemId)) c.photoObjectKey = kept.get(c.itemId);
+  }
   await ctx.ops().post(`/api/v1/ops/housekeeping/tasks/${encodeURIComponent(taskId)}/inspection`, {
     result: input.result,
     ...(input.reason?.trim() ? { reason: input.reason.trim() } : {}),
-    checks: input.checks,
+    checks,
   });
   forget(ctx);
 }
@@ -181,7 +286,7 @@ export async function resolveWorkOrder(
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** "Tue 15 Dec 2026" or "15 Dec 2026" (as the leave form shows a date) → "2026-12-15". */
-export function parseLeaveDate(text: string): string {
+function parseLeaveDate(text: string): string {
   const m = text.trim().match(/(\d{1,2}) ([A-Z][a-z]{2})[a-z]* (\d{4})$/);
   const month = m ? MONTHS.indexOf(m[2] as string) : -1;
   if (!m || month < 0) throw new StaffInputError(`Write the date as “15 Dec 2026”.`);

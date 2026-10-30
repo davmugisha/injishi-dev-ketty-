@@ -18,14 +18,14 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 
 import { formatTin, normalizeTin, sameName } from "./business-draft";
 import { Callout } from "./register-shell";
-import { ChoiceTile, Field, TextInput } from "./wizard-ui";
+import { ChoiceTile, Field, Offline, TextInput } from "./wizard-ui";
 
 /**
- * Business name and TIN (Register.dc.html, step two's first section).
+ * Business name and TIN (Register.dc.html, Business's first section).
  *
  * The person types the name as they know it and the nine digits, and
  * "Validate with RRA" asks the company register (`POST /registrations/tin-check`).
@@ -65,6 +65,7 @@ export function SectionTin({
   onAskInjishi,
   onNext,
   error,
+  online = true,
 }: {
   typedName: string;
   onTypedNameChange: (next: string) => void;
@@ -82,6 +83,8 @@ export function SectionTin({
   onAskInjishi: () => void;
   onNext: () => void;
   error?: string;
+  /** The device has a network. RRA cannot be asked without one, and the section says so (ADR-075 S9). */
+  online?: boolean;
 }) {
   const digits = normalizeTin(tin);
   const verdict = view.kind === "result" ? view.verdict : null;
@@ -131,10 +134,11 @@ export function SectionTin({
       ) : null}
 
       {view.kind === "idle" || verdict?.result === "failed" || verdict?.result === "taken" ? (
-        <div>
-          <Button onClick={onValidate} disabled={!canValidate}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <Button onClick={onValidate} disabled={!canValidate || !online} aria-describedby={online ? undefined : "register-tin-offline"}>
             Validate with RRA
           </Button>
+          {online ? null : <Offline id="register-tin-offline">You're offline. Connect to check the TIN with RRA.</Offline>}
         </div>
       ) : null}
 
@@ -180,7 +184,7 @@ export function SectionTin({
             and an officer sees that it was not checked here.
           </Callout>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={onValidate}>
+            <Button variant="secondary" onClick={onValidate} disabled={!online}>
               <RotateCw size={16} aria-hidden />
               Try again
             </Button>
@@ -252,7 +256,7 @@ export function SectionTin({
                 checked={capPick === "on_behalf_of"}
                 icon={<Users size={20} aria-hidden />}
                 title="I'm registering it for the owner"
-                description="You prepare it and name the owner. They claim it once Injishi approves it."
+                description="You prepare it and name the owner. They claim it once PSF approves it."
                 onSelect={() => onCapPick("on_behalf_of")}
               />
             </div>

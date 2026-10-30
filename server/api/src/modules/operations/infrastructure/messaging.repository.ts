@@ -40,7 +40,7 @@ import {
   inBranchScope,
   type BranchScope,
 } from '../../../shared/auth/branch-scope';
-import { ENDED_BOOKING_STATUSES } from '../domain/live-booking';
+import { ENDED_BOOKING_STATUSES } from '../../pms/domain/live-booking';
 
 /**
  * A thread's branch (ADR-054): its booking's, else its stay's room's (a walk in
@@ -84,7 +84,7 @@ export interface MessageRow {
   threadId: string;
   senderUserId: string | null;
   senderName: string | null;
-  bodyType: 'text' | 'image' | 'voice' | 'system';
+  bodyType: 'text' | 'image' | 'voice' | 'system' | 'file';
   body: string | null;
   serviceOrderId: string | null;
   voiceDurationS: number | null;
@@ -251,6 +251,8 @@ export class MessagingRepository {
       .where(
         and(
           eq(threads.workspaceId, workspaceId),
+          // A broker conversation (2026-10-26) is the placement routes' alone, never the desk inbox's.
+          isNull(threads.placementId),
           // A lease thread belongs to a residence org and is unscoped (ADR-054).
           or(isNotNull(threads.leaseId), inBranchScope(THREAD_BRANCH, scope)),
           departmentId ? eq(threads.departmentId, departmentId) : undefined,
@@ -273,7 +275,8 @@ export class MessagingRepository {
       })
       .from(threads)
       .leftJoin(departments, eq(departments.id, threads.departmentId))
-      .where(eq(threads.id, threadId))
+      // A broker conversation is not the desk's to open (2026-10-26).
+      .where(and(eq(threads.id, threadId), isNull(threads.placementId)))
       .limit(1);
 
     return row ?? null;
@@ -585,7 +588,8 @@ export class MessagingRepository {
     // A thread can appear once at most — one scope column is set — so the merge
     // needs no dedupe, only an order. Newest activity first, which is what puts
     // the conversation somebody just replied to at the top.
-    return [...fromBookings, ...fromStays, ...fromLeases].sort(
+    // Every row here came through a booking, a stay or a lease, so none is a broker conversation.
+    return [...fromBookings, ...fromStays, ...fromLeases].filter((r): r is GuestThreadRow => r.kind !== 'placement').sort(
       (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
     );
   }

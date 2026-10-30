@@ -1,4 +1,5 @@
 import fastifyCookie from '@fastify/cookie';
+import { RealtimeAdapter } from './shared/realtime/realtime.adapter';
 import fastifyHelmet from '@fastify/helmet';
 import fastifyMultipart from '@fastify/multipart';
 import {
@@ -26,21 +27,24 @@ import { resolveAuthSurface } from './shared/config/auth-surface';
 import { PLATFORM, type Platform } from './shared/config/platform';
 import { scrubForeignSessionCookies } from './shared/http/foreign-session-cookies';
 import { registerAuthRoutes } from './modules/auth/infrastructure/auth-http';
-import { BookingModule } from './modules/booking/booking.module';
+import { BookingModule } from './modules/pms/booking.module';
 import { GeographyModule } from './modules/geography/geography.module';
 import { ListingModule } from './modules/listing/listing.module';
+import { envFilesFor } from './shared/config/env-files';
 import {
   resolveAllowedOrigins,
   resolveCookieSecret,
 } from './shared/config/security.config';
 import { resolveTrustProxy } from './shared/config/trust-proxy';
 import { DatabaseModule } from './shared/database/database.module';
+import { IdempotencyModule } from './shared/http/idempotency.module';
 import { QueuesModule } from './shared/queues/queues.module';
 import { ReportingExceptionFilter } from './shared/observability/reporting-exception.filter';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // One env file per environment, picked by APP_ENV (shared/config/env-files.ts).
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: envFilesFor() }),
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL ?? 'info',
@@ -65,6 +69,8 @@ import { ReportingExceptionFilter } from './shared/observability/reporting-excep
     // Shared infrastructure
     DatabaseModule,
     QueuesModule,
+    // The shared idempotency store's daily sweep (mobile spec 0003, D-r).
+    IdempotencyModule,
     // Domain modules - never import each other directly (events or application services only)
     AuthModule,
     GeographyModule,
@@ -92,7 +98,9 @@ export class AppModule {
       new FastifyAdapter({
         trustProxy: resolveTrustProxy(process.env.TRUST_PROXY),
       }),
-      { bufferLogs: true },
+      // `rawBody`: a payment provider's callback is checked against the bytes
+      // it signed (`/payments/webhooks/:provider`, rentals blueprint 2.5).
+      { bufferLogs: true, rawBody: true },
     );
     app.useLogger(app.get(Logger));
     const config = app.get(ConfigService);
@@ -165,6 +173,8 @@ export class AppModule {
       credentials: true,
       methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
     });
+    // Live updates to open message screens (rentals P3.4), on this port, same origins.
+    app.useWebSocketAdapter(new RealtimeAdapter(app, allowedOrigins));
     app.enableShutdownHooks();
 
     const port = Number(config.get<string>('PORT') ?? 8000);

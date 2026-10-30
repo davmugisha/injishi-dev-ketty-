@@ -1,287 +1,288 @@
 "use client";
 
-import type { VerifiedPerson } from "@injishi/contracts";
-import { Button } from "@heroui/react";
-import { BadgeCheck, Camera, ScanFace } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
+import {
+  countryName,
+  type AccountDocumentType,
+  type IdentityAdapterMode,
+  type IdentityOnFile,
+  type IdentityScanResult,
+} from "@injishi/contracts";
+import { Button, Checkbox, Tabs, TabsList, TabsTrigger } from "@injishi/web-ui";
+import { BadgeCheck, Camera, Clock, IdCard, ScanFace, TriangleAlert } from "lucide-react";
 
-import { confirmNationalId, lookupNationalId, verifyPassport } from "@/data/identity";
+import { checkNationalId, scanIdentity } from "@/data/identity";
 import { uploadIdPhoto } from "@/data/uploads";
 import { apiResultMessage } from "@/lib/api";
-import { formatNationalId, nationalIdError } from "@/lib/rwanda-id";
+import { nationalIdError } from "@/lib/rwanda-id";
 
-import { Field, Notice, TextInput } from "./wizard-ui";
+import { COUNTRY_OPTIONS } from "./country-options";
+import { Callout } from "./register-shell";
+import { Field, Offline, SelectField, TextInput } from "./wizard-ui";
 
 /**
- * Verify who you are instead of typing it (ADR-060).
+ * Proving who you are on the You step. No code is sent to any phone (ADR-075 AC-4).
  *
- * A NATIONAL ID is typed once and validated: the population register sends a
- * code to the phone it holds for that ID, and typing the code back is what
- * proves the ID is yours. Only then does the register's answer — name, date of
- * birth, gender — come back and fill the form, locked. The lookup alone reveals
- * nobody, so typing somebody else's number teaches the typist nothing.
+ * - A RWANDAN NATIONAL ID is checked by its number against NIDA's register,
+ *   through GTBank, with a selfie (the owner's call, 2026-10-30): type the 16
+ *   digits, take a selfie. Where that check is switched off (`nationalIdMode`
+ *   `off`) the card is scanned instead, front then selfie, as before.
+ * - A PASSPORT is checked by Smile ID: the country that issued it, the photo
+ *   page, then a selfie.
  *
- * A PASSPORT is scanned: a photo of the photo page and a selfie go to the
- * document verifier, which checks the passport is genuine and the selfie is
- * its holder, and answers with what the passport says.
- *
- * Either way the server records the identity as verified before this component
- * hears about it; `onVerified` only updates the form.
+ * Every photo goes up as `id_photo` and is kept for the PSF officer whatever
+ * the checker makes of it (D-n). The server records the identity before this
+ * component hears of it; `onScanned` only tells the step what happened.
  */
-export function NationalIdVerifier({
-  documentNumber,
-  onDocumentNumberChange,
-  onVerified,
-  error,
+export function IdScanner({
+  documentType,
+  onDocumentTypeChange,
+  mode,
+  nationalIdMode,
+  onScanned,
+  online = true,
 }: {
-  documentNumber: string;
-  onDocumentNumberChange: (next: string) => void;
-  onVerified: (person: VerifiedPerson) => void;
-  error?: string;
+  documentType: AccountDocumentType;
+  onDocumentTypeChange: (next: AccountDocumentType) => void;
+  /** The device has a network: the photos upload, and nothing is checked without one. */
+  online?: boolean;
+  /** The document verifier's mode (passports; National ID cards where the register is off). */
+  mode: IdentityAdapterMode;
+  /** The National ID register's mode: anything but `off` checks a National ID by its number. */
+  nationalIdMode: IdentityAdapterMode;
+  onScanned: (result: IdentityScanResult) => void;
 }) {
-  const [challenge, setChallenge] = useState<{ id: string; sentTo: string } | null>(null);
-  const [code, setCode] = useState("");
+  const [front, setFront] = useState<File | null>(null);
+  const [selfie, setSelfie] = useState<File | null>(null);
+  const [nationalId, setNationalId] = useState("");
+  const [country, setCountry] = useState("");
+  const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ tone: "danger" | "warning" | "info"; text: string } | null>(null);
-  const codeField = useRef<HTMLInputElement>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [touched, setTouched] = useState(false);
 
-  const digits = documentNumber.replace(/\s+/g, "");
-  const shapeError = digits === "" ? null : nationalIdError(documentNumber);
+  const passport = documentType === "passport";
+  const byNumber = !passport && nationalIdMode !== "off";
+  const numberProblem = byNumber && nationalId.trim() !== "" ? nationalIdError(nationalId) : null;
+  const ready =
+    Boolean(selfie) &&
+    consent &&
+    online &&
+    (byNumber ? nationalId.trim() !== "" && !numberProblem : Boolean(front) && (!passport || country !== ""));
+  const demo = byNumber ? nationalIdMode : mode;
 
-  const lookup = async () => {
-    if (nationalIdError(documentNumber) !== null) return;
-    setBusy(true);
-    setMessage(null);
-    const res = await lookupNationalId(digits);
-    setBusy(false);
-    if (res.status !== "ok") {
-      setMessage({ tone: "danger", text: apiResultMessage(res) });
-      return;
-    }
-    const answer = res.data;
-    if (answer.status === "code_sent") {
-      setChallenge({ id: answer.challengeId, sentTo: answer.sentTo });
-      setCode("");
-      window.setTimeout(() => codeField.current?.focus(), 50);
-      return;
-    }
-    setChallenge(null);
-    setMessage({ tone: answer.status === "unavailable" ? "warning" : "danger", text: answer.message });
+  const reset = () => {
+    setFront(null);
+    setSelfie(null);
+    setProblem(null);
+    setTouched(false);
   };
 
-  const confirm = async () => {
-    if (!challenge || !/^\d{6}$/.test(code.trim())) return;
+  const check = async () => {
+    setTouched(true);
+    if (!ready || !selfie) return;
     setBusy(true);
-    setMessage(null);
-    const res = await confirmNationalId(challenge.id, code.trim());
+    setProblem(null);
+    const uploads = await Promise.all([
+      uploadIdPhoto(selfie, crypto.randomUUID()),
+      byNumber || !front ? Promise.resolve(null) : uploadIdPhoto(front, crypto.randomUUID()),
+    ]);
+    for (const upload of uploads) {
+      if (upload && upload.status !== "ok") {
+        setBusy(false);
+        setProblem(`${apiResultMessage(upload)} The upload needs a connection.`);
+        return;
+      }
+    }
+    const [selfieUpload, frontUpload] = uploads;
+    const selfieKey = selfieUpload?.status === "ok" ? selfieUpload.data.objectKey : "";
+    const res = byNumber
+      ? await checkNationalId(nationalId.replace(/\s+/g, ""), selfieKey)
+      : await scanIdentity(
+          documentType,
+          frontUpload?.status === "ok" ? frontUpload.data.objectKey : "",
+          selfieKey,
+          passport ? country : undefined,
+        );
     setBusy(false);
-    if (res.status === "ok") {
-      onVerified(res.data);
+    if (res.status !== "ok") {
+      setProblem(apiResultMessage(res));
       return;
     }
-    setMessage({ tone: "danger", text: apiResultMessage(res) });
-    // A spent or replaced code cannot be retried; the person asks for a new one.
-    if (res.status === "refused" && res.httpStatus === 410) setChallenge(null);
+    // A refused try is retaken from fresh photos: the old ones are on file already.
+    if (res.data.outcome === "machine_failed") {
+      setFront(null);
+      setSelfie(null);
+    }
+    onScanned(res.data);
   };
 
   return (
-    <div className="space-y-4">
-      <Field
-        label="National ID number"
-        required
-        hint="16 digits, as printed on your card. We check it with the population register and send a code to the phone it holds for you."
-        error={error ?? shapeError ?? undefined}
+    <div className="flex flex-col gap-4">
+      <Tabs
+        value={documentType}
+        onValueChange={(next) => {
+          onDocumentTypeChange(next as AccountDocumentType);
+          reset();
+        }}
       >
-        <span className="flex gap-2">
+        <TabsList aria-label="Type of ID" className="self-start">
+          <TabsTrigger value="national_id">Rwandan National ID</TabsTrigger>
+          <TabsTrigger value="passport">Passport</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {byNumber ? (
+        <Field
+          label="Your National ID number"
+          required
+          hint="The 16 digits on the front of your card. We check them with NIDA."
+          error={numberProblem ?? (touched && nationalId.trim() === "" ? "Type your National ID number." : undefined)}
+        >
           <TextInput
-            id="you-document-number"
-            className="grow"
+            id="register-national-id"
             inputMode="numeric"
             autoComplete="off"
-            placeholder="1 1995 8 0012345 12 3"
+            placeholder="1 1990 8 0012345 12 3"
             maxLength={24}
-            value={documentNumber}
-            disabled={challenge !== null}
-            onChange={(e) => onDocumentNumberChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void lookup();
-            }}
+            value={nationalId}
+            onChange={(e) => setNationalId(e.target.value)}
           />
-          {challenge === null ? (
-            <Button
-              variant="primary"
-              onPress={() => void lookup()}
-              isDisabled={nationalIdError(documentNumber) !== null}
-              isPending={busy}
-            >
-              {busy ? "Checking…" : "Validate"}
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              onPress={() => {
-                setChallenge(null);
-                setMessage(null);
-              }}
-            >
-              Change
-            </Button>
-          )}
-        </span>
-      </Field>
-
-      {challenge ? (
-        <div className="space-y-3 rounded-card border border-border bg-secondary p-4">
-          <p className="text-sm">
-            We sent a 6 digit code to <b>{challenge.sentTo}</b>, the phone the
-            population register holds for National ID{" "}
-            {formatNationalId(digits)}.
-          </p>
-          <Field label="Code" required>
-            <span className="flex gap-2">
-              <TextInput
-                ref={codeField}
-                id="you-identity-code"
-                className="grow"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void confirm();
-                }}
-              />
-              <Button
-                variant="primary"
-                onPress={() => void confirm()}
-                isDisabled={!/^\d{6}$/.test(code.trim())}
-                isPending={busy}
-              >
-                {busy ? "Confirming…" : "Confirm"}
-              </Button>
-            </span>
-          </Field>
-          <Button variant="ghost" size="sm" onPress={() => void lookup()} isDisabled={busy}>
-            Send a new code
-          </Button>
-        </div>
+        </Field>
       ) : null}
 
-      {message ? <Notice tone={message.tone}>{message.text}</Notice> : null}
-    </div>
-  );
-}
+      {passport ? (
+        <Field
+          label="Country that issued your passport"
+          required
+          error={touched && country === "" ? "Pick the country on the cover of your passport." : undefined}
+        >
+          <SelectField
+            id="register-passport-country"
+            value={country}
+            onChange={setCountry}
+            options={COUNTRY_OPTIONS}
+            placeholder="Pick a country"
+          />
+        </Field>
+      ) : null}
 
-/** A passport page and a selfie, read and matched by the document verifier. */
-export function PassportScanner({
-  onVerified,
-}: {
-  onVerified: (person: VerifiedPerson) => void;
-}) {
-  const [page, setPage] = useState<File | null>(null);
-  const [selfie, setSelfie] = useState<File | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ tone: "danger" | "warning"; text: string } | null>(null);
-
-  const scan = async () => {
-    if (!page || !selfie) return;
-    setBusy(true);
-    setMessage(null);
-    const [pageKey, selfieKey] = await Promise.all([
-      uploadIdPhoto(page, crypto.randomUUID()),
-      uploadIdPhoto(selfie, crypto.randomUUID()),
-    ]);
-    if (pageKey.status !== "ok" || selfieKey.status !== "ok") {
-      setBusy(false);
-      const failed = pageKey.status !== "ok" ? pageKey : selfieKey;
-      setMessage({ tone: "danger", text: failed.status === "ok" ? "" : apiResultMessage(failed) });
-      return;
-    }
-    const res = await verifyPassport(pageKey.data.objectKey, selfieKey.data.objectKey);
-    setBusy(false);
-    if (res.status !== "ok") {
-      setMessage({ tone: "danger", text: apiResultMessage(res) });
-      return;
-    }
-    if (res.data.status === "verified") {
-      onVerified(res.data.person);
-      return;
-    }
-    setMessage({ tone: res.data.status === "unavailable" ? "warning" : "danger", text: res.data.message });
-  };
-
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Take two photos: your passport&apos;s photo page, flat and in good light,
-        then a selfie. We check the passport is genuine and that the selfie is
-        you, and fill in your details from it.
-      </p>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={byNumber ? "grid gap-3" : "grid gap-3 sm:grid-cols-2"}>
+        {byNumber ? null : (
+          <PhotoSlot
+            id="register-id-front"
+            step={1}
+            label={passport ? "Your passport's photo page" : "The front of your ID card"}
+            hint={passport ? "Flat, in good light, the whole page in view." : "Flat, in good light, the whole card in view."}
+            icon={passport ? <Camera size={16} aria-hidden /> : <IdCard size={16} aria-hidden />}
+            capture="environment"
+            file={front}
+            onFile={setFront}
+          />
+        )}
         <PhotoSlot
-          id="you-passport-page"
-          label="Passport photo page"
-          icon={<Camera size={16} aria-hidden />}
-          capture="environment"
-          file={page}
-          onFile={setPage}
-        />
-        <PhotoSlot
-          id="you-passport-selfie"
+          id="register-id-selfie"
+          step={byNumber ? 1 : 2}
           label="A selfie"
+          hint={
+            byNumber
+              ? "Face the camera, nothing covering your face. NIDA compares it with your ID photo."
+              : "Face the camera, nothing covering your face."
+          }
           icon={<ScanFace size={16} aria-hidden />}
           capture="user"
           file={selfie}
           onFile={setSelfie}
         />
       </div>
-      <Button
-        variant="primary"
-        onPress={() => void scan()}
-        isDisabled={!page || !selfie}
-        isPending={busy}
+
+      {demo === "mock" ? (
+        <p className="text-xs text-muted-foreground">
+          {byNumber
+            ? "Demo: NIDA is a stand-in here with made-up people. Type any well formed National ID and use any selfie, never a real one."
+            : "Demo: nothing is read from the photos. The demo makes up the details, so use any two different pictures, never a real ID."}
+        </p>
+      ) : demo === "sandbox" ? (
+        <p className="text-xs text-muted-foreground">
+          Test service: this check goes to Injishi Mock APIs, not to {byNumber ? "NIDA" : "Smile ID"}. Use a person and
+          their demo {byNumber ? "selfie" : "photos"} from its console, never a real ID.
+        </p>
+      ) : demo === "off" ? (
+        <p className="text-xs text-muted-foreground">
+          Your photos are kept for PSF. You type your details next, and PSF compares them with the photos before
+          approving.
+        </p>
+      ) : null}
+
+      <Checkbox
+        isSelected={consent}
+        onChange={(on: boolean) => setConsent(on)}
+        className="items-start gap-3"
+        controlClassName="mt-0.5"
       >
-        {busy ? "Checking your passport…" : "Scan and verify"}
-      </Button>
-      {message ? <Notice tone={message.tone}>{message.text}</Notice> : null}
+        <span className="text-sm font-medium">
+          {byNumber ? "I agree to Injishi checking my ID with NIDA." : "I agree to Injishi checking my ID."}
+        </span>
+      </Checkbox>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <Button
+          onClick={() => void check()}
+          pending={busy}
+          disabled={!ready}
+          aria-describedby={online ? undefined : "register-scan-offline"}
+        >
+          {busy ? "Checking…" : byNumber ? "Check my ID" : "Scan my ID"}
+        </Button>
+        {online ? null : <Offline id="register-scan-offline">You're offline. Connect to check your ID.</Offline>}
+      </div>
+
+      {problem ? (
+        <Callout tone="danger" icon={<TriangleAlert size={16} aria-hidden />} title="That did not go through">
+          {problem}
+        </Callout>
+      ) : null}
     </div>
   );
 }
 
 function PhotoSlot({
   id,
+  step,
   label,
+  hint,
   icon,
   capture,
   file,
   onFile,
 }: {
   id: string;
+  step: number;
   label: string;
+  hint: string;
   icon: React.ReactNode;
-  capture: "user" | "environment";
+  capture?: "user" | "environment";
   file: File | null;
   onFile: (file: File | null) => void;
 }) {
   return (
     <label
       htmlFor={id}
-      className="flex cursor-pointer items-center gap-3 rounded-card border border-dashed border-border p-4 text-sm hover:bg-secondary"
+      className="flex min-w-0 cursor-pointer items-center gap-3 rounded-card border border-dashed border-border p-4 text-sm hover:bg-secondary focus-within:ring-2 focus-within:ring-ring"
     >
       <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground">
         {icon}
       </span>
       <span className="min-w-0">
-        <span className="block font-semibold">{label}</span>
-        <span className="block truncate text-xs text-muted-foreground">
-          {file ? file.name : "Take or choose a photo"}
+        <span className="block font-semibold">
+          {step}. {label}
         </span>
+        <span className="block truncate text-xs text-muted-foreground">{file ? file.name : hint}</span>
       </span>
       <input
         id={id}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic"
+        accept="image/jpeg,image/png,image/webp"
         capture={capture}
         className="sr-only"
         onChange={(e) => onFile(e.target.files?.[0] ?? null)}
@@ -290,42 +291,54 @@ function PhotoSlot({
   );
 }
 
-/** The verified person, shown back locked, with where the answer came from. */
-export function VerifiedIdentityCard({
-  person,
-  method,
-}: {
-  person: Pick<VerifiedPerson, "fullName" | "dateOfBirth" | "gender" | "documentType" | "documentNumberMasked" | "issuingCountry" | "generated">;
-  method: "registry" | "document_scan" | string | null;
-}) {
+/**
+ * The identity on file, shown back, with the one status the record supports
+ * (AC-6): "Checked" only after a machine check passed, otherwise "PSF will
+ * check your ID".
+ */
+export function IdentityCard({ person }: { person: IdentityOnFile }) {
+  const doc =
+    person.documentType === "passport"
+      ? `Passport ${person.documentNumberMasked}, ${countryName(person.issuingCountry)}`
+      : `National ID ${person.documentNumberMasked}`;
   return (
-    <div className="rounded-card border border-success/40 bg-success/10 p-4">
+    <div
+      className={
+        person.checked
+          ? "rounded-card border border-success/40 bg-success/10 p-4"
+          : "rounded-card border border-border bg-secondary p-4"
+      }
+    >
       <p className="flex items-center gap-2 text-sm font-semibold">
-        <BadgeCheck size={16} aria-hidden className="text-success" />
-        {method === "document_scan" ? "Verified from your passport" : "Verified with the population register"}
+        {person.checked ? (
+          <BadgeCheck size={16} aria-hidden className="text-success" />
+        ) : (
+          <Clock size={16} aria-hidden className="text-muted-foreground" />
+        )}
+        {person.checked ? "Checked" : "PSF will check your ID"}
       </p>
       <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         <Pair label="Name" value={person.fullName} />
         <Pair label="Date of birth" value={person.dateOfBirth} />
-        <Pair label="Gender" value={person.gender ? person.gender[0]!.toUpperCase() + person.gender.slice(1) : "Not recorded"} />
-        <Pair
-          label={person.documentType === "passport" ? "Passport" : "National ID"}
-          value={`${person.documentNumberMasked} · ${person.issuingCountry}`}
-        />
+        <Pair label="ID" value={doc} />
       </dl>
-      <p className="mt-3 text-xs text-muted-foreground">
-        These come from the {method === "document_scan" ? "passport" : "register"} and
-        cannot be edited here. If one is wrong, it has to be corrected at the
-        source.
-      </p>
-      {person.generated ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Demo: no real register or passport reader is connected, so these
-          details were generated for this demonstration.
-        </p>
-      ) : null}
+      <p className="mt-3 text-xs text-muted-foreground">{provenance(person)}</p>
     </div>
   );
+}
+
+/** Where the details came from, in one sentence. */
+function provenance(person: IdentityOnFile): string {
+  if (person.generated) {
+    return "Test details: a stand-in service made these up. No real register or document was read.";
+  }
+  if (person.source === "registry") {
+    return person.checked
+      ? "From NIDA's register. If one is wrong, contact support."
+      : "From NIDA's register. PSF compares your selfie with your ID photo before approving.";
+  }
+  if (person.checked) return "Read from your ID. If one is wrong, contact support.";
+  return "You typed these. PSF compares them with your photos before approving.";
 }
 
 function Pair({ label, value }: { label: string; value: string }) {

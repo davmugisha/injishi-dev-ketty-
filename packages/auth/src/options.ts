@@ -84,3 +84,25 @@ export const DEMO_COOKIE_PREFIX = "injishi-demo";
 
 /** OTP delivery reasons Better Auth's emailOTP plugin can raise. */
 export type OtpType = "sign-in" | "email-verification" | "forget-password" | "change-email";
+/**
+ * A password, for tenants only (2026-10-23), never instead of the code.
+ *
+ * Accounts are still made by the first email code, so every address is proved
+ * before a password can exist. Eight characters is the floor Better Auth
+ * enforces on every route that sets one, and the forms read the same numbers
+ * so they refuse first.
+ */
+export const PASSWORD_MIN_LENGTH = 8;
+/** Better Auth's own ceiling: a hash of a longer string buys nothing. */
+export const PASSWORD_MAX_LENGTH = 128;
+/**
+ * How long a session lives without being used: 30 days.
+ *
+ * Better Auth's default is 7, which asked somebody who opens the app once a
+ * week to sign in again nearly every time. Each day it is used, the expiry
+ * moves forward by `SESSION_UPDATE_AGE_SECONDS`, so a session in use never
+ * lapses and one left alone ends after a month.
+ */
+export const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30;
+/** At most once a day, a session in use has its expiry pushed forward. */
+export const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;

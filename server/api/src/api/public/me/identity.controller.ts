@@ -1,13 +1,11 @@
 import {
+  IdentityScanRequest,
+  type IdentityScanResult,
   type IdentityStatus,
-  NationalIdConfirmRequest,
-  NationalIdLookupRequest,
-  type NationalIdLookupResult,
-  PassportVerifyRequest,
-  type PassportVerifyResult,
-  type VerifiedPerson,
+  NationalIdCheckRequest,
+  TypedIdentityRequest,
 } from '@injishi/contracts';
-import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Put, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 
 import { IdentityService } from '../../../modules/user/application/identity.service';
@@ -20,56 +18,58 @@ import { UserThrottlerGuard } from '../../../shared/http/user-throttler.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 
 /**
- * The caller's own identity verification → /api/v1/me/identity (ADR-060).
+ * The caller's own identity → /api/v1/me/identity (ADR-060, ADR-075 A1).
  *
- * Signed in and throttled per PERSON throughout. The lookup is the tightest:
- * five National IDs in ten minutes is room for a typo and a retry, and far too
- * few to walk the register, and every one of them costs an SMS to somebody.
- * It reveals nobody anyway (see `IdentityService`); the throttle bounds the
- * texts, not the data.
+ * Signed in and throttled per PERSON throughout. The scan is the tightest: ten
+ * tries in ten minutes is room for bad light and a retake, and every try keeps
+ * two photos. No route here sends a code to any phone (AC-4), and no response
+ * carries a photo's object key (D-n).
  */
 @Controller({ path: 'me/identity', version: '1' })
 @UseGuards(SessionGuard, UserThrottlerGuard)
 export class IdentityController {
   constructor(private readonly identity: IdentityService) {}
 
-  /** Where the caller stands, and which checks this deployment can run. */
+  /** Where the caller stands, their latest scan, and whether a machine reads the ID here. */
   @Get()
   @Throttle({ money: { limit: 60, ttl: 60_000 } })
   status(@CurrentUser() user: SessionUser): Promise<IdentityStatus> {
     return this.identity.status(user.id);
   }
 
-  /** Send a code to the phone the register holds for this National ID. */
-  @Post('national-id/lookup')
-  @HttpCode(200)
-  @Throttle({ money: { limit: 5, ttl: 600_000 } })
-  lookup(
-    @Body(new ZodValidationPipe(NationalIdLookupRequest)) body: NationalIdLookupRequest,
-    @CurrentUser() user: SessionUser,
-  ): Promise<NationalIdLookupResult> {
-    return this.identity.lookupNationalId(user.id, body.documentNumber);
-  }
-
-  /** The code back, and the person revealed and recorded as verified. */
-  @Post('national-id/confirm')
+  /** The front of the card or the photo page, then a selfie, both uploaded first as `id_photo`. */
+  @Post('scan')
   @HttpCode(200)
   @Throttle({ money: { limit: 10, ttl: 600_000 } })
-  confirm(
-    @Body(new ZodValidationPipe(NationalIdConfirmRequest)) body: NationalIdConfirmRequest,
+  scan(
+    @Body(new ZodValidationPipe(IdentityScanRequest)) body: IdentityScanRequest,
     @CurrentUser() user: SessionUser,
-  ): Promise<VerifiedPerson> {
-    return this.identity.confirmNationalId(user.id, body.challengeId, body.code);
+  ): Promise<IdentityScanResult> {
+    return this.identity.scan(user.id, body);
   }
 
-  /** A passport page and a selfie, both uploaded first as `id_photo`. */
-  @Post('passport')
+  /**
+   * A National ID checked by its number against the population register
+   * (NIDA, through GTBank), with a selfie uploaded first as `id_photo`.
+   * Throttled with the scan: both keep a photo, and both count as a try.
+   */
+  @Post('national-id')
   @HttpCode(200)
-  @Throttle({ money: { limit: 5, ttl: 600_000 } })
-  passport(
-    @Body(new ZodValidationPipe(PassportVerifyRequest)) body: PassportVerifyRequest,
+  @Throttle({ money: { limit: 10, ttl: 600_000 } })
+  nationalId(
+    @Body(new ZodValidationPipe(NationalIdCheckRequest)) body: NationalIdCheckRequest,
     @CurrentUser() user: SessionUser,
-  ): Promise<PassportVerifyResult> {
-    return this.identity.verifyPassport(user.id, body);
+  ): Promise<IdentityScanResult> {
+    return this.identity.checkNationalId(user.id, body);
+  }
+
+  /** The details as printed, after a scan that read nothing or after the tries ran out. */
+  @Put('document')
+  @Throttle({ money: { limit: 10, ttl: 600_000 } })
+  document(
+    @Body(new ZodValidationPipe(TypedIdentityRequest)) body: TypedIdentityRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<IdentityStatus> {
+    return this.identity.putTyped(user.id, body);
   }
 }

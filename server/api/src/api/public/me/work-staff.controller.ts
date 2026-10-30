@@ -1,7 +1,7 @@
 import { type LeaveApproverList, LeaveApproversQuery, type MyDocumentList, type NextPublicHoliday } from '@injishi/contracts';
 import { Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
 
-import { MyStaffService } from '../../../modules/people/application/my-staff.service';
+import { MyStaffService } from '../../../modules/hr/application/my-staff.service';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
 

@@ -27,17 +27,13 @@ export function ReportsSummary({ tab, kpis }: { tab: "fin" | "res"; kpis: Report
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        {tab === "res" ? (
-          <Chip variant="soft">October 2026 · live</Chip>
-        ) : (
-          <Chip variant="soft" color="success">
-            September 2026 · period closed 5 Oct
-          </Chip>
-        )}
+        <Chip variant="soft" color="warning">
+          Sample data
+        </Chip>
         <span className="text-[13px] text-muted">
           {tab === "res"
-            ? "Kacyiru Court Residences · Amahoro Residences Ltd · measured by leases, not nights; never counted in hotel occupancy"
-            : "Amahoro Hospitality Ltd · Isangano and Ishyamba · RWF millions"}
+            ? "Sample figures, not your leases · residences are measured by leases, not nights, and never counted in hotel occupancy"
+            : "Sample figures, not your accounts: an expense ledger and city-ledger receivables are not kept yet · RWF millions"}
         </span>
         <span className="flex-1" />
         {tab === "fin" ? (
@@ -94,7 +90,7 @@ export function ReportsFinancialPanel({
       <section className="flex min-w-0 flex-[2_1_600px] flex-col gap-2.5" aria-labelledby="pl-h">
         <SectionHeader
           id="pl-h"
-          title="Departmental Profit and GOP · USALI Layout"
+          title="Departmental Profit and GOP · Sample"
           className="items-center"
           action={
             <LinkButton href={screenHref("GeneralLedger")} size="sm" variant="secondary">
@@ -153,8 +149,8 @@ export function ReportsFinancialPanel({
           </Table.ScrollContainer>
         </Table>
         <p className="text-xs text-muted">
-          Ikawa Corner Ltd is a separate merchant: only its rent to you appears, under miscellaneous income. Kacyiru
-          Court Residences reports under Amahoro Residences Ltd in the Residence tab.
+          In the USALI layout a separate merchant's sales are not yours: only its rent to you appears, under
+          miscellaneous income. Residences report in the Residence tab.
         </p>
       </section>
 
@@ -167,7 +163,7 @@ export function ReportsFinancialPanel({
           <Card.Title id="ar-h" render={(props) => <h2 {...props} />} className="text-[15px] font-semibold">
             Receivables Aging
           </Card.Title>
-          <Card.Description>City ledger at 12 Oct · {millions(total)}</Card.Description>
+          <Card.Description>Sample city ledger · {millions(total)}</Card.Description>
         </Card.Header>
         <div
           role="img"
@@ -245,11 +241,11 @@ export function ReportsResidencePanel({
       <section className="flex min-w-0 flex-col gap-2.5" aria-labelledby="vac-h">
         <SectionHeader
           id="vac-h"
-          title="Vacant Units"
+          title="Vacant Units · Sample"
           className="items-center"
           action={
-            <LinkButton href={screenHref("Leases")} size="sm" variant="ghost">
-              Leases
+            <LinkButton href={screenHref("Units")} size="sm" variant="ghost">
+              Units
             </LinkButton>
           }
         />
@@ -294,11 +290,11 @@ export function ReportsResidencePanel({
       <section className="flex min-w-0 flex-col gap-2.5" aria-labelledby="arr-h">
         <SectionHeader
           id="arr-h"
-          title="Arrears"
+          title="Arrears · Sample"
           className="items-center"
           action={
-            <LinkButton href={screenHref("RentRoll")} size="sm" variant="ghost">
-              Rent roll
+            <LinkButton href={screenHref("ResidenceHome")} size="sm" variant="ghost">
+              Rentals
             </LinkButton>
           }
         />

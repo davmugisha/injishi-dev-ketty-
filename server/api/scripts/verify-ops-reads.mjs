@@ -2,8 +2,9 @@
 // (ADR-035, D-f wave 1).
 //
 // The third verify script, and it asks the third question. `verify-authz.mjs`
-// checks the MODEL against rows. `verify-role-nav.mjs` checks that each role
-// gets its own set of DOORS. This one checks that what is behind those doors
+// checks the MODEL against rows. A role-nav script once checked that each role
+// got its own set of DOORS; it went with the old operator app it read. This one
+// checks that what is behind those doors
 // actually opens: every read a wave 1 screen makes, signed in as a real person,
 // against a real database.
 //
@@ -68,8 +69,9 @@ const READS = [
   ['Housekeeping', '/ops/housekeeping-tasks', 'tasks'],
   ['Maintenance', '/ops/tickets', 'tickets'],
   ['Inbox', '/ops/threads', 'threads'],
-  ['Leases', '/ops/leases', 'leases'],
-  ['Move-outs (deposits)', '/ops/deposits', 'deposits'],
+  // The old landlord reads (/ops/leases, /ops/deposits, /ops/rent-roll,
+  // /ops/filings) went with the rentals rebuild (migrations 0073 to 0080); the
+  // rentals module's reads replace them.
   // Wave 2.
   ['Departments', '/ops/departments', 'departments'],
   ['Menu', '/ops/service-catalog', 'categories'],
@@ -87,12 +89,6 @@ const READS = [
   // were working shows up in the same run.
   ['Reservations', '/ops/reservations', 'reservations'],
   ['Room status', '/ops/rooms', 'rooms'],
-  ['Rent roll', '/ops/rent-roll', 'charges'],
-  // The Filings lens on Finance (F-R10). Absent from the desk's and the
-  // housekeeper's expected maps below, so this run also proves both are
-  // refused it: whether a contract was filed is the business's compliance
-  // record, not something the front desk needs.
-  ['Filings', '/ops/filings', 'filings'],
 ];
 
 console.log(`Verifying operator reads against ${API}\n`);

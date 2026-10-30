@@ -15,7 +15,8 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
     "incremental": true,
     "plugins": [
       {
@@ -31,8 +32,10 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    "vitest.config.mts",
     ".next/types/**/*.ts",
-    "next-env.d.ts"
+    "next-env.d.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

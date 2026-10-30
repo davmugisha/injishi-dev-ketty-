@@ -9,7 +9,7 @@ import {
 } from '@injishi/contracts';
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 
-import { LostFoundService } from '../../../modules/operations/application/lost-found.service';
+import { LostFoundService } from '../../../modules/pms/application/lost-found.service';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import { CurrentWorkspace, RequirePermission, WorkspaceGuard } from '../../../shared/auth/workspace.guard';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';

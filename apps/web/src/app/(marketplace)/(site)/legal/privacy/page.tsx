@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/shared/coming-soon";
+import { LegalDocument } from "@/components/legal/legal-document";
+import { legalRobots } from "@/data/legal/documents";
+import { PRIVACY } from "@/data/legal/privacy";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description: "How Injishi collects, stores, and uses your data.",
+  alternates: { canonical: "/legal/privacy" },
+  robots: legalRobots(PRIVACY),
 };
 
+/** The words are `data/legal/privacy.ts`. */
 export default function Page() {
-  return (
-    <ComingSoon
-      title="Privacy Policy"
-      description="How Injishi collects, stores, and uses your data."
-      trail={[{ label: "Home", href: "/" }, { label: "Privacy Policy" }]}
-    />
-  );
+  return <LegalDocument content={PRIVACY} />;
 }

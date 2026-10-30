@@ -42,6 +42,13 @@ export type AttendanceSource = z.infer<typeof AttendanceSource>;
 /** `closed` becomes `superseded` only when a correction replaces it. */
 export declare const AttendanceStatus: z.ZodEnum<["open", "closed", "superseded"]>;
 export type AttendanceStatus = z.infer<typeof AttendanceStatus>;
+/**
+ * Why a phone punch waits for a person to validate it (mobile spec 0003, D-ao),
+ * in this order: the location reasons first, then `late_sync`, a punch that
+ * reached the server more than 30 minutes after its tap.
+ */
+export declare const AttendancePendingReason: z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>;
+export type AttendancePendingReason = z.infer<typeof AttendancePendingReason>;
 /** What kind of day a record's work date was, for pricing overtime (058-time AC-TM7). */
 export declare const DayKind: z.ZodEnum<["weekday", "weekly_off", "public_holiday"]>;
 export type DayKind = z.infer<typeof DayKind>;
@@ -290,7 +297,7 @@ export declare const EmployeeBasic: z.ZodObject<{
     /** Whether the file is linked to an account (an `org_memberships` row). */
     hasAccount: z.ZodBoolean;
     /** The role that account holds here, when it does. Never held by the file. */
-    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
     detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
 } & {
     view: z.ZodLiteral<"basic">;
@@ -326,10 +333,10 @@ export declare const EmployeeBasic: z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "offboarded";
+    id: string;
     email: string | null;
     legalName: string;
-    id: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "basic";
     employeeNumber: string;
@@ -369,10 +376,10 @@ export declare const EmployeeBasic: z.ZodObject<{
     } | null;
 }, {
     status: "active" | "offboarded";
+    id: string;
     email: string | null;
     legalName: string;
-    id: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "basic";
     employeeNumber: string;
@@ -422,16 +429,16 @@ export declare const EmployeeAddress: z.ZodObject<{
     districtName: z.ZodString;
     street: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    districtName: string;
     villageId: number;
     street: string | null;
-    districtName: string;
     sectorName: string;
     villageName: string;
     cellName: string;
 }, {
+    districtName: string;
     villageId: number;
     street: string | null;
-    districtName: string;
     sectorName: string;
     villageName: string;
     cellName: string;
@@ -498,7 +505,7 @@ export declare const EmployeeFull: z.ZodObject<{
     /** Whether the file is linked to an account (an `org_memberships` row). */
     hasAccount: z.ZodBoolean;
     /** The role that account holds here, when it does. Never held by the file. */
-    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
     detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
 } & {
     view: z.ZodLiteral<"full">;
@@ -517,16 +524,16 @@ export declare const EmployeeFull: z.ZodObject<{
         districtName: z.ZodString;
         street: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        districtName: string;
         villageId: number;
         street: string | null;
-        districtName: string;
         sectorName: string;
         villageName: string;
         cellName: string;
     }, {
+        districtName: string;
         villageId: number;
         street: string | null;
-        districtName: string;
         sectorName: string;
         villageName: string;
         cellName: string;
@@ -589,21 +596,21 @@ export declare const EmployeeFull: z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "offboarded";
+    id: string;
     dateOfBirth: string | null;
     address: {
+        districtName: string;
         villageId: number;
         street: string | null;
-        districtName: string;
         sectorName: string;
         villageName: string;
         cellName: string;
     } | null;
     email: string | null;
     legalName: string;
-    id: string;
     idDocumentType: "national_id" | "passport" | null;
     idDocumentNumber: string | null;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "full";
     employeeNumber: string;
@@ -657,21 +664,21 @@ export declare const EmployeeFull: z.ZodObject<{
     previousEmployeeId: string | null;
 }, {
     status: "active" | "offboarded";
+    id: string;
     dateOfBirth: string | null;
     address: {
+        districtName: string;
         villageId: number;
         street: string | null;
-        districtName: string;
         sectorName: string;
         villageName: string;
         cellName: string;
     } | null;
     email: string | null;
     legalName: string;
-    id: string;
     idDocumentType: "national_id" | "passport" | null;
     idDocumentNumber: string | null;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "full";
     employeeNumber: string;
@@ -772,7 +779,7 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
     /** Whether the file is linked to an account (an `org_memberships` row). */
     hasAccount: z.ZodBoolean;
     /** The role that account holds here, when it does. Never held by the file. */
-    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
     detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
 } & {
     view: z.ZodLiteral<"basic">;
@@ -808,10 +815,10 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "offboarded";
+    id: string;
     email: string | null;
     legalName: string;
-    id: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "basic";
     employeeNumber: string;
@@ -851,10 +858,10 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
     } | null;
 }, {
     status: "active" | "offboarded";
+    id: string;
     email: string | null;
     legalName: string;
-    id: string;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "basic";
     employeeNumber: string;
@@ -939,7 +946,7 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
     /** Whether the file is linked to an account (an `org_memberships` row). */
     hasAccount: z.ZodBoolean;
     /** The role that account holds here, when it does. Never held by the file. */
-    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+    orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
     detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
 } & {
     view: z.ZodLiteral<"full">;
@@ -958,16 +965,16 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
         districtName: z.ZodString;
         street: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        districtName: string;
         villageId: number;
         street: string | null;
-        districtName: string;
         sectorName: string;
         villageName: string;
         cellName: string;
     }, {
+        districtName: string;
         villageId: number;
         street: string | null;
-        districtName: string;
         sectorName: string;
         villageName: string;
         cellName: string;
@@ -1030,21 +1037,21 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
     }>>;
 }, "strip", z.ZodTypeAny, {
     status: "active" | "offboarded";
+    id: string;
     dateOfBirth: string | null;
     address: {
+        districtName: string;
         villageId: number;
         street: string | null;
-        districtName: string;
         sectorName: string;
         villageName: string;
         cellName: string;
     } | null;
     email: string | null;
     legalName: string;
-    id: string;
     idDocumentType: "national_id" | "passport" | null;
     idDocumentNumber: string | null;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "full";
     employeeNumber: string;
@@ -1098,21 +1105,21 @@ export declare const Employee: z.ZodDiscriminatedUnion<"view", [z.ZodObject<{
     previousEmployeeId: string | null;
 }, {
     status: "active" | "offboarded";
+    id: string;
     dateOfBirth: string | null;
     address: {
+        districtName: string;
         villageId: number;
         street: string | null;
-        districtName: string;
         sectorName: string;
         villageName: string;
         cellName: string;
     } | null;
     email: string | null;
     legalName: string;
-    id: string;
     idDocumentType: "national_id" | "passport" | null;
     idDocumentNumber: string | null;
-    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+    orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
     phone: string | null;
     view: "full";
     employeeNumber: string;
@@ -1230,7 +1237,7 @@ export declare const EmployeeFile: z.ZodObject<{
         /** Whether the file is linked to an account (an `org_memberships` row). */
         hasAccount: z.ZodBoolean;
         /** The role that account holds here, when it does. Never held by the file. */
-        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
         detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
     } & {
         view: z.ZodLiteral<"basic">;
@@ -1266,10 +1273,10 @@ export declare const EmployeeFile: z.ZodObject<{
         }>>;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "offboarded";
+        id: string;
         email: string | null;
         legalName: string;
-        id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -1309,10 +1316,10 @@ export declare const EmployeeFile: z.ZodObject<{
         } | null;
     }, {
         status: "active" | "offboarded";
+        id: string;
         email: string | null;
         legalName: string;
-        id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -1397,7 +1404,7 @@ export declare const EmployeeFile: z.ZodObject<{
         /** Whether the file is linked to an account (an `org_memberships` row). */
         hasAccount: z.ZodBoolean;
         /** The role that account holds here, when it does. Never held by the file. */
-        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
         detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
     } & {
         view: z.ZodLiteral<"full">;
@@ -1416,16 +1423,16 @@ export declare const EmployeeFile: z.ZodObject<{
             districtName: z.ZodString;
             street: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
+            districtName: string;
             villageId: number;
             street: string | null;
-            districtName: string;
             sectorName: string;
             villageName: string;
             cellName: string;
         }, {
+            districtName: string;
             villageId: number;
             street: string | null;
-            districtName: string;
             sectorName: string;
             villageName: string;
             cellName: string;
@@ -1488,21 +1495,21 @@ export declare const EmployeeFile: z.ZodObject<{
         }>>;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "offboarded";
+        id: string;
         dateOfBirth: string | null;
         address: {
+            districtName: string;
             villageId: number;
             street: string | null;
-            districtName: string;
             sectorName: string;
             villageName: string;
             cellName: string;
         } | null;
         email: string | null;
         legalName: string;
-        id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -1556,21 +1563,21 @@ export declare const EmployeeFile: z.ZodObject<{
         previousEmployeeId: string | null;
     }, {
         status: "active" | "offboarded";
+        id: string;
         dateOfBirth: string | null;
         address: {
+            districtName: string;
             villageId: number;
             street: string | null;
-            districtName: string;
             sectorName: string;
             villageName: string;
             cellName: string;
         } | null;
         email: string | null;
         legalName: string;
-        id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -1705,10 +1712,10 @@ export declare const EmployeeFile: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     employee: {
         status: "active" | "offboarded";
+        id: string;
         email: string | null;
         legalName: string;
-        id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -1748,21 +1755,21 @@ export declare const EmployeeFile: z.ZodObject<{
         } | null;
     } | {
         status: "active" | "offboarded";
+        id: string;
         dateOfBirth: string | null;
         address: {
+            districtName: string;
             villageId: number;
             street: string | null;
-            districtName: string;
             sectorName: string;
             villageName: string;
             cellName: string;
         } | null;
         email: string | null;
         legalName: string;
-        id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -1844,10 +1851,10 @@ export declare const EmployeeFile: z.ZodObject<{
 }, {
     employee: {
         status: "active" | "offboarded";
+        id: string;
         email: string | null;
         legalName: string;
-        id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -1887,21 +1894,21 @@ export declare const EmployeeFile: z.ZodObject<{
         } | null;
     } | {
         status: "active" | "offboarded";
+        id: string;
         dateOfBirth: string | null;
         address: {
+            districtName: string;
             villageId: number;
             street: string | null;
-            districtName: string;
             sectorName: string;
             villageName: string;
             cellName: string;
         } | null;
         email: string | null;
         legalName: string;
-        id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -2257,17 +2264,17 @@ export declare const CreateContractRequest: z.ZodObject<{
     contractType: "permanent" | "fixed_term" | "casual";
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
+    noticeDays?: number | null | undefined;
     endsOn?: string | null | undefined;
     payStructureId?: string | null | undefined;
-    noticeDays?: number | null | undefined;
 }, {
     startsOn: string;
     contractType: "permanent" | "fixed_term" | "casual";
     wageBasis: "monthly" | "daily" | "hourly";
     wageRwf: number;
+    noticeDays?: number | null | undefined;
     endsOn?: string | null | undefined;
     payStructureId?: string | null | undefined;
-    noticeDays?: number | null | undefined;
 }>;
 export type CreateContractRequest = z.infer<typeof CreateContractRequest>;
 /** The new contract, and the one it shortened, if any. */
@@ -2594,15 +2601,15 @@ export declare const RosterEntry: z.ZodObject<{
     /** Written by an approved shift or swap request (AC-TM5). */
     fromRequest: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    status: "scheduled" | "cancelled";
+    status: "cancelled" | "scheduled";
     id: string;
+    publishedAt: string | null;
     generated: boolean;
     employee: {
         employeeId: string;
         displayName: string;
         jobPositionTitle: string | null;
     };
-    publishedAt: string | null;
     propertyId: string;
     departmentId: string | null;
     startsAt: string;
@@ -2613,15 +2620,15 @@ export declare const RosterEntry: z.ZodObject<{
     cancelReason: string | null;
     fromRequest: boolean;
 }, {
-    status: "scheduled" | "cancelled";
+    status: "cancelled" | "scheduled";
     id: string;
+    publishedAt: string | null;
     generated: boolean;
     employee: {
         employeeId: string;
         displayName: string;
         jobPositionTitle: string | null;
     };
-    publishedAt: string | null;
     propertyId: string;
     departmentId: string | null;
     startsAt: string;
@@ -2726,6 +2733,10 @@ export declare const AttendanceRecord: z.ZodObject<{
     note: z.ZodNullable<z.ZodString>;
     /** Closed by the sweep, not by a person: unvalidated until someone puts the times right (AC-TM4). */
     autoClosed: z.ZodBoolean;
+    /** Why the phone clock in waits for validation (mobile spec 0003, D-ao); null for any other punch. */
+    inPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
+    /** Why the phone clock out waits for validation; null for any other punch. */
+    outPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
     /**
      * A closed record's work figures (AC-TM7). Null while open, and for a reader
      * outside the figure audience (`attendance.approve` and `people.manage`,
@@ -2797,6 +2808,8 @@ export declare const AttendanceRecord: z.ZodObject<{
     validated: boolean;
     supersedesId: string | null;
     autoClosed: boolean;
+    inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+    outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
     location: {
         inDistanceM: number | null;
         inAccuracyM: number | null;
@@ -2829,6 +2842,8 @@ export declare const AttendanceRecord: z.ZodObject<{
     validated: boolean;
     supersedesId: string | null;
     autoClosed: boolean;
+    inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+    outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
     location: {
         inDistanceM: number | null;
         inAccuracyM: number | null;
@@ -3475,9 +3490,9 @@ export declare const LeaveLedgerEntry: z.ZodObject<{
     /** The credit a debit draws from. */
     lotId: z.ZodNullable<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
+    id: string;
     kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
     expiresOn: string | null;
-    id: string;
     reason: string | null;
     days: number;
     effectiveOn: string;
@@ -3485,9 +3500,9 @@ export declare const LeaveLedgerEntry: z.ZodObject<{
     leaveRequestId: string | null;
     lotId: string | null;
 }, {
+    id: string;
     kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
     expiresOn: string | null;
-    id: string;
     reason: string | null;
     days: number;
     effectiveOn: string;
@@ -3506,15 +3521,15 @@ export declare const LeaveLot: z.ZodObject<{
     creditDays: z.ZodNumber;
     remainingDays: z.ZodNumber;
 }, "strip", z.ZodTypeAny, {
-    kind: "adjustment" | "accrual" | "carry_forward";
     id: string;
+    kind: "adjustment" | "accrual" | "carry_forward";
     effectiveOn: string;
     usableUntil: string | null;
     creditDays: number;
     remainingDays: number;
 }, {
-    kind: "adjustment" | "accrual" | "carry_forward";
     id: string;
+    kind: "adjustment" | "accrual" | "carry_forward";
     effectiveOn: string;
     usableUntil: string | null;
     creditDays: number;
@@ -3633,15 +3648,15 @@ export declare const LeaveBalance: z.ZodObject<{
         creditDays: z.ZodNumber;
         remainingDays: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        kind: "adjustment" | "accrual" | "carry_forward";
         id: string;
+        kind: "adjustment" | "accrual" | "carry_forward";
         effectiveOn: string;
         usableUntil: string | null;
         creditDays: number;
         remainingDays: number;
     }, {
-        kind: "adjustment" | "accrual" | "carry_forward";
         id: string;
+        kind: "adjustment" | "accrual" | "carry_forward";
         effectiveOn: string;
         usableUntil: string | null;
         creditDays: number;
@@ -3661,9 +3676,9 @@ export declare const LeaveBalance: z.ZodObject<{
         /** The credit a debit draws from. */
         lotId: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
+        id: string;
         kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
         expiresOn: string | null;
-        id: string;
         reason: string | null;
         days: number;
         effectiveOn: string;
@@ -3671,9 +3686,9 @@ export declare const LeaveBalance: z.ZodObject<{
         leaveRequestId: string | null;
         lotId: string | null;
     }, {
+        id: string;
         kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
         expiresOn: string | null;
-        id: string;
         reason: string | null;
         days: number;
         effectiveOn: string;
@@ -3683,9 +3698,9 @@ export declare const LeaveBalance: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     entries: {
+        id: string;
         kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
         expiresOn: string | null;
-        id: string;
         reason: string | null;
         days: number;
         effectiveOn: string;
@@ -3725,8 +3740,8 @@ export declare const LeaveBalance: z.ZodObject<{
     };
     balanceDays: number | null;
     lots: {
-        kind: "adjustment" | "accrual" | "carry_forward";
         id: string;
+        kind: "adjustment" | "accrual" | "carry_forward";
         effectiveOn: string;
         usableUntil: string | null;
         creditDays: number;
@@ -3734,9 +3749,9 @@ export declare const LeaveBalance: z.ZodObject<{
     }[];
 }, {
     entries: {
+        id: string;
         kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
         expiresOn: string | null;
-        id: string;
         reason: string | null;
         days: number;
         effectiveOn: string;
@@ -3776,8 +3791,8 @@ export declare const LeaveBalance: z.ZodObject<{
     };
     balanceDays: number | null;
     lots: {
-        kind: "adjustment" | "accrual" | "carry_forward";
         id: string;
+        kind: "adjustment" | "accrual" | "carry_forward";
         effectiveOn: string;
         usableUntil: string | null;
         creditDays: number;
@@ -3898,15 +3913,15 @@ export declare const LeaveBalances: z.ZodObject<{
             creditDays: z.ZodNumber;
             remainingDays: z.ZodNumber;
         }, "strip", z.ZodTypeAny, {
-            kind: "adjustment" | "accrual" | "carry_forward";
             id: string;
+            kind: "adjustment" | "accrual" | "carry_forward";
             effectiveOn: string;
             usableUntil: string | null;
             creditDays: number;
             remainingDays: number;
         }, {
-            kind: "adjustment" | "accrual" | "carry_forward";
             id: string;
+            kind: "adjustment" | "accrual" | "carry_forward";
             effectiveOn: string;
             usableUntil: string | null;
             creditDays: number;
@@ -3926,9 +3941,9 @@ export declare const LeaveBalances: z.ZodObject<{
             /** The credit a debit draws from. */
             lotId: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
+            id: string;
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            id: string;
             reason: string | null;
             days: number;
             effectiveOn: string;
@@ -3936,9 +3951,9 @@ export declare const LeaveBalances: z.ZodObject<{
             leaveRequestId: string | null;
             lotId: string | null;
         }, {
+            id: string;
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            id: string;
             reason: string | null;
             days: number;
             effectiveOn: string;
@@ -3948,9 +3963,9 @@ export declare const LeaveBalances: z.ZodObject<{
         }>, "many">;
     }, "strip", z.ZodTypeAny, {
         entries: {
+            id: string;
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            id: string;
             reason: string | null;
             days: number;
             effectiveOn: string;
@@ -3990,8 +4005,8 @@ export declare const LeaveBalances: z.ZodObject<{
         };
         balanceDays: number | null;
         lots: {
-            kind: "adjustment" | "accrual" | "carry_forward";
             id: string;
+            kind: "adjustment" | "accrual" | "carry_forward";
             effectiveOn: string;
             usableUntil: string | null;
             creditDays: number;
@@ -3999,9 +4014,9 @@ export declare const LeaveBalances: z.ZodObject<{
         }[];
     }, {
         entries: {
+            id: string;
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            id: string;
             reason: string | null;
             days: number;
             effectiveOn: string;
@@ -4041,8 +4056,8 @@ export declare const LeaveBalances: z.ZodObject<{
         };
         balanceDays: number | null;
         lots: {
-            kind: "adjustment" | "accrual" | "carry_forward";
             id: string;
+            kind: "adjustment" | "accrual" | "carry_forward";
             effectiveOn: string;
             usableUntil: string | null;
             creditDays: number;
@@ -4053,9 +4068,9 @@ export declare const LeaveBalances: z.ZodObject<{
     employeeId: string;
     balances: {
         entries: {
+            id: string;
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            id: string;
             reason: string | null;
             days: number;
             effectiveOn: string;
@@ -4095,8 +4110,8 @@ export declare const LeaveBalances: z.ZodObject<{
         };
         balanceDays: number | null;
         lots: {
-            kind: "adjustment" | "accrual" | "carry_forward";
             id: string;
+            kind: "adjustment" | "accrual" | "carry_forward";
             effectiveOn: string;
             usableUntil: string | null;
             creditDays: number;
@@ -4107,9 +4122,9 @@ export declare const LeaveBalances: z.ZodObject<{
     employeeId: string;
     balances: {
         entries: {
+            id: string;
             kind: "taken" | "adjustment" | "accrual" | "reversal" | "carry_forward" | "expiry" | "encashed";
             expiresOn: string | null;
-            id: string;
             reason: string | null;
             days: number;
             effectiveOn: string;
@@ -4149,8 +4164,8 @@ export declare const LeaveBalances: z.ZodObject<{
         };
         balanceDays: number | null;
         lots: {
-            kind: "adjustment" | "accrual" | "carry_forward";
             id: string;
+            kind: "adjustment" | "accrual" | "carry_forward";
             effectiveOn: string;
             usableUntil: string | null;
             creditDays: number;
@@ -4236,8 +4251,8 @@ export declare const LeaveRequest: z.ZodObject<{
     hasAttachment: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     status: "approved" | "rejected" | "cancelled" | "requested";
-    decidedAt: string | null;
     id: string;
+    decidedAt: string | null;
     reason: string | null;
     startsOn: string;
     decisionNote: string | null;
@@ -4274,8 +4289,8 @@ export declare const LeaveRequest: z.ZodObject<{
     hasAttachment: boolean;
 }, {
     status: "approved" | "rejected" | "cancelled" | "requested";
-    decidedAt: string | null;
     id: string;
+    decidedAt: string | null;
     reason: string | null;
     startsOn: string;
     decisionNote: string | null;

@@ -41,7 +41,7 @@ export async function assignRoom(ctx: SourceContext, bookingRef: string, roomLab
   await command(ctx, () => ctx.ops().post(`/api/v1/ops/reservations/${booking.id}/assign`, { roomId: room.id }));
 }
 
-export interface CheckInInput {
+interface CheckInInput {
   bookingRef: string;
   roomLabel: string;
   /** Cash taken at the desk, posted to the bill once the stay is open. One key per press of "Record cash". */
@@ -134,6 +134,136 @@ export async function cancelReservation(
       }),
   );
   return { refundRwf: result.refundRwf, keptRwf: result.forfeitRwf, rule: result.rule };
+}
+
+export interface WalkInInput {
+  /** The room type's id, as the walk-in screen lists it (frontdesk.roomTypes). */
+  roomTypeId: string;
+  nights: number;
+  guestName: string;
+  phone?: string;
+  /** Where the claim code goes, so the guest can carry on in the app. */
+  email?: string;
+}
+
+export interface WalkedIn {
+  stayId: string;
+  stayReference: string | null;
+  room: string;
+  folioNumber: string | null;
+  /** True when the claim code was mailed to the address given. */
+  invited: boolean;
+}
+
+const READY = new Set(["clean", "inspected"]);
+
+/**
+ * A room of this type a walk-in can have now: on sale, ready, nobody in it, and held for no booking
+ * on any night of the stay. The API refuses the same things (and a race for the room); choosing here
+ * only spares the desk a refusal it could have seen coming.
+ */
+function roomForWalkIn(board: ApiBoard, roomTypeId: string, from: string, to: string) {
+  const held = new Set(
+    board.bookings
+      .filter((b) => b.state !== "cancelled" && b.state !== "declined" && b.state !== "checked_out")
+      .flatMap((b) => b.holds.filter((h) => h.from < to && from < h.to).map((h) => h.roomId)),
+  );
+  return board.rooms
+    .filter(
+      (r) =>
+        r.roomTypeId === roomTypeId &&
+        r.status === "available" &&
+        READY.has(r.housekeeping) &&
+        !r.occupant &&
+        !r.heldTonightBy &&
+        !held.has(r.id),
+    )
+    .sort((a, b) => (a.label ?? "").localeCompare(b.label ?? "", undefined, { numeric: true }))[0];
+}
+
+/** "2026-10-19" plus n days. */
+function addDays(iso: string, n: number): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Check a walk-in in (POST /ops/stays/walk-in): somebody at the counter with no booking. The stay
+ * opens at once with its bill, at the room type's standard rate (the rate the walk-in screen shows),
+ * due out after the nights asked for at the property's checkout hour. What the desk typed about the
+ * guest goes on the registration card, and an email address gets the claim code.
+ */
+export async function walkIn(ctx: SourceContext, input: WalkInInput): Promise<WalkedIn> {
+  const name = input.guestName.trim();
+  if (!name) throw new ApiError(400, "name_required", "Type the guest's name as it is on their ID.", null);
+  const nights = Math.trunc(input.nights);
+  if (!(nights >= 1 && nights <= 30)) throw new ApiError(400, "nights", "A walk-in stays 1 to 30 nights.", null);
+  const board = await deskBoard(ctx);
+  const type = board.roomTypes.find((t) => t.id === input.roomTypeId && t.active);
+  if (!type) throw new ApiError(404, "not_found", "That room type is not sold at this property.", null);
+  const leaves = addDays(board.today, nights);
+  const room = roomForWalkIn(board, type.id, board.today, leaves);
+  if (!room) {
+    throw new ApiError(
+      409,
+      "no_room",
+      `No ${type.name} room is ready and free for ${nights === 1 ? "tonight" : `${nights} nights`}. Choose another type.`,
+      null,
+    );
+  }
+  const checkOutTime = /^\d{2}:\d{2}/.test(board.property.checkOutTime ?? "")
+    ? (board.property.checkOutTime as string).slice(0, 5)
+    : "11:00";
+  const phone = input.phone?.trim() || undefined;
+  const email = input.email?.trim() || undefined;
+  return command(ctx, async () => {
+    const stay = await ctx.ops().post<{ id: string }>("/api/v1/ops/stays/walk-in", {
+      roomId: room.id,
+      guestName: name,
+      plannedExitAt: new Date(`${leaves}T${checkOutTime}:00+02:00`).toISOString(),
+      guest: { fullName: name, ...(phone ? { phone } : {}), ...(email ? { email } : {}) },
+    });
+    const after = await ctx.ops().get<ApiBoard>("/api/v1/ops/front-desk");
+    const opened = after.stays.find((s) => s.id === stay.id);
+    let invited = false;
+    if (email) {
+      try {
+        const invite = await ctx.ops().get<{ invitationSent: boolean }>(`/api/v1/ops/stays/${stay.id}/claim-invite`);
+        invited = invite.invitationSent;
+      } catch {
+        invited = false;
+      }
+    }
+    return {
+      stayId: stay.id,
+      stayReference: opened?.reference ?? null,
+      room: room.label ?? "",
+      folioNumber: opened?.folio?.folioNumber ?? null,
+      invited,
+    };
+  });
+}
+
+export interface ClaimInvite {
+  claimCode: string | null;
+  email: string | null;
+  invitationSent: boolean;
+}
+
+/**
+ * Send a stay's claim code by email, or send it again (POST /ops/stays/:id/claim-invite). The API
+ * refuses a stay whose guest already has it on their account (a booked guest), and answers
+ * `invitationSent: false` when the stay has no address; neither is reported as sent.
+ */
+export async function sendClaimInvite(ctx: SourceContext, stayRef: string, email?: string): Promise<ClaimInvite> {
+  const board = await deskBoard(ctx);
+  const stay = board.stays.find((s) => s.reference === stayRef || s.id === stayRef);
+  if (!stay) throw new ApiError(404, "not_found", `Stay ${stayRef} is not on this desk.`, null);
+  const address = email?.trim() || undefined;
+  return command(ctx, () =>
+    ctx.ops().post<ClaimInvite>(`/api/v1/ops/stays/${stay.id}/claim-invite`, address ? { email: address } : {}),
+  );
 }
 
 /** Record that a confirmed guest never came (POST /ops/reservations/:id/no-show). */

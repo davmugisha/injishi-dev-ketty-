@@ -2,15 +2,17 @@ import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 import { AuthModule } from '../../modules/auth/auth.module';
-import { BookingModule } from '../../modules/booking/booking.module';
+import { BookingModule } from '../../modules/pms/booking.module';
+import { PaymentsModule } from '../../modules/payments/payments.module';
 import { GeographyModule } from '../../modules/geography/geography.module';
-import { ListingSetupModule } from '../../modules/listing-setup/listing-setup.module';
+import { ListingSetupModule } from '../../modules/platform/property/listing-setup.module';
 import { ListingModule } from '../../modules/listing/listing.module';
 import { MarketplaceModule } from '../../modules/marketplace/marketplace.module';
 import { OperationsModule } from '../../modules/operations/operations.module';
 import { OrganizationModule } from '../../modules/organization/organization.module';
 import { ListsModule } from '../../modules/lists/lists.module';
-import { PeopleModule } from '../../modules/people/people.module';
+import { PeopleModule } from '../../modules/hr/people.module';
+import { RentalsModule } from '../../modules/rentals/rentals.module';
 import { StorageModule } from '../../modules/storage/storage.module';
 import { UserModule } from '../../modules/user/user.module';
 import { TwoFactorService } from '../../shared/auth/two-factor.service';
@@ -21,14 +23,22 @@ import { DemoCrashController } from './demo/crash.controller';
 import { DemoPersonasController } from './demo/personas.controller';
 import { EbmOauthController } from './ebm/ebm-oauth.controller';
 import { GeographyController } from './geography/geography.controller';
+import { GuestsPublicModule } from './guests/guests-public.module';
 import { HealthController } from './health/health.controller';
 import { MeController } from './me/me.controller';
+// Who am I, in one call (blueprint 2.5).
+import { MeContextController } from './me/context.controller';
+// Rentals, the tenant's side (blueprint 2.4 and 2.5): their tenancies, accepting an invitation.
+import { MeLeaseInvitationsController, MeTenanciesController } from './me/tenancies.controller';
+import { LeaseInvitationsController } from './lease-invitations/lease-invitations.controller';
 import { MeStaysController } from './me/stays.controller';
 import { MeWorkController } from './me/work.controller';
 import { MeWorkLeaveController } from './me/work-leave.controller';
 import { MeWorkPayController } from './me/work-pay.controller';
 import { KioskController } from './kiosk/kiosk.controller';
 import { TwoFactorController } from './me/two-factor.controller';
+// A tenant's password (2026-10-23): offered on a lease invitation, tenants only.
+import { PasswordController } from './me/password.controller';
 import { AvailabilityController } from './properties/availability.controller';
 import { MarketplaceController } from './properties/marketplace.controller';
 import {
@@ -99,11 +109,16 @@ import { OpsHousekeepingPhoneController, OpsWorkOrderTimeController } from './op
 import { MeWorkStaffController } from './me/work-staff.controller';
 import { OpsFoundItemsController } from './ops/lost-found.controller';
 import { OpsConditionSignalsController, OpsWorkOrdersController } from './ops/work-orders.controller';
-// The new interface's residence (real-data 1.3.1): the manager's screens and the tenant's phone.
-import { OpsResidenceController } from './ops/residence-interface.controller';
-import { MeResidentController } from './me/resident.controller';
 import { OpsOutletPartiesController } from './ops/outlet-parties.controller';
 import { OpsOutletsController } from './ops/outlets.controller';
+import {
+  OpsPosController,
+  OpsPosKitchenController,
+  OpsPosOrdersController,
+  OpsPosPaymentsController,
+  OpsPosShiftsController,
+} from './ops/pos.controller';
+import { PosModule } from '../../modules/pos/pos.module';
 import {
   OpsRraController,
   OpsServiceCatalogController,
@@ -114,18 +129,45 @@ import {
   OpsRoomAssignmentsController,
 } from './ops/reservations.controller';
 import { OpsBrokerController } from './ops/broker.controller';
+import { BrokersModule } from '../../modules/brokers/brokers.module';
+import { MeTenancyBrokerController } from './me/tenancy-broker.controller';
+import { OpsLeaseBrokersController } from './ops/rentals/lease-brokers.controller';
+import { RegistrationBrokerFeeController } from './registrations/broker-fee.controller';
 import { OpsOffersController } from './ops/offers.controller';
 import { OpsRefundRequestsController } from './ops/refunds.controller';
 import { OpsRevenueController } from './ops/revenue.controller';
 import { OpsOwnerDashboardController, OpsReportsController } from './ops/owner-dashboard.controller';
 import { OpsCertificatesController } from './ops/certificates.controller';
-import {
-  OpsDepositsController,
-  OpsFilingsController,
-  OpsLeasesController,
-  OpsRentRollController,
-  OpsTicketsController,
-} from './ops/residence.controller';
+import { OpsTicketsController } from './ops/residence.controller';
+// Rentals (blueprint 2.3): the landlord's profile, getting paid, units, tenants and leases.
+import { OpsLeasesController } from './ops/rentals/leases.controller';
+import { OpsPayoutAccountsController } from './ops/rentals/payout-accounts.controller';
+import { OpsRentalsController } from './ops/rentals/rentals.controller';
+import { OpsTenantsController } from './ops/rentals/tenants.controller';
+import { OpsBlocksController, OpsUnitsController } from './ops/rentals/units.controller';
+// The landlord's home, buildings and unit media (WP 2.2, 2.3).
+import { OpsRentalPropertiesController } from './ops/rentals/properties.controller';
+import { OpsRentalsOverviewController } from './ops/rentals/rentals-overview.controller';
+import { OpsUnitMediaController } from './ops/rentals/unit-media.controller';
+// Rent, payouts and the gateway's callbacks (WP 1.6a, 1.6b).
+import { OpsPayoutsController } from './ops/rentals/payouts.controller';
+import { OpsRentController } from './ops/rentals/rent.controller';
+import { PaymentWebhooksController } from './payments/webhooks.controller';
+// Faults, expenses and taxes (WP 4.1, 4.3, 4.4).
+import { MeTenancyFaultsController } from './me/tenancy-faults.controller';
+import { OpsFaultsController } from './ops/rentals/faults.controller';
+// Moving out: notices, the moved-out day, deposit settlement (WP 1.7).
+import { MeTenancyMoveOutController } from './me/tenancy-move-out.controller';
+import { OpsMoveOutsController } from './ops/rentals/move-outs.controller';
+// Messages between a landlord and a tenant, and the live line (P3.4).
+import { MeTenancyMessagesController } from './me/tenancy-messages.controller';
+import { OpsLeaseMessagesController } from './ops/rentals/messages.controller';
+// A broker and a landlord about a placement (2026-10-26).
+import { OpsBrokerMessagesController } from './ops/broker-messages.controller';
+import { OpsPlacementMessagesController } from './ops/rentals/placement-messages.controller';
+import { RealtimeGateway } from './realtime/realtime.gateway';
+import { OpsExpensesController } from './ops/rentals/expenses.controller';
+import { OpsFilingsController, OpsTaxesController } from './ops/rentals/taxes.controller';
 import { OpsRoomsController } from './ops/rooms.controller';
 import { OpsThreadsController } from './ops/threads.controller';
 import { OpsStaysController } from './ops/stays.controller';
@@ -171,10 +213,18 @@ import { TrainingPublicModule } from './training/training.module';
     MarketplaceModule,
     ListingSetupModule,
     BookingModule,
+    // `PaymentSeam` for `/platform` (073-gtbank-payments AC-2, AC-17).
+    PaymentsModule,
     OperationsModule,
+    // The bar and restaurant point of sale (POS spec, phase 1). Payments are simulated.
+    PosModule,
     OrganizationModule,
     // The HR module (ADR-058): files, roster, attendance, leave and pay.
     PeopleModule,
+    // Rentals, rebuilt (blueprint 2.2): residence businesses only.
+    RentalsModule,
+    // Brokers (P5): plans, opted-in homes, reveals, placements, the registration fee.
+    BrokersModule,
     // The list framework (ADR-058 slice 2): saved views and the export log.
     ListsModule,
     StorageModule,
@@ -190,6 +240,9 @@ import { TrainingPublicModule } from './training/training.module';
     // `/api/v1/verify/:token` must answer a stranger holding a printed
     // certificate.
     TrainingPublicModule,
+    // P5: a tenant's and a landlord's guests, the local leader's console and
+    // reports, and the guest form's reference lists; its own folder.
+    GuestsPublicModule,
   ],
   controllers: [
     HealthController,
@@ -231,6 +284,12 @@ import { TrainingPublicModule } from './training/training.module';
     // Outlets and who runs them (ADR-050 slice 4).
     OpsOutletsController,
     OpsOutletPartiesController,
+    // The point of sale: floor, orders, kitchen and bar, simulated payments, shifts (POS spec, phase 1).
+    OpsPosController,
+    OpsPosOrdersController,
+    OpsPosPaymentsController,
+    OpsPosKitchenController,
+    OpsPosShiftsController,
     OpsTeamController,
     OpsRolesController,
     // The HR module (ADR-058, first thread). Every route behind WorkspaceGuard
@@ -293,7 +352,6 @@ import { TrainingPublicModule } from './training/training.module';
     OpsWorkOrdersController,
     OpsConditionSignalsController,
     OpsFoundItemsController,
-    OpsResidenceController,
     OpsServiceCatalogController,
     OpsServiceOrdersController,
     OpsRraController,
@@ -301,14 +359,50 @@ import { TrainingPublicModule } from './training/training.module';
     OpsFrontDeskController,
     OpsMessageTemplatesController,
     OpsThreadsController,
-    OpsLeasesController,
-    OpsRentRollController,
-    OpsFilingsController,
     OpsTicketsController,
-    OpsDepositsController,
-    // The broker workspace's directory, reveals, placements and earnings
-    // (ADR-038 child 6).
+    // Rentals (blueprint 2.3, WP 1.4, 1.5a and 1.5b). Every landlord route
+    // answers 404 for a business that is not a residence.
+    OpsRentalsController,
+    OpsPayoutAccountsController,
+    OpsUnitsController,
+    OpsBlocksController,
+    OpsTenantsController,
+    OpsLeasesController,
+    OpsRentalsOverviewController,
+    OpsRentalPropertiesController,
+    OpsUnitMediaController,
+    // The rent cycle's routes (WP 1.6a, 1.6b): the roll, recorded payments,
+    // reminders, payouts, and the public gateway callback.
+    OpsRentController,
+    OpsPayoutsController,
+    PaymentWebhooksController,
+    // The tenant's side (WP 1.5b): the public invitation preview, accepting it,
+    // and the tenant's own tenancies behind TenancyGuard.
+    LeaseInvitationsController,
+    MeLeaseInvitationsController,
+    MeTenanciesController,
+    // Faults on both sides (WP 4.1): the landlord's board and the tenant's reports.
+    OpsFaultsController,
+    MeTenancyFaultsController,
+    // Moving out on both sides (WP 1.7).
+    OpsMoveOutsController,
+    MeTenancyMoveOutController,
+    OpsLeaseMessagesController,
+    MeTenancyMessagesController,
+    OpsPlacementMessagesController,
+    OpsBrokerMessagesController,
+    // Expenses and paying the fixer (WP 4.3).
+    OpsExpensesController,
+    // Rental income tax and lease filings with RRA (WP 4.4).
+    OpsTaxesController,
+    OpsFilingsController,
+    // Brokers (P5, 2026-10-25): the broker's homes, reveals, placements,
+    // earnings, reviews and plan; the landlord's side of a lease's broker;
+    // the tenant's rating; the registration fee.
     OpsBrokerController,
+    OpsLeaseBrokersController,
+    MeTenancyBrokerController,
+    RegistrationBrokerFeeController,
     OpsAmenitiesController,
     // RRA EBM account (ADR-041): the operator's setup screen, and the
     // provider's consent redirect back to it.
@@ -316,6 +410,7 @@ import { TrainingPublicModule } from './training/training.module';
     EbmOauthController,
     OversightController,
     MeController,
+    MeContextController,
     /*
      * §6.8. The in-house guest's own surface: claim the stay a desk typed,
      * message a department, ask for money back, take an offer. Session guarded
@@ -330,13 +425,13 @@ import { TrainingPublicModule } from './training/training.module';
     MeGuestContactController,
     MeTripFactsController,
     MeBusinessesController,
-    MeResidentController,
     MeWorkController,
     MeWorkLeaveController,
     MeWorkStaffController,
     MeWorkPayController,
     KioskController,
     TwoFactorController,
+    PasswordController,
     // Answers only in a demo process; 404 everywhere else (AC-S10, ADR-043).
     DemoPersonasController,
     DemoCrashController,
@@ -344,6 +439,6 @@ import { TrainingPublicModule } from './training/training.module';
   // WorkspaceService is the one resolver of "which workspaces does this user
   // hold" (Spec 0004). WorkspaceGuard depends on it; DatabaseModule is @Global
   // so DRIZZLE resolves without importing it here.
-  providers: [WorkspaceService, TwoFactorService],
+  providers: [WorkspaceService, TwoFactorService, RealtimeGateway],
 })
 export class PublicApiModule {}

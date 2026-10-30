@@ -1,7 +1,7 @@
 "use client";
 
-import { Check, ChevronDown, ClockArrowRotateLeft, ShieldExclamation } from "@gravity-ui/icons";
-import { Button, Card, Chip, ListBox, ProgressBar, Select, Switch, Table } from "@heroui/react";
+import { ChevronDown, ClockArrowRotateLeft, ShieldExclamation } from "@gravity-ui/icons";
+import { Button, Card, Chip, ListBox, ProgressBar, Select, Switch, Table, Toast, toast } from "@heroui/react";
 import { CellSelect, CellSwitch, Segment } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
 import type {
@@ -15,11 +15,10 @@ import type {
   SettingsPoliciesVersion,
 } from "@injishi/data/fixtures/owner";
 import { formatRwf, GateChip, LinkButton, PageContent, PageHeader, TextLink, toneColor } from "@injishi/ui";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { SettingsNav } from "./SettingsNav";
-import { publishSettingsPoliciesVersion, saveSettingsPolicies } from "./SettingsPoliciesActions";
 
-export interface SettingsPoliciesData {
+interface SettingsPoliciesData {
   groups: SettingsPoliciesGroup[];
   properties: SettingsPoliciesProperty[];
   cards: SettingsPoliciesCard[];
@@ -32,6 +31,16 @@ type Values = Record<string, string | boolean>;
 
 /** Deposit used for the worked example in the refund tiers table. */
 const EXAMPLE_DEPOSIT = 800000;
+
+/**
+ * What this screen cannot store yet, said plainly. The property list is live, but the policy cards, the
+ * cancellation versions and the per-outlet charge-to-room rules are sample data: nothing on the platform
+ * enforces them (`owner.settingsPolicies*` wait on /architect decisions; the platform's cancellation tiers are
+ * five fixed ones per room type). Saving or publishing here would store values no booking reads, so it is
+ * not offered: edits stay unsaved on screen and nothing is recorded.
+ */
+const unavailable = (what: string) =>
+  toast.warning(`${what} is not available yet. These policies are sample data; nothing was saved or published.`);
 
 function PolicyRow({
   row,
@@ -98,15 +107,9 @@ export function SettingsPoliciesView({ data }: { data: SettingsPoliciesData }) {
   const [group, setGroup] = useState<SettingsPoliciesGroupId>("book");
   const [property, setProperty] = useState(data.properties[0]?.id ?? "");
   const [vals, setVals] = useState<Values>({});
-  const [saved, setSaved] = useState(false);
   const [ver, setVer] = useState(data.versions.find((v) => v.state === "current")?.id ?? data.versions[0]?.id ?? "");
-  const [published, setPublished] = useState(false);
-  const [pending, startTransition] = useTransition();
 
-  const set = (id: string, v: string | boolean) => {
-    setVals((cur) => ({ ...cur, [id]: v }));
-    setSaved(false);
-  };
+  const set = (id: string, v: string | boolean) => setVals((cur) => ({ ...cur, [id]: v }));
   const rowValue = (r: SettingsPoliciesRow) => (vals[r.id] !== undefined ? (vals[r.id] as string | boolean) : r.value);
   const outletValue = (o: SettingsPoliciesOutlet) => {
     const v = vals[`c.${o.id}`];
@@ -121,33 +124,19 @@ export function SettingsPoliciesView({ data }: { data: SettingsPoliciesData }) {
   ).length;
   const total = rowChanges + outletChanges;
 
-  const save = () =>
-    startTransition(async () => {
-      await saveSettingsPolicies(vals);
-      setVals({});
-      setSaved(true);
-    });
+  const save = () => unavailable("Saving policy changes");
 
   const version = data.versions.find((v) => v.id === ver) ?? data.versions[0];
   const draft = data.versions.find((v) => v.state === "draft" || v.state === "scheduled");
-  const isScheduled = version?.state === "scheduled" || (published && version?.id === draft?.id);
-  const versionState =
-    isScheduled && version
-      ? { label: "Scheduled", tone: "accent" as const }
-      : { label: version?.stateLabel ?? "", tone: version?.stateTone ?? "default" };
-  const publish = () => {
-    if (!draft) return;
-    setPublished(true);
-    startTransition(async () => {
-      await publishSettingsPoliciesVersion(draft.id);
-    });
-  };
+  const versionState = { label: version?.stateLabel ?? "", tone: version?.stateTone ?? "default" };
+  const publish = () => unavailable("Publishing a policy version");
 
   const propertyName = data.properties.find((p) => p.id === property)?.name ?? "";
   const cards = data.cards.filter((c) => c.group === group);
 
   return (
     <PageContent>
+      <Toast.Provider placement="bottom" />
       <PageHeader
         eyebrow={<>Settings · {propertyName}</>}
         title="Policies"
@@ -202,19 +191,13 @@ export function SettingsPoliciesView({ data }: { data: SettingsPoliciesData }) {
             <span className="text-[13px] font-medium">
               {total === 1 ? "1 change" : `${total} changes`} unsaved · applies to bookings made from saving
             </span>
-            <Button size="sm" variant="ghost" isDisabled={pending} onPress={() => setVals({})}>
+            <Button size="sm" variant="ghost" onPress={() => setVals({})}>
               Discard
             </Button>
-            <Button size="sm" isDisabled={pending} onPress={save}>
+            <Button size="sm" onPress={save}>
               Save changes
             </Button>
           </Card>
-        ) : null}
-        {saved && total === 0 ? (
-          <Chip color="success" variant="soft" role="status">
-            <Check className="size-3" aria-hidden="true" />
-            <Chip.Label>Saved 10:42 · recorded in the audit log</Chip.Label>
-          </Chip>
         ) : null}
       </div>
 
@@ -310,8 +293,8 @@ export function SettingsPoliciesView({ data }: { data: SettingsPoliciesData }) {
                 Refund approval limits: front desk RWF 50,000 · finance RWF 300,000 · above that, the owner. Each
                 booking stores the version it was sold with; BK-20418 uses version 4.
               </span>
-              {draft && version.id === draft.id && version.state === "draft" && !published ? (
-                <Button size="sm" isDisabled={pending} onPress={publish}>
+              {draft && version.id === draft.id && version.state === "draft" ? (
+                <Button size="sm" onPress={publish}>
                   Publish version 5 from 1 Nov
                 </Button>
               ) : null}

@@ -1,4 +1,3 @@
-import { screens } from "@injishi/data";
 import type {
   GuestProfile,
   MarketProperty,
@@ -13,7 +12,15 @@ import { MarketPropertyView, type PropertyPanel } from "@/features/market/Market
 import { requireScreen } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
 
-export const metadata: Metadata = { title: screens.MarketProperty.pageTitle };
+/**
+ * The tab title names THIS property, from the same live document the page draws; it was the prototype's
+ * "Marketplace · Isangano Lakeside Hotel" on every property. An unknown or unreadable property is "Marketplace".
+ */
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const property = await getDocument<MarketProperty>("market.properties", decodeURIComponent(slug)).catch(() => null);
+  return { title: property?.name ? `Marketplace · ${property.name}` : "Marketplace" };
+}
 
 const PANELS = new Set<PropertyPanel>(["none", "dates", "guests"]);
 

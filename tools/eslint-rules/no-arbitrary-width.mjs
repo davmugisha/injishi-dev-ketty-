@@ -44,9 +44,113 @@
  * correct code is a rule the team turns off, and that takes the cases that do
  * matter down with it."* The concept this rule enforces is the page width, and
  * every row of ADR-027 section 4's own table is a `max-w`.
+ *
+ * THE `native` HALF (mobile spec 0002, D-z) answers the question this half
+ * declined, because on the phone it has an answer. A phone has no page width;
+ * what it has is fixed boxes, the touch floor, an icon tile, a thumbnail, and
+ * the kit names every one of them in `src/components/ui/metrics.ts` (D-m), on
+ * the 4 px grid `rnSpace` steps (D-v). So a carousel item and an icon box DO
+ * have a named replacement here, and the native half refuses:
+ *
+ *   w-[88px], min-h-[52px], size-[72px]  a dimension in brackets
+ *   width: 50, minHeight: 22             a number in a style object, for
+ *                                        width, height, their minimums and
+ *                                        maximums, and flexBasis
+ *
+ * and it keeps what stays legal everywhere: a relationship (`w-[31%]`,
+ * `width: "100%"`, `calc()`), a grid step class (`w-12`, `h-0.5`, Tailwind's
+ * spacing, which equals `rnSpace`), `0`, and any value read from a name.
+ * Where a refused size sits on the grid, the message names the grid class.
+ * `native: true` turns the page width half off unless a config names it.
  */
 
+import { filenameOf } from './native-vocabulary.mjs';
 import { isExemptFile, looksLikeClasses, splitVariants, stripOpacity, tokens, walkStrings } from './shared-strings.mjs';
+
+/** `w-[88px]`, `max-h-[60px]`, `size-[72px]`: a dimension in brackets. */
+const NATIVE_ARBITRARY = /^((?:(?:min|max)-)?(?:w|h)|size)-\[(.+)\]$/;
+
+/** Style keys that carry a dimension. */
+const DIMENSION_KEYS = new Set(['width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight', 'flexBasis']);
+
+/** `rnSpace` (`packages/design-tokens/src/rn.ts`): step -> px. */
+const RN_SPACE = { 0: 0, 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40, 12: 48, 16: 64 };
+
+/** The kit's own dimension names, where a refused size most likely belongs. */
+const METRICS_FILE = 'src/components/ui/metrics.ts';
+
+/** A number in px from `52px`, `3.25rem` or a bare `52`; null for any other unit. */
+function nativePx(inner) {
+  const m = /^(-?[0-9.]+)(px|rem)?$/.exec(inner);
+  if (!m) return null;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n)) return null;
+  return m[2] === 'rem' ? n * 16 : n;
+}
+
+/** Tailwind's stock half steps, 2 to 14 px. Above them the grid is whole steps of 4. */
+const HALF_STEPS = new Set([0.5, 1.5, 2.5, 3.5]);
+
+/** The grid class for `px` on `prefix`, when it sits on the 4 px grid. */
+function gridClass(prefix, px) {
+  if (px === null || px < 0) return null;
+  const step = px / 4;
+  if (!Number.isInteger(step) && !HALF_STEPS.has(step)) return null;
+  return `${prefix}-${step}`;
+}
+
+function rnSpaceStep(px) {
+  const hit = Object.entries(RN_SPACE).find(([, value]) => value === px);
+  return hit ? hit[0] : null;
+}
+
+/** The phone's half: brackets in class strings, numbers in style objects. */
+function nativeListeners(context) {
+  const inMetrics = filenameOf(context).endsWith(METRICS_FILE);
+  return {
+    ...walkStrings((value, node) => {
+      if (!looksLikeClasses(value)) return;
+      for (const token of tokens(value)) {
+        const bare = stripOpacity(splitVariants(token).base);
+        const match = NATIVE_ARBITRARY.exec(bare);
+        if (!match) continue;
+        const [, prefix, inner] = match;
+        if (inner.startsWith('--') || isRelationshipOrMeasure(inner)) continue;
+        const px = nativePx(inner);
+        if (px === 0) continue;
+        const grid = gridClass(prefix, px);
+        context.report({
+          node,
+          messageId: 'nativeClass',
+          data: {
+            actual: bare,
+            fix: grid
+              ? `It sits on the 4 px grid: write \`${grid}\`.`
+              : `Name it in \`${METRICS_FILE}\` and set it from there.`,
+          },
+        });
+      }
+    }),
+
+    Property(node) {
+      if (inMetrics || node.parent?.type !== 'ObjectExpression') return;
+      const key = node.key?.type === 'Identifier' && !node.computed ? node.key.name : node.key?.value;
+      if (!DIMENSION_KEYS.has(key)) return;
+      const value = node.value;
+      if (value?.type !== 'Literal' || typeof value.value !== 'number' || value.value === 0) return;
+      const step = rnSpaceStep(value.value);
+      context.report({
+        node: value,
+        messageId: 'nativeStyle',
+        data: {
+          key,
+          actual: String(value.value),
+          fix: step ? `It is a grid step: \`rnSpace[${step}]\`.` : `Name it in \`${METRICS_FILE}\`.`,
+        },
+      });
+    },
+  };
+}
 
 /** The six names ADR-027 section 4 establishes. */
 const CONTAINERS = ['page', 'wide', 'read', 'narrow', 'form', 'tile'];
@@ -128,8 +232,20 @@ const rule = {
       description:
         'Require one of the six named page widths. A width chosen by number cannot be re-tuned and does not line up with the band above it.',
     },
-    schema: [],
+    schema: [
+      {
+        type: 'object',
+        properties: {
+          native: { type: 'boolean' },
+        },
+        additionalProperties: false,
+      },
+    ],
     messages: {
+      nativeClass:
+        '`{{actual}}` is a size typed by hand. {{fix}} A size on the phone is a grid step or a name in `metrics.ts`, so it can be re-tuned in one place (mobile spec 0002, D-m, D-v). A relationship (`%`, `calc()`) stays legal.',
+      nativeStyle:
+        '`{{key}}: {{actual}}` is a size typed by hand. {{fix}} Every fixed dimension reads `metrics` or a step of `rnSpace`, so it can be re-tuned in one place (mobile spec 0002, D-m, D-v).',
       arbitrary:
         'Use `max-w-{{name}}` instead of `{{actual}}`. Six named page widths replace thirty-one (ADR-027 §4): {{names}}. A reading measure (`ch`, `max-w-prose`) or a relationship (`%`, `vw`, `min()`, `calc()`) is not a page width and stays legal.',
       stock:
@@ -141,43 +257,49 @@ const rule = {
 
   create(context) {
     if (isExemptFile(context)) return {};
-    const names = CONTAINERS.map((n) => `max-w-${n}`).join(', ');
-
-    return walkStrings((value, node) => {
-      if (!looksLikeClasses(value)) return;
-      for (const token of tokens(value)) {
-        const base = stripOpacity(splitVariants(token).base);
-
-        const arbitrary = ARBITRARY.exec(base);
-        if (arbitrary) {
-          const inner = arbitrary[1];
-          if (inner.startsWith('--')) {
-            context.report({ node, messageId: 'bracketVariable', data: { actual: base } });
-            continue;
-          }
-          if (isRelationshipOrMeasure(inner)) continue;
-          context.report({
-            node,
-            messageId: 'arbitrary',
-            data: { actual: base, name: nearestName(pxOf(inner)), names },
-          });
-          continue;
-        }
-
-        const named = NAMED.exec(base);
-        if (!named) continue;
-        const step = named[1];
-        if (CONTAINERS.includes(step) || NOT_A_WIDTH.has(step)) continue;
-        if (step.startsWith('screen-')) continue;
-        if (!STOCK.has(step)) continue;
-        context.report({
-          node,
-          messageId: 'stock',
-          data: { actual: base, name: STOCK_ABSORB[step] },
-        });
-      }
-    });
+    const options = context.options[0] ?? {};
+    return options.native === true ? nativeListeners(context) : webListeners(context);
   },
 };
+
+/** The web half: the six page widths. */
+function webListeners(context) {
+  const names = CONTAINERS.map((n) => `max-w-${n}`).join(', ');
+
+  return walkStrings((value, node) => {
+    if (!looksLikeClasses(value)) return;
+    for (const token of tokens(value)) {
+      const base = stripOpacity(splitVariants(token).base);
+
+      const arbitrary = ARBITRARY.exec(base);
+      if (arbitrary) {
+        const inner = arbitrary[1];
+        if (inner.startsWith('--')) {
+          context.report({ node, messageId: 'bracketVariable', data: { actual: base } });
+          continue;
+        }
+        if (isRelationshipOrMeasure(inner)) continue;
+        context.report({
+          node,
+          messageId: 'arbitrary',
+          data: { actual: base, name: nearestName(pxOf(inner)), names },
+        });
+        continue;
+      }
+
+      const named = NAMED.exec(base);
+      if (!named) continue;
+      const step = named[1];
+      if (CONTAINERS.includes(step) || NOT_A_WIDTH.has(step)) continue;
+      if (step.startsWith('screen-')) continue;
+      if (!STOCK.has(step)) continue;
+      context.report({
+        node,
+        messageId: 'stock',
+        data: { actual: base, name: STOCK_ABSORB[step] },
+      });
+    }
+  });
+}
 
 export default rule;

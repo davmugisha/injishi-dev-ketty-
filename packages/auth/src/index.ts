@@ -22,4 +22,5 @@ export {
     OVERSIGHT_COOKIE_PREFIX,
     dropForeignSessionCookies,
     isProductionSessionCookie,
-} from "./edge.js";
+} from "./edge.js";// The password rule and its sentences (tenants only, 2026-10-23).
+export * from "./password.js";

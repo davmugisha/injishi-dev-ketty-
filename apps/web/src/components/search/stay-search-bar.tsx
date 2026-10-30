@@ -2,7 +2,7 @@
 
 import { CalendarDays, MapPin, Search, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@injishi/utils";
 import { StayDatePicker } from "@/components/search/stay-date-picker";
@@ -11,6 +11,7 @@ import { GuestPanel } from "@/components/search/guest-panel";
 import { SearchSheet } from "@/components/search/search-sheet";
 import type { Destination } from "@/data/destinations";
 import { usePanelPlacement } from "@/hooks/use-panel-placement";
+import { track } from "@/lib/analytics";
 import {
   dateSummary,
   EMPTY_SEARCH,
@@ -87,6 +88,9 @@ export function StaySearchBar() {
 
   const submit = (next: StaySearch = search) => {
     setOpen(null);
+    // Where people want to go, before there are stays there, is the demand
+    // signal the supply plan needs. Only the place: never dates or a party.
+    track("Search", { destination: next.destination?.district ?? (next.query.trim() ? "text" : "anywhere") });
     router.push(searchHref(next));
   };
 

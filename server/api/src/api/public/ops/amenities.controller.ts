@@ -14,7 +14,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { AmenitiesService } from '../../../modules/operations/application/amenities.service';
+import { AmenitiesService } from '../../../modules/platform/property/application/amenities.service';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,

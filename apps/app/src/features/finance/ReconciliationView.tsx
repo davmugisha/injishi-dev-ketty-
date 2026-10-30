@@ -31,7 +31,7 @@ import { GateChip, Icon, LinkButton, PageContent, PageHeader, StatusDot } from "
 import { type Key, useState } from "react";
 import { CheckIcon, lineTab, money, selectableRow, TabCount, ToneChip } from "./shared";
 
-export interface ReconciliationData {
+interface ReconciliationData {
   sources: ReconSource[];
   summary: MatchSummaryItem[];
   matches: ReconMatch[];

@@ -8,7 +8,7 @@ import type { GuestReviewRecord, GuestRewards, ReviewPhoto } from "@injishi/data
 import { stock } from "@injishi/data/media";
 import { formatNumber, formatRwf, KeyValueList, PhoneBody, Photo, toneColor } from "@injishi/ui";
 import { useState } from "react";
-import { BackLink, CardHeading, GuestTop, useGuestLang, WideSwitch } from "./parts";
+import { BackLink, CardHeading, GuestTop, useGuestLang, WideSwitch } from "./review-parts";
 
 export type HotelSide = "not yet" | "submitted";
 
@@ -20,7 +20,7 @@ const TITLES = {
 
 const WORDS = ["Not rated yet", "Poor", "Fair", "Good", "Very good", "Excellent"];
 
-export interface GuestReviewData {
+interface GuestReviewData {
   review: GuestReviewRecord;
   roll: ReviewPhoto[];
   rewards: GuestRewards;

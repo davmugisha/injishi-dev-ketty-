@@ -1,7 +1,8 @@
-// `@injishi/auth` is ESM and outside what ts-jest transforms; stood in for as
-// in `auth-registry.spec.ts`. This spec is about the Nest wiring, not the
-// instances.
-jest.mock('@injishi/auth', () => ({
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// `createAuth` is stood in for as in `auth-registry.spec.ts`: this spec is about
+// the Nest wiring, not the instances it builds.
+vi.mock('@injishi/auth', () => ({
   DEMO_OTP_CODE: '123456',
   DEMO_COOKIE_PREFIX: 'injishi-demo',
   createAuth: (config: unknown) => ({ config }),
@@ -72,11 +73,11 @@ const LOCAL = {
 };
 
 beforeEach(() => {
-  jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-  jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-  jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+  vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+  vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+  vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks());
 
 describe('AuthModule · wiring', () => {
   it('gives a consumer that never imported MailerModule an OtpMailer on the chosen port', async () => {

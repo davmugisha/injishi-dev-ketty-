@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import {
   ForbiddenException,
   InternalServerErrorException,
@@ -6,11 +8,6 @@ import {
 import type { ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 import { permissionsForRole, type WorkspaceAccess } from '@injishi/contracts';
-
-// The guard only needs the service as a DI token here; every case stubs it.
-// Mocked at the module boundary because the real service reaches the vendored
-// `@injishi/auth` package, which is ESM and outside what ts-jest transforms.
-jest.mock('./two-factor.service', () => ({ TwoFactorService: class {} }));
 
 import {
   REQUIRE_ANY_PERMISSION,
@@ -83,8 +80,8 @@ describe('WorkspaceGuard', () => {
   ): { guard: WorkspaceGuard; workspaces: WorkspaceService } {
     // A limited member covers Rubavu only; everyone else covers both.
     const workspaces = {
-      resolveForUser: jest.fn().mockResolvedValue(resolved),
-      coveredProperties: jest.fn((_userId: string, access: WorkspaceAccess) =>
+      resolveForUser: vi.fn().mockResolvedValue(resolved),
+      coveredProperties: vi.fn((_userId: string, access: WorkspaceAccess) =>
         Promise.resolve(
           access.branchCoverage === 'limited'
             ? { coverage: 'limited', propertyIds: [RUBAVU] }
@@ -100,11 +97,11 @@ describe('WorkspaceGuard', () => {
       [REQUIRE_EVERY_BRANCH]: everyBranch,
     };
     const reflector = {
-      getAllAndOverride: jest.fn((key: string) => metadata[key]),
+      getAllAndOverride: vi.fn((key: string) => metadata[key]),
     } as unknown as Reflector;
     // The second factor is satisfied in every case here; it has its own spec.
     const twoFactor = {
-      assertSatisfied: jest.fn().mockResolvedValue(undefined),
+      assertSatisfied: vi.fn().mockResolvedValue(undefined),
     } as unknown as TwoFactorService;
     return {
       guard: new WorkspaceGuard(workspaces, twoFactor, reflector),

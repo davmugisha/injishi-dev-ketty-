@@ -1,12 +1,15 @@
+import type { Metadata } from "next";
 import { HomeGuides } from "@/components/home/home-guides";
 import { HomeHero } from "@/components/home/home-hero";
 import { HostBand } from "@/components/home/host-band";
 import { HowAStayWorks } from "@/components/home/how-a-stay-works";
+import { OpeningBand } from "@/components/home/opening-band";
 import { Reveal } from "@/components/home/reveal";
 import { RwandaAtAGlance } from "@/components/home/rwanda-at-a-glance";
 import { StaysShelf, type ShelfTab } from "@/components/home/stays-shelf";
 import { TripPlanner } from "@/components/home/trip-planner";
 import { WhenToGo } from "@/components/home/when-to-go";
+import { JsonLd } from "@/components/shared/json-ld";
 import { ContinueBrowsing } from "@/components/stays/recently-viewed";
 import { databaseListings } from "@/data/discovery";
 import { DISTRICT_PLACES, MOODS, TRIP_ROUTES } from "@/data/journeys";
@@ -14,6 +17,19 @@ import type { Listing } from "@/data/listings";
 import { toRecentStay } from "@/data/recent-stay";
 import type { DistrictSlug } from "@/data/search-options";
 import { EMPTY_INTENT, exploreHref } from "@/lib/search-params";
+import { shareMetadata } from "@/lib/share-metadata";
+import { organizationJsonLd, websiteJsonLd } from "@/lib/structured-data";
+
+/** The title and description come from the root layout; this adds the address. */
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  ...shareMetadata({
+    title: "Stay anywhere in Rwanda | Injishi",
+    description:
+      "Book verified guesthouses, lodges and serviced apartments across Rwanda. Pay by mobile money, held in escrow, with support from search to arrival.",
+    path: "/",
+  }),
+};
 
 /** Cards per shelf tab, and stays under each stop of a route. */
 const SHELF_SIZE = 4;
@@ -84,7 +100,13 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col overflow-x-hidden">
+      <JsonLd data={organizationJsonLd()} />
+      <JsonLd data={websiteJsonLd()} />
       <HomeHero moods={moods} />
+      {/* Nothing public yet: say so straight under the hero, before four bands
+          of trip planning that have no stay to offer. It goes the moment one
+          property is published. */}
+      {all.length === 0 ? <OpeningBand /> : null}
       {/* Empty, and so absent, until the visitor has opened a stay. */}
       <ContinueBrowsing stays={all.map(toRecentStay)} />
       <Reveal>

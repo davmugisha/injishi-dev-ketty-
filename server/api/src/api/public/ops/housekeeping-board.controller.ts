@@ -7,7 +7,7 @@ import {
 } from '@injishi/contracts';
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 
-import { HousekeepingBoardService } from '../../../modules/operations/application/housekeeping-board.service';
+import { HousekeepingBoardService } from '../../../modules/pms/application/housekeeping-board.service';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,

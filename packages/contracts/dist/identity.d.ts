@@ -1,81 +1,129 @@
 import { z } from "zod";
 /**
- * Which side of each seam a deployment runs. `off` is a real answer, not a
- * missing one: it is what a real database runs until a provider is signed, and
- * it is the only mode in which a business registration is not held to a
- * verified identity, because a check nobody can run cannot be required.
+ * Which side of an identity seam a deployment runs. `off` is a real answer,
+ * not a missing one: it is what a real database runs until a provider is
+ * signed, and there the scan stores the photos for PSF and reads nothing.
+ * `sandbox` is the real HTTP adapter talking to Injishi Mock APIs
+ * (`server/mock-apis`): the people it answers about are as invented as the
+ * mock's.
  */
-export declare const IdentityAdapterMode: z.ZodEnum<["mock", "live", "off"]>;
+export declare const IdentityAdapterMode: z.ZodEnum<["mock", "sandbox", "live", "off"]>;
 export type IdentityAdapterMode = z.infer<typeof IdentityAdapterMode>;
+/** How many tries a draft gets before the person may continue and PSF checks the ID by eye (AC-5). */
+export declare const SCAN_ATTEMPTS_BEFORE_CONTINUE = 3;
 /**
- * The person as the register or the document states them. The document number
+ * One scan's outcome (D-n). `machine_passed` is the only one that reads
+ * "Checked" (AC-6); `manual_needed` is a deployment with no checker, where the
+ * photos wait for PSF; `machine_failed` is a checker that refused the photos.
+ */
+export declare const IdentityScanOutcome: z.ZodEnum<["machine_passed", "machine_failed", "manual_needed"]>;
+export type IdentityScanOutcome = z.infer<typeof IdentityScanOutcome>;
+/** Why a checker refused a scan. Each has its own fix, worded by the server. */
+export declare const IdentityScanReason: z.ZodEnum<["not_authentic", "face_mismatch", "unreadable", "expired", "unavailable", "not_found", "revoked"]>;
+export type IdentityScanReason = z.infer<typeof IdentityScanReason>;
+/**
+ * The person on file, as the scan read them or as they typed them. The number
  * comes back MASKED, like every other read of it (§10); the server keeps the
  * full number on `identity_documents`.
  */
-export declare const VerifiedPerson: z.ZodObject<{
+export declare const IdentityOnFile: z.ZodObject<{
     fullName: z.ZodString;
     /** `YYYY-MM-DD`. */
     dateOfBirth: z.ZodString;
     gender: z.ZodNullable<z.ZodEnum<["female", "male", "other", "prefer_not_to_say"]>>;
-    /**
-     * The phone the register holds, in full. Returned only to the person who
-     * just proved they hold it by typing the code sent there, so it prefills
-     * their phone field. Null for a passport, which carries no phone.
-     */
-    phoneE164: z.ZodNullable<z.ZodString>;
     documentType: z.ZodEnum<["national_id", "passport"]>;
     documentNumberMasked: z.ZodString;
     issuingCountry: z.ZodEffects<z.ZodString, string, string>;
     /**
-     * True when a MOCK adapter made this person up. A demo must be able to say
-     * "these details are generated" rather than pass them off as a register's.
+     * True when a MOCK verifier made this person up. A demo must be able to say
+     * "these details are generated" rather than pass them off as a document's.
      */
     generated: z.ZodBoolean;
+    /**
+     * True once a machine check passed, or PSF verified the identity on
+     * approval (D-o). False while the details are typed and PSF has still to
+     * compare the photos: the status reads "PSF will check your ID" (AC-6).
+     */
+    checked: z.ZodBoolean;
+    /**
+     * Where the details came from: read off a document by a checker, returned
+     * by the population register for a National ID number, or typed as
+     * printed. Optional for a client built before it existed.
+     */
+    source: z.ZodOptional<z.ZodEnum<["document", "registry", "typed"]>>;
 }, "strip", z.ZodTypeAny, {
     documentType: "national_id" | "passport";
     issuingCountry: string;
     fullName: string;
     gender: "other" | "female" | "male" | "prefer_not_to_say" | null;
     dateOfBirth: string;
-    phoneE164: string | null;
     generated: boolean;
     documentNumberMasked: string;
+    checked: boolean;
+    source?: "document" | "registry" | "typed" | undefined;
 }, {
     documentType: "national_id" | "passport";
     issuingCountry: string;
     fullName: string;
     gender: "other" | "female" | "male" | "prefer_not_to_say" | null;
     dateOfBirth: string;
-    phoneE164: string | null;
     generated: boolean;
     documentNumberMasked: string;
+    checked: boolean;
+    source?: "document" | "registry" | "typed" | undefined;
 }>;
-export type VerifiedPerson = z.infer<typeof VerifiedPerson>;
-/** `GET /api/v1/me/identity`: where the caller stands, and what can be run here. */
+export type IdentityOnFile = z.infer<typeof IdentityOnFile>;
+/** The caller's latest scan, and how many tries this draft has used. */
+export declare const IdentityScanState: z.ZodObject<{
+    outcome: z.ZodEnum<["machine_passed", "machine_failed", "manual_needed"]>;
+    documentType: z.ZodEnum<["national_id", "passport"]>;
+    /** Tries on this draft (`checks.scan.attempts`, D-m), reset with the draft. */
+    attempts: z.ZodNumber;
+    /** Whether the person may type their details and carry on, for PSF to check (AC-5). */
+    mayContinue: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    documentType: "national_id" | "passport";
+    attempts: number;
+    outcome: "machine_passed" | "machine_failed" | "manual_needed";
+    mayContinue: boolean;
+}, {
+    documentType: "national_id" | "passport";
+    attempts: number;
+    outcome: "machine_passed" | "machine_failed" | "manual_needed";
+    mayContinue: boolean;
+}>;
+export type IdentityScanState = z.infer<typeof IdentityScanState>;
+/** `GET /api/v1/me/identity`: where the caller stands, and whether a machine reads the ID here. */
 export declare const IdentityStatus: z.ZodObject<{
     kycStatus: z.ZodEnum<["unverified", "pending", "verified", "rejected"]>;
-    /** `registry`, `document_scan` or `manual`, once verified. */
+    /** `document_scan`, `psf_review` or another earlier method, once verified. */
     method: z.ZodNullable<z.ZodString>;
-    verified: z.ZodNullable<z.ZodObject<Omit<{
+    onFile: z.ZodNullable<z.ZodObject<{
         fullName: z.ZodString;
         /** `YYYY-MM-DD`. */
         dateOfBirth: z.ZodString;
         gender: z.ZodNullable<z.ZodEnum<["female", "male", "other", "prefer_not_to_say"]>>;
-        /**
-         * The phone the register holds, in full. Returned only to the person who
-         * just proved they hold it by typing the code sent there, so it prefills
-         * their phone field. Null for a passport, which carries no phone.
-         */
-        phoneE164: z.ZodNullable<z.ZodString>;
         documentType: z.ZodEnum<["national_id", "passport"]>;
         documentNumberMasked: z.ZodString;
         issuingCountry: z.ZodEffects<z.ZodString, string, string>;
         /**
-         * True when a MOCK adapter made this person up. A demo must be able to say
-         * "these details are generated" rather than pass them off as a register's.
+         * True when a MOCK verifier made this person up. A demo must be able to say
+         * "these details are generated" rather than pass them off as a document's.
          */
         generated: z.ZodBoolean;
-    }, "phoneE164">, "strip", z.ZodTypeAny, {
+        /**
+         * True once a machine check passed, or PSF verified the identity on
+         * approval (D-o). False while the details are typed and PSF has still to
+         * compare the photos: the status reads "PSF will check your ID" (AC-6).
+         */
+        checked: z.ZodBoolean;
+        /**
+         * Where the details came from: read off a document by a checker, returned
+         * by the population register for a National ID number, or typed as
+         * printed. Optional for a client built before it existed.
+         */
+        source: z.ZodOptional<z.ZodEnum<["document", "registry", "typed"]>>;
+    }, "strip", z.ZodTypeAny, {
         documentType: "national_id" | "passport";
         issuingCountry: string;
         fullName: string;
@@ -83,6 +131,8 @@ export declare const IdentityStatus: z.ZodObject<{
         dateOfBirth: string;
         generated: boolean;
         documentNumberMasked: string;
+        checked: boolean;
+        source?: "document" | "registry" | "typed" | undefined;
     }, {
         documentType: "national_id" | "passport";
         issuingCountry: string;
@@ -91,35 +141,42 @@ export declare const IdentityStatus: z.ZodObject<{
         dateOfBirth: string;
         generated: boolean;
         documentNumberMasked: string;
+        checked: boolean;
+        source?: "document" | "registry" | "typed" | undefined;
     }>>;
-    /** Which verification paths this deployment can run at all. */
-    available: z.ZodObject<{
-        nationalId: z.ZodBoolean;
-        passport: z.ZodBoolean;
+    scan: z.ZodNullable<z.ZodObject<{
+        outcome: z.ZodEnum<["machine_passed", "machine_failed", "manual_needed"]>;
+        documentType: z.ZodEnum<["national_id", "passport"]>;
+        /** Tries on this draft (`checks.scan.attempts`, D-m), reset with the draft. */
+        attempts: z.ZodNumber;
+        /** Whether the person may type their details and carry on, for PSF to check (AC-5). */
+        mayContinue: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        passport: boolean;
-        nationalId: boolean;
+        documentType: "national_id" | "passport";
+        attempts: number;
+        outcome: "machine_passed" | "machine_failed" | "manual_needed";
+        mayContinue: boolean;
     }, {
-        passport: boolean;
-        nationalId: boolean;
-    }>;
+        documentType: "national_id" | "passport";
+        attempts: number;
+        outcome: "machine_passed" | "machine_failed" | "manual_needed";
+        mayContinue: boolean;
+    }>>;
+    /** False where the seam is `off`: the scan keeps the photos and reads nothing, so the person types what is printed. */
+    machineCheck: z.ZodBoolean;
+    /** The document verifier's mode: a passport, and a National ID card where the registry is off. */
+    mode: z.ZodEnum<["mock", "sandbox", "live", "off"]>;
     /**
-     * Whether registering a business here requires a verified identity. True
-     * whenever either path is available: a check that can run is enforced.
+     * The National ID registry's mode (NIDA, through GTBank). Anything but
+     * `off` means a National ID is checked by its NUMBER and a selfie
+     * (`POST /me/identity/national-id`), not by scanning the card.
      */
-    required: z.ZodBoolean;
-    modes: z.ZodObject<{
-        registry: z.ZodEnum<["mock", "live", "off"]>;
-        documents: z.ZodEnum<["mock", "live", "off"]>;
-    }, "strip", z.ZodTypeAny, {
-        documents: "mock" | "live" | "off";
-        registry: "mock" | "live" | "off";
-    }, {
-        documents: "mock" | "live" | "off";
-        registry: "mock" | "live" | "off";
-    }>;
+    nationalIdMode: z.ZodEnum<["mock", "sandbox", "live", "off"]>;
 }, "strip", z.ZodTypeAny, {
-    verified: {
+    mode: "mock" | "live" | "off" | "sandbox";
+    method: string | null;
+    kycStatus: "rejected" | "unverified" | "pending" | "verified";
+    onFile: {
         documentType: "national_id" | "passport";
         issuingCountry: string;
         fullName: string;
@@ -127,20 +184,22 @@ export declare const IdentityStatus: z.ZodObject<{
         dateOfBirth: string;
         generated: boolean;
         documentNumberMasked: string;
+        checked: boolean;
+        source?: "document" | "registry" | "typed" | undefined;
     } | null;
-    available: {
-        passport: boolean;
-        nationalId: boolean;
-    };
-    method: string | null;
-    required: boolean;
-    kycStatus: "rejected" | "unverified" | "pending" | "verified";
-    modes: {
-        documents: "mock" | "live" | "off";
-        registry: "mock" | "live" | "off";
-    };
+    scan: {
+        documentType: "national_id" | "passport";
+        attempts: number;
+        outcome: "machine_passed" | "machine_failed" | "manual_needed";
+        mayContinue: boolean;
+    } | null;
+    machineCheck: boolean;
+    nationalIdMode: "mock" | "live" | "off" | "sandbox";
 }, {
-    verified: {
+    mode: "mock" | "live" | "off" | "sandbox";
+    method: string | null;
+    kycStatus: "rejected" | "unverified" | "pending" | "verified";
+    onFile: {
         documentType: "national_id" | "passport";
         issuingCountry: string;
         fullName: string;
@@ -148,194 +207,203 @@ export declare const IdentityStatus: z.ZodObject<{
         dateOfBirth: string;
         generated: boolean;
         documentNumberMasked: string;
+        checked: boolean;
+        source?: "document" | "registry" | "typed" | undefined;
     } | null;
-    available: {
-        passport: boolean;
-        nationalId: boolean;
-    };
-    method: string | null;
-    required: boolean;
-    kycStatus: "rejected" | "unverified" | "pending" | "verified";
-    modes: {
-        documents: "mock" | "live" | "off";
-        registry: "mock" | "live" | "off";
-    };
+    scan: {
+        documentType: "national_id" | "passport";
+        attempts: number;
+        outcome: "machine_passed" | "machine_failed" | "manual_needed";
+        mayContinue: boolean;
+    } | null;
+    machineCheck: boolean;
+    nationalIdMode: "mock" | "live" | "off" | "sandbox";
 }>;
 export type IdentityStatus = z.infer<typeof IdentityStatus>;
-/** `POST /api/v1/me/identity/national-id/lookup`. */
-export declare const NationalIdLookupRequest: z.ZodObject<{
-    documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
+/** `POST /api/v1/me/identity/scan`: the front of the card or the photo page, then a selfie, both uploaded first as `id_photo`. */
+export declare const IdentityScanRequest: z.ZodObject<{
+    documentType: z.ZodEnum<["national_id", "passport"]>;
+    frontKey: z.ZodString;
+    selfieKey: z.ZodString;
+    /** A passport's issuing country, which the document checker is told. Ignored for a National ID. */
+    issuingCountry: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
 }, "strip", z.ZodTypeAny, {
-    documentNumber: string;
+    documentType: "national_id" | "passport";
+    frontKey: string;
+    selfieKey: string;
+    issuingCountry?: string | undefined;
 }, {
-    documentNumber: string;
+    documentType: "national_id" | "passport";
+    frontKey: string;
+    selfieKey: string;
+    issuingCountry?: string | undefined;
 }>;
-export type NationalIdLookupRequest = z.infer<typeof NationalIdLookupRequest>;
-/**
- * The lookup NEVER returns the person. Whoever types an ID number might not be
- * its holder, so a lookup that answered with a name and a date of birth would
- * be a directory of strangers. It sends a code to the phone the register holds
- * and says where, masked; the person is revealed by `confirm`, to whoever can
- * read that code.
- */
-export declare const NationalIdLookupResult: z.ZodDiscriminatedUnion<"status", [z.ZodObject<{
-    status: z.ZodLiteral<"code_sent">;
-    challengeId: z.ZodString;
-    /** The register's phone, masked: `+250·····123`. */
-    sentTo: z.ZodString;
-    expiresInSeconds: z.ZodNumber;
-}, "strip", z.ZodTypeAny, {
-    status: "code_sent";
-    expiresInSeconds: number;
-    challengeId: string;
-    sentTo: string;
-}, {
-    status: "code_sent";
-    expiresInSeconds: number;
-    challengeId: string;
-    sentTo: string;
-}>, z.ZodObject<{
-    status: z.ZodLiteral<"not_found">;
-    message: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    message: string;
-    status: "not_found";
-}, {
-    message: string;
-    status: "not_found";
-}>, z.ZodObject<{
-    status: z.ZodLiteral<"no_phone">;
-    message: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    message: string;
-    status: "no_phone";
-}, {
-    message: string;
-    status: "no_phone";
-}>, z.ZodObject<{
-    status: z.ZodLiteral<"unavailable">;
-    message: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    message: string;
-    status: "unavailable";
-}, {
-    message: string;
-    status: "unavailable";
-}>]>;
-export type NationalIdLookupResult = z.infer<typeof NationalIdLookupResult>;
-/** `POST /api/v1/me/identity/national-id/confirm`. */
-export declare const NationalIdConfirmRequest: z.ZodObject<{
-    challengeId: z.ZodString;
-    code: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    code: string;
-    challengeId: string;
-}, {
-    code: string;
-    challengeId: string;
-}>;
-export type NationalIdConfirmRequest = z.infer<typeof NationalIdConfirmRequest>;
-/** `POST /api/v1/me/identity/passport`: two uploads, `id_photo` kind, the caller's own. */
-export declare const PassportVerifyRequest: z.ZodObject<{
-    /** The passport's photo page. */
-    documentObjectKey: z.ZodString;
-    /** A selfie, matched against the passport's portrait. */
-    selfieObjectKey: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    documentObjectKey: string;
-    selfieObjectKey: string;
-}, {
-    documentObjectKey: string;
-    selfieObjectKey: string;
-}>;
-export type PassportVerifyRequest = z.infer<typeof PassportVerifyRequest>;
-export declare const PassportRejectionReason: z.ZodEnum<["not_authentic", "face_mismatch", "unreadable", "expired"]>;
-export type PassportRejectionReason = z.infer<typeof PassportRejectionReason>;
-export declare const PassportVerifyResult: z.ZodDiscriminatedUnion<"status", [z.ZodObject<{
-    status: z.ZodLiteral<"verified">;
-    person: z.ZodObject<{
+export type IdentityScanRequest = z.infer<typeof IdentityScanRequest>;
+export declare const IdentityScanResult: z.ZodObject<{
+    outcome: z.ZodEnum<["machine_passed", "machine_failed", "manual_needed"]>;
+    reason: z.ZodNullable<z.ZodEnum<["not_authentic", "face_mismatch", "unreadable", "expired", "unavailable", "not_found", "revoked"]>>;
+    /** What went wrong and how to fix it, or what happens next. Null when the check passed. */
+    message: z.ZodNullable<z.ZodString>;
+    /** What the checker read, or null when it read nothing. */
+    fields: z.ZodNullable<z.ZodObject<{
         fullName: z.ZodString;
         /** `YYYY-MM-DD`. */
         dateOfBirth: z.ZodString;
         gender: z.ZodNullable<z.ZodEnum<["female", "male", "other", "prefer_not_to_say"]>>;
-        /**
-         * The phone the register holds, in full. Returned only to the person who
-         * just proved they hold it by typing the code sent there, so it prefills
-         * their phone field. Null for a passport, which carries no phone.
-         */
-        phoneE164: z.ZodNullable<z.ZodString>;
         documentType: z.ZodEnum<["national_id", "passport"]>;
         documentNumberMasked: z.ZodString;
         issuingCountry: z.ZodEffects<z.ZodString, string, string>;
         /**
-         * True when a MOCK adapter made this person up. A demo must be able to say
-         * "these details are generated" rather than pass them off as a register's.
+         * True when a MOCK verifier made this person up. A demo must be able to say
+         * "these details are generated" rather than pass them off as a document's.
          */
         generated: z.ZodBoolean;
+        /**
+         * True once a machine check passed, or PSF verified the identity on
+         * approval (D-o). False while the details are typed and PSF has still to
+         * compare the photos: the status reads "PSF will check your ID" (AC-6).
+         */
+        checked: z.ZodBoolean;
+        /**
+         * Where the details came from: read off a document by a checker, returned
+         * by the population register for a National ID number, or typed as
+         * printed. Optional for a client built before it existed.
+         */
+        source: z.ZodOptional<z.ZodEnum<["document", "registry", "typed"]>>;
     }, "strip", z.ZodTypeAny, {
         documentType: "national_id" | "passport";
         issuingCountry: string;
         fullName: string;
         gender: "other" | "female" | "male" | "prefer_not_to_say" | null;
         dateOfBirth: string;
-        phoneE164: string | null;
         generated: boolean;
         documentNumberMasked: string;
+        checked: boolean;
+        source?: "document" | "registry" | "typed" | undefined;
     }, {
         documentType: "national_id" | "passport";
         issuingCountry: string;
         fullName: string;
         gender: "other" | "female" | "male" | "prefer_not_to_say" | null;
         dateOfBirth: string;
-        phoneE164: string | null;
         generated: boolean;
         documentNumberMasked: string;
-    }>;
+        checked: boolean;
+        source?: "document" | "registry" | "typed" | undefined;
+    }>>;
+    /** This try's number on the draft. */
+    attempt: z.ZodNumber;
+    mayContinue: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
-    status: "verified";
-    person: {
+    message: string | null;
+    attempt: number;
+    reason: "expired" | "unavailable" | "revoked" | "not_authentic" | "face_mismatch" | "unreadable" | "not_found" | null;
+    outcome: "machine_passed" | "machine_failed" | "manual_needed";
+    mayContinue: boolean;
+    fields: {
         documentType: "national_id" | "passport";
         issuingCountry: string;
         fullName: string;
         gender: "other" | "female" | "male" | "prefer_not_to_say" | null;
         dateOfBirth: string;
-        phoneE164: string | null;
         generated: boolean;
         documentNumberMasked: string;
-    };
+        checked: boolean;
+        source?: "document" | "registry" | "typed" | undefined;
+    } | null;
 }, {
-    status: "verified";
-    person: {
+    message: string | null;
+    attempt: number;
+    reason: "expired" | "unavailable" | "revoked" | "not_authentic" | "face_mismatch" | "unreadable" | "not_found" | null;
+    outcome: "machine_passed" | "machine_failed" | "manual_needed";
+    mayContinue: boolean;
+    fields: {
         documentType: "national_id" | "passport";
         issuingCountry: string;
         fullName: string;
         gender: "other" | "female" | "male" | "prefer_not_to_say" | null;
         dateOfBirth: string;
-        phoneE164: string | null;
         generated: boolean;
         documentNumberMasked: string;
+        checked: boolean;
+        source?: "document" | "registry" | "typed" | undefined;
+    } | null;
+}>;
+export type IdentityScanResult = z.infer<typeof IdentityScanResult>;
+/**
+ * `PUT /api/v1/me/identity/document`: the details as printed, typed after a
+ * scan that read nothing (no checker here) or after the tries ran out. Stored
+ * with `kyc_status` `pending`, for PSF to hold against the photos.
+ */
+export declare const TypedIdentityRequest: z.ZodObject<{
+    fullName: z.ZodString;
+    dateOfBirth: z.ZodEffects<z.ZodString, string, string>;
+    document: z.ZodDiscriminatedUnion<"documentType", [z.ZodObject<{
+        documentType: z.ZodLiteral<"national_id">;
+        documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
+        issuingCountry: z.ZodDefault<z.ZodLiteral<"RW">>;
+    }, "strip", z.ZodTypeAny, {
+        documentType: "national_id";
+        documentNumber: string;
+        issuingCountry: "RW";
+    }, {
+        documentType: "national_id";
+        documentNumber: string;
+        issuingCountry?: "RW" | undefined;
+    }>, z.ZodObject<{
+        documentType: z.ZodLiteral<"passport">;
+        documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
+        issuingCountry: z.ZodEffects<z.ZodString, string, string>;
+    }, "strip", z.ZodTypeAny, {
+        documentType: "passport";
+        documentNumber: string;
+        issuingCountry: string;
+    }, {
+        documentType: "passport";
+        documentNumber: string;
+        issuingCountry: string;
+    }>]>;
+}, "strip", z.ZodTypeAny, {
+    fullName: string;
+    document: {
+        documentType: "national_id";
+        documentNumber: string;
+        issuingCountry: "RW";
+    } | {
+        documentType: "passport";
+        documentNumber: string;
+        issuingCountry: string;
     };
-}>, z.ZodObject<{
-    status: z.ZodLiteral<"rejected">;
-    reason: z.ZodEnum<["not_authentic", "face_mismatch", "unreadable", "expired"]>;
-    message: z.ZodString;
-}, "strip", z.ZodTypeAny, {
-    message: string;
-    status: "rejected";
-    reason: "expired" | "not_authentic" | "face_mismatch" | "unreadable";
+    dateOfBirth: string;
 }, {
-    message: string;
-    status: "rejected";
-    reason: "expired" | "not_authentic" | "face_mismatch" | "unreadable";
-}>, z.ZodObject<{
-    status: z.ZodLiteral<"unavailable">;
-    message: z.ZodString;
+    fullName: string;
+    document: {
+        documentType: "national_id";
+        documentNumber: string;
+        issuingCountry?: "RW" | undefined;
+    } | {
+        documentType: "passport";
+        documentNumber: string;
+        issuingCountry: string;
+    };
+    dateOfBirth: string;
+}>;
+export type TypedIdentityRequest = z.infer<typeof TypedIdentityRequest>;
+/**
+ * `POST /api/v1/me/identity/national-id`: a Rwandan National ID checked by its
+ * number against the population register (NIDA, through GTBank), with a
+ * selfie uploaded first as `id_photo`. Answers an `IdentityScanResult`, and
+ * counts as one try on the draft, as a scan does.
+ */
+export declare const NationalIdCheckRequest: z.ZodObject<{
+    documentNumber: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodString>;
+    selfieKey: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    message: string;
-    status: "unavailable";
+    documentNumber: string;
+    selfieKey: string;
 }, {
-    message: string;
-    status: "unavailable";
-}>]>;
-export type PassportVerifyResult = z.infer<typeof PassportVerifyResult>;
+    documentNumber: string;
+    selfieKey: string;
+}>;
+export type NationalIdCheckRequest = z.infer<typeof NationalIdCheckRequest>;
 //# sourceMappingURL=identity.d.ts.map

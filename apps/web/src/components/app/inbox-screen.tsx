@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { GuestDeskPlace, GuestThread } from "@injishi/contracts";
-import { Button, Skeleton } from "@injishi/ui";
+import { Button, Skeleton } from "@injishi/web-ui";
 import { EmptyPanel } from "@/components/app/empty-panel";
 import { Icon } from "@/components/app/icon";
 import { InboxDesks } from "@/components/app/inbox-desks";

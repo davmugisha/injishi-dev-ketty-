@@ -1,0 +1,1273 @@
+"use client";
+
+import {
+  ArrowLeft,
+  ArrowRightArrowLeft,
+  Ban,
+  CreditCard,
+  Minus,
+  PaperPlane,
+  Plus,
+  Printer,
+  Scissors,
+  TagDollar,
+  TrashBin,
+} from "@gravity-ui/icons";
+import {
+  Button,
+  Card,
+  Checkbox,
+  Input,
+  Label,
+  SearchField,
+  Tabs,
+  TextArea,
+  TextField,
+  Toast,
+  ToggleButton,
+} from "@heroui/react";
+import { EmptyState, Segment } from "@heroui-pro/react";
+import { LinkButton } from "@injishi/ui";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { RegionOverlays } from "@/features/outlets/shared";
+import {
+  type BillPrint,
+  METHOD_LABEL,
+  ORDER_STATUS_LABEL,
+  type PaymentMethod,
+  type PosMenu,
+  type PosMenuItem,
+  type PosOrder,
+  type PosOrderLine,
+  type PosOutlet,
+  type PosShift,
+  type PosTable,
+} from "@/server/pos";
+import {
+  addLinesAction,
+  cancelAction,
+  decideDiscountAction,
+  discountAction,
+  payAction,
+  printBillAction,
+  refundAction,
+  removeLineAction,
+  resolvePaymentAction,
+  sendAction,
+  splitAction,
+  transferAction,
+  updateLineAction,
+  voidLineAction,
+} from "./actions";
+import { PosNav } from "./pos-nav";
+import {
+  money,
+  ORDER_COLOR,
+  PosDialog,
+  PosHeader,
+  parseRwf,
+  SimulationNotice,
+  StatusChip,
+  usePosAction,
+  usePressKey,
+} from "./shared";
+
+type Dialog =
+  | { kind: "options"; item: PosMenuItem }
+  | { kind: "void"; line: PosOrderLine }
+  | { kind: "cancel" }
+  | { kind: "discount" }
+  | { kind: "split" }
+  | { kind: "transfer" }
+  | { kind: "pay" }
+  | { kind: "refund"; paymentId: string; left: number }
+  | { kind: "bill"; print: BillPrint }
+  | null;
+
+const ASYNC: PaymentMethod[] = ["mtn_momo", "airtel_money", "bank_transfer"];
+
+function optionsLine(l: PosOrderLine): string {
+  return l.selectedOptions.map((o) => `${o.name}: ${o.choices.map((c) => c.label).join(", ")}`).join(" · ");
+}
+
+/**
+ * The till (POS spec §5): the outlet's menu beside one order, every command on the order, and checkout with
+ * several payments. Every total on the screen is the API's; nothing is priced in the browser except the
+ * options preview before a line is added.
+ */
+export function PosTillView({
+  outlet,
+  order,
+  menu,
+  tables,
+  shift,
+  can,
+}: {
+  outlet: PosOutlet;
+  order: PosOrder;
+  menu: PosMenu;
+  tables: PosTable[];
+  shift: PosShift | null;
+  can: string[];
+}) {
+  const router = useRouter();
+  const { run, pending } = usePosAction();
+  const [category, setCategory] = useState(menu.categories[0]?.id ?? "");
+  const [query, setQuery] = useState("");
+  const [dialog, setDialog] = useState<Dialog>(null);
+  const has = (p: string) => can.includes(p);
+  const editable = order.status !== "completed" && order.status !== "cancelled";
+  const drafts = order.lines.filter((l) => l.status === "draft");
+  const live = order.lines.filter((l) => l.status !== "voided");
+
+  const items = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return menu.items.filter((i) =>
+      q ? i.name.toLowerCase().includes(q) || (i.sku ?? "").toLowerCase().includes(q) : i.categoryId === category,
+    );
+  }, [menu.items, category, query]);
+
+  function addPlain(item: PosMenuItem) {
+    if (item.options.length) return setDialog({ kind: "options", item });
+    run(() => addLinesAction(order.id, [{ serviceItemId: item.id, quantity: 1 }]), `${item.name} added`);
+  }
+
+  return (
+    <div className="relative flex h-full flex-col bg-background">
+      <PosHeader
+        title={`${order.orderNumber}${order.tableLabel ? ` · Table ${order.tableLabel}` : ""}`}
+        outlet={outlet}
+      >
+        <StatusChip color={ORDER_COLOR[order.status]}>{ORDER_STATUS_LABEL[order.status]}</StatusChip>
+        <LinkButton href={`/pos/floor?outlet=${outlet.id}`} variant="secondary" size="sm">
+          <ArrowLeft className="size-4" />
+          Floor
+        </LinkButton>
+        <PosNav current="PosTill" outletId={outlet.id} can={can} />
+      </PosHeader>
+
+      <div className="flex min-h-0 flex-1">
+        {/* The menu */}
+        <section aria-label="Menu" className="flex min-w-0 flex-1 flex-col gap-3 overflow-hidden p-4">
+          <SearchField aria-label="Search the menu" value={query} onChange={setQuery} fullWidth>
+            <SearchField.Group>
+              <SearchField.SearchIcon />
+              <SearchField.Input placeholder="Search dishes and drinks" />
+              <SearchField.ClearButton />
+            </SearchField.Group>
+          </SearchField>
+          {!query ? (
+            <Tabs variant="secondary" selectedKey={category} onSelectionChange={(k) => setCategory(String(k))}>
+              <Tabs.ListContainer className="overflow-x-auto">
+                <Tabs.List aria-label="Menu category">
+                  {menu.categories.map((c) => (
+                    <Tabs.Tab key={c.id} id={c.id}>
+                      {c.name}
+                      <Tabs.Indicator />
+                    </Tabs.Tab>
+                  ))}
+                </Tabs.List>
+              </Tabs.ListContainer>
+            </Tabs>
+          ) : null}
+          <div className="grid min-h-0 flex-1 auto-rows-min gap-2 overflow-y-auto [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
+            {items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                disabled={!item.available || !editable || !has("pos.sell") || pending}
+                onClick={() => addPlain(item)}
+                className="flex min-h-[92px] flex-col justify-between gap-1 rounded-2xl border border-separator bg-surface p-3 text-left transition enabled:hover:border-accent disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                <span className="text-[14px] leading-5 font-medium">{item.name}</span>
+                <span className="flex items-end justify-between gap-1">
+                  <span className="text-[13px] tabular">{money(item.priceRwf)}</span>
+                  <span className="text-[11px] text-muted">
+                    {item.available
+                      ? item.options.length
+                        ? "Options"
+                        : item.stationId
+                          ? ""
+                          : "No ticket"
+                      : item.unavailableReason}
+                  </span>
+                </span>
+              </button>
+            ))}
+            {items.length === 0 ? <p className="text-[13px] text-muted">Nothing matches.</p> : null}
+          </div>
+        </section>
+
+        {/* The order */}
+        <section aria-label="Order" className="flex w-[400px] shrink-0 flex-col border-l border-separator bg-surface">
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-4">
+            {order.lines.length === 0 ? (
+              <EmptyState size="sm">
+                <EmptyState.Header>
+                  <EmptyState.Title>Nothing ordered yet</EmptyState.Title>
+                  <EmptyState.Description>Tap a dish or a drink to add it.</EmptyState.Description>
+                </EmptyState.Header>
+              </EmptyState>
+            ) : null}
+            {order.lines.map((l) => (
+              <div
+                key={l.id}
+                className={`flex flex-col gap-1 rounded-xl border border-separator p-2.5 ${l.status === "voided" ? "opacity-60" : ""}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className={`text-[14px] font-medium ${l.status === "voided" ? "line-through" : ""}`}>
+                    {l.quantity} × {l.name}
+                  </span>
+                  <span className="text-[14px] tabular">{money(l.status === "voided" ? 0 : l.totalRwf)}</span>
+                </div>
+                {l.selectedOptions.length ? <span className="text-[12px] text-muted">{optionsLine(l)}</span> : null}
+                {l.note ? <span className="text-[12px] text-warning">Note: {l.note}</span> : null}
+                {l.discountRwf > 0 && l.status !== "voided" ? (
+                  <span className="text-[12px] text-success tabular">Discount −{money(l.discountRwf)}</span>
+                ) : null}
+                {l.status === "voided" ? <span className="text-[12px] text-danger">Voided: {l.voidReason}</span> : null}
+                <div className="flex items-center gap-1">
+                  <StatusChip color={l.status === "draft" ? "accent" : l.status === "sent" ? "default" : "danger"}>
+                    {l.status === "draft" ? "Not sent" : l.status === "sent" ? "Sent" : "Voided"}
+                  </StatusChip>
+                  <span className="flex-1" />
+                  {l.status === "draft" && editable && has("pos.sell") ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        isIconOnly
+                        aria-label={`One fewer ${l.name}`}
+                        isDisabled={pending || l.quantity <= 1}
+                        onPress={() => run(() => updateLineAction(order.id, l.id, { quantity: l.quantity - 1 }))}
+                      >
+                        <Minus className="size-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        isIconOnly
+                        aria-label={`One more ${l.name}`}
+                        isDisabled={pending}
+                        onPress={() => run(() => updateLineAction(order.id, l.id, { quantity: l.quantity + 1 }))}
+                      >
+                        <Plus className="size-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        isIconOnly
+                        aria-label={`Remove ${l.name}`}
+                        isDisabled={pending}
+                        onPress={() => run(() => removeLineAction(order.id, l.id), `${l.name} removed`)}
+                      >
+                        <TrashBin className="size-4" />
+                      </Button>
+                    </>
+                  ) : null}
+                  {l.status === "sent" && editable && has("pos.override") ? (
+                    <Button size="sm" variant="danger-soft" onPress={() => setDialog({ kind: "void", line: l })}>
+                      <Ban className="size-4" />
+                      Void
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+
+            {order.discounts.length ? (
+              <div className="flex flex-col gap-1 border-t border-separator pt-2">
+                {order.discounts.map((d) => (
+                  <div key={d.id} className="flex items-center justify-between gap-2 text-[12px]">
+                    <span>
+                      {d.orderItemId ? "Line" : "Order"} discount {money(d.amountRwf)} · {d.reason}
+                    </span>
+                    {d.status === "pending_approval" && has("pos.override") && editable ? (
+                      <span className="flex gap-1">
+                        <Button
+                          size="sm"
+                          isDisabled={pending}
+                          onPress={() => run(() => decideDiscountAction(order.id, d.id, true), "Discount approved")}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          isDisabled={pending}
+                          onPress={() => run(() => decideDiscountAction(order.id, d.id, false), "Discount rejected")}
+                        >
+                          Reject
+                        </Button>
+                      </span>
+                    ) : (
+                      <StatusChip
+                        color={d.status === "approved" ? "success" : d.status === "rejected" ? "danger" : "warning"}
+                      >
+                        {d.status === "pending_approval"
+                          ? "Waiting for a manager"
+                          : d.status === "approved"
+                            ? "Approved"
+                            : "Rejected"}
+                      </StatusChip>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {order.payments.length ? (
+              <div className="flex flex-col gap-1.5 border-t border-separator pt-2">
+                <span className="text-[12px] font-semibold">Payments</span>
+                {order.payments.map((p) => (
+                  <div key={p.id} className="flex flex-col gap-1 rounded-lg bg-default/40 p-2 text-[12px]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{METHOD_LABEL[p.method]}</span>
+                      <span className="tabular">{money(p.amountRwf)}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1 text-muted">
+                      <StatusChip
+                        color={
+                          p.status === "successful"
+                            ? "success"
+                            : p.status === "pending" || p.status === "initiated"
+                              ? "warning"
+                              : p.status === "refunded"
+                                ? "default"
+                                : "danger"
+                        }
+                      >
+                        {p.status}
+                      </StatusChip>
+                      <span className="tabular">{p.demoReference}</span>
+                      {p.changeRwf ? <span>· change {money(p.changeRwf)}</span> : null}
+                      {p.tipRwf ? <span>· tip {money(p.tipRwf)}</span> : null}
+                      {p.refundedRwf ? <span>· refunded {money(p.refundedRwf)}</span> : null}
+                      {p.failureReason ? <span className="text-danger">· {p.failureReason}</span> : null}
+                    </div>
+                    {(p.status === "pending" || p.status === "initiated") && has("pos.checkout") ? (
+                      <div className="flex flex-wrap gap-1">
+                        <span className="self-center text-muted">Simulate the provider:</span>
+                        <Button
+                          size="sm"
+                          isDisabled={pending}
+                          onPress={() => run(() => resolvePaymentAction(p.id, "success"), "Simulated: confirmed")}
+                        >
+                          Confirm
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          isDisabled={pending}
+                          onPress={() => run(() => resolvePaymentAction(p.id, "failure"), "Simulated: declined")}
+                        >
+                          Decline
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          isDisabled={pending}
+                          onPress={() => run(() => resolvePaymentAction(p.id, "timeout"), "Simulated: timed out")}
+                        >
+                          Time out
+                        </Button>
+                      </div>
+                    ) : null}
+                    {p.status === "successful" &&
+                    has("pos.refund") &&
+                    order.settlement.settled &&
+                    p.amountRwf > p.refundedRwf ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="self-start"
+                        onPress={() =>
+                          setDialog({ kind: "refund", paymentId: p.id, left: p.amountRwf - p.refundedRwf })
+                        }
+                      >
+                        Refund
+                      </Button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          {/* Totals and commands */}
+          <div className="flex flex-col gap-2 border-t border-separator p-4">
+            <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[13px] tabular">
+              <dt className="text-muted">Subtotal</dt>
+              <dd className="text-right">{money(order.grossRwf)}</dd>
+              {order.discountRwf ? (
+                <>
+                  <dt className="text-muted">Discounts</dt>
+                  <dd className="text-right text-success">−{money(order.discountRwf)}</dd>
+                </>
+              ) : null}
+              <dt className="text-muted">
+                VAT {order.taxMode === "inclusive" ? "(included, illustrative)" : "(added, illustrative)"}
+              </dt>
+              <dd className="text-right">{money(order.taxRwf)}</dd>
+              <dt className="text-[15px] font-semibold">Total</dt>
+              <dd className="text-right text-[15px] font-semibold">{money(order.totalRwf)}</dd>
+              {order.settlement.collectedRwf ? (
+                <>
+                  <dt className="text-muted">Paid</dt>
+                  <dd className="text-right">{money(order.settlement.collectedRwf)}</dd>
+                </>
+              ) : null}
+              {order.settlement.refundedRwf ? (
+                <>
+                  <dt className="text-muted">Refunded</dt>
+                  <dd className="text-right">{money(order.settlement.refundedRwf)}</dd>
+                </>
+              ) : null}
+              <dt className="font-medium">To pay</dt>
+              <dd className="text-right font-medium">{money(order.settlement.outstandingRwf)}</dd>
+            </dl>
+            {editable ? (
+              <div className="grid grid-cols-3 gap-1.5">
+                {has("pos.sell") ? (
+                  <Button
+                    className="col-span-3"
+                    size="lg"
+                    isDisabled={pending || drafts.length === 0}
+                    onPress={() => run(() => sendAction(order.id), "Sent to the kitchen and bar")}
+                  >
+                    <PaperPlane className="size-4" />
+                    Send {drafts.length ? `${drafts.length} new` : ""}
+                  </Button>
+                ) : null}
+                {has("pos.checkout") ? (
+                  <Button
+                    className="col-span-3"
+                    size="lg"
+                    variant="secondary"
+                    isDisabled={pending || order.settlement.payableRwf === 0}
+                    onPress={() => setDialog({ kind: "pay" })}
+                  >
+                    <CreditCard className="size-4" />
+                    Take payment · {money(order.settlement.payableRwf)}
+                  </Button>
+                ) : null}
+                {has("pos.discount") || has("pos.override") ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    isDisabled={live.length === 0}
+                    onPress={() => setDialog({ kind: "discount" })}
+                  >
+                    <TagDollar className="size-4" />
+                    Discount
+                  </Button>
+                ) : null}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  isDisabled={
+                    live.length < 2 ||
+                    order.payments.some(
+                      (p) => p.status !== "failed" && p.status !== "expired" && p.status !== "cancelled",
+                    )
+                  }
+                  onPress={() => setDialog({ kind: "split" })}
+                >
+                  <Scissors className="size-4" />
+                  Split
+                </Button>
+                {order.orderType === "dine_in" && has("table.manage") ? (
+                  <Button size="sm" variant="secondary" onPress={() => setDialog({ kind: "transfer" })}>
+                    <ArrowRightArrowLeft className="size-4" />
+                    Move
+                  </Button>
+                ) : null}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  isDisabled={pending}
+                  onPress={() =>
+                    run(
+                      () => printBillAction(order.id),
+                      null,
+                      (print) => setDialog({ kind: "bill", print }),
+                    )
+                  }
+                >
+                  <Printer className="size-4" />
+                  Bill
+                </Button>
+                <Button size="sm" variant="danger-soft" onPress={() => setDialog({ kind: "cancel" })}>
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="secondary"
+                isDisabled={pending}
+                onPress={() =>
+                  run(
+                    () => printBillAction(order.id),
+                    null,
+                    (print) => setDialog({ kind: "bill", print }),
+                  )
+                }
+              >
+                <Printer className="size-4" />
+                Print bill again
+              </Button>
+            )}
+            {order.cancelReason ? <p className="text-[12px] text-danger">Cancelled: {order.cancelReason}</p> : null}
+          </div>
+        </section>
+      </div>
+
+      <RegionOverlays>
+        {dialog?.kind === "options" ? (
+          <OptionsDialog
+            item={dialog.item}
+            onClose={() => setDialog(null)}
+            onAdd={(line) =>
+              run(
+                () => addLinesAction(order.id, [line]),
+                `${dialog.item.name} added`,
+                () => setDialog(null),
+              )
+            }
+            pending={pending}
+          />
+        ) : null}
+        {dialog?.kind === "void" ? (
+          <ReasonDialog
+            title={`Void ${dialog.line.quantity} × ${dialog.line.name}`}
+            subtitle="It has gone to the kitchen. The void is recorded under your name with this reason."
+            confirm="Void line"
+            danger
+            pending={pending}
+            onClose={() => setDialog(null)}
+            onConfirm={(reason) =>
+              run(
+                () => voidLineAction(order.id, dialog.line.id, reason),
+                "Line voided",
+                () => setDialog(null),
+              )
+            }
+          />
+        ) : null}
+        {dialog?.kind === "cancel" ? (
+          <ReasonDialog
+            title={`Cancel ${order.orderNumber}`}
+            subtitle="Lines already sent need a manager. Money collected must be refunded first."
+            confirm="Cancel order"
+            danger
+            pending={pending}
+            onClose={() => setDialog(null)}
+            onConfirm={(reason) =>
+              run(
+                () => cancelAction(order.id, reason),
+                "Order cancelled",
+                () => setDialog(null),
+              )
+            }
+          />
+        ) : null}
+        {dialog?.kind === "discount" ? (
+          <DiscountDialog
+            order={order}
+            limitBps={outlet.settings.discountLimitBps}
+            override={has("pos.override")}
+            pending={pending}
+            onClose={() => setDialog(null)}
+            onApply={(body) =>
+              run(
+                () => discountAction(order.id, body),
+                (o) =>
+                  o.discounts.at(-1)?.status === "pending_approval"
+                    ? "Over the limit: waiting for a manager"
+                    : "Discount applied",
+                () => setDialog(null),
+              )
+            }
+          />
+        ) : null}
+        {dialog?.kind === "split" ? (
+          <SplitDialog
+            order={order}
+            pending={pending}
+            onClose={() => setDialog(null)}
+            onSplit={(ids) =>
+              run(
+                () => splitAction(order.id, ids),
+                (o) => `Split into ${o.orderNumber}`,
+                (o) => {
+                  setDialog(null);
+                  router.push(`/pos/till?order=${o.id}`);
+                },
+              )
+            }
+          />
+        ) : null}
+        {dialog?.kind === "transfer" ? (
+          <TransferDialog
+            tables={tables.filter((t) => t.sessionId && t.sessionId !== order.tableSessionId)}
+            pending={pending}
+            onClose={() => setDialog(null)}
+            onMove={(sessionId, reason) =>
+              run(
+                () => transferAction(order.id, sessionId, reason),
+                "Order moved",
+                () => setDialog(null),
+              )
+            }
+          />
+        ) : null}
+        {dialog?.kind === "pay" ? (
+          <PayDialog
+            order={order}
+            outlet={outlet}
+            shift={shift}
+            pending={pending}
+            onClose={() => setDialog(null)}
+            run={run}
+          />
+        ) : null}
+        {dialog?.kind === "refund" ? (
+          <RefundDialog
+            left={dialog.left}
+            pending={pending}
+            onClose={() => setDialog(null)}
+            onRefund={(amount, reason, key) =>
+              run(
+                () => refundAction(dialog.paymentId, amount, reason, key),
+                "Refund recorded (simulated for non cash)",
+                () => setDialog(null),
+              )
+            }
+          />
+        ) : null}
+        {dialog?.kind === "bill" ? <BillDialog print={dialog.print} onClose={() => setDialog(null)} /> : null}
+        <Toast.Provider placement="bottom" />
+      </RegionOverlays>
+    </div>
+  );
+}
+
+// ── Dialogs ─────────────────────────────────────────────────────────────────────────────────────────
+
+function OptionsDialog({
+  item,
+  onClose,
+  onAdd,
+  pending,
+}: {
+  item: PosMenuItem;
+  onClose: () => void;
+  onAdd: (line: {
+    serviceItemId: string;
+    quantity: number;
+    selectedOptions: { name: string; choices: string[] }[];
+    note?: string;
+  }) => void;
+  pending: boolean;
+}) {
+  const [picked, setPicked] = useState<Record<string, string[]>>(() =>
+    Object.fromEntries(item.options.filter((o) => o.required).map((o) => [o.name, [o.choices[0]?.label ?? ""]])),
+  );
+  const [qty, setQty] = useState(1);
+  const [note, setNote] = useState("");
+  const delta = item.options.reduce(
+    (a, o) =>
+      a +
+      (picked[o.name] ?? []).reduce(
+        (b, label) => b + (o.choices.find((c) => c.label === label)?.priceDeltaRwf ?? 0),
+        0,
+      ),
+    0,
+  );
+  const missing = item.options.filter((o) => o.required && !picked[o.name]?.length);
+  const toggle = (name: string, label: string, max: number) =>
+    setPicked((p) => {
+      const now = p[name] ?? [];
+      if (max === 1) return { ...p, [name]: [label] };
+      if (now.includes(label)) return { ...p, [name]: now.filter((x) => x !== label) };
+      if (now.length >= max) return p;
+      return { ...p, [name]: [...now, label] };
+    });
+  return (
+    <PosDialog
+      isOpen
+      onOpenChange={(open) => !open && onClose()}
+      title={item.name}
+      subtitle={`${money(item.priceRwf)}${item.description ? ` · ${item.description}` : ""}`}
+      wide
+      footer={
+        <>
+          <div className="mr-auto flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="secondary"
+              isIconOnly
+              aria-label="One fewer"
+              isDisabled={qty <= 1}
+              onPress={() => setQty(qty - 1)}
+            >
+              <Minus className="size-4" />
+            </Button>
+            <span className="min-w-8 text-center tabular">{qty}</span>
+            <Button size="sm" variant="secondary" isIconOnly aria-label="One more" onPress={() => setQty(qty + 1)}>
+              <Plus className="size-4" />
+            </Button>
+          </div>
+          <Button variant="secondary" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button
+            isDisabled={pending || missing.length > 0}
+            onPress={() =>
+              onAdd({
+                serviceItemId: item.id,
+                quantity: qty,
+                selectedOptions: Object.entries(picked)
+                  .filter(([, v]) => v.length)
+                  .map(([name, choices]) => ({ name, choices })),
+                note: note.trim() || undefined,
+              })
+            }
+          >
+            Add · {money((item.priceRwf + delta) * qty)}
+          </Button>
+        </>
+      }
+    >
+      {item.options.map((o) => (
+        <div key={o.name} className="flex flex-col gap-1.5">
+          <Label>
+            {o.name}
+            {o.required ? " · choose one (required)" : o.maxChoices > 1 ? ` · up to ${o.maxChoices}` : " · optional"}
+          </Label>
+          <div className="flex flex-wrap gap-1.5">
+            {o.choices.map((c) => (
+              <ToggleButton
+                key={c.label}
+                isSelected={(picked[o.name] ?? []).includes(c.label)}
+                onChange={() => toggle(o.name, c.label, o.maxChoices)}
+              >
+                {c.label}
+                {c.priceDeltaRwf ? ` +${money(c.priceDeltaRwf)}` : ""}
+              </ToggleButton>
+            ))}
+          </div>
+        </div>
+      ))}
+      <TextField value={note} onChange={setNote} fullWidth>
+        <Label>Kitchen note or allergy</Label>
+        <TextArea rows={2} />
+      </TextField>
+    </PosDialog>
+  );
+}
+
+function ReasonDialog({
+  title,
+  subtitle,
+  confirm,
+  danger,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  title: string;
+  subtitle: string;
+  confirm: string;
+  danger?: boolean;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+  const ok = reason.trim().length >= 3;
+  return (
+    <PosDialog
+      isOpen
+      onOpenChange={(open) => !open && onClose()}
+      title={title}
+      subtitle={subtitle}
+      footer={
+        <>
+          <Button variant="secondary" onPress={onClose}>
+            Keep it
+          </Button>
+          <Button
+            variant={danger ? "danger" : "primary"}
+            isDisabled={!ok || pending}
+            onPress={() => onConfirm(reason.trim())}
+          >
+            {confirm}
+          </Button>
+        </>
+      }
+    >
+      <TextField value={reason} onChange={setReason} fullWidth isRequired>
+        <Label>Reason (required)</Label>
+        <TextArea rows={2} />
+      </TextField>
+    </PosDialog>
+  );
+}
+
+function DiscountDialog({
+  order,
+  limitBps,
+  override,
+  pending,
+  onClose,
+  onApply,
+}: {
+  order: PosOrder;
+  limitBps: number;
+  override: boolean;
+  pending: boolean;
+  onClose: () => void;
+  onApply: (body: { orderItemId?: string; kind: "amount" | "percent"; value: number; reason: string }) => void;
+}) {
+  const [kind, setKind] = useState<"percent" | "amount">("percent");
+  const [value, setValue] = useState("10");
+  const [target, setTarget] = useState("order");
+  const [reason, setReason] = useState("");
+  const n = parseRwf(value);
+  const ok = n !== null && n > 0 && reason.trim().length >= 3 && (kind === "amount" || n <= 100);
+  return (
+    <PosDialog
+      isOpen
+      onOpenChange={(open) => !open && onClose()}
+      title="Discount"
+      subtitle={`Up to ${limitBps / 100}% applies at once${override ? "; as a manager yours apply at any size" : "; above that a manager approves"}.`}
+      footer={
+        <>
+          <Button variant="secondary" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button
+            isDisabled={!ok || pending}
+            onPress={() =>
+              onApply({
+                orderItemId: target === "order" ? undefined : target,
+                kind,
+                value: kind === "percent" ? (n as number) * 100 : (n as number),
+                reason: reason.trim(),
+              })
+            }
+          >
+            Apply
+          </Button>
+        </>
+      }
+    >
+      <Segment
+        aria-label="Discount kind"
+        selectedKey={kind}
+        onSelectionChange={(k) => setKind(k === "amount" ? "amount" : "percent")}
+      >
+        <Segment.Item id="percent">Percent</Segment.Item>
+        <Segment.Item id="amount">Amount (RWF)</Segment.Item>
+      </Segment>
+      <TextField value={value} onChange={setValue} fullWidth>
+        <Label>{kind === "percent" ? "Percent" : "Amount in RWF"}</Label>
+        <Input inputMode="numeric" className="tabular" />
+      </TextField>
+      <div className="flex flex-col gap-1.5">
+        <Label>On</Label>
+        <div className="flex flex-wrap gap-1.5">
+          <ToggleButton isSelected={target === "order"} onChange={() => setTarget("order")}>
+            The whole order
+          </ToggleButton>
+          {order.lines
+            .filter((l) => l.status !== "voided")
+            .map((l) => (
+              <ToggleButton key={l.id} isSelected={target === l.id} onChange={() => setTarget(l.id)}>
+                {l.quantity} × {l.name}
+              </ToggleButton>
+            ))}
+        </div>
+      </div>
+      <TextField value={reason} onChange={setReason} fullWidth isRequired>
+        <Label>Reason (required)</Label>
+        <Input />
+      </TextField>
+    </PosDialog>
+  );
+}
+
+function SplitDialog({
+  order,
+  pending,
+  onClose,
+  onSplit,
+}: {
+  order: PosOrder;
+  pending: boolean;
+  onClose: () => void;
+  onSplit: (ids: string[]) => void;
+}) {
+  const lines = order.lines.filter((l) => l.status !== "voided");
+  const [chosen, setChosen] = useState<string[]>([]);
+  const total = lines.filter((l) => chosen.includes(l.id)).reduce((a, l) => a + l.totalRwf, 0);
+  return (
+    <PosDialog
+      isOpen
+      onOpenChange={(open) => !open && onClose()}
+      title="Split the bill"
+      subtitle="The chosen lines move to a new bill on the same table, paid on its own."
+      footer={
+        <>
+          <Button variant="secondary" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button
+            isDisabled={pending || chosen.length === 0 || chosen.length === lines.length}
+            onPress={() => onSplit(chosen)}
+          >
+            New bill · {money(total)}
+          </Button>
+        </>
+      }
+    >
+      {lines.map((l) => (
+        <Checkbox
+          key={l.id}
+          isSelected={chosen.includes(l.id)}
+          onChange={(on) => setChosen(on ? [...chosen, l.id] : chosen.filter((x) => x !== l.id))}
+        >
+          <Checkbox.Content className="gap-2">
+            <Checkbox.Control>
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+            {l.quantity} × {l.name} · {money(l.totalRwf)}
+          </Checkbox.Content>
+        </Checkbox>
+      ))}
+    </PosDialog>
+  );
+}
+
+function TransferDialog({
+  tables,
+  pending,
+  onClose,
+  onMove,
+}: {
+  tables: PosTable[];
+  pending: boolean;
+  onClose: () => void;
+  onMove: (sessionId: string, reason: string) => void;
+}) {
+  const [to, setTo] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  return (
+    <PosDialog
+      isOpen
+      onOpenChange={(open) => !open && onClose()}
+      title="Move this order to another table"
+      subtitle="Only tables with seated guests are listed."
+      footer={
+        <>
+          <Button variant="secondary" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button
+            isDisabled={pending || !to || reason.trim().length < 3}
+            onPress={() => to && onMove(to, reason.trim())}
+          >
+            Move order
+          </Button>
+        </>
+      }
+    >
+      {tables.length === 0 ? <p className="text-[13px] text-muted">No other table has guests seated.</p> : null}
+      <div className="flex flex-wrap gap-1.5">
+        {tables.map((t) => (
+          <ToggleButton key={t.id} isSelected={to === t.sessionId} onChange={() => setTo(t.sessionId)}>
+            {t.label}
+          </ToggleButton>
+        ))}
+      </div>
+      <TextField value={reason} onChange={setReason} fullWidth isRequired>
+        <Label>Reason (required)</Label>
+        <Input />
+      </TextField>
+    </PosDialog>
+  );
+}
+
+function PayDialog({
+  order,
+  outlet,
+  shift,
+  pending,
+  onClose,
+  run,
+}: {
+  order: PosOrder;
+  outlet: PosOutlet;
+  shift: PosShift | null;
+  pending: boolean;
+  onClose: () => void;
+  run: ReturnType<typeof usePosAction>["run"];
+}) {
+  const methods = outlet.settings.enabledMethods.filter((m) => m !== "customer_credit");
+  const [method, setMethod] = useState<PaymentMethod>(methods[0] ?? "cash");
+  const [amount, setAmount] = useState(String(order.settlement.payableRwf));
+  const [tendered, setTendered] = useState("");
+  const [tip, setTip] = useState("");
+  const [phone, setPhone] = useState("+250788000100");
+  const [voucher, setVoucher] = useState("");
+  const [outcome, setOutcome] = useState<"success" | "pending" | "failure" | "timeout">("success");
+  const [key, nextKey] = usePressKey();
+  const amountRwf = parseRwf(amount) ?? 0;
+  const tipRwf = parseRwf(tip) ?? 0;
+  const tenderedRwf = parseRwf(tendered);
+  const change = method === "cash" && tenderedRwf ? tenderedRwf - amountRwf - tipRwf : 0;
+  const cashBlocked = method === "cash" && !shift;
+  const ok =
+    amountRwf > 0 &&
+    amountRwf <= order.settlement.payableRwf &&
+    !cashBlocked &&
+    (method !== "cash" || !tenderedRwf || change >= 0) &&
+    (method !== "voucher" || voucher.trim().length >= 3);
+  return (
+    <PosDialog
+      isOpen
+      onOpenChange={(open) => !open && onClose()}
+      title={`Take payment · ${money(order.settlement.payableRwf)} to pay`}
+      subtitle={`${order.orderNumber} · total ${money(order.totalRwf)}`}
+      wide
+      footer={
+        <>
+          <Button variant="secondary" onPress={onClose}>
+            Close
+          </Button>
+          <Button
+            size="lg"
+            isDisabled={!ok || pending}
+            onPress={() =>
+              run(
+                () =>
+                  payAction(
+                    order.id,
+                    {
+                      method,
+                      amountRwf,
+                      tenderedRwf: method === "cash" && tenderedRwf ? tenderedRwf : undefined,
+                      tipRwf: tipRwf || undefined,
+                      simulate: method === "cash" || method === "voucher" ? undefined : outcome,
+                      payerPhone: method === "mtn_momo" || method === "airtel_money" ? phone : undefined,
+                      voucherCode: method === "voucher" ? voucher.trim() : undefined,
+                    },
+                    key,
+                  ),
+                (o) => {
+                  const p = o.payments.at(-1);
+                  return p?.status === "successful"
+                    ? "Payment recorded"
+                    : p?.status === "pending"
+                      ? "Waiting for the simulated provider"
+                      : `Payment ${p?.status ?? "recorded"}`;
+                },
+                (o) => {
+                  nextKey();
+                  if (o.settlement.payableRwf === 0) onClose();
+                  else setAmount(String(o.settlement.payableRwf));
+                },
+              )
+            }
+          >
+            Take {money(amountRwf)}
+          </Button>
+        </>
+      }
+    >
+      <SimulationNotice>
+        {method === "cash"
+          ? "Cash is recorded in your drawer."
+          : "This method is simulated: no money moves and no provider is contacted."}
+      </SimulationNotice>
+      <div className="flex flex-wrap gap-1.5">
+        {methods.map((m) => (
+          <ToggleButton key={m} isSelected={method === m} onChange={() => setMethod(m)}>
+            {METHOD_LABEL[m]}
+          </ToggleButton>
+        ))}
+      </div>
+      {cashBlocked ? <p className="text-[13px] text-danger">Open your cashier shift before taking cash.</p> : null}
+      <div className="grid grid-cols-2 gap-3">
+        <TextField value={amount} onChange={setAmount} fullWidth>
+          <Label>Amount toward the bill (RWF)</Label>
+          <Input inputMode="numeric" className="tabular" />
+        </TextField>
+        <TextField value={tip} onChange={setTip} fullWidth>
+          <Label>Tip (RWF, optional)</Label>
+          <Input inputMode="numeric" className="tabular" />
+        </TextField>
+        {method === "cash" ? (
+          <TextField value={tendered} onChange={setTendered} fullWidth>
+            <Label>Cash handed over</Label>
+            <Input inputMode="numeric" className="tabular" />
+          </TextField>
+        ) : null}
+        {method === "cash" && tenderedRwf ? (
+          <p className={`self-end pb-2 text-[15px] font-semibold tabular ${change < 0 ? "text-danger" : ""}`}>
+            {change < 0 ? `Short ${money(-change)}` : `Change ${money(change)}`}
+          </p>
+        ) : null}
+        {method === "mtn_momo" || method === "airtel_money" ? (
+          <TextField value={phone} onChange={setPhone} fullWidth>
+            <Label>Payer phone (fictional)</Label>
+            <Input inputMode="tel" />
+          </TextField>
+        ) : null}
+        {method === "voucher" ? (
+          <TextField value={voucher} onChange={setVoucher} fullWidth>
+            <Label>Voucher code</Label>
+            <Input />
+          </TextField>
+        ) : null}
+      </div>
+      {method !== "cash" && method !== "voucher" ? (
+        <div className="flex flex-col gap-1.5">
+          <Label>The simulated provider answers</Label>
+          <Segment
+            aria-label="Simulated outcome"
+            selectedKey={outcome}
+            onSelectionChange={(k) => setOutcome(String(k) as typeof outcome)}
+          >
+            <Segment.Item id="success">{ASYNC.includes(method) ? "Approve (after waiting)" : "Approve"}</Segment.Item>
+            <Segment.Item id="pending">Leave pending</Segment.Item>
+            <Segment.Item id="failure">Decline</Segment.Item>
+            <Segment.Item id="timeout">Time out</Segment.Item>
+          </Segment>
+        </div>
+      ) : null}
+    </PosDialog>
+  );
+}
+
+function RefundDialog({
+  left,
+  pending,
+  onClose,
+  onRefund,
+}: {
+  left: number;
+  pending: boolean;
+  onClose: () => void;
+  onRefund: (amount: number, reason: string, key: string) => void;
+}) {
+  const [amount, setAmount] = useState(String(left));
+  const [reason, setReason] = useState("");
+  const [key] = usePressKey();
+  const n = parseRwf(amount) ?? 0;
+  const ok = n > 0 && n <= left && reason.trim().length >= 3;
+  return (
+    <PosDialog
+      isOpen
+      onOpenChange={(open) => !open && onClose()}
+      title="Refund"
+      subtitle={`Up to ${money(left)} of this payment. Recorded under your name with the reason.`}
+      footer={
+        <>
+          <Button variant="secondary" onPress={onClose}>
+            Cancel
+          </Button>
+          <Button variant="danger" isDisabled={!ok || pending} onPress={() => onRefund(n, reason.trim(), key)}>
+            Refund {money(n)}
+          </Button>
+        </>
+      }
+    >
+      <SimulationNotice>
+        A refund of a non cash payment is simulated. A cash refund comes out of your open shift.
+      </SimulationNotice>
+      <TextField value={amount} onChange={setAmount} fullWidth>
+        <Label>Amount (RWF)</Label>
+        <Input inputMode="numeric" className="tabular" />
+      </TextField>
+      <TextField value={reason} onChange={setReason} fullWidth isRequired>
+        <Label>Reason (required)</Label>
+        <Input />
+      </TextField>
+    </PosDialog>
+  );
+}
+
+function BillDialog({ print, onClose }: { print: BillPrint; onClose: () => void }) {
+  const p = print.payload;
+  return (
+    <PosDialog
+      isOpen
+      onOpenChange={(open) => !open && onClose()}
+      title={`Bill · ${p.copy}`}
+      subtitle="Simulated print: no printer is contacted."
+      footer={
+        <>
+          <Button variant="secondary" onPress={onClose}>
+            Close
+          </Button>
+          <Button onPress={() => window.print()}>
+            <Printer className="size-4" />
+            Print this page
+          </Button>
+        </>
+      }
+    >
+      <Card className="gap-1 p-4 font-mono text-[12px]">
+        <p className="border border-danger p-1 text-center font-bold text-danger">{p.stamp}</p>
+        <p className="text-center">{p.header}</p>
+        <p className="text-center">
+          {p.orderNumber}
+          {p.table ? ` · Table ${p.table}` : ""}
+        </p>
+        <hr className="my-1 border-separator" />
+        {p.lines.map((l, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: a printed bill is static; two identical lines may repeat
+          <p key={`${l.name}-${i}`} className="flex justify-between gap-2">
+            <span>
+              {l.quantity} × {l.name}
+            </span>
+            <span className="tabular">{money(l.totalRwf)}</span>
+          </p>
+        ))}
+        <hr className="my-1 border-separator" />
+        <p className="flex justify-between">
+          <span>Subtotal</span>
+          <span className="tabular">{money(p.grossRwf)}</span>
+        </p>
+        {p.discountRwf ? (
+          <p className="flex justify-between">
+            <span>Discount</span>
+            <span className="tabular">−{money(p.discountRwf)}</span>
+          </p>
+        ) : null}
+        <p className="flex justify-between">
+          <span>VAT {p.taxMode === "inclusive" ? "included" : "added"} (illustrative)</span>
+          <span className="tabular">{money(p.taxRwf)}</span>
+        </p>
+        <p className="flex justify-between font-bold">
+          <span>Total</span>
+          <span className="tabular">{money(p.totalRwf)}</span>
+        </p>
+        <p className="flex justify-between">
+          <span>Paid</span>
+          <span className="tabular">{money(p.collectedRwf)}</span>
+        </p>
+        <p className="flex justify-between">
+          <span>To pay</span>
+          <span className="tabular">{money(p.outstandingRwf)}</span>
+        </p>
+        <hr className="my-1 border-separator" />
+        <p className="text-center">{p.footer}</p>
+        <p className="text-center font-bold text-danger">{p.stamp}</p>
+      </Card>
+    </PosDialog>
+  );
+}

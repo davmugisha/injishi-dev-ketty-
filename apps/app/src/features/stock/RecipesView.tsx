@@ -19,7 +19,7 @@ import { Fragment, type Key, useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
 import { KvRows, Muted, money, SectionTitle, ToneChip } from "./shared";
 
-export interface RecipesData {
+interface RecipesData {
   recipes: Recipe[];
   ingredients: RecipeIngredient[];
   batch: ProductionBatch;

@@ -111,11 +111,11 @@ function StepIcon({ step }: { step: HostStep }) {
 }
 
 /**
- * What registering asks, in the order the wizard asks it: the rail's own parts,
- * minus Business type, because the chooser at the top of this page is that question.
+ * What registering asks, in the order the wizard asks it: the rail's own five
+ * steps (ADR-075 AC-3).
  */
 function RegistrationParts() {
-  const parts = REGISTRATION_STEPS.filter((s) => s.id !== "type");
+  const parts = REGISTRATION_STEPS;
   return (
     <ul
       aria-label="What registering asks"

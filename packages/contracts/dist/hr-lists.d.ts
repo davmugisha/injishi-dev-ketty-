@@ -138,7 +138,7 @@ export declare const EmployeePage: z.ZodObject<{
         qualification: z.ZodNullable<z.ZodString>;
         priorExperienceYears: z.ZodNullable<z.ZodNumber>;
         hasAccount: z.ZodBoolean;
-        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
         detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
     } & {
         view: z.ZodLiteral<"basic">;
@@ -173,10 +173,10 @@ export declare const EmployeePage: z.ZodObject<{
         }>>;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "offboarded";
+        id: string;
         email: string | null;
         legalName: string;
-        id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -216,10 +216,10 @@ export declare const EmployeePage: z.ZodObject<{
         } | null;
     }, {
         status: "active" | "offboarded";
+        id: string;
         email: string | null;
         legalName: string;
-        id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -301,7 +301,7 @@ export declare const EmployeePage: z.ZodObject<{
         qualification: z.ZodNullable<z.ZodString>;
         priorExperienceYears: z.ZodNullable<z.ZodNumber>;
         hasAccount: z.ZodBoolean;
-        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper"]>>;
+        orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
         detailsMissing: z.ZodArray<z.ZodEnum<["phone", "dateOfBirth", "sex", "idDocument"]>, "many">;
     } & {
         view: z.ZodLiteral<"full">;
@@ -320,16 +320,16 @@ export declare const EmployeePage: z.ZodObject<{
             districtName: z.ZodString;
             street: z.ZodNullable<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
+            districtName: string;
             villageId: number;
             street: string | null;
-            districtName: string;
             sectorName: string;
             villageName: string;
             cellName: string;
         }, {
+            districtName: string;
             villageId: number;
             street: string | null;
-            districtName: string;
             sectorName: string;
             villageName: string;
             cellName: string;
@@ -387,21 +387,21 @@ export declare const EmployeePage: z.ZodObject<{
         }>>;
     }, "strip", z.ZodTypeAny, {
         status: "active" | "offboarded";
+        id: string;
         dateOfBirth: string | null;
         address: {
+            districtName: string;
             villageId: number;
             street: string | null;
-            districtName: string;
             sectorName: string;
             villageName: string;
             cellName: string;
         } | null;
         email: string | null;
         legalName: string;
-        id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -455,21 +455,21 @@ export declare const EmployeePage: z.ZodObject<{
         previousEmployeeId: string | null;
     }, {
         status: "active" | "offboarded";
+        id: string;
         dateOfBirth: string | null;
         address: {
+            districtName: string;
             villageId: number;
             street: string | null;
-            districtName: string;
             sectorName: string;
             villageName: string;
             cellName: string;
         } | null;
         email: string | null;
         legalName: string;
-        id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -561,10 +561,10 @@ export declare const EmployeePage: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: ({
         status: "active" | "offboarded";
+        id: string;
         email: string | null;
         legalName: string;
-        id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -604,21 +604,21 @@ export declare const EmployeePage: z.ZodObject<{
         } | null;
     } | {
         status: "active" | "offboarded";
+        id: string;
         dateOfBirth: string | null;
         address: {
+            districtName: string;
             villageId: number;
             street: string | null;
-            districtName: string;
             sectorName: string;
             villageName: string;
             cellName: string;
         } | null;
         email: string | null;
         legalName: string;
-        id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -673,7 +673,7 @@ export declare const EmployeePage: z.ZodObject<{
     })[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -690,10 +690,10 @@ export declare const EmployeePage: z.ZodObject<{
 }, {
     items: ({
         status: "active" | "offboarded";
+        id: string;
         email: string | null;
         legalName: string;
-        id: string;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "basic";
         employeeNumber: string;
@@ -733,21 +733,21 @@ export declare const EmployeePage: z.ZodObject<{
         } | null;
     } | {
         status: "active" | "offboarded";
+        id: string;
         dateOfBirth: string | null;
         address: {
+            districtName: string;
             villageId: number;
             street: string | null;
-            districtName: string;
             sectorName: string;
             villageName: string;
             cellName: string;
         } | null;
         email: string | null;
         legalName: string;
-        id: string;
         idDocumentType: "national_id" | "passport" | null;
         idDocumentNumber: string | null;
-        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | null;
+        orgRole: "owner" | "manager" | "receptionist" | "finance" | "hr" | "housekeeper" | "cashier" | "waiter" | "bartender" | "kitchen" | "stock_controller" | null;
         phone: string | null;
         view: "full";
         employeeNumber: string;
@@ -802,7 +802,7 @@ export declare const EmployeePage: z.ZodObject<{
     })[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -910,15 +910,15 @@ export declare const RosterPage: z.ZodObject<{
         generated: z.ZodBoolean;
         fromRequest: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
-        status: "scheduled" | "cancelled";
+        status: "cancelled" | "scheduled";
         id: string;
+        publishedAt: string | null;
         generated: boolean;
         employee: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         };
-        publishedAt: string | null;
         propertyId: string;
         departmentId: string | null;
         startsAt: string;
@@ -929,15 +929,15 @@ export declare const RosterPage: z.ZodObject<{
         cancelReason: string | null;
         fromRequest: boolean;
     }, {
-        status: "scheduled" | "cancelled";
+        status: "cancelled" | "scheduled";
         id: string;
+        publishedAt: string | null;
         generated: boolean;
         employee: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         };
-        publishedAt: string | null;
         propertyId: string;
         departmentId: string | null;
         startsAt: string;
@@ -986,15 +986,15 @@ export declare const RosterPage: z.ZodObject<{
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        status: "scheduled" | "cancelled";
+        status: "cancelled" | "scheduled";
         id: string;
+        publishedAt: string | null;
         generated: boolean;
         employee: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         };
-        publishedAt: string | null;
         propertyId: string;
         departmentId: string | null;
         startsAt: string;
@@ -1007,7 +1007,7 @@ export declare const RosterPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -1023,15 +1023,15 @@ export declare const RosterPage: z.ZodObject<{
     }[] | undefined;
 }, {
     items: {
-        status: "scheduled" | "cancelled";
+        status: "cancelled" | "scheduled";
         id: string;
+        publishedAt: string | null;
         generated: boolean;
         employee: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         };
-        publishedAt: string | null;
         propertyId: string;
         departmentId: string | null;
         startsAt: string;
@@ -1044,7 +1044,7 @@ export declare const RosterPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -1181,6 +1181,8 @@ export declare const AttendancePage: z.ZodObject<{
         supersedesId: z.ZodNullable<z.ZodString>;
         note: z.ZodNullable<z.ZodString>;
         autoClosed: z.ZodBoolean;
+        inPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
+        outPendingReason: z.ZodNullable<z.ZodEnum<["no_location", "no_branch_location", "poor_accuracy", "outside_fence", "late_sync"]>>;
         figures: z.ZodNullable<z.ZodObject<{
             lateMinutes: z.ZodNullable<z.ZodNumber>;
             earlyMinutes: z.ZodNullable<z.ZodNumber>;
@@ -1245,6 +1247,8 @@ export declare const AttendancePage: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -1277,6 +1281,8 @@ export declare const AttendancePage: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -1347,6 +1353,8 @@ export declare const AttendancePage: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -1356,7 +1364,7 @@ export declare const AttendancePage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -1397,6 +1405,8 @@ export declare const AttendancePage: z.ZodObject<{
         validated: boolean;
         supersedesId: string | null;
         autoClosed: boolean;
+        inPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
+        outPendingReason: "no_location" | "no_branch_location" | "poor_accuracy" | "outside_fence" | "late_sync" | null;
         location: {
             inDistanceM: number | null;
             inAccuracyM: number | null;
@@ -1406,7 +1416,7 @@ export declare const AttendancePage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -1560,9 +1570,9 @@ export declare const ShiftRequestPage: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
+        id: string;
         kind: "change" | "swap";
         decidedAt: string | null;
-        id: string;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -1593,9 +1603,9 @@ export declare const ShiftRequestPage: z.ZodObject<{
         colleagueAcceptedAt: string | null;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
+        id: string;
         kind: "change" | "swap";
         decidedAt: string | null;
-        id: string;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -1664,9 +1674,9 @@ export declare const ShiftRequestPage: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
+        id: string;
         kind: "change" | "swap";
         decidedAt: string | null;
-        id: string;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -1698,7 +1708,7 @@ export declare const ShiftRequestPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -1715,9 +1725,9 @@ export declare const ShiftRequestPage: z.ZodObject<{
 }, {
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested" | "awaiting_colleague";
+        id: string;
         kind: "change" | "swap";
         decidedAt: string | null;
-        id: string;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -1749,7 +1759,7 @@ export declare const ShiftRequestPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -1870,8 +1880,8 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         recordClockOutAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
         id: string;
+        decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -1900,8 +1910,8 @@ export declare const AttendanceRequestPage: z.ZodObject<{
         recordClockOutAt?: string | null | undefined;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
         id: string;
+        decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -1968,8 +1978,8 @@ export declare const AttendanceRequestPage: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
         id: string;
+        decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -1999,7 +2009,7 @@ export declare const AttendanceRequestPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -2016,8 +2026,8 @@ export declare const AttendanceRequestPage: z.ZodObject<{
 }, {
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
         id: string;
+        decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -2047,7 +2057,7 @@ export declare const AttendanceRequestPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -2232,8 +2242,8 @@ export declare const LeaveRequestPage: z.ZodObject<{
         hasAttachment: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
         id: string;
+        decidedAt: string | null;
         reason: string | null;
         startsOn: string;
         decisionNote: string | null;
@@ -2270,8 +2280,8 @@ export declare const LeaveRequestPage: z.ZodObject<{
         hasAttachment: boolean;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
         id: string;
+        decidedAt: string | null;
         reason: string | null;
         startsOn: string;
         decisionNote: string | null;
@@ -2346,8 +2356,8 @@ export declare const LeaveRequestPage: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
         id: string;
+        decidedAt: string | null;
         reason: string | null;
         startsOn: string;
         decisionNote: string | null;
@@ -2385,7 +2395,7 @@ export declare const LeaveRequestPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -2402,8 +2412,8 @@ export declare const LeaveRequestPage: z.ZodObject<{
 }, {
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        decidedAt: string | null;
         id: string;
+        decidedAt: string | null;
         reason: string | null;
         startsOn: string;
         decisionNote: string | null;
@@ -2441,7 +2451,7 @@ export declare const LeaveRequestPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -2611,9 +2621,9 @@ export declare const LeaveAllocationPage: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
+        id: string;
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        id: string;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -2639,9 +2649,9 @@ export declare const LeaveAllocationPage: z.ZodObject<{
         } | null;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
+        id: string;
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        id: string;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -2705,9 +2715,9 @@ export declare const LeaveAllocationPage: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested";
+        id: string;
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        id: string;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -2734,7 +2744,7 @@ export declare const LeaveAllocationPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -2751,9 +2761,9 @@ export declare const LeaveAllocationPage: z.ZodObject<{
 }, {
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested";
+        id: string;
         kind: "compensatory" | "extra";
         decidedAt: string | null;
-        id: string;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -2780,7 +2790,7 @@ export declare const LeaveAllocationPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -2953,7 +2963,7 @@ export declare const LeaveBalancePage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -2983,7 +2993,7 @@ export declare const LeaveBalancePage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -3069,16 +3079,16 @@ export declare const PayRunPage: z.ZodObject<{
         employeeContributionsRwf: z.ZodNumber;
         employerContributionsRwf: z.ZodNumber;
     }, "strip", z.ZodTypeAny, {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
-        periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        periodStart: string;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -3088,16 +3098,16 @@ export declare const PayRunPage: z.ZodObject<{
         confirmedByUserId: string | null;
         headcount: number;
     }, {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
-        periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        periodStart: string;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -3145,16 +3155,16 @@ export declare const PayRunPage: z.ZodObject<{
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
-        periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        periodStart: string;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -3166,7 +3176,7 @@ export declare const PayRunPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -3182,16 +3192,16 @@ export declare const PayRunPage: z.ZodObject<{
     }[] | undefined;
 }, {
     items: {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
-        periodStart: string;
         grossRwf: number;
         confirmedAt: string | null;
+        periodStart: string;
+        period: string;
         payeRwf: number;
         employeeContributionsRwf: number;
         employerContributionsRwf: number;
         netRwf: number;
-        period: string;
         computedAt: string;
         ruleVersions: {
             configType: string;
@@ -3203,7 +3213,7 @@ export declare const PayRunPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -3312,40 +3322,40 @@ export declare const PayslipPage: z.ZodObject<{
         paidReference: z.ZodNullable<z.ZodString>;
         sentAt: z.ZodNullable<z.ZodString>;
     }, "strip", z.ZodTypeAny, {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
+        grossRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         };
-        grossRwf: number;
         paidAt: string | null;
         branchId: string | null;
+        period: string;
         employeeNumber: string;
         netRwf: number;
         paidMethod: "cash" | "bank" | "momo" | null;
         paidReference: string | null;
         sentAt: string | null;
-        period: string;
         payRunId: string;
     }, {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
+        grossRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         };
-        grossRwf: number;
         paidAt: string | null;
         branchId: string | null;
+        period: string;
         employeeNumber: string;
         netRwf: number;
         paidMethod: "cash" | "bank" | "momo" | null;
         paidReference: string | null;
         sentAt: string | null;
-        period: string;
         payRunId: string;
     }>, "many">;
     total: z.ZodNumber;
@@ -3386,27 +3396,27 @@ export declare const PayslipPage: z.ZodObject<{
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
+        grossRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         };
-        grossRwf: number;
         paidAt: string | null;
         branchId: string | null;
+        period: string;
         employeeNumber: string;
         netRwf: number;
         paidMethod: "cash" | "bank" | "momo" | null;
         paidReference: string | null;
         sentAt: string | null;
-        period: string;
         payRunId: string;
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -3422,27 +3432,27 @@ export declare const PayslipPage: z.ZodObject<{
     }[] | undefined;
 }, {
     items: {
-        status: "draft" | "confirmed";
+        status: "confirmed" | "draft";
         id: string;
+        grossRwf: number;
         employee: {
             employeeId: string;
             displayName: string;
             jobPositionTitle: string | null;
         };
-        grossRwf: number;
         paidAt: string | null;
         branchId: string | null;
+        period: string;
         employeeNumber: string;
         netRwf: number;
         paidMethod: "cash" | "bank" | "momo" | null;
         paidReference: string | null;
         sentAt: string | null;
-        period: string;
         payRunId: string;
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -3596,8 +3606,8 @@ export declare const LoanPage: z.ZodObject<{
         }>, "many">;
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        kind: "loan" | "advance";
         id: string;
+        kind: "loan" | "advance";
         amountRwf: number;
         reason: string | null;
         employee: {
@@ -3622,8 +3632,8 @@ export declare const LoanPage: z.ZodObject<{
             deferredFrom: string | null;
         }[];
     }, {
-        kind: "loan" | "advance";
         id: string;
+        kind: "loan" | "advance";
         amountRwf: number;
         reason: string | null;
         employee: {
@@ -3686,8 +3696,8 @@ export declare const LoanPage: z.ZodObject<{
     }>, "many">>;
 }, "strip", z.ZodTypeAny, {
     items: {
-        kind: "loan" | "advance";
         id: string;
+        kind: "loan" | "advance";
         amountRwf: number;
         reason: string | null;
         employee: {
@@ -3714,7 +3724,7 @@ export declare const LoanPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -3730,8 +3740,8 @@ export declare const LoanPage: z.ZodObject<{
     }[] | undefined;
 }, {
     items: {
-        kind: "loan" | "advance";
         id: string;
+        kind: "loan" | "advance";
         amountRwf: number;
         reason: string | null;
         employee: {
@@ -3758,7 +3768,7 @@ export declare const LoanPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -3872,10 +3882,10 @@ export declare const PayClaimPage: z.ZodObject<{
         createdAt: z.ZodString;
     }, "strip", z.ZodTypeAny, {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        kind: "reimbursement" | "leave_encashment";
-        decidedAt: string | null;
         id: string;
+        kind: "reimbursement" | "leave_encashment";
         amountRwf: number | null;
+        decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -3886,8 +3896,8 @@ export declare const PayClaimPage: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        days: number | null;
         period: string;
+        days: number | null;
         leaveType: {
             name: string;
             id: string;
@@ -3896,10 +3906,10 @@ export declare const PayClaimPage: z.ZodObject<{
         hasReceipt: boolean;
     }, {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        kind: "reimbursement" | "leave_encashment";
-        decidedAt: string | null;
         id: string;
+        kind: "reimbursement" | "leave_encashment";
         amountRwf: number | null;
+        decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -3910,8 +3920,8 @@ export declare const PayClaimPage: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        days: number | null;
         period: string;
+        days: number | null;
         leaveType: {
             name: string;
             id: string;
@@ -3958,10 +3968,10 @@ export declare const PayClaimPage: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        kind: "reimbursement" | "leave_encashment";
-        decidedAt: string | null;
         id: string;
+        kind: "reimbursement" | "leave_encashment";
         amountRwf: number | null;
+        decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -3972,8 +3982,8 @@ export declare const PayClaimPage: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        days: number | null;
         period: string;
+        days: number | null;
         leaveType: {
             name: string;
             id: string;
@@ -3983,7 +3993,7 @@ export declare const PayClaimPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -4000,10 +4010,10 @@ export declare const PayClaimPage: z.ZodObject<{
 }, {
     items: {
         status: "approved" | "rejected" | "cancelled" | "requested";
-        kind: "reimbursement" | "leave_encashment";
-        decidedAt: string | null;
         id: string;
+        kind: "reimbursement" | "leave_encashment";
         amountRwf: number | null;
+        decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
         employee: {
@@ -4014,8 +4024,8 @@ export declare const PayClaimPage: z.ZodObject<{
         paid: boolean;
         createdAt: string;
         branchId: string | null;
-        days: number | null;
         period: string;
+        days: number | null;
         leaveType: {
             name: string;
             id: string;
@@ -4025,7 +4035,7 @@ export declare const PayClaimPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -4257,7 +4267,7 @@ export declare const PayAdjustmentPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -4293,7 +4303,7 @@ export declare const PayAdjustmentPage: z.ZodObject<{
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -4401,6 +4411,7 @@ export declare const ContractPage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         };
+        noticeDays: number | null;
         branchId: string | null;
         contractType: string;
         employeeNumber: string;
@@ -4408,7 +4419,6 @@ export declare const ContractPage: z.ZodObject<{
         wageBasis: "monthly" | "daily" | "hourly";
         wageRwf: number;
         payStructureId: string | null;
-        noticeDays: number | null;
     }, {
         status: string;
         id: string;
@@ -4418,6 +4428,7 @@ export declare const ContractPage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         };
+        noticeDays: number | null;
         branchId: string | null;
         contractType: string;
         employeeNumber: string;
@@ -4425,7 +4436,6 @@ export declare const ContractPage: z.ZodObject<{
         wageBasis: "monthly" | "daily" | "hourly";
         wageRwf: number;
         payStructureId: string | null;
-        noticeDays: number | null;
     }>, "many">;
     total: z.ZodNumber;
     page: z.ZodNumber;
@@ -4473,6 +4483,7 @@ export declare const ContractPage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         };
+        noticeDays: number | null;
         branchId: string | null;
         contractType: string;
         employeeNumber: string;
@@ -4480,11 +4491,10 @@ export declare const ContractPage: z.ZodObject<{
         wageBasis: "monthly" | "daily" | "hourly";
         wageRwf: number;
         payStructureId: string | null;
-        noticeDays: number | null;
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;
@@ -4508,6 +4518,7 @@ export declare const ContractPage: z.ZodObject<{
             displayName: string;
             jobPositionTitle: string | null;
         };
+        noticeDays: number | null;
         branchId: string | null;
         contractType: string;
         employeeNumber: string;
@@ -4515,11 +4526,10 @@ export declare const ContractPage: z.ZodObject<{
         wageBasis: "monthly" | "daily" | "hourly";
         wageRwf: number;
         payStructureId: string | null;
-        noticeDays: number | null;
     }[];
     total: number;
     page: number;
-    pageSize: 50 | 10 | 100 | 25;
+    pageSize: 10 | 50 | 100 | 25;
     groups?: {
         key: string | null;
         label: string;

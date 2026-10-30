@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
+
 import { Logger } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 
@@ -74,15 +76,15 @@ const officer = (
   scope: Pick<Officer, 'scopeLevel' | 'provinceId' | 'districtId'>,
 ): Officer => ({ userId, email: `${userId}@example.test`, name: null, ...scope });
 
-let error: jest.SpyInstance;
+let error: MockInstance;
 beforeEach(() => {
-  jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-  jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-  error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+  vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+  vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+  error = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 });
 afterEach(() => {
-  jest.useRealTimers();
-  jest.restoreAllMocks();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('RegistrationMailer · registrant mails', () => {
@@ -185,10 +187,10 @@ describe('RegistrationMailer · failure never throws', () => {
   });
 
   it('gives up on a silent transport after the ceiling, without throwing', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const port: MailerPort = { send: () => new Promise<void>(() => undefined) };
     const pending = new RegistrationMailer(port, configFrom({}), fakeRepo()).fieldVerified(ORG);
-    await jest.advanceTimersByTimeAsync(8_000);
+    await vi.advanceTimersByTimeAsync(8_000);
     await expect(pending).resolves.toBeUndefined();
     expect(String(error.mock.calls[0]?.[0])).toContain('did not respond within 8000ms');
   });

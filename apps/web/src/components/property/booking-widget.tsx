@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { DateRange } from "react-day-picker";
-import { Button, Popover, PopoverContent, PopoverTrigger } from "@injishi/ui";
+import { Button, Popover, PopoverContent, PopoverTrigger } from "@injishi/web-ui";
 import { formatPrice, nightsBetween, pluralize } from "@injishi/utils";
 import { BookingGuestPicker } from "@/components/property/booking-guest-picker";
 import { StayDatePicker } from "@/components/search/stay-date-picker";
@@ -62,7 +62,7 @@ import { retryWhileFailed, type ApiResult } from "@/lib/api";
  * addresses the real rooms, and its guest ceiling is its largest room type.
  * Every rate it quotes is a room's, read from the API.
  */
-export interface BookingWidgetProperty {
+interface BookingWidgetProperty {
   slug: string;
   maxGuests: number;
 }

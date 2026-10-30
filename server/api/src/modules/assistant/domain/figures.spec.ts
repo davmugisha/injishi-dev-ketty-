@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { figuresIn, unconfirmedFigures } from './figures';
 
 /** Figure checks (ADR-061 D-v): what counts as a figure, and how it is found. */

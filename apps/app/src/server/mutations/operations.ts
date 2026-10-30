@@ -44,7 +44,7 @@ async function board(ctx: SourceContext): Promise<ApiBoard> {
 
 // ── Housekeeping ───────────────────────────────────────────────────────────────────────────────────
 
-export interface NewCleaningTask {
+interface NewCleaningTask {
   /** The room's label, "204". */
   room: string;
   kind: Exclude<CleaningTask["kind"], "Re-clean">;
@@ -103,7 +103,7 @@ export async function inspectCleaningTask(
   forgetOperations(ctx);
 }
 
-/** "Remind Beatrice to inspect 207": record the reminder; her phone is told through the outbox. */
+/** "Record a reminder for 207": the API keeps it on the escalation. Nothing delivers it to the supervisor yet. */
 export async function remindEscalation(ctx: SourceContext, escalationId: string): Promise<void> {
   await ctx.ops().post(`/api/v1/ops/housekeeping/escalations/${encodeURIComponent(escalationId)}/remind`, {});
   forgetOperations(ctx);
@@ -132,7 +132,7 @@ function assigneeFor(list: ApiWorkOrderList, name: string): { userId: string } |
   return { contractor: name };
 }
 
-export interface NewWorkOrder {
+interface NewWorkOrder {
   /** "Room 302", "Lake Bar", "Generator". */
   asset: string;
   title: string;
@@ -240,7 +240,7 @@ const CATEGORY: Record<string, string> = {
 };
 
 /** "15 Oct 2026, 12:20" (as the intake form shows it, Kigali time) → an instant. */
-export function parseFoundAt(text: string): string {
+function parseFoundAt(text: string): string {
   const m = text.trim().match(/^(\d{1,2}) ([A-Z][a-z]{2}) (\d{4}),? (\d{1,2}):(\d{2})$/);
   const month = m ? MONTHS.indexOf(m[2] as string) : -1;
   if (!m || month < 0) throw new OperationsInputError(`Write when it was found as “15 Oct 2026, 12:20”.`);
@@ -258,21 +258,42 @@ export interface NewFoundItem {
   spot?: string;
   /** "15 Oct 2026, 12:20". */
   foundAt: string;
-  /** The finder's name. */
+  /** The finder's name, as the person picked or typed it. */
   foundBy: string;
-  /** The custodian's name, when the register knows them. */
+  /**
+   * The custodian the person picked on the form: themselves, or someone already holding items on the register.
+   * Never taken from sample data; a name that is not the signed-in person or on the register is refused.
+   */
   custodian?: string | null;
   storage?: string;
-  photoCount?: number;
 }
 
-/** "Log item": a new entry in the register. Returns its reference ("LF-26-042"). */
+/**
+ * "Log item": a new entry in the register. Returns its reference ("LF-26-042").
+ *
+ * No photo count is sent: the register stores no photographs (`POST /uploads` takes no found-item kind and the
+ * intake takes no key), so naming "3 photos" on the custody log would record pictures nobody kept.
+ */
 export async function logFoundItem(ctx: SourceContext, input: NewFoundItem): Promise<string> {
   const list = await foundItems(ctx);
-  const person = (name: string | null | undefined) =>
-    name ? list.people.find((p) => p.name === name)?.userId : undefined;
+  // The signed-in person by the name the screen showed them, else someone the register already names.
+  const me = ctx.account?.user ?? null;
+  const myNames = new Set([ctx.persona?.name, me?.name].filter((n): n is string => Boolean(n?.trim())));
+  const person = (name: string | null | undefined) => {
+    const n = name?.trim();
+    if (!n) return undefined;
+    if (me && myNames.has(n)) return me.id;
+    return list.people.find((p) => p.name === n)?.userId;
+  };
+  if (!input.foundBy.trim()) throw new OperationsInputError("Say who found the item.");
+  if (!input.area.trim()) throw new OperationsInputError("Say in which room or area it was found.");
   const foundByUserId = person(input.foundBy);
   const custodianUserId = person(input.custodian);
+  if (input.custodian?.trim() && !custodianUserId) {
+    throw new OperationsInputError(
+      `${input.custodian.trim()} does not hold items on this register. Choose yourself or someone who does.`,
+    );
+  }
   const created = await ctx.ops().post<ApiFoundItem>("/api/v1/ops/found-items", {
     description: input.description.trim(),
     category: CATEGORY[input.category] ?? "other",
@@ -280,11 +301,10 @@ export async function logFoundItem(ctx: SourceContext, input: NewFoundItem): Pro
     foundLocation: input.area.trim(),
     ...(input.spot?.trim() ? { foundSpot: input.spot.trim() } : {}),
     foundAt: parseFoundAt(input.foundAt),
-    foundByName: input.foundBy,
+    foundByName: input.foundBy.trim(),
     ...(foundByUserId ? { foundByUserId } : {}),
     ...(custodianUserId ? { custodianUserId } : {}),
     ...(input.storage ? { storageLocation: input.storage } : {}),
-    ...(input.photoCount ? { photoCount: input.photoCount } : {}),
   });
   forgetOperations(ctx);
   return created.reference;

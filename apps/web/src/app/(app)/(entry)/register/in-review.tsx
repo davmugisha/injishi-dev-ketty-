@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from "react";
 import {
-  ACCOMMODATION_CLASS_LABEL,
+  BUSINESS_KIND_LABEL,
   REJECTION_REASON_LABEL,
   type RegistrationSummary,
   stepForRejectionReason,
 } from "@injishi/contracts";
 import { Alert } from "@heroui/react";
-import { Avatar, AvatarFallback, Badge, Button } from "@injishi/ui";
+import { Avatar, AvatarFallback, Badge, Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { Check, X } from "lucide-react";
 
 import { fetchRegistration } from "@/data/registration";
+import { setupLink, setupNote } from "@/lib/setup-link";
 
 import { StepCard } from "./register-shell";
 import { Notice } from "./wizard-ui";
@@ -27,7 +28,9 @@ import { Notice } from "./wizard-ui";
  * one stage the owner reads: registered and paid (the TIN checked when it was
  * entered), the field visit, the approval, then set up. A sent-back registration
  * names its reason, in the officer's own words when they left any, with a Fix
- * button; and while waiting, the listing can be prepared.
+ * button. Setting up the property opens once the business is approved: before
+ * that the API refuses every inventory write (D20), so the page says when it
+ * opens rather than linking to a setup nobody could use (lib/setup-link.ts).
  *
  * WHAT IT CANNOT SAY, AND DOES NOT INVENT. The board prints the payment method,
  * a receipt number, the verifier's district and the visit's date and time.
@@ -53,19 +56,32 @@ function onDay(iso: string | null): string | null {
     : d.toLocaleDateString("en-GB", { ...KIGALI, day: "numeric", month: "short", year: "numeric" });
 }
 
+/**
+ * What the first stage says while the registration is `submitted`, and once it is past it. RRA checks a TIN; a
+ * residence carries a UPI and no TIN, so it skips that check and goes straight on to the district (the API's
+ * `runTinCheck`), and its UPI was only ever format checked, as Business said when it was typed.
+ */
+function firstStageSub(summary: RegistrationSummary, paid: string | null): string {
+  const paidOn = (lead: string) => (paid ? `${lead}${paid}. ` : "");
+  if (summary.domain === "residence") {
+    return summary.status === "submitted"
+      ? `${paidOn("Paid ")}It goes on to your district in a moment. There is no TIN to check for a residence.`
+      : `${paidOn("")}UPI format checked when you entered it.`;
+  }
+  return summary.status === "submitted"
+    ? `${paidOn("Paid ")}RRA is confirming the TIN once more, which usually takes seconds.`
+    : `${paidOn("")}TIN checked when you entered it.`;
+}
+
 function stagesFor(summary: RegistrationSummary): Stage[] {
   const s = summary.status;
   const paid = onDay(summary.submittedAt);
-  const id = summary.domain === "residence" ? "UPI" : "TIN";
   const pastVisit = s === "field_verified" || s === "approved" || s === "active";
   const approved = s === "approved" || s === "active";
   return [
     {
       title: "Registered and paid",
-      sub:
-        s === "submitted"
-          ? `${paid ? `Paid ${paid}. ` : ""}RRA is confirming the ${id} once more, which usually takes seconds.`
-          : `${paid ? `${paid}. ` : ""}${id} checked when you entered it.`,
+      sub: firstStageSub(summary, paid),
       state: s === "submitted" ? "current" : "done",
     },
     {
@@ -84,7 +100,7 @@ function stagesFor(summary: RegistrationSummary): Stage[] {
         ? s === "approved"
           ? "Approved. It opens once the owner claims it."
           : "Approved."
-        : "A second officer approves after the visit.",
+        : "Your district's PSF officer approves it after the visit.",
       state: approved ? "done" : s === "field_verified" ? "current" : "todo",
     },
     {
@@ -92,7 +108,7 @@ function stagesFor(summary: RegistrationSummary): Stage[] {
       sub:
         s === "active"
           ? "Open now. Publish when the required steps are done."
-          : "Prepare it now. Guests see nothing until you are approved and publish.",
+          : "Opens once you are approved. Guests see nothing until you publish.",
       state: s === "active" ? "current" : "todo",
     },
   ];
@@ -111,7 +127,8 @@ function chipFor(summary: RegistrationSummary): { label: string; variant: "accen
     case "tin_verified":
       return { label: "In review · field visit", variant: "accent" };
     default:
-      return { label: "In review · TIN check", variant: "accent" };
+      // A residence has no TIN, so it has no TIN check to be in.
+      return { label: summary.domain === "residence" ? "In review" : "In review · TIN check", variant: "accent" };
   }
 }
 
@@ -120,14 +137,11 @@ export function InReview({
   onSummary,
   onFix,
   onStartNew,
-  signedDownload,
 }: {
   summary: RegistrationSummary;
   onSummary: (next: RegistrationSummary) => void;
   onFix: () => void;
   onStartNew: () => void;
-  /** The agreement signed in this browser, ready to keep, when there is one. */
-  signedDownload: (() => void) | null;
 }) {
   const [checking, setChecking] = useState(false);
 
@@ -159,14 +173,12 @@ export function InReview({
   const active = summary.status === "active";
   const rejected = summary.status === "rejected";
   const chip = chipFor(summary);
-  const kindWord =
-    summary.domain === "residence"
-      ? "Residence"
-      : summary.accommodationClass
-        ? (ACCOMMODATION_CLASS_LABEL[summary.accommodationClass as keyof typeof ACCOMMODATION_CLASS_LABEL] ?? null)
-        : null;
+  // The kind the org carries (ADR-075 D-h), a venue's included: a Bar & Restaurant has no accommodation class, so
+  // reading the class left it with no word. Other names no kind.
+  const kindWord = summary.businessKind === "other" ? null : BUSINESS_KIND_LABEL[summary.businessKind];
   const paid = onDay(summary.submittedAt);
   const reason = summary.rejectionReason;
+  const setupHref = setupLink(summary, process.env.NEXT_PUBLIC_WEB_URL, process.env.NEXT_PUBLIC_PMS_URL);
 
   return (
     <>
@@ -255,11 +267,6 @@ export function InReview({
               {checking ? "Checking…" : "Check for an update"}
             </Button>
           )}
-          {signedDownload ? (
-            <Button variant="link" size="sm" onClick={signedDownload}>
-              Download the signed agreement
-            </Button>
-          ) : null}
           <Button variant="link" size="sm" onClick={onStartNew}>
             Register another business
           </Button>
@@ -273,19 +280,15 @@ export function InReview({
         >
           <div className="flex min-w-0 flex-1 basis-72 flex-col gap-1.5">
             <h2 id="register-prepare" className="text-lg font-semibold">
-              {active ? "Set up your property" : "While you wait, prepare your listing"}
+              Set up your property
             </h2>
-            <p className="text-sm text-muted-foreground">
-              {active
-                ? "Rooms, prices and photos, then publish. Anything you prepared while waiting is already there."
-                : "Add rooms, prices and photos now. Nothing is shown to guests until you are approved and publish."}
-            </p>
+            <p className="text-sm text-muted-foreground">{setupNote(summary.status)}</p>
           </div>
-          <Button asChild>
-            <a href={`/w/${summary.workspaceId}/setup`}>
-              {active ? "Set up your property" : "Prepare your listing"}
-            </a>
-          </Button>
+          {setupHref ? (
+            <Button asChild>
+              <a href={setupHref}>Set up your property</a>
+            </Button>
+          ) : null}
         </section>
       )}
     </>

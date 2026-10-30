@@ -2,13 +2,33 @@ import { PERSONA_IDS, type Persona, personaByEmail, personas } from "@injishi/da
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { Button, Card, Chip, FieldError, Input, Separator, TextField } from "heroui-native";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Text as UiText } from "@/components/ui";
+import { unsentCount } from "@/data/outbox/store";
+import { lastAccount, requestCode, type SignInOptions, signInAs, signInOptions, signInWithGoogle } from "@/lib/auth";
 import { useSession } from "@/lib/session";
-import { signInDirect, startOtp } from "@/lib/store";
 
-/** Phone apps on this device: housekeeping, supervisor, technician, guest and resident. */
+const SEND_ERRORS = {
+  "invalid-email": "That doesn’t look like an email address.",
+  "too-many": "Too many codes for this email. Wait an hour, or use the newest code we sent.",
+  unavailable: "We couldn’t reach Injishi to send your code. Check your connection and try again.",
+} as const;
+
+/** "15 Oct, 03:00", in Kigali. */
+function resetLabel(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Kigali",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(iso));
+}
+
+/** Phone apps on this device: housekeeping, supervisor, technician and guest. */
 const PHONE_PERSONAS: Persona[] = PERSONA_IDS.map((id) => personas[id]).filter((p) => p.app.kind === "phone");
 
 function PersonaCard({
@@ -64,39 +84,79 @@ function PersonaCard({
   );
 }
 
-/** Sign-in cloned from the legacy Injishi demo (phone layout), listing the artifact's phone personas. */
+/**
+ * Sign-in (phone layout): an emailed code or Google, through the API. On the demo stack it also lists the
+ * phone personas, one press away; anywhere else the list is not drawn, because a press would mail a code
+ * to an address nobody owns.
+ */
 export default function SignInScreen() {
   const insets = useSafeAreaInsets();
   const { as } = useLocalSearchParams<{ as?: string }>();
   const { refresh } = useSession();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [options, setOptions] = useState<SignInOptions | null>(null);
+  const [google, setGoogle] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
+  // A session that expired keeps its writes on the phone; only its own account can send them (mobile spec 0003, D-k).
+  const unsent = useMemo(() => {
+    const last = lastAccount();
+    const count = last ? unsentCount(last.userId) : 0;
+    return last && count > 0 ? { count, email: last.email } : null;
+  }, []);
+
+  useEffect(() => {
+    void signInOptions().then(setOptions);
+  }, []);
 
   // Preview builds can deep-link a persona (A/B captures): /sign-in?as=housekeeper
   useEffect(() => {
-    if (as && as in personas && Platform.OS === "web") {
-      signInDirect(as as Persona["id"]);
-      refresh();
-      router.replace("/");
+    if (as && as in personas && Platform.OS === "web" && signInAs(as as Persona["id"])) {
+      void refresh().then(() => router.replace("/"));
     }
   }, [as, refresh]);
 
-  const begin = (address: string) => {
-    // The phone apps are for the phone personas; workspace people sign in on the web app.
-    const person = personaByEmail(address.trim());
+  const begin = async (address: string) => {
+    const typed = address.trim();
+    if (!/^\S+@\S+\.\S+$/.test(typed)) {
+      setError(typed ? SEND_ERRORS["invalid-email"] : "Enter your email to continue.");
+      return;
+    }
+    // The phone apps are for the phone personas; a demo workspace person is told where they belong
+    // before a code goes out.
+    const person = options?.demo ? personaByEmail(typed) : undefined;
     if (person && person.app.kind !== "phone") {
       setError(
         `${person.firstName} works in the Injishi web workspace, not the phone app. Sign in on the web, or choose someone from Explore the demo.`,
       );
       return;
     }
-    const started = startOtp(address.trim());
-    if (!started.ok) {
-      setError("There’s no demo account with that email. Choose someone from Explore the demo, or check the spelling.");
+    setSending(true);
+    const sent = await requestCode(typed);
+    setSending(false);
+    if (!sent.ok) {
+      setError(SEND_ERRORS[sent.reason]);
       return;
     }
     setError(null);
-    router.push({ pathname: "/verify", params: { challenge: started.challengeId, email: started.email } });
+    router.push({ pathname: "/verify", params: { email: typed.toLowerCase(), demo: options?.demo ? "1" : "" } });
+  };
+
+  const continueWithGoogle = async () => {
+    setGoogle({ busy: true, error: null });
+    const result = await signInWithGoogle();
+    if (result.ok) {
+      await refresh();
+      router.replace("/");
+      return;
+    }
+    setGoogle({
+      busy: false,
+      error:
+        result.reason === "cancelled"
+          ? null
+          : "Google sign-in didn’t finish, so you’re not signed in. Try again, or use your email.",
+    });
   };
 
   return (
@@ -112,13 +172,34 @@ export default function SignInScreen() {
           accessibilityIgnoresInvertColors
         />
         <Text className="text-center text-[30px] leading-9 font-medium text-foreground">Welcome to Injishi</Text>
+        {unsent ? (
+          <Card className="w-full bg-warning-soft">
+            <Card.Body>
+              <UiText role="body" accessibilityRole="alert">
+                {`There ${unsent.count === 1 ? "is 1 unsent change" : `are ${unsent.count} unsent changes`} from ${unsent.email}. Sign in as them to send ${unsent.count === 1 ? "it" : "them"}.`}
+              </UiText>
+            </Card.Body>
+          </Card>
+        ) : null}
 
         <View className="w-full items-center gap-2">
           <Text className="text-[13px] text-muted">Continue with</Text>
-          <Button variant="secondary" isDisabled className="w-full rounded-full">
-            <Button.Label>G Continue with Google</Button.Label>
+          <Button
+            variant="secondary"
+            isDisabled={!options?.google || google.busy}
+            className="w-full rounded-full"
+            onPress={() => void continueWithGoogle()}
+          >
+            <Button.Label>{google.busy ? "Opening Google…" : "G Continue with Google"}</Button.Label>
           </Button>
-          <Text className="text-xs text-muted">Sign in with Google isn’t available in the demo yet.</Text>
+          {options && !options.google ? (
+            <Text className="text-xs text-muted">Sign in with Google is coming soon. Use your email for now.</Text>
+          ) : null}
+          {google.error ? (
+            <Text accessibilityRole="alert" className="text-center text-xs text-danger">
+              {google.error}
+            </Text>
+          ) : null}
         </View>
 
         <View className="w-full flex-row items-center gap-3">
@@ -140,28 +221,37 @@ export default function SignInScreen() {
             />
             {error ? <FieldError>{error}</FieldError> : null}
           </TextField>
-          <Button variant="secondary" className="rounded-full" onPress={() => begin(email)}>
-            <Button.Label>Continue</Button.Label>
+          <Button variant="secondary" className="rounded-full" isDisabled={sending} onPress={() => void begin(email)}>
+            <Button.Label>{sending ? "Sending your code…" : "Continue"}</Button.Label>
           </Button>
         </View>
 
-        <Card className="w-full gap-3 p-4">
-          <Text className="text-[15px] font-semibold text-foreground">Explore the demo</Text>
-          <Text className="text-[13px] leading-[18px] text-muted">
-            Choose someone and sign in as them in one step. Typing an email by hand works too: every code is{" "}
-            <Text className="font-semibold text-foreground">123456</Text>.
-          </Text>
-          <Text className="text-xs text-muted">Demo data last reset 12 Oct, 10:00</Text>
-          <Text className="pt-1 text-xs font-semibold tracking-wider text-muted uppercase">
-            Staff devices, guests and residents
-          </Text>
-          {PHONE_PERSONAS.map((p) => (
-            <PersonaCard key={p.id} persona={p} onSignIn={() => begin(p.email)} onUseEmail={() => setEmail(p.email)} />
-          ))}
-          <Text className="text-xs leading-4 text-muted">
-            Owners, managers and back-office roles use the web workspace.
-          </Text>
-        </Card>
+        {options?.demo ? (
+          <Card className="w-full gap-3 p-4">
+            <Text className="text-[15px] font-semibold text-foreground">Explore the demo</Text>
+            <Text className="text-[13px] leading-[18px] text-muted">
+              Choose someone and sign in as them in one step. Typing an email by hand works too: every code is{" "}
+              <Text className="font-semibold text-foreground">123456</Text>.
+            </Text>
+            {options.seededAt ? (
+              <Text className="text-xs text-muted">Demo data last reset {resetLabel(options.seededAt)}</Text>
+            ) : null}
+            <Text className="pt-1 text-xs font-semibold tracking-wider text-muted uppercase">
+              Staff devices and guests
+            </Text>
+            {PHONE_PERSONAS.map((p) => (
+              <PersonaCard
+                key={p.id}
+                persona={p}
+                onSignIn={() => void begin(p.email)}
+                onUseEmail={() => setEmail(p.email)}
+              />
+            ))}
+            <Text className="text-xs leading-4 text-muted">
+              Owners, managers and back-office roles use the web workspace.
+            </Text>
+          </Card>
+        ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
   );

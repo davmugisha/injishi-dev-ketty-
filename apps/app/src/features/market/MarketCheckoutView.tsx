@@ -14,7 +14,6 @@ import {
   Lock,
   PaperPlane,
   Route,
-  SealCheck,
   Smartphone,
   StarFill,
   Thunderbolt,
@@ -31,22 +30,25 @@ import {
   Modal,
   Separator,
   Spinner,
-  Switch,
-  Tag,
-  TagGroup,
-  TextArea,
   TextField,
   Toast,
   toast,
 } from "@heroui/react";
 import { NativeSelect, RadioButtonGroup } from "@heroui-pro/react";
 import { screenHref } from "@injishi/data";
-import type { MarketCheckout, MarketProperty, MarketTone, Option, PaymentMethod } from "@injishi/data/fixtures/market";
+import type { MarketProperty, MarketTone, Option, PaymentMethod } from "@injishi/data/fixtures/market";
 import type { StockKey } from "@injishi/data/media";
 import { stock } from "@injishi/data/media";
 import { GateChip, KeyValueList, LinkButton, Photo, TextLink } from "@injishi/ui";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { type CheckoutResult, checkPaymentAction, payCheckoutAction } from "./actions";
+import type { CheckoutDocument } from "@/server/sources/market";
+import {
+  type CheckoutResult,
+  cancelCheckoutRequestAction,
+  checkPaymentAction,
+  payCheckoutAction,
+  saveCheckoutDetailsAction,
+} from "./actions";
 import { plural, propertyHref, rwf } from "./format";
 import { MarketHeader, MarketMain, type MarketVisitor } from "./MarketChrome";
 
@@ -61,6 +63,31 @@ export type CheckoutScreen =
 const PAY_STAGES = ["Sent", "Approve", "Booked"];
 const REQUEST_STAGES = ["Sent", "Hotel replies", "You pay", "Booked"];
 
+/** Nine national digits of a Rwandan mobile number as typed ("078 812 4417", "+250 788 124 417"), else the digits. */
+function national(typed: string): string {
+  const digits = typed.replace(/\D/g, "");
+  if (digits.startsWith("250") && digits.length === 12) return digits.slice(3);
+  if (digits.startsWith("0") && digits.length === 10) return digits.slice(1);
+  return digits;
+}
+
+/** The method a Rwandan number belongs to (MTN 078/079, Airtel 072/073), for the person's own phone only. */
+function networkOf(typed: string): "mtn" | "airtel" | null {
+  const n = national(typed);
+  if (n.length !== 9) return null;
+  if (n.startsWith("78") || n.startsWith("79")) return "mtn";
+  if (n.startsWith("72") || n.startsWith("73")) return "airtel";
+  return null;
+}
+
+/** "078 ••• 4417": the number the person typed, masked. Empty when nothing was typed. */
+function maskTyped(typed: string): string {
+  const n = national(typed);
+  if (!n) return "";
+  const local = n.length === 9 ? `0${n}` : n;
+  return local.length > 7 ? `${local.slice(0, 3)} ••• ${local.slice(-4)}` : `••• ${local.slice(-4)}`;
+}
+
 const BAR: Record<MarketTone, string> = {
   success: "bg-success",
   warning: "bg-warning",
@@ -70,24 +97,35 @@ const BAR: Record<MarketTone, string> = {
   info: "bg-accent",
 };
 
-/** Marketplace checkout (artifact: MarketCheckout.dc.html). `initial` is the `?state=` variant. */
+/**
+ * Marketplace checkout (artifact: MarketCheckout.dc.html). `stay` names what is booked: the stay chosen on the
+ * property page, or the default stay (`initial` is then the `?state=` variant). The booking route takes the room,
+ * dates, party, plan and payment and nothing else: "Your details" saves the person's own contact record, and
+ * arrival time and requests are given after booking (pre-arrival check-in, a message to the hotel), never collected
+ * here as if they went with the booking. The mobile money number starts as the person's own phone (their contact
+ * record) when it is on that network, else empty: the payer sent and shown is only ever what the person typed.
+ */
 export function MarketCheckoutView({
   visitor,
+  stay,
+  returnTo,
   booking,
   property,
   photo,
   methods,
   countries,
-  arrivals,
-  tags,
   initial,
 }: {
   visitor: MarketVisitor | null;
-  booking: MarketCheckout;
+  stay: string;
+  /** This checkout's own address, chosen stay included, so signing in comes back to the same stay. */
+  returnTo: string;
+  booking: CheckoutDocument;
   property: MarketProperty;
   photo: StockKey;
   methods: PaymentMethod[];
   countries: Option[];
+  /** Arrival times and request tags of the prototype: not collected, since the booking route takes neither. */
   arrivals: Option[];
   tags: Option[];
   initial: CheckoutScreen;
@@ -96,15 +134,19 @@ export function MarketCheckoutView({
   const [screen, setScreen] = useState<CheckoutScreen>(initial);
   const [methodId, setMethodId] = useState(methods[0]?.id ?? "mtn");
   const [editDetails, setEditDetails] = useState(false);
-  const [other, setOther] = useState(false);
-  const [editExtras, setEditExtras] = useState(false);
-  const [arrival, setArrival] = useState(booking.arrival);
-  const [picked, setPicked] = useState<string[]>(booking.requests);
+  /** The person's contact details as last saved (`PUT /me/guest-contact`), and the edit in progress. */
+  const [details, setDetails] = useState(booking.guest);
+  const [draft, setDraft] = useState(booking.guest);
+  const [savingDetails, startSavingDetails] = useTransition();
+  /** A request withdrawn from this screen: the refund the server decided. */
+  const [withdrawn, setWithdrawn] = useState<number | null>(null);
+  const [withdrawing, startWithdrawing] = useTransition();
   const [resent, setResent] = useState(false);
   const [secs, setSecs] = useState(0);
-  const [numbers, setNumbers] = useState<Record<string, string>>(() =>
-    Object.fromEntries(methods.map((m) => [m.id, m.number ?? ""])),
-  );
+  const [numbers, setNumbers] = useState<Record<string, string>>(() => {
+    const own = networkOf(booking.guest.mobile);
+    return Object.fromEntries(methods.map((m) => [m.id, m.id === own ? booking.guest.mobile : ""]));
+  });
   /** The real attempt: what the API said about the last press of Pay or Send request. */
   const [result, setResult] = useState<CheckoutResult | null>(null);
   const [lastCheck, setLastCheck] = useState<string>("");
@@ -115,18 +157,20 @@ export function MarketCheckoutView({
   const sub = booking.rate * booking.nights;
   // The guest service fee the booking service adds to every stay (absent from the prototype's documents).
   const fee = booking.serviceFee ?? 0;
-  const total = sub + fee;
+  const discount = booking.nonRefundableDiscountRwf ?? 0;
+  const total = sub - discount + fee;
   const vat = Math.round((total * booking.vatRate) / (100 + booking.vatRate));
-  const amount = rwf(total);
+  // Once Pay is pressed, the amount is the one the API took or prompted for.
+  const amount = rwf(result?.amountRwf ?? total);
   const propertyUrl = propertyHref(booking.property);
   const showForm =
     screen === "checkout" || screen === "request" || screen === "approve-on-phone" || screen === "payment-unclear";
-  const arrivalLabel = arrivals.find((a) => a.id === arrival)?.label ?? arrivals[0]?.label ?? "";
-  const tagText = tags
-    .filter((t) => picked.includes(t.id))
-    .map((t) => t.label)
-    .join(", ");
-  const payLabel = !method ? "" : method.kind === "card" ? method.mask : `${method.provider} ${method.mask}`;
+  const countryOptions = countries.some((c) => c.id === draft.country)
+    ? countries
+    : [...countries, { id: draft.country, label: draft.country }];
+  /** The payer as the API recorded it after a press, else the number typed here, masked. Never a sample's number. */
+  const payer = result?.payerMasked ?? (method ? maskTyped(numbers[method.id] ?? "") : "");
+  const payLabel = !method || method.kind === "card" ? "" : [method.provider, payer].filter(Boolean).join(" ");
   const mm = Math.floor(secs / 60);
   const ss = String(secs % 60).padStart(2, "0");
 
@@ -191,8 +235,11 @@ export function MarketCheckoutView({
     return () => window.clearInterval(id);
   }, [result?.state, result?.attemptToken]);
 
-  /** One press of Pay (or Send request): a fresh attempt token, minted here and only here. */
-  const pay = () => {
+  /**
+   * One press of Pay (or Send request): a fresh attempt token, minted here and only here. `resend` marks a press of
+   * Resend, whose chip shows only once the API has put the new prompt on the handset.
+   */
+  const pay = (resend = false) => {
     if (!method || method.kind === "card") {
       toast.danger(
         "Card payments need the bank's secure card form, which is not connected yet. Pay with mobile money.",
@@ -200,13 +247,59 @@ export function MarketCheckoutView({
       return;
     }
     const network = method.id === "airtel" ? "airtel_money" : "mtn_momo";
+    const number = (numbers[method.id] ?? "").trim();
+    if (!national(number)) {
+      toast.danger(`Enter the ${method.label} number to pay from.`);
+      return;
+    }
+    if (!visitor) {
+      // Paying needs an account: sign in and come back to this same stay, never to a default one.
+      window.location.assign(`${screenHref("SignIn")}?next=${encodeURIComponent(returnTo)}`);
+      return;
+    }
     const token = crypto.randomUUID();
     startPaying(async () => {
-      const r = await payCheckoutAction(booking.id, { network, number: numbers[method.id] ?? "" }, token);
-      if (r.ok) land(r.value);
-      else toast.danger(r.error);
+      const r = await payCheckoutAction(stay, { network, number }, token);
+      if (r.ok) {
+        land(r.value);
+        if (resend && r.value.state === "prompting") setResent(true);
+      } else toast.danger(r.error);
     });
   };
+
+  /** "Done" on Your details: saved to the person's contact record, or the refusal shown and the edit kept open. */
+  const saveDetails = () => {
+    if (!visitor) {
+      window.location.assign(`${screenHref("SignIn")}?next=${encodeURIComponent(returnTo)}`);
+      return;
+    }
+    startSavingDetails(async () => {
+      const r = await saveCheckoutDetailsAction({
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+        mobile: draft.mobile,
+        country: draft.country,
+      });
+      if (!r.ok) {
+        toast.danger(r.error);
+        return;
+      }
+      setDetails(draft);
+      setEditDetails(false);
+      toast.success("Saved to your account");
+    });
+  };
+
+  /** "Cancel request": the pending request is cancelled on the API, which refunds it. */
+  const withdraw = (ref: string) =>
+    startWithdrawing(async () => {
+      const r = await cancelCheckoutRequestAction(ref);
+      if (!r.ok) {
+        toast.danger(r.error);
+        return;
+      }
+      setWithdrawn(r.value.refundRwf);
+    });
 
   const checkNow = () => {
     const token = result?.attemptToken;
@@ -234,7 +327,7 @@ export function MarketCheckoutView({
       <MarketHeader
         width="regular"
         visitor={visitor}
-        returnTo={screenHref("MarketCheckout")}
+        returnTo={returnTo}
         showNav={false}
         actions={
           <span className="inline-flex items-center gap-1.5 text-[13px] text-muted">
@@ -262,47 +355,81 @@ export function MarketCheckoutView({
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <h2 id="d-h" className="flex items-center gap-2 text-base font-semibold">
                           Your details
-                          {editDetails ? null : <CircleCheck className="size-4 text-accent" aria-hidden="true" />}
+                          {editDetails || !visitor ? null : (
+                            <CircleCheck className="size-4 text-accent" aria-hidden="true" />
+                          )}
                         </h2>
                         {editDetails ? null : (
                           <span className="text-[13px] text-muted">
-                            {booking.guest.firstName} {booking.guest.lastName} · {booking.guest.email} ·{" "}
-                            {booking.guest.mobile}
+                            {visitor
+                              ? [`${details.firstName} ${details.lastName}`.trim(), details.email, details.mobile]
+                                  .filter(Boolean)
+                                  .join(" · ")
+                              : "Sign in to use the details on your account"}
                           </span>
                         )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-expanded={editDetails}
-                        onPress={() => setEditDetails((v) => !v)}
-                      >
-                        {editDetails ? "Done" : "Edit"}
-                      </Button>
+                      {editDetails ? (
+                        <Button variant="ghost" size="sm" isDisabled={savingDetails} onPress={saveDetails}>
+                          Done
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-expanded={false}
+                          onPress={() => {
+                            setDraft(details);
+                            setEditDetails(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      )}
                     </div>
                     {editDetails ? (
                       <>
                         <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))]">
-                          <TextField fullWidth defaultValue={booking.guest.firstName} className="gap-1">
+                          <TextField
+                            fullWidth
+                            value={draft.firstName}
+                            onChange={(v) => setDraft((d) => ({ ...d, firstName: v }))}
+                            className="gap-1"
+                          >
                             <Label htmlFor="fn">First name</Label>
                             <Input id="fn" autoComplete="given-name" />
                           </TextField>
-                          <TextField fullWidth defaultValue={booking.guest.lastName} className="gap-1">
+                          <TextField
+                            fullWidth
+                            value={draft.lastName}
+                            onChange={(v) => setDraft((d) => ({ ...d, lastName: v }))}
+                            className="gap-1"
+                          >
                             <Label htmlFor="ln">Last name</Label>
                             <Input id="ln" autoComplete="family-name" />
                           </TextField>
-                          <TextField fullWidth defaultValue={booking.guest.email} className="gap-1">
+                          <TextField fullWidth value={details.email} isReadOnly className="gap-1">
                             <Label htmlFor="em">Email</Label>
                             <Input id="em" type="email" autoComplete="email" />
+                            <Description>The email you sign in with</Description>
                           </TextField>
-                          <TextField fullWidth defaultValue={booking.guest.mobile} className="gap-1">
+                          <TextField
+                            fullWidth
+                            value={draft.mobile}
+                            onChange={(v) => setDraft((d) => ({ ...d, mobile: v }))}
+                            className="gap-1"
+                          >
                             <Label htmlFor="ph">Mobile</Label>
                             <Input id="ph" type="tel" autoComplete="tel" />
                           </TextField>
                           <NativeSelect fullWidth className="gap-1">
                             <Label htmlFor="ct">Country of residence</Label>
-                            <NativeSelect.Trigger id="ct" defaultValue={booking.guest.country}>
-                              {countries.map((c) => (
+                            <NativeSelect.Trigger
+                              id="ct"
+                              value={draft.country}
+                              onChange={(e) => setDraft((d) => ({ ...d, country: e.target.value }))}
+                            >
+                              {countryOptions.map((c) => (
                                 <NativeSelect.Option key={c.id} value={c.id}>
                                   {c.label}
                                 </NativeSelect.Option>
@@ -311,20 +438,9 @@ export function MarketCheckoutView({
                             </NativeSelect.Trigger>
                           </NativeSelect>
                         </div>
-                        <Switch isSelected={other} onChange={setOther} className="self-start">
-                          <Switch.Content className="gap-2">
-                            <Switch.Control>
-                              <Switch.Thumb />
-                            </Switch.Control>
-                            Booking for someone else
-                          </Switch.Content>
-                        </Switch>
-                        {other ? (
-                          <TextField fullWidth className="max-w-[360px] gap-1">
-                            <Label htmlFor="gn">Guest’s full name</Label>
-                            <Input id="gn" placeholder="As on their ID" autoComplete="off" />
-                          </TextField>
-                        ) : null}
+                        <span className="text-xs text-muted">
+                          Saved to your account when you press Done. The booking is in your name.
+                        </span>
                       </>
                     ) : null}
                   </Card>
@@ -373,7 +489,12 @@ export function MarketCheckoutView({
                         className="max-w-[360px] gap-1"
                       >
                         <Label htmlFor={`msisdn-${method.id}`}>{method.label} number</Label>
-                        <Input id={`msisdn-${method.id}`} inputMode="tel" autoComplete="tel" />
+                        <Input
+                          id={`msisdn-${method.id}`}
+                          inputMode="tel"
+                          autoComplete="tel"
+                          placeholder={method.id === "airtel" ? "072 or 073 …" : "078 or 079 …"}
+                        />
                         <Description>You’ll approve with your PIN on this phone.</Description>
                       </TextField>
                     ) : null}
@@ -400,85 +521,14 @@ export function MarketCheckoutView({
                     ) : null}
                   </Card>
 
-                  <Card className="gap-4 px-6 py-5" aria-labelledby="x-h">
-                    <div className="flex items-center gap-3">
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <h2 id="x-h" className="text-base font-semibold">
-                          Arrival and requests <span className="text-[13px] font-normal text-muted">· optional</span>
-                        </h2>
-                        {editExtras ? null : (
-                          <span className="text-[13px] text-muted">
-                            Arriving {arrivalLabel}
-                            {tagText ? ` · ${tagText}` : ""}
-                          </span>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-expanded={editExtras}
-                        onPress={() => setEditExtras((v) => !v)}
-                      >
-                        {editExtras ? "Done" : "Edit"}
-                      </Button>
-                    </div>
-                    {editExtras ? (
-                      <>
-                        <div className="flex flex-col gap-2">
-                          <span id="arr-l" className="text-sm font-medium">
-                            Arrival time
-                          </span>
-                          <TagGroup
-                            aria-labelledby="arr-l"
-                            size="sm"
-                            variant="surface"
-                            selectionMode="single"
-                            disallowEmptySelection
-                            selectedKeys={new Set([arrival])}
-                            onSelectionChange={(keys) => {
-                              const [k] = [...keys];
-                              if (k) setArrival(String(k));
-                            }}
-                          >
-                            <TagGroup.List className="flex flex-wrap gap-1.5">
-                              {arrivals.map((a) => (
-                                <Tag key={a.id} id={a.id}>
-                                  {a.label}
-                                </Tag>
-                              ))}
-                            </TagGroup.List>
-                          </TagGroup>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <span id="req-l" className="text-sm font-medium">
-                            Requests
-                          </span>
-                          <TagGroup
-                            aria-labelledby="req-l"
-                            size="sm"
-                            variant="surface"
-                            selectionMode="multiple"
-                            selectedKeys={new Set(picked)}
-                            onSelectionChange={(keys) => setPicked([...keys].map(String))}
-                          >
-                            <TagGroup.List className="flex flex-wrap gap-1.5">
-                              {tags.map((t) => (
-                                <Tag key={t.id} id={t.id}>
-                                  {t.label}
-                                </Tag>
-                              ))}
-                            </TagGroup.List>
-                          </TagGroup>
-                          <TextField fullWidth defaultValue={booking.note} className="gap-1">
-                            <Label htmlFor="req" className="sr-only">
-                              Note to the hotel
-                            </Label>
-                            <TextArea id="req" rows={2} placeholder="Note to the hotel" />
-                          </TextField>
-                          <span className="text-xs text-muted">Requests aren’t guaranteed.</span>
-                        </div>
-                      </>
-                    ) : null}
+                  <Card className="gap-2 px-6 py-5" aria-labelledby="x-h">
+                    <h2 id="x-h" className="text-base font-semibold">
+                      Arrival and requests <span className="text-[13px] font-normal text-muted">· after booking</span>
+                    </h2>
+                    <span className="text-[13px] text-muted">
+                      Not sent with the booking. Once it is booked, give your arrival time in pre-arrival check-in and
+                      message the hotel from your trip.
+                    </span>
                   </Card>
 
                   <Card className="gap-3.5 px-6 py-5" aria-labelledby="c-h">
@@ -519,7 +569,7 @@ export function MarketCheckoutView({
                     <Button
                       className="h-[54px] w-full rounded-[14px] text-base font-semibold"
                       isDisabled={paying}
-                      onPress={pay}
+                      onPress={() => pay()}
                     >
                       {isRequest ? <PaperPlane className="size-4" /> : <Lock className="size-4" />}
                       {isRequest ? "Send request" : `Pay ${amount}`}
@@ -561,6 +611,12 @@ export function MarketCheckoutView({
                         </dt>
                         <dd className="tabular">{rwf(sub)}</dd>
                       </div>
+                      {discount ? (
+                        <div className="flex items-center justify-between gap-3">
+                          <dt>Non-refundable discount</dt>
+                          <dd className="text-success-soft-foreground tabular">− {rwf(discount)}</dd>
+                        </div>
+                      ) : null}
                       {fee ? (
                         <div className="flex items-center justify-between gap-3">
                           <dt>Service fee</dt>
@@ -581,11 +637,8 @@ export function MarketCheckoutView({
                     </dl>
                     <div className="flex items-center gap-2 text-xs text-muted">
                       <Vault className="size-3.5" aria-hidden="true" />
+                      {/* No "Verified" chip: the quote carries no verification of the payee, so none is claimed. */}
                       <span className="flex-1">Paid to {booking.payee}</span>
-                      <Chip size="sm" variant="soft" color="success">
-                        <SealCheck className="size-3" />
-                        <Chip.Label>Verified</Chip.Label>
-                      </Chip>
                     </div>
                   </Card>
                 </aside>
@@ -639,7 +692,11 @@ export function MarketCheckoutView({
                       <Route className="size-4" />
                       Directions
                     </LinkButton>
-                    <Button variant="secondary" className="min-w-[140px] flex-1">
+                    <Button
+                      variant="secondary"
+                      className="min-w-[140px] flex-1"
+                      onPress={() => toast.warning("Adding the stay to a calendar is not available yet.")}
+                    >
                       <Calendar className="size-4" />
                       Add to calendar
                     </Button>
@@ -664,13 +721,13 @@ export function MarketCheckoutView({
                   items={[
                     {
                       label: "Method",
-                      value: result?.payerMasked ? `${method?.provider} ${result.payerMasked}` : payLabel,
+                      value: payLabel,
                     },
                     { label: "Reference", value: <span className="tabular">{result?.providerRef ?? reference}</span> },
                     { label: "Paid to", value: booking.payee },
                   ]}
                 />
-                <span className="text-xs text-muted">The hotel issues your fiscal receipt (EBM) at check-out.</span>
+                <span className="text-xs text-muted">The hotel issues the fiscal receipt (EBM) for this booking.</span>
               </Card>
               <div className="flex items-center justify-center gap-2 text-[13px]">
                 <CircleCheck className="size-4 text-success-soft-foreground" aria-hidden="true" />
@@ -695,10 +752,12 @@ export function MarketCheckoutView({
                   <PaperPlane className="size-7" aria-hidden="true" />
                 </span>
                 <h1 id="rq-h" className="text-[32px] leading-10 font-semibold tracking-[-0.02em]">
-                  Request sent
+                  {withdrawn === null ? "Request sent" : "Request withdrawn"}
                 </h1>
                 <p className="text-[15px] leading-[22px] text-muted">
-                  The hotel replies by {replyBy}. Your payment is held and refunded in full if they decline.
+                  {withdrawn === null
+                    ? `The hotel replies by ${replyBy}. Your payment is held and refunded in full if they decline.`
+                    : `${reference} is cancelled. ${rwf(withdrawn)} is refunded.`}
                 </p>
               </div>
               <Card className="gap-5 rounded-3xl p-6">
@@ -734,9 +793,15 @@ export function MarketCheckoutView({
                 <LinkButton href={screenHref("GuestAccount")} size="lg">
                   Go to Trips
                 </LinkButton>
-                <LinkButton href={propertyUrl} variant="ghost" size="lg">
-                  Cancel request
-                </LinkButton>
+                {withdrawn === null && reference ? (
+                  <Button variant="ghost" size="lg" isDisabled={withdrawing} onPress={() => withdraw(reference)}>
+                    Cancel request
+                  </Button>
+                ) : (
+                  <LinkButton href={propertyUrl} variant="ghost" size="lg">
+                    Back to {property.name}
+                  </LinkButton>
+                )}
               </div>
             </section>
           ) : null}
@@ -768,7 +833,7 @@ export function MarketCheckoutView({
               <p className="text-sm text-muted">
                 {method?.kind === "card"
                   ? "Use your banking app or the SMS code."
-                  : `Enter your ${method?.provider} PIN on ${method?.mask}.`}
+                  : `Enter your ${method?.provider} PIN on ${payer || "your phone"}.`}
               </p>
             </div>
             <span className="text-[30px] leading-9 font-semibold tracking-[-0.02em] tabular">{amount}</span>
@@ -776,7 +841,7 @@ export function MarketCheckoutView({
             {resent ? (
               <Chip size="sm" variant="soft" className="self-center">
                 <ArrowsRotateRight className="size-3" />
-                <Chip.Label>New prompt sent · the first was cancelled</Chip.Label>
+                <Chip.Label>New prompt sent · the first one lapses on its own</Chip.Label>
               </Chip>
             ) : null}
             <span className="text-[13px] text-muted tabular">
@@ -802,8 +867,8 @@ export function MarketCheckoutView({
                   onPress={() => {
                     // A new prompt is a new press: a fresh attempt; the first one lapses on its own.
                     polling.current = null;
-                    setResent(true);
-                    pay();
+                    setResent(false);
+                    pay(true);
                   }}
                 >
                   <ArrowsRotateRight className="size-4" />
@@ -826,7 +891,8 @@ export function MarketCheckoutView({
                 Checking your payment
               </h2>
               <p className="text-sm text-muted">
-                {method?.provider} hasn’t confirmed yet. Please don’t pay again — we’ll text you the result.
+                {method?.provider} hasn’t confirmed yet. Please don’t pay again: if it goes through, the booking
+                confirmation is emailed to you.
               </p>
             </div>
             <div className="rounded-2xl bg-surface-secondary px-4 py-3.5">

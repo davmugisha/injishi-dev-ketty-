@@ -1,11 +1,4 @@
-// The guards' import chain reaches Better Auth, which ships as ESM Jest does not
-// transform. Only the guard CLASSES are compared below, so the auth package is
-// stood in for the same way `auth.module.spec.ts` does it.
-jest.mock('@injishi/auth', () => ({
-  DEMO_OTP_CODE: '123456',
-  DEMO_COOKIE_PREFIX: 'injishi-demo',
-  createAuth: (config: unknown) => ({ config }),
-}));
+import { describe, expect, it } from 'vitest';
 
 import { BadRequestException } from '@nestjs/common';
 import { GUARDS_METADATA } from '@nestjs/common/constants';

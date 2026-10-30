@@ -16,6 +16,7 @@ import { eq } from 'drizzle-orm';
 import { OtpMailer } from '../../modules/auth/infrastructure/otp-mailer';
 import { sessions, twoFactorChallenges, users } from '../../database/drizzle/schema';
 import { PLATFORM, type Platform } from '../config/platform';
+import { maskEmail } from '../identity/mask';
 import { DRIZZLE, type Database } from '../database/database.module';
 import { WorkspaceService } from './workspace.service';
 
@@ -57,15 +58,8 @@ export type TwoFactorRefusal = 'two_factor_required';
 /** A resend before this has elapsed is refused, so the mailbox is not flooded. */
 export const RESEND_COOLDOWN_SECONDS = 30;
 
-/** `samuel@injishi.com` → `sa••••@injishi.com`, for "we sent a code to …". */
-export function maskEmail(email: string): string {
-  const at = email.lastIndexOf('@');
-  if (at <= 0) return email;
-  const name = email.slice(0, at);
-  const domain = email.slice(at);
-  if (name.length <= 2) return `${name[0] ?? ''}••${domain}`;
-  return `${name.slice(0, 2)}${'•'.repeat(Math.min(name.length - 2, 6))}${domain}`;
-}
+/** `samuel@injishi.com` → `sa••••@injishi.com`, for "we sent a code to …". One rule, in `shared/identity/mask`. */
+export { maskEmail };
 
 function hash(code: string): string {
   return createHash('sha256').update(code).digest('hex');
@@ -201,9 +195,12 @@ export class TwoFactorService {
     if (existing && !this.isDemo) {
       const age = (Date.now() - existing.createdAt.getTime()) / 1000;
       if (age < RESEND_COOLDOWN_SECONDS) {
-        throw new UnprocessableEntityException(
-          `Wait ${Math.ceil(RESEND_COOLDOWN_SECONDS - age)} seconds before asking for another code.`,
-        );
+        // Coded so a client that reopened mid wait knows a code is already on
+        // its way and just asks for it (mobile spec 0003, D-at).
+        throw new UnprocessableEntityException({
+          code: 'resend_cooldown',
+          message: `Wait ${Math.ceil(RESEND_COOLDOWN_SECONDS - age)} seconds before asking for another code.`,
+        });
       }
     }
 

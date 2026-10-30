@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { Icon } from "@/components/app/icon";
 import { useSignOutAndLeave } from "@/components/auth/sign-out";
 import { sessionDisplayName, useSessionUser } from "@/lib/session";
@@ -30,12 +30,15 @@ import { sessionDisplayName, useSessionUser } from "@/lib/session";
  *
  * The screen said what it would grow into and offered nothing that worked, so
  * the only live control on it was "Sign out". These three all exist, and the
- * sidebar is not always in view — it is a drawer below `lg`.
+ * sidebar is not always in view — it is a drawer below `lg`. Refunds joined
+ * them with 073-gtbank-payments: a cancelled stay's money is owed and followed
+ * there, so four links sit in two columns.
  */
 const ACCOUNT_LINKS = [
   { href: "/trips", icon: "map-pin", label: "Trips", detail: "Dates, receipts and cancelling" },
   { href: "/inbox", icon: "inbox", label: "Messages", detail: "The property and its departments" },
   { href: "/saved", icon: "heart", label: "Saved", detail: "Stays kept for later" },
+  { href: "/account/refunds", icon: "banknote", label: "Refunds", detail: "Money on its way back to you" },
 ] as const;
 
 export default function Page() {
@@ -104,7 +107,7 @@ export default function Page() {
           for a session, so an anonymous reader would be sent to three dead
           ends from a panel that already told them to sign in. */}
       {status === "authenticated" ? (
-        <nav aria-label="Your stays" className="mt-4 grid gap-3 sm:grid-cols-3">
+        <nav aria-label="Your stays" className="mt-4 grid gap-3 sm:grid-cols-2">
           {ACCOUNT_LINKS.map((link) => (
             <a
               key={link.href}

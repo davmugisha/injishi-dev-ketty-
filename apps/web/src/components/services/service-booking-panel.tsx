@@ -1,6 +1,6 @@
 import { ArrowUpRight, MapPin, Phone, Users } from "lucide-react";
 import Link from "next/link";
-import { Button, Separator } from "@injishi/ui";
+import { Button, Separator } from "@injishi/web-ui";
 import { ServiceKindIcon } from "@/components/services/service-kind-mark";
 import { SERVICE_KIND_TAG, type ServiceListing } from "@/data/service-listings";
 import { CONTACT } from "@/data/navigation";

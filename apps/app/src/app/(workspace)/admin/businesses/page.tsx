@@ -1,26 +1,34 @@
 import { screens } from "@injishi/data";
-import type {
-  Business,
-  Entitlement,
-  KybDocumentType,
-  LifecycleCount,
-  ViewAsSession,
-} from "@injishi/data/fixtures/admin";
+import { EmptyBlock, PageContent, PageHeader } from "@injishi/ui";
 import type { Metadata } from "next";
-import { AdminBusinessesView } from "@/features/admin/AdminBusinessesView";
+import { RegistrationsView } from "@/features/admin/registrations/RegistrationsView";
 import { requirePersona } from "@/lib/session";
-import { getCollection } from "@/server/data";
+import { adminRegistrations } from "@/server/admin/registrations";
+import { ApiError } from "@/server/api";
 
 export const metadata: Metadata = { title: screens.AdminBusinesses.pageTitle };
 
+/** The businesses that registered and where each stands, read from the admin API as this staffer. */
 export default async function AdminBusinessesPage() {
-  const persona = await requirePersona("AdminBusinesses");
-  const [businesses, counts, documentTypes, entitlements, sessions] = await Promise.all([
-    getCollection<Business>("admin.businesses"),
-    getCollection<LifecycleCount>("admin.lifecycleCounts"),
-    getCollection<KybDocumentType>("admin.kybDocumentTypes"),
-    getCollection<Entitlement>("admin.entitlements"),
-    getCollection<ViewAsSession>("admin.viewAsSessions"),
-  ]);
-  return <AdminBusinessesView persona={persona} data={{ businesses, counts, documentTypes, entitlements, sessions }} />;
+  await requirePersona("AdminBusinesses");
+  try {
+    const list = await adminRegistrations();
+    return <RegistrationsView orgs={list.items} total={list.meta.total} />;
+  } catch (error) {
+    if (error instanceof ApiError && error.forbidden) {
+      return (
+        <PageContent>
+          <PageHeader title="Registrations" />
+          <EmptyBlock
+            icon="ShieldKeyhole"
+            title="Your staff role cannot see businesses"
+            description="Ask a super admin for access to businesses."
+          />
+        </PageContent>
+      );
+    }
+    throw error;
+  }
 }
+
+export const dynamic = "force-dynamic";

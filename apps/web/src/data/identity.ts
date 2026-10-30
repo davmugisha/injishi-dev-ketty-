@@ -1,19 +1,20 @@
 import {
+  IdentityScanResult,
   IdentityStatus,
-  NationalIdLookupResult,
-  PassportVerifyResult,
-  VerifiedPerson,
+  type AccountDocumentType,
+  type TypedIdentityRequest,
 } from "@injishi/contracts";
 
 import { apiFetch, type ApiResult } from "@/lib/api";
 
 /**
- * The web client for `/api/v1/me/identity` (ADR-060): where the caller's
- * identity stands, the National ID lookup and its code, and the passport scan.
+ * The web client for `/api/v1/me/identity` (ADR-060, ADR-075 A1): where the
+ * caller's identity stands, the ID scan (front of the card or the photo page,
+ * then a selfie), and the details typed as printed when the scan read nothing.
  *
- * Every answer is parsed against the contract the API validated it with. The
- * lookup's answer carries nobody's name: the person is revealed only by
- * `confirmNationalId`, to whoever typed the code the register's phone received.
+ * Every answer is parsed against the contract the API validated it with. No
+ * route here sends a code to a phone (AC-4), and no answer carries a photo's
+ * object key: the keys go up, never come back.
  */
 
 export async function fetchIdentity(): Promise<ApiResult<IdentityStatus>> {
@@ -23,40 +24,39 @@ export async function fetchIdentity(): Promise<ApiResult<IdentityStatus>> {
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }
 
-export async function lookupNationalId(
-  documentNumber: string,
-): Promise<ApiResult<NationalIdLookupResult>> {
-  const res = await apiFetch<unknown>("/api/v1/me/identity/national-id/lookup", {
+export async function scanIdentity(
+  documentType: AccountDocumentType,
+  frontKey: string,
+  selfieKey: string,
+  issuingCountry?: string,
+): Promise<ApiResult<IdentityScanResult>> {
+  const res = await apiFetch<unknown>("/api/v1/me/identity/scan", {
     method: "POST",
-    body: { documentNumber },
+    body: { documentType, frontKey, selfieKey, ...(issuingCountry ? { issuingCountry } : {}) },
   });
   if (res.status !== "ok") return res;
-  const parsed = NationalIdLookupResult.safeParse(res.data);
+  const parsed = IdentityScanResult.safeParse(res.data);
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }
 
-export async function confirmNationalId(
-  challengeId: string,
-  code: string,
-): Promise<ApiResult<VerifiedPerson>> {
-  const res = await apiFetch<unknown>("/api/v1/me/identity/national-id/confirm", {
+/**
+ * A National ID checked by its number against NIDA's register (through
+ * GTBank), with a selfie uploaded first. No code goes to any phone. The number
+ * goes to the server and nowhere else: it is never kept in the draft.
+ */
+export async function checkNationalId(documentNumber: string, selfieKey: string): Promise<ApiResult<IdentityScanResult>> {
+  const res = await apiFetch<unknown>("/api/v1/me/identity/national-id", {
     method: "POST",
-    body: { challengeId, code },
+    body: { documentNumber, selfieKey },
   });
   if (res.status !== "ok") return res;
-  const parsed = VerifiedPerson.safeParse(res.data);
+  const parsed = IdentityScanResult.safeParse(res.data);
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }
 
-export async function verifyPassport(
-  documentObjectKey: string,
-  selfieObjectKey: string,
-): Promise<ApiResult<PassportVerifyResult>> {
-  const res = await apiFetch<unknown>("/api/v1/me/identity/passport", {
-    method: "POST",
-    body: { documentObjectKey, selfieObjectKey },
-  });
+export async function putTypedIdentity(request: TypedIdentityRequest): Promise<ApiResult<IdentityStatus>> {
+  const res = await apiFetch<unknown>("/api/v1/me/identity/document", { method: "PUT", body: request });
   if (res.status !== "ok") return res;
-  const parsed = PassportVerifyResult.safeParse(res.data);
+  const parsed = IdentityStatus.safeParse(res.data);
   return parsed.success ? { status: "ok", data: parsed.data } : { status: "failed" };
 }

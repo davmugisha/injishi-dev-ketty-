@@ -1,8 +1,8 @@
 "use client";
 
 import { ChartColumn, ChevronRight } from "@gravity-ui/icons";
-import { Avatar, Card, Chip, ProgressBar, Table } from "@heroui/react";
-import { ItemCard, ItemCardGroup, KPIGroup, Segment, Timeline, TrendChip, Widget } from "@heroui-pro/react";
+import { Alert, Avatar, Card, Chip, ProgressBar, Table } from "@heroui/react";
+import { ItemCard, ItemCardGroup, KPIGroup, Timeline, TrendChip, Widget } from "@heroui-pro/react";
 import { BarChart } from "@heroui-pro/react/bar-chart";
 import { KPI } from "@heroui-pro/react/kpi";
 import { type Persona, screenHref } from "@injishi/data";
@@ -16,9 +16,9 @@ import type {
 } from "@injishi/data/fixtures/platform";
 import { Icon, LinkButton, PageContent, PageHeader, SectionHeader, StatusDot, toneColor } from "@injishi/ui";
 import NextLink from "next/link";
-import { Fragment, useState } from "react";
+import { Fragment } from "react";
 
-export interface OwnerHomeData {
+interface OwnerHomeData {
   kpis: OwnerKpi[];
   decisions: OwnerDecision[];
   revenueDays: RevenueDay[];
@@ -26,12 +26,6 @@ export interface OwnerHomeData {
   insights: OwnerInsight[];
   compliance: ComplianceEvent[];
 }
-
-const PERIODS = [
-  { id: "today", label: "Today" },
-  { id: "week", label: "This week" },
-  { id: "mtd", label: "Month to date" },
-];
 
 function KpiTrend({ kpi }: { kpi: OwnerKpi }) {
   if (kpi.trendTone === "success" || kpi.trendTone === "danger") {
@@ -68,10 +62,33 @@ function kigaliLongDate(now = new Date()): string {
     .replace(",", "");
 }
 
+/** "Good morning" until noon in Kigali, "Good afternoon" until six, then "Good evening". */
+function greeting(now = new Date()): string {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Kigali", hour: "2-digit", hourCycle: "h23" }).format(now),
+  );
+  return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+}
+
 const COUNT_WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
 
-export function OwnerHomeView({ persona, data }: { persona: Persona; data: OwnerHomeData }) {
-  const [period, setPeriod] = useState("today");
+/** A business of this owner's that is not on the marketplace yet, and where its real setup page is. */
+export interface SetupDue {
+  workspaceId: string;
+  businessName: string;
+  notApproved: boolean;
+  href: string;
+}
+
+export function OwnerHomeView({
+  persona,
+  data,
+  setupDue = [],
+}: {
+  persona: Persona;
+  data: OwnerHomeData;
+  setupDue?: SetupDue[];
+}) {
   const waiting = data.decisions.length;
   const unsettled = data.kpis.find((k) => k.id === "unsettled");
   const labelAt = (i: number) =>
@@ -86,26 +103,41 @@ export function OwnerHomeView({ persona, data }: { persona: Persona; data: Owner
             {kigaliLongDate()} · {persona.role}
           </>
         }
-        title={`Good morning, ${persona.firstName}`}
+        title={`${greeting()}, ${persona.firstName}`}
         description={`${COUNT_WORDS[waiting] ?? waiting} ${waiting === 1 ? "decision is" : "decisions are"} waiting for you.${
           unsettled && unsettled.trendTone === "danger" ? ` ${unsettled.trend} unsettled are with Finance.` : ""
         }`}
         actions={
-          <>
-            <Segment aria-label="Period" selectedKey={period} onSelectionChange={(k) => setPeriod(String(k))}>
-              {PERIODS.map((p) => (
-                <Segment.Item key={p.id} id={p.id}>
-                  {p.label}
-                </Segment.Item>
-              ))}
-            </Segment>
-            <LinkButton href={screenHref("Reports")} variant="secondary">
-              <ChartColumn className="size-4" />
-              Open reports
-            </LinkButton>
-          </>
+          // The figures here are tonight's and today's, as each one's label says. A period switch changed none
+          // of them, so other periods are in Reports.
+          <LinkButton href={screenHref("Reports")} variant="secondary">
+            <ChartColumn className="size-4" />
+            Open reports
+          </LinkButton>
         }
       />
+
+      {setupDue.map((b) => (
+        // The setup page is the one path to the marketplace: rooms, prices, a photograph, publish. Nothing
+        // else in this shell linked to it, so an approved owner signing in here never found it.
+        <Alert key={b.workspaceId} status={b.notApproved ? "default" : "accent"} role="status">
+          <Alert.Content>
+            <Alert.Title>
+              {b.notApproved
+                ? `${b.businessName} is not approved yet`
+                : `${b.businessName} is not on the marketplace yet`}
+            </Alert.Title>
+            <Alert.Description>
+              {b.notApproved
+                ? "See where the registration stands and anything it still needs. Setup opens once it is approved."
+                : "Add a priced room type and a photograph, then publish. Guests see nothing until you do."}
+            </Alert.Description>
+          </Alert.Content>
+          <LinkButton href={b.href} variant="primary">
+            {b.notApproved ? "See where it stands" : "Set up your property"}
+          </LinkButton>
+        </Alert>
+      ))}
 
       <section aria-label="Key figures">
         <KPIGroup className="flex-wrap">
@@ -149,6 +181,7 @@ export function OwnerHomeView({ persona, data }: { persona: Persona; data: Owner
               All approvals
             </LinkButton>
           </ItemCardGroup.Header>
+          {data.decisions.length === 0 ? <p className="text-sm text-muted">Nothing is waiting for you.</p> : null}
           {data.decisions.map((d) => (
             <ItemCard key={d.id}>
               <ItemCard.Icon>
@@ -204,8 +237,8 @@ export function OwnerHomeView({ persona, data }: { persona: Persona; data: Owner
               </BarChart>
             </div>
             <p className="text-xs text-muted">
-              Posted folio and outlet charges, before fiscal adjustments. Tenant outlet Ikawa Corner is a separate
-              merchant and is not included.
+              Posted folio and outlet charges in the rooms and food and beverage departments, before fiscal adjustments.
+              Other departments are not drawn.
             </p>
           </Widget.Content>
         </Widget>
@@ -293,6 +326,7 @@ export function OwnerHomeView({ persona, data }: { persona: Persona; data: Owner
             <Card.Description>Patterns from this week, each with the records behind it</Card.Description>
           </Card.Header>
           <Card.Content className="flex flex-col gap-3">
+            {data.insights.length === 0 ? <p className="text-sm text-muted">Nothing stands out yet.</p> : null}
             {data.insights.map((ins) => (
               <NextLink key={ins.id} href={screenHref(ins.board)} className="block text-inherit no-underline">
                 <ItemCard variant="secondary">

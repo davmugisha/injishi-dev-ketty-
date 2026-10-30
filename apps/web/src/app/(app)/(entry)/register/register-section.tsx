@@ -2,13 +2,13 @@
 
 import type { ReactNode } from "react";
 import { Check, CircleCheck, Lock } from "lucide-react";
-import { Button } from "@injishi/ui";
+import { Badge, Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 
 import type { SectionState } from "./register-steps";
 
 /**
- * One section of step two (Register.dc.html): a numbered mark, a title, and
+ * One section of Business or You (Register.dc.html): a numbered mark, a title, and
  * either its body (OPEN), a one line summary with what checked it and an Edit
  * (DONE), or what it is waiting for (LOCKED). Sections open in order; which one
  * is open is `sectionStates` in `register-steps.ts`.
@@ -78,10 +78,10 @@ export function RegisterSection({
           ) : null}
         </div>
         {state === "done" && checkedBy ? (
-          <span className="flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
+          <Badge variant="success" size="sm">
             <CircleCheck size={13} aria-hidden />
             {checkedBy}
-          </span>
+          </Badge>
         ) : null}
         {state === "done" && onEdit ? (
           <Button variant="ghost" size="sm" onClick={onEdit}>

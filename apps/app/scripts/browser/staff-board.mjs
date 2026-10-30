@@ -53,7 +53,10 @@ try {
   await page.press("Mark clean");
   // Wait for the server round trip (the action, then the refreshed Done list), not just the optimistic update:
   // reloading earlier aborts the action mid-flight.
-  await page.waitFor(`(() => { const s = ${sections}; return s.starts === 3 && s.done.includes("204") && !s.next.includes("Mark clean"); })()`, "room 204 to reach Done today");
+  await page.waitFor(
+    `(() => { const s = ${sections}; return s.starts === 3 && s.done.includes("204") && !s.next.includes("Mark clean"); })()`,
+    "room 204 to reach Done today",
+  );
   await page.reload();
   await page.waitForText("Done today", 60_000);
   const after = await page.eval(sections);

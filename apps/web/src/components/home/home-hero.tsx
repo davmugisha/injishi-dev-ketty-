@@ -7,8 +7,9 @@ import { cn } from "@injishi/utils";
 import { StaySearchBar } from "@/components/search/stay-search-bar";
 import { ArtDirectedImage } from "@/components/shared/art-directed-image";
 import type { Mood } from "@/data/journeys";
+import { LIST_HREF, OPENING_LINE, stayCount } from "@/lib/stay-count";
 
-export interface MoodCard {
+interface MoodCard {
   mood: Mood;
   /** Stays Explore will list for this mood's districts. */
   count: number;
@@ -21,15 +22,19 @@ export interface MoodCard {
  * The search pill is the first action. Under it, four postcards answer the
  * question for the guest who has no destination yet — each is an ordinary
  * Explore search over a set of districts, with the live count on it. Hovering
- * or focusing one fades its photograph in over the video, so the page shows
+ * or focusing one fades its photograph in over the backdrop, so the page shows
  * the place before the guest commits to the click.
  *
  * The postcard photographs mount only once the pointer or focus reaches the
  * row: four full-width images loaded with the page would compete with the
- * still frame for the first paint, and most visitors search instead.
+ * backdrop for the first paint, and most visitors search instead.
  *
- * A still frame paints immediately (AVIF with a WebP fallback, both
- * responsive) and the looping video layers over it once it can play.
+ * The backdrop is one credited photograph (AVIF with a WebP fallback, both
+ * responsive). It used to sit under a looping video, `oo-gorillas-nest-hero`,
+ * which weighed 3.2 MB on a phone, put first paint past seven seconds on a slow
+ * connection, and was the one piece of media on the site with no source or
+ * licence on `/legal/photo-credits`. It was removed on 2026-10-21; do not bring
+ * footage back without a recorded licence and a poster-only small screen.
  */
 export function HomeHero({ moods }: { moods: MoodCard[] }) {
   const [active, setActive] = useState<string | null>(null);
@@ -38,7 +43,7 @@ export function HomeHero({ moods }: { moods: MoodCard[] }) {
 
   return (
     <section className="relative z-[11] h-dvh min-h-[680px] w-full overflow-hidden">
-      {/* One even wash, no gradient: the video's brightest frames are sky,
+      {/* One even wash, no gradient: the photograph's brightest band is sky,
           exactly where the header and the white type sit. 38% holds the
           header's contrast without the old top scrim. Inline because
           `color-mix()`'s commas do not survive Tailwind's arbitrary values. */}
@@ -59,23 +64,7 @@ export function HomeHero({ moods }: { moods: MoodCard[] }) {
         className="z-0 h-full w-full object-center max-lg:object-[70%_0]"
       />
 
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        poster="/media/oo-gorillas-nest-hero-960.avif"
-        title="Stay anywhere in Rwanda"
-        aria-hidden
-        className="absolute left-0 top-0 z-[1] h-full w-full object-cover max-lg:object-[70%_0] [&::-webkit-media-controls]:!hidden [&::-webkit-media-controls-play-button]:!hidden [&::-webkit-media-controls-start-playback-button]:!hidden"
-      >
-        <source src="/media/oo-gorillas-nest-hero.webm" type="video/webm" />
-        <source src="/media/oo-gorillas-nest-hero.mp4" type="video/mp4" />
-        <track kind="captions" />
-      </video>
-
-      {/* The postcards' photographs, over the video and under both scrims. */}
+      {/* The postcards' photographs, over the backdrop and under both scrims. */}
       {armed
         ? moods.map(({ mood }) => (
             <div
@@ -107,17 +96,29 @@ export function HomeHero({ moods }: { moods: MoodCard[] }) {
           <p className="animate-fade-up text-center text-xl leading-[1.2] text-white opacity-0 [animation-fill-mode:forwards] max-lg:mb-4 max-lg:max-w-tile lg:mb-2 lg:text-3xl">
             Guesthouses, lodges and serviced apartments, across Rwanda.
           </p>
-          {/* /80, not /50: sampled against the real video, white at 50% fell
-              under 4.5:1 on the brighter frames. */}
+          {/* /80, not /50: sampled against the old hero video, white at 50%
+              fell under 4.5:1 on the brighter frames.
+              It used to restate the line above word for word ("Book verified
+              guesthouses, lodges and serviced apartments across Rwanda") and
+              promise self check-in, which no stay offers yet (F-B09). */}
           <p className="animate-fade-up mb-8 max-w-wide text-center text-base text-white/80 opacity-0 [animation-delay:0.1s] [animation-fill-mode:forwards] max-lg:max-w-tile">
-            Book verified guesthouses, lodges and serviced apartments across Rwanda.
-            Escrow-backed payment, self check-in, and no phone calls from search to
-            arrival.
+            Every place verified before it is listed. Pay by mobile money, held in
+            escrow, and no phone calls from search to arrival.
           </p>
 
           <div className="animate-fade-up w-full opacity-0 [animation-delay:0.2s] [animation-fill-mode:forwards] max-lg:max-w-form lg:w-auto">
             <StaySearchBar />
           </div>
+          {/* The other audience, at the top rather than only at the foot of a
+              long page: the plan is supply first, so an owner who lands here
+              should not have to scroll past every guest band to find the door. */}
+          <Link
+            href={LIST_HREF}
+            className="animate-fade-up mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-white opacity-0 underline-offset-4 [animation-delay:0.25s] [animation-fill-mode:forwards] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          >
+            Own a place? List it on Injishi
+            <ArrowRight className="size-4" aria-hidden />
+          </Link>
         </div>
 
         <div
@@ -183,7 +184,7 @@ export function HomeHero({ moods }: { moods: MoodCard[] }) {
                     <span className="truncate text-base font-bold">{mood.label}</span>
                     <span className="truncate text-xs text-white/75">{mood.places}</span>
                     <span className="mt-0.5 text-xs font-semibold text-white">
-                      {count} {count === 1 ? "stay" : "stays"}
+                      {stayCount(count) ?? OPENING_LINE}
                     </span>
                   </span>
                   <ArrowRight

@@ -1,7 +1,7 @@
-import { screens } from "@injishi/data";
+import { screenHref, screens } from "@injishi/data";
 import type { CaseFile, RejectionReason } from "@injishi/data/fixtures/oversight";
+import { ActionLink, EmptyBlock, PageContent, PageHeader } from "@injishi/ui";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { OfficerCaseView } from "@/features/oversight/OfficerCaseView";
 import { requirePersona } from "@/lib/session";
 import { getCollection, getDocument } from "@/server/data";
@@ -16,6 +16,23 @@ export default async function OfficerCasePage({ params }: { params: Promise<{ id
     getDocument<CaseFile>("oversight.caseFiles", decodeURIComponent(id)),
     getCollection<RejectionReason>("oversight.rejectionReasons"),
   ]);
-  if (!file) notFound();
+  // Decided by this officer, or never theirs: it is not in their queues any more.
+  if (!file) {
+    return (
+      <PageContent>
+        <PageHeader title="Case" />
+        <EmptyBlock
+          icon="FileText"
+          title="This case is not in your queues"
+          description="It was decided, or it belongs to another officer."
+          action={
+            <ActionLink href={screenHref("OfficerHome")} icon="ArrowLeft">
+              Back to queues
+            </ActionLink>
+          }
+        />
+      </PageContent>
+    );
+  }
   return <OfficerCaseView key={file.id} file={file} reasons={reasons} />;
 }

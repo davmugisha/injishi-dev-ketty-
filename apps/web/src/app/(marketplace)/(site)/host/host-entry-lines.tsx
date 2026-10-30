@@ -1,40 +1,14 @@
 import Link from "next/link";
-import { Button } from "@injishi/ui";
+import { Button } from "@injishi/web-ui";
 import { SectionHeading } from "@/components/shared/section-heading";
 
 /**
- * The two doors on `/host` that are not a kind tile (Journey and RegisterIA
- * boards, the Registration IA audit's "one door, one question").
- *
- * Every way into registration starts from the chooser, and a tile press IS the
- * answer: it goes straight to `/register` with the kind, which opens on You.
- * The two things that used to start somewhere else now point back at it or
- * answer it themselves.
+ * The closing registration entry on `/host` points back to the chooser. A tile
+ * press goes straight to `/register` with the kind, which opens on You.
  */
 
 /** Where the chooser's heading sits, for the doors that send people to it. */
-export const CHOOSER_ANCHOR = "#host-chooser-title";
-
-/**
- * "You place tenants for owners? Register as a broker", under the chooser. A
- * broker is not a kind of place, so it is not a tile; it is the one other
- * answer, and it carries its kind the same way a tile does.
- */
-export function HostBrokerLine() {
-  return (
-    <section aria-label="Brokers" className="w-full border-b border-border">
-      <p className="container py-5 text-sm text-page-fg-70">
-        You place tenants for owners?{" "}
-        <Link
-          href="/register?kind=broker"
-          className="font-medium text-page-fg underline underline-offset-2 hover:no-underline"
-        >
-          Register as a broker
-        </Link>
-      </p>
-    </section>
-  );
-}
+const CHOOSER_ANCHOR = "#host-chooser-title";
 
 /**
  * The closing card. Its button used to open `/register` with no kind, so the

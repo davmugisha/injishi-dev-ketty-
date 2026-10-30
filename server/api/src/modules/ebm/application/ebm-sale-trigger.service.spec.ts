@@ -1,3 +1,5 @@
+import { describe, expect, it, type Mock, vi } from 'vitest';
+
 import type { Queue } from 'bullmq';
 
 import type { EbmLive } from '../domain/ebm-live';
@@ -26,10 +28,10 @@ describe('EbmSaleTrigger', () => {
   interface Harness {
     trigger: EbmSaleTrigger;
     table: Map<string, { id: string; bookingId: string; orgId: string; tin: string | null }>;
-    emissions: { insertHeld: jest.Mock };
-    add: jest.Mock;
+    emissions: { insertHeld: Mock };
+    add: Mock;
     stamps: Map<string, SignPoint>;
-    bookings: { stampSignPoint: jest.Mock };
+    bookings: { stampSignPoint: Mock };
   }
 
   function harness(
@@ -45,7 +47,7 @@ describe('EbmSaleTrigger', () => {
     /** A table keyed by idempotency key, like the real unique constraint. */
     const table = new Map<string, { id: string; bookingId: string; orgId: string; tin: string | null }>();
     const emissions = {
-      insertHeld: jest.fn(async (input: { bookingId: string; orgId: string; tin: string | null; idempotencyKey: string }) => {
+      insertHeld: vi.fn(async (input: { bookingId: string; orgId: string; tin: string | null; idempotencyKey: string }) => {
         if (opts.insertFails) throw new Error('db down');
         const existing = table.get(input.idempotencyKey);
         if (existing) return { id: existing.id, created: false };
@@ -57,17 +59,17 @@ describe('EbmSaleTrigger', () => {
     /** What the booking row was stamped with, keyed by booking id. */
     const stamps = new Map<string, SignPoint>();
     const bookings = {
-      findForEmission: jest.fn(async () =>
+      findForEmission: vi.fn(async () =>
         ({ orgId: opts.orgId === undefined ? ORG : opts.orgId, sellerTin: '102938475' }) as BookingForReceipt,
       ),
       // Mirrors the real `IS NULL` guard: a booking keeps the rule it was
       // confirmed under, whatever the flag says later.
-      stampSignPoint: jest.fn(async (id: string, point: SignPoint) => {
+      stampSignPoint: vi.fn(async (id: string, point: SignPoint) => {
         if (!stamps.has(id)) stamps.set(id, point);
       }),
-      signPointFor: jest.fn(async (id: string): Promise<SignPoint> => stamps.get(id) ?? 'booking'),
+      signPointFor: vi.fn(async (id: string): Promise<SignPoint> => stamps.get(id) ?? 'booking'),
     };
-    const add = jest.fn(async () => {
+    const add = vi.fn(async () => {
       if (opts.queueFails) throw new Error('redis down');
       return {};
     });

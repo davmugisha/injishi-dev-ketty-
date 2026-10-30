@@ -14,7 +14,7 @@ import {
   orgs,
   paymentAttempts,
   properties,
-  rentCharges,
+  leaseCharges,
   rooms,
   roomTypes,
   serviceOrders,
@@ -303,20 +303,20 @@ export class OwnerDashboardRepository {
     day: string,
   ): Promise<Map<string, { leased: number; arrears: number }>> {
     const { rows } = await this.db.execute<{ property_id: string; leased: number; arrears: number }>(sql`
-      select r.property_id,
-             (count(distinct l.room_id) filter (where l.status in ('active', 'ending')))::int as leased,
+      select l.property_id,
+             (count(distinct l.unit_id) filter (where l.status in ('active', 'ending')))::int as leased,
              (count(distinct l.id) filter (
                where l.status in ('active', 'ending')
                  and exists (
-                   select 1 from ${rentCharges} rc
+                   -- Overdue is worked out, never stored: open past its due day plus the lease's grace days.
+                   select 1 from ${leaseCharges} rc
                     where rc.lease_id = l.id
-                      and (rc.status = 'overdue'
-                           or (rc.status = 'due' and rc.due_date < ${day}::date))
+                      and rc.status = 'open'
+                      and rc.due_on + l.grace_days < ${day}::date
                  )))::int as arrears
         from ${leases} l
-        join ${rooms} r on r.id = l.room_id
        where l.workspace_id = ${workspaceId}
-       group by r.property_id
+       group by l.property_id
     `);
     return new Map(rows.map((r) => [r.property_id, { leased: r.leased, arrears: r.arrears }]));
   }

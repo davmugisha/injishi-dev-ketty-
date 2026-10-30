@@ -4,7 +4,7 @@ import { MyTraining } from "./my-training";
 /**
  * `/training/certificate` — the holder's own training record (ADR-049 AC-19).
  *
- * GATED AT THE EDGE, not here. `apps/web/src/middleware.ts` carries
+ * GATED AT THE EDGE, not here. `apps/web/src/proxy.ts` carries
  * `/training/certificate` in `PROTECTED_PREFIXES`, so an anonymous request is
  * bounced to `/sign-in` with a return url before this file runs. The prefix is
  * this exact path and NOT `/training`, because that gate matches the path or

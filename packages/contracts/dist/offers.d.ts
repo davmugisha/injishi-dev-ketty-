@@ -750,20 +750,20 @@ export declare const RedeemOfferResult: z.ZodObject<{
     stayId: string;
     balanceRwf: number;
     folioId: string;
+    applied: boolean;
     discountRwf: number;
     offerId: string;
     offerName: string;
     folioChargeId: string | null;
-    applied: boolean;
 }, {
     stayId: string;
     balanceRwf: number;
     folioId: string;
+    applied: boolean;
     discountRwf: number;
     offerId: string;
     offerName: string;
     folioChargeId: string | null;
-    applied: boolean;
 }>;
 export type RedeemOfferResult = z.infer<typeof RedeemOfferResult>;
 //# sourceMappingURL=offers.d.ts.map

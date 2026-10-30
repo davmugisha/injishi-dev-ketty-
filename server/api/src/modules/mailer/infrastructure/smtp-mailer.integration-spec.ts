@@ -1,3 +1,5 @@
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
 import { randomInt } from 'node:crypto';
 import { createServer, type Server, type Socket } from 'node:net';
 
@@ -14,14 +16,16 @@ import { SMTP_TIMEOUTS, SmtpMailerAdapter } from './smtp-mailer.adapter';
  *
  * Deliberately not called `*.spec.ts`: the unit suite's summary is read by a
  * gate that expects every collected test to pass, and a skipped suite would be
- * counted. Run it by name, path first (`--testRegex` takes an array and would
- * swallow a path written after it):
+ * counted. Run it by name, through the config for suites the unit suite never
+ * collects:
  *
- *   SMTP_IT_URL=smtp://localhost:1025 jest src/modules/mailer --testRegex=integration-spec
+ *   SMTP_IT_URL=smtp://localhost:1025 pnpm --filter @injishi/api exec vitest run --config vitest.manual.config.mts smtp-mailer
  *
  * `.unlazy/storage-mail/checks/leaf-1.2.1/check-smtp.mjs` starts Mailpit, runs
  * this, and then asserts through Mailpit's own API what arrived. This file
- * only proves the send was accepted; the check proves what was delivered.
+ * only proves the send was accepted; the check proves what was delivered. That
+ * check still runs this under Jest and reads Jest's summary, so it needs the
+ * command above and Vitest's summary before it can run again (2026-10-28).
  *
  * Inputs, all read from the environment:
  * - `SMTP_IT_URL`   the server to deliver to (required, or everything skips)
@@ -46,10 +50,10 @@ function configFrom(env: Record<string, string | undefined>): ConfigService {
 describeWithSmtp('SmtpMailerAdapter · a real SMTP server', () => {
   beforeAll(() => {
     // Nest's logger would print the boot line and the "sent" line into the
-    // jest report; the assertions below are what this run is for.
-    jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    // test report; the assertions below are what this run is for.
+    vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
   });
-  afterAll(() => jest.restoreAllMocks());
+  afterAll(() => vi.restoreAllMocks());
 
   it('delivers a sign-in code through OtpMailer and the transport chosen at boot', async () => {
     // Production posture on purpose, where OTP_DEBUG_LOG is ignored even when

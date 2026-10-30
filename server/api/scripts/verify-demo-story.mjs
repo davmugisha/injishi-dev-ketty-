@@ -23,6 +23,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { apiEnvFile } from './env-file.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const arg = (name, fallback) => {
@@ -241,30 +242,12 @@ await section('hotel', async () => {
 
 
 // --- Green Hills Properties: owner Josephine, Ingoro Apartments
+// Retired with the rentals rebuild (migrations 0073 to 0080): the sample recipe
+// no longer seeds leases, rent or deposits, and the reads this section made
+// (/ops/leases, /ops/rent-roll, /ops/deposits, /ops/filings) are gone. The
+// rentals checks come back with the rentals screens, on real accounts.
 await section('landlord', async () => {
-  const S = 'landlord';
-  const jo = await as('josephine@demo.injishi.com');
-  const { leases } = await jo('/ops/leases', W_LANDLORD);
-  check(S, 'L1 at least 8 active leases', count(leases, (l) => l.status === 'active') >= 8, `got ${count(leases, (l) => l.status === 'active')}`);
-  const { charges } = await jo('/ops/rent-roll', W_LANDLORD);
-  const statuses = new Set(charges.map((c) => c.status));
-  check(S, 'L2 rent roll shows paid, and at least one overdue charge', statuses.has('paid') && [...statuses].some((s) => s === 'overdue'), [...statuses].join(','));
-  check(S, 'L3 at least one partly paid or due charge', [...statuses].some((s) => s === 'partial' || s === 'due' || s === 'pending'), [...statuses].join(','));
-  const { deposits } = await jo('/ops/deposits', W_LANDLORD);
-  check(S, 'L4 at least 3 deposits held, one settled', deposits.length >= 3 && deposits.some((d) => d.settlement), `got ${deposits.length}`);
-  const { tickets } = await jo('/ops/tickets', W_LANDLORD);
-  check(S, 'L5 at least 3 maintenance tickets across 2+ statuses', tickets.length >= 3 && distinct(tickets, 'status') >= 2, `got ${tickets.length}`);
-  const { filings } = await jo('/ops/filings', W_LANDLORD);
-  const filed = filings.filter((f) => f.status !== null);
-  check(S, 'L6 every lease carries a contract filing', filings.length >= 8 && filed.length === filings.length, `${filed.length} of ${filings.length} filed`);
-  check(S, 'L7 the filings lens opens on all three states', distinct(filed, 'status') === 3, [...new Set(filed.map((f) => f.status))].join(','));
-  // Nothing in this repository can file a contract with the RRA (F-R10 §11,
-  // O-4). A demo row claiming a live channel would be the demo telling a lie
-  // the screen then repeats as a receipt.
-  check(S, 'L8 no filing claims a live channel', filed.every((f) => f.adapterMode === 'mock'), [...new Set(filed.map((f) => f.adapterMode))].join(','));
-  // The refusal is the row the lens exists for, and F-R10 §6 says it is never
-  // silently dropped.
-  check(S, 'L9 the refused filing says why', filed.filter((f) => f.status === 'failed').every((f) => (f.failureReason ?? '').length > 20), 'a failure with no reason');
+  console.log('  skipped: rentals data comes through the app now, not from the demo seed');
 });
 
 // --- Government oversight: PSF verifiers, MINALOC approver
@@ -332,7 +315,7 @@ await section('personas', async () => {
 // --- Money integrity, straight from the database
 if (WITH_DB) {
   console.log('\n# integrity');
-  const envPath = path.join(HERE, '..', '.env');
+  const envPath = apiEnvFile() ?? path.join(HERE, '..', '.env');
   let url = process.env.DATABASE_URL;
   if (!url && existsSync(envPath)) url = readFileSync(envPath, 'utf8').match(/^DATABASE_URL=(.*)$/m)?.[1]?.trim();
   const { default: pg } = await import('pg');

@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { LIST_PAGE_SIZES, type ListPageSize } from "@injishi/contracts";
 import { cn } from "@injishi/utils";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";

@@ -13,7 +13,7 @@ tracker), not this file.
 | Environment in Dokploy | Ships | Compose file | Dokploy appName | Hosts (domain rows) |
 | --- | --- | --- | --- | --- |
 | `production` (the default; Dokploy refuses to rename it) | db, redis, minio, api, worker, **web**, **app** | [`docker-compose.dokploy.yml`](docker-compose.dokploy.yml) | `injishi-production-igxxsu` | `www.`, `api.` and `app.injishi.com` |
-| `Staging` | db, redis, minio, mailpit, api, worker, **app**. No web, no admin | [`docker-compose.staging.yml`](docker-compose.staging.yml) | `injishi-staging-crwyau` | `api-staging.` and `app-staging.injishi.com` |
+| `Staging` | db, redis, minio, mailpit, api, worker, **app**. No web | [`docker-compose.staging.yml`](docker-compose.staging.yml) | `injishi-staging-crwyau` | `api-staging.` and `app-staging.injishi.com` |
 
 Hosts a domain row cannot express stay as Traefik labels in the compose file:
 the apex's permanent redirect to `www`, production's `storage` reads only rule,
@@ -125,30 +125,32 @@ the API's `GET /api/v1/platform` instead.
 
 | Host | Stack | Served by | Notes |
 | --- | --- | --- | --- |
-| `www.injishi.com` | production | `web` | The public origin, and the operator zone under `/w`, `/oversight` |
+| `www.injishi.com` | production | `web` | The public origin. `/sign-in` hands off to `app.`; old zone links (`/w/...`, `/oversight/...`) are redirected on |
 | `injishi.com` | production | `web` | Permanent redirect to `www`, path kept |
-| `app.injishi.com` | production | `web` | Redirect into the zone: `/` to `/w`, any other path kept |
+| `app.injishi.com` | production | `app` (a Dokploy domain row, port 3002) | The operator app: sign-in, every persona's screens, the staff console at `/admin` |
 | `api.injishi.com` | production | `api` | |
-| `admin.injishi.com` | production | `admin` | IP allowlist, then the session gate |
+| `admin.injishi.com` | production | none in the compose file | `apps/admin` is retired; the staff console is `app.injishi.com/admin`. Still on the API's `CORS_ORIGINS` |
 | `storage.injishi.com` | production | `minio` (S3 port 9000) | Signed URL reads only: `GET`, `HEAD` and `OPTIONS`, never a path under `/minio/`. Named by `STORAGE_HOST` |
 | `www-demo.injishi.com` | demo | demo `web` | Public |
-| `app-demo.injishi.com` | demo | demo `web` | Redirect into the demo zone, as `app.` does |
+| `app-demo.injishi.com` | demo | demo `app` | The demo's operator app, as `app.` is production's |
 | `api-demo.injishi.com` | demo | demo `api` | Public: its own API, not production's |
-| `admin-demo.injishi.com` | demo | demo `admin` | `ADMIN_ALLOWED_IPS`, then the session gate |
+| `admin-demo.injishi.com` | demo | demo `app` | `ADMIN_ALLOWED_IPS`; its root goes to `/admin` |
 | `storage-demo.injishi.com` | demo | demo `minio` | Public, reads only, as production's |
 | `mail-demo.injishi.com` | demo | demo `mailpit` (inbox, port 8025) | `ADMIN_ALLOWED_IPS`. SMTP (1025) is never routed |
-| `www.<STAGING_DOMAIN>` | staging | staging `web` | IP allowlist |
-| `app.<STAGING_DOMAIN>` | staging | staging `web` | Redirect into the zone, behind the same allowlist |
+| `app.<STAGING_DOMAIN>` | staging | staging `app` | Behind the same allowlist |
 | `api.<STAGING_DOMAIN>` | staging | staging `api` | |
-| `admin.<STAGING_DOMAIN>` | staging | staging `admin` | IP allowlist, then the session gate |
 | `storage.<STAGING_DOMAIN>` | staging | staging `minio` | IP allowlist, then reads only, as production |
 | `mail.<STAGING_DOMAIN>` | staging | staging `mailpit` (inbox, port 8025) | IP allowlist. The inbox where testers read sign in codes; SMTP (1025) is never routed |
 
-The operator app never has a host of its own. It is a zone under web
-(`/w/*`, `/oversight/*`, `/operator-static/*`), reached inside each stack's
-compose network at `OPERATOR_APP_URL=http://app:3002`, so `NEXT_PUBLIC_PMS_URL`
-is always that stack's web origin. `app.` hosts exist only to redirect old
-links into the zone.
+The operator app has its own host in every stack (`NEXT_PUBLIC_PMS_URL`). Its
+screens live at its root (`/residence`, `/owner`, `/officer`, `/admin`, ...),
+so web serves none of them: web's `/sign-in` redirects to the app's, web's
+`/start` sends a signed-in operator, officer or staffer to the app's
+`/auth/continue` (which opens their home), and an old `/w/<id>/setup` link is
+redirected to the same path on the app (`apps/web/src/lib/app-handoff.ts`).
+Web used to forward `/w`, `/oversight` and `/operator-static` to the app as a
+"zone" under its own origin; that ended on a 404 for everyone it signed in, and
+it is gone.
 
 ## The demo
 
@@ -289,6 +291,51 @@ an existing staging database from before ADR-043 cannot be marked: take it down
 with its volumes (`$S down -v`; staging holds no data worth keeping) and run the
 steps above. Running the mark twice is harmless; it exits 0 the second time.
 
+## Opening registration on a real database
+
+Production is migrated and given reference data (`seed-reference.mjs`) and
+nothing else. Until the steps below are done, `GET /api/v1/registrations/fee`
+answers 404 "Registration for this business type is not open yet", and a
+business that did register could never be approved, because nobody holds an
+officer seat. Do them once, in this order, after the first deploy.
+
+1. **The first platform admin.** The person signs in once on
+   `www.injishi.com` with the emailed code, which makes their account. Then:
+
+   ```sh
+   docker compose -p injishi -f infra/docker/docker-compose.dokploy.yml --env-file /opt/injishi/.env \
+     exec api node scripts/bootstrap-admin.mjs --email <their email>
+   ```
+
+   It refuses while any staff grant is live, so it makes the first admin and
+   no other; every later grant is made in the admin console, where it is
+   audited. It writes an `audit_events` row naming itself.
+
+2. **Registration fees** (`admin.fee.edit`): `POST /api/v1/admin/configuration/fees`
+   with `{ businessType, amountRwf, reason }`, once for `hospitality` and once
+   for `residence`. Appended, never edited; a registration keeps the amount on
+   its invoice.
+
+3. **Officers** (`admin.user.role.grant`): each officer signs in once, then
+   `POST /api/v1/admin/users/<userId>/oversight` with `oversightRole`
+   (`business_field_verifier` or `business_approver`), `governmentBodyCode`,
+   `governmentTitle`, `scopeLevel` (`country`, `province` + `provinceId`, or
+   `district` + `districtId`) and a `reason`. Appoint at least one verifier and
+   one approver who are **different people** for every district you open: the
+   API refuses an approval by the officer who verified.
+
+4. **PSF tiers** (optional): until one is active, the wizard says "PSF has no
+   active membership tiers right now" and a registrant can still continue with
+   "Not now".
+
+All three admin writes need the console's emailed step up first
+(`POST /api/v1/me/two-factor/send`, then `/verify`).
+
+Two things are stand-ins on a real database, by decision, and the wizard
+says so: the RRA TIN check is the mock (it verifies every TIN; the field
+verifier and the approver are the real gate), and `POST /registrations/:id/pay`
+records the fee as paid without moving money while `PAYMENT_ADAPTER_MODE=off`.
+
 ## Staging
 
 - **Its own domain.** Production's session cookie is set on `.injishi.com`, so a
@@ -297,7 +344,7 @@ steps above. Running the mark twice is harmless; it exits 0 the second time.
   unreleased code against them. `STAGING_DOMAIN` must be a domain production does
   not use (a second registered domain, or `injishi.rw` if it is yours and unused);
   the staging compose refuses to start without it.
-- **Not public.** Staging `web` (and so `app.`), `admin`, `storage.` and the
+- **Not public.** Staging `app.`, `storage.` and the
   `mail.` inbox answer only to `STAGING_ALLOWED_IPS`; unset, that is loopback
   only, which closes staging. The staging API stays open like production's,
   because the frontends call it server side through its public address; the
@@ -322,6 +369,22 @@ steps above. Running the mark twice is harmless; it exits 0 the second time.
 - **Storage is its own.** Its own `minio`, KMS key, root password and API user,
   never production's, answering on `storage-staging.injishi.com` to signed
   requests only.
+- **Injishi Mock APIs runs beside it** (ADR-077): the `mock-apis` service, built
+  on the host from `infra/docker/Dockerfile.mock-apis`, plays GTBank (NIDA and
+  the Payment Hub), RRA and Smile ID from seeded registers. The API reaches it
+  as `http://injishi-mock-apis:8100`. Every registration seam still defaults to
+  its in-process mock; to run one against the mock server over HTTP, set its
+  mode to `sandbox` in the environment's variables and redeploy:
+  `RRA_TIN_ADAPTER_MODE`, `NIDA_ADAPTER_MODE`, `DOCUMENT_VERIFIER_MODE`,
+  `PAYMENT_ADAPTER_MODE`. Set `MOCK_APIS_SECRET` (16 characters or more, read by
+  both sides) so the credentials are this stack's own. Its console (people,
+  TINs, passports, wallets, demo ID images, Approve and Decline for a pending
+  prompt) answers on `MOCK_HOST` (default `mock-staging.injishi.com`, an A
+  record to this host) behind `STAGING_ALLOWED_IPS`, and shows that secret. The
+  API refuses `sandbox` over a database without the sample marker, and the
+  mock refuses `NODE_ENV=production` unless the compose file says it is a
+  sample stack, so neither can reach production by accident. Production and
+  the demo do not run it.
 
 ## Developer access to staging
 
@@ -465,9 +528,26 @@ else. To prove the wiring on the demo, a staff session with
 `admin.system.view` may call `GET /api/v1/demo/crash`, which answers a 500 and
 is a 404 on every other stack.
 
+## Visit counting
+
+Web counts visits with a cookie-free counter that speaks Plausible's script API
+(`apps/web/src/lib/analytics.ts`). It sets no cookie and stores nothing on the
+device, so it needs no consent banner. Both values are BUILD arguments of the web
+image, so changing one means rebuilding web, and both default to empty, which
+means off: no script and no events.
+
+| Stack | Counts | Values |
+| --- | --- | --- |
+| Production | once `PLAUSIBLE_DOMAIN` is set | `PLAUSIBLE_DOMAIN=www.injishi.com` in the stack's `.env`; `PLAUSIBLE_SRC` only for a self-hosted instance, as that instance's script URL |
+| Demo and staging | never | not passed, on purpose: a rehearsal must not count as real traffic |
+
+Add the site in Plausible (or the self-hosted instance) before setting the value,
+or the counts are refused there. Campaign links count by their `utm_*` tags with
+no other setup.
+
 ## Admin network gate
 
-`admin`, `admin-demo` and the demo's `mail-demo` inbox answer only to
+`admin-demo` (the demo's app, opened at `/admin`) and the demo's `mail-demo` inbox answer only to
 `ADMIN_ALLOWED_IPS` (comma separated IPs or CIDRs, set in each stack's own env
 file), enforced by Traefik before the console's session gate runs. Unset, the
 list is `127.0.0.1/32`, so a missing setting closes the console rather than
@@ -510,7 +590,7 @@ production's URLs. Each compose file passes all of them from its
 stacks share: it is HeroUI Pro's CI/CD token, one per licence, copied from
 heroui.pro/dashboard by the licence owner (never a developer's personal
 token). `@heroui-pro/react` is a stub on npm whose postinstall downloads the
-real code with it. Each compose file hands it to the web, app and admin builds
+real code with it. Each compose file hands it to the web and app builds
 as a BuildKit secret (`secrets: heroui_token`), so it never reaches an image
 layer.
 
@@ -559,9 +639,9 @@ it.
 4. **Worker** uses the **same image** as the API (`Dockerfile.api`) with
    `INJISHI_PROCESS=worker`, under the same pinned platform and the same check.
    It is not on `dokploy-network`.
-5. **App** (port 3002) starts after a healthy API, on the compose network only.
-6. **Web** (3000) and **admin** (3001) start after a healthy API. Traefik
-   reaches these.
+5. **App** (port 3002) starts after a healthy API. Traefik reaches it on its
+   own host.
+6. **Web** (3000) starts after a healthy API. Traefik reaches it.
 
 Staging's and the demo's API also wait for their `mailpit` to have started.
 
@@ -575,10 +655,15 @@ arguments, set per stack in its compose file from the host variables.
 | `BETTER_AUTH_URL` | `https://api.injishi.com` | `https://api-demo.injishi.com` |
 | `AUTH_COOKIE_DOMAIN` | `.injishi.com` | the same |
 | `NEXT_PUBLIC_API_URL` | `https://api.injishi.com` | `https://api-demo.injishi.com` |
-| `NEXT_PUBLIC_WEB_URL`, `_SITE_URL`, `_PMS_URL` | `https://www.injishi.com` | `https://www-demo.injishi.com` |
-| `NEXT_PUBLIC_ADMIN_URL` | `https://admin.injishi.com` | `https://admin-demo.injishi.com` |
+| `NEXT_PUBLIC_WEB_URL`, `_SITE_URL` | `https://www.injishi.com` | `https://www-demo.injishi.com` |
+| `NEXT_PUBLIC_PMS_URL` (the app) | `https://app.injishi.com` | `https://app-demo.injishi.com` |
+| `INJISHI_API_ORIGIN` on the app, runtime only | `https://app.injishi.com` | `https://app-demo.injishi.com` |
 | `NEXT_PUBLIC_INJISHI_ENVIRONMENT` | `production` | `demo` |
 | `INTERNAL_API_URL` on web, runtime only | `http://injishi-api:8000` | the same, on its own network |
+
+The app reads `AUTH_COOKIE_DOMAIN` too, at runtime: when it signs someone out
+with the API unreachable it must remove the session cookie itself, and a
+browser removes a cookie only for a write naming the cookie's own domain.
 
 Web's sign-in Server Action calls the API at `INTERNAL_API_URL`, the `api`
 service's `injishi-api` alias on the stack's own network, and forwards the
@@ -587,9 +672,10 @@ that with the host's own address, and every visitor would share one per-IP send
 budget: the fourth sign-in of any minute is refused.
 
 Each API's `CORS_ORIGINS` lists only its own stack's browser origins:
-production's `www`, the apex and `admin`; the demo's `www-demo` and
-`admin-demo`. It also feeds Better Auth's trusted origins, so an origin missing
-here can neither fetch nor sign in.
+production's `www`, the apex, `app` and `admin`; the demo's `www-demo`,
+`app-demo` and `admin-demo`. The app's host is there because the app's server
+side calls name it as their Origin (`INJISHI_API_ORIGIN`). It also feeds Better
+Auth's trusted origins, so an origin missing here can neither fetch nor sign in.
 
 Every API host must sit under its cookie domain: a response may not set a
 cookie for a domain its own host is not in. `BETTER_AUTH_SECRET` and
@@ -681,7 +767,7 @@ The steps below describe what the workflows do; you trigger the last one.
 built per green commit on `main` by `.github/workflows/image.yml` and pushed to
 `ghcr.io/hangaasoftwares/injishi-api:<short sha>`. Production and staging pull
 it by that tag, so the binary staging ran is the binary production runs. The
-three frontends bake `NEXT_PUBLIC_*` and `OPERATOR_APP_URL` at image build time,
+two frontends bake `NEXT_PUBLIC_*` at image build time,
 so their images belong to one stack and are built here, on the host, from that
 stack's own compose file.
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { Button } from "@injishi/ui";
+import Link from "next/link";
+import { Button } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { CompareToggle } from "@/components/explore/compare";
 import { Pagination } from "@/components/explore/pagination";
@@ -15,6 +16,8 @@ import { ResultCardVertical } from "@/components/explore/result-card-vertical";
 import type { Listing } from "@/data/listings";
 import { SEARCH_DISTRICTS } from "@/data/search-options";
 import type { ExploreRefinement, StayIntent } from "@/lib/search-params";
+import { LIST_HREF } from "@/lib/stay-count";
+import { supportHref } from "@/lib/support-intent";
 
 /**
  * The result list itself: the interstitial-spliced column of cards, the empty
@@ -205,6 +208,11 @@ const PAGE_SIZE = 24;
  * the search bar can land a guest here on a place the catalogue does not
  * cover yet, and "clear all filters" answers that by throwing away the one
  * thing they actually asked for.
+ *
+ * An empty CATALOGUE is its own case. Production opened with nothing listed,
+ * and this said "No stays match these filters yet. Try widening the price
+ * range" to a visitor who had set no filter at all, then offered to clear
+ * them. Blaming the guest for an empty marketplace is the wrong sentence.
  */
 function EmptyResults({
   all,
@@ -226,6 +234,28 @@ function EmptyResults({
       !intent.districts.includes(district.slug) &&
       all.some((listing) => listing.district === district.slug),
   );
+
+  if (all.length === 0) {
+    return (
+      <div data-empty-results className="mb-20 flex flex-col items-center gap-4 py-20 text-center">
+        <p className="text-xl text-page-fg">
+          {searchedFor ? `Nothing is listed in ${searchedFor} yet.` : "Nothing is listed yet."}
+        </p>
+        <p className="max-w-[46ch] text-sm text-page-fg-70">
+          Injishi lists a place only after it passes verification, and the first hosts are going
+          through it now, Kigali first.
+        </p>
+        <div className="mt-2 flex flex-wrap justify-center gap-3">
+          <Button asChild>
+            <Link href={LIST_HREF}>List your place</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={supportHref("opening")}>Tell me when stays open</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div data-empty-results className="mb-20 flex flex-col items-center gap-4 py-20 text-center">

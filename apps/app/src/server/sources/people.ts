@@ -41,7 +41,7 @@ import type {
   ShiftSwap,
   Tone,
   WeekId,
-} from "@injishi/data/fixtures/people";
+} from "@injishi/product-hr";
 import { ApiError } from "../api";
 import type { Workspace } from "../auth";
 import { clock, dayMonth, dayMonthYear, kigaliDate } from "../format";
@@ -947,9 +947,10 @@ export const sources = defineSources({
     naturalKey: "title",
     async list(ctx): Promise<OffboardingTask[]> {
       const { people } = await workforce(ctx);
-      const leaver = [...people]
-        .filter((p) => p.status === "offboarded")
-        .sort((a, b) => (a.offboardedOn ?? "").localeCompare(b.offboardedOn ?? ""))[0];
+      // The same person the Employees card names above this list: the first leaver in the directory's
+      // own order (people.employees sorts by team; EmployeesView takes its first `leaving` row). Picking
+      // by any other rule ticks one leaver's steps under another's name.
+      const leaver = [...people].sort(byTeam).find((p) => p.status === "offboarded");
       if (!leaver) return [];
       const lists = await Promise.all(
         businesses(ctx).map(({ api }) =>
@@ -1156,11 +1157,12 @@ export const sources = defineSources({
             to,
             reason: r.reason,
             evidence: r.evidence ?? "No evidence attached",
-            manager: r.managerConfirmedByName
-              ? `${r.managerConfirmedByName} confirmed · ${dayMonth(r.managerConfirmedAt ?? r.createdAt)} ${clock(r.managerConfirmedAt ?? r.createdAt)}`
-              : r.routedTo
-                ? `Waiting for ${r.routedTo.displayName}`
-                : "No line manager on file",
+            // Who the request names as the person's line manager, and no more: nothing in the product asks
+            // them to confirm a correction (only the demo seed fills `managerConfirmedAt`), so no
+            // confirmation is ever shown as a fact.
+            manager: r.routedTo
+              ? `Line manager ${r.routedTo.displayName} · no confirmation step yet`
+              : "No line manager on file",
             state,
             outcome:
               state === "pending"
@@ -1360,7 +1362,8 @@ export const sources = defineSources({
           status: "default",
           icon: /medical|health|food|certificate/i.test(d.title) ? "Stethoscope" : "FileText",
           title: `${p.displayName} · ${d.title.toLowerCase()} expires ${dayMonth(d.expiresOn)}`,
-          detail: "Renewal reminder sent to them and their line manager",
+          // Not "reminder sent": the document.expiring trigger waits in the outbox and nothing delivers it yet.
+          detail: "Renewal due · no reminder is sent automatically",
           board: "Employees",
           employee: p.id,
           on: d.expiresOn,
@@ -1560,7 +1563,7 @@ function attendanceDay(ctx: SourceContext): Promise<AttendanceDay> {
   return once(ctx, "attendance-day", async () => {
     const today = ctx.today.iso;
     const yesterday = addDays(today, -1);
-    const now = Date.now();
+    const now = ctx.now.getTime();
     const [{ people, byId, teams, branchName }, records, requests, { entries }, leave, grace] = await Promise.all([
       workforce(ctx),
       recordsOf(ctx),
@@ -1684,7 +1687,9 @@ function attendanceDay(ctx: SourceContext): Promise<AttendanceDay> {
         kind: "absent",
         icon: "PersonXmark",
         title: `${e.employee.displayName} · no clock-in today`,
-        detail: `${w.dept}, ${w.property} · shift ${entryTimes(e)} · no leave recorded${lead && lead.id !== p?.id ? ` · ${lead.displayName} informed` : ""}`,
+        // The line manager is named, not "informed": the attendance trigger waits in the outbox and nothing
+        // delivers it yet (people/infrastructure/hr-events.ts).
+        detail: `${w.dept}, ${w.property} · shift ${entryTimes(e)} · no leave recorded${lead && lead.id !== p?.id ? ` · line manager ${lead.displayName}` : ""}`,
         state: "Absent",
         tone: "danger",
         deskEmployee: e.employee.employeeId,
@@ -1721,7 +1726,7 @@ function attendanceDay(ctx: SourceContext): Promise<AttendanceDay> {
         icon: "ArrowRightFromSquare",
         title: `${r.employee.displayName} · missed clock-out ${wkdDay(r.workDate)}`,
         detail: asked
-          ? `Correction requested${asked.managerConfirmedByName ? ` · confirmed by ${asked.managerConfirmedByName}` : ""}`
+          ? "Correction requested · waiting for your decision"
           : "No correction requested yet · closed by the sweep at the default shift length",
         state: asked ? "Correction pending" : "Open",
         tone: asked ? "info" : "warning",
@@ -1915,12 +1920,16 @@ function leaveView(ctx: SourceContext): Promise<LeaveViewData> {
               : twoSteps && l.currentStep === 1
                 ? "lm"
                 : "hr";
-        const lm =
-          first?.decidedByName && first.decision !== "skipped"
+        // Only a two-step type has a line manager step, and step one of it is theirs. A one-step type
+        // (the default) goes straight to HR: its step-one row is HR's own decision, so no line manager
+        // is named, and `lm` stays empty for the screen to say there was no such step.
+        const lm = !twoSteps
+          ? ""
+          : first?.decidedByName && first.decision !== "skipped"
             ? first.decidedByName
             : (l.routedToName ?? "No line manager");
         const lmNote =
-          first && first.decision !== "skipped"
+          twoSteps && first && first.decision !== "skipped"
             ? `${first.decision === "approved" ? "Approved" : "Declined"} ${dayMonth(first.decidedAt)}${first.note ? ` · “${first.note}”` : ""}`
             : "";
         const code = l.leaveType.code;
@@ -1958,7 +1967,7 @@ function leaveView(ctx: SourceContext): Promise<LeaveViewData> {
           hrReason: step === "declined" ? l.decisionNote : null,
           homeStep:
             step === "hr"
-              ? `${first?.decidedByName ? `${firstName(first.decidedByName)} approved · ` : ""}now with you`
+              ? `${twoSteps && first?.decidedByName ? `${firstName(first.decidedByName)} approved · ` : ""}now with you`
               : step === "lm"
                 ? `With ${l.routedToName ?? "the line manager"}`
                 : step === "approved"

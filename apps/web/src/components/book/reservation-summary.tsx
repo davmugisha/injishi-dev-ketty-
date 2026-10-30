@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { BookablePropertySummary } from "@injishi/contracts";
-import { Separator } from "@injishi/ui";
+import { Separator } from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
 import type { QuotePreview } from "@/lib/booking";
 import { cancellationCopy } from "@/lib/booking";
@@ -87,7 +87,7 @@ export function ReservationSummary({
         </h3>
         <p className="mt-1 text-sm text-page-fg-70">
           {cancellationCopy(cancellationTier, nonRefundable)}{" "}
-          <Link href="/legal/terms" className="underline underline-offset-4">
+          <Link href="/legal/terms#cancellation" className="underline underline-offset-4">
             Full policy
           </Link>
         </p>

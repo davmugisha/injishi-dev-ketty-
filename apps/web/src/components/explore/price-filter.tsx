@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Slider } from "@injishi/ui";
+import { Slider } from "@injishi/web-ui";
 import { cn } from "@injishi/utils";
 import { FilterSection } from "@/components/explore/filter-primitives";
 import type { PriceHistogram } from "@/data/explore-facets";

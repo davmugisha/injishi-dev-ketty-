@@ -21,7 +21,7 @@
  */
 
 /** How many groups a UPI has. Five, one per level of the land hierarchy. */
-export const UPI_GROUPS = 5;
+const UPI_GROUPS = 5;
 
 /** What each group is called, in order, for a message that names the wrong one. */
 const GROUP_NAMES = ["province", "district", "sector", "cell", "parcel"];
@@ -80,11 +80,6 @@ export function upiError(value: string): string | null {
   }
 
   return null;
-}
-
-/** The one normalised spelling, so two typings of one parcel are one string. */
-export function normalizeUpi(value: string): string {
-  return value.trim().replace(/\s*\/\s*/g, "/");
 }
 
 /** What a group is supposed to look like, said to a person rather than as a regex. */

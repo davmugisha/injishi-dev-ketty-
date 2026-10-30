@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { PaymentUnavailableError } from '../domain/payment-port';
 import { resolveMode } from '../payments.module';
 import { OffPaymentAdapter } from './off-payment.adapter';
@@ -14,6 +16,7 @@ describe('OffPaymentAdapter', () => {
     await expect(
       adapter.captureEscrow({
         kind: 'escrow_capture',
+      purpose: 'booking',
         idempotencyKey: 'ws:booking-capture:tok',
         amountRwf: 94_500,
         currency: 'RWF',
@@ -50,6 +53,6 @@ describe('PAYMENT_ADAPTER_MODE', () => {
   });
 
   it('refuses a value it cannot read', () => {
-    expect(() => resolveMode('disabled')).toThrow(/"mock", "live" or "off"/);
+    expect(() => resolveMode('disabled')).toThrow(/"mock", "sandbox", "live" or "off"/);
   });
 });

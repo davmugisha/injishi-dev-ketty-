@@ -643,75 +643,66 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       ],
     },
   ],
-  residence: [
+  // The landlord's sidebar is built per person from their permissions and the business's counts
+  // (apps/app `server/rentals/nav.ts`); nothing here is fixed.
+  landlord: [],
+  // The tenant's sidebar: the lease in the address bar fills the `[leaseId]` of each item (`navHref`).
+  tenant: [
     {
       label: null,
       items: [
         {
           id: "home",
-          label: "Residence",
+          label: "Home",
           icon: "House",
-          board: "ResidenceHome",
-        },
-      ],
-    },
-    {
-      label: "Tenancy",
-      items: [
-        {
-          id: "applicants",
-          label: "Applicants",
-          icon: "PersonPlus",
-          board: "Applicants",
-          chip: "3",
+          board: "TenantLeaseHome",
         },
         {
-          id: "leases",
-          label: "Leases",
-          icon: "FileText",
-          board: "Leases",
-        },
-        {
-          id: "rentroll",
-          label: "Rent roll",
+          id: "rent",
+          label: "Rent",
           icon: "Wallet",
-          board: "RentRoll",
-          chip: "3",
-          alert: true,
+          board: "TenantRent",
         },
         {
-          id: "moveouts",
-          label: "Move-outs",
-          icon: "ArrowRightFromSquare",
-          board: "MoveOuts",
+          id: "lease",
+          label: "Lease",
+          icon: "FileText",
+          board: "TenantLease",
         },
-      ],
-    },
-    {
-      label: "Service",
-      items: [
         {
-          id: "service",
-          label: "Maintenance & visitors",
+          id: "faults",
+          label: "Faults",
           icon: "Wrench",
-          board: "ResidenceService",
+          board: "TenantFaults",
+        },
+        {
+          id: "move-out",
+          label: "Moving out",
+          icon: "ArrowRightFromSquare",
+          board: "TenantMoveOut",
         },
         {
           id: "messages",
           label: "Messages",
           icon: "Comments",
-          board: "Messages",
+          board: "TenantMessages",
+        },
+        {
+          id: "guests",
+          label: "Guests",
+          icon: "PersonPlus",
+          board: "TenantGuests",
         },
       ],
     },
     {
-      label: "Business",
+      label: "You",
       items: [
         {
-          id: "settings",
-          label: "Settings",
-          icon: "Gear",
-          board: "SettingsBusiness",
+          id: "account",
+          label: "Account",
+          icon: "Person",
+          board: "Account",
         },
       ],
     },
@@ -754,34 +745,20 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
       ],
     },
   ],
+  // The broker's sidebar (2026-10-25): the homes their plan shows, the tenants they placed, what
+  // landlords recorded as owed and paid, their ratings, and the plan.
   broker: [
     {
       label: null,
       items: [
-        {
-          id: "work",
-          label: "My work",
-          icon: "Briefcase",
-          board: "BrokerWork",
-        },
-        {
-          id: "directory",
-          label: "Directory & credits",
-          icon: "Magnifier",
-          board: "BrokerDirectory",
-        },
-        {
-          id: "explore",
-          label: "Marketplace",
-          icon: "Globe",
-          board: "MarketExplore",
-        },
-        {
-          id: "account",
-          label: "Account",
-          icon: "Person",
-          board: "Account",
-        },
+        // Hidden for now (2026-10-27): the account page stays reachable from the user menu.
+        // { id: "account", label: "Account", icon: "Person", board: "Account" },
+        { id: "homes", label: "Homes", icon: "House", board: "BrokerWork" },
+        { id: "placements", label: "Placements", icon: "Persons", board: "BrokerPlacements" },
+        { id: "messages", label: "Messages", icon: "Comments", board: "BrokerMessages" },
+        // Earnings and reviews are one page now (2026-10-27); /broker/reviews opens it at the reviews.
+        { id: "earnings", label: "Earnings & reviews", icon: "Wallet", board: "BrokerEarnings" },
+        // { id: "reviews", label: "Reviews", icon: "Star", board: "BrokerReviews" },
       ],
     },
   ],
@@ -901,6 +878,29 @@ export const navigation: Record<WorkspacePersonaId, NavGroup[]> = {
           icon: "PersonsLock",
           board: "AdminPeople",
         },
+        {
+          id: "broker-plans",
+          label: "Broker plans",
+          icon: "CreditCard",
+          board: "AdminBrokerPlans",
+        },
+      ],
+    },
+    {
+      label: "Government",
+      items: [
+        {
+          id: "leaders",
+          label: "Leaders and officers",
+          icon: "Persons",
+          board: "AdminLeaders",
+        },
+        {
+          id: "coverage",
+          label: "Coverage",
+          icon: "MapPin",
+          board: "AdminCoverage",
+        },
       ],
     },
     {
@@ -990,28 +990,6 @@ export const tabbars: Record<PhoneAppId, PhoneTab[]> = {
       board: "StaffMe",
       icon: "Person",
       label: "Me",
-    },
-  ],
-  resident: [
-    {
-      board: "TenantHome",
-      icon: "House",
-      label: "Home",
-    },
-    {
-      board: "TenantPay",
-      icon: "Wallet",
-      label: "Pay",
-    },
-    {
-      board: "TenantRequests",
-      icon: "Wrench",
-      label: "Requests",
-    },
-    {
-      board: "TenantLease",
-      icon: "FileText",
-      label: "Lease",
     },
   ],
   guest: [

@@ -36,6 +36,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { apiEnvFile } from './env-file.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const API = path.resolve(HERE, '..');
@@ -44,7 +45,7 @@ const require = createRequire(path.join(API, 'package.json'));
 // --- environment -----------------------------------------------------------
 
 function loadDotEnv() {
-  const file = path.join(API, '.env');
+  const file = apiEnvFile() ?? path.join(API, '.env');
   if (!existsSync(file)) return;
   for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
     const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/.exec(line);

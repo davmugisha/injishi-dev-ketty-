@@ -17,8 +17,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { FrontDeskService } from '../../../modules/operations/application/front-desk.service';
-import { StayClaimService } from '../../../modules/operations/application/stay-claim.service';
+import { FrontDeskService } from '../../../modules/pms/application/front-desk.service';
+import { StayClaimService } from '../../../modules/pms/application/stay-claim.service';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {

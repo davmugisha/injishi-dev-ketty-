@@ -100,6 +100,7 @@ import pg from 'pg';
 
 import { assertSampleDatabase } from './sample-database.mjs';
 import { syntheticCoordFor } from './synthetic-coords.mjs';
+import { apiEnvFile } from './env-file.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -131,12 +132,12 @@ function idFor(index, tail) {
 
 function databaseUrl() {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  const env = readFileSync(resolve(__dirname, '../.env'), 'utf8');
+  const env = readFileSync(apiEnvFile() ?? resolve(__dirname, '../.env'), 'utf8');
   // The FIRST uncommented assignment wins. `.env` keeps the retired Neon url on
   // a commented line below the live one, and a `#` prefix must not be read as a
   // setting.
   const m = env.match(/^DATABASE_URL=(.+)$/m);
-  if (!m) throw new Error('DATABASE_URL not set and not found in server/api/.env');
+  if (!m) throw new Error('DATABASE_URL not set and not found in server/api/.env.test (or the APP_ENV file)');
   return m[1].trim();
 }
 

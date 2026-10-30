@@ -106,6 +106,15 @@ export const hrAttendanceStatusEnum = pgEnum('hr_attendance_status', [
   'superseded',
 ]);
 
+/** Why a phone punch waits for validation (mobile spec 0003, D-ao): the location reasons, then a late arrival. */
+export const attendancePendingReasonEnum = pgEnum('attendance_pending_reason', [
+  'no_location',
+  'no_branch_location',
+  'poor_accuracy',
+  'outside_fence',
+  'late_sync',
+]);
+
 export const hrLeaveAccrualEnum = pgEnum('hr_leave_accrual', [
   'yearly_upfront',
   'monthly',
@@ -612,6 +621,15 @@ export const attendanceRecords = pgTable(
     dayKind: hrDayKindEnum('day_kind'),
     /** Closed by the sweep, not by a person (AC-TM4). */
     autoClosed: boolean('auto_closed').notNull().default(false),
+    // Mobile spec 0003 (D-ac, D-ao): when a phone punch reached the server, the
+    // tap the phone reported (its `occurredAt`), and why it waits for
+    // validation. Null for kiosk and supervisor punches.
+    inReceivedAt: timestamp('in_received_at', { withTimezone: true }),
+    inDeviceAt: timestamp('in_device_at', { withTimezone: true }),
+    outReceivedAt: timestamp('out_received_at', { withTimezone: true }),
+    outDeviceAt: timestamp('out_device_at', { withTimezone: true }),
+    inPendingReason: attendancePendingReasonEnum('in_pending_reason'),
+    outPendingReason: attendancePendingReasonEnum('out_pending_reason'),
     ...timestamps,
   },
   (t) => [

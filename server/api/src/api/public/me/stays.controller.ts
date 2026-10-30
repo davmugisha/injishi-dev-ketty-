@@ -29,9 +29,9 @@ import {
 import { Throttle } from '@nestjs/throttler';
 
 import { MessagingService } from '../../../modules/operations/application/messaging.service';
-import { OffersService } from '../../../modules/operations/application/offers.service';
-import { StayClaimService } from '../../../modules/operations/application/stay-claim.service';
-import { StayRefundService } from '../../../modules/operations/application/stay-refund.service';
+import { OffersService } from '../../../modules/pms/application/offers.service';
+import { StayClaimService } from '../../../modules/pms/application/stay-claim.service';
+import { StayRefundService } from '../../../modules/pms/application/stay-refund.service';
 import {
   CurrentUser,
   SessionGuard,

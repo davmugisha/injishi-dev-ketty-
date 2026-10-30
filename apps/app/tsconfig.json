@@ -11,9 +11,11 @@
     "next-env.d.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
+    "tests/unit/**/*.ts",
+    "tests/unit/**/*.tsx",
+    "vitest.config.mts",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    ".next-build/types/**/*.ts"
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

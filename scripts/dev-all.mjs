@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 /**
- * Every app in one terminal.
+ * Every app in one terminal, as dev servers on the host (hot reload).
+ *
+ * `pnpm docker:up` is the main way to run the whole product; this is for
+ * working on the code with each app recompiling on save.
  *
  *   pnpm dev:all                      the whole product: the Docker services,
- *                                     then api, worker, web, admin, app, mobile
+ *                                     then api, worker, web, app, mobile
  *   pnpm dev:all --skip mobile        everything except these (comma separated)
  *   pnpm dev:all --only web,api       just these
  *   pnpm dev:all --lan 192.168.1.68   the address a phone reaches this PC on
  *
- * Ctrl+C stops every app it started. Postgres, Redis, MinIO and Mailpit keep
- * running in Docker, because they hold the data and are slow to come back;
- * `pnpm dev:stack:down` stops them.
+ * Ctrl+C stops every app it started. Postgres, Redis and Mailpit (and MinIO,
+ * when the API's env file stores through S3) keep running in Docker, because
+ * they hold the data and are slow to come back; `pnpm dev:stack:down` stops
+ * them.
  *
  * In order, it:
  *   1. runs `pnpm install --frozen-lockfile` when pnpm-lock.yaml no longer
@@ -24,9 +28,10 @@
  *   5. starts each app through its own package script, so how an app runs is
  *      still defined once, in its package.json, and prefixes every line an app
  *      prints with its name;
- *   6. says where everything is once it answers, with a QR code for Expo Go.
+ *   6. says where everything is once it answers, with a QR code that opens the
+ *      app's development build (mobile spec 0001) on this Metro.
  *
- * MOBILE STARTS FOR EXPO GO ON A PHONE (`start:go`). A phone cannot reach
+ * MOBILE STARTS FOR A PHONE (its `dev` script). A phone cannot reach
  * `localhost`, which is the phone itself, so Metro advertises this PC's LAN
  * address and the bundle inlines the API at that address too:
  * EXPO_PUBLIC_API_URL from the environment beats the one in apps/mobile/.env.
@@ -34,10 +39,16 @@
  * private addresses too and a phone handed one never connects. The address is
  * read once, at start, so after the PC changes network, restart this.
  *
+ * A SECOND STACK (a git worktree whose server/api/.env sets
+ * INJISHI_COMPOSE_PROJECT, mobile spec 0001) takes every port from that .env,
+ * Metro's included, and starts the API, the worker and Metro only. web and app
+ * keep fixed ports that sign in, CORS and each other point at, so they run from
+ * the main checkout alone.
+ *
  * Plain Node, no dependencies, like dev-stack.mjs.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
@@ -52,6 +63,7 @@ import {
   readApiEnv,
   resolveApiDir,
   up,
+  usesMinio,
   warnAboutEnv,
 } from './dev-stack.mjs';
 
@@ -62,7 +74,6 @@ const COLOR = process.env.FORCE_COLOR
   ? process.env.FORCE_COLOR !== '0'
   : !('NO_COLOR' in process.env) && Boolean(process.stdout.isTTY);
 
-const METRO_PORT = 8081;
 const DOCKER_START_TIMEOUT_S = 240;
 /** Metro's first start walks the whole node_modules tree: minutes, not seconds. */
 const READY_TIMEOUT_MS = 10 * 60_000;
@@ -76,9 +87,8 @@ const APPS = [
   { name: 'api', pkg: '@injishi/api', script: 'dev', color: 32, needsStack: true },
   { name: 'worker', pkg: '@injishi/api', script: 'worker:dev', color: 90, needsStack: true },
   { name: 'web', pkg: '@injishi/web', script: 'dev', dir: 'apps/web', color: 36 },
-  { name: 'admin', pkg: '@injishi/admin', script: 'dev', dir: 'apps/admin', color: 35 },
   { name: 'app', pkg: '@injishi/app', script: 'dev', dir: 'apps/app', color: 94 },
-  { name: 'mobile', pkg: '@injishi/mobile', script: 'start:go', color: 33 },
+  { name: 'mobile', pkg: '@injishi/mobile', script: 'dev', color: 33 },
 ];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -90,12 +100,12 @@ function usage() {
   return [
     'Usage: pnpm dev:all [--skip <apps>] [--only <apps>] [--lan <address>]',
     '',
-    'Starts Postgres, Redis, MinIO and Mailpit in Docker, migrates, then every app',
+    'Starts Postgres, Redis and Mailpit in Docker, migrates, then every app',
     `in this one terminal: ${APPS.map((a) => a.name).join(', ')}.`,
     '',
-    '  --skip mobile,admin   everything except these',
+    '  --skip mobile,app     everything except these',
     '  --only web,api        just these',
-    "  --lan 192.168.1.68    the address your phone reaches this PC on (Expo Go).",
+    "  --lan 192.168.1.68    the address your phone reaches this PC on.",
     "                        Default: this PC's Wi-Fi address",
     '',
     'Ctrl+C stops the apps. Docker keeps running; `pnpm dev:stack:down` stops it.',
@@ -159,10 +169,13 @@ function pnpmCommand(args) {
  * the old tree. Compared without line endings: a Windows checkout may hold CRLF.
  */
 function ensureInstalled() {
-  const read = (file) => (existsSync(file) ? readFileSync(file, 'utf8').replace(/\r/g, '') : null);
-  const wanted = read(path.join(ROOT, 'pnpm-lock.yaml'));
-  const installed = read(path.join(ROOT, 'node_modules', '.pnpm', 'lock.yaml'));
-  if (wanted !== null && wanted === installed) return;
+  // pnpm writes node_modules/.pnpm/lock.yaml on every install. Its content is not a copy of
+  // pnpm-lock.yaml under pnpm 12 (no packageManager document, no other platforms' packages),
+  // so the two are compared by age: a lockfile newer than the last install was changed since.
+  const mtime = (file) => (existsSync(file) ? statSync(file).mtimeMs : null);
+  const wanted = mtime(path.join(ROOT, 'pnpm-lock.yaml'));
+  const installed = mtime(path.join(ROOT, 'node_modules', '.pnpm', 'lock.yaml'));
+  if (wanted !== null && installed !== null && wanted <= installed) return;
 
   console.log(
     installed === null
@@ -385,12 +398,18 @@ function startApp(app, ctx, width) {
   // input", and that app never starts. ensureInstalled() already checked.
   delete env.pnpm_config_verify_deps_before_run;
   delete env.npm_config_verify_deps_before_run;
+  // `dev:all` brings up the LOCAL stack, so the API and worker read .env.test
+  // (2026-10-24), the file that stack is configured from, not .env.development.
+  if (app.needsStack) env.APP_ENV = 'test';
   if (app.name === 'mobile' && ctx.lan) {
     env.EXPO_PUBLIC_API_URL = `http://${ctx.lan.address}:${ctx.apiPort}`;
     env.REACT_NATIVE_PACKAGER_HOSTNAME = ctx.lan.address;
   }
 
-  const cmd = pnpmCommand(['--filter', app.pkg, 'run', app.script]);
+  // Metro's port is passed rather than left to Expo, so it is the one this
+  // waits on and advertises, a second stack's included.
+  const extra = app.name === 'mobile' ? ['--port', String(app.port)] : [];
+  const cmd = pnpmCommand(['--filter', app.pkg, 'run', app.script, ...extra]);
   const child = spawn(cmd.file, cmd.args, {
     cwd: ROOT,
     env,
@@ -445,7 +464,7 @@ async function httpText(url) {
 function probe(app, ctx) {
   if (app.name === 'api') return httpOk(`http://127.0.0.1:${ctx.apiPort}/api/v1/health`);
   if (app.name === 'mobile') {
-    return httpText(`http://127.0.0.1:${METRO_PORT}/status`).then((t) => t.includes('packager-status:running'));
+    return httpText(`http://127.0.0.1:${app.port}/status`).then((t) => t.includes('packager-status:running'));
   }
   if (app.name === 'worker') return Promise.resolve(true); // no port: running is all there is to see
   return portTaken(app.port);
@@ -472,17 +491,16 @@ function printServerSummary(servers, results, ctx) {
     api: `http://localhost:${ctx.apiPort}/api/v1/health`,
     worker: 'running (queues, no port)',
     web: `http://localhost:${portOf('web')}`,
-    admin: `http://localhost:${portOf('admin')}   (sends you to web's sign-in first)`,
-    app: `http://localhost:${portOf('app')}   (sends you to web's sign-in first)`,
+    app: `http://localhost:${portOf('app')}   the app (its screens, /admin; sign in here)`,
   };
-  const order = ['web', 'admin', 'app', 'api', 'worker'];
+  const order = ['web', 'app', 'api', 'worker'];
   const rows = order
     .map((name) => servers.findIndex((a) => a.name === name))
     .filter((i) => i !== -1)
     .map((i) => `  ${servers[i].name.padEnd(8)}${stateOf(servers[i], results[i]) ?? where[servers[i].name]}`);
   if (ctx.stackStarted) {
-    rows.push('  mailpit http://localhost:8025   every mail the API sends');
-    rows.push('  minio   http://localhost:9001   object storage console');
+    rows.push(`  mailpit http://localhost:${ctx.ports.mailpit}   every mail the API sends`);
+    if (ctx.minio) rows.push(`  minio   http://localhost:${ctx.ports.minioConsole}   object storage console`);
   }
 
   const rule = paint(90, '─'.repeat(72));
@@ -490,8 +508,8 @@ function printServerSummary(servers, results, ctx) {
   if (servers.some((a) => a.name === 'web')) {
     lines.push(
       '',
-      `  Sign in at ${where.web}/sign-in as host@injishi.com (hotel owner),`,
-      '  admin@injishi.com (admin console) or guest@injishi.com, or pick a demo persona.',
+      `  Sign in at ${where.web}/sign-in (it hands you to the app) as landlord@injishi.com,`,
+      '  host@injishi.com, admin@injishi.com or guest@injishi.com, or pick a demo persona.',
       ctx.fixedCode
         ? '  The code is 123456.'
         : '  The code is random (the API runs as production): read it in Mailpit.',
@@ -516,16 +534,20 @@ function printMobileSummary(mobile, ready, ctx) {
     return;
   }
   const host = ctx.lan?.address ?? 'localhost';
-  const url = `exp://${host}:${METRO_PORT}`;
-  const lines = ['', rule, paint(1, '  mobile is ready for Expo Go'), '', `  ${url}`];
-  if (COLOR) lines.push('', ...qrLines(url));
+  const metro = `http://${host}:${mobile.port}`;
+  // The development build's own scheme (apps/mobile/app.config.ts), so only "Injishi Dev" answers the
+  // link, never a preview or store build installed beside it.
+  const link = `injishi-dev://expo-development-client/?url=${encodeURIComponent(metro)}`;
+  const lines = ['', rule, paint(1, '  mobile is ready for the development build (Injishi Dev)'), '', `  ${metro}`];
+  if (COLOR) lines.push('', ...qrLines(link));
   lines.push(
     '',
     ctx.lan
-      ? `  Scan it with the phone's camera (iOS) or in Expo Go (Android). The phone must be\n` +
+      ? `  Scan it with the phone's camera, or type the address in Injishi Dev. The phone must be\n` +
           `  on the same network as this PC (${ctx.lan.name}, ${ctx.lan.address}).`
       : '  No LAN address was found, so only an emulator or simulator on this PC can\n' +
           '  reach it. Pass --lan <address> for a phone.',
+    `  Expo Go still opens exp://${host}:${mobile.port} until the development build replaces it.`,
     '  The first open builds the bundle; that can take two minutes.',
     rule,
     '',
@@ -568,7 +590,7 @@ function killTree(app) {
   });
 }
 
-function installStopHandlers(apps) {
+function installStopHandlers(apps, minio) {
   const stop = async (signal) => {
     if (stopping) return;
     stopping = true;
@@ -578,7 +600,7 @@ function installStopHandlers(apps) {
     const stackStarted = apps.some((a) => a.needsStack);
     console.log(
       stackStarted
-        ? 'Stopped. Postgres, Redis, MinIO and Mailpit are still running in Docker;\n' +
+        ? `Stopped. Postgres, Redis${minio ? ', MinIO' : ''} and Mailpit are still running in Docker;\n` +
             '`pnpm dev:stack:down` stops them.'
         : 'Stopped.',
     );
@@ -613,17 +635,41 @@ async function main() {
     return;
   }
 
-  const apps = APPS.filter((a) => (opts.only ? opts.only.has(a.name) : true) && !opts.skip.has(a.name)).map(
-    (a) => ({ ...a }),
-  );
-  if (!apps.length) throw new StackError('Nothing to start: --only and --skip left no app.');
-
   const api = resolveApiDir();
   const cfg = readApiEnv(api.dir, api.rel);
-  const apiPort = Number(cfg.env.PORT?.trim() || 8000);
+
+  // A second stack never runs the apps whose ports are fixed (`dir` names a
+  // Next app). Left out by default; asked for by name, refused.
+  const secondStack = Boolean(cfg.composeProject);
+  const fixedPortApps = APPS.filter((a) => a.dir).map((a) => a.name);
+  if (secondStack) {
+    const asked = fixedPortApps.filter((name) => opts.only?.has(name));
+    if (asked.length) {
+      throw new StackError(
+        `${cfg.envRel} makes this a second stack (INJISHI_COMPOSE_PROJECT=${cfg.composeProject}),\n` +
+          `and ${asked.join(' and ')} run from the main checkout only: their ports are fixed, and\n` +
+          'sign in, CORS and the other apps point at them.',
+      );
+    }
+  }
+
+  const apps = APPS.filter(
+    (a) =>
+      (opts.only ? opts.only.has(a.name) : true) &&
+      !opts.skip.has(a.name) &&
+      !(secondStack && fixedPortApps.includes(a.name)),
+  ).map((a) => ({ ...a }));
+  if (!apps.length) throw new StackError('Nothing to start: --only and --skip left no app.');
+  if (secondStack && !opts.only) {
+    console.log(
+      `Second stack (compose project ${cfg.composeProject}): starting the API, the worker and Metro only.`,
+    );
+  }
+
+  const apiPort = cfg.ports.api;
   for (const app of apps) {
     if (app.name === 'api') app.port = apiPort;
-    else if (app.name === 'mobile') app.port = METRO_PORT;
+    else if (app.name === 'mobile') app.port = cfg.ports.metro;
     else if (app.dir) app.port = nextDevPort(app);
   }
 
@@ -649,12 +695,13 @@ async function main() {
     }
   }
 
-  const ctx = { apps, apiPort, lan, stackStarted, fixedCode: !isProductionProcess(cfg) };
+  const minio = usesMinio(cfg);
+  const ctx = { apps, apiPort, ports: cfg.ports, lan, stackStarted, minio, fixedCode: !isProductionProcess(cfg) };
   const width = Math.max(...apps.map((a) => a.name.length));
   console.log(
     `\n→ Starting ${apps.map((a) => a.name).join(', ')}. Ctrl+C stops ${apps.length === 1 ? 'it' : 'them all'}.\n`,
   );
-  installStopHandlers(apps);
+  installStopHandlers(apps, minio);
   for (const app of apps) startApp(app, ctx, width);
   await announce(apps, ctx);
 }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { OversightRole, StaffRole } from "./primitives";
+import { MobileMoneyNetwork } from "./booking";
 
 /**
  * `GET /api/v1/platform`: which platform a deployment is (ADR-043, AC-16).
@@ -16,6 +17,21 @@ import type { OversightRole, StaffRole } from "./primitives";
  */
 export const PlatformEnvironmentName = z.enum(["production", "demo"]);
 export type PlatformEnvironmentName = z.infer<typeof PlatformEnvironmentName>;
+
+/** A seam's effective mode (ADR-073 D-b): switched off, a test, or real. */
+export const IntegrationMode = z.enum(["off", "mock", "live"]);
+export type IntegrationMode = z.infer<typeof IntegrationMode>;
+
+/** What a collection pays for (073-gtbank-payments AC-2). */
+export const PaymentPurposeName = z.enum(["booking", "service_order", "registration_fee", "rent", "subscription"]);
+export type PaymentPurposeName = z.infer<typeof PaymentPurposeName>;
+
+export const PaymentRules = z.object({
+    networks: z.array(MobileMoneyNetwork),
+    maxCollectionRwf: z.number().int().positive().nullable(),
+    livePurposes: z.array(PaymentPurposeName),
+});
+export type PaymentRules = z.infer<typeof PaymentRules>;
 
 export const PlatformInfo = z.object({
     /** The API process's one environment. Staging reports `production`. */
@@ -48,6 +64,35 @@ export const PlatformInfo = z.object({
      * missing one means "an API that could not tell you".
      */
     commit: z.string().nullish(),
+    /**
+     * Whether this API can sign a person in with Google: both Google OAuth
+     * credentials are configured, so the provider is mounted.
+     *
+     * Every sign in screen asks before drawing the button as pressable. Without
+     * it a screen either hides a route that works or offers one that answers
+     * "provider not found" after the press.
+     *
+     * `nullish` for the reason `commit` gives: an API older than this field
+     * does not send it, and a client reads a missing key as "not offered".
+     */
+    googleSignIn: z.boolean().nullish(),
+    /**
+     * The effective mode of every client facing seam (ADR-073 AC-5; today
+     * `payments` and `card_payments`, from 073-gtbank-payments). A screen
+     * labels `mock` as a test, hides an action whose seam is `off`, and never
+     * decides on its own whether money is real (AC-17).
+     *
+     * `nullish` for the reason `commit` gives. A client reads a missing key as
+     * "unknown", and offers no money action it cannot label.
+     */
+    integrations: z.record(z.string(), IntegrationMode).nullish(),
+    /**
+     * What a payment screen must know before the payer presses pay
+     * (073-gtbank-payments AC-2, AC-23): the networks a Request to Pay may go
+     * to, the largest amount one prompt may ask for (null: no limit), and the
+     * purposes that take money on this stack. `nullish` as above.
+     */
+    paymentRules: PaymentRules.nullish(),
 });
 export type PlatformInfo = z.infer<typeof PlatformInfo>;
 
@@ -143,6 +188,16 @@ export const OVERSIGHT_ROLE_LABEL: Readonly<Record<OversightRole, string>> = {
     business_field_verifier: "Field verifier",
     tax_compliance_officer: "Tax compliance officer",
     psf_membership_officer: "PSF membership officer",
+    village_leader: "Village leader",
+    dasso: "Sector DASSO",
+    cell_executive: "Cell executive secretary",
+    district_officer: "District officer",
+    district_immigration: "DGIE district officer",
+    sector_executive: "Sector executive secretary",
+    dgie_province: "DGIE province officer",
+    dgie_national: "DGIE headquarters",
+    dgie_village: "DGIE village officer",
+    dgie_cell: "DGIE cell officer",
 };
 
 /** The short words a platform staff role is read in. */
@@ -153,3 +208,46 @@ export const STAFF_ROLE_LABEL: Readonly<Record<StaffRole, string>> = {
     finance: "Finance",
     trainer: "Trainer",
 };
+
+const NETWORK_NAME: Record<MobileMoneyNetwork, string> = {
+    mtn_momo: "MTN MoMo",
+    airtel_money: "Airtel Money",
+};
+
+/**
+ * Why a payment cannot be taken under the rules this stack publishes, or null
+ * (073-gtbank-payments AC-23, AC-24).
+ *
+ * ONE function for the API and every form, the way `instrumentProblem` is, so
+ * the checkout and the register wizard say exactly what the API would refuse,
+ * before the payer presses pay, and the two cannot drift:
+ * - a card, while the card seam is not `live`;
+ * - a mobile money network the bank does not prompt on this stack;
+ * - an amount above the bank's collection limit.
+ *
+ * Every sentence names the network or the limit, because "this payment
+ * cannot be taken" sends a payer to try again with nothing to change.
+ */
+export function paymentRuleProblem(
+    terms: { rules: PaymentRules | null | undefined; cardPayments: IntegrationMode | null | undefined },
+    amountRwf: number,
+    instrument: { kind: "card" } | { kind: "mobile_money"; network: MobileMoneyNetwork },
+): string | null {
+    if (instrument.kind === "card") {
+        return terms.cardPayments === "live" ? null : "Card payments are not taken yet. Pay by mobile money.";
+    }
+    const rules = terms.rules;
+    if (!rules)
+        return null;
+    if (!rules.networks.includes(instrument.network)) {
+        const others = rules.networks.map((n) => NETWORK_NAME[n]);
+        return others.length > 0
+            ? `${NETWORK_NAME[instrument.network]} payments are not taken yet. Pay with ${others.join(" or ")}.`
+            : "Mobile money payments are not taken yet.";
+    }
+    if (rules.maxCollectionRwf !== null && amountRwf > rules.maxCollectionRwf) {
+        return (`A mobile money payment here can be at most RWF ${rules.maxCollectionRwf.toLocaleString("en-RW")}, ` +
+            `and this one is RWF ${amountRwf.toLocaleString("en-RW")}.`);
+    }
+    return null;
+}

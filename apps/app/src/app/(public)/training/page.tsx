@@ -17,11 +17,15 @@ export default async function TrainingPage() {
     getCollection<Enrolment>("public.enrolments"),
     getCollection<Certificate>("public.certificates"),
   ]);
-  const learner = learners[0];
+  // The visitor is the person signed in, never the sample learner: the view shows that learner's record only to them.
+  const visitor = persona
+    ? { personaId: persona.id, name: persona.name, initials: persona.initials, home: persona.home }
+    : null;
   return (
     <TrainingView
-      links={demoLinks(persona, learner ? [learner.home, "Account"] : ["FrontDeskToday", "Account"])}
+      links={demoLinks(persona, persona ? [persona.home, "Account"] : ["Account"])}
       data={{ courses, sessions, learners, enrolments, certificates }}
+      visitor={visitor}
     />
   );
 }

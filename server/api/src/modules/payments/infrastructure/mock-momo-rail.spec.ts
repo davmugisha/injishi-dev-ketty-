@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
 import { PAYMENT_PROMPT_TTL_SECONDS } from '@injishi/contracts';
 
 import { PaymentDeclinedError, type CaptureEscrowCommand } from '../domain/payment-port';
@@ -24,6 +26,7 @@ describe('MockPaymentAdapter — the mobile money rail', () => {
   ): CaptureEscrowCommand {
     return {
       kind: 'escrow_capture',
+      purpose: 'booking',
       idempotencyKey: `booking-capture:${Math.random().toString(16).slice(2)}`,
       amountRwf: 94_500,
       currency: 'RWF',
@@ -178,5 +181,45 @@ describe('MockPaymentAdapter — the mobile money rail', () => {
     expect(
       await adapter.fetchTransaction('99999999-9999-9999-9999-999999999999', pending.adapterRef),
     ).toBeNull();
+  });
+  /*
+   * A registration fee is a Request to Pay exactly as a capture is
+   * (073-gtbank-payments AC-16), so the mock treats it the same way: pending,
+   * readable from any process by its reference, and declinable by test number.
+   */
+  it('prompts for a registration fee and settles it on the same clock as a capture', async () => {
+    const adapter = new MockPaymentAdapter();
+    process.env.MOCK_MOMO_APPROVAL_MS = '60000';
+    const fee = await adapter.chargeOneTimeFee({
+      kind: 'one_time_fee',
+      purpose: 'registration_fee',
+      feeCode: 'registration_fee',
+      idempotencyKey: 'ws:registration-fee:tok',
+      amountRwf: 250_000,
+      currency: 'RWF',
+      workspaceId: WORKSPACE,
+      instrument: { kind: 'mobile_money', network: 'mtn_momo', msisdn: '788123456' },
+    });
+    expect(fee.settlement).toBe('pending');
+    expect(decodeCaptureRef(fee.adapterRef)?.kind).toBe('one_time_fee');
+    // Another process reads it from the reference alone, still pending.
+    const elsewhere = await new MockPaymentAdapter().fetchTransaction(WORKSPACE, fee.adapterRef);
+    expect(elsewhere?.settlement).toBe('pending');
+    expect(await new MockPaymentAdapter().fetchTransaction('another-workspace', fee.adapterRef)).toBeNull();
+  });
+
+  it('declines a registration fee from the reserved test number', async () => {
+    await expect(
+      new MockPaymentAdapter().chargeOneTimeFee({
+        kind: 'one_time_fee',
+        purpose: 'registration_fee',
+        feeCode: 'registration_fee',
+        idempotencyKey: 'ws:registration-fee:declined',
+        amountRwf: 250_000,
+        currency: 'RWF',
+        workspaceId: WORKSPACE,
+        instrument: { kind: 'mobile_money', network: 'mtn_momo', msisdn: '788120000' },
+      }),
+    ).rejects.toBeInstanceOf(PaymentDeclinedError);
   });
 });

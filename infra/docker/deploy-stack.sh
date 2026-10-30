@@ -78,8 +78,8 @@ HEALTH_TIMEOUT=${DEPLOY_HEALTH_TIMEOUT:-600}
 LOCK_TIMEOUT=${DEPLOY_LOCK_TIMEOUT:-1800}
 GHCR_IMAGE=${GHCR_IMAGE:-ghcr.io/hangaasoftwares/injishi-api}
 # Built on this host, so these are the ones a rollback has to put back by hand.
-FRONTEND_IMAGES=(injishi-web injishi-app injishi-admin)
-FRONTEND_SERVICES=(web app admin)
+FRONTEND_IMAGES=(injishi-web injishi-app)
+FRONTEND_SERVICES=(web app)
 
 [[ -f $ENV_FILE ]] || die "$ENV_FILE is missing"
 [[ -d $SRC/.git ]] || die "$SRC is not a git checkout of the injishi repo"
@@ -104,7 +104,7 @@ env_file_value() {
 }
 
 # ── the HeroUI Pro build token ────────────────────────────────────────────────
-# The web, app and admin builds need HeroUI Pro's CI/CD token (DOKPLOY.md,
+# The web and app builds need HeroUI Pro's CI/CD token (DOKPLOY.md,
 # Required secrets with no default), which the compose file hands them as a
 # BuildKit secret sourced from HEROUI_AUTH_TOKEN. Compose before v2.40 reads
 # that variable from its own process environment only, never from --env-file

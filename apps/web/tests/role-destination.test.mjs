@@ -8,6 +8,12 @@
  * grows a persona the resolver sends somewhere wrong would pass every check
  * this app had.
  *
+ * Since 2026-10-24 everyone who holds something in the operator app (a
+ * business or broker seat, an oversight console, a staff role) goes to the
+ * app's own `/auth/continue`, which picks their home there. Web used to build
+ * `/w/<id>`, `/oversight` or an admin console url itself, and every one of
+ * those 404ed once the app's screens moved to its root.
+ *
  * So this pins ALL of them: the table below names every account
  * `seed-users.mjs` and `seed-demo.mjs` create, and the last test fails when a
  * seed adds a persona the table does not route.
@@ -28,7 +34,7 @@
  *
  * Run: pnpm --filter @injishi/web test
  */
-import { test, describe, beforeEach } from "node:test";
+import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -39,9 +45,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const ts = require("typescript");
 
-const ADMIN_URL = "https://admin-demo.injishi.test";
-const ADMIN = new URL("/", ADMIN_URL).toString();
-const OVERSIGHT = "/oversight";
+const APP_URL = "https://app-demo.injishi.test";
+/** The app's resolver: it opens each persona's home. */
+const APP = new URL("/auth/continue", APP_URL).toString();
 
 /** `HOME` as the app defines it, read rather than restated. */
 const HOME = (() => {
@@ -60,8 +66,8 @@ async function evaluate(src) {
   return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 }
 
-// The allowlist in redirect.ts is built when the module loads.
-process.env.NEXT_PUBLIC_ADMIN_URL = ADMIN_URL;
+// The allowlist and the app's url in redirect.ts are read when the module loads.
+process.env.NEXT_PUBLIC_PMS_URL = APP_URL;
 
 async function loadRedirect() {
   let src = readFileSync(resolve(here, "../src/lib/redirect.ts"), "utf8");
@@ -70,7 +76,8 @@ async function loadRedirect() {
   return evaluate(src);
 }
 
-globalThis.__roleTest = { answers: {}, safeRedirect: (await loadRedirect()).safeRedirect };
+const redirectModule = await loadRedirect();
+globalThis.__roleTest = { answers: {}, safeRedirect: redirectModule.safeRedirect, appHome: redirectModule.appHome };
 
 async function loadAccess() {
   let src = readFileSync(process.env.ACCESS_TS ?? resolve(here, "../src/lib/access.ts"), "utf8");
@@ -85,8 +92,9 @@ async function loadAccess() {
     ],
     [HOME_IMPORT, `const HOME = ${JSON.stringify(HOME)};`],
     [
-      /import\s*\{\s*safeRedirect\s*\}\s*from\s*["']@\/lib\/redirect["'];?/,
-      `const safeRedirect = (raw) => globalThis.__roleTest.safeRedirect(raw);`,
+      /import\s*\{\s*appHome,\s*safeRedirect\s*\}\s*from\s*["']@\/lib\/redirect["'];?/,
+      `const safeRedirect = (raw) => globalThis.__roleTest.safeRedirect(raw);
+       const appHome = () => globalThis.__roleTest.appHome();`,
     ],
   ];
   for (const [pattern, replacement] of stubs) {
@@ -146,58 +154,62 @@ const broker = (id) => ({ id, kind: "broker" });
  */
 const PERSONAS = [
   // seed-users.mjs — one login per shape of access.
-  { email: "admin@injishi.com", personal: true, staff: true, to: ADMIN },
-  { email: "host@injishi.com", personal: true, operator: [biz("w-hotel")], to: "/w/w-hotel" },
-  { email: "landlord@injishi.com", personal: true, operator: [biz("w-residence")], to: "/w/w-residence" },
-  { email: "manager@injishi.com", personal: true, operator: [biz("w-hotel")], to: "/w/w-hotel" },
-  { email: "reception@injishi.com", personal: true, operator: [biz("w-hotel")], to: "/w/w-hotel" },
-  { email: "housekeeper@injishi.com", personal: true, operator: [biz("w-hotel")], to: "/w/w-hotel" },
-  { email: "resident-manager@injishi.com", personal: true, operator: [biz("w-residence")], to: "/w/w-residence" },
-  { email: "broker@injishi.com", personal: true, operator: [broker("w-broker")], to: "/w/w-broker" },
+  { email: "admin@injishi.com", personal: true, staff: true, to: APP },
+  { email: "host@injishi.com", personal: true, operator: [biz("w-hotel")], to: APP },
+  { email: "landlord@injishi.com", personal: true, operator: [biz("w-residence")], to: APP },
+  { email: "manager@injishi.com", personal: true, operator: [biz("w-hotel")], to: APP },
+  { email: "reception@injishi.com", personal: true, operator: [biz("w-hotel")], to: APP },
+  { email: "housekeeper@injishi.com", personal: true, operator: [biz("w-hotel")], to: APP },
+  { email: "resident-manager@injishi.com", personal: true, operator: [biz("w-residence")], to: APP },
+  { email: "broker@injishi.com", personal: true, operator: [broker("w-broker")], to: APP },
   { email: "guest@injishi.com", personal: true, to: HOME },
-  { email: "localgov@injishi.com", personal: true, consoles: 1, to: OVERSIGHT },
-  { email: "approver@injishi.com", personal: true, consoles: 1, to: OVERSIGHT },
+  { email: "localgov@injishi.com", personal: true, consoles: 1, to: APP },
+  { email: "approver@injishi.com", personal: true, consoles: 1, to: APP },
+  { email: "finance@injishi.com", personal: true, operator: [biz("w-hotel")], to: APP },
+  { email: "hr@injishi.com", personal: true, operator: [biz("w-hotel")], to: APP },
+  { email: "admin-ops@injishi.com", personal: true, staff: true, to: APP },
+  { email: "admin-compliance@injishi.com", personal: true, staff: true, to: APP },
+  { email: "admin-finance@injishi.com", personal: true, staff: true, to: APP },
+  { email: "admin-trainer@injishi.com", personal: true, staff: true, to: APP },
+  { email: "taxofficer@injishi.com", personal: true, consoles: 1, to: APP },
+  { email: "psf@injishi.com", personal: true, consoles: 1, to: APP },
   // Still at `submitted`: the workspace is listed so the registrant can watch
   // the pipeline, and the operator app words the refusal inside it.
-  { email: "pending@injishi.com", personal: true, operator: [biz("w-pending")], to: "/w/w-pending" },
-  // Both hats. The console is checked before the workspace, as it always was.
-  { email: "dualhat@injishi.com", personal: true, operator: [biz("w-hotel")], consoles: 1, to: OVERSIGHT },
+  { email: "pending@injishi.com", personal: true, operator: [biz("w-pending")], to: APP },
+  // Both hats. The app decides which home opens first.
+  { email: "dualhat@injishi.com", personal: true, operator: [biz("w-hotel")], consoles: 1, to: APP },
 
   // seed-demo.mjs — the public demo roster.
-  { email: "yves@demo.injishi.com", operator: [biz("w-amahoro")], to: "/w/w-amahoro" },
-  { email: "solange@demo.injishi.com", operator: [biz("w-amahoro")], to: "/w/w-amahoro" },
-  { email: "denise@demo.injishi.com", operator: [biz("w-amahoro")], to: "/w/w-amahoro" },
-  { email: "beatha@demo.injishi.com", operator: [biz("w-amahoro")], to: "/w/w-amahoro" },
-  { email: "josephine@demo.injishi.com", operator: [biz("w-greenhills")], to: "/w/w-greenhills" },
+  { email: "yves@demo.injishi.com", operator: [biz("w-amahoro")], to: APP },
+  { email: "solange@demo.injishi.com", operator: [biz("w-amahoro")], to: APP },
+  { email: "denise@demo.injishi.com", operator: [biz("w-amahoro")], to: APP },
+  { email: "beatha@demo.injishi.com", operator: [biz("w-amahoro")], to: APP },
+  { email: "josephine@demo.injishi.com", operator: [biz("w-greenhills")], to: APP },
   // Five seats: broker, two businesses he owns, one he cleans in, personal.
   {
     email: "samuel@demo.injishi.com",
     personal: true,
     operator: [broker("w-sam-broker"), biz("w-kayitare"), biz("w-kivu"), biz("w-umurage")],
-    to: "/w/w-sam-broker",
+    to: APP,
   },
-  { email: "jeanbosco@demo.injishi.com", consoles: 1, to: OVERSIGHT },
-  { email: "claudine@demo.injishi.com", consoles: 1, to: OVERSIGHT },
-  { email: "yvette@demo.injishi.com", consoles: 1, to: OVERSIGHT },
-  { email: "alice@demo.injishi.com", consoles: 1, to: OVERSIGHT },
+  { email: "jeanbosco@demo.injishi.com", consoles: 1, to: APP },
+  { email: "claudine@demo.injishi.com", consoles: 1, to: APP },
+  { email: "yvette@demo.injishi.com", consoles: 1, to: APP },
+  { email: "alice@demo.injishi.com", consoles: 1, to: APP },
   { email: "rayan@demo.injishi.com", personal: true, to: HOME },
   { email: "grace@demo.injishi.com", personal: true, to: HOME },
   { email: "theoneste@demo.injishi.com", personal: true, to: HOME },
   // Revoked assignment: the role is still on the account, the console is not.
   { email: "fidele@demo.injishi.com", personal: true, consoles: 0, to: HOME },
-  { email: "ops@demo.injishi.com", staff: true, to: ADMIN },
-  { email: "aimable@demo.injishi.com", operator: [biz("w-aimable")], to: "/w/w-aimable" },
+  { email: "ops@demo.injishi.com", staff: true, to: APP },
+  { email: "aimable@demo.injishi.com", operator: [biz("w-aimable")], to: APP },
   // Limited to one branch (ADR-054 AC-D2). A branch limit narrows what she
   // sees inside the workspace, never which door she opens: same seat as Denise.
-  { email: "clarisse@demo.injishi.com", operator: [biz("w-amahoro")], to: "/w/w-amahoro" },
+  { email: "clarisse@demo.injishi.com", operator: [biz("w-amahoro")], to: APP },
 ];
 
 const holdsSomethingGuarded = (p) =>
   (p.operator?.length ?? 0) > 0 || (p.consoles ?? 0) > 0 || p.staff === true;
-
-beforeEach(() => {
-  process.env.NEXT_PUBLIC_ADMIN_URL = ADMIN_URL;
-});
 
 describe("each seeded persona opens the surface its grant holds", () => {
   for (const p of PERSONAS) {
@@ -224,17 +236,12 @@ describe("staff routing never costs anyone their sign-in", () => {
     assert.equal(await destinationOf(staffer, { verified: true, staffRead: { status: "failed" } }), HOME);
   });
 
-  test("a build with no console configured sends staff home, never to a default host", async () => {
-    process.env.NEXT_PUBLIC_ADMIN_URL = "";
-    assert.equal(await destinationOf(staffer, { verified: true }), HOME);
-  });
-
-  test("a staffer who also holds a workspace keeps opening the workspace", async () => {
+  test("a staffer who also holds a workspace opens the app, which picks the home", async () => {
     const both = { email: "x", staff: true, operator: [biz("w-own")] };
-    assert.equal(await destinationOf(both, { verified: true }), "/w/w-own");
+    assert.equal(await destinationOf(both, { verified: true }), APP);
   });
 
-  test("an explicit, allowed redirect still wins over the console", async () => {
+  test("an explicit, allowed redirect still wins over the app", async () => {
     assert.equal(await destinationOf(staffer, { verified: true }, "/book?id=1"), "/book?id=1");
   });
 });

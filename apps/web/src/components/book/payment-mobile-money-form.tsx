@@ -6,7 +6,6 @@ import {
   groupHandset,
   paymentMethod,
   validateMobileNumber,
-  type PaymentMethodId,
 } from "@/lib/payment-methods";
 
 const MARK: Record<"mtn_momo" | "airtel_money", typeof MtnMark> = {

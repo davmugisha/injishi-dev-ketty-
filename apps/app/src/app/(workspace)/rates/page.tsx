@@ -1,4 +1,4 @@
-import { screens } from "@injishi/data";
+import { personas, screens } from "@injishi/data";
 import type {
   RatesInventoryAmenity,
   RatesInventoryMealPlan,
@@ -6,9 +6,10 @@ import type {
   RatesInventoryRoomType,
   RatesInventorySpace,
 } from "@injishi/data/fixtures/commercial";
+import { ratesInventoryTab } from "@injishi/product-pms";
+import { RatesInventoryView } from "@injishi/product-pms/web";
 import type { Metadata } from "next";
-import { ratesInventoryTab } from "@/features/commercial/RatesInventoryTabs";
-import { RatesInventoryView } from "@/features/commercial/RatesInventoryView";
+import { PmsMount } from "@/features/pms/pms-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -25,10 +26,13 @@ export default async function RatesInventoryPage({ searchParams }: { searchParam
     getCollection<RatesInventoryMealPlan>("commercial.ratesInventoryMealPlans"),
   ]);
   return (
-    <RatesInventoryView
-      persona={persona}
-      initialTab={ratesInventoryTab(tab)}
-      data={{ roomTypes, ratePlans, spaces, amenities, mealPlans }}
-    />
+    <PmsMount>
+      <RatesInventoryView
+        persona={persona}
+        owner={personas.owner.name}
+        initialTab={ratesInventoryTab(tab)}
+        data={{ roomTypes, ratePlans, spaces, amenities, mealPlans }}
+      />
+    </PmsMount>
   );
 }

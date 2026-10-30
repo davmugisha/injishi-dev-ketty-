@@ -24,7 +24,7 @@ export type MomoId = MomoOutcome["id"];
 type SplitMode = "whole" | "seat" | "item";
 type AlertStatus = "default" | "accent" | "success" | "warning" | "danger";
 
-export interface PosPaymentData {
+interface PosPaymentData {
   bill: Bill;
   seats: BillSeat[];
   payments: BillPayment[];
