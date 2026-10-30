@@ -3,25 +3,20 @@
 import type { BrokerPlacement, BrokerPlacementList } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import {
-  ActionButton,
   ActionLink,
   type DataColumn,
   DataTable,
   EmptyBlock,
-  FilterTabs,
   formatDay,
   formatMoney,
-  KpiStrip,
+  IconAction,
   PageContent,
-  PageHeader,
-  SearchBar,
+  RowActions,
 } from "@injishi/ui";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { canMessagePlacement, placementMessageHref } from "../messages/links";
 import { FeeChip, feeTermsWords, PlacementChip } from "./shared";
-
-type Tab = "open" | "leased" | "all";
 
 /**
  * The tenants a broker said they have (2026-10-25): open placements wait for the landlord to name the
@@ -29,21 +24,8 @@ type Tab = "open" | "leased" | "all";
  */
 export function PlacementsView({ data }: { data: BrokerPlacementList }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("open");
-  const [search, setSearch] = useState("");
   const all = data.placements;
-  const open = all.filter((p) => p.status === "initiated");
-  const leased = all.filter((p) => p.status === "converted");
-  const rows = useMemo(() => {
-    const base = tab === "open" ? open : tab === "leased" ? leased : all;
-    const q = search.trim().toLowerCase();
-    if (!q) return base;
-    return base.filter((p) =>
-      [p.unit?.label, p.unit?.propertyName, p.landlordName, p.tenantName, p.lease?.tenantName, p.lease?.reference]
-        .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(q)),
-    );
-  }, [tab, search, all, open, leased]);
+  const count = (status: BrokerPlacement["status"]) => all.filter((p) => p.status === status).length;
 
   const columns: DataColumn<BrokerPlacement>[] = [
     {
@@ -95,73 +77,55 @@ export function PlacementsView({ data }: { data: BrokerPlacementList }) {
         ),
       sortValue: (p) => p.fee?.amountRwf ?? 0,
     },
-    { id: "status", header: "Status", cell: (p) => <PlacementChip status={p.status} /> },
+    { id: "status", header: "Status", sortValue: (p) => p.status, cell: (p) => <PlacementChip status={p.status} /> },
   ];
-
-  const owed = all.reduce((s, p) => s + (p.fee?.status === "owed" ? p.fee.amountRwf : 0), 0);
 
   return (
     <PageContent>
-      <PageHeader
-        title="Placements"
+      <AreaHeader
         actions={
           <ActionLink href={screenHref("BrokerDirectory")} icon="Magnifier">
             Find homes
           </ActionLink>
         }
       />
-      <KpiStrip
-        label="Placements"
-        items={[
-          {
-            id: "open",
-            label: "Open",
-            value: open.length,
-            format: "count",
-            icon: "Persons",
-            isCurrent: tab === "open",
-          },
-          {
-            id: "leased",
-            label: "Leased",
-            value: leased.length,
-            format: "count",
-            icon: "FileText",
-            isCurrent: tab === "leased",
-          },
-          { id: "owed", label: "Fees owed", value: owed, icon: "Wallet", href: screenHref("BrokerEarnings") },
-        ]}
-      />
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <FilterTabs
-          label="Placements by status"
-          name="Status"
-          tabs={[
-            { id: "open", label: "Open", count: open.length },
-            { id: "leased", label: "Leased", count: leased.length },
-            { id: "all", label: "All", count: all.length },
-          ]}
-          selectedKey={tab}
-          onSelectionChange={(k) => setTab(k as Tab)}
-        />
-        <SearchBar
-          label="Search placements"
-          value={search}
-          onChange={setSearch}
-          placeholder="Home, landlord or tenant"
-        />
-      </div>
       <DataTable
         label="Placements"
-        rows={rows}
+        rows={all}
         rowKey={(p) => p.id}
+        noun={{ one: "placement", many: "placements" }}
+        search={{
+          placeholder: "Home, landlord or tenant",
+          text: (p) =>
+            [p.unit?.label, p.unit?.propertyName, p.landlordName, p.tenantName, p.lease?.tenantName, p.lease?.reference]
+              .filter(Boolean)
+              .join(" "),
+        }}
+        filters={[
+          {
+            id: "status",
+            name: "Status",
+            options: [
+              { id: "all", label: "All", count: all.length },
+              { id: "initiated", label: "Open", count: count("initiated") },
+              { id: "converted", label: "Leased", count: count("converted") },
+              { id: "abandoned", label: "Closed", count: count("abandoned") + count("unavailable") },
+            ],
+            match: (p, v) =>
+              v === "abandoned" ? p.status === "abandoned" || p.status === "unavailable" : p.status === v,
+          },
+        ]}
         columns={columns}
         defaultSort={{ column: "started", direction: "descending" }}
         rowActions={(p) =>
           canMessagePlacement(p.status) ? (
-            <ActionButton size="sm" icon="Comments" onPress={() => router.push(placementMessageHref(p.id))}>
-              Message
-            </ActionButton>
+            <RowActions>
+              <IconAction
+                icon="Comments"
+                label={`Message the landlord of ${p.unit?.label ?? "this home"}`}
+                onPress={() => router.push(placementMessageHref(p.id))}
+              />
+            </RowActions>
           ) : null
         }
         mobile={{
@@ -172,8 +136,8 @@ export function PlacementsView({ data }: { data: BrokerPlacementList }) {
         empty={
           <EmptyBlock
             icon="Persons"
-            title={search ? "No placement matches" : tab === "leased" ? "No leases yet" : "No open placements"}
-            description={search ? undefined : "Open a home, reveal the landlord and say you have a tenant."}
+            title="No placements yet"
+            description="Open a home, reveal the landlord and say you have a tenant."
             action={
               <ActionLink href={screenHref("BrokerDirectory")} icon="Magnifier">
                 Find homes
