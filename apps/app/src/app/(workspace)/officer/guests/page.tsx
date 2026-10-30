@@ -18,7 +18,7 @@ const one = (v: string | string[] | undefined): string | undefined => (Array.isA
 export default async function LeaderGuestsPage({ searchParams }: { searchParams: Promise<Search> }) {
   await requirePersona("LeaderGuests");
   const sp = await searchParams;
-  const tab = LeaderGuestTab.safeParse(one(sp.tab)).success ? (one(sp.tab) as LeaderGuestTab) : "arriving";
+  const tab = LeaderGuestTab.safeParse(one(sp.tab)).success ? (one(sp.tab) as LeaderGuestTab) : "all";
   const query = LeaderGuestQuery.parse({
     tab,
     when: one(sp.when) === "later" ? "later" : "soon",
@@ -38,12 +38,8 @@ export default async function LeaderGuestsPage({ searchParams }: { searchParams:
   if (!page) {
     return (
       <PageContent>
-        <PageHeader title="Guests in your area" />
-        <EmptyBlock
-          icon="PersonPlus"
-          title="You do not hold a local leader post"
-          description="Guests are shared with village leaders, DASSOs, cell executive secretaries and district officers that Injishi has appointed."
-        />
+        <PageHeader title="Guests" />
+        <EmptyBlock icon="PersonPlus" title="You do not hold a local leader post" />
       </PageContent>
     );
   }
