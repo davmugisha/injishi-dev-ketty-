@@ -3,7 +3,16 @@
 import { Popover, toast } from "@heroui/react";
 import { Agenda, type AgendaEventType, useAgenda } from "@heroui-pro/react";
 import { CalendarDate, CalendarDateTime } from "@internationalized/date";
-import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { formatDay } from "./date.tsx";
 import { KeyValueList } from "./layout.tsx";
 import { FilterMenu } from "./table.tsx";
@@ -134,6 +143,66 @@ export function Schedule({
   const rootRef = useRef<HTMLDivElement>(null);
   const anchor = useRef<HTMLElement | null>(null);
   const [open, setOpen] = useState<ScheduleEvent | null>(null);
+  // A bar dragged a moment ago: its click is the end of the drag, not a choice.
+  const justDragged = useRef(false);
+
+  /**
+   * Drag a multi-day bar to other days. Agenda moves single-day entries itself; its spanning bars only
+   * select, so a bar the API lets move follows the pointer here, Agenda's own drop preview marks the
+   * day under it, and the drop shifts the whole stay by the days between where it was taken and left.
+   */
+  const dragBar = (event: AgendaEventType) => (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || !move || event.isReadOnly) return;
+    const bar = e.currentTarget;
+    const cellAt = (x: number, y: number): string | null => {
+      bar.style.pointerEvents = "none";
+      const hit = document.elementFromPoint(x, y);
+      bar.style.pointerEvents = "";
+      return hit?.closest("[data-slot='agenda-month-cell']")?.getAttribute("data-date") ?? null;
+    };
+    const from = cellAt(e.clientX, e.clientY);
+    if (!from) return;
+    e.preventDefault();
+    const x0 = e.clientX;
+    const y0 = e.clientY;
+    let dragging = false;
+    const onMovePointer = (m: PointerEvent) => {
+      const dx = m.clientX - x0;
+      const dy = m.clientY - y0;
+      if (!dragging && Math.abs(dx) + Math.abs(dy) > 4) dragging = true;
+      if (!dragging) return;
+      bar.style.transform = `translate(${dx}px, ${dy}px)`;
+      bar.style.zIndex = "5";
+      const to = cellAt(m.clientX, m.clientY);
+      agenda.setDropPreview(to ? { dateStr: to, color: event.color } : null);
+    };
+    const onUp = (u: PointerEvent) => {
+      document.removeEventListener("pointermove", onMovePointer);
+      document.removeEventListener("pointerup", onUp);
+      bar.style.transform = "";
+      bar.style.zIndex = "";
+      agenda.setDropPreview(null);
+      if (!dragging) return;
+      justDragged.current = true;
+      const to = cellAt(u.clientX, u.clientY);
+      if (!to) return;
+      const days = dayOf(to).compare(dayOf(from));
+      if (days !== 0) move(event.id, event.start.add({ days }), event.end.add({ days }));
+    };
+    document.addEventListener("pointermove", onMovePointer);
+    document.addEventListener("pointerup", onUp);
+  };
+  const barProps = (event: AgendaEventType) => ({
+    "data-event-id": event.id,
+    "data-movable": event.isReadOnly ? undefined : true,
+    onPointerDown: dragBar(event),
+    onClickCapture: (e: ReactMouseEvent) => {
+      if (justDragged.current) {
+        justDragged.current = false;
+        e.stopPropagation();
+      }
+    },
+  });
 
   // The chosen entry opens its popover, anchored to the entry itself.
   useEffect(() => {
@@ -143,7 +212,8 @@ export function Schedule({
       return;
     }
     const el = rootRef.current?.querySelector<HTMLElement>(`[data-event-id="${CSS.escape(id)}"]`) ?? null;
-    anchor.current = el;
+    // A day's chip carries the id on its words; the popover points at the whole chip.
+    anchor.current = el?.closest<HTMLElement>("[data-slot='agenda-month-event']") ?? el;
     setOpen(byId.get(id) ?? null);
   }, [agenda.selectedEventId, byId]);
 
@@ -153,9 +223,9 @@ export function Schedule({
     <section aria-label={label} className={cx("flex min-w-0 flex-col gap-3", className)}>
       <div ref={rootRef} className="min-w-0">
         <Agenda {...agenda} className="overflow-hidden rounded-2xl border border-separator">
-          <Agenda.Header className="flex-wrap gap-2 px-3 py-2">
-            <Agenda.Heading className="text-base" />
-            <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+            <h2 className="mr-auto text-base font-semibold whitespace-nowrap">{agenda.heading}</h2>
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
               {used.length > 1 ? (
                 <FilterMenu
                   label="Show"
@@ -173,7 +243,7 @@ export function Schedule({
                 <Agenda.NavButton slot="next" />
               </Agenda.Navigation>
             </div>
-          </Agenda.Header>
+          </div>
           <Agenda.Body>
             {agenda.view === "month" ? (
               <Agenda.MonthGrid>
@@ -188,6 +258,7 @@ export function Schedule({
                           colStart={item.colStart}
                           colSpan={item.colSpan}
                           row={item.row}
+                          {...barProps(item.event)}
                         />
                       ))}
                       {week.map((day, col) => (
@@ -199,7 +270,11 @@ export function Schedule({
                           spanningRowCount={layout.rowCountPerCol[col] ?? 0}
                         >
                           {agenda.getPerCellEvents(day, week).map((event) => (
-                            <Agenda.MonthEvent key={event.id} event={event} />
+                            <Agenda.MonthEvent key={event.id} event={event}>
+                              <span data-event-id={event.id} className="block truncate">
+                                {event.title}
+                              </span>
+                            </Agenda.MonthEvent>
                           ))}
                         </Agenda.MonthCell>
                       ))}
@@ -220,6 +295,7 @@ export function Schedule({
                       colStart={item.colStart}
                       colSpan={item.colSpan}
                       row={item.row}
+                      data-event-id={item.event.id}
                     />
                   ))}
                 </Agenda.AllDaySection>
