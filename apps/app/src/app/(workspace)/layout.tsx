@@ -1,31 +1,16 @@
-import { type NavGroup, navigationFor } from "@injishi/data";
+import { navigationFor } from "@injishi/data";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { WorkspaceShell } from "@/components/shell/WorkspaceShell";
 import { MessagesLive } from "@/features/messages/MessagesLive";
-import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
 import { currentAccount } from "@/lib/session";
+import { adminNav } from "@/server/admin/nav";
 import { brokerNav } from "@/server/broker/nav";
 import { officerNav, officerPersona } from "@/server/oversight/nav";
 import { landlordScope } from "@/server/rentals/client";
 import { landlordNav } from "@/server/rentals/nav";
 import { staysNav } from "@/server/stays/nav";
 import { tenantNav } from "@/server/tenant/nav";
-
-/**
- * Injishi staff see only the screens that read real records, without the sample counts on the items:
- * a screen still drawing on the fixture store is not offered.
- */
-function realScreensOnly(groups: NavGroup[]): NavGroup[] {
-  return groups
-    .map((g) => ({
-      ...g,
-      items: g.items
-        .filter((i) => (sampleCollectionsByBoard[i.board] ?? 0) === 0)
-        .map(({ chip: _chip, alert: _alert, ...item }) => item),
-    }))
-    .filter((g) => g.items.length > 0);
-}
 
 /** Desktop workspace: sidebar navigation of the signed-in persona around every operator screen. */
 export default async function WorkspaceLayout({ children }: { children: ReactNode }) {
@@ -48,7 +33,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
           : persona.id === "broker"
             ? await brokerNav()
             : persona.id === "ops"
-              ? realScreensOnly(navigationFor("ops"))
+              ? adminNav()
               : persona.id === "owner" || persona.id === "manager"
                 ? // A stay business's menu follows how it is run (server/stays/nav.ts); a bar keeps its own.
                   ((await staysNav(persona.id === "manager" ? "ManagerToday" : "OwnerHome")) ??
