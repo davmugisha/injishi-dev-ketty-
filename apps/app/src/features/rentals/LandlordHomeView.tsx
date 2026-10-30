@@ -1,19 +1,12 @@
 "use client";
 
-import { Avatar, Chip } from "@heroui/react";
-import type {
-  RentalsAttentionItem,
-  RentalsAttentionKind,
-  RentalsMoney,
-  RentalsOverview,
-  RentalsSetupView,
-  RentalsSummary,
-  RentalUnitView,
-} from "@injishi/contracts";
+import { Alert } from "@heroui/react";
+import type { RentalsMoney, RentalsOverview, RentalsSetupView, RentalsSummary } from "@injishi/contracts";
 import { screenHref } from "@injishi/data";
 import {
   ActionLink,
   CHART_COLOR,
+  CountDonut,
   type DashboardPeriod,
   EmptyBlock,
   formatDay,
@@ -22,39 +15,19 @@ import {
   Icon,
   type KpiItem,
   KpiStrip,
-  MoneyCalendar,
-  type MoneyDay,
   PageContent,
-  PageHeader,
   PeriodMenu,
   type PeriodRange,
   periodRange,
-  SectionCard,
   sumByBucket,
   TrendArea,
-  toneColor,
 } from "@injishi/ui";
-import NextLink from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { SetupChecklist } from "./SetupChecklist";
-import { ATTENTION_HREF, ATTENTION_ICON } from "./shared";
-
-const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
 
 const UNITS = screenHref("Units");
 const LEASES = screenHref("Leases");
-
-/** The verb on each "Needs attention" row: what pressing it does. */
-const ATTENTION_VERB: Record<RentalsAttentionKind, string> = {
-  setup_incomplete: "Continue",
-  no_payout_account: "Add",
-  overdue_rent: "See who",
-  leases_to_sign: "Sign",
-  ready_to_start: "Start",
-  notices_to_acknowledge: "Review",
-  filings_due: "File",
-  waiting_for_tenant: "View",
-};
 
 /** The Tenants tile's line: who is moving in or out, else how many homes they live in. */
 function tenantsLine(o: RentalsOverview, s: RentalsSummary | null): string {
@@ -137,196 +110,18 @@ function kpis(o: RentalsOverview, s: RentalsSummary | null, money: RentalsMoney 
   ];
 }
 
-/** What falls due and what arrived, day by day, for the payments calendar. */
-function calendarDays(money: RentalsMoney | null): MoneyDay[] {
-  if (!money) return [];
-  const short = (n: number) => formatMoney(n, { compact: true });
-  return [
-    ...money.charges
-      .filter((c) => c.status !== "paid")
-      .map((c) => ({
-        id: `c-${c.id}`,
-        day: c.dueOn,
-        title: `${c.unitLabel} ${short(c.amountRwf - c.paidRwf)}`,
-        detail: `${c.kind === "deposit" ? "Deposit" : "Rent"} of ${formatMoney(c.amountRwf - c.paidRwf)} ${
-          c.status === "overdue" ? "overdue" : "due"
-        } from ${c.tenantName}, ${c.unitLabel}`,
-        tone: c.status === "overdue" ? ("overdue" as const) : ("due" as const),
-      })),
-    ...money.payments.map((p) => ({
-      id: `p-${p.id}`,
-      day: p.day,
-      title: `${p.unitLabel} ${short(p.amountRwf)}`,
-      detail: `${formatMoney(p.amountRwf)} paid by ${p.tenantName}, ${p.unitLabel}`,
-      tone: "paid" as const,
-    })),
-  ];
-}
-
-function NeedsAttention({ items }: { items: RentalsAttentionItem[] }) {
-  return (
-    <SectionCard
-      title="Needs attention"
-      actions={items.length > 0 ? <Chip size="sm">{formatNumber(items.length)}</Chip> : null}
-      contentClassName="gap-0"
-    >
-      {items.length === 0 ? (
-        <EmptyBlock size="sm" icon="CircleCheck" title="Nothing needs you right now" />
-      ) : (
-        <ul className="flex flex-col divide-y divide-separator">
-          {items.map((item) => {
-            const link = ATTENTION_HREF[item.kind];
-            return (
-              <li key={item.kind} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                <Avatar size="sm" variant="soft" color={toneColor(item.tone)} className="shrink-0">
-                  <Avatar.Fallback>
-                    <Icon name={ATTENTION_ICON[item.kind]} />
-                  </Avatar.Fallback>
-                </Avatar>
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="text-sm font-medium text-pretty">{item.title}</span>
-                  {item.detail ? <span className="text-xs text-pretty text-muted">{item.detail}</span> : null}
-                </span>
-                {link ? (
-                  <ActionLink href={link.href} size="sm" aria-label={link.label} className="shrink-0">
-                    {ATTENTION_VERB[item.kind]}
-                  </ActionLink>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </SectionCard>
-  );
-}
-
-/** Where the units stand: one bar split by state, and each state's count as a link to that list. */
-function UnitsCard({
-  o,
-  vacant,
-  canLease,
-  canAddUnits,
-}: {
-  o: RentalsOverview;
-  vacant: RentalUnitView[];
-  canLease: boolean;
-  canAddUnits: boolean;
-}) {
-  const parts = [
-    {
-      id: "occupied",
-      label: "Occupied",
-      value: o.occupiedUnits,
-      color: CHART_COLOR.cat(1),
-      href: `${UNITS}?tab=occupied`,
-    },
-    {
-      id: "reserved",
-      label: "Signed, not moved in",
-      value: o.reservedUnits,
-      color: CHART_COLOR.cat(4),
-      href: `${LEASES}?tab=ready_to_start`,
-    },
-    { id: "vacant", label: "Vacant", value: o.vacantUnits, color: CHART_COLOR.cat(5), href: `${UNITS}?tab=vacant` },
-    {
-      id: "off",
-      label: "Off market",
-      value: o.offMarketUnits,
-      color: "var(--chart-other)",
-      href: `${UNITS}?tab=off_market`,
-    },
-  ];
-  const total = parts.reduce((s, p) => s + p.value, 0);
-  return (
-    <SectionCard
-      title="Units"
-      contentClassName="flex-1"
-      actions={
-        <ActionLink href={UNITS} size="sm" intent="ghost" icon="ArrowRight">
-          All units
-        </ActionLink>
-      }
-    >
-      {total === 0 ? (
-        <EmptyBlock
-          size="sm"
-          icon="FolderHouse"
-          title="No units yet"
-          description="Add a building and its units to see occupancy here."
-          action={
-            canAddUnits ? (
-              <ActionLink href={`${UNITS}?add=1`} size="sm" icon="Plus">
-                Add unit
-              </ActionLink>
-            ) : undefined
-          }
-        />
-      ) : (
-        <>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular">{formatNumber(o.units)}</span>
-            <span className="text-sm text-muted">
-              in {formatNumber(o.properties)} {o.properties === 1 ? "building" : "buildings"}
-            </span>
-          </div>
-          <div
-            className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full"
-            role="img"
-            aria-label={parts.map((p) => `${p.value} ${p.label.toLowerCase()}`).join(", ")}
-          >
-            {parts
-              .filter((p) => p.value > 0)
-              .map((p) => (
-                <span key={p.id} style={{ flexGrow: p.value, background: p.color }} className="h-full" />
-              ))}
-          </div>
-          <ul className="flex flex-col">
-            {parts.map((p) => (
-              <li key={p.id}>
-                <NextLink
-                  href={p.href}
-                  className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-foreground no-underline hover:bg-default/60"
-                >
-                  <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: p.color }} />
-                  <span className="min-w-0 flex-1 truncate">{p.label}</span>
-                  <span className="font-medium tabular">{formatNumber(p.value)}</span>
-                </NextLink>
-              </li>
-            ))}
-          </ul>
-          {vacant.length > 0 ? (
-            <div className="mt-auto flex flex-col gap-1 border-t border-separator pt-3">
-              <span className="text-xs font-medium text-muted">Ready to let</span>
-              <ul className="flex flex-col">
-                {vacant.map((u) => (
-                  <li key={u.id}>
-                    <NextLink
-                      href={canLease ? `${LEASES}/new?unit=${u.id}` : `${UNITS}?tab=vacant`}
-                      className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-foreground no-underline hover:bg-default/60"
-                    >
-                      <Icon name="FolderHouse" className="size-4 shrink-0 text-muted" />
-                      <span className="min-w-0 flex-1 truncate">{u.label}</span>
-                      {u.askingRentRwf !== null ? (
-                        <span className="text-xs text-muted tabular">{formatMoney(u.askingRentRwf)}</span>
-                      ) : null}
-                      {canLease ? <Icon name="Plus" className="size-3.5 shrink-0 text-muted" /> : null}
-                    </NextLink>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </>
-      )}
-    </SectionCard>
-  );
-}
+/** The units by where they stand, for the ring: each slice opens that list. */
+const UNIT_SLICES = [
+  { key: "occupied", label: "Occupied", href: `${UNITS}?tab=occupied`, color: CHART_COLOR.cat(1) },
+  { key: "reserved", label: "Signed, not moved in", href: `${LEASES}?tab=ready_to_start`, color: CHART_COLOR.cat(4) },
+  { key: "vacant", label: "Vacant", href: `${UNITS}?tab=vacant`, color: CHART_COLOR.cat(5) },
+  { key: "off_market", label: "Off market", href: `${UNITS}?tab=off_market`, color: "var(--chart-other)" },
+] as const;
 
 /**
- * The landlord's home: the month's figures (each opens the list it counts), rent collected against
- * expected and the cash flow with a period switch, what needs attention as rows with their next step,
- * where the units stand, and the first-run checklist while setup is not done. Every figure is the API's.
+ * The landlord's overview (2026-10-30): the period's figures (each opens the list it counts), money in
+ * and out over the period, and the units by where they stand. Lists live in their own tabs (Calendar,
+ * To do); setup shows as one line until it is done. Every figure is the API's.
  */
 export function LandlordHomeView({
   firstName,
@@ -336,7 +131,6 @@ export function LandlordHomeView({
   money,
   summary,
   setup,
-  vacantUnits,
   canLease,
   canAddUnits,
 }: {
@@ -344,20 +138,16 @@ export function LandlordHomeView({
   businessName: string;
   today: string;
   overview: RentalsOverview | null;
-  /** The money by the day, for the period filter, the chart and the calendar. */
+  /** The money by the day, for the period filter and the chart. */
   money: RentalsMoney | null;
   summary: RentalsSummary | null;
   setup: RentalsSetupView | null;
-  vacantUnits: RentalUnitView[];
   canLease: boolean;
   canAddUnits: boolean;
 }) {
+  const router = useRouter();
   const noUnits = overview ? overview.units === 0 : false;
   const setupOpen = setup !== null && !setup.complete;
-  // While the checklist shows, setup and getting paid are on it: they are not listed twice.
-  const attention = (summary?.attention ?? []).filter(
-    (a) => !setupOpen || (a.kind !== "setup_incomplete" && a.kind !== "no_payout_account"),
-  );
   const addUnit = canAddUnits ? (
     <ActionLink href={`${UNITS}?add=1`} icon="Plus" size="sm">
       Add unit
@@ -388,10 +178,12 @@ export function LandlordHomeView({
       ),
     ];
   }, [money, range]);
-  const days = useMemo(() => calendarDays(money), [money]);
+  const units = overview
+    ? [overview.occupiedUnits, overview.reservedUnits, overview.vacantUnits, overview.offMarketUnits]
+    : [];
   return (
     <PageContent>
-      <PageHeader
+      <AreaHeader
         size="hello"
         eyebrow={
           <>
@@ -402,9 +194,11 @@ export function LandlordHomeView({
         actions={
           <>
             {money ? <PeriodMenu value={period} onChange={setPeriod} /> : null}
-            <ActionLink href={`${LEASES}/new`} icon="FileText">
-              New lease
-            </ActionLink>
+            {canLease ? (
+              <ActionLink href={`${LEASES}/new`} icon="FileText">
+                New lease
+              </ActionLink>
+            ) : null}
             {canAddUnits ? (
               <ActionLink href={`${UNITS}?add=1`} icon="Plus" intent="primary">
                 Add unit
@@ -414,53 +208,66 @@ export function LandlordHomeView({
         }
       />
 
+      {setupOpen && setup ? (
+        <Alert status="accent" className="items-center">
+          <Alert.Indicator>
+            <Icon name="ListCheck" />
+          </Alert.Indicator>
+          <Alert.Content className="min-w-0 flex-1">
+            <Alert.Title>
+              Finish setting up: {formatNumber(setup.steps.filter((s) => s.done).length)} of{" "}
+              {formatNumber(setup.steps.length)} done
+            </Alert.Title>
+          </Alert.Content>
+          <ActionLink href={screenHref("RentalsSetup")} size="sm" intent="primary" className="shrink-0">
+            Continue
+          </ActionLink>
+        </Alert>
+      ) : null}
+
       {overview ? (
         <KpiStrip label={`Your homes in ${range.words}`} items={kpis(overview, summary, money, range)} />
       ) : (
-        <EmptyBlock
-          icon="Wallet"
-          title="Money figures are restricted"
-          description="Your role can manage homes and leases; someone with finance access sees rent collected here."
-        />
+        <EmptyBlock icon="Wallet" title="Money figures are restricted" />
       )}
 
-      {money ? (
-        <div className="grid min-w-0 gap-5 lg:grid-cols-5">
-          <TrendArea
-            className="lg:col-span-3"
-            title="Money in and out"
-            description={`Rent collected against rent due, and expenses, in ${range.words}`}
-            range={range}
-            series={[
-              { key: "collected", label: "Collected", color: CHART_COLOR.cat(1) },
-              { key: "due", label: "Rent due", color: "var(--chart-other)", dashed: true },
-              { key: "spent", label: "Spent", color: CHART_COLOR.cat(5) },
-            ]}
-            values={series}
-            height={230}
-            empty={{
-              icon: "Wallet",
-              title: `No money moved in ${range.words}`,
-              action: noUnits ? addUnit : undefined,
-            }}
-          />
-          <SectionCard title="Payments calendar" className="lg:col-span-2" contentClassName="min-h-0 flex-1">
-            <MoneyCalendar days={days} today={today} className="h-[300px]" />
-          </SectionCard>
+      {money || overview ? (
+        <div className="grid min-w-0 items-stretch gap-5 lg:grid-cols-5">
+          {money ? (
+            <TrendArea
+              className="lg:col-span-3"
+              title="Money in and out (RWF)"
+              range={range}
+              series={[
+                { key: "collected", label: "Collected", color: CHART_COLOR.cat(1) },
+                { key: "due", label: "Rent due", color: "var(--chart-other)", dashed: true },
+                { key: "spent", label: "Spent", color: CHART_COLOR.cat(5) },
+              ]}
+              values={series}
+              height={260}
+              empty={{
+                icon: "Wallet",
+                title: `No money moved in ${range.words}`,
+                action: noUnits ? addUnit : undefined,
+              }}
+            />
+          ) : null}
+          {overview ? (
+            <CountDonut
+              className={money ? "lg:col-span-2" : "lg:col-span-5"}
+              title="Units"
+              noun="units"
+              totalLabel={`${formatNumber(overview.properties)} ${overview.properties === 1 ? "building" : "buildings"}`}
+              data={UNIT_SLICES.map((u, i) => ({ key: u.key, label: u.label, count: units[i] ?? 0, color: u.color }))}
+              onPick={(key) => {
+                const slice = UNIT_SLICES.find((u) => u.key === key);
+                if (slice) router.push(slice.href);
+              }}
+              empty={{ icon: "FolderHouse", title: "No units yet", action: addUnit }}
+            />
+          ) : null}
         </div>
       ) : null}
-
-      <div className="grid min-w-0 gap-5 lg:grid-cols-3">
-        {setupOpen ? <SetupChecklist setup={setup} /> : null}
-        {summary ? (
-          <div className={cx("min-w-0", setupOpen ? "" : "lg:col-span-2")}>
-            <NeedsAttention items={attention} />
-          </div>
-        ) : null}
-        {overview ? (
-          <UnitsCard o={overview} vacant={vacantUnits} canLease={canLease} canAddUnits={canAddUnits} />
-        ) : null}
-      </div>
     </PageContent>
   );
 }

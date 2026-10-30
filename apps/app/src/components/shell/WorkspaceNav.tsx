@@ -1,7 +1,7 @@
 "use client";
 
 import { type NavGroup, navHref, navPlace, screenByPath } from "@injishi/data";
-import { AreaTabs, PageHeader } from "@injishi/ui";
+import { AreaTabs, ErrorBlock, PageContent, PageHeader } from "@injishi/ui";
 import { usePathname } from "next/navigation";
 import { createContext, type ReactNode, use } from "react";
 
@@ -65,5 +65,25 @@ export function AreaHeader({
         ) : undefined
       }
     />
+  );
+}
+
+/** A page of an area that failed to load: its header and tabs stay, with what failed and a Retry. */
+export function AreaError({
+  heading,
+  title,
+  onRetry,
+}: {
+  /** The page's name, when it is in no sidebar area. */
+  heading?: string;
+  title: string;
+  onRetry: () => void;
+}) {
+  const { place } = useArea();
+  return (
+    <PageContent>
+      <AreaHeader title={place ? undefined : heading} />
+      <ErrorBlock title={title} onRetry={onRetry} />
+    </PageContent>
   );
 }
