@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { kigaliDateOf } from '@injishi/contracts';
 
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { PAYMENT_PORT, type CallbackEvent, type PaymentPort } from '../../payments/domain/payment-port';
+import { PAYMENT_PORT, type CallbackEvent, type PaymentPort } from '../../pay/domain/payment-port';
 import { LeasePaymentsRepository, type PaymentRow } from '../infrastructure/lease-payments.repository';
 import { LeasesRepository } from '../infrastructure/leases.repository';
 import { RentalsMoneyQueue } from '../infrastructure/rentals-money.queue';

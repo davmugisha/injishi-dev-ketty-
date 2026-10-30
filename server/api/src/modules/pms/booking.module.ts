@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
-import { EbmModule } from '../ebm/ebm.module';
+import { EbmModule } from '../platform/fiscal/ebm.module';
 import { GuestsModule } from '../guests/guests.module';
 import { ListingModule } from '../listing/listing.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { OperationsModule } from '../operations/operations.module';
 import { OutletsModule } from '../outlets/outlets.module';
 import { OrganizationModule } from '../organization/organization.module';
-import { PaymentsModule } from '../payments/payments.module';
+import { PaymentsModule } from '../pay/payments.module';
 import { AvailabilityService } from './application/availability.service';
 import { PaymentAttemptService } from './application/payment-attempt.service';
 import { RegistrationFeePaymentService } from './application/registration-fee-payment.service';

@@ -43,7 +43,7 @@ import { PropertiesRepository } from './infrastructure/properties.repository';
 import { RentalsOverviewRepository } from './infrastructure/rentals-overview.repository';
 import { UnitMediaRepository } from './infrastructure/unit-media.repository';
 // The rent cycle, reminders, payments and payouts (WP 1.6a, 1.6b).
-import { PaymentsModule } from '../payments/payments.module';
+import { PaymentsModule } from '../pay/payments.module';
 import { PaymentReceiptsService } from './application/payment-receipts.service';
 import { PaymentSettlementService } from './application/payment-settlement.service';
 import { PayoutsService } from './application/payouts.service';

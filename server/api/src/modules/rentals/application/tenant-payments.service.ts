@@ -22,7 +22,7 @@ import {
   PaymentUnavailableError,
   maskDestination,
   type PaymentPort,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import { leaseStateConflict } from '../domain/residence';
 import { LeasePaymentsRepository, type PaymentRow } from '../infrastructure/lease-payments.repository';
 import { RentalsMoneyQueue } from '../infrastructure/rentals-money.queue';

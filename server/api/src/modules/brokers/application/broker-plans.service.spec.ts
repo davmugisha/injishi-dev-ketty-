@@ -3,8 +3,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { BrokerPlanCheckoutRequest, type BrokerPlanCode, type BrokerPlanStatus, type WorkspaceAccess } from '@injishi/contracts';
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 
-import { MockPaymentAdapter } from '../../payments/infrastructure/mock-payment.adapter';
-import type { PaymentPort } from '../../payments/domain/payment-port';
+import { MockPaymentAdapter } from '../../pay/infrastructure/mock-payment.adapter';
+import type { PaymentPort } from '../../pay/domain/payment-port';
 import type { RentalsMailer } from '../../rentals/infrastructure/rentals.mailer';
 import type { BrokersRepository } from '../infrastructure/brokers.repository';
 import type {

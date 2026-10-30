@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
-import { type DisbursementOutcome, PaymentOutcomes } from '../../payments/application/payment-outcomes';
+import { type DisbursementOutcome, PaymentOutcomes } from '../../pay/application/payment-outcomes';
 import { RefundLedgerRepository } from '../infrastructure/refund-ledger.repository';
 import { BookingNotificationsService } from './booking-notifications.service';
 

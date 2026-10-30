@@ -11,9 +11,9 @@ import {
   PaymentUnavailableError,
   type PaymentPort,
   type PaymentReceipt,
-} from '../../payments/domain/payment-port';
-import { MockPaymentAdapter } from '../../payments/infrastructure/mock-payment.adapter';
-import { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
+} from '../../pay/domain/payment-port';
+import { MockPaymentAdapter } from '../../pay/infrastructure/mock-payment.adapter';
+import { PaymentCompensationService } from '../../pay/application/payment-compensation.service';
 import {
   BookingRepository,
   DuplicateAttemptError,
@@ -23,8 +23,8 @@ import {
 import { BookingService } from './booking.service';
 import { BookingNotificationsService } from './booking-notifications.service';
 import { PaymentAttemptService } from './payment-attempt.service';
-import type { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
-import { PaymentSeam, resolvePaymentSeam } from '../../payments/domain/payment-seam';
+import type { EbmSaleTrigger } from '../../platform/fiscal/application/ebm-sale-trigger.service';
+import { PaymentSeam, resolvePaymentSeam } from '../../pay/domain/payment-seam';
 
 /**
  * Unit scope: the money ORDERING (ADR-020 A1) around a mocked repository and a

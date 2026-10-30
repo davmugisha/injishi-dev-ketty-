@@ -3,7 +3,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 
 import { AuthModule } from '../../modules/auth/auth.module';
 import { BookingModule } from '../../modules/pms/booking.module';
-import { PaymentsModule } from '../../modules/payments/payments.module';
+import { FinanceModule } from '../../modules/finance/finance.module';
+import { PaymentsModule } from '../../modules/pay/payments.module';
 import { GeographyModule } from '../../modules/geography/geography.module';
 import { ListingSetupModule } from '../../modules/platform/property/listing-setup.module';
 import { ListingModule } from '../../modules/listing/listing.module';
@@ -224,6 +225,8 @@ import { TrainingPublicModule } from './training/training.module';
     // `PaymentSeam` for `/platform` (073-gtbank-payments AC-2, AC-17).
     PaymentsModule,
     OperationsModule,
+    // The owner's figures, which the Finance overview reads (ADR-074 stage 6).
+    FinanceModule,
     // Outlets, their menus and order board, and guest ordering (ADR-074 stage 5).
     OutletsModule,
     // The bar and restaurant point of sale (POS spec, phase 1). Payments are simulated.

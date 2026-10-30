@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
 
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import type { AdapterMode } from '../../payments/domain/payment-port';
+import type { AdapterMode } from '../../pay/domain/payment-port';
 
 /**
  * Broker plans, subscriptions and their payments (2026-10-23, ported 2026-10-25).

@@ -19,8 +19,10 @@ const config: NextConfig = {
   transpilePackages: [
     "@injishi/ui",
     "@injishi/utils",
+    "@injishi/product-finance",
     "@injishi/product-hr",
     "@injishi/product-outlets",
+    "@injishi/product-pay",
     "@injishi/product-pms",
     "@injishi/data",
     "@injishi/db",

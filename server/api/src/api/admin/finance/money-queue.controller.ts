@@ -11,7 +11,7 @@ import {
 } from '@injishi/contracts';
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 
-import { MoneyQueueService } from '../../../modules/payments/application/money-queue.service';
+import { MoneyQueueService } from '../../../modules/pay/application/money-queue.service';
 import { RequireStaffPermission } from '../../../shared/auth/require-staff-permission.decorator';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import { CurrentStaff, StaffGuard } from '../../../shared/auth/staff.guard';

@@ -1,18 +1,18 @@
 import { describe, expect, it, type Mock, vi } from 'vitest';
 
 import type { PayerNumberPurgeRepository } from './payer-number-purge.repository';
-import type { PaymentSeam } from '../../payments/domain/payment-seam';
+import type { PaymentSeam } from '../../pay/domain/payment-seam';
 import type { Job, Queue } from 'bullmq';
 
-import type { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
+import type { PaymentCompensationService } from '../../pay/application/payment-compensation.service';
 import {
   PaymentUnavailableError,
   type PaymentPort,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import type { BookingRepository } from './booking.repository';
 import { PaymentCompensationProcessor } from './payment-compensation.processor';
 import type { BookingRefunds } from '../application/booking-refunds';
-import type { DisbursementDispatcher } from '../../payments/application/disbursement-dispatcher.service';
+import type { DisbursementDispatcher } from '../../pay/application/disbursement-dispatcher.service';
 
 /**
  * The referee between a late-settling capture and the retry the guest was

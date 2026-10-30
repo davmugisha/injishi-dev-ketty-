@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConflictException } from '@nestjs/common';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
-import { MockPaymentAdapter } from '../../payments/infrastructure/mock-payment.adapter';
+import { MockPaymentAdapter } from '../../pay/infrastructure/mock-payment.adapter';
 import type { PaymentRow } from '../infrastructure/lease-payments.repository';
 import type { PayoutAccountRow } from '../infrastructure/payout-accounts.repository';
 import type { PayoutRow, PayoutsRepository } from '../infrastructure/payouts.repository';

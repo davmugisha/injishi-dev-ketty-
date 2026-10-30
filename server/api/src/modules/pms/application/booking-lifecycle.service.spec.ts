@@ -1,10 +1,10 @@
 import { describe, expect, it, type Mock, vi } from 'vitest';
 
-import { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
+import { PaymentCompensationService } from '../../pay/application/payment-compensation.service';
 import {
   PaymentUnavailableError,
   type PaymentPort,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import type {
   BookingRepository,
   HeldEscrow,

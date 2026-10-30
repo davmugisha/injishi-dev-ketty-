@@ -7,9 +7,9 @@ import type {
 } from '@injishi/contracts';
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 
-import { maskDestination } from '../../payments/domain/payment-port';
-import { PayeeIdentityRepository } from '../../payments/infrastructure/payee-identity.repository';
-import { PaymentTransactionsRepository } from '../../payments/infrastructure/payment-transactions.repository';
+import { maskDestination } from '../../pay/domain/payment-port';
+import { PayeeIdentityRepository } from '../../pay/infrastructure/payee-identity.repository';
+import { PaymentTransactionsRepository } from '../../pay/infrastructure/payment-transactions.repository';
 import {
   GuestRefundsRepository,
   type GuestRefundRow,

@@ -6,7 +6,7 @@ import {
 } from '@injishi/contracts';
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
-import { OwnerDashboardService } from '../../../modules/operations/application/owner-dashboard.service';
+import { OwnerDashboardService } from '../../../modules/finance/application/owner-dashboard.service';
 import { RevenueService } from '../../../modules/pms/application/revenue.service';
 import { SessionGuard } from '../../../shared/auth/session.guard';
 import {

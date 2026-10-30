@@ -6,8 +6,9 @@ import type {
   ReconSource,
   SettlementBatch,
 } from "@injishi/data/fixtures/finance";
+import { ReconciliationView } from "@injishi/product-pay/web";
 import type { Metadata } from "next";
-import { ReconciliationView } from "@/features/finance/ReconciliationView";
+import { PayMount } from "@/features/pay/pay-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -22,5 +23,9 @@ export default async function ReconciliationPage() {
     getCollection<ReconInvoice>("finance.reconInvoices"),
     getCollection<SettlementBatch>("finance.settlementBatches"),
   ]);
-  return <ReconciliationView data={{ sources, summary, matches, invoices, batches }} />;
+  return (
+    <PayMount>
+      <ReconciliationView data={{ sources, summary, matches, invoices, batches }} />
+    </PayMount>
+  );
 }

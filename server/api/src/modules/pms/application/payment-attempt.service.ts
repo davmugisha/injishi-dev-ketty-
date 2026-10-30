@@ -20,9 +20,9 @@ import {
 import { ListingService } from '../../listing/application/listing.service';
 import { GuestOrderingService } from '../../outlets/application/guest-ordering.service';
 import { OrderPaymentService } from '../../outlets/application/order-payment.service';
-import { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
-import { feeDuplicateKeyFor, registrationFeeKeyFor, voidKeyFor } from '../../payments/domain/keys';
-import { PaymentTransactionsRepository } from '../../payments/infrastructure/payment-transactions.repository';
+import { PaymentCompensationService } from '../../pay/application/payment-compensation.service';
+import { feeDuplicateKeyFor, registrationFeeKeyFor, voidKeyFor } from '../../pay/domain/keys';
+import { PaymentTransactionsRepository } from '../../pay/infrastructure/payment-transactions.repository';
 import { REGISTRATION_FEES, type RegistrationFees } from '../domain/registration-fees';
 import { reportAlarm } from '../../../shared/observability/error-reporter';
 import {
@@ -32,7 +32,7 @@ import {
   maskDestination,
   type PaymentPort,
   type PaymentReceipt,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import { approvalExpiresAt, nightsBetween, statusForMode } from '../domain/pricing';
 import { BookingChangeRepository } from '../infrastructure/booking-change.repository';
 import {

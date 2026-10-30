@@ -7,7 +7,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
   PaymentUnavailableError,
   type PaymentPort,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import {
   type ApprovalOutcome,
   BookingRepository,
@@ -18,7 +18,7 @@ import { BookingApprovalService } from './booking-approval.service';
 import { BookingDecisionService } from './booking-decision.service';
 import { BookingNotificationsService } from './booking-notifications.service';
 import type { FolioService } from './folio.service';
-import type { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
+import type { EbmSaleTrigger } from '../../platform/fiscal/application/ebm-sale-trigger.service';
 import type { BookingRefunds } from './booking-refunds';
 
 /**

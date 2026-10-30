@@ -11,7 +11,7 @@ import { Pool } from 'pg';
 import * as schema from '../../database/drizzle/schema';
 import type { ScopedWorkspace } from '../../shared/auth/branch-scope';
 import type { Database } from '../../shared/database/database.module';
-import { MockPaymentAdapter, mockCallbackSignature } from '../payments/infrastructure/mock-payment.adapter';
+import { MockPaymentAdapter, mockCallbackSignature } from '../pay/infrastructure/mock-payment.adapter';
 import type { StorageService } from '../storage/application/storage.service';
 import { LeaseContractService } from './application/lease-contract.service';
 import { LeaseDraftingService } from './application/lease-drafting.service';

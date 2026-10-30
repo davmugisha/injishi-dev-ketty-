@@ -94,9 +94,9 @@ function loadDist(relative) {
 }
 
 async function main() {
-  const { EbmApiClient, EbmApiError } = loadDist('modules/ebm/infrastructure/ebm-api.client.js');
-  const { readVsdcSale, signatureFromVsdc } = loadDist('modules/ebm/domain/vsdc-response.js');
-  const { TokenCipher } = loadDist('modules/ebm/infrastructure/token-cipher.js');
+  const { EbmApiClient, EbmApiError } = loadDist('modules/platform/fiscal/infrastructure/ebm-api.client.js');
+  const { readVsdcSale, signatureFromVsdc } = loadDist('modules/platform/fiscal/domain/vsdc-response.js');
+  const { TokenCipher } = loadDist('modules/platform/fiscal/infrastructure/token-cipher.js');
 
   // --- where ---------------------------------------------------------------
   const base = env('EBM_API_BASE_URL');

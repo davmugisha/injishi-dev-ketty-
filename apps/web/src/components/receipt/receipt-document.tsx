@@ -344,7 +344,7 @@ export function ReceiptDocument({ receipt }: ReceiptDocumentProps) {
 
       {/*
         NOT A CLAUSE. The block above is filled by a declared mock signer
-        (`server/api/src/modules/ebm/infrastructure/mock-vsdc.signer.ts`),
+        (`server/api/src/modules/platform/fiscal/infrastructure/mock-vsdc.signer.ts`),
         whose own source states that the SDC id, internal data, receipt
         signature, counters and MRC are fabricated, that nothing is signed, and
         that what it produces "is NOT a fiscal document, and must never be

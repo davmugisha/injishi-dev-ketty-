@@ -1,4 +1,4 @@
-import type { Beneficiary } from '../../payments/domain/payment-port';
+import type { Beneficiary } from '../../pay/domain/payment-port';
 
 /**
  * PSF's own account, as the GTBank payout needs it (073-gtbank-payments):

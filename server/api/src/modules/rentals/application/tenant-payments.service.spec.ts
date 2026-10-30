@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { kigaliToday } from '@injishi/contracts';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
-import { MockPaymentAdapter, mockCallbackSignature } from '../../payments/infrastructure/mock-payment.adapter';
+import { MockPaymentAdapter, mockCallbackSignature } from '../../pay/infrastructure/mock-payment.adapter';
 import type { ChargeRow } from '../infrastructure/lease-charges.repository';
 import type { LeasePaymentsRepository, PaymentRecord, PaymentRow } from '../infrastructure/lease-payments.repository';
 import type { LeaseRecord, LeasesRepository } from '../infrastructure/leases.repository';

@@ -37,16 +37,16 @@ import {
   type BranchScope,
 } from '../../../shared/auth/branch-scope';
 import { writeOutboxTx } from '../../../shared/outbox/outbox';
-import { signPointOf } from '../../ebm/domain/sign-point';
-import { rraPaymentCode } from '../../ebm/domain/rra-payment-codes';
+import { signPointOf } from '../../platform/fiscal/domain/sign-point';
+import { rraPaymentCode } from '../../platform/fiscal/domain/rra-payment-codes';
 import {
   insertHeldTx,
   mintReceiptNumberTx,
-} from '../../ebm/infrastructure/ebm-emission.repository';
+} from '../../platform/fiscal/infrastructure/ebm-emission.repository';
 import {
   emissionKeyFor,
   folioEmissionKeyFor,
-} from '../../ebm/domain/emission-keys';
+} from '../../platform/fiscal/domain/emission-keys';
 import { ledgerKindFor } from './ledger-posting';
 
 export interface FolioRow {

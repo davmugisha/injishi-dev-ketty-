@@ -1,7 +1,7 @@
 import { describe, expect, it, type Mock, vi } from 'vitest';
 
-import type { CollectionOutcome, PaymentOutcomes } from '../../payments/application/payment-outcomes';
-import type { RefundsOwedService } from '../../payments/application/refunds-owed.service';
+import type { CollectionOutcome, PaymentOutcomes } from '../../pay/application/payment-outcomes';
+import type { RefundsOwedService } from '../../pay/application/refunds-owed.service';
 import type { RegistrationFees } from '../domain/registration-fees';
 import type { BookingRepository } from '../infrastructure/booking.repository';
 import type { PaymentAttemptRepository } from '../infrastructure/payment-attempt.repository';

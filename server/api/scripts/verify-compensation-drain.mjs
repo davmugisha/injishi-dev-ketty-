@@ -52,7 +52,7 @@ const key = `refund:verify-drain:${randomUUID()}`;
 const { drizzle } = require('drizzle-orm/node-postgres');
 const schema = require('../dist/database/drizzle/schema.js');
 const { queueJobId } = require('../dist/shared/queues/job-id.js');
-const { PaymentCompensationService } = require('../dist/modules/payments/application/payment-compensation.service.js');
+const { PaymentCompensationService } = require('../dist/modules/pay/application/payment-compensation.service.js');
 
 const jobId = queueJobId(key);
 const data = { kind: 'refund', idempotencyKey: key, workspaceId: randomUUID(), originalRef: 'mock_verify', amountRwf: 1000, memo: 'verify drain' };
