@@ -4,8 +4,15 @@ import { z } from "zod";
  * Enum members mirror the Postgres enums in
  * server/api/src/database/drizzle/schema.ts EXACTLY — do not fork.
  */
-/** Property domain branch. `residence` never appears in public Explore. */
-export const Domain = z.enum(["hospitality", "residence"]);
+/**
+ * Property domain branch. `residence` never appears in public Explore.
+ *
+ * `enterprise` is a business of any sector (a factory, a trader, a service)
+ * that registers on Injishi to join the Private Sector Federation through it.
+ * It lists nothing, so it never appears in Explore either, and it has no rooms,
+ * no leases and no officer visit: its registration ends at the fee.
+ */
+export const Domain = z.enum(["hospitality", "residence", "enterprise"]);
 export type Domain = z.infer<typeof Domain>;
 /** Adapter mock/live mode — every money/compliance figure carries one. */
 export const AdapterMode = z.enum(["mock", "live"]);
@@ -101,7 +108,10 @@ export const OversightRole = z.enum([
     "tax_compliance_officer",
     "business_field_verifier",
     "business_approver",
-    /** ADR-056: decides PSF membership applications. PSF, country scope only. */
+    /**
+     * ADR-056: decides PSF membership applications. Posted at PSF, for the whole
+     * country or for one province or district, which bounds what it sees.
+     */
     "psf_membership_officer",
     /**
      * The local leaders a guest staying in a rented home is reported to (P5): the

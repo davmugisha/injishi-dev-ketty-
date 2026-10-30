@@ -85,10 +85,15 @@ export const workspaceKindEnum = pgEnum('workspace_kind', [
   'personal',
 ]);
 
-/** hospitality | residence - reused for orgs.domain, room_types.domain, support_tickets.domain. */
+/**
+ * hospitality | residence | enterprise - reused for orgs.domain,
+ * room_types.domain, support_tickets.domain. `enterprise` is the PSF path: a
+ * business of any sector, which lists nothing and so never has a room type.
+ */
 export const domainKindEnum = pgEnum('domain_kind', [
   'hospitality',
   'residence',
+  'enterprise',
 ]);
 
 /**
@@ -225,6 +230,10 @@ export const paymentAttemptPurposeEnum = pgEnum('payment_attempt_purpose', [
   'booking',
   'service_order',
   'registration_fee',
+  // audric-main's PSF path (migration 0112): the membership fee.
+  'psf_membership',
+  // The difference a reservation change costs, asked of the guest by MoMo (migration 0120).
+  'booking_change',
 ]);
 
 /**
@@ -424,6 +433,17 @@ export const bookingModeEnum = pgEnum('booking_mode', [
   'request_to_book',
 ]);
 
+/**
+ * How a room type's price is counted (0115): per guest per night (a room), per
+ * unit per night (a villa or apartment let whole), or per item (a venue's menu,
+ * which is listed and never booked).
+ */
+export const roomPriceBasisEnum = pgEnum('room_price_basis', [
+  'per_person',
+  'per_unit',
+  'per_item',
+]);
+
 export const approvalPolicyEnum = pgEnum('approval_policy', [
   'approve_all',
   'approve_first_three',
@@ -589,6 +609,9 @@ export const storedObjectKindEnum = pgEnum('stored_object_kind', [
   // 058-payroll: a bank or MoMo file, or a PAYE or RSSB declaration. Wages and
   // account numbers: `payroll.run` only, never shown to the person.
   'hr_pay_file',
+  // 2026-10-23: a business's logo, given on the public PSF form and printed on
+  // its membership certificate. Uploaded under a verified ID check, not a session.
+  'org_logo',
   // Rentals (migration 0073). A unit's photos and video tour; a signer's drawn
   // signature; a lease's contract PDF (plain and signed, under legal hold); a
   // recorded payment's slip; the proof a lease was filed with RRA.
@@ -756,7 +779,12 @@ export const ledgerTxnKindEnum = pgEnum('ledger_txn_kind', [
   'folio_settle',
 ]);
 
-export const escrowSourceEnum = pgEnum('escrow_source', ['booking', 'caution']);
+export const escrowSourceEnum = pgEnum('escrow_source', [
+  'booking',
+  'caution',
+  // What a guest paid by MoMo for a reservation change (migration 0120), held like the booking's own.
+  'booking_change',
+]);
 
 /**
  * An escrow is Hangaa's internal hold over its one GTBank account
@@ -808,10 +836,10 @@ export const payoutStatusEnum = pgEnum('payout_status', [
 
 export const planBillingPeriodEnum = pgEnum('plan_billing_period', ['monthly']);
 
-/** The three registration paths a registrant picks between (D21 §8.3a). */
+/** The four registration paths a registrant picks between (D21 §8.3a). */
 export const registrationBusinessTypeEnum = pgEnum(
   'registration_business_type',
-  ['hospitality', 'residence', 'broker'],
+  ['hospitality', 'residence', 'broker', 'enterprise'],
 );
 
 /**
@@ -1395,27 +1423,62 @@ export const offerAudienceEnum = pgEnum('offer_audience', [
 export const psfMembershipFamilyEnum = pgEnum('psf_membership_family', [
   'golden_circle',
   'indashyikirwa',
+  // 2026-10-15: PSF's band for small and growing businesses. `ordinary` and
+  // `junior_giants` are retired and stay for the rows that name them.
+  'indatwa',
   'ordinary',
   'junior_giants',
 ]);
 
-/** A fixed amount, a min to max range, or a price only PSF can quote. */
+/**
+ * A fixed amount, a min to max range, a floor with no ceiling (`minimum`,
+ * Golden Circle's 5,000,000 and up), or a price only PSF can quote.
+ */
 export const psfPriceKindEnum = pgEnum('psf_price_kind', [
   'fixed',
   'range',
+  'minimum',
   'set_by_psf',
 ]);
 
 /**
- * `submitted` is the only open state; the other three are terminal. Applying
- * again writes a new row, so a decision is never overwritten by a later one.
+ * `submitted` waits on PSF and `approved` waits on the business's payment;
+ * both are open. The other three are terminal. Applying again writes a new
+ * row, so a decision is never overwritten by a later one.
  */
 export const psfApplicationStatusEnum = pgEnum('psf_application_status', [
   'submitted',
+  'approved',
   'member',
   'declined',
   'withdrawn',
 ]);
+
+/**
+ * Where one branch of a public PSF application stands (2026-10-23). The PSF
+ * officer of the branch's own district admits or declines it.
+ */
+export const psfBranchStatusEnum = pgEnum('psf_branch_status', ['pending', 'admitted', 'declined']);
+
+/**
+ * PSF's Specialized cluster, as a marker on a business of any sector: owned by
+ * women, by young people, or by a person with a disability.
+ */
+export const psfOwnerGroupEnum = pgEnum('psf_owner_group', [
+  'women',
+  'youth',
+  'pwd',
+]);
+
+/**
+ * How a PSF business is registered (the PSF path makes the TIN optional): an
+ * RRA TIN, a cooperative with RCA, an NGO with RGB, another registration, or
+ * none yet.
+ */
+export const enterpriseRegistrationKindEnum = pgEnum(
+  'enterprise_registration_kind',
+  ['tin', 'rca', 'rgb', 'other', 'none'],
+);
 
 /** Who sent it: the owner, or the agent while an on behalf claim is open. */
 export const psfSubmittedCapacityEnum = pgEnum('psf_submitted_capacity', [
@@ -1472,4 +1535,6 @@ export const psfDeclineReasonEnum = pgEnum('psf_decline_reason', [
 export const psfMembershipSourceEnum = pgEnum('psf_membership_source', [
   'psf_confirmed',
   'self_declared',
+  // A claimed number PSF confirmed against its own records (0121): a tier and dates, no application.
+  'psf_record',
 ]);

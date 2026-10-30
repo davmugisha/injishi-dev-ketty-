@@ -144,6 +144,8 @@ export function presentPayout(row: PayoutListRow): PayoutView {
     accountKind: row.accountKind,
     payeeName: p.payeeName,
     payment: row.payment,
+    // Written by check out as "Booking BK-…" (StayCompletionRepository).
+    bookingReference: p.source === 'booking' && p.note?.startsWith('Booking ') ? p.note.slice('Booking '.length) : null,
     failureReason: p.failureReason,
     createdAt: p.createdAt.toISOString(),
     settledAt: p.settledAt?.toISOString() ?? null,

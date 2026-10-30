@@ -36,6 +36,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@injishi/web-ui";
 import { useSignOutAndLeave } from "@/components/auth/sign-out";
 import { fetchMyThreads } from "@/data/inbox";
+import { apiFetch } from "@/lib/api";
 import { displayNameFrom, initialsFrom } from "@/lib/avatar";
 import { useSessionUser, type SessionState } from "@/lib/session";
 import { Icon } from "./icon";
@@ -63,7 +64,7 @@ const BELL_POLL_MS = 30_000;
  * a broken chrome takes all of them with it. Nothing here is awaited before the
  * shell renders, for the same reason.
  */
-function NotificationsLink({ pathname }: { pathname: string }) {
+function useUnread(pathname: string): number {
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
@@ -80,7 +81,24 @@ function NotificationsLink({ pathname }: { pathname: string }) {
     }, BELL_POLL_MS);
     return () => window.clearInterval(timer);
   }, [pathname]);
+  return unread;
+}
 
+/**
+ * Whether this person rents a home through Injishi (`GET /me/context`, its tenancies), so the sidebar
+ * offers My lease only to a tenant (2026-10-30). Quietly false until, or unless, the context answers.
+ */
+function useRentsAHome(): boolean {
+  const [rents, setRents] = useState(false);
+  useEffect(() => {
+    void apiFetch<{ tenancies?: unknown[] }>("/api/v1/me/context").then((result) => {
+      if (result.status === "ok") setRents((result.data.tenancies?.length ?? 0) > 0);
+    });
+  }, []);
+  return rents;
+}
+
+function NotificationsLink({ unread }: { unread: number }) {
   const label =
     unread > 0
       ? `Inbox — ${unread} unread message${unread === 1 ? "" : "s"}`
@@ -162,6 +180,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const unread = useUnread(pathname);
+  const rentsAHome = useRentsAHome();
+  // My home only for a tenant; the inbox item carries the bell's own unread count.
+  const sections = NAV.filter((section) => section.label !== "My home" || rentsAHome).map((section) => ({
+    ...section,
+    items: section.items.map((item) => (item.href === "/inbox" && unread > 0 ? { ...item, count: unread } : item)),
+  }));
 
   return (
     <>
@@ -226,8 +251,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span id="ws-name" className="block truncate text-sm font-semibold">
                 <IdentityName me={me} width={96} />
               </span>
-              <span id="ws-kind" className="block text-xs" style={{ color: "var(--sb-muted)" }}>
-                {PERSONAL.kindLabel}
+              <span id="ws-kind" className="block truncate text-xs" style={{ color: "var(--sb-muted)" }}>
+                {session.user?.email ?? PERSONAL.kindLabel}
               </span>
             </span>
           </div>
@@ -244,7 +269,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="mt-3 grow scrollbar overflow-y-auto px-3 pb-4" aria-label="Sections">
-          {NAV.map((section) => (
+          {sections.map((section) => (
             <div key={section.label} className="mb-3">
               <p className="px-3 pb-1 pt-2 text-2xs font-bold uppercase text-muted-foreground sb-label tracking-widest">
                 {section.label}
@@ -275,10 +300,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="shrink-0 space-y-1 border-t p-3"
           style={{ borderColor: "var(--sb-border)" }}
         >
-          <a href="/explore" className="nav-item">
-            <Icon name="search" className="h-5 w-5 shrink-0" />
-            <span className="sb-label">Explore stays</span>
-          </a>
+          {/* Explore stays is the sidebar's own button at the top; it is not repeated here. */}
           <a href="/support" className="nav-item">
             <Icon name="circle-help" className="h-5 w-5 shrink-0" />
             <span className="sb-label">Support</span>
@@ -341,9 +363,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               {title}
             </h1>
-            <span id="page-sub" className="money block text-xs text-muted-foreground">
-              {me.state === "known" ? `${me.name} · ${PERSONAL.shortLabel}` : PERSONAL.shortLabel}
-            </span>
+            {/* The person's name was printed under every page title; the sidebar and the avatar already
+                say who is signed in, so the title stands alone. */}
           </div>
           <span className="grow" />
           {/* It was a `data-stub` button that swallowed every press in silence.
@@ -362,7 +383,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </a>
           </Button>
 
-          <NotificationsLink pathname={pathname} />
+          <NotificationsLink unread={unread} />
 
           {/* The "EN" button is GONE, not restyled. It flipped its own label to
               "RW" and announced "Kinyarwanda active" while swapping no strings

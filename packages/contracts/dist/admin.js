@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminOrgSubscription = exports.AdminInvoice = exports.AdminOrgPropertiesResponse = exports.AdminOrgProperty = exports.AdminOrgPeopleResponse = exports.AdminOrgMember = exports.AdminOrgDetail = exports.AdminOboListResponse = exports.AdminOboRow = exports.AdminOrgReviewQueueResponse = exports.AdminOrgReviewItem = exports.ReviewCoverage = exports.AdminOrgListResponse = exports.AdminOrgListQuery = exports.AdminOrgRow = exports.AdminOverview = exports.AdminQueueHealth = exports.AdminAdapterHealth = exports.AdminWorkQueueItem = exports.AdminDistrictDensity = exports.AdminRevenueLine = exports.AdminKpi = exports.AdminListMeta = exports.AdminKycState = exports.AdminTranslationStatus = exports.AdminAnnouncementState = exports.AdminEscalationState = exports.AdminEscalationType = exports.AdminEscalationSubjectType = exports.AdminSupportTicketState = exports.AdminDsrState = exports.AdminDsrRequestType = exports.AdminComplianceArtifactType = exports.AdminFlagScope = exports.AdminLedgerTxnKind = exports.AdminPlanBillingPeriod = exports.AdminPayoutStatus = exports.AdminInvoiceKind = exports.AdminInvoiceStatus = exports.AdminSubscriptionStatus = exports.AdminRegistrationBusinessType = exports.AdminRegistrationRejectionReason = exports.AdminRegistrationReviewDecision = exports.AdminOboClaimStatus = exports.AdminPlacementStatus = exports.AdminBrokerStatus = exports.AdminRecordDataClass = exports.AdminAuditSubjectType = exports.AdminAdapterStatus = exports.AdminAdapterName = void 0;
 exports.AdminSavedScope = exports.AdminAnalyticsSeries = exports.AdminAnnouncementResponse = exports.AdminAnnouncement = exports.AdminModeration = exports.AdminEscalation = exports.AdminSupportTicketDetail = exports.AdminSupportTicket = exports.AdminModeratedReview = exports.AdminEnvironments = exports.AdminSystemHealth = exports.AdminCompliance = exports.AdminDsrRow = exports.AdminComplianceArtifact = exports.AdminFeeSchedule = exports.AdminSubscriptionPlan = exports.AdminRegistrationFee = exports.AdminConfiguration = exports.AdminFeatureFlag = exports.AdminConfigEntry = exports.AdminReconRunResponse = exports.AdminReconRun = exports.AdminFailedChargeResponse = exports.AdminFailedCharge = exports.AdminPayoutResponse = exports.AdminPayoutQuery = exports.AdminLedgerResponse = exports.AdminRevealListResponse = exports.AdminRevealEvent = exports.AdminBrokerListResponse = exports.AdminBrokerRow = exports.AdminUnclaimedStaysResponse = exports.AdminUnclaimedStay = exports.AdminUserListResponse = exports.AdminUserListQuery = exports.AdminUserRow = exports.CreateOversightGrantRequest = exports.AdminOversightGrant = exports.AdminUserMembership = exports.AdminOboAuditResponse = exports.AdminAccessLogResponse = exports.AdminAccessLogRow = exports.AdminAuditResponse = exports.AdminAuditQuery = exports.AdminAuditRow = exports.AdminOrgTimelineResponse = exports.AdminTimelineEvent = exports.AdminOrgMoney = exports.AdminLedgerRow = exports.AdminPayout = void 0;
-exports.AdminClaimCodeReissued = exports.AdminSessionsRevoked = exports.AdminBrokerStatusChange = exports.AdminTinRecheckResult = exports.AdminOrgStatusChange = exports.AdminClaimCode = exports.AdminTinCheckResult = exports.UpdateGovernmentBodyRequest = exports.CreateGovernmentBodyRequest = exports.GovernmentBody = exports.AppendRegistrationFeeRequest = exports.AdminActionRequest = exports.AdminPagedReasonQuery = exports.AdminReasonQuery = exports.AdminLocalization = exports.AdminEmailTemplate = exports.AdminTranslationEntry = exports.AdminAnalytics = void 0;
+exports.AdminClaimCodeReissued = exports.AdminSessionsRevoked = exports.AdminBrokerStatusChange = exports.AdminTinRecheckResult = exports.AdminOrgStatusChange = exports.AdminClaimCode = exports.AdminTinCheckResult = exports.UpdateGovernmentBodyRequest = exports.CreateGovernmentBodyRequest = exports.GovernmentBody = exports.AppendRegistrationFeeRequest = exports.AdminMemberChange = exports.AdminChangeMemberRoleRequest = exports.AdminAddMemberRequest = exports.AdminStaffRolesResponse = exports.AdminSetStaffRolesRequest = exports.AdminCreateUserResponse = exports.AdminCreateUserRequest = exports.AdminPersonDetail = exports.AdminActionRequest = exports.AdminPagedReasonQuery = exports.AdminReasonQuery = exports.AdminLocalization = exports.AdminEmailTemplate = exports.AdminTranslationEntry = exports.AdminAnalytics = void 0;
 const zod_1 = require("zod");
 const psf_1 = require("./psf");
 const primitives_1 = require("./primitives");
@@ -152,11 +152,12 @@ exports.AdminRegistrationRejectionReason = zod_1.z.enum([
     "duplicate_business",
     "other",
 ]);
-/** `registration_business_type`. The three paths the fee catalog prices. */
+/** `registration_business_type`. The four paths the fee catalog prices. */
 exports.AdminRegistrationBusinessType = zod_1.z.enum([
     "hospitality",
     "residence",
     "broker",
+    "enterprise",
 ]);
 /** `subscription_status`. */
 exports.AdminSubscriptionStatus = zod_1.z.enum([
@@ -1458,6 +1459,68 @@ exports.AdminPagedReasonQuery = exports.AdminReasonQuery.extend({
  */
 exports.AdminActionRequest = zod_1.z.object({
     reason: exports.AdminReasonQuery.shape.reason,
+});
+/**
+ * One person in full (`GET /api/v1/admin/users/:userId`): the directory row,
+ * with EVERY government seat they hold rather than the newest one, and when
+ * their staff grant was given.
+ */
+exports.AdminPersonDetail = exports.AdminUserRow.extend({
+    oversightGrants: zod_1.z.array(exports.AdminOversightGrant),
+});
+/**
+ * Create an account by email (`POST /api/v1/admin/users`). The person signs in
+ * with the code emailed to that address; nothing else is set for them. An
+ * address that already has an account answers that account, not a second one.
+ */
+exports.AdminCreateUserRequest = zod_1.z.object({
+    email: zod_1.z.string().trim().toLowerCase().email("Use an email address like name@example.com."),
+    name: zod_1.z.string().trim().min(2, "Give the person's name.").max(200),
+    reason: exports.AdminReasonQuery.shape.reason,
+});
+exports.AdminCreateUserResponse = zod_1.z.object({
+    userId: primitives_1.Uuid,
+    /** False when the address already had an account, which is returned instead. */
+    created: zod_1.z.boolean(),
+});
+/**
+ * Set a person's platform staff roles (`PUT /api/v1/admin/users/:userId/staff-roles`).
+ * The whole set: an empty list ends their staff access.
+ */
+exports.AdminSetStaffRolesRequest = zod_1.z.object({
+    roles: zod_1.z.array(primitives_1.StaffRole).max(5),
+    reason: exports.AdminReasonQuery.shape.reason,
+});
+exports.AdminStaffRolesResponse = zod_1.z.object({
+    userId: primitives_1.Uuid,
+    staffRoles: zod_1.z.array(primitives_1.StaffRole),
+    auditEventId: primitives_1.Uuid,
+});
+/**
+ * Add a person to a business with a role (`POST /api/v1/admin/orgs/:orgId/members`).
+ * Directly, not by invitation: they are a member at once and are emailed that
+ * they were added. Making someone `owner` turns the current owner into a manager.
+ */
+exports.AdminAddMemberRequest = zod_1.z.object({
+    email: zod_1.z.string().trim().toLowerCase().email("Use an email address like name@example.com."),
+    name: zod_1.z.string().trim().min(2).max(200).optional(),
+    orgRole: primitives_1.OrgRole,
+    reason: exports.AdminReasonQuery.shape.reason,
+});
+/** Change a member's role (`PATCH /api/v1/admin/orgs/:orgId/members/:userId`). */
+exports.AdminChangeMemberRoleRequest = zod_1.z.object({
+    orgRole: primitives_1.OrgRole,
+    reason: exports.AdminReasonQuery.shape.reason,
+});
+/** What a member change did, including any owner it moved aside. */
+exports.AdminMemberChange = zod_1.z.object({
+    orgId: primitives_1.Uuid,
+    userId: primitives_1.Uuid,
+    orgRole: primitives_1.OrgRole.nullable(),
+    status: zod_1.z.enum(["active", "removed"]),
+    /** Owners made managers because this person became the owner. */
+    demotedOwnerIds: zod_1.z.array(primitives_1.Uuid),
+    auditEventId: primitives_1.Uuid,
 });
 /**
  * Append a registration fee (ADR-053, AC-R9).

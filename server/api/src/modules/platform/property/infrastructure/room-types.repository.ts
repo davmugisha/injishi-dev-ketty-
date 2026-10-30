@@ -30,6 +30,7 @@ export interface RoomTypeRow {
   basePriceRwf: number | null;
   bookingMode: string | null;
   cancellationTier: string | null;
+  priceBasis: 'per_person' | 'per_unit' | 'per_item';
   roomCount: number;
   sellableRoomCount: number;
   defaultRatePlanId: string | null;
@@ -62,6 +63,7 @@ const ROOM_TYPE_COLUMNS = {
   basePriceRwf: roomTypes.basePriceRwf,
   bookingMode: roomTypes.bookingMode,
   cancellationTier: roomTypes.cancellationTier,
+  priceBasis: roomTypes.priceBasis,
   roomCount: roomTypes.roomCount,
   sellableRoomCount: sql<number>`count(${rooms.id}) filter (where ${rooms.status} = 'available')`,
   defaultRatePlanId: ratePlans.id,
@@ -79,6 +81,7 @@ const ROOM_TYPE_GROUP_BY = [
   roomTypes.basePriceRwf,
   roomTypes.bookingMode,
   roomTypes.cancellationTier,
+  roomTypes.priceBasis,
   roomTypes.roomCount,
   ratePlans.id,
 ] as const;
@@ -177,6 +180,7 @@ export class RoomTypesRepository {
     roomLabels: readonly string[];
   }): Promise<string> {
     const r = input.request;
+    const menuItem = r.priceBasis === 'per_item';
     return this.db.transaction(async (tx) => {
       const [roomType] = await tx
         .insert(roomTypes)
@@ -192,8 +196,23 @@ export class RoomTypesRepository {
           roomCount: r.roomCount ?? 1,
           // Deprecated, and written anyway: see the class comment.
           basePriceRwf: r.basePriceRwf,
-          bookingMode: r.bookingMode ?? null,
-          cancellationTier: r.cancellationTier ?? null,
+          // Instant book is the default path to a chargeable listing. Null
+          // booking mode published fine but the marketplace treats it as
+          // unsellable ("can't be booked online"), so create never leaves it
+          // blank for a stay. A menu item is never booked, so it has none.
+          bookingMode: menuItem ? null : (r.bookingMode ?? 'instant_book'),
+          cancellationTier: r.cancellationTier ?? 'flexible',
+          priceBasis: r.priceBasis ?? 'per_person',
+          // 0117: what the room is and who may sleep there.
+          roomCategory: r.roomCategory ?? null,
+          beds: r.beds ?? null,
+          maxAdults: r.maxAdults ?? null,
+          maxChildren: r.maxChildren ?? null,
+          sizeM2: r.sizeM2 ?? null,
+          bathroom: r.bathroom ?? null,
+          singleGuestPriceRwf: r.singleGuestPriceRwf ?? null,
+          extraBedsMax: r.extraBedsMax ?? null,
+          extraBedPriceRwf: r.extraBedPriceRwf ?? null,
         })
         .returning({ id: roomTypes.id });
       if (!roomType) throw new Error('Room type insert returned no row.');
@@ -206,8 +225,10 @@ export class RoomTypesRepository {
         isDefault: true,
         basePriceRwf: r.basePriceRwf,
         baseOccupancy: r.maxGuests,
-        cancellationTier: r.cancellationTier ?? null,
-        bookingMode: r.bookingMode ?? null,
+        // The one guest price lives twice, like the base price: here is what the plan quotes.
+        singleOccupancyPriceRwf: r.singleGuestPriceRwf ?? null,
+        cancellationTier: r.cancellationTier ?? 'flexible',
+        bookingMode: menuItem ? null : (r.bookingMode ?? 'instant_book'),
       });
 
       await insertRooms(tx, {
@@ -243,9 +264,17 @@ export class RoomTypesRepository {
       }
       if (r.roomCount !== undefined) patch.roomCount = r.roomCount;
       if (r.basePriceRwf !== undefined) patch.basePriceRwf = r.basePriceRwf;
+      for (const key of ['roomCategory', 'beds', 'maxAdults', 'maxChildren', 'sizeM2', 'bathroom', 'singleGuestPriceRwf', 'extraBedsMax', 'extraBedPriceRwf'] as const) {
+        if (r[key] !== undefined) patch[key] = r[key];
+      }
       if (r.bookingMode !== undefined) patch.bookingMode = r.bookingMode;
       if (r.cancellationTier !== undefined) {
         patch.cancellationTier = r.cancellationTier;
+      }
+      if (r.priceBasis !== undefined) {
+        patch.priceBasis = r.priceBasis;
+        // A menu item cannot be booked, so it keeps no booking mode.
+        if (r.priceBasis === 'per_item') patch.bookingMode = null;
       }
       if (r.status !== undefined) {
         patch.status = r.status;
@@ -261,11 +290,13 @@ export class RoomTypesRepository {
 
       const planPatch: Record<string, unknown> = { updatedAt: new Date() };
       if (r.basePriceRwf !== undefined) planPatch.basePriceRwf = r.basePriceRwf;
+      if (r.singleGuestPriceRwf !== undefined) planPatch.singleOccupancyPriceRwf = r.singleGuestPriceRwf;
       if (r.maxGuests !== undefined) planPatch.baseOccupancy = r.maxGuests;
       if (r.cancellationTier !== undefined) {
         planPatch.cancellationTier = r.cancellationTier;
       }
       if (r.bookingMode !== undefined) planPatch.bookingMode = r.bookingMode;
+      if (r.priceBasis === 'per_item') planPatch.bookingMode = null;
       if (Object.keys(planPatch).length > 1) {
         await tx
           .update(ratePlans)
@@ -327,7 +358,36 @@ export class RoomTypesRepository {
       .innerJoin(orgs, eq(orgs.id, properties.orgId))
       .where(eq(properties.id, propertyId))
       .limit(1);
-    return row?.domain ?? null;
+    // A PSF business lists nothing and has no property to hold a room type.
+    const domain = row?.domain ?? null;
+    return domain === 'enterprise' ? null : domain;
+  }
+
+  /**
+   * The kind facts of the business behind a property, for `priceBasisFor`: a
+   * room type created without a price basis takes its business's own.
+   */
+  async businessKindForProperty(propertyId: string): Promise<{
+    domain: 'hospitality' | 'residence';
+    accommodationClass: string | null;
+    accommodationClassOther: string | null;
+    entityGroup: string | null;
+    businessKind: string | null;
+  } | null> {
+    const [row] = await this.db
+      .select({
+        domain: orgs.domain,
+        accommodationClass: orgs.accommodationClass,
+        accommodationClassOther: orgs.accommodationClassOther,
+        entityGroup: orgs.rdbEntityGroup,
+        businessKind: orgs.businessKind,
+      })
+      .from(properties)
+      .innerJoin(orgs, eq(orgs.id, properties.orgId))
+      .where(eq(properties.id, propertyId))
+      .limit(1);
+    if (!row || row.domain === 'enterprise') return null;
+    return { ...row, domain: row.domain, businessKind: row.businessKind ?? null };
   }
 
   private normalise(row: {

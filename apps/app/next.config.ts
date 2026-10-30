@@ -38,10 +38,9 @@ const config: NextConfig = {
     const webUrl = (process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000").replace(/\/$/, "");
     return [
       { source: "/", destination: webUrl, permanent: false },
-      // The console's old address. Web sent every officer here after sign-in and the approval mails and
-      // bookmarks still name it; the console is `/officer` now and this app had nothing at `/oversight`.
-      { source: "/oversight", destination: "/officer", permanent: false },
-      { source: "/oversight/:path*", destination: "/officer", permanent: false },
+      // KYB queues live at `/officer`. PSF membership (and the `/oversight` resolver /
+      // verifier / approver routes) are real pages under `/oversight/*` — do not
+      // redirect that tree here or membership officers loop: /officer → overview → /officer.
     ];
   },
 };

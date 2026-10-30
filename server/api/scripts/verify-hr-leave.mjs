@@ -447,9 +447,14 @@ check('rejected at step 2: the request ends, both decisions on record', rejected
 if (DB) {
   const outbox = await sql(`select count(*)::int as n from outbox_events where event_type = 'leave.step2_pending' and payload->>'leaveRequestId' = $1`, [studyF.body?.id]);
   check('step 2 waiting is told once (leave.step2_pending)', outbox[0].n === 1, outbox[0].n);
+  // Whoever else decides leave here by their role's defaults: an owner, a
+  // manager, and since ADR-069 the HR officer, who holds `leave.approve` too.
+  // Counting the first two alone made this check fail on every freshly seeded
+  // database once seed-ui2 added an hr persona: with her there, step 2 waits
+  // for her, which is what the service should do.
   const others = await sql(
     `select count(*)::int as n from org_memberships m join users u on u.id = m.user_id
-      where m.org_id = $1 and m.status = 'active' and m.org_role in ('owner', 'manager') and u.email not in ($2, $3)`,
+      where m.org_id = $1 and m.status = 'active' and m.org_role in ('owner', 'manager', 'hr') and u.email not in ($2, $3)`,
     [AMAHORO_ORG, owner.email, manager.email],
   );
   const solangeCarried = await request(owner, managerFile.employeeId, carried?.id, studyDay, studyDay);
@@ -457,7 +462,7 @@ if (DB) {
   if (others[0].n === 0) {
     check('the manager\'s own two step leave: nobody else decides at the branch, so step 2 is skipped and step 1 decides', solangeStep1.status === 200 && solangeStep1.body?.status === 'approved' && solangeStep1.body?.approvals?.some((a) => a.step === 2 && a.decision === 'skipped'), solangeStep1.body);
   } else {
-    skip('step 2 skipped when nobody else decides', `${others[0].n} other owner or manager in this business`);
+    skip('step 2 skipped when nobody else decides', `${others[0].n} other owner, manager or HR officer in this business`);
   }
 } else skip('the outbox and the skipped step', 'no DATABASE_URL');
 

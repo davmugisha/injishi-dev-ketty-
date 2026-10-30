@@ -12,6 +12,8 @@ import {
   PsfOwnership,
   PsfTradeDirection,
   countryName,
+  psfFeeProblem,
+  psfStartingFee,
   type PsfTier,
 } from "@injishi/contracts";
 import { Badge, Button, Checkbox } from "@injishi/web-ui";
@@ -42,6 +44,8 @@ import { ChoiceCard, Field, Fieldset, SelectField, TextInput } from "./wizard-ui
 
 export interface PsfDraft {
   requestedTierCode: string;
+  /** Digits the applicant will pay a year for the chosen band (declared to PSF). */
+  declaredFee: string;
   companyName: string;
   streetAddress: string;
   website: string;
@@ -67,6 +71,7 @@ export interface PsfDraft {
 
 export const EMPTY_PSF: PsfDraft = {
   requestedTierCode: "",
+  declaredFee: "",
   companyName: "",
   streetAddress: "",
   website: "",
@@ -89,11 +94,19 @@ export const EMPTY_PSF: PsfDraft = {
   consent: false,
 };
 
+/** Digits only: `5,000,000` and `5 000 000` both become 5000000. */
+function amountOf(raw: string): number | null {
+  const digits = raw.replace(/[\s,]/g, "");
+  return /^\d+$/.test(digits) ? Number(digits) : null;
+}
+
 /** The draft in the contract's shape: absent optionals absent, the ID from file when there is one. */
 export function psfCandidate(d: PsfDraft, documentOnFile: boolean): unknown {
   const trading = d.tradeDirection !== "none";
+  const amount = amountOf(d.declaredFee);
   return {
     requestedTierCode: d.requestedTierCode,
+    ...(amount !== null ? { declaredFeeRwf: amount } : {}),
     companyName: d.companyName,
     streetAddress: d.streetAddress,
     ...(d.website.trim() ? { website: d.website.trim() } : {}),
@@ -127,6 +140,8 @@ function tierLabel(t: PsfTier): string {
   if (t.priceKind === "fixed" && t.annualFeeRwf !== null) return `${t.nameEn}, ${formatRwf(t.annualFeeRwf)} a year`;
   if (t.priceKind === "range" && t.annualFeeMinRwf !== null && t.annualFeeMaxRwf !== null)
     return `${t.nameEn}, ${formatRwf(t.annualFeeMinRwf)} to ${formatRwf(t.annualFeeMaxRwf)} a year`;
+  if (t.priceKind === "minimum" && t.annualFeeMinRwf !== null)
+    return `${t.nameEn}, from ${formatRwf(t.annualFeeMinRwf)} a year`;
   return `${t.nameEn}, priced by PSF`;
 }
 
@@ -153,19 +168,33 @@ export function PsfApplication({
   errors: Record<string, string>;
 }) {
   const set = <K extends keyof PsfDraft>(key: K, value: PsfDraft[K]) => onChange({ ...draft, [key]: value });
-  const e = (k: string) => errors[`psf.${k}`];
+  const e = (k: string) => errors[`psf.${k}`] ?? errors[`business.psfApplication.${k}`];
   const trading = draft.tradeDirection !== "none";
+  const tier = (tiers ?? []).find((t) => t.code === draft.requestedTierCode) ?? null;
+  const amount = amountOf(draft.declaredFee);
+  const amountProblem = tier && tier.priceKind !== "set_by_psf" && draft.declaredFee.trim() ? psfFeeProblem(tier, amount) : null;
+  const needsDeclared = tier !== null && tier.priceKind !== "set_by_psf";
+
+  const pickTier = (code: string) => {
+    const next = (tiers ?? []).find((t) => t.code === code) ?? null;
+    const start = next ? psfStartingFee(next) : null;
+    onChange({
+      ...draft,
+      requestedTierCode: code,
+      declaredFee: start !== null ? String(start) : "",
+    });
+  };
 
   return (
     <div className="flex flex-col gap-5 rounded-card bg-secondary p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-base font-semibold">PSF membership application</h4>
         <Badge variant="subtle" size="sm">
-          Sent to PSF after approval
+          Filed with this registration
         </Badge>
       </div>
 
-      <div className="max-w-form">
+      <div className="max-w-form flex flex-col gap-4">
         <Field label="Membership tier" hint={PSF_FEE_NOTICE} error={e("requestedTierCode")}>
           <SelectField
             id="psf-tier"
@@ -174,11 +203,33 @@ export function PsfApplication({
             disabled={tiersFailed || tiers === null || !tiers.some((t) => t.active)}
             invalid={Boolean(e("requestedTierCode"))}
             options={(tiers ?? []).filter((t) => t.active).map((t) => ({ value: t.code, label: tierLabel(t) }))}
-            onChange={(v) => set("requestedTierCode", v)}
+            onChange={pickTier}
           />
         </Field>
+        {tier && needsDeclared ? (
+          <Field
+            label="What you will pay a year (RWF)"
+            hint={
+              amountProblem ??
+              e("declaredFeeRwf") ??
+              (tier.priceKind === "minimum" && tier.annualFeeMinRwf !== null
+                ? `This band starts at ${formatRwf(tier.annualFeeMinRwf)}. Pick Indatwa or Indashyikirwa for a lower amount.`
+                : tierLabel(tier))
+            }
+            error={amountProblem ?? e("declaredFeeRwf")}
+          >
+            <TextInput
+              className="w-full tabular-nums"
+              inputMode="numeric"
+              value={draft.declaredFee ? Number(draft.declaredFee).toLocaleString("en-US") : ""}
+              aria-invalid={Boolean(amountProblem || e("declaredFeeRwf"))}
+              readOnly={tier.priceKind === "fixed"}
+              onChange={(ev) => set("declaredFee", ev.target.value.replace(/[^\d]/g, "").slice(0, 12))}
+            />
+          </Field>
+        ) : null}
         {tiersFailed || (tiers !== null && !tiers.some((t) => t.active)) ? (
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
             <span>{tiersFailed ? "We couldn't load PSF's membership tiers." : "PSF has no active membership tiers right now."}</span>
             <Button variant="ghost" size="sm" onClick={onRetryTiers}>Try again</Button>
           </div>

@@ -14,24 +14,15 @@ export interface RegistrationDocumentRow {
     kind: OrgCertificateKind;
     required: boolean;
 }
-/** A stay, including "Other": a stay that fits no named class takes these rows (S5). */
-const STAY_ROWS: readonly RegistrationDocumentRow[] = [
-    { kind: "rdb_certificate", required: true },
-    { kind: "tourism_license", required: false },
-    { kind: "rdb_grade", required: false },
-    { kind: "tax_clearance", required: false },
-    { kind: "fire_safety", required: false },
-    { kind: "health_inspection", required: false },
-    { kind: "psf_certificate", required: false },
-];
-/** A venue (Bar & Restaurant, Coffee Shop): no tourism licence and no grade, because it has no rooms. */
-const VENUE_ROWS: readonly RegistrationDocumentRow[] = [
-    { kind: "rdb_certificate", required: true },
-    { kind: "health_inspection", required: false },
-    { kind: "fire_safety", required: false },
-    { kind: "tax_clearance", required: false },
-    { kind: "psf_certificate", required: false },
-];
+/**
+ * A stay or a venue asks for its RDB certificate and nothing else (owner's decision, 2026-10-29). The
+ * optional rows (tourism licence, grade, tax clearance, fire safety, health inspection, PSF certificate)
+ * are gone from the wizard; their kinds stay in `OrgCertificateKind`, so certificates already on file
+ * still read back.
+ */
+const STAY_ROWS: readonly RegistrationDocumentRow[] = [{ kind: "rdb_certificate", required: true }];
+/** A venue (Bar & Restaurant, Coffee Shop): the same one row. */
+const VENUE_ROWS: readonly RegistrationDocumentRow[] = STAY_ROWS;
 const RESIDENCE_ROWS: readonly RegistrationDocumentRow[] = [{ kind: "land_title", required: true }];
 /** Added to its kind's rows for a franchisee (AC-8): the agreement, optional. */
 const FRANCHISEE_ROWS: readonly RegistrationDocumentRow[] = [{ kind: "franchise_agreement", required: false }];

@@ -692,8 +692,8 @@ export declare const TaxYearView: z.ZodObject<{
         paymentCount: number;
         depositsExcludedRwf: number;
     };
-    running: boolean;
     dueOn: string;
+    running: boolean;
     year: number;
     asOf: string;
     taxpayer: "individual" | "company" | null;
@@ -798,8 +798,8 @@ export declare const TaxYearView: z.ZodObject<{
         paymentCount: number;
         depositsExcludedRwf: number;
     };
-    running: boolean;
     dueOn: string;
+    running: boolean;
     year: number;
     asOf: string;
     taxpayer: "individual" | "company" | null;

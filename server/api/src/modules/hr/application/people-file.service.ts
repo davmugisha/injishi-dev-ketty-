@@ -314,7 +314,59 @@ export class PeopleFileService {
       documentId = '';
     }
 
-    const id = await this.db.transaction(async (tx) => {
+    const id = await this.keepVersion(orgId, userId, person.id, documentId, body);
+    return this.one(ws, id);
+  }
+
+  /** A person's own documents (058-self-service): what the office asked of them, and what they handed in. */
+  async documentsMine(employee: EmployeeRow): Promise<EmployeeDocumentList> {
+    return { documents: await this.present(await this.file.documentsOf(employee.id)) };
+  }
+
+  /**
+   * The person hands a file in themselves (058-self-service), for a document
+   * the office asked of them or one nobody asked for. The same checks as an
+   * office upload and the same outcome: a new version, waiting to be approved
+   * or refused. The caller has already been shown to own `employee`; a
+   * document that is not theirs is not there to them.
+   */
+  async uploadMine(
+    ctx: { workspaceId: string; userId: string },
+    employee: EmployeeRow,
+    body: UploadEmployeeDocumentRequest,
+  ): Promise<EmployeeDocument> {
+    assertDates(body);
+    const [object] = [...(await this.files.assertOwn(ctx, 'document', [body.fileKey])).values()];
+    let documentId = '';
+    if (body.documentId) {
+      const document = await this.file.findDocument(body.documentId);
+      if (!document || document.orgId !== employee.orgId || document.employeeId !== employee.id) throw new NotFoundException();
+      if (document.status === 'approved') {
+        throw new ConflictException('That document is already approved. Ask the office if it needs a new copy.');
+      }
+      checkAgainstRequest(document, object);
+      documentId = document.id;
+    }
+    const id = await this.keepVersion(employee.orgId, ctx.userId, employee.id, documentId, body);
+    const row = await this.file.findDocument(id);
+    if (!row) throw new NotFoundException();
+    const [doc] = await this.present([row]);
+    return doc;
+  }
+
+  /**
+   * Keep an upload as the next version of a document, or as the first version
+   * of a new one nobody asked for, and say so on the trail (AC-PF4). The one
+   * write behind an office upload and a person's own.
+   */
+  private keepVersion(
+    orgId: string,
+    userId: string,
+    employeeId: string,
+    documentId: string,
+    body: UploadEmployeeDocumentRequest,
+  ): Promise<string> {
+    return this.db.transaction(async (tx) => {
       let target = documentId;
       if (target) {
         await this.file.lockDocument(tx, target);
@@ -326,7 +378,7 @@ export class PeopleFileService {
       } else {
         target = await this.file.insertDocument(tx, {
           orgId,
-          employeeId: person.id,
+          employeeId,
           requestId: null,
           title: (body.title ?? '').trim(),
           status: 'submitted',
@@ -337,14 +389,13 @@ export class PeopleFileService {
       await writeHrAudit(tx, {
         actorUserId: userId,
         subjectType: 'employee',
-        subjectId: person.id,
+        subjectId: employeeId,
         eventType: 'hr.document_uploaded',
         orgId,
         diff: { documentId: { to: target } },
       });
       return target;
     });
-    return this.one(ws, id);
   }
 
   /** Approve the newest version, or refuse it with a reason (AC-PF4). */

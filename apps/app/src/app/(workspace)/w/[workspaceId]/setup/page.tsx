@@ -15,13 +15,20 @@ const WEB_URL = (process.env.NEXT_PUBLIC_WEB_URL || "http://localhost:3000").rep
  * (web forwards `/w/*` to this app). Signed out, it sends the person to sign in and back. A workspace that is not
  * theirs is a 404, the same answer as one that does not exist.
  */
-export default async function PropertySetupPage({ params }: { params: Promise<{ workspaceId: string }> }) {
+export default async function PropertySetupPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ workspaceId: string }>;
+  searchParams: Promise<{ property?: string }>;
+}) {
   const { workspaceId } = await params;
+  const { property } = await searchParams;
   if (!(await currentAccount())) redirect(`/sign-in?next=${encodeURIComponent(setupPath(workspaceId))}`);
   const ctx = await requestContext();
   let data: Awaited<ReturnType<typeof readSetup>>;
   try {
-    data = await readSetup(ctx, workspaceId);
+    data = await readSetup(ctx, workspaceId, property);
   } catch (error) {
     if (error instanceof SetupRefusal) notFound();
     throw error;

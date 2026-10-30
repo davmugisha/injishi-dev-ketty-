@@ -1,0 +1,11 @@
+/*
+ * The certificate's QR borrows the receipt's QrCode, which reads its colours
+ * from these two variables. Plain black on white in every theme: the public
+ * pages do not load the ink ramp `receipt.module.css` uses, and an inverted or
+ * unpainted symbol does not scan.
+ */
+.qr {
+  --receipt-ink: black;
+  --receipt-qr-light: white;
+  display: inline-flex;
+}

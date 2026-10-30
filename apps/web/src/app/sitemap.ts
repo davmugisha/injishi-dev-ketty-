@@ -21,7 +21,7 @@ import { WEB_URL, propertyUrl } from "@/lib/web-url";
  * one URL long, and the guides, the destination pages, How it works and the
  * host page, everything a crawler could actually rank, were reachable only by
  * following links. `SITE_PAGES` is the list of public pages worth indexing;
- * a page that is `noindex` (checkout, the demo, `/services`) never goes in it.
+ * a page that is `noindex` (checkout, the demo) never goes in it.
  *
  * RENDERED ON EVERY REQUEST, NOT CACHED. Contract rule 1 is that both halves are
  * checked on every public read with no cached third answer, and a sitemap
@@ -43,7 +43,6 @@ const SITE_PAGES = [
   "/stays",
   "/host",
   "/how-it-works",
-  "/guides",
   "/training",
   "/about",
   "/support",
@@ -54,6 +53,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const own: MetadataRoute.Sitemap = [
     { url: `${WEB_URL}/` },
     ...SITE_PAGES.map((path) => ({ url: `${WEB_URL}${path}` })),
+    // The guides index only once there are guides on it.
+    ...(GUIDES.length > 0 ? [{ url: `${WEB_URL}/guides` }] : []),
     ...DESTINATIONS.map((place) => ({ url: `${WEB_URL}${destinationPath(place.slug)}` })),
     // A legal page joins once it is final; a draft is `noindex` (`legalRobots`).
     ...LEGAL_DOCUMENTS.filter((doc) => doc.content.status === "final").map((doc) => ({

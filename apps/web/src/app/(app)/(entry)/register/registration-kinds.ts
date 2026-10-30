@@ -33,11 +33,11 @@ import {
  *   funnel is where they start, and the old wizard offered a Broker card that
  *   refused every press.
  *
- * `bar_restaurant` is in BOTH lists. It is a hospitality business like a hotel,
- * priced and gated the same way, and it differs only in its RDB entity group:
- * §1 of the classification names `restaurant_bar_nightclub` beside
- * `accommodation`, and `orgs.rdb_entity_group` has stored both since the first
- * migration. So the tile needs no new vocabulary anywhere — see
+ * `bar_restaurant` and `coffee_shop` are in BOTH lists. Each is a hospitality
+ * business like a hotel, priced and gated the same way, and differs only in its
+ * RDB entity group: §1 of the classification names `restaurant_bar_nightclub`
+ * beside `accommodation`, and `orgs.rdb_entity_group` has stored both since the
+ * first migration. So the tiles need no new vocabulary anywhere — see
  * `registrationForKind`, which is where the group is set.
  */
 export type RegistrationKind =
@@ -58,7 +58,7 @@ interface RegistrationKindEntry {
 const RESIDENCE_LABEL = "Residence";
 const BROKER_LABEL = "Broker";
 const BAR_RESTAURANT_LABEL = "Bar & Restaurant";
-const COFFEE_SHOP_LABEL = "Coffee Shop";
+const COFFEE_SHOP_LABEL = "Coffee shop";
 
 /**
  * The tiles, in the order they are shown.
@@ -80,20 +80,22 @@ const ENTRIES: ReadonlyArray<{
   blurb: string;
   group: "stay" | "venue" | "lease";
 }> = [
+  // The same order as the `/host` chooser (`data/host.ts`), so a host who goes
+  // back finds the tiles where they left them.
   { value: "hotel", blurb: "Serviced rooms, front desk", group: "stay" },
   { value: "motel", blurb: "Roadside rooms, drive-up", group: "stay" },
-  { value: "tented_camp", blurb: "Canvas on a fixed site", group: "stay" },
   { value: "guest_house", blurb: "Rooms in your own home", group: "stay" },
-  { value: "apartment", blurb: "A flat with its own key", group: "stay" },
   { value: "lodge", blurb: "Built for stays, with grounds", group: "stay" },
+  { value: "apartment", blurb: "A flat with its own key", group: "stay" },
   { value: "villa", blurb: "A whole house, one party", group: "stay" },
+  { value: "tented_camp", blurb: "Canvas on a fixed site", group: "stay" },
   { value: "other", blurb: "Something else — you tell us", group: "stay" },
   {
     value: "bar_restaurant",
     blurb: "Food and drink, no rooms",
     group: "venue",
   },
-  { value: "coffee_shop", blurb: "Coffee and a bite, no rooms", group: "venue" },
+  { value: "coffee_shop", blurb: "Coffee, light food, no rooms", group: "venue" },
   { value: "residence", blurb: "Let on a lease, not nightly", group: "lease" },
 ];
 

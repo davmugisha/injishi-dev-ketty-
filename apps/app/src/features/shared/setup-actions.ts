@@ -1,5 +1,6 @@
 "use server";
 
+import type { PropertyPolicyEdit, RoomTypeDetailEdit } from "@injishi/contracts";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentAccount } from "@/lib/session";
@@ -42,10 +43,27 @@ const int = (value: string) =>
 export async function updatePropertyAction(
   workspaceId: string,
   propertyId: string,
-  input: { description: string; street: string; checkInTime: string; checkOutTime: string },
+  input: {
+    description: string;
+    street: string;
+    checkInTime?: string;
+    checkOutTime?: string;
+    villageId?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    houseRules?: string;
+    mapPoint?: string;
+    /** 0117: the front desk, languages, check-in window and house rules as choices. */
+    policies?: PropertyPolicyEdit;
+  },
 ): Promise<ActionResult> {
   return run(workspaceId, async () => {
-    await setup.updateProperty(await ctx(), workspaceId, propertyId, input);
+    const { villageId, ...rest } = input;
+    await setup.updateProperty(await ctx(), workspaceId, propertyId, {
+      ...rest,
+      // Not sent: left as it is. Emptied: cleared.
+      villageId: villageId === undefined ? undefined : villageId ? int(villageId) : null,
+    });
     return undefined;
   });
 }
@@ -66,18 +84,45 @@ export async function createPropertyAction(
   });
 }
 
-/** "Add room type" → `POST /inventory/properties/:id/room-types`, with its price. */
+/** "Add room type" → `POST /inventory/properties/:id/room-types`, with its price and, for a stay, its room facts. */
 export async function addRoomTypeAction(
   workspaceId: string,
   propertyId: string,
-  input: { name: string; maxGuests: string; basePriceRwf: string; roomCount: string },
+  input: {
+    name: string;
+    maxGuests: string;
+    basePriceRwf: string;
+    roomCount: string;
+    priceBasis?: string;
+    details?: RoomTypeDetailEdit;
+  },
 ): Promise<ActionResult> {
   return run(workspaceId, async () => {
+    const basis = input.priceBasis === "per_unit" || input.priceBasis === "per_item" ? input.priceBasis : "per_person";
     await setup.addRoomType(await ctx(), workspaceId, propertyId, {
       name: input.name,
       maxGuests: int(input.maxGuests),
       basePriceRwf: int(input.basePriceRwf),
       roomCount: int(input.roomCount),
+      priceBasis: basis,
+      details: input.details,
+    });
+    return undefined;
+  });
+}
+
+/** "Save" on a room type already added → `PATCH /inventory/room-types/:id`. */
+export async function updateRoomTypeAction(
+  workspaceId: string,
+  roomTypeId: string,
+  input: { name?: string; maxGuests?: string; basePriceRwf?: string; details?: RoomTypeDetailEdit },
+): Promise<ActionResult> {
+  return run(workspaceId, async () => {
+    await setup.updateRoomType(await ctx(), workspaceId, roomTypeId, {
+      name: input.name,
+      maxGuests: input.maxGuests === undefined ? undefined : int(input.maxGuests),
+      basePriceRwf: input.basePriceRwf === undefined ? undefined : int(input.basePriceRwf),
+      details: input.details,
     });
     return undefined;
   });
@@ -88,7 +133,29 @@ export async function addPhotoAction(workspaceId: string, propertyId: string, fo
   return run(workspaceId, async () => {
     const file = form.get("file");
     if (!(file instanceof Blob)) throw new setup.SetupRefusal("Choose a photograph to add.");
-    await setup.addPhoto(await ctx(), workspaceId, propertyId, file, String(form.get("caption") ?? ""));
+    const roomTypeId = String(form.get("roomTypeId") ?? "") || undefined;
+    await setup.addPhoto(await ctx(), workspaceId, propertyId, file, String(form.get("caption") ?? ""), roomTypeId);
+    return undefined;
+  });
+}
+
+/** A facility ticked or unticked → `POST` / `DELETE /ops/amenities`. Saved as it is pressed. */
+export async function setAmenityAction(
+  workspaceId: string,
+  propertyId: string,
+  code: string,
+  offered: boolean,
+): Promise<ActionResult> {
+  return run(workspaceId, async () => {
+    await setup.setAmenity(await ctx(), workspaceId, propertyId, code, offered);
+    return undefined;
+  });
+}
+
+/** The star grade RDB gave → `PUT /inventory/star-grade`. Empty is "not graded". */
+export async function setStarGradeAction(workspaceId: string, grade: string): Promise<ActionResult> {
+  return run(workspaceId, async () => {
+    await setup.setStarGrade(await ctx(), workspaceId, grade ? Number(grade) : null);
     return undefined;
   });
 }
@@ -106,8 +173,14 @@ export async function unpublishAction(workspaceId: string, propertyId: string): 
   });
 }
 
-/** The next level of the address picker: a province's districts, or a district's sectors. */
-export async function placesAction(level: "districts" | "sectors", parentId: number): Promise<setup.Place[]> {
+/** The next level of the address picker: a province's districts, a district's sectors, a sector's cells, a cell's villages. */
+export async function placesAction(
+  level: "districts" | "sectors" | "cells" | "villages",
+  parentId: number,
+): Promise<setup.Place[]> {
   const c = await ctx();
-  return level === "districts" ? setup.districts(c, parentId) : setup.sectors(c, parentId);
+  if (level === "districts") return setup.districts(c, parentId);
+  if (level === "sectors") return setup.sectors(c, parentId);
+  if (level === "cells") return setup.cells(c, parentId);
+  return setup.villages(c, parentId);
 }

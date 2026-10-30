@@ -386,7 +386,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
     orgId: z.ZodNullable<z.ZodString>;
     orgName: z.ZodNullable<z.ZodString>;
     /** Host vs Landlord. Set only for `business`. */
-    domain: z.ZodNullable<z.ZodEnum<["hospitality", "residence"]>>;
+    domain: z.ZodNullable<z.ZodEnum<["hospitality", "residence", "enterprise"]>>;
     /** The person's role in that org. Set only for `business`. */
     orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
     /**
@@ -465,7 +465,8 @@ export declare const WorkspaceAccess: z.ZodObject<{
      * (ADR-056). Computed on the server by `isPsfApplicant`, which reads the
      * owner membership and the on behalf claim, never a permission: a pending
      * business holds none (ADR-053 rule 2), and the application must be
-     * reachable at every registration stage. Null outside hospitality.
+     * reachable at every registration stage. Null outside a hospitality or PSF
+     * business.
      *
      * Defaults to null when absent, so a client built after this field landed
      * still parses a grant from an API built before it.
@@ -478,7 +479,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
         canManage: boolean;
     }>>>;
 }, "strip", z.ZodTypeAny, {
-    domain: "hospitality" | "residence" | null;
+    domain: "hospitality" | "residence" | "enterprise" | null;
     kind: "business" | "broker" | "personal";
     branches: {
         name: string;
@@ -499,7 +500,7 @@ export declare const WorkspaceAccess: z.ZodObject<{
         canManage: boolean;
     } | null;
 }, {
-    domain: "hospitality" | "residence" | null;
+    domain: "hospitality" | "residence" | "enterprise" | null;
     kind: "business" | "broker" | "personal";
     branches: {
         name: string;
@@ -546,7 +547,7 @@ export declare const MyWorkspaces: z.ZodObject<{
         orgId: z.ZodNullable<z.ZodString>;
         orgName: z.ZodNullable<z.ZodString>;
         /** Host vs Landlord. Set only for `business`. */
-        domain: z.ZodNullable<z.ZodEnum<["hospitality", "residence"]>>;
+        domain: z.ZodNullable<z.ZodEnum<["hospitality", "residence", "enterprise"]>>;
         /** The person's role in that org. Set only for `business`. */
         orgRole: z.ZodNullable<z.ZodEnum<["owner", "manager", "receptionist", "finance", "hr", "housekeeper", "cashier", "waiter", "bartender", "kitchen", "stock_controller"]>>;
         /**
@@ -625,7 +626,8 @@ export declare const MyWorkspaces: z.ZodObject<{
          * (ADR-056). Computed on the server by `isPsfApplicant`, which reads the
          * owner membership and the on behalf claim, never a permission: a pending
          * business holds none (ADR-053 rule 2), and the application must be
-         * reachable at every registration stage. Null outside hospitality.
+         * reachable at every registration stage. Null outside a hospitality or PSF
+         * business.
          *
          * Defaults to null when absent, so a client built after this field landed
          * still parses a grant from an API built before it.
@@ -640,7 +642,7 @@ export declare const MyWorkspaces: z.ZodObject<{
     } & {
         label: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        domain: "hospitality" | "residence" | null;
+        domain: "hospitality" | "residence" | "enterprise" | null;
         kind: "business" | "broker" | "personal";
         branches: {
             name: string;
@@ -662,7 +664,7 @@ export declare const MyWorkspaces: z.ZodObject<{
             canManage: boolean;
         } | null;
     }, {
-        domain: "hospitality" | "residence" | null;
+        domain: "hospitality" | "residence" | "enterprise" | null;
         kind: "business" | "broker" | "personal";
         branches: {
             name: string;
@@ -697,7 +699,7 @@ export declare const MyWorkspaces: z.ZodObject<{
     }>;
 }, "strip", z.ZodTypeAny, {
     workspaces: {
-        domain: "hospitality" | "residence" | null;
+        domain: "hospitality" | "residence" | "enterprise" | null;
         kind: "business" | "broker" | "personal";
         branches: {
             name: string;
@@ -726,7 +728,7 @@ export declare const MyWorkspaces: z.ZodObject<{
     };
 }, {
     workspaces: {
-        domain: "hospitality" | "residence" | null;
+        domain: "hospitality" | "residence" | "enterprise" | null;
         kind: "business" | "broker" | "personal";
         branches: {
             name: string;
@@ -794,6 +796,19 @@ export type TwoFactorSent = z.infer<typeof TwoFactorSent>;
  * take away the one screen that explains the wait.
  */
 export declare function isOperational(registrationStatus: OrgRegistrationStatus | null): boolean;
+/**
+ * The statuses in which a business may build its listing before approval.
+ *
+ * The fee is paid and the documents are being read online. Waiting for the
+ * second officer before a host may add a room type or a photograph only moves
+ * the work to after approval, when the host wants to be selling. So these
+ * statuses hold `listing.manage` and nothing else: no money, no staff, and no
+ * publish, which still waits for `active` (`publishBlockersFor`,
+ * `org_not_active`). A rejected, suspended or unclaimed (OBO `approved`)
+ * business holds nothing, as before.
+ */
+export declare const SETUP_DURING_REVIEW_STATUSES: ReadonlySet<OrgRegistrationStatus>;
+export declare function canSetUpDuringReview(registrationStatus: OrgRegistrationStatus | null): boolean;
 /** Plain wording for why a pending workspace refused. Names the stage. */
 export declare const REGISTRATION_STAGE_MESSAGE: Readonly<Record<OrgRegistrationStatus, string>>;
 /** What the operator app calls this workspace. */
@@ -820,7 +835,7 @@ export declare function workspaceLabel(a: {
  * and defaults to none, so every existing caller keeps the platform defaults and
  * a business that has never opened the Roles screen is unaffected. It is applied
  * INSIDE the registration gate rather than beside it: an org that is not
- * `active` holds nothing, and a business cannot grant its way past its own
+ * `active` holds nothing (or, in review, only `listing.manage`), and a business cannot grant its way past its own
  * approval.
  */
 export declare function permissionsForWorkspace(input: {

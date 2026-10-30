@@ -97,9 +97,23 @@ export interface Registered extends Registrant {
  * A registration taken to `tin_verified` (the stage PSF reviews) in a place: create with the RDB certificate, then
  * pay (ADR-075: no contract before paying).
  */
-export async function registerBusiness(place: typeof GASABO, label: string): Promise<Registered> {
+/** The kind a flow registers: a stay class, or a venue (which carries no class). */
+export type FlowKind = "guest_house" | "villa" | "apartment" | "hotel" | "coffee_shop" | "bar_restaurant";
+
+function kindFields(kind: FlowKind) {
+  const venue = kind === "coffee_shop" || kind === "bar_restaurant";
+  return venue
+    ? { businessKind: kind, entityGroup: "restaurant_bar_nightclub" }
+    : { businessKind: kind, entityGroup: "accommodation", accommodationClass: kind };
+}
+
+export async function registerBusiness(
+  place: typeof GASABO,
+  label: string,
+  kind: FlowKind = "guest_house",
+): Promise<Registered> {
   const registrant = await newRegistrant(label);
-  const legalName = `Flow ${label} ${unique()} Lodge`;
+  const legalName = `Flow ${label} ${unique()} ${kind === "guest_house" ? "Lodge" : kind.replace("_", " ")}`;
   const created = await registrant.ctx.api.post<{ orgId: string }>("/api/v1/registrations", {
     role: "host",
     capacity: "owner",
@@ -113,7 +127,7 @@ export async function registerBusiness(place: typeof GASABO, label: string): Pro
       domain: "hospitality",
       legalName,
       address: place,
-      accommodationClass: "guest_house",
+      ...kindFields(kind),
       tin: String(300_000_000 + (unique() % 600_000_000)),
       certificates: await rdbCertificate(registrant.ctx),
     },
@@ -171,8 +185,8 @@ export async function checkEveryDocument(officer: SourceContext, orgId: string):
 }
 
 /** A business registered in Gasabo, field verified by Gasabo's verifier and approved by Gasabo's approver: `active`. */
-export async function approvedBusiness(label: string): Promise<Registered> {
-  const business = await registerBusiness(GASABO, label);
+export async function approvedBusiness(label: string, kind: FlowKind = "guest_house"): Promise<Registered> {
+  const business = await registerBusiness(GASABO, label, kind);
   const verifier = await contextForEmail(OFFICERS.gasaboVerifier);
   await checkEveryDocument(verifier, business.orgId);
   await fieldVerify(verifier, business.orgId);

@@ -19,22 +19,23 @@ import { stayCount } from "@/lib/stay-count";
  */
 
 /**
- * The guides written about each district, by slug, most specific first. A
- * district no guide covers yet gets the all-districts guide (`guidesFor`),
- * which is not listed here so it never reads as being about one district.
+ * The guides written about each district, by slug, most specific first. Empty
+ * while there are no guides (`GUIDES`, 2026-10-29): a district page offers a
+ * guide only when one exists and names it here. `ALL_DISTRICTS_GUIDE` is the
+ * fallback for a district none covers, once there is one.
  */
 const GUIDES_FOR: Readonly<Record<DistrictSlug, string[]>> = {
-  kigali: ["kigali-stays-explore-the-heart-of-rwanda"],
-  musanze: ["discover-musanze-volcanoes-trails-twin-lakes"],
-  rubavu: ["rubavu-stays-discover-the-lake-kivu-shore", "lake-kivu-guide-beaches-boats-lakeside-calm"],
-  karongi: ["lake-kivu-guide-beaches-boats-lakeside-calm"],
-  rusizi: ["lake-kivu-guide-beaches-boats-lakeside-calm"],
-  huye: ["huye-stays-the-cultural-soul-of-the-south"],
+  kigali: [],
+  musanze: [],
+  rubavu: [],
+  karongi: [],
+  rusizi: [],
+  huye: [],
   kayonza: [],
   nyagatare: [],
 };
 
-const ALL_DISTRICTS_GUIDE = "rwanda-stays-your-complete-district-guide";
+const ALL_DISTRICTS_GUIDE: string | null = null;
 
 /** Every district with a page, in the home page's order. */
 export const DESTINATIONS: DistrictPlace[] = DISTRICT_PLACES;
@@ -49,7 +50,8 @@ export function destinationPath(slug: DistrictSlug): string {
 
 /** The guides a district's page offers: its own, else the all-districts one. */
 export function guidesFor(slug: DistrictSlug): string[] {
-  return GUIDES_FOR[slug].length > 0 ? GUIDES_FOR[slug] : [ALL_DISTRICTS_GUIDE];
+  if (GUIDES_FOR[slug].length > 0) return GUIDES_FOR[slug];
+  return ALL_DISTRICTS_GUIDE ? [ALL_DISTRICTS_GUIDE] : [];
 }
 
 /** The districts a guide is written about; empty for a guide about them all. */

@@ -1,5 +1,7 @@
 "use client";
 
+import { TOURISM_TAX_LABEL, tourismTaxIncludedRwf } from "@injishi/contracts";
+
 import {
   ArrowRightToSquare,
   ArrowsRotateRight,
@@ -33,6 +35,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { RoomType } from "../../model/frontdesk.ts";
 import { useBoardHref, usePmsActions } from "../mount.tsx";
+import { EMPTY_REGISTRATION_CARD, RegistrationCard, registrationDetails } from "./registration-card.tsx";
 import { ChoiceSelect, plural } from "./shared.tsx";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -117,6 +120,7 @@ export function WalkInView({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [card, setCard] = useState(EMPTY_REGISTRATION_CARD);
   const [saving, startSaving] = useTransition();
 
   const guests = adults + kids;
@@ -143,6 +147,7 @@ export function WalkInView({
         guestName: name,
         phone: phone || undefined,
         email: email || undefined,
+        guest: registrationDetails(card),
       });
       if (!result.ok) {
         toast.danger(`${name.trim()} was not checked in: ${result.error}`);
@@ -352,6 +357,7 @@ export function WalkInView({
                 <Input placeholder="Gets the claim code for the guest app" type="email" />
               </TextField>
             </div>
+            <RegistrationCard value={card} onChange={setCard} />
             <p className="text-xs text-muted" aria-live="polite">
               Guest profiles are not built yet, so there is nothing to search or match: the stay opens under the name
               typed above and is linked to no earlier stay. Check the ID when you hand over the key.
@@ -396,8 +402,8 @@ export function WalkInView({
                     <span>Subtotal</span>
                     <span className="tabular">{formatRwf(q.sub)}</span>
                   </li>
-                  {/* The night audit posts each room night at the stay's rate with no tax line of its own, and no levy
-                      is posted to a bill: the estimate adds neither. */}
+                  {/* The night audit posts each room night at the stay's rate with no tax line of its own; Rwanda's
+                      3% tourism tax is inside that rate (2026-10-30), so the estimate shows it and adds nothing. */}
                   <li className="flex items-start justify-between gap-2">
                     <span className="flex flex-col gap-0.5">
                       <span>VAT</span>
@@ -409,10 +415,10 @@ export function WalkInView({
                   </li>
                   <li className="flex items-center justify-between gap-2">
                     <span className="flex flex-col">
-                      <span>Tourism levy</span>
-                      <span className="text-[11px] text-muted">Not posted to the bill</span>
+                      <span>{TOURISM_TAX_LABEL}</span>
+                      <span className="text-[11px] text-muted">Included in the room rate, not added</span>
                     </span>
-                    <span className="whitespace-nowrap text-muted">Not added</span>
+                    <span className="whitespace-nowrap text-muted tabular">{formatRwf(tourismTaxIncludedRwf(q.sub))}</span>
                   </li>
                   <li className="flex justify-between gap-2 border-t border-separator pt-2 text-[15px] font-semibold">
                     <span>Total</span>

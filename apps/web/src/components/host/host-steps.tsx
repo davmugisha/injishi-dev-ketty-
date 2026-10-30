@@ -1,10 +1,13 @@
 import { BadgeCheck, Camera, ClipboardCheck, SearchCheck, type LucideIcon } from "lucide-react";
-import { REGISTRATION_STEPS } from "@/components/shared/registration-step-rail";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { HOST_STEPS, type HostStep } from "@/data/host";
 
 /**
- * "How a listing goes live" — the four steps, as a timeline.
+ * "How a listing goes live" — the four steps, as numbered panels.
+ *
+ * (Earlier notes below describe the timeline form this replaced: a hairline
+ * connector between circles, and step one listing the wizard's parts. Both
+ * were dropped to give each step room to read on its own.)
  *
  * These are a real sequence, not four parallel selling points, so two things
  * follow. The numbers are shown rather than implied: they are information here,
@@ -42,54 +45,35 @@ import { HOST_STEPS, type HostStep } from "@/data/host";
  * component's to take.
  */
 export function HostSteps() {
-  const lastIndex = HOST_STEPS.length - 1;
-
   return (
     <section className="section-y container">
       <SectionHeading lead="How a listing " emphasis="goes live" className="mb-8" />
 
-      <ol className="grid grid-cols-1 lg:grid-cols-4 lg:gap-x-8">
-        {HOST_STEPS.map((step, index) => (
+      {/* Four hairline panels, numbered. The numeral carries the order, so no
+          connector is drawn between them; the panels close square at every
+          width (one column, two at `sm`, four at `lg`). */}
+      <ol className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-4">
+        {HOST_STEPS.map((step) => (
           <li
             key={step.n}
-            className="relative flex gap-4 pb-8 last:pb-0 lg:block lg:pb-0"
+            className="flex flex-col gap-4 rounded-card border border-border p-6"
           >
-            {/* The connector. One element, rotated by the breakpoint:
-                vertical from under this circle to the top of the next one
-                (`bottom-0` lands on the item's border box, which the `pb-8`
-                extends to exactly where the next circle starts), and
-                horizontal at `lg`, where `-right-8` carries it across the
-                32px grid gutter so it meets the next circle instead of
-                stopping short at the column edge.
-
-                It is not rendered after the last step — a line running off the
-                end would promise a fifth thing. Colour comes from `border`,
-                the same token the circles' rings use, so the whole figure is
-                one hairline weight in both themes. */}
-            {index < lastIndex ? (
+            <div className="flex items-center justify-between">
+              <span className="flex size-10 items-center justify-center rounded-[0.75rem] bg-surface-secondary text-page-fg">
+                <StepIcon step={step} />
+              </span>
               <span
                 aria-hidden
-                className="absolute bottom-0 left-5 top-12 w-px bg-border lg:-right-8 lg:bottom-auto lg:left-11 lg:top-5 lg:h-px lg:w-auto"
-              />
-            ) : null}
+                className="font-display text-3xl font-medium text-page-fg-70 opacity-40 tabular-nums"
+              >
+                {String(step.n).padStart(2, "0")}
+              </span>
+            </div>
 
-            {/* A line icon in a hairline circle — DESIGN.md's icon language
-                ("often boxed in a hairline square or circle"), at 1px. */}
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border text-page-fg">
-              <StepIcon step={step} />
-            </span>
-
-            {/* The measure cap is for the vertical form only. Between `md` and
-                `lg` the copy would otherwise run the full column — around 85
-                characters a line — which is unreadable in a way the 375px
-                case never is. */}
-            <div className="flex max-w-[52ch] flex-col gap-2 lg:mt-5 lg:max-w-none">
-              <p className="text-xs font-medium uppercase tracking-widest text-page-fg-70">
-                Step {step.n}
-              </p>
-              <h3 className="text-base font-medium text-page-fg">{step.title}</h3>
-              <p className="text-base text-page-fg-70">{step.body}</p>
-              {step.icon === "register" ? <RegistrationParts /> : null}
+            <div className="flex flex-col gap-2">
+              <p className="sr-only">Step {step.n}</p>
+              <h3 className="text-lg font-medium text-page-fg">{step.title}</h3>
+              <p className="text-justify text-sm leading-relaxed text-page-fg-70 hyphens-auto">{step.body}</p>
             </div>
           </li>
         ))}
@@ -108,25 +92,4 @@ const STEP_ICONS = {
 function StepIcon({ step }: { step: HostStep }) {
   const Icon = STEP_ICONS[step.icon];
   return <Icon size={22} strokeWidth={1} aria-hidden />;
-}
-
-/**
- * What registering asks, in the order the wizard asks it: the rail's own five
- * steps (ADR-075 AC-3).
- */
-function RegistrationParts() {
-  const parts = REGISTRATION_STEPS;
-  return (
-    <ul
-      aria-label="What registering asks"
-      className="mt-1 flex flex-wrap gap-x-4 gap-y-2 text-sm text-page-fg-70"
-    >
-      {parts.map((part) => (
-        <li key={part.id} className="flex items-center gap-1.5">
-          <part.icon size={16} strokeWidth={1.5} aria-hidden className="text-page-fg" />
-          {part.label}
-        </li>
-      ))}
-    </ul>
-  );
 }

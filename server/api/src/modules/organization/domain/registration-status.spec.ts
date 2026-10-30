@@ -38,6 +38,7 @@ describe('registration state machine', () => {
     'tin_verified',
     'field_verified',
     'approved',
+    'reviewed',
     'activated',
     'rejected',
     'resubmitted',
@@ -68,8 +69,16 @@ describe('registration state machine', () => {
         if (canTransition(from, event)) allowed += 1;
       }
     }
-    // 8 single-source events + rejection's 3 reviewable sources.
-    expect(allowed).toBe(11);
+    // 9 single-source events + rejection's 3 reviewable sources.
+    expect(allowed).toBe(12);
+  });
+
+  it('lets a PSF District Manager approve in one review, from the first gate only', () => {
+    expect(nextStatus('tin_verified', 'reviewed')).toBe('approved');
+    for (const from of ALL) {
+      if (from === 'tin_verified') continue;
+      expect(nextStatus(from, 'reviewed')).toBeNull();
+    }
   });
 
   it('never activates an org that skipped a gate', () => {

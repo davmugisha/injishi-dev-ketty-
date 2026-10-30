@@ -6,6 +6,7 @@ import type {
   PaymentAttemptStatus,
   RoomTypeSummary,
 } from "@injishi/contracts";
+import { nightlyRateFor } from "@injishi/contracts";
 import { ArrowLeft, CircleAlert, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -204,7 +205,12 @@ export function Checkout() {
    *
    * Now: no room type, no price, and the screen says so.
    */
-  const nightlyRateRwf = roomType?.nightlyRateRwf ?? null;
+  const listRateRwf = roomType?.nightlyRateRwf ?? null;
+  // A room priced per room charges one guest its one guest price, when it has one: the server's rule.
+  const nightlyRateRwf =
+    listRateRwf === null || !selection || !roomType
+      ? listRateRwf
+      : nightlyRateFor({ ...roomType, nightlyRateRwf: listRateRwf }, billableGuests(selection.intent.guests));
 
   const quote = useMemo(() => {
     if (!selection || nightlyRateRwf === null) return null;
@@ -213,8 +219,9 @@ export function Checkout() {
       nights: selection.nights,
       guests: billableGuests(selection.intent.guests),
       nonRefundable,
+      priceBasis: roomType?.priceBasis,
     });
-  }, [selection, nightlyRateRwf, nonRefundable]);
+  }, [selection, nightlyRateRwf, nonRefundable, roomType?.priceBasis]);
 
   // A changed quote is a different booking, so it gets a different attempt
   // token (ADR-020 AC-12) — same dependency list `booking-review.tsx` used.
@@ -567,6 +574,7 @@ export function Checkout() {
           property={property}
           selection={selection}
           quote={quote}
+          room={roomType}
           cancellationTier={roomType.cancellationTier}
           nonRefundable={nonRefundable}
         />

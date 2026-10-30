@@ -12,10 +12,16 @@ import type { OrgRegistrationStatus } from '@injishi/contracts';
  *
  *   pending_payment --(fee settles)--> submitted --(RRA ok)--> tin_verified
  *     --(field verifier)--> field_verified --(approver)--> approved
+ *   tin_verified --(PSF District Manager reviews, one step)--> approved
  *     --(automatic; OBO waits for the owner's claim)--> active
  *     --(admin)--> suspended --> active
  *
  *   any stage --(reject)--> rejected --(correct & resubmit)--> submitted
+ *
+ * The PSF path (an `enterprise`) has no officer gate on Injishi's side: once
+ * its fee settles and its TIN, when it gave one, is confirmed, it is
+ * registered, so it moves `submitted --(registered)--> active` in one step. PSF
+ * decides its membership afterwards, in its own queue.
  *
  * Note the resubmit target: `submitted`, never `pending_payment`. The fee is
  * charged once per org ever and is non-refundable (D23), so correcting a
@@ -28,7 +34,9 @@ export type RegistrationEvent =
   | 'tin_verified'
   | 'field_verified'
   | 'approved'
+  | 'reviewed'
   | 'activated'
+  | 'enterprise_registered'
   | 'rejected'
   | 'resubmitted'
   | 'suspended'
@@ -41,7 +49,11 @@ const TRANSITIONS: Readonly<
   tin_verified: { from: ['submitted'], to: 'tin_verified' },
   field_verified: { from: ['tin_verified'], to: 'field_verified' },
   approved: { from: ['field_verified'], to: 'approved' },
+  // A PSF District Manager's one-step review (0119): documents checked and
+  // the business approved by one decision, with no separate approver.
+  reviewed: { from: ['tin_verified'], to: 'approved' },
   activated: { from: ['approved'], to: 'active' },
+  enterprise_registered: { from: ['submitted'], to: 'active' },
   // Rejection is reachable from every reviewable stage, and from nowhere else:
   // an org that has not paid has not been reviewed, so it cannot be rejected.
   rejected: {

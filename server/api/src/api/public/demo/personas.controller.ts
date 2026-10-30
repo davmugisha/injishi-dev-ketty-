@@ -90,12 +90,14 @@ const SEED_ID_PREFIX = 'de300000-0000-4000-8000-%';
  */
 function surfaceFor(seat: {
   kind: 'business' | 'broker' | 'personal';
-  domain: 'hospitality' | 'residence' | null;
+  domain: 'hospitality' | 'residence' | 'enterprise' | null;
   orgRole: string | null;
 }): DemoSurface {
   if (seat.kind === 'personal') return 'personal';
   if (seat.kind === 'broker') return 'broker';
   if (seat.domain === 'residence') return 'landlord';
+  // A PSF business opens the operator app, on its membership portal.
+  if (seat.domain === 'enterprise') return 'host';
   if (seat.domain === 'hospitality') {
     return seat.orgRole === 'housekeeper' ? 'work' : 'host';
   }

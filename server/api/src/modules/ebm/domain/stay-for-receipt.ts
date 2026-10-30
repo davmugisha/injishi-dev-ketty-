@@ -1,5 +1,5 @@
 import {
-  computeBreakdown,
+  breakdownAsCharged,
   type AdapterMode,
   type BookingStatus,
   type EbmSeller,
@@ -138,11 +138,15 @@ export function stayForReceipt(booking: SaleFacts): StayForReceipt {
      * than the split. The builder then refuses if the split does not add back
      * up to `chargedRwf`.
      */
-    breakdown: computeBreakdown({
-      nightlyRateRwf: booking.lockedNightlyRateRwf,
-      nights,
-      nonRefundable: booking.nonRefundable,
-    }),
+    // As charged: a booking paid under the old 5% guest service fee keeps its fee line (2026-10-29).
+    breakdown: breakdownAsCharged(
+      {
+        nightlyRateRwf: booking.lockedNightlyRateRwf,
+        nights,
+        nonRefundable: booking.nonRefundable,
+      },
+      booking.grossRwf,
+    ),
     chargedRwf: booking.grossRwf,
     /**
      * 7.13 wants the actual means of payment, and nothing records one:

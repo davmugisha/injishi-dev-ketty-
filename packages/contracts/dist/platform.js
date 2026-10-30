@@ -20,7 +20,7 @@ exports.PlatformEnvironmentName = zod_1.z.enum(["production", "demo"]);
 /** A seam's effective mode (ADR-073 D-b): switched off, a test, or real. */
 exports.IntegrationMode = zod_1.z.enum(["off", "mock", "live"]);
 /** What a collection pays for (073-gtbank-payments AC-2). */
-exports.PaymentPurposeName = zod_1.z.enum(["booking", "service_order", "registration_fee", "rent", "subscription"]);
+exports.PaymentPurposeName = zod_1.z.enum(["booking", "service_order", "registration_fee", "rent", "subscription", "psf_membership"]);
 exports.PaymentRules = zod_1.z.object({
     networks: zod_1.z.array(booking_1.MobileMoneyNetwork),
     maxCollectionRwf: zod_1.z.number().int().positive().nullable(),
@@ -166,9 +166,9 @@ exports.DemoPersona = zod_1.z.object({
  */
 exports.OVERSIGHT_ROLE_LABEL = {
     business_approver: "Approver",
-    business_field_verifier: "Field verifier",
+    business_field_verifier: "Document reviewer",
     tax_compliance_officer: "Tax compliance officer",
-    psf_membership_officer: "PSF membership officer",
+    psf_membership_officer: "PSF District Manager",
     village_leader: "Village leader",
     dasso: "Sector DASSO",
     cell_executive: "Cell executive secretary",

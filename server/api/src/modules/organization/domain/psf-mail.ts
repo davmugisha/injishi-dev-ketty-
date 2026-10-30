@@ -1,9 +1,9 @@
 /**
- * PSF membership mail (ADR-056 AC-9, AC-11, AC-12, AC-18).
+ * PSF membership mail (ADR-056 AC-9, AC-11, AC-12, AC-18, and the PSF path).
  *
- * Six messages, in the same layout as registration mail (`compose`). PSF
- * invoices the business itself, so none of them asks for money; the member
- * mail says who sends the invoice.
+ * Seven messages, in the same layout as registration mail (`compose`). Since
+ * the PSF path, the business pays its membership fee through Injishi: the
+ * approval mail asks for it, and the member mail is the receipt.
  */
 import { PSF_FEE_NOTICE } from '@injishi/contracts';
 
@@ -22,7 +22,12 @@ export function psfMembershipLink(webUrl: string, workspaceId: string | null): s
     : new URL('/start', webUrl).toString();
 }
 
-/** The PSF membership officer's queue. */
+/** The public tracking page an applicant with no account follows (2026-10-19). */
+export function psfTrackLink(webUrl: string, docId: string): string {
+  return new URL(`/psf/track/${encodeURIComponent(docId)}`, webUrl).toString();
+}
+
+/** The PSF District Manager's queue. */
 export function psfQueueLink(webUrl: string): string {
   return new URL('/oversight/membership/queue', webUrl).toString();
 }
@@ -41,7 +46,7 @@ export function psfApplicationReceivedMail(input: {
     paragraphs: [
       `Your application to join the Private Sector Federation (PSF) as ${input.tierName} is saved.`,
       input.withPsf
-        ? 'It is now with a PSF membership officer, who will review it.'
+        ? 'It is now with a PSF District Manager, who will review it.'
         : 'It goes to PSF as soon as the Rwanda Revenue Authority has checked your TIN. You do not need to do anything.',
       PSF_FEE_NOTICE,
     ],
@@ -70,6 +75,34 @@ export function psfOfficerQueueMail(input: {
   });
 }
 
+/** PSF approved: the business now pays, from the link. */
+export function psfApprovedMail(input: {
+  to: Addressee;
+  legalName: string;
+  tierName: string;
+  membershipNumber: string;
+  feeRwf: number;
+  link: string;
+}): RegistrationMail {
+  return compose({
+    subject: `PSF approved ${input.legalName}: pay to become a member`,
+    heading: 'PSF approved your application',
+    greeting: greeting(input.to),
+    paragraphs: [
+      `A PSF District Manager approved ${input.legalName} as ${input.tierName}.`,
+      'Pay the membership fee by mobile money from the link below. Your membership starts the day you pay, and lasts a year.',
+    ],
+    details: [
+      ['Tier', input.tierName],
+      ['Membership number', input.membershipNumber],
+      ['To pay', money(input.feeRwf)],
+    ],
+    after: [PSF_FEE_NOTICE],
+    cta: { label: 'Pay your membership', href: input.link },
+  });
+}
+
+/** Paid, and so a member: the receipt and the welcome in one. */
 export function psfMemberMail(input: {
   to: Addressee;
   legalName: string;
@@ -78,20 +111,27 @@ export function psfMemberMail(input: {
   annualFeeRwf: number;
   startsOn: string;
   expiresOn: string;
+  /** The payment reference, when the fee was paid through Injishi. */
+  paymentReference: string | null;
   link: string;
 }): RegistrationMail {
   return compose({
     subject: `${input.legalName} is now a PSF member`,
     heading: 'Welcome to PSF',
     greeting: greeting(input.to),
-    paragraphs: [`PSF has accepted ${input.legalName} as a member.`],
+    paragraphs: [
+      input.paymentReference
+        ? `We received your payment, and ${input.legalName} is now a member of the Private Sector Federation.`
+        : `PSF has accepted ${input.legalName} as a member.`,
+    ],
     details: [
       ['Tier', input.tierName],
       ['Membership number', input.membershipNumber],
-      ['Annual fee', money(input.annualFeeRwf)],
+      [input.paymentReference ? 'Paid' : 'Annual fee', money(input.annualFeeRwf)],
+      ...(input.paymentReference ? ([['Payment reference', input.paymentReference]] as [string, string][]) : []),
       ['Valid', `${input.startsOn} to ${input.expiresOn}`],
     ],
-    after: [PSF_FEE_NOTICE],
+    after: ['The fee goes to PSF. Injishi keeps none of it.'],
     cta: { label: 'See your membership', href: input.link },
   });
 }
@@ -108,8 +148,8 @@ export function psfDeclinedMail(input: {
     heading: 'PSF application declined',
     greeting: greeting(input.to),
     paragraphs: [
-      'A PSF membership officer declined this application.',
-      'You can correct it and apply again from your workspace.',
+      'A PSF District Manager declined this application. Your business keeps its code.',
+      'You can correct it and apply again.',
     ],
     details: [
       ['Reason', input.reasonLabel],
@@ -132,7 +172,7 @@ export function psfExpiringMail(input: {
     greeting: greeting(input.to),
     paragraphs: [
       `Membership ${input.membershipNumber} ends on ${input.expiresOn}.`,
-      'To stay a member, apply again from your workspace before then.',
+      'To stay a member, apply again before then.',
     ],
     cta: { label: 'Renew your membership', href: input.link },
   });
@@ -150,8 +190,71 @@ export function psfExpiredMail(input: {
     greeting: greeting(input.to),
     paragraphs: [
       `Membership ${input.membershipNumber} has reached its end date, so ${input.legalName} is no longer shown as a PSF member.`,
-      'You can apply again from your workspace at any time.',
+      'You can apply again at any time.',
     ],
     cta: { label: 'Apply again', href: input.link },
+  });
+}
+
+/** PSF confirmed the membership number a business typed (0121): it now shows as a member. */
+export function psfClaimConfirmedMail(input: {
+  to: Addressee;
+  legalName: string;
+  membershipNumber: string;
+  expiresOn: string;
+  link: string;
+}): RegistrationMail {
+  return compose({
+    subject: `PSF confirmed the membership of ${input.legalName}`,
+    heading: 'Your PSF membership is confirmed',
+    greeting: greeting(input.to),
+    paragraphs: [
+      `PSF has checked membership number ${input.membershipNumber} against its records. ${input.legalName} now shows as a PSF member on Injishi, until ${input.expiresOn}.`,
+    ],
+    cta: { label: 'See your membership', href: input.link },
+  });
+}
+
+/** PSF could not confirm the number a business typed (0121): why, and how to become a member. */
+export function psfClaimRejectedMail(input: {
+  to: Addressee;
+  legalName: string;
+  membershipNumber: string;
+  reason: string;
+  link: string;
+}): RegistrationMail {
+  return compose({
+    subject: `PSF could not confirm the membership of ${input.legalName}`,
+    heading: 'PSF could not confirm your membership number',
+    greeting: greeting(input.to),
+    paragraphs: [
+      `PSF checked membership number ${input.membershipNumber} for ${input.legalName} and could not confirm it.`,
+      `PSF's reason: ${input.reason}`,
+      'If the number was mistyped, contact your PSF district office. You can also apply for membership from your portal.',
+    ],
+    cta: { label: 'Apply for membership', href: input.link },
+  });
+}
+
+/** The membership certificate, attached as a PDF, sent when the member or an officer asks. */
+export function psfCertificateMail(input: {
+  to: Addressee;
+  legalName: string;
+  tierName: string;
+  membershipNumber: string;
+  expiresOn: string | null;
+  link: string;
+}): RegistrationMail {
+  return compose({
+    subject: `PSF membership certificate for ${input.legalName}`,
+    heading: 'Your PSF certificate',
+    greeting: greeting(input.to),
+    paragraphs: [`The membership certificate for ${input.legalName} is attached as a PDF. Print it, or keep it to show.`],
+    details: [
+      ['Membership', input.tierName],
+      ['Membership number', input.membershipNumber],
+      ...(input.expiresOn ? ([['Valid until', input.expiresOn]] as [string, string][]) : []),
+    ],
+    cta: { label: 'See it online', href: input.link },
   });
 }

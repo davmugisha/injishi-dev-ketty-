@@ -1,3 +1,4 @@
+import { GUIDES } from "@/data/guides";
 /**
  * Site navigation.
  *
@@ -17,9 +18,7 @@ export interface NavGroup {
 /**
  * The three links in the middle of the site header.
  *
- * `/services` is the amenities index (pool passes, halls, marquees), not the
- * old marketing pillars: those live at `/how-it-works`, which is what every
- * "How it works" label below points at. `/services` replaced `/support`, which is not orphaned — it is in
+ * "How it works" points at `/how-it-works`. `/support` is not orphaned — it is in
  * `FOOTER_COLUMNS` under "Company". Help is a thing
  * you go looking for; the bar's three slots name things you come here to do.
  *
@@ -36,10 +35,9 @@ export interface NavGroup {
 export const PRIMARY_NAV: NavLink[] = [
   { label: "Explore", href: "/explore" },
   { label: "Saved", href: "/saved" },
-  // Was "Services". `/services` is a fixture of fictional hotels with invented
-  // prices (`data/service-listings.ts`) and answers only on a sample database
-  // now, so production's header cannot point at it. How it works is the page a
-  // first visitor to an unfamiliar marketplace actually needs.
+  // Was "Services", a page of fictional hotels at invented prices, removed
+  // 2026-10-29. How it works is the page a first visitor to an unfamiliar
+  // marketplace actually needs.
   { label: "How it works", href: "/how-it-works" },
 ];
 
@@ -164,6 +162,9 @@ const WHITE_HEADER_ROUTES = [
   // ground with no photograph, so the dark variant painted white ink on white.
   "/training",
   "/verify",
+  // The PSF page opens on a tonal band, never a photograph: a business of any
+  // sector has no place to show, so the dark variant would paint white on it.
+  "/psf",
   // The app downloads page (mobile spec 0004) opens on a white ground with the
   // phone shots in a tinted tile, not a photograph behind the bar.
   "/downloads",
@@ -195,7 +196,8 @@ export const FOOTER_COLUMNS: NavGroup[] = [
     links: [
       { label: "All stays", href: "/explore" },
       { label: "Where to stay", href: "/stays" },
-      { label: "Guides", href: "/guides" },
+      // The guides link returns with the first real article (`GUIDES`).
+      ...(GUIDES.length > 0 ? [{ label: "Guides", href: "/guides" }] : []),
       { label: "How it works", href: "/how-it-works" },
     ],
   },

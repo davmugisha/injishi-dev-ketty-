@@ -423,7 +423,7 @@ export const PERMISSION_LABEL: Readonly<Record<Permission, string>> = {
     "payroll.draft": "draft the pay run",
     "payroll.run": "confirm the pay run",
     "lostfound.manage": "keep the lost and found register",
-    "payout.manage": "choose where rent is paid out",
+    "payout.manage": "choose where rent and booking money are paid out",
     "expense.manage": "record expenses",
     "tax.manage": "keep tax declarations and lease filings",
     "guest.register": "register guests",
@@ -811,7 +811,8 @@ export const WorkspaceAccess = z.object({
      * (ADR-056). Computed on the server by `isPsfApplicant`, which reads the
      * owner membership and the on behalf claim, never a permission: a pending
      * business holds none (ADR-053 rule 2), and the application must be
-     * reachable at every registration stage. Null outside hospitality.
+     * reachable at every registration stage. Null outside a hospitality or PSF
+     * business.
      *
      * Defaults to null when absent, so a client built after this field landed
      * still parses a grant from an API built before it.
@@ -855,12 +856,31 @@ export type TwoFactorSent = z.infer<typeof TwoFactorSent>;
 export function isOperational(registrationStatus: OrgRegistrationStatus | null): boolean {
     return registrationStatus === "active";
 }
+/**
+ * The statuses in which a business may build its listing before approval.
+ *
+ * The fee is paid and the documents are being read online. Waiting for the
+ * second officer before a host may add a room type or a photograph only moves
+ * the work to after approval, when the host wants to be selling. So these
+ * statuses hold `listing.manage` and nothing else: no money, no staff, and no
+ * publish, which still waits for `active` (`publishBlockersFor`,
+ * `org_not_active`). A rejected, suspended or unclaimed (OBO `approved`)
+ * business holds nothing, as before.
+ */
+export const SETUP_DURING_REVIEW_STATUSES: ReadonlySet<OrgRegistrationStatus> = new Set<OrgRegistrationStatus>([
+    "submitted",
+    "tin_verified",
+    "field_verified",
+]);
+export function canSetUpDuringReview(registrationStatus: OrgRegistrationStatus | null): boolean {
+    return registrationStatus !== null && SETUP_DURING_REVIEW_STATUSES.has(registrationStatus);
+}
 /** Plain wording for why a pending workspace refused. Names the stage. */
 export const REGISTRATION_STAGE_MESSAGE: Readonly<Record<OrgRegistrationStatus, string>> = {
     pending_payment: "Pay your registration fee to start verification. Nothing is reviewed until it clears.",
     submitted: "We're checking your TIN with RRA. This usually takes seconds.",
-    tin_verified: "TIN verified. A district field verifier will confirm your business next.",
-    field_verified: "Verified — awaiting approval.",
+    tin_verified: "TIN verified. We're reviewing your documents online.",
+    field_verified: "Documents checked — awaiting approval.",
     approved: "Approved. Waiting for the owner to claim this business.",
     active: "Active.",
     rejected: "Rejected. Correct the details and resubmit — there's no new fee.",
@@ -876,7 +896,7 @@ export function workspaceLabel(a: {
         return "Broker";
     if (a.kind === "personal")
         return "Personal";
-    return a.orgName ?? (a.domain === "residence" ? "Landlord" : "Host");
+    return a.orgName ?? (a.domain === "residence" ? "Landlord" : a.domain === "enterprise" ? "PSF business" : "Host");
 }
 /**
  * The permissions that apply in a workspace.
@@ -896,7 +916,7 @@ export function workspaceLabel(a: {
  * and defaults to none, so every existing caller keeps the platform defaults and
  * a business that has never opened the Roles screen is unaffected. It is applied
  * INSIDE the registration gate rather than beside it: an org that is not
- * `active` holds nothing, and a business cannot grant its way past its own
+ * `active` holds nothing (or, in review, only `listing.manage`), and a business cannot grant its way past its own
  * approval.
  */
 export function permissionsForWorkspace(input: {
@@ -907,9 +927,16 @@ export function permissionsForWorkspace(input: {
 }): Permission[] {
     if (input.kind !== "business" || input.orgRole === null)
         return [];
-    if (!isOperational(input.registrationStatus))
-        return [];
-    return effectivePermissionsForRole(input.orgRole, input.roleOverrides ?? []);
+    const held = effectivePermissionsForRole(input.orgRole, input.roleOverrides ?? []);
+    if (isOperational(input.registrationStatus))
+        return held;
+    // In review the role's own default decides, and an override may only take
+    // it away: a business cannot grant its way past its own approval.
+    if (canSetUpDuringReview(input.registrationStatus))
+        return permissionsForRole(input.orgRole).includes("listing.manage") && held.includes("listing.manage")
+            ? ["listing.manage"]
+            : [];
+    return [];
 }
 /** Refuse unless the workspace grants it. The one predicate a guard calls. */
 export function workspaceAllows(access: Pick<WorkspaceAccess, "permissions">, permission: Permission): boolean {

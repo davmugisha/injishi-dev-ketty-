@@ -1,3 +1,4 @@
+import { TOURISM_TAX_LABEL, tourismTaxIncludedRwf } from '@injishi/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 
 import {
@@ -47,6 +48,8 @@ export interface BookingMailFacts {
   /** On a cancelled booking: who cancelled, and what went back. */
   cancelledBy?: string | null;
   refundRwf?: number | null;
+  /** On `changed`: what the change did to the money (0120). */
+  change?: { differenceRwf: number; settlement: string } | null;
 }
 
 @Injectable()
@@ -76,6 +79,15 @@ export class BookingMailer {
 function money(amountRwf: number | null): string {
   if (amountRwf === null) return 'the amount you paid';
   return `RWF ${amountRwf.toLocaleString('en-RW')}`;
+}
+
+/**
+ * The tourism tax inside a stay's price (2026-10-30): 3%, included, never added. Said after the amount
+ * the guest paid, so the receipt-like line reads whole; nothing when there is no amount.
+ */
+function taxLine(grossRwf: number | null): string {
+  const tax = grossRwf === null ? 0 : tourismTaxIncludedRwf(grossRwf);
+  return tax > 0 ? ` It includes ${money(tax)} ${TOURISM_TAX_LABEL}.` : '';
 }
 
 /** `2026-09-20` → `Sun 20 Sep 2026`, the way the confirmation screen prints it. */
@@ -124,7 +136,7 @@ function compose(
         body: [
           hi,
           '',
-          `Your room is held. ${money(f.grossRwf)} is in escrow and stays there until you check in — the host is paid after your stay, not before.`,
+          `Your room is held. ${money(f.grossRwf)} is in escrow and stays there until you check in — the host is paid after your stay, not before.${taxLine(f.grossRwf)}`,
           '',
           stay,
           '',
@@ -138,13 +150,28 @@ function compose(
         ].join('\n'),
       };
 
+    case 'changed': {
+      const c = f.change;
+      const line = !c || c.differenceRwf === 0
+        ? 'The price of your stay is the same.'
+        : c.differenceRwf < 0
+          ? `Your stay now costs ${money(-c.differenceRwf)} less. That amount stays on your bill as credit for anything you add during the stay, and what is left is refunded to you when you check out.`
+          : c.settlement === 'momo'
+            ? `Your stay now costs ${money(c.differenceRwf)} more, which you have paid by mobile money. It is held in escrow with the rest of your payment.`
+            : `Your stay now costs ${money(c.differenceRwf)} more. The property adds it to your bill, to settle at the front desk.`;
+      return {
+        subject: `Your booking at ${f.propertyName} was changed — ${f.reference}`,
+        body: [hi, '', `${f.propertyName} changed your booking. Here is how it stands now.`, '', stay, '', line, '', receipt].join('\n'),
+      };
+    }
+
     case 'request_sent':
       return {
         subject: `Request sent to ${f.propertyName} — ${f.reference}`,
         body: [
           hi,
           '',
-          `Your request is with the host. ${money(f.grossRwf)} has been taken and is held in escrow — it is NOT paid to anyone yet, and it comes back to you in full if the host declines or does not answer in time.`,
+          `Your request is with the host. ${money(f.grossRwf)} has been taken and is held in escrow — it is NOT paid to anyone yet, and it comes back to you in full if the host declines or does not answer in time.${taxLine(f.grossRwf)}`,
           '',
           stay,
           '',
@@ -253,6 +280,20 @@ function compose(
             : 'If nobody answers in time, the request is declined automatically and the guest is refunded in full.',
           '',
           'Answer it from Reservations in the Injishi operator app.',
+        ].join('\n'),
+      };
+
+    case 'host_confirmed':
+      return {
+        subject: `New booking at ${f.propertyName} — ${f.reference}`,
+        body: [
+          hi,
+          '',
+          `${guestName ?? 'A guest'} has booked ${f.propertyName}. The booking is confirmed and ${money(f.grossRwf)} is held in escrow until the stay.`,
+          '',
+          stay,
+          '',
+          'It is on Reservations in the Injishi operator app. The money is paid out to your payout account after the guest checks out.',
         ].join('\n'),
       };
 

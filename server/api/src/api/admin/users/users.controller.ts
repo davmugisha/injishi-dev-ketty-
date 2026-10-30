@@ -7,12 +7,18 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import {
   AdminActionRequest,
   type AdminClaimCodeReissued,
+  AdminCreateUserRequest,
+  type AdminCreateUserResponse,
+  type AdminPersonDetail,
+  AdminSetStaffRolesRequest,
+  type AdminStaffRolesResponse,
   type AdminOversightGrant,
   AdminReasonQuery,
   type AdminSessionsRevoked,
@@ -28,6 +34,7 @@ import type { SessionUser } from '../../../shared/auth/session.guard';
 import { RequireStaffPermission } from '../../../shared/auth/require-staff-permission.decorator';
 import { StaffGuard } from '../../../shared/auth/staff.guard';
 import { ZodValidationPipe } from '../../../shared/validation/zod-validation.pipe';
+import { AdminAccountsService } from './admin-accounts.service';
 import { AdminUsersService } from './admin-users.service';
 import { OversightGrantsService } from './oversight-grants.service';
 import { AdminUserActionsService } from './user-actions.service';
@@ -61,6 +68,7 @@ export class AdminUsersController {
     private readonly users: AdminUsersService,
     private readonly actions: AdminUserActionsService,
     private readonly oversight: OversightGrantsService,
+    private readonly accounts: AdminAccountsService,
   ) {}
 
   /**
@@ -111,6 +119,42 @@ export class AdminUsersController {
     @CurrentUser() user: SessionUser,
   ): Promise<AdminUserListResponse> {
     return this.users.listUsers(query, user.id, stated.reason);
+  }
+
+  /**
+   * Create an account by email (2026-10-29). Answers the existing account when
+   * the address has one. Declared before `:userId` routes like every literal.
+   */
+  @Post()
+  @HttpCode(201)
+  @RequireStaffPermission('admin.user.role.grant')
+  createUser(
+    @Body(new ZodValidationPipe(AdminCreateUserRequest)) body: AdminCreateUserRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<AdminCreateUserResponse> {
+    return this.accounts.createUser(body, user.id);
+  }
+
+  /** One person, with every authority they hold. A PII read, so it takes a reason like the directory. */
+  @Get(':userId')
+  @RequireStaffPermission('admin.user.view')
+  getUser(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Query(new ZodValidationPipe(AdminReasonQuery)) stated: AdminReasonQuery,
+    @CurrentUser() user: SessionUser,
+  ): Promise<AdminPersonDetail> {
+    return this.users.getUser(userId, user.id, stated.reason);
+  }
+
+  /** Set a person's platform staff roles, the whole set; empty ends their staff access. */
+  @Put(':userId/staff-roles')
+  @RequireStaffPermission('admin.user.role.grant')
+  setStaffRoles(
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body(new ZodValidationPipe(AdminSetStaffRolesRequest)) body: AdminSetStaffRolesRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<AdminStaffRolesResponse> {
+    return this.accounts.setStaffRoles(userId, body, user.id);
   }
 
   // -------------------------------------------------------------------------

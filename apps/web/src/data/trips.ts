@@ -59,3 +59,58 @@ export function groupTrips(trips: readonly GuestTrip[]): Record<TripGroup, Guest
   groups.current.sort((a, b) => a.checkIn.localeCompare(b.checkIn));
   return groups;
 }
+
+/**
+ * What a trip card says about the place itself (2026-10-30): its first photograph, when guests may
+ * arrive and must leave, the front desk's hours and WhatsApp, and where it is on the map. Read from
+ * the property's public page (`GET /properties/slug/:slug`), the same facts any visitor sees, so it
+ * needs no session. Null when the property has no public page or the read fails: the card then shows
+ * the trip without them.
+ */
+export interface TripPlace {
+  photo: string | null;
+  checkInTime: string | null;
+  checkInUntil: string | null;
+  checkOutTime: string | null;
+  frontDeskOpens: string | null;
+  frontDeskCloses: string | null;
+  frontDesk: string | null;
+  whatsapp: string | null;
+  directions: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export async function fetchTripPlace(slug: string): Promise<TripPlace | null> {
+  const result = await apiFetch<{
+    photos?: string[];
+    checkInTime?: string | null;
+    checkOutTime?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    policies?: {
+      checkInUntil?: string | null;
+      frontDesk?: string | null;
+      frontDeskOpens?: string | null;
+      frontDeskCloses?: string | null;
+      whatsapp?: string | null;
+      directions?: string | null;
+    };
+  }>(`/api/v1/properties/slug/${encodeURIComponent(slug)}`);
+  if (result.status !== "ok") return null;
+  const d = result.data;
+  const p = d.policies ?? {};
+  return {
+    photo: d.photos?.[0] ?? null,
+    checkInTime: d.checkInTime ?? null,
+    checkInUntil: p.checkInUntil ?? null,
+    checkOutTime: d.checkOutTime ?? null,
+    frontDeskOpens: p.frontDeskOpens ?? null,
+    frontDeskCloses: p.frontDeskCloses ?? null,
+    frontDesk: p.frontDesk ?? null,
+    whatsapp: p.whatsapp ?? null,
+    directions: p.directions ?? null,
+    latitude: d.latitude ?? null,
+    longitude: d.longitude ?? null,
+  };
+}

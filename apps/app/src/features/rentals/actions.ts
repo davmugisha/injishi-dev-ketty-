@@ -33,7 +33,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ApiError, ApiUnreachableError } from "@/server/api";
-import { type LandlordScope, landlordScope } from "@/server/rentals/client";
+import { hostScope, type LandlordScope, landlordScope } from "@/server/rentals/client";
 
 export type ActionResult<T> =
   | { ok: true; value: T }
@@ -65,10 +65,23 @@ function invalid<T>(error: Invalid): ActionResult<T> {
   return { ok: false, error: fieldErrors._ ?? "Check the highlighted fields.", fieldErrors };
 }
 
-/** Run one write in the landlord's business, with the API's refusals in words. */
-async function run<T>(write: (scope: LandlordScope) => Promise<T>): Promise<ActionResult<T>> {
-  const scope = await landlordScope();
-  if (!scope) return { ok: false, error: "There is no rentals business here." };
+/**
+ * Which business a payout write acts in: the landlord's (the default), or a
+ * hospitality business by its workspace id (0116).
+ */
+export type PaidBusiness = "landlord" | { host: string };
+
+/** Run one write in the landlord's business (or the host's), with the API's refusals in words. */
+async function run<T>(
+  write: (scope: LandlordScope) => Promise<T>,
+  business: PaidBusiness = "landlord",
+): Promise<ActionResult<T>> {
+  const scope = business === "landlord" ? await landlordScope() : await hostScope(business.host);
+  if (!scope)
+    return {
+      ok: false,
+      error: business === "landlord" ? "There is no rentals business here." : "There is no hotel or venue business here.",
+    };
   try {
     const value = await write(scope);
     revalidatePath("/", "layout");
@@ -147,25 +160,34 @@ export async function saveSignatory(input: unknown): Promise<ActionResult<Landlo
   return run((s) => s.api.put<LandlordProfileView>("/api/v1/ops/rentals/profile/signatory", parsed.data, ws(s)));
 }
 
-export async function addPayoutAccount(input: unknown): Promise<ActionResult<PayoutAccountList>> {
+export async function addPayoutAccount(
+  input: unknown,
+  business: PaidBusiness = "landlord",
+): Promise<ActionResult<PayoutAccountList>> {
   const parsed = parse(PayoutAccountInput, input);
   if (!parsed.ok) return invalid(parsed.error);
-  return run((s) => s.api.post<PayoutAccountList>("/api/v1/ops/payout-accounts", parsed.data, ws(s)));
+  return run((s) => s.api.post<PayoutAccountList>("/api/v1/ops/payout-accounts", parsed.data, ws(s)), business);
 }
 
-export async function makePrimaryPayoutAccount(id: string): Promise<ActionResult<PayoutAccountList>> {
+export async function makePrimaryPayoutAccount(
+  id: string,
+  business: PaidBusiness = "landlord",
+): Promise<ActionResult<PayoutAccountList>> {
   if (!UUID.test(id)) return { ok: false, error: "That account was not found." };
-  return run((s) => s.api.post<PayoutAccountList>(`/api/v1/ops/payout-accounts/${id}/primary`, {}, ws(s)));
+  return run((s) => s.api.post<PayoutAccountList>(`/api/v1/ops/payout-accounts/${id}/primary`, {}, ws(s)), business);
 }
 
-export async function retirePayoutAccount(id: string): Promise<ActionResult<PayoutAccountList>> {
+export async function retirePayoutAccount(
+  id: string,
+  business: PaidBusiness = "landlord",
+): Promise<ActionResult<PayoutAccountList>> {
   if (!UUID.test(id)) return { ok: false, error: "That account was not found." };
-  return run((s) => s.api.post<PayoutAccountList>(`/api/v1/ops/payout-accounts/${id}/retire`, {}, ws(s)));
+  return run((s) => s.api.post<PayoutAccountList>(`/api/v1/ops/payout-accounts/${id}/retire`, {}, ws(s)), business);
 }
 
-export async function retryPayout(id: string): Promise<ActionResult<PayoutView>> {
+export async function retryPayout(id: string, business: PaidBusiness = "landlord"): Promise<ActionResult<PayoutView>> {
   if (!UUID.test(id)) return { ok: false, error: "That payout was not found." };
-  return run((s) => s.api.post<PayoutView>(`/api/v1/ops/payouts/${id}/retry`, {}, ws(s)));
+  return run((s) => s.api.post<PayoutView>(`/api/v1/ops/payouts/${id}/retry`, {}, ws(s)), business);
 }
 
 export async function saveLocation(propertyId: string, input: unknown): Promise<ActionResult<RentalPropertyView>> {

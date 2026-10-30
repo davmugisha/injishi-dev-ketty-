@@ -219,14 +219,14 @@ export declare const LeaseChargeView: z.ZodObject<{
     id: string;
     kind: "deposit" | "rent";
     amountRwf: number;
+    paidAt: string | null;
+    paidRwf: number;
     label: string;
     createdAt: string;
     periodStart: string | null;
     periodEnd: string | null;
-    paidRwf: number;
     overdue: boolean;
     leaseId: string;
-    paidAt: string | null;
     dueOn: string;
     outstandingRwf: number;
     daysOverdue: number;
@@ -236,14 +236,14 @@ export declare const LeaseChargeView: z.ZodObject<{
     id: string;
     kind: "deposit" | "rent";
     amountRwf: number;
+    paidAt: string | null;
+    paidRwf: number;
     label: string;
     createdAt: string;
     periodStart: string | null;
     periodEnd: string | null;
-    paidRwf: number;
     overdue: boolean;
     leaseId: string;
-    paidAt: string | null;
     dueOn: string;
     outstandingRwf: number;
     daysOverdue: number;
@@ -805,14 +805,14 @@ export declare const LeaseChargeList: z.ZodObject<{
         id: string;
         kind: "deposit" | "rent";
         amountRwf: number;
+        paidAt: string | null;
+        paidRwf: number;
         label: string;
         createdAt: string;
         periodStart: string | null;
         periodEnd: string | null;
-        paidRwf: number;
         overdue: boolean;
         leaseId: string;
-        paidAt: string | null;
         dueOn: string;
         outstandingRwf: number;
         daysOverdue: number;
@@ -822,14 +822,14 @@ export declare const LeaseChargeList: z.ZodObject<{
         id: string;
         kind: "deposit" | "rent";
         amountRwf: number;
+        paidAt: string | null;
+        paidRwf: number;
         label: string;
         createdAt: string;
         periodStart: string | null;
         periodEnd: string | null;
-        paidRwf: number;
         overdue: boolean;
         leaseId: string;
-        paidAt: string | null;
         dueOn: string;
         outstandingRwf: number;
         daysOverdue: number;
@@ -841,14 +841,14 @@ export declare const LeaseChargeList: z.ZodObject<{
         id: string;
         kind: "deposit" | "rent";
         amountRwf: number;
+        paidAt: string | null;
+        paidRwf: number;
         label: string;
         createdAt: string;
         periodStart: string | null;
         periodEnd: string | null;
-        paidRwf: number;
         overdue: boolean;
         leaseId: string;
-        paidAt: string | null;
         dueOn: string;
         outstandingRwf: number;
         daysOverdue: number;
@@ -860,14 +860,14 @@ export declare const LeaseChargeList: z.ZodObject<{
         id: string;
         kind: "deposit" | "rent";
         amountRwf: number;
+        paidAt: string | null;
+        paidRwf: number;
         label: string;
         createdAt: string;
         periodStart: string | null;
         periodEnd: string | null;
-        paidRwf: number;
         overdue: boolean;
         leaseId: string;
-        paidAt: string | null;
         dueOn: string;
         outstandingRwf: number;
         daysOverdue: number;
@@ -958,14 +958,14 @@ export declare const RentRollRow: z.ZodObject<{
         id: string;
         kind: "deposit" | "rent";
         amountRwf: number;
+        paidAt: string | null;
+        paidRwf: number;
         label: string;
         createdAt: string;
         periodStart: string | null;
         periodEnd: string | null;
-        paidRwf: number;
         overdue: boolean;
         leaseId: string;
-        paidAt: string | null;
         dueOn: string;
         outstandingRwf: number;
         daysOverdue: number;
@@ -975,14 +975,14 @@ export declare const RentRollRow: z.ZodObject<{
         id: string;
         kind: "deposit" | "rent";
         amountRwf: number;
+        paidAt: string | null;
+        paidRwf: number;
         label: string;
         createdAt: string;
         periodStart: string | null;
         periodEnd: string | null;
-        paidRwf: number;
         overdue: boolean;
         leaseId: string;
-        paidAt: string | null;
         dueOn: string;
         outstandingRwf: number;
         daysOverdue: number;
@@ -1021,6 +1021,7 @@ export declare const RentRollRow: z.ZodObject<{
         sentAt: string;
     }>>;
 }, "strip", z.ZodTypeAny, {
+    paidRwf: number;
     lease: {
         status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
@@ -1040,7 +1041,6 @@ export declare const RentRollRow: z.ZodObject<{
         propertyName: string;
         blockCode: string | null;
     };
-    paidRwf: number;
     expectedRwf: number;
     outstandingRwf: number;
     daysOverdue: number;
@@ -1049,14 +1049,14 @@ export declare const RentRollRow: z.ZodObject<{
         id: string;
         kind: "deposit" | "rent";
         amountRwf: number;
+        paidAt: string | null;
+        paidRwf: number;
         label: string;
         createdAt: string;
         periodStart: string | null;
         periodEnd: string | null;
-        paidRwf: number;
         overdue: boolean;
         leaseId: string;
-        paidAt: string | null;
         dueOn: string;
         outstandingRwf: number;
         daysOverdue: number;
@@ -1074,6 +1074,7 @@ export declare const RentRollRow: z.ZodObject<{
         sentAt: string;
     } | null;
 }, {
+    paidRwf: number;
     lease: {
         status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
         id: string;
@@ -1093,7 +1094,6 @@ export declare const RentRollRow: z.ZodObject<{
         propertyName: string;
         blockCode: string | null;
     };
-    paidRwf: number;
     expectedRwf: number;
     outstandingRwf: number;
     daysOverdue: number;
@@ -1102,14 +1102,14 @@ export declare const RentRollRow: z.ZodObject<{
         id: string;
         kind: "deposit" | "rent";
         amountRwf: number;
+        paidAt: string | null;
+        paidRwf: number;
         label: string;
         createdAt: string;
         periodStart: string | null;
         periodEnd: string | null;
-        paidRwf: number;
         overdue: boolean;
         leaseId: string;
-        paidAt: string | null;
         dueOn: string;
         outstandingRwf: number;
         daysOverdue: number;
@@ -1210,14 +1210,14 @@ export declare const RentRoll: z.ZodObject<{
             id: string;
             kind: "deposit" | "rent";
             amountRwf: number;
+            paidAt: string | null;
+            paidRwf: number;
             label: string;
             createdAt: string;
             periodStart: string | null;
             periodEnd: string | null;
-            paidRwf: number;
             overdue: boolean;
             leaseId: string;
-            paidAt: string | null;
             dueOn: string;
             outstandingRwf: number;
             daysOverdue: number;
@@ -1227,14 +1227,14 @@ export declare const RentRoll: z.ZodObject<{
             id: string;
             kind: "deposit" | "rent";
             amountRwf: number;
+            paidAt: string | null;
+            paidRwf: number;
             label: string;
             createdAt: string;
             periodStart: string | null;
             periodEnd: string | null;
-            paidRwf: number;
             overdue: boolean;
             leaseId: string;
-            paidAt: string | null;
             dueOn: string;
             outstandingRwf: number;
             daysOverdue: number;
@@ -1273,6 +1273,7 @@ export declare const RentRoll: z.ZodObject<{
             sentAt: string;
         }>>;
     }, "strip", z.ZodTypeAny, {
+        paidRwf: number;
         lease: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
@@ -1292,7 +1293,6 @@ export declare const RentRoll: z.ZodObject<{
             propertyName: string;
             blockCode: string | null;
         };
-        paidRwf: number;
         expectedRwf: number;
         outstandingRwf: number;
         daysOverdue: number;
@@ -1301,14 +1301,14 @@ export declare const RentRoll: z.ZodObject<{
             id: string;
             kind: "deposit" | "rent";
             amountRwf: number;
+            paidAt: string | null;
+            paidRwf: number;
             label: string;
             createdAt: string;
             periodStart: string | null;
             periodEnd: string | null;
-            paidRwf: number;
             overdue: boolean;
             leaseId: string;
-            paidAt: string | null;
             dueOn: string;
             outstandingRwf: number;
             daysOverdue: number;
@@ -1326,6 +1326,7 @@ export declare const RentRoll: z.ZodObject<{
             sentAt: string;
         } | null;
     }, {
+        paidRwf: number;
         lease: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
@@ -1345,7 +1346,6 @@ export declare const RentRoll: z.ZodObject<{
             propertyName: string;
             blockCode: string | null;
         };
-        paidRwf: number;
         expectedRwf: number;
         outstandingRwf: number;
         daysOverdue: number;
@@ -1354,14 +1354,14 @@ export declare const RentRoll: z.ZodObject<{
             id: string;
             kind: "deposit" | "rent";
             amountRwf: number;
+            paidAt: string | null;
+            paidRwf: number;
             label: string;
             createdAt: string;
             periodStart: string | null;
             periodEnd: string | null;
-            paidRwf: number;
             overdue: boolean;
             leaseId: string;
-            paidAt: string | null;
             dueOn: string;
             outstandingRwf: number;
             daysOverdue: number;
@@ -1402,17 +1402,8 @@ export declare const RentRoll: z.ZodObject<{
         overdueLeases: number;
     }>;
 }, "strip", z.ZodTypeAny, {
-    totals: {
-        leases: number;
-        overdueRwf: number;
-        expectedRwf: number;
-        collectedRwf: number;
-        outstandingRwf: number;
-        overdueLeases: number;
-    };
-    month: string;
-    today: string;
     rows: {
+        paidRwf: number;
         lease: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
@@ -1432,7 +1423,6 @@ export declare const RentRoll: z.ZodObject<{
             propertyName: string;
             blockCode: string | null;
         };
-        paidRwf: number;
         expectedRwf: number;
         outstandingRwf: number;
         daysOverdue: number;
@@ -1441,14 +1431,14 @@ export declare const RentRoll: z.ZodObject<{
             id: string;
             kind: "deposit" | "rent";
             amountRwf: number;
+            paidAt: string | null;
+            paidRwf: number;
             label: string;
             createdAt: string;
             periodStart: string | null;
             periodEnd: string | null;
-            paidRwf: number;
             overdue: boolean;
             leaseId: string;
-            paidAt: string | null;
             dueOn: string;
             outstandingRwf: number;
             daysOverdue: number;
@@ -1466,18 +1456,19 @@ export declare const RentRoll: z.ZodObject<{
             sentAt: string;
         } | null;
     }[];
+    totals: {
+        leases: number;
+        overdueRwf: number;
+        expectedRwf: number;
+        collectedRwf: number;
+        outstandingRwf: number;
+        overdueLeases: number;
+    };
+    month: string;
+    today: string;
 }, {
-    totals: {
-        leases: number;
-        overdueRwf: number;
-        expectedRwf: number;
-        collectedRwf: number;
-        outstandingRwf: number;
-        overdueLeases: number;
-    };
-    month: string;
-    today: string;
     rows: {
+        paidRwf: number;
         lease: {
             status: "active" | "cancelled" | "draft" | "pending_signature" | "ending" | "ended" | "signed";
             id: string;
@@ -1497,7 +1488,6 @@ export declare const RentRoll: z.ZodObject<{
             propertyName: string;
             blockCode: string | null;
         };
-        paidRwf: number;
         expectedRwf: number;
         outstandingRwf: number;
         daysOverdue: number;
@@ -1506,14 +1496,14 @@ export declare const RentRoll: z.ZodObject<{
             id: string;
             kind: "deposit" | "rent";
             amountRwf: number;
+            paidAt: string | null;
+            paidRwf: number;
             label: string;
             createdAt: string;
             periodStart: string | null;
             periodEnd: string | null;
-            paidRwf: number;
             overdue: boolean;
             leaseId: string;
-            paidAt: string | null;
             dueOn: string;
             outstandingRwf: number;
             daysOverdue: number;
@@ -1531,6 +1521,16 @@ export declare const RentRoll: z.ZodObject<{
             sentAt: string;
         } | null;
     }[];
+    totals: {
+        leases: number;
+        overdueRwf: number;
+        expectedRwf: number;
+        collectedRwf: number;
+        outstandingRwf: number;
+        overdueLeases: number;
+    };
+    month: string;
+    today: string;
 }>;
 export type RentRoll = z.infer<typeof RentRoll>;
 /** `GET /ops/rent/summary?month`: the month's figures the Rent screen and the home read. */
@@ -1724,24 +1724,24 @@ export declare const RemindersSent: z.ZodObject<{
         chargeId: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
+    skipped: {
+        reason: string;
+        chargeId: string;
+    }[];
     sent: {
         chargeId: string;
         reminderId: string;
         emailedTo: string | null;
-    }[];
-    skipped: {
-        reason: string;
-        chargeId: string;
     }[];
 }, {
+    skipped: {
+        reason: string;
+        chargeId: string;
+    }[];
     sent: {
         chargeId: string;
         reminderId: string;
         emailedTo: string | null;
-    }[];
-    skipped: {
-        reason: string;
-        chargeId: string;
     }[];
 }>;
 export type RemindersSent = z.infer<typeof RemindersSent>;
@@ -1774,6 +1774,11 @@ export declare const PayoutView: z.ZodObject<{
         receiptNumber: string | null;
         leaseReference: string;
     }>>;
+    /**
+     * A host's payout for a stay (0116): the booking it pays, by reference.
+     * Null on rent. Default null, so an older API's body still parses.
+     */
+    bookingReference: z.ZodDefault<z.ZodNullable<z.ZodString>>;
     failureReason: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
     settledAt: z.ZodNullable<z.ZodString>;
@@ -1791,9 +1796,10 @@ export declare const PayoutView: z.ZodObject<{
     } | null;
     createdAt: string;
     settledAt: string | null;
+    bookingReference: string | null;
     destination: string | null;
     statusLabel: string;
-    accountKind: "bank" | "momo" | "momo_pay" | null;
+    accountKind: "momo" | "bank" | "momo_pay" | null;
     payeeName: string | null;
 }, {
     status: "held" | "failed" | "paid" | "scheduled" | "queued";
@@ -1811,8 +1817,9 @@ export declare const PayoutView: z.ZodObject<{
     settledAt: string | null;
     destination: string | null;
     statusLabel: string;
-    accountKind: "bank" | "momo" | "momo_pay" | null;
+    accountKind: "momo" | "bank" | "momo_pay" | null;
     payeeName: string | null;
+    bookingReference?: string | null | undefined;
 }>;
 export type PayoutView = z.infer<typeof PayoutView>;
 export declare const PayoutList: z.ZodObject<{
@@ -1844,6 +1851,11 @@ export declare const PayoutList: z.ZodObject<{
             receiptNumber: string | null;
             leaseReference: string;
         }>>;
+        /**
+         * A host's payout for a stay (0116): the booking it pays, by reference.
+         * Null on rent. Default null, so an older API's body still parses.
+         */
+        bookingReference: z.ZodDefault<z.ZodNullable<z.ZodString>>;
         failureReason: z.ZodNullable<z.ZodString>;
         createdAt: z.ZodString;
         settledAt: z.ZodNullable<z.ZodString>;
@@ -1861,9 +1873,10 @@ export declare const PayoutList: z.ZodObject<{
         } | null;
         createdAt: string;
         settledAt: string | null;
+        bookingReference: string | null;
         destination: string | null;
         statusLabel: string;
-        accountKind: "bank" | "momo" | "momo_pay" | null;
+        accountKind: "momo" | "bank" | "momo_pay" | null;
         payeeName: string | null;
     }, {
         status: "held" | "failed" | "paid" | "scheduled" | "queued";
@@ -1881,8 +1894,9 @@ export declare const PayoutList: z.ZodObject<{
         settledAt: string | null;
         destination: string | null;
         statusLabel: string;
-        accountKind: "bank" | "momo" | "momo_pay" | null;
+        accountKind: "momo" | "bank" | "momo_pay" | null;
         payeeName: string | null;
+        bookingReference?: string | null | undefined;
     }>, "many">;
     totals: z.ZodObject<{
         queuedRwf: z.ZodNumber;
@@ -1915,9 +1929,10 @@ export declare const PayoutList: z.ZodObject<{
         } | null;
         createdAt: string;
         settledAt: string | null;
+        bookingReference: string | null;
         destination: string | null;
         statusLabel: string;
-        accountKind: "bank" | "momo" | "momo_pay" | null;
+        accountKind: "momo" | "bank" | "momo_pay" | null;
         payeeName: string | null;
     }[];
     totals: {
@@ -1943,8 +1958,9 @@ export declare const PayoutList: z.ZodObject<{
         settledAt: string | null;
         destination: string | null;
         statusLabel: string;
-        accountKind: "bank" | "momo" | "momo_pay" | null;
+        accountKind: "momo" | "bank" | "momo_pay" | null;
         payeeName: string | null;
+        bookingReference?: string | null | undefined;
     }[];
     totals: {
         paidRwf: number;
@@ -1981,14 +1997,14 @@ export declare const TenantChargeList: z.ZodObject<{
         id: string;
         kind: "deposit" | "rent";
         amountRwf: number;
+        paidAt: string | null;
+        paidRwf: number;
         label: string;
         createdAt: string;
         periodStart: string | null;
         periodEnd: string | null;
-        paidRwf: number;
         overdue: boolean;
         leaseId: string;
-        paidAt: string | null;
         dueOn: string;
         outstandingRwf: number;
         daysOverdue: number;
@@ -1998,14 +2014,14 @@ export declare const TenantChargeList: z.ZodObject<{
         id: string;
         kind: "deposit" | "rent";
         amountRwf: number;
+        paidAt: string | null;
+        paidRwf: number;
         label: string;
         createdAt: string;
         periodStart: string | null;
         periodEnd: string | null;
-        paidRwf: number;
         overdue: boolean;
         leaseId: string;
-        paidAt: string | null;
         dueOn: string;
         outstandingRwf: number;
         daysOverdue: number;
@@ -2025,14 +2041,14 @@ export declare const TenantChargeList: z.ZodObject<{
         id: string;
         kind: "deposit" | "rent";
         amountRwf: number;
+        paidAt: string | null;
+        paidRwf: number;
         label: string;
         createdAt: string;
         periodStart: string | null;
         periodEnd: string | null;
-        paidRwf: number;
         overdue: boolean;
         leaseId: string;
-        paidAt: string | null;
         dueOn: string;
         outstandingRwf: number;
         daysOverdue: number;
@@ -2049,14 +2065,14 @@ export declare const TenantChargeList: z.ZodObject<{
         id: string;
         kind: "deposit" | "rent";
         amountRwf: number;
+        paidAt: string | null;
+        paidRwf: number;
         label: string;
         createdAt: string;
         periodStart: string | null;
         periodEnd: string | null;
-        paidRwf: number;
         overdue: boolean;
         leaseId: string;
-        paidAt: string | null;
         dueOn: string;
         outstandingRwf: number;
         daysOverdue: number;

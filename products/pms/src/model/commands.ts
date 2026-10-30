@@ -4,6 +4,13 @@
  * reaches the API. The shapes are copied from the app's server writes (`server/mutations/*`) and actions,
  * which re-export them from here for their other callers.
  */
+import type {
+  ReservationChangeAsk,
+  ReservationChangeForm,
+  ReservationChangeQuote,
+  ReservationChangeRequest,
+  ReservationChangeResult,
+} from "@injishi/contracts";
 import type { CleaningTask, Severity } from "./operations.ts";
 
 /** A command that hands back a value once it is done, or the API's refusal in words the screen can show. */
@@ -14,6 +21,15 @@ export type Done = { ok: true } | { ok: false; error: string };
 
 // ── Front desk ───────────────────────────────────────────────────────────────
 
+/** The name, nationality and document, as the desk read them from the guest's ID (0115, the guest register). */
+export interface GuestCard {
+  /** Only for a booking that names nobody; the API's limit is 200 characters. */
+  fullName?: string;
+  nationality?: string;
+  documentType?: "national_id" | "passport" | "other";
+  idNumber?: string;
+}
+
 export interface WalkInInput {
   /** The room type's id, as the walk-in screen lists it (frontdesk.roomTypes). */
   roomTypeId: string;
@@ -22,6 +38,8 @@ export interface WalkInInput {
   phone?: string;
   /** Where the claim code goes, so the guest can carry on in the app. */
   email?: string;
+  /** What the desk read from the guest's ID, for the guest register (0115). */
+  guest?: GuestCard;
 }
 
 export interface WalkedIn {
@@ -156,11 +174,17 @@ export interface PmsActions {
     bookingRef: string;
     roomLabel: string;
     cash: { amountRwf: number; idempotencyKey: string } | null;
+    guest?: GuestCard;
   }): Promise<DoneWith<CheckedIn>>;
   approveBookingRequest(bookingRef: string): Promise<DoneWith<null>>;
   declineBookingRequest(bookingRef: string): Promise<DoneWith<null>>;
   cancelBooking(bookingRef: string, reason: string): Promise<DoneWith<RefundOutcome>>;
   recordNoShow(bookingRef: string, reason: string): Promise<DoneWith<null>>;
+  // Changing a reservation's dates, room type or guests (0121)
+  loadReservationChange(bookingRef: string): Promise<DoneWith<ReservationChangeForm>>;
+  previewReservationChange(bookingRef: string, ask: ReservationChangeAsk): Promise<DoneWith<ReservationChangeQuote>>;
+  saveReservationChange(bookingRef: string, body: ReservationChangeRequest): Promise<DoneWith<ReservationChangeResult>>;
+  checkReservationChange(bookingRef: string, attemptToken: string): Promise<DoneWith<ReservationChangeResult>>;
   // A stay
   replyToGuest(threadId: string, body: string): Promise<DoneWith<null>>;
   postCharge(input: PostChargeInput): Promise<DoneWith<Posted>>;

@@ -149,7 +149,8 @@ export class ListingService {
 
   /**
    * The Room type a booking is being made against (F-B05: one per Booking in
-   * v1). Returns null when it does not exist or is not `active`; the caller
+   * v1). Returns null when it does not exist, is not `active`, or its property
+   * is not publicly visible (unpublished, or its business not active); the caller
    * decides which 4xx that is, since "unknown room type" reads differently on
    * the booking path than on the browse path.
    */
@@ -161,10 +162,14 @@ export class ListingService {
 
   /** Photograph ids become their stable public URLs; nothing else changes. */
   private toWire(record: PublicPropertyRecord): PropertyDetail {
-    const { photoIds, ...property } = record;
+    const { photoIds, roomTypes, ...property } = record;
     return {
       ...property,
       photos: photoIds.map((id) => photoRouteUrl(this.origin, id)),
+      roomTypes: roomTypes.map(({ photoId, ...roomType }) => ({
+        ...roomType,
+        photo: photoId ? photoRouteUrl(this.origin, photoId) : null,
+      })),
     };
   }
 }

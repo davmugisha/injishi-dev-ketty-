@@ -118,16 +118,16 @@ export function facetsFor(property: PropertyDetail): StayFacets {
   if (/volcano|mountain|virunga|hill|forest/.test(prose)) views.push("mountain");
   if (/garden|terrace|veranda|deck/.test(prose)) views.push("garden");
 
-  // The district and the property's own prose place it near things.
+  // Only what the property's own words say. A stay is not "near a national
+  // park" because its district has one, nor "near museums" for being in
+  // Kigali: those were claims the host never made (2026-10-29).
   const activities: ActivityId[] = [];
-  if (property.district === "musanze" || property.district === "nyagatare") {
-    activities.push("national_park", "hiking");
-  }
-  if (property.district === "rusizi") activities.push("national_park");
+  if (/national park|volcanoes|nyungwe|akagera|gorilla/.test(prose)) activities.push("national_park");
+  if (/hik|trek|trail/.test(prose)) activities.push("hiking");
   if (/lake|beach|kivu|jet ski|windsurf|kayak|boat/.test(prose)) {
     activities.push("water_sports");
   }
-  if (property.district === "kigali") activities.push("museums");
+  if (/museum|gallery|memorial/.test(prose)) activities.push("museums");
 
   // Where the class and rate say so.
   const experience: ExperienceId[] = [];
@@ -139,7 +139,7 @@ export function facetsFor(property: PropertyDetail): StayFacets {
   if (amenityKeys.includes("Fitness") || /business centre|conference|convention/.test(prose)) {
     experience.push("business");
   }
-  if (property.maxGuests >= 4) experience.push("family");
+  if ((property.maxGuests ?? 0) >= 4) experience.push("family");
   if (/solar|organic|eco|conserv|plantation|forest/.test(prose)) experience.push("eco");
 
   return {

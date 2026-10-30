@@ -118,9 +118,10 @@ export function filterListings(
       if (filter && !filter.matches(listing)) return false;
     }
 
-    // Each listing carries a real `maxGuests`, so occupancy is read rather
-    // than guessed from the bedroom count as it used to be.
-    if (listing.maxGuests < guests) return false;
+    // Each listing carries the host's own `maxGuests`, so occupancy is read
+    // rather than guessed. A stay that states none is kept: the booking card
+    // and the API check the room the guest picks.
+    if (listing.maxGuests !== null && listing.maxGuests < guests) return false;
     return true;
   });
 

@@ -31,8 +31,12 @@ import {
   cancelBooking,
   checkInGuest,
   checkInWalkIn,
+  checkReservationChange,
   declineBookingRequest,
+  loadReservationChange,
+  previewReservationChange,
   recordNoShow,
+  saveReservationChange,
 } from "./front-desk-actions";
 import {
   actOnSignalAction,
@@ -76,6 +80,10 @@ const actions: PmsActions = {
   declineBookingRequest,
   cancelBooking,
   recordNoShow,
+  loadReservationChange,
+  previewReservationChange,
+  saveReservationChange,
+  checkReservationChange,
   replyToGuest,
   postCharge,
   voidCharge,

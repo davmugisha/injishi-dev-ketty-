@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, eq, sql } from 'drizzle-orm';
 
-import { propertyPhotos } from '../../../../database/drizzle/schema';
+import { propertyPhotos, roomTypes } from '../../../../database/drizzle/schema';
 import {
   DRIZZLE,
   type Database,
@@ -15,6 +15,8 @@ export interface PropertyPhotoRow {
   position: number;
   isCover: boolean;
   caption: string | null;
+  /** 0118: the room type it shows; null is the property. */
+  roomTypeId: string | null;
 }
 
 /**
@@ -46,6 +48,7 @@ export class PropertyPhotosRepository {
         position: propertyPhotos.position,
         isCover: propertyPhotos.isCover,
         caption: propertyPhotos.caption,
+        roomTypeId: propertyPhotos.roomTypeId,
       })
       .from(propertyPhotos)
       .where(eq(propertyPhotos.propertyId, propertyId))
@@ -61,6 +64,16 @@ export class PropertyPhotosRepository {
     return Number(row?.count ?? 0);
   }
 
+  /** 0118: whether a room type is on this property, so a photograph cannot be filed under another's. */
+  async roomTypeOnProperty(roomTypeId: string, propertyId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: roomTypes.id })
+      .from(roomTypes)
+      .where(and(eq(roomTypes.id, roomTypeId), eq(roomTypes.propertyId, propertyId)))
+      .limit(1);
+    return row !== undefined;
+  }
+
   /** One photograph, with the property it belongs to, for the containment check. */
   async find(photoId: string): Promise<PropertyPhotoRow | null> {
     const [row] = await this.db
@@ -71,6 +84,7 @@ export class PropertyPhotosRepository {
         position: propertyPhotos.position,
         isCover: propertyPhotos.isCover,
         caption: propertyPhotos.caption,
+        roomTypeId: propertyPhotos.roomTypeId,
       })
       .from(propertyPhotos)
       .where(eq(propertyPhotos.id, photoId))
@@ -96,6 +110,7 @@ export class PropertyPhotosRepository {
     position: number | null;
     isCover: boolean;
     caption: string | null;
+    roomTypeId?: string | null;
   }): Promise<void> {
     await this.db.transaction(async (tx) => {
       const [existing] = await tx
@@ -144,6 +159,7 @@ export class PropertyPhotosRepository {
         position,
         isCover,
         caption: input.caption,
+        roomTypeId: input.roomTypeId ?? null,
       });
     });
   }

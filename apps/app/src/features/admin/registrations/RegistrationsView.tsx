@@ -1,6 +1,6 @@
 "use client";
 
-import { Card } from "@heroui/react";
+import { Button, Card, Input, Label, TextField } from "@heroui/react";
 import type { AdminOrgRow, OrgRegistrationStatus } from "@injishi/contracts";
 import {
   DataTable,
@@ -23,7 +23,8 @@ import {
 } from "@injishi/ui";
 import { useEffect, useState } from "react";
 import type { RegistrationEvent } from "@/server/admin/registrations";
-import { loadRegistrationTimeline } from "./actions";
+import type { StarGradeState } from "@/server/admin/registrations";
+import { decideStarGradeAction, loadRegistrationTimeline, loadStarGrade } from "./actions";
 
 /** Where a registration stands, in the order it moves: paid, a field visit, a second officer's approval. */
 type Stage = "unpaid" | "visit" | "approval" | "active" | "rejected" | "suspended";
@@ -50,7 +51,7 @@ const STAGE_WORDS: Record<Stage, { label: string; tone: StatusTone }> = {
 
 const STEPS = [
   { id: "paid", title: "Registered and paid", description: "The business" },
-  { id: "visit", title: "Field visit", description: "Field verification officer" },
+  { id: "visit", title: "Document review", description: "Document review officer" },
   { id: "approval", title: "Approval", description: "A second officer" },
   { id: "active", title: "Active", description: "Can use Injishi" },
 ];
@@ -93,7 +94,7 @@ function eventWords(e: RegistrationEvent): TimelineEvent {
       id: e.id,
       at: e.occurredAt,
       title: passed ? "Field visit verified" : "Refused at the field visit",
-      detail: [by || "Field verification officer", e.reason].filter(Boolean).join(" · "),
+      detail: [by || "Document review officer", e.reason].filter(Boolean).join(" · "),
       tone: passed ? "success" : "danger",
     };
   }
@@ -107,6 +108,73 @@ function eventWords(e: RegistrationEvent): TimelineEvent {
     };
   }
   return { id: e.id, at: e.occurredAt, title: e.eventType.replace(/[._]/g, " "), detail: by || undefined };
+}
+
+/**
+ * 0118: the star grade a stay said, confirmed here once checked against its RDB grading certificate. Guests see
+ * stars only from then; a lapsed or mismatched certificate is withdrawn the same way. Both take a reason.
+ */
+function StarGradeSection({ orgId }: { orgId: string }) {
+  const [state, setState] = useState<StarGradeState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void loadStarGrade(orgId).then((r) => {
+      if (!live) return;
+      if (r.ok) setState(r.value);
+      else setError(r.error);
+    });
+    return () => {
+      live = false;
+    };
+  }, [orgId]);
+  if (!state) return error ? <p className="text-sm text-danger">{error}</p> : null;
+  if (state.grade === null) return null;
+  const decide = async (confirm: boolean) => {
+    setBusy(true);
+    setError(null);
+    const r = await decideStarGradeAction(orgId, confirm, reason);
+    setBusy(false);
+    if (r.ok) {
+      setState(r.value);
+      setReason("");
+    } else setError(r.error);
+  };
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-sm font-semibold">Star grade</h3>
+      <p className="m-0 text-sm">
+        {`${state.grade} stars, `}
+        {state.verifiedAt ? (
+          <>
+            confirmed <DateText value={state.verifiedAt} style="long" />. Guests see it.
+          </>
+        ) : (
+          "said by the business, not yet checked. Guests see no stars until it is confirmed."
+        )}
+      </p>
+      <TextField value={reason} onChange={setReason} fullWidth>
+        <Label>Why</Label>
+        <Input
+          placeholder={state.verifiedAt ? "The grading certificate has expired" : "RDB grading certificate checked, valid to 2027"}
+        />
+      </TextField>
+      <div className="flex flex-wrap gap-2">
+        {state.verifiedAt ? (
+          <Button variant="secondary" isDisabled={busy || reason.trim().length < 4} onPress={() => void decide(false)}>
+            Withdraw the confirmation
+          </Button>
+        ) : (
+          <Button isDisabled={busy || reason.trim().length < 4} onPress={() => void decide(true)}>
+            Confirm the grade
+          </Button>
+        )}
+      </div>
+      {error ? <p className="m-0 text-sm text-danger">{error}</p> : null}
+    </section>
+  );
 }
 
 function RegistrationPanel({ org, onClose }: { org: AdminOrgRow; onClose: () => void }) {
@@ -163,6 +231,7 @@ function RegistrationPanel({ org, onClose }: { org: AdminOrgRow; onClose: () => 
             { label: "Registered", value: <DateText value={org.createdAt} style="long" /> },
           ]}
         />
+        {org.domain === "hospitality" ? <StarGradeSection orgId={org.id} /> : null}
         <section className="flex flex-col gap-2">
           <h3 className="text-sm font-semibold">History</h3>
           {error ? (

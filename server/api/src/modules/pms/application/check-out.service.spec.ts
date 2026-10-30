@@ -1,3 +1,5 @@
+import type { StayCompletionService } from './stay-completion.service';
+import type { HotelGuestFilingService } from '../../guests/application/hotel-guest-filing.service';
 import { describe, expect, it, type Mock, vi } from 'vitest';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
@@ -91,6 +93,7 @@ describe('FrontDeskService.checkOut: the departure note and the balance', () => 
     findFolioForStay: Mock;
     close: Mock;
     releaseForBooking: Mock;
+    completeBooking: Mock;
   } {
     const reads = [...options.stays];
     const closeStay = vi.fn().mockResolvedValue(options.closed);
@@ -101,6 +104,7 @@ describe('FrontDeskService.checkOut: the departure note and the balance', () => 
     );
     const close = vi.fn().mockResolvedValue(undefined);
     const releaseForBooking = vi.fn().mockResolvedValue(undefined);
+    const completeBooking = vi.fn().mockResolvedValue(null);
 
     const rooms = {
       findStay: vi.fn(() => Promise.resolve(reads.shift() ?? null)),
@@ -114,9 +118,11 @@ describe('FrontDeskService.checkOut: the departure note and the balance', () => 
       { close } as unknown as FolioService,
       {} as unknown as StayClaimService,
       {} as unknown as SelfCheckInService,
+      {} as unknown as HotelGuestFilingService,
+      { completeBooking } as unknown as StayCompletionService,
     );
 
-    return { service, closeStay, findFolioForStay, close, releaseForBooking };
+    return { service, closeStay, findFolioForStay, close, releaseForBooking, completeBooking };
   }
 
   it('hands the note to the same call that closes the stay', async () => {
@@ -186,6 +192,21 @@ describe('FrontDeskService.checkOut: the departure note and the balance', () => 
 
     expect(answer.lifecycle).toBe('closed');
     expect(close).not.toHaveBeenCalled();
+  });
+
+  it('completes a booked stay and pays its host, but not a walk in (0116)', async () => {
+    const BOOKING = '99999999-9999-4999-8999-999999999999';
+    const booked = build({
+      stays: [openStay({ bookingId: BOOKING }), openStay({ bookingId: BOOKING, lifecycle: 'closed' })],
+      closed: true,
+      balanceRwf: 0,
+    });
+    await booked.service.checkOut(ws, STAY);
+    expect(booked.completeBooking).toHaveBeenCalledWith(BOOKING);
+
+    const walkIn = build({ stays: [openStay(), openStay({ lifecycle: 'closed' })], closed: true, balanceRwf: 0 });
+    await walkIn.service.checkOut(ws, STAY);
+    expect(walkIn.completeBooking).not.toHaveBeenCalled();
   });
 
   it('signs the bill when the balance reached zero', async () => {

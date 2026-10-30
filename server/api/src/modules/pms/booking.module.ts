@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
 import { EbmModule } from '../ebm/ebm.module';
+import { GuestsModule } from '../guests/guests.module';
 import { ListingModule } from '../listing/listing.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { OperationsModule } from '../operations/operations.module';
@@ -16,6 +17,10 @@ import { RegistrationService } from '../organization/application/registration.se
 import { PaymentAttemptRepository } from './infrastructure/payment-attempt.repository';
 import { BookingApprovalService } from './application/booking-approval.service';
 import { BookingCancellationService } from './application/booking-cancellation.service';
+import { BookingChangeService } from './application/booking-change.service';
+import { StayCompletionService } from './application/stay-completion.service';
+import { BookingChangeRepository } from './infrastructure/booking-change.repository';
+import { StayCompletionRepository } from './infrastructure/stay-completion.repository';
 import { BookingDecisionService } from './application/booking-decision.service';
 import { BookingLifecycleService } from './application/booking-lifecycle.service';
 import { BookingNotificationsService } from './application/booking-notifications.service';
@@ -111,6 +116,8 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
      * until it is here. `AuthModule` imports it the same way for `OtpMailer`.
      */
     MailerModule,
+    // Check-in files the guests in the guest register (0115): `HotelGuestFilingService`.
+    GuestsModule,
   ],
   providers: [
     BookingRepository,
@@ -126,6 +133,9 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
     BookingCancellationService,
     BookingLifecycleService,
     OperatorReservationsService,
+    // The desk's changes to a confirmed reservation: dates, room type, party (0120).
+    BookingChangeRepository,
+    BookingChangeService,
     // The guest's own read of their own bookings. Its own repository, so the
     // 34 KB write-path one does not grow a thirteenth concern.
     GuestTripsRepository,
@@ -179,6 +189,9 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
      */
     FrontDeskRepository,
     FrontDeskService,
+    // Check out settles the stay: the host's payout and any credit left on the bill (0117, 0121).
+    StayCompletionRepository,
+    StayCompletionService,
     // The front desk's day in one read (interface real-data, frontdesk leaf).
     FrontDeskBoardRepository,
     FrontDeskBoardService,
@@ -236,6 +249,10 @@ import { WorkOrdersRepository } from './infrastructure/work-orders.repository';
     BookingApprovalService,
     BookingCancellationService,
     OperatorReservationsService,
+    // Exported for `OperatorReservationsController`'s change routes (0120).
+    BookingChangeService,
+    // Exported for the stay's completion, which refunds a change's unspent credit at check out.
+    BookingChangeRepository,
     // Exported for `MeController`, which is the only caller and lives in
     // `PublicApiModule`.
     GuestTripsService,

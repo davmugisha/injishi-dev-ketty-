@@ -94,29 +94,29 @@ export declare const TenantInput: z.ZodEffects<z.ZodObject<{
     email: string;
     phone: string;
     idNumber: string;
-    idKind: "national_id" | "passport";
     nationality: string;
+    idKind: "national_id" | "passport";
 }, {
     fullName: string;
     email: string;
     phone: string;
     idNumber: string;
-    idKind: "national_id" | "passport";
     nationality: string;
+    idKind: "national_id" | "passport";
 }>, {
     fullName: string;
     email: string;
     phone: string;
     idNumber: string;
-    idKind: "national_id" | "passport";
     nationality: string;
+    idKind: "national_id" | "passport";
 }, {
     fullName: string;
     email: string;
     phone: string;
     idNumber: string;
-    idKind: "national_id" | "passport";
     nationality: string;
+    idKind: "national_id" | "passport";
 }>;
 export type TenantInput = z.infer<typeof TenantInput>;
 /**
@@ -138,32 +138,32 @@ export declare const UpdateTenantRequest: z.ZodEffects<z.ZodObject<{
     email?: string | undefined;
     phone?: string | undefined;
     idNumber?: string | undefined;
-    idKind?: "national_id" | "passport" | undefined;
     nationality?: string | undefined;
+    idKind?: "national_id" | "passport" | undefined;
     confirmEmail?: boolean | undefined;
 }, {
     fullName?: string | undefined;
     email?: string | undefined;
     phone?: string | undefined;
     idNumber?: string | undefined;
-    idKind?: "national_id" | "passport" | undefined;
     nationality?: string | undefined;
+    idKind?: "national_id" | "passport" | undefined;
     confirmEmail?: boolean | undefined;
 }>, {
     fullName?: string | undefined;
     email?: string | undefined;
     phone?: string | undefined;
     idNumber?: string | undefined;
-    idKind?: "national_id" | "passport" | undefined;
     nationality?: string | undefined;
+    idKind?: "national_id" | "passport" | undefined;
     confirmEmail?: boolean | undefined;
 }, {
     fullName?: string | undefined;
     email?: string | undefined;
     phone?: string | undefined;
     idNumber?: string | undefined;
-    idKind?: "national_id" | "passport" | undefined;
     nationality?: string | undefined;
+    idKind?: "national_id" | "passport" | undefined;
     confirmEmail?: boolean | undefined;
 }>;
 export type UpdateTenantRequest = z.infer<typeof UpdateTenantRequest>;
@@ -235,15 +235,15 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         email: string;
         phone: string;
         idNumber: string;
-        idKind: "national_id" | "passport";
         nationality: string;
+        idKind: "national_id" | "passport";
     }, {
         fullName: string;
         email: string;
         phone: string;
         idNumber: string;
-        idKind: "national_id" | "passport";
         nationality: string;
+        idKind: "national_id" | "passport";
     }>>;
     terms: z.ZodObject<{
         billingStartsOn: z.ZodOptional<z.ZodNullable<z.ZodEffects<z.ZodString, string, string>>>;
@@ -325,8 +325,8 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         email: string;
         phone: string;
         idNumber: string;
-        idKind: "national_id" | "passport";
         nationality: string;
+        idKind: "national_id" | "passport";
     } | undefined;
     placementId?: string | undefined;
     confirmEmail?: boolean | undefined;
@@ -358,8 +358,8 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         email: string;
         phone: string;
         idNumber: string;
-        idKind: "national_id" | "passport";
         nationality: string;
+        idKind: "national_id" | "passport";
     } | undefined;
     placementId?: string | undefined;
     confirmEmail?: boolean | undefined;
@@ -391,8 +391,8 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         email: string;
         phone: string;
         idNumber: string;
-        idKind: "national_id" | "passport";
         nationality: string;
+        idKind: "national_id" | "passport";
     } | undefined;
     placementId?: string | undefined;
     confirmEmail?: boolean | undefined;
@@ -424,8 +424,8 @@ export declare const CreateLeaseRequest: z.ZodEffects<z.ZodObject<{
         email: string;
         phone: string;
         idNumber: string;
-        idKind: "national_id" | "passport";
         nationality: string;
+        idKind: "national_id" | "passport";
     } | undefined;
     placementId?: string | undefined;
     confirmEmail?: boolean | undefined;
@@ -459,15 +459,15 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
-        idKind?: "national_id" | "passport" | undefined;
         nationality?: string | undefined;
+        idKind?: "national_id" | "passport" | undefined;
     }, {
         fullName?: string | undefined;
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
-        idKind?: "national_id" | "passport" | undefined;
         nationality?: string | undefined;
+        idKind?: "national_id" | "passport" | undefined;
     }>>;
     terms: z.ZodOptional<z.ZodObject<{
         startDate: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
@@ -533,8 +533,8 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
-        idKind?: "national_id" | "passport" | undefined;
         nationality?: string | undefined;
+        idKind?: "national_id" | "passport" | undefined;
     } | undefined;
     terms?: {
         monthlyRentRwf?: number | undefined;
@@ -565,8 +565,8 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
-        idKind?: "national_id" | "passport" | undefined;
         nationality?: string | undefined;
+        idKind?: "national_id" | "passport" | undefined;
     } | undefined;
     terms?: {
         monthlyRentRwf?: number | undefined;
@@ -597,8 +597,8 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
-        idKind?: "national_id" | "passport" | undefined;
         nationality?: string | undefined;
+        idKind?: "national_id" | "passport" | undefined;
     } | undefined;
     terms?: {
         monthlyRentRwf?: number | undefined;
@@ -629,8 +629,8 @@ export declare const EditLeaseRequest: z.ZodEffects<z.ZodObject<{
         email?: string | undefined;
         phone?: string | undefined;
         idNumber?: string | undefined;
-        idKind?: "national_id" | "passport" | undefined;
         nationality?: string | undefined;
+        idKind?: "national_id" | "passport" | undefined;
     } | undefined;
     terms?: {
         monthlyRentRwf?: number | undefined;

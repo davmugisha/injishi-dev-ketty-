@@ -540,7 +540,8 @@ export type CheckoutDocument = MarketCheckout & { nonRefundableDiscountRwf?: num
  * on contracts). `/marketplace/quote` prices only the refundable plan, so a non-refundable stay's preview applies
  * the booking service's arithmetic here; once Pay is pressed the screen shows the amount the API prompts for.
  */
-const GUEST_SERVICE_FEE_RATE = 0.05;
+// None since 2026-10-29: the guest pays the room rate the host set.
+const GUEST_SERVICE_FEE_RATE = 0;
 
 interface CheckoutTerms {
   adults: number;

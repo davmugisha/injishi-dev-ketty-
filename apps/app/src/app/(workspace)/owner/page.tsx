@@ -35,6 +35,9 @@ async function setupDue(): Promise<SetupDue[]> {
           workspaceId: w.workspaceId,
           businessName: setup.businessName,
           notApproved: !setup.open,
+          inReview: setup.open && !setup.approved,
+          // What is still missing besides approval, in the setup page's own words.
+          missing: setup.open ? setup.blockers.filter((b) => !/approved/i.test(b)) : [],
           href: setupPath(w.workspaceId),
         };
       } catch {
@@ -50,7 +53,7 @@ export const metadata: Metadata = { title: screens.OwnerHome.pageTitle };
 export default async function OwnerHomePage() {
   const persona = await requirePersona("OwnerHome");
   // Decisions and insights have no live source yet, so they come from the fixture store: the demo's pay run,
-  // refund and rate change. A real owner is shown none rather than a stranger's.
+  // refund and rate change. Only the demo's own people see them; a real owner is shown none (2026-10-30).
   const sample = await holdsSampleData();
   const [kpis, decisions, revenueDays, properties, insights, compliance, due] = await Promise.all([
     getCollection<OwnerKpi>("platform.ownerKpis"),
@@ -66,6 +69,7 @@ export default async function OwnerHomePage() {
       persona={persona}
       data={{ kpis, decisions, revenueDays, properties, insights, compliance }}
       setupDue={due}
+      sample={sample}
     />
   );
 }

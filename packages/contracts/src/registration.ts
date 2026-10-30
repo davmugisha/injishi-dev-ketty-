@@ -18,18 +18,22 @@ import { MobileMoneyNetwork, PaymentAttemptState, PaymentInstrument } from "./bo
 /**
  * The first question the wizard asks, because it picks the whole path.
  *
- * `host` and `landlord` both create an `orgs` row and differ by `domain`;
- * `broker` creates a `brokers` row and no org at all. All three are priced
- * separately in `registration_fees`, which is why this is one enum and not a
- * boolean plus a domain.
+ * `host`, `landlord` and `enterprise` each create an `orgs` row and differ by
+ * `domain`; `broker` creates a `brokers` row and no org at all. All four are
+ * priced separately in `registration_fees`, which is why this is one enum and
+ * not a boolean plus a domain.
+ *
+ * `enterprise` is the PSF path: a business of any sector registering to join
+ * the Private Sector Federation through Injishi.
  */
-export const RegistrantRole = z.enum(["host", "landlord", "broker"]);
+export const RegistrantRole = z.enum(["host", "landlord", "broker", "enterprise"]);
 export type RegistrantRole = z.infer<typeof RegistrantRole>;
-/** The three rows `registration_fees` is keyed by (schema §8.3a). */
+/** The four rows `registration_fees` is keyed by (schema §8.3a). */
 export const RegistrationBusinessType = z.enum([
     "hospitality",
     "residence",
     "broker",
+    "enterprise",
 ]);
 export type RegistrationBusinessType = z.infer<typeof RegistrationBusinessType>;
 /** A registrant's answer maps onto exactly one fee row and one domain. */
@@ -41,6 +45,19 @@ export function businessTypeFor(role: RegistrantRole): RegistrationBusinessType 
             return "residence";
         case "broker":
             return "broker";
+        case "enterprise":
+            return "enterprise";
+    }
+}
+/** The domain a registrant's role registers, for the three roles that create an org. */
+export function domainForRole(role: Exclude<RegistrantRole, "broker">): Domain {
+    switch (role) {
+        case "host":
+            return "hospitality";
+        case "landlord":
+            return "residence";
+        case "enterprise":
+            return "enterprise";
     }
 }
 /** Whether this registrant is the owner, or acting for one (OBO, FL02). */
@@ -378,6 +395,13 @@ export type PsfIdDocument = z.infer<typeof PsfIdDocument>;
 export const PsfApplicationInput = z
     .object({
     requestedTierCode: z.string().trim().min(1, "Pick a membership tier.").max(60),
+    /**
+     * What the business will pay a year, inside the band it picked. A business
+     * pays what it can afford within its tier, so the amount is its own answer.
+     * Required for every tier except one PSF prices itself; the server checks it
+     * against the tier (`psfTierAcceptsFee`), which only the server reads.
+     */
+    declaredFeeRwf: RwfAmount.refine((n) => n > 0, "Give the amount you will pay.").optional(),
     companyName: psfText(200, "Give the name PSF should record."),
     streetAddress: psfText(200, "Give the business's street address."),
     website: z
@@ -461,6 +485,24 @@ export const PsfApplicationInput = z
     }
 });
 export type PsfApplicationInput = z.infer<typeof PsfApplicationInput>;
+/**
+ * The owners PSF's Specialized cluster speaks for: women, young people and
+ * people with disabilities. A marker on a business of ANY sector, never a
+ * sector of its own, because a factory a woman owns is still a factory.
+ */
+export const PsfOwnerGroup = z.enum(["women", "youth", "pwd"]);
+export type PsfOwnerGroup = z.infer<typeof PsfOwnerGroup>;
+/**
+ * How a PSF business is registered, when it says so. A TIN is optional on this
+ * path: a cooperative is registered with RCA, an NGO with RGB, and the smallest
+ * businesses PSF wants are often registered nowhere yet. `tin` is checked with
+ * RRA like every other TIN; the others are recorded as given, and the PSF
+ * officer reads them.
+ */
+export const EnterpriseRegistrationKind = z.enum(["tin", "rca", "rgb", "other", "none"]);
+export type EnterpriseRegistrationKind = z.infer<typeof EnterpriseRegistrationKind>;
+/** The kinds that carry a number other than a TIN. */
+export const NUMBERED_REGISTRATION_KINDS: readonly EnterpriseRegistrationKind[] = ["rca", "rgb", "other"];
 /** The membership number a business that answered Yes may give (ADR-056 AC-1). */
 export const PsfMembershipNumber = z
     .string()
@@ -592,9 +634,59 @@ export const ResidenceBusiness = businessBase.extend({
         .never({ errorMap: () => ({ message: "A residence registers without a franchise." }) })
         .optional(),
 });
+/**
+ * A business of any sector joining PSF through Injishi (the PSF path). It
+ * names its sector by the PSF association it belongs to (the cluster follows
+ * from it), may carry a TIN, and carries none of the tourism apparatus.
+ *
+ * The PSF application itself is NOT part of this: the business registers, gets
+ * its code, and applies from its own portal, where the form and the tiers live.
+ */
+export const EnterpriseBusiness = businessBase.extend({
+    domain: z.literal("enterprise"),
+    registrationKind: EnterpriseRegistrationKind,
+    /** Required with `registrationKind: tin`, forbidden otherwise. */
+    tin: Tin.optional(),
+    /** Required with `rca`, `rgb` and `other`, forbidden otherwise. */
+    registrationNumber: z.string().trim().min(1, "Give the registration number.").max(60).optional(),
+    /** A row of the PSF association catalogue, which admin edits. */
+    associationCode: z.string().trim().min(1, "Pick the association your business belongs to.").max(60),
+    ownerGroups: z.array(PsfOwnerGroup).max(3).default([]),
+    /** Refused, not stripped, like a residence's (ADR-054 AC-R3). */
+    branches: z
+        .array(z.unknown())
+        .max(0, "A PSF business registers without branches.")
+        .optional(),
+    psfApplication: z
+        .never({ errorMap: () => ({ message: "Apply for membership from your portal once you are registered." }) })
+        .optional(),
+    psfMembershipNumber: z
+        .never({ errorMap: () => ({ message: "Apply for membership from your portal once you are registered." }) })
+        .optional(),
+});
 export const BusinessDetails = z
-    .discriminatedUnion("domain", [HospitalityBusiness, ResidenceBusiness])
+    .discriminatedUnion("domain", [HospitalityBusiness, ResidenceBusiness, EnterpriseBusiness])
     .superRefine((value, ctx) => {
+    if (value.domain === "enterprise") {
+        // Mirrors `orgs_registration_shape`, so the wizard can name the field.
+        if (value.registrationKind === "tin" && !value.tin) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tin"], message: "Enter the 9-digit TIN." });
+        }
+        if (value.registrationKind !== "tin" && value.tin) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tin"], message: "Only give a TIN when you pick TIN." });
+        }
+        const numbered = NUMBERED_REGISTRATION_KINDS.includes(value.registrationKind);
+        if (numbered && !value.registrationNumber) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["registrationNumber"], message: "Give the registration number." });
+        }
+        if (!numbered && value.registrationNumber) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["registrationNumber"], message: "Leave this empty for this kind of registration." });
+        }
+        if (new Set(value.ownerGroups).size !== value.ownerGroups.length) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownerGroups"], message: "Pick each group once." });
+        }
+        return;
+    }
     // ADR-075 AC-8: a franchise agreement goes with a franchisee's answer, and with nothing else.
     const franchisee = value.domain === "hospitality" && value.franchise?.role === "franchisee";
     value.certificates.forEach((certificate, index) => {
@@ -740,12 +832,24 @@ export const CreateRegistrationRequest = z
     intendedOwner: IntendedOwner.optional(),
 })
     .superRefine((value, ctx) => {
-    const expected = value.role === "landlord" ? "residence" : "hospitality";
-    if (value.role !== "broker" && value.business.domain !== expected) {
+    if (value.role !== "broker") {
+        const expected = domainForRole(value.role);
+        if (value.business.domain !== expected) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["business", "domain"],
+                message: `A ${value.role} registers a ${expected} business.`,
+            });
+        }
+    }
+    // A PSF business is registered by the person who runs it. The on behalf
+    // path exists for agents who list a stranger's hotel, and its claim
+    // machinery has nothing to say to a business that lists nothing.
+    if (value.role === "enterprise" && value.capacity === "on_behalf_of") {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            path: ["business", "domain"],
-            message: `A ${value.role} registers a ${expected} business.`,
+            path: ["capacity"],
+            message: "A PSF business is registered by its owner.",
         });
     }
     if (value.capacity === "on_behalf_of" && !value.intendedOwner) {
@@ -992,6 +1096,8 @@ export const OversightDecision = z.object({
     /** The gate decided: `tin_verified` is field verification, `field_verified` approval. */
     stage: z.enum(["tin_verified", "field_verified"]),
     decision: z.enum(["passed", "rejected"]),
+    /** Who decided it: a PSF District Manager's review is one step that approves (0119). */
+    oversightRole: z.enum(["business_field_verifier", "business_approver", "psf_membership_officer"]).optional(),
     reasonCode: RegistrationRejectionReason.nullable(),
     notes: z.string().nullable(),
     governmentBodyCode: z.string(),
@@ -1019,8 +1125,11 @@ export const RegistrationSummary = z.object({
     workspaceId: Uuid,
     legalName: z.string(),
     domain: Domain,
-    /** What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say. */
-    businessKind: BusinessKind,
+    /**
+     * What kind of business it is (ADR-075 D-h): the noun the register's heading and status page say.
+     * Null for a PSF business (`enterprise`), which is not a place.
+     */
+    businessKind: BusinessKind.nullable(),
     accommodationClass: StoredAccommodationClass.nullable(),
     status: OrgRegistrationStatus,
     /** Set only while `status` is `pending_payment`. */
@@ -1044,6 +1153,12 @@ export const RegistrationSummary = z.object({
      * AC-R1). Null for a business nobody registered on behalf of anyone else.
      */
     payoutLocked: z.boolean().nullable(),
+    /**
+     * The business's code, its district's letters and a number (`KIC0001`),
+     * given when the registration fee is paid. Null until then. Optional on the
+     * wire so a client still parses a summary from an API built before it.
+     */
+    businessCode: z.string().nullable().default(null),
 });
 export type RegistrationSummary = z.infer<typeof RegistrationSummary>;
 /**

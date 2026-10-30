@@ -157,7 +157,7 @@ describe('DemoPersonasController.list', () => {
       {
         label: 'PSF · Gasabo district',
         surface: 'oversight',
-        role: 'Field verifier',
+        role: 'Document reviewer',
         roleKey: 'business_field_verifier',
         detail: 'Business Registration Officer',
       },
@@ -209,7 +209,7 @@ describe('oversightSeats', () => {
       grant({ scopeLevel: 'country', provinceId: null, districtId: null, scopeLabel: 'Rwanda', oversightRole: 'tax_compliance_officer', bodyCode: 'RRA', title: null, bodyName: 'Rwanda Revenue Authority' }),
     ]);
     expect(seats.map((s) => [s.label, s.role, s.detail])).toEqual([
-      ['PSF · Kigali province', 'Field verifier', 'Business Registration Officer'],
+      ['PSF · Kigali province', 'Document reviewer', 'Business Registration Officer'],
       ['RRA · Rwanda', 'Tax compliance officer', 'Rwanda Revenue Authority'],
     ]);
   });

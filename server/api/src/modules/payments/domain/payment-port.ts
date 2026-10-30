@@ -85,7 +85,9 @@ export type PaymentPurpose =
   | 'service_order'
   | 'registration_fee'
   | 'rent'
-  | 'subscription';
+  | 'subscription'
+  /** A PSF membership fee (audric-main's PSF path), charged once and passed on to PSF. */
+  | 'psf_membership';
 
 export const PAYMENT_PURPOSES: readonly PaymentPurpose[] = [
   'booking',
@@ -93,6 +95,7 @@ export const PAYMENT_PURPOSES: readonly PaymentPurpose[] = [
   'registration_fee',
   'rent',
   'subscription',
+  'psf_membership',
 ];
 
 /**
@@ -294,7 +297,7 @@ export interface RecurringChargeCommand extends MoneyCommand {
  */
 export interface OneTimeFeeCommand extends MoneyCommand {
   kind: 'one_time_fee';
-  purpose: 'registration_fee';
+  purpose: 'registration_fee' | 'psf_membership';
   feeCode: string;
   instrument: PaymentInstrument;
 }

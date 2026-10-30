@@ -1,5 +1,4 @@
 import type { AccommodationClass } from "@injishi/contracts";
-import { approximateLocation } from "@/data/approximate-location";
 import type { DistrictSlug } from "@/data/search-options";
 import type {
   Amenity,
@@ -35,7 +34,7 @@ export interface Listing {
   /** Null when unknown; a card then says nothing about bedrooms rather than "1". */
   bedrooms: number | null;
   /** Sleeps. The party filter compares against this rather than guessing. */
-  maxGuests: number;
+  maxGuests: number | null;
   /** 5, 4, 3, 2 or null. The rail's "Property class" group reads it. */
   starClass: number | null;
   /** Null where the property publishes no rate; the card says so. */
@@ -72,28 +71,22 @@ export interface Listing {
   /** Every photograph, so the result card can run a carousel. Empty when there are none. */
   gallery: GalleryImage[];
   /**
-   * Where the Explore map pins the stay: the property's public coordinates
-   * when it has set them, otherwise its neighbourhood's (or district's)
-   * centre — see `data/approximate-location.ts`. Null only when neither is
-   * known; a card without a point simply has no pin.
+   * Where the Explore map pins the stay: the coordinates the host published.
+   * Null when there are none, and a card without a point simply has no pin.
    */
   latitude: number | null;
   longitude: number | null;
-  /** True when the point above is a neighbourhood centre, not an address. */
+  /** Always false now that no point is made up; kept for the map's note. */
   locationApproximate: boolean;
 }
 
 /** One property as an Explore card. Exported for the database half of discovery (`data/discovery.ts`). */
 export function listingFor(property: PropertyDetail): Listing {
   const { latitude, longitude } = property.place;
-  const exact = latitude !== null && longitude !== null;
-  const point = exact
-    ? { latitude, longitude }
-    : approximateLocation(
-        property.slug,
-        property.place.addressLines[0] ?? property.location.split(",")[0],
-        property.district,
-      );
+  // Only the point the host published. A stay without one has no pin: it used
+  // to be placed at its neighbourhood's centre with a made-up offset, which
+  // put an invented location on the map (2026-10-29).
+  const point = latitude !== null && longitude !== null ? { latitude, longitude } : null;
   return {
     slug: property.slug,
     nameLead: property.cardName.lead,
@@ -114,7 +107,7 @@ export function listingFor(property: PropertyDetail): Listing {
     gallery: property.gallery,
     latitude: point?.latitude ?? null,
     longitude: point?.longitude ?? null,
-    locationApproximate: !exact && point !== null,
+    locationApproximate: false,
   };
 }
 

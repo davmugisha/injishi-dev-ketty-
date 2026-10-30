@@ -107,6 +107,8 @@ export interface OfficerDecision {
   icon: IconName;
   title: string;
   detail: string;
+  /** Live decisions a PSF District Manager took: the business's profile (2026-10-30). */
+  href?: string;
 }
 
 /** A rule of the mandate, linked to the screen where it shows. */
@@ -207,9 +209,10 @@ export interface CaseFile {
   rejectionNote: string;
   /**
    * Live cases only: the gate this officer decides here. `field` is the field verifier's (verify or
-   * reject), `approval` the second officer's (approve or reject). Absent on sample cases.
+   * reject), `approval` the second officer's (approve or reject), `review` a PSF District Manager's one
+   * step, whose Reviewed approves the business (0119). Absent on sample cases.
    */
-  gate?: "field" | "approval";
+  gate?: "field" | "approval" | "review";
   /** Live approval cases: this officer field-verified it, so separation of duties bars their approval. */
   blocked?: boolean;
 }

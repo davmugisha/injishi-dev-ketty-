@@ -32,6 +32,8 @@ import { appointOfficer } from "./actions";
 export const ROLE_CHOICES: { id: OversightRole; label: string; description: string }[] = [
   { id: "village_leader", label: LEADER_ROLE_LABEL.village_leader, description: "Every guest in one village" },
   { id: "cell_executive", label: LEADER_ROLE_LABEL.cell_executive, description: "Every guest in one cell" },
+  { id: "dasso", label: OVERSIGHT_ROLE_LABEL.dasso, description: "Every guest in one sector" },
+  { id: "sector_executive", label: OVERSIGHT_ROLE_LABEL.sector_executive, description: "Every guest in one sector" },
   { id: "district_officer", label: LEADER_ROLE_LABEL.district_officer, description: "Every guest in one district" },
   { id: "dgie_village", label: LEADER_ROLE_LABEL.dgie_village, description: "Guests from abroad in one village" },
   { id: "dgie_cell", label: LEADER_ROLE_LABEL.dgie_cell, description: "Guests from abroad in one cell" },
@@ -40,13 +42,15 @@ export const ROLE_CHOICES: { id: OversightRole; label: string; description: stri
     label: LEADER_ROLE_LABEL.district_immigration,
     description: "Guests from abroad in one district",
   },
-  { id: "business_field_verifier", label: "Business field verifier", description: "Visits businesses before approval" },
-  { id: "business_approver", label: "Business approver", description: "Approves verified businesses" },
+  { id: "dgie_province", label: OVERSIGHT_ROLE_LABEL.dgie_province, description: "Guests from abroad in one province" },
+  { id: "dgie_national", label: OVERSIGHT_ROLE_LABEL.dgie_national, description: "Guests from abroad, the whole country" },
+  { id: "business_field_verifier", label: "Document reviewer", description: "Reviews a business's documents online" },
+  { id: "business_approver", label: "Business approver", description: "Approves businesses whose documents are checked" },
   { id: "tax_compliance_officer", label: OVERSIGHT_ROLE_LABEL.tax_compliance_officer, description: "Tax compliance" },
   {
     id: "psf_membership_officer",
     label: OVERSIGHT_ROLE_LABEL.psf_membership_officer,
-    description: "PSF membership, the whole country",
+    description: "PSF membership: a district manager decides, province and national managers oversee",
   },
 ];
 
@@ -90,6 +94,8 @@ function areaWords(chain: PlaceChain, level: OversightScopeLevel): string {
 export interface AppointPrefill {
   role: OversightRole;
   chain: PlaceChain;
+  /** The person, when the panel was opened from their page in People. */
+  email?: string;
 }
 
 /** The request's place ids, from the chain, down to the level the role covers. */
@@ -122,7 +128,7 @@ export function AppointPanel({
 }) {
   const router = useRouter();
   const startRole = prefill?.role ?? "village_leader";
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(prefill?.email ?? "");
   const [name, setName] = useState("");
   const [role, setRole] = useState<OversightRole>(startRole);
   const [level, setLevel] = useState<OversightScopeLevel>(defaultLevel(startRole));

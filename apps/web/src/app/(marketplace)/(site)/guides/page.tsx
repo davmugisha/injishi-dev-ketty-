@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -22,6 +23,8 @@ export const metadata: Metadata = {
 };
 
 export default function GuidesPage() {
+  // No articles yet: the index is not a page until there is something on it.
+  if (GUIDES.length === 0) notFound();
   const [first, second, ...rest] = GUIDES;
   const featured = [first, second].filter((guide) => guide !== undefined);
 

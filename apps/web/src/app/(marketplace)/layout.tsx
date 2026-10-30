@@ -40,6 +40,8 @@ import "../_injishi-public.css";
  *   (site)      — the canonical header and footer.
  *   (results)   — its own nav on a navy band, then a white sheet. Holds /explore.
  *   (checkout)  — a minimal checkout header and no footer. Holds /book.
+ *   (partner)   — a partner's own header and footer, nothing of Injishi's.
+ *                 Holds /psf (2026-10-23).
  *   (bare)      — no chrome at all, for a screen that is its whole content.
  *                 Holds /downloads/coming-soon (mobile spec 0004).
  *

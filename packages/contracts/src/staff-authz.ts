@@ -40,6 +40,8 @@ export const StaffPermission = z.enum([
     "admin.user.role.grant",
     "admin.user.session.revoke",
     "admin.user.impersonate",
+    /** Add a person to a business, change their role there, or remove them. */
+    "admin.business.member.manage",
     // Brokers.
     "admin.broker.view",
     "admin.broker.approve",
@@ -124,6 +126,8 @@ const STAFF_ROLE_PERMISSIONS = {
         "admin.business.reinstate",
         "admin.user.view",
         "admin.user.session.revoke",
+        // Ops fixes who works where; ownership changes still need a written reason.
+        "admin.business.member.manage",
         "admin.broker.view",
         "admin.broker.approve",
         "admin.config.view",
@@ -212,6 +216,7 @@ export const STAFF_PERMISSION_LABEL: Readonly<Record<StaffPermission, string>> =
     "admin.user.view": "view users",
     "admin.user.role.grant": "change what a user may do",
     "admin.user.session.revoke": "end a user's sessions",
+    "admin.business.member.manage": "add, change or remove a person in a business",
     "admin.user.impersonate": "act on behalf of a user",
     "admin.broker.view": "view brokers",
     "admin.broker.approve": "approve a broker",

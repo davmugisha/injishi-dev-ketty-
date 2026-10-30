@@ -124,10 +124,11 @@ export declare const BrokerHome: z.ZodObject<{
         id: string;
     }>>;
 }, "strip", z.ZodTypeAny, {
-    kitchen: "none" | "own" | "shared" | null;
+    kitchen: "shared" | "none" | "own" | null;
     district: string | null;
     sector: string | null;
     districtId: number | null;
+    feeRwf: number;
     contact: {
         name: string | null;
         email: string | null;
@@ -151,7 +152,6 @@ export declare const BrokerHome: z.ZodObject<{
     sizeSqm: number | null;
     rentRwf: number;
     depositRwf: number | null;
-    feeRwf: number;
     photos: string[];
     video: {
         url: string;
@@ -166,10 +166,11 @@ export declare const BrokerHome: z.ZodObject<{
         id: string;
     } | null;
 }, {
-    kitchen: "none" | "own" | "shared" | null;
+    kitchen: "shared" | "none" | "own" | null;
     district: string | null;
     sector: string | null;
     districtId: number | null;
+    feeRwf: number;
     contact: {
         name: string | null;
         email: string | null;
@@ -193,7 +194,6 @@ export declare const BrokerHome: z.ZodObject<{
     sizeSqm: number | null;
     rentRwf: number;
     depositRwf: number | null;
-    feeRwf: number;
     photos: string[];
     video: {
         url: string;
@@ -338,10 +338,11 @@ export declare const BrokerHomes: z.ZodObject<{
             id: string;
         }>>;
     }, "strip", z.ZodTypeAny, {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
+        feeRwf: number;
         contact: {
             name: string | null;
             email: string | null;
@@ -365,7 +366,6 @@ export declare const BrokerHomes: z.ZodObject<{
         sizeSqm: number | null;
         rentRwf: number;
         depositRwf: number | null;
-        feeRwf: number;
         photos: string[];
         video: {
             url: string;
@@ -380,10 +380,11 @@ export declare const BrokerHomes: z.ZodObject<{
             id: string;
         } | null;
     }, {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
+        feeRwf: number;
         contact: {
             name: string | null;
             email: string | null;
@@ -407,7 +408,6 @@ export declare const BrokerHomes: z.ZodObject<{
         sizeSqm: number | null;
         rentRwf: number;
         depositRwf: number | null;
-        feeRwf: number;
         photos: string[];
         video: {
             url: string;
@@ -485,10 +485,11 @@ export declare const BrokerHomes: z.ZodObject<{
         count: number;
     }[];
     homes: {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
+        feeRwf: number;
         contact: {
             name: string | null;
             email: string | null;
@@ -512,7 +513,6 @@ export declare const BrokerHomes: z.ZodObject<{
         sizeSqm: number | null;
         rentRwf: number;
         depositRwf: number | null;
-        feeRwf: number;
         photos: string[];
         video: {
             url: string;
@@ -548,10 +548,11 @@ export declare const BrokerHomes: z.ZodObject<{
         count: number;
     }[];
     homes: {
-        kitchen: "none" | "own" | "shared" | null;
+        kitchen: "shared" | "none" | "own" | null;
         district: string | null;
         sector: string | null;
         districtId: number | null;
+        feeRwf: number;
         contact: {
             name: string | null;
             email: string | null;
@@ -575,7 +576,6 @@ export declare const BrokerHomes: z.ZodObject<{
         sizeSqm: number | null;
         rentRwf: number;
         depositRwf: number | null;
-        feeRwf: number;
         photos: string[];
         video: {
             url: string;
@@ -1319,8 +1319,8 @@ export declare const BrokerEarnings: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     paidRwf: number;
-    owedRwf: number;
     paidThisYearRwf: number;
+    owedRwf: number;
     byMonth: {
         paidRwf: number;
         month: string;
@@ -1349,8 +1349,8 @@ export declare const BrokerEarnings: z.ZodObject<{
     }[];
 }, {
     paidRwf: number;
-    owedRwf: number;
     paidThisYearRwf: number;
+    owedRwf: number;
     byMonth: {
         paidRwf: number;
         month: string;
@@ -1435,8 +1435,8 @@ export declare const BrokerReviews: z.ZodObject<{
         raterName: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    breakdown: number[];
     count: number;
+    breakdown: number[];
     reviews: {
         propertyName: string | null;
         from: "landlord" | "tenant";
@@ -1448,8 +1448,8 @@ export declare const BrokerReviews: z.ZodObject<{
     average: number | null;
     placedCount: number;
 }, {
-    breakdown: number[];
     count: number;
+    breakdown: number[];
     reviews: {
         propertyName: string | null;
         from: "landlord" | "tenant";
@@ -1517,6 +1517,7 @@ export declare const BrokerSummary: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "active" | "suspended";
     name: string | null;
+    paidRwf: number;
     scope: {
         provinceId: number | null;
         districtId: number | null;
@@ -1529,7 +1530,6 @@ export declare const BrokerSummary: z.ZodObject<{
             plan: "country" | "province" | "district";
         } | null;
     };
-    paidRwf: number;
     ratingAverage: number | null;
     ratingCount: number;
     owedRwf: number;
@@ -1538,6 +1538,7 @@ export declare const BrokerSummary: z.ZodObject<{
 }, {
     status: "active" | "suspended";
     name: string | null;
+    paidRwf: number;
     scope: {
         provinceId: number | null;
         districtId: number | null;
@@ -1550,7 +1551,6 @@ export declare const BrokerSummary: z.ZodObject<{
             plan: "country" | "province" | "district";
         } | null;
     };
-    paidRwf: number;
     ratingAverage: number | null;
     ratingCount: number;
     owedRwf: number;

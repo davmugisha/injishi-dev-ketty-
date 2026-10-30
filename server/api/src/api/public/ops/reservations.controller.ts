@@ -8,6 +8,11 @@ import {
   OperatorReservationQuery,
   type OperatorRoomAssignment,
   type OperatorRoomAssignmentList,
+  ReservationChangeAsk,
+  type ReservationChangeForm,
+  type ReservationChangeQuote,
+  ReservationChangeRequest,
+  type ReservationChangeResult,
   RoomAssignmentWindowQuery,
 } from '@injishi/contracts';
 import {
@@ -22,6 +27,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { BookingChangeService } from '../../../modules/pms/application/booking-change.service';
 import { OperatorReservationsService } from '../../../modules/pms/application/operator-reservations.service';
 import { RoomAssignmentService } from '../../../modules/pms/application/room-assignment.service';
 import {
@@ -71,6 +77,7 @@ export class OpsReservationsController {
   constructor(
     private readonly reservations: OperatorReservationsService,
     private readonly assignments: RoomAssignmentService,
+    private readonly changes: BookingChangeService,
   ) {}
 
   /**
@@ -174,6 +181,58 @@ export class OpsReservationsController {
     @CurrentWorkspace() workspace: ScopedWorkspace,
   ): Promise<BookingCancellationResult> {
     return this.reservations.cancelAtGuestRequest(workspace, id, body);
+  }
+
+  /** The stay as it stands and the room types it may move to, for the desk's change form (0120). */
+  @Get(':id/change')
+  @RequirePermission('reservation.approve')
+  changeForm(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<ReservationChangeForm> {
+    return this.changes.form(workspace, id);
+  }
+
+  /**
+   * What a change to this reservation would cost, before anything moves (0120): the new price, the
+   * difference against what the guest paid, the settlements the desk may choose, availability (this
+   * booking left out) and why it cannot be made, if it cannot. The same permission as cancel.
+   */
+  @Post(':id/change/quote')
+  @RequirePermission('reservation.approve')
+  quoteChange(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(ReservationChangeAsk)) body: ReservationChangeAsk,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<ReservationChangeQuote> {
+    return this.changes.quote(workspace, id, body);
+  }
+
+  /**
+   * Change a confirmed reservation's dates, room type or party (0120). Costing more, the body says how the
+   * difference is settled: `bill`, or `momo` with the guest's number, and then the change applies once the
+   * guest pays. Costing less, the difference is credit on the guest's bill.
+   */
+  @Post(':id/change')
+  @RequirePermission('reservation.approve')
+  change(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(ReservationChangeRequest)) body: ReservationChangeRequest,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+    @CurrentUser() user: SessionUser,
+  ): Promise<ReservationChangeResult> {
+    return this.changes.change(workspace, id, body, user.id);
+  }
+
+  /** Where a MoMo request for a change's difference got to; the change applies when it lands. */
+  @Get(':id/change/attempts/:token')
+  @RequirePermission('reservation.approve')
+  pollChange(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('token') token: string,
+    @CurrentWorkspace() workspace: ScopedWorkspace,
+  ): Promise<ReservationChangeResult> {
+    return this.changes.poll(workspace, id, token);
   }
 
   /**

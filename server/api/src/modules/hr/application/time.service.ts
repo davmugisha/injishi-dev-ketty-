@@ -18,6 +18,7 @@ import type {
   ShiftTemplate,
   ShiftTemplateList,
   ShiftTemplateQuery,
+  UpdateShiftTemplateRequest,
 } from '@injishi/contracts';
 import {
   ConflictException,
@@ -162,6 +163,44 @@ export class TimeService {
     const created = await this.time.findTemplate(id);
     if (!created) throw new NotFoundException();
     return presentTemplate(created);
+  }
+
+  /**
+   * `PATCH /ops/shift-templates/:id`: a shift's name, hours and break. Shifts
+   * already rostered keep the hours they were given; the new ones apply to
+   * what is rostered from now on.
+   */
+  async updateTemplate(ws: ScopedWorkspace, id: string, body: UpdateShiftTemplateRequest): Promise<ShiftTemplate> {
+    const orgId = orgOf(ws);
+    const before = await this.time.findTemplate(id);
+    if (!before || before.orgId !== orgId) throw new NotFoundException();
+    assertBranchInReach(ws, before.propertyId);
+    const startsAt = body.startsAt ?? hhmm(before.startsAt);
+    const endsAt = body.endsAt ?? hhmm(before.endsAt);
+    if (startsAt === endsAt) {
+      throw new UnprocessableEntityException('A shift cannot start and end at the same time.');
+    }
+    const name = body.name?.trim();
+    try {
+      await this.db.transaction((tx) =>
+        this.time.updateTemplate(tx, id, {
+          ...(name !== undefined ? { name } : {}),
+          ...(body.startsAt !== undefined ? { startsAt: body.startsAt } : {}),
+          ...(body.endsAt !== undefined ? { endsAt: body.endsAt } : {}),
+          ...(body.breakMinutes !== undefined ? { breakMinutes: body.breakMinutes } : {}),
+          ...(body.minWorkMinutes !== undefined ? { minWorkMinutes: body.minWorkMinutes } : {}),
+          ...(body.autoClockOutMinutes !== undefined ? { autoClockOutMinutes: body.autoClockOutMinutes } : {}),
+        }),
+      );
+    } catch (error) {
+      if (violatedConstraint(error) === 'shift_templates_name_uk') {
+        throw new ConflictException(`This branch already has a shift called "${name ?? before.name}".`);
+      }
+      throw error;
+    }
+    const after = await this.time.findTemplate(id);
+    if (!after) throw new NotFoundException();
+    return presentTemplate(after);
   }
 
   // --- Roster --------------------------------------------------------------

@@ -1,6 +1,7 @@
 /**
  * "Set up your property", on the API, with the mutations the setup page calls:
- *   - before approval the owner's setup is closed and the API refuses every inventory write (rule D20);
+ *   - once the fee is paid the owner can build the listing in review, and the API refuses to publish it until
+ *     approval (`org_not_active`);
  *   - approval has already created the property from the registration (its name and sector), so setup starts with
  *     the property in place and names exactly what is missing: a priced room type and a photograph;
  *   - the owner fills in the property, adds a priced room type and a photograph, and only then publishes;
@@ -11,7 +12,6 @@ import { ApiError, apiRequest } from "../../src/server/api";
 import {
   addPhoto,
   addRoomType,
-  createProperty,
   publish,
   readSetup,
   type SetupRead,
@@ -49,32 +49,41 @@ async function apiRefusal(statuses: number[], call: () => Promise<unknown>, what
 
 export const flows: Flow[] = [
   {
-    name: "before approval the owner's setup is closed and the API refuses every inventory write",
+    name: "in review the owner can build the listing, but the API refuses to publish it until approval",
     async run({ asEmail, check, step }) {
-      const business = await registerBusiness(GASABO, "setup-closed");
+      const business = await registerBusiness(GASABO, "setup-review");
       const owner = await asEmail(business.email);
       const workspaceId = businessWorkspace(owner);
 
-      const read = await readSetup(owner, workspaceId);
-      check(!read.open, "setup is open for a business that is still in review");
-      check(read.status === "tin_verified", `the closed setup reports status ${read.status}, not tin_verified`);
-      check(read.businessName === business.legalName, `the closed setup names "${read.businessName}"`);
-      step("the page reads it as closed, with the registration status");
-
-      const words = await apiRefusal(
-        [403],
-        () => createProperty(owner, workspaceId, { name: "Not Yet Hotel", sectorId: 10201 }),
-        "creating a property before approval",
+      let read: SetupRead = await readSetup(owner, workspaceId);
+      check(read.open, "setup is closed for a paid business in review");
+      if (!read.open) return;
+      check(!read.approved, "a business in review reads as approved");
+      check(read.status === "tin_verified", `setup reports status ${read.status}, not tin_verified`);
+      check(read.businessName === business.legalName, `setup names "${read.businessName}"`);
+      check(
+        read.blockers[0] === "Publishing opens once your business is approved.",
+        `the first blocker is "${read.blockers[0]}"`,
       );
-      check(words.length > 0, "the API refused with no words");
-      await apiRefusal(
-        [403],
-        () => owner.api.get("/api/v1/inventory/properties", { workspaceId }),
-        "reading inventory before approval",
-      );
-      step(`the API refuses the write: ${words}`);
+      const created = read.property;
+      check(created, "the registration did not create the property");
+      if (!created) return;
+      step("setup opens in review, and names approval as the first thing publishing waits for");
 
-      await apiRefusal([403, 404], () => owner.api.get("/api/v1/inventory/setup", { workspaceId }), "the setup counts");
+      await addRoomType(owner, workspaceId, created.id, {
+        name: "Garden Room",
+        maxGuests: 2,
+        basePriceRwf: 40_000,
+        roomCount: 2,
+      });
+      await addPhoto(owner, workspaceId, created.id, new Blob([PNG], { type: "image/png" }), "Front");
+      read = await readSetup(owner, workspaceId);
+      check(read.open && read.counts.pricedRoomTypes > 0 && read.counts.photos > 0, "the writes did not land");
+      step("a priced room type and a photograph are saved while in review");
+
+      const words = await apiRefusal([409], () => publish(owner, workspaceId, created.id), "publishing before approval");
+      check(/approved/i.test(words), `the publish refusal does not mention approval: ${words}`);
+      step(`publishing is refused: ${words}`);
 
       let refused = false;
       try {
@@ -205,6 +214,85 @@ export const flows: Flow[] = [
         "the public property list does not include the published property",
       );
       step(`published at ${published.slug}; a signed-out guest finds it in the public list and opens it by slug`);
+    },
+  },
+  {
+    name: "a villa is let whole: its price is per night, and a party of four pays the same as one",
+    async run({ asEmail, check, step }) {
+      const villa = await approvedBusiness("setup-villa", "villa");
+      const owner = await asEmail(villa.email);
+      const workspaceId = businessWorkspace(owner);
+      let read = await readSetup(owner, workspaceId);
+      check(read.open, "setup is closed for an approved villa");
+      if (!read.open || !read.property) return;
+      check(read.words.priceBasis === "per_unit", `a villa prices ${read.words.priceBasis}`);
+      check(read.kindLabel === "villa", `the kind reads "${read.kindLabel}"`);
+      check(
+        read.checklist.find((s) => s.key === "departments")?.required === false,
+        "a villa is asked for department heads as a requirement",
+      );
+      step(`setup speaks villa: "${read.words.typePlural}", priced ${read.words.pricePeriod}`);
+
+      await addRoomType(owner, workspaceId, read.property.id, {
+        name: "Whole villa",
+        maxGuests: 6,
+        basePriceRwf: 300_000,
+        roomCount: 1,
+        priceBasis: read.words.priceBasis,
+      });
+      await addPhoto(owner, workspaceId, read.property.id, new Blob([PNG], { type: "image/png" }), "Garden");
+      const published = await publish(owner, workspaceId, read.property.id);
+      read = await readSetup(owner, workspaceId);
+      check(read.open && read.property?.roomTypes[0]?.priceBasis === "per_unit", "the villa type was not stored per unit");
+      const slug = published.slug as string;
+      const detail = await apiRequest<{ roomTypes: { id: string; priceBasis: string }[] }>(
+        null,
+        `/api/v1/properties/slug/${slug}`,
+      );
+      check(detail.roomTypes[0]?.priceBasis === "per_unit", "the marketplace does not say the villa is per unit");
+      step(`published at ${slug}; the marketplace prices it per night, for the whole place`);
+    },
+  },
+  {
+    name: "a coffee shop lists its menu: items are priced each and the API refuses to book one",
+    async run({ asEmail, check, step }) {
+      const shop = await approvedBusiness("setup-coffee", "coffee_shop");
+      const owner = await asEmail(shop.email);
+      const workspaceId = businessWorkspace(owner);
+      const read = await readSetup(owner, workspaceId);
+      check(read.open, "setup is closed for an approved coffee shop");
+      if (!read.open || !read.property) return;
+      check(read.foodVenue && read.words.priceBasis === "per_item", "a coffee shop is not set up as a venue");
+      check(read.kindLabel === "coffee shop", `the kind reads "${read.kindLabel}"`);
+      // Sent without a basis on purpose: the API takes the business's own.
+      const item = await owner.api.post<{ id: string; priceBasis: string; bookingMode: string | null }>(
+        `/api/v1/inventory/properties/${read.property.id}/room-types`,
+        { workspaceId, name: "Espresso", maxGuests: 1, basePriceRwf: 2_500, roomCount: 1 },
+        { workspaceId },
+      );
+      check(item.priceBasis === "per_item", `an item sent with no basis was stored ${item.priceBasis}`);
+      check(item.bookingMode === null, `a menu item has booking mode ${item.bookingMode}`);
+      step("an item sent with no basis is stored as a menu item, with no booking mode");
+
+      await addPhoto(owner, workspaceId, read.property.id, new Blob([PNG], { type: "image/png" }), "Counter");
+      const published = await publish(owner, workspaceId, read.property.id);
+      check(published.listingStatus === "published", "the coffee shop could not publish its menu");
+      const guest = await asEmail("guest@injishi.com");
+      const words = await apiRefusal(
+        [400, 404],
+        () =>
+          guest.api.post("/api/v1/bookings", {
+            roomTypeId: item.id,
+            checkIn: "2026-12-10",
+            checkOut: "2026-12-11",
+            guests: 1,
+            nonRefundable: false,
+            attemptToken: crypto.randomUUID(),
+            instrument: { kind: "mobile_money", network: "mtn_momo", msisdn: "788123456" },
+          }),
+        "booking a menu item",
+      );
+      step(`published; booking the espresso is refused: ${words}`);
     },
   },
 ];
