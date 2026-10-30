@@ -3,5 +3,5 @@
 import { AreaError } from "@/components/shell/WorkspaceNav";
 
 export default function PageError({ reset }: { error: Error; reset: () => void }) {
-  return <AreaError heading="Rent" title="Couldn't load your rent" onRetry={reset} />;
+  return <AreaError heading="Rent" title="Couldn't load your payments" onRetry={reset} />;
 }
