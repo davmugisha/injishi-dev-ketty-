@@ -1,6 +1,7 @@
 "use client";
 
 import { Description, FieldError, Label, ListBox, NumberField, Select } from "@heroui/react";
+import { NumberStepper } from "@heroui-pro/react/number-stepper";
 import type { ReactNode } from "react";
 import { RWF_MAX } from "./money.tsx";
 
@@ -158,5 +159,51 @@ export function MoneyInput({
       {description ? <Description>{description}</Description> : null}
       <FieldError>{errorMessage}</FieldError>
     </NumberField>
+  );
+}
+
+/**
+ * A small whole count with minus and plus (nights, adults, children, rooms): the Pro `NumberStepper`,
+ * labelled, kept within `min`..`max`. The buttons' names say what they do ("Fewer nights").
+ */
+export function CountStepper({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 99,
+  unit,
+  description,
+  isDisabled,
+  className,
+}: {
+  label: ReactNode;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  /** The plural noun for the buttons' names ("nights"): "Fewer nights", "More nights". */
+  unit: string;
+  description?: ReactNode;
+  isDisabled?: boolean;
+  className?: string;
+}) {
+  return (
+    <NumberStepper
+      value={value}
+      onChange={(v) => onChange(Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : min)}
+      minValue={min}
+      maxValue={max}
+      isDisabled={isDisabled}
+      className={className ?? "flex flex-col gap-1"}
+    >
+      <Label>{label}</Label>
+      <NumberStepper.Group>
+        <NumberStepper.DecrementButton aria-label={`Fewer ${unit}`} />
+        <NumberStepper.Value />
+        <NumberStepper.IncrementButton aria-label={`More ${unit}`} />
+      </NumberStepper.Group>
+      {description ? <Description>{description}</Description> : null}
+    </NumberStepper>
   );
 }
