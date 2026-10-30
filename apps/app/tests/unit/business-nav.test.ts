@@ -38,7 +38,7 @@ describe("the owner's sidebar is their own business", () => {
   test("a live hotel: the desk and its guests, then the business", () => {
     const groups = businessNavGroups(ws("active", OWNER), { foodVenue: false, left: 0, published: true });
     expect(labels(groups)).toEqual([
-      [null, ["Front desk", "Reservations", "Housekeeping", "Messages"]],
+      [null, ["Front desk", "Reservations", "Room rack", "Housekeeping", "Messages"]],
       ["Business", ["Your listing", "Getting paid", "Team"]],
     ]);
     expect(groups[1]?.items[1]?.href).toBe("/w/ws-1/getting-paid");

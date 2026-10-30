@@ -48,6 +48,9 @@ export function businessNavGroups(
       top.push({ id: "front-desk", label: "Front desk", icon: "Persons", board: "FrontDeskToday" });
     if (may("reservation.approve", "reservation.assign", "stay.checkin"))
       top.push({ id: "reservations", label: "Reservations", icon: "Calendar", board: "Reservations" });
+    // The rack reads the same desk day as Reservations (2026-10-30): every room across the coming days.
+    if (may("reservation.approve", "reservation.assign", "stay.checkin"))
+      top.push({ id: "room-rack", label: "Room rack", icon: "LayoutCells", board: "RoomRack" });
     if (may("housekeeping.set"))
       top.push({ id: "housekeeping", label: "Housekeeping", icon: "BroomMotion", board: "HousekeepingBoard" });
   }

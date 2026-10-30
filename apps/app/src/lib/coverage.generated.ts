@@ -110,7 +110,7 @@ export const sampleCollectionsByBoard: Record<string, number> = {
   Reservations: 0,
   ResidenceHome: 0,
   Revenue: 6,
-  RoomRack: 3,
+  RoomRack: 0,
   Roster: 1,
   SalesEvents: 10,
   SettingsBusiness: 5,
