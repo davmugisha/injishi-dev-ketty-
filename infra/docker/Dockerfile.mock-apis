@@ -1,0 +1,66 @@
+# Injishi Mock APIs (server/mock-apis, ADR-077): the stand-in for GTBank, RRA
+# and Smile ID that a sample stack's `sandbox` seams talk to. Staging only;
+# production and the demo never run it.
+#
+# Build from the injishi/ root, like every image here, because the workspace
+# lockfile must be in the build context:
+#
+#   docker build -f infra/docker/Dockerfile.mock-apis .
+#
+# There is no build step: the server is TypeScript run by Node's own type
+# stripping (Node 22.18 and up), so the image carries `src/` and its one
+# dependency, zod.
+
+FROM node:22-alpine AS base
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
+WORKDIR /repo
+
+FROM base AS deps
+# Every workspace member's manifest, as every Dockerfile here copies them, so a
+# frozen install reads the lockfile it was written against.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+COPY apps/app/package.json ./apps/app/
+COPY apps/mobile/package.json ./apps/mobile/
+COPY server/api/package.json ./server/api/
+COPY server/mock-apis/package.json ./server/mock-apis/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/contracts/package.json ./packages/contracts/
+COPY packages/qr/package.json ./packages/qr/
+COPY packages/design-tokens/package.json ./packages/design-tokens/
+COPY packages/ui/package.json ./packages/ui/
+COPY packages/data/package.json ./packages/data/
+COPY packages/db/package.json ./packages/db/
+COPY packages/utils/package.json ./packages/utils/
+COPY packages/web-ui/package.json ./packages/web-ui/
+COPY packages/ui-contract/package.json ./packages/ui-contract/
+COPY packages/product-contract/package.json ./packages/product-contract/
+COPY packages/api-client/package.json ./packages/api-client/
+COPY packages/i18n/package.json ./packages/i18n/
+COPY products/hr/package.json ./products/hr/
+COPY products/pms/package.json ./products/pms/
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prod --filter @injishi/mock-apis
+
+FROM base AS build
+COPY --from=deps /repo ./
+COPY server/mock-apis ./server/mock-apis
+RUN pnpm --filter @injishi/mock-apis --prod --legacy deploy /out
+
+FROM node:22-alpine AS runner
+ENV NODE_ENV=production
+ENV MOCK_APIS_HOST=0.0.0.0
+ENV MOCK_APIS_PORT=8100
+ENV MOCK_APIS_DATA_DIR=/data
+WORKDIR /app
+RUN addgroup -g 1001 -S nodejs && adduser -S mock -u 1001 \
+  && mkdir -p /data && chown mock:nodejs /data
+COPY --from=build --chown=mock:nodejs /out ./
+USER mock
+EXPOSE 8100
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:8100/__mock/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "src/main.ts"]

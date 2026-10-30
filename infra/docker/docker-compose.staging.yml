@@ -11,6 +11,8 @@
 # THE API AND THE OPERATOR APP, NOTHING ELSE. Staging ships api, worker and app
 # with their own Postgres, Redis, MinIO and Mailpit, its own secrets and its own
 # volumes (the project name namespaces them). It ships no web and no admin.
+# Since ADR-077 it also ships Injishi Mock APIs (mock-apis), which a seam set
+# to `sandbox` calls in place of GTBank, RRA or Smile ID.
 #
 # A PRODUCTION PROCESS ON A SAMPLE DATABASE (ADR-043), pinned below as literals:
 # it issues random codes like production, and its database carries the sample
@@ -107,6 +109,20 @@ x-api-env: &api-env
   # invitation, a tenant's lease). The API refuses to boot without one.
   APP_URL: https://${APP_HOST:-app-staging.injishi.com}
   LOG_LEVEL: ${LOG_LEVEL:-debug}
+  # The registration seams (ADR-077). Each defaults to what staging has always
+  # run: the in-process mock. Set one to `sandbox` in the environment's
+  # variables and it sends real HTTP to this stack's Injishi Mock APIs (the
+  # mock-apis service below), with the adapter `live` will use. Empty means
+  # unset: the identity seams then pick `mock`, because the database is sample.
+  RRA_TIN_ADAPTER_MODE: ${RRA_TIN_ADAPTER_MODE:-mock}
+  NIDA_ADAPTER_MODE: ${NIDA_ADAPTER_MODE:-}
+  DOCUMENT_VERIFIER_MODE: ${DOCUMENT_VERIFIER_MODE:-}
+  PAYMENT_ADAPTER_MODE: ${PAYMENT_ADAPTER_MODE:-mock}
+  # By its own-network alias, for the reason the storage endpoint gives.
+  MOCK_APIS_URL: http://injishi-mock-apis:8100
+  # Empty means the mock's public dev secret. Nothing behind it is real; set
+  # one anyway to keep the console's credentials this stack's own.
+  MOCK_APIS_SECRET: ${MOCK_APIS_SECRET:-}
 
 x-staging-public: &staging-public
   NEXT_PUBLIC_API_URL: https://${API_HOST:-api-staging.injishi.com}
@@ -146,6 +162,8 @@ volumes:
   redis-data:
   minio-data:
   app-data:
+  # Injishi Mock APIs' payments, Smile ID jobs and console added rows.
+  mock-apis-data:
 
 services:
   db:
@@ -297,6 +315,56 @@ services:
         # The name SMTP_URL uses. See SMTP_URL above.
         aliases:
           - injishi-mailpit
+      dokploy-network: {}
+
+  mock-apis:
+    # Injishi Mock APIs (ADR-077): GTBank (NIDA and the Payment Hub), RRA and
+    # Smile ID from seeded registers, for the seams set to `sandbox` above.
+    # Staging only: production and the demo never run it. Nothing waits on it,
+    # so a seam left on `mock` never notices it is down, and a `sandbox` seam
+    # reads it being down as the provider being unavailable.
+    image: injishi-mock-apis:staging
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.mock-apis
+    restart: unless-stopped
+    environment:
+      # The server refuses NODE_ENV=production unless told this is a sample
+      # stack: it invents people, companies and money.
+      MOCK_APIS_ALLOW_PRODUCTION_NODE_ENV: sample-stack
+      MOCK_APIS_SECRET: ${MOCK_APIS_SECRET:-}
+      # What a Smile ID upload URL is built on: the address api reaches.
+      MOCK_APIS_PUBLIC_URL: http://injishi-mock-apis:8100
+      MOCK_APIS_DATA_DIR: /data
+    volumes:
+      - mock-apis-data:/data
+    expose:
+      - "8100"
+    deploy: *small
+    # The console (seeded people, TINs, passports, wallets, demo ID images, and
+    # Approve or Decline for a pending prompt) answers only to
+    # STAGING_ALLOWED_IPS, like the Mailpit inbox. It shows the sandbox secret.
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.services.injishi-staging-mock.loadbalancer.server.port=8100
+      - traefik.http.middlewares.injishi-staging-mock-allow.ipallowlist.sourcerange=${STAGING_ALLOWED_IPS:-127.0.0.1/32}
+      - traefik.http.routers.injishi-staging-mock-http.rule=Host(`${MOCK_HOST:-mock-staging.injishi.com}`)
+      - traefik.http.routers.injishi-staging-mock-http.entrypoints=web
+      - traefik.http.routers.injishi-staging-mock-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.injishi-staging-mock-http.service=injishi-staging-mock
+      - traefik.http.routers.injishi-staging-mock.rule=Host(`${MOCK_HOST:-mock-staging.injishi.com}`)
+      - traefik.http.routers.injishi-staging-mock.entrypoints=websecure
+      - traefik.http.routers.injishi-staging-mock.tls.certresolver=letsencrypt
+      - traefik.http.routers.injishi-staging-mock.middlewares=injishi-staging-mock-allow
+      - traefik.http.routers.injishi-staging-mock.service=injishi-staging-mock
+    networks:
+      default:
+        # The name MOCK_APIS_URL uses. Not `mock-apis`: nothing else answers to
+        # it today, but every service here that joins dokploy-network gets a
+        # stack-unique alias, so none ever can.
+        aliases:
+          - injishi-mock-apis
       dokploy-network: {}
 
   api:
