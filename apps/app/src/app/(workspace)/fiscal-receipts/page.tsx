@@ -10,8 +10,9 @@ import type {
   VsdcDevice,
   ZReport,
 } from "@injishi/data/fixtures/accounting";
+import { FiscalReceiptsView, type FiscalTab } from "@injishi/product-finance/web";
 import type { Metadata } from "next";
-import { FiscalReceiptsView, type FiscalTab } from "@/features/accounting/FiscalReceiptsView";
+import { FinanceMount } from "@/features/finance/finance-mount";
 import { requirePersona } from "@/lib/session";
 import { getCollection } from "@/server/data";
 
@@ -40,12 +41,14 @@ export default async function FiscalReceiptsPage({
   const initialTab = TABS.find((t) => t === tab) ?? "queue";
   const initialMerchant = profiles.find((p) => p.id === merchant)?.id ?? profiles[0]?.id ?? "ahl";
   return (
-    <FiscalReceiptsView
-      persona={persona}
-      offline={vsdc === "offline"}
-      initialTab={initialTab}
-      initialMerchant={initialMerchant}
-      data={{ profiles, queue, kinds, invoices, receipts, devices, journal, zReports, items }}
-    />
+    <FinanceMount>
+      <FiscalReceiptsView
+        persona={persona}
+        offline={vsdc === "offline"}
+        initialTab={initialTab}
+        initialMerchant={initialMerchant}
+        data={{ profiles, queue, kinds, invoices, receipts, devices, journal, zReports, items }}
+      />
+    </FinanceMount>
   );
 }

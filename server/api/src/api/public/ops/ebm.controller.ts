@@ -19,7 +19,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { EbmConnectionService } from '../../../modules/ebm/application/ebm-connection.service';
+import { EbmConnectionService } from '../../../modules/platform/fiscal/application/ebm-connection.service';
 import { CurrentUser, SessionGuard, type SessionUser } from '../../../shared/auth/session.guard';
 import {
   CurrentWorkspace,

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { isProduction } from '../../../shared/config/security.config';
-import { TokenCipher, decodeTokenKey } from '../../ebm/infrastructure/token-cipher';
+import { TokenCipher, decodeTokenKey } from '../../platform/fiscal/infrastructure/token-cipher';
 
 /** The cipher a bank account number is sealed with. */
 export const PAYOUT_ACCOUNT_CIPHER = Symbol('PAYOUT_ACCOUNT_CIPHER');

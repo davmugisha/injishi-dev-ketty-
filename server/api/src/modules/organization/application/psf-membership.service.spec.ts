@@ -13,7 +13,7 @@ import {
   PaymentUnavailableError,
   type PaymentPort,
   type PaymentReceipt,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import type { ProfileService } from '../../user/application/profile.service';
 import type { PsfMembershipMailer } from '../infrastructure/psf-membership.mailer';
 import {

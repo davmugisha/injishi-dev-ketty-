@@ -91,7 +91,7 @@ import {
   PaymentDeclinedError,
   PaymentUnavailableError,
   type PaymentPort,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import { ProfileService } from '../../user/application/profile.service';
 import { PsfMembershipMailer } from '../infrastructure/psf-membership.mailer';
 import {

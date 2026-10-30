@@ -1,6 +1,6 @@
 import { describe, expect, it, type Mock, vi } from 'vitest';
 
-import type { DisbursementOutcome, PaymentOutcomes } from '../../payments/application/payment-outcomes';
+import type { DisbursementOutcome, PaymentOutcomes } from '../../pay/application/payment-outcomes';
 import type { RefundLedgerRepository } from '../infrastructure/refund-ledger.repository';
 import type { BookingNotificationsService } from './booking-notifications.service';
 import { guestRefundStatus } from './guest-refunds.service';

@@ -41,7 +41,7 @@ import {
   PaymentDeclinedError,
   PaymentUnavailableError,
   type PaymentPort,
-} from '../../payments/domain/payment-port';
+} from '../../pay/domain/payment-port';
 import { StorageService } from '../../storage/application/storage.service';
 import { isObjectKey } from '../../storage/domain/object-key';
 import { IdentityService } from '../../user/application/identity.service';

@@ -29,7 +29,7 @@ import { WorkOrdersService } from '../pms/application/work-orders.service';
 import { ResidenceRepository } from '../operations/infrastructure/residence.repository';
 import { StaffPhoneRepository } from '../pms/infrastructure/staff-phone.repository';
 import { WorkOrdersRepository } from '../pms/infrastructure/work-orders.repository';
-import { MockPaymentAdapter } from '../payments/infrastructure/mock-payment.adapter';
+import { MockPaymentAdapter } from '../pay/infrastructure/mock-payment.adapter';
 import { RentalsFilesStorage } from '../storage/application/rentals-files-storage';
 import type { StorageService } from '../storage/application/storage.service';
 import type { StoragePort } from '../storage/domain/storage-port';

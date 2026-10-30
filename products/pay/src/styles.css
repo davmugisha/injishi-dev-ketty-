@@ -1,0 +1,8 @@
+/*
+ * The one stylesheet an app that mounts Pay's views imports (ADR-074, A product package).
+ *
+ * `@source "./"` resolves relative to THIS file, so it makes the app's Tailwind scan the product's source
+ * wherever it is installed. Without it a class used only in a Pay view is never generated, and the view ships
+ * without it. `pnpm check:manifests` fails an app that transpiles this product without importing it.
+ */
+@source "./";

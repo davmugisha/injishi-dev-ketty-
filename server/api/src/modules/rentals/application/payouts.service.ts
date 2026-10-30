@@ -3,7 +3,7 @@ import type { PayoutList, PayoutView, PayoutsQuery } from '@injishi/contracts';
 
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
-import { PAYMENT_PORT, PaymentDeclinedError, PaymentUnavailableError, type PaymentPort } from '../../payments/domain/payment-port';
+import { PAYMENT_PORT, PaymentDeclinedError, PaymentUnavailableError, type PaymentPort } from '../../pay/domain/payment-port';
 import { buildingIdsOf } from '../domain/attention';
 import { destinationOf } from '../domain/payout-accounts';
 import { assertPaidBusiness } from '../domain/residence';

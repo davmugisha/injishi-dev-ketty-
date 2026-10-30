@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { NotFoundException } from '@nestjs/common';
 
-import { TokenCipher } from '../../ebm/infrastructure/token-cipher';
+import { TokenCipher } from '../../platform/fiscal/infrastructure/token-cipher';
 import { accountNumberContext, resolvePayoutAccountCipher } from '../infrastructure/payout-account-cipher';
 import { leaseNextAction, nextLeaseReference } from './lease-words';
 import { destinationOf, detailsOf, last4, sameDestination } from './payout-accounts';

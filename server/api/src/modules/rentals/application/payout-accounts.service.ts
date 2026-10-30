@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { PayoutAccountInput, PayoutAccountList } from '@injishi/contracts';
 
-import type { TokenCipher } from '../../ebm/infrastructure/token-cipher';
+import type { TokenCipher } from '../../platform/fiscal/infrastructure/token-cipher';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 import type { ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { destinationOf, detailsOf, last4, sameDestination, type PayoutAccountDetails } from '../domain/payout-accounts';

@@ -15,7 +15,7 @@ import {
 
 import { assertInBranchScope, type ScopedWorkspace } from '../../../shared/auth/branch-scope';
 import { ListingService } from '../../listing/application/listing.service';
-import { PaymentSeam } from '../../payments/domain/payment-seam';
+import { PaymentSeam } from '../../pay/domain/payment-seam';
 import { type ChangeSubject, type ChangeTarget, changeProblems, priceChange } from '../domain/booking-change';
 import { localToday } from '../domain/pricing';
 import { BookingChangeRepository, type ChangeableBooking } from '../infrastructure/booking-change.repository';

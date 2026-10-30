@@ -2,7 +2,7 @@ import { describe, expect, it, type Mock, vi } from 'vitest';
 
 import { ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 
-import { PaymentUnavailableError, type PaymentPort } from '../../payments/domain/payment-port';
+import { PaymentUnavailableError, type PaymentPort } from '../../pay/domain/payment-port';
 import type { BookingRepository, CancellableBooking } from '../infrastructure/booking.repository';
 import { BookingCancellationService, hoursUntilCheckIn } from './booking-cancellation.service';
 import type { BookingNotificationsService } from './booking-notifications.service';

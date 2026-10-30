@@ -793,7 +793,7 @@ export const ebmReceiptCounters = pgTable(
  * account at the provider.
  *
  * The TOKENS ARE CIPHERTEXT. `*_ciphertext` columns hold AES-256-GCM output from
- * `modules/ebm/infrastructure/token-cipher.ts`, keyed by
+ * `modules/platform/fiscal/infrastructure/token-cipher.ts`, keyed by
  * `EBM_TOKEN_ENCRYPTION_KEY`, which is not in this database. A bearer token for
  * a taxpayer's fiscal account is the power to issue invoices in their name, and a
  * database dump, a read replica or a backup must not hand that out. (Better

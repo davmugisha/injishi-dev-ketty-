@@ -5,7 +5,7 @@ import type { Queue } from 'bullmq';
 import { reportAlarm } from '../../../shared/observability/error-reporter';
 import { queueJobId } from '../../../shared/queues/job-id';
 import { QUEUES } from '../../../shared/queues/queues.module';
-import { PaymentCompensationService } from '../../payments/application/payment-compensation.service';
+import { PaymentCompensationService } from '../../pay/application/payment-compensation.service';
 import { PAYOUT_ATTEMPTS, SEND_PAYOUT, type SendPayoutJob } from '../../rentals/infrastructure/rentals-money.queue';
 import { FolioRepository } from '../infrastructure/folio.repository';
 import { type CompletedStay, StayCompletionRepository } from '../infrastructure/stay-completion.repository';

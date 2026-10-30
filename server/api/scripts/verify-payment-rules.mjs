@@ -120,7 +120,7 @@ const probeKey = `verify-limit-probe:${randomUUID()}`;
 try {
   const { drizzle } = require('drizzle-orm/node-postgres');
   const schema = require('../dist/database/drizzle/schema.js');
-  const { PaymentTransactionsRepository } = require('../dist/modules/payments/infrastructure/payment-transactions.repository.js');
+  const { PaymentTransactionsRepository } = require('../dist/modules/pay/infrastructure/payment-transactions.repository.js');
   const repo = new PaymentTransactionsRepository(drizzle(pool, { schema }));
   const workspace = await one('SELECT id FROM workspaces LIMIT 1');
   // A provider no process dispatches, so nothing races this probe.

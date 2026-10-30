@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { EbmSaleTrigger } from '../../ebm/application/ebm-sale-trigger.service';
+import { EbmSaleTrigger } from '../../platform/fiscal/application/ebm-sale-trigger.service';
 import {
   ServiceCatalogRepository,
   type SettleOutcome,
 } from '../infrastructure/service-catalog.repository';
-import { DeclarationPlanService } from '../../ebm/application/declaration-plan.service';
+import { DeclarationPlanService } from '../../platform/fiscal/application/declaration-plan.service';
 
 /**
  * THE MONEY SIDE OF A PAY NOW ORDER (ADR-050 D-n, D-p; AC-21, AC-24).

@@ -4,7 +4,7 @@ import { PlatformInfo } from '@injishi/contracts';
 
 import { databaseIdentity } from '../../../database/drizzle/schema';
 import { googleCredentials } from '../../../modules/auth/auth.module';
-import { CARD_PAYMENTS, PaymentSeam } from '../../../modules/payments/domain/payment-seam';
+import { CARD_PAYMENTS, PaymentSeam } from '../../../modules/pay/domain/payment-seam';
 import { PLATFORM, type Platform } from '../../../shared/config/platform';
 import { DRIZZLE, type Database } from '../../../shared/database/database.module';
 

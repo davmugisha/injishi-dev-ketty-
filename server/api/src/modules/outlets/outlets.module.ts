@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { OperationsModule } from '../operations/operations.module';
-import { PaymentsModule } from '../payments/payments.module';
+import { PaymentsModule } from '../pay/payments.module';
 import { FolioModule } from '../pms/folio.module';
 import { GuestOrderingService } from './application/guest-ordering.service';
 import { OrderPaymentService } from './application/order-payment.service';

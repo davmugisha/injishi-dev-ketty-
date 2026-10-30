@@ -26,7 +26,7 @@ import {
   snapshotsOf,
   unclassifiedSentence,
 } from '../domain/sellable-item';
-import { PaymentSeam } from '../../payments/domain/payment-seam';
+import { PaymentSeam } from '../../pay/domain/payment-seam';
 import { FolioPort } from '../../pms/application/folio-port';
 import { MessagingService } from '../../operations/application/messaging.service';
 import {

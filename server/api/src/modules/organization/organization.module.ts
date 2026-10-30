@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
 import { GeographyModule } from '../geography/geography.module';
-import { PaymentsModule } from '../payments/payments.module';
+import { PaymentsModule } from '../pay/payments.module';
 import { MailerModule } from '../mailer/mailer.module';
 import { SmsModule } from '../sms/sms.module';
 import { StorageModule } from '../storage/storage.module';
