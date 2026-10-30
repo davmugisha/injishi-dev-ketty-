@@ -26,7 +26,7 @@ import {
   toneColor,
 } from "@injishi/ui";
 import { Fragment, useState } from "react";
-import { FieldLabel, firstKey } from "./form-parts";
+import { FieldLabel, firstKey } from "./menu-form-parts";
 
 export type OutletTab = "outlets" | "menus" | "orders" | "offers";
 

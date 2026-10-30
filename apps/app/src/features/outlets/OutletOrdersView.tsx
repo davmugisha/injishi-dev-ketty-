@@ -27,7 +27,7 @@ import {
   toneColor,
 } from "@injishi/ui";
 import { type CSSProperties, Fragment, useState } from "react";
-import { money, SourceChip } from "./shared";
+import { money, SourceChip } from "./outlet-parts";
 
 interface OutletOrdersData {
   kpis: ServiceKpi[];

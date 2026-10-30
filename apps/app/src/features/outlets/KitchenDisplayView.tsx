@@ -18,7 +18,7 @@ import { Icon, StatusDot, toneColor } from "@injishi/ui";
 import { FrameOverlays } from "@injishi/ui/phone";
 import { type CSSProperties, useState } from "react";
 import { BrandMark } from "@/components/brand";
-import { SourceChip } from "./shared";
+import { SourceChip } from "./outlet-parts";
 
 type StationId = KitchenStation["id"] | "all";
 

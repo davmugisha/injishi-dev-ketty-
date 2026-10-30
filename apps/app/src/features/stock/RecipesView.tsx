@@ -17,7 +17,7 @@ import type { PosEvent, ProductionBatch, Recipe, RecipeIngredient } from "@injis
 import { formatNumber, Icon, KeyValueList, PageContent, PageHeader, toneColor } from "@injishi/ui";
 import { Fragment, type Key, useState } from "react";
 import { TopbarStatus } from "@/components/shell/TopbarStatus";
-import { KvRows, Muted, money, SectionTitle, ToneChip } from "./shared";
+import { KvRows, Muted, money, SectionTitle, ToneChip } from "./recipe-parts";
 
 interface RecipesData {
   recipes: Recipe[];

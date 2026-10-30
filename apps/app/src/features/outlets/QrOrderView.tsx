@@ -9,7 +9,7 @@ import type { BasketLine, MenuCategory, MenuItem, RoomServiceOrder, ServiceHour 
 import { stock } from "@injishi/data/media";
 import { KeyValueList, PhoneBody, PhoneTop, Photo, StatusDot } from "@injishi/ui";
 import { useMemo, useState } from "react";
-import { money } from "./shared";
+import { money } from "./outlet-parts";
 
 export type QrStep = "menu" | "item" | "basket" | "tracking";
 
