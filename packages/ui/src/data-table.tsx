@@ -269,8 +269,10 @@ export function DataTable<T>({
   }, [shownColumns, rowHeader, rowActions]);
 
   const hideable = columns.filter((c) => c !== rowHeader);
+  // Nothing at all to search or filter: the empty state stands alone.
+  const nothing = rows.length === 0 && !filtered && !serverPaged && !isLoading && !error;
   const toolbar =
-    search || (filters && filters.length > 0) || toolbarEnd || (columnToggle && hideable.length > 0) ? (
+    !nothing && (search || (filters && filters.length > 0) || toolbarEnd || (columnToggle && hideable.length > 0)) ? (
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         {search ? (
           <SearchBar
