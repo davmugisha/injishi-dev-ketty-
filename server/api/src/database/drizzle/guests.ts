@@ -103,16 +103,16 @@ export const guestRegistrations = pgTable(
     districtId: integer('district_id').references(() => districts.id),
     fullName: text('full_name').notNull(),
     /** E.164. */
-    phone: text('phone').notNull(),
+    /** E.164; null only for a hotel's guest the desk had no number for. */
+    phone: text('phone'),
     nationality: text('nationality')
       .notNull()
       .references(() => countries.code),
     /** Optional: both null when no document was given. */
     idKind: idKindEnum('id_kind'),
     idNumber: text('id_number'),
-    relationship: text('relationship')
-      .notNull()
-      .references(() => guestRelationships.code),
+    /** Null only for a hotel's guest. */
+    relationship: text('relationship').references(() => guestRelationships.code),
     relationshipOther: text('relationship_other'),
     /** RW with a village for a guest coming from somewhere in Rwanda; else the country. */
     originCountry: text('origin_country')
@@ -140,12 +140,10 @@ export const guestRegistrations = pgTable(
     index('guest_registrations_village_idx').on(t.villageId, t.arrivalOn),
     // The 12 month purge reads by departure.
     index('guest_registrations_departure_idx').on(t.departureOn),
+    // Staging's definitions, word for word (migration 0102 makes a fresh database match).
     check(
       'guest_registrations_host_shape',
-      // Compared as text so the migration can name `stay` in the same transaction that adds it.
-      sql`(${t.hostKind}::text = 'tenant' AND ${t.leaseId} IS NOT NULL AND ${t.guestStayId} IS NULL)
-          OR (${t.hostKind}::text = 'landlord' AND ${t.leaseId} IS NULL AND ${t.guestStayId} IS NULL)
-          OR (${t.hostKind}::text = 'stay' AND ${t.leaseId} IS NULL AND ${t.guestStayId} IS NOT NULL)`,
+      sql`((${t.hostKind}::text = 'tenant'::text) AND (${t.leaseId} IS NOT NULL) AND (${t.guestStayId} IS NULL)) OR ((${t.hostKind}::text = 'landlord'::text) AND (${t.leaseId} IS NULL) AND (${t.guestStayId} IS NULL)) OR ((${t.hostKind}::text = 'hotel'::text) AND (${t.leaseId} IS NULL) AND (${t.unitId} IS NULL) AND (${t.guestStayId} IS NOT NULL))`,
     ),
     // A level is known only when every level above it is.
     check(
@@ -155,7 +153,12 @@ export const guestRegistrations = pgTable(
           AND (${t.sectorId} IS NULL OR ${t.districtId} IS NOT NULL)`,
     ),
     check('guest_registrations_name_present', sql`length(btrim(${t.fullName})) > 1`),
-    check('guest_registrations_phone_e164', sql`${t.phone} ~ '^[+][1-9][0-9]{7,14}$'`),
+    check('guest_registrations_phone_e164', sql`(${t.phone} IS NULL) OR (${t.phone} ~ '^[+][1-9][0-9]{7,14}$'::text)`),
+    // A resident host always gives who the guest is and a phone; a hotel's desk may not.
+    check(
+      'guest_registrations_residence_fields',
+      sql`(${t.hostKind}::text = 'hotel'::text) OR ((${t.relationship} IS NOT NULL) AND (${t.phone} IS NOT NULL))`,
+    ),
     // 16 digits for a Rwandan national ID, 5 to 20 letters or digits for a passport.
     check(
       'guest_registrations_id_shape',
@@ -169,15 +172,12 @@ export const guestRegistrations = pgTable(
     ),
     check(
       'guest_registrations_origin_shape',
-      // A stay business's desk records the country, not the village a Rwandan guest comes from.
-      sql`(${t.hostKind}::text = 'stay' AND ${t.originVillageId} IS NULL)
-          OR ((${t.originCountry} = 'RW') = (${t.originVillageId} IS NOT NULL))`,
+      sql`((${t.hostKind}::text = 'hotel'::text) AND ((${t.originCountry} = 'RW'::text) OR (${t.originVillageId} IS NULL))) OR ((${t.hostKind}::text <> 'hotel'::text) AND ((${t.originCountry} = 'RW'::text) = (${t.originVillageId} IS NOT NULL)))`,
     ),
-    // Departure on or after arrival, at most 90 days later; a stay (a serviced apartment) up to a year.
+    // At most 90 days, for every host. A longer hotel stay is filed again as it runs on (the sweep).
     check(
       'guest_registrations_dates',
-      sql`${t.departureOn} >= ${t.arrivalOn}
-          AND ${t.departureOn} - ${t.arrivalOn} <= (CASE WHEN ${t.hostKind}::text = 'stay' THEN 366 ELSE 90 END)`,
+      sql`(${t.departureOn} >= ${t.arrivalOn}) AND ((${t.departureOn} - ${t.arrivalOn}) <= 90)`,
     ),
     check(
       'guest_registrations_cancelled_shape',

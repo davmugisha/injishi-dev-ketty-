@@ -1,5 +1,5 @@
 {
-  "id": "65f632d3-d042-4200-bb3e-62bc430164ce",
+  "id": "a15bbb91-6d59-4307-a69d-0e68e138bb69",
   "prevId": "006e0f4c-c648-4ff1-b062-106a9fe06791",
   "version": "7",
   "dialect": "postgresql",
@@ -45433,7 +45433,7 @@
           "name": "phone",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "nationality": {
           "name": "nationality",
@@ -45458,7 +45458,7 @@
           "name": "relationship",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "relationship_other": {
           "name": "relationship_other",
@@ -45922,7 +45922,7 @@
       "checkConstraints": {
         "guest_registrations_host_shape": {
           "name": "guest_registrations_host_shape",
-          "value": "(\"guest_registrations\".\"host_kind\"::text = 'tenant' AND \"guest_registrations\".\"lease_id\" IS NOT NULL AND \"guest_registrations\".\"guest_stay_id\" IS NULL)\n          OR (\"guest_registrations\".\"host_kind\"::text = 'landlord' AND \"guest_registrations\".\"lease_id\" IS NULL AND \"guest_registrations\".\"guest_stay_id\" IS NULL)\n          OR (\"guest_registrations\".\"host_kind\"::text = 'stay' AND \"guest_registrations\".\"lease_id\" IS NULL AND \"guest_registrations\".\"guest_stay_id\" IS NOT NULL)"
+          "value": "((\"guest_registrations\".\"host_kind\"::text = 'tenant'::text) AND (\"guest_registrations\".\"lease_id\" IS NOT NULL) AND (\"guest_registrations\".\"guest_stay_id\" IS NULL)) OR ((\"guest_registrations\".\"host_kind\"::text = 'landlord'::text) AND (\"guest_registrations\".\"lease_id\" IS NULL) AND (\"guest_registrations\".\"guest_stay_id\" IS NULL)) OR ((\"guest_registrations\".\"host_kind\"::text = 'hotel'::text) AND (\"guest_registrations\".\"lease_id\" IS NULL) AND (\"guest_registrations\".\"unit_id\" IS NULL) AND (\"guest_registrations\".\"guest_stay_id\" IS NOT NULL))"
         },
         "guest_registrations_area_shape": {
           "name": "guest_registrations_area_shape",
@@ -45934,7 +45934,11 @@
         },
         "guest_registrations_phone_e164": {
           "name": "guest_registrations_phone_e164",
-          "value": "\"guest_registrations\".\"phone\" ~ '^[+][1-9][0-9]{7,14}$'"
+          "value": "(\"guest_registrations\".\"phone\" IS NULL) OR (\"guest_registrations\".\"phone\" ~ '^[+][1-9][0-9]{7,14}$'::text)"
+        },
+        "guest_registrations_residence_fields": {
+          "name": "guest_registrations_residence_fields",
+          "value": "(\"guest_registrations\".\"host_kind\"::text = 'hotel'::text) OR ((\"guest_registrations\".\"relationship\" IS NOT NULL) AND (\"guest_registrations\".\"phone\" IS NOT NULL))"
         },
         "guest_registrations_id_shape": {
           "name": "guest_registrations_id_shape",
@@ -45946,11 +45950,11 @@
         },
         "guest_registrations_origin_shape": {
           "name": "guest_registrations_origin_shape",
-          "value": "(\"guest_registrations\".\"host_kind\"::text = 'stay' AND \"guest_registrations\".\"origin_village_id\" IS NULL)\n          OR ((\"guest_registrations\".\"origin_country\" = 'RW') = (\"guest_registrations\".\"origin_village_id\" IS NOT NULL))"
+          "value": "((\"guest_registrations\".\"host_kind\"::text = 'hotel'::text) AND ((\"guest_registrations\".\"origin_country\" = 'RW'::text) OR (\"guest_registrations\".\"origin_village_id\" IS NULL))) OR ((\"guest_registrations\".\"host_kind\"::text <> 'hotel'::text) AND ((\"guest_registrations\".\"origin_country\" = 'RW'::text) = (\"guest_registrations\".\"origin_village_id\" IS NOT NULL)))"
         },
         "guest_registrations_dates": {
           "name": "guest_registrations_dates",
-          "value": "\"guest_registrations\".\"departure_on\" >= \"guest_registrations\".\"arrival_on\"\n          AND \"guest_registrations\".\"departure_on\" - \"guest_registrations\".\"arrival_on\" <= (CASE WHEN \"guest_registrations\".\"host_kind\"::text = 'stay' THEN 366 ELSE 90 END)"
+          "value": "(\"guest_registrations\".\"departure_on\" >= \"guest_registrations\".\"arrival_on\") AND ((\"guest_registrations\".\"departure_on\" - \"guest_registrations\".\"arrival_on\") <= 90)"
         },
         "guest_registrations_cancelled_shape": {
           "name": "guest_registrations_cancelled_shape",
@@ -53297,7 +53301,7 @@
       "values": [
         "tenant",
         "landlord",
-        "stay"
+        "hotel"
       ]
     },
     "public.guest_registration_status": {
