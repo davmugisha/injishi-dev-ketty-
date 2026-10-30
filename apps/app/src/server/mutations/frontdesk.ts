@@ -8,6 +8,10 @@
  * reference or a room of another branch never reaches a command.
  */
 import type {
+  DeskReservationAsk,
+  DeskReservationQuote,
+  DeskReservationRequest,
+  DeskReservationResult,
   ReservationChangeAsk,
   ReservationChangeForm,
   ReservationChangeQuote,
@@ -431,4 +435,23 @@ export async function moveBooking(ctx: SourceContext, bookingRef: string, move: 
     // No room chosen: the booking keeps its type and waits for a room ("No room yet").
     if (room) await ctx.ops().post(`/api/v1/ops/reservations/${booking.id}/assign`, { roomId: room.id });
   });
+}
+
+/** What a booking the desk is about to make would cost, and the rooms free to hold (0124). */
+export async function quoteDeskBooking(ctx: SourceContext, ask: DeskReservationAsk): Promise<DeskReservationQuote> {
+  return ctx.ops().post<DeskReservationQuote>("/api/v1/ops/reservations/quote", ask);
+}
+
+/**
+ * The desk books a guest for any day from today (0124). One key per press of Book, so a retried request
+ * records the deposit once.
+ */
+export async function createDeskBooking(
+  ctx: SourceContext,
+  request: DeskReservationRequest,
+  idempotencyKey: string,
+): Promise<DeskReservationResult> {
+  return command(ctx, () =>
+    ctx.ops().post<DeskReservationResult>("/api/v1/ops/reservations", request, { idempotencyKey }),
+  );
 }

@@ -1,6 +1,10 @@
 "use server";
 
 import type {
+  DeskReservationAsk,
+  DeskReservationQuote,
+  DeskReservationRequest,
+  DeskReservationResult,
   ReservationChangeAsk,
   ReservationChangeForm,
   ReservationChangeQuote,
@@ -19,12 +23,14 @@ import {
   cancelReservation,
   changeReservation,
   checkIn,
+  createDeskBooking,
   declineRequest,
   type GuestCard,
   markNoShow,
   moveBooking,
   pollReservationChange,
   quoteBookingMove,
+  quoteDeskBooking,
   quoteReservationChange,
   type RefundOutcome,
   reservationChangeForm,
@@ -196,6 +202,23 @@ export async function saveBookingMove(bookingRef: string, move: BookingMove): Pr
     await moveBooking(await requestContext(), bookingRef, move);
     return null;
   });
+  if (result.ok) refresh();
+  return result;
+}
+
+/** New booking → the price for these nights and party, and the rooms free to hold. Nothing is written. */
+export async function quoteNewBooking(ask: DeskReservationAsk): Promise<ActionResult<DeskReservationQuote>> {
+  await requirePersona("Reservations");
+  return attempt(async () => quoteDeskBooking(await requestContext(), ask));
+}
+
+/** New booking → Book: a confirmed booking for any day from today, with its deposit on the bill. */
+export async function saveNewBooking(
+  request: DeskReservationRequest,
+  idempotencyKey: string,
+): Promise<ActionResult<DeskReservationResult>> {
+  await requirePersona("Reservations");
+  const result = await attempt(async () => createDeskBooking(await requestContext(), request, idempotencyKey));
   if (result.ok) refresh();
   return result;
 }
