@@ -1,12 +1,7 @@
 "use client";
 
-import { ErrorBlock, PageContent, PageHeader } from "@injishi/ui";
+import { AreaError } from "@/components/shell/WorkspaceNav";
 
-export default function HomesError({ reset }: { error: Error; reset: () => void }) {
-  return (
-    <PageContent>
-      <PageHeader title="Homes" />
-      <ErrorBlock title="Couldn't load the homes" onRetry={reset} />
-    </PageContent>
-  );
+export default function PageError({ reset }: { error: Error; reset: () => void }) {
+  return <AreaError heading="Homes" title="Couldn't load the homes" onRetry={reset} />;
 }

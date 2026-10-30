@@ -1,12 +1,7 @@
 "use client";
 
-import { ErrorBlock, PageContent, PageHeader } from "@injishi/ui";
+import { AreaError } from "@/components/shell/WorkspaceNav";
 
-export default function UnitsError({ reset }: { error: Error; reset: () => void }) {
-  return (
-    <PageContent>
-      <PageHeader title="Units" />
-      <ErrorBlock title="Couldn't load your units" onRetry={reset} />
-    </PageContent>
-  );
+export default function PageError({ reset }: { error: Error; reset: () => void }) {
+  return <AreaError heading="Units" title="Couldn't load your units" onRetry={reset} />;
 }
