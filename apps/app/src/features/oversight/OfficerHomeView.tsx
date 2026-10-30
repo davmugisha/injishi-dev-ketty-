@@ -1,265 +1,150 @@
 "use client";
 
-import { Check, ChevronRight, Clock, Database, FileText, Lock, ShieldCheck } from "@gravity-ui/icons";
-import { Alert, Avatar, Button, Card, Chip, Separator } from "@heroui/react";
-import { EmptyState, KPIGroup, ListView, Timeline } from "@heroui-pro/react";
-import { KPI } from "@heroui-pro/react/kpi";
-import { type Persona, screenHref } from "@injishi/data";
-import type {
-  MandateExclusion,
-  MandateFact,
-  MandateRule,
-  MandateState,
-  OfficerDecision,
-  QueueCase,
-  QueueId,
-  QueueKpi,
-} from "@injishi/data/fixtures/oversight";
-import { Icon, LinkButton, PageContent, PageHeader, toneColor } from "@injishi/ui";
-import { Fragment } from "react";
-import { TopbarStatus } from "@/components/shell/TopbarStatus";
-import { OfficerQueues } from "./OfficerQueues";
-import { CardHeading, FactGrid, ToneChip } from "./shared";
+import type { QueueCase, QueueId } from "@injishi/data/fixtures/oversight";
+import {
+  ActionLink,
+  type DataColumn,
+  DataTable,
+  EmptyBlock,
+  IconAction,
+  PageContent,
+  PersonCell,
+  RowActions,
+  StatusChip,
+} from "@injishi/ui";
+import { useRouter } from "next/navigation";
+import { AreaHeader } from "@/components/shell/WorkspaceNav";
+import { HBar } from "./shared";
 
-interface OfficerHomeData {
-  facts: MandateFact[];
-  /** Labels of the permissions delegated to the signed-in officer. */
-  granted: string[];
-  exclusions: MandateExclusion[];
-  kpis: QueueKpi[];
+const QUEUE_LABEL: Record<QueueId, string> = { verification: "Verification", approval: "Approval", tax: "Tax" };
+
+/**
+ * The officer's queues (2026-10-30): every case waiting on this officer in one table, oldest due first,
+ * with a queue filter (all by default) and a search. A row opens its case. The queues are the API's and
+ * follow the officer's grants; a queue they do not hold is not offered.
+ */
+export function OfficerHomeView({
+  cases,
+  held,
+  firstCaseHref,
+}: {
   cases: QueueCase[];
-  decisions: OfficerDecision[];
-  rules: MandateRule[];
-  /** Who the officer acts for, and where ("Private Sector Federation", "Gasabo"). */
-  institution: string;
-  scope: string;
-  /** Today in Kigali, long form. */
-  today: string;
-  /** The queues this officer's grants cover. */
   held: QueueId[];
   /** The oldest case waiting on this officer, or null when nothing waits. */
   firstCaseHref: string | null;
-}
-
-export function OfficerHomeView({
-  persona,
-  state,
-  data,
-}: {
-  persona: Persona;
-  state: MandateState;
-  data: OfficerHomeData;
 }) {
-  const open = state.queuesOpen;
-  const facts = data.facts.map((f) =>
-    f.id === "valid" ? { ...f, value: state.validUntil, note: state.validNote } : f,
-  );
-
+  const router = useRouter();
+  const columns: DataColumn<QueueCase>[] = [
+    {
+      id: "case",
+      header: "Business",
+      isRowHeader: true,
+      sortValue: (c) => c.business,
+      cell: (c) => <PersonCell name={c.business} secondary={`${c.ref ?? c.id} · ${c.place}`} />,
+    },
+    {
+      id: "type",
+      header: "Type",
+      hideBelow: "lg",
+      sortValue: (c) => c.type,
+      cell: (c) => (
+        <span className="flex flex-col">
+          <span>{c.type}</span>
+          <span className="text-xs text-muted">{c.typeDetail}</span>
+        </span>
+      ),
+    },
+    { id: "queue", header: "Queue", sortValue: (c) => c.queue, cell: (c) => QUEUE_LABEL[c.queue] },
+    {
+      id: "age",
+      header: "Waiting",
+      sortValue: (c) => c.slaUsed,
+      cell: (c) => (
+        <span className="flex min-w-32 flex-col gap-1.5">
+          <span className="text-sm tabular">
+            {c.age} · <span className="text-muted">{c.sla}</span>
+          </span>
+          <HBar value={c.slaUsed} label={c.slaLabel} />
+        </span>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: (c) => (
+        <StatusChip tone={c.statusTone === "accent" ? "info" : (c.statusTone ?? "default")}>{c.status}</StatusChip>
+      ),
+    },
+    {
+      id: "who",
+      header: "Verified by",
+      hideBelow: "xl",
+      defaultHidden: !held.includes("approval"),
+      cell: (c) => c.who,
+    },
+  ];
+  const open = (c: QueueCase) => (c.action === "open" && c.href ? router.push(c.href) : undefined);
   return (
-    <PageContent className="text-[14px] leading-5">
-      <TopbarStatus kind="chip" tone={state.tone} dot={state.tone} label={state.pill} />
-      <PageHeader
-        size="hello"
-        eyebrow={
-          <>
-            {data.today} · {data.scope}
-          </>
-        }
-        title={`Hello, ${persona.firstName}`}
-        description={state.summary}
+    <PageContent>
+      <AreaHeader
         actions={
-          <>
-            <LinkButton href={screenHref("DelegatedReports")} variant="secondary">
-              <Database className="size-4" />
-              Delegated data
-            </LinkButton>
-            {open && data.firstCaseHref ? (
-              <LinkButton href={data.firstCaseHref}>
-                <FileText className="size-4" />
-                Open next case
-              </LinkButton>
-            ) : (
-              <Button isDisabled>Open next case</Button>
-            )}
-          </>
+          firstCaseHref ? (
+            <ActionLink href={firstCaseHref} icon="ArrowRight" intent="primary">
+              Open next case
+            </ActionLink>
+          ) : null
         }
       />
-
-      <Card render={(p) => <section {...p} />} aria-labelledby="mandate-h" className="gap-4 px-5 py-[18px]">
-        <div className="flex flex-wrap items-start gap-3">
-          <Avatar variant="soft" color={toneColor(state.tone)} className="shrink-0">
-            <Avatar.Fallback>
-              <ShieldCheck className="size-5" aria-hidden="true" />
-            </Avatar.Fallback>
-          </Avatar>
-          <div className="flex min-w-0 flex-[1_1_360px] flex-col gap-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 id="mandate-h" className="text-[15px] leading-[22px] font-semibold">
-                Your mandate
-              </h2>
-              <ToneChip tone={state.tone}>{state.chip}</ToneChip>
-            </div>
-            <p className="text-[13px] leading-[18px] text-muted">Every record you open is logged</p>
-          </div>
-          <LinkButton href={screenHref("DistrictAdmin")} size="sm" variant="ghost">
-            Bodies and officers
-            <ChevronRight className="size-4" />
-          </LinkButton>
-        </div>
-
-        {state.alert ? (
-          <Alert status={toneColor(state.tone)} role="status">
-            <Alert.Indicator>
-              <Icon name={state.alert.icon} />
-            </Alert.Indicator>
-            <Alert.Content>
-              <Alert.Title>{state.alert.title}</Alert.Title>
-              <Alert.Description>{state.alert.description}</Alert.Description>
-            </Alert.Content>
-          </Alert>
-        ) : null}
-
-        <FactGrid min={150} className="gap-x-4 gap-y-[14px]" items={facts} />
-
-        <Separator />
-
-        <div className="flex flex-wrap gap-x-6 gap-y-2">
-          <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-1.5">
-            <span id="granted-h" className="text-[12px] leading-4 text-muted">
-              Delegated to you
-            </span>
-            <ul aria-labelledby="granted-h" className="flex flex-wrap gap-1.5">
-              {data.granted.map((g) => (
-                <li key={g}>
-                  <Chip size="sm" variant="soft" color="success">
-                    <Check className="size-3" aria-hidden="true" />
-                    <Chip.Label>{g}</Chip.Label>
-                  </Chip>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-1.5">
-            <span id="withheld-h" className="text-[12px] leading-4 text-muted">
-              Not in your mandate
-            </span>
-            <ul aria-labelledby="withheld-h" className="flex flex-wrap gap-1.5">
-              {data.exclusions.map((w) => (
-                <li key={w.id}>
-                  <Chip size="sm" variant="soft">
-                    <Lock className="size-3" aria-hidden="true" />
-                    <Chip.Label>{w.label}</Chip.Label>
-                  </Chip>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </Card>
-
-      {open ? null : (
-        <Card variant="secondary" render={(p) => <section {...p} />} className="p-8">
-          <EmptyState>
-            <EmptyState.Header>
-              <EmptyState.Media variant="icon">
-                <Lock />
-              </EmptyState.Media>
-              <EmptyState.Title>Your queues are hidden while access is paused</EmptyState.Title>
-              <EmptyState.Description>
-                No case, document or dataset can be opened under this mandate until {data.institution} confirms your
-                access.
-              </EmptyState.Description>
-            </EmptyState.Header>
-            <EmptyState.Content>
-              <LinkButton href={screenHref("DistrictAdmin")} size="sm" variant="secondary">
-                See access review status
-              </LinkButton>
-            </EmptyState.Content>
-          </EmptyState>
-        </Card>
-      )}
-
-      {open ? (
-        <>
-          <section aria-label="Queue health">
-            <KPIGroup className="flex-wrap">
-              {data.kpis.map((k, i) => (
-                <Fragment key={k.id}>
-                  {i > 0 ? <KPIGroup.Separator /> : null}
-                  <KPI className="min-w-[180px] flex-[1_1_180px]">
-                    <KPI.Header>
-                      {k.dueSoon ? (
-                        <KPI.Icon status="warning">
-                          <Clock />
-                        </KPI.Icon>
-                      ) : null}
-                      <KPI.Title>{k.label}</KPI.Title>
-                    </KPI.Header>
-                    <KPI.Content>
-                      <KPI.Value value={k.value} formatOptions={k.format} className="tabular" />
-                    </KPI.Content>
-                    <KPI.Footer>
-                      <p className="text-[12px] leading-4 text-muted">{k.foot}</p>
-                    </KPI.Footer>
-                  </KPI>
-                </Fragment>
-              ))}
-            </KPIGroup>
-          </section>
-
-          <OfficerQueues cases={data.cases} held={data.held} />
-
-          <div className="grid items-stretch gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr))]">
-            <Card render={(p) => <section {...p} />} aria-labelledby="act-h" className="gap-3 p-[18px]">
-              <Card.Header>
-                <CardHeading id="act-h">Recent decisions</CardHeading>
-              </Card.Header>
-              <Timeline size="sm" density="compact">
-                {data.decisions.map((e) => (
-                  <Timeline.Item key={e.id} status={e.status}>
-                    <Timeline.Rail>
-                      <Timeline.Marker>
-                        <Icon name={e.icon} className="size-3" />
-                      </Timeline.Marker>
-                      <Timeline.Connector />
-                    </Timeline.Rail>
-                    <Timeline.Content className="flex flex-col pb-0.5">
-                      <span className="font-medium">{e.title}</span>
-                      <span className="text-[12px] leading-4 text-muted">{e.detail}</span>
-                    </Timeline.Content>
-                  </Timeline.Item>
-                ))}
-              </Timeline>
-            </Card>
-
-            <Card render={(p) => <section {...p} />} aria-labelledby="rules-h" className="gap-3 p-[18px]">
-              <Card.Header>
-                <CardHeading id="rules-h">How this mandate works</CardHeading>
-              </Card.Header>
-              <ListView aria-labelledby="rules-h" variant="secondary" items={data.rules}>
-                {(ru) => (
-                  <ListView.Item
-                    id={ru.id}
-                    textValue={ru.title}
-                    href={ru.board === "OfficerCase" ? (data.firstCaseHref ?? undefined) : screenHref(ru.board)}
-                  >
-                    <ListView.ItemContent>
-                      <Icon name={ru.icon} className="size-4 shrink-0 text-muted" />
-                      <div className="flex min-w-0 flex-col">
-                        <ListView.Title>{ru.title}</ListView.Title>
-                        <ListView.Description className="whitespace-normal">{ru.description}</ListView.Description>
-                      </div>
-                    </ListView.ItemContent>
-                    <ListView.ItemAction>
-                      <ChevronRight className="size-4 text-muted" aria-hidden="true" />
-                    </ListView.ItemAction>
-                  </ListView.Item>
-                )}
-              </ListView>
-            </Card>
-          </div>
-        </>
-      ) : null}
+      <DataTable
+        label="Cases"
+        noun={{ one: "case", many: "cases" }}
+        rows={cases}
+        rowKey={(c) => c.id}
+        columns={columns}
+        columnToggle
+        defaultSort={{ column: "age", direction: "descending" }}
+        search={{ placeholder: "Business or reference", text: (c) => `${c.business} ${c.ref ?? ""} ${c.place}` }}
+        filters={
+          held.length > 1
+            ? [
+                {
+                  id: "queue",
+                  name: "Queue",
+                  options: [
+                    { id: "all", label: "All" },
+                    ...held.map((q) => ({
+                      id: q,
+                      label: QUEUE_LABEL[q],
+                      count: cases.filter((c) => c.queue === q).length,
+                    })),
+                  ],
+                  match: (c, v) => c.queue === v,
+                },
+              ]
+            : []
+        }
+        onRowAction={open}
+        rowActions={(c) =>
+          c.action === "open" && c.href ? (
+            <RowActions>
+              <IconAction icon="ChevronRight" label={`Open ${c.business}`} onPress={() => open(c)} />
+            </RowActions>
+          ) : null
+        }
+        mobile={{
+          title: (c) => c.business,
+          description: (c) => `${QUEUE_LABEL[c.queue]} · ${c.age} · ${c.place}`,
+          trailing: (c) => (
+            <StatusChip tone={c.statusTone === "accent" ? "info" : (c.statusTone ?? "default")}>{c.status}</StatusChip>
+          ),
+        }}
+        empty={
+          <EmptyBlock
+            icon="CircleCheck"
+            title={held.length > 0 ? "Nothing waits on you" : "No review queue is delegated to you"}
+          />
+        }
+      />
     </PageContent>
   );
 }
