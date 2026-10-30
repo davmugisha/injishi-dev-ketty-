@@ -32,7 +32,7 @@ import "../_injishi-public.css";
  * the LAYER, which the corpus still calls the public layer, and the rename does
  * not touch it.
  *
- * Chrome does NOT live here. It lives in the three groups below, because they
+ * Chrome does NOT live here. It lives in the four groups below, because they
  * do not share one. Each group is named for the chrome it puts on, never for
  * the route inside it — `(book)/book` and `(explore)/explore` stuttered, and a
  * group that repeats its only child's name tells a reader nothing:
@@ -40,6 +40,11 @@ import "../_injishi-public.css";
  *   (site)      — the canonical header and footer.
  *   (results)   — its own nav on a navy band, then a white sheet. Holds /explore.
  *   (checkout)  — a minimal checkout header and no footer. Holds /book.
+ *   (bare)      — no chrome at all, for a screen that is its whole content.
+ *                 Holds /downloads/coming-soon (mobile spec 0004).
+ *
+ * `/get`, the app smart link, sits directly in this root as a route handler:
+ * it only redirects, so it wears no chrome and needs no group.
  *
  * `MobileTabBar` is deliberately not composed here. `SiteFooter` mounts it, so
  * adding it would render a fixed bottom bar twice (ADR-013).
