@@ -166,7 +166,7 @@ export function GuestPanel({ guest: initial, onClose }: { guest: LeaderGuest; on
           title={
             guest.host.kind === "tenant"
               ? "Staying with the tenant"
-              : guest.host.kind === "stay"
+              : guest.host.kind === "hotel"
                 ? "Staying at"
                 : "Staying with the landlord"
           }
