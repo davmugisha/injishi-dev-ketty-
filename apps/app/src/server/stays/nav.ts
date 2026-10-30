@@ -23,9 +23,8 @@ export function staysNavGroups(
   // Few sidebar items (2026-10-30): each area's pages are tabs at the top of its pages.
   const items: NavItem[] = [];
 
-  const overview: NavTab[] = [{ id: "overview", label: "Home", board: home }];
-  if (desk || bookings) overview.push({ id: "calendar", label: "Calendar", board: "StaysCalendar" });
-  items.push({ id: "home", label: "Home", icon: "House", board: home, tabs: overview });
+  // Home is the overview, the one page with charts (2026-10-30).
+  items.push({ id: "home", label: "Home", icon: "House", board: home });
 
   const front: NavTab[] = [];
   if (desk) {
@@ -46,6 +45,7 @@ export function staysNavGroups(
       ...chip(summary.counts.requestsWaiting),
     });
   }
+  if (desk || bookings) front.push({ id: "calendar", label: "Calendar", board: "StaysCalendar" });
   if (front.length > 0) {
     items.push({ id: "desk", label: "Front desk", icon: "Persons", board: front[0].board, tabs: front });
   }

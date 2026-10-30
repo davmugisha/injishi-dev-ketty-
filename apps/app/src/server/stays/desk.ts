@@ -144,3 +144,200 @@ export function bookingRows(board: ApiBoard): BookingRow[] {
 export async function readDesk(): Promise<ApiBoard> {
   return deskBoard(await requestContext());
 }
+
+// ── The booking calendar: rooms by type, stays and bookings across the nights ───────────────────────
+
+export type CalendarKind = "requested" | "confirmed" | "in_house" | "checked_out";
+
+export interface CalendarStay {
+  id: string;
+  roomId: string;
+  kind: CalendarKind;
+  guest: string;
+  phone: string | null;
+  /** The first night, the last night, and the morning they leave. */
+  start: string;
+  end: string;
+  checkOut: string;
+  room: string;
+  roomType: string;
+  guests: number | null;
+  totalRwf: number | null;
+  paidRwf: number | null;
+  balanceRwf: number | null;
+  bookingRef: string | null;
+  stayRef: string | null;
+  /** A confirmed booking nobody has checked in yet: it may move to other nights or rooms. */
+  movable: boolean;
+  cancellation: { refundRwf: number; keptRwf: number; rule: string } | null;
+}
+
+export interface CalendarRoomType {
+  id: string;
+  name: string;
+  rooms: { id: string; label: string; bookable: boolean }[];
+}
+
+export interface CalendarBoard {
+  today: string;
+  roomTypes: CalendarRoomType[];
+  stays: CalendarStay[];
+}
+
+const dayBefore = (iso: string) => {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+};
+
+const addOne = (iso: string) => {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
+
+/** Where a booking with no room yet sits: a row of its own under its type. */
+const waitingRow = (roomTypeId: string) => `waiting:${roomTypeId}`;
+
+/**
+ * The calendar's rows and cards from the desk's day: every room by type, who is in it or left it lately,
+ * and the bookings to come in their held rooms (or a "No room yet" row of the type). Stays that left
+ * earlier come from the period activity, placed by their room's label.
+ */
+export function calendarBoard(
+  board: ApiBoard,
+  history: readonly {
+    id: string;
+    reference: string | null;
+    guestName: string;
+    roomLabel: string | null;
+    roomTypeName: string;
+    checkIn: string;
+    checkOut: string;
+    status: string;
+    totalRwf: number;
+  }[] = [],
+): CalendarBoard {
+  const today = board.today;
+  const stays: CalendarStay[] = [];
+  const seen = new Set<string>();
+
+  for (const s of board.stays) {
+    const booking = s.bookingId ? board.bookings.find((b) => b.id === s.bookingId) : undefined;
+    const from = (s.checkIn ?? kigaliDate(s.entryAt)) as string;
+    const leaves =
+      s.checkOut ??
+      (s.actualExitAt ? kigaliDate(s.actualExitAt) : s.plannedExitAt ? kigaliDate(s.plannedExitAt) : null) ??
+      today;
+    const out = leaves > from ? leaves : addOne(from);
+    if (s.reference) seen.add(s.reference);
+    if (s.bookingReference) seen.add(s.bookingReference);
+    stays.push({
+      id: `s-${s.id}`,
+      roomId: s.roomId,
+      kind: s.lifecycle === "open" ? "in_house" : "checked_out",
+      guest: nameOf(s.guestName),
+      phone: booking?.guestPhone ?? null,
+      start: from,
+      end: dayBefore(out),
+      checkOut: out,
+      room: s.roomLabel ?? "",
+      roomType: s.roomTypeName,
+      guests: booking?.guestCount ?? null,
+      totalRwf: booking?.totalRwf ?? null,
+      paidRwf: booking?.paidRwf ?? null,
+      balanceRwf: s.folio?.balanceRwf ?? null,
+      bookingRef: s.bookingReference,
+      stayRef: s.reference ?? s.id,
+      movable: false,
+      cancellation: null,
+    });
+  }
+
+  for (const b of board.bookings) {
+    if (b.stay || (b.status !== "confirmed" && b.status !== "pending_approval")) continue;
+    seen.add(b.reference);
+    const base = {
+      kind: (b.status === "confirmed" ? "confirmed" : "requested") as CalendarKind,
+      guest: nameOf(b.guestName),
+      phone: b.guestPhone,
+      roomType: b.roomTypeName,
+      guests: b.guestCount,
+      totalRwf: b.totalRwf,
+      paidRwf: b.paidRwf,
+      balanceRwf: Math.max(0, b.totalRwf - b.paidRwf),
+      bookingRef: b.reference,
+      stayRef: null,
+      movable: b.status === "confirmed",
+      cancellation: b.cancellation,
+    };
+    if (b.holds.length === 0) {
+      stays.push({
+        ...base,
+        id: `b-${b.id}`,
+        roomId: waitingRow(b.roomTypeId),
+        start: b.checkIn,
+        end: dayBefore(b.checkOut),
+        checkOut: b.checkOut,
+        room: "",
+      });
+      continue;
+    }
+    b.holds.forEach((h, i) => {
+      stays.push({
+        ...base,
+        id: `b-${b.id}-${i}`,
+        roomId: h.roomId,
+        start: h.from,
+        end: dayBefore(h.to),
+        checkOut: h.to,
+        room: h.roomLabel ?? "",
+        // A split stay moves leg by leg at the desk, not by dragging.
+        movable: base.movable && b.holds.length === 1,
+      });
+    });
+  }
+
+  // Earlier stays, from the period's activity, in the room of the same label.
+  for (const h of history) {
+    if (h.status !== "checked_out" || (h.reference && seen.has(h.reference))) continue;
+    const room = board.rooms.find((r) => r.label === h.roomLabel);
+    if (!room) continue;
+    stays.push({
+      id: `h-${h.id}`,
+      roomId: room.id,
+      kind: "checked_out",
+      guest: nameOf(h.guestName),
+      phone: null,
+      start: h.checkIn,
+      end: dayBefore(h.checkOut),
+      checkOut: h.checkOut,
+      room: h.roomLabel ?? "",
+      roomType: h.roomTypeName,
+      guests: null,
+      totalRwf: h.totalRwf,
+      paidRwf: null,
+      balanceRwf: null,
+      bookingRef: null,
+      stayRef: h.reference,
+      movable: false,
+      cancellation: null,
+    });
+  }
+
+  const roomTypes = board.roomTypes
+    .filter((t) => t.active)
+    .map((t) => {
+      const rooms = board.rooms
+        .filter((r) => r.roomTypeId === t.id)
+        .sort((a, b) => (a.label ?? "").localeCompare(b.label ?? "", undefined, { numeric: true }))
+        .map((r) => ({ id: r.id, label: r.label ?? "Room", bookable: r.status === "available" }));
+      if (stays.some((s) => s.roomId === waitingRow(t.id))) {
+        rooms.push({ id: waitingRow(t.id), label: "No room yet", bookable: false });
+      }
+      return { id: t.id, name: t.name, rooms };
+    })
+    .filter((t) => t.rooms.length > 0);
+
+  return { today, roomTypes, stays };
+}

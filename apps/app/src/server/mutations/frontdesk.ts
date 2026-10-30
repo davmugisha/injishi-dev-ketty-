@@ -174,6 +174,8 @@ export async function cancelReservation(
 export interface WalkInInput {
   /** The room type's id, as the walk-in screen lists it (frontdesk.roomTypes). */
   roomTypeId: string;
+  /** A room chosen on the calendar; without it the desk takes the first ready room of the type. */
+  roomId?: string;
   nights: number;
   guestName: string;
   phone?: string;
@@ -240,7 +242,9 @@ export async function walkIn(ctx: SourceContext, input: WalkInInput): Promise<Wa
   const type = board.roomTypes.find((t) => t.id === input.roomTypeId && t.active);
   if (!type) throw new ApiError(404, "not_found", "That room type is not sold at this property.", null);
   const leaves = addDays(board.today, nights);
-  const room = roomForWalkIn(board, type.id, board.today, leaves);
+  const chosen = input.roomId ? board.rooms.find((r) => r.id === input.roomId && r.roomTypeId === type.id) : undefined;
+  if (input.roomId && !chosen) throw new ApiError(404, "not_found", "That room is not one of this type.", null);
+  const room = chosen ?? roomForWalkIn(board, type.id, board.today, leaves);
   if (!room) {
     throw new ApiError(
       409,
@@ -355,4 +359,74 @@ export async function pollReservationChange(
         `/api/v1/ops/reservations/${booking.id}/change/attempts/${encodeURIComponent(attemptToken)}`,
       ),
   );
+}
+
+// ── Moving a booking on the calendar: other nights, another room ───────────────────────────────────────
+
+export interface BookingMove {
+  /** The room it moves into, by id. */
+  roomId: string;
+  /** The first night and the morning they leave. */
+  checkIn: string;
+  checkOut: string;
+}
+
+/** What moving a booking would cost, before anything moves (the change quote, 0122). */
+export async function quoteBookingMove(
+  ctx: SourceContext,
+  bookingRef: string,
+  move: BookingMove,
+): Promise<{ quote: ReservationChangeQuote | null; problems: string[] }> {
+  const { board, booking } = await bookingOf(ctx, bookingRef);
+  const room = roomOf(board, move.roomId);
+  const sameStay =
+    move.checkIn === booking.checkIn && move.checkOut === booking.checkOut && room.roomTypeId === booking.roomTypeId;
+  if (sameStay) return { quote: null, problems: [] };
+  const form = await ctx.ops().get<ReservationChangeForm>(`/api/v1/ops/reservations/${booking.id}/change`);
+  if (form.problems.length > 0) return { quote: null, problems: form.problems };
+  const quote = await ctx.ops().post<ReservationChangeQuote>(`/api/v1/ops/reservations/${booking.id}/change/quote`, {
+    ...form.current,
+    checkIn: move.checkIn,
+    checkOut: move.checkOut,
+    roomTypeId: room.roomTypeId,
+  });
+  return { quote, problems: quote.problems };
+}
+
+/**
+ * Move a booking: new nights or another room type go through the change (a higher price on the guest's
+ * bill), which lets its held room go; then the chosen room is held for the new stay. A move to another
+ * room of the same type on the same nights only swaps the held room.
+ */
+export async function moveBooking(ctx: SourceContext, bookingRef: string, move: BookingMove): Promise<void> {
+  const { board, booking } = await bookingOf(ctx, bookingRef);
+  const room = roomOf(board, move.roomId);
+  const sameStay =
+    move.checkIn === booking.checkIn && move.checkOut === booking.checkOut && room.roomTypeId === booking.roomTypeId;
+  await command(ctx, async () => {
+    if (!sameStay) {
+      const form = await ctx.ops().get<ReservationChangeForm>(`/api/v1/ops/reservations/${booking.id}/change`);
+      const ask = { ...form.current, checkIn: move.checkIn, checkOut: move.checkOut, roomTypeId: room.roomTypeId };
+      const quote = await ctx
+        .ops()
+        .post<ReservationChangeQuote>(`/api/v1/ops/reservations/${booking.id}/change/quote`, ask);
+      if (quote.problems.length > 0) throw new ApiError(409, "change_refused", quote.problems.join(" "), null);
+      const result = await ctx.ops().post<ReservationChangeResult>(`/api/v1/ops/reservations/${booking.id}/change`, {
+        ...ask,
+        ...(quote.differenceRwf > 0 ? { settlement: "bill" } : {}),
+      });
+      if (result.status !== "applied") {
+        throw new ApiError(409, "change_pending", "The change did not apply. Open the booking to finish it.", null);
+      }
+    } else {
+      // The same nights in another room: let the held rooms go first, so the new hold does not overlap.
+      const { assignments } = await ctx
+        .ops()
+        .get<{ assignments: { id: string; status: string }[] }>(`/api/v1/ops/reservations/${booking.id}/assignments`);
+      for (const h of assignments.filter((x) => x.status === "assigned")) {
+        await ctx.ops().delete(`/api/v1/ops/reservations/${booking.id}/assign/${h.id}`);
+      }
+    }
+    await ctx.ops().post(`/api/v1/ops/reservations/${booking.id}/assign`, { roomId: room.id });
+  });
 }
