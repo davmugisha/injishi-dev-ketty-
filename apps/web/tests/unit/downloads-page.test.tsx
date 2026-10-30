@@ -134,36 +134,29 @@ describe("/downloads on a computer (AC-1)", () => {
     ]);
   });
 
-  test("says what the app does in three groups: guests, hotel teams and residents", async () => {
+  test("says what the app does in three short cards: guests, hotel staff and residents", async () => {
     await openAs(UA.mac);
-    const section = screen.getByRole("region", { name: "One app for your stay, your shift and your home" });
+    const cards = screen.getByRole("heading", { level: 2, name: "For guests" }).closest("ul");
+    if (!cards) throw new Error("the cards sit outside their list");
 
-    expect(within(section).getAllByRole("heading", { level: 3 }).map((heading) => heading.textContent)).toEqual([
+    expect(within(cards).getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual([
       "For guests",
-      "For hotel teams",
+      "For hotel staff",
       "For residents",
     ]);
   });
 
-  test("each group lists several things its people do, not one line", async () => {
+  test("each card is one short line, not a list", async () => {
     await openAs(UA.mac);
-    const section = screen.getByRole("region", { name: "One app for your stay, your shift and your home" });
+    const cards = screen.getByRole("heading", { level: 2, name: "For guests" }).closest("ul");
+    if (!cards) throw new Error("the cards sit outside their list");
 
-    for (const heading of within(section).getAllByRole("heading", { level: 3 })) {
-      const group = heading.closest("li");
-      if (!group) throw new Error(`${heading.textContent} sits outside its group`);
-      // The group's own list: one item per thing, below the heading.
-      expect(within(group).getAllByRole("listitem").length).toBeGreaterThanOrEqual(4);
-    }
-    expect(within(section).getByText("Order to your room and message the hotel")).toBeInTheDocument();
-    expect(within(section).getByText("Pay rent with MoMo and keep every statement")).toBeInTheDocument();
-  });
-
-  test("the hotel group names every hotel role the app serves", async () => {
-    await openAs(UA.mac);
-
+    // Three cards and nothing nested: the ticked lists were taken out on 2026-10-30.
+    expect(within(cards).getAllByRole("listitem")).toHaveLength(3);
     expect(
-      screen.getByText("Housekeeping, supervisors, technicians, managers and the front desk."),
+      within(cards).getByText(
+        "Clock in, see your next room, finish the checklist and report a problem from the floor.",
+      ),
     ).toBeInTheDocument();
   });
 

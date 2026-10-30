@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
-import { ArrowRight, Camera, Check, House, KeyRound, Monitor, SprayCan } from "lucide-react";
+import { ArrowRight, Camera, House, KeyRound, Monitor, SprayCan } from "lucide-react";
 import { cn } from "@injishi/utils";
 import { DownloadButton } from "@/components/downloads/download-buttons";
 import { AndroidMark, AppleMark, WindowsMark } from "@/components/downloads/platform-marks";
@@ -50,48 +50,22 @@ function desktopsFor(device: Device): Platform[] {
   return ["mac", "windows"];
 }
 
-/**
- * What the app does, in three groups. The app serves seven roles (guest,
- * housekeeper, supervisor, technician, resident, manager, front desk), so
- * each group lists the things its people do in it, drawn from the mobile
- * scope's features rather than one line that undersells it.
- */
+/** What the app does, one short line for each group of people it serves. */
 const AUDIENCES = [
   {
     title: "For guests",
-    who: "Before, during and after your stay.",
+    body: "Find and book a stay, then keep your room, WiFi, room service and the bill in one place.",
     Icon: KeyRound,
-    does: [
-      "Find and book a stay, paid by mobile money",
-      "Check in before you arrive",
-      "Your room, WiFi and directions in one place",
-      "Order to your room and message the hotel",
-      "Follow the bill and pay as you go",
-    ],
   },
   {
-    title: "For hotel teams",
-    who: "Housekeeping, supervisors, technicians, managers and the front desk.",
+    title: "For hotel staff",
+    body: "Clock in, see your next room, finish the checklist and report a problem from the floor.",
     Icon: SprayCan,
-    does: [
-      "Clock in, see today's rooms and work the checklist",
-      "Report a problem from the floor",
-      "Inspections, repair jobs and asset scans",
-      "Arrivals, check in and walk ins at the desk",
-      "Schedules, leave, pay and approvals",
-    ],
   },
   {
     title: "For residents",
-    who: "Everything about the place you rent.",
+    body: "Pay rent with MoMo, follow a repair and read notices from your building.",
     Icon: House,
-    does: [
-      "Pay rent with MoMo and keep every statement",
-      "Report a repair or an emergency",
-      "Building notices, visitors and household",
-      "Your lease, notice and renewal",
-      "Move in and move out, deposit included",
-    ],
   },
 ] as const;
 
@@ -203,27 +177,15 @@ export default async function DownloadsPage() {
         <PhoneTile />
       </section>
 
-      <section aria-labelledby="what-it-does" className="section-y container">
-        <h2 id="what-it-does" className="max-w-narrow text-3xl leading-tight tracking-tight text-foreground md:text-4xl">
-          One app for your stay, your shift and your home
-        </h2>
-        {/* Three columns only from `lg`: at tablet widths each list wraps on every line. */}
-        <ul className="mt-10 grid gap-5 lg:grid-cols-3">
-          {AUDIENCES.map(({ title, who, Icon, does }) => (
-            <li key={title} className="flex flex-col rounded-card border border-border bg-surface p-7 lg:p-8">
+      <section className="section-y container">
+        <ul className="grid gap-5 md:grid-cols-3">
+          {AUDIENCES.map(({ title, body, Icon }) => (
+            <li key={title} className="rounded-card border border-border bg-surface p-8">
               <div className="grid size-14 place-items-center rounded-card bg-accent-soft text-accent-text">
                 <Icon className="size-6.5" strokeWidth={1.8} aria-hidden />
               </div>
-              <h3 className="mt-5 text-2xl text-foreground">{title}</h3>
-              <p className="mt-2 text-base leading-normal text-muted-foreground">{who}</p>
-              <ul className="mt-5 flex flex-col gap-3 border-t border-border pt-5">
-                {does.map((item) => (
-                  <li key={item} className="flex gap-3 text-base leading-snug text-foreground">
-                    <Check className="mt-0.5 size-4.5 shrink-0 text-accent-text" strokeWidth={2.2} aria-hidden />
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              <h2 className="mt-5 text-2xl text-foreground">{title}</h2>
+              <p className="mt-2 text-base leading-normal text-muted-foreground">{body}</p>
             </li>
           ))}
         </ul>
