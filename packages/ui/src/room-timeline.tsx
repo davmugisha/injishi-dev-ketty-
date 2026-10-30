@@ -257,7 +257,7 @@ export function RoomTimeline({
           const event = id ? byId.get(id) : undefined;
           if (event) onSelect?.(event);
         }}
-        className="overflow-hidden [&_.agenda__all-day-toggle]:hidden! rounded-[var(--surface-radius)] border border-separator"
+        className="room-timeline overflow-hidden rounded-[var(--surface-radius)] border border-separator"
         style={{ "--agenda-time-column-width": wide ? "7rem" : "4.5rem" } as CSSProperties}
       >
         <div className="flex flex-wrap items-center gap-2 px-3 py-2">

@@ -270,7 +270,7 @@ export function BoundedDateRangePicker({
       <Label>{label}</Label>
       <DateField.Group fullWidth>
         <DateField.Input slot="start">{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
-        <DateRangePicker.RangeSeparator>to</DateRangePicker.RangeSeparator>
+        <DateRangePicker.RangeSeparator className="ps-4 pe-2">to</DateRangePicker.RangeSeparator>
         <DateField.Input slot="end">{(segment) => <DateField.Segment segment={segment} />}</DateField.Input>
         <DateField.Suffix>
           <DateRangePicker.Trigger aria-label="Open the calendar">
