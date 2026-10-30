@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { WorkspaceShell } from "@/components/shell/WorkspaceShell";
 import { MessagesLive } from "@/features/messages/MessagesLive";
 import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
+import { openToRealPeople } from "@/lib/real-screens";
 import { currentAccount } from "@/lib/session";
 import { brokerNav } from "@/server/broker/nav";
 import { businessNav } from "@/server/business/nav";
@@ -44,12 +45,16 @@ function withoutSampleCounts(groups: NavGroup[]): NavGroup[] {
  * to owner for setup/ops; without this, Membership / Fees / Subtypes vanish
  * even though `access` still allows `/psf`.
  */
-function withOversightNav(nav: NavGroup[], access: readonly string[] | undefined): NavGroup[] {
-  if (!access?.length) return nav;
+function withOversightNav(nav: NavGroup[], persona: { id: string; access?: readonly string[] }): NavGroup[] {
+  const access = persona.access;
+  // The PSF console's own sidebar already lists these.
+  if (!access?.length || persona.id === "psf") return nav;
   const allowed = new Set(access);
   const extras: NavGroup[] = [];
   if (allowed.has("PsfConsole") || allowed.has("PsfReport")) {
-    const items = (navigationFor("psf")[0]?.items ?? []).filter((i) => allowed.has(i.board));
+    const items = navigationFor("psf")
+      .flatMap((g) => g.items)
+      .filter((i) => allowed.has(i.board));
     if (items.length) {
       extras.push({
         label: "PSF membership",
@@ -77,16 +82,21 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
       ? await landlordNav()
       : persona.id === "officer"
         ? await officerNav()
-        : persona.id === "tenant"
-          ? await tenantNav()
-          : persona.id === "broker"
-            ? await brokerNav()
-            : persona.id === "ops"
-              ? realScreensOnly(navigationFor("ops"))
-              : personaByEmail(account.user.email)?.id === persona.id
-                ? navigationFor(persona.id)
-                : ((BUSINESS_SHELLS.has(persona.id) ? await businessNav(account) : null) ??
-                  withoutSampleCounts(navigationFor(persona.id)));
+        : persona.id === "psf" && personaByEmail(account.user.email)?.id !== "psf"
+          ? realScreensOnly(navigationFor("psf"))
+          : persona.id === "tenant"
+            ? await tenantNav()
+            : persona.id === "broker"
+              ? await brokerNav()
+              : persona.id === "ops"
+                ? realScreensOnly(navigationFor("ops"))
+                : personaByEmail(account.user.email)?.id === persona.id
+                  ? navigationFor(persona.id)
+                  : ((BUSINESS_SHELLS.has(persona.id) ? await businessNav(account) : null) ??
+                    // A real person's sidebar lists only the screens that show their own records.
+                    withoutSampleCounts(navigationFor(persona.id))
+                      .map((g) => ({ ...g, items: g.items.filter((i) => openToRealPeople(i.board)) }))
+                      .filter((g) => g.items.length > 0));
   if (nav.length === 0) {
     // Phone/tablet personas visiting a desktop screen they may open: home plus "what to try".
     nav = [
@@ -105,10 +115,10 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
       ? { prefix: "/home", nav: await tenantNav() }
       : null;
   // An officer's or leader's header names their own seat, not the persona's sample one.
-  const shown = persona.id === "officer" ? await officerPersona(persona) : persona;
-  nav = withOversightNav(nav, persona.access);
+  const shown = persona.id === "officer" || persona.id === "psf" ? await officerPersona(persona) : persona;
+  nav = withOversightNav(nav, persona);
   return (
-    <WorkspaceShell persona={shown} nav={nav} altNav={altNav}>
+    <WorkspaceShell persona={shown} nav={nav} altNav={altNav} demo={personaByEmail(account.user.email)?.id === persona.id}>
       {children}
       {/* Message counts in the sidebar follow new lines live (P3.4). */}
       {persona.id === "landlord" ? (

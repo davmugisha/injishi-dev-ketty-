@@ -21,6 +21,7 @@ import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
 import { BrandMark } from "../brand";
 import { BusinessSwitcher } from "./BusinessSwitcher";
 import { QuickSearch } from "./QuickSearch";
+import { openToRealPeople } from "@/lib/real-screens";
 import { SampleDataPill } from "./SampleData";
 import { TopbarStatusPill, TopbarStatusProvider } from "./TopbarStatus";
 import { UserMenu } from "./UserMenu";
@@ -81,7 +82,7 @@ function NavMenu({
  */
 const LIVE_PERSONAS = new Set<string>(["landlord", "tenant", "broker", "officer", "ops"]);
 /** Personas whose screens must never draw sample data: a fixture-backed screen says it is not ready. */
-const REAL_DATA_ONLY = new Set<string>(["officer", "ops"]);
+const REAL_DATA_ONLY = new Set<string>(["officer", "ops", "psf"]);
 const LIVE_SECTIONS = new Set<string>(["rentals", "tenant"]);
 
 const SIDEBAR_KEY = "injishi.sidebar";
@@ -141,9 +142,16 @@ export function WorkspaceShell({
   persona,
   nav,
   altNav,
+  demo = false,
   children,
 }: {
   persona: Persona;
+  /**
+   * The signed-in person is one of the demo's own people (2026-10-30). Only they see the registry's sample
+   * pills, the "Sample data" chip and the fixture-backed search, assistant and notification count; a real
+   * person sees what their own records say, whatever the database is marked.
+   */
+  demo?: boolean;
   nav: NavGroup[];
   /** Another sidebar for the pages under `prefix` (a landlord reading their own home as a tenant). */
   altNav?: { prefix: string; nav: NavGroup[] } | null;
@@ -166,8 +174,10 @@ export function WorkspaceShell({
     });
   }, []);
   const live = LIVE_PERSONAS.has(persona.id) || LIVE_SECTIONS.has(screen?.section ?? "");
-  // A live screen shows only the pills it sets itself (<TopbarStatus>), never the registry's samples.
-  const pills = live ? Object.values(overrides) : (topbar?.pills ?? []).map((p, i) => overrides[i] ?? p);
+  // The top bar's demo furniture (registry pills, sample chip, fixture search, assistant, counts).
+  const samples = demo && !live;
+  // Otherwise a screen shows only the pills it sets itself (<TopbarStatus>), never the registry's samples.
+  const pills = samples ? (topbar?.pills ?? []).map((p, i) => overrides[i] ?? p) : Object.values(overrides);
   // The lists a live workspace can search: only its own, through its own sidebar.
   const searchable = live && groups.some((g) => g.items.some((i) => ["Leases", "Units", "Faults"].includes(i.board)));
   const [sidebarOpen, setSidebarOpen] = useRememberedSidebar();
@@ -175,7 +185,7 @@ export function WorkspaceShell({
   // ⌘K / Ctrl+K opens global search, as the artifact's search field advertises. A live workspace's
   // quick search listens for it itself.
   useEffect(() => {
-    if (live) return;
+    if (!samples) return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -184,7 +194,7 @@ export function WorkspaceShell({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router, live]);
+  }, [router, samples]);
 
   const header = (
     <Sidebar.Header className="gap-2">
@@ -254,7 +264,7 @@ export function WorkspaceShell({
         </AppLayout.MenuToggle>
         {searchable ? (
           <QuickSearch groups={groups} placeholder={RENTALS_SEARCH.replace(/…$/, "")} />
-        ) : live ? null : (
+        ) : !samples ? null : (
           <LinkButton
             href={screenHref("GlobalSearch")}
             variant="tertiary"
@@ -267,13 +277,13 @@ export function WorkspaceShell({
           </LinkButton>
         )}
         <Navbar.Spacer />
-        {live ? null : <SampleDataPill board={current} />}
+        {samples ? <SampleDataPill board={current} /> : null}
         <div className="hidden items-center gap-2 lg:flex" data-topbar-status="">
           {pills.map((p, i) => (
             <TopbarStatusPill key={`${i}-${p.label}`} status={p} />
           ))}
         </div>
-        {!live && topbar?.assistant !== false ? (
+        {samples && topbar?.assistant !== false ? (
           <LinkButton
             href={screenHref("Assistant")}
             variant="ghost"
@@ -284,7 +294,7 @@ export function WorkspaceShell({
             <Comments className="size-4" />
           </LinkButton>
         ) : null}
-        {live ? null : (
+        {!samples ? null : (
           <LinkButton
             href={screenHref("Notifications")}
             variant="ghost"
@@ -315,7 +325,8 @@ export function WorkspaceShell({
     >
       <div className="min-w-0">
         <TopbarStatusProvider value={setOverride}>
-          {REAL_DATA_ONLY.has(persona.id) && current && (sampleCollectionsByBoard[current] ?? 0) > 0 ? (
+          {current &&
+          (REAL_DATA_ONLY.has(persona.id) ? (sampleCollectionsByBoard[current] ?? 0) > 0 : !demo && !openToRealPeople(current)) ? (
             <PageContent>
               <EmptyBlock
                 icon="Database"

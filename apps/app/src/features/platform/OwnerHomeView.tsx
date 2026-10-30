@@ -112,10 +112,13 @@ export function OwnerHomeView({
   persona,
   data,
   setupDue = [],
+  sample = false,
 }: {
   persona: Persona;
   data: OwnerHomeData;
   setupDue?: SetupDue[];
+  /** One of the demo's own people: Reports and Approvals are still the demo's, and only they see the links. */
+  sample?: boolean;
 }) {
   const waiting = data.decisions.length;
   const unsettled = data.kpis.find((k) => k.id === "unsettled");
@@ -138,10 +141,12 @@ export function OwnerHomeView({
         actions={
           // The figures here are tonight's and today's, as each one's label says. A period switch changed none
           // of them, so other periods are in Reports.
-          <LinkButton href={screenHref("Reports")} variant="secondary">
-            <ChartColumn className="size-4" />
-            Open reports
-          </LinkButton>
+          sample ? (
+            <LinkButton href={screenHref("Reports")} variant="secondary">
+              <ChartColumn className="size-4" />
+              Open reports
+            </LinkButton>
+          ) : null
         }
       />
 
@@ -200,9 +205,11 @@ export function OwnerHomeView({
                 Only the owner can decide these. Each opens with its evidence.
               </ItemCardGroup.Description>
             </div>
-            <LinkButton href={screenHref("Approvals")} size="sm" variant="ghost">
-              All approvals
-            </LinkButton>
+            {sample ? (
+              <LinkButton href={screenHref("Approvals")} size="sm" variant="ghost">
+                All approvals
+              </LinkButton>
+            ) : null}
           </ItemCardGroup.Header>
           {data.decisions.length === 0 ? <p className="text-sm text-muted">Nothing is waiting for you.</p> : null}
           {data.decisions.map((d) => (
