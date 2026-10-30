@@ -1,6 +1,7 @@
 import {
   AdminOrgStatusChange,
   AdminTinRecheckResult,
+  type StarGradeStatus,
 } from '@injishi/contracts';
 import {
   ConflictException,
@@ -44,6 +45,55 @@ export class AdminOrgActionsService {
     @Inject(DRIZZLE) private readonly db: Database,
     private readonly registration: RegistrationService,
   ) {}
+
+  /**
+   * 0118: confirm a business's star grade against RDB's grading certificate, or withdraw the confirmation.
+   * Until confirmed the grade is the business's own word and no guest is shown it. The change and its audit
+   * row are one act, as a suspension's are. Confirming needs a grade to confirm.
+   */
+  /** 0118: a business's star grade and whether it is confirmed, for the staff who confirm it. */
+  async starGrade(orgId: string): Promise<StarGradeStatus> {
+    const [row] = await this.db
+      .select({ grade: orgs.eacStarGrade, verifiedAt: orgs.starGradeVerifiedAt })
+      .from(orgs)
+      .where(eq(orgs.id, orgId))
+      .limit(1);
+    if (!row) throw new NotFoundException('No business has that id.');
+    return { grade: row.grade, verifiedAt: row.verifiedAt?.toISOString() ?? null };
+  }
+
+  async confirmStarGrade(orgId: string, actorUserId: string, reason: string, confirm: boolean): Promise<StarGradeStatus> {
+    return this.db.transaction(async (tx) => {
+      const [current] = await tx
+        .select({ grade: orgs.eacStarGrade, verifiedAt: orgs.starGradeVerifiedAt, districtId: orgs.districtId })
+        .from(orgs)
+        .where(eq(orgs.id, orgId))
+        .for('update')
+        .limit(1);
+      if (!current) throw new NotFoundException('No business has that id.');
+      if (confirm && current.grade === null) {
+        throw new ConflictException({ code: 'no_star_grade', message: 'This business has not said a star grade to confirm.' });
+      }
+      const verifiedAt = confirm ? new Date() : null;
+      await tx
+        .update(orgs)
+        .set({ starGradeVerifiedAt: verifiedAt, starGradeVerifiedBy: confirm ? actorUserId : null, updatedAt: new Date() })
+        .where(eq(orgs.id, orgId));
+      await tx.insert(auditEvents).values({
+        actorUserId,
+        subjectType: 'org',
+        subjectId: orgId,
+        eventType: confirm ? 'admin.org.star_grade_confirmed' : 'admin.org.star_grade_withdrawn',
+        payloadDiff: {
+          starGradeVerified: { from: current.verifiedAt !== null, to: confirm },
+          grade: { from: current.grade, to: current.grade },
+        } as never,
+        reason,
+        districtId: current.districtId,
+      });
+      return { grade: current.grade, verifiedAt: verifiedAt?.toISOString() ?? null };
+    });
+  }
 
   /**
    * Suspend or reinstate a business, and record it, in ONE transaction.

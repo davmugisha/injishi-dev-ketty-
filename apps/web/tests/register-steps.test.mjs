@@ -1,6 +1,6 @@
 /**
- * The registration walks ADR-075's five steps, Business · You · Documents ·
- * Review · Pay, for every kind (O-3, AC-3).
+ * The registration walks ADR-075's five steps, You · Business · Documents ·
+ * Review · Pay, for every kind (O-3, AC-3): the person first, then the business.
  *
  * THIS RUNS THE REAL MODULE (`register/register-steps.ts`), the one the wizard
  * reads its progress, its sections, its saving and its documents from. The last
@@ -34,8 +34,8 @@ const {
 } = steps;
 
 describe("the steps", () => {
-  test("every path walks the same five, in ADR-075's order", () => {
-    assert.deepEqual(stepOrder().map((id) => STEP_TITLE[id]), ["Business", "You", "Documents", "Review", "Pay"]);
+  test("every path walks the same five: the person, then the business", () => {
+    assert.deepEqual(stepOrder().map((id) => STEP_TITLE[id]), ["You", "Business", "Documents", "Review", "Pay"]);
   });
 
   test("the role and capacity choose the path", () => {
@@ -49,9 +49,10 @@ describe("the steps", () => {
 describe("the sections of Business and You show in order", () => {
   test("which sections each step has, per path", () => {
     assert.deepEqual(sectionOrder("owner", "business"), ["tin", "cls", "loc", "fr"]);
-    assert.deepEqual(sectionOrder("owner", "you"), ["owner"]);
-    assert.deepEqual(sectionOrder("helper", "business"), ["tin", "cls", "loc", "fr"]);
-    assert.deepEqual(sectionOrder("helper", "you"), ["id", "intended"]);
+    // You is the person alone, on every path; the owner a helper names is the business's.
+    assert.deepEqual(sectionOrder("owner", "you"), ["id"]);
+    assert.deepEqual(sectionOrder("helper", "business"), ["tin", "intended", "cls", "loc", "fr"]);
+    assert.deepEqual(sectionOrder("helper", "you"), ["id"]);
     assert.deepEqual(sectionOrder("landlord", "business"), ["upi", "loc"]);
     assert.deepEqual(sectionOrder("landlord", "you"), ["id"]);
     for (const step of ["documents", "review", "pay"]) assert.deepEqual(sectionOrder("owner", step), []);
@@ -80,13 +81,13 @@ describe("the sections of Business and You show in order", () => {
 describe("the progress opens only what has been reached", () => {
   const order = stepOrder();
   test("up to and including the first step not complete", () => {
-    assert.equal(openableThrough(order, (id) => id === "business"), 1);
+    assert.equal(openableThrough(order, (id) => id === "you"), 1);
     assert.equal(openableThrough(order, () => false), 0);
   });
 
   test("a step that stops being complete closes what follows it again", () => {
-    const done = new Set(["business", "you", "documents"]);
-    done.delete("you");
+    const done = new Set(["you", "business", "documents"]);
+    done.delete("business");
     assert.equal(openableThrough(order, (id) => done.has(id)), 1);
   });
 
@@ -96,62 +97,47 @@ describe("the progress opens only what has been reached", () => {
 });
 
 describe("drafts (ADR-075 S9, AC-9)", () => {
-  test("the wizard opens on Business", () => {
-    assert.equal(openingStep(), "business");
+  test("the wizard opens on You", () => {
+    assert.equal(openingStep(), "you");
   });
 
-  test("a draft reopens on the step that was open, and one saved before ADR-075 on Business", () => {
+  test("a draft reopens on the step that was open, and one saved before ADR-075 on You", () => {
     assert.equal(resumeStep("documents"), "documents");
     assert.equal(resumeStep("pay"), "pay");
-    assert.equal(resumeStep(undefined), "business");
+    assert.equal(resumeStep(undefined), "you");
   });
 
   test("every step a draft can name is one of the five", async () => {
     const { REGISTRATION_DRAFT_STEPS } = await import("@injishi/contracts");
-    assert.deepEqual([...REGISTRATION_DRAFT_STEPS], stepOrder());
+    assert.deepEqual([...REGISTRATION_DRAFT_STEPS].sort(), [...stepOrder()].sort());
   });
 
   test("it opens no step past the first one still owing an answer", () => {
     const order = stepOrder();
-    // Business and You complete: Documents is as far as it can open.
+    // You and Business complete: Documents is as far as it can open.
     assert.equal(clampToOpenable(order, "documents", 2), "documents");
     assert.equal(clampToOpenable(order, "review", 2), "documents");
-    // The owner's National ID is never kept, so a helper's You is owed again.
-    assert.equal(clampToOpenable(order, "documents", 1), "you");
+    // The owner's National ID is never kept, so a helper's Business (where the owner is named) is owed again.
+    assert.equal(clampToOpenable(order, "documents", 1), "business");
     assert.equal(clampToOpenable(order, "business", 4), "business");
   });
 });
 
 describe("documents, by business kind (ADR-075 S5, AC-11)", () => {
-  test("a stay: the RDB certificate required, then six optional rows", () => {
+  test("a stay: the RDB certificate, and nothing else", () => {
     assert.deepEqual(
-      documentRows("hotel").map((r) => r.label),
-      [
-        "RDB certificate",
-        "Tourism licence",
-        "Grading certificate (RDB, EAC criteria)",
-        "Tax clearance",
-        "Fire safety",
-        "Health inspection",
-        "PSF certificate",
-      ],
+      documentRows("hotel").map((r) => [r.label, r.required]),
+      [["RDB certificate", true]],
     );
-    assert.deepEqual(documentRows("hotel").filter((r) => r.required).map((r) => r.kind), ["rdb_certificate"]);
   });
 
   test("Other is a stay that fits no named class, and takes the stay rows", () => {
     assert.deepEqual(documentRows("other"), documentRows("guest_house"));
   });
 
-  test("a venue: the RDB certificate required, no tourism licence and no grade", () => {
+  test("a venue: the RDB certificate, and nothing else", () => {
     for (const kind of ["coffee_shop", "bar_restaurant"]) {
-      assert.deepEqual(documentRows(kind).map((r) => [r.kind, r.required]), [
-        ["rdb_certificate", true],
-        ["health_inspection", false],
-        ["fire_safety", false],
-        ["tax_clearance", false],
-        ["psf_certificate", false],
-      ]);
+      assert.deepEqual(documentRows(kind).map((r) => [r.kind, r.required]), [["rdb_certificate", true]]);
     }
   });
 

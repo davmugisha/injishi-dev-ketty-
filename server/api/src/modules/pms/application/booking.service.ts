@@ -1,11 +1,14 @@
 import {
+  breakdownAsCharged,
   instrumentProblem,
+  isStayPriceBasis,
   type BookingMode,
   type BookingResult,
   type CreateBookingInput,
   type CreateBookingOutcome,
   type MoneyBreakdown,
   type PaymentInstrument,
+  nightlyRateFor,
 } from '@injishi/contracts';
 import {
   BadRequestException,
@@ -213,6 +216,10 @@ export class BookingService {
     if (roomType.domain !== 'hospitality') {
       throw new BadRequestException('That room type is not bookable.');
     }
+    // A venue's menu item is listed, never booked.
+    if (!isStayPriceBasis(roomType.priceBasis)) {
+      throw new BadRequestException('That is not something that can be booked.');
+    }
     if (roomType.nightlyRateRwf == null || roomType.bookingMode == null) {
       throw new BadRequestException('That room type is not priced for booking.');
     }
@@ -239,6 +246,14 @@ export class BookingService {
       throw new BadRequestException('Bookings open up to 18 months ahead.');
     }
 
+    // The host's minimum stay (ARI, F-L08). The booking card already refuses a
+    // shorter range; this is the rule, the card only says it first.
+    if (roomType.minStay != null && nights < roomType.minStay) {
+      throw new BadRequestException(
+        `That room needs at least ${roomType.minStay} nights.`,
+      );
+    }
+
     // A room type with no stated capacity is not unlimited (review 3.7).
     const capacity = roomType.capacity ?? DEFAULT_CAPACITY;
     if (input.guests > capacity) {
@@ -263,13 +278,19 @@ export class BookingService {
 
     const nonRefundable = input.nonRefundable && roomType.nonrefundableEligible;
 
-    // Priced per person: the rate is per guest, per night (infants are not in
-    // `guests`, so they stay free).
+    // Per person, the rate is per guest, per night (infants are not in
+    // `guests`, so they stay free); a villa or apartment is per unit, per night.
+    // A room priced per room charges one guest its one guest price, when it has one (0117).
+    const nightlyRateRwf = nightlyRateFor(
+      { ...roomType, nightlyRateRwf: roomType.nightlyRateRwf },
+      input.guests,
+    );
     const breakdown = computeBreakdown({
-      nightlyRateRwf: roomType.nightlyRateRwf,
+      nightlyRateRwf,
       nights,
       nonRefundable,
       guests: input.guests,
+      priceBasis: roomType.priceBasis,
     });
 
     // The bank's rules, refused before any hold, attempt or prompt
@@ -394,7 +415,7 @@ export class BookingService {
         // Narrowed by the two guards at the top of this method. TypeScript
         // narrows a PROPERTY rather than the object, so they are passed
         // explicitly instead of as an intersection the call site cannot satisfy.
-        nightlyRateRwf: roomType.nightlyRateRwf,
+        nightlyRateRwf,
         bookingMode: roomType.bookingMode,
         receipt,
         idempotencyKey,
@@ -557,6 +578,10 @@ export class BookingService {
     // nothing at all (booking audit, 2026-09-13).
     if (created.status === 'pending_approval') {
       await this.notifications.notify(created.id, 'host_request');
+    } else if (created.status === 'confirmed') {
+      // An instant booking needs no answer, but the property still has to
+      // know a guest is coming (2026-10-29).
+      await this.notifications.notify(created.id, 'host_confirmed');
     }
 
     return {
@@ -605,11 +630,14 @@ export class BookingService {
       // The lines are recomputed for display; the total is what was captured
       // (review 3.6). A row with no locked rate must not answer "0 RWF".
       breakdown: withCapturedTotal(
-        computeBreakdown({
-          nightlyRateRwf: settled.lockedNightlyRateRwf ?? 0,
-          nights,
-          nonRefundable: settled.nonRefundable,
-        }),
+        breakdownAsCharged(
+          {
+            nightlyRateRwf: settled.lockedNightlyRateRwf ?? 0,
+            nights,
+            nonRefundable: settled.nonRefundable,
+          },
+          settled.grossRwf ?? 0,
+        ),
         settled.grossRwf,
       ),
       approvalExpiresAt: settled.approvalExpiresAt?.toISOString() ?? null,

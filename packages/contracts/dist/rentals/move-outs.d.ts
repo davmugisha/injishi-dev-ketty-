@@ -353,8 +353,8 @@ export declare const DepositView: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     status: "held" | "settled" | "awaiting";
     id: string;
-    settledAt: string | null;
     paidRwf: number;
+    settledAt: string | null;
     leaseId: string;
     refundedRwf: number | null;
     keptRwf: number | null;
@@ -364,7 +364,7 @@ export declare const DepositView: z.ZodObject<{
     }[];
     agreedRwf: number;
     refundMethod: "none" | "gateway" | "recorded" | null;
-    refundStatus: "failed" | "paid" | "waiting" | null;
+    refundStatus: "failed" | "waiting" | "paid" | null;
     refundDestination: string | null;
     refundFailureReason: string | null;
     refundReference: string | null;
@@ -373,8 +373,8 @@ export declare const DepositView: z.ZodObject<{
 }, {
     status: "held" | "settled" | "awaiting";
     id: string;
-    settledAt: string | null;
     paidRwf: number;
+    settledAt: string | null;
     leaseId: string;
     refundedRwf: number | null;
     keptRwf: number | null;
@@ -384,7 +384,7 @@ export declare const DepositView: z.ZodObject<{
     }[];
     agreedRwf: number;
     refundMethod: "none" | "gateway" | "recorded" | null;
-    refundStatus: "failed" | "paid" | "waiting" | null;
+    refundStatus: "failed" | "waiting" | "paid" | null;
     refundDestination: string | null;
     refundFailureReason: string | null;
     refundReference: string | null;
@@ -484,8 +484,8 @@ export declare const MoveOutRow: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         paidRwf: number;
+        settledAt: string | null;
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
@@ -495,7 +495,7 @@ export declare const MoveOutRow: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -504,8 +504,8 @@ export declare const MoveOutRow: z.ZodObject<{
     }, {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         paidRwf: number;
+        settledAt: string | null;
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
@@ -515,7 +515,7 @@ export declare const MoveOutRow: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -528,8 +528,8 @@ export declare const MoveOutRow: z.ZodObject<{
     deposit: {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         paidRwf: number;
+        settledAt: string | null;
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
@@ -539,7 +539,7 @@ export declare const MoveOutRow: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -578,8 +578,8 @@ export declare const MoveOutRow: z.ZodObject<{
     deposit: {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         paidRwf: number;
+        settledAt: string | null;
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
@@ -589,7 +589,7 @@ export declare const MoveOutRow: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -716,8 +716,8 @@ export declare const MoveOutList: z.ZodObject<{
         }, "strip", z.ZodTypeAny, {
             status: "held" | "settled" | "awaiting";
             id: string;
-            settledAt: string | null;
             paidRwf: number;
+            settledAt: string | null;
             leaseId: string;
             refundedRwf: number | null;
             keptRwf: number | null;
@@ -727,7 +727,7 @@ export declare const MoveOutList: z.ZodObject<{
             }[];
             agreedRwf: number;
             refundMethod: "none" | "gateway" | "recorded" | null;
-            refundStatus: "failed" | "paid" | "waiting" | null;
+            refundStatus: "failed" | "waiting" | "paid" | null;
             refundDestination: string | null;
             refundFailureReason: string | null;
             refundReference: string | null;
@@ -736,8 +736,8 @@ export declare const MoveOutList: z.ZodObject<{
         }, {
             status: "held" | "settled" | "awaiting";
             id: string;
-            settledAt: string | null;
             paidRwf: number;
+            settledAt: string | null;
             leaseId: string;
             refundedRwf: number | null;
             keptRwf: number | null;
@@ -747,7 +747,7 @@ export declare const MoveOutList: z.ZodObject<{
             }[];
             agreedRwf: number;
             refundMethod: "none" | "gateway" | "recorded" | null;
-            refundStatus: "failed" | "paid" | "waiting" | null;
+            refundStatus: "failed" | "waiting" | "paid" | null;
             refundDestination: string | null;
             refundFailureReason: string | null;
             refundReference: string | null;
@@ -760,8 +760,8 @@ export declare const MoveOutList: z.ZodObject<{
         deposit: {
             status: "held" | "settled" | "awaiting";
             id: string;
-            settledAt: string | null;
             paidRwf: number;
+            settledAt: string | null;
             leaseId: string;
             refundedRwf: number | null;
             keptRwf: number | null;
@@ -771,7 +771,7 @@ export declare const MoveOutList: z.ZodObject<{
             }[];
             agreedRwf: number;
             refundMethod: "none" | "gateway" | "recorded" | null;
-            refundStatus: "failed" | "paid" | "waiting" | null;
+            refundStatus: "failed" | "waiting" | "paid" | null;
             refundDestination: string | null;
             refundFailureReason: string | null;
             refundReference: string | null;
@@ -810,8 +810,8 @@ export declare const MoveOutList: z.ZodObject<{
         deposit: {
             status: "held" | "settled" | "awaiting";
             id: string;
-            settledAt: string | null;
             paidRwf: number;
+            settledAt: string | null;
             leaseId: string;
             refundedRwf: number | null;
             keptRwf: number | null;
@@ -821,7 +821,7 @@ export declare const MoveOutList: z.ZodObject<{
             }[];
             agreedRwf: number;
             refundMethod: "none" | "gateway" | "recorded" | null;
-            refundStatus: "failed" | "paid" | "waiting" | null;
+            refundStatus: "failed" | "waiting" | "paid" | null;
             refundDestination: string | null;
             refundFailureReason: string | null;
             refundReference: string | null;
@@ -863,8 +863,8 @@ export declare const MoveOutList: z.ZodObject<{
         deposit: {
             status: "held" | "settled" | "awaiting";
             id: string;
-            settledAt: string | null;
             paidRwf: number;
+            settledAt: string | null;
             leaseId: string;
             refundedRwf: number | null;
             keptRwf: number | null;
@@ -874,7 +874,7 @@ export declare const MoveOutList: z.ZodObject<{
             }[];
             agreedRwf: number;
             refundMethod: "none" | "gateway" | "recorded" | null;
-            refundStatus: "failed" | "paid" | "waiting" | null;
+            refundStatus: "failed" | "waiting" | "paid" | null;
             refundDestination: string | null;
             refundFailureReason: string | null;
             refundReference: string | null;
@@ -909,16 +909,16 @@ export declare const MoveOutList: z.ZodObject<{
         daysLeft: number | null;
         endedOn: string | null;
     }[];
-    tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
     counts: Partial<Record<"settled" | "moved_out" | "to_acknowledge" | "moving_soon", number>>;
+    tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
 }, {
     items: {
         reference: string;
         deposit: {
             status: "held" | "settled" | "awaiting";
             id: string;
-            settledAt: string | null;
             paidRwf: number;
+            settledAt: string | null;
             leaseId: string;
             refundedRwf: number | null;
             keptRwf: number | null;
@@ -928,7 +928,7 @@ export declare const MoveOutList: z.ZodObject<{
             }[];
             agreedRwf: number;
             refundMethod: "none" | "gateway" | "recorded" | null;
-            refundStatus: "failed" | "paid" | "waiting" | null;
+            refundStatus: "failed" | "waiting" | "paid" | null;
             refundDestination: string | null;
             refundFailureReason: string | null;
             refundReference: string | null;
@@ -963,8 +963,8 @@ export declare const MoveOutList: z.ZodObject<{
         daysLeft: number | null;
         endedOn: string | null;
     }[];
-    tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
     counts: Partial<Record<"settled" | "moved_out" | "to_acknowledge" | "moving_soon", number>>;
+    tab: "settled" | "moved_out" | "to_acknowledge" | "moving_soon";
 }>;
 export type MoveOutList = z.infer<typeof MoveOutList>;
 /** `GET /ops/deposits`: every deposit with its lease. */
@@ -1007,9 +1007,9 @@ export declare const DepositListItem: z.ZodObject<{
     status: "held" | "settled" | "awaiting";
     id: string;
     reference: string;
+    paidRwf: number;
     settledAt: string | null;
     propertyName: string;
-    paidRwf: number;
     leaseId: string;
     unitLabel: string;
     tenantName: string;
@@ -1022,7 +1022,7 @@ export declare const DepositListItem: z.ZodObject<{
     }[];
     agreedRwf: number;
     refundMethod: "none" | "gateway" | "recorded" | null;
-    refundStatus: "failed" | "paid" | "waiting" | null;
+    refundStatus: "failed" | "waiting" | "paid" | null;
     refundDestination: string | null;
     refundFailureReason: string | null;
     refundReference: string | null;
@@ -1033,9 +1033,9 @@ export declare const DepositListItem: z.ZodObject<{
     status: "held" | "settled" | "awaiting";
     id: string;
     reference: string;
+    paidRwf: number;
     settledAt: string | null;
     propertyName: string;
-    paidRwf: number;
     leaseId: string;
     unitLabel: string;
     tenantName: string;
@@ -1048,7 +1048,7 @@ export declare const DepositListItem: z.ZodObject<{
     }[];
     agreedRwf: number;
     refundMethod: "none" | "gateway" | "recorded" | null;
-    refundStatus: "failed" | "paid" | "waiting" | null;
+    refundStatus: "failed" | "waiting" | "paid" | null;
     refundDestination: string | null;
     refundFailureReason: string | null;
     refundReference: string | null;
@@ -1097,9 +1097,9 @@ export declare const DepositList: z.ZodObject<{
         status: "held" | "settled" | "awaiting";
         id: string;
         reference: string;
+        paidRwf: number;
         settledAt: string | null;
         propertyName: string;
-        paidRwf: number;
         leaseId: string;
         unitLabel: string;
         tenantName: string;
@@ -1112,7 +1112,7 @@ export declare const DepositList: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -1123,9 +1123,9 @@ export declare const DepositList: z.ZodObject<{
         status: "held" | "settled" | "awaiting";
         id: string;
         reference: string;
+        paidRwf: number;
         settledAt: string | null;
         propertyName: string;
-        paidRwf: number;
         leaseId: string;
         unitLabel: string;
         tenantName: string;
@@ -1138,7 +1138,7 @@ export declare const DepositList: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -1151,9 +1151,9 @@ export declare const DepositList: z.ZodObject<{
         status: "held" | "settled" | "awaiting";
         id: string;
         reference: string;
+        paidRwf: number;
         settledAt: string | null;
         propertyName: string;
-        paidRwf: number;
         leaseId: string;
         unitLabel: string;
         tenantName: string;
@@ -1166,7 +1166,7 @@ export declare const DepositList: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -1179,9 +1179,9 @@ export declare const DepositList: z.ZodObject<{
         status: "held" | "settled" | "awaiting";
         id: string;
         reference: string;
+        paidRwf: number;
         settledAt: string | null;
         propertyName: string;
-        paidRwf: number;
         leaseId: string;
         unitLabel: string;
         tenantName: string;
@@ -1194,7 +1194,7 @@ export declare const DepositList: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -1302,8 +1302,8 @@ export declare const TenancyMoveOut: z.ZodObject<{
     }, "strip", z.ZodTypeAny, {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         paidRwf: number;
+        settledAt: string | null;
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
@@ -1313,7 +1313,7 @@ export declare const TenancyMoveOut: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -1322,8 +1322,8 @@ export declare const TenancyMoveOut: z.ZodObject<{
     }, {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         paidRwf: number;
+        settledAt: string | null;
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
@@ -1333,7 +1333,7 @@ export declare const TenancyMoveOut: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -1346,8 +1346,8 @@ export declare const TenancyMoveOut: z.ZodObject<{
     deposit: {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         paidRwf: number;
+        settledAt: string | null;
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
@@ -1357,7 +1357,7 @@ export declare const TenancyMoveOut: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;
@@ -1398,8 +1398,8 @@ export declare const TenancyMoveOut: z.ZodObject<{
     deposit: {
         status: "held" | "settled" | "awaiting";
         id: string;
-        settledAt: string | null;
         paidRwf: number;
+        settledAt: string | null;
         leaseId: string;
         refundedRwf: number | null;
         keptRwf: number | null;
@@ -1409,7 +1409,7 @@ export declare const TenancyMoveOut: z.ZodObject<{
         }[];
         agreedRwf: number;
         refundMethod: "none" | "gateway" | "recorded" | null;
-        refundStatus: "failed" | "paid" | "waiting" | null;
+        refundStatus: "failed" | "waiting" | "paid" | null;
         refundDestination: string | null;
         refundFailureReason: string | null;
         refundReference: string | null;

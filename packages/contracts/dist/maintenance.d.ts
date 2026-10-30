@@ -81,11 +81,11 @@ export declare const WorkOrderBlock: z.ZodObject<{
     decidedAt: string | null;
     reason: string;
     decisionNote: string | null;
+    decidedByName: string | null;
     releasedAt: string | null;
-    releasedByName: string | null;
     startsAt: string;
     endsAt: string | null;
-    decidedByName: string | null;
+    releasedByName: string | null;
     requestedByName: string | null;
     requestedAt: string;
     affectedReservations: number;
@@ -95,11 +95,11 @@ export declare const WorkOrderBlock: z.ZodObject<{
     decidedAt: string | null;
     reason: string;
     decisionNote: string | null;
+    decidedByName: string | null;
     releasedAt: string | null;
-    releasedByName: string | null;
     startsAt: string;
     endsAt: string | null;
-    decidedByName: string | null;
+    releasedByName: string | null;
     requestedByName: string | null;
     requestedAt: string;
     affectedReservations: number;
@@ -223,11 +223,11 @@ export declare const WorkOrder: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         releasedAt: string | null;
-        releasedByName: string | null;
         startsAt: string;
         endsAt: string | null;
-        decidedByName: string | null;
+        releasedByName: string | null;
         requestedByName: string | null;
         requestedAt: string;
         affectedReservations: number;
@@ -237,11 +237,11 @@ export declare const WorkOrder: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         releasedAt: string | null;
-        releasedByName: string | null;
         startsAt: string;
         endsAt: string | null;
-        decidedByName: string | null;
+        releasedByName: string | null;
         requestedByName: string | null;
         requestedAt: string;
         affectedReservations: number;
@@ -252,6 +252,7 @@ export declare const WorkOrder: z.ZodObject<{
     status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
     reference: string;
+    description: string | null;
     title: string;
     events: {
         id: string;
@@ -266,7 +267,6 @@ export declare const WorkOrder: z.ZodObject<{
     roomId: string | null;
     roomLabel: string | null;
     raisedByName: string | null;
-    description: string | null;
     priority: "low" | "normal" | "high" | "urgent";
     propertyId: string | null;
     assignedToUserId: string | null;
@@ -275,6 +275,7 @@ export declare const WorkOrder: z.ZodObject<{
         key: string;
         caption: string;
     }[];
+    verifiedAt: string | null;
     spaceId: string | null;
     floor: number | null;
     block: {
@@ -283,17 +284,16 @@ export declare const WorkOrder: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         releasedAt: string | null;
-        releasedByName: string | null;
         startsAt: string;
         endsAt: string | null;
-        decidedByName: string | null;
+        releasedByName: string | null;
         requestedByName: string | null;
         requestedAt: string;
         affectedReservations: number;
     } | null;
     raisedAt: string;
-    verifiedAt: string | null;
     parts: {
         name: string;
         id: string;
@@ -314,6 +314,7 @@ export declare const WorkOrder: z.ZodObject<{
     status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
     id: string;
     reference: string;
+    description: string | null;
     title: string;
     events: {
         id: string;
@@ -328,7 +329,6 @@ export declare const WorkOrder: z.ZodObject<{
     roomId: string | null;
     roomLabel: string | null;
     raisedByName: string | null;
-    description: string | null;
     priority: "low" | "normal" | "high" | "urgent";
     propertyId: string | null;
     assignedToUserId: string | null;
@@ -337,6 +337,7 @@ export declare const WorkOrder: z.ZodObject<{
         key: string;
         caption: string;
     }[];
+    verifiedAt: string | null;
     spaceId: string | null;
     floor: number | null;
     block: {
@@ -345,17 +346,16 @@ export declare const WorkOrder: z.ZodObject<{
         decidedAt: string | null;
         reason: string;
         decisionNote: string | null;
+        decidedByName: string | null;
         releasedAt: string | null;
-        releasedByName: string | null;
         startsAt: string;
         endsAt: string | null;
-        decidedByName: string | null;
+        releasedByName: string | null;
         requestedByName: string | null;
         requestedAt: string;
         affectedReservations: number;
     } | null;
     raisedAt: string;
-    verifiedAt: string | null;
     parts: {
         name: string;
         id: string;
@@ -493,11 +493,11 @@ export declare const WorkOrderList: z.ZodObject<{
             decidedAt: string | null;
             reason: string;
             decisionNote: string | null;
+            decidedByName: string | null;
             releasedAt: string | null;
-            releasedByName: string | null;
             startsAt: string;
             endsAt: string | null;
-            decidedByName: string | null;
+            releasedByName: string | null;
             requestedByName: string | null;
             requestedAt: string;
             affectedReservations: number;
@@ -507,11 +507,11 @@ export declare const WorkOrderList: z.ZodObject<{
             decidedAt: string | null;
             reason: string;
             decisionNote: string | null;
+            decidedByName: string | null;
             releasedAt: string | null;
-            releasedByName: string | null;
             startsAt: string;
             endsAt: string | null;
-            decidedByName: string | null;
+            releasedByName: string | null;
             requestedByName: string | null;
             requestedAt: string;
             affectedReservations: number;
@@ -522,6 +522,7 @@ export declare const WorkOrderList: z.ZodObject<{
         status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         reference: string;
+        description: string | null;
         title: string;
         events: {
             id: string;
@@ -536,7 +537,6 @@ export declare const WorkOrderList: z.ZodObject<{
         roomId: string | null;
         roomLabel: string | null;
         raisedByName: string | null;
-        description: string | null;
         priority: "low" | "normal" | "high" | "urgent";
         propertyId: string | null;
         assignedToUserId: string | null;
@@ -545,6 +545,7 @@ export declare const WorkOrderList: z.ZodObject<{
             key: string;
             caption: string;
         }[];
+        verifiedAt: string | null;
         spaceId: string | null;
         floor: number | null;
         block: {
@@ -553,17 +554,16 @@ export declare const WorkOrderList: z.ZodObject<{
             decidedAt: string | null;
             reason: string;
             decisionNote: string | null;
+            decidedByName: string | null;
             releasedAt: string | null;
-            releasedByName: string | null;
             startsAt: string;
             endsAt: string | null;
-            decidedByName: string | null;
+            releasedByName: string | null;
             requestedByName: string | null;
             requestedAt: string;
             affectedReservations: number;
         } | null;
         raisedAt: string;
-        verifiedAt: string | null;
         parts: {
             name: string;
             id: string;
@@ -584,6 +584,7 @@ export declare const WorkOrderList: z.ZodObject<{
         status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         reference: string;
+        description: string | null;
         title: string;
         events: {
             id: string;
@@ -598,7 +599,6 @@ export declare const WorkOrderList: z.ZodObject<{
         roomId: string | null;
         roomLabel: string | null;
         raisedByName: string | null;
-        description: string | null;
         priority: "low" | "normal" | "high" | "urgent";
         propertyId: string | null;
         assignedToUserId: string | null;
@@ -607,6 +607,7 @@ export declare const WorkOrderList: z.ZodObject<{
             key: string;
             caption: string;
         }[];
+        verifiedAt: string | null;
         spaceId: string | null;
         floor: number | null;
         block: {
@@ -615,17 +616,16 @@ export declare const WorkOrderList: z.ZodObject<{
             decidedAt: string | null;
             reason: string;
             decisionNote: string | null;
+            decidedByName: string | null;
             releasedAt: string | null;
-            releasedByName: string | null;
             startsAt: string;
             endsAt: string | null;
-            decidedByName: string | null;
+            releasedByName: string | null;
             requestedByName: string | null;
             requestedAt: string;
             affectedReservations: number;
         } | null;
         raisedAt: string;
-        verifiedAt: string | null;
         parts: {
             name: string;
             id: string;
@@ -672,6 +672,7 @@ export declare const WorkOrderList: z.ZodObject<{
         status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         reference: string;
+        description: string | null;
         title: string;
         events: {
             id: string;
@@ -686,7 +687,6 @@ export declare const WorkOrderList: z.ZodObject<{
         roomId: string | null;
         roomLabel: string | null;
         raisedByName: string | null;
-        description: string | null;
         priority: "low" | "normal" | "high" | "urgent";
         propertyId: string | null;
         assignedToUserId: string | null;
@@ -695,6 +695,7 @@ export declare const WorkOrderList: z.ZodObject<{
             key: string;
             caption: string;
         }[];
+        verifiedAt: string | null;
         spaceId: string | null;
         floor: number | null;
         block: {
@@ -703,17 +704,16 @@ export declare const WorkOrderList: z.ZodObject<{
             decidedAt: string | null;
             reason: string;
             decisionNote: string | null;
+            decidedByName: string | null;
             releasedAt: string | null;
-            releasedByName: string | null;
             startsAt: string;
             endsAt: string | null;
-            decidedByName: string | null;
+            releasedByName: string | null;
             requestedByName: string | null;
             requestedAt: string;
             affectedReservations: number;
         } | null;
         raisedAt: string;
-        verifiedAt: string | null;
         parts: {
             name: string;
             id: string;
@@ -745,6 +745,7 @@ export declare const WorkOrderList: z.ZodObject<{
         status: "cancelled" | "open" | "resolved" | "closed" | "acknowledged" | "assigned" | "in_progress" | "wont_fix";
         id: string;
         reference: string;
+        description: string | null;
         title: string;
         events: {
             id: string;
@@ -759,7 +760,6 @@ export declare const WorkOrderList: z.ZodObject<{
         roomId: string | null;
         roomLabel: string | null;
         raisedByName: string | null;
-        description: string | null;
         priority: "low" | "normal" | "high" | "urgent";
         propertyId: string | null;
         assignedToUserId: string | null;
@@ -768,6 +768,7 @@ export declare const WorkOrderList: z.ZodObject<{
             key: string;
             caption: string;
         }[];
+        verifiedAt: string | null;
         spaceId: string | null;
         floor: number | null;
         block: {
@@ -776,17 +777,16 @@ export declare const WorkOrderList: z.ZodObject<{
             decidedAt: string | null;
             reason: string;
             decisionNote: string | null;
+            decidedByName: string | null;
             releasedAt: string | null;
-            releasedByName: string | null;
             startsAt: string;
             endsAt: string | null;
-            decidedByName: string | null;
+            releasedByName: string | null;
             requestedByName: string | null;
             requestedAt: string;
             affectedReservations: number;
         } | null;
         raisedAt: string;
-        verifiedAt: string | null;
         parts: {
             name: string;
             id: string;
@@ -855,8 +855,8 @@ export declare const CreateWorkOrderRequest: z.ZodObject<{
     title: string;
     priority: "low" | "normal" | "high" | "urgent";
     location: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     description?: string | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     propertyId?: string | undefined;
     assignee?: {
         userId?: string | undefined;
@@ -868,8 +868,8 @@ export declare const CreateWorkOrderRequest: z.ZodObject<{
 }, {
     title: string;
     location: string;
-    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     description?: string | undefined;
+    category?: "other" | "plumbing" | "electrical" | "hvac" | "appliance" | "furniture" | "it_tech" | "safety" | "doors_windows" | "decoration" | undefined;
     priority?: "low" | "normal" | "high" | "urgent" | undefined;
     propertyId?: string | undefined;
     assignee?: {
@@ -910,10 +910,10 @@ export declare const DecideRoomBlockRequest: z.ZodObject<{
     decision: z.ZodEnum<["approve", "decline"]>;
     note: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    decision: "approve" | "decline";
+    decision: "decline" | "approve";
     note?: string | undefined;
 }, {
-    decision: "approve" | "decline";
+    decision: "decline" | "approve";
     note?: string | undefined;
 }>;
 export type DecideRoomBlockRequest = z.infer<typeof DecideRoomBlockRequest>;
@@ -936,13 +936,13 @@ export declare const ConditionSignalDraft: z.ZodObject<{
     priority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
     location: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    title: string;
     description: string;
+    title: string;
     priority: "low" | "normal" | "high" | "urgent";
     location: string;
 }, {
-    title: string;
     description: string;
+    title: string;
     priority: "low" | "normal" | "high" | "urgent";
     location: string;
 }>;
@@ -965,13 +965,13 @@ export declare const ConditionSignal: z.ZodObject<{
         priority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
         location: z.ZodString;
     }, "strip", z.ZodTypeAny, {
-        title: string;
         description: string;
+        title: string;
         priority: "low" | "normal" | "high" | "urgent";
         location: string;
     }, {
-        title: string;
         description: string;
+        title: string;
         priority: "low" | "normal" | "high" | "urgent";
         location: string;
     }>>;
@@ -985,8 +985,8 @@ export declare const ConditionSignal: z.ZodObject<{
     status: "open" | "actioned" | "dismissed";
     id: string;
     draft: {
-        title: string;
         description: string;
+        title: string;
         priority: "low" | "normal" | "high" | "urgent";
         location: string;
     } | null;
@@ -1009,8 +1009,8 @@ export declare const ConditionSignal: z.ZodObject<{
     status: "open" | "actioned" | "dismissed";
     id: string;
     draft: {
-        title: string;
         description: string;
+        title: string;
         priority: "low" | "normal" | "high" | "urgent";
         location: string;
     } | null;
@@ -1050,13 +1050,13 @@ export declare const ConditionSignalList: z.ZodObject<{
             priority: z.ZodEnum<["low", "normal", "high", "urgent"]>;
             location: z.ZodString;
         }, "strip", z.ZodTypeAny, {
-            title: string;
             description: string;
+            title: string;
             priority: "low" | "normal" | "high" | "urgent";
             location: string;
         }, {
-            title: string;
             description: string;
+            title: string;
             priority: "low" | "normal" | "high" | "urgent";
             location: string;
         }>>;
@@ -1070,8 +1070,8 @@ export declare const ConditionSignalList: z.ZodObject<{
         status: "open" | "actioned" | "dismissed";
         id: string;
         draft: {
-            title: string;
             description: string;
+            title: string;
             priority: "low" | "normal" | "high" | "urgent";
             location: string;
         } | null;
@@ -1094,8 +1094,8 @@ export declare const ConditionSignalList: z.ZodObject<{
         status: "open" | "actioned" | "dismissed";
         id: string;
         draft: {
-            title: string;
             description: string;
+            title: string;
             priority: "low" | "normal" | "high" | "urgent";
             location: string;
         } | null;
@@ -1120,8 +1120,8 @@ export declare const ConditionSignalList: z.ZodObject<{
         status: "open" | "actioned" | "dismissed";
         id: string;
         draft: {
-            title: string;
             description: string;
+            title: string;
             priority: "low" | "normal" | "high" | "urgent";
             location: string;
         } | null;
@@ -1146,8 +1146,8 @@ export declare const ConditionSignalList: z.ZodObject<{
         status: "open" | "actioned" | "dismissed";
         id: string;
         draft: {
-            title: string;
             description: string;
+            title: string;
             priority: "low" | "normal" | "high" | "urgent";
             location: string;
         } | null;

@@ -12,12 +12,14 @@ import {
   registrationReceivedMail,
   registrationRejectedMail,
   registrationSubmittedMail,
+  setupWhileInReviewMail,
   workspaceSetupLink,
   type OfficerAssignmentRow,
   type RegistrationMail,
 } from './registration-mail';
 
 const WEB = 'https://www.injishi.com';
+const APP = 'https://app.injishi.com';
 const NAME = 'Hotel des Sept Sentiers Ltd';
 const WS = '5b0b8f0e-2f7a-4c36-9d7e-0e7a3c1d2b11';
 
@@ -31,18 +33,18 @@ function expectWellFormed(mail: RegistrationMail): void {
 describe('registration mail · links', () => {
   it('builds every link on the configured origin', () => {
     expect(registrationLink(WEB)).toBe('https://www.injishi.com/register');
-    expect(workspaceSetupLink(WEB, WS)).toBe(`https://www.injishi.com/w/${WS}/setup`);
-    expect(oversightQueueLink(WEB, 'business_field_verifier')).toBe(
-      'https://www.injishi.com/oversight/verifier/queue',
-    );
-    expect(oversightQueueLink(WEB, 'business_approver')).toBe(
-      'https://www.injishi.com/oversight/approver/queue',
-    );
+    expect(workspaceSetupLink(APP, WS)).toBe(`https://app.injishi.com/w/${WS}/setup`);
+    expect(workspaceSetupLink(APP, WS, 'hospitality')).toBe(`https://app.injishi.com/w/${WS}/setup`);
+    expect(oversightQueueLink(APP)).toBe('https://app.injishi.com/officer');
+  });
+
+  it('sends a residence to the rentals setup, not the property setup', () => {
+    expect(workspaceSetupLink(APP, WS, 'residence')).toBe('https://app.injishi.com/residence/setup');
   });
 });
 
 describe('registration mail · registrant', () => {
-  it('received: names the business, both owed steps, the fee and the link', () => {
+  it('received: names the business, the fee and the link, and asks for no contract', () => {
     const mail = registrationReceivedMail({
       to: { name: 'Aline Uwase' },
       legalName: NAME,
@@ -52,7 +54,7 @@ describe('registration mail · registrant', () => {
     expectWellFormed(mail);
     expect(mail.subject).toBe(`We received your registration for ${NAME}`);
     expect(mail.text).toContain('Hello Aline Uwase,');
-    expect(mail.text).toContain('operator contract');
+    expect(mail.text).not.toContain('contract');
     expect(mail.text).toContain('RWF 50,000');
     expect(mail.text).toContain('https://www.injishi.com/register');
     expect(mail.html).toContain('href="https://www.injishi.com/register"');
@@ -66,7 +68,7 @@ describe('registration mail · registrant', () => {
       link: registrationLink(WEB),
     });
     expect(mail.text.startsWith('Hello,')).toBe(true);
-    expect(mail.text).toContain('Pay the registration fee.');
+    expect(mail.text).toContain('pay the registration fee.');
   });
 
   it('submitted: explains the three gates in order', () => {
@@ -80,11 +82,39 @@ describe('registration mail · registrant', () => {
     expectWellFormed(mail);
     expect(mail.subject).toBe(`Registration submitted — ${NAME}`);
     const rra = mail.text.indexOf('Rwanda Revenue Authority');
-    const field = mail.text.indexOf('Field verification');
+    const field = mail.text.indexOf('Document review');
     const approval = mail.text.indexOf('Approval:');
     expect(rra).toBeGreaterThan(-1);
     expect(field).toBeGreaterThan(rra);
     expect(approval).toBeGreaterThan(field);
+  });
+
+  it('submitted: speaks of an online document review, never a visit', () => {
+    const mail = registrationSubmittedMail({
+      to: { name: null },
+      legalName: NAME,
+      hasTin: true,
+      resubmitted: false,
+      link: registrationLink(WEB),
+    });
+    expect(mail.text).toContain('online');
+    expect(mail.text).not.toMatch(/visit|address you gave/i);
+  });
+
+  it('setup while in review: links to setup and says publishing waits for approval', () => {
+    const mail = setupWhileInReviewMail({
+      to: { name: 'Aline Uwase' },
+      legalName: NAME,
+      hasTin: true,
+      setupLink: workspaceSetupLink(APP, WS),
+    });
+    expectWellFormed(mail);
+    expect(mail.subject).toBe(`Set up ${NAME} while we review it`);
+    expect(mail.text).toContain(`https://app.injishi.com/w/${WS}/setup`);
+    expect(mail.html).toContain(`href="https://app.injishi.com/w/${WS}/setup"`);
+    expect(mail.text).toContain('publish as soon as it is approved');
+    expect(mail.text).toContain('Rwanda Revenue Authority');
+    expect(mail.text).not.toMatch(/visit/i);
   });
 
   it('submitted: a residence skips the RRA step, a resubmission says no fee is due', () => {
@@ -99,15 +129,16 @@ describe('registration mail · registrant', () => {
     expect(mail.text).toContain('No further fee is due');
   });
 
-  it('field verification passed: says the approver decides next', () => {
+  it('documents checked: says a second officer decides next', () => {
     const mail = fieldVerificationPassedMail({
       to: { name: null },
       legalName: NAME,
       link: registrationLink(WEB),
     });
     expectWellFormed(mail);
-    expect(mail.subject).toBe(`Field verification passed — ${NAME}`);
-    expect(mail.text).toContain('approver');
+    expect(mail.subject).toBe(`Documents checked — ${NAME}`);
+    expect(mail.text).toContain('second officer');
+    expect(mail.text).not.toMatch(/address|visit/i);
   });
 
   it('rejected: quotes the reason label and the officer notes verbatim', () => {
@@ -140,15 +171,15 @@ describe('registration mail · registrant', () => {
     expect(mail.text).not.toContain('Officer notes');
   });
 
-  it('approved: links to the workspace setup screen', () => {
+  it('approved: says publishing is open and links to the workspace setup screen', () => {
     const mail = registrationApprovedMail({
       to: { name: null },
       legalName: NAME,
       awaitingClaim: false,
-      setupLink: workspaceSetupLink(WEB, WS),
+      setupLink: workspaceSetupLink(APP, WS),
     });
     expectWellFormed(mail);
-    expect(mail.subject).toBe(`${NAME} is approved — set up your property`);
+    expect(mail.subject).toBe(`${NAME} is approved — you can publish now`);
     expect(mail.text).toContain(`/w/${WS}/setup`);
   });
 
@@ -186,13 +217,13 @@ describe('registration mail · officers', () => {
       districtName: 'Gasabo',
       sectorName: 'Bumbogo',
       tin: '123456789',
-      link: oversightQueueLink(WEB, 'business_field_verifier'),
+      link: oversightQueueLink(APP),
     });
     expectWellFormed(mail);
-    expect(mail.subject).toBe(`Field verification needed — ${NAME}`);
+    expect(mail.subject).toBe(`Documents to review — ${NAME}`);
     expect(mail.text).toContain('Bumbogo, Gasabo');
     expect(mail.text).toContain('123456789');
-    expect(mail.text).toContain('/oversight/verifier/queue');
+    expect(mail.text).toContain('https://app.injishi.com/officer');
   });
 
   it('words the approval queue as a final decision', () => {
@@ -203,7 +234,7 @@ describe('registration mail · officers', () => {
       districtName: null,
       sectorName: null,
       tin: null,
-      link: oversightQueueLink(WEB, 'business_approver'),
+      link: oversightQueueLink(APP),
     });
     expect(mail.subject).toBe(`Approval needed — ${NAME}`);
     expect(mail.text).not.toContain('Location');

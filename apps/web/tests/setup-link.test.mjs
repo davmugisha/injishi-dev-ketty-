@@ -1,11 +1,10 @@
 /**
  * "Set up your property" links only to a setup the API will let the owner use (`src/lib/setup-link.ts`).
  *
- * The bug this pins: the In review page said "While you wait, prepare your listing" and linked to
- * `/w/<id>/setup` at every stage, while the API refuses every inventory write until the business is active
- * (D20), and nothing answered at that path. Now the link exists only once the registration is active, and it
- * goes to the operator app's origin when that is a separate origin (a laptop), or stays relative when the app
- * is a zone under web's (every deployed stack).
+ * A hospitality business may build its listing from the moment its fee is paid (`canSetUpDuringReview`), so
+ * the link shows in review and once active; a residence's only once active, at `/residence/setup`. Unpaid,
+ * sent back, suspended or unclaimed: no link. It goes to the operator app's origin when that is a separate
+ * origin (a laptop), or stays relative when the app is a zone under web's.
  *
  * THIS TEST RUNS THE REAL FUNCTION: the source is read, transpiled and evaluated, never restated.
  *
@@ -38,14 +37,36 @@ const LAPTOP = ["http://localhost:3000", "http://localhost:3002"];
 const ZONE = ["https://www.injishi.com", "https://www.injishi.com"];
 
 describe("no link while the API would refuse the setup", () => {
-  for (const status of ["pending_payment", "submitted", "tin_verified", "field_verified", "approved", "rejected", "suspended"]) {
+  for (const status of ["pending_payment", "approved", "rejected", "suspended"]) {
     test(status, () => {
       assert.equal(setupLink({ status, workspaceId: WS }, ...LAPTOP), null);
       assert.equal(setupLink({ status, workspaceId: WS }, ...ZONE), null);
       assert.doesNotMatch(setupNote(status), /prepare (it|your listing) now|add rooms, prices and photos now/i);
-      assert.match(setupNote(status), /opens once/i);
+      assert.match(setupNote(status), /opens/i);
     });
   }
+});
+
+describe("a paid hospitality business may set up while it is reviewed", () => {
+  for (const status of ["submitted", "tin_verified", "field_verified"]) {
+    test(status, () => {
+      assert.equal(
+        setupLink({ status, workspaceId: WS, domain: "hospitality" }, ...LAPTOP),
+        `http://localhost:3002/w/${WS}/setup`,
+      );
+      assert.match(setupNote(status, "hospitality"), /publish once you are approved/i);
+    });
+  }
+  test("a residence in review waits for approval", () => {
+    assert.equal(setupLink({ status: "tin_verified", workspaceId: WS, domain: "residence" }, ...LAPTOP), null);
+    assert.match(setupNote("tin_verified", "residence"), /once your registration is approved/i);
+  });
+  test("an approved residence goes to the rentals setup", () => {
+    assert.equal(
+      setupLink({ status: "active", workspaceId: WS, domain: "residence" }, ...LAPTOP),
+      "http://localhost:3002/residence/setup",
+    );
+  });
 });
 
 describe("an active business gets the setup page", () => {

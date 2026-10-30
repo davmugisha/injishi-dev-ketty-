@@ -116,7 +116,7 @@ export type OwnerBranchHealth = z.infer<typeof OwnerBranchHealth>;
  */
 export declare const OwnerDashboard: z.ZodObject<{
     date: z.ZodString;
-    domain: z.ZodEnum<["hospitality", "residence"]>;
+    domain: z.ZodEnum<["hospitality", "residence", "enterprise"]>;
     legalName: z.ZodString;
     tin: z.ZodNullable<z.ZodString>;
     tonight: z.ZodObject<{
@@ -228,9 +228,9 @@ export declare const OwnerDashboard: z.ZodObject<{
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     date: string;
-    domain: "hospitality" | "residence";
-    legalName: string;
+    domain: "hospitality" | "residence" | "enterprise";
     tin: string | null;
+    legalName: string;
     branches: {
         district: string | null;
         name: string;
@@ -267,9 +267,9 @@ export declare const OwnerDashboard: z.ZodObject<{
     paymentsMode: "mock" | "live" | "off";
 }, {
     date: string;
-    domain: "hospitality" | "residence";
-    legalName: string;
+    domain: "hospitality" | "residence" | "enterprise";
     tin: string | null;
+    legalName: string;
     branches: {
         district: string | null;
         name: string;
@@ -764,6 +764,7 @@ export declare const OperatorCertificateList: z.ZodObject<{
         fileName: string | null;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
+    tin: string | null;
     legalName: string;
     certificates: {
         status: "requested" | "on_file";
@@ -781,9 +782,9 @@ export declare const OperatorCertificateList: z.ZodObject<{
         followUp: string | null;
         fileName: string | null;
     }[];
-    tin: string | null;
     chamberOfTourismMember: boolean;
 }, {
+    tin: string | null;
     legalName: string;
     certificates: {
         status: "requested" | "on_file";
@@ -801,7 +802,6 @@ export declare const OperatorCertificateList: z.ZodObject<{
         followUp: string | null;
         fileName: string | null;
     }[];
-    tin: string | null;
     chamberOfTourismMember: boolean;
 }>;
 export type OperatorCertificateList = z.infer<typeof OperatorCertificateList>;

@@ -94,10 +94,12 @@ export function ShelfStayCard({ listing, className }: { listing: Listing; classN
         </div>
 
         <div className="flex flex-wrap gap-1.5 text-xs font-medium text-foreground">
-          <span className="flex items-center gap-1 rounded-full bg-surface-secondary px-2.5 py-1">
-            <Users className="size-3.5 text-muted-foreground" aria-hidden />
-            Sleeps {listing.maxGuests}
-          </span>
+          {listing.maxGuests !== null ? (
+            <span className="flex items-center gap-1 rounded-full bg-surface-secondary px-2.5 py-1">
+              <Users className="size-3.5 text-muted-foreground" aria-hidden />
+              Sleeps {listing.maxGuests}
+            </span>
+          ) : null}
           {listing.bedrooms !== null ? (
             <span className="flex items-center gap-1 rounded-full bg-surface-secondary px-2.5 py-1">
               <BedDouble className="size-3.5 text-muted-foreground" aria-hidden />

@@ -89,6 +89,8 @@ describe('ListingService, public photographs', () => {
       longitude: 30.0605,
       photoIds: [PHOTO_B],
       fromNightlyRateRwf: 45_000,
+      fromPriceBasis: 'per_person',
+      businessKind: null,
       maxGuests: 2,
       roomTypeCount: 1,
     };
@@ -122,6 +124,7 @@ describe('ListingService, public photographs', () => {
         approvalPolicy: 'approve_all',
         cancellationTier: 'moderate',
         nonrefundableEligible: false,
+        priceBasis: 'per_person',
         minStay: null,
       },
     });
@@ -212,6 +215,7 @@ describe('ListingService, what counts as bookable', () => {
         approvalPolicy: 'approve_first_three',
         cancellationTier: null,
         nonrefundableEligible: false,
+        priceBasis: 'per_person',
         minStay: 30,
       },
     };

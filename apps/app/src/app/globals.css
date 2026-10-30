@@ -12,12 +12,59 @@
 @import "@injishi/ui/styles.css";
 /* HR's views (ADR-074 stage 3): the product's own `@source "./"`, for the same reason. */
 @import "@injishi/product-hr/styles.css";
+@import "@injishi/design-tokens/heroui.css";
 @import "@injishi/product-finance/styles.css";
 @import "@injishi/product-outlets/styles.css";
 @import "@injishi/product-pay/styles.css";
 @import "@injishi/product-pms/styles.css";
 
-@custom-variant dark (&:where([data-theme="mouve-dark"], [data-theme="mouve-dark"] *));
+/*
+ * PMS console tokens (reset, layout, semantic roles). In `base` so the reset
+ * under `.pms-root` does not outrank Tailwind utilities.
+ */
+@import "./pms-tokens.css" layer(base);
+
+/* Scan the shared UI kit and the restored PSF console for Tailwind classes. */
+@source "../../../../packages/ui/src";
+@source "../pms";
+
+@custom-variant dark (&:where([data-theme="mouve-dark"], [data-theme="mouve-dark"] *, .dark, .dark *));
+
+/*
+ * Semantic colour utilities the restored oversight / PSF console uses
+ * (`text-ink`, `border-line`, `bg-ok-bg`, …). Values come from pms-tokens.css.
+ */
+@theme inline {
+  --color-panel: var(--panel);
+  --color-panel-bd: var(--panel-bd);
+  --color-card-bd: var(--card-bd);
+  --color-field: var(--field);
+  --color-hover: var(--hover);
+  --color-line: var(--line);
+  --color-line2: var(--line2);
+  --color-ink: var(--foreground, var(--ink-950));
+  --color-ink2: var(--ink2);
+  --color-faint: var(--faint);
+  --color-accent-soft: var(--accent-soft, color-mix(in oklab, var(--accent) 15%, transparent));
+  --color-accent-text: var(--accent-text);
+  --color-accent-ink: var(--accent-ink);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-bad: var(--bad);
+  --color-bad-bg: var(--bad-bg);
+  --color-on-bad: var(--on-bad);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-scrim: var(--scrim);
+  --color-wk: var(--wk);
+  --color-td: var(--td);
+
+  --shadow-popover: var(--shadow-pop);
+  --shadow-action: var(--shadow-cta);
+  --shadow-panel: var(--shadow-sheet);
+}
 
 /* Workspace shell: the content column is a raised card beside the inset sidebar (artifact: .ij-main). */
 @layer components {
@@ -76,5 +123,27 @@
       border-radius: 0;
       min-height: 100dvh;
     }
+  }
+}
+
+/*
+ * Printing a report (PSF reports, 2026-10-30): only the part marked `data-print-root` prints, without
+ * the sidebar, the top bar or the page's own buttons, so "Print or save as PDF" gives the report alone.
+ */
+@media print {
+  body:has([data-print-root]) * {
+    visibility: hidden;
+  }
+  [data-print-root],
+  [data-print-root] * {
+    visibility: visible;
+  }
+  [data-print-root] {
+    position: absolute;
+    inset: 0 0 auto 0;
+  }
+  [data-print-root] figure,
+  [data-print-root] section {
+    break-inside: avoid;
   }
 }

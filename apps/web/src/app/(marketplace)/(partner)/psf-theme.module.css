@@ -1,0 +1,40 @@
+/*
+ * PSF's colours on PSF's pages (2026-10-23), read off its logo
+ * (public/assets/partners/psf.png): the orange of the square and the green
+ * of the tree.
+ *
+ * The site's accent is a handful of variables set on :root, and every button,
+ * link and icon reads them. Redefining them on this wrapper repaints only what
+ * sits inside the `(partner)` layout. The derived ones (hover, soft, the
+ * accent-brand trio) are repeated here because a custom property built from
+ * another one is computed where it is declared: left on :root, they would keep
+ * Injishi's green.
+ *
+ * Green carries the accent: buttons, links, icons. Orange is for decoration
+ * only (the header's top strip, the shape behind the hero photo). Orange text
+ * on this ground would be too faint to read.
+ */
+.theme {
+  --psf-green: #088344;
+  --psf-orange: #f5891e;
+
+  --accent: var(--psf-green);
+  --accent-foreground: #ffffff;
+  --accent-text: #066b37;
+  --accent-soft: color-mix(in oklab, var(--accent) 15%, transparent);
+  --accent-hover: color-mix(in oklab, var(--accent) 90%, var(--ink) 10%);
+  --accent-soft-foreground: color-mix(in oklab, var(--accent) 80%, var(--foreground) 34%);
+  --accent-brand: var(--accent);
+  --accent-brand-hover: var(--accent-hover);
+  --accent-brand-foreground: var(--accent-foreground);
+  --focus: var(--accent);
+  --ring: var(--focus);
+}
+
+/* The dark theme: green text is lifted so it reads on the dark ground. Buttons
+   keep PSF's own green, where white text stays readable (about 4.9:1; a lighter
+   fill dropped it below 4.5:1). */
+:global(.dark) .theme,
+:global([data-theme="dark"]) .theme {
+  --accent-text: #4cc483;
+}

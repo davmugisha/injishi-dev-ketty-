@@ -149,6 +149,9 @@ importers:
       '@injishi/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@injishi/design-tokens':
+        specifier: workspace:*
+        version: link:../../packages/design-tokens
       '@injishi/product-finance':
         specifier: workspace:*
         version: link:../../products/finance
@@ -167,6 +170,9 @@ importers:
       '@injishi/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@injishi/ui-contract':
+        specifier: workspace:*
+        version: link:../../packages/ui-contract
       '@injishi/utils':
         specifier: workspace:*
         version: link:../../packages/utils
@@ -176,15 +182,24 @@ importers:
       '@number-flow/react':
         specifier: 0.6.2
         version: 0.6.2(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@radix-ui/react-slot':
+        specifier: 1.3.3
+        version: 1.3.3(@types/react@19.3.0)(react@19.3.1)
       '@react-aria/utils':
         specifier: 3.34.1
         version: 3.34.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      class-variance-authority:
+        specifier: 0.7.1
+        version: 0.7.1
       embla-carousel:
         specifier: 8.6.0
         version: 8.6.0
       embla-carousel-react:
         specifier: 8.6.0
         version: 8.6.0(react@19.3.1)
+      lucide-react:
+        specifier: 1.23.0
+        version: 1.23.0(react@19.3.1)
       maplibre-gl:
         specifier: ^6.11.2
         version: 6.14.0
@@ -1135,6 +1150,9 @@ importers:
       '@heroui/react':
         specifier: 3.2.6
         version: 3.2.6(@internationalized/date@3.12.4)(@react-aria/ssr@3.10.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@react-aria/utils@3.34.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@react-spectrum/provider@3.11.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-aria-components@1.22.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-aria@3.53.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(tailwind-merge@3.7.0)(tailwindcss@4.3.3)
+      '@injishi/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@injishi/ui':
         specifier: workspace:*
         version: link:../../packages/ui

@@ -88,6 +88,7 @@ export class FakeRoomTypes implements ActionExecutor {
         basePriceRwf: this.price,
         bookingMode: 'instant_book',
         cancellationTier: 'flexible',
+        priceBasis: 'per_person',
         roomCount: 3,
         sellableRoomCount: 3,
         defaultRatePlanId: null,

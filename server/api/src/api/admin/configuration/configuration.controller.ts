@@ -3,9 +3,14 @@ import {
   type AdminFeeSchedule,
   type AdminRegistrationFee,
   AppendRegistrationFeeRequest,
+  CreatePsfAssociationRequest,
+  CreatePsfClusterRequest,
   CreatePsfTierRequest,
+  type PsfCatalogue,
   type PsfTier,
   UpdatePsfTierRequest,
+  UpsertPsfAssociationRequest,
+  UpsertPsfClusterRequest,
 } from '@injishi/contracts';
 import { Body, Controller, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
 
@@ -107,6 +112,58 @@ export class AdminConfigurationController {
     @CurrentUser() user: SessionUser,
   ): Promise<PsfTier> {
     return this.config.updatePsfTier({ actorUserId: user.id, code, request: body });
+  }
+
+  /**
+   * PSF's sector catalogue (the PSF path): its clusters and the associations
+   * in them, retired ones included. Configuration, not a price, so it is
+   * edited under `admin.config.edit`. Every write answers with the whole
+   * catalogue, which is small, so the page never shows a stale half.
+   */
+  @Get('psf-catalogue')
+  @RequireStaffPermission('admin.config.view')
+  psfCatalogue(): Promise<PsfCatalogue> {
+    return this.config.psfCatalogue();
+  }
+
+  @Post('psf-clusters')
+  @HttpCode(201)
+  @RequireStaffPermission('admin.config.edit')
+  createPsfCluster(
+    @Body(new ZodValidationPipe(CreatePsfClusterRequest)) body: CreatePsfClusterRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PsfCatalogue> {
+    return this.config.createPsfCluster({ actorUserId: user.id, request: body });
+  }
+
+  @Patch('psf-clusters/:code')
+  @RequireStaffPermission('admin.config.edit')
+  updatePsfCluster(
+    @Param('code') code: string,
+    @Body(new ZodValidationPipe(UpsertPsfClusterRequest)) body: UpsertPsfClusterRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PsfCatalogue> {
+    return this.config.updatePsfCluster({ actorUserId: user.id, code, request: body });
+  }
+
+  @Post('psf-associations')
+  @HttpCode(201)
+  @RequireStaffPermission('admin.config.edit')
+  createPsfAssociation(
+    @Body(new ZodValidationPipe(CreatePsfAssociationRequest)) body: CreatePsfAssociationRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PsfCatalogue> {
+    return this.config.createPsfAssociation({ actorUserId: user.id, request: body });
+  }
+
+  @Patch('psf-associations/:code')
+  @RequireStaffPermission('admin.config.edit')
+  updatePsfAssociation(
+    @Param('code') code: string,
+    @Body(new ZodValidationPipe(UpsertPsfAssociationRequest)) body: UpsertPsfAssociationRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<PsfCatalogue> {
+    return this.config.updatePsfAssociation({ actorUserId: user.id, code, request: body });
   }
 
   @Get()

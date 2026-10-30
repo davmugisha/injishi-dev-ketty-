@@ -72,7 +72,8 @@ export interface PropertyDetail {
   rooms: number | null;
   /** Null when unknown, which is every database property: the API has no bedroom count. */
   bedrooms: number | null;
-  maxGuests: number;
+  /** The most any room type sleeps, as the host stated it; null when none did. */
+  maxGuests: number | null;
   capacity: string[];
   /** Null until the property uploads a photograph. */
   heroImage: GalleryImage | null;
@@ -98,18 +99,8 @@ export interface PropertyDetail {
   /** The URLs this record was read from. */
   sources: string[];
   /*
-   * There is no `listing` pointer here any more, and there must not be one.
-   *
-   * This file is a curated DIRECTORY of fictional demo stays: their
-   * neighbourhoods, their photographs and their demo rates.
-   * Whether one of them has inventory on Injishi is a fact about the DATABASE,
-   * and `data/property-rooms.ts` reads it from the API by slug. A pointer here
-   * would be a second, staler copy of the one thing that must never be stale.
-   *
-   * The field was absent on all 55 records anyway, which is what
-   * `data/demo-listing.ts` existed to work around: it lent Umurage Guesthouse's
-   * cheapest room to every property in the catalogue whenever a build flag was
-   * set, so opening checkout from one catalogue hotel reserved a room somewhere
-   * else. Both are deleted (ADR-047).
+   * No `listing` pointer: whether a property has inventory is a fact about the
+   * database, read from the API by slug (`data/property-rooms.ts`). A pointer
+   * here would be a second, staler copy of it (ADR-047).
    */
 }

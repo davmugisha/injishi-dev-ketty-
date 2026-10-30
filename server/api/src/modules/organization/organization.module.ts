@@ -2,7 +2,9 @@ import { Module } from '@nestjs/common';
 
 import { isWorkerProcess } from '../../shared/process/process-role';
 import { GeographyModule } from '../geography/geography.module';
+import { PaymentsModule } from '../pay/payments.module';
 import { MailerModule } from '../mailer/mailer.module';
+import { SmsModule } from '../sms/sms.module';
 import { StorageModule } from '../storage/storage.module';
 import { UserModule } from '../user/user.module';
 
@@ -10,6 +12,8 @@ import { BrokerRegistrationService } from './application/broker-registration.ser
 import { CertificatesService } from './application/certificates.service';
 import { OwnerClaimService } from './application/owner-claim.service';
 import { PsfMembershipService } from './application/psf-membership.service';
+import { PsfPublicService } from './application/psf-public.service';
+import { PsfReportService } from './application/psf-report.service';
 import { RegistrationDraftService } from './application/registration-draft.service';
 import { RegistrationService } from './application/registration.service';
 import { RolePermissionsService } from './application/role-permissions.service';
@@ -22,6 +26,8 @@ import { OrganizationRepository } from './infrastructure/organization.repository
 import { OwnerClaimRepository } from './infrastructure/owner-claim.repository';
 import { PsfMembershipMailer } from './infrastructure/psf-membership.mailer';
 import { PsfMembershipRepository } from './infrastructure/psf-membership.repository';
+import { PsfPublicRepository } from './infrastructure/psf-public.repository';
+import { PsfReportRepository } from './infrastructure/psf-report.repository';
 import { RegistrationDraftRepository } from './infrastructure/registration-draft.repository';
 import { RegistrationMailer } from './infrastructure/registration.mailer';
 import { RolePermissionsRepository } from './infrastructure/role-permissions.repository';
@@ -55,7 +61,11 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
   // GeographyModule for one question only: whether the village on a
   // registration's address sits under its sector (D24). `villages` is that
   // module's table, so the join lives there and this module composes it.
-  imports: [UserModule, MailerModule, StorageModule, GeographyModule],
+  // PaymentsModule for the PSF membership fee (the PSF path): a business pays
+  // it here, through the one payment seam, and it is passed on to PSF.
+  // SmsModule for the public PSF path: status news reaches an applicant with
+  // no account by text message.
+  imports: [UserModule, MailerModule, GeographyModule, PaymentsModule, SmsModule, StorageModule],
   providers: [
     OrganizationRepository,
     BrokerRepository,
@@ -93,6 +103,12 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     PsfMembershipRepository,
     PsfMembershipMailer,
     PsfMembershipService,
+    // The public PSF path (2026-10-19): register without an account, track by
+    // docID. And the officer console's report and decision log.
+    PsfPublicRepository,
+    PsfPublicService,
+    PsfReportRepository,
+    PsfReportService,
     // Licences and registrations on file (Compliance → Licences): the
     // documents a business keeps about itself, an ORG fact like the roster.
     CertificatesRepository,
@@ -112,6 +128,8 @@ import { tinAdapterProvider } from './infrastructure/tin-adapter.provider';
     RolePermissionsService,
     StaffInvitationService,
     PsfMembershipService,
+    PsfPublicService,
+    PsfReportService,
     CertificatesService,
   ],
 })

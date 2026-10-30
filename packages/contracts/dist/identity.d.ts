@@ -298,8 +298,6 @@ export declare const IdentityScanResult: z.ZodObject<{
     message: string | null;
     attempt: number;
     reason: "expired" | "unavailable" | "revoked" | "not_authentic" | "face_mismatch" | "unreadable" | "not_found" | null;
-    outcome: "machine_passed" | "machine_failed" | "manual_needed";
-    mayContinue: boolean;
     fields: {
         documentType: "national_id" | "passport";
         issuingCountry: string;
@@ -311,12 +309,12 @@ export declare const IdentityScanResult: z.ZodObject<{
         checked: boolean;
         source?: "document" | "registry" | "typed" | undefined;
     } | null;
+    outcome: "machine_passed" | "machine_failed" | "manual_needed";
+    mayContinue: boolean;
 }, {
     message: string | null;
     attempt: number;
     reason: "expired" | "unavailable" | "revoked" | "not_authentic" | "face_mismatch" | "unreadable" | "not_found" | null;
-    outcome: "machine_passed" | "machine_failed" | "manual_needed";
-    mayContinue: boolean;
     fields: {
         documentType: "national_id" | "passport";
         issuingCountry: string;
@@ -328,6 +326,8 @@ export declare const IdentityScanResult: z.ZodObject<{
         checked: boolean;
         source?: "document" | "registry" | "typed" | undefined;
     } | null;
+    outcome: "machine_passed" | "machine_failed" | "manual_needed";
+    mayContinue: boolean;
 }>;
 export type IdentityScanResult = z.infer<typeof IdentityScanResult>;
 /**

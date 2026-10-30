@@ -8,7 +8,7 @@ import {
   type IdentityStatus,
 } from "@injishi/contracts";
 import { Button } from "@injishi/web-ui";
-import { CircleCheck, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 
 import { putTypedIdentity } from "@/data/identity";
 import { apiResultMessage } from "@/lib/api";
@@ -16,7 +16,6 @@ import { apiResultMessage } from "@/lib/api";
 import { AddressPicker } from "./address-picker";
 import { IdentityCard, IdScanner } from "./identity-verifier";
 import { PhoneInput } from "./phone-input";
-import type { RegisterPath } from "./register-steps";
 import { Callout } from "./register-shell";
 import { TypedIdentityFields, composeFullName, type PersonalDraft } from "./step-about-you";
 import { Field, Offline } from "./wizard-ui";
@@ -36,31 +35,28 @@ import { Field, Offline } from "./wizard-ui";
  *   (D-a), or the tries ran out. Stored `pending`, for PSF to hold against the
  *   photos.
  * - The identity on file, "Checked" only after a machine check passed,
- *   otherwise "PSF will check your ID" (AC-6). Then, on the owner's path, the
- *   director line: listed or not, and never the directors' names, because the
- *   name matched may be typed (AC-7). The server matches again at creation.
+ *   otherwise "PSF will check your ID" (AC-6).
+ *
+ * Nothing about the business is asked or said here: whether RRA ties this ID
+ * to the business is answered on the Business step (`SectionTin`).
  *
  * WHAT AN ID DOES NOT SHOW IS STILL ASKED, because the API refuses to create a
  * registration for an account without it: a phone, and the home address. A
  * complete profile answers both and nothing is asked.
  */
 export function SectionIdentity({
-  path,
   identity,
   profileComplete,
   draft,
   onDraftChange,
   onIdentity,
   needsExtras,
-  isDirector,
   errors,
-  onPrepareForOwner,
   onEditProfile,
   onNext,
   hideNext = false,
   online = true,
 }: {
-  path: RegisterPath;
   identity: IdentityStatus | null;
   /** A complete profile on file: nothing beyond the ID is asked. */
   profileComplete: boolean;
@@ -70,10 +66,7 @@ export function SectionIdentity({
   onIdentity: (next?: IdentityStatus) => void;
   /** Something an ID does not show is still owed (a phone, the home address). */
   needsExtras: boolean;
-  /** RRA's answer for the owner's path: true, false, or not known. */
-  isDirector: boolean | null;
   errors: Record<string, string>;
-  onPrepareForOwner: () => void;
   /** Open a complete profile to change what it holds. */
   onEditProfile: () => void;
   onNext: () => void;
@@ -99,42 +92,20 @@ export function SectionIdentity({
     return <p className="text-sm text-muted-foreground">Reading what is on file…</p>;
   }
 
-  // --- On file: who, the director line, and what is still owed.
+  // --- On file: who, and what is still owed.
   if (onFile) {
     return (
       <>
         <IdentityCard person={onFile} />
-        {path === "owner" && isDirector === true ? (
-          <Callout tone="success" icon={<CircleCheck size={16} aria-hidden />} title="You're listed as a director" />
+        {profileComplete ? (
+          <OnFile onEdit={onEditProfile} />
+        ) : needsExtras ? (
+          <Extras draft={draft} onDraftChange={onDraftChange} errors={errors} />
         ) : null}
-        {path === "owner" && isDirector === false ? (
-          <>
-            <Callout
-              tone="warning"
-              icon={<TriangleAlert size={16} aria-hidden />}
-              title="You're not listed as a director"
-              role="alert"
-            >
-              RRA does not list this ID among the directors for this TIN. Register it for the owner instead: you name
-              them, and they claim it with their own ID once PSF approves it.
-            </Callout>
-            <div>
-              <Button onClick={onPrepareForOwner}>Register it for the owner instead</Button>
-            </div>
-          </>
-        ) : (
-          <>
-            {profileComplete ? (
-              <OnFile onEdit={onEditProfile} />
-            ) : needsExtras ? (
-              <Extras draft={draft} onDraftChange={onDraftChange} errors={errors} />
-            ) : null}
-            {hideNext ? null : (
-              <div>
-                <Button onClick={onNext}>Next</Button>
-              </div>
-            )}
-          </>
+        {hideNext ? null : (
+          <div>
+            <Button onClick={onNext}>Next</Button>
+          </div>
         )}
       </>
     );
@@ -206,12 +177,7 @@ export function SectionIdentity({
   }
 
   // --- The scanner.
-  const intro =
-    path === "owner"
-      ? "Then we check that you are one of RRA's directors for this TIN."
-      : path === "helper"
-        ? "Your own ID. The owner confirms ownership with theirs when they claim the business."
-        : "The name on it is the one the registration carries.";
+  const intro = "Your own ID, whoever owns the business. The name on it is the one the registration carries.";
   const failed = last?.outcome === "machine_failed" ? last : null;
   return (
     <>

@@ -58,32 +58,38 @@ export function registrationLink(webUrl: string): string {
 }
 
 /**
- * The operator workspace's setup screen, on web's origin. Web forwards `/w/*` to
- * the operator app, which sends the visit on to its own host where it has one
- * (`apps/app/src/proxy.ts`), so the link holds whichever way the app is served.
+ * Where a business sets up what it sells, on the operator app's own origin
+ * (`APP_URL`), not web's: a link that rides web's redirect to the app breaks
+ * the day that redirect changes.
+ *
+ * A residence is set up on the rentals screen (units, leases, payouts); every
+ * other business on the property setup page.
  */
-export function workspaceSetupLink(webUrl: string, workspaceId: string): string {
-  return new URL(`/w/${encodeURIComponent(workspaceId)}/setup`, webUrl).toString();
+export function workspaceSetupLink(
+  appUrl: string,
+  workspaceId: string,
+  domain: string | null = null,
+): string {
+  const path =
+    domain === 'residence'
+      ? '/residence/setup'
+      : `/w/${encodeURIComponent(workspaceId)}/setup`;
+  return new URL(path, appUrl).toString();
 }
 
 /**
- * An officer's queue. `/oversight` is the console's old address on web's origin:
- * web forwards it to the operator app, which answers it with its console at
- * `/officer`. The segment names the function, for when the console reads it.
+ * An officer's console, on the operator app (`APP_URL`). It opens on the queue
+ * the officer's assignment holds, so one address serves both functions.
  */
-export function oversightQueueLink(
-  webUrl: string,
-  role: 'business_field_verifier' | 'business_approver',
-): string {
-  const segment = role === 'business_field_verifier' ? 'verifier' : 'approver';
-  return new URL(`/oversight/${segment}/queue`, webUrl).toString();
+export function oversightQueueLink(appUrl: string): string {
+  return new URL('/officer', appUrl).toString();
 }
 
 // ---------------------------------------------------------------------------
 // Registrant mails
 // ---------------------------------------------------------------------------
 
-/** 1. Created at `pending_payment`: two things are still owed. */
+/** 1. Created at `pending_payment`: the fee is still owed. */
 export function registrationReceivedMail(input: {
   to: Addressee;
   legalName: string;
@@ -100,13 +106,41 @@ export function registrationReceivedMail(input: {
     greeting: greeting(input.to),
     paragraphs: [
       `Thank you for registering ${input.legalName} on Injishi. Your registration is saved, and your business is not yet under review.`,
-      'To send it for review, finish these two steps:',
+      `To send it for review: ${fee.charAt(0).toLowerCase()}${fee.slice(1)}`,
     ],
-    steps: ['Read and accept the Injishi operator contract.', fee],
     after: [
-      'Once the fee is paid, your registration goes to the Rwanda Revenue Authority (RRA) for a TIN check and then to your district for review. The fee is charged once and is not refunded if the registration is not approved.',
+      'Once the fee is paid, the Rwanda Revenue Authority (RRA) checks your TIN and an officer reviews your documents online. The fee is charged once and is not refunded if the registration is not approved.',
     ],
     cta: { label: 'Continue your registration', href: input.link },
+  });
+}
+
+/**
+ * THE PSF PATH. A business of any sector is registered the moment its fee is
+ * paid and its TIN, if it gave one, is confirmed: no district visit, no
+ * approval. The mail gives it its code and its next step, PSF membership.
+ */
+export function psfBusinessRegisteredMail(input: {
+  to: Addressee;
+  legalName: string;
+  businessCode: string | null;
+  districtName: string | null;
+  link: string;
+}): RegistrationMail {
+  return compose({
+    subject: `${input.legalName} is registered${input.businessCode ? `: ${input.businessCode}` : ''}`,
+    heading: 'Your business is registered',
+    greeting: greeting(input.to),
+    paragraphs: [
+      `${input.legalName} is registered on Injishi, and the Private Sector Federation (PSF) can now find it.`,
+      'Your next step is PSF membership: pick the tier your business can afford and apply from your portal. PSF reviews it, and you pay the membership fee there once it is approved.',
+    ],
+    details: [
+      ...(input.businessCode ? ([['Business code', input.businessCode]] as [string, string][]) : []),
+      ...(input.districtName ? ([['District', input.districtName]] as [string, string][]) : []),
+    ],
+    after: ['Quote your business code whenever you deal with PSF. It never changes.'],
+    cta: { label: 'Apply for PSF membership', href: input.link },
   });
 }
 
@@ -126,8 +160,8 @@ export function registrationSubmittedMail(input: {
     ...(input.hasTin
       ? ['Tax check: the Rwanda Revenue Authority (RRA) confirms your TIN. This is automatic.']
       : []),
-    'Field verification: a district officer confirms that the business exists at the address you gave and that your documents are valid.',
-    'Approval: a district approver reviews the verified registration and makes the final decision.',
+    'Document review: an officer checks the documents you uploaded, online.',
+    'Approval: a second officer reviews the checked registration and makes the final decision.',
   ];
   return compose({
     subject: `Registration submitted — ${input.legalName}`,
@@ -147,19 +181,50 @@ export function registrationSubmittedMail(input: {
   });
 }
 
-/** 3a. The field verifier passed the business. */
+/**
+ * 2b. Paid, first time, for a business that sells stays or food: the listing can
+ * be built now, while the documents are read, and goes live once approved. This
+ * replaces the plain "submitted" mail for it, so the host gets one mail, not two.
+ */
+export function setupWhileInReviewMail(input: {
+  to: Addressee;
+  legalName: string;
+  hasTin: boolean;
+  setupLink: string;
+}): RegistrationMail {
+  return compose({
+    subject: `Set up ${input.legalName} while we review it`,
+    heading: 'Your registration is in review',
+    greeting: greeting(input.to),
+    paragraphs: [
+      `Your registration fee is paid and ${input.legalName} is in review.`,
+      'You do not have to wait for it. Your workspace is open now, so you can get your listing ready:',
+    ],
+    steps: [
+      'Add what guests read about the place: a description, the street and your check-in times.',
+      'Add what you sell, with its price.',
+      'Add your photographs.',
+    ],
+    after: [
+      `While you do, ${input.hasTin ? 'the Rwanda Revenue Authority (RRA) confirms your TIN and ' : ''}an officer reviews your documents online, then a second officer approves. You can publish as soon as it is approved, and we will email you when it is.`,
+    ],
+    cta: { label: 'Set up your listing', href: input.setupLink },
+  });
+}
+
+/** 3a. The officer who read the documents passed the business. */
 export function fieldVerificationPassedMail(input: {
   to: Addressee;
   legalName: string;
   link: string;
 }): RegistrationMail {
   return compose({
-    subject: `Field verification passed — ${input.legalName}`,
-    heading: 'Field verification passed',
+    subject: `Documents checked — ${input.legalName}`,
+    heading: 'Documents checked',
     greeting: greeting(input.to),
     paragraphs: [
-      `A district officer has verified ${input.legalName}: the business was confirmed at its address and its documents were accepted.`,
-      'Your registration is now with a district approver for the final decision. You do not need to do anything; we will email you when it is decided.',
+      `An officer has reviewed the documents for ${input.legalName} and accepted them.`,
+      'Your registration is now with a second officer for the final decision. You do not need to do anything; we will email you when it is decided.',
     ],
     cta: { label: 'View registration status', href: input.link },
   });
@@ -170,7 +235,7 @@ export type RejectionGate = 'tin_check' | 'tin_verified' | 'field_verified';
 
 const GATE_WORDS: Readonly<Record<RejectionGate, string>> = {
   tin_check: 'the automatic tax check with the Rwanda Revenue Authority (RRA)',
-  tin_verified: 'the field verification stage',
+  tin_verified: 'the document review stage',
   field_verified: 'the final approval stage',
 };
 
@@ -226,21 +291,21 @@ export function registrationApprovedMail(
       heading: 'Registration approved',
       greeting: greeting(input.to),
       paragraphs: [
-        `${input.legalName} has been approved by the district.`,
+        `${input.legalName} has been approved.`,
         'Because you registered it on behalf of its owner, it stays on hold until the owner accepts the claim invitation we emailed them. Payouts stay locked until then.',
       ],
       cta: { label: 'View registration status', href: input.statusLink },
     });
   }
   return compose({
-    subject: `${input.legalName} is approved — set up your property`,
+    subject: `${input.legalName} is approved — you can publish now`,
     heading: `${input.legalName} is approved`,
     greeting: greeting(input.to),
     paragraphs: [
-      `Congratulations. ${input.legalName} has been approved by the district and is now active on Injishi.`,
-      'Your workspace is open. Set up your property, its rooms and its rates so guests can find and book it.',
+      `Congratulations. ${input.legalName} has been approved and is now active on Injishi.`,
+      'Finish anything left in your setup and press Publish. Guests can find and book it from then on.',
     ],
-    cta: { label: 'Set up your property', href: input.setupLink },
+    cta: { label: 'Open your setup', href: input.setupLink },
   });
 }
 
@@ -254,25 +319,27 @@ export function registrationApprovedMail(
  */
 export function officerQueueMail(input: {
   to: Addressee;
-  role: 'business_field_verifier' | 'business_approver';
+  role: 'business_field_verifier' | 'business_approver' | 'psf_membership_officer';
   legalName: string;
   districtName: string | null;
   sectorName: string | null;
   tin: string | null;
   link: string;
 }): RegistrationMail {
-  const verifier = input.role === 'business_field_verifier';
+  // A PSF District Manager reviews the documents too, and their Reviewed is the decision (0119).
+  const verifier = input.role !== 'business_approver';
+  const oneStep = input.role === 'psf_membership_officer';
   const place = [input.sectorName, input.districtName].filter(Boolean).join(', ');
   return compose({
     subject: verifier
-      ? `Field verification needed — ${input.legalName}`
+      ? `Documents to review — ${input.legalName}`
       : `Approval needed — ${input.legalName}`,
-    heading: verifier ? 'A business needs field verification' : 'A business needs your approval',
+    heading: verifier ? 'A business needs its documents reviewed' : 'A business needs your approval',
     greeting: greeting(input.to),
     paragraphs: [
       verifier
-        ? `${input.legalName} has paid its registration fee${input.tin ? ' and passed the RRA TIN check' : ''}. It is now in your field verification queue.`
-        : `${input.legalName} has passed field verification. It is now in your approval queue for a final decision.`,
+        ? `${input.legalName} has paid its registration fee${input.tin ? ' and passed the RRA TIN check' : ''}. Its documents are now in your review queue.${oneStep ? ' Marking it Reviewed approves the business.' : ''}`
+        : `${input.legalName} has passed document review. It is now in your approval queue for a final decision.`,
     ],
     details: [
       ['Business', input.legalName],

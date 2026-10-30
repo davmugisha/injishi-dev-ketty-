@@ -35,7 +35,7 @@ export function HostCharges() {
       aria-labelledby="host-charges-title"
       className="section-y container scroll-mt-24"
     >
-      <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
+      <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16 xl:gap-24">
         <div className="flex flex-col gap-6">
           <div id="host-charges-title">
             <SectionHeading lead="What it costs to " emphasis="list" />
@@ -74,14 +74,36 @@ export function HostCharges() {
           </Link>
         </div>
 
-        {/* No eyebrow above the number: the heading opposite already asks the
-            question, and `stat.label` under the rule already names the unit. */}
-        <div className="flex flex-col justify-center gap-5 rounded-card bg-ink p-8 text-white lg:min-h-[400px] lg:p-12">
-          <p className="font-display text-display-sm font-medium lg:text-display-md">
-            {HOST_CHARGES.stat.value}
+        {/* The 0% panel, with the booking worked through beneath it so the
+            claim is shown rather than only stated. No figures: the rows name
+            who pays what, which is the whole point. */}
+        <div className="flex flex-col gap-6 rounded-card bg-ink p-8 text-white lg:p-10">
+          <div>
+            <p className="font-display text-display-sm font-medium lg:text-display-md">
+              {HOST_CHARGES.stat.value}
+            </p>
+            <p className="mt-2 text-white/70">{HOST_CHARGES.stat.label}</p>
+          </div>
+
+          <dl className="m-0 flex flex-col divide-y divide-white/15 border-y border-white/15 text-sm">
+            <div className="flex items-center justify-between gap-4 py-3.5">
+              <dt className="text-white/70">The guest pays</dt>
+              <dd className="m-0 font-medium">Your rate</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4 py-3.5">
+              <dt className="text-white/70">Injishi commission</dt>
+              <dd className="m-0 font-medium">None</dd>
+            </div>
+            <div className="flex items-center justify-between gap-4 py-3.5">
+              <dt className="text-white/70">You receive</dt>
+              <dd className="m-0 font-medium">Your rate</dd>
+            </div>
+          </dl>
+
+          <p className="text-sm text-white/60">
+            Held in escrow until the guest checks in. Only your bank or mobile
+            money provider&apos;s transfer charge comes off.
           </p>
-          <div className="h-px w-full bg-white/20" />
-          <p className="max-w-tile text-white/70">{HOST_CHARGES.stat.label}</p>
         </div>
       </div>
     </section>

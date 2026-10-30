@@ -24,12 +24,10 @@ export interface Promotion {
   href: string;
 }
 
-/** Slot 1 — the full-width bar directly under the hero. */
-export const PROMO_BAR: Promotion | null = {
-  tag: "Promotion",
-  headline: "Save on week-long stays",
-  body: "Selected verified stays price seven nights below the nightly rate. Escrow-backed, as always.",
-  ctaLabel: "See offers",
-  href: "/explore",
-};
+/**
+ * Slot 1 — the full-width bar directly under the hero. Empty: it claimed
+ * "seven nights below the nightly rate", and no rate or rule anywhere backs
+ * that (2026-10-29). A promotion comes back when the API serves one.
+ */
+export const PROMO_BAR: Promotion | null = null;
 

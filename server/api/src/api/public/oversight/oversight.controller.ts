@@ -75,6 +75,20 @@ export class OversightController {
   }
 
   /**
+   * Businesses waiting on a PSF District Manager's one-step review, inside
+   * their region (0119): the same first-gate rows the field verifier lists.
+   */
+  @Get('review-queue')
+  @UseGuards(SessionGuard, OversightGuard)
+  @RequireOversight('psf_membership_officer')
+  reviewQueue(
+    @CurrentUser() user: SessionUser,
+    @CurrentOversight() grants: OversightGrant[],
+  ): Promise<OversightQueueItem[]> {
+    return this.registrations.queueFor(user.id, grants);
+  }
+
+  /**
    * The documents one registration carries → the evidence half of the field
    * verifier's job (F-S03 §5).
    *
@@ -89,7 +103,7 @@ export class OversightController {
    */
   @Get('registrations/:orgId/documents')
   @UseGuards(SessionGuard, OversightGuard)
-  @RequireOversight('business_field_verifier', 'business_approver')
+  @RequireOversight('business_field_verifier', 'business_approver', 'psf_membership_officer')
   documents(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @CurrentUser() user: SessionUser,
@@ -101,15 +115,16 @@ export class OversightController {
   /**
    * Record that this officer has read one document (F-S03 §5).
    *
-   * The field verifier's act alone. The approver reads the file and decides on
-   * it; they do not get to certify that somebody looked. 200 rather than 201: a
+   * The field verifier's act, and the PSF District Manager's, whose review is
+   * one step (0119). The approver reads the file and decides on it; they do not
+   * get to certify that somebody looked. 200 rather than 201: a
    * second press is not a second check, and the answer is the list as it now
    * stands so the console redraws from the server rather than guessing.
    */
   @Post('registrations/:orgId/documents/:documentId/check')
   @HttpCode(200)
   @UseGuards(SessionGuard, OversightGuard)
-  @RequireOversight('business_field_verifier')
+  @RequireOversight('business_field_verifier', 'psf_membership_officer')
   checkDocument(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Param('documentId', ParseUUIDPipe) documentId: string,
@@ -129,7 +144,7 @@ export class OversightController {
    */
   @Get('decisions')
   @UseGuards(SessionGuard, OversightGuard)
-  @RequireOversight('business_field_verifier', 'business_approver')
+  @RequireOversight('business_field_verifier', 'business_approver', 'psf_membership_officer')
   decisions(
     @CurrentUser() user: SessionUser,
     @Query(new ZodValidationPipe(OversightDecisionQuery))

@@ -45,6 +45,7 @@ import {
   users,
   verifiedIdentities,
 } from '../../../database/drizzle/schema';
+import type { Domain } from '@injishi/contracts';
 
 /** One row of the directory before its side tables are attached. */
 export interface AdminUserBaseRow {
@@ -70,7 +71,7 @@ export interface AdminUserMembershipRow {
   userId: string;
   orgId: string;
   orgName: string;
-  domain: 'hospitality' | 'residence';
+  domain: Domain;
   orgRole: OrgRole;
   payoutLocked: boolean | null;
 }
@@ -195,6 +196,16 @@ export class AdminUsersRepository {
     limit: number,
     offset: number,
   ): Promise<AdminUserBaseRow[]> {
+    return this.baseRows(this.userFilter(query), limit, offset);
+  }
+
+  /** One account's directory row, or none: the person page (`GET /admin/users/:userId`). */
+  async userById(userId: string): Promise<AdminUserBaseRow | null> {
+    const [row] = await this.baseRows(eq(users.id, userId), 1);
+    return row ?? null;
+  }
+
+  private baseRows(where: SQL | undefined, limit: number, offset = 0): Promise<AdminUserBaseRow[]> {
     return this.db
       .select({
         id: users.id,
@@ -230,7 +241,7 @@ export class AdminUsersRepository {
         adminUsers,
         and(eq(adminUsers.userId, users.id), isNull(adminUsers.revokedAt)),
       )
-      .where(this.userFilter(query))
+      .where(where)
       // `id` breaks the tie, so two accounts created in the same transaction
       // cannot swap places between page 1 and page 2 and hide one of
       // themselves from a staffer paging through.

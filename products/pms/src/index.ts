@@ -163,6 +163,7 @@ export type {
   RackBarKind,
   RackDay,
   RackLane,
+  RackRoomState,
   RateNight,
   ReadinessRoom,
   RecordParty,
@@ -172,6 +173,7 @@ export type {
   ReservationsSummary,
   ReservationView,
   RoomMove,
+  RoomRack,
   RoomStatus as FrontDeskRoomStatus,
   RoomType,
 } from "./model/frontdesk.ts";

@@ -290,12 +290,12 @@ const STORIES: Readonly<Record<string, DemoStory>> = {
   aimable: {
     headline: 'Owner of a hotel group waiting for approval',
     summary:
-      'Aimable registered Inzozi Hotels Ltd, a head office in Kigali with branches in Huye and Karongi. He has paid the fee and his TIN has been checked, but no government officer has visited yet. Instead of travelling to the district office to ask where his file is, he opens one screen and sees which stage it is at and who holds it. Until the business is approved it cannot list a room.',
+      'Aimable registered Inzozi Hotels Ltd, a head office in Kigali with branches in Huye and Karongi. He has paid the fee and his TIN has been checked, and an officer is reviewing his documents online. Instead of travelling to the district office to ask where his file is, he opens one screen and sees which stage it is at and who holds it. Meanwhile he can already build his listing; it goes live once the business is approved.',
     tryThis: [
       {
         title: 'See where the registration stands',
         detail:
-          'The registration screen shows each stage, which ones are done, and who holds the next one: the field visit by the district verifier.',
+          'The registration screen shows each stage, which ones are done, and who holds the next one: the document review by the PSF officer.',
         href: '/register',
       },
       {
@@ -307,7 +307,7 @@ const STORIES: Readonly<Record<string, DemoStory>> = {
       {
         title: 'Watch the file from the other side',
         detail:
-          'Sign in as Jean-Bosco, the PSF verifier for Gasabo: Inzozi Hotels Ltd is in his verification queue, waiting for his visit.',
+          'Sign in as Jean-Bosco, the PSF verifier for Gasabo: Inzozi Hotels Ltd is in his review queue, waiting for him to check its documents.',
         href: null,
       },
     ],
@@ -346,20 +346,20 @@ const STORIES: Readonly<Record<string, DemoStory>> = {
   },
 
   jeanbosco: {
-    headline: 'Field verifier, PSF Gasabo',
+    headline: 'Document reviewer, PSF Gasabo',
     summary:
-      'You check that a business registering in Gasabo really exists where it says it does. Instead of a paper file travelling between offices and an owner returning to the district to ask what happened, you see every file waiting for your visit, record what you found, and the decision is logged under your name.',
+      'You check the documents of every business registering in Gasabo, online. Instead of a paper file travelling between offices and an owner returning to the district to ask what happened, you see every file waiting for your review, record what you found, and the decision is logged under your name.',
     tryThis: [
       {
         title: 'Open your verification queue',
         detail:
-          'Businesses in Gasabo waiting for a field visit. Files from other districts never appear here.',
+          'Businesses in Gasabo waiting for a document review. Files from other districts never appear here.',
         href: `${VERIFIER}/queue`,
       },
       {
-        title: 'Record a visit',
+        title: 'Record a review',
         detail:
-          'Open a file, check what the owner submitted, then field-verify or reject it with a reason. A verified file moves on to the district approver.',
+          'Open a file, check what the owner submitted, then pass or reject it with a reason. A verified file moves on to the district approver.',
         href: `${VERIFIER}/queue`,
       },
       {
@@ -398,20 +398,20 @@ const STORIES: Readonly<Record<string, DemoStory>> = {
   },
 
   alice: {
-    headline: 'Field verifier, PSF Kicukiro',
+    headline: 'Document reviewer, PSF Kicukiro',
     summary:
       'You do the same job as Jean-Bosco, in Kicukiro. Your queue holds only Kicukiro\'s businesses: the district boundary is enforced by the server, not by a filter you could clear.',
     tryThis: [
       {
         title: 'Open your verification queue',
         detail:
-          'At least one Kicukiro business is waiting for a field visit. None of Gasabo\'s files appear.',
+          'At least one Kicukiro business is waiting for a document review. None of Gasabo\'s files appear.',
         href: `${VERIFIER}/queue`,
       },
       {
-        title: 'Record a visit',
+        title: 'Record a review',
         detail:
-          'Open the file, check the submission and field-verify or reject it with a reason.',
+          'Open the file, check the submission and pass or reject it with a reason.',
         href: `${VERIFIER}/queue`,
       },
       {
@@ -423,7 +423,7 @@ const STORIES: Readonly<Record<string, DemoStory>> = {
   },
 
   yvette: {
-    headline: 'Field verifier, PSF Karongi',
+    headline: 'Document reviewer, PSF Karongi',
     summary:
       'A verifier in Karongi. Signing in as her beside Jean-Bosco and Alice shows that each officer sees only their own district.',
     tryThis: [

@@ -102,6 +102,7 @@ export class StayClaimRepository {
     fullName?: string | null;
     documentType?: DocumentType | null;
     idNumber?: string | null;
+    nationality?: string | null;
     addressText?: string | null;
   }): Promise<void> {
     const contact: Record<string, unknown> = {};
@@ -116,6 +117,7 @@ export class StayClaimRepository {
       fullName: input.fullName?.trim() ?? null,
       idNumber: input.idNumber?.trim() ?? null,
       documentType: input.documentType ?? null,
+      nationality: input.nationality?.trim().toUpperCase() ?? null,
       addressText: input.addressText?.trim() ?? null,
     };
     const hasIdentity = Object.values(identity).some((v) => v !== null);
@@ -143,6 +145,7 @@ export class StayClaimRepository {
             fullName: sql`coalesce(excluded.full_name, ${stayIdentities.fullName})`,
             idNumber: sql`coalesce(excluded.id_number, ${stayIdentities.idNumber})`,
             documentType: sql`coalesce(excluded.document_type, ${stayIdentities.documentType})`,
+            nationality: sql`coalesce(excluded.nationality, ${stayIdentities.nationality})`,
             addressText: sql`coalesce(excluded.address_text, ${stayIdentities.addressText})`,
           },
         });

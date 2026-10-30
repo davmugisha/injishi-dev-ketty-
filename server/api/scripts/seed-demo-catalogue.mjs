@@ -98,6 +98,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
+import { businessKindFor } from './business-kind.mjs';
 import { assertSampleDatabase } from './sample-database.mjs';
 import { syntheticCoordFor } from './synthetic-coords.mjs';
 import { apiEnvFile } from './env-file.mjs';
@@ -896,11 +897,12 @@ async function seed(client) {
       `insert into orgs (id, legal_name, domain, rdb_entity_group, accommodation_class,
                          accommodation_class_other, eac_star_grade,
                          tourism_license_number, tin,
-                         registration_status, district_id, address_text)
-       values ($1, $2, 'hospitality', 'accommodation', $3, $9, $4, $5, $6, 'active', $7, $8)
+                         registration_status, district_id, address_text, business_kind)
+       values ($1, $2, 'hospitality', 'accommodation', $3, $9, $4, $5, $6, 'active', $7, $8, $10)
        on conflict (id) do update
          set legal_name = excluded.legal_name,
              accommodation_class = excluded.accommodation_class,
+             business_kind = excluded.business_kind,
              accommodation_class_other = excluded.accommodation_class_other,
              eac_star_grade = excluded.eac_star_grade,
              tourism_license_number = excluded.tourism_license_number,
@@ -924,6 +926,7 @@ async function seed(client) {
         // class is `other` and forbids it otherwise, so it is derived from the
         // class rather than trusted from the row.
         entry.accommodationClass === 'other' ? (entry.classOther ?? 'Other') : null,
+        businessKindFor({ domain: 'hospitality', accommodationClass: entry.accommodationClass }),
       ],
     );
 

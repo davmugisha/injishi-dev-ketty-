@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateOrgHolidayRequest = exports.OrgHolidayList = exports.OrgHoliday = exports.KioskPunchResult = exports.KioskPunchRequest = exports.KioskSession = exports.KioskPairRequest = exports.KioskPinState = exports.ChangeMyKioskPinRequest = exports.SetKioskPinRequest = exports.UnlockKioskPinRequest = exports.KioskPairingCode = exports.CreateKioskRequest = exports.KioskList = exports.Kiosk = exports.KioskStatus = exports.PutBranchClockSettingsRequest = exports.PutAttendancePolicyRequest = exports.AttendanceSettings = exports.BranchClockSettings = exports.AttendancePolicy = exports.DecideOvertimeRequest = exports.CreateMyAttendanceRequestRequest = exports.CreateAttendanceRequestRequest = exports.AttendanceRequest = exports.AttendanceRequestStatus = exports.DecideRequestBody = exports.CreateMyShiftRequestRequest = exports.CreateShiftRequestRequest = exports.ShiftRequest = exports.ShiftRequestStatus = exports.ShiftRequestKind = exports.EndRotationAssignmentRequest = exports.CreateRotationAssignmentRequest = exports.RotationAssignmentQuery = exports.RotationAssignmentList = exports.RotationAssignment = exports.UpdateRotationPatternRequest = exports.CreateRotationPatternRequest = exports.RotationPatternQuery = exports.RotationPatternList = exports.RotationPattern = exports.RotationPatternStatus = exports.RotationStep = exports.RotationRule = exports.RosterWeekQuery = exports.RosterWeek = exports.RosterPublicationList = exports.RosterPublication = exports.PublishRosterRequest = void 0;
-exports.MyTeamRequests = exports.TeamRequestsQuery = exports.TeamRequestKind = exports.MyTeamAttendance = exports.MyTeamRoster = exports.MyTeam = exports.MyMonthlySummary = exports.MonthQuery = exports.MyAttendanceRequestList = exports.MyAttendance = exports.MyShiftRequestList = exports.MyRoster = exports.RangeQuery = exports.MyWorkToday = exports.MyWorkTodayShift = exports.PhoneClockResult = exports.PhoneClockRequest = exports.MyWorkFileList = exports.MyWorkFile = exports.MonthlyQuery = exports.InsightsQuery = exports.MonthlySummary = exports.MonthlySummaryRow = exports.LateEarlyReport = exports.LateEarlyRow = exports.UpdateWeeklyOffRequest = exports.CreateWeeklyOffRequest = exports.WeeklyOffList = exports.WeeklyOff = exports.UpdateOrgHolidayRequest = void 0;
+exports.MyTeamRequests = exports.TeamRequestsQuery = exports.TeamRequestKind = exports.MyTeamAttendance = exports.MyTeamRoster = exports.MyTeam = exports.MyMonthlySummary = exports.MonthQuery = exports.MyAttendanceRequestList = exports.MyAttendance = exports.MyShiftOptions = exports.MyShiftRequestList = exports.MyRoster = exports.RangeQuery = exports.MyWorkToday = exports.MyWorkTodayShift = exports.PhoneClockResult = exports.PhoneClockRequest = exports.MyWorkFileList = exports.MyWorkFile = exports.MonthlyQuery = exports.InsightsQuery = exports.MonthlySummary = exports.MonthlySummaryRow = exports.LateEarlyReport = exports.LateEarlyRow = exports.UpdateWeeklyOffRequest = exports.CreateWeeklyOffRequest = exports.WeeklyOffList = exports.WeeklyOff = exports.UpdateOrgHolidayRequest = void 0;
 const zod_1 = require("zod");
 const leave_1 = require("./leave");
 const offline_1 = require("./offline");
@@ -495,6 +495,12 @@ exports.MyShiftRequestList = zod_1.z.object({
     /** Swaps colleagues asked of them, waiting for an answer. */
     askedOfMe: zod_1.z.array(exports.ShiftRequest),
 });
+/**
+ * `GET /me/work/:employeeId/shift-options`: what a request of the person's own
+ * may name (AC-TM5). The active shifts of the branch they work at, and the
+ * colleagues there a swap could be with: a roster card each, never a file.
+ */
+exports.MyShiftOptions = zod_1.z.object({ shifts: zod_1.z.array(people_1.ShiftTemplate), colleagues: zod_1.z.array(people_1.RosterCard) });
 exports.MyAttendance = zod_1.z.object({
     from: IsoDate,
     to: IsoDate,

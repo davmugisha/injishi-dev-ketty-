@@ -27,6 +27,8 @@ function card(id: string, slug: string, name: string, district: string, rate: nu
     longitude: 29.6,
     photos: [],
     fromNightlyRateRwf: rate,
+    fromPriceBasis: 'per_person',
+    businessKind: null,
     maxGuests: guests,
     roomTypeCount: 1,
   };
@@ -66,6 +68,7 @@ export function detailOf(id: string): PropertyDetail {
         approvalPolicy: null,
         cancellationTier: 'flexible',
         nonrefundableEligible: false,
+        priceBasis: 'per_person',
         minStay: 1,
       },
     ],

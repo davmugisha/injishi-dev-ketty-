@@ -53,8 +53,13 @@ export class BookingNotificationsService {
    * booking queues one mail. Safe to call from inside a `try` that must not
    * fail — it swallows its own errors by design.
    */
-  async notify(bookingId: string, event: BookingMailEvent): Promise<void> {
-    const job = { bookingId, event };
+  /** Tell the guest the desk changed their booking (0120): one mail per change, never deduplicated away. */
+  async notifyChange(bookingId: string, changeId: string): Promise<void> {
+    await this.notify(bookingId, 'changed', changeId);
+  }
+
+  async notify(bookingId: string, event: BookingMailEvent, changeId?: string): Promise<void> {
+    const job = { bookingId, event, ...(changeId ? { changeId } : {}) };
     try {
       await this.email.add(BOOKING_MAIL_JOB, job, {
         jobId: bookingMailJobId(job),

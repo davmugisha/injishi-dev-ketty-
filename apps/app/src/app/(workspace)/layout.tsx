@@ -1,11 +1,13 @@
-import { type NavGroup, navigationFor } from "@injishi/data";
+import { type NavGroup, navigationFor, personaByEmail } from "@injishi/data";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { WorkspaceShell } from "@/components/shell/WorkspaceShell";
 import { MessagesLive } from "@/features/messages/MessagesLive";
 import { sampleCollectionsByBoard } from "@/lib/coverage.generated";
+import { openToRealPeople } from "@/lib/real-screens";
 import { currentAccount } from "@/lib/session";
 import { brokerNav } from "@/server/broker/nav";
+import { businessNav } from "@/server/business/nav";
 import { officerNav, officerPersona } from "@/server/oversight/nav";
 import { landlordScope } from "@/server/rentals/client";
 import { landlordNav } from "@/server/rentals/nav";
@@ -26,6 +28,48 @@ function realScreensOnly(groups: NavGroup[]): NavGroup[] {
     .filter((g) => g.items.length > 0);
 }
 
+/** The shells a hotel's owner and manager wear: their sidebar is built from their own business. */
+const BUSINESS_SHELLS: ReadonlySet<string> = new Set(["owner", "manager"]);
+
+/**
+ * The sidebar's counts come from the design boards ("Reservations 12"). They are the demo persona's
+ * story, so a real owner, whose new hotel has no bookings, sees the items without them.
+ */
+function withoutSampleCounts(groups: NavGroup[]): NavGroup[] {
+  return groups.map((g) => ({ ...g, items: g.items.map(({ chip: _chip, alert: _alert, ...item }) => item) }));
+}
+
+/**
+ * Dual-hat owners (business + PSF/officer) keep the membership portal in the
+ * sidebar after their own business goes active. `personaFor` switches the shell
+ * to owner for setup/ops; without this, Membership / Fees / Subtypes vanish
+ * even though `access` still allows `/psf`.
+ */
+function withOversightNav(nav: NavGroup[], persona: { id: string; access?: readonly string[] }): NavGroup[] {
+  const access = persona.access;
+  // The PSF console's own sidebar already lists these.
+  if (!access?.length || persona.id === "psf") return nav;
+  const allowed = new Set(access);
+  const extras: NavGroup[] = [];
+  if (allowed.has("PsfConsole") || allowed.has("PsfReport")) {
+    const items = navigationFor("psf")
+      .flatMap((g) => g.items)
+      .filter((i) => allowed.has(i.board));
+    if (items.length) {
+      extras.push({
+        label: "PSF membership",
+        items: items.map((i) => ({ ...i, id: `psf-${i.id}` })),
+      });
+    }
+  } else if (allowed.has("OfficerHome")) {
+    extras.push({
+      label: "Oversight",
+      items: [{ id: "officer-home", label: "Registrations", icon: "ShieldCheck", board: "OfficerHome" }],
+    });
+  }
+  return extras.length ? [...nav, ...extras] : nav;
+}
+
 /** Desktop workspace: sidebar navigation of the signed-in persona around every operator screen. */
 export default async function WorkspaceLayout({ children }: { children: ReactNode }) {
   const account = await currentAccount();
@@ -38,13 +82,21 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
       ? await landlordNav()
       : persona.id === "officer"
         ? await officerNav()
-        : persona.id === "tenant"
-          ? await tenantNav()
-          : persona.id === "broker"
-            ? await brokerNav()
-            : persona.id === "ops"
-              ? realScreensOnly(navigationFor("ops"))
-              : navigationFor(persona.id);
+        : persona.id === "psf" && personaByEmail(account.user.email)?.id !== "psf"
+          ? realScreensOnly(navigationFor("psf"))
+          : persona.id === "tenant"
+            ? await tenantNav()
+            : persona.id === "broker"
+              ? await brokerNav()
+              : persona.id === "ops"
+                ? realScreensOnly(navigationFor("ops"))
+                : personaByEmail(account.user.email)?.id === persona.id
+                  ? navigationFor(persona.id)
+                  : ((BUSINESS_SHELLS.has(persona.id) ? await businessNav(account) : null) ??
+                    // A real person's sidebar lists only the screens that show their own records.
+                    withoutSampleCounts(navigationFor(persona.id))
+                      .map((g) => ({ ...g, items: g.items.filter((i) => openToRealPeople(i.board)) }))
+                      .filter((g) => g.items.length > 0));
   if (nav.length === 0) {
     // Phone/tablet personas visiting a desktop screen they may open: home plus "what to try".
     nav = [
@@ -63,9 +115,10 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
       ? { prefix: "/home", nav: await tenantNav() }
       : null;
   // An officer's or leader's header names their own seat, not the persona's sample one.
-  const shown = persona.id === "officer" ? await officerPersona(persona) : persona;
+  const shown = persona.id === "officer" || persona.id === "psf" ? await officerPersona(persona) : persona;
+  nav = withOversightNav(nav, persona);
   return (
-    <WorkspaceShell persona={shown} nav={nav} altNav={altNav}>
+    <WorkspaceShell persona={shown} nav={nav} altNav={altNav} demo={personaByEmail(account.user.email)?.id === persona.id}>
       {children}
       {/* Message counts in the sidebar follow new lines live (P3.4). */}
       {persona.id === "landlord" ? (

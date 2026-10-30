@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { CircleInfo, TriangleExclamation, Xmark } from "@gravity-ui/icons";
 import {
   Alert,
@@ -190,8 +192,18 @@ export function TeamRolesScopePicker({
   value: string[];
   onChange: (ids: string[]) => void;
 }) {
+  // Said only once someone has unticked everything, never on a form nobody has touched yet.
+  const [touched, setTouched] = useState(false);
   return (
-    <CheckboxGroup value={value} onChange={onChange} isInvalid={value.length === 0} className="flex flex-col gap-1.5">
+    <CheckboxGroup
+      value={value}
+      onChange={(ids) => {
+        setTouched(true);
+        onChange(ids);
+      }}
+      isInvalid={touched && value.length === 0}
+      className="flex flex-col gap-1.5"
+    >
       <Label>Scope · legal entity and property</Label>
       <div className="flex flex-col gap-0.5">
         {scopes.map((s) =>

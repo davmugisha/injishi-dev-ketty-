@@ -2,6 +2,7 @@ import type { ClaimPreview, RegistrationSummary } from '@injishi/contracts';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 
 import { OrganizationRepository } from '../infrastructure/organization.repository';
+import { RegistrationMailer } from '../infrastructure/registration.mailer';
 import {
   ClaimRefused,
   OwnerClaimRepository,
@@ -28,6 +29,7 @@ export class OwnerClaimService {
     private readonly claims: OwnerClaimRepository,
     private readonly orgs: OrganizationRepository,
     private readonly registrations: RegistrationService,
+    private readonly mail: RegistrationMailer,
   ) {}
 
   /**
@@ -83,6 +85,9 @@ export class OwnerClaimService {
           `${outcome.activated ? 'activated' : 'not at approved, so not activated'}, ` +
           `payouts ${outcome.payoutUnlocked ? 'unlocked' : 'still locked (claimant not KYC verified)'}.`,
       );
+      // The claim is what activated it, so this is the owner's "approved" mail,
+      // with the setup link the registrant was never sent. It never throws.
+      if (outcome.activated) await this.mail.approved(input.orgId, false);
     } catch (error) {
       if (error instanceof ClaimRefused) {
         // The reason is logged against the org id, never the token.

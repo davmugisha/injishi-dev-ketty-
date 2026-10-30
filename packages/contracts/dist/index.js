@@ -34,6 +34,7 @@ __exportStar(require("./registration-documents"), exports);
 __exportStar(require("./inventory"), exports);
 __exportStar(require("./setup-steps"), exports);
 __exportStar(require("./booking"), exports);
+__exportStar(require("./booking-change"), exports);
 __exportStar(require("./trips"), exports);
 __exportStar(require("./refunds"), exports);
 __exportStar(require("./money-queue"), exports);
@@ -46,6 +47,7 @@ __exportStar(require("./broker-plans"), exports);
 __exportStar(require("./ordering"), exports);
 __exportStar(require("./outlets"), exports);
 __exportStar(require("./property-detail"), exports);
+__exportStar(require("./property-policies"), exports);
 __exportStar(require("./ebm"), exports);
 __exportStar(require("./ebm-connection"), exports);
 __exportStar(require("./admin"), exports);
@@ -54,6 +56,8 @@ __exportStar(require("./assistant"), exports);
 __exportStar(require("./platform"), exports);
 __exportStar(require("./training"), exports);
 __exportStar(require("./psf"), exports);
+__exportStar(require("./psf-public"), exports);
+__exportStar(require("./business-code"), exports);
 __exportStar(require("./identity"), exports);
 __exportStar(require("./registration-draft"), exports);
 __exportStar(require("./people"), exports);
@@ -62,6 +66,8 @@ __exportStar(require("./time"), exports);
 __exportStar(require("./leave"), exports);
 __exportStar(require("./payroll-items"), exports);
 __exportStar(require("./payroll"), exports);
+__exportStar(require("./checklists"), exports);
+__exportStar(require("./shift-templates"), exports);
 __exportStar(require("./list-query"), exports);
 __exportStar(require("./owner"), exports);
 __exportStar(require("./hr-lists"), exports);
@@ -84,6 +90,8 @@ __exportStar(require("./me-context"), exports);
 __exportStar(require("./guests"), exports);
 // The bar and restaurant point of sale (POS spec, phase 1).
 __exportStar(require("./pos"), exports);
+// Rwanda's 3% tourism tax, included in room prices (2026-10-30).
+__exportStar(require("./tourism-tax"), exports);
 // Offline writes from the phone (mobile spec 0003): the reported time and its refusal codes.
 __exportStar(require("./offline"), exports);
 //# sourceMappingURL=index.js.map

@@ -4,6 +4,7 @@ exports.PropertyCard = exports.PropertyDetail = void 0;
 const zod_1 = require("zod");
 const booking_1 = require("./booking");
 const outlets_1 = require("./outlets");
+const property_policies_1 = require("./property-policies");
 // --- Read: property detail (F-B15) -----------------------------------------
 /**
  * Its own file because `facilities` reaches `outlets.ts`, which reaches
@@ -30,6 +31,10 @@ exports.PropertyDetail = zod_1.z.object({
     checkInTime: zod_1.z.string().nullable(),
     checkOutTime: zod_1.z.string().nullable(),
     houseRules: zod_1.z.string().nullable(),
+    /** 0117: the check-in window's end, the front desk, languages and the house rules as choices. */
+    policies: property_policies_1.PropertyPolicies.optional(),
+    /** 0118: RDB's star grade, only once an officer has confirmed it; null otherwise. */
+    starGrade: zod_1.z.number().int().min(1).max(5).nullish(),
     /**
      * One absolute URL per photograph, in the operator's order, the cover first.
      *
@@ -71,6 +76,19 @@ exports.PropertyCard = zod_1.z.object({
     photos: zod_1.z.array(zod_1.z.string().url()),
     /** The cheapest priced, sellable room type; null when none is priced. */
     fromNightlyRateRwf: zod_1.z.number().int().nonnegative().nullable(),
+    /**
+     * How that price is counted: `per_unit` when every room type is let whole (a
+     * villa, an apartment), `per_item` when the place sells a menu and is not
+     * booked (a bar, a coffee shop), else `per_person`. Default per person, so an
+     * older API's card still parses.
+     */
+    fromPriceBasis: zod_1.z.enum(["per_person", "per_unit", "per_item"]).default("per_person"),
+    /**
+     * What the business registered as (`orgs.business_kind`, else its class):
+     * "hotel", "villa", "coffee_shop". Default null so an older API's card
+     * still parses; a card with none says "Stay", never a guess from the name.
+     */
+    businessKind: zod_1.z.string().nullable().default(null),
     /** The most guests any active room type sleeps; null when none states it. */
     maxGuests: zod_1.z.number().int().positive().nullable(),
     roomTypeCount: zod_1.z.number().int().nonnegative(),

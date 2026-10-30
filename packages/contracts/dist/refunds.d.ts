@@ -46,9 +46,9 @@ export declare const GuestRefund: z.ZodObject<{
     network: "mtn_momo" | "airtel_money" | null;
     reference: string;
     amountRwf: number;
+    paidAt: string | null;
     createdAt: string;
     propertyName: string | null;
-    paidAt: string | null;
     bookingReference: string | null;
     paidFor: "registration_fee" | "stay" | "order" | null;
     paidTo: string;
@@ -58,9 +58,9 @@ export declare const GuestRefund: z.ZodObject<{
     network: "mtn_momo" | "airtel_money" | null;
     reference: string;
     amountRwf: number;
+    paidAt: string | null;
     createdAt: string;
     propertyName: string | null;
-    paidAt: string | null;
     bookingReference: string | null;
     paidFor: "registration_fee" | "stay" | "order" | null;
     paidTo: string;
@@ -93,9 +93,9 @@ export declare const GuestRefundList: z.ZodObject<{
         network: "mtn_momo" | "airtel_money" | null;
         reference: string;
         amountRwf: number;
+        paidAt: string | null;
         createdAt: string;
         propertyName: string | null;
-        paidAt: string | null;
         bookingReference: string | null;
         paidFor: "registration_fee" | "stay" | "order" | null;
         paidTo: string;
@@ -105,9 +105,9 @@ export declare const GuestRefundList: z.ZodObject<{
         network: "mtn_momo" | "airtel_money" | null;
         reference: string;
         amountRwf: number;
+        paidAt: string | null;
         createdAt: string;
         propertyName: string | null;
-        paidAt: string | null;
         bookingReference: string | null;
         paidFor: "registration_fee" | "stay" | "order" | null;
         paidTo: string;
@@ -124,9 +124,9 @@ export declare const GuestRefundList: z.ZodObject<{
         network: "mtn_momo" | "airtel_money" | null;
         reference: string;
         amountRwf: number;
+        paidAt: string | null;
         createdAt: string;
         propertyName: string | null;
-        paidAt: string | null;
         bookingReference: string | null;
         paidFor: "registration_fee" | "stay" | "order" | null;
         paidTo: string;
@@ -139,9 +139,9 @@ export declare const GuestRefundList: z.ZodObject<{
         network: "mtn_momo" | "airtel_money" | null;
         reference: string;
         amountRwf: number;
+        paidAt: string | null;
         createdAt: string;
         propertyName: string | null;
-        paidAt: string | null;
         bookingReference: string | null;
         paidFor: "registration_fee" | "stay" | "order" | null;
         paidTo: string;

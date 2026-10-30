@@ -4,8 +4,10 @@ import {
   type CreatePropertyRequest,
   type OperatorProperty,
   type OperatorPropertySummary,
+  policiesFromRow,
   PUBLISH_BLOCKER_LABEL,
   type PublishBlocker,
+  type StarGradeStatus,
   type UpdatePropertyRequest,
 } from '@injishi/contracts';
 import {
@@ -32,6 +34,7 @@ import {
   type PropertyRow,
 } from '../infrastructure/inventory.repository';
 import { PropertyPhotosService } from './property-photos.service';
+
 
 /**
  * Inventory authoring (ADR-009), the write path an approved business finally
@@ -105,6 +108,7 @@ export class InventoryService {
     assertCoversEveryBranch(workspace);
 
     const districtId = await this.districtFor(request.sectorId);
+    if (request.villageId != null) await this.assertVillageIn(request.villageId, request.sectorId);
 
     const propertyId = await this.repo.createProperty({
       orgId: workspace.orgId,
@@ -167,6 +171,12 @@ export class InventoryService {
       request.sectorId === undefined
         ? null
         : await this.districtFor(request.sectorId);
+    if (request.villageId != null) {
+      await this.assertVillageIn(request.villageId, request.sectorId ?? existing.sectorId);
+    }
+    if ((request.latitude === undefined) !== (request.longitude === undefined)) {
+      throw new BadRequestException('Send the map point whole: its latitude and its longitude.');
+    }
 
     const outcome = await this.repo.updateProperty({
       propertyId,
@@ -302,13 +312,34 @@ export class InventoryService {
       checkInTime: (row as PropertyRow).checkInTime,
       checkOutTime: (row as PropertyRow).checkOutTime,
       houseRules: (row as PropertyRow).houseRules,
+      ...policiesFromRow(row as PropertyRow),
       locationPrivacy: (row as PropertyRow).locationPrivacy,
       timezone: (row as PropertyRow).timezone,
       contactPhone: (row as PropertyRow).contactPhone,
       contactEmail: (row as PropertyRow).contactEmail,
+      latitude: (row as PropertyRow).latitude === null ? null : Number((row as PropertyRow).latitude),
+      longitude: (row as PropertyRow).longitude === null ? null : Number((row as PropertyRow).longitude),
       photos,
       roomTypes,
     };
+  }
+
+  /** 0118: the business's star grade, as its owner sees it: the grade and whether an officer confirmed it. */
+  async starGrade(workspace: ScopedWorkspace): Promise<StarGradeStatus> {
+    const row = await this.repo.starGradeFor(workspace.workspaceId);
+    if (!row) throw new NotFoundException('No business behind this workspace.');
+    return { grade: row.grade, verifiedAt: row.verifiedAt?.toISOString() ?? null };
+  }
+
+  /**
+   * 0118: say the business's star grade. It is the owner's word until an officer checks it against RDB's
+   * grading certificate, so saying it again, even the same grade, withdraws the confirmation.
+   */
+  async setStarGrade(workspace: ScopedWorkspace, grade: number | null): Promise<StarGradeStatus> {
+    // The grade is the whole business's, so a member who covers only some branches may not change it.
+    assertCoversEveryBranch(workspace);
+    await this.repo.setStarGrade(workspace.workspaceId, grade);
+    return this.starGrade(workspace);
   }
 
   /**
@@ -409,6 +440,17 @@ export class InventoryService {
     });
   }
 
+  /** Refuse a village that does not exist or lies outside the property's sector. */
+  private async assertVillageIn(villageId: number, sectorId: number | null): Promise<void> {
+    const villageSector = await this.repo.sectorForVillage(villageId);
+    if (villageSector === null) {
+      throw new BadRequestException('That village does not exist. Pick one from the list.');
+    }
+    if (villageSector !== sectorId) {
+      throw new BadRequestException('That village is not in the sector the property is in.');
+    }
+  }
+
   /** Refuse an address that points at a sector we do not have. */
   private async districtFor(sectorId: number): Promise<number> {
     const districtId = await this.repo.districtForSector(sectorId);
@@ -435,6 +477,10 @@ export class InventoryService {
         districtName: row.districtName,
         sectorId: row.sectorId,
         sectorName: row.sectorName,
+        cellId: row.cellId,
+        cellName: row.cellName,
+        villageId: row.villageId,
+        villageName: row.villageName,
         street: row.addressText,
       },
       listingStatus: row.listingStatus,

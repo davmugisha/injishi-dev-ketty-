@@ -123,6 +123,11 @@ function answersFor(p, { verified, staffRead } = {}) {
     ...operator.map((w) => ({ workspaceId: w.id, kind: w.kind })),
   ];
   const operatorRequired = operator.length > 0 || consoles > 0;
+  // KYB / tax stubs omit the console key (any non-membership row opens `/officer`).
+  // Membership must name itself so it opens the PSF console instead.
+  const consoleRow = p.membership
+    ? { console: "membership", oversightRole: "psf_membership_officer" }
+    : {};
   return {
     "/api/v1/me/workspaces": ok({
       workspaces: rows,
@@ -130,7 +135,7 @@ function answersFor(p, { verified, staffRead } = {}) {
       twoFactor: { required: operatorRequired, verified },
     }),
     "/api/v1/me/oversight": ok({
-      consoles: Array.from({ length: consoles }, () => ({})),
+      consoles: Array.from({ length: consoles }, () => ({ ...consoleRow })),
       twoFactor: { required: operatorRequired, verified },
     }),
     "/api/v1/me/staff": staffRead ?? ok({ isStaff: staff, twoFactor: { required: staff, verified } }),

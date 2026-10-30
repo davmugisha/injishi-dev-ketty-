@@ -14,7 +14,7 @@ import { supportHref } from "@/lib/support-intent";
  * property is public, with no flag to remember.
  *
  * Product-true copy only. The verification steps are the registration
- * pipeline's own (RRA TIN check, then a district officer's visit, D20), and
+ * pipeline's own (RRA TIN check, then an online document review, D20), and
  * nothing here promises a date.
  */
 export function OpeningBand() {
@@ -30,8 +30,8 @@ export function OpeningBand() {
             The first stays are being verified now
           </h2>
           <p className="text-sm text-muted-foreground lg:text-base">
-            Injishi lists a place only after it has passed verification: an RRA TIN check, then a
-            visit from a district officer. The first hosts are going through it, Kigali first. Own a
+            Injishi lists a place only after it has passed verification: an RRA TIN check, then an
+            officer's online review of its documents. The first hosts are going through it, Kigali first. Own a
             guesthouse, lodge or apartment? You can be one of them.
           </p>
         </div>

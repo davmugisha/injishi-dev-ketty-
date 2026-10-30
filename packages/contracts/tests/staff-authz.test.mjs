@@ -41,9 +41,10 @@ describe("the five staff roles", () => {
    * permission being dropped and misses one being SWAPPED, and a swap is what
    * actually moves a boundary.
    */
-  test("the matrix holds thirty seven permissions", () => {
-    // Thirty platform powers (ADR-053) and seven `training.*` powers (ADR-049).
-    assert.equal(StaffPermission.options.length, 37);
+  test("the matrix holds thirty eight permissions", () => {
+    // Thirty-one platform powers (ADR-053, and managing a business's members,
+    // 2026-10-29) and seven `training.*` powers (ADR-049).
+    assert.equal(StaffPermission.options.length, 38);
   });
 
   test("trainer holds four training powers and no platform power (ADR-049)", () => {
@@ -68,6 +69,7 @@ describe("the five staff roles", () => {
       "admin.business.reinstate",
       "admin.user.view",
       "admin.user.session.revoke",
+      "admin.business.member.manage",
       "admin.broker.view",
       "admin.broker.approve",
       "admin.config.view",
@@ -78,7 +80,7 @@ describe("the five staff roles", () => {
       "admin.localization.view",
       "admin.localization.edit",
     ]);
-    assert.equal(staffPermissionsForRoles(["ops"]).length, 18);
+    assert.equal(staffPermissionsForRoles(["ops"]).length, 19);
   });
 
   test("compliance reads, and acts only inside compliance", () => {
@@ -211,7 +213,6 @@ describe("labels", () => {
  *
  * Why each is here:
  *   admin.user.impersonate     F-A13, not built
- *   admin.payout.release        F-A06, not built
  *   admin.dsr.action            F-A08, not built
  *   admin.money.override        FL32, not built
  *   admin.environment.manage, admin.announcement.publish, admin.moderation.act,

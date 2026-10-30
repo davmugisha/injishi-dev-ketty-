@@ -24,7 +24,11 @@ import {
 } from "@injishi/ui";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { addPayoutAccount, makePrimaryPayoutAccount, retirePayoutAccount } from "../actions";
+import { addPayoutAccount, makePrimaryPayoutAccount, type PaidBusiness, retirePayoutAccount } from "../actions";
+
+/** What the money is called, by who is paid: a landlord's rent, a host's bookings. */
+const moneyOf = (business: PaidBusiness) =>
+  business === "landlord" ? { lead: "Rent", noun: "rent" } : { lead: "Booking money", noun: "booking money" };
 import { fieldErrorsOnly, TextInput } from "../fields";
 
 const KIND_ICON: Record<PayoutAccountKind, string> = { bank: "Vault", momo: "Smartphone", momo_pay: "QrCode" };
@@ -33,10 +37,12 @@ function AddAccountPanel({
   isOpen,
   onOpenChange,
   firstAccount,
+  business,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   firstAccount: boolean;
+  business: PaidBusiness;
 }) {
   const router = useRouter();
   const [kind, setKind] = useState<PayoutAccountKind>("momo");
@@ -74,7 +80,7 @@ function AddAccountPanel({
           ? { ...base, kind, momoNetwork: network, momoPhone: phone ?? phoneText }
           : { ...base, kind, merchantCode };
     start(async () => {
-      const result = await addPayoutAccount(input);
+      const result = await addPayoutAccount(input, business);
       if (!result.ok) {
         setErrors(fieldErrorsOnly(result.fieldErrors));
         setFormError(result.fieldErrors ? null : result.error);
@@ -95,7 +101,7 @@ function AddAccountPanel({
         onOpenChange(open);
       }}
       title="Add a payout account"
-      description="Rent paid through Injishi is sent here."
+      description={business !== "landlord" ? "What guests pay through Injishi is sent here after they check out." : "Rent paid through Injishi is sent here."}
       submitLabel="Add account"
       isPending={pending}
       validationErrors={errors}
@@ -225,7 +231,17 @@ function AddAccountPanel({
 }
 
 /** Getting paid: the payout accounts, the primary one first; add, make primary, retire. */
-export function PayoutAccounts({ accounts, canManage }: { accounts: PayoutAccountView[] | null; canManage: boolean }) {
+export function PayoutAccounts({
+  accounts,
+  canManage,
+  business = "landlord",
+}: {
+  accounts: PayoutAccountView[] | null;
+  canManage: boolean;
+  /** Whose money this is: a landlord's rent (the default) or a host's bookings (0116). */
+  business?: PaidBusiness;
+}) {
+  const money = moneyOf(business);
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [retiring, setRetiring] = useState<PayoutAccountView | null>(null);
@@ -240,7 +256,7 @@ export function PayoutAccounts({ accounts, canManage }: { accounts: PayoutAccoun
   const primary = (a: PayoutAccountView) => {
     setBusy(a.id);
     start(async () => {
-      const result = await makePrimaryPayoutAccount(a.id);
+      const result = await makePrimaryPayoutAccount(a.id, business);
       setBusy(null);
       if (!result.ok) {
         toast.danger(result.error);
@@ -255,7 +271,7 @@ export function PayoutAccounts({ accounts, canManage }: { accounts: PayoutAccoun
     if (!retiring) return;
     const a = retiring;
     start(async () => {
-      const result = await retirePayoutAccount(a.id);
+      const result = await retirePayoutAccount(a.id, business);
       if (!result.ok) {
         toast.danger(result.error);
         return;
@@ -280,13 +296,13 @@ export function PayoutAccounts({ accounts, canManage }: { accounts: PayoutAccoun
       contentClassName="gap-0"
     >
       {accounts === null ? (
-        <EmptyBlock size="sm" icon="Lock" title="Only the owner sees where rent is paid out" />
+        <EmptyBlock size="sm" icon="Lock" title={`Only the owner sees where ${money.noun} is paid out`} />
       ) : shown.length === 0 || live.length === 0 ? (
         <EmptyBlock
           size="sm"
           icon="Wallet"
           title="No payout account yet"
-          description="Rent paid through Injishi is held until you add one."
+          description={`${money.lead} paid through Injishi is held until you add one.`}
           action={
             canManage ? (
               <ActionButton icon="Plus" intent="primary" onPress={() => setAdding(true)}>
@@ -343,7 +359,7 @@ export function PayoutAccounts({ accounts, canManage }: { accounts: PayoutAccoun
         </ListView>
       )}
 
-      <AddAccountPanel isOpen={adding} onOpenChange={setAdding} firstAccount={live.length === 0} />
+      <AddAccountPanel isOpen={adding} onOpenChange={setAdding} firstAccount={live.length === 0} business={business} />
       <ConfirmDialog
         isOpen={retiring !== null}
         onOpenChange={(open) => (open ? undefined : setRetiring(null))}
@@ -357,7 +373,7 @@ export function PayoutAccounts({ accounts, canManage }: { accounts: PayoutAccoun
         {retiring?.isPrimary
           ? live.length > 1
             ? `${retiring.destination} stops getting payouts. Your newest other account becomes the primary one.`
-            : `${retiring.destination} stops getting payouts. Rent is held until you add another account.`
+            : `${retiring.destination} stops getting payouts. ${money.lead} is held until you add another account.`
           : `${retiring?.destination ?? "This account"} stops being offered for payouts.`}
       </ConfirmDialog>
     </SectionCard>

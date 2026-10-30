@@ -57,7 +57,7 @@ export default function AboutPage() {
             <p>
               Injishi is built in Kigali by Hangaa Softwares. We are opening district by
               district, Kigali first, and a place appears here only once it has passed
-              verification: an RRA TIN check, then a visit from a district officer.
+              verification: an RRA TIN check, then an officer's online review of its documents.
             </p>
 
             <div className="mt-2 flex flex-wrap gap-3">

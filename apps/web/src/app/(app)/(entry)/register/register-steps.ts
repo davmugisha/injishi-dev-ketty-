@@ -10,10 +10,14 @@ import {
  * The registration's steps and sections, decided in one place (ADR-075 A1, the
  * owner's five steps, O-3).
  *
- * FIVE STEPS FOR EVERY KIND: Business · You · Documents · Review · Pay (AC-3).
- * Business opens on "What kind of business?" when no kind arrived, then the TIN
- * (a residence: its property and UPI), who is registering it, the location,
- * and for a business the branches and PSF. You is the identity. Review shows
+ * FIVE STEPS FOR EVERY KIND: You · Business · Documents · Review · Pay (AC-3).
+ * You is the person and only the person: the ID, a selfie, a phone and a home
+ * address. Business is the business and only the business: the TIN (a
+ * residence: its property and UPI), who is registering it and, for the owner,
+ * whether RRA lists their ID among its directors (which is why You comes
+ * first: that check needs the ID), the owner on the helper path, the location,
+ * and the branches and PSF. A kind that did not arrive is asked before either
+ * ("What kind of business?"). Review shows
  * the answers and the fee with no agreement and no signature: the agreement
  * moved to after approval (O-10). The first Pay press creates the registration
  * (D-l). The six step wizard this replaces (ADR-071) is superseded whole.
@@ -49,8 +53,8 @@ export function pathFor(role: RegistrantRole | null, capacity: RegistrantCapacit
   return capacity === "on_behalf_of" ? "helper" : "owner";
 }
 
-/** Every path walks the same five steps, in this order (AC-3). */
-export const STEP_ORDER: readonly StepId[] = ["business", "you", "documents", "review", "pay"];
+/** Every path walks the same five steps, in this order (AC-3): the person, then the business. */
+export const STEP_ORDER: readonly StepId[] = ["you", "business", "documents", "review", "pay"];
 
 export function stepOrder(): StepId[] {
   return [...STEP_ORDER];
@@ -61,11 +65,9 @@ export function stepOrder(): StepId[] {
 // ---------------------------------------------------------------------------
 
 export type SectionId =
-  /** Business name and TIN, checked with RRA, then who is registering it. */
+  /** Business name and TIN, checked with RRA, then who is registering it and, for the owner, the director check. */
   | "tin"
-  /** You and the company: your ID, checked, and whether RRA lists you as a director. */
-  | "owner"
-  /** Your identity, for a helper or a residence: the ID check alone. */
+  /** Your identity: the ID check, a phone and a home address. Nothing about the business. */
   | "id"
   /** The owner, on the helper path: who the claim link goes to. */
   | "intended"
@@ -78,16 +80,19 @@ export type SectionId =
   /** The property: its name, its UPI and how it is held. */
   | "upi";
 
-/** Business's sections, in order: what the business is, where it is, and whether it is a franchise (S3). */
+/**
+ * Business's sections, in order: what the business is and who registers it, on the helper path whose it
+ * is, where it is, and whether it is a franchise (S3).
+ */
 export function businessSections(path: RegisterPath): SectionId[] {
-  return path === "landlord" ? ["upi", "loc"] : ["tin", "cls", "loc", "fr"];
+  if (path === "landlord") return ["upi", "loc"];
+  if (path === "helper") return ["tin", "intended", "cls", "loc", "fr"];
+  return ["tin", "cls", "loc", "fr"];
 }
 
-/** You's sections, in order: who is registering it, and on the helper path whose it is. */
-export function youSections(path: RegisterPath): SectionId[] {
-  if (path === "landlord") return ["id"];
-  if (path === "helper") return ["id", "intended"];
-  return ["owner"];
+/** You's one section, on every path: the person's identity. */
+export function youSections(_path: RegisterPath): SectionId[] {
+  return ["id"];
 }
 
 /** The sections a step carries; Documents, Review and Pay have none. */
@@ -135,15 +140,15 @@ export function openableThrough(order: readonly StepId[], complete: (id: StepId)
 // Drafts (ADR-075 S9): where a person begins, and where a draft reopens
 // ---------------------------------------------------------------------------
 
-/** Where a person opening `/register` begins: always Business, which asks the kind when it is not known. */
+/** Where a person opening `/register` begins: always You. A kind not yet known is asked before it. */
 export function openingStep(): StepId {
-  return "business";
+  return "you";
 }
 
 /**
  * Where a saved draft reopens (AC-9): the step that was open, with the checks
  * it finished kept (the server writes them, D-m). A draft saved before ADR-075
- * knows no step and reopens on Business. The wizard still opens no step past
+ * knows no step and reopens on You. The wizard still opens no step past
  * the first one whose answers are not complete (`openableThrough`): an answer
  * the draft cannot keep, such as the owner's National ID, is asked there.
  */

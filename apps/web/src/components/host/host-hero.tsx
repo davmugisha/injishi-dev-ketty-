@@ -58,53 +58,53 @@ export function HostHero() {
 
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 hidden bg-linear-to-r from-transparent via-black/25 via-50% to-black lg:block"
+        className="pointer-events-none absolute inset-0 hidden bg-linear-to-r from-black/45 via-black/25 via-50% to-black lg:block"
       />
 
-      <div className="container relative z-[2] grid min-h-dvh grid-cols-1 content-center gap-10 py-16 lg:grid-cols-12 lg:items-center lg:gap-8 lg:py-20">
-        <div className="lg:col-span-6">
+      <div className="container relative z-[2] grid min-h-dvh grid-cols-1 content-center gap-10 pt-28 pb-16 lg:grid-cols-12 lg:items-center lg:gap-12 lg:pt-32 lg:pb-20">
+        <div className="lg:col-span-6 lg:pr-6 xl:pr-10">
+          <p className="text-xs font-semibold tracking-[0.12em] text-white/70 uppercase">
+            For hosts
+          </p>
+
           {/* The Display step: Spectral 500, 34px → 44px, line-height 1, once
-              per page and always over photography in white. The reference sets
-              its own h1 at 56px; ours is the documented step, not that one.
-              Weight, never colour, carries the emphasis — the Split-Weight
-              Rule, landing on the noun that matters. */}
-          <h1 className="text-display-sm font-medium text-white lg:text-display-md">
+              per page and always over photography in white. Weight, never
+              colour, carries the emphasis — the Split-Weight Rule, landing on
+              the noun that matters. */}
+          <h1 className="mt-4 text-display-sm font-medium text-white lg:text-display-md">
             List your<span className="font-bold"> accommodation</span>
           </h1>
 
-          {/* The Body role at 16px, capped near the reference's ~40-character
-              measure so it stays a lede rather than a column. */}
-          <p className="mt-5 max-w-[40ch] text-white/80">
-            Register your business, and we verify your place, photograph it and get
-            it live. The rate you set is the rate you are paid: Injishi takes no
-            commission on a booking.
+          {/* The Body role, capped near a ~42-character measure so it stays a
+              lede rather than a column. */}
+          <p className="mt-6 max-w-[42ch] text-base leading-relaxed text-white/85 lg:text-lg">
+            Register your business and add your photos. We verify everything
+            online and put your listing live. You keep the full rate you set:
+            Injishi takes no commission on bookings.
           </p>
 
-          {/* What it costs, before the choice is made. It was the fee line on
-              `/host/start`, the page between the chooser and the form, which
-              a tile no longer passes through. Here rather than under the
-              tiles: under nine tiles it fell below the fold at 1440x900, and
-              on a phone this is read before the card, which is when it is
-              worth knowing. Both charges and the commission, and no figure:
-              the fee is named on the pay step and nowhere before it
-              (`HOST_CHARGES` in `data/host.ts`). The link drops to the section
-              that says each one in full. */}
-          <p className="mt-4 flex max-w-[40ch] items-start gap-2.5 text-sm text-white/80">
+          {/* What it costs, before the choice is made: both charges and the
+              commission, and no figure. The fee is named on the pay step and
+              nowhere before it (`HOST_CHARGES` in `data/host.ts`). Set off by a
+              hairline so it reads as a footnote to the lede, not a second
+              paragraph. On a phone it is read before the card, which is when
+              it is worth knowing. */}
+          <p className="mt-8 flex max-w-[42ch] items-start gap-3 border-t border-white/15 pt-6 text-sm leading-relaxed text-white/80">
             <Receipt size={18} strokeWidth={1.5} aria-hidden className="mt-0.5 shrink-0 text-white" />
             <span>
-              A one time registration fee, then a monthly plan once you are
+              A one-time registration fee, then a monthly plan once you&apos;re
               live.{" "}
               <Link
                 href="#host-charges"
-                className="font-medium text-white underline underline-offset-2"
+                className="font-medium whitespace-nowrap text-white underline underline-offset-4 hover:text-white/80"
               >
-                What it costs
+                See what it costs
               </Link>
             </span>
           </p>
         </div>
 
-        <HostChooser className="lg:col-span-6 lg:col-start-7 lg:ml-auto lg:w-full lg:max-w-narrow" />
+        <HostChooser className="w-full lg:col-span-6 lg:col-start-7 lg:ml-auto lg:max-w-read" />
       </div>
     </section>
   );

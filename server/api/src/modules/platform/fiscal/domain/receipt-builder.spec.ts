@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  breakdownAsCharged,
   computeBreakdown,
   ebmGroupInFours,
   ebmQrPayload,
@@ -173,9 +174,9 @@ describe('EBM receipt arithmetic and formats', () => {
       expect(lines).toHaveLength(1);
       expect(lines[0].label).toBe('B');
       expect(lines[0].ratePercent).toBe(18);
-      // 180 000 less the 18 000 non-refundable reduction, plus the 5% fee.
-      expect(lines[0].taxableRwf).toBe(170_100);
-      expect(lines[0].taxRwf).toBe(ebmTaxIncludedIn(170_100, 18));
+      // 180 000 less the 18 000 non-refundable reduction; no guest service fee since 2026-10-29.
+      expect(lines[0].taxableRwf).toBe(162_000);
+      expect(lines[0].taxRwf).toBe(ebmTaxIncludedIn(162_000, 18));
     });
 
     it('refuses a tax label this CIS was never programmed with', () => {
@@ -188,8 +189,17 @@ describe('EBM receipt arithmetic and formats', () => {
   // --- 13.1: the item and total lines -------------------------------------
 
   describe('the stay as item lines', () => {
-    it('prices the room at rate x nights and adds the fee as its own line', () => {
+    it('prices the room at rate x nights, with no fee line on a booking made today', () => {
       const items = stayItems(stay());
+
+      expect(items).toHaveLength(1);
+      expect(items[0].totalRwf).toBe(180_000);
+    });
+
+    it('keeps the fee as its own line on a booking paid under the old 5% fee', () => {
+      // 180 000 for the stay and the 9 000 fee it was charged before 2026-10-29.
+      const args = { nightlyRateRwf: 90_000, nights: 2, nonRefundable: false };
+      const items = stayItems(stay({ breakdown: breakdownAsCharged(args, 189_000), chargedRwf: 189_000 }));
 
       expect(items).toHaveLength(2);
       expect(items[0].unitPriceRwf).toBe(90_000);

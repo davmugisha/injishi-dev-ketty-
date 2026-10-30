@@ -34,6 +34,13 @@ import {
 } from '../domain/identity-ports';
 import { IdentityRepository, type IdentityRow } from '../infrastructure/identity.repository';
 import { DuplicateIdentityDocumentError } from '../infrastructure/profile.repository';
+import { DEMO_OTP_CODE } from '@injishi/auth';
+import { PLATFORM, type Platform } from '../../../shared/config/platform';
+import {
+  IDENTITY_REGISTRY,
+  type IdentityRegistryPort,
+  type RegistryLookup,
+} from '../domain/identity-registry-port';
 
 const DUPLICATE_MESSAGE =
   'That identity document is already registered to another account. Recover that account rather than creating a second one.';
@@ -63,17 +70,53 @@ const REGISTRY_METHOD = 'national_id_registry';
 export class IdentityService {
   private readonly log = new Logger(IdentityService.name);
 
+  /** The fixed code is issued only on the demo, over a sample database (ADR-043). */
+  private readonly isDemo: boolean;
+
   constructor(
     private readonly repo: IdentityRepository,
     @Inject(DOCUMENT_VERIFIER) private readonly documents: DocumentVerifierPort,
     private readonly storage: StorageService,
+    // The public PSF form's register lookup (see `identity-registry-port.ts`).
+    @Inject(IDENTITY_REGISTRY) private readonly register: IdentityRegistryPort,
     /**
      * The population register (NIDA, through GTBank): a National ID checked by
      * its number and a selfie. Where it is `off`, a National ID is scanned
      * through the document verifier as before.
      */
     @Inject(NATIONAL_ID_REGISTRY) private readonly registry: NationalIdRegistryPort,
-  ) {}
+    @Inject(PLATFORM) platform: Platform,
+  ) {
+    this.isDemo = platform.environment === 'demo';
+  }
+
+  /**
+   * The population register, asked directly, for the public PSF form
+   * (2026-10-19), which binds the answer to the phone itself and records it
+   * on the application rather than on an account. Never throws: an outage is
+   * `unavailable`, like every lookup here.
+   */
+  lookupRegister(documentNumber: string): Promise<RegistryLookup> {
+    return this.lookupSafely(documentNumber);
+  }
+
+  /** The fixed code the demo issues over a sample database, else null. */
+  get demoCode(): string | null {
+    return this.isDemo ? DEMO_OTP_CODE : null;
+  }
+
+  get registryMode(): string {
+    return this.register.mode;
+  }
+
+  private async lookupSafely(documentNumber: string): Promise<RegistryLookup> {
+    try {
+      return await this.register.lookupNationalId(documentNumber);
+    } catch (error) {
+      this.log.warn(`Identity register failed: ${(error as Error).message}`);
+      return { status: 'unavailable' as const };
+    }
+  }
 
   async status(userId: string): Promise<IdentityStatus> {
     const [row, scan, attempts] = await Promise.all([

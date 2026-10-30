@@ -84,6 +84,11 @@ export interface CheckInSubject {
   /** What has already gone back to the guest, which the prepayment line nets off. */
   refundRwf: number | null;
   /**
+   * The room money paid, once a desk change has recorded it (0120): the prepayment line credits this,
+   * because after a change the nightly charge times the nights is the new price, not what was paid.
+   */
+  paidRoomRwf?: number | null;
+  /**
    * The property's checkout hour (`HH:MM:SS`), which the stay's planned exit
    * is set to. Optional so a caller that never needed it still type checks.
    */
@@ -293,6 +298,7 @@ export class FrontDeskRepository {
         lockedNightlyRateRwf: bookings.lockedNightlyRateRwf,
         paymentStatus: bookings.paymentStatus,
         refundRwf: bookings.refundRwf,
+        paidRoomRwf: bookings.paidRoomRwf,
         checkOutTime: properties.checkOutTime,
       })
       .from(bookings)

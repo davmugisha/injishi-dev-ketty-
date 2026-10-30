@@ -1,7 +1,8 @@
 import Link from "next/link";
-import type { BookablePropertySummary } from "@injishi/contracts";
+import { type BookablePropertySummary, type RoomTypeSummary, TOURISM_TAX_LABEL } from "@injishi/contracts";
 import { Separator } from "@injishi/web-ui";
 import { formatPrice } from "@injishi/utils";
+import { BOOKING_ANCHOR, ROOM_PARAM } from "@/components/property/room-param";
 import type { QuotePreview } from "@/lib/booking";
 import { cancellationCopy } from "@/lib/booking";
 import { propertyHref, type BookingSelection } from "@/lib/search-params";
@@ -40,12 +41,15 @@ export function ReservationSummary({
   property,
   selection,
   quote,
+  room,
   cancellationTier,
   nonRefundable,
 }: {
   property: BookablePropertySummary;
   selection: BookingSelection;
   quote: QuotePreview;
+  /** The room type being bought, named so the guest sees what they chose. */
+  room: Pick<RoomTypeSummary, "id" | "name" | "capacity">;
   cancellationTier: Parameters<typeof cancellationCopy>[0];
   nonRefundable: boolean;
 }) {
@@ -58,6 +62,8 @@ export function ReservationSummary({
    * have never seen is not back.
    */
   const backHref = propertyHref(selection.propertySlug, selection.intent);
+  // Back to the property with this room still chosen, at the booking card.
+  const roomHref = `${backHref}${backHref.includes("?") ? "&" : "?"}${ROOM_PARAM}=${encodeURIComponent(room.id)}#${BOOKING_ANCHOR}`;
 
   return (
     <div className="flex flex-col gap-4 lg:sticky lg:top-8 lg:max-h-[calc(100dvh-4rem)] lg:self-start lg:overflow-y-auto lg:scrollbar">
@@ -79,6 +85,22 @@ export function ReservationSummary({
             ) : null}
           </div>
         </div>
+
+        <Separator className="my-6" />
+
+        <div className="flex items-center justify-between gap-4">
+          <h3 className="text-sm font-semibold text-page-fg">Room</h3>
+          <Link
+            href={roomHref}
+            className="rounded-full border border-input px-3 py-1 text-xs font-medium text-page-fg hover:bg-surface-secondary"
+          >
+            Change<span className="sr-only"> the room</span>
+          </Link>
+        </div>
+        <p className="mt-1 text-sm text-page-fg-70">
+          {room.name}
+          {room.capacity ? ` · sleeps ${room.capacity}` : ""}
+        </p>
 
         <Separator className="my-6" />
 
@@ -150,6 +172,12 @@ export function ReservationSummary({
           </b>
           <b className="text-sm text-page-fg">{formatPrice(quote.grossRwf)}</b>
         </div>
+        {quote.tourismTaxRwf > 0 ? (
+          <p className="mt-1 flex items-center justify-between gap-4 text-xs text-page-fg-70">
+            <span>Includes {TOURISM_TAX_LABEL}</span>
+            <span>{formatPrice(quote.tourismTaxRwf)}</span>
+          </p>
+        ) : null}
         {/*
           `PriceBreakdownLink` stood here: a component that took the quote,
           renamed it `_quote`, ignored it, and printed a sentence about itself.
