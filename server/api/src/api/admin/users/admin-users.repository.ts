@@ -196,6 +196,23 @@ export class AdminUsersRepository {
     limit: number,
     offset: number,
   ): Promise<AdminUserBaseRow[]> {
+    return this.baseQuery()
+      .where(this.userFilter(query))
+      // `id` breaks the tie, so two accounts created in the same transaction
+      // cannot swap places between page 1 and page 2 and hide one of
+      // themselves from a staffer paging through.
+      .orderBy(desc(users.createdAt), users.id)
+      .limit(limit)
+      .offset(offset);
+  }
+
+  /** One account's directory row, or none: the person page (`GET /admin/users/:userId`). */
+  async userById(userId: string): Promise<AdminUserBaseRow | null> {
+    const [row] = await this.baseQuery().where(eq(users.id, userId)).limit(1);
+    return row ?? null;
+  }
+
+  private baseQuery() {
     return this.db
       .select({
         id: users.id,
@@ -231,13 +248,7 @@ export class AdminUsersRepository {
         adminUsers,
         and(eq(adminUsers.userId, users.id), isNull(adminUsers.revokedAt)),
       )
-      .where(this.userFilter(query))
-      // `id` breaks the tie, so two accounts created in the same transaction
-      // cannot swap places between page 1 and page 2 and hide one of
-      // themselves from a staffer paging through.
-      .orderBy(desc(users.createdAt), users.id)
-      .limit(limit)
-      .offset(offset);
+      .$dynamic();
   }
 
   /** Active global roles for the people on this page. */

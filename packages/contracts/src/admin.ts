@@ -1601,6 +1601,76 @@ export const AdminActionRequest = z.object({
 });
 export type AdminActionRequest = z.infer<typeof AdminActionRequest>;
 /**
+ * One person in full (`GET /api/v1/admin/users/:userId`): the directory row,
+ * with EVERY government seat they hold rather than the newest one, and when
+ * their staff grant was given.
+ */
+export const AdminPersonDetail = AdminUserRow.extend({
+    oversightGrants: z.array(AdminOversightGrant),
+});
+export type AdminPersonDetail = z.infer<typeof AdminPersonDetail>;
+/**
+ * Create an account by email (`POST /api/v1/admin/users`). The person signs in
+ * with the code emailed to that address; nothing else is set for them. An
+ * address that already has an account answers that account, not a second one.
+ */
+export const AdminCreateUserRequest = z.object({
+    email: z.string().trim().toLowerCase().email("Use an email address like name@example.com."),
+    name: z.string().trim().min(2, "Give the person's name.").max(200),
+    reason: AdminReasonQuery.shape.reason,
+});
+export type AdminCreateUserRequest = z.infer<typeof AdminCreateUserRequest>;
+export const AdminCreateUserResponse = z.object({
+    userId: Uuid,
+    /** False when the address already had an account, which is returned instead. */
+    created: z.boolean(),
+});
+export type AdminCreateUserResponse = z.infer<typeof AdminCreateUserResponse>;
+/**
+ * Set a person's platform staff roles (`PUT /api/v1/admin/users/:userId/staff-roles`).
+ * The whole set: an empty list ends their staff access.
+ */
+export const AdminSetStaffRolesRequest = z.object({
+    roles: z.array(StaffRole).max(5),
+    reason: AdminReasonQuery.shape.reason,
+});
+export type AdminSetStaffRolesRequest = z.infer<typeof AdminSetStaffRolesRequest>;
+export const AdminStaffRolesResponse = z.object({
+    userId: Uuid,
+    staffRoles: z.array(StaffRole),
+    auditEventId: Uuid,
+});
+export type AdminStaffRolesResponse = z.infer<typeof AdminStaffRolesResponse>;
+/**
+ * Add a person to a business with a role (`POST /api/v1/admin/orgs/:orgId/members`).
+ * Directly, not by invitation: they are a member at once and are emailed that
+ * they were added. Making someone `owner` turns the current owner into a manager.
+ */
+export const AdminAddMemberRequest = z.object({
+    email: z.string().trim().toLowerCase().email("Use an email address like name@example.com."),
+    name: z.string().trim().min(2).max(200).optional(),
+    orgRole: OrgRole,
+    reason: AdminReasonQuery.shape.reason,
+});
+export type AdminAddMemberRequest = z.infer<typeof AdminAddMemberRequest>;
+/** Change a member's role (`PATCH /api/v1/admin/orgs/:orgId/members/:userId`). */
+export const AdminChangeMemberRoleRequest = z.object({
+    orgRole: OrgRole,
+    reason: AdminReasonQuery.shape.reason,
+});
+export type AdminChangeMemberRoleRequest = z.infer<typeof AdminChangeMemberRoleRequest>;
+/** What a member change did, including any owner it moved aside. */
+export const AdminMemberChange = z.object({
+    orgId: Uuid,
+    userId: Uuid,
+    orgRole: OrgRole.nullable(),
+    status: z.enum(["active", "removed"]),
+    /** Owners made managers because this person became the owner. */
+    demotedOwnerIds: z.array(Uuid),
+    auditEventId: Uuid,
+});
+export type AdminMemberChange = z.infer<typeof AdminMemberChange>;
+/**
  * Append a registration fee (ADR-053, AC-R9).
  *
  * APPEND, never edit: a new row with its own `effectiveFrom`. `currentFee` reads

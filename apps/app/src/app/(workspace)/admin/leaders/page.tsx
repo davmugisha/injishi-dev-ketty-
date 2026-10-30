@@ -53,7 +53,7 @@ export default async function AdminLeadersPage({ searchParams }: { searchParams:
         : Promise.resolve({}),
     ]);
     const initialAppoint: AppointPrefill | null = appointRole.success
-      ? { role: appointRole.data, chain: appointChain }
+      ? { role: appointRole.data, chain: appointChain, email: one(sp.aEmail)?.trim().toLowerCase() || undefined }
       : null;
     return (
       <LeadersView
