@@ -38,7 +38,7 @@ export interface Officer {
    * ever described district officers; a country or province appointment is a real
    * grant the admin console can now make.
    */
-  scopeLevel: "country" | "province" | "district";
+  scopeLevel: "country" | "province" | "district" | "sector" | "cell" | "village";
   /** The region IN WORDS, from the server. A country grant reads as Rwanda. */
   scope: string;
   actsOn: RegStage;

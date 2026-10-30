@@ -60,6 +60,9 @@ const LEVEL_LABEL: Record<PsfOfficerScope["level"], string> = {
   country: "National",
   province: "Province",
   district: "District",
+  sector: "Sector",
+  cell: "Cell",
+  village: "Village",
 };
 
 function readArea(params: URLSearchParams): PsfArea {
