@@ -35,6 +35,7 @@ export * from "./photo-gallery.tsx";
 export * from "./photos.tsx";
 export * from "./place.ts";
 export * from "./place-picker.tsx";
+export * from "./room-timeline.tsx";
 export * from "./schedule.tsx";
 export * from "./section-card.tsx";
 export * from "./signature-pad.tsx";
