@@ -19,17 +19,23 @@
  *   DATABASE_URL=... node scripts/seed-staging-all.mjs            seed (in one transaction)
  *   DATABASE_URL=... node scripts/seed-staging-all.mjs --dry-run  what would be written, nothing written
  *   DATABASE_URL=... node scripts/seed-staging-all.mjs --purge    delete only this script's rows
+ *   ... --with-files   also the files: unit photos and a video tour, signed lease PDFs, signatures,
+ *                      receipts, ID photos, fault photos and message attachments, uploaded to the
+ *                      storage the env names (STORAGE_ADAPTER_MODE live: the S3 bucket at
+ *                      STORAGE_S3_ENDPOINT; local: STORAGE_LOCAL_ROOT) at the keys the rows name. A key
+ *                      already there is left as it is. With --purge, removes those keys too.
  *
  * Ids: every row is `5eed0000-0000-4000-8000-…`, so a second run writes nothing and `--purge` touches
  * nothing else. Files are NOT carried: unit photos, signed lease PDFs, receipts and ID scans stay on the
- * laptop's storage; their columns are empty, and the screens say a photo or a PDF is missing.
+ * laptop's storage unless --with-files is given; without it their columns are empty.
  *
  * Refuses a database without the sample marker, like every seed.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { DeleteObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import pg from 'pg';
 
 import { assertSampleDatabase } from './sample-database.mjs';
@@ -59,6 +65,58 @@ function fill(value, emails) {
   if (Array.isArray(value)) return value.map((v) => fill(v, emails));
   if (value && typeof value === 'object' && !value.$lookup) return JSON.parse(fill(JSON.stringify(value), emails));
   return value;
+}
+
+/** Where the files go: the S3 bucket of a live stack, or a folder for a local one. */
+function storageFromEnv(env) {
+  // Never a guess: a missing mode would write into, or purge from, whatever folder this runs in.
+  if (env.STORAGE_ADAPTER_MODE !== 'live' && env.STORAGE_ADAPTER_MODE !== 'local') {
+    throw new Error('--with-files needs STORAGE_ADAPTER_MODE (live or local), as in the env file of the API that reads this database.');
+  }
+  if (env.STORAGE_ADAPTER_MODE === 'local' && !env.STORAGE_LOCAL_ROOT) {
+    throw new Error('--with-files with local storage needs STORAGE_LOCAL_ROOT.');
+  }
+  if (env.STORAGE_ADAPTER_MODE === 'live') {
+    for (const k of ['STORAGE_S3_ENDPOINT', 'STORAGE_S3_ACCESS_KEY', 'STORAGE_S3_SECRET_KEY', 'STORAGE_BUCKET']) {
+      if (!env[k]) throw new Error(`--with-files needs ${k} (the storage this database's API reads).`);
+    }
+    const client = new S3Client({
+      endpoint: env.STORAGE_S3_ENDPOINT,
+      region: env.STORAGE_S3_REGION || 'us-east-1',
+      forcePathStyle: true,
+      credentials: { accessKeyId: env.STORAGE_S3_ACCESS_KEY, secretAccessKey: env.STORAGE_S3_SECRET_KEY },
+    });
+    const Bucket = env.STORAGE_BUCKET;
+    return {
+      where: `${new URL(env.STORAGE_S3_ENDPOINT).host}/${Bucket}`,
+      async has(key) {
+        try {
+          await client.send(new HeadObjectCommand({ Bucket, Key: key }));
+          return true;
+        } catch (error) {
+          if (error?.$metadata?.httpStatusCode === 404 || error?.name === 'NotFound') return false;
+          throw error;
+        }
+      },
+      put: (key, body, mime) => client.send(new PutObjectCommand({ Bucket, Key: key, Body: body, ContentType: mime ?? undefined })),
+      remove: (key) => client.send(new DeleteObjectCommand({ Bucket, Key: key })),
+    };
+  }
+  const root = path.resolve(env.STORAGE_LOCAL_ROOT ?? path.join(process.cwd(), '.storage'));
+  const at = (key) => {
+    const target = path.resolve(root, key);
+    if (!target.startsWith(root + path.sep)) throw new Error(`A key escapes the storage root: ${key}`);
+    return target;
+  };
+  return {
+    where: root,
+    has: async (key) => existsSync(at(key)),
+    put: async (key, body) => {
+      mkdirSync(path.dirname(at(key)), { recursive: true });
+      writeFileSync(at(key), body);
+    },
+    remove: async (key) => rmSync(at(key), { force: true }),
+  };
 }
 
 const ident = (n) => `"${n.replace(/"/g, '""')}"`;
@@ -117,7 +175,10 @@ async function insertRow(client, t, row) {
   return res.rowCount ?? 0;
 }
 
-async function seed(client, data, emails, dryRun) {
+async function seed(client, data, emails, dryRun, withFiles) {
+  const fileTables = new Set(data.fileTables ?? []);
+  const later = data.tables.filter((t) => fileTables.has(t.table));
+  data.tables = data.tables.filter((t) => !fileTables.has(t.table));
   for (const t of data.tables) for (const row of t.rows) for (const k of Object.keys(row)) row[k] = fill(row[k], emails);
   await resolveLookups(client, data.tables);
   const alias = await aliasUsers(client, data.tables);
@@ -151,7 +212,40 @@ async function seed(client, data, emails, dryRun) {
     }
   }
   written += await history(client, data);
+  if (withFiles) written += await files(client, data, later, emails);
   return written;
+}
+
+/**
+ * The files (--with-files): each uploaded to the target storage at the key its row names (a key already
+ * there is left alone), then the `stored_objects` rows, the rows that are nothing without their file
+ * (unit photos, the video, fault photos, attachments), and the file columns of the rows seeded above.
+ */
+async function files(client, data, later, emails) {
+  const store = storageFromEnv(process.env);
+  let uploaded = 0;
+  for (const o of data.files.objects) {
+    if (await store.has(o.object_key)) continue;
+    await store.put(o.object_key, readFileSync(path.join(here, 'staging-seed', 'files', o.object_key)), o.mime);
+    uploaded += 1;
+  }
+  console.log(`  files: ${uploaded} uploaded to ${store.where}, ${data.files.objects.length - uploaded} already there`);
+  const soColumns = await client.query(
+    `select column_name as name, udt_name as type from information_schema.columns
+      where table_schema = 'public' and table_name = 'stored_objects'`,
+  );
+  const soTable = { table: 'stored_objects', columns: soColumns.rows, deferred: [] };
+  let n = 0;
+  for (const o of data.files.objects) n += await insertRow(client, soTable, fill(o, emails));
+  for (const t of later) for (const row of t.rows) n += await insertRow(client, { ...t, deferred: [] }, fill(row, emails));
+  for (const ref of data.files.refs) {
+    const r = await client.query(
+      `update ${ident(ref.table)} set ${ident(ref.column)} = $1::uuid where id = $2::uuid and ${ident(ref.column)} is null`,
+      [ref.objectId, ref.id],
+    );
+    n += r.rowCount ?? 0;
+  }
+  return n;
 }
 
 /**
@@ -313,7 +407,19 @@ async function history(client, data) {
   return n;
 }
 
-async function purge(client, data) {
+async function purge(client, data, withFiles) {
+  const fileTables = data.fileTables ?? [];
+  for (const table of [...fileTables].reverse()) await client.query(`delete from ${ident(table)} where id::text like $1`, [OWNED]);
+  for (const ref of data.files?.refs ?? []) {
+    await client.query(`update ${ident(ref.table)} set ${ident(ref.column)} = null where id = $1::uuid`, [ref.id]);
+  }
+  const ours = (await client.query(`delete from stored_objects where id::text like $1 returning object_key`, [OWNED])).rows;
+  if (withFiles) {
+    const store = storageFromEnv(process.env);
+    for (const o of ours) await store.remove(o.object_key);
+    console.log(`  files: ${ours.length} removed from ${store.where}`);
+  }
+  data.tables = data.tables.filter((t) => !fileTables.includes(t.table));
   const extra = ['broker_ratings'];
   for (const table of extra) await client.query(`delete from ${ident(table)} where id::text like $1`, [OWNED]);
   // Second-pass references first, so rows that point at each other can go.
@@ -336,6 +442,7 @@ async function main() {
   const emails = emailsFrom(process.env.SEED_EMAILS);
   data.landlordEmail = emails.landlord;
   const dryRun = process.argv.includes('--dry-run');
+  const withFiles = process.argv.includes('--with-files');
   const client = new pg.Client({ connectionString: url });
   await client.connect();
   try {
@@ -343,11 +450,12 @@ async function main() {
     await client.query('begin');
     if (process.argv.includes('--purge')) {
       console.log('Removing the staging seed…');
-      await purge(client, data);
+      await purge(client, data, withFiles);
     } else {
       console.log(dryRun ? 'Dry run: nothing is written.' : 'Seeding the whole product…');
       console.log(`  people: ${ROLES.map((r) => `${r} ${emails[r]}`).join(', ')}`);
-      const n = await seed(client, data, emails, dryRun);
+      if (withFiles) console.log(`  with ${data.files.objects.length} files`);
+      const n = await seed(client, data, emails, dryRun, withFiles);
       if (!dryRun) console.log(n ? `Done: ${n} rows written.` : 'Done: everything was already there.');
     }
     await client.query(dryRun ? 'rollback' : 'commit');
