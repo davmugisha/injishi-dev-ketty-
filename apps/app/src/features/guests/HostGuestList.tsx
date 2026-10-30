@@ -80,6 +80,7 @@ export function HostGuestList({
   registerReason,
   registering,
   onRegistering,
+  arrivalDefault = null,
 }: {
   list: HostGuestListData;
   relationships: readonly GuestRelationship[];
@@ -94,6 +95,8 @@ export function HostGuestList({
   /** The register panel is open (the page's header button opens it). */
   registering: boolean;
   onRegistering: (open: boolean) => void;
+  /** A new guest's arrival day, from a day chosen on the calendar. */
+  arrivalDefault?: string | null;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<HostGuest | null>(null);
@@ -235,6 +238,7 @@ export function HostGuestList({
           window={window}
           buildings={buildings}
           initial={editing}
+          arrivalDefault={editing ? null : arrivalDefault}
           onSave={save(editing)}
           onClose={() => {
             setEditing(null);

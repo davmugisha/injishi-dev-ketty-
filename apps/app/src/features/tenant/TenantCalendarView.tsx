@@ -9,6 +9,7 @@ import {
   type TenantPaymentView,
 } from "@injishi/contracts";
 import { AgendaCalendar, formatMoney, PageContent, type ScheduleEvent, type ScheduleKind } from "@injishi/ui";
+import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { AreaHeader } from "@/components/shell/WorkspaceNav";
 import { placeWords } from "../leases/shared";
@@ -60,6 +61,7 @@ export function TenantCalendarView({
   guests: HostGuest[];
   today: string;
 }) {
+  const router = useRouter();
   const events = useMemo<ScheduleEvent[]>(() => {
     const out: ScheduleEvent[] = [];
     for (const c of charges) {
@@ -125,7 +127,16 @@ export function TenantCalendarView({
   return (
     <PageContent>
       <AreaHeader eyebrow={placeWords(tenancy)} />
-      <AgendaCalendar label="Your calendar" events={events} kinds={KINDS} today={today} />
+      <AgendaCalendar
+        label="Your calendar"
+        events={events}
+        kinds={KINDS}
+        today={today}
+        onCreate={(day) => {
+          if (day >= today) router.push(`/home/${tenancy.id}/guests?arrival=${day}`);
+        }}
+        hint="Choose a day in the day or week view to register a guest arriving then"
+      />
     </PageContent>
   );
 }

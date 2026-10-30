@@ -11,9 +11,16 @@ import { isLeaseId, mineOrNull, tenancyDetail, tenantGuests } from "@/server/ten
 export const metadata: Metadata = { title: screens.TenantGuests.pageTitle };
 
 /** A tenant's guests for one lease, every stay in one list. */
-export default async function TenancyGuestsPage({ params }: { params: Promise<{ leaseId: string }> }) {
+export default async function TenancyGuestsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ leaseId: string }>;
+  searchParams: Promise<{ arrival?: string }>;
+}) {
   await requirePersona("TenantGuests");
-  const { leaseId } = await params;
+  const [{ leaseId }, { arrival }] = await Promise.all([params, searchParams]);
+  const today = kigaliToday();
   if (!isLeaseId(leaseId)) notFound();
   const [tenancy, list, relationships] = await Promise.all([
     mineOrNull(tenancyDetail(leaseId)),
@@ -28,7 +35,9 @@ export default async function TenancyGuestsPage({ params }: { params: Promise<{ 
       status={tenancy.status}
       list={list}
       relationships={relationships}
-      today={kigaliToday()}
+      today={today}
+      // A day chosen on the calendar opens the register panel on it; never a day gone.
+      arrival={arrival && /^\d{4}-\d{2}-\d{2}$/.test(arrival) && arrival >= today ? arrival : null}
     />
   );
 }

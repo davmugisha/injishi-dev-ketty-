@@ -23,6 +23,7 @@ export function TenantGuestsView({
   list,
   relationships,
   today,
+  arrival = null,
 }: {
   leaseId: string;
   place: string;
@@ -30,8 +31,10 @@ export function TenantGuestsView({
   list: TenantGuestList;
   relationships: GuestRelationship[];
   today: string;
+  /** `?arrival=` from the calendar: the register panel opens on that day. */
+  arrival?: string | null;
 }) {
-  const [registering, setRegistering] = useState(false);
+  const [registering, setRegistering] = useState(arrival !== null);
   // A signed lease that has not ended can have guests; the stay falls inside it.
   const open = (status === "signed" || status === "active" || status === "ending") && list.window.end >= today;
   const reason = open
@@ -66,6 +69,7 @@ export function TenantGuestsView({
         registerReason={reason}
         registering={registering}
         onRegistering={setRegistering}
+        arrivalDefault={arrival}
       />
     </PageContent>
   );
