@@ -171,13 +171,15 @@ export class FrontDeskBoardRepository {
              -- The account's name, else the name the desk took from the ID at
              -- check in: a guest who signed up with only an email code has none.
              coalesce(nullif(btrim(u.name), ''),
+                      (SELECT nullif(btrim(d.guest_name), '') FROM booking_desk_details d WHERE d.booking_id = b.id),
                       (SELECT coalesce(nullif(btrim(s2.guest_name), ''), nullif(btrim(si.full_name), ''))
                 FROM guest_stays s2
                 LEFT JOIN stay_identities si ON si.guest_stay_id = s2.id
                WHERE s2.booking_id = b.id
                ORDER BY s2.entry_at DESC
                LIMIT 1)) AS guest_name,
-             up.phone_e164 AS guest_phone,
+             coalesce(up.phone_e164,
+                      (SELECT d.guest_phone FROM booking_desk_details d WHERE d.booking_id = b.id)) AS guest_phone,
              b.check_in::text AS check_in, b.check_out::text AS check_out,
              b.guest_count, b.adults, b.children,
              b.room_type_id, rt.name AS room_type_name,
@@ -288,7 +290,9 @@ export class FrontDeskBoardRepository {
       SELECT s.id, s.reference, s.booking_id, b.reference AS booking_reference,
              coalesce(nullif(btrim(u.name), ''), nullif(btrim(s.guest_name), ''),
                       (SELECT nullif(btrim(si.full_name), '') FROM stay_identities si
-                        WHERE si.guest_stay_id = s.id)) AS guest_name,
+                        WHERE si.guest_stay_id = s.id),
+                      (SELECT nullif(btrim(d.guest_name), '') FROM booking_desk_details d
+                        WHERE d.booking_id = s.booking_id)) AS guest_name,
              s.room_id, r.label AS room_label, rt.name AS room_type_name,
              s.lifecycle, s.entry_at, s.planned_exit_at, s.actual_exit_at,
              b.channel, b.check_in::text AS check_in, b.check_out::text AS check_out,
@@ -366,7 +370,10 @@ export class FrontDeskBoardRepository {
            ORDER BY s.entry_at DESC
            LIMIT 1) occ ON true
         LEFT JOIN LATERAL (
-          SELECT ra.booking_id, b.reference, nullif(btrim(u.name), '') AS guest_name
+          SELECT ra.booking_id, b.reference,
+                 coalesce(nullif(btrim(u.name), ''),
+                          (SELECT nullif(btrim(d.guest_name), '') FROM booking_desk_details d
+                            WHERE d.booking_id = b.id)) AS guest_name
             FROM room_assignments ra
             JOIN bookings b ON b.id = ra.booking_id
             LEFT JOIN users u ON u.id = b.guest_user_id

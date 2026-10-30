@@ -1148,8 +1148,9 @@ export class BookingRepository {
       .select({
         id: bookings.id,
         reference: bookings.reference,
-        guestName: accountName,
-        guestEmail: users.email,
+        // The account's name, else the desk's guest (0124): a desk booking has no account.
+        guestName: sql<string | null>`coalesce(${accountName}, (SELECT nullif(btrim(d.guest_name), '') FROM booking_desk_details d WHERE d.booking_id = ${bookings.id}))`,
+        guestEmail: sql<string | null>`coalesce(${users.email}, (SELECT d.guest_email FROM booking_desk_details d WHERE d.booking_id = ${bookings.id}))`,
         checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,
         guestCount: bookings.guestCount,
@@ -1201,8 +1202,9 @@ export class BookingRepository {
       .select({
         id: bookings.id,
         reference: bookings.reference,
-        guestName: accountName,
-        guestEmail: users.email,
+        // The account's name, else the desk's guest (0124): a desk booking has no account.
+        guestName: sql<string | null>`coalesce(${accountName}, (SELECT nullif(btrim(d.guest_name), '') FROM booking_desk_details d WHERE d.booking_id = ${bookings.id}))`,
+        guestEmail: sql<string | null>`coalesce(${users.email}, (SELECT d.guest_email FROM booking_desk_details d WHERE d.booking_id = ${bookings.id}))`,
         checkIn: bookings.checkIn,
         checkOut: bookings.checkOut,
         guestCount: bookings.guestCount,
