@@ -18,7 +18,16 @@ import { PAYMENT_PURPOSES, type PaymentPurpose } from './payment-port';
  * a typo in a money setting is a production incident, not a warning.
  */
 
-export type PaymentSeamMode = 'off' | 'mock' | 'live';
+/**
+ * - `off`: every charge refused (a real database until a provider is signed).
+ * - `mock`: the in-process mock (`mock-payment.adapter.ts`).
+ * - `sandbox`: the GTBank adapter over HTTP against Injishi Mock APIs
+ *   (`server/mock-apis`), the same code `live` will run. Its money is as
+ *   invented as the mock's, so its rows say `mock`, and a real database
+ *   refuses it at boot (`platform.ts`).
+ * - `live`: GTBank, once its adapter is registered in `payments.module.ts`.
+ */
+export type PaymentSeamMode = 'off' | 'mock' | 'sandbox' | 'live';
 
 /**
  * The card seam (073-gtbank-payments AC-24): no card provider is signed, so it
@@ -29,7 +38,12 @@ export const CARD_PAYMENTS = 'off' as const;
 
 export interface PaymentSeamSettings {
   mode: PaymentSeamMode;
-  /** The provider key written on every bank row: `mock`, or `gtbank` under live. */
+  /**
+   * The provider key written on every bank row: `mock`, or `gtbank` under live
+   * and sandbox. Sandbox rows still say `adapter_mode = 'mock'`, so GTBank's
+   * wire with invented money is never read as GTBank's money, and its
+   * references never mix with the in-process mock's.
+   */
   provider: 'mock' | 'gtbank';
   /** Under `live`, the purposes whose collections may run (AC-2). */
   livePurposes: ReadonlySet<PaymentPurpose>;
@@ -56,10 +70,10 @@ const NETWORKS = MobileMoneyNetwork.options;
 /** `PAYMENT_ADAPTER_MODE`: unset is `mock`, anything unreadable refuses to boot. */
 export function resolveSeamMode(raw: string | undefined): PaymentSeamMode {
   const mode = (raw ?? 'mock').trim().toLowerCase();
-  if (mode === 'live' || mode === 'mock' || mode === 'off') return mode;
+  if (mode === 'live' || mode === 'mock' || mode === 'sandbox' || mode === 'off') return mode;
   // "PAYMENT_ADAPTER_MODE=Live " silently falling back to mock is a production
   // deployment taking imaginary money while every screen says it worked.
-  throw new Error(`PAYMENT_ADAPTER_MODE must be "mock", "live" or "off", got "${mode}".`);
+  throw new Error(`PAYMENT_ADAPTER_MODE must be "mock", "sandbox", "live" or "off", got "${mode}".`);
 }
 
 function list(raw: string | undefined): string[] {
@@ -106,7 +120,7 @@ export function resolvePaymentSeam(env: Record<string, string | undefined>): Pay
 
   return {
     mode,
-    provider: mode === 'live' ? 'gtbank' : 'mock',
+    provider: mode === 'live' || mode === 'sandbox' ? 'gtbank' : 'mock',
     livePurposes,
     networks,
     maxCollectionRwf: wholeNumber(env, 'GTBANK_MAX_COLLECTION_RWF', null, { positive: true }),
@@ -150,7 +164,7 @@ export class PaymentSeam {
    * `live` because it is not a mock (`OffPaymentAdapter`).
    */
   get adapterMode(): 'mock' | 'live' {
-    return this.settings.mode === 'mock' ? 'mock' : 'live';
+    return this.settings.mode === 'mock' || this.settings.mode === 'sandbox' ? 'mock' : 'live';
   }
 
   /**
@@ -164,13 +178,13 @@ export class PaymentSeam {
     return false;
   }
 
-  /** The rules `/platform` publishes. Under `mock`, every purpose counts as live. */
+  /** The rules `/platform` publishes. Under `mock` and `sandbox`, every purpose counts as live. */
   rules(): PaymentRules {
     return {
       networks: [...this.settings.networks],
       maxCollectionRwf: this.settings.maxCollectionRwf,
       livePurposes:
-        this.settings.mode === 'mock'
+        this.settings.mode === 'mock' || this.settings.mode === 'sandbox'
           ? [...PAYMENT_PURPOSES]
           : this.settings.mode === 'off'
             ? []

@@ -128,14 +128,3 @@ export interface DocumentDraft {
   filename: string;
   sizeBytes: number;
 }
-
-/** `+250788300412` as `078•••412`, the way a phone is named in passing. */
-export function maskedPhone(e164: string | null | undefined): string | null {
-  if (!e164) return null;
-  const digits = e164.replace(/\D/g, "");
-  if (e164.startsWith("+250") && digits.length === 12) {
-    const local = `0${digits.slice(3)}`;
-    return `${local.slice(0, 3)}•••${local.slice(-3)}`;
-  }
-  return `${e164.slice(0, 4)}•••${e164.slice(-3)}`;
-}

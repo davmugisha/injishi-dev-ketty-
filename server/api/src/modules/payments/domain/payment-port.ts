@@ -349,6 +349,14 @@ export interface PaymentReceipt {
    * reported successful (073-gtbank-payments AC-18). Absent otherwise.
    */
   providerStatus?: 'reversed' | 'refunded';
+  /**
+   * Set when the provider ended the transaction WITHOUT moving money after
+   * first answering `pending`: the payer declined the prompt on their handset,
+   * the wallet could not cover it, or it was cancelled. `settlement` stays
+   * `pending` so a caller that does not read this keeps waiting out its window
+   * as before; one that does ends the attempt at once with the reason.
+   */
+  failure?: { status: 'failed' | 'rejected' | 'cancelled'; reason: string };
   /** A card checkout: the provider's page to send the payer to (rentals blueprint 2.7). */
   checkoutUrl?: string;
   /** A card the provider saved at checkout, for the next charge. A token, never a number. */

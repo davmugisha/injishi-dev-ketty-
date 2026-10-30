@@ -217,29 +217,30 @@ export function StepFrame({
 
       {children}
 
-      <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-border bg-background px-4 py-3 md:static md:z-auto md:bg-transparent md:px-0 md:pb-0 md:pt-5">
-        <Button variant="ghost" onClick={onBack ?? undefined} disabled={onBack === null}>
+      {/* Why the primary cannot be pressed yet is said on every width: on a phone as a full line over Back and
+          the primary, beside the primary from a tablet up. It used to be screen reader only below a tablet, so a
+          phone showed a dead button and no reason. */}
+      <div className="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border bg-background px-4 py-3 md:static md:z-auto md:flex-nowrap md:bg-transparent md:px-0 md:pb-0 md:pt-5">
+        {primary?.why ? (
+          <span id="register-step-why" className="w-full text-xs text-muted-foreground md:order-2 md:w-auto md:min-w-0 md:flex-1 md:text-right">
+            {primary.why}
+          </span>
+        ) : null}
+        <Button variant="ghost" onClick={onBack ?? undefined} disabled={onBack === null} className="md:order-1">
           <ArrowLeft size={16} aria-hidden />
           Back
         </Button>
         {primary ? (
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
-            {primary.why ? (
-              <span id="register-step-why" className="sr-only text-xs text-muted-foreground md:not-sr-only md:text-right">
-                {primary.why}
-              </span>
-            ) : null}
-            <Button
-              onClick={primary.onPress}
-              disabled={primary.disabled}
-              pending={primary.pending}
-              aria-describedby={primary.why ? "register-step-why" : undefined}
-              className="grow md:grow-0"
-            >
-              {primary.label}
-              {primary.icon}
-            </Button>
-          </div>
+          <Button
+            onClick={primary.onPress}
+            disabled={primary.disabled}
+            pending={primary.pending}
+            aria-describedby={primary.why ? "register-step-why" : undefined}
+            className="grow md:order-3 md:grow-0"
+          >
+            {primary.label}
+            {primary.icon}
+          </Button>
         ) : null}
       </div>
     </section>

@@ -267,6 +267,11 @@ export const verifiedIdentities = pgTable('verified_identities', {
  * never carries one, and links are minted only by the oversight identity route.
  * When the objects are deleted after the case's final decision the row stays,
  * keys and all, as the record that a scan happened.
+ *
+ * Since 2026-10-30 a National ID may instead be checked by its NUMBER against
+ * the population register, with a selfie (`check_kind` `national_id_registry`):
+ * there is no card photo then, so `front_object_key` is null exactly for that
+ * kind, and the selfie is what PSF compares.
  */
 export const identityScans = pgTable(
   'identity_scans',
@@ -276,7 +281,9 @@ export const identityScans = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     documentType: documentTypeEnum('document_type').notNull(),
-    frontObjectKey: text('front_object_key').notNull(),
+    /** `document_scan` (a photo of the document and a selfie) or `national_id_registry` (a number and a selfie). */
+    checkKind: text('check_kind').notNull().default('document_scan'),
+    frontObjectKey: text('front_object_key'),
     selfieObjectKey: text('selfie_object_key').notNull(),
     outcome: identityScanOutcomeEnum('outcome').notNull(),
     /** Why a checker refused it; set exactly when the outcome is `machine_failed`. */
@@ -290,6 +297,12 @@ export const identityScans = pgTable(
     check(
       'identity_scans_reason_shape',
       sql`(${t.outcome} = 'machine_failed') = (${t.reason} is not null)`,
+    ),
+    check('identity_scans_check_kind_ck', sql`${t.checkKind} in ('document_scan', 'national_id_registry')`),
+    // A document scan has a front; a register check has none, and is only ever a National ID.
+    check(
+      'identity_scans_front_shape',
+      sql`(${t.checkKind} = 'document_scan') = (${t.frontObjectKey} is not null) and (${t.checkKind} = 'document_scan' or ${t.documentType} = 'national_id')`,
     ),
   ],
 );

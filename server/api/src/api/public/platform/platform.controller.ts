@@ -51,7 +51,12 @@ export class PlatformController {
       // reader of the payment settings until ADR-073's runtime exists
       // (073-gtbank-payments interim record). No card provider is chosen, so
       // card is off everywhere (AC-24).
-      integrations: { payments: this.payments.mode, card_payments: CARD_PAYMENTS },
+      // `sandbox` is a test to a client, as `mock` is: GTBank's wire against
+      // Injishi Mock APIs, with invented money.
+      integrations: {
+        payments: this.payments.mode === 'sandbox' ? 'mock' : this.payments.mode,
+        card_payments: CARD_PAYMENTS,
+      },
       paymentRules: this.payments.rules(),
     });
   }

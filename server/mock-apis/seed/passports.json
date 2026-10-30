@@ -1,0 +1,49 @@
+[
+  {
+    "passportNumber": "P10000001",
+    "country": "KE",
+    "fullName": "Sarah Wanjiku",
+    "dateOfBirth": "1987-05-02",
+    "gender": "F",
+    "expiresOn": "2031-05-01",
+    "note": "Director of Akagera Safari Camps Ltd (TIN 998000004): registers it as its owner by passport."
+  },
+  {
+    "passportNumber": "P10000005",
+    "country": "US",
+    "fullName": "Emily Carter",
+    "dateOfBirth": "1992-08-17",
+    "gender": "F",
+    "expiresOn": "2033-02-28",
+    "note": "Directs nothing: registers a business on its owner's behalf."
+  },
+  {
+    "passportNumber": "P10000002",
+    "country": "UG",
+    "fullName": "Daniel Okello",
+    "dateOfBirth": "1979-10-11",
+    "gender": "M",
+    "expiresOn": "2024-01-31",
+    "note": "Expired: refused."
+  },
+  {
+    "passportNumber": "P10000003",
+    "country": "TZ",
+    "fullName": "Neema Mushi",
+    "dateOfBirth": "1990-03-20",
+    "gender": "F",
+    "expiresOn": "2030-06-30",
+    "scenario": "not_authentic",
+    "note": "Fails the document check, as a photocopy or a screen would."
+  },
+  {
+    "passportNumber": "P10000004",
+    "country": "GB",
+    "fullName": "Thomas Reed",
+    "dateOfBirth": "1984-12-05",
+    "gender": "M",
+    "expiresOn": "2029-09-14",
+    "scenario": "face_mismatch",
+    "note": "Any selfie fails the comparison."
+  }
+]

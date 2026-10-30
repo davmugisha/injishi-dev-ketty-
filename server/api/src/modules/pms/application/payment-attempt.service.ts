@@ -472,6 +472,12 @@ export class PaymentAttemptService {
       return this.end(row, 'refused', LOST);
     }
 
+    if (receipt.failure) {
+      // The provider ended the prompt unpaid (declined on the handset, a short
+      // wallet): an answer, so the attempt ends now rather than at its deadline.
+      return this.end(row, 'refused', `That payment did not go through: ${receipt.failure.reason}. Nothing has been charged.`);
+    }
+
     if (receipt.settlement !== 'settled') {
       if (overdueMs < 0) return waiting;
       if (mode === 'sweep' && overdueMs < SWEEP_PENDING_GRACE_MS) return waiting;

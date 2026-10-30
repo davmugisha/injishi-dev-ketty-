@@ -1,64 +1,109 @@
 "use client";
 
 import { useState } from "react";
-import { countryName, type AccountDocumentType, type IdentityOnFile, type IdentityScanResult } from "@injishi/contracts";
-import { Button, Checkbox } from "@injishi/web-ui";
+import {
+  countryName,
+  type AccountDocumentType,
+  type IdentityAdapterMode,
+  type IdentityOnFile,
+  type IdentityScanResult,
+} from "@injishi/contracts";
+import { Button, Checkbox, Tabs, TabsList, TabsTrigger } from "@injishi/web-ui";
 import { BadgeCheck, Camera, Clock, IdCard, ScanFace, TriangleAlert } from "lucide-react";
 
-import { scanIdentity } from "@/data/identity";
+import { checkNationalId, scanIdentity } from "@/data/identity";
 import { uploadIdPhoto } from "@/data/uploads";
 import { apiResultMessage } from "@/lib/api";
+import { nationalIdError } from "@/lib/rwanda-id";
 
+import { COUNTRY_OPTIONS } from "./country-options";
 import { Callout } from "./register-shell";
-import { Offline } from "./wizard-ui";
+import { Field, Offline, SelectField, TextInput } from "./wizard-ui";
 
 /**
- * The ID scan (ADR-075 S4): the front of a National ID or a passport's photo
- * page, then a selfie, for both documents alike (O-4). No code is sent to any
- * phone (AC-4).
+ * Proving who you are on the You step. No code is sent to any phone (ADR-075 AC-4).
  *
- * The two photos go up as `id_photo`, then to `POST /me/identity/scan`, which
- * keeps them for the PSF officer whatever the checker makes of them (D-n). The
- * server records the identity before this component hears of it; `onScanned`
- * only tells the step what happened.
+ * - A RWANDAN NATIONAL ID is checked by its number against NIDA's register,
+ *   through GTBank, with a selfie (the owner's call, 2026-10-30): type the 16
+ *   digits, take a selfie. Where that check is switched off (`nationalIdMode`
+ *   `off`) the card is scanned instead, front then selfie, as before.
+ * - A PASSPORT is checked by Smile ID: the country that issued it, the photo
+ *   page, then a selfie.
+ *
+ * Every photo goes up as `id_photo` and is kept for the PSF officer whatever
+ * the checker makes of it (D-n). The server records the identity before this
+ * component hears of it; `onScanned` only tells the step what happened.
  */
 export function IdScanner({
   documentType,
   onDocumentTypeChange,
   mode,
+  nationalIdMode,
   onScanned,
   online = true,
 }: {
   documentType: AccountDocumentType;
   onDocumentTypeChange: (next: AccountDocumentType) => void;
-  /** The device has a network: the photos upload, and nothing is scanned without one. */
+  /** The device has a network: the photos upload, and nothing is checked without one. */
   online?: boolean;
-  /** The document verifier's mode: `mock` on the demo, `off` where nothing reads the photos. */
-  mode: "mock" | "live" | "off";
+  /** The document verifier's mode (passports; National ID cards where the register is off). */
+  mode: IdentityAdapterMode;
+  /** The National ID register's mode: anything but `off` checks a National ID by its number. */
+  nationalIdMode: IdentityAdapterMode;
   onScanned: (result: IdentityScanResult) => void;
 }) {
   const [front, setFront] = useState<File | null>(null);
   const [selfie, setSelfie] = useState<File | null>(null);
+  const [nationalId, setNationalId] = useState("");
+  const [country, setCountry] = useState("");
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const passport = documentType === "passport";
+  const [touched, setTouched] = useState(false);
 
-  const scan = async () => {
-    if (!front || !selfie || !consent) return;
+  const passport = documentType === "passport";
+  const byNumber = !passport && nationalIdMode !== "off";
+  const numberProblem = byNumber && nationalId.trim() !== "" ? nationalIdError(nationalId) : null;
+  const ready =
+    Boolean(selfie) &&
+    consent &&
+    online &&
+    (byNumber ? nationalId.trim() !== "" && !numberProblem : Boolean(front) && (!passport || country !== ""));
+  const demo = byNumber ? nationalIdMode : mode;
+
+  const reset = () => {
+    setFront(null);
+    setSelfie(null);
+    setProblem(null);
+    setTouched(false);
+  };
+
+  const check = async () => {
+    setTouched(true);
+    if (!ready || !selfie) return;
     setBusy(true);
     setProblem(null);
-    const [frontKey, selfieKey] = await Promise.all([
-      uploadIdPhoto(front, crypto.randomUUID()),
+    const uploads = await Promise.all([
       uploadIdPhoto(selfie, crypto.randomUUID()),
+      byNumber || !front ? Promise.resolve(null) : uploadIdPhoto(front, crypto.randomUUID()),
     ]);
-    if (frontKey.status !== "ok" || selfieKey.status !== "ok") {
-      setBusy(false);
-      const failed = frontKey.status !== "ok" ? frontKey : selfieKey;
-      setProblem(failed.status === "ok" ? null : `${apiResultMessage(failed)} The upload needs a connection.`);
-      return;
+    for (const upload of uploads) {
+      if (upload && upload.status !== "ok") {
+        setBusy(false);
+        setProblem(`${apiResultMessage(upload)} The upload needs a connection.`);
+        return;
+      }
     }
-    const res = await scanIdentity(documentType, frontKey.data.objectKey, selfieKey.data.objectKey);
+    const [selfieUpload, frontUpload] = uploads;
+    const selfieKey = selfieUpload?.status === "ok" ? selfieUpload.data.objectKey : "";
+    const res = byNumber
+      ? await checkNationalId(nationalId.replace(/\s+/g, ""), selfieKey)
+      : await scanIdentity(
+          documentType,
+          frontUpload?.status === "ok" ? frontUpload.data.objectKey : "",
+          selfieKey,
+          passport ? country : undefined,
+        );
     setBusy(false);
     if (res.status !== "ok") {
       setProblem(apiResultMessage(res));
@@ -74,49 +119,76 @@ export function IdScanner({
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="group" aria-label="Type of ID" className="inline-flex self-start rounded-full bg-secondary p-1">
-        {(
-          [
-            ["national_id", "National ID"],
-            ["passport", "Passport"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={documentType === id}
-            onClick={() => {
-              onDocumentTypeChange(id);
-              setFront(null);
-              setProblem(null);
-            }}
-            className={
-              documentType === id
-                ? "min-h-9 rounded-full bg-card px-4 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                : "min-h-9 rounded-full px-4 text-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            }
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        value={documentType}
+        onValueChange={(next) => {
+          onDocumentTypeChange(next as AccountDocumentType);
+          reset();
+        }}
+      >
+        <TabsList aria-label="Type of ID" className="self-start">
+          <TabsTrigger value="national_id">Rwandan National ID</TabsTrigger>
+          <TabsTrigger value="passport">Passport</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <PhotoSlot
-          id="register-id-front"
-          step={1}
-          label={passport ? "Your passport's photo page" : "The front of your ID card"}
-          hint={passport ? "Flat, in good light, the whole page in view." : "Flat, in good light, the whole card in view."}
-          icon={passport ? <Camera size={16} aria-hidden /> : <IdCard size={16} aria-hidden />}
-          capture="environment"
-          file={front}
-          onFile={setFront}
-        />
+      {byNumber ? (
+        <Field
+          label="Your National ID number"
+          required
+          hint="The 16 digits on the front of your card. We check them with NIDA."
+          error={numberProblem ?? (touched && nationalId.trim() === "" ? "Type your National ID number." : undefined)}
+        >
+          <TextInput
+            id="register-national-id"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="1 1990 8 0012345 12 3"
+            maxLength={24}
+            value={nationalId}
+            onChange={(e) => setNationalId(e.target.value)}
+          />
+        </Field>
+      ) : null}
+
+      {passport ? (
+        <Field
+          label="Country that issued your passport"
+          required
+          error={touched && country === "" ? "Pick the country on the cover of your passport." : undefined}
+        >
+          <SelectField
+            id="register-passport-country"
+            value={country}
+            onChange={setCountry}
+            options={COUNTRY_OPTIONS}
+            placeholder="Pick a country"
+          />
+        </Field>
+      ) : null}
+
+      <div className={byNumber ? "grid gap-3" : "grid gap-3 sm:grid-cols-2"}>
+        {byNumber ? null : (
+          <PhotoSlot
+            id="register-id-front"
+            step={1}
+            label={passport ? "Your passport's photo page" : "The front of your ID card"}
+            hint={passport ? "Flat, in good light, the whole page in view." : "Flat, in good light, the whole card in view."}
+            icon={passport ? <Camera size={16} aria-hidden /> : <IdCard size={16} aria-hidden />}
+            capture="environment"
+            file={front}
+            onFile={setFront}
+          />
+        )}
         <PhotoSlot
           id="register-id-selfie"
-          step={2}
+          step={byNumber ? 1 : 2}
           label="A selfie"
-          hint="Face the camera, nothing covering your face."
+          hint={
+            byNumber
+              ? "Face the camera, nothing covering your face. NIDA compares it with your ID photo."
+              : "Face the camera, nothing covering your face."
+          }
           icon={<ScanFace size={16} aria-hidden />}
           capture="user"
           file={selfie}
@@ -124,12 +196,18 @@ export function IdScanner({
         />
       </div>
 
-      {mode === "mock" ? (
+      {demo === "mock" ? (
         <p className="text-xs text-muted-foreground">
-          Demo: nothing is read from the photos. The demo makes up the details, so use any two different pictures,
-          never a real ID.
+          {byNumber
+            ? "Demo: NIDA is a stand-in here with made-up people. Type any well formed National ID and use any selfie, never a real one."
+            : "Demo: nothing is read from the photos. The demo makes up the details, so use any two different pictures, never a real ID."}
         </p>
-      ) : mode === "off" ? (
+      ) : demo === "sandbox" ? (
+        <p className="text-xs text-muted-foreground">
+          Test service: this check goes to Injishi Mock APIs, not to {byNumber ? "NIDA" : "Smile ID"}. Use a person and
+          their demo {byNumber ? "selfie" : "photos"} from its console, never a real ID.
+        </p>
+      ) : demo === "off" ? (
         <p className="text-xs text-muted-foreground">
           Your photos are kept for PSF. You type your details next, and PSF compares them with the photos before
           approving.
@@ -142,19 +220,21 @@ export function IdScanner({
         className="items-start gap-3"
         controlClassName="mt-0.5"
       >
-        <span className="text-sm font-medium">I agree to Injishi checking my ID.</span>
+        <span className="text-sm font-medium">
+          {byNumber ? "I agree to Injishi checking my ID with NIDA." : "I agree to Injishi checking my ID."}
+        </span>
       </Checkbox>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <Button
-          onClick={() => void scan()}
+          onClick={() => void check()}
           pending={busy}
-          disabled={!front || !selfie || !consent || !online}
+          disabled={!ready}
           aria-describedby={online ? undefined : "register-scan-offline"}
         >
-          {busy ? "Checking your photos…" : "Scan my ID"}
+          {busy ? "Checking…" : byNumber ? "Check my ID" : "Scan my ID"}
         </Button>
-        {online ? null : <Offline id="register-scan-offline">You're offline. Connect to scan your ID.</Offline>}
+        {online ? null : <Offline id="register-scan-offline">You're offline. Connect to check your ID.</Offline>}
       </div>
 
       {problem ? (
@@ -202,7 +282,7 @@ function PhotoSlot({
       <input
         id={id}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic"
+        accept="image/jpeg,image/png,image/webp"
         capture={capture}
         className="sr-only"
         onChange={(e) => onFile(e.target.files?.[0] ?? null)}
@@ -242,15 +322,23 @@ export function IdentityCard({ person }: { person: IdentityOnFile }) {
         <Pair label="Date of birth" value={person.dateOfBirth} />
         <Pair label="ID" value={doc} />
       </dl>
-      <p className="mt-3 text-xs text-muted-foreground">
-        {person.generated
-          ? "Demo details: the demo made these up. Nothing was read from a document."
-          : person.checked
-            ? "Read from your ID. If one is wrong, contact support."
-            : "You typed these. PSF compares them with your photos before approving."}
-      </p>
+      <p className="mt-3 text-xs text-muted-foreground">{provenance(person)}</p>
     </div>
   );
+}
+
+/** Where the details came from, in one sentence. */
+function provenance(person: IdentityOnFile): string {
+  if (person.generated) {
+    return "Test details: a stand-in service made these up. No real register or document was read.";
+  }
+  if (person.source === "registry") {
+    return person.checked
+      ? "From NIDA's register. If one is wrong, contact support."
+      : "From NIDA's register. PSF compares your selfie with your ID photo before approving.";
+  }
+  if (person.checked) return "Read from your ID. If one is wrong, contact support.";
+  return "You typed these. PSF compares them with your photos before approving.";
 }
 
 function Pair({ label, value }: { label: string; value: string }) {

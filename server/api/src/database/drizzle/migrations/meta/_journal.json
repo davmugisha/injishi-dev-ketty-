@@ -722,6 +722,13 @@
       "when": 1793272043635,
       "tag": "0102_mobile_offline_writes",
       "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1793329766650,
+      "tag": "0103_identity_national_id_registry",
+      "breakpoints": true
     }
   ]
 }

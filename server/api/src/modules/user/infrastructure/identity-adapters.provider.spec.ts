@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { registerPerson } from '../../../shared/registry/demo-registers';
 import { RraTinAdapter } from '../../organization/infrastructure/rra-tin.adapter';
 import { resolveIdentityMode } from '../domain/identity-ports';
-import { buildDocumentVerifier } from './identity-adapters.provider';
-import { MockDocumentVerifier } from './mock-identity-adapters';
+import { GtbankNidaRegistry } from './gtbank-nida.registry';
+import { buildDocumentVerifier, buildNationalIdRegistry } from './identity-adapters.provider';
+import { MockDocumentVerifier, MockNationalIdRegistry } from './mock-identity-adapters';
+import { SmileIdDocumentVerifier } from './smile-id-document.verifier';
 
 /**
  * The document verifier seam (ADR-060, ADR-075): which side runs, decided once
@@ -34,7 +36,64 @@ describe('resolveIdentityMode', () => {
   it('reads the mode case and whitespace insensitively, and refuses nonsense', () => {
     expect(resolveIdentityMode('X', ' Live ', false)).toBe('live');
     expect(resolveIdentityMode('X', 'OFF', true)).toBe('off');
-    expect(() => resolveIdentityMode('X', 'maybe', true)).toThrow(/must be "mock", "live" or "off"/);
+    expect(() => resolveIdentityMode('X', 'maybe', true)).toThrow(/must be "mock", "sandbox", "live" or "off"/);
+  });
+});
+
+describe('the sandbox mode', () => {
+  it('is refused over a real database, like the mock', () => {
+    expect(() => resolveIdentityMode('NIDA_ADAPTER_MODE', 'sandbox', false)).toThrow(/NIDA_ADAPTER_MODE=sandbox is refused/);
+    expect(resolveIdentityMode('NIDA_ADAPTER_MODE', ' SANDBOX ', true)).toBe('sandbox');
+  });
+
+  it('binds the HTTP adapters against Injishi Mock APIs', () => {
+    expect(buildDocumentVerifier({ DOCUMENT_VERIFIER_MODE: 'sandbox' }, SAMPLE)).toBeInstanceOf(SmileIdDocumentVerifier);
+    expect(buildNationalIdRegistry({ NIDA_ADAPTER_MODE: 'sandbox' }, SAMPLE)).toBeInstanceOf(GtbankNidaRegistry);
+    expect(() => buildNationalIdRegistry({ NIDA_ADAPTER_MODE: 'sandbox', MOCK_APIS_URL: 'not a url' }, SAMPLE)).toThrow(
+      /MOCK_APIS_URL must be a URL/,
+    );
+  });
+});
+
+describe('the National ID registry', () => {
+  it('binds the mock over a sample database and off over a real one, and refuses live with none registered', () => {
+    expect(buildNationalIdRegistry({}, SAMPLE).mode).toBe('mock');
+    expect(buildNationalIdRegistry({}, REAL).mode).toBe('off');
+    expect(() => buildNationalIdRegistry({ NIDA_ADAPTER_MODE: 'live' }, REAL)).toThrow(
+      /no live National ID registry is registered/,
+    );
+  });
+
+  const registry = new MockNationalIdRegistry();
+  const selfie = (extra = ''): { mime: string; bytes: Buffer } => ({
+    mime: 'image/png',
+    bytes: Buffer.concat([Buffer.alloc(4096, 9), Buffer.from(extra, 'latin1')]),
+  });
+
+  it('finds a number in the demo register, as the person the TIN mock names a director', async () => {
+    const found = await registry.verify({ documentNumber: '1198870034567812', selfie: selfie(), reference: 'r' });
+    expect(found).toMatchObject({ status: 'verified', face: 'match', holder: { fullName: 'Aline Uwase', issuingCountry: 'RW' } });
+  });
+
+  it("refuses a number nobody holds, a tiny selfie, and a demo selfie of someone else", async () => {
+    expect(await registry.verify({ documentNumber: '1199080000000012', selfie: selfie(), reference: 'r' })).toEqual({
+      status: 'rejected',
+      reason: 'not_found',
+    });
+    expect(
+      await registry.verify({
+        documentNumber: '1198870034567812',
+        selfie: { mime: 'image/png', bytes: Buffer.alloc(100) },
+        reference: 'r',
+      }),
+    ).toEqual({ status: 'rejected', reason: 'unreadable' });
+    expect(
+      await registry.verify({
+        documentNumber: '1198870034567812',
+        selfie: selfie('INJISHI-DEMO-FACE:1198580045678923 '),
+        reference: 'r',
+      }),
+    ).toEqual({ status: 'rejected', reason: 'face_mismatch' });
   });
 });
 

@@ -13,6 +13,8 @@ import type {
   DocumentImage,
   DocumentVerifierPort,
   IdentityAdapterMode,
+  NationalIdCheck,
+  NationalIdRegistryPort,
 } from '../domain/identity-ports';
 
 /**
@@ -39,6 +41,7 @@ export class MockDocumentVerifier implements DocumentVerifierPort {
     documentType: 'national_id' | 'passport';
     front: DocumentImage;
     selfie: DocumentImage;
+    issuingCountry?: string | null;
   }): Promise<DocumentCheck> {
     if (input.front.bytes.length < MIN_IMAGE_BYTES || input.selfie.bytes.length < MIN_IMAGE_BYTES) {
       return { status: 'rejected', reason: 'unreadable' };
@@ -61,7 +64,54 @@ export class OffDocumentVerifier implements DocumentVerifierPort {
   }
 }
 
+/**
+ * The MOCK population register (2026-10-30): a National ID number and a selfie,
+ * answered from the same demo register the TIN mock's directors are drawn
+ * from (`registerPerson`), so a number that directs a demo business is found
+ * as that person. It checks what a mock honestly can:
+ *
+ * - a selfie under 2 KB is `unreadable`;
+ * - a number the register does not hold (a sequence of `0000000`) is `not_found`;
+ * - a DEMO SELFIE (Injishi Mock APIs' console draws them) names whose face it
+ *   is, `INJISHI-DEMO-FACE:` and a number, and fails the match when that is
+ *   someone else's number. A camera selfie carries no marker and matches.
+ */
+@Injectable()
+export class MockNationalIdRegistry implements NationalIdRegistryPort {
+  readonly mode: IdentityAdapterMode = 'mock';
+
+  async verify(input: { documentNumber: string; selfie: DocumentImage; reference: string }): Promise<NationalIdCheck> {
+    if (input.selfie.bytes.length < MIN_IMAGE_BYTES) return { status: 'rejected', reason: 'unreadable' };
+    const person = registerPerson(input.documentNumber);
+    if (!person) return { status: 'rejected', reason: 'not_found' };
+    const face = DEMO_FACE.exec(input.selfie.bytes.toString('latin1'))?.[1];
+    if (face && face !== input.documentNumber) return { status: 'rejected', reason: 'face_mismatch' };
+    return {
+      status: 'verified',
+      face: 'match',
+      generated: true,
+      holder: {
+        fullName: person.fullName,
+        dateOfBirth: person.dateOfBirth,
+        gender: person.gender,
+        documentNumber: input.documentNumber,
+        issuingCountry: 'RW',
+        expiresOn: null,
+      },
+    };
+  }
+}
+
+/** The registry switched off: a National ID is checked by scanning the card instead. */
+export class OffNationalIdRegistry implements NationalIdRegistryPort {
+  readonly mode: IdentityAdapterMode = 'off';
+  async verify(): Promise<NationalIdCheck> {
+    return { status: 'unavailable' };
+  }
+}
+
 const MIN_IMAGE_BYTES = 2048;
+const DEMO_FACE = /INJISHI-DEMO-FACE:([A-Z0-9]{5,20})(?![A-Z0-9])/;
 const PASSPORT_COUNTRIES = ['KE', 'UG', 'TZ', 'GB', 'US', 'DE', 'FR', 'BE'];
 const DEMO_CARD = /INJISHI-DEMO-NID:(\d{16})/;
 

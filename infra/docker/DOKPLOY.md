@@ -354,6 +354,22 @@ records the fee as paid without moving money while `PAYMENT_ADAPTER_MODE=off`.
 - **Storage is its own.** Its own `minio`, KMS key, root password and API user,
   never production's, answering on `storage.<STAGING_DOMAIN>` behind the same
   allowlist.
+- **Injishi Mock APIs runs beside it** (ADR-077): the `mock-apis` service, built
+  on the host from `infra/docker/Dockerfile.mock-apis`, plays GTBank (NIDA and
+  the Payment Hub), RRA and Smile ID from seeded registers. The API reaches it
+  as `http://injishi-mock-apis:8100`. Every registration seam still defaults to
+  its in-process mock; to run one against the mock server over HTTP, set its
+  mode to `sandbox` in the environment's variables and redeploy:
+  `RRA_TIN_ADAPTER_MODE`, `NIDA_ADAPTER_MODE`, `DOCUMENT_VERIFIER_MODE`,
+  `PAYMENT_ADAPTER_MODE`. Set `MOCK_APIS_SECRET` (16 characters or more, read by
+  both sides) so the credentials are this stack's own. Its console (people,
+  TINs, passports, wallets, demo ID images, Approve and Decline for a pending
+  prompt) answers on `MOCK_HOST` (default `mock-staging.injishi.com`, an A
+  record to this host) behind `STAGING_ALLOWED_IPS`, and shows that secret. The
+  API refuses `sandbox` over a database without the sample marker, and the
+  mock refuses `NODE_ENV=production` unless the compose file says it is a
+  sample stack, so neither can reach production by accident. Production and
+  the demo do not run it.
 
 ## Object storage and mail
 

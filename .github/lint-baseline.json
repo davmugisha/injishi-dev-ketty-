@@ -26,5 +26,6 @@
   "@injishi/ui-contract": 0,
   "@injishi/utils": 0,
   "@injishi/web-ui": 0,
-  "@injishi/api": 0
+  "@injishi/api": 0,
+  "@injishi/mock-apis": 0
 }

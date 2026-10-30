@@ -215,6 +215,11 @@ export class RecordedPaymentPort implements PaymentPort {
       // person (AC-7).
       return receipt;
     }
+    if (receipt.failure) {
+      // The bank ended it unpaid: the payer declined, or the wallet was short.
+      await this.record.applyPulled(row.id, 'failed', receipt.failure.reason);
+      return receipt;
+    }
     await this.record.applyPulled(row.id, receipt.settlement === 'settled' ? 'successful' : 'pending');
     return receipt;
   }

@@ -85,10 +85,14 @@ function reasonFor(destination: string, unwrap = true): string | null {
   if (path.startsWith("/inbox")) {
     return "Sign in to read your messages. We'll take you straight there.";
   }
-  // The register gate sends signed-out visitors here rather than signing them
-  // in itself (ADR-060): one sign-in screen, with Google on it.
+  // The register gate signs a visitor in where they stand (ADR-069 D-g) and
+  // sends them here only when a code was accepted and no session was kept, so
+  // this reason is for that fallback and for a link typed or kept.
   if (path.startsWith("/register")) {
     return "Sign in to register your business. A business belongs to the person who registers it, so we need to know who that is. We'll bring you straight back.";
+  }
+  if (path.startsWith("/claim-org")) {
+    return "Sign in to claim the business registered for you. We'll bring you straight back to the claim.";
   }
   if (path.startsWith("/saved")) {
     return "Sign in to see the stays you've saved.";
