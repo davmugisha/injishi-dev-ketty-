@@ -65,3 +65,7 @@ export function writeMeta(key: string, value: string): void {
     value,
   );
 }
+
+export function deleteMeta(key: string): void {
+  dataDb().runSync("DELETE FROM outbox_meta WHERE key = ?", key);
+}

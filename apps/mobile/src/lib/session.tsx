@@ -1,9 +1,12 @@
 import type { Persona } from "@injishi/data/personas";
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import * as SecureStore from "expo-secure-store";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { setOutboxAccount } from "@/data/outbox";
 import { wipeAccount } from "@/data/wipe";
 import { type Account, forgetStepUp, keepStepUp, loadSession, signOut as signOutOfApi } from "./auth";
+import { isReturnPath } from "./return-path";
 import { sessionEvents } from "./session-events";
+import { resetWelcome } from "./welcome";
 
 type Status = "loading" | "signed-in" | "signed-out" | "unreachable";
 
@@ -21,6 +24,14 @@ interface SessionValue {
   stepUpVerified: () => void;
   /** Delete everything this account left on the phone, then sign out (`useSignOut` asks first). */
   signOut: () => Promise<void>;
+  /**
+   * Before opening sign in from a guest screen: where to come back to (mobile spec 0005, D-av). Kept in
+   * memory and in secure storage, so a Google round trip that restarts the app still finds it. Only a
+   * `/guest/` path is kept (the allowlist).
+   */
+  setPendingReturn: (path: string) => void;
+  /** The kept path, once: it is cleared as it is read. The start route reads it when the session is ready. */
+  takePendingReturn: () => string | null;
 }
 
 interface State {
@@ -37,7 +48,12 @@ const SessionContext = createContext<SessionValue>({
   refresh: async () => {},
   stepUpVerified: () => {},
   signOut: async () => {},
+  setPendingReturn: () => {},
+  takePendingReturn: () => null,
 });
+
+/** Secure storage key of the pending return. Not a secret, but it is where the person was. */
+const RETURN_KEY = "return.pending";
 
 /**
  * Who is signed in on this phone, resolved by the API (`lib/auth.ts`). An unreachable API is not a
@@ -46,6 +62,31 @@ const SessionContext = createContext<SessionValue>({
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>({ status: "loading", persona: null, account: null });
+  const pendingReturn = useRef<string | null>(null);
+
+  const setPendingReturn = useCallback((path: string) => {
+    if (!isReturnPath(path)) return;
+    pendingReturn.current = path;
+    try {
+      SecureStore.setItem(RETURN_KEY, path);
+    } catch {
+      // The memory copy still serves a sign in that keeps the app running.
+    }
+  }, []);
+
+  const takePendingReturn = useCallback((): string | null => {
+    let path = pendingReturn.current;
+    if (!path) {
+      try {
+        path = SecureStore.getItem(RETURN_KEY);
+      } catch {
+        path = null;
+      }
+    }
+    pendingReturn.current = null;
+    void SecureStore.deleteItemAsync(RETURN_KEY).catch(() => {});
+    return isReturnPath(path) ? path : null;
+  }, []);
 
   const refresh = useCallback(async () => {
     const next = await loadSession();
@@ -85,6 +126,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setOutboxAccount(null);
     if (userId) await wipeAccount(userId);
     await signOutOfApi();
+    // The welcome shows again after a sign out (mobile spec 0005, D-b), and nothing waits to return.
+    resetWelcome();
+    pendingReturn.current = null;
+    void SecureStore.deleteItemAsync(RETURN_KEY).catch(() => {});
     setState({ status: "signed-out", persona: null, account: null });
   }, [userId]);
 
@@ -95,8 +140,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       refresh,
       stepUpVerified,
       signOut,
+      setPendingReturn,
+      takePendingReturn,
     }),
-    [state, refresh, stepUpVerified, signOut],
+    [state, refresh, stepUpVerified, signOut, setPendingReturn, takePendingReturn],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
