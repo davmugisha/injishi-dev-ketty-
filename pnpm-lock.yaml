@@ -996,9 +996,6 @@ importers:
 
   products/pms:
     dependencies:
-      '@injishi/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
       '@injishi/product-contract':
         specifier: workspace:*
         version: link:../../packages/product-contract
@@ -1012,6 +1009,9 @@ importers:
       '@heroui/react':
         specifier: 3.2.6
         version: 3.2.6(@internationalized/date@3.12.4)(@react-aria/ssr@3.10.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@react-aria/utils@3.34.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@react-spectrum/provider@3.11.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-aria-components@1.22.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-aria@3.53.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(tailwind-merge@3.7.0)(tailwindcss@4.3.3)
+      '@injishi/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@injishi/ui':
         specifier: workspace:*
         version: link:../../packages/ui
